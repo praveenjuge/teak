@@ -5,7 +5,11 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
 import { queueObjectDeletion } from "./storage/r2";
-import { serializeArchivableRaw } from "./storage/rawMetadata";
+import { getR2KeyPrefix } from "./storage/r2Keys";
+import {
+  assertArchivedRawReference,
+  serializeArchivableRaw,
+} from "./storage/rawMetadata";
 
 export * from "./linkMetadata/instagram";
 export { extractInstagramMediaFromHtml } from "./linkMetadata/instagramHtml";
@@ -71,6 +75,7 @@ export const getCardForLinkFetchHandler = async (
     type: card.type,
     url: card.url,
     userId: card.userId,
+    keyPrefix: getR2KeyPrefix(),
     processingStatus: card.processingStatus?.classify
       ? { classify: { status: card.processingStatus.classify.status } }
       : undefined,
@@ -169,6 +174,7 @@ export const updateCardMetadataHandler = async (
     });
   }
   const nextLinkPreview = linkPreview ? { ...linkPreview } : undefined;
+  assertArchivedRawReference(existingCard, "linkPreview", nextLinkPreview);
   const previousImageRef = previousLinkPreview?.imageStorageKey;
   const nextImageRef = nextLinkPreview?.imageStorageKey;
   const replacedRefs: string[] = [];
@@ -267,16 +273,20 @@ export const updateCardMetadataHandler = async (
     updateFields.metadataDescription = description;
   }
 
+  // A replaced raw archive is never deleted (kept for recovery), but one this
+  // write introduces and fails to commit has nothing pointing at it.
   const previousRefs = new Set<string>(
     [
       previousLinkPreview?.imageStorageKey,
       previousLinkPreview?.screenshotStorageKey,
+      previousLinkPreview?.rawStorageKey,
       ...collectMediaStorageRefs(previousLinkPreview?.media),
     ].filter((ref): ref is string => Boolean(ref))
   );
   const introducedRefs = [
     nextLinkPreview?.imageStorageKey,
     nextLinkPreview?.screenshotStorageKey,
+    nextLinkPreview?.rawStorageKey,
     ...collectMediaStorageRefs(nextLinkPreview?.media),
   ].filter(
     (ref): ref is string =>

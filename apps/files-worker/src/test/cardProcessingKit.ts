@@ -127,6 +127,7 @@ export const createCardConvex = (
     "linkMetadata:getCardForLinkFetch": () =>
       card
         ? {
+            keyPrefix: "",
             processingStatus: card.processingStatus?.classify
               ? { classify: { status: card.processingStatus.classify.status } }
               : undefined,

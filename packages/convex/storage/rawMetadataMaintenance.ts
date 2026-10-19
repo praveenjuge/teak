@@ -12,6 +12,7 @@ import { accountDeletionOwnsRows } from "../accountDeletion";
 import { ensureObjectOwnership } from "./ownership";
 import { cardStorageObjectKeys, queueObjectDeletion } from "./r2";
 import {
+  archivedRawSummary,
   copyAndVerifyRaw,
   hashRawMetadata,
   RAW_METADATA_KINDS,
@@ -109,20 +110,8 @@ const commitArchiveOutcome = async (
     raw: undefined,
     rawStorageKey: key,
     rawSha256: digest,
+    ...archivedRawSummary(kind, part.raw),
   };
-  if (kind === "linkCategory") {
-    const raw = part.raw as {
-      structured?: unknown;
-      structuredMeta?: { fetchedAt?: unknown } | null;
-    } | null;
-    Object.assign(archived, {
-      rawHasStructured: Boolean(raw?.structured),
-      rawStructuredFetchedAt:
-        typeof raw?.structuredMeta?.fetchedAt === "number"
-          ? raw.structuredMeta.fetchedAt
-          : undefined,
-    });
-  }
   await ctx.db.patch("cards", cardId, {
     metadata: { ...card.metadata, [kind]: archived },
   });

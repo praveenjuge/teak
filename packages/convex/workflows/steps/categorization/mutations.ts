@@ -8,7 +8,11 @@ import {
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { r2KeyValidator } from "../../../schema";
 import { rateLimiter } from "../../../shared/rateLimits";
-import { serializeArchivableRaw } from "../../../storage/rawMetadata";
+import { queueObjectDeletion } from "../../../storage/r2";
+import {
+  assertArchivedRawReference,
+  serializeArchivableRaw,
+} from "../../../storage/rawMetadata";
 
 export const updateCategorization = internalMutation({
   args: {
@@ -47,11 +51,20 @@ export const updateCategorization = internalMutation({
         : {}),
     };
 
-    await patchCardWithSearchSync(ctx, cardId, {
+    assertArchivedRawReference(card, "linkCategory", metadata);
+    const committed = await patchCardWithSearchSync(ctx, cardId, {
       metadata: updatedMetadata,
       processingStatus: updatedProcessing,
       updatedAt: now,
     });
+    const archivedRawKey: string | undefined = metadata.rawStorageKey;
+    if (
+      !committed &&
+      archivedRawKey &&
+      archivedRawKey !== card.metadata?.linkCategory?.rawStorageKey
+    ) {
+      await queueObjectDeletion(ctx, archivedRawKey);
+    }
 
     if (serializeArchivableRaw(metadata.raw) !== null) {
       await ctx.scheduler.runAfter(

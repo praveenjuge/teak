@@ -5,51 +5,20 @@ import { putObjectViaFilesWorker } from "./filesWorkerClient";
 import { getR2Url } from "./fileUrls";
 import { buildR2UserPrefix } from "./r2";
 import { sha256Hex } from "./r2Keys";
+import {
+  RAW_METADATA_KINDS,
+  RAW_METADATA_MAX_BYTES,
+  type RawMetadataKind,
+} from "./rawMetadataJson";
 
-export const RAW_METADATA_MAX_BYTES = 512 * 1024;
-export const RAW_METADATA_KINDS = ["linkPreview", "linkCategory"] as const;
-export type RawMetadataKind = (typeof RAW_METADATA_KINDS)[number];
-const MIN_ARCHIVED_RAW_BYTES = 1024;
-
-const survivesJsonRoundTrip = (value: unknown): boolean => {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return true;
-  }
-  if (typeof value === "number") {
-    return Number.isFinite(value) && !Object.is(value, -0);
-  }
-  if (Array.isArray(value)) {
-    return value.every(survivesJsonRoundTrip);
-  }
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      Object.getPrototypeOf(value) === Object.prototype &&
-      Object.values(value).every(survivesJsonRoundTrip)
-  );
-};
-
-export const serializeRawMetadata = (raw: unknown): string | null => {
-  if (!survivesJsonRoundTrip(raw)) {
-    return null;
-  }
-  const json = JSON.stringify(raw);
-  return new TextEncoder().encode(json).byteLength <= RAW_METADATA_MAX_BYTES
-    ? json
-    : null;
-};
-
-export const serializeArchivableRaw = (raw: unknown): string | null => {
-  const json = serializeRawMetadata(raw);
-  return json !== null &&
-    new TextEncoder().encode(json).byteLength >= MIN_ARCHIVED_RAW_BYTES
-    ? json
-    : null;
-};
+export {
+  archivedRawSummary,
+  RAW_METADATA_KINDS,
+  RAW_METADATA_MAX_BYTES,
+  type RawMetadataKind,
+  serializeArchivableRaw,
+  serializeRawMetadata,
+} from "./rawMetadataJson";
 
 export const hashRawMetadata = (json: string): Promise<string> =>
   sha256Hex(json);
@@ -69,6 +38,30 @@ export const rawMetadataKey = (
     throw new Error("raw_metadata_invalid_key");
   }
   return `${buildR2UserPrefix(card.userId)}/${card._id}/raw-${kind}/${digest}.json`;
+};
+
+/**
+ * The Files Worker archives qualifying raw payloads itself and sends the
+ * reference in their place. A reference must name this card's own key for
+ * that kind and digest, as hydration requires.
+ */
+export const assertArchivedRawReference = (
+  card: Pick<Doc<"cards">, "_id" | "userId">,
+  kind: RawMetadataKind,
+  part:
+    | { raw?: unknown; rawSha256?: string; rawStorageKey?: string }
+    | null
+    | undefined
+) => {
+  if (part?.rawStorageKey === undefined || part.raw !== undefined) {
+    return;
+  }
+  if (
+    !part.rawSha256 ||
+    part.rawStorageKey !== rawMetadataKey(card, kind, part.rawSha256)
+  ) {
+    throw new Error("raw_metadata_card_namespace_mismatch");
+  }
 };
 
 const readArchivedRaw = async (
