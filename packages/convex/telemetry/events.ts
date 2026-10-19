@@ -1,7 +1,17 @@
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
-import { resolveSizeBucket } from "../shared/analytics";
+import {
+  type EmailAttachmentSkipReason,
+  type EmailReceivedOutcome,
+  resolveSizeBucket,
+  type ServerEventCatalog,
+  type ServerEventName,
+} from "../shared/analytics";
 import { captureBackendEvent } from "./posthog";
+
+// Mutations queue their events in the workflow dispatch outbox
+// (`./schedule.ts`). These three actions stay only for jobs scheduled before
+// that (`.agents/sunset.md`).
 
 export const emitCardOutcome = internalAction({
   args: {
@@ -73,7 +83,10 @@ export const emitCardProcessingFailed = internalAction({
   },
 });
 
-/** Save by email's server events (inbound/); never content or addresses. */
+/**
+ * Save by email's server events, scheduled by the HTTP actions in
+ * `inbound/http.ts`; never content or addresses.
+ */
 export const emitInboundEmail = internalAction({
   args: {
     enabled: v.optional(v.boolean()),
@@ -102,24 +115,45 @@ export const emitInboundEmail = internalAction({
   },
   returns: v.null(),
   handler: async (_ctx, args) => {
-    if (args.event === "email_received" && args.outcome) {
-      await captureBackendEvent(args.event, args.userId, {
-        outcome: args.outcome,
-      });
-    } else if (args.event === "email_attachment_saved") {
-      await captureBackendEvent(args.event, args.userId, {
-        kind: args.kind ?? "other",
-        size_bucket: resolveSizeBucket(args.sizeBytes ?? 0),
-      });
-    } else if (args.event === "email_attachment_skipped" && args.reason) {
-      await captureBackendEvent(args.event, args.userId, {
-        reason: args.reason,
-      });
-    } else if (args.event === "email_save_toggled") {
-      await captureBackendEvent(args.event, args.userId, {
-        enabled: args.enabled === true,
-      });
-    }
+    await recordInboundEmailEvent(args, (event, properties) =>
+      captureBackendEvent(event, args.userId, properties)
+    );
     return null;
   },
 });
+
+export interface InboundEmailEventArgs {
+  enabled?: boolean;
+  event:
+    | "email_received"
+    | "email_attachment_saved"
+    | "email_attachment_skipped"
+    | "email_save_toggled";
+  kind?: string;
+  outcome?: EmailReceivedOutcome;
+  reason?: EmailAttachmentSkipReason;
+  sizeBytes?: number;
+  userId: string;
+}
+
+/** Maps a Save by email outcome to its event, for an action or the outbox. */
+export const recordInboundEmailEvent = async (
+  args: InboundEmailEventArgs,
+  record: <Name extends ServerEventName>(
+    event: Name,
+    properties: ServerEventCatalog[Name]
+  ) => Promise<void>
+): Promise<void> => {
+  if (args.event === "email_received" && args.outcome) {
+    await record(args.event, { outcome: args.outcome });
+  } else if (args.event === "email_attachment_saved") {
+    await record(args.event, {
+      kind: args.kind ?? "other",
+      size_bucket: resolveSizeBucket(args.sizeBytes ?? 0),
+    });
+  } else if (args.event === "email_attachment_skipped" && args.reason) {
+    await record(args.event, { reason: args.reason });
+  } else if (args.event === "email_save_toggled") {
+    await record(args.event, { enabled: args.enabled === true });
+  }
+};

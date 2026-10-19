@@ -30,6 +30,9 @@ const required = [
   "score-relevance",
 ];
 
+// Item types Convex hands to the `dispatch` op.
+const requiredDispatchItems = ["workflow", "delete-objects", "analytics-event"];
+
 async function productionEnv(name: string): Promise<string> {
   const child = Bun.spawn(
     ["bun", "x", "convex", "env", "get", name, "--prod"],
@@ -77,6 +80,7 @@ for (;;) {
       data?: {
         ai?: boolean;
         browser?: boolean;
+        dispatchItems?: string[];
         fetcher?: boolean;
         images?: boolean;
         importModes?: string[];
@@ -101,6 +105,9 @@ for (;;) {
       result.data.workflows === true &&
       result.data.vectorTypes === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
+      requiredDispatchItems.every((type) =>
+        result.data?.dispatchItems?.includes(type)
+      ) &&
       IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
   } catch (error) {
     failedWith =
@@ -110,7 +117,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
+      "Files worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
     );
     break;
   }

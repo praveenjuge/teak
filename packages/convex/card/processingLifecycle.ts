@@ -1,7 +1,7 @@
 import type { MutationCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import type { Id } from "../shared/types";
-import { scheduleCardProcessingFailed } from "../telemetry/schedule";
+import { queueCardProcessingFailed } from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,
   type ProcessingStageKey,
@@ -79,7 +79,7 @@ export const markUnfinishedCardStagesFailed = async (
     processingStatus: { ...current, ...failedStages },
     updatedAt: now,
   });
-  await scheduleCardProcessingFailed(ctx, {
+  await queueCardProcessingFailed(ctx, {
     cardType: card.type,
     errorClass: error,
     stage: Object.keys(failedStages)[0] ?? "unknown",

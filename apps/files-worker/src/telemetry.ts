@@ -1,5 +1,12 @@
-import { createPostHogBatch } from "@teak/convex/shared/posthog";
-import { FILES_OP_PATH, parseCardObjectKey } from "@teak/files-protocol";
+import {
+  BACKEND_POSTHOG_LIB,
+  createPostHogBatch,
+} from "@teak/convex/shared/posthog";
+import {
+  type AnalyticsEventItem,
+  FILES_OP_PATH,
+  parseCardObjectKey,
+} from "@teak/files-protocol";
 import packageJson from "../package.json";
 
 export interface TelemetryEnvVars {
@@ -41,6 +48,42 @@ const sendException = async (
     return;
   }
   await sent;
+};
+
+/**
+ * Sends Convex's queued analytics events in one `/batch/` request, as
+ * Convex's own capture would (`$lib: teak-backend`). A failed request is
+ * tried once more; each event's UUID keeps PostHog from counting it twice.
+ */
+export const sendBackendEvents = async (
+  env: TelemetryEnvVars,
+  events: AnalyticsEventItem[]
+): Promise<boolean> => {
+  if (events.length === 0 || !env.POSTHOG_PROJECT_TOKEN) {
+    return false;
+  }
+  const send = () => {
+    const batch = createPostHogBatch({
+      lib: BACKEND_POSTHOG_LIB,
+      platform: "node:javascript",
+      token: env.POSTHOG_PROJECT_TOKEN,
+    });
+    for (const item of events) {
+      batch.capture({
+        distinctId: item.distinctId,
+        event: item.event,
+        properties: {
+          ...item.properties,
+          ...(item.appVersion ? { $app_version: item.appVersion } : {}),
+        },
+        set: item.set,
+        timestamp: item.timestamp,
+        uuid: item.uuid,
+      });
+    }
+    return batch.flush();
+  };
+  return (await send()) || (await send());
 };
 
 const MAX_CONTEXT_STRING_LENGTH = 256;

@@ -69,9 +69,30 @@ describe("card/createCard.ts", () => {
     };
   });
 
+  const savedEnv = new Map<string, string | undefined>();
+  // Backend events are queued only where PostHog and the Files Worker are set.
+  const enableAnalytics = () => {
+    for (const [key, value] of Object.entries({
+      FILES_BASE: "https://files.test",
+      FILES_SIGNING_SECRET: "test-files-secret",
+      POSTHOG_PROJECT_TOKEN: "phc_test",
+    })) {
+      savedEnv.set(key, process.env[key]);
+      process.env[key] = value;
+    }
+  };
+
   afterEach(async () => {
     const billingModule = await import("../../billing");
     billingModule.polar.getCurrentSubscription = originalGetSubscription;
+    for (const [key, value] of savedEnv) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+    savedEnv.clear();
   });
 
   test("rejects storage keys outside the caller's namespace", async () => {
@@ -232,6 +253,7 @@ describe("card/createCard.ts", () => {
   });
 
   test("creates quote card when content is quoted", async () => {
+    enableAnalytics();
     const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -289,15 +311,16 @@ describe("card/createCard.ts", () => {
     expect(ctx.db.patch).toHaveBeenCalledWith("cards", "c1", {
       processingRev: 1,
     });
-    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
-      0,
-      expect.anything(),
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "workflowDispatches",
       expect.objectContaining({
-        cardId: "c1",
-        cardType: "quote",
-        outcome: "success",
-        source: "web",
-        userId: "u1",
+        kind: "analyticsEvent",
+        params: expect.objectContaining({
+          distinctId: "u1",
+          event: "card_created",
+          properties: { card_type: "quote", source: "web", surface: "backend" },
+        }),
+        state: "pending",
       })
     );
   });
@@ -634,7 +657,8 @@ describe("card/createCard.ts", () => {
     expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
-  test("normalizes failure classes before scheduling telemetry", async () => {
+  test("normalizes failure classes before queueing telemetry", async () => {
+    enableAnalytics();
     const ctx = withTestSession({
       runMutation: mock().mockResolvedValue({ ok: true }),
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
@@ -664,13 +688,19 @@ describe("card/createCard.ts", () => {
     await expect(handler(ctx, { content: "Hello" })).rejects.toThrow(
       "Request timed out"
     );
-    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
-      0,
-      expect.anything(),
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "workflowDispatches",
       expect.objectContaining({
-        errorClass: "TimeoutError",
-        outcome: "failure",
-        source: "unknown",
+        kind: "analyticsEvent",
+        params: expect.objectContaining({
+          event: "card_create_failed",
+          properties: {
+            card_type: "unknown",
+            error_class: "TimeoutError",
+            source: "unknown",
+            surface: "backend",
+          },
+        }),
       })
     );
   });

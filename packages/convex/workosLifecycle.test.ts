@@ -551,7 +551,7 @@ describe("new WorkOS lifecycle owners", () => {
     });
     expect(before.users[0].teakUserId).toMatch(/^teak_[a-zA-Z0-9]+$/);
     expect(before.quarantine).toEqual([]);
-    expect(before.scheduled).toHaveLength(2);
+    expect(before.scheduled).toHaveLength(1);
     expect(await componentUser(t, "user_NEW")).toMatchObject({
       email: "new@example.com",
       emailVerified: true,

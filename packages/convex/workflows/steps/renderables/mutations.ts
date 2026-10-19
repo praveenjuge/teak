@@ -7,7 +7,7 @@ import {
 } from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
 import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
-import { scheduleCardProcessingFailed } from "../../../telemetry/schedule";
+import { queueCardProcessingFailed } from "../../../telemetry/schedule";
 
 export const markCardRenderablesFailed = internalMutation({
   args: { cardId: v.id("cards"), error: v.string() },
@@ -28,7 +28,7 @@ export const markCardRenderablesFailed = internalMutation({
       }),
       updatedAt: now,
     });
-    await scheduleCardProcessingFailed(ctx, {
+    await queueCardProcessingFailed(ctx, {
       cardType: card.type,
       errorClass: args.error,
       stage: "renderables",

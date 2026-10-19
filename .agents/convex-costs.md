@@ -105,6 +105,13 @@ AI usage no longer costs a mutation per card. The Worker writes a Workers
 Analytics Engine data point per model call, and the hourly rollup sets each
 user's totals for today and yesterday in `aiUsageDaily` in batches of 200.
 
+Analytics events from mutations (`card_created`, `user_signed_up`,
+`card_processing_failed`, Save by email's) no longer schedule an action each.
+They are `workflowDispatches` rows that the next flush hands to the Files
+Worker, which sends them to PostHog. A card create already queues its
+processing, so its event adds one small insert and delete and no function
+call. Deployments without `POSTHOG_PROJECT_TOKEN` write no rows.
+
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,
 so only tool calls reach Convex's HTTP action. WorkOS webhooks are queued at

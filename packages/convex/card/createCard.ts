@@ -15,7 +15,7 @@ import type { FileMetadata } from "../shared/types";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
-import { scheduleCardOutcome } from "../telemetry/schedule";
+import { queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
 import { validateTextCardContent } from "./markdown";
@@ -291,7 +291,7 @@ export const createCardForUserHandler = async (
 
   await queueCardProcessing(ctx, cardId);
 
-  await scheduleCardOutcome(ctx, {
+  await queueCardOutcome(ctx, {
     cardId,
     cardType,
     outcome: "success",
@@ -317,7 +317,7 @@ export const createCard = mutation({
         source,
       });
     } catch (error) {
-      await scheduleCardOutcome(ctx, {
+      await queueCardOutcome(ctx, {
         cardType: args.type,
         errorClass: normalizeErrorClass(error),
         outcome: "failure",

@@ -691,7 +691,8 @@ export default defineSchema({
       v.literal("import"),
       v.literal("accountDeletion"),
       v.literal("maintenance"),
-      v.literal("deleteObjects")
+      v.literal("deleteObjects"),
+      v.literal("analyticsEvent")
     ),
     key: v.string(),
     instanceId: v.optional(v.string()),

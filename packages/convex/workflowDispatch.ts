@@ -1,4 +1,5 @@
 import {
+  type AnalyticsEventItem,
   accountDeletionInstanceId,
   buildWorkflowDispatchSigningPayload,
   cardProcessingInstanceId,
@@ -38,9 +39,11 @@ import {
 import { hmacSha256Hex, isR2KeyInNamespace, sha256Hex } from "./storage/r2Keys";
 
 type DispatchKind = Doc<"workflowDispatches">["kind"];
+// Analytics rows are removed when claimed, so they are never sent or stale.
+type TrackedKind = Exclude<DispatchKind, "analyticsEvent">;
 
 const WORKFLOW_BY_KIND: Record<
-  Exclude<DispatchKind, "deleteObjects">,
+  Exclude<TrackedKind, "deleteObjects">,
   WorkflowName
 > = {
   accountDeletion: "account-deletion",
@@ -50,7 +53,7 @@ const WORKFLOW_BY_KIND: Record<
   maintenance: "maintenance",
 };
 
-export const STALE_AFTER_MS: Record<DispatchKind, number> = {
+export const STALE_AFTER_MS: Record<TrackedKind, number> = {
   accountDeletion: 6 * 60 * 60 * 1000,
   cardProcessing: 60 * 60 * 1000,
   deleteObjects: 60 * 60 * 1000,
@@ -232,6 +235,22 @@ export const enqueueObjectDeletion = async (
   return usable.length;
 };
 
+/**
+ * Queues one backend analytics event for the Files Worker to send to
+ * PostHog. Its flush is the one this transaction already scheduled, if any,
+ * so an event costs no function call of its own.
+ */
+export const queueAnalyticsEvent = async (
+  ctx: MutationCtx,
+  event: Omit<AnalyticsEventItem, "type">
+): Promise<void> => {
+  await insertDispatch(ctx, {
+    key: "analytics",
+    kind: "analyticsEvent",
+    params: event,
+  });
+};
+
 const previousSentInstances = async (
   ctx: MutationCtx,
   row: Doc<"workflowDispatches">
@@ -271,6 +290,19 @@ export const claim = internalMutation({
       .take(Math.min(limit ?? FLUSH_BATCH, FLUSH_BATCH));
     const claimed: ClaimedItem[] = [];
     for (const row of rows) {
+      if (row.kind === "analyticsEvent") {
+        // Best effort, like an event an action sends itself: the row goes
+        // when it is handed over, so delivery needs no second write.
+        await ctx.db.delete("workflowDispatches", row._id);
+        claimed.push({
+          id: row._id,
+          item: {
+            ...(row.params as Omit<AnalyticsEventItem, "type">),
+            type: "analytics-event",
+          },
+        });
+        continue;
+      }
       if (row.kind === "deleteObjects") {
         await ctx.db.patch("workflowDispatches", row._id, {
           attempts: (row.attempts ?? 0) + 1,
@@ -404,6 +436,14 @@ export const flush = internalAction({
       if (claimed.length === 0) {
         return null;
       }
+      // Claiming removed the analytics rows, so only the rest can be retried.
+      const retryable = (accepted?: Set<number>) =>
+        claimed
+          .filter(
+            ({ item }, index) =>
+              item.type !== "analytics-event" && !accepted?.has(index)
+          )
+          .map(({ id }) => id);
       let failedIds: Id<"workflowDispatches">[] = [];
       let deliveredIds: Id<"workflowDispatches">[] = [];
       let error = "dispatch_rejected";
@@ -419,7 +459,7 @@ export const flush = internalAction({
           timeoutMs: 60_000,
         });
         if (outcome.kind === "declined") {
-          failedIds = claimed.map(({ id }) => id);
+          failedIds = retryable();
           error = outcome.code;
         } else {
           const accepted = new Set(
@@ -427,9 +467,7 @@ export const flush = internalAction({
               .filter((result) => result.ok)
               .map((result) => result.index)
           );
-          failedIds = claimed
-            .filter((_, index) => !accepted.has(index))
-            .map(({ id }) => id);
+          failedIds = retryable(accepted);
           deliveredIds = claimed
             .filter(
               ({ item }, index) =>
@@ -441,7 +479,7 @@ export const flush = internalAction({
             "dispatch_rejected";
         }
       } catch (caught) {
-        failedIds = claimed.map(({ id }) => id);
+        failedIds = retryable();
         error = caught instanceof Error ? caught.message : String(caught);
       }
       if (deliveredIds.length > 0) {
@@ -638,6 +676,7 @@ export const listStale = internalQuery({
       .take(Math.min(limit ?? 100, 200));
     return rows.flatMap((row) =>
       row.kind !== "deleteObjects" &&
+      row.kind !== "analyticsEvent" &&
       row.instanceId &&
       (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind]
         ? [
