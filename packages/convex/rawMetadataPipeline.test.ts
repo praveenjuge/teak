@@ -2,7 +2,8 @@ import { convexTest } from "convex-test";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import { hydrateArchivedMetadata } from "./storage/rawMetadata";
+import { cardStorageObjectKeys } from "./storage/r2";
+import { hydrateArchivedMetadata, rawMetadataKey } from "./storage/rawMetadata";
 
 const modules = import.meta.glob("./**/*.ts");
 afterEach(() => {
@@ -152,6 +153,76 @@ describe("raw metadata pipeline", () => {
       });
     }
   );
+
+  test.each(["preview", "category"] as const)(
+    "%s writer stores a Files Worker archive reference without scheduling an archive",
+    async (writer) => {
+      const { fetchMock } = installFilesWorker();
+      const { t, cardId, card } = await setup();
+      const kind = writer === "preview" ? "linkPreview" : "linkCategory";
+      const digest = "a".repeat(64);
+      const reference = {
+        rawSha256: digest,
+        rawStorageKey: rawMetadataKey(card, kind, digest),
+      };
+      if (writer === "preview") {
+        await t.mutation(internal.linkMetadata.updateCardMetadata, {
+          cardId,
+          status: "completed",
+          linkPreview: { status: "success", title: "New", ...reference },
+        });
+      } else {
+        await t.mutation(
+          internal.workflows.steps.categorization.mutations
+            .updateCategorization,
+          {
+            cardId,
+            metadata: {
+              category: "article",
+              sourceUrl: card.url,
+              fetchedAt: Date.now(),
+              rawHasStructured: true,
+              ...reference,
+            },
+          }
+        );
+      }
+      const stored = await t.run((ctx) => ctx.db.get("cards", cardId));
+      expect(stored?.metadata?.[kind]).toMatchObject(reference);
+      expect(stored?.metadata?.[kind]?.raw).toBeUndefined();
+      expect(cardStorageObjectKeys(stored!)).toContain(reference.rawStorageKey);
+      const scheduled = await t.run((ctx) =>
+        ctx.db.system.query("_scheduled_functions").collect()
+      );
+      expect(scheduled.map(({ name }) => name)).not.toContainEqual(
+        expect.stringContaining("rawMetadataMaintenance")
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+  );
+
+  test("refuses a reference outside the card's own namespace", async () => {
+    const { t, cardId, card } = await setup();
+    const digest = "b".repeat(64);
+    await expect(
+      t.mutation(internal.linkMetadata.updateCardMetadata, {
+        cardId,
+        status: "completed",
+        linkPreview: {
+          status: "success",
+          rawSha256: digest,
+          rawStorageKey: rawMetadataKey(
+            { ...card, userId: "someone-else" },
+            "linkPreview",
+            digest
+          ),
+        },
+      })
+    ).rejects.toThrow("raw_metadata_card_namespace_mismatch");
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", cardId)))?.metadata
+    ).toEqual(card.metadata);
+  });
 
   test("migration reports remaining cards when its deadline expires without fetching or modifying them", async () => {
     vi.useFakeTimers();

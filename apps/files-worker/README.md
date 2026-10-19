@@ -528,6 +528,15 @@ write carries the run's processing revision and lands only while the card is
 still on it, so an edit (which bumps the revision and stops the older run)
 can never be overwritten by the run it replaced.
 
+A link's raw scrape and its category's raw provider data (1 KiB to 512 KiB of
+JSON) go to R2 from the step, not through Convex
+(`src/workflows/cardProcessing/rawMetadata.ts`). The step registers the
+card's `raw-<kind>/<SHA-256>.json` key, writes it through the deletion gate,
+reads it back and checks its hash, and sends Convex only the reference.
+Smaller or non-lossless payloads, and any payload whose archive failed, still
+go inline, and Convex archives those itself as before. The rules are in
+`.agents/convex-costs.md` ("Raw provider metadata").
+
 Each deployment has its own workflow RPC secret: the Worker derives it from
 `WORKFLOW_RPC_ROOT_SECRET` and the deployment's origin, and the deployment
 holds only the result as `WORKFLOW_RPC_SECRET`. Gateway requests and the

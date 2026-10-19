@@ -563,6 +563,7 @@ test("link fetch reader preserves classification gates and owner without unrelat
     type: "link",
     url: card.url,
     userId: "owner",
+    keyPrefix: "",
     processingStatus: { classify: { status: "in_progress" } },
   });
   expect(

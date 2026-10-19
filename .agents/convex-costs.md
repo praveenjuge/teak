@@ -12,11 +12,22 @@ responses and customer exports already project customer-facing fields. Grid
 responses omit raw diagnostics. Display metadata, content, notes, tags, original
 files, processing status, and card timestamps remain unchanged.
 
-Payloads between 1 KiB and 512 KiB move to the existing signed Files Worker/R2
-path. Tiny or non-lossless JSON values stay inline. The archive writes a
-user/card/kind/SHA-256 key, reads it back, verifies its hash and JSON, then
-compares the current inline value before clearing it. Any failed verification
-or concurrent change retains inline data. Backend enrichment securely hydrates
+Payloads between 1 KiB and 512 KiB live in R2. Tiny or non-lossless JSON
+values stay inline. The card-processing Workflow archives them itself
+(`apps/files-worker/src/workflows/cardProcessing/rawMetadata.ts`): before the
+link metadata and categorization writes, it registers the
+user/card/kind/SHA-256 key, writes the JSON, reads it back and verifies its
+hash and JSON, then sends Convex the reference (`rawStorageKey`, `rawSha256`)
+instead of the payload. The mutation checks the key is the card's own and
+schedules nothing. So the card is never written with the payload, and no
+archive action reads it back and rewrites it.
+
+`storage/rawMetadataMaintenance:archiveCard` still archives inline payloads:
+old cards, a Worker archive that failed (the Workflow then sends the payload
+inline), and manual migration pages. It writes through the signed Files Worker
+path, reads the object back, verifies its hash and JSON, then compares the
+current inline value before clearing it. Any failed verification or
+concurrent change retains inline data. Backend enrichment securely hydrates
 archived data; card/account cleanup and orphan scans track current references.
 
 Old archive copies are deliberately retained for recovery. The orphan process
