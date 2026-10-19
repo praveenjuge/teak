@@ -143,7 +143,7 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 - `packages/ui/src/components/card-previews/__tests__/markdownToPlainText.test.ts` (the existing file): the table rule, including a table followed by text and the row separator.
 - `markdownDocument.test.ts` also covers a table inside a blockquote and inside a list item staying literal.
 - `LoadedMarkdownTextEditor.test.tsx` also covers: Enter in a cell moving down (and adding a row from the last one), Shift+Tab moving back, Backspace removing an empty table, each of the 7 menu actions, and the 20-column and 200-row caps.
-- Update `packages/tests/src/web/markdown-editor.e2e.ts:520` ("existing tables remain editable as literal Markdown without table controls"), which asserts no `table` role: it now uses an aligned table, which still stays literal, and a plain GFM table is covered by the new spec.
+- Update the tests that assert a plain table stays literal: the unsupported-content cases in `markdownDocument.test.ts` (around line 50, `| Name | State |…`) move that table to the round-trip cases and keep an aligned table as the literal example; and `packages/tests/src/web/markdown-editor.e2e.ts:520` ("existing tables remain editable as literal Markdown without table controls"), which asserts no `table` role: it now uses an aligned table, which still stays literal, and a plain GFM table is covered by the new spec.
 - e2e: `packages/tests/src/web/note-tables.e2e.ts` (new). `/table`, type in cells, Tab adds a row, use the menu to add and delete a column, reload, and the content is still there.
 
 ## Proof before the PR
