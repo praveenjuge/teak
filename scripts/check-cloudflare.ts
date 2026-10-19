@@ -268,7 +268,7 @@ const checkDevVars = () => {
     existsSync(ISOLATED_DEV_VARS_PATH) ? "ok" : "warn",
     existsSync(ISOLATED_DEV_VARS_PATH)
       ? "present for the isolated development Worker"
-      : "not needed while dev uses shared storage",
+      : "run bun run sync:cloudflare-dev --isolated",
     { blocking: false }
   );
 };
