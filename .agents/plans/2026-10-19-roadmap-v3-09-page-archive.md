@@ -15,7 +15,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
   - video, audio, iframes and embeds are always dropped.
 
   Past the cap, images are dropped (the largest first) until it fits. If the HTML and CSS alone are still over 20 MB, the archive becomes **text-only**: a minimal HTML document holding the page's title and body text.
-- **The card records the archive** in `cards.pageArchive`: `{ storageKey, bytes, kind: "full" | "text_only", source: "server" | "extension", capturedAt, sourceUrl }`. Processing has a new stage, `processingStatus.archive`, with the values pending, in progress, completed, failed or skipped. A failed archive never fails the card.
+- **The card records the archive** in `cards.pageArchive`: `{ storageKey, bytes, kind: "full" | "text_only", source: "server" | "extension", capturedAt, sourceUrl }`. Processing has a new stage, `processingStatus.archive`, using the existing `stageStatusValidator` values (pending, in progress, completed, failed; `schema.ts:35`). There is no `skipped` value: a run that has nothing to archive (not a link, trashed, or already archived) leaves the stage as it was. A failed archive never fails the card.
 - **The Chrome and Firefox extension sends the page as you saw it.** For the popup auto-save, the keyboard shortcut (phase 1) and the right-click Save Page:
   1. It reads the tab's rendered DOM through `chrome.scripting.executeScript`.
   2. It gzips it and uploads it to a signed URL from `POST /v1/page-snapshots/upload`.
@@ -88,7 +88,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 - `schema.ts`, on `cards`:
   - `pageArchive: v.optional(v.object({ storageKey: r2KeyValidator, bytes: v.number(), kind: v.union(v.literal("full"), v.literal("text_only")), source: v.union(v.literal("server"), v.literal("extension")), capturedAt: v.number(), sourceUrl: v.string() }))`
   - `pendingPageSnapshotKey: v.optional(r2KeyValidator)` and `pendingPageSnapshotAt: v.optional(v.number())`, holding the extension's upload, and when it was taken, until the workflow uses it.
-  - `processingStatus.archive` in the stage map, with the same `stageCompleted` and `stageFailed` helpers.
+  - `processingStatus.archive` in the stage map, with the same `stageCompleted` and `stageFailed` helpers. `createCardForUserHandler` sets it to `stagePending()` for link cards, alongside the other stages, and the workflow's failure path marks it failed like the others when it is still pending or in progress.
 - `storage/cardObjectKeys.ts`: add `card.pageArchive?.storageKey` and `card.pendingPageSnapshotKey`.
 - `workflows/steps/archive/mutations.ts`, both guarded by `{ cardId, rev }` and listed in `workflowRpcAllowlist.ts`:
   - `recordPageArchive({ cardId, archive })` replaces `pageArchive` through `patchCardWithSearchSync`. The archive is not searchable here (phase 10 adds the text), but a single write path keeps it simple. It queues the old archive object for deletion with `queueObjectDeletion` only when its key differs from the new one (a refresh of an unchanged page produces the same content-hash key, and deleting it would delete the new archive), and clears `pendingPageSnapshotKey` after queuing that object's deletion too.
@@ -135,7 +135,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 - **The new op `archive-page`** (in `FILES_OPS` and `ops.ts`):
   - **params:** `{ cardId, userId, url, snapshotKey? }`;
   - **source:** with `snapshotKey`, read and gunzip it (cap 20 MiB compressed / 60 MiB raw); otherwise call `fetchLinkPage` for the cached static HTML;
-  - **output:** run `buildPageArchive`, `PUT` the result to `cards/<cardId>/page-archive/<sha256>.html` with `Content-Type: text/html; charset=utf-8`, and return `{ storageKey, bytes, kind, source }`.
+  - **output:** run `buildPageArchive`, `PUT` the result to the key from the existing helper, `buildR2ObjectKey({ userId, cardId, role: "page-archive", name: "<sha256>.html" })` (`packages/files-protocol/src/storage.ts`), so it carries the environment prefix and the user's namespace like every other card object, with `Content-Type: text/html; charset=utf-8`, and return `{ storageKey, bytes, kind, source }`.
   - **`applyObjectHeaders`:** for a key whose role is `page-archive`, also set `Content-Security-Policy: sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:` and `Cross-Origin-Resource-Policy: cross-origin`. Even when opened directly, the copy then runs in an opaque origin with no scripts.
 - **`run.ts`:** append an "archive page" step after "transcribe podcast" for `cardType === "link"`, whether or not AI metadata completed.
   - Earlier steps can end the run before it (a link-metadata failure outside a refresh rethrows, `run.ts:260`). So when a link card's run ends in failure, the workflow's failure path dispatches a separate `archiveOnly` run for it, the same run the backfill uses; a page that can't be fetched then fails only its archive stage.
@@ -149,7 +149,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 
 - **`lib/pageSnapshot.ts` `capturePageSnapshot(tabId)`:**
   - `chrome.scripting.executeScript` with a function that clones `document.documentElement` and removes `script`, `noscript` and `template`;
-  - it sets each form control's value attribute from its live value, except `input[type=password]`, hidden inputs and any field with `autocomplete` of `current-password`, `new-password`, `one-time-code` or a `cc-*` value, whose values are cleared, so a snapshot never stores credentials or card numbers typed into the page;
+  - it copies each form control's live state into the clone (the `value` attribute for text inputs, `checked` for checkboxes and radios, `selected` on the chosen `option`s, and the text content of a `textarea`), except `input[type=password]`, hidden inputs and any field with `autocomplete` of `current-password`, `new-password`, `one-time-code` or a `cc-*` value, whose values are cleared, so a snapshot never stores credentials or card numbers typed into the page;
   - it adds `<base href=location.href>`, and returns `outerHTML` together with `location.href`;
   - it gzips the result with `CompressionStream`, skips it above 20 MiB compressed, and gives up after a 3 s timeout.
 - **`saveToTeak`:**
