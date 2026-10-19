@@ -44,7 +44,7 @@
     },
     "apps/email-worker": {
       "name": "@teak/email-worker",
-      "version": "1.0.86",
+      "version": "1.0.87",
       "dependencies": {
         "postal-mime": "2.7.3",
       },
