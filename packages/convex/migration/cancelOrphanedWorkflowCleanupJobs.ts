@@ -88,12 +88,19 @@ export const cancelOrphanedWorkflowCleanupJobs = internalMutation({
         0,
         internal["migration/cancelOrphanedWorkflowCleanupJobs"]
           .cancelOrphanedWorkflowCleanupJobs,
-        { cursor: page.continueCursor, dryRun, batchSize, totals, pendingByFunction }
+        {
+          cursor: page.continueCursor,
+          dryRun,
+          batchSize,
+          totals,
+          pendingByFunction,
+        }
       );
     } else if (isDone) {
       console.log("cancelOrphanedWorkflowCleanupJobs finished", {
         dryRun,
         ...totals,
+        pendingByFunction,
       });
     }
     return {
