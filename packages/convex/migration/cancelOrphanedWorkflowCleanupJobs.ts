@@ -63,7 +63,8 @@ export const cancelOrphanedWorkflowCleanupJobs = internalMutation({
         continue;
       }
       batch.pending += 1;
-      pendingByFunction[job.name] = (pendingByFunction[job.name] ?? 0) + 1;
+      pendingByFunction[job.name] =
+        (job.name in pendingByFunction ? pendingByFunction[job.name] : 0) + 1;
       if (!job.name.startsWith(ORPHANED_WORKFLOW_FUNCTION_PREFIX)) {
         continue;
       }
