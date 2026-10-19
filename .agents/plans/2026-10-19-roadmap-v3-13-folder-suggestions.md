@@ -133,7 +133,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
 ## API / MCP / SDK / CLI
 
 - `serializeCard` and `serializeListCard`: `folderSuggestion: { folderId, folderName, folderColor, confidence } | null`. It is resolved against the folders table, and null when the folder isn't eligible any more.
-  - The list serializer resolves folders through one per-request folder map, not one read per card.
+  - The single-card path (`GET /v1/cards/{id}`, used by the popup's poll) passes the folder it read with `ctx.db.get(folderId)` into `serializeCard`, since the serializer has no database access of its own. The list serializer resolves folders through one per-request folder map, not one read per card.
 - `DELETE /v1/cards/{cardId}/folder-suggestion`: 200 with the card. It is idempotent. Another user's card gets 404 and a trashed card 409. Route it in `parseCardRoute` beside `thumbnail`, and add the operation to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApiHttpCards.ts:739`); otherwise the pre-handler check answers 404 for a trashed card before the handler can return 409.
 - `publicApiOpenApi.ts`: the card schema field and the operation `dismissFolderSuggestion`.
 - MCP: the field appears in card output. New tool `teak_v1_dismiss_folder_suggestion { cardId }`. Agents accept a suggestion with the existing `teak_v1_add_cards_to_folder`.

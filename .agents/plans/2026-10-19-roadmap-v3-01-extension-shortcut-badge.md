@@ -90,7 +90,7 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
 
     "!" lasts 4 seconds, then the badge returns to the page's known state.
 - **New `lib/toolbarBadge.ts`:**
-  - `setTabBadge(tabId, state)`, where state is `"saved" | "saving" | "error" | "none"`, with text, colour and title per state:
+  - `setTabBadge(tabId, state, title?)`, where state is `"saved" | "saving" | "error" | "none"`, with text and colour per state and a default title per state. `title` overrides the tooltip, so the error rows above (rate limited, other errors, restricted pages) each show their own message:
     - "✓" on the brand green, which must pass contrast on light and dark toolbars;
     - "…" on neutral grey;
     - "!" on the destructive red.

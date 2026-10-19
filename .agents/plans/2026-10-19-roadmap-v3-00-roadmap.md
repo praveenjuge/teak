@@ -31,7 +31,7 @@ Close the most useful gaps between Teak and three comparable save-everything app
     - The embedding model is EmbeddingGemma (768 dimensions, 512 input tokens), in sharded Vectorize indexes (`.agents/semantic-search.md`).
   - **Link processing** (`apps/files-worker/src/workflows/cardProcessing/run.ts`):
     - It fetches the page HTML (kept up to 24 hours in the `LINK_PAGE_CACHE` KV namespace when the binding exists and the fetcher marks the page cacheable), scrapes the metadata, renders a screenshot with Browser Rendering, and reads text from the link images.
-    - The HTML and article text are never kept.
+    - Apart from that transient cache, the HTML and article text are never stored with the card.
   - **Clef** (`@cf/cloudflare/clef`, `packages/files-protocol/src/decisions.ts`) is Workers AI's decision model. It returns a probability for every allowed answer to typed questions and already decides the card type, link category, visual styles and search relevance. `ai/decisions.ts` `runDecision` calls it from Convex.
   - **Folders:**
     - Up to 500 manual or smart folders per user and 50 per card.
@@ -179,7 +179,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 - **Privacy wording.** The badge sends visited URLs, and the extension sends page HTML. Both change what Teak collects. The privacy policy and the extension store listings change in phases 1 and 9.
 - **Article text and embeddings.** EmbeddingGemma reads 512 tokens, so long articles are embedded from their title, summary and opening. Phase 10 decides whether to add chunked vectors.
 - **Translations without native review.** AI translations are spot-checked only. Phase 17 keeps a glossary and a "report a translation" link.
-- **Content-language AI tags** may split tags across languages (`design` and `diseño`). Phase 18 keeps tag matching per language, and phase 14's cleanup can merge them.
+- **Content-language AI tags** may split tags across languages (`design` and `diseño`). Phase 18 keeps tag matching per language. Phase 14's rules don't pair tags across languages, so those stay separate unless merged by hand on the Tags page.
 - **Phase 3 is the heaviest quick win.** A real `savedAt` sort key needs 13 new indexes on cards, folder rows and tag rows, so phase 3 ships as two PRs (fields, indexes and backfill, then readers and the rule). Its plan offers a cheaper alternative for the owner to weigh.
 - **Extension request budget.** Phase 1's badge checks and phase 13's popup polling for a folder suggestion both spend the same 120 requests a minute. Phase 13 reuses phase 1's cache and cap rather than adding its own.
 - **Highlights aren't searchable.** The owner chose to show highlights in the side panel only, so phase 12 keeps search out of scope.

@@ -11,7 +11,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - **The banner:** opening the Tags page computes duplicate groups across user tags and AI tags. When at least one group exists, a quiet banner appears above the list: "4 groups of tags look alike." with a "Review" button.
 - **The review sheet** lists each group:
   - its tags, with card counts;
-  - the reason: Plural, Spelling, Accents, Spacing or Similar meaning;
+  - the reason: Plural, Spelling, Accents or Spacing;
   - a choice of the tag to keep, defaulting to the most-used one;
   - a "Merge" button and a "Keep separate" button.
 - **Merging a group** runs one existing tag operation that merges every other tag of the group into the kept one. The sheet shows its progress and refreshes the summary.
@@ -57,7 +57,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
   - separators `-`, `_`, `.`, `/` and spaces removed;
   - simple English plurals removed: `ies` becomes `y`, then `es` after `s`/`x`/`ch`/`sh`, then a final `s` for stems of 4+ letters.
 - **"Sure" groups** share a fold key. Their reason comes from what differed: Plural, Spacing or Accents.
-- **"Unsure" pairs** are tags whose fold keys are within edit distance 1 (both 5–8 characters) or 2 (both 9+), and that don't share a fold key. Clef confirms them, and only pairs scoring at least 0.85 become "Spelling" or "Similar meaning" groups. At most 64 unsure pairs per computation, the most-used first.
+- **"Unsure" pairs** are tags whose fold keys are within edit distance 1 (both 5–8 characters) or 2 (both 9+), and that don't share a fold key. Clef confirms them, and only pairs scoring at least 0.85 become groups. Clef returns only a `same` probability, so the reason is set by the rules: every confirmed unsure pair is "Spelling" (they are all edit-distance candidates). There is no "Similar meaning" reason in this phase. At most 64 unsure pairs per computation, the most-used first.
 - **Groups:**
   - Sure pairs (shared fold key) are grouped with union-find, since a shared key is transitive.
   - An unsure pair confirmed by Clef stays a two-tag group of its own. It is never joined to other groups, so one Merge click never merges a tag that Clef didn't compare with the kept one.
@@ -105,7 +105,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
     - It doesn't shift the list: it mounts with a 150 ms height and opacity ease.
 - `components/tags/TagCleanupSheet.tsx` (new): a right-side `Sheet` (width 420) at 768 px and up, and a bottom `Drawer` at 390 px. The title is "Tags that look alike" and the subtitle "Merging moves every card to the tag you keep. It can't be undone."
   - **One card per group:**
-    - a reason pill (Plural / Spelling / Accents / Spacing / Similar meaning);
+    - a reason pill (Plural / Spelling / Accents / Spacing);
     - a `RadioGroup` of the tags, each `#design · 214 cards`, with the default the most used and the label "Keep" on the selected row;
     - the other rows are muted, with "→ design" after the count;
     - buttons "Merge" (secondary) and "Keep separate" (ghost).
@@ -124,6 +124,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 
 - `GET /v1/tags/duplicates` is a new route: add `"/v1/tags/duplicates"` to the GET paths in `http.ts` (beside `/v1/tags`, line 184) and a branch in `publicApiHttp.ts` (beside line 100). It returns `{ status, groups: [{ tags: [{ name, count }], reason }] }`, read-only, in the same shape as the web.
   - It never calls Clef: it serves the cache, or the sure groups computed on the fly when the cache is missing, so the API doesn't get slower.
+  - It computes groups only from a complete tag summary (`isComplete`, `tag/tagSummary.ts:191`; the summary stops at 3,000 tags). When the summary is incomplete it returns `{ status: "incomplete", groups: [] }` rather than a partial list, and the web banner stays hidden for the same reason.
 - `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`into` unchanged; that is the merge endpoint's existing field, `publicApiHttpTags.ts:21`). An array is sent as `from[0]` plus `alsoFrom`.
 - Add to OpenAPI, and the row in `scripts/public-parity.ts`.
 - MCP: `teak_v1_find_duplicate_tags`, and `teak_v1_merge_tags` accepts an array `from`.
