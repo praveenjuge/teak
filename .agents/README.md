@@ -42,7 +42,13 @@ since they were true when it was written.
 (`scripts/skills-drift.test.ts` checks them); update those with `npx skills`,
 not by hand. `teak` is Teak's own skill for using the product through its API,
 MCP, SDK and CLI. It is edited here, and the docs build publishes it.
-`.claude/skills` links here, so Claude Code loads the same skills.
+`.claude/skills` links here, so Claude Code loads the same skills, in cloud
+sessions too (plugins from a person's own settings don't load there).
+
+Cloudflare: `wrangler`, `workers-best-practices`, `durable-objects` and
+`cloudflare-email-service` are vendored from `cloudflare/skills`
+(`npx skills add cloudflare/skills -s <name> -a codex -y`). They tell agents
+to read current Cloudflare docs rather than trust memory.
 
 Verification (root `AGENTS.md`, "Verification"):
 
@@ -64,5 +70,11 @@ Verification (root `AGENTS.md`, "Verification"):
 - `setup`: prepares a fresh Linux VM (`development.md`, Cloud agents).
 - `resume`: restores the toolchain PATH when Amp resumes a VM.
 - `hooks/session-start.sh`: the Claude Code SessionStart hook.
+- `hooks/start-docker.sh`: starts Docker in a cloud session; the
+  SessionStart hook runs it (`cloud.md`, "Containers").
+- `../.claude/agents/`: Claude Code subagents a session can delegate to:
+  `files-worker` (Cloudflare Workers), `convex-backend` (`packages/convex`)
+  and `teak-verifier` (runs `verify-teak` and returns the evidence). Each
+  points back at the guides here rather than repeating them.
 - `.state/`: ignored runtime state for the running stack (`stack.json`,
   `stack.log`, the dev account).
