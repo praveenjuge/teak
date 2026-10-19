@@ -3,9 +3,10 @@
 The Cloudflare Worker for Teak file delivery, uploads, processing, imports,
 and exports. Production serves `files.teakvault.com` from `teak-files-prod`
 through `wrangler.jsonc`, for the production Convex deployment only. The
-pre-convergence `files-dev` Worker/domain and `teak-files-dev` bucket are gone.
+pre-convergence `files-dev` Worker/domain and the old `teak-files-dev` R2
+bucket are gone.
 
-Development runs this same source as the `teak-files-development` workers.dev
+Development runs this same source as the `teak-files-dev` workers.dev
 Worker (`development/wrangler.jsonc`) on the private
 `teak-files-development-20261006` bucket and `teak-dev-cards-0` vector index,
 with its own Durable Object namespaces, queues, workflows and secrets. Convex
@@ -602,7 +603,7 @@ the Events API.
 A pending upload is an object under `.../cards/upload-pending-v2/` that a client
 uploaded but never finalized into a card. The bucket's event notification
 sends every object written under `users/` and `dev/users/` to `R2_EVENTS`
-(`teak-r2-events`, or `teak-dev-r2-events` for the development bucket).
+(`teak-r2-events`, or `teak-r2-events-dev` for the development bucket).
 `src/queues/r2Events.ts` acknowledges everything that is not a pending upload.
 A pending upload younger than 24 hours goes back on the queue with a delay of
 up to 12 hours (the queue's maximum), carrying its original upload time; once
@@ -697,10 +698,11 @@ bunx wrangler deploy --dry-run --outdir /tmp/out   # bundle size check; builds t
 bun run deploy      # wrangler deploy (creates files.teakvault.com custom domain)
 
 # Local development
-bun run dev              # wrangler dev --remote (prod R2/Images remote, code local)
+bun run dev              # wrangler dev --remote with the development config (runs on Cloudflare)
+                         # (needs development/.dev.vars: bun run sync:cloudflare-dev --isolated)
 bun run dev:local        # wrangler dev (isolated Miniflare, low-fidelity Images)
 # Or from repo root:
-bun run dev files        # same as above, remote bindings
+bun run dev files        # same as above, development config
 bun run dev files:local  # same as above, isolated
 
 # Config parity (read-only, never prints secrets)
@@ -710,7 +712,6 @@ bun run sync:cloudflare-dev # securely writes the dev signing secret to ignored 
 # Development Worker (Convex dev uses it)
 bun run deploy:development           # workers.dev only, no route; builds the containers, so needs Docker
 bun run sync:cloudflare-dev --isolated  # from repo root; writes development/.dev.vars
-bun run dev:development              # local code, remote development bucket/AI/Images
 ```
 
 `wrangler dev` builds and runs the renderer Container locally, which needs a
@@ -719,15 +720,16 @@ set `"dev": { "enable_containers": false }` in your local copy of the config;
 media jobs then answer `RENDERER_UNAVAILABLE`.
 
 `deploy:development` is a plain `wrangler deploy --config
-development/wrangler.jsonc` with no Convex check. Workers Builds deploys only
-the production Worker, so run it by hand after changing Worker code the
-development Worker needs. The committed config can only bind the development
+development/wrangler.jsonc` with no Convex check. Workers Builds deploys
+both Workers from `main` (`teak-files-prod` with `wrangler.jsonc`,
+`teak-files-dev` with this config), so run it by hand only to bootstrap or to
+test a branch. The committed config can only bind the development
 bucket and vector index, its own Durable Object namespaces (deletion gates and
 the media renderer) and workers.dev, with no route (tests in `src/deployment.test.ts` and
 `scripts/files-worker-dev-boundary.test.ts` enforce that). It sets no secret.
 Its `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_ROOT_SECRET` are put separately
 (`bunx wrangler secret put <NAME> --config development/wrangler.jsonc`).
-`FILES_BASE=https://teak-files-development.praveenjuge.workers.dev FILES_SIGNING_SECRET=… bun scripts/check-files-readiness.ts`
+`FILES_BASE=https://teak-files-dev.praveenjuge.workers.dev FILES_SIGNING_SECRET=… bun scripts/check-files-readiness.ts`
 proves the key and every binding with a signed `capabilities` request, and
 `check:cloudflare` checks the key is distinct from production.
 
@@ -758,7 +760,7 @@ proves the key and every binding with a signed `capabilities` request, and
   Convex env, not `.dev.vars`.
 - `apps/files-worker/development/.dev.vars` (ignored) — the isolated
   development Worker's local key. `sync:cloudflare-dev --isolated` and
-  `dev:development` refuse to run unless Convex dev uses the isolated Worker,
+  `bun run dev` refuse to run unless Convex dev uses the isolated Worker,
   bucket and its own signing key.
 
 Handled op failures (the 500 path) are reported explicitly with op/route,
@@ -778,14 +780,13 @@ Deploys automatically via Cloudflare Workers Builds (main branch).
 **Retired:** the pre-convergence `files-dev` Worker and
 `files-dev.teakvault.com` domain were deleted after the legacy dev
 references reached zero and the dual-read branch was removed. The
-`teak-files-dev` bucket (≃1 000 objects / 370 MB of dev-only data) is
-draining via a lifecycle expiration rule and will be deleted once empty.
-There is no rollback path to the legacy bucket; never reuse `teak-files-dev`.
+old `teak-files-dev` R2 bucket was emptied and deleted on 19 Oct 2026. The
+`teak-files-dev` Worker is unrelated: it is the current development Worker.
 
 ## Development storage isolation
 
 Convex dev uses the development Worker: `R2_BUCKET=teak-files-development-20261006`,
-`FILES_BASE=https://teak-files-development.praveenjuge.workers.dev`,
+`FILES_BASE=https://teak-files-dev.praveenjuge.workers.dev`,
 `R2_KEY_PREFIX=dev/`, and a `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_SECRET`
 of its own. The production Worker's `CONVEX_SITE_URLS` lists only the
 production deployment. Convex holds no S3 credentials.
@@ -813,9 +814,11 @@ its client copies together (a drift test checks them).
 - `bun run dev` at repo root starts the default stack (web + Convex) via
   Turborepo. `bun run dev --all` starts every surface (web, convex, raycast,
   docs, extension).
-- `bun run --cwd apps/files-worker dev:development` — local Worker code with
-  the remote development bucket, AI and Images. `bun run dev files` uses the
-  production config's bindings; don't use it for dev work.
+- `bun run dev files` — `wrangler dev --remote` with the development config:
+  your local code runs on Cloudflare against the development bucket, AI and
+  Images, never production's. Queue consumers don't run in remote mode, so
+  test queue-driven work (deletions, upload cleanup, AI backfill) on the
+  deployed `teak-files-dev`.
 - `bun run dev files:local` — isolated Miniflare storage with low-fidelity
   Images emulation; no remote credentials needed.
 - `bun run check:cloudflare` — read-only names/parity check without exposing

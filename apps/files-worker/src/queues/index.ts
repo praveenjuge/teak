@@ -11,7 +11,7 @@ import {
 } from "./workosEvents";
 
 export const queueRole = (queue: string): string =>
-  queue.replace(/^teak-(?:dev-|e2e-)?/u, "");
+  queue.replace(/^teak-(?:e2e-)?/u, "").replace(/-dev$/u, "");
 
 export const handleQueueBatch = (
   batch: MessageBatch<unknown>,

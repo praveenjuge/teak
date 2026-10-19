@@ -52,7 +52,7 @@ export const describeTargets = (): string =>
     "  extension — Chrome extension + Convex",
     "  cli — CLI",
     "  raycast — Raycast extension",
-    "  files — files-worker (remote bindings)",
+    "  files — files-worker (development config, remote dev bindings)",
     "  files:local — files-worker (isolated Miniflare)",
     "  --all — every surface",
   ].join("\n");

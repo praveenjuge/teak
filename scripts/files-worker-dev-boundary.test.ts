@@ -15,7 +15,7 @@ import { parseSyncArgs } from "./sync-files-worker-dev-secret";
 const isolated = {
   bucket: "teak-files-development-20261006",
   prefix: "dev/",
-  filesBase: "https://teak-files-development.praveenjuge.workers.dev",
+  filesBase: "https://teak-files-dev.praveenjuge.workers.dev",
   signingSecret: "isolated-dev-key",
 };
 
@@ -52,7 +52,7 @@ describe("assertIsolatedDevelopmentFiles", () => {
     { prefix: undefined },
     {
       filesBase:
-        "https://user:secret-value@teak-files-development.praveenjuge.workers.dev",
+        "https://user:secret-value@teak-files-dev.praveenjuge.workers.dev",
     },
   ])(
     "refuses a partial or unsafe switch without echoing values: %j",
@@ -179,7 +179,7 @@ describe("readDevelopmentFilesRouting", () => {
   const devValues: Record<string, string> = {
     R2_BUCKET: "teak-files-development-20261006",
     R2_KEY_PREFIX: "dev/",
-    FILES_BASE: "https://teak-files-development.praveenjuge.workers.dev",
+    FILES_BASE: "https://teak-files-dev.praveenjuge.workers.dev",
     FILES_SIGNING_SECRET: "isolated-dev-key",
   };
   const recordingRunner = () => {

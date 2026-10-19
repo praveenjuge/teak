@@ -13,7 +13,7 @@ import {
 const root = join(import.meta.dir, "..");
 const worker = join(root, "apps/files-worker");
 if (process.argv.length > 2) {
-  throw new Error("dev:development takes no arguments.");
+  throw new Error("The files worker dev script takes no arguments.");
 }
 assertDevelopmentWorkerConfig(config);
 const secret = assertIsolatedDevelopmentFiles(

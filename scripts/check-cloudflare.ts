@@ -462,13 +462,13 @@ const main = async () => {
   await checkConvexEnv(only);
   console.log("\n== Summary ==");
   console.log(
-    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev files` (remote bindings) vs `bun run dev files:local` (Miniflare, low-fidelity Images)."
+    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev files` (development config, remote dev bindings) vs `bun run dev files:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
     "  • .dev.vars is ignored and per-developer; sync it only from Convex dev (`bun run sync:cloudflare-dev`, or `bun run sync:cloudflare-dev --isolated` for the development Worker)."
   );
   console.log(
-    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is the development Worker Convex dev uses; never reuse the retired teak-files-dev bucket."
+    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is the development Worker Convex dev uses; the old teak-files-dev R2 bucket is deleted, and the name now belongs to the development Worker."
   );
   if (failureCount > 0) {
     console.log(
