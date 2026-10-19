@@ -25,9 +25,9 @@ const scheduleJob = (t: Backend, name: string) =>
 
 const jobStates = (t: Backend) =>
   t.run(async (ctx) =>
-    (
-      await ctx.db.system.query("_scheduled_functions").collect()
-    ).map((job) => ({ _id: job._id, name: job.name, kind: job.state.kind }))
+    (await ctx.db.system.query("_scheduled_functions").collect()).map(
+      (job) => ({ _id: job._id, name: job.name, kind: job.state.kind })
+    )
   );
 
 const runMigration = (
@@ -83,13 +83,9 @@ describe("cancelOrphanedWorkflowCleanupJobs", () => {
       canceled: 2,
     });
     const states = await jobStates(t);
+    expect(states.find((job) => job.name === LIVE_NAME)?.kind).toBe("pending");
     expect(
-      states.find((job) => job.name === LIVE_NAME)?.kind
-    ).toBe("pending");
-    expect(
-      states
-        .filter((job) => job.name === ORPHAN_NAME)
-        .map((job) => job.kind)
+      states.filter((job) => job.name === ORPHAN_NAME).map((job) => job.kind)
     ).toEqual(["canceled", "canceled"]);
   });
 
@@ -135,6 +131,11 @@ describe("cancelOrphanedWorkflowCleanupJobs", () => {
       batchSize: 10,
       cursor: first.continueCursor,
     });
-    expect(second.totals.orphaned).toBeGreaterThanOrEqual(1);
+    expect(second.totals.orphaned).toBe(1);
+    expect(second.totals.canceled).toBe(1);
+    const after = await jobStates(t);
+    expect(
+      after.filter((job) => job.name === ORPHAN_NAME).map((job) => job.kind)
+    ).toEqual(["canceled", "canceled"]);
   });
 });
