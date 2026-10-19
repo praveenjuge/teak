@@ -409,6 +409,52 @@ ${pixels}
     ).toBe("# Trip\n\nNotes from the trip, map attached.");
   });
 
+  test("an Apple Mail share with no text part is unquoted from its HTML", () => {
+    expect(
+      plan({
+        html: appleShareHtml("Worth a read: https://example.com/essay"),
+        subject: "Shared",
+        text: null,
+      })
+    ).toEqual({
+      kind: "link",
+      notes: "Worth a read:",
+      url: "https://example.com/essay",
+    });
+  });
+
+  test("a reply quoting an earlier Apple Mail share keeps its quotes", () => {
+    const markdown = markdownOf(
+      plan({
+        html: `<p>Agreed.</p><blockquote type="cite">${appleShareHtml("Notes from the trip.")}</blockquote>`,
+        subject: "Re: trip",
+        text: "Agreed.\n\n> > Notes from the trip.",
+      })
+    );
+    expect(markdown).toContain("Agreed.");
+    expect(markdown).toContain("> > Notes from the trip.");
+  });
+
+  test("an Apple Mail share drops its signature after unquoting", () => {
+    expect(
+      markdownOf(
+        plan({
+          html: appleShareHtml("<p>Body text</p><p>-- <br>Ann</p>"),
+          subject: "s",
+          text: "\n> Body text\n> -- \n> Ann\n",
+        })
+      )
+    ).toBe("# s\n\nBody text");
+  });
+
+  test("a text part holding only an attachment marker falls back to the HTML", () => {
+    expect(
+      markdownOf(
+        plan({ html: "<p>Real words here</p>", subject: "s", text: "￼\n" })
+      )
+    ).toBe("# s\n\nReal words here");
+  });
+
   test("a reply's quote stays when it isn't Apple Mail's share layout", () => {
     expect(
       markdownOf(

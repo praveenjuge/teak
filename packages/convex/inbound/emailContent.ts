@@ -585,17 +585,35 @@ const plainTextBody = (text: string): string => {
   return cleanBareUrls(body.replace(INVISIBLE_REGEX, ""));
 };
 
+/**
+ * Apple Mail's share quote, removed only when it covers every written line:
+ * a reply that quotes an earlier share keeps its quotes.
+ */
+const unquoteAppleShare = (body: string, html: string | null): string => {
+  if (!(html && APPLE_SHARE_REGEX.test(html))) {
+    return body;
+  }
+  const written = body.split("\n").filter((line) => line.trim());
+  return written.length > 0 && written.every((line) => line.startsWith(">"))
+    ? body.replace(SHARE_QUOTE_REGEX, "")
+    : body;
+};
+
 /** The body as cleaned Markdown: the text part when it says anything. */
 const emailBody = (text: string | null, html: string | null): string => {
-  const unquote = (body: string) =>
-    html && APPLE_SHARE_REGEX.test(html)
-      ? body.replace(SHARE_QUOTE_REGEX, "")
-      : body;
-  if (text?.trim()) {
-    return removeForwardHeaders(unquote(plainTextBody(text)));
+  const plain = text
+    ? plainTextBody(
+        unquoteAppleShare(
+          text.replace(LINE_ENDINGS_REGEX, "\n").replace(INVISIBLE_REGEX, ""),
+          html
+        )
+      )
+    : "";
+  if (plain.trim()) {
+    return removeForwardHeaders(plain);
   }
   if (html?.trim()) {
-    return removeForwardHeaders(unquote(htmlToMarkdown(html)));
+    return removeForwardHeaders(unquoteAppleShare(htmlToMarkdown(html), html));
   }
   return "";
 };
