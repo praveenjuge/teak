@@ -77,8 +77,9 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - `folderSuggestionDismissed: v.optional(v.literal(true))`
 - `folder/suggestions.ts` (new):
   - `listFolderSuggestionCandidates` (internal query, `{ userId, cardId }`). It returns `null` when the card is missing, trashed, hidden, already in a folder or dismissed. Otherwise it returns the card state and up to 40 candidates, each `{ key: "f0".."f39", folderId, name, samples }`.
-    - The samples come from the `folderCards` index above, with `isDeleted` and `isArchived` unset. The display title follows the tile's order: link preview title, then the file name, then the content's first line.
-    - Count the reads against a budget (40 × 5 card reads).
+    - The samples come from the `folderCards` index above, with `isDeleted` and `isArchived` unset. `folderCards` rows carry no hidden marker, so each sample card is loaded and dropped when `isCardHidden` (`shared/tags.ts:30`) is true; titles of `secret`/`hidden` cards never reach Workers AI. The loop keeps reading until it has 5 visible samples or the folder runs out.
+    - Each title is `cardDisplayTitle` (`card/displayTitle.ts:55`), the same helper the UI uses (link preview title, `metadataTitle`, file name, link host, then the first line), clipped to 120 characters.
+    - Count every row read, hidden ones included, against a budget (40 folders × 10 rows); a folder that hits it goes with the samples it has.
   - `recordFolderSuggestion` (internal mutation, `{ guard, folderId, confidence, version }`). It checks the guard. It writes nothing when the card has gained a folder since, when it is dismissed, or when the folder is no longer eligible.
   - `dismissFolderSuggestion` (public mutation, `{ cardId }`) and `dismissFolderSuggestionForUser` (internal, for the API). Both clear `folderSuggestion` and set `folderSuggestionDismissed`, and are idempotent.
   - Add both internal functions to `workflowRpcAllowlist.ts`.
@@ -97,7 +98,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - `buildFolderRequest(params)`: model `clef`. The state is the card. One `choice` question named `folder`:
     - instructions: "Which of the person's folders would they file this saved item in? Choose none unless one clearly fits."
     - criteria: `{ none: "None of these folders clearly fits", f0: 'Folder "Design". It holds: "Brutalist web layouts", "Type specimen sites"…', … }`
-  - `decideFolder(env, params)`: returns `decision: null` for `none` or below 0.8. Validate the input: 1–40 folders, unique keys, names under 300 characters, at most 5 samples.
+  - `decideFolder(env, params)`: returns `decision: null` for `none` or below 0.8. Validate the input: 1–40 folders, unique keys, names of at most 300 characters (`MAX_FOLDER_NAME_LENGTH`, `shared/folders.ts:5`), at most 5 samples.
   - Dispatch it in `ops.ts`.
 - `apps/files-worker/src/workflows/cardProcessing/decisions.ts`: `DecisionOp` gains `"decide-folder"`, and `DECISION_MODELS` maps it to `CLEF_MODEL_ID`.
 - `run.ts`: append a step `"suggest folder"` after "transcribe podcast".
@@ -133,7 +134,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
 
 - `serializeCard` and `serializeListCard`: `folderSuggestion: { folderId, folderName, folderColor, confidence } | null`. It is resolved against the folders table, and null when the folder isn't eligible any more.
   - The list serializer resolves folders through one per-request folder map, not one read per card.
-- `DELETE /v1/cards/{cardId}/folder-suggestion`: 200 with the card. It is idempotent. Another user's card gets 404 and a trashed card 409. Route it in `parseCardRoute` beside `thumbnail`.
+- `DELETE /v1/cards/{cardId}/folder-suggestion`: 200 with the card. It is idempotent. Another user's card gets 404 and a trashed card 409. Route it in `parseCardRoute` beside `thumbnail`, and add the operation to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApiHttpCards.ts:739`); otherwise the pre-handler check answers 404 for a trashed card before the handler can return 409.
 - `publicApiOpenApi.ts`: the card schema field and the operation `dismissFolderSuggestion`.
 - MCP: the field appears in card output. New tool `teak_v1_dismiss_folder_suggestion { cardId }`. Agents accept a suggestion with the existing `teak_v1_add_cards_to_folder`.
 - SDK: `cards.dismissFolderSuggestion(id)` and the `Card` type field.
