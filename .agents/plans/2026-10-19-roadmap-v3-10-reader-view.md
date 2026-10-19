@@ -109,7 +109,8 @@ Give every archived link a clean reading view, and make what it says findable. A
 - **`storage/cardObjectKeys.ts`:** add `card.article?.textKey` and `...(card.article?.imageKeys ?? [])`.
 - **`getCardTextSource`:**
   - takes an optional `kind`;
-  - returns `row.kind` (`"article"` or `"document"`) instead of always `"document"`;
+  - returns `row.kind` (`"article"` or `"document"`) instead of always `"document"` (`card/documentText.ts:178`);
+  - for `kind: "article"`, the HTTP handler reads the Markdown from `card.article.textKey` in R2, because the row holds plain text only, then rewrites each `teak-image:<n>` to a signed URL before responding;
   - without `kind`, the order is document, then transcript, then content, exactly as today (an article row is skipped, for the compatibility reason above);
   - with `kind`, it returns that kind or null.
 - **`addCardsFoundByFileText`** (`card/searchDocumentHelpers.ts:972`): run when `args.type` is undefined, `"document"` or `"link"`. Its `search_text` index filters on `userId` only, so with a type filter, document rows could fill the bounded `take(textLimit)` before any link was seen. Add a new search index beside it, `search_text_by_kind` with `filterFields: ["userId", "kind"]`, and query it with `kind: "article"` for `type: "link"` and `kind: "document"` for `type: "document"`; an unfiltered search keeps the old index.

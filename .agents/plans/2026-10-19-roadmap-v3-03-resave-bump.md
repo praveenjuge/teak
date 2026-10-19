@@ -108,7 +108,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 
     The lookup runs after `authorizeCardCreation` (which spends the rate-limit token but does not check the cap) and before `insertCountedCard` (which enforces the 200-card cap), so a re-save at the cap succeeds. The web composer still disables saving at the cap from `getCardCreationStatus`, since it can't know in advance that a link is already saved; the extension, share sheets and API re-save at the cap.
   - `createCardForUserHandler` returns `{ cardId, outcome: "created" | "resaved" }`.
-  - Callers that need only the id (`createCard`, `publicApi.ts` bulk, `inbound/ingest.ts`) take `.cardId`.
+  - Callers that need only the id (`createCard`, `inbound/ingest.ts`) take `.cardId`. The bulk create case in `executeBulkCardsForUser` (`publicApi.ts:853`) keeps the outcome and returns `resaved: true` for that item, and the bulk result validator and its API mapping gain the optional field.
   - The public `createCard` mutation still returns `v.id("cards")`, for the native apps.
   - A new public mutation, `createCardWithOutcome`, returns `{cardId, outcome}` for the web.
 - **Raycast quick save:** `raycast.quickSaveForUser` keeps `status: "created"` and adds `resaved: true` on a re-save.
