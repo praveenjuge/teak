@@ -388,6 +388,12 @@ export const recordExportProgress = internalMutation({
   },
 });
 
+/**
+ * Snapshots a page as one `exportJobItems` row per card. Exports now use
+ * `getExportSnapshotPage`; this stays for runs that snapshotted before, and for
+ * a new Worker that reaches a Convex deployment without it
+ * (`.agents/sunset.md`).
+ */
 export const recordSnapshotPage = internalMutation({
   args: {
     jobId: v.id("exportJobs"),
@@ -443,6 +449,110 @@ export const recordSnapshotPage = internalMutation({
   },
 });
 
+const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
+  _id: card._id,
+  type: card.type,
+  content: card.content,
+  url: card.url,
+  sourceUrl: card.sourceUrl,
+  sourceTitle: card.sourceTitle,
+  notes: card.notes,
+  tags: card.tags,
+  isFavorited: card.isFavorited,
+  fileKey: card.type === "text" ? undefined : card.fileKey,
+  fileMetadata: card.type === "text" ? undefined : card.fileMetadata,
+  colors: card.colors,
+  aiTags: card.aiTags,
+  aiSummary: card.aiSummary,
+  metadataTitle: card.metadataTitle,
+  isArchived: card.isArchived,
+  completedAt: card.completedAt,
+  isHidden: card.isHidden,
+  folderIds: card.folderIds,
+  createdAt: card.createdAt,
+  updatedAt: card.updatedAt,
+});
+
+/**
+ * One page of the cards an export takes, newest first. It writes nothing: the
+ * export workflow keeps the ids in its own step results.
+ */
+export const getExportSnapshotPage = internalQuery({
+  args: {
+    jobId: v.id("exportJobs"),
+    cursor: v.union(v.string(), v.null()),
+    numItems: v.number(),
+  },
+  returns: v.object({
+    cursor: v.union(v.string(), v.null()),
+    isDone: v.boolean(),
+    cardIds: v.array(v.id("cards")),
+    addedBytes: v.number(),
+  }),
+  handler: async (ctx, { jobId, cursor, numItems }) => {
+    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    if (!job) {
+      throw new Error("Export job not found");
+    }
+
+    const page = await ctx.db
+      .query("cards")
+      .withIndex("by_created", (q) => q.eq("userId", job.userId))
+      .order("desc")
+      .paginate({ cursor, numItems });
+
+    const cardIds: Id<"cards">[] = [];
+    let addedBytes = 0;
+    for (const card of page.page) {
+      if (!isActiveCard(card)) {
+        continue;
+      }
+      cardIds.push(card._id);
+      addedBytes +=
+        card.type === "text" ? 0 : (card.fileMetadata?.fileSize ?? 0);
+    }
+
+    return {
+      cursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
+      cardIds,
+      addedBytes,
+    };
+  },
+});
+
+const MAX_EXPORT_CARDS_PER_READ = 200;
+
+/**
+ * The current contents of snapshotted cards, in the order given. Cards deleted
+ * since the snapshot, or not the job owner's, are left out.
+ */
+export const getExportCardsByIds = internalQuery({
+  args: { jobId: v.id("exportJobs"), cardIds: v.array(v.id("cards")) },
+  returns: v.array(v.any()),
+  handler: async (ctx, { jobId, cardIds }) => {
+    if (cardIds.length > MAX_EXPORT_CARDS_PER_READ) {
+      throw new Error("Too many cards in one read");
+    }
+    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    if (!job) {
+      return [];
+    }
+    const cards: ExportCardRow[] = [];
+    for (const cardId of cardIds) {
+      const card = await ctx.db.get(cardId);
+      if (card && card.userId === job.userId && isActiveCard(card)) {
+        cards.push(toExportCardRow(card));
+      }
+    }
+    return cards;
+  },
+});
+
+/**
+ * Reads cards through `exportJobItems` rows, which only `recordSnapshotPage`
+ * writes (`.agents/sunset.md`).
+ */
 export const getExportCardsPage = internalQuery({
   args: {
     jobId: v.id("exportJobs"),
@@ -466,29 +576,7 @@ export const getExportCardsPage = internalQuery({
       if (!(card && isActiveCard(card))) {
         continue;
       }
-      cards.push({
-        _id: card._id,
-        type: card.type,
-        content: card.content,
-        url: card.url,
-        sourceUrl: card.sourceUrl,
-        sourceTitle: card.sourceTitle,
-        notes: card.notes,
-        tags: card.tags,
-        isFavorited: card.isFavorited,
-        fileKey: card.type === "text" ? undefined : card.fileKey,
-        fileMetadata: card.type === "text" ? undefined : card.fileMetadata,
-        colors: card.colors,
-        aiTags: card.aiTags,
-        aiSummary: card.aiSummary,
-        metadataTitle: card.metadataTitle,
-        isArchived: card.isArchived,
-        completedAt: card.completedAt,
-        isHidden: card.isHidden,
-        folderIds: card.folderIds,
-        createdAt: card.createdAt,
-        updatedAt: card.updatedAt,
-      });
+      cards.push(toExportCardRow(card));
     }
 
     return {
@@ -634,6 +722,7 @@ export const expireJob = internalMutation({
   },
 });
 
+/** Drains `exportJobItems` rows left by older runs (`.agents/sunset.md`). */
 export const deleteJobItemsPage = internalMutation({
   args: { jobId: v.id("exportJobs"), numItems: v.number() },
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),

@@ -101,6 +101,11 @@ is gone: R2 event notifications delete each abandoned pending upload after a
 day, and a weekly Worker sweep is the backstop, so Convex no longer pages the
 bucket. The `pendingUploadCleanupStates` table is unused and can be dropped.
 
+An export no longer writes a row per card. Its workflow keeps the snapshot's
+card ids in step state, so each exported card costs two document reads (one
+when it is snapshotted, one when the archive reads its contents), where the
+`exportJobItems` rows cost an insert, a delete and two more reads.
+
 AI usage no longer costs a mutation per card. The Worker writes a Workers
 Analytics Engine data point per model call, and the hourly rollup sets each
 user's totals for today and yesterday in `aiUsageDaily` in batches of 200.

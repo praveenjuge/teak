@@ -222,3 +222,159 @@ describe("export jobs", () => {
     ]);
   });
 });
+
+describe("export snapshot", () => {
+  const seedExport = async (t: ReturnType<typeof convexTest>) =>
+    await t.run(async (ctx) => {
+      const userId = "export-user";
+      const jobId = await ctx.db.insert("exportJobs", {
+        createdAt: 1,
+        status: "running",
+        updatedAt: 1,
+        userId,
+      });
+      const cards = {
+        file: await insertCard(ctx, {
+          createdAt: 5,
+          fileKey: "users/export-user/cards/f/file/a.png",
+          fileMetadata: { fileName: "a.png", fileSize: 300 },
+          notes: "with a file",
+          tags: ["design"],
+          type: "image",
+          userId,
+        }),
+        deleted: await insertCard(ctx, {
+          createdAt: 4,
+          isDeleted: true,
+          userId,
+        }),
+        textWithKey: await insertCard(ctx, {
+          content: "Plain text",
+          createdAt: 3,
+          fileKey: "users/export-user/cards/t/file/ignored.txt",
+          fileMetadata: { fileName: "ignored.txt", fileSize: 999 },
+          userId,
+        }),
+        link: await insertCard(ctx, {
+          aiSummary: "A page",
+          content: "https://example.com",
+          createdAt: 2,
+          isFavorited: true,
+          type: "link",
+          url: "https://example.com",
+          userId,
+        }),
+        oldest: await insertCard(ctx, { createdAt: 1, userId }),
+        otherUser: await insertCard(ctx, {
+          createdAt: 6,
+          userId: "someone-else",
+        }),
+      };
+      return { cards, jobId };
+    });
+
+  const snapshotIds = async (
+    t: ReturnType<typeof convexTest>,
+    jobId: Id<"exportJobs">
+  ) => {
+    const ids: Id<"cards">[] = [];
+    let addedBytes = 0;
+    let cursor: string | null = null;
+    for (;;) {
+      const page: {
+        addedBytes: number;
+        cardIds: Id<"cards">[];
+        cursor: string | null;
+        isDone: boolean;
+      } = await t.query(internal.dataExport.getExportSnapshotPage, {
+        cursor,
+        jobId,
+        numItems: 2,
+      });
+      ids.push(...page.cardIds);
+      addedBytes += page.addedBytes;
+      if (page.isDone) {
+        return { addedBytes, ids };
+      }
+      cursor = page.cursor;
+    }
+  };
+
+  test("an export snapshots its owner's live cards newest first without writing a row", async () => {
+    const t = convexTest(schema, modules);
+    const { cards, jobId } = await seedExport(t);
+
+    const snapshot = await snapshotIds(t, jobId);
+
+    expect(snapshot).toEqual({
+      addedBytes: 300,
+      ids: [cards.file, cards.textWithKey, cards.link, cards.oldest],
+    });
+    expect(
+      await t.run((ctx) => ctx.db.query("exportJobItems").collect())
+    ).toEqual([]);
+  });
+
+  test("cards read by id match what the row snapshot reads", async () => {
+    const t = convexTest(schema, modules);
+    const { jobId } = await seedExport(t);
+    const { ids } = await snapshotIds(t, jobId);
+    const byId = await t.query(internal.dataExport.getExportCardsByIds, {
+      cardIds: ids,
+      jobId,
+    });
+
+    let cursor: string | null = null;
+    for (;;) {
+      const page: { cursor: string | null; isDone: boolean } = await t.mutation(
+        internal.dataExport.recordSnapshotPage,
+        {
+          cursor,
+          jobId,
+          numItems: 2,
+        }
+      );
+      if (page.isDone) {
+        break;
+      }
+      cursor = page.cursor;
+    }
+    const fromRows = await t.query(internal.dataExport.getExportCardsPage, {
+      cursor: null,
+      jobId,
+      numItems: 100,
+    });
+
+    expect(byId).toEqual(fromRows.cards);
+    expect(byId).toHaveLength(4);
+    expect(byId[1]).toMatchObject({ content: "Plain text", type: "text" });
+    expect(byId[1].fileKey).toBeUndefined();
+  });
+
+  test("cards read by id leave out ones deleted since and other accounts' cards", async () => {
+    const t = convexTest(schema, modules);
+    const { cards, jobId } = await seedExport(t);
+    await t.run(async (ctx) => {
+      await ctx.db.patch(cards.link, { content: "edited", isDeleted: true });
+      await ctx.db.patch(cards.oldest, { content: "edited since" });
+      await ctx.db.delete(cards.textWithKey);
+    });
+
+    const read = await t.query(internal.dataExport.getExportCardsByIds, {
+      cardIds: [
+        cards.oldest,
+        cards.otherUser,
+        cards.link,
+        cards.textWithKey,
+        cards.file,
+      ],
+      jobId,
+    });
+
+    expect(read.map((row: { _id: string }) => row._id)).toEqual([
+      cards.oldest,
+      cards.file,
+    ]);
+    expect(read[0]).toMatchObject({ content: "edited since" });
+  });
+});
