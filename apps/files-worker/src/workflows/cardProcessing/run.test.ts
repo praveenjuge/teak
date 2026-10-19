@@ -527,6 +527,31 @@ describe("card processing", () => {
     expect(fakeStep.names()).not.toContain("keep link preview after refresh");
   });
 
+  test("a link to a PDF keeps a failed preview and the run still categorizes it", async () => {
+    const card = linkCard();
+    const { convex, ops, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "fetch-link-page": {
+        data: {
+          contentType: "application/pdf",
+          fetched: false,
+          reason: "unsupported_type",
+        },
+      },
+      "generate-link-metadata": textMetadataAnswer(["paper"]),
+    });
+
+    expect(await run()).toMatchObject({ mode: "completed" });
+    expect(card.metadataStatus).toBe("failed");
+    expect(card.processingStatus?.categorize?.status).toBe("completed");
+    expect(card.processingStatus?.metadata?.status).toBe("completed");
+    expect(reported(convex)).toEqual(["complete"]);
+    // One fetch for the preview, one for structured data: no retries.
+    expect(
+      ops.opsCalled().filter((op) => op === "fetch-link-page")
+    ).toHaveLength(2);
+  });
+
   test("a metadata-only run regenerates the AI metadata and nothing else", async () => {
     const card = makeCard({
       content: "https://example.com/article",

@@ -292,9 +292,20 @@ const storeLinkPreviewMedia = async (
 interface PageScrape {
   blocked?: true;
   html: () => Promise<string | null>;
+  /** A file (a PDF, an image), not a web page: fetching again won't change it. */
+  notHtml?: { contentType?: string };
   pageUrl: string;
   payload: ScrapeResponse;
 }
+
+// Text, JSON or XML can stand in for a page for a moment (a maintenance or
+// rate-limit reply), so only other types are a file that stays a file.
+const PASSING_REPLY_TYPE_REGEX = /^text\/|[/+](?:json|xml)$/u;
+
+const isFileType = (contentType: string | undefined): boolean => {
+  const type = contentType?.split(";")[0]?.trim().toLowerCase();
+  return Boolean(type) && !PASSING_REPLY_TYPE_REGEX.test(type ?? "");
+};
 
 const scrapePage = async (job: CardJob, url: string): Promise<PageScrape> => {
   let page: FilesLinkPageResult;
@@ -317,6 +328,9 @@ const scrapePage = async (job: CardJob, url: string): Promise<PageScrape> => {
   if (!page.fetched) {
     return {
       ...(page.reason === "blocked_url" ? { blocked: true as const } : {}),
+      ...(page.reason === "unsupported_type" && isFileType(page.contentType)
+        ? { notHtml: { contentType: page.contentType } }
+        : {}),
       html: () => Promise.resolve(null),
       pageUrl: url,
       payload: {
@@ -484,6 +498,16 @@ export const fetchLinkMetadata = async (
     const { pageUrl, payload } = page;
     if (page.blocked) {
       return await failBlocked();
+    }
+    if (page.notHtml) {
+      return await fail(
+        normalizedUrl,
+        "unsupported_type",
+        "Link is a file, not a web page",
+        page.notHtml.contentType
+          ? { contentType: page.notHtml.contentType }
+          : undefined
+      );
     }
 
     const staticStatus = payload.success

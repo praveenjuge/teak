@@ -271,6 +271,27 @@ describe("link metadata", () => {
       }
     );
 
+    test("stores a failed preview for a PDF, without retrying", async () => {
+      const { fetch, saved } = setup(linkCard(), {
+        "fetch-link-page": {
+          data: {
+            contentType: "application/pdf",
+            fetched: false,
+            reason: "unsupported_type",
+          },
+        },
+      });
+      expect(await fetch()).toEqual({
+        errorType: "unsupported_type",
+        status: "failed",
+      });
+      expect(saved()?.status).toBe("failed");
+      expect(saved()?.linkPreview.error).toMatchObject({
+        details: { contentType: "application/pdf" },
+        type: "unsupported_type",
+      });
+    });
+
     test.each([
       ["a 429", { reason: "http_error", status: 429 }, /"type":"rate_limit"/],
       [
@@ -279,9 +300,9 @@ describe("link metadata", () => {
         /^(?=.*"type":"scrape_error")(?=.*HTTP 503)/,
       ],
       [
-        "a non-HTML page",
-        { contentType: "application/pdf", reason: "unsupported_type" },
-        /unsupported_type: application\/pdf/,
+        "a JSON reply in place of a page",
+        { contentType: "application/json", reason: "unsupported_type" },
+        /unsupported_type: application\/json/,
       ],
       ["a page over 2 MiB", { reason: "too_large" }, /too_large/],
       ["a failed connection", { reason: "fetch_failed" }, /fetch_failed/],
