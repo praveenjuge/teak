@@ -73,8 +73,14 @@ export const METADATA_STEP: StepConfig = {
   timeout: "15 minutes",
 };
 
+// A NonRetryableError thrown inside a step reaches the workflow as a plain
+// Error whose message starts with "NonRetryableError: " (engine.test.ts).
+const NON_RETRYABLE_PREFIX = /^NonRetryableError:\s*/u;
+
 export const isSuperseded = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = (
+    error instanceof Error ? error.message : String(error)
+  ).replace(NON_RETRYABLE_PREFIX, "");
   return (
     message.startsWith("stale_processing_revision") ||
     message.startsWith("card_missing")

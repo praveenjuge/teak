@@ -1,0 +1,41 @@
+# Card processing
+
+After a card is saved, Teak works on it in the background: it settles the card's type, adds AI tags and a summary, and for links, files and media fetches previews, thumbnails, palettes and transcripts. Each stage shows in the card's processing status and finishes as completed or failed. A card edited while it's being processed is processed again, and the older run gives way without overwriting the newer one.
+
+## Sub-features
+
+- `processing-stages` takes a new card's `processingStatus` stages (classify, categorize, metadata, renderables) from pending to completed, with the AI tags and summary readable on the card.
+- `processing-run` is the Workflow run behind it: one instance per card revision, named `card-<cardId>-<rev>`, with its steps, attempts, output and errors.
+- `processing-files` covers what a run stores in the Files bucket (thumbnails, previews, screenshots) under the account's key prefix.
+- `processing-logs` covers the Files Worker's logs and traces for a run: warnings, errors and each invocation's outcome.
+- `processing-crons` covers the Files Worker's scheduled jobs (maintenance, AI usage rollup, export cleanup), started on demand.
+
+## How to get to it (user POV)
+
+- Save a card anywhere (the composer, the API, the CLI, MCP, the extension). Its tags and summary appear on the card in the library, and in the card dialog, within seconds.
+- The run itself is not shown to users. On the local E2E stack, the Files Worker serves Cloudflare's Local Explorer at `http://127.0.0.1:4102/cdn-cgi/local/explorer` (a browser UI) and its REST API at `/cdn-cgi/local/explorer/api` (the OpenAPI document is the API root).
+
+## Driving it with the API and Local Explorer
+
+Preconditions:
+
+- The local E2E stack, which runs the Files Worker under `wrangler dev --local`: `bun run dev --stop`, then `bun run --cwd packages/tests e2e:stack` as a background command (it prints "E2E stack is up"). Ports are in `.agents/.state/stack.json` (`ports.filesWorker`, `urls.apiOrigin`); a worktree has its own. The shared dev deployment's Worker runs on Cloudflare, so these steps don't reach it.
+- An emulator account with an API key: call `createApiAccount("verify")` from `packages/tests/src/helpers/app.ts` in a short `bun --no-env-file` script, and keep the key in `.agents/.state/verify/<run-id>/`.
+
+Steps (with `X=http://127.0.0.1:4102/cdn-cgi/local/explorer/api` and `API=http://127.0.0.1:3211`):
+
+- **Save.** `curl -X POST $API/v1/cards -H "Authorization: Bearer $KEY" -H 'content-type: application/json' -d '{"content":"verify-<run-id> sourdough starter notes"}'`. The response has `cardId`, and `processingStatus.classify` and `.metadata` are `pending`.
+- **Run.** `curl $X/workflows/teak-e2e-card-processing/instances`: an instance `card-<cardId>-1` is `running`, then `complete`. `curl $X/workflows/teak-e2e-card-processing/instances/card-<cardId>-1`: `result.steps` lists "load card", "classify", "generate metadata", "emit completion" and "report complete", each `success: true`, and `result.output` is `{"mode":"completed", …, "metadata":{"aiTagsCount":4,"hasSummary":true, …}}`. The same from Wrangler, run in `apps/files-worker`: `bunx wrangler workflows instances describe teak-e2e-card-processing latest --local --port 4102` (step outputs and timing as tables).
+- **Second view.** `curl $API/v1/cards/<cardId> -H "Authorization: Bearer $KEY"`: `aiTags` and `aiSummary` are filled, and every `processingStatus` stage is `completed`.
+- **Logs.** `curl -X POST $X/local/observability/query -H 'content-type: application/json' -d '{"sql":"SELECT level, message FROM logs WHERE level IN (?, ?) ORDER BY ts_ms DESC LIMIT 20","params":["error","warn"]}'`. Root spans: `SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL ORDER BY start_ms DESC`.
+- **Files.** `curl "$X/r2/buckets/teak-files-e2e/objects"` lists stored objects, keyed `users/<user key>/cards/…` (the seeded vault's uploads are already there); an image or file card adds its own. `curl "$X/r2/buckets/teak-files-e2e/objects/<key>"` returns one.
+- **Crons.** `curl "$X/local/workers"` lists the Workers with their bindings and crons. `curl -X POST "$X/local/scheduled?worker=teak-files-e2e" -H 'content-type: application/json' -d '{"cron":"45 * * * *"}'` runs that scheduled job now and answers `"outcome":"ok"`.
+- **Regression proof.** `bun test apps/files-worker/src/workflows/cardProcessing/engine.test.ts` runs card processing on the same Workflows engine against a fake Convex: retries, a stale write ending the run as skipped, and errored runs reported back.
+
+## Gotchas
+
+- The E2E stack's AI is a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`): tags are the first words of the content and the summary starts "Saved note about". It doesn't answer the card-type decision, so a text card logs `malformed_clef_response` (op `decide-card-type`) and keeps the rules' type. That is expected here, not a bug.
+- Browser Run, Vectorize and the two Containers aren't on the E2E stack, so link fetching, screenshots, media rendering and embeddings fail there the way they do when those services are down. Prove those on the dev deployment through the app.
+- An edit bumps the card's revision: the next run is `card-<cardId>-2`, and the older one is stopped (`terminated`). If the older run reaches Convex before the stop does, it ends `complete` with output `{"mode":"skipped","reason":"superseded"}` instead. An `errored` instance is a real failure; its `result.error` and the logs say why.
+- Explorer state lives in `.agents/.state/e2e-files-worker/state` and is wiped when the E2E stack restarts. Cleanup is stopping the stack (Ctrl-C on `e2e:stack`, or ending its background command); the emulator account goes with it.
+- Never call the `DELETE` or `PATCH …/status` endpoints on a run you are using as evidence; they change what you are trying to prove.

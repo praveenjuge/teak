@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "cf-typegen": "wrangler types",
+    "cf-typegen:check": "wrangler types --check",
     "check": "bun run ../../scripts/check-cloudflare.ts",
     "deploy": "wrangler deploy",
     "deploy:development": "wrangler deploy --config development/wrangler.jsonc",

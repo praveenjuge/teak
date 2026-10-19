@@ -175,6 +175,12 @@
     "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
     "AI_USAGE_DATASET": "teak_dev_ai_usage"
   },
+  // Put with `wrangler secret put` (README, "Secrets and local vars"). A
+  // deploy fails while either is missing. ANALYTICS_API_TOKEN stays optional,
+  // so it isn't listed.
+  "secrets": {
+    "required": ["FILES_SIGNING_SECRET", "WORKFLOW_RPC_ROOT_SECRET"]
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1

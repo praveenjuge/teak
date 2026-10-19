@@ -20,9 +20,11 @@ running the API, CLI, MCP and repository checks.
   Workers Builds deploys both Files Workers from `main` (`teak-files-prod`
   and `teak-files-dev`), and the dev deployment's Convex env already points
   at `teak-files-dev`. Running one locally is different: `bun run dev files`
-  needs `bun run sync:cloudflare-dev --isolated` first, Cloudflare
-  credentials for its remote bindings, and Docker for its containers, so a
-  session without a Cloudflare token can't run it.
+  needs `bun run sync:cloudflare-dev --isolated` first and Cloudflare
+  credentials for its remote bindings, so a session without a Cloudflare
+  token can't run it. The local E2E stack runs the Worker without them
+  (Workflows, Queues, R2 and KV in Miniflare), and Docker runs the two
+  Containers (see "Containers" below).
 - **Setup script:** `bash .agents/setup`, so the toolchain, packages and the
   E2E suite's Chromium land in the cached snapshot.
 - **Network:** the stack needs Convex, WorkOS and Polar (and Playwright's CDN
@@ -126,6 +128,28 @@ sessions have no port forwarding, so drive it with headless Chromium (the
 `e2e` MCP server's sessions) and send screenshots.
 
 ## Needs care
+
+- **Containers:** the image ships Docker without running it, so the
+  SessionStart hook starts the daemon (`.agents/hooks/start-docker.sh`; its
+  log is `/tmp/teak-dockerd.log`). Pulling and running images works, but a
+  build step that downloads (`apk add`, `bun install`) fails with
+  "certificate not trusted": the session's proxy re-signs TLS with a CA the
+  image doesn't trust (`/root/.ccr/README.md`). Build with
+  `scripts/cloud-docker-build.sh`, which adds that CA to every stage without
+  changing the Dockerfile, and never deploy what it builds:
+
+  ```bash
+  scripts/cloud-docker-build.sh teak-renderer apps/files-worker/container
+  scripts/cloud-docker-build.sh teak-fetcher . apps/files-worker/fetcher/Dockerfile
+  ```
+
+  Then run the renderer's integration tests the way the `renderer` CI job
+  does: start `teak-renderer` twice (`-p 18080:8080`, and `-p 18081:8080 -e
+  RENDERER_TIMEOUT_SCALE=0.0001`, both `--cpus 0.25 --memory 1g`), and in
+  `apps/files-worker` run `RENDERER_URL=http://localhost:18080
+  RENDERER_TIMEOUT_URL=http://localhost:18081 bun test --timeout 60000
+  container/test`. `wrangler dev` builds images with plain `docker build`, so
+  it still fails at the download step here.
 
 - **E2E suite:** run it with the dev stack stopped. `.agents/setup` installs
   the Chromium and WebKit builds the e2e web engine pins. The Chromium suite
