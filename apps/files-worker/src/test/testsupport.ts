@@ -260,6 +260,13 @@ export class FakeBucket {
         )
           .map(({ partNumber }) => upload.parts.get(partNumber))
           .filter((part): part is Uint8Array => Boolean(part));
+        // R2 refuses to complete unless every part but the last is one size.
+        const leading = parts.slice(0, -1);
+        if (leading.some((part) => part.length !== leading[0]?.length)) {
+          throw new Error(
+            "completeMultipartUpload: All non-trailing parts must have the same size. (10048)"
+          );
+        }
         const total = parts.reduce((sum, part) => sum + part.length, 0);
         const bytes = new Uint8Array(total);
         let offset = 0;

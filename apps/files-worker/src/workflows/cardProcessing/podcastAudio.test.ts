@@ -125,6 +125,44 @@ describe("downloadEpisodeToR2", () => {
     expect(bucket.storedBytes(KEY)?.byteLength).toBe(10 * MiB);
   });
 
+  test("uneven network reads still upload equal parts, as R2 requires", async () => {
+    const bucket = new FakeBucket();
+    // About 20 MiB in reads of varying size, like a real connection's.
+    const sizes = Array.from({ length: 90 }, (_, i) => 100_000 + i * 3001);
+    const total = sizes.reduce((sum, size) => sum + size, 0);
+    const { deps } = network(() =>
+      audio(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            sizes.forEach((size, i) => {
+              controller.enqueue(new Uint8Array(size).fill(i));
+            });
+            controller.close();
+          },
+        }),
+        { "content-type": "audio/mpeg" }
+      )
+    );
+
+    const result = await downloadEpisodeToR2(
+      bucket as never,
+      KEY,
+      EPISODE,
+      deps
+    );
+
+    expect(result).toEqual({
+      bytes: total,
+      contentType: "audio/mpeg",
+      stored: true,
+    });
+    const stored = bucket.storedBytes(KEY);
+    expect(stored?.byteLength).toBe(total);
+    // The bytes come back in order: the last read's fill value at the end.
+    expect(stored?.[0]).toBe(0);
+    expect(stored?.at(-1)).toBe(89);
+  });
+
   test("a declared length over the cap is refused before anything is read", async () => {
     const bucket = new FakeBucket();
     const { deps } = network(() =>
