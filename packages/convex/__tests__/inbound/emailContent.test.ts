@@ -377,6 +377,50 @@ ${pixels}
     ).toBe("# s\n\nBody text");
   });
 
+  // Apple Mail's share layout (Share > Mail from Safari, and messages a script
+  // asks Mail to write) quotes the whole body, and its plain text marks each
+  // inline attachment with U+FFFC.
+  const appleShareHtml = (inner: string) =>
+    `<html aria-label="message body"><body><div class="Apple-Mail-URLShareUserContentTopClass"><br></div><div class="Apple-Mail-URLShareWrapperClass" style="position: relative !important;"><blockquote type="cite" style="border-left-style: none;">${inner}</blockquote></div></body></html>`;
+
+  test("an Apple Mail shared link is a link card with its sentence, unquoted", () => {
+    expect(
+      plan({
+        html: appleShareHtml("Worth a read: https://example.com/essay"),
+        subject: "Shared",
+        text: "\n> Worth a read: https://example.com/essay\n",
+      })
+    ).toEqual({
+      kind: "link",
+      notes: "Worth a read:",
+      url: "https://example.com/essay",
+    });
+  });
+
+  test("an Apple Mail note with an attachment loses the quote and the placeholder", () => {
+    expect(
+      markdownOf(
+        plan({
+          html: appleShareHtml("<p>Notes from the trip, map attached.</p>"),
+          subject: "Trip",
+          text: "\n> Notes from the trip, map attached.\n￼",
+        })
+      )
+    ).toBe("# Trip\n\nNotes from the trip, map attached.");
+  });
+
+  test("a reply's quote stays when it isn't Apple Mail's share layout", () => {
+    expect(
+      markdownOf(
+        plan({
+          html: '<p>Agreed.</p><blockquote type="cite">Shall we go?</blockquote>',
+          subject: "Re: plan",
+          text: "Agreed.\n\n> Shall we go?",
+        })
+      )
+    ).toBe("# plan\n\nAgreed.\n\n> Shall we go?");
+  });
+
   test("malformed HTML is read without throwing", () => {
     const markdown = markdownOf(
       plan({
