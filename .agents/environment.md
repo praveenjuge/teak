@@ -177,31 +177,34 @@ for a value that is constant across deployments.
   WorkOS. Ignore it: never send feedback, repository content or session
   details to WorkOS from an agent session.
 
-## Files storage: current shared state and isolated target
+## Files storage: isolated development
 
-Convex dev currently shares the production Files Worker, `teak-files-prod`
-bucket and signing key, separated only by `R2_KEY_PREFIX=dev/`. The prefix
-protects canonical paths; it does not limit the signing key's authority.
-Convex holds no R2 S3 or Workers AI credentials; every byte and AI operation
-goes through the Worker. The prepared target is the `teak-files-development`
-Worker (`apps/files-worker/development/wrangler.jsonc`) on
-`teak-files-development-20261006`, with its own signing key and the same
-`dev/` prefix and exact keys. Production values never change.
+Convex dev uses its own Files Worker, `teak-files-development`
+(`apps/files-worker/development/wrangler.jsonc`, served at
+`https://teak-files-development.praveenjuge.workers.dev`), on the
+`teak-files-development-20261006` bucket and `teak-dev-cards-0` vector index,
+with its own `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_ROOT_SECRET`. Keys keep
+the `dev/` prefix. The production Worker serves only the production
+deployment (`CONVEX_SITE_URLS`), and nothing in development holds a
+production credential. Convex holds no R2 S3 or Workers AI credentials; every
+byte and AI operation goes through the Worker.
 
-`check:cloudflare` recognizes both states and blocks any mix. In the isolated
-state it also blocks a dev signing key equal to production.
-Run it without `--only` to compare credentials. Distinct values do not prove
-provider permission scope.
+The switch happened on 19 Oct 2026, when dev held no cards, so nothing was
+copied or frozen. A few old `dev/` objects remain in `teak-files-prod`, unread
+by anything.
 
-Source changes activate nothing. `deploy:development` bootstraps the
-development Worker before the switch. It is unguarded by Convex state, and its
-config can only reach the development bucket, namespace and workers.dev. The
-approved switch then changes the dev Convex `FILES_BASE`,
-`FILES_SIGNING_SECRET` and `R2_BUCKET` together. Web and shared media
-recovery already trust exactly `https://teak-files-development.praveenjuge.workers.dev`
-when built for the dev deployment, so no `NEXT_PUBLIC_FILES_BASE` is needed.
-Only after the switch do `bun run sync:cloudflare-dev --isolated` (writes the
-ignored `apps/files-worker/development/.dev.vars`) and
-`bun run --cwd apps/files-worker dev:development` run. Both read the pinned dev
-deployment by name, with every ambient Convex selector blanked, and refuse the
-shared state. Never copy production credentials into isolated development.
+`check:cloudflare` still recognizes the older shared state and blocks any mix.
+In the isolated state it blocks a dev signing key equal to production. Run it
+without `--only` to compare credentials. Distinct values do not prove provider
+permission scope.
+
+`bun run deploy:development` deploys the development Worker. Its config can
+only reach the development bucket, vector index, namespaces and workers.dev.
+Web and shared media recovery trust exactly
+`https://teak-files-development.praveenjuge.workers.dev` when built for the
+dev deployment, so no `NEXT_PUBLIC_FILES_BASE` is needed.
+`bun run sync:cloudflare-dev --isolated` writes the ignored
+`apps/files-worker/development/.dev.vars`, and
+`bun run --cwd apps/files-worker dev:development` runs that Worker locally.
+Both read the pinned dev deployment by name, with every ambient Convex
+selector blanked. Never copy production credentials into development.

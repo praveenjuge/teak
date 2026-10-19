@@ -213,7 +213,7 @@
     // that deploys development/wrangler.jsonc: two Workers serving one
     // deployment would both run its crons, and each would reconcile runs
     // that live in the other's workflows as missing.
-    "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site,https://reminiscent-kangaroo-59.convex.site",
+    "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site",
     "FILES_PUBLIC_ORIGIN": "https://files.teakvault.com",
     "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
     "AI_USAGE_DATASET": "teak_ai_usage"

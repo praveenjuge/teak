@@ -68,6 +68,9 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
       preview_bucket_name: "teak-files-development-20261006",
     },
   ]);
+  expect(config.vectorize).toEqual([
+    { binding: "CARD_VECTORS_0", index_name: "teak-dev-cards-0" },
+  ]);
   expect(config.durable_objects.bindings).toEqual([
     { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
     { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
