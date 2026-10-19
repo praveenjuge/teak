@@ -1,8 +1,10 @@
 # @teak/files-worker
 
 The Cloudflare Worker for Teak file delivery, uploads, processing, imports,
-and exports. Production serves `files.teakvault.com` from `teak-files-prod`
-through `wrangler.jsonc`, for the production Convex deployment only. The
+and exports. Production is the `teak-files-prod` Worker (`wrangler.jsonc`,
+renamed from `teak-files-proxy` on 19 Oct 2026; its container apps keep the
+`teak-files-proxy-*` names). It serves `files.teakvault.com` from the
+`teak-files-prod` bucket, for the production Convex deployment only. The
 pre-convergence `files-dev` Worker/domain and the old `teak-files-dev` R2
 bucket are gone.
 

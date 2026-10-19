@@ -1,6 +1,6 @@
 # Email Worker (Save by email)
 
-`teak-email-in` receives mail sent to `save@in.teakvault.com` through
+`teak-email-prod` receives mail sent to `save@in.teakvault.com` through
 Cloudflare Email Routing and turns it into cards. It has no HTTP routes.
 
 ## How a message is handled
@@ -82,7 +82,7 @@ Do these in order. Until step 4 no mail reaches the Worker, and nothing is publi
 
    In Convex dev also set `INBOUND_EMAIL_DOMAIN=in-dev.teakvault.com`
    (production uses the default, `in.teakvault.com`).
-2. **Deploy the Workers.** `bun run deploy` (production, `teak-email-in`)
+2. **Deploy the Workers.** `bun run deploy` (production, `teak-email-prod`)
    and `bun run deploy:development` (`teak-email-dev`).
 3. **This code on the dev deployment.** Push the branch's Convex functions
    to the shared dev deployment (`bun run dev`; see `.agents/development.md`
@@ -119,7 +119,7 @@ Do these in order. Until step 4 no mail reaches the Worker, and nothing is publi
    docs section and the changelog entry go live together.
 7. **Production routing, straight after.** Repeat step 4 for
    `in.teakvault.com`, with the literal rule for `save@in.teakvault.com`
-   sending to `teak-email-in`, then smoke-test with one email from a test
+   sending to `teak-email-prod`, then smoke-test with one email from a test
    account.
 
 **Rollback:** disable the subdomain's `save@` rule (or Email Routing on the

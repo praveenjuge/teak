@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "teak-files-proxy",
+  "name": "teak-files-prod",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -73,12 +73,16 @@
   "containers": [
     {
       "class_name": "MediaRenderer",
+      // Container apps keep the names they got before the Worker was renamed
+      // from teak-files-proxy; a deploy under a new name cannot create new ones.
+      "name": "teak-files-proxy-mediarenderer",
       "image": "./container/Dockerfile",
       "instance_type": "basic",
       "max_instances": 4
     },
     {
       "class_name": "LinkFetcher",
+      "name": "teak-files-proxy-linkfetcher",
       "image": "./fetcher/Dockerfile",
       "image_build_context": "../..",
       "instance_type": "basic",
