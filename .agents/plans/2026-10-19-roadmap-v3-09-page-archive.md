@@ -22,6 +22,8 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
   3. It passes `pageSnapshotKey` in `POST /v1/cards`.
 
   The workflow then archives that HTML instead of fetching the page. A snapshot upload that fails never blocks the save.
+
+  The snapshot is the page's markup as rendered. Its subresources (CSS, images, fonts) are still fetched by the server inliner, so on a logged-in or paywalled page the text is what you saw, but images or styles that need your session can be missing from the archive. The extension does not upload subresources in this phase.
 - **A backfill** (dry run by default, paged) queues an archive-only run for every existing non-trashed link card. Before the production run, the owner gets the measured cost estimate (see Risks).
 - **Refresh details re-archives the page.** Phase 12 adds the exception that a card with highlights is never re-archived.
 - Nothing in the UI shows the archive yet, except one Details row in the side panel: "Archived copy · 2.4 MB". Phase 10 (Read tab) and phase 11 (dead-link fallback) are the surfaces that use it.
@@ -85,19 +87,20 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 
 - `schema.ts`, on `cards`:
   - `pageArchive: v.optional(v.object({ storageKey: r2KeyValidator, bytes: v.number(), kind: v.union(v.literal("full"), v.literal("text_only")), source: v.union(v.literal("server"), v.literal("extension")), capturedAt: v.number(), sourceUrl: v.string() }))`
-  - `pendingPageSnapshotKey: v.optional(r2KeyValidator)`, holding the extension's upload until the workflow uses it.
+  - `pendingPageSnapshotKey: v.optional(r2KeyValidator)` and `pendingPageSnapshotAt: v.optional(v.number())`, holding the extension's upload, and when it was taken, until the workflow uses it.
   - `processingStatus.archive` in the stage map, with the same `stageCompleted` and `stageFailed` helpers.
 - `storage/cardObjectKeys.ts`: add `card.pageArchive?.storageKey` and `card.pendingPageSnapshotKey`.
 - `workflows/steps/archive/mutations.ts`, both guarded by `{ cardId, rev }` and listed in `workflowRpcAllowlist.ts`:
-  - `recordPageArchive({ cardId, archive })` replaces `pageArchive` through `patchCardWithSearchSync`. The archive is not searchable here (phase 10 adds the text), but a single write path keeps it simple. It queues the old archive object for deletion with `queueObjectDeletion`, and clears `pendingPageSnapshotKey` after queuing that object's deletion too.
+  - `recordPageArchive({ cardId, archive })` replaces `pageArchive` through `patchCardWithSearchSync`. The archive is not searchable here (phase 10 adds the text), but a single write path keeps it simple. It queues the old archive object for deletion with `queueObjectDeletion` only when its key differs from the new one (a refresh of an unchanged page produces the same content-hash key, and deleting it would delete the new archive), and clears `pendingPageSnapshotKey` after queuing that object's deletion too.
+  - When the guard rejects `recordPageArchive` (a stale run, or a card deleted meanwhile), the step deletes the object it just wrote. The output key is also registered with `ensureObjectOwnership` before the worker writes it, so the orphan sweep can find it if that compensating delete is lost.
   - `markPageArchiveStage({ cardId, status, reason? })`.
 - `card/createCard.ts` / `raycast.quickSaveForUser`:
   - accept an optional `pageSnapshotKey`;
-  - validate that it sits under the caller's `filesCardKeyPrefix`, in `pending/page-snapshot/`;
-  - store it in `pendingPageSnapshotKey`.
+  - validate that it is one of the caller's pending uploads (see the next item);
+  - store it in `pendingPageSnapshotKey`, with `pendingPageSnapshotAt` set to the save time.
 
   A key that is wrong, foreign or missing is ignored, not refused, so a bad snapshot never loses a save. On re-save (phase 3), a fresh snapshot replaces the old archive only when the card has no highlights (phase 12).
-- `publicApiPageSnapshots.ts`: `createPageSnapshotUpload(userId, { bytes })` returns a signed PUT URL for `pending/page-snapshot/<uuid>.html.gz`. It refuses anything over 20 MiB of compressed bytes with 413 `PAGE_SNAPSHOT_TOO_LARGE`, and is rate-limited by a new `pageSnapshotUploads` limit of 60 a minute.
+- `publicApiPageSnapshots.ts`: `createPageSnapshotUpload(userId, { bytes })` returns a signed PUT URL in the existing pending-upload namespace, `buildR2ObjectKey({ userId, cardId: PENDING_UPLOAD_CARD_ID, role: "page-snapshot" })` (`storage/r2.ts:18`, `upload-pending-v2`), and registers ownership first, as `publicApiUploads.ts` does. The R2 event queue (`queues/r2Events.ts`, `PENDING_UPLOAD_SEGMENT`) and the orphan sweep already clean up abandoned objects there, so a snapshot whose card POST never arrives is removed like any other abandoned upload. It refuses anything over 20 MiB of compressed bytes with 413 `PAGE_SNAPSHOT_TOO_LARGE`, and is rate-limited by a new `pageSnapshotUploads` limit of 60 a minute.
 - `migration/backfillPageArchives.ts`:
   - pages through the whole `cards` table in `_creationTime` order (copy `migration/backfillUrlHost.ts`), for link cards with no `pageArchive` and no `processingStatus.archive.status === "failed"`;
   - queues `queueCardProcessing(ctx, cardId, { archiveOnly: true })`;
@@ -115,7 +118,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
      - `<form action>` becomes inert.
   2. **Rewrite every `href` to absolute** against `pageUrl`, with `target="_blank" rel="noopener noreferrer"`.
   3. **CSS:**
-     - fetch each `link[rel=stylesheet]` through `/hop` (4 MiB each, 40 stylesheets at most);
+     - fetch each `link[rel=stylesheet]` through `/hop` (4 MiB each, 40 stylesheets at most), within a shared input budget for the whole archive (see 5);
      - resolve `@import` one level deep;
      - inline it as `<style>`;
      - rewrite `url()` fonts (woff2 first) and images to `data:` URIs within the budget.
@@ -124,18 +127,21 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
      - fetch it through `/fetch` (image), and re-encode wider images to 1600w WebP through the `IMAGES` binding (`imagesBinding.ts`, 20 MB input cap);
      - inline it; `picture > source` is replaced by the chosen `img`;
      - inline CSS background images last.
-  5. **Budget:** count bytes as they are written. When the next image would pass the budget, drop it and keep `alt`/`width`/`height` in an empty placeholder box (`data-teak-dropped`). The images that were not inlined are dropped largest-first.
+  5. **Budget:**
+     - **Input:** at most 200 subresource requests and 60 MiB of fetched bytes per archive, across CSS, fonts and images; once either is reached, nothing more is fetched and the rest are treated as dropped.
+     - **Output:** fetch and size every image candidate first, then drop images largest-first until the whole archive fits in 20 MiB. Each dropped image keeps `alt`/`width`/`height` in an empty placeholder box (`data-teak-dropped`).
   6. **Text-only:** if the stripped HTML plus CSS is still over budget, write a minimal document from a body-text pass with `<h1>`–`<h6>`, `<p>`, `<li>`, `<blockquote>`, `<pre>` and `<a>` kept. The result is `kind: "text_only"`.
-  7. **Header:** prepend `<meta charset="utf-8"><meta name="teak-archive" content='{"url":…,"capturedAt":…,"source":…}'>` and a CSP meta that denies scripts: `default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:; media-src 'none'`.
+  7. **Header:** prepend `<meta charset="utf-8"><meta name="teak-archive" content="…">`, where the content is the JSON `{"url","capturedAt","source"}` HTML-attribute-escaped (`&`, `"`, `'`, `<`, `>`), so a URL with quotes or markup can't break out of the attribute, and a CSP meta that denies scripts: `default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:; media-src 'none'`.
 - **The new op `archive-page`** (in `FILES_OPS` and `ops.ts`):
   - **params:** `{ cardId, userId, url, snapshotKey? }`;
   - **source:** with `snapshotKey`, read and gunzip it (cap 20 MiB compressed / 60 MiB raw); otherwise call `fetchLinkPage` for the cached static HTML;
   - **output:** run `buildPageArchive`, `PUT` the result to `cards/<cardId>/page-archive/<sha256>.html` with `Content-Type: text/html; charset=utf-8`, and return `{ storageKey, bytes, kind, source }`.
   - **`applyObjectHeaders`:** for a key whose role is `page-archive`, also set `Content-Security-Policy: sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:` and `Cross-Origin-Resource-Policy: cross-origin`. Even when opened directly, the copy then runs in an opaque origin with no scripts.
 - **`run.ts`:** append an "archive page" step after "transcribe podcast" for `cardType === "link"`, whether or not AI metadata completed.
+  - Earlier steps can end the run before it (a link-metadata failure outside a refresh rethrows, `run.ts:260`). So when a link card's run ends in failure, the workflow's failure path dispatches a separate `archiveOnly` run for it, the same run the backfill uses; a page that can't be fetched then fails only its archive stage.
   - Retries: 3, with 30 s delay for `renderer_unavailable`/busy; timeout 5 minutes.
   - A final failure runs "mark archive failed", and the card still completes.
-  - The step skips when `pageArchive` exists, unless this run is a refresh, or `pendingPageSnapshotKey` is newer than `pageArchive.capturedAt`.
+  - The step skips when `pageArchive` exists, unless this run is a refresh, or `pendingPageSnapshotAt` is newer than `pageArchive.capturedAt`.
   - With `archiveOnly`, only "load card" and "archive page" run.
 - **Deploy order:** the Files Worker ships before Convex. An old Convex never sends `archiveOnly`, and the new step is a no-op for cards it can't load.
 
@@ -143,7 +149,8 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 
 - **`lib/pageSnapshot.ts` `capturePageSnapshot(tabId)`:**
   - `chrome.scripting.executeScript` with a function that clones `document.documentElement` and removes `script`, `noscript` and `template`;
-  - it sets every form control's value attribute from its live value, adds `<base href=location.href>`, and returns `outerHTML` together with `location.href`;
+  - it sets each form control's value attribute from its live value, except `input[type=password]`, hidden inputs and any field with `autocomplete` of `current-password`, `new-password`, `one-time-code` or a `cc-*` value, whose values are cleared, so a snapshot never stores credentials or card numbers typed into the page;
+  - it adds `<base href=location.href>`, and returns `outerHTML` together with `location.href`;
   - it gzips the result with `CompressionStream`, skips it above 20 MiB compressed, and gives up after a 3 s timeout.
 - **`saveToTeak`:**
   - when given a snapshot, it calls `POST /v1/page-snapshots/upload` and then `PUT` to the signed URL;
