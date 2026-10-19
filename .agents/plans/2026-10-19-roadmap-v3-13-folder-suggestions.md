@@ -120,7 +120,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
 
 - `types/messages.ts`: `SaveDetailsResponse.card` gains `folderSuggestion?: { folderId, name, color }`. Add new messages `ACCEPT_FOLDER_SUGGESTION` and `DISMISS_FOLDER_SUGGESTION` (popup only, like `PATCH_CARD`).
 - `lib/cardDetails.ts`:
-  - Add `pollFolderSuggestion(cardId)`. It calls `GET /v1/cards/:id` at 2, 4, 7, 12 and 20 seconds, stopping as soon as the response carries a `folderSuggestion` or the card is in a folder, or when the popup closes (an AbortSignal).
+  - Add `pollFolderSuggestion(cardId)`. It calls `GET /v1/cards/:id` at 2, 4, 7, 12 and 20 seconds, then every 15 seconds while the card is still processing (slow runs such as podcast transcription can take minutes). It stops as soon as the response carries a `folderSuggestion`, the card is in a folder, processing has finished without a suggestion, or the popup closes (an AbortSignal).
   - Add `acceptFolderSuggestion`, which calls `POST /v1/folders/{id}/cards` with `{ cardIds: [cardId] }`.
   - Add `dismissFolderSuggestion`, which calls `DELETE /v1/cards/{id}/folder-suggestion`.
 - `SaveDetails.tsx`: below the note field, reserve no space until a suggestion arrives, then fade the chip in (150 ms).
@@ -128,7 +128,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - After accepting, the chip reads "Added to Design" with a check, and Undo (removes the card from the folder) for 5 s.
   - A card that was already saved shows its stored suggestion at once.
   - Errors appear inline in the existing `saveError` style: "Couldn't add to Design."
-- The poll requests count against the API's limit of 120 per minute. Five requests per save is acceptable.
+- The poll requests count against the API's limit of 120 per minute: five in the first 20 seconds, then at most four a minute while the popup stays open on a processing card. They go through phase 1's shared request counter, so they back off with the badge checks.
 
 ## API / MCP / SDK / CLI
 
