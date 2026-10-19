@@ -727,11 +727,17 @@ export const snapshotBilling = (
 type MetadataStatus = "pending" | "completed" | "failed";
 type OverviewStage = "classify" | "categorize" | "metadata" | "renderables";
 
-/** The fields of a card the admin overview counts. */
+/**
+ * A card as `admin:overviewCardsPage` returns it: what both the admin
+ * overview and the daily snapshot count, so one scan feeds both.
+ */
 export interface OverviewCardRow {
   cardId: Id<"cards">;
   createdAt: number;
+  /** `_creationTime`, which the snapshot counts by. */
+  creationTime: number;
   deleted: boolean;
+  fileSize: number;
   hasAiSummary: boolean;
   hasAiTags: boolean;
   hasAiTranscript: boolean;
@@ -745,11 +751,13 @@ export interface OverviewCardRow {
 export const toOverviewCardRow = (
   card: Pick<
     Doc<"cards">,
+    | "_creationTime"
     | "_id"
     | "aiSummary"
     | "aiTags"
     | "aiTranscript"
     | "createdAt"
+    | "fileMetadata"
     | "isDeleted"
     | "metadataStatus"
     | "processingStatus"
@@ -762,13 +770,23 @@ export const toOverviewCardRow = (
   userId: card.userId,
   type: card.type ?? "unknown",
   createdAt: card.createdAt,
+  creationTime: card._creationTime,
   deleted: card.isDeleted === true,
+  fileSize: card.fileMetadata?.fileSize ?? 0,
   onboarding,
   hasAiSummary: Boolean(card.aiSummary),
   hasAiTags: Boolean(card.aiTags && card.aiTags.length > 0),
   hasAiTranscript: Boolean(card.aiTranscript),
   ...(card.metadataStatus ? { metadataStatus: card.metadataStatus } : {}),
   ...(card.processingStatus ? { processingStatus: card.processingStatus } : {}),
+});
+
+/** A scanned card as the daily snapshot counts it (`MetricsCardRow`). */
+export const toMetricsCardRow = (card: OverviewCardRow): MetricsCardRow => ({
+  userId: card.userId,
+  createdAt: card.creationTime,
+  deleted: card.deleted,
+  fileSize: card.fileSize,
 });
 
 export interface StageSummary {

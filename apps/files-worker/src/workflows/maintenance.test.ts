@@ -69,32 +69,6 @@ describe("startMaintenanceTask", () => {
     });
   });
 
-  test("names an hourly task's instance by the hour", async () => {
-    const workflows = fakeMaintenance([]);
-    const env = {
-      ...fakeConvexEnv,
-      MAINTENANCE: workflows.binding,
-    } as unknown as BackgroundEnv;
-
-    await startMaintenanceTask(
-      env,
-      TEST_CONVEX_SITE_URL,
-      "admin-overview",
-      new Date("2026-10-16T02:45:00Z")
-    );
-    await startMaintenanceTask(
-      env,
-      TEST_CONVEX_SITE_URL,
-      "admin-overview",
-      new Date("2026-10-16T03:45:00Z")
-    );
-
-    expect(workflows.created.map(({ id }) => id.slice(0, 29))).toEqual([
-      "admin-overview-2026-10-16T02-",
-      "admin-overview-2026-10-16T03-",
-    ]);
-  });
-
   test("a second firing the same day is a no-op, but other failures throw", async () => {
     const env = (code: number) =>
       ({
@@ -298,23 +272,60 @@ const pages =
     };
   };
 
+/** A card as `admin:overviewCardsPage` returns it. */
+const card = (
+  cardId: string,
+  userId: string,
+  creationTime: number,
+  extra: Record<string, unknown> = {}
+) => ({
+  cardId,
+  createdAt: creationTime,
+  creationTime,
+  deleted: false,
+  fileSize: 0,
+  hasAiSummary: true,
+  hasAiTags: true,
+  hasAiTranscript: false,
+  onboarding: false,
+  type: "text",
+  userId,
+  ...extra,
+});
+
+interface StoredOverview {
+  includeOnboarding: boolean;
+  overview: {
+    aiPipeline: { failedCards: number; missingCards: unknown[] };
+    cardsByType: Record<string, number>;
+    generatedAt: number;
+    isApproximate: boolean;
+    totals: { totalCards: number; uniqueUsers: number };
+  };
+}
+
 const snapshotRun = (
   params: Omit<MaintenanceParams, "task">,
   handlers: Parameters<typeof createTestRun>[1]["handlers"] = {}
 ) => {
   const flagged: string[][] = [];
   const written: Record<string, unknown>[] = [];
+  const overviews: StoredOverview[] = [];
   const test = createTestRun(
     { task: "admin-snapshot", ...params },
     {
       handlers: {
+        "admin:overviewCardsPage": pages(),
+        "admin:writeOverview": (args) => {
+          overviews.push(args as unknown as StoredOverview);
+          return null;
+        },
         "adminAccess:flagAutoInternalAccounts": ({ teakUserIds }) => {
           flagged.push(teakUserIds as string[]);
           return (teakUserIds as string[]).length;
         },
         "adminAccess:listInternalUserIds": () => ["qa", "staff"],
         "adminHealth:recordCronRun": () => null,
-        "adminMetrics:cardsPage": pages(),
         "adminMetrics:readSnapshotBilling": () => ({
           billing: {
             canceling: 0,
@@ -338,7 +349,10 @@ const snapshotRun = (
       },
     }
   );
-  return { flagged, test, written };
+  const stored = (includeOnboarding: boolean) =>
+    overviews.find((row) => row.includeOnboarding === includeOnboarding)
+      ?.overview;
+  return { flagged, overviews, stored, test, written };
 };
 
 describe("admin snapshot", () => {
@@ -352,24 +366,26 @@ describe("admin snapshot", () => {
       isAdmin: false,
       teakUserId,
     });
-    const card = (
-      userId: string,
-      createdAt: number,
-      fileSize = 0,
-      deleted = false
-    ) => ({ createdAt, deleted, fileSize, userId });
     const { flagged, test, written } = snapshotRun(
       { date: day },
       {
-        "adminMetrics:cardsPage": pages(
+        "admin:overviewCardsPage": pages(
           [
-            card("reader", dayStart + 3_600_000, 100),
-            card("new", dayStart - 3 * DAY_MS),
+            card("c1", "reader", dayStart + 3_600_000, { fileSize: 100 }),
+            card("c2", "new", dayStart - 3 * DAY_MS),
+            // The snapshot leaves onboarding cards out.
+            card("c3", "new", dayStart + 7_200_000, {
+              fileSize: 5000,
+              onboarding: true,
+            }),
           ],
           [
-            card("qa", dayStart + 60_000, 999),
-            card("reader", dayStart + DAY_MS + 60_000, 7),
-            card("new", dayStart - 20 * DAY_MS, 50, true),
+            card("c4", "qa", dayStart + 60_000, { fileSize: 999 }),
+            card("c5", "reader", dayStart + DAY_MS + 60_000, { fileSize: 7 }),
+            card("c6", "new", dayStart - 20 * DAY_MS, {
+              deleted: true,
+              fileSize: 50,
+            }),
           ]
         ),
         "adminMetrics:usersPage": pages(
@@ -399,7 +415,7 @@ describe("admin snapshot", () => {
 
     expect(flagged).toEqual([["qa"]]);
     expect(test.callsTo("adminMetrics:usersPage")).toHaveLength(2);
-    expect(test.callsTo("adminMetrics:cardsPage")).toHaveLength(2);
+    expect(test.callsTo("admin:overviewCardsPage")).toHaveLength(2);
     expect(written).toEqual([
       {
         accounts: 2,
@@ -435,114 +451,55 @@ describe("admin snapshot", () => {
     ]);
   });
 
-  test("an admin's request for an older day has no billing and reports back to its dispatch row", async () => {
-    const day = utcDay(Date.now() - 5 * DAY_MS);
-    const { test, written } = snapshotRun({ date: day, dispatched: true });
-
-    await runMaintenance(test.run, { convex: test.convex });
-
-    expect(test.callsTo("adminMetrics:readSnapshotBilling")).toEqual([]);
-    expect(written).toHaveLength(1);
-    expect(written[0]?.date).toBe(day);
-    expect(written[0]).not.toHaveProperty("billing");
-    expect(heartbeats(test.calls)).toEqual([]);
-    expect(completionReports(test.callsTo)).toEqual(["complete"]);
-  });
-
-  test("a scan cut short marks the day approximate", async () => {
-    const { test, written } = snapshotRun(
-      { date: utcDay(Date.now() - DAY_MS) },
-      {
-        "adminMetrics:cardsPage": ({ cursor }) => ({
-          rows: [],
-          isDone: false,
-          continueCursor: `${String(cursor)}+`,
-        }),
-      }
-    );
-
-    await runMaintenance(test.run, { convex: test.convex });
-
-    expect(test.callsTo("adminMetrics:cardsPage")).toHaveLength(400);
-    expect(written[0]?.isApproximate).toBe(true);
-  });
-});
-
-describe("admin overview", () => {
-  test("counts every card once and stores the overview with and without onboarding cards", async () => {
+  test("one run stores the snapshot and both overviews from a single card scan", async () => {
     const now = Date.now();
-    const row = (
-      cardId: string,
-      userId: string,
-      extra: Record<string, unknown> = {}
-    ) => ({
-      cardId,
-      createdAt: now - DAY_MS,
-      deleted: false,
-      hasAiSummary: true,
-      hasAiTags: true,
-      hasAiTranscript: false,
-      onboarding: false,
-      type: "text",
-      userId,
-      ...extra,
-    });
-    const written: Record<string, unknown>[] = [];
-    const test = createTestRun(
-      { task: "admin-overview" },
+    const { overviews, stored, test, written } = snapshotRun(
+      { date: utcDay(now - DAY_MS) },
       {
-        handlers: {
-          "admin:overviewCardsPage": pages(
-            [
-              row("c1", "reader"),
-              row("c2", "reader", { onboarding: true }),
-              row("c3", "staff"),
-            ],
-            [
-              row("c4", "writer", {
-                hasAiSummary: false,
-                hasAiTags: false,
-                metadataStatus: "pending",
-                processingStatus: { classify: { status: "failed" } },
-                type: "link",
-              }),
-            ]
-          ),
-          "admin:writeOverview": (args) => {
-            written.push(args);
-            return null;
-          },
-          "adminAccess:listInternalUserIds": () => ["staff"],
-          "adminHealth:recordCronRun": () => null,
-        },
+        "admin:overviewCardsPage": pages(
+          [
+            card("c1", "reader", now - DAY_MS),
+            card("c2", "reader", now - DAY_MS, { onboarding: true }),
+            card("c3", "staff", now - DAY_MS),
+          ],
+          [
+            card("c4", "writer", now - DAY_MS, {
+              hasAiSummary: false,
+              hasAiTags: false,
+              metadataStatus: "pending",
+              processingStatus: { classify: { status: "failed" } },
+              type: "link",
+            }),
+          ]
+        ),
       }
     );
 
-    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
-      cards: 3,
-      isApproximate: false,
-    });
+    await runMaintenance(test.run, { convex: test.convex });
 
-    const stored = (includeOnboarding: boolean) =>
-      written.find((args) => args.includeOnboarding === includeOnboarding)
-        ?.overview as {
-        aiPipeline: { failedCards: number; missingCards: unknown[] };
-        cardsByType: Record<string, number>;
-        isApproximate: boolean;
-        totals: { totalCards: number; uniqueUsers: number };
-      };
-    expect(written).toHaveLength(2);
-    expect(stored(true).totals).toMatchObject({
+    // Every card is read once, through one page query, for all three rows.
+    expect(
+      test.calls
+        .map((call) => call.name)
+        .filter((name) => /cards?page/iu.test(name))
+    ).toEqual(["admin:overviewCardsPage", "admin:overviewCardsPage"]);
+    expect(written).toHaveLength(1);
+    expect(written[0]?.totalCards).toBe(2);
+    expect(overviews.map((row) => row.includeOnboarding).sort()).toEqual([
+      false,
+      true,
+    ]);
+    expect(stored(true)?.totals).toMatchObject({
       totalCards: 3,
       uniqueUsers: 2,
     });
-    expect(stored(true).cardsByType).toEqual({ link: 1, text: 2 });
-    expect(stored(false).totals).toMatchObject({
+    expect(stored(true)?.cardsByType).toEqual({ link: 1, text: 2 });
+    expect(stored(false)?.totals).toMatchObject({
       totalCards: 2,
       uniqueUsers: 2,
     });
-    expect(stored(false).aiPipeline.failedCards).toBe(1);
-    expect(stored(false).aiPipeline.missingCards).toEqual([
+    expect(stored(false)?.aiPipeline.failedCards).toBe(1);
+    expect(stored(false)?.aiPipeline.missingCards).toEqual([
       expect.objectContaining({
         cardId: "c4",
         reasons: [
@@ -553,10 +510,45 @@ describe("admin overview", () => {
         ],
       }),
     ]);
-    expect(stored(false).isApproximate).toBe(false);
-    expect(heartbeats(test.calls)).toEqual([
-      "admin-overview started",
-      "admin-overview succeeded",
-    ]);
+    expect(stored(false)?.isApproximate).toBe(false);
+    expect(stored(true)?.generatedAt).toBe(written[0]?.capturedAt as number);
+  });
+
+  test("an admin's request for an older day has no billing, refreshes the overview and reports back to its dispatch row", async () => {
+    const day = utcDay(Date.now() - 5 * DAY_MS);
+    const { overviews, test, written } = snapshotRun({
+      date: day,
+      dispatched: true,
+    });
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("adminMetrics:readSnapshotBilling")).toEqual([]);
+    expect(written).toHaveLength(1);
+    expect(written[0]?.date).toBe(day);
+    expect(written[0]).not.toHaveProperty("billing");
+    expect(overviews).toHaveLength(2);
+    expect(heartbeats(test.calls)).toEqual([]);
+    expect(completionReports(test.callsTo)).toEqual(["complete"]);
+  });
+
+  test("a scan cut short marks the day and the overview approximate", async () => {
+    const { stored, test, written } = snapshotRun(
+      { date: utcDay(Date.now() - DAY_MS) },
+      {
+        "admin:overviewCardsPage": ({ cursor }) => ({
+          rows: [],
+          isDone: false,
+          continueCursor: `${String(cursor)}+`,
+        }),
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("admin:overviewCardsPage")).toHaveLength(400);
+    expect(written[0]?.isApproximate).toBe(true);
+    expect(stored(true)?.isApproximate).toBe(true);
+    expect(stored(false)?.isApproximate).toBe(true);
   });
 });

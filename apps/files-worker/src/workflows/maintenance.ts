@@ -4,11 +4,11 @@ import {
   autoInternalUserIds,
   createOverviewTally,
   createSnapshotTally,
-  type MetricsCardRow,
   type MetricsUserRow,
   type OverviewCardRow,
   snapshotDay,
   snapshotTakesBilling,
+  toMetricsCardRow,
 } from "@teak/convex/adminStats";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
@@ -41,11 +41,7 @@ const HEARTBEAT_NAMES: Record<MaintenanceTask, string> = {
   "orphan-sweep": CRONS.sweepOrphanedObjects.name,
   "receipt-cleanup": CRONS.cleanupInboundEmailReceipts.name,
   "admin-snapshot": CRONS.adminDailySnapshot.name,
-  "admin-overview": CRONS.adminOverview.name,
 };
-
-/** Started every hour, so their instances are named by the hour. */
-const HOURLY_TASKS: ReadonlySet<MaintenanceTask> = new Set(["admin-overview"]);
 
 const CARD_CLEANUP_BATCH = 10;
 const EXPORT_CLEANUP_BATCH = 25;
@@ -75,8 +71,7 @@ export const startMaintenanceTask = async (
     throw new Error("workflow_missing:maintenance");
   }
   const deployment = (await sha256Hex(convexSiteUrl)).slice(0, 8);
-  const period = now.toISOString().slice(0, HOURLY_TASKS.has(task) ? 13 : 10);
-  const id = `${task}-${period}-${deployment}`;
+  const id = `${task}-${now.toISOString().slice(0, 10)}-${deployment}`;
   const { errors } = await workflows.createBatch({
     instances: [{ id, params: { convexSiteUrl, task } }],
   });
@@ -338,9 +333,15 @@ const visitPages = async <T>(
   return false;
 };
 
+/**
+ * Counts the day's snapshot and `admin:getOverview`'s result (with and
+ * without onboarding cards) from one scan of every card, so the overview
+ * reads nothing more from Convex. The snapshot leaves onboarding cards out.
+ */
 const countSnapshot = async (
   convex: ConvexRpc,
-  window: ReturnType<typeof snapshotDay>
+  window: ReturnType<typeof snapshotDay>,
+  now: number
 ) => {
   const users: MetricsUserRow[] = [];
   const usersComplete = await visitPages<MetricsUserRow>(
@@ -360,11 +361,22 @@ const countSnapshot = async (
   for (const user of users) {
     tally.addUser(user);
   }
-  const cardsComplete = await visitPages<MetricsCardRow>(
-    (cursor) => convex.query(internal.adminMetrics.cardsPage, { cursor }),
+  const withOnboarding = createOverviewTally(now);
+  const withoutOnboarding = createOverviewTally(now);
+  const cardsComplete = await visitPages<OverviewCardRow>(
+    (cursor) => convex.query(internal.admin.overviewCardsPage, { cursor }),
     (rows) => {
       for (const card of rows) {
-        tally.addCard(card);
+        if (!card.onboarding) {
+          tally.addCard(toMetricsCardRow(card));
+        }
+        if (internalIds.has(card.userId)) {
+          continue;
+        }
+        withOnboarding.add(card);
+        if (!card.onboarding) {
+          withoutOnboarding.add(card);
+        }
       }
     }
   );
@@ -373,19 +385,42 @@ const countSnapshot = async (
   })) {
     tally.addUsage(row);
   }
-  return { counts: tally.counts(), isComplete: usersComplete && cardsComplete };
+  return {
+    counts: tally.counts(),
+    isComplete: usersComplete && cardsComplete,
+    overviews: [
+      {
+        includeOnboarding: true,
+        overview: withOnboarding.finish(!cardsComplete),
+      },
+      {
+        includeOnboarding: false,
+        overview: withoutOnboarding.finish(!cardsComplete),
+      },
+    ],
+  };
 };
 
-/** The day's `adminDailyMetrics` row; billing comes from Convex (Polar). */
+/**
+ * The day's `adminDailyMetrics` row, and the current `adminOverviews` rows
+ * from the same scan. Billing comes from Convex (Polar). An admin's capture
+ * of any day refreshes the overview too, since the scan is already done.
+ */
 const captureSnapshot = async ({ convex, run }: TaskContext) => {
   const { step } = run;
   const now = await step.do("now", async () => Promise.resolve(Date.now()));
   const window = snapshotDay(run.params.date, now);
-  const { counts, isComplete } = await step.do(
+  const { counts, isComplete, overviews } = await step.do(
     "count snapshot",
     METRICS_STEP,
-    () => countSnapshot(convex, window)
+    () => countSnapshot(convex, window, now)
   );
+  await step.do("write overview", CONVEX_STEP, async () => {
+    for (const overview of overviews) {
+      await convex.mutation(internal.admin.writeOverview, overview);
+    }
+    return null;
+  });
   const billing = snapshotTakesBilling(window.dayEnd, now)
     ? await step.do("read billing", BILLING_STEP, () =>
         convex.action(internal.adminMetrics.readSnapshotBilling, {})
@@ -407,54 +442,6 @@ const captureSnapshot = async ({ convex, run }: TaskContext) => {
   return { date: window.day, isApproximate };
 };
 
-const countOverviews = async (convex: ConvexRpc) => {
-  const now = Date.now();
-  const internalIds = new Set<string>(
-    await convex.query(internal.adminAccess.listInternalUserIds, {})
-  );
-  const withOnboarding = createOverviewTally(now);
-  const withoutOnboarding = createOverviewTally(now);
-  const isComplete = await visitPages<OverviewCardRow>(
-    (cursor) => convex.query(internal.admin.overviewCardsPage, { cursor }),
-    (rows) => {
-      for (const card of rows) {
-        if (internalIds.has(card.userId)) {
-          continue;
-        }
-        withOnboarding.add(card);
-        if (!card.onboarding) {
-          withoutOnboarding.add(card);
-        }
-      }
-    }
-  );
-  return [
-    { includeOnboarding: true, overview: withOnboarding.finish(!isComplete) },
-    {
-      includeOnboarding: false,
-      overview: withoutOnboarding.finish(!isComplete),
-    },
-  ];
-};
-
-/** What `admin:getOverview` returns, with and without onboarding cards. */
-const refreshOverview = async ({ convex, run }: TaskContext) => {
-  const overviews = await run.step.do("count overview", METRICS_STEP, () =>
-    countOverviews(convex)
-  );
-  await run.step.do("write overview", CONVEX_STEP, async () => {
-    for (const overview of overviews) {
-      await convex.mutation(internal.admin.writeOverview, overview);
-    }
-    return null;
-  });
-  const [all] = overviews;
-  return {
-    cards: all?.overview.totals.totalCards ?? 0,
-    isApproximate: all?.overview.isApproximate ?? false,
-  };
-};
-
 const TASKS: Record<
   MaintenanceTask,
   (context: TaskContext) => Promise<unknown>
@@ -464,7 +451,6 @@ const TASKS: Record<
   "orphan-sweep": sweepStorage,
   "receipt-cleanup": pruneEmailReceipts,
   "admin-snapshot": captureSnapshot,
-  "admin-overview": refreshOverview,
 };
 
 export const runMaintenance = async (

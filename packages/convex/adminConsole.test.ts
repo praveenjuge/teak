@@ -447,6 +447,47 @@ describe("overview", () => {
       asCustomer(t).query(api.admin.getOverview, {})
     ).rejects.toThrow("Unauthorized");
   });
+
+  test("the Files Worker's card page carries what the snapshot counts too", async () => {
+    const t = setup();
+    const cardId = await privateCard(t);
+    await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "teak_customer",
+        type: "image",
+        content: "",
+        onboarding: "coral-lily",
+        fileMetadata: { fileName: "lily.webp", fileSize: 2048 },
+        isDeleted: true,
+        createdAt: 2,
+        updatedAt: 2,
+      })
+    );
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+
+    const page = await t.query(internal.admin.overviewCardsPage, {
+      cursor: null,
+    });
+
+    expect(page.isDone).toBe(true);
+    expect(page.rows).toEqual([
+      expect.objectContaining({
+        cardId,
+        createdAt: 1,
+        creationTime: card?._creationTime,
+        deleted: false,
+        fileSize: 0,
+        onboarding: false,
+        userId: "teak_customer",
+      }),
+      expect.objectContaining({
+        createdAt: 2,
+        deleted: true,
+        fileSize: 2048,
+        onboarding: true,
+      }),
+    ]);
+  });
 });
 
 describe("cron heartbeats", () => {

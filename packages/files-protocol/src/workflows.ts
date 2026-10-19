@@ -155,7 +155,6 @@ export const MAINTENANCE_TASKS = [
   "orphan-sweep",
   "receipt-cleanup",
   "admin-snapshot",
-  "admin-overview",
 ] as const;
 export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
 
