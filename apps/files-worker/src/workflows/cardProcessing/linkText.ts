@@ -30,11 +30,7 @@ export const readLinkImageText = async (
       userId: card.userId,
     },
     async (): Promise<LinkTextOutcome> => {
-      const aiGate = await job.deps.convex.query(
-        internal.adminAccess.getAiGate,
-        { userId: card.userId }
-      );
-      if (aiGate !== "allowed") {
+      if ((await job.deps.aiGate(card.userId)) !== "allowed") {
         return { status: "skipped" };
       }
       const texts: string[] = [];

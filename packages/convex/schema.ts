@@ -1163,6 +1163,7 @@ export default defineSchema({
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),
+  // Unused; kept for old rows until `.agents/sunset.md` says it can go.
   pendingUploadCleanupStates: defineTable({
     cursor: v.union(v.string(), v.null()),
     name: v.string(),

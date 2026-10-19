@@ -99,11 +99,20 @@ only the small hourly crons in `crons.ts`. `cronSchedules.ts` lists both, so
 the admin health view still shows every task. The hourly pending-upload sweep
 is gone: R2 event notifications delete each abandoned pending upload after a
 day, and a weekly Worker sweep is the backstop, so Convex no longer pages the
-bucket. The `pendingUploadCleanupStates` table is unused and can be dropped.
+bucket. The `pendingUploadCleanupStates` table is unused; it stays in the
+schema until its old rows are gone (`.agents/sunset.md`).
 
 AI usage no longer costs a mutation per card. The Worker writes a Workers
 Analytics Engine data point per model call, and the hourly rollup sets each
 user's totals for today and yesterday in `aiUsageDaily` in batches of 200.
+
+The AI gate (`adminAccess:getAiGate`, a gateway HTTP action plus the query)
+used to be read before every AI step of a card run: two reads for a text
+card, three or more for a link. The Worker now reuses each answer for 60
+seconds in the isolate and the Cache API (`apps/files-worker/src/aiGate.ts`),
+so a run reads it at most once and later runs for the same account within
+the minute usually not at all. An admin's AI pause takes up to a minute to
+reach running work.
 
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,

@@ -919,22 +919,12 @@ describe("card processing", () => {
 
   test("an edit during the run stops it before its next write", async () => {
     const card = makeCard({ content: "Being edited" });
-    let gateReads = 0;
-    const { convex, run } = setup(
-      card,
-      { "generate-text-metadata": textMetadataAnswer() },
-      {
-        handlers: {
-          "adminAccess:getAiGate": () => {
-            gateReads += 1;
-            if (gateReads === 2) {
-              card.processingRev = 2;
-            }
-            return "allowed";
-          },
-        },
-      }
-    );
+    const { convex, run } = setup(card, {
+      "generate-text-metadata": () => {
+        card.processingRev = 2;
+        return textMetadataAnswer();
+      },
+    });
 
     expect(await run()).toEqual({ mode: "skipped", reason: "superseded" });
     expect(card.aiTags).toBeUndefined();
@@ -942,6 +932,26 @@ describe("card processing", () => {
       convex.callsTo("workflows/aiMetadata/mutations:updateCardAI")
     ).toHaveLength(1);
     expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a link run asks Convex for the AI gate once across its AI steps", async () => {
+    const { convex, ops, run } = setup(linkCard(), {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "A good article" } },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    await run();
+
+    expect(ops.opsCalled()).toEqual(
+      expect.arrayContaining([
+        "decide-link-category",
+        "generate-link-metadata",
+        "extract-image-text",
+      ])
+    );
+    expect(convex.callsTo("adminAccess:getAiGate")).toHaveLength(1);
   });
 
   test("a card deleted before the run starts is skipped", async () => {

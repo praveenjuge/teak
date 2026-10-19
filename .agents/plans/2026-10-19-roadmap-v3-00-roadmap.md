@@ -32,7 +32,7 @@ Close the most useful gaps between Teak and three comparable save-everything app
   - **Link processing** (`apps/files-worker/src/workflows/cardProcessing/run.ts`):
     - It fetches the page HTML (kept up to 24 hours in the `LINK_PAGE_CACHE` KV namespace when the binding exists and the fetcher marks the page cacheable), scrapes the metadata, renders a screenshot with Browser Rendering, and reads text from the link images.
     - Apart from that transient cache, the HTML and article text are never stored with the card.
-  - **Clef** (`@cf/cloudflare/clef`, `packages/files-protocol/src/decisions.ts`) is Workers AI's decision model. It returns a probability for every allowed answer to typed questions and already decides the card type, link category, visual styles and search relevance. `ai/decisions.ts` `runDecision` calls it from Convex.
+  - **Clef** (`@cf/cloudflare/clef`, `packages/files-protocol/src/decisions.ts`) is Workers AI's decision model. It returns a probability for every allowed answer to typed questions and already decides the card type, link category, visual styles and search relevance. Card processing calls it from the Files Worker workflow (`apps/files-worker/src/workflows/cardProcessing/decisions.ts`); Convex calls it directly only for search relevance (`search/relevanceActions.ts`).
   - **Folders:**
     - Up to 500 manual or smart folders per user and 50 per card.
     - Membership is stored in `cards.folderIds` and in `folderCards`.

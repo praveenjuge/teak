@@ -528,6 +528,16 @@ write carries the run's processing revision and lands only while the card is
 still on it, so an edit (which bumps the revision and stops the older run)
 can never be overwritten by the run it replaced.
 
+Before an AI call (Clef decisions, AI metadata, link image text, podcast
+transcripts) a step checks the account's AI gate (`adminAccess:getAiGate`)
+through `src/aiGate.ts`, which reuses an answer for up to 60 seconds: first
+from a memo in the isolate, then from the Cache API in that data center, and
+only then over the RPC endpoint. A card run asks Convex once instead of once
+per AI step, and runs for the same account within the minute usually not at
+all. So pausing AI from the admin console, or turning it off for one account,
+takes up to a minute to reach running work. An unreadable cache falls back to
+the RPC; an RPC failure fails the step as before and is never cached.
+
 Each deployment has its own workflow RPC secret: the Worker derives it from
 `WORKFLOW_RPC_ROOT_SECRET` and the deployment's origin, and the deployment
 holds only the result as `WORKFLOW_RPC_SECRET`. Gateway requests and the

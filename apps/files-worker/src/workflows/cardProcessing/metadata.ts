@@ -489,10 +489,7 @@ export const generateCardMetadata = async (
       userId: card.userId,
     },
     async () => {
-      const aiGate = await job.deps.convex.query(
-        internal.adminAccess.getAiGate,
-        { userId: card.userId }
-      );
+      const aiGate = await job.deps.aiGate(card.userId);
       if (aiGate === "user_disabled") {
         return await completeWithoutAi(job);
       }
