@@ -17,8 +17,12 @@ if (($# < 2)); then
 fi
 tag="$1"
 context="$2"
-dockerfile="${3:-$context/Dockerfile}"
-shift $(($# >= 3 ? 3 : 2))
+shift 2
+dockerfile="$context/Dockerfile"
+if (($# > 0)) && [[ "$1" != "--" ]]; then
+  dockerfile="$1"
+  shift
+fi
 [[ "${1:-}" == "--" ]] && shift
 
 ca=/root/.ccr/ca-bundle.crt
@@ -26,12 +30,19 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" != "true" || ! -f "$ca" ]]; then
   exec docker build -t "$tag" -f "$dockerfile" "$@" "$context"
 fi
 
+# A rewritten copy, with the Dockerfile's own ignore file beside it so the
+# build context is filtered exactly as a plain build filters it.
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
 awk '
   { print }
   /^FROM[[:space:]]/ {
     print "COPY --from=teak-proxy-ca ca-bundle.crt /tmp/teak-proxy-ca.crt"
     print "RUN cat /tmp/teak-proxy-ca.crt >> /etc/ssl/certs/ca-certificates.crt"
   }
-' "$dockerfile" |
-  docker build -t "$tag" -f - --build-context "teak-proxy-ca=$(dirname "$ca")" \
-    "$@" "$context"
+' "$dockerfile" >"$tmp/Dockerfile"
+if [[ -f "$dockerfile.dockerignore" ]]; then
+  cp "$dockerfile.dockerignore" "$tmp/Dockerfile.dockerignore"
+fi
+docker build -t "$tag" -f "$tmp/Dockerfile" \
+  --build-context "teak-proxy-ca=$(dirname "$ca")" "$@" "$context"
