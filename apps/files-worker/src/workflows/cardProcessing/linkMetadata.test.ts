@@ -299,6 +299,11 @@ describe("link metadata", () => {
         { reason: "http_error", status: 503 },
         /^(?=.*"type":"scrape_error")(?=.*HTTP 503)/,
       ],
+      [
+        "a JSON reply in place of a page",
+        { contentType: "application/json", reason: "unsupported_type" },
+        /unsupported_type: application\/json/,
+      ],
       ["a page over 2 MiB", { reason: "too_large" }, /too_large/],
       ["a failed connection", { reason: "fetch_failed" }, /fetch_failed/],
     ])("retries %s", async (_name, data, message) => {

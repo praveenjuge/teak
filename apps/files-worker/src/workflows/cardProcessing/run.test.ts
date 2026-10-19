@@ -548,8 +548,8 @@ describe("card processing", () => {
     expect(reported(convex)).toEqual(["complete"]);
     // One fetch for the preview, one for structured data: no retries.
     expect(
-      ops.opsCalled().filter((op) => op === "fetch-link-page").length
-    ).toBeLessThanOrEqual(3);
+      ops.opsCalled().filter((op) => op === "fetch-link-page")
+    ).toHaveLength(2);
   });
 
   test("a metadata-only run regenerates the AI metadata and nothing else", async () => {

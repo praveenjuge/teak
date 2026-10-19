@@ -298,6 +298,15 @@ interface PageScrape {
   payload: ScrapeResponse;
 }
 
+// Text, JSON or XML can stand in for a page for a moment (a maintenance or
+// rate-limit reply), so only other types are a file that stays a file.
+const PASSING_REPLY_TYPE_REGEX = /^text\/|[/+](?:json|xml)$/u;
+
+const isFileType = (contentType: string | undefined): boolean => {
+  const type = contentType?.split(";")[0]?.trim().toLowerCase();
+  return Boolean(type) && !PASSING_REPLY_TYPE_REGEX.test(type ?? "");
+};
+
 const scrapePage = async (job: CardJob, url: string): Promise<PageScrape> => {
   let page: FilesLinkPageResult;
   try {
@@ -319,7 +328,7 @@ const scrapePage = async (job: CardJob, url: string): Promise<PageScrape> => {
   if (!page.fetched) {
     return {
       ...(page.reason === "blocked_url" ? { blocked: true as const } : {}),
-      ...(page.reason === "unsupported_type"
+      ...(page.reason === "unsupported_type" && isFileType(page.contentType)
         ? { notHtml: { contentType: page.contentType } }
         : {}),
       html: () => Promise.resolve(null),
