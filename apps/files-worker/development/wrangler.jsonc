@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  // Isolated development Worker. Prepared only: Convex dev keeps the shared
-  // production routing until the approved storage switch. Deploy with
+  // Isolated development Worker: Convex dev (reminiscent-kangaroo-59) uses it,
+  // its own bucket, vector index and signing key. Deploy with
   // `bun run deploy:development`; never add the production custom domain.
   "name": "teak-files-development",
   "account_id": "dd19e45b8f2f3cc0393cc2deb51fa27d",
@@ -64,6 +64,12 @@
   "browser": {
     "binding": "BROWSER"
   },
+  "vectorize": [
+    {
+      "binding": "CARD_VECTORS_0",
+      "index_name": "teak-dev-cards-0"
+    }
+  ],
   "workflows": [
     {
       "name": "teak-dev-card-processing",

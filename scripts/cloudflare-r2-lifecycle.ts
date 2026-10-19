@@ -89,7 +89,8 @@ const userWrites = (description: string, prefix: string): NotificationRule => ({
 });
 
 export const R2_BUCKETS = {
-  // Production; development shares it under `dev/` until the storage switch.
+  // Production. The dev/ rules cover objects development wrote here before it
+  // moved to its own bucket on 19 Oct 2026.
   "teak-files-prod": {
     lifecycle: [
       expire(`${R2_RULE_PREFIX}expire-exports`, "exports/", 8),
