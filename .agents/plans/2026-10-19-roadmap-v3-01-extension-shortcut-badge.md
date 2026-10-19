@@ -55,11 +55,12 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
   - per-URL cache of 5 minutes in `chrome.storage.session`;
   - a 400 ms debounce per tab;
   - one request in flight per URL;
-  - a soft cap of 30 badge checks a minute (extra checks are skipped, and the badge stays unknown).
+  - a soft cap of 30 badge checks a minute (extra checks are skipped, and the badge stays unknown);
+  - saves come first: the API allows 120 requests a minute per user, so badge checks stop for the minute once the extension's own sliding count of all its requests (badge checks, saves, popup reads) reaches 80, leaving 40 for saves and the popup.
 - **Error handling:** a 429 pauses badge checks for the `Retry-After` time. A failed check clears the badge; it never shows "!" (that is for saves only).
-- **Shortcut saves:** they use the same `saveToTeak` path, Idempotency-Key and pending-save store as the popup, with a new source value, `shortcut`.
-- **Popup:** the shortcut never opens it, except when the user has to act: signed out, or at the card limit. Then it calls `chrome.action.openPopup()`, which the popup handles as today.
-- **Analytics:** the extension's "card saved" event gets `via: "shortcut"`. Badge checks send nothing.
+- **Shortcut saves:** they use the same `saveToTeak` path and pending-save store as the popup, with a new source value, `shortcut`. The pending-save store gives each save a fresh id (its Idempotency-Key), so it does not coalesce two presses on its own: the background keeps an in-memory `Map<url, Promise>` of shortcut saves in flight, and a second press for the same URL awaits the first one's result instead of queueing another save.
+- **Popup:** the shortcut never opens it, except when the user has to act: signed out, or at the card limit. Then it calls `chrome.action.openPopup()`, which the popup handles as today. Today `runPendingSave(save, true)` starts OAuth itself on `unauthenticated` (`background.ts:163`), so the shortcut runs its save with `interactive: false` (`queueSave` gains that option) and opens the popup on `unauthenticated`.
+- **Analytics:** the extension's "card saved" event gets `via: "shortcut"`. Today it sends `via: save.kind` (`background.ts:178`), which is "content" for every content save, so it changes to `via: save.kind === "content" && save.input.source === "shortcut" ? "shortcut" : save.kind`. Badge checks send nothing.
 
 ## Extension
 
@@ -73,9 +74,9 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
 - **`entrypoints/background.ts`:**
   - `chrome.commands.onCommand.addListener((command, tab) => …)` for `save-page`:
     1. Read the active tab.
-    2. Reject restricted URLs with "!" and the tooltip from `restrictedUrlMessage`.
-    3. Otherwise set the badge to "…" and `queueSave({ content: tab.url, source: "shortcut" })`.
-  - Widen the `SAVE_CONTENT` validator at line 351 to accept `shortcut`.
+    2. Reject a tab with no `url`, restricted URLs (`isRestrictedUrl`) and any other non-http(s) scheme such as `blob:` (the same http(s) guard the badge check uses) with "!" and the tooltip from `restrictedUrlMessage`.
+    3. Otherwise set the badge to "…" and `queueSave({ kind: "content", input: { content: url, source: "shortcut" } }, { interactive: false })`, with `url` narrowed to a string, through the per-URL in-flight map above.
+  - Add `"shortcut"` to `SaveSource` (`lib/saveToTeak.ts:9`) and `SaveContentSource` (`types/messages.ts:17`), and widen the `SAVE_CONTENT` validator at line 351 to accept it.
   - Map each pending-save outcome to the badge (new `lib/toolbarBadge.ts`):
 
     | Outcome | Badge | Tooltip | Then |
@@ -99,6 +100,7 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
     1. Skip incognito tabs, restricted URLs, non-http(s) pages and signed-out state.
     2. Read the cache (`chrome.storage.session`, key `saved:<url>` → `{saved, at}`).
     3. On a miss, call `GET /v1/cards/duplicate` through `oauthRequest`.
+    4. Before setting the badge, check that the tab still shows the URL that was checked (a per-tab request generation number); a result for a URL the tab has navigated away from is cached but never painted.
   - Debounces per tab and keeps a sliding one-minute counter for the soft cap.
   - Wired to `tabs.onActivated`, `tabs.onUpdated` (when `status === "complete"` or the URL changes) and `windows.onFocusChanged`.
   - Sign-out clears the cache and every badge.
@@ -146,7 +148,8 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
 ## Break-it checklist
 
 - **Shortcut:**
-  - Press it twice quickly on the same page: one card. Idempotency and the pending-save store dedupe it, and the second press shows "Already in Teak".
+  - Press it twice quickly on the same page: one card. The per-URL in-flight map makes the second press wait for the first and show its result; a test fires both presses before the first request resolves.
+  - Navigate a tab while its badge check is in flight: the old result never paints the new page.
   - Press it on `chrome://extensions`, a PDF tab, `view-source:`, and a `file://` page.
   - Press it while signed out.
   - Press it at 199/200 cards, then at 200/200.

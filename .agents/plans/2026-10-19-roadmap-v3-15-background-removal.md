@@ -56,8 +56,8 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
 
 - **On request only.** Nothing is automatic, and there is no setting.
 - **Eligible images:**
-  - **Link cards:** the current override or the link preview image (`link-preview-image` role). Never the screenshot (`screenshot` role) or video posters.
-  - **Image cards:** the original file key, when the file is a still raster image (JPEG, PNG, WebP, AVIF or HEIC) of 20 MB or less. Animated GIF and WebP, and SVG, are refused.
+  - **Link cards:** the image the tile shows, in `resolveLinkCardImage`'s order (`packages/ui/src/components/cards/linkCardImage.ts`): the current override, else the first attached image in `metadata.linkPreview.media`, else the link preview image (`imageStorageKey`). Never the screenshot (`screenshot` role) or a video poster.
+  - **Image cards:** the original file key, when the file is a still raster image (JPEG, PNG, WebP, AVIF or HEIC) of 20 MB or less. Animated GIFs, animated WebPs and SVG are refused; still WebP is allowed.
 - **Output:** WebP with alpha, quality 90, longest edge capped at 2048 px, stored under the `thumbnail-override` role. `thumbnailOverrideValidator` gains `cutout: v.optional(v.literal(true))` so tiles know to use `object-contain`.
 - **Display, "pure transparent":** no backdrop, no padding beyond the tile's normal inset. `object-contain`, centred. It must stay legible in light and dark: dark subjects on dark tiles are accepted, as chosen.
 - **Rate limit:** the existing `thumbnailReplace` bucket (20 per minute), plus a new `backgroundRemoval` daily bucket of 100 per user (see Risks).
@@ -80,10 +80,11 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
   - Split `assertReplaceable` into `assertReplaceable` (unchanged, link only, used by Replace image) and `assertCutoutable`, which allows `link` and `image`.
   - **`removeBackgroundForUser(ctx, { userId, cardId })`** (action handler):
     1. Load the card, `assertCutoutable`, and refuse while trashed.
-    2. Pick the source key: for a link, the override key or else the link preview image key (else `NO_IMAGE` "This link has no image to cut out"); for an image card, the file key (refuse animated or SVG through the stored MIME type and metadata).
+    2. Pick the source key with the same order as `resolveLinkCardImage`: for a link, the override key, else the first `type: "image"` entry of `metadata.linkPreview.media`, else `imageStorageKey` (video posters and the screenshot are skipped; with none, `NO_IMAGE` "This link has no image to cut out"). For an image card, the file key (refuse animated GIF/WebP and SVG through the stored MIME type and animation metadata).
     3. Consume `thumbnailReplace` and `backgroundRemoval`.
-    4. Call `remove-image-background` with a fresh `thumbnail-override` key for the card, register ownership, then `applyThumbnailOverride` with `cutout: true`. That sets `previousThumbnailOverride` for the undo window.
-    5. Return `{ changeId, undoUntil }`.
+    4. Build a fresh `thumbnail-override` key and `ensureObjectOwnership` for it **before** calling `remove-image-background`, as `setThumbnailForUser` does today. If the op declines or the apply step below fails, delete the written object (`deleteFinalizedObject`).
+    5. Apply it through a new `applyCutoutOverride` internal mutation, not `applyThumbnailOverride`: that one queues `sourceKey` for deletion after writing (`thumbnailOverride.ts:283`), which is right for an uploaded replacement but would delete the original preview, media or file here. `applyCutoutOverride` calls the same `changeThumbnail` with `cutout: true` (so `previousThumbnailOverride` still covers undo) and never deletes the source; it uses `assertCutoutable` instead of `assertReplaceable`.
+    6. Return `{ changeId, undoUntil }`.
   - Public `removeImageBackground` (action) and `removeImageBackgroundForUser` (internal action, for the API).
   - Reset and undo accept image cards too: clearing the override shows the original renditions again.
 - `card/queryUtils.ts`: for `type === "image"` with `thumbnailOverride`, `thumbnailUrl`, `compactUrl`, `detailUrl` and `placeholderUrl` come from the override's renditions, `fileUrl` stays the original, and `hasThumbnailOverride` is set. Expose `thumbnailCutout: true` when `cutout` is set.
