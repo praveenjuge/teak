@@ -72,7 +72,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - `schema.ts`:
   - `tagCleanupCache`: `{ userId, summaryComputedAt, groups: v.array(v.object({ tags: v.array(v.string()), reason })), computedAt }`, index `by_userId`.
   - `tagCleanupDismissals`: `{ userId, pairKey, createdAt }`, indexes `by_userId` and `by_userId_and_pairKey`.
-  - Both are covered by account deletion (`accountDeletionData.ts` `ancillaryPage`) and seeded in the "complete stages" test.
+  - Both are covered by account deletion (`accountDeletionData.ts` `ancillaryPage`) and seeded in the "complete stages" test. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows.
 - `tag/tagCleanup.ts` (new):
   - `getTagCleanup` (query): the cached groups, filtered live against the current summary and the dismissals. It returns `{ status: "ready" | "stale" | "none", groups }`.
   - `refreshTagCleanup` (action), called by the Tags page when the status is `stale` or `none` and the summary is complete:

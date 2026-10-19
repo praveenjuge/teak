@@ -68,7 +68,7 @@ Paste a list of links into the web composer, one per line, and get one link card
     - after the last URL the status is `done`.
   - **`getLinkPaste({ jobId })`** (public query): the counts and status, owner-checked.
 - **`crons.ts`:** a daily sweep deletes `linkPasteJobs` whose `finishedAt` is older than 7 days.
-- **Account deletion:** `accountDeletionData.ts` `ancillaryPage` deletes the user's `linkPasteJobs`. Add it to the "complete stages" test.
+- **Account deletion:** `accountDeletionData.ts` `ancillaryPage` deletes the user's `linkPasteJobs`. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows. Add it to the "complete stages" test.
 
 ## Web
 

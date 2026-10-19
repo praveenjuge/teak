@@ -47,7 +47,7 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
 
 - **Languages:** `es`, `pt-BR`, `de`, `fr`, `ja`, `ko` and `zh-Hans` (Simplified). No Traditional Chinese (see Risks) and no right-to-left languages.
 - **Preference storage:** a new table `userPreferences { userId, locale, updatedAt }` with index `by_userId`. Not a field on `users`, which stays identity-only.
-  - It is covered by account deletion (`accountDeletionData.ts` `ancillaryPage`) and seeded in the "complete stages" test.
+  - It is covered by account deletion (`accountDeletionData.ts` `ancillaryPage`) and seeded in the "complete stages" test. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted;.
 - **The cookie** mirrors the account preference for server rendering. The account is the source of truth. On load, a client effect compares the two and, if they differ, writes the cookie and calls `router.refresh()`. Signing out clears the cookie.
 - **No locale in URLs** and no automatic detection.
 - **Translation quality bar:**

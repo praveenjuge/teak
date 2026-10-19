@@ -104,7 +104,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
   - Teak archive import restores `highlights` from `cards.json`, unanchored, and anchors them after extraction.
 - **Deletion:**
   - card hard delete removes the highlight rows, in the `searchDocumentHelpers.ts` gone-card cleanup, behind `previousCard?.hasHighlights`;
-  - account deletion pages over `highlights.by_userId` in `ancillaryPage` and in `accountDeletion.ts`;
+  - account deletion pages over `highlights.by_userId` in `ancillaryPage` and in `accountDeletion.ts`. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows.
   - the "complete stages" test seeds highlight rows.
 - **Export:** `serializeCard` adds `highlights: [{ quote, note, createdAt, anchored }]` to `cards.json`, and `cards.csv` gains a `highlights` column, with the quotes joined by a blank line.
 

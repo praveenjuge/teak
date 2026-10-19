@@ -66,7 +66,7 @@ When a saved page has died, opening its link shows Teak's archived copy instead 
   - **`getLinkCheck` query** `{ cardId }` returns the latest dead outcome for the modal chip, or null.
 - **Deletion:**
   - card hard delete removes the `linkChecks` row (beside `deleteCardTextRow` in the `searchDocumentHelpers.ts:280-299` cleanup);
-  - account deletion pages over `by_userId` in `accountDeletionData.ts` `ancillaryPage`;
+  - account deletion pages over `by_userId` in `accountDeletionData.ts` `ancillaryPage`. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows.
   - the "complete stages" test seeds a row.
 - **`shared/rateLimits.ts`:** `linkChecks: { kind: "token bucket", rate: 30, period: MINUTE }`.
 
