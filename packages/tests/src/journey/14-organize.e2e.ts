@@ -120,7 +120,7 @@ test("organize a library across the web, API, CLI and MCP", {
     await expect(screen.getByText("1 card", { visible: true })).toBeVisible({
       timeout: 30_000,
     });
-    await expect(screen.getByText(first, { exact: false })).toHaveCount(0);
+    await expect(onScreenText(screen, first)).toHaveCount(0);
     await expect
       .poll(async () => (await api.folders.get(folderId)).cardCount, {
         timeout: 30_000,
