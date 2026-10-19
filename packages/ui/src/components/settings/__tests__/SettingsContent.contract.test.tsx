@@ -36,6 +36,17 @@ const baseProps = {
   email: "hello@example.com",
   exportState: { job: null, canStartNew: true, quotaResetMs: 0 },
   hasPremium: false,
+  inboundEmail: {
+    onDisable: mock(() => Promise.resolve()),
+    onEnable: mock(() => Promise.resolve()),
+    state: {
+      address: "save@in.teakvault.com",
+      enabled: false,
+      lastReceivedAt: null,
+      sender: "hello@example.com",
+      senderVerified: true,
+    },
+  },
   keys: [],
   sessions: [],
   sessionsHasMore: false,
@@ -105,6 +116,8 @@ describe("SettingsContent", () => {
     expect(markup).toContain("hello@example.com");
     expect(markup).toContain("3 Cards");
     expect(markup).toContain("Free Plan");
+    expect(markup).toContain("Save by email");
+    expect(markup).toContain(">Off<");
     expect(markup).toContain("Import/Export Data");
   });
 
@@ -116,7 +129,6 @@ describe("SettingsContent", () => {
 
     expect(rowTitles(loaded).length).toBeGreaterThan(0);
     expect(rowTitles(skeleton)).toEqual(rowTitles(loaded));
-    // The real page's heading is what signals that settings finished loading.
     expect(skeleton).not.toContain("<h1");
     expect(skeleton).toContain("Loading settings");
   });

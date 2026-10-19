@@ -5,6 +5,7 @@ import {
   rateLimitedJsonRpcRemainder,
 } from "../mcp/httpServer";
 import {
+  answerProtocolMessage,
   buildInitializeResult,
   jsonRpcResponse,
   MCP_CORS_HEADERS,
@@ -51,6 +52,7 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_get_card",
   "teak_v1_get_card_changes",
   "teak_v1_get_card_content",
+  "teak_v1_get_card_links",
   "teak_v1_get_folder",
   "teak_v1_get_me",
   "teak_v1_get_tag_operation",
@@ -64,8 +66,10 @@ const EXPECTED_TOOL_NAMES = [
   "teak_v1_rename_tag",
   "teak_v1_reset_card_thumbnail",
   "teak_v1_restore_card",
+  "teak_v1_save_card_pdf",
   "teak_v1_search_cards",
   "teak_v1_set_card_archived",
+  "teak_v1_set_card_done",
   "teak_v1_set_card_favorite",
   "teak_v1_set_card_thumbnail",
   "teak_v1_update_card",
@@ -379,14 +383,14 @@ describe("Convex MCP endpoint", () => {
     ["API key", `Bearer teakapi_secret_live_c1d2e3f4_${"b".repeat(64)}`],
   ] as const) {
     test(`immediately rejects a revoked ${kind} after initialize`, async () => {
-      let revoked = false;
+      const state: { revoked: boolean } = { revoked: false };
       const runMutation = mock(
         (_reference: unknown, args: { token?: string }) => {
           if (!args.token) {
             return Promise.resolve({ ok: true });
           }
           return Promise.resolve(
-            revoked
+            state.revoked
               ? null
               : {
                   keyId: "connection",
@@ -417,7 +421,7 @@ describe("Convex MCP endpoint", () => {
         )
       );
       expect(initialize.status).toBe(200);
-      revoked = true;
+      state.revoked = true;
       for (const method of ["tools/list", "ping", "tools/call"]) {
         const response = await handleMcpV1Request(
           ctx,
@@ -619,6 +623,71 @@ describe("Convex MCP endpoint", () => {
     });
   });
 
+  test("get_card_links reads the card and returns only its links and backlinks", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const links = [{ id: "card_2", missing: false, title: "B", type: "text" }];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          backlinks: [],
+          backlinksTruncated: false,
+          content: "See [[B|teak:card_2]]",
+          id: "card_1",
+          links,
+          linksTruncated: false,
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card_links",
+      { cardId: "card_1" },
+      mcpRequest({ jsonrpc: "2.0", id: 60, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards/card_1",
+    });
+    expect(result.structuredContent).toEqual({
+      backlinks: [],
+      backlinksTruncated: false,
+      links,
+      linksTruncated: false,
+    });
+    expect(result.content[0]).toMatchObject({
+      text: "Card card_1 links to 1 card; 0 cards link to it",
+    });
+  });
+
+  test("get_card_links says one card links to it and keeps the truncation flags", async () => {
+    const executor = mock(() =>
+      Promise.resolve(
+        Response.json({
+          backlinks: [
+            { id: "card_2", missing: false, title: "B", type: "text" },
+          ],
+          backlinksTruncated: true,
+          links: [],
+          linksTruncated: true,
+        })
+      )
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card_links",
+      { cardId: "card_1" },
+      mcpRequest({ jsonrpc: "2.0", id: 61, method: "tools/call" }),
+      executor
+    );
+    expect(result.content[0]).toMatchObject({
+      text: "Card card_1 links to 0 cards (truncated); 1 card (truncated) links to it",
+    });
+    expect(result.structuredContent).toMatchObject({
+      backlinksTruncated: true,
+      linksTruncated: true,
+    });
+  });
+
   test("search passes a reserved tag on and keeps isHidden on each card", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
@@ -641,6 +710,33 @@ describe("Convex MCP endpoint", () => {
       items: [{ id: "card_1", isHidden: true }],
       total: 1,
     });
+  });
+
+  test("passes text: through to search image text", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          items: [{ id: "card_1" }],
+          pageInfo: { hasMore: false, nextCursor: null },
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_search_cards",
+      { q: "text:4411" },
+      mcpRequest({ jsonrpc: "2.0", id: 55, method: "tools/call" }),
+      executor
+    );
+    expect(captured[0]?.query).toMatchObject({ q: "text:4411" });
+    expect(result.structuredContent).toMatchObject({
+      items: [{ id: "card_1" }],
+    });
+    const tool = TEAK_V1_TOOLS.find(
+      (candidate) => candidate.name === "teak_v1_search_cards"
+    );
+    expect(tool?.description).toContain('text:"total due"');
   });
 
   test("passes the search mode through and reports the one that ran", async () => {
@@ -687,6 +783,19 @@ describe("Convex MCP endpoint", () => {
           operation.path.endsWith("/restore")
         ) {
           return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        if (operation.path.endsWith("/save-pdf")) {
+          const created = !captured
+            .slice(0, -1)
+            .some((earlier) => earlier.path.endsWith("/save-pdf"));
+          return Promise.resolve(
+            Response.json(
+              { cardId: "doc_1", created },
+              {
+                status: created ? 201 : 200,
+              }
+            )
+          );
         }
         return Promise.resolve(
           Response.json({
@@ -776,6 +885,30 @@ describe("Convex MCP endpoint", () => {
 
     await call("teak_v1_list_cards", { archived: "only" });
     expect(captured[7]?.query).toMatchObject({ archived: "only" });
+
+    await call("teak_v1_set_card_done", { cardId: "card_1", done: true });
+    await call("teak_v1_set_card_done", { cardId: "card_1", done: false });
+    expect(captured.slice(8, 10)).toMatchObject([
+      { method: "POST", path: "/v1/cards/card_1/done" },
+      { method: "DELETE", path: "/v1/cards/card_1/done" },
+    ]);
+
+    const saved = await call("teak_v1_save_card_pdf", { cardId: "card_1" });
+    expect(captured[10]).toMatchObject({
+      method: "POST",
+      path: "/v1/cards/card_1/save-pdf",
+    });
+    expect(saved.content[0]?.text).toBe("Saved the PDF as card doc_1");
+    expect(saved.structuredContent).toEqual({
+      cardId: "doc_1",
+      created: true,
+    });
+    const again = await call("teak_v1_save_card_pdf", { cardId: "card_1" });
+    expect(again.content[0]?.text).toBe("The PDF is already card doc_1");
+    expect(again.structuredContent).toEqual({
+      cardId: "doc_1",
+      created: false,
+    });
   });
 
   test("tag tools start tag changes and poll their progress", async () => {
@@ -840,7 +973,7 @@ describe("Convex MCP endpoint", () => {
       method: "GET",
       path: "/v1/tags/operations/op%201",
     });
-    expect(polled.content?.[0]?.text).toBe(
+    expect(polled.content[0]?.text).toBe(
       "Tag rename completed: 1 card changed of 1"
     );
     expect(captured).toHaveLength(4);
@@ -882,14 +1015,14 @@ describe("Convex MCP endpoint", () => {
 
     const listed = await call("teak_v1_list_folders", {});
     expect(captured[0]).toMatchObject({ method: "GET", path: "/v1/folders" });
-    expect(listed.content?.[0]?.text).toBe("Fetched 1 folder");
+    expect(listed.content[0]?.text).toBe("Fetched 1 folder");
 
     const got = await call("teak_v1_get_folder", { folderId: "folder_1" });
     expect(captured.pop()).toMatchObject({
       method: "GET",
       path: "/v1/folders/folder_1",
     });
-    expect(got.content?.[0]?.text).toBe("Fetched folder Reading");
+    expect(got.content[0]?.text).toBe("Fetched folder Reading");
 
     await call("teak_v1_create_folder", { name: "Reading", color: "blue" });
     expect(captured[1]).toMatchObject({
@@ -947,7 +1080,7 @@ describe("Convex MCP endpoint", () => {
       path: "/v1/folders/folder_1/cards",
     });
     expect(removed.isError).toBe(true);
-    expect(removed.content?.[0]?.text).toBe("Removed 1 card; 1 failed");
+    expect(removed.content[0]?.text).toBe("Removed 1 card; 1 failed");
 
     await call("teak_v1_list_cards", { folder: "folder_1" });
     expect(captured[6]?.query).toMatchObject({ folder: "folder_1" });
@@ -1016,7 +1149,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text.toLowerCase()).toContain("confirm");
+    expect(result.content[0]?.text.toLowerCase()).toContain("confirm");
   });
 
   test("forwards raw Markdown through create and update tools", async () => {
@@ -1115,7 +1248,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text).toContain("mimeType");
+    expect(result.content[0]?.text).toContain("mimeType");
     expect(executor).not.toHaveBeenCalled();
   });
 
@@ -1130,7 +1263,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBe(true);
-    expect(result.content?.[0]?.text.toLowerCase()).toContain("expected true");
+    expect(result.content[0]?.text.toLowerCase()).toContain("expected true");
   });
 
   test("maps v1 errors to MCP isError payloads", async () => {
@@ -1401,8 +1534,8 @@ describe("Convex MCP endpoint", () => {
     expect(result.structuredContent).toMatchObject({
       summary: { total: 2, succeeded: 1, failed: 1 },
     });
-    expect(result.content?.[0]?.text).toContain("1 of 2 items failed");
-    expect(result.content?.[0]?.text).toContain("INVALID_INPUT");
+    expect(result.content[0]?.text).toContain("1 of 2 items failed");
+    expect(result.content[0]?.text).toContain("INVALID_INPUT");
   });
 
   test("reports a fully successful bulk operation without an error", async () => {
@@ -1424,7 +1557,7 @@ describe("Convex MCP endpoint", () => {
     );
 
     expect(result.isError).toBeUndefined();
-    expect(result.content?.[0]?.text).toBe(
+    expect(result.content[0]?.text).toBe(
       "Bulk favorite complete: 1 of 1 succeeded"
     );
   });
@@ -1496,4 +1629,30 @@ describe("link image tools", () => {
       expect(captured).toEqual([]);
     }
   );
+});
+
+describe("answerProtocolMessage", () => {
+  test("replies to a ping without Convex", () => {
+    expect(
+      answerProtocolMessage({ id: 7, jsonrpc: "2.0", method: "ping" })
+    ).toEqual({ kind: "reply", reply: jsonRpcResponse(7, {}) });
+  });
+
+  test("sends no reply to a notification", () => {
+    expect(
+      answerProtocolMessage({
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+      })
+    ).toEqual({ kind: "noReply" });
+  });
+
+  test.each([
+    ["a tool call", { id: 1, jsonrpc: "2.0", method: "tools/call" }],
+    ["an unknown method", { id: 1, jsonrpc: "2.0", method: "resources/list" }],
+    ["a message without jsonrpc 2.0", { id: 1, method: "ping" }],
+    ["a batch array", [{ id: 1, jsonrpc: "2.0", method: "ping" }]],
+  ])("leaves %s to Convex", (_label, message) => {
+    expect(answerProtocolMessage(message)).toEqual({ kind: "needsConvex" });
+  });
 });

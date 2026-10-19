@@ -66,8 +66,29 @@ SSRF policy and pinned connections Convex used, bundled from Convex's own
 files; they no longer pass through Convex. Link pages are fetched and scraped
 there too (`fetch-link-page`); Convex gets back the selector results, and the
 page itself only as a gzipped copy for the Instagram media parser. Never fetch
-a user-supplied URL anywhere without that policy and pinning. Raw metadata
-archival calls only the configured signed Files Worker.
+a user-supplied URL anywhere without that policy and pinning. Save PDF's
+`store-linked-pdf` is the one exception: it fetches only
+`https://arxiv.org/pdf/<id>` (redirects must stay on arxiv.org or
+export.arxiv.org, over https) from the Worker itself, straight into R2.
+Vimeo captions and podcast episode audio are fetched by card processing in the
+Worker through the same SSRF-checked, pinned transport; episode audio streams
+into a temporary R2 object (at most 100 MB, audio or MP4 only) that is deleted
+after Whisper. Whisper runs are bounded by the `podcastTranscription` rate
+limit (20 episodes an hour per account). Raw metadata archival calls only the
+configured signed Files Worker.
+
+Save by email (`apps/email-worker`, `packages/convex/inbound/`) costs one
+`findSender` query per delivered email that passes DMARC, and one
+`ingestEmail` mutation only for an account that turned it on. Only mail
+failing DMARC is refused in the Worker before Convex is called; mail from an
+unknown address reaches `findSender`, which answers 404. Neither call is rate
+limited: `inboundEmailPerAccount` (60 an hour) caps only what is saved, and
+past it `ingestEmail` records a dropped receipt. Each accepted attachment
+adds one finalize request (an HTTP action with its claim, card and done
+mutations). Attachment bytes never pass through Convex: the Worker PUTs them
+to the Files Worker's signed upload URLs, and Convex only mints those and
+finalizes. Receipts are pruned after 30 days by the daily
+`cleanup-inbound-email-receipts` cron.
 
 ## Scheduled and edge work on Cloudflare
 

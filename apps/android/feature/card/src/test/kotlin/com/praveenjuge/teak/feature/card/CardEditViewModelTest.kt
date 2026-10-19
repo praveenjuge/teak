@@ -103,7 +103,7 @@ class CardEditViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals("Changed on the web", state.card!!.content)
-        assertEquals("Original", state.draft!!.content)
+        assertEquals("Original", state.draft!!.editableContent)
         assertEquals("My edit", state.draft.notes)
     }
 

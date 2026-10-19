@@ -53,7 +53,6 @@ const u32 = (value: number) => {
   return out;
 };
 
-/** A minimal HEIF whose `Exif` item (id 2) sits in `mdat`, as iPhones store it. */
 const heifWithExif = (tiff: Uint8Array): Uint8Array => {
   const ftyp = box(
     "ftyp",

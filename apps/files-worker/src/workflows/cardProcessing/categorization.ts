@@ -4,6 +4,11 @@ import {
   type LinkCategoryMetadata,
 } from "@teak/convex/shared";
 import {
+  fetchRemoteDetails,
+  type RemoteDetails,
+  remoteSourceFor,
+} from "@teak/convex/workflows/steps/categorization/remote/index";
+import {
   applyLinkCategoryDecision,
   type CategorizationContextCard,
   type CategoryClassificationResult,
@@ -14,26 +19,27 @@ import {
   parseStructuredData,
   projectCategorizationSnapshot,
   readLinkCategoryReply,
+  remoteLookupInput,
   type StructuredDataResult,
 } from "@teak/convex/workflows/steps/categorization/rules";
-import { type CardJob, guardOf, loadCard, markInProgress } from "./context";
+import {
+  type CardJob,
+  guardOf,
+  type LoadedCard,
+  loadCard,
+  markInProgress,
+} from "./context";
 import { runDecision } from "./decisions";
-import { fetchLinkPageForCard, gunzipBase64 } from "./linkMetadata";
+import {
+  fetchLinkPageForCard,
+  gunzipBase64,
+  storeLinkPreviewImage,
+} from "./linkMetadata";
 import { hydrateArchivedMetadata } from "./rawMetadata";
-
-// Categorization: what kind of thing a link is (a recipe, a repo, a
-// product) and the facts its page states, from the URL, the preview and the
-// page's JSON-LD (the rules in @teak/convex/.../categorization/rules). Clef
-// reviews a category the rules only guessed.
 
 const MAX_FETCH_BODY_SIZE = 250_000;
 const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
-/**
- * JSON-LD from the link's page, read from the same `fetch-link-page` result
- * the preview used (the op keeps it for a day). Null when the page cannot be
- * read.
- */
 const fetchStructuredData = async (
   job: CardJob,
   url: string
@@ -59,10 +65,6 @@ const fetchStructuredData = async (
   }
 };
 
-/**
- * Lets Clef pick the category when the resolver only guessed it. The rules'
- * classification stands when Clef is unsure, the call fails or AI is off.
- */
 const reviewLinkCategoryWithClef = async (
   job: CardJob,
   card: CategorizationContextCard,
@@ -88,16 +90,75 @@ const reviewLinkCategoryWithClef = async (
   return applyLinkCategoryDecision(classification, result);
 };
 
+const MAX_ARXIV_WAIT_MS = 10_000;
+
+/**
+ * Waits for one of arXiv's API slots (one request every 3 seconds for the
+ * whole deployment); false when the queue is full.
+ */
+const takeArxivSlot = async (job: CardJob): Promise<boolean> => {
+  const slot = await job.deps.convex.mutation(
+    internal.workflows.steps.categorization.mutations.takeArxivSlot,
+    {}
+  );
+  if (!slot || slot.retryAfter > MAX_ARXIV_WAIT_MS) {
+    return false;
+  }
+  if (slot.retryAfter > 0) {
+    await new Promise((resolve) => setTimeout(resolve, slot.retryAfter));
+  }
+  return true;
+};
+
+const lookUpSiteDetails = async (
+  job: CardJob,
+  card: CategorizationContextCard,
+  classification: CategoryClassificationResult,
+  structuredData: StructuredDataResult | null
+): Promise<RemoteDetails | null> => {
+  const input = remoteLookupInput(card, classification, structuredData);
+  if (!remoteSourceFor(input)) {
+    return null;
+  }
+  return await fetchRemoteDetails(input, {
+    pinnedFetch: job.deps.pinnedFetch,
+    resolveDns: job.deps.resolveDns,
+    takeArxivSlot: () => takeArxivSlot(job),
+  });
+};
+
+const storeSiteImage = async (
+  job: CardJob,
+  loaded: LoadedCard,
+  metadata: LinkCategoryMetadata,
+  remote: RemoteDetails | null
+) => {
+  const preview = loaded.card.metadata?.linkPreview;
+  if (
+    !remote?.imageUrl ||
+    metadata.imageUrl !== remote.imageUrl ||
+    preview?.status !== "success" ||
+    preview.imageStorageKey ||
+    preview.imageUrl
+  ) {
+    return;
+  }
+  return (
+    (await storeLinkPreviewImage(
+      job,
+      loaded,
+      remote.imageUrl,
+      metadata.sourceUrl
+    )) ?? undefined
+  );
+};
+
 export interface CategorizationResult {
   category: string;
   confidence: number;
   mode: "categorized" | "missing";
 }
 
-/**
- * Classifies a link card's category, reads its page's structured data when
- * the stored copy is missing or stale, and saves the merged result.
- */
 export const categorizeLink = async (
   job: CardJob
 ): Promise<CategorizationResult> => {
@@ -112,8 +173,6 @@ export const categorizeLink = async (
     );
   }
   await markInProgress(job, ["categorize"]);
-  // "Refresh details": the 30-day cache is ignored, so the link is
-  // classified again and its page's JSON-LD read again.
   const refresh = job.refresh === true;
 
   const contextCard = projectCategorizationSnapshot(
@@ -134,10 +193,17 @@ export const categorizeLink = async (
     normalizeUrlForComparison(existingMetadata?.sourceUrl) ||
     existingMetadata?.sourceUrl;
 
-  const save = async (metadata: LinkCategoryMetadata) => {
+  const save = async (
+    metadata: LinkCategoryMetadata,
+    previewImage?: Awaited<ReturnType<typeof storeSiteImage>>
+  ) => {
     await job.deps.convex.mutation(
       internal.workflows.steps.categorization.mutations.updateCategorization,
-      { cardId: job.cardId, metadata },
+      {
+        cardId: job.cardId,
+        metadata,
+        ...(previewImage ? { previewImage } : {}),
+      },
       guardOf(job)
     );
     return {
@@ -158,14 +224,25 @@ export const categorizeLink = async (
     return await save(existingMetadata);
   }
 
-  const classification = classifyLinkCategory(contextCard, sourceUrl);
+  // Read back first: the page's own audio, in its archived scrape, counts.
+  const hydratedCard = await hydrateArchivedMetadata(
+    job.env,
+    loaded.keyPrefix,
+    contextCard
+  );
+  const classification = classifyLinkCategory(hydratedCard, sourceUrl);
   if (!classification) {
     throw new Error(`Failed to classify link category for card ${job.cardId}`);
   }
 
+  const structuredMeta = existingMetadata?.raw?.structuredMeta;
   const structuredFetchedAt =
-    existingMetadata?.raw?.structuredMeta?.fetchedAt ??
-    existingMetadata?.rawStructuredFetchedAt;
+    (typeof structuredMeta === "object" &&
+    structuredMeta !== null &&
+    "fetchedAt" in structuredMeta &&
+    typeof structuredMeta.fetchedAt === "number"
+      ? structuredMeta.fetchedAt
+      : undefined) ?? existingMetadata?.rawStructuredFetchedAt;
   const structuredFresh =
     structuredFetchedAt && Date.now() - structuredFetchedAt < METADATA_TTL_MS;
   const shouldFetchStructured =
@@ -180,11 +257,6 @@ export const categorizeLink = async (
     ? await fetchStructuredData(job, sourceUrl)
     : null;
 
-  const hydratedCard = await hydrateArchivedMetadata(
-    job.env,
-    loaded.keyPrefix,
-    contextCard
-  );
   const reviewedClassification = await reviewLinkCategoryWithClef(
     job,
     hydratedCard,
@@ -192,9 +264,18 @@ export const categorizeLink = async (
     sourceUrl,
     structuredData?.entities
   );
+  const remote = await lookUpSiteDetails(
+    job,
+    hydratedCard,
+    reviewedClassification,
+    structuredData
+  );
+  const metadata = enrichLinkCategory(hydratedCard, reviewedClassification, {
+    remote,
+    structuredData,
+  });
   return await save(
-    enrichLinkCategory(hydratedCard, reviewedClassification, {
-      structuredData,
-    })
+    metadata,
+    await storeSiteImage(job, loaded, metadata, remote)
   );
 };

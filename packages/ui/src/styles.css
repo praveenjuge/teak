@@ -137,17 +137,11 @@
     @apply border-border outline-ring/50;
   }
 
-  html {
-    min-height: 100%;
-  }
-
   body {
     @apply bg-gray-50 text-foreground dark:bg-gray-950;
   }
 }
 
-/* With the app sidebar on screen, the bulk-action bar spans the content
-   column only and toasts center on it, so neither covers the sidebar. */
 :root {
   --teak-content-left: 0px;
   --teak-toaster-center: calc(50% + var(--teak-content-left) / 2);
@@ -157,9 +151,6 @@
   --teak-toaster-center: 50%;
 }
 
-/* The sidebar's live width (it can be dragged) comes from SidebarProvider as
-   --teak-sidebar-width; collapsed (even while it peeks over the page) only
-   the icon rail takes room. */
 @media (min-width: 48rem) {
   :root:has([data-slot="sidebar"][data-state="expanded"]) {
     --teak-content-left: var(--teak-sidebar-width, 14rem);
@@ -186,8 +177,7 @@
 }
 
 /* The repeated attribute outranks Sonner's own position rules, which put
-   bottom-center toasts full width on phones. Each toast is as wide as its
-   message and centered in the toaster. */
+   bottom-center toasts full width on phones. */
 [data-sonner-toaster][data-sonner-toaster][data-x-position="center"] {
   right: auto;
   left: var(--teak-toaster-center);
@@ -219,6 +209,12 @@
 [data-sonner-toaster][data-sonner-toaster]
   [data-sonner-toast][data-styled="true"]:has([data-description]) {
   border-radius: 1.25rem;
+}
+
+/* An open Radix dialog turns off pointer events on the page. */
+[data-sonner-toaster]
+[data-sonner-toast][data-visible="true"]:not([data-removed="true"]) {
+  pointer-events: auto;
 }
 
 [data-sonner-toaster] .sonner-loading-bar {

@@ -183,11 +183,8 @@ const readInternalIds = async (
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Saves one UTC day's metrics. Defaults to yesterday. Totals (accounts,
- * cards, storage) are as of the end of that day; billing is only recorded
- * when the day is yesterday or today, since Polar only reports the present.
- */
+// Billing is only recorded when the day is yesterday or today, since Polar
+// only reports the present.
 export const captureDailySnapshot = internalAction({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, { date }): Promise<{ date: string }> => {

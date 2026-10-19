@@ -6,15 +6,19 @@ import com.praveenjuge.teak.core.data.auth.SessionManager
 import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
+import com.praveenjuge.teak.core.data.auth.SignInOutcome
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.ConvexApi
+import com.praveenjuge.teak.core.data.convex.ConvexFunctions
+import com.praveenjuge.teak.core.data.convex.action
+import com.praveenjuge.teak.core.data.convex.mutation
+import com.praveenjuge.teak.core.data.convex.subscribe
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.serialization.builtins.nullable
 import dev.convex.android.ConvexClientWithAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +26,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,17 +36,14 @@ interface AccountRepository {
     val currentUser: Flow<Result<CurrentUser?>>
     val isConnected: Flow<Boolean>
 
-    /** Restores the saved session and connects Convex. Called once at launch. */
     suspend fun start()
 
     suspend fun signInUrl(method: SignInMethod): String
 
-    /** Handles the `teak://auth/callback` redirect. Returns false when the person cancelled. */
-    suspend fun completeSignIn(code: String?, state: String?, error: String?): Boolean
+    suspend fun completeSignIn(code: String?, state: String?, error: String?): SignInOutcome
 
     suspend fun signOut()
 
-    /** Deletes the account and everything in it, then signs out this device. */
     suspend fun deleteAccount()
 }
 
@@ -61,10 +61,7 @@ class ConvexAccountRepository @Inject constructor(
     private val _authMode = MutableStateFlow<AuthMode?>(null)
     override val authMode: StateFlow<AuthMode?> = _authMode.asStateFlow()
 
-    override val currentUser: Flow<Result<CurrentUser?>> =
-        convex.subscribe("auth:getCurrentUser").map { result ->
-            result.mapCatching { teakJson.decodeFromJsonElement(CurrentUser.serializer().nullable, it) }
-        }
+    override val currentUser: Flow<Result<CurrentUser?>> = convex.subscribe(ConvexFunctions.getCurrentUser)
 
     override val isConnected: Flow<Boolean> = convex.isConnected.distinctUntilChanged()
 
@@ -74,10 +71,8 @@ class ConvexAccountRepository @Inject constructor(
                 ?.let { _authMode.value = it }
         }
         scope.launch {
-            convex.subscribe("auth:getAuthMode").collect { result ->
-                val mode = result.getOrNull()?.let {
-                    runCatching { teakJson.decodeFromJsonElement(AuthMode.serializer(), it) }.getOrNull()
-                } ?: return@collect
+            convex.subscribe(ConvexFunctions.getAuthMode).collect { result ->
+                val mode = result.getOrNull() ?: return@collect
                 val previousClient = _authMode.value?.validClientId
                 _authMode.value = mode
                 preferences.cacheAuthMode(teakJson.encodeToString(AuthMode.serializer(), mode))
@@ -98,10 +93,10 @@ class ConvexAccountRepository @Inject constructor(
         return sessions.beginSignIn(clientId, method)
     }
 
-    override suspend fun completeSignIn(code: String?, state: String?, error: String?): Boolean {
-        val signedIn = sessions.completeSignIn(code, state, error)
-        if (signedIn) client.loginFromCache()
-        return signedIn
+    override suspend fun completeSignIn(code: String?, state: String?, error: String?): SignInOutcome {
+        val outcome = sessions.completeSignIn(code, state, error)
+        if (outcome == SignInOutcome.SignedIn) client.loginFromCache()
+        return outcome
     }
 
     override suspend fun signOut() {
@@ -110,7 +105,7 @@ class ConvexAccountRepository @Inject constructor(
     }
 
     override suspend fun deleteAccount() {
-        convex.mutation("accountDeletion:deleteMyAccount")
+        convex.mutation(ConvexFunctions.deleteMyAccount)
         clearLocalSession()
     }
 
@@ -122,7 +117,7 @@ class ConvexAccountRepository @Inject constructor(
     private suspend fun revokeOnServerBestEffort(session: AuthSession) {
         catchingFailures {
             sessions.accessToken()
-            convex.action("securitySessions:revokeAuthkitSession", mapOf("sessionId" to session.sessionId))
+            convex.action(ConvexFunctions.revokeAuthkitSession, mapOf("sessionId" to session.sessionId))
         }
     }
 

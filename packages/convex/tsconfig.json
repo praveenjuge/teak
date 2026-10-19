@@ -1,11 +1,5 @@
 {
-  /* This TypeScript project config describes the environment that
-   * Convex functions run in and is used to typecheck them.
-   * You can modify it, but some settings required to use Convex.
-   */
-  // "extends": "../../tsconfig.json",
   "compilerOptions": {
-    /* These settings are not required by Convex and can be modified. */
     "allowJs": true,
     "strict": true,
     "moduleResolution": "Bundler",
@@ -21,5 +15,5 @@
     "noEmit": true
   },
   "include": ["./**/*", "./shared"],
-  "exclude": ["./_generated", "./client", "./__tests__"]
+  "exclude": ["./_generated", "./client", "./__tests__", "./*.test.ts"]
 }

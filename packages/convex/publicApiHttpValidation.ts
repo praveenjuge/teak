@@ -1,4 +1,6 @@
 import { env } from "./_generated/server";
+import type { CardLinks } from "./card/cardLinks";
+import type { CardWithUrls } from "./card/queryUtils";
 import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { readIsDevDeployment } from "./env";
@@ -71,7 +73,7 @@ const serializeLinkPrice = (price: unknown) =>
     ? { amount: price.amount, currency: price.currency ?? null }
     : null;
 
-const serializeDisplayMetadata = (card: any) => ({
+const serializeDisplayMetadata = (card: CardWithUrls) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
   linkPreviewDescription: card.metadata?.linkPreview?.description ?? null,
@@ -83,6 +85,7 @@ const serializeDisplayMetadata = (card: any) => ({
       })
     ) ?? [],
   linkPreviewTitle: card.metadata?.linkPreview?.title ?? null,
+  linkCategory: card.metadata?.linkCategory?.category ?? null,
   linkPrice: serializeLinkPrice(card.metadata?.linkCategory?.price),
   linkFaviconUrl: card.metadata?.linkPreview?.faviconUrl ?? null,
   fileWidth: card.fileMetadata?.width ?? null,
@@ -108,7 +111,16 @@ const serializeDisplayMetadata = (card: any) => ({
       : null,
 });
 
-const serializeCard = (card: any, requestUrl: string) => ({
+/**
+ * A card as the public API returns it. `links` (its `[[…]]` links and the
+ * cards linking to it) is given only for single-card responses; lists and
+ * the changes feed leave both arrays out.
+ */
+const serializeCard = (
+  card: CardWithUrls,
+  requestUrl: string,
+  links?: CardLinks
+) => ({
   aiSummary: card.aiSummary ?? null,
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
@@ -127,6 +139,7 @@ const serializeCard = (card: any, requestUrl: string) => ({
   fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
   archivedAt: card.archivedAt ?? null,
+  completedAt: card.completedAt ?? null,
   folderIds: card.folderIds ?? [],
   isArchived: Boolean(card.isArchived),
   isFavorited: Boolean(card.isFavorited),
@@ -144,21 +157,22 @@ const serializeCard = (card: any, requestUrl: string) => ({
   tags: card.tags ?? [],
   placeholderUrl: card.placeholderUrl ?? null,
   thumbnailUrl: card.thumbnailUrl ?? null,
-  /** linkPreviewImageUrl is an image someone chose for the link. */
   thumbnailOverridden: Boolean(card.thumbnailOverride),
   type: card.type,
   updatedAt: card.updatedAt,
   url: card.url ?? null,
+  ...(links ?? {}),
 });
 
 const serializeListCard = (
-  card: any,
+  card: CardWithUrls,
   requestUrl: string,
   include: Set<CardListInclude>
 ) => {
   const base = {
     aiTags: card.aiTags ?? [],
     appUrl: getCardAppUrl(requestUrl, card._id),
+    completedAt: card.completedAt ?? null,
     createdAt: card.createdAt,
     folderIds: card.folderIds ?? [],
     id: card._id,
@@ -271,7 +285,6 @@ const CREATE_STRING_KEYS = [
   "url",
 ] as const;
 
-/** Validates a create body and explains the first problem it finds. */
 const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return { error: "Body must be a JSON object" };
@@ -442,8 +455,6 @@ const parseCardsQueryOptions = (
     );
   }
   const typedQuery = parseOptionalString(searchParams.get("q"));
-  // `similarTo=<id>` is `like:<id>` in `q`; another anchor there matches
-  // nothing.
   const combinedQuery = similarTo
     ? combineSearchQueries(`like:${similarTo}`, typedQuery ?? "")
     : typedQuery;
@@ -595,9 +606,6 @@ const parseCardsQueryOptions = (
     );
   }
 
-  // Qualifiers in `q` merge with the plain parameters: `type:` narrows
-  // `type`, `tag:` adds to `tag`, `is:fav` sets `favorited`, `is:archived`
-  // reads Archive (or the archived cards in Trash).
   const parsed = parseSearchQuery(query ?? "");
   let resolvedTypes = uniqueTypes;
   let matchesNothing = false;
@@ -607,13 +615,12 @@ const parseCardsQueryOptions = (
       : parsed.types;
     matchesNothing = resolvedTypes.length === 0;
   }
-  // `price:` narrows to links: only they have a price.
-  if (parsed.prices.length > 0) {
+  matchesNothing ||= parsed.done && parsed.todo;
+  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
     matchesNothing ||=
       resolvedTypes.length > 0 && !resolvedTypes.includes("link");
     resolvedTypes = ["link"];
   }
-  // `mood:` reads images only.
   if (parsed.similarity?.kind === "mood") {
     resolvedTypes = resolvedTypes.length
       ? resolvedTypes.filter((type) => type === "image")
@@ -646,11 +653,16 @@ const parseCardsQueryOptions = (
       ? {
           qualifiers: {
             archivedInTrash: trashed === true && parsed.archived,
+            ...(parsed.done ? { done: true } : {}),
             folderNames: parsed.folders,
+            ...(parsed.ocrTexts.length > 0
+              ? { ocrTexts: parsed.ocrTexts }
+              : {}),
             phrases: parsed.phrases,
             prices: parsed.prices,
             sites: parsed.sites,
             tags: tags.slice(1),
+            ...(parsed.todo ? { todo: true } : {}),
           },
         }
       : {}),
@@ -673,10 +685,13 @@ const parseCardsQueryOptions = (
 };
 
 const buildCreateCardResponse = (
-  result: { card?: any; cardId: string; status: "created" },
-  requestUrl: string
+  result: { card?: CardWithUrls; cardId: string; status: "created" },
+  requestUrl: string,
+  links?: CardLinks
 ) => {
-  const card = result.card ? serializeCard(result.card, requestUrl) : undefined;
+  const card = result.card
+    ? serializeCard(result.card, requestUrl, links)
+    : undefined;
   return {
     appUrl: getCardAppUrl(requestUrl, result.cardId),
     card,
@@ -692,14 +707,17 @@ const parseCardRoute = (
   operation:
     | "content"
     | "delete"
+    | "done"
     | "favorite"
     | "get"
     | "patch"
     | "refresh"
     | "restore"
+    | "save-pdf"
     | "thumbnail-reset"
     | "thumbnail-set"
-    | "thumbnail-upload";
+    | "thumbnail-upload"
+    | "undone";
 } | null => {
   const { pathname } = new URL(request.url);
   const segments = pathname.split("/").filter(Boolean);
@@ -727,6 +745,16 @@ const parseCardRoute = (
 
   if (request.method === "DELETE" && segments.length === 3) {
     return { cardId, operation: "delete" };
+  }
+
+  if (segments.length === 4 && segments[3] === "done") {
+    if (request.method === "POST") {
+      return { cardId, operation: "done" };
+    }
+    if (request.method === "DELETE") {
+      return { cardId, operation: "undone" };
+    }
+    return null;
   }
 
   if (segments.length === 4 && segments[3] === "thumbnail") {
@@ -762,6 +790,14 @@ const parseCardRoute = (
     segments[3] === "refresh"
   ) {
     return { cardId, operation: "refresh" };
+  }
+
+  if (
+    request.method === "POST" &&
+    segments.length === 4 &&
+    segments[3] === "save-pdf"
+  ) {
+    return { cardId, operation: "save-pdf" };
   }
 
   if (request.method !== "PATCH") {
@@ -834,11 +870,11 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   }
 
   if ("metadataTitle" in source) {
-    const title = parseCardTitle(truncateCardTitle(source.metadataTitle));
-    if (title === undefined) {
+    const parsed = parseCardTitle(truncateCardTitle(source.metadataTitle));
+    if (parsed.kind === "invalid") {
       return null;
     }
-    next.metadataTitle = title;
+    next.metadataTitle = parsed.kind === "title" ? parsed.title : null;
   }
 
   if ("notes" in source) {
@@ -891,7 +927,6 @@ const validatePatchPayload = (payload: unknown): PatchCardPayload | null => {
   return next;
 };
 
-/** `{ mimeType, fileSize }` for a link image upload, or null. */
 const validateThumbnailUploadPayload = (
   payload: unknown
 ): { fileSize: number; mimeType: string } | null => {
@@ -911,7 +946,6 @@ const validateThumbnailUploadPayload = (
     : null;
 };
 
-/** `{ fileKey }` naming a finished link image upload, or null. */
 const validateThumbnailSetPayload = (
   payload: unknown
 ): { fileKey: string } | null => {
@@ -942,7 +976,6 @@ const validateFavoritePayload = (
   return { isFavorited: source.isFavorited };
 };
 
-/** A folder as the API returns it. */
 const serializeFolder = (folder: {
   _id: string;
   activeCardCount: number;
@@ -957,19 +990,12 @@ const serializeFolder = (folder: {
   name: folder.name,
   color: folder.color ?? null,
   kind: folder.kind,
-  // A smart folder's search, or null for a manual folder.
   query: folder.kind === "smart" ? (folder.query ?? "") : null,
-  // A smart folder's cards are whatever its search matches when listed,
-  // so it has no stored count.
   cardCount: folder.kind === "smart" ? null : folder.activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
 });
 
-/**
- * The folder route: `/v1/folders/:id` or `/v1/folders/:id/cards`, or null for
- * any other path under /v1/folders/.
- */
 const parseFolderRoute = (
   request: Request
 ): { folderId: string; cards: boolean } | null => {
@@ -997,11 +1023,6 @@ type FolderPayload =
     }
   | { error: string };
 
-/**
- * A folder create (name required) or update (name, color and/or query)
- * body. `color: null` clears the color on update. A smart folder is created
- * with `kind: "smart"` and its `query`; the server checks the query.
- */
 const parseFolderPayload = (
   payload: unknown,
   mode: "create" | "update"
@@ -1076,7 +1097,6 @@ const parseFolderPayload = (
   return { payload: next };
 };
 
-/** A `{ cardIds }` body for adding cards to a folder or removing them. */
 const parseFolderCardsPayload = (
   payload: unknown
 ): { cardIds: string[] } | { error: string } => {

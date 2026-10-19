@@ -28,7 +28,6 @@ export interface TikTokVideoRef {
   id: string;
 }
 
-/** `tiktok.com/@<user>/video/<id>`. */
 export const parseTikTokVideoUrl = (url: string): TikTokVideoRef | null => {
   try {
     const parsed = new URL(url);
@@ -55,10 +54,6 @@ export const tikTokIdToIsoDate = (id: string): string | undefined => {
   }
 };
 
-/**
- * A TikTok video from oEmbed: its caption, author and cover image. The video
- * itself is not downloaded.
- */
 export const fetchTikTokVideo = async (
   url: string,
   deps: SocialFetchDeps

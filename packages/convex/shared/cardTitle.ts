@@ -1,16 +1,21 @@
 export const MAX_CARD_TITLE_LENGTH = 512;
 
-/** Undefined means invalid; null clears the title. */
-export const parseCardTitle = (value: unknown): string | null | undefined => {
+export type ParsedCardTitle =
+  | { kind: "title"; title: string }
+  | { kind: "clear" }
+  | { kind: "invalid" };
+
+/** Null or a blank string clears the title. */
+export const parseCardTitle = (value: unknown): ParsedCardTitle => {
   if (value === null) {
-    return null;
+    return { kind: "clear" };
   }
   if (typeof value !== "string") {
-    return undefined;
+    return { kind: "invalid" };
   }
   const title = value.trim();
   if (title.length > MAX_CARD_TITLE_LENGTH) {
-    return undefined;
+    return { kind: "invalid" };
   }
-  return title || null;
+  return title ? { kind: "title", title } : { kind: "clear" };
 };

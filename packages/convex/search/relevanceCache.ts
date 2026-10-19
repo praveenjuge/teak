@@ -13,17 +13,8 @@ import {
   relevanceSearchKey,
 } from "../shared/search/relevance";
 
-/**
- * Best match scores, so every page and re-render of one search reads the
- * same order and Clef is asked once per card. Queries only read it; actions
- * fill it. A score stays valid until its card is edited, so a row lives a
- * day after its last write: a grid left open never loses its order to the
- * cleanup, and a ranked API pagination keeps its scores.
- */
-
 export const RELEVANCE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CLEANUP_BATCH = 500;
-/** One search keeps the scores of at most this many cards. */
 const MAX_SCORES_PER_SEARCH = RELEVANCE_CANDIDATE_LIMIT * 8;
 
 export const relevanceScoreValidator = v.object({
@@ -40,10 +31,6 @@ const findEntry = (ctx: QueryCtx, userId: string, key: string) =>
     )
     .first();
 
-/**
- * A search's scores, or null. Read until the cleanup removes the entry, so
- * later pages of a ranked search keep the order its first page had.
- */
 export const readRelevanceScores = async (
   ctx: QueryCtx,
   userId: string,
@@ -60,11 +47,6 @@ export const getScores = internalQuery({
     (await findEntry(ctx, userId, key))?.scores ?? null,
 });
 
-/**
- * Adds scores to a search's entry, replacing older scores of the same cards.
- * Refuses while the account is being deleted, so a Clef reply that lands
- * after the deletion's cleanup can't leave a row behind.
- */
 export const storeScores = internalMutation({
   args: {
     userId: v.string(),
@@ -110,7 +92,6 @@ export const storeScores = internalMutation({
   },
 });
 
-/** Cron: removes expired entries, a batch at a time. */
 export const cleanupExpired = internalMutation({
   args: {},
   returns: v.number(),

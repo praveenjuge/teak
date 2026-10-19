@@ -83,10 +83,9 @@ const resolvePendingReceipts = async (
   }
 };
 
-// Only authenticated provider adapters may call this internal boundary.
-// It links existing owners; only proven bootstrap/created-event adapters may
-// allocate a new permanent owner when the shared signup policy permits it.
-// All uniqueness reads and the one link write share the mutation transaction.
+// Allocates a new permanent owner only when the shared signup policy permits
+// it. All uniqueness reads and the one link write share the mutation
+// transaction.
 export const linkWorkosUser = internalMutation({
   args: {
     workosUserId: v.string(),

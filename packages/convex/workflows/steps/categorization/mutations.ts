@@ -1,10 +1,3 @@
-/**
- * Categorization Mutations
- *
- * Database mutations for updating categorization results.
- * Separated from index.ts because mutations can't use "use node".
- */
-
 import { v } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { internalMutation } from "../../../_generated/server";
@@ -13,15 +6,25 @@ import {
   stageCompleted,
 } from "../../../card/processingStatus";
 import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
+import { r2KeyValidator } from "../../../schema";
+import { rateLimiter } from "../../../shared/rateLimits";
 import { serializeArchivableRaw } from "../../../storage/rawMetadata";
 
 export const updateCategorization = internalMutation({
   args: {
     cardId: v.id("cards"),
     metadata: v.any(),
+    previewImage: v.optional(
+      v.object({
+        imageHeight: v.number(),
+        imageStorageKey: r2KeyValidator,
+        imageUpdatedAt: v.number(),
+        imageWidth: v.number(),
+      })
+    ),
   },
   returns: v.null(),
-  handler: async (ctx, { cardId, metadata }) => {
+  handler: async (ctx, { cardId, metadata, previewImage }) => {
     const now = Date.now();
 
     const card = await ctx.db.get("cards", cardId);
@@ -33,9 +36,15 @@ export const updateCategorization = internalMutation({
       categorize: stageCompleted(now, metadata.confidence),
     });
 
+    const preview = card.metadata?.linkPreview;
     const updatedMetadata = {
       ...(card.metadata || {}),
       linkCategory: metadata,
+      ...(previewImage &&
+      preview?.status === "success" &&
+      !preview.imageStorageKey
+        ? { linkPreview: { ...preview, ...previewImage } }
+        : {}),
     };
 
     await patchCardWithSearchSync(ctx, cardId, {
@@ -52,5 +61,15 @@ export const updateCategorization = internalMutation({
       );
     }
     return null;
+  },
+});
+
+// arXiv allows one API request every 3 seconds from the whole deployment.
+export const takeArxivSlot = internalMutation({
+  args: {},
+  returns: v.union(v.null(), v.object({ retryAfter: v.number() })),
+  handler: async (ctx) => {
+    const status = await rateLimiter.limit(ctx, "arxivApi", { reserve: true });
+    return status.ok ? { retryAfter: status.retryAfter ?? 0 } : null;
   },
 });

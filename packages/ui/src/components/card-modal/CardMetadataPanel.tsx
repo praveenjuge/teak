@@ -1,3 +1,4 @@
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { isCardHidden } from "@teak/convex/shared/tags";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
@@ -7,7 +8,15 @@ import {
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
 import { Button } from "@teak/ui/components/ui/button";
-import { Copy, EyeOff, RotateCcw, Sparkles, Trash, X } from "lucide-react";
+import {
+  Copy,
+  EyeOff,
+  FileDown,
+  RotateCcw,
+  Sparkles,
+  Trash,
+  X,
+} from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -30,17 +39,30 @@ export interface CardTagsControl {
   tagInput: string;
 }
 
+/** Cards whose notes link here with `[[…]]`, and whether there are more. */
+export interface CardBacklinks {
+  backlinks: { id: string; title: string; type: string }[];
+  hasMore: boolean;
+}
+
+export interface SavePdfControl {
+  isSaving: boolean;
+  save: () => void;
+}
+
 interface CardMetadataPanelProps {
+  backlinks?: CardBacklinks;
   card: CardModalCard;
   getCurrentValue: GetCurrentValue;
   notesRef?: RefObject<HTMLTextAreaElement | null>;
   onCardTypeClick: () => void;
-  /** Saves edits now, as a field loses focus. */
   onCommit: () => void;
   onNotesChange: (notes: string) => void;
+  onOpenCard?: (cardId: string) => void;
   onPermanentDelete: () => void;
   onRestore: () => void;
   onTagClick?: (tag: string) => void;
+  savePdf?: SavePdfControl;
   tags: CardTagsControl;
 }
 
@@ -105,17 +127,66 @@ function DetailRows({ fields }: { fields: CardDetailField[] }) {
 const chipRemoveClass =
   "flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-fine:absolute pointer-fine:-top-1.5 pointer-fine:-right-1.5 pointer-fine:rounded-full pointer-fine:bg-foreground pointer-fine:text-background pointer-fine:opacity-0 pointer-fine:shadow-sm pointer-fine:transition-opacity pointer-fine:hover:bg-foreground pointer-fine:hover:text-background pointer-fine:focus-visible:opacity-100 pointer-fine:group-hover/tag:opacity-100 [&_svg]:size-3 pointer-fine:[&_svg]:size-2.5";
 
-/** The side of the card dialog: notes, summary, tags, folders and facts. */
+/** "Linked from": the notes that link to this card, newest first. */
+export function LinkedFromSection({
+  backlinks,
+  onOpenCard,
+}: {
+  backlinks?: CardBacklinks;
+  onOpenCard?: (cardId: string) => void;
+}) {
+  if (!(backlinks && backlinks.backlinks.length > 0)) {
+    return null;
+  }
+  return (
+    <PanelSection title="Linked from">
+      <ul className="-mx-1 space-y-0.5">
+        {backlinks.backlinks.map((source) => {
+          const Icon = getCardTypeIconComponent(source.type as CardType);
+          return (
+            <li key={source.id}>
+              <button
+                className="flex w-full min-w-0 items-center gap-2 rounded-md px-1 py-1 text-left text-sm hover:bg-foreground/5 disabled:pointer-events-none"
+                disabled={!onOpenCard}
+                onClick={() => {
+                  captureEvent("card_backlink_opened");
+                  onOpenCard?.(source.id);
+                }}
+                title={source.title}
+                type="button"
+              >
+                <Icon
+                  aria-hidden
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                />
+                <span className="truncate" dir="auto">
+                  {source.title}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {backlinks.hasMore ? (
+        <p className="px-1 text-muted-foreground text-xs">and more</p>
+      ) : null}
+    </PanelSection>
+  );
+}
+
 export function CardMetadataPanel({
+  backlinks,
   card,
   getCurrentValue,
   notesRef,
   onCardTypeClick,
   onCommit,
   onNotesChange,
+  onOpenCard,
   onPermanentDelete,
   onRestore,
   onTagClick,
+  savePdf,
   tags,
 }: CardMetadataPanelProps) {
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
@@ -164,7 +235,7 @@ export function CardMetadataPanel({
 
   return (
     <div className="space-y-6 px-5 py-5">
-      {card.isDeleted && (
+      {card.isDeleted ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] py-1.5 pr-1.5 pl-3">
           <p className="text-muted-foreground text-sm">In Trash</p>
           <div className="flex gap-1">
@@ -188,7 +259,7 @@ export function CardMetadataPanel({
             </Button>
           </div>
         </div>
-      )}
+      ) : null}
 
       <PanelSection title="Notes">
         <div className="relative">
@@ -393,7 +464,7 @@ export function CardMetadataPanel({
               {CARD_TYPE_LABELS[card.type as CardType] ?? "Card"}
             </button>
           </PropertyRow>
-          {safeSourceUrl && sourceHost && (
+          {safeSourceUrl && sourceHost ? (
             <PropertyRow label="From">
               <a
                 className="block truncate hover:underline hover:underline-offset-2"
@@ -410,7 +481,7 @@ export function CardMetadataPanel({
                 {hostForDisplay(sourceHost)}
               </a>
             </PropertyRow>
-          )}
+          ) : null}
           <DetailRows fields={sections.details} />
           <DetailRows fields={sections.source} />
           <DetailRows fields={sections.camera} />
@@ -439,7 +510,22 @@ export function CardMetadataPanel({
             </div>
           )}
         </dl>
+        {savePdf && !card.isDeleted && (
+          <Button
+            aria-busy={savePdf.isSaving}
+            className="mt-2 w-full"
+            disabled={savePdf.isSaving}
+            onClick={savePdf.save}
+            size="sm"
+            variant="outline"
+          >
+            <FileDown />
+            {savePdf.isSaving ? "Saving PDF…" : "Save PDF"}
+          </Button>
+        )}
       </PanelSection>
+
+      <LinkedFromSection backlinks={backlinks} onOpenCard={onOpenCard} />
 
       <CardFoldersDialog
         cardId={card._id}

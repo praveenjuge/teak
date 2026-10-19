@@ -83,6 +83,27 @@ describe.skipIf(!RENDERER_URL)("renderer PDF jobs", () => {
     expect(Math.abs(size.width - 309.1)).toBeLessThan(1);
   });
 
+  test("renders the page it is asked for", async () => {
+    const first = await renderFixture("/pdf/page?max=400", "sixty-pages.pdf");
+    const second = await renderFixture(
+      "/pdf/page?max=400&page=2",
+      "sixty-pages.pdf"
+    );
+    expect(second.status).toBe(200);
+    expect(second.manifest?.pages).toBe(60);
+    expect(second.manifest?.pageNumber).toBe(2);
+    expect(darkPixels(second.parts.page)).toBeGreaterThan(0);
+    expect(Buffer.from(second.parts.page)).not.toEqual(
+      Buffer.from(first.parts.page)
+    );
+  });
+
+  test("a page past the end is unsupported", async () => {
+    const result = await renderFixture("/pdf/page?page=2", "no-text.pdf");
+    expect(result.status).toBe(415);
+    expect(result.error?.message).toContain("no page 2");
+  });
+
   test("a PDF without a text layer answers with no text part", async () => {
     const result = await renderFixture("/pdf/text", "no-text.pdf");
     expect(result.status).toBe(200);

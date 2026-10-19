@@ -13,6 +13,10 @@ Keep user documentation synchronized in the same change:
 
 For a notable, shipped product change, update its calendar month's entry in `content/changelog`. Keep one changelog entry per month. Internal maintenance and marketing page changes need no public entry.
 
+## Docs evals
+
+`evals.yaml` holds the questions Teak users and their agents ask. `bun run eval` has an agent answer each one from these docs alone, then a judge checks the expected facts. Keep every fact true to the shipped product, and never weaken one to get a passing run.
+
 ## Changelog entries
 
 `content/changelog` is a public product surface. Write for Teak users, not maintainers.

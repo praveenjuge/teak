@@ -24,7 +24,6 @@ function stateFor(markdown: string) {
   });
 }
 
-/** Where the task item with this text sits, as the checkbox would see it. */
 function taskItemPos(doc: ProseMirrorNode, text: string): number {
   let found = -1;
   doc.descendants((node, pos) => {
@@ -42,7 +41,6 @@ function taskItemPos(doc: ProseMirrorNode, text: string): number {
   return found;
 }
 
-/** The checkbox's own change: `setNodeMarkup` with `checked` flipped. */
 function toggle(state: EditorState, text: string) {
   const pos = taskItemPos(state.doc, text);
   const node = state.doc.nodeAt(pos);

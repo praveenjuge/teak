@@ -1,13 +1,3 @@
-/**
- * WAF custom rules for the teakvault.com zone, applied by
- * `scripts/cloudflare-waf.ts`. They run before the Files Worker, so a
- * request they block never invokes it.
- *
- * Every rule here has a `ref` starting with WAF_RULE_REF_PREFIX; the script
- * creates, updates and deletes only rules with that prefix, so custom rules
- * made in the dashboard are never touched.
- */
-
 import { API_PROXY_MAX_BODY_BYTES } from "../src/apiProxy";
 
 export const WAF_ZONE_NAME = "teakvault.com";

@@ -3,7 +3,8 @@ import { pdfInfoCommand, pdfPageCommand, pdfTextCommand } from "../args";
 import { toolFailure, unsupported } from "../errors";
 import { run } from "../exec";
 import type { JobResult } from "../manifest";
-import type { PdfTextParams } from "../params";
+import type { PdfPageParams, PdfTextParams } from "../params";
+import { MAX_UTF8_BYTES_PER_CHAR } from "../protocol";
 import { type JobContext, readOutput } from "./context";
 
 const PAGES_LINE = /^Pages:\s+(\d+)\s*$/m;
@@ -70,12 +71,15 @@ async function pageCount(ctx: JobContext): Promise<number> {
 
 export async function pdfPageJob(
   ctx: JobContext,
-  params: { max: number }
+  params: PdfPageParams
 ): Promise<JobResult> {
   const pages = await pageCount(ctx);
+  if (params.page > pages) {
+    throw unsupported(`The PDF has no page ${params.page}`);
+  }
   const prefix = join(ctx.dir, "page");
   const result = await run(
-    pdfPageCommand(ctx.dir, ctx.input, params.max, prefix),
+    pdfPageCommand(ctx.dir, ctx.input, params.max, prefix, params.page),
     { deadlineEpochMs: ctx.deadlineEpochMs }
   );
   const bytes =
@@ -87,7 +91,9 @@ export async function pdfPageJob(
   return {
     facts: null,
     parts: [{ name: "page", type: "image/png", bytes }],
-    extra: { page: size, pages },
+    // The page drawn, so a caller can tell this renderer apart from one that
+    // ignores `page` and always draws page 1.
+    extra: { page: size, pageNumber: params.page, pages },
   };
 }
 
@@ -96,9 +102,7 @@ export async function pdfTextJob(
   params: PdfTextParams
 ): Promise<JobResult> {
   const pages = await pageCount(ctx);
-  // UTF-8 needs at most four bytes a character, so this always holds
-  // maxChars whole characters.
-  const maxBytes = params.maxChars * 4 + 4;
+  const maxBytes = (params.maxChars + 1) * MAX_UTF8_BYTES_PER_CHAR;
   const result = await run(
     pdfTextCommand(ctx.dir, ctx.input, params.maxPages),
     {

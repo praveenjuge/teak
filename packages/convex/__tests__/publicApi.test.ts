@@ -41,7 +41,6 @@ const buildSinglePaginateContext = (page: unknown) => {
   let invocationPaginateCalls = 0;
   const query = mock(() => {
     const baseQuery = {
-      // The read leaves hidden cards out with a filter on the index range.
       filter: mock(() => baseQuery),
       order: mock(() => ({
         paginate: mock(
@@ -315,7 +314,9 @@ describe("publicApi", () => {
         query: mock(() => ({
           withIndex: mock().mockReturnValue({
             order: mock().mockReturnValue({
-              async *[Symbol.asyncIterator]() {},
+              async *[Symbol.asyncIterator]() {
+                yield* [];
+              },
               paginate: mock().mockResolvedValue({
                 continueCursor: "",
                 isDone: true,

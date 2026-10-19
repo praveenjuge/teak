@@ -2,9 +2,11 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import {
   buildUploadSigningPayload,
+  FILES_OP_MAX_TTL_SECONDS,
   FILES_UPLOAD_MAX_TTL_SECONDS,
 } from "@teak/files-protocol";
 import {
+  buildSignedWorkerOpRequest,
   buildSignedWorkerUploadUrl,
   isFilesWorkerConfigured,
 } from "../../storage/filesWorkerClient";
@@ -67,6 +69,26 @@ describe("signed worker upload urls", () => {
     );
   });
 
+  test("leaves the content type unbound when none is given", async () => {
+    process.env.FILES_BASE = BASE;
+    process.env.FILES_SIGNING_SECRET = SECRET;
+    const signed = await buildSignedWorkerUploadUrl({
+      contentType: null,
+      key: KEY,
+    });
+    const url = new URL(signed.url);
+    expect(url.searchParams.has("ct")).toBe(false);
+    expect(url.searchParams.get("sig")).toBe(
+      hmacHex(
+        buildUploadSigningPayload({
+          contentType: "",
+          expiresAt: String(signed.expiresAt),
+          key: KEY,
+        })
+      )
+    );
+  });
+
   test("rejects TTLs beyond the protocol ceiling", async () => {
     process.env.FILES_BASE = BASE;
     process.env.FILES_SIGNING_SECRET = SECRET;
@@ -97,5 +119,20 @@ describe("signed worker upload urls", () => {
         process.env.FILES_SIGNING_SECRET = secret;
       }
     }
+  });
+});
+
+describe("signed worker op requests", () => {
+  test("expire within the window the worker accepts", async () => {
+    process.env.FILES_BASE = BASE;
+    process.env.FILES_SIGNING_SECRET = SECRET;
+    const now = 1_000_000;
+    const signed = await buildSignedWorkerOpRequest(
+      { op: "head-object", params: { key: KEY } },
+      now
+    );
+    const expiresAt = Number(signed.headers["x-teak-expires-at"]);
+    expect(expiresAt).toBeGreaterThan(now);
+    expect(expiresAt).toBeLessThanOrEqual(now + FILES_OP_MAX_TTL_SECONDS);
   });
 });

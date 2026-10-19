@@ -188,4 +188,20 @@ describe("library URL", () => {
       { scroll: false }
     );
   });
+
+  test("a new-note request in the URL asks the library to focus the composer", () => {
+    render("compose=1");
+    expect(screenProps.focusComposer).toBe(true);
+    render("");
+    expect(screenProps.focusComposer).toBe(false);
+  });
+
+  test("a handled new-note request leaves the URL without it", () => {
+    render("card=card_1&compose=1");
+    installWindow("?card=card_1&compose=1");
+    screenProps.onFocusComposerHandled();
+    expect(router.replace).toHaveBeenCalledWith("/?card=card_1", {
+      scroll: false,
+    });
+  });
 });

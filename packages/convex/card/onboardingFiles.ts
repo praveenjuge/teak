@@ -29,11 +29,6 @@ const deleteObjects = (keys: string[]) =>
     )
   );
 
-/**
- * Store every getting-started file in a new account, all at once, then insert
- * the cards in one mutation. A card whose files fail to store is left out and
- * its stored files are deleted; the rest still arrive.
- */
 export const addOnboardingCards = internalAction({
   args: { createdAt: v.number(), userId: v.string() },
   returns: v.null(),

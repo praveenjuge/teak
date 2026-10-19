@@ -8,7 +8,6 @@ import org.junit.Test
 import java.io.IOException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -113,7 +112,7 @@ class SessionManagerTest {
         api.exchanged = Tokens.session(expiresAtMillis = now + 300_000)
         val sessions = manager().apply { restore() }
         sessions.beginSignIn("client_1", SignInMethod.Google)
-        assertTrue(sessions.completeSignIn(code = "code", state = "state-1", error = null))
+        assertEquals(SignInOutcome.SignedIn, sessions.completeSignIn(code = "code", state = "state-1", error = null))
         assertEquals(1, bootstrap.calls)
         assertIs<SessionState.SignedIn>(sessions.state.value)
         assertNull(store.pending)
@@ -137,7 +136,7 @@ class SessionManagerTest {
         sessions.beginSignIn("client_1", SignInMethod.Google)
         assertFailsWith<SignInException> { sessions.completeSignIn("code", "forged", null) }
         sessions.beginSignIn("client_1", SignInMethod.Google)
-        assertFalse(sessions.completeSignIn(null, "state-1", "access_denied"))
+        assertEquals(SignInOutcome.Cancelled, sessions.completeSignIn(null, "state-1", "access_denied"))
         assertEquals(0, bootstrap.calls)
     }
 }

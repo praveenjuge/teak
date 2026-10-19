@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, action, internalAction } from "../_generated/server";
+import type { EmailAttachmentClaim } from "../inbound/attachmentClaims";
 import { cardTypeValidator } from "../schema";
 import {
   getSessionUser,
@@ -69,6 +70,10 @@ interface FinalizeArgs {
     | "palette"
     | "quote";
   content?: string;
+  /** A fixed id for the stored key, so a retried finalize writes one object. */
+  destinationObjectId?: string;
+  /** A Save by email attachment's claim on its receipt (inbound/). */
+  emailAttachment?: EmailAttachmentClaim;
   fileEtag?: string;
   fileKey: string;
   fileName: string;
@@ -96,6 +101,15 @@ const normalizeMimeType = (value?: string): string | undefined => {
   const normalized = value?.split(";", 1)[0]?.trim().toLowerCase();
   return normalized || undefined;
 };
+
+const dropClientImageDimensions = (
+  metadata: Record<string, unknown>
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(metadata).filter(
+      ([key]) => key !== "height" && key !== "width"
+    )
+  );
 
 export const validateFinalizeUpload = (
   userId: TeakUserId,
@@ -155,7 +169,7 @@ export const validateFinalizeUpload = (
   return { fileEtag, fileName, markdown, requestedMimeType };
 };
 
-const finalizeForUser = async (
+export const finalizeForUser = async (
   ctx: ActionCtx,
   userId: TeakUserId,
   args: FinalizeArgs
@@ -171,6 +185,7 @@ const finalizeForUser = async (
     cardId: "stored",
     role: "file",
     fileName: validated.fileName,
+    objectId: args.destinationObjectId,
   });
   await ensureObjectOwnership(ctx, userId, destinationKey);
   const outcome = await callFilesWorkerJson<
@@ -238,19 +253,13 @@ const finalizeForUser = async (
     !Array.isArray(args.additionalMetadata)
       ? { ...(args.additionalMetadata as Record<string, unknown>) }
       : {};
-  // Dimensions are security- and layout-relevant image facts. Never carry
-  // client claims through when the worker is the source of truth.
   const trustedAdditionalMetadata = isImageUpload
-    ? Object.fromEntries(
-        Object.entries(additionalMetadata).filter(
-          ([key]) => key !== "height" && key !== "width"
-        )
-      )
+    ? dropClientImageDimensions(additionalMetadata)
     : additionalMetadata;
 
   try {
     const result = await ctx.runMutation(
-      (internal as any).publicApiUploads.finalizeUploadedCardForUser,
+      internal.publicApiUploads.finalizeUploadedCardForUser,
       {
         additionalMetadata: {
           ...trustedAdditionalMetadata,
@@ -263,6 +272,9 @@ const finalizeForUser = async (
         },
         cardType: validated.markdown ? "text" : args.cardType,
         content: validated.markdown ? outcome.data.content : args.content,
+        ...(args.emailAttachment
+          ? { emailAttachment: args.emailAttachment }
+          : {}),
         fileKey: destinationKey,
         fileName: validated.fileName,
         fileSize: args.fileSize,
@@ -282,10 +294,17 @@ const finalizeForUser = async (
       .catch(() => undefined);
     return { success: true, cardId: result.cardId };
   } catch (error) {
-    await callFilesWorkerJson({
-      op: "delete-object",
-      params: { key: destinationKey },
-    }).catch(() => undefined);
+    // Another finalize owns this attachment and may already point a card at
+    // the same fixed key; the object is theirs.
+    const claimLost =
+      error instanceof ConvexError &&
+      (error.data as { code?: string }).code === "IN_PROGRESS";
+    if (!claimLost) {
+      await callFilesWorkerJson({
+        op: "delete-object",
+        params: { key: destinationKey },
+      }).catch(() => undefined);
+    }
     throw error;
   }
 };

@@ -329,6 +329,74 @@ describe("teak parity commands", () => {
     expect(JSON.parse(result.stdout).items).toHaveLength(2);
   });
 
+  test("done marks a link done, --undo clears it, and a note is refused", async () => {
+    const link = card("card_a", { type: "link", url: "https://example.com" });
+    routes.set("POST /v1/cards/card_a/done", () =>
+      json({ ...link, completedAt: Date.UTC(2026, 9, 17) })
+    );
+    routes.set("DELETE /v1/cards/card_a/done", () => json(link));
+    routes.set("POST /v1/cards/note/done", () =>
+      json(
+        { code: "TYPE_MISMATCH", error: "Only link cards can be marked done" },
+        400
+      )
+    );
+    routes.set("GET /v1/cards/card_a", () =>
+      json({ ...link, completedAt: Date.UTC(2026, 9, 17) })
+    );
+
+    const done = await teak("done", "card_a");
+    const undone = await teak("cards", "done", "card_a", "--undo");
+    const refused = await teak("done", "note");
+    const detail = await teak("cards", "get", "card_a");
+
+    expect(
+      requests.map((request) => `${request.method} ${request.path}`)
+    ).toEqual([
+      "POST /v1/cards/card_a/done",
+      "DELETE /v1/cards/card_a/done",
+      "POST /v1/cards/note/done",
+      "GET /v1/cards/card_a",
+    ]);
+    expect(done.code).toBe(0);
+    expect(done.stdout).toContain("card_a");
+    expect(undone.code).toBe(0);
+    expect(refused.code).not.toBe(0);
+    expect(refused.stderr).toContain("Only link cards can be marked done");
+    expect(detail.stdout).toContain("done: 2026-10-17T00:00:00.000Z");
+  });
+
+  test("cards save-pdf saves a paper once and says when it already has", async () => {
+    let created = true;
+    routes.set("POST /v1/cards/paper/save-pdf", () => {
+      const body = { cardId: "doc_1", created };
+      created = false;
+      return json(body, body.created ? 201 : 200);
+    });
+    routes.set("POST /v1/cards/note/save-pdf", () =>
+      json(
+        { code: "INVALID_INPUT", error: "This card has no PDF to save." },
+        400
+      )
+    );
+
+    const first = await teak("cards", "save-pdf", "paper");
+    const again = await teak("cards", "save-pdf", "paper");
+    const againJson = await teak("cards", "save-pdf", "paper", "--json");
+    const refused = await teak("cards", "save-pdf", "note");
+
+    expect(first.code).toBe(0);
+    expect(first.stdout).toContain("Saved the PDF as doc_1");
+    expect(again.code).toBe(0);
+    expect(again.stdout).toContain("Already saved as doc_1");
+    expect(JSON.parse(againJson.stdout)).toEqual({
+      cardId: "doc_1",
+      created: false,
+    });
+    expect(refused.code).not.toBe(0);
+    expect(refused.stderr).toContain("This card has no PDF to save.");
+  });
+
   test("trash lists Trash and restore brings cards back", async () => {
     routes.set("GET /v1/cards", emptyPage);
     routes.set("POST /v1/cards/card_a/restore", noContent);
@@ -902,6 +970,92 @@ describe("teak batch and fallback behavior", () => {
     const partial = await teak("content", "card_c");
     expect(partial.code).toBe(0);
     expect(partial.stderr).toContain("try again later");
+  });
+
+  test("links lists links then backlinks, says when there are none, and --json the lists", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(
+        card("card_a", {
+          backlinks: [
+            {
+              id: "card_c",
+              missing: false,
+              title: "Weekly review",
+              type: "text",
+            },
+          ],
+          backlinksTruncated: false,
+          links: [
+            {
+              id: "card_b",
+              missing: false,
+              title: "Garden plan",
+              type: "text",
+            },
+            { id: "gone", missing: true, title: null, type: null },
+          ],
+          linksTruncated: false,
+        })
+      )
+    );
+    routes.set("GET /v1/cards/card_d", () => json(card("card_d")));
+    routes.set("GET /v1/cards/card_x", () =>
+      json({ code: "NOT_FOUND", error: "Card not found" }, 404)
+    );
+
+    const text = await teak("links", "card_a");
+    expect(text.code).toBe(0);
+    expect(text.stdout).toBe(
+      [
+        "Links",
+        "card_b  text      Garden plan",
+        "gone  (missing)",
+        "",
+        "Linked from",
+        "card_c  text      Weekly review",
+        "",
+      ].join("\n")
+    );
+
+    const asJson = await teak("--json", "cards", "links", "card_a");
+    expect(JSON.parse(asJson.stdout)).toMatchObject({
+      backlinksTruncated: false,
+      links: [{ id: "card_b" }, { id: "gone", missing: true }],
+      linksTruncated: false,
+    });
+
+    expect((await teak("links", "card_d")).stdout).toBe("No links.\n");
+
+    routes.set("GET /v1/cards/card_e", () =>
+      json(
+        card("card_e", {
+          backlinks: [
+            { id: "card_c", missing: false, title: "Review", type: "text" },
+          ],
+          backlinksTruncated: true,
+          links: [
+            { id: "card_b", missing: false, title: "Plan", type: "text" },
+          ],
+          linksTruncated: true,
+        })
+      )
+    );
+    expect((await teak("links", "card_e")).stdout).toBe(
+      [
+        "Links",
+        "card_b  text      Plan",
+        "and more (first 100 shown)",
+        "",
+        "Linked from",
+        "card_c  text      Review",
+        "and more (first 100 shown)",
+        "",
+      ].join("\n")
+    );
+
+    const missing = await teak("links", "card_x");
+    expect(missing.code).toBe(EXIT.notFound);
+    expect(missing.stderr).toContain("Card not found");
   });
 
   test("archive and unarchive change each card, and ls --archived lists them", async () => {

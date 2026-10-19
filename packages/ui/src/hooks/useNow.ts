@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-/** The earliest of `deadlines` still ahead of `now`, or null. */
 export function nextDeadline(
   deadlines: readonly (number | null | undefined)[],
   now: number
@@ -18,10 +17,6 @@ export function nextDeadline(
   return next;
 }
 
-/**
- * The current time, for rendering what depends on it. It moves every
- * `every` ms while that is set, and just after each deadline in `until`.
- */
 export function useNow({
   every,
   until = [],

@@ -46,7 +46,9 @@ const updateCardFieldValidator = v.union(
   v.literal("delete"),
   v.literal("restore"),
   v.literal("archive"),
-  v.literal("unarchive")
+  v.literal("unarchive"),
+  v.literal("done"),
+  v.literal("undone")
 );
 
 interface UpdateCardFieldForUserArgs {
@@ -63,7 +65,9 @@ interface UpdateCardFieldForUserArgs {
     | "delete"
     | "restore"
     | "archive"
-    | "unarchive";
+    | "unarchive"
+    | "done"
+    | "undone";
   tagToRemove?: string;
   userId: TeakUserId;
   value?: unknown;
@@ -140,7 +144,6 @@ const reserveEditReprocess = async (
   return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
 };
 
-/** Checks both limits before spending either, so one's refusal never spends the other. */
 const spendCardReprocessLimits = async (
   ctx: MutationCtx,
   userId: string,
@@ -372,14 +375,15 @@ const applyCardFieldEdit = (
     }
 
     case "metadataTitle": {
-      const title = parseCardTitle(truncateCardTitle(value));
-      if (title === undefined) {
+      const parsed = parseCardTitle(truncateCardTitle(value));
+      if (parsed.kind === "invalid") {
         throw new ConvexError({
           code: "INVALID_INPUT",
           message: "Title must be a string or null",
         });
       }
-      state.updateData.metadataTitle = title ?? undefined;
+      state.updateData.metadataTitle =
+        parsed.kind === "title" ? parsed.title : undefined;
       state.updateData.metadataTitleEdited = true;
       return true;
     }
@@ -414,6 +418,21 @@ const applyCardFieldEdit = (
   }
 };
 
+const assertCanMarkDone = (card: Doc<"cards">) => {
+  if (card.isDeleted) {
+    throw new ConvexError({
+      code: "CONFLICT",
+      message: "Restore this card from Trash before marking it done",
+    });
+  }
+  if (card.type !== "link") {
+    throw new ConvexError({
+      code: "TYPE_MISMATCH",
+      message: "Only link cards can be marked done",
+    });
+  }
+};
+
 const loadOwnedCard = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -433,11 +452,6 @@ const loadOwnedCard = async (
   return card;
 };
 
-/**
- * Applies several field edits to one card as a single update: every value is
- * validated first, the reprocess rate limit is charged at most once, and the
- * card is written with one patch. Nothing is written if any edit is invalid.
- */
 export const updateCardFieldsForUserHandler = async (
   ctx: MutationCtx,
   {
@@ -564,6 +578,15 @@ export const updateCardFieldForUserHandler = async (
       updateData.archivedAt = undefined;
       break;
 
+    case "done":
+    case "undone":
+      assertCanMarkDone(card);
+      if ((field === "done") === (card.completedAt !== undefined)) {
+        return { pipelineDelayMs: null };
+      }
+      updateData.completedAt = field === "done" ? now : undefined;
+      break;
+
     default:
       throw new Error(`Unsupported field: ${field}`);
   }
@@ -614,12 +637,6 @@ export const updateCardField = mutation({
   },
 });
 
-/**
- * Runs the whole processing pipeline again for one card ("Refresh details"): the
- * AI summary, tags and transcript are cleared and regenerated, along with
- * link metadata and previews. Checks ownership, Trash and both reprocess
- * limits before writing anything, so a refused request changes nothing.
- */
 export const reprocessCardForUserHandler = async (
   ctx: MutationCtx,
   { userId, cardId }: { cardId: Id<"cards">; userId: TeakUserId }
@@ -650,11 +667,6 @@ const REPROCESS_REFUSAL_CODES = new Set([
   "RATE_LIMITED",
 ]);
 
-/**
- * "Refresh details" from the app. Refusals (rate limited, in Trash, not found) are
- * returned rather than thrown, so the app shows them as a message instead of
- * a failed request.
- */
 export const reprocessCard = mutation({
   args: { cardId: v.id("cards") },
   returns: v.union(

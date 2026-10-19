@@ -7,8 +7,6 @@ if (!(Number.isInteger(pageCount) && pageCount > 0 && output)) {
   throw new Error("usage: bun make-pdf.ts <pages> <output.pdf> [--no-text]");
 }
 
-// Objects: 1 catalog, 2 pages, 3 font, then a page and a content stream
-// for each page.
 const objects: string[] = [];
 const pageIds = Array.from({ length: pageCount }, (_, index) => 4 + index * 2);
 objects.push("<< /Type /Catalog /Pages 2 0 R >>");

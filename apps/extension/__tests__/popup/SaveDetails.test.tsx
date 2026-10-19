@@ -32,14 +32,14 @@ afterEach(async () => {
 });
 
 interface Setup {
+  alreadySaved?: boolean;
   details?: SaveDetailsResponse;
-  existing?: boolean;
   patch?: (payload: PatchCardPayload) => CardPatchResponse;
 }
 
 async function render({
   details = { status: "ok", libraryTags: ["design", "reading"] },
-  existing = false,
+  alreadySaved = false,
   patch = () => ({ status: "updated" }),
 }: Setup = {}) {
   installChromeStorage();
@@ -54,27 +54,53 @@ async function render({
     }
   );
   const drafts: unknown[] = [];
-  const connect = mock(() => ({
-    disconnect: mock(),
-    postMessage: (message: { draft: unknown }) => drafts.push(message.draft),
-  }));
+  const portDead = { current: false as boolean };
+  const dropPort: { current: () => void } = { current: () => undefined };
+  const connect = mock(() => {
+    const listeners: (() => void)[] = [];
+    dropPort.current = () => {
+      for (const listener of listeners) {
+        listener();
+      }
+    };
+    return {
+      disconnect: mock(),
+      onDisconnect: {
+        addListener: (listener: () => void) => listeners.push(listener),
+      },
+      postMessage: (message: { draft: unknown }) => {
+        if (portDead.current) {
+          throw new Error("Attempting to use a disconnected port object");
+        }
+        drafts.push(message.draft);
+      },
+    };
+  });
   Object.assign(globalThis.chrome, { runtime: { connect, sendMessage } });
-  const onTouched = mock();
+  const onKeepOpen = mock();
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
     root?.render(
       <SaveDetails
+        alreadySaved={alreadySaved}
         cardId="card_1"
-        existing={existing}
-        onTouched={onTouched}
+        onKeepOpen={onKeepOpen}
         userId="user_1"
       />
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  return { container, drafts, onTouched, patches };
+  return {
+    connect,
+    container,
+    drafts,
+    dropPort,
+    onKeepOpen,
+    patches,
+    portDead,
+  };
 }
 
 const settle = () =>
@@ -107,10 +133,10 @@ const noteField = (container: HTMLElement) =>
   container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Note"]');
 
 test("Enter in the tag input saves the tags at once", async () => {
-  const { container, onTouched, patches } = await render();
+  const { container, onKeepOpen, patches } = await render();
   const input = tagInput(container) as HTMLInputElement;
   await act(() => input.focus());
-  expect(onTouched).toHaveBeenCalled();
+  expect(onKeepOpen).toHaveBeenCalled();
   await type(input, "design");
   await press(input, ",");
   await type(input, "to read");
@@ -118,7 +144,7 @@ test("Enter in the tag input saves the tags at once", async () => {
   await settle();
   expect(patches).toEqual([
     {
-      added: ["design", "to read"],
+      addedTags: ["design", "to read"],
       cardId: "card_1",
       tags: ["design", "to read"],
     },
@@ -144,7 +170,6 @@ test("the background always holds what closing the popup would lose", async () =
   const note = noteField(container) as HTMLTextAreaElement;
   await act(() => note.focus());
   await type(note, "half typed");
-  // Closing now: the background sends this draft when the port drops.
   expect(drafts.at(-1)).toEqual({ cardId: "card_1", notes: "half typed" });
   expect(patches).toEqual([]);
   await act(() => note.blur());
@@ -154,8 +179,6 @@ test("the background always holds what closing the popup would lose", async () =
 });
 
 test("a save still on its way stays in the draft until Teak confirms it", async () => {
-  // A blur as the popup closes sends the note, but that message can be lost
-  // while the popup closes; the draft keeps it until the save is confirmed.
   let confirm: (result: { status: "updated" }) => void = () => undefined;
   const { container, drafts } = await render({
     patch: () => ({ status: "updated" }),
@@ -189,7 +212,7 @@ test("a failed save hands the change back to the background", async () => {
   await press(input, "Enter");
   await settle();
   expect(drafts.at(-1)).toEqual({
-    added: ["design"],
+    addedTags: ["design"],
     cardId: "card_1",
     tags: ["design"],
   });
@@ -205,7 +228,7 @@ test("a tag over 64 characters is refused before any request", async () => {
 });
 
 test("a failed save keeps what was typed and offers Retry", async () => {
-  let fail = true;
+  let fail = true as boolean;
   const { container, patches } = await render({
     patch: () =>
       fail ? { status: "error", message: "boom" } : { status: "updated" },
@@ -252,7 +275,7 @@ test("a page already saved fills in its own tags and note", async () => {
       libraryTags: [],
       card: { notes: "Earlier note", tags: ["design"] },
     },
-    existing: true,
+    alreadySaved: true,
   });
   expect(container.textContent).toContain("design");
   expect(noteField(container)?.value).toBe("Earlier note");
@@ -260,16 +283,15 @@ test("a page already saved fills in its own tags and note", async () => {
   await type(input, "lamps");
   await press(input, "Enter");
   await settle();
-  // Only the tag added here is remembered as recent, not the card's own.
   expect(patches).toEqual([
-    { added: ["lamps"], cardId: "card_1", tags: ["design", "lamps"] },
+    { addedTags: ["lamps"], cardId: "card_1", tags: ["design", "lamps"] },
   ]);
 });
 
 test("a page already saved shows no fields when its tags can't load", async () => {
   const { container } = await render({
     details: { status: "error", message: "nope" },
-    existing: true,
+    alreadySaved: true,
   });
   expect(tagInput(container)).toBeNull();
   expect(container.textContent).toContain("Couldn't load this card's tags.");
@@ -284,4 +306,33 @@ test("suggestions show once the tag input has focus", async () => {
     (option) => option.textContent
   );
   expect(options).toEqual(["design", "reading"]);
+});
+
+test("a dropped background port reconnects and hands over the unsaved draft", async () => {
+  const { connect, container, drafts, dropPort } = await render();
+  const note = noteField(container) as HTMLTextAreaElement;
+  await act(() => note.focus());
+  await type(note, "kept across a restart");
+  const before = drafts.length;
+  await act(() => dropPort.current());
+  expect(connect).toHaveBeenCalledTimes(2);
+  expect(drafts.length).toBe(before + 1);
+  expect(drafts.at(-1)).toEqual({
+    cardId: "card_1",
+    notes: "kept across a restart",
+  });
+});
+
+test("a dead background port doesn't stop typing or saving", async () => {
+  const { container, patches, portDead } = await render();
+  portDead.current = true;
+  const note = noteField(container) as HTMLTextAreaElement;
+  await act(() => note.focus());
+  await type(note, "typed while the port is dead");
+  expect(note.value).toBe("typed while the port is dead");
+  await act(() => note.blur());
+  await settle();
+  expect(patches).toEqual([
+    { cardId: "card_1", notes: "typed while the port is dead" },
+  ]);
 });

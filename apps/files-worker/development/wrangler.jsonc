@@ -1,9 +1,9 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  // Isolated development Worker. Prepared only: Convex dev keeps the shared
-  // production routing until the approved storage switch. Deploy with
+  // Isolated development Worker: Convex dev (reminiscent-kangaroo-59) uses it,
+  // its own bucket, vector index and signing key. Deploy with
   // `bun run deploy:development`; never add the production custom domain.
-  "name": "teak-files-development",
+  "name": "teak-files-dev",
   "account_id": "dd19e45b8f2f3cc0393cc2deb51fa27d",
   "main": "../src/index.ts",
   "compatibility_date": "2026-08-01",
@@ -18,7 +18,6 @@
       "preview_bucket_name": "teak-files-development-20261006"
     }
   ],
-  // Its own SQLite namespace; never reference the production script's gates.
   "durable_objects": {
     "bindings": [
       { "name": "OBJECT_GATES", "class_name": "ObjectDeletionGate" },
@@ -40,9 +39,6 @@
       "new_sqlite_classes": ["LinkFetcher"]
     }
   ],
-  // Media renderer: ffmpeg and poppler for video frames, scrub sprites, media
-  // facts, audio waveforms and conversion, and PDF thumbnails and text. One
-  // job per instance, no internet; see container/Dockerfile.
   "containers": [
     {
       "class_name": "MediaRenderer",
@@ -50,7 +46,6 @@
       "instance_type": "basic",
       "max_instances": 2
     },
-    // Link fetcher; see the production config.
     {
       "class_name": "LinkFetcher",
       "image": "../fetcher/Dockerfile",
@@ -69,57 +64,62 @@
   "browser": {
     "binding": "BROWSER"
   },
-  // Its own Workflows, Queues and dataset; see the production config.
+  "vectorize": [
+    {
+      "binding": "CARD_VECTORS_0",
+      "index_name": "teak-dev-cards-0"
+    }
+  ],
   "workflows": [
     {
-      "name": "teak-dev-card-processing",
+      "name": "teak-card-processing-dev",
       "binding": "CARD_PROCESSING",
       "class_name": "CardProcessingWorkflow"
     },
     {
-      "name": "teak-dev-export",
+      "name": "teak-export-dev",
       "binding": "EXPORTS",
       "class_name": "ExportWorkflow"
     },
     {
-      "name": "teak-dev-import",
+      "name": "teak-import-dev",
       "binding": "IMPORTS",
       "class_name": "ImportWorkflow"
     },
     {
-      "name": "teak-dev-account-deletion",
+      "name": "teak-account-deletion-dev",
       "binding": "ACCOUNT_DELETION",
       "class_name": "AccountDeletionWorkflow"
     },
     {
-      "name": "teak-dev-maintenance",
+      "name": "teak-maintenance-dev",
       "binding": "MAINTENANCE",
       "class_name": "MaintenanceWorkflow"
     }
   ],
   "queues": {
     "producers": [
-      { "binding": "OBJECT_DELETIONS", "queue": "teak-dev-object-deletions" },
-      { "binding": "AI_BACKFILL", "queue": "teak-dev-ai-backfill" },
-      { "binding": "WORKOS_EVENTS", "queue": "teak-dev-workos-events" },
-      { "binding": "R2_EVENTS", "queue": "teak-dev-r2-events" }
+      { "binding": "OBJECT_DELETIONS", "queue": "teak-object-deletions-dev" },
+      { "binding": "AI_BACKFILL", "queue": "teak-ai-backfill-dev" },
+      { "binding": "WORKOS_EVENTS", "queue": "teak-workos-events-dev" },
+      { "binding": "R2_EVENTS", "queue": "teak-r2-events-dev" }
     ],
     "consumers": [
       {
-        "queue": "teak-dev-object-deletions",
+        "queue": "teak-object-deletions-dev",
         "max_batch_size": 10,
         "max_batch_timeout": 5,
         "max_retries": 5,
         "retry_delay": 30,
-        "dead_letter_queue": "teak-dev-object-deletions-dlq"
+        "dead_letter_queue": "teak-object-deletions-dlq-dev"
       },
       {
-        "queue": "teak-dev-object-deletions-dlq",
+        "queue": "teak-object-deletions-dlq-dev",
         "max_batch_size": 10,
         "max_retries": 2
       },
       {
-        "queue": "teak-dev-ai-backfill",
+        "queue": "teak-ai-backfill-dev",
         "max_batch_size": 5,
         "max_batch_timeout": 10,
         "max_concurrency": 2,
@@ -127,20 +127,20 @@
         "retry_delay": 60
       },
       {
-        "queue": "teak-dev-workos-events",
+        "queue": "teak-workos-events-dev",
         "max_batch_size": 10,
         "max_batch_timeout": 2,
         "max_retries": 10,
         "retry_delay": 30,
-        "dead_letter_queue": "teak-dev-workos-events-dlq"
+        "dead_letter_queue": "teak-workos-events-dlq-dev"
       },
       {
-        "queue": "teak-dev-workos-events-dlq",
+        "queue": "teak-workos-events-dlq-dev",
         "max_batch_size": 10,
         "max_retries": 5
       },
       {
-        "queue": "teak-dev-r2-events",
+        "queue": "teak-r2-events-dev",
         "max_batch_size": 100,
         "max_batch_timeout": 30,
         "max_retries": 5
@@ -160,9 +160,6 @@
       "45 * * * *"
     ]
   },
-  // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
-  // single request: CPU for the ZIP's checksums, and one R2 read per file plus
-  // the upload parts. Other operations use a small fraction of either limit.
   "limits": {
     "cpu_ms": 300000,
     "subrequests": 20000
@@ -171,15 +168,18 @@
     // Its own AI Gateway, so development traffic stays out of production's
     // analytics. Create it in the dashboard before deploying.
     "AI_GATEWAY_ID": "teak-files-development",
-    // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "2",
-    // Matches containers[1].max_instances.
     "LINK_FETCHER_INSTANCES": "2",
-    // Only the development deployment.
     "CONVEX_SITE_URLS": "https://reminiscent-kangaroo-59.convex.site",
-    "FILES_PUBLIC_ORIGIN": "https://teak-files-development.praveenjuge.workers.dev",
+    "FILES_PUBLIC_ORIGIN": "https://teak-files-dev.praveenjuge.workers.dev",
     "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
     "AI_USAGE_DATASET": "teak_dev_ai_usage"
+  },
+  // Put with `wrangler secret put` (README, "Secrets and local vars"). A
+  // deploy fails while either is missing. ANALYTICS_API_TOKEN stays optional,
+  // so it isn't listed.
+  "secrets": {
+    "required": ["FILES_SIGNING_SECRET", "WORKFLOW_RPC_ROOT_SECRET"]
   },
   "observability": {
     "enabled": true,

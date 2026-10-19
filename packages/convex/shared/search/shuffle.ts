@@ -1,15 +1,3 @@
-/**
- * Shuffle: a stable random order picked by a seed. The same seed gives the
- * same order on every page, reload and device; a new seed gives another.
- *
- * The library walks cards by their stored `shuffleKey` from a point the seed
- * picks (card/shuffle.ts). A bounded set of matches (a search, a tag, a
- * folder) is ordered by `shuffleRank` instead, which is the same for a card
- * and a seed whatever else is in the set, so a card saved mid-paging moves
- * nothing else.
- */
-
-/** Seeds are integers from 0 to 2^31 - 1. */
 export const MAX_SHUFFLE_SEED = 2 ** 31 - 1;
 
 export const isShuffleSeed = (value: unknown): value is number =>
@@ -18,7 +6,6 @@ export const isShuffleSeed = (value: unknown): value is number =>
   value >= 0 &&
   value <= MAX_SHUFFLE_SEED;
 
-/** A seed parsed from text, such as a URL or a query parameter. */
 export const parseShuffleSeed = (
   value: string | null | undefined
 ): number | undefined => {
@@ -32,9 +19,7 @@ export const parseShuffleSeed = (
 export const randomShuffleSeed = (): number =>
   Math.floor(Math.random() * (MAX_SHUFFLE_SEED + 1));
 
-// biome-ignore-start lint/suspicious/noBitwiseOperators: 32-bit hashing needs them
-// The murmur3 32-bit finalizer: spreads every input bit over the output.
-const mix32 = (value: number): number => {
+const murmur3Fmix32 = (value: number): number => {
   let hash = value >>> 0;
   hash ^= hash >>> 16;
   hash = Math.imul(hash, 0x85_eb_ca_6b);
@@ -44,24 +29,19 @@ const mix32 = (value: number): number => {
   return hash >>> 0;
 };
 
-/** Where the library walk starts for a seed, in [0, 1). */
 export const shuffleStart = (seed: number): number =>
-  mix32(seed ^ 0x9e_37_79_b9) / 2 ** 32;
+  murmur3Fmix32(seed ^ 0x9e_37_79_b9) / 2 ** 32;
 
-/** Odd seeds walk the keys downward, even ones upward. */
 export const shuffleDescends = (seed: number): boolean => seed % 2 === 1;
 
-/** A card's place in a seeded shuffle of a set of matches. */
 export const shuffleRank = (seed: number, id: string): number => {
-  let hash = mix32(seed) ^ 0x81_1c_9d_c5;
+  let hash = murmur3Fmix32(seed) ^ 0x81_1c_9d_c5;
   for (let index = 0; index < id.length; index++) {
     hash = Math.imul(hash ^ id.charCodeAt(index), 0x01_00_01_93);
   }
-  return mix32(hash);
+  return murmur3Fmix32(hash);
 };
-// biome-ignore-end lint/suspicious/noBitwiseOperators: 32-bit hashing needs them
 
-/** Orders items by their seeded rank; ties (vanishingly rare) by id. */
 export const shuffleBySeed = <T>(
   items: readonly T[],
   seed: number,

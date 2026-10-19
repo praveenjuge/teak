@@ -6,12 +6,9 @@ import type { BulkCardAction } from "./bulkCardActions";
 import type { GridDirection } from "./gridNavigation";
 import { cardMenuShortcuts, type MenuShortcut } from "./keyboardShortcuts";
 
-/** Where a key pressed on a focused grid card is going. */
 export interface GridKeyContext {
-  /** Choosing cards for a folder: keys only pick cards. */
   addToFolder: boolean;
   allSelectedFavorited: boolean;
-  /** Cards are selected and the grid can act on them in bulk. */
   hasSelection: boolean;
   isSelectionMode: boolean;
   view: BulkBarView;
@@ -25,11 +22,6 @@ export type GridCardKeyAction =
   | "favorite"
   | "select";
 
-/**
- * What a key pressed on a focused grid card does: move focus, act on the
- * selection, act on the card, leave selection, or `blocked` when the key is
- * taken but does nothing here. Null leaves the key to the card or the page.
- */
 export type GridKeyAction =
   | { type: "move"; direction: GridDirection }
   | { type: "selection"; action: BulkCardAction }
@@ -48,7 +40,6 @@ const DIRECTIONS: Record<string, GridDirection> = {
 
 const isDeleteKey = (key: string) => key === "Delete" || key === "Backspace";
 
-/** `key` is `KeyboardEvent.key`, with letters lowercased. */
 export function gridKeyAction(
   key: string,
   context: GridKeyContext
@@ -117,11 +108,6 @@ const SHORTCUT_KEYS: Record<KeyedShortcut, string> = {
   select: "x",
 };
 
-/**
- * The menu shortcuts a focused card's keys do to the card itself. In
- * selection mode F, T, E and Delete go to the selection instead, so they
- * are left out. The browser's copy is the card's own.
- */
 export function focusedCardShortcuts(
   isSelectionMode: boolean,
   apple?: boolean
@@ -143,7 +129,6 @@ export function focusedCardShortcuts(
   return shortcuts;
 }
 
-/** The key a focused card takes for a bulk bar action, if one does it. */
 export function selectionShortcut(
   action: BulkBarAction,
   context: Pick<

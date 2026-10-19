@@ -2,6 +2,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   type BulkCardsOperation,
+  type CardsPage,
   parseTags,
   TeakApiError,
 } from "@teak/convex/sdk";
@@ -30,6 +31,7 @@ import {
   setCardsArchived,
   setCardThumbnail,
   showCardContent,
+  showCardLinks,
   showFolder,
   startExport,
   startTagOperation,
@@ -72,16 +74,19 @@ export {
 
 type ListMode = "list" | "search" | "favorites" | "similar";
 
-/**
- * A listing as JSON. A shuffled one carries its seed: a later
- * `--seed` with `--cursor` continues it, and a cursor only works with the
- * seed that issued it.
- */
 export const listingJson = <T extends object>(
   page: T,
   seed: number | undefined
 ): T | (T & { seed: number }) =>
   seed === undefined ? page : { ...page, seed };
+
+const meaningSearchSkipped = (
+  page: CardsPage,
+  options: Record<string, unknown>
+) => page.searchMode === "keyword" && options.mode !== "keyword";
+
+const relevanceUnscored = (page: CardsPage, options: Record<string, unknown>) =>
+  options.sort === "relevance" && page.relevanceRanked === false;
 
 const writeCards = async (
   options: ClientOptions & Record<string, unknown>,
@@ -136,20 +141,10 @@ const writeCards = async (
         : "That card is in Trash or was not found.\n"
     );
   }
-  // Meaning search was asked for but did not run.
-  if (
-    !options.json &&
-    page.searchMode === "keyword" &&
-    options.mode !== "keyword"
-  ) {
+  if (!options.json && meaningSearchSkipped(page, options)) {
     process.stderr.write("mode: keyword\n");
   }
-  // Best match was asked for but could not score the results.
-  if (
-    !options.json &&
-    options.sort === "relevance" &&
-    page.relevanceRanked === false
-  ) {
+  if (!options.json && relevanceUnscored(page, options)) {
     process.stderr.write("relevance: unranked\n");
   }
 };
@@ -166,6 +161,23 @@ const favoriteCard = async (
 ) => {
   const card = await client(options).cards.setFavorite(id, !remove);
   write(options.json ? card : formatCardLine(card), options);
+};
+
+const markCardDone = async (
+  id: string,
+  undo: boolean,
+  options: GlobalOptions
+) => {
+  const card = await client(options).cards.setDone(id, !undo);
+  write(options.json ? card : formatCardLine(card), options);
+};
+
+const savePdf = async (id: string, options: GlobalOptions) => {
+  const saved = await client(options).cards.savePdf(id);
+  const line = saved.created
+    ? `Saved the PDF as ${saved.cardId}`
+    : `Already saved as ${saved.cardId}`;
+  write(options.json ? saved : line, options);
 };
 
 const createCard = async (
@@ -255,8 +267,7 @@ program
   .command("logout")
   .description("Sign out and disconnect the CLI")
   .action(async () => {
-    const notice = await logout(program.opts());
-    write(notice ?? "Logged out of Teak.", program.opts());
+    write(await logout(program.opts()), program.opts());
   });
 
 program
@@ -431,6 +442,13 @@ cards
   .description("Print a card's text: its document's text or its transcript")
   .action(async (id) => showCardContent(id, program.opts()));
 cards
+  .command("links")
+  .argument("<id>")
+  .description(
+    "List the cards a card links to with [[…]], and the cards linking to it"
+  )
+  .action(async (id) => showCardLinks(id, program.opts()));
+cards
   .command("open")
   .argument("<id>")
   .description("Open a card in Teak on the web")
@@ -452,6 +470,24 @@ cards
   .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
+  });
+cards
+  .command("done")
+  .argument("<id>")
+  .description("Mark a link read, watched, bought or done")
+  .option("--undo", "mark it not done")
+  .action(async (id, options) => {
+    await markCardDone(id, options.undo === true, {
+      ...program.opts(),
+      ...options,
+    });
+  });
+cards
+  .command("save-pdf")
+  .argument("<id>")
+  .description("Save an arXiv link's paper as a document card")
+  .action(async (id, options) => {
+    await savePdf(id, { ...program.opts(), ...options });
   });
 cards
   .command("bulk")
@@ -706,6 +742,13 @@ program
   .description("Restore cards from Trash")
   .action(async (ids) => restoreCards(ids, program.opts()));
 program
+  .command("links")
+  .argument("<id>")
+  .description(
+    "List the cards a card links to with [[…]], and the cards linking to it"
+  )
+  .action(async (id) => showCardLinks(id, program.opts()));
+program
   .command("content")
   .argument("<id>")
   .description("Print a card's text: its document's text or its transcript")
@@ -746,6 +789,17 @@ program
   .option("--remove", "remove it from favorites")
   .action(async (id, options) => {
     await favoriteCard(id, options.remove, { ...program.opts(), ...options });
+  });
+program
+  .command("done")
+  .argument("<id>")
+  .description("Mark a link read, watched, bought or done")
+  .option("--undo", "mark it not done")
+  .action(async (id, options) => {
+    await markCardDone(id, options.undo === true, {
+      ...program.opts(),
+      ...options,
+    });
   });
 
 export const run = (argv = process.argv) => {

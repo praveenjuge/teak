@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import type { DispatchItem } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -7,10 +6,6 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "./ai/backfill";
 import schema from "./schema";
 import { queueCardProcessing } from "./workflowDispatch";
-
-// Card processing runs on Cloudflare Workflows: Convex queues a run per
-// processing revision in the dispatch outbox, and every write the run makes
-// is guarded by that revision.
 
 const modules = import.meta.glob("./**/*.ts");
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();
@@ -198,8 +193,6 @@ describe("sending a card run again", () => {
     const cardId = await insertCard(t, { aiTags: ["old"] });
     await t.run((ctx) => queueCardProcessing(ctx, cardId, { reset: true }));
     const [claimed] = await t.mutation(internal.workflowDispatch.claim, {});
-    // The run starts and writes, but the Worker's reply to the dispatch is
-    // lost, so the row goes back to pending and is sent again.
     await t.run((ctx) => ctx.db.patch("cards", cardId, { aiTags: ["new"] }));
     await t.mutation(internal.workflowDispatch.release, {
       error: "timeout",

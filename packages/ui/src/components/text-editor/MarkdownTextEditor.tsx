@@ -9,13 +9,10 @@ const LoadedMarkdownTextEditor = lazyWithPreload(() =>
   import("./LoadedMarkdownTextEditor").then((module) => module.default)
 );
 
-/** Starts loading the rich editor before any editor renders. */
 export const preloadMarkdownTextEditor = LoadedMarkdownTextEditor.preload;
 
 export function MarkdownTextEditor(props: MarkdownTextEditorProps) {
   const standInFocus = useRef(false);
-  // Kept for this editor's life: switching from the lazy component to the
-  // loaded one later would remount the editor under the cursor.
   const [Editor] = useState(
     () => LoadedMarkdownTextEditor.loaded() ?? LoadedMarkdownTextEditor
   );

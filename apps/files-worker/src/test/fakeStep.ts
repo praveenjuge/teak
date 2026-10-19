@@ -7,17 +7,9 @@ export interface StepRecord {
   outcome: "ok" | "error";
 }
 
-/**
- * An in-memory stand-in for Cloudflare's `WorkflowStep`: runs each step's
- * callback with its retry limit (no delays), stops on `NonRetryableError`,
- * replays a completed step's result when its name repeats, and records
- * every step and sleep in order.
- */
 export const createFakeStep = (
   options: {
-    /** Fail these steps (by name) this many times before letting them run. */
     failures?: Record<string, { error: Error; times: number }>;
-    /** Results to return for steps without running them. */
     results?: Record<string, unknown>;
   } = {}
 ) => {
@@ -97,7 +89,6 @@ export const createFakeStep = (
 
   return {
     delays,
-    /** Step names in the order they finished. */
     names: () => records.map((record) => record.name),
     records,
     sleeps,

@@ -90,7 +90,7 @@ Install it from [Skills.sh](https://skills.sh/praveenjuge/teak):
 npx skills add praveenjuge/teak --skill teak
 ```
 
-Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skills-compatible agents. Agents that discover skills from websites can also find it at `https://teakvault.com/.well-known/agent-skills/index.json`. The skill covers when to use CLI vs API vs MCP vs SDK, browser sign-in or API key auth, and never printing, persisting, or committing secrets.
+Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skills-compatible agents. The skill covers when to use CLI vs API vs MCP vs SDK, browser sign-in or API key auth, and never printing, persisting, or committing secrets.
 
 <Prompt
   description="Ask the agent to use the Teak skill."
@@ -98,3 +98,12 @@ Works with Codex, Claude Code, Cursor, GitHub Copilot, Windsurf, and other skill
 >
   Use the Teak skill to save this research link with the tags ai and reference.
 </Prompt>
+
+#### Discovery
+
+Agents that find skills on websites read its Agent Skills discovery index at either address:
+
+- `https://teakvault.com/.well-known/agent-skills/index.json`
+- `https://api.teakvault.com/.well-known/agent-skills/index.json`, which redirects to the first
+
+The index lists the `teak` skill with a `sha256:` digest of its `SKILL.md`, so an agent can check that the file it downloads is the one Teak published.

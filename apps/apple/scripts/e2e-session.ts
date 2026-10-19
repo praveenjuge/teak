@@ -1,15 +1,5 @@
 /**
- * A signed-in session for the Apple app against this checkout's local E2E
- * stack (`bun run --cwd packages/tests e2e:stack`), without a browser.
- *
- * Creates a throwaway, verified WorkOS emulator user (which gives it a Teak
- * vault through the emulator's webhook), signs in with the password grant,
- * and prints the launch environment a Debug build reads:
- *
  *   bun --no-env-file run apps/apple/scripts/e2e-session.ts
- *
- * Everything here exists only in the emulator's memory; nothing reaches
- * hosted WorkOS or the shared dev deployment.
  */
 import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -38,9 +28,20 @@ export const loadStack = async () => {
   return state.urls;
 };
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+export const loopbackUrl = (path: string, origin: string) => {
+  const url = new URL(path, origin);
+  if (!LOOPBACK_HOSTS.has(url.hostname)) {
+    throw new Error(
+      `The E2E emulator must run on this machine, not ${url.hostname}`
+    );
+  }
+  return url;
+};
+
 const emulator = async (origin: string, path: string, body: unknown) => {
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const response = await fetch(new URL(path, origin), {
+  const response = await fetch(loopbackUrl(path, origin), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${EMULATOR_API_KEY}`,

@@ -36,6 +36,7 @@ export const ERROR_CODES = [
   "FILE_TOO_LARGE",
   "FOLDER_LIMIT",
   "FORBIDDEN",
+  "IN_PROGRESS",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
   "INVALID_INPUT",
@@ -84,8 +85,16 @@ export interface Card {
   archivedAt: number | null;
   /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
   audioWaveform: { detail: number[]; grid: number[] } | null;
+  /** Your cards that link to this one, most recently updated first. */
+  backlinks?: CardLinkRef[];
+  backlinksTruncated?: boolean;
   colors: Array<{ hex: string; name?: string }>;
   compactUrl: string | null;
+  /**
+   * When the link was marked read, watched, bought or done, or null.
+   * Servers that predate done states leave it out.
+   */
+  completedAt?: number | null;
   content: string;
   createdAt: number;
   detailUrl: string | null;
@@ -110,6 +119,11 @@ export interface Card {
    */
   isHidden?: boolean;
   linkAuthor: string | null;
+  /**
+   * What a link is (`article`, `movie`, `product`…), or null. A plain
+   * string: new categories are added over time.
+   */
+  linkCategory?: string | null;
   linkFacts: Array<{ label: string; value: string }>;
   linkPreviewImageUrl: string | null;
   linkPreviewMedia: Array<{
@@ -131,6 +145,12 @@ export interface Card {
   linkPublishedAt: string | null;
   linkPublisher: string | null;
   linkSiteName: string | null;
+  /**
+   * Cards this card links to with `[[Title|teak:<id>]]`, in order. Only on
+   * single-card responses (`cards.get`, update, favorite, done, create).
+   */
+  links?: CardLinkRef[];
+  linksTruncated?: boolean;
   metadataDescription: string | null;
   metadataStatus: string | null;
   metadataTitle: string | null;
@@ -163,6 +183,19 @@ export interface Card {
     frames: number;
     url: string;
   } | null;
+}
+/** A linked card; `missing` when it's in Trash, deleted or not yours. */
+export interface CardLinkRef {
+  id: string;
+  missing: boolean;
+  title: string | null;
+  type: CardType | string | null;
+}
+export interface CardLinks {
+  backlinks: CardLinkRef[];
+  backlinksTruncated: boolean;
+  links: CardLinkRef[];
+  linksTruncated: boolean;
 }
 export type CardListItem = Partial<Card> &
   Pick<
@@ -368,6 +401,13 @@ export interface RefreshCardResponse {
   requestedAt: number;
   status: "queued";
 }
+/** An arXiv link's PDF saved as a document card (POST /v1/cards/:id/save-pdf). */
+export interface SavedPdf {
+  /** The document card holding the PDF. */
+  cardId: string;
+  /** False when an earlier save already made that card. */
+  created: boolean;
+}
 /** A card's full stored text (GET /v1/cards/:id/content). */
 export interface CardContent {
   cardId: string;
@@ -505,7 +545,9 @@ export const buildCardsSearchParams = (input: {
   /**
    * Search text. Accepts qualifiers: `tag:design` or `#design`, `type:link`,
    * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`,
-   * `price:<100` (also `>`, `<=`, `>=` and `=`) and `"quoted phrases"`.
+   * `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"total due"` (only
+   * the words Teak read in images, video thumbnails, link previews and scanned
+   * PDFs) and `"quoted phrases"`.
    */
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */
@@ -691,6 +733,16 @@ const asRefresh = (value: unknown): RefreshCardResponse => {
     throw new TeakApiError("PARSE_ERROR");
   }
   return value as unknown as RefreshCardResponse;
+};
+const asSavedPdf = (value: unknown): SavedPdf => {
+  if (
+    !isObject(value) ||
+    typeof value.cardId !== "string" ||
+    typeof value.created !== "boolean"
+  ) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return { cardId: value.cardId, created: value.created };
 };
 const asCardContent = (value: unknown): CardContent => {
   if (
@@ -927,6 +979,17 @@ export const createTeakClient = (options: {
           asPage
         ),
       get: (id: string) => request(cardPath(id), { method: "GET" }, asCard),
+      /** Cards this card links to with `[[…]]`, and cards linking to it. */
+      links: (id: string) =>
+        request(cardPath(id), { method: "GET" }, (value): CardLinks => {
+          const card = asCard(value);
+          return {
+            backlinks: card.backlinks ?? [],
+            backlinksTruncated: card.backlinksTruncated === true,
+            links: card.links ?? [],
+            linksTruncated: card.linksTruncated === true,
+          };
+        }),
       list: (input: Parameters<typeof qs>[0] = {}) =>
         request(`/v1/cards?${qs(input)}`, { method: "GET" }, asPage),
       /**
@@ -993,6 +1056,22 @@ export const createTeakClient = (options: {
         await putFile(upload.uploadUrl, bytes, mimeType);
         return applyThumbnail(id, upload.fileKey);
       },
+      /**
+       * Saves an arXiv link's paper as its own document card. Saving the same
+       * link again returns that card with `created: false`.
+       */
+      savePdf: (id: string) =>
+        request(`${cardPath(id)}/save-pdf`, { method: "POST" }, asSavedPdf),
+      /**
+       * Marks a link card read, watched, bought or done (`done: true`), or
+       * not; repeating a call changes nothing. Only link cards can be marked.
+       */
+      setDone: (id: string, done: boolean) =>
+        request(
+          `${cardPath(id)}/done`,
+          { method: done ? "POST" : "DELETE" },
+          asCard
+        ),
       setFavorite: (id: string, isFavorited: boolean) =>
         request(
           `${cardPath(id)}/favorite`,

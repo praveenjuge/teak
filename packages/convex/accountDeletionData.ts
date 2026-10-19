@@ -171,7 +171,39 @@ export const ancillaryPage = internalMutation({
     for (const row of relevanceResults) {
       await ctx.db.delete(row._id);
     }
+    const linkedPdfs = await ctx.db
+      .query("linkedPdfs")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of linkedPdfs) {
+      await ctx.db.delete(row._id);
+    }
+    const inboundSettings = await ctx.db
+      .query("inboundEmailSettings")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(10);
+    for (const row of inboundSettings) {
+      await ctx.db.delete(row._id);
+    }
+    const inboundReceipts = await ctx.db
+      .query("inboundEmailReceipts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of inboundReceipts) {
+      await ctx.db.delete(row._id);
+    }
+    const cardLinks = await ctx.db
+      .query("cardLinks")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of cardLinks) {
+      await ctx.db.delete(row._id);
+    }
     return (
+      cardLinks.length > 0 ||
+      inboundSettings.length > 0 ||
+      inboundReceipts.length > 0 ||
+      linkedPdfs.length > 0 ||
       vaultSetups.length > 0 ||
       semanticResults.length > 0 ||
       relevanceResults.length > 0 ||
@@ -276,7 +308,6 @@ export const checkpointStorageBatch = internalMutation({
       throw new Error("deletion_storage_source_changed");
     }
     const next = offset + count;
-    // Each checkpoint is progress, so a long drain never reads as stalled.
     const nextAttemptAt = Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS;
     if (next < batch.keys.length) {
       await ctx.db.patch(state._id, {

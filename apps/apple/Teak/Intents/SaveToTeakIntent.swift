@@ -22,7 +22,7 @@ struct SaveToTeakIntent: AppIntent {
             throw TeakError(message: "Open Teak and sign in, then run the shortcut again.")
         }
         let _: String = try await TeakServices.http(session: session)
-            .mutation("cards:createCard", LinkDetection.resolve(content).createArgs)
+            .mutation(ConvexFunctions.createCard, LinkDetection.resolve(content).createArgs)
         return .result(dialog: "Saved to Teak")
     }
 }

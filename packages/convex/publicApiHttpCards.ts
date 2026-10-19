@@ -3,6 +3,7 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { readDocumentText } from "./card/documentText";
+import type { CardWithUrls } from "./card/queryUtils";
 import { relevanceCursorRanked } from "./publicApiCursors";
 import {
   completeIdempotencyResponse,
@@ -98,8 +99,7 @@ const handleCreateCardRequest = async (
     const result = createPayload.fileKey
       ? await ctx
           .runAction(
-            (internal as any)["card/uploadCardAction"]
-              .finalizeUploadedCardForUser,
+            internal["card/uploadCardAction"].finalizeUploadedCardForUser,
             {
               cardType: createPayload.cardType,
               content: createPayload.content,
@@ -126,7 +126,7 @@ const handleCreateCardRequest = async (
               status: "created" as const,
             };
           })
-      : await ctx.runMutation((internal as any).raycast.quickSaveForUser, {
+      : await ctx.runMutation(internal.raycast.quickSaveForUser, {
           cardType: createPayload.cardType,
           content: createPayload.content,
           notes: createPayload.notes === null ? undefined : createPayload.notes,
@@ -138,7 +138,13 @@ const handleCreateCardRequest = async (
           userId: auth.validated.userId,
         });
     operationCommitted = true;
-    const responseBody = buildCreateCardResponse(result, request.url);
+    const responseBody = buildCreateCardResponse(
+      result,
+      request.url,
+      "card" in result && result.card
+        ? await loadCardLinks(ctx, auth.validated.userId, result.card._id)
+        : undefined
+    );
     await completeIdempotencyResponse(ctx, {
       keyHash: idempotencyState.keyHash,
       requestHash: idempotencyState.requestHash,
@@ -188,7 +194,7 @@ const handleCreateUploadRequest = async (
 
   try {
     const result = await ctx.runMutation(
-      (internal as any).publicApiUploads.generateUploadUrlForUser,
+      internal.publicApiUploads.generateUploadUrlForUser,
       {
         ...uploadPayload,
         userId: auth.validated.userId,
@@ -265,10 +271,6 @@ const handleCardsListRequest = async (
         pageInfo: { hasMore: false, nextCursor: null },
       });
     }
-    // The meaning side first: queries cannot call the vector service. Down,
-    // slow or rate-limited, a search is keyword-only and says so; a
-    // `like:` or `mood:` search has no keyword side, so it says why it is
-    // empty instead.
     const { similarity } = options;
     const semantic =
       similarity || (options.searchQuery && options.mode !== "keyword")
@@ -321,11 +323,9 @@ const handleCardsListRequest = async (
       ...(similarity ? { similarity } : {}),
     };
     let cardsPage: {
-      items: any[];
+      items: CardWithUrls[];
       pageInfo: { hasMore: boolean; nextCursor: string | null };
     };
-    // Best match needs free words; without them it is newest first, and a
-    // `like:` or `mood:` list keeps its similarity order.
     const bestMatchText =
       options.sort === "relevance" && options.semantic?.kind === "text"
         ? options.semantic.text
@@ -334,7 +334,7 @@ const handleCardsListRequest = async (
     let relevanceRanked: boolean | undefined;
 
     if (options.sort === "shuffle" && options.shuffleSeed !== undefined) {
-      const items: any[] = [];
+      const items: CardWithUrls[] = [];
       let cursor = options.cursor;
       let hasMore = true;
       for (
@@ -343,7 +343,7 @@ const handleCardsListRequest = async (
         read++
       ) {
         const page = await ctx.runQuery(
-          (internal as any).publicApi.shuffleCardsPageForUser,
+          internal.publicApi.shuffleCardsPageForUser,
           {
             ...queryArgs,
             sort: undefined,
@@ -362,7 +362,12 @@ const handleCardsListRequest = async (
         items,
         pageInfo: { hasMore, nextCursor: hasMore ? (cursor ?? null) : null },
       };
-    } else if (options.searchQuery || options.tag || similarity) {
+    } else if (
+      options.searchQuery ||
+      options.tag ||
+      options.qualifiers?.ocrTexts?.length ||
+      similarity
+    ) {
       const relevance = bestMatch
         ? await relevanceForPage(ctx, {
             cursor: options.cursor,
@@ -381,7 +386,7 @@ const handleCardsListRequest = async (
         : undefined;
       relevanceRanked = relevance ? relevance.scores !== undefined : undefined;
       cardsPage = await ctx.runQuery(
-        (internal as any).publicApi.searchCardsPageForUser,
+        internal.publicApi.searchCardsPageForUser,
         {
           ...queryArgs,
           limit: options.limit,
@@ -391,7 +396,7 @@ const handleCardsListRequest = async (
         }
       );
     } else {
-      const items: any[] = [];
+      const items: CardWithUrls[] = [];
       let cursor = options.cursor;
       let nextCursor: string | null = null;
       let scannedRows = 0;
@@ -400,7 +405,7 @@ const handleCardsListRequest = async (
       while (scannedRows < MAX_QUERY_SCAN) {
         const scanLimit = Math.min(MAX_LIMIT, MAX_QUERY_SCAN - scannedRows);
         const scanPage = await ctx.runQuery(
-          (internal as any).publicApi.scanCardsPageForUser,
+          internal.publicApi.scanCardsPageForUser,
           {
             ...queryArgs,
             cursor,
@@ -459,7 +464,7 @@ const handleCardsListRequest = async (
     }
 
     return json(200, {
-      items: cardsPage.items.map((card: any) =>
+      items: cardsPage.items.map((card) =>
         serializeListCard(card, request.url, include)
       ),
       pageInfo: cardsPage.pageInfo,
@@ -474,12 +479,6 @@ const handleCardsListRequest = async (
   }
 };
 
-/**
- * Best match scores for a search page, fetched before the page is read
- * (queries cannot call Clef). The first page is scored when every one of the
- * search's top results gets a score in time; later pages follow the first,
- * which their cursor records, so a pagination never changes order.
- */
 export const relevanceForPage = async (
   ctx: ActionCtx,
   {
@@ -501,7 +500,7 @@ export const relevanceForPage = async (
     return {};
   }
   const candidates = await ctx.runQuery(
-    (internal as any).publicApi.searchCardsPageForUser,
+    internal.publicApi.searchCardsPageForUser,
     candidateArgs
   );
   const { outcome, scores } = await ensureRelevanceScores(ctx, {
@@ -512,7 +511,6 @@ export const relevanceForPage = async (
     userId,
   });
   if (pinned === true) {
-    // A ranked pagination can only continue in the order it started with.
     if (!scores?.length) {
       throw new ConvexError({
         code: "INVALID_INPUT",
@@ -529,39 +527,96 @@ const resolveCardId = (
   ctx: ActionCtx,
   cardId: string
 ): Promise<string | null> =>
-  ctx.runQuery((internal as any).raycast.resolveCardIdForUserRequest, {
+  ctx.runQuery(internal.raycast.resolveCardIdForUserRequest, {
     cardId,
   });
+
+/** A single card's response body, with its `[[…]]` links and backlinks. */
+/**
+ * A card's links and backlinks for a response. A failed lookup leaves them
+ * out rather than failing a write that already happened.
+ */
+const loadCardLinks = async (
+  ctx: ActionCtx,
+  userId: string,
+  cardId: Id<"cards">
+) => {
+  try {
+    return (
+      (await ctx.runQuery(internal["card/cardLinks"].getCardLinksForUser, {
+        cardId,
+        userId,
+      })) ?? undefined
+    );
+  } catch (error) {
+    console.warn("[publicApi] card links unavailable", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+const serializeCardWithLinks = async (
+  ctx: ActionCtx,
+  userId: string,
+  card: CardWithUrls,
+  requestUrl: string
+) =>
+  serializeCard(card, requestUrl, await loadCardLinks(ctx, userId, card._id));
 
 const ensureCardExistsForUser = (
   ctx: ActionCtx,
   userId: string,
   cardId: string,
   includeDeleted = false
-): Promise<any | null> =>
+): Promise<CardWithUrls | null> =>
   ctx
-    .runQuery((internal as any).raycast.getCardForUser, {
+    .runQuery(internal.raycast.getCardForUser, {
       cardId,
       userId,
     })
-    .then((card: any | null) =>
-      card?.isDeleted && !includeDeleted ? null : card
-    );
+    .then((card) => (card?.isDeleted && !includeDeleted ? null : card));
 
-/**
- * A card's full stored text: the document text Teak extracted from its file
- * (read from R2), else its transcript, else a text or quote card's content.
- * If the stored document text can't be read, its searchable prefix is
- * returned rather than failing the request, marked truncated when it is
- * shorter than the stored text.
- */
+const SAVE_PDF_ERROR_STATUS: Partial<Record<string, number>> = {
+  FILE_TOO_LARGE: 413,
+  IN_PROGRESS: 409,
+  SERVICE_UNAVAILABLE: 503,
+  UNSUPPORTED_TYPE: 415,
+};
+
+const handleSavePdfRequest = async (
+  ctx: ActionCtx,
+  userId: string,
+  cardId: Id<"cards">
+): Promise<Response> => {
+  try {
+    const result = await ctx.runAction(
+      internal.card.saveLinkedPdf.saveLinkedPdfForUser,
+      { cardId, userId }
+    );
+    if (result.created) {
+      await captureBackendEvent("link_pdf_saved", userId, { source: "api" });
+    }
+    return json(result.created ? 201 : 200, result);
+  } catch (error) {
+    const data = error instanceof ConvexError ? error.data : undefined;
+    const status =
+      typeof data?.code === "string"
+        ? SAVE_PDF_ERROR_STATUS[data.code]
+        : undefined;
+    if (status) {
+      return json(status, { code: data.code, error: data.message });
+    }
+    return mapConvexErrorToResponse(error, "Failed to save the PDF");
+  }
+};
+
 const cardContentResponse = async (
   ctx: ActionCtx,
   userId: string,
   cardId: Id<"cards">
 ): Promise<Response> => {
   const source = await ctx.runQuery(
-    (internal as any)["card/documentText"].getCardTextSource,
+    internal["card/documentText"].getCardTextSource,
     { cardId, userId }
   );
   if (!source) {
@@ -588,7 +643,6 @@ const cardContentResponse = async (
   });
 };
 
-/** A thumbnail error: FILE_TOO_LARGE is 413 here, the rest as usual. */
 const thumbnailErrorResponse = (error: unknown, fallbackMessage: string) => {
   const data =
     error instanceof ConvexError
@@ -600,10 +654,6 @@ const thumbnailErrorResponse = (error: unknown, fallbackMessage: string) => {
   return mapConvexErrorToResponse(error, fallbackMessage);
 };
 
-/**
- * POST /v1/cards/:id/thumbnail/upload, PUT and DELETE /v1/cards/:id/thumbnail:
- * replace a link card's image with an uploaded one, or go back to its own.
- */
 const handleThumbnailRequest = async (
   ctx: ActionCtx,
   request: Request,
@@ -620,7 +670,7 @@ const handleThumbnailRequest = async (
   const respondWithCard = async () => {
     const card = await ensureCardExistsForUser(ctx, userId, cardId, true);
     return card
-      ? json(200, serializeCard(card, request.url))
+      ? json(200, await serializeCardWithLinks(ctx, userId, card, request.url))
       : errorResponse(404, "NOT_FOUND", "Card not found");
   };
 
@@ -686,6 +736,17 @@ const handleThumbnailRequest = async (
   }
 };
 
+const OPERATIONS_THAT_SEE_TRASHED_CARDS: ReadonlySet<string> = new Set([
+  "done",
+  "refresh",
+  "restore",
+  "save-pdf",
+  "thumbnail-reset",
+  "thumbnail-set",
+  "thumbnail-upload",
+  "undone",
+]);
+
 const handleCardsByIdV1Request = async (
   ctx: ActionCtx,
   request: Request,
@@ -722,10 +783,7 @@ const handleCardsByIdV1Request = async (
     ctx,
     auth.validated.userId,
     normalizedCardId,
-    route.operation === "restore" ||
-      route.operation === "refresh" ||
-      // A card in Trash answers 409, not 404.
-      route.operation.startsWith("thumbnail-") ||
+    OPERATIONS_THAT_SEE_TRASHED_CARDS.has(route.operation) ||
       (route.operation === "delete" && permanent === "true")
   );
   if (!currentCard) {
@@ -733,7 +791,15 @@ const handleCardsByIdV1Request = async (
   }
 
   if (route.operation === "get") {
-    return json(200, serializeCard(currentCard, request.url));
+    return json(
+      200,
+      await serializeCardWithLinks(
+        ctx,
+        auth.validated.userId,
+        currentCard,
+        request.url
+      )
+    );
   }
 
   if (
@@ -785,6 +851,49 @@ const handleCardsByIdV1Request = async (
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to refresh card");
     }
+  }
+
+  if (route.operation === "done" || route.operation === "undone") {
+    const done = route.operation === "done";
+    try {
+      const result = await ctx.runMutation(
+        internal.raycast.setCardDoneForUser,
+        {
+          cardId: normalizedCardId as Id<"cards">,
+          done,
+          userId: auth.validated.userId,
+        }
+      );
+      if (!result) {
+        return errorResponse(404, "NOT_FOUND", "Card not found");
+      }
+      if (result.changed) {
+        await captureBackendEvent("card_done_toggled", auth.validated.userId, {
+          category: result.card.metadata?.linkCategory?.category ?? "none",
+          done,
+          source: "api",
+        });
+      }
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          result.card,
+          request.url
+        )
+      );
+    } catch (error) {
+      return mapConvexErrorToResponse(error, "Failed to update done state");
+    }
+  }
+
+  if (route.operation === "save-pdf") {
+    return await handleSavePdfRequest(
+      ctx,
+      auth.validated.userId,
+      normalizedCardId as Id<"cards">
+    );
   }
 
   if (route.operation === "delete" || route.operation === "restore") {
@@ -844,20 +953,25 @@ const handleCardsByIdV1Request = async (
     }
 
     try {
-      const updated = await ctx.runMutation(
-        (internal as any).raycast.patchCardForUser,
-        {
-          ...patchPayload,
-          cardId: normalizedCardId,
-          userId: auth.validated.userId,
-        }
-      );
+      const updated = await ctx.runMutation(internal.raycast.patchCardForUser, {
+        ...patchPayload,
+        cardId: normalizedCardId,
+        userId: auth.validated.userId,
+      });
 
       if (!updated) {
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          updated,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(error, "Failed to update card");
     }
@@ -875,7 +989,7 @@ const handleCardsByIdV1Request = async (
 
     try {
       const updated = await ctx.runMutation(
-        (internal as any).raycast.setCardFavoriteForUser,
+        internal.raycast.setCardFavoriteForUser,
         {
           cardId: normalizedCardId,
           isFavorited: favoritePayload.isFavorited,
@@ -887,7 +1001,15 @@ const handleCardsByIdV1Request = async (
         return errorResponse(404, "NOT_FOUND", "Card not found");
       }
 
-      return json(200, serializeCard(updated, request.url));
+      return json(
+        200,
+        await serializeCardWithLinks(
+          ctx,
+          auth.validated.userId,
+          updated,
+          request.url
+        )
+      );
     } catch (error) {
       return mapConvexErrorToResponse(
         error,
@@ -911,10 +1033,9 @@ const handleTagsRequest = async (
 
   try {
     const userId = auth.validated.userId;
-    const tags = await ctx.runQuery(
-      (internal as any).publicApi.listTagsForUser,
-      { userId }
-    );
+    const tags = await ctx.runQuery(internal.publicApi.listTagsForUser, {
+      userId,
+    });
     if (tags.isComplete) {
       return json(200, { items: tags.items, isComplete: true });
     }
@@ -959,7 +1080,7 @@ const handleCardChangesRequest = async (
 
   try {
     const changes = await ctx.runQuery(
-      (internal as any).publicApi.listCardChangesForUser,
+      internal.publicApi.listCardChangesForUser,
       {
         cursor: parseOptionalString(searchParams.get("cursor")),
         limit: parseLimit(searchParams.get("limit")),
@@ -970,7 +1091,9 @@ const handleCardChangesRequest = async (
 
     return json(200, {
       deletedIds: changes.deletedIds,
-      items: changes.items.map((card: any) => serializeCard(card, request.url)),
+      items: changes.items.map((card: CardWithUrls) =>
+        serializeCard(card, request.url)
+      ),
       pageInfo: changes.pageInfo,
     });
   } catch (error) {
@@ -1078,7 +1201,7 @@ const handleBulkCardsRequest = async (
     idempotencyState = idempotency;
 
     const result = await ctx.runMutation(
-      (internal as any).publicApi.executeBulkCardsForUser,
+      internal.publicApi.executeBulkCardsForUser,
       {
         items,
         operation,

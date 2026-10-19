@@ -24,7 +24,6 @@ const cleanText = (value: unknown): string =>
 const trimDecimal = (value: number): string =>
   String(Math.round(value * 10) / 10);
 
-/** "Canon EOS R5", not "Canon Canon EOS R5": many models repeat the make. */
 export function formatCamera(make?: string, model?: string): string | null {
   const cleanMake = cleanText(make);
   const cleanModel = cleanText(model);
@@ -44,7 +43,6 @@ export function formatCamera(make?: string, model?: string): string | null {
 // as fractions they would round to the wrong speed (0.8 s is not 1/1 s).
 const DECIMAL_EXPOSURE_FROM_SECONDS = 0.3;
 
-/** Shutter speed as photographers write it: 1/250 s, or 0.8 s and 2 s for long ones. */
 export function formatExposureTime(seconds?: number): string | null {
   if (!isPositive(seconds)) {
     return null;
@@ -72,10 +70,6 @@ const formatTakenAt = (takenAt?: number): string | null => {
   });
 };
 
-/**
- * The camera facts worth showing for a photo, in reading order. Location is
- * never included: GPS coordinates stay out of the interface entirely.
- */
 export function formatExifFields(exif?: ImageExif | null): ExifField[] {
   if (!exif) {
     return [];

@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import polarTest from "@convex-dev/polar/test";
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
@@ -81,9 +80,6 @@ const exhaustedKey = async () => {
       headers: { Authorization: authorization, ...headers },
     });
 
-  // Spend the key's bucket the way a client would. The clock is frozen, so
-  // it never refills: once `capacity` requests have been granted, every
-  // shard is empty, even though a sharded refusal can come earlier.
   const { capacity } = RATE_LIMIT_CONFIG.publicApiRequests;
   let granted = 0;
   for (let attempt = 0; attempt < 5000 && granted < capacity; attempt += 1) {

@@ -89,10 +89,6 @@ internal val MediaShape = RoundedCornerShape(20.dp)
 internal fun mediaRatio(width: Double?, height: Double?): Float? =
     if (width != null && height != null && width > 0 && height > 0) (width / height).toFloat() else null
 
-/**
- * An image as wide as the screen and capped in height. It tries [primaryUrl], then [fallbackUrl],
- * then shows [placeholderIcon] and [placeholderLabel]. With [onOpen] a tap opens it full screen.
- */
 @Composable
 internal fun MediaImage(
     primaryUrl: String?,
@@ -203,7 +199,6 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
 private fun rememberPlayer(url: String): ExoPlayer {
     val context = LocalContext.current
     val player = remember(url) {
-        // Decoder fallback lets a device try its other decoders when the preferred one can't handle a file.
         ExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true)).build().apply {
             setMediaItem(MediaItem.fromUri(url))
             prepare()

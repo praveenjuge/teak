@@ -24,7 +24,6 @@ export const cardTypeValidator = v.union(
   ...cardTypes.map((type) => v.literal(type))
 );
 
-/** How a search finds cards (shared/search/semantic.ts). */
 export const searchModeValidator = v.union(
   ...SEARCH_MODES.map((mode) => v.literal(mode))
 );
@@ -72,10 +71,10 @@ export const linkCategoryMetadataValidator = v.object({
   sourceUrl: v.string(),
   imageUrl: v.optional(v.string()),
   facts: v.optional(v.array(linkCategoryFactValidator)),
-  // A product's price, read from the page; `price:` searches match `amount`.
   price: v.optional(
     v.object({ amount: v.number(), currency: v.optional(v.string()) })
   ),
+  pdfUrl: v.optional(v.string()),
   raw: v.optional(v.any()),
   rawStorageKey: v.optional(v.string()),
   rawSha256: v.optional(v.string()),
@@ -150,11 +149,6 @@ export const fileMetadataValidator = v.optional(
 
 export const r2KeyValidator = v.string();
 
-/**
- * An image someone chose for a link card in place of its scraped one
- * (card/thumbnailOverride.ts). Width and height are the decoded image's, so
- * grids can reserve its aspect ratio.
- */
 export const thumbnailOverrideValidator = v.object({
   storageKey: r2KeyValidator,
   width: v.number(),
@@ -216,8 +210,6 @@ export const metadataValidator = v.optional(
         raw: v.optional(v.any()),
         rawStorageKey: v.optional(v.string()),
         rawSha256: v.optional(v.string()),
-        // Set when a site's own API confirmed what the link is (a social
-        // post); categorization prefers it to the URL rules.
         categoryHint: v.optional(linkCategoryValidator),
       })
     ),
@@ -428,6 +420,7 @@ export const importJobItemValidator = v.object({
   folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
+  importedCompletedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
   fileSize: v.optional(v.number()),
@@ -449,11 +442,6 @@ export const cardValidator = v.object({
   type: cardTypeValidator,
   url: v.optional(v.string()),
   urlHost: v.optional(v.string()),
-  /**
-   * The page a text card was saved from (the extension's Save Text, or
-   * `sourceUrl` on `POST /v1/cards`). Set only at create; `urlHost` falls back
-   * to it, but the duplicate-URL check reads `url` alone.
-   */
   sourceUrl: v.optional(v.string()),
   sourceTitle: v.optional(v.string()),
   shuffleKey: v.optional(v.number()),
@@ -473,9 +461,10 @@ export const cardValidator = v.object({
   isArchived: v.optional(v.literal(true)),
   archivedAt: v.optional(v.number()),
   /**
-   * Derived from `tags` (shared/tags.ts `isHiddenTagList`): the card carries
-   * a reserved tag and is left out of lists until a search names that tag.
+   * When the person marked this link read, watched, bought or otherwise
+   * done (`is:done`). Not the processing stages' `completedAt`.
    */
+  completedAt: v.optional(v.number()),
   isHidden: v.optional(v.literal(true)),
   folderIds: v.optional(v.array(v.id("folders"))),
   metadata: metadataValidator,
@@ -485,16 +474,7 @@ export const cardValidator = v.object({
   ),
   metadataTitle: v.optional(v.string()),
   metadataTitleEdited: v.optional(v.boolean()),
-  /**
-   * A link's chosen image. It lives outside metadata.linkPreview so Refresh
-   * details, screenshots and new link media never replace it.
-   */
   thumbnailOverride: v.optional(thumbnailOverrideValidator),
-  /**
-   * What the last replace or reset changed from, kept for the undo window:
-   * `override: null` means the card showed its original image. Its object is
-   * deleted after `deleteAfter` unless an undo puts it back.
-   */
   previousThumbnailOverride: v.optional(
     v.object({
       override: v.union(thumbnailOverrideValidator, v.null()),
@@ -503,12 +483,13 @@ export const cardValidator = v.object({
       deletionJobId: v.optional(v.id("_scheduled_functions")),
     })
   ),
-  /** Minted by every replace or reset; an undo must name the current one. */
   thumbnailChangeId: v.optional(v.string()),
   metadataDescription: v.optional(v.string()),
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   aiTranscript: v.optional(v.string()),
+  aiOcrText: v.optional(v.string()),
+  ocrCheckedAt: v.optional(v.number()),
   documentTextKey: v.optional(r2KeyValidator),
   hasExtractedText: v.optional(v.literal(true)),
   extractedTextCharCount: v.optional(v.number()),
@@ -518,9 +499,6 @@ export const cardValidator = v.object({
   colorHexes: v.optional(v.array(v.string())),
   colorHues: v.optional(v.array(v.string())),
   processingStatus: processingStatusValidator,
-  // Bumped whenever a card-processing run starts. A run only writes while the
-  // card is still on its revision, so a replaced run can't overwrite newer
-  // output (workflowDispatch.ts).
   processingRev: v.optional(v.number()),
   onboarding: v.optional(v.string()),
   createdAt: v.number(),
@@ -705,10 +683,7 @@ export default defineSchema({
     // search indexes skip, so color and style searches read the library in
     // date order (card/visualFilters.ts). Text search uses
     // cardSearchDocuments.
-    // Index for duplicate URL checking
     .index("by_user_url_deleted", ["userId", "url", "isDeleted"]),
-  // Background work handed to the Files Worker: Cloudflare Workflow starts
-  // and object deletions, sent by workflowDispatch.flush.
   workflowDispatches: defineTable({
     kind: v.union(
       v.literal("cardProcessing"),
@@ -718,7 +693,6 @@ export default defineSchema({
       v.literal("maintenance"),
       v.literal("deleteObjects")
     ),
-    // Groups the runs of one subject, e.g. `card:<cardId>`.
     key: v.string(),
     instanceId: v.optional(v.string()),
     params: v.optional(v.any()),
@@ -736,7 +710,6 @@ export default defineSchema({
     attempts: v.optional(v.number()),
     cardId: v.optional(v.id("cards")),
     rev: v.optional(v.number()),
-    // Reset the card's AI fields and stages when the run is sent.
     reset: v.optional(v.literal(true)),
     error: v.optional(v.string()),
   })
@@ -760,7 +733,6 @@ export default defineSchema({
     attempts: v.optional(v.number()),
     lastError: v.optional(v.string()),
     pendingVectorDeleteAt: v.optional(v.number()),
-    /** Until then the `embedDue` job that claimed the card owns it. */
     leaseUntil: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
@@ -770,7 +742,6 @@ export default defineSchema({
     userId: v.string(),
     shard: v.number(),
   }).index("by_userId", ["userId"]),
-  // `key` hashes the embedded text; the query itself is never stored.
   semanticSearchResults: defineTable({
     userId: v.string(),
     key: v.string(),
@@ -785,7 +756,6 @@ export default defineSchema({
   })
     .index("by_userId_and_key", ["userId", "key"])
     .index("by_expiresAt", ["expiresAt"]),
-  // Best match scores for one search text, per card; see search/relevance.
   searchRelevanceResults: defineTable({
     userId: v.string(),
     key: v.string(),
@@ -819,7 +789,6 @@ export default defineSchema({
     folderId: v.id("folders"),
     cardId: v.id("cards"),
     userId: v.string(),
-    // Absent (never false) on active cards, like the card fields they copy.
     isDeleted: v.optional(v.literal(true)),
     isArchived: v.optional(v.literal(true)),
     type: cardTypeValidator,
@@ -942,6 +911,7 @@ export default defineSchema({
     cardId: v.id("cards"),
     userId: v.string(),
     searchableText: v.string(),
+    ocrText: v.optional(v.string()),
     isDeleted: v.optional(v.boolean()),
     type: cardTypeValidator,
     isFavorited: v.optional(v.boolean()),
@@ -954,6 +924,18 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .searchIndex("search_searchableText", {
       searchField: "searchableText",
+      filterFields: [
+        "userId",
+        "isDeleted",
+        "isArchived",
+        "type",
+        "isFavorited",
+        "urlHost",
+        "isHidden",
+      ],
+    })
+    .searchIndex("search_ocrText", {
+      searchField: "ocrText",
       filterFields: [
         "userId",
         "isDeleted",
@@ -979,6 +961,82 @@ export default defineSchema({
       searchField: "text",
       filterFields: ["userId"],
     }),
+  // Save by email (inbound/): whether mail sent from an account's sign-in
+  // email to the shared save@ address becomes cards. Off until turned on.
+  inboundEmailSettings: defineTable({
+    userId: v.string(),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastReceivedAt: v.optional(v.number()),
+  }).index("by_userId", ["userId"]),
+  // One per email delivered, so a redelivery never saves twice. Attachments
+  // are uploaded by the Email Worker and finalized one by one.
+  inboundEmailReceipts: defineTable({
+    userId: v.string(),
+    messageKey: v.string(),
+    outcome: v.union(
+      v.literal("saved"),
+      v.literal("dropped_limit"),
+      v.literal("dropped_rate"),
+      v.literal("empty")
+    ),
+    cardIds: v.array(v.id("cards")),
+    createdAt: v.number(),
+    pendingAttachments: v.optional(
+      v.array(
+        v.object({
+          index: v.number(),
+          fileKey: r2KeyValidator,
+          fileName: v.string(),
+          mimeType: v.string(),
+          size: v.number(),
+          state: v.union(
+            v.literal("unclaimed"),
+            v.literal("pending"),
+            v.literal("done"),
+            v.literal("dropped")
+          ),
+          claimToken: v.optional(v.string()),
+          claimedAt: v.optional(v.number()),
+          cardId: v.optional(v.id("cards")),
+        })
+      )
+    ),
+  })
+    .index("by_userId_and_messageKey", ["userId", "messageKey"])
+    .index("by_userId", ["userId"])
+    .index("by_createdAt", ["createdAt"]),
+  // `[[Title|teak:<id>]]` links in each text card's content, rebuilt after
+  // every content save (card/cardLinks.ts).
+  cardLinks: defineTable({
+    userId: v.string(),
+    fromCardId: v.id("cards"),
+    toCardId: v.id("cards"),
+    createdAt: v.number(),
+  })
+    .index("by_fromCardId_and_toCardId", ["fromCardId", "toCardId"])
+    .index("by_toCardId", ["toCardId"])
+    .index("by_userId", ["userId"]),
+  linkedPdfs: defineTable({
+    userId: v.string(),
+    sourceCardId: v.id("cards"),
+    pdfUrl: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("done"),
+      v.literal("failed")
+    ),
+    fileKey: r2KeyValidator,
+    claimToken: v.string(),
+    cardId: v.optional(v.id("cards")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sourceCardId", ["sourceCardId"])
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"])
+    .index("by_status", ["status"]),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

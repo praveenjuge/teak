@@ -18,7 +18,6 @@ export function SettingRow({ title, children }: SettingRowProps) {
   );
 }
 
-/** Placeholder sized like the value it stands in for, so nothing moves. */
 export function SettingValueSkeleton({ className }: { className?: string }) {
   return (
     <span

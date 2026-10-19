@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { meteredAiRun, runWithAiUsage } from "./aiUsage";
+import { dailyUsageSql } from "./aiUsageRollup";
 import { generateTextMetadataForOp } from "./textMetadata";
 
 const GEMMA = "@cf/google/gemma-4-26b-a4b-it";
@@ -48,8 +49,42 @@ describe("AI usage data points", () => {
     ]);
     const [calls, errors, input, output, cost] = point?.doubles ?? [];
     expect([calls, errors, input, output]).toEqual([1, 0, 2000, 500]);
-    // 2000 × $0.10 + 500 × $0.30 per million tokens.
     expect(cost).toBeCloseTo(0.000_35, 10);
+  });
+
+  test("the daily rollup reads back the columns each call writes", async () => {
+    const { AI_USAGE, points } = dataset();
+    await runWithAiUsage(OWNER, () =>
+      meteredAiRun(
+        { AI_USAGE },
+        { functionId: "teak.ai.metadata.image", model: GEMMA },
+        async () => ({
+          usage: { completion_tokens: 500, prompt_tokens: 2000 },
+        })
+      )
+    );
+    const sql = dailyUsageSql(
+      "teak_ai_usage",
+      OWNER.convexSiteUrl,
+      "2026-10-16"
+    );
+    const read = (name: string): unknown => {
+      const column = new RegExp(`(blob|double)(\\d+)\\) AS ${name}\\b`).exec(
+        sql
+      );
+      const values =
+        column?.[1] === "blob" ? points[0]?.blobs : points[0]?.doubles;
+      return values?.[Number(column?.[2]) - 1];
+    };
+    expect([
+      read("calls"),
+      read("errors"),
+      read("inputTokens"),
+      read("outputTokens"),
+    ]).toEqual([1, 0, 2000, 500]);
+    expect(read("costUsd")).toBeCloseTo(0.000_35, 10);
+    const site = /WHERE blob(\d+) = /.exec(sql)?.[1];
+    expect(points[0]?.blobs?.[Number(site) - 1]).toBe(OWNER.convexSiteUrl);
   });
 
   test("record a failed call as an error and rethrow it", async () => {

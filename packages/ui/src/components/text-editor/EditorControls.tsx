@@ -133,9 +133,9 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
             <Link />
           </Button>
         </ShortcutTooltip>
-        {editingLink && (
+        {editingLink ? (
           <LinkEditor editor={editor} onDone={() => setEditingLink(false)} />
-        )}
+        ) : null}
       </div>
     </BubbleMenu>
   );
@@ -217,11 +217,11 @@ function LinkEditor({
       <Button onClick={apply} size="sm" type="button" variant="ghost">
         Apply
       </Button>
-      {invalid && (
+      {invalid ? (
         <span className="text-destructive text-sm" role="alert">
           Use an http or https link.
         </span>
-      )}
+      ) : null}
     </div>
   );
 }

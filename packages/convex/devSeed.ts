@@ -10,14 +10,20 @@ import {
   initiateAccountDeletion,
 } from "./accountDeletion";
 import {
-  type DefaultCardDef,
+  type DevScenarioCardDef,
   insertCompletedCards,
   isOnboardingCard,
   ONBOARDING_CARDS,
 } from "./card/defaultCards";
 import { AUDIO_WAVEFORM } from "./card/onboarding/processed";
+import {
+  CARD_LINK_SCENARIO_DESCRIPTIONS,
+  type CardLinkScenario,
+  seedCardLinkScenario,
+} from "./devSeedLinks";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
+import { planEmailCards } from "./inbound/emailContent";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
@@ -31,13 +37,19 @@ import {
   MAX_FOLDERS_PER_USER,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { LINK_CATEGORIES, type LinkCategory } from "./shared/linkCategories";
 import { parseSearchQuery } from "./shared/search/qualifiers";
 import { isWorkosProductionApi, workosApiBase } from "./shared/workosApi";
+import type { RemoteDetails } from "./workflows/steps/categorization/remote/index";
+import {
+  classifyLinkCategory,
+  enrichLinkCategory,
+} from "./workflows/steps/categorization/rules";
 
 const link = (
   url: string,
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => ({
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => ({
   type: "link",
   content: url,
   url,
@@ -48,15 +60,15 @@ const link = (
 const palette = (
   content: string,
   hexes: string[],
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => ({
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => ({
   type: "palette",
   content,
   colors: hexes.map((hex) => ({ hex })),
   ...extra,
 });
 
-export const DEV_SEED_CARDS: DefaultCardDef[] = [
+export const DEV_SEED_CARDS: DevScenarioCardDef[] = [
   {
     type: "text",
     content:
@@ -225,8 +237,8 @@ const bylineLink = (
   slug: string,
   url: string,
   linkPreview: Record<string, unknown>,
-  extra: Partial<DefaultCardDef> = {}
-): DefaultCardDef => {
+  extra: Partial<DevScenarioCardDef> = {}
+): DevScenarioCardDef => {
   const markedUrl = `${url}#${SCENARIO_MARKER}-card-details-${slug}`;
   return {
     type: "link",
@@ -249,7 +261,7 @@ const bylineLink = (
   };
 };
 
-export const CARD_DETAILS_SCENARIO_CARDS: DefaultCardDef[] = [
+export const CARD_DETAILS_SCENARIO_CARDS: DevScenarioCardDef[] = [
   bylineLink("full", "https://www.theverge.com/2024/3/5/teak-byline", {
     title: "A full byline whose publisher repeats the site",
     description: "Author, publisher and date; the publisher names the host.",
@@ -328,7 +340,7 @@ const orderingHex = (seed: number) =>
     .toString(16)
     .padStart(6, "0")}`;
 
-export const orderingScenarioCard = (position: number): DefaultCardDef => {
+export const orderingScenarioCard = (position: number): DevScenarioCardDef => {
   const index = orderingIndexAt(position);
   const createdAt =
     ORDERING_START +
@@ -367,7 +379,7 @@ export const orderingScenarioCard = (position: number): DefaultCardDef => {
   };
 };
 
-const orderingScenarioPage = (page: number): DefaultCardDef[] => {
+const orderingScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * ORDERING_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ORDERING_SCENARIO_PAGE_SIZE,
@@ -382,7 +394,7 @@ export const ARCHIVE_MIX_SCENARIO_SIZE = 1000;
 export const ARCHIVE_MIX_SCENARIO_PAGE_SIZE = 200;
 const ARCHIVE_MIX_START = Date.UTC(2025, 0, 1);
 
-export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
+export const archiveMixScenarioCard = (index: number): DevScenarioCardDef => {
   const isArchived = index % 5 === 0;
   const isDeleted = index % 10 === 3 || index % 50 === 0;
   const isFavorited = index % 7 === 0;
@@ -420,7 +432,7 @@ export const archiveMixScenarioCard = (index: number): DefaultCardDef => {
   };
 };
 
-const archiveMixScenarioPage = (page: number): DefaultCardDef[] => {
+const archiveMixScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * ARCHIVE_MIX_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
@@ -435,7 +447,7 @@ export const TAGS_2000_SCENARIO_SIZE = 1000;
 export const TAGS_2000_SCENARIO_PAGE_SIZE = 200;
 const TAGS_2000_START = Date.UTC(2025, 6, 1);
 
-export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
+export const tags2000ScenarioCard = (index: number): DevScenarioCardDef => {
   const topic = (n: number) => `topic-${String(n).padStart(4, "0")}`;
   const tags = [topic(index * 2), topic(index * 2 + 1)];
   if (index % 2 === 0) {
@@ -456,7 +468,7 @@ export const tags2000ScenarioCard = (index: number): DefaultCardDef => {
   return { ...base, type: "text", content: label };
 };
 
-const tags2000ScenarioPage = (page: number): DefaultCardDef[] => {
+const tags2000ScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * TAGS_2000_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + TAGS_2000_SCENARIO_PAGE_SIZE,
@@ -472,8 +484,8 @@ export const LONG_SCENARIO_TAG = `long-${"x".repeat(59)}`;
 const tagsCaseCard = (
   slug: string,
   label: string,
-  extra: Partial<DefaultCardDef>
-): DefaultCardDef => {
+  extra: Partial<DevScenarioCardDef>
+): DevScenarioCardDef => {
   const url = `https://example.com/tags-case/${slug}#${SCENARIO_MARKER}-tags-case`;
   return {
     type: "link",
@@ -484,7 +496,7 @@ const tagsCaseCard = (
   };
 };
 
-export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
+export const TAGS_CASE_SCENARIO_CARDS: DevScenarioCardDef[] = [
   tagsCaseCard("upper-first", "Design (user tag)", { tags: ["Design", "web"] }),
   tagsCaseCard("lower", "design (user tag)", { tags: ["design", "ui"] }),
   tagsCaseCard("caps", "DESIGN (user tag)", { tags: ["DESIGN"] }),
@@ -507,7 +519,8 @@ export const TAGS_CASE_SCENARIO_CARDS: DefaultCardDef[] = [
   tagsCaseCard("long", "64-character tag", { tags: [LONG_SCENARIO_TAG] }),
 ];
 
-export interface FolderScenarioCard extends Omit<DefaultCardDef, "folderIds"> {
+export interface FolderScenarioCard
+  extends Omit<DevScenarioCardDef, "folderIds"> {
   folders: number[];
 }
 
@@ -531,6 +544,15 @@ export const FOLDER_SCENARIOS = [
   "revisit-sizes",
   "save-details",
   "omnibox-titles",
+  "ocr-images",
+  "ocr-documents",
+  "ocr-links",
+  "done-states",
+  "rich-sites",
+  "video-captions",
+  "podcast-transcripts",
+  "email-in",
+  "email-attachments",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 
@@ -541,7 +563,7 @@ const folderScenarioCard = (
   index: number,
   label: string,
   folders: number[],
-  extra: Partial<DefaultCardDef> = {}
+  extra: Partial<DevScenarioCardDef> = {}
 ): FolderScenarioCard => {
   const base = {
     createdAt: FOLDER_SCENARIO_START + index * 3_600_000,
@@ -570,8 +592,8 @@ const FOLDER_COLOR_CYCLE: (FolderColor | undefined)[] = [
 ];
 
 const foldersOnePack = (): FolderScenarioPack => {
-  const states: [string, Partial<DefaultCardDef>][] = [
-    ...Array.from({ length: 8 }, (): [string, Partial<DefaultCardDef>] => [
+  const states: [string, Partial<DevScenarioCardDef>][] = [
+    ...Array.from({ length: 8 }, (): [string, Partial<DevScenarioCardDef>] => [
       "active",
       {},
     ]),
@@ -662,7 +684,7 @@ export const UGLY_FOLDER_NAMES = [
   "Zürich",
 ];
 
-const UGLY_CARD_STATES: Record<number, Partial<DefaultCardDef>> = {
+const UGLY_CARD_STATES: Record<number, Partial<DevScenarioCardDef>> = {
   2: { isArchived: true },
   3: { isDeleted: true },
 };
@@ -737,7 +759,7 @@ const SEARCH_QUALIFIER_TEXTS = [
 
 const searchQualifiersPack = (): FolderScenarioPack => {
   const scenario = "search-qualifiers" as const;
-  const extraFor = (index: number): Partial<DefaultCardDef> => ({
+  const extraFor = (index: number): Partial<DevScenarioCardDef> => ({
     tags: [
       `scenario-${scenario}`,
       ...SEARCH_QUALIFIER_TAGS[index % SEARCH_QUALIFIER_TAGS.length],
@@ -830,7 +852,6 @@ const smartFoldersPack = (): FolderScenarioPack => {
         query: 'folder:"Reading list" is:fav',
       },
       { name: "Design links", color: "violet", query: "tag:design type:link" },
-      // An emoji tag, not an emoji word: full-text search skips emoji.
       { name: "🎨 Moodboard ✨", color: "orange", query: "#design tag:🎨" },
       { name: "مجلد ذكي للتصميم", color: "teal", query: '"تصميم"' },
       { name: "Five hundred characters", query: smartFolderLongQuery() },
@@ -904,7 +925,7 @@ const exportUglyPack = (): FolderScenarioPack => {
     index: number,
     title: string,
     folders: number[],
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => {
     const url = `https://example.com/export-ugly/${index}?a=1&b="2"`;
     return {
@@ -982,22 +1003,14 @@ export const PALETTE_MIXED_SMART_FOLDERS = [
   { name: "Ordering links", query: "tag:scenario-ordering type:link" },
   { name: "רשימה חכמה", query: "note" },
   { name: "Palette sky", query: "sky" },
-  // Differs from "Smart IDEAS" only by case, so it is the same folder.
   { name: "smart ideas", query: "ideas" },
 ];
 
-/**
- * Folders for the command palette: awkward names (emoji, RTL, CJK, 300
- * characters, ones that differ only by case and so share a folder) and
- * smart folders. Seed `ordering` too for 1,000 cards that one query
- * ("saved") all match while another ("zzqx") matches none.
- */
 const paletteMixedPack = (): FolderScenarioPack => {
   const scenario = "palette-mixed" as const;
   const manual = [
     ...UGLY_FOLDER_NAMES,
     ...Array.from(
-      // Three of the awkward names differ only by case and share a folder.
       { length: 50 - (UGLY_FOLDER_NAMES.length - 2) },
       (_, index) => `Palette folder ${String(index + 1).padStart(2, "0")}`
     ),
@@ -1038,7 +1051,6 @@ const FOCUS_SENTENCES = [
   "She crossed out the second heading and wrote a simpler one underneath.",
 ];
 
-/** About 50,000 words (a little over 300 KB), under the 512 KiB note cap. */
 export const FOCUS_LONG_NOTE_WORDS = 50_000;
 const focusLongNote = (): string => {
   const paragraphs: string[] = ["# A very long draft"];
@@ -1072,11 +1084,6 @@ export const FOCUS_LITERAL_NOTE = [
   "```",
 ].join("\n");
 
-/**
- * Text notes for Focus mode: a 50,000-word draft, a note with tables and
- * code (it opens as literal Markdown), an empty note, CJK and RTL text, and
- * a 300-character first line.
- */
 const focusNotesPack = (): FolderScenarioPack => {
   const scenario = "focus-notes" as const;
   const note = (index: number, content: string) =>
@@ -1100,14 +1107,8 @@ const focusNotesPack = (): FolderScenarioPack => {
   };
 };
 
-/** The page the extension's duplicate check finds, with tags and a note. */
 export const SAVE_DETAILS_SAVED_URL = "https://example.com/already-saved";
 
-/**
- * Text saved from pages (Save Text), for the "From" row, the grid footer and
- * `site:`; a link with its own page beside a source; and a page already saved
- * with tags and a note, which the popup fills in.
- */
 const saveDetailsPack = (): FolderScenarioPack => {
   const scenario = "save-details" as const;
   const quote = (
@@ -1123,7 +1124,7 @@ const saveDetailsPack = (): FolderScenarioPack => {
   const link = (
     index: number,
     url: string,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => ({
     ...folderScenarioCard(scenario, index, "", [], extra),
     type: "link" as const,
@@ -1167,20 +1168,14 @@ const saveDetailsPack = (): FolderScenarioPack => {
   };
 };
 
-/** A card the address-bar search must never suggest. */
 export const OMNIBOX_HIDDEN_TITLE = "Omnibox hidden card";
 
-/**
- * Titles the address-bar suggestions must escape or cut: XML characters,
- * quotes, 300 characters, emoji, RTL, CJK and none at all (shown as the
- * host), plus a hidden card. `#scenario-omnibox-titles` finds them all.
- */
 const omniboxTitlesPack = (): FolderScenarioPack => {
   const scenario = "omnibox-titles" as const;
   const titled = (
     index: number,
     metadataTitle: string,
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => {
     const url = `https://omnibox-titles.example/${index}`;
     return {
@@ -1217,9 +1212,1044 @@ const omniboxTitlesPack = (): FolderScenarioPack => {
   };
 };
 
+export const OCR_SHARED_KEYWORD = "4411";
+
+const ocrImagesPack = (): FolderScenarioPack => {
+  const scenario = "ocr-images" as const;
+  const colors = ["#1f2937", "#f59e0b", "#10b981", "#3b82f6", "#ef4444"];
+  const image = (
+    index: number,
+    label: string,
+    aiOcrText: string | undefined,
+    extra: Partial<DevScenarioCardDef> = {}
+  ) => ({
+    ...folderScenarioCard(scenario, index, label, []),
+    type: "image" as const,
+    content: label,
+    colors: [{ hex: colors[index % colors.length] as string }],
+    fileMetadata: {
+      fileName: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`,
+      fileSize: 0,
+      mimeType: "image/png",
+      width: 1600,
+      height: index % 3 === 0 ? 2000 : 1000,
+    },
+    ...(aiOcrText ? { aiOcrText } : {}),
+    ...extra,
+  });
+  const note = (index: number, content: string) =>
+    folderScenarioCard(scenario, index, content, []);
+  const wall = Array.from(
+    { length: 80 },
+    (_, line) =>
+      `Clause ${line + 1}. The tenant keeps the premises clean and returns every key.`
+  )
+    .join("\n")
+    .slice(0, 4000);
+  const images: [string, string | undefined][] = [
+    [
+      "Receipt ACME",
+      `ACME MARKET\nInvoice ${OCR_SHARED_KEYWORD}\nMilk 2.40\nBread 3.10\nTotal due  $5.50`,
+    ],
+    [
+      "Receipt cafe",
+      "Café Lumière\nTable 7\n2 × Espresso 6.00\nTOTAL DUE 6.00\nMerci!",
+    ],
+    [
+      "Receipt hardware",
+      "BOLT & NUT CO.\nRef 98-221\nHex bolts M6 x 40\nSubtotal 12.80\nVAT 2.56\nTotal 15.36",
+    ],
+    [
+      "Code TypeScript",
+      "export const total = (items: Item[]) => {\n  let sum = 0;\n  for (const item of items) {\n    sum += item.price;\n  }\n  return sum;\n};",
+    ],
+    [
+      "Code Python",
+      "def fizzbuzz(n):\n    for i in range(1, n + 1):\n        if i % 15 == 0:\n            print('FizzBuzz')\n        else:\n            print(i)",
+    ],
+    [
+      "Code terminal",
+      "$ bun run test\n 450 pass\n 0 fail\nRan 450 tests across 11 files.",
+    ],
+    ["Meme one does not simply", "ONE DOES NOT SIMPLY\nSHIP ON A FRIDAY"],
+    ["Meme distracted", "MY ROADMAP\nNEW SHINY FRAMEWORK\nME"],
+    [
+      "Handwritten note",
+      "Call mum on Sunday\nbuy stamps\nreturn library books by the 14th",
+    ],
+    [
+      "Whiteboard",
+      "Q4 goals:\n1. Search by image text\n2. Faster sync\n3. Fewer bugs",
+    ],
+    ["Arabic sign", "مرحبا بكم في المكتبة\nالدخول مجاني"],
+    ["Hebrew sign", "ברוכים הבאים\nיציאה"],
+    ["Japanese station", "東京駅\nTokyo Station\n丸の内北口"],
+    ["Japanese menu", "本日のおすすめ\nラーメン ８５０円\n餃子 ４００円"],
+    ["Hindi sign", "स्वागत है\nकृपया जूते बाहर उतारें"],
+    ["Korean poster", "서울 재즈 페스티벌\n2026년 5월"],
+    ["Chinese packaging", "绿茶\n净含量 250克"],
+    ["Russian street sign", "Улица Пушкина\nдом 10"],
+    ["Mixed Arabic and English", "Exit خروج\nGate 12 البوابة"],
+    ["Emoji sticker", "Good vibes only ✨🌈\n#teamteak"],
+    ["Wall of text", wall],
+    ["Slide deck title", "Why we read the text in images\nTeak · October 2026"],
+    ["Book cover", "THE QUIET ROOM\na novel\nMARA ELLISON"],
+    ["Street parking sign", "NO PARKING\n8AM – 6PM\nMON–FRI\nTow-away zone"],
+    ["Wifi card", "Network: Teak Guest\nAsk the front desk for the code"],
+    ["Ticket stub", "ADMIT ONE\nRow F Seat 22\nDoors 19:30"],
+    [
+      "Error dialog",
+      "Something went wrong\nError 0x80070005: Access is denied.\nOK",
+    ],
+    [
+      "Recipe card",
+      "Pancakes\n200 g flour\n2 eggs\n300 ml milk\nPinch of salt",
+    ],
+    ["Map label", "Old Harbour → 400 m\nLighthouse → 1.2 km"],
+    ["Price tag", "SALE\n$19.99\nwas $34.99"],
+    ["Quote poster", '"Simplicity is the ultimate sophistication."'],
+    ["Tiny caption", "fig. 3"],
+    ["Photo of a beach", undefined],
+    ["Photo of a forest", undefined],
+    ["Photo of a cat", undefined],
+    ["Abstract gradient", undefined],
+    ["Noise only", undefined],
+  ];
+  const videos: [string, string][] = [
+    ["Trailer title card", `Episode ${OCR_SHARED_KEYWORD}\nThe Long Way Home`],
+    [
+      "Conference talk",
+      "Building search that reads images\nSpeaker: A. Rivera",
+    ],
+    ["Tutorial intro", "How to brew pour-over coffee\nPart 1"],
+  ];
+  const twins = [
+    `Note about invoice ${OCR_SHARED_KEYWORD} for the shop`,
+    "Note: total due by Friday",
+    "Note on the Tokyo Station meeting point",
+    "Note: fizzbuzz interview question",
+  ];
+  let index = 1;
+  const cards = [
+    folderScenarioCard(scenario, 0, "OCR images pack", []),
+    ...images.map(([label, text]) => image(index++, label, text)),
+    ...videos.map(([label, text]) =>
+      image(index++, label, text, {
+        type: "video",
+        fileMetadata: {
+          fileName: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.mp4`,
+          fileSize: 0,
+          mimeType: "video/mp4",
+          width: 1920,
+          height: 1080,
+          duration: 30,
+        },
+      })
+    ),
+    ...twins.map((content) => note(index++, content)),
+  ];
+  return { folders: [], cards };
+};
+
+export const OCR_LEASE_PHRASE = "lease agreement";
+
+const ocrDocumentsPack = (): FolderScenarioPack => {
+  const scenario = "ocr-documents" as const;
+  const pdf = (
+    index: number,
+    label: string,
+    aiOcrText: string | undefined,
+    aiSummary: string,
+    fileSize = 2_400_000
+  ) => ({
+    ...folderScenarioCard(scenario, index, label, []),
+    type: "document" as const,
+    content: "",
+    aiSummary,
+    aiTags: ["document", "scan"],
+    fileMetadata: {
+      fileName: `${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`,
+      fileSize,
+      mimeType: "application/pdf",
+    },
+    ...(aiOcrText ? { aiOcrText } : {}),
+  });
+  const pages = (...texts: string[]) => texts.join("\n\n");
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "OCR documents pack", []),
+      pdf(
+        index++,
+        "Scanned lease",
+        pages(
+          "RESIDENTIAL TENANCY\nPrepared for Dana Reyes",
+          "LEASE AGREEMENT\nThis lease is made on 1 May 2026 between\nHarbour Homes Ltd (landlord) and Dana Reyes (tenant).",
+          "Rent: $1,450 per month, due on the 1st.\nDeposit: $2,900"
+        ),
+        "A residential lease between Harbour Homes and Dana Reyes, with rent and deposit terms."
+      ),
+      pdf(
+        index++,
+        "Board minutes archive 1998",
+        pages(
+          "MINUTES OF THE BOARD\nVolume 12 · 1998",
+          "Present: J. Okafor, M. Lindqvist, R. Patel\nApologies: none",
+          "1. The treasurer reported a surplus of 4,210."
+        ),
+        "The first pages of a 300-page archive of 1998 board minutes.",
+        99_000_000
+      ),
+      pdf(
+        index++,
+        "Scan with a footer",
+        pages(
+          "Delivery note 55-1902\nReceived in good condition",
+          "Signed: P. Moreau"
+        ),
+        "A signed delivery note scanned to PDF."
+      ),
+      pdf(
+        index++,
+        "Arabic contract scan",
+        "عقد إيجار\nالطرف الأول: شركة الميناء\nالإيجار الشهري: ٥٠٠٠",
+        "A rental contract in Arabic."
+      ),
+      pdf(
+        index++,
+        "Chinese invoice scan",
+        "发票\n客户：茶叶有限公司\n金额：￥1,280",
+        "An invoice in Chinese for a tea company."
+      ),
+      pdf(
+        index++,
+        "Mixed PDF",
+        undefined,
+        "A report with a text first page; its own text is already searchable."
+      ),
+      pdf(
+        index++,
+        "Locked PDF",
+        undefined,
+        "A password-protected PDF that couldn't be opened."
+      ),
+      pdf(
+        index++,
+        "Lease template",
+        undefined,
+        "A blank lease template with a text layer."
+      ),
+      folderScenarioCard(
+        scenario,
+        index++,
+        `Note: send the ${OCR_LEASE_PHRASE} to Dana`,
+        []
+      ),
+    ],
+  };
+};
+
+const ocrLinksPack = (): FolderScenarioPack => {
+  const scenario = "ocr-links" as const;
+  const link = (
+    index: number,
+    url: string,
+    title: string,
+    aiOcrText: string | undefined
+  ) => {
+    const markedUrl = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...folderScenarioCard(scenario, index, "", []),
+      type: "link" as const,
+      content: markedUrl,
+      url: markedUrl,
+      metadataTitle: title,
+      metadata: {
+        linkPreview: {
+          source: "scenario",
+          status: "success",
+          fetchedAt: Date.UTC(2026, 9, 1),
+          url: markedUrl,
+          finalUrl: markedUrl,
+          title,
+        } as never,
+      },
+      ...(aiOcrText ? { aiOcrText } : {}),
+    };
+  };
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "OCR links pack", []),
+      link(
+        index++,
+        "https://example.com/talks/postgres",
+        "Conference talk recording",
+        "SCALING POSTGRES\nto a million users\nA. Rivera · Data Day 2026"
+      ),
+      link(
+        index++,
+        "https://docs.example.com/getting-started",
+        "Getting started",
+        "Docs › Getting started\nInstall the CLI\nnpm install -g teak-cli"
+      ),
+      link(
+        index++,
+        "https://blog.example.com/fast-json",
+        "Parsing JSON faster",
+        "for (const byte of buffer) {\n  if (byte === QUOTE) inString = !inString;\n}"
+      ),
+      link(
+        index++,
+        "https://news.example.com/ar/harbour",
+        "أخبار الميناء",
+        "افتتاح الميناء الجديد\nالأحد ١٢ أكتوبر"
+      ),
+      link(
+        index++,
+        "https://app.example.com/dashboard",
+        "Single-page app",
+        undefined
+      ),
+      folderScenarioCard(
+        scenario,
+        index++,
+        "Note: watch the scaling postgres talk",
+        []
+      ),
+    ],
+  };
+};
+
+const DONE_STATES_DONE_AT = Date.UTC(2026, 9, 10);
+
+const doneStatesPack = (): FolderScenarioPack => {
+  const scenario = "done-states" as const;
+  const link = (
+    index: number,
+    title: string,
+    category: LinkCategory | undefined,
+    extra: Partial<DevScenarioCardDef> = {},
+    folders: number[] = []
+  ) => {
+    const url = `https://example.com/${scenario}/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
+    return {
+      ...folderScenarioCard(scenario, index, "", folders, extra),
+      type: "link" as const,
+      content: url,
+      url,
+      metadataTitle: title,
+      ...(category
+        ? {
+            metadata: {
+              linkCategory: {
+                category,
+                fetchedAt: Date.UTC(2026, 9, 1),
+                sourceUrl: url,
+              },
+            },
+          }
+        : {}),
+    };
+  };
+  const done = { completedAt: DONE_STATES_DONE_AT };
+  let index = 1;
+  return {
+    folders: [
+      { name: "Reading list", color: "blue" },
+      {
+        name: "Left to read",
+        color: "green",
+        query: 'is:todo folder:"Reading list"',
+      },
+    ],
+    cards: [
+      folderScenarioCard(scenario, 0, "Done states pack", []),
+      ...LINK_CATEGORIES.map((category, position) =>
+        link(
+          index++,
+          `A ${category.replace("_", " ")} link${position % 2 ? " (done)" : ""}`,
+          category,
+          position % 2 ? done : {},
+          category === "article" || category === "book" ? [0] : []
+        )
+      ),
+      link(index++, "A done article in Trash", "article", {
+        ...done,
+        isDeleted: true,
+      }),
+      link(index++, "A done film in Archive", "movie", {
+        ...done,
+        isArchived: true,
+      }),
+      link(index++, "A link still being read", undefined),
+      link(index++, "x".repeat(300), "book", done),
+      link(index++, "مقالة مقروءة عن تصميم الخطوط", "article", done),
+      link(index++, "読み終えた長編小説の感想", "book", done),
+    ],
+  };
+};
+const enrichedLinkCard = (
+  scenario: FolderScenario,
+  index: number,
+  url: string,
+  preview: { description?: string; siteName: string; title: string },
+  {
+    extra = {},
+    raw = [],
+    remote,
+  }: {
+    extra?: Partial<DevScenarioCardDef>;
+    raw?: { attribute?: string; selector: string; value: string }[];
+    remote?: RemoteDetails;
+  } = {}
+): FolderScenarioCard => {
+  const marked = `${url}#${SCENARIO_MARKER}-${scenario}-${index}`;
+  const linkPreview = {
+    status: "success" as const,
+    url: marked,
+    ...preview,
+    ...(raw.length
+      ? {
+          raw: raw.map(({ attribute = "content", selector, value }) => ({
+            selector,
+            results: [{ attributes: [{ name: attribute, value }] }],
+          })),
+        }
+      : {}),
+  };
+  const card = {
+    _id: `${scenario}-${index}`,
+    type: "link",
+    url: marked,
+    metadata: { linkPreview },
+  };
+  const classification = classifyLinkCategory(card);
+  return {
+    ...folderScenarioCard(scenario, index, "", [], extra),
+    type: "link" as const,
+    content: marked,
+    url: marked,
+    metadataTitle: preview.title,
+    metadata: {
+      linkPreview,
+      ...(classification
+        ? {
+            linkCategory: enrichLinkCategory(card, classification, {
+              remote,
+            }),
+          }
+        : {}),
+    },
+  };
+};
+
+const longTranscript = (marker: string) =>
+  `${Array.from(
+    { length: 1500 },
+    (_, i) =>
+      `At minute ${Math.floor(i / 12)} the speaker goes over point ${i}.`
+  ).join(" ")} ${marker}`;
+
+const youtubeWatchTags = (channel: string, duration?: string) => [
+  { selector: "link[itemprop='name']", value: channel },
+  ...(duration
+    ? [{ selector: "meta[itemprop='duration']", value: duration }]
+    : []),
+  {
+    selector: "meta[itemprop='uploadDate']",
+    value: "2026-09-14T08:00:00-07:00",
+  },
+];
+
+const videoCaptionsPack = (): FolderScenarioPack => {
+  const scenario = "video-captions" as const;
+  const youtube = { siteName: "YouTube" };
+  const vimeo = { siteName: "Vimeo" };
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Video captions pack", []),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+        { ...youtube, title: "A YouTube talk with channel, length and date" },
+        { raw: youtubeWatchTags("Example Channel", "PT1H2M3S") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://www.youtube.com/shorts/1a2b3c4d5e6",
+        { ...youtube, title: "A YouTube Short" },
+        { raw: youtubeWatchTags("Example Shorts", "PT45S") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://www.youtube.com/live/7f8e9d0c1b2",
+        { ...youtube, title: "A YouTube live stream with no length" },
+        { raw: youtubeWatchTags("Example Live") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979871",
+        { ...vimeo, title: "A Vimeo talk with English captions" },
+        {
+          extra: {
+            aiSummary: "A talk about how leaves turn light into sugar.",
+            aiTranscript:
+              "Hello and welcome. Today we talk about how chlorophyll catches the morning light and how leaves turn it into sugar.",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979872/1a2b3c4d5e",
+        { ...vimeo, title: "An unlisted Vimeo video" },
+        {
+          extra: {
+            aiTranscript:
+              "This unlisted walkthrough shows the lighthouse keeper winding the clockwork lamp.",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979873",
+        { ...vimeo, title: "A Vimeo video with Japanese captions" },
+        {
+          extra: {
+            aiTranscript: "こんにちは。今日は富士山の朝焼けについて話します。",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://vimeo.com/76979874",
+        { ...vimeo, title: "A two-hour Vimeo lecture" },
+        {
+          extra: {
+            aiTranscript: longTranscript(
+              "At minute 90 the speaker names the velvet harbor theorem."
+            ),
+          },
+        }
+      ),
+      enrichedLinkCard(scenario, index++, "https://vimeo.com/76979875", {
+        ...vimeo,
+        title: "A private Vimeo video with no captions",
+      }),
+      {
+        ...folderScenarioCard(
+          scenario,
+          index++,
+          "A Vimeo link saved as a note: https://vimeo.com/76979871",
+          []
+        ),
+      },
+    ],
+  };
+};
+
+/** A card as Save by email makes it, from the email the planner reads. */
+const emailCard = (
+  scenario: FolderScenario,
+  index: number,
+  email: { html?: string; text?: string; title: string }
+): FolderScenarioCard => {
+  const plan = planEmailCards({
+    html: email.html ?? null,
+    subject: email.title,
+    text: email.text ?? null,
+  });
+  const base = folderScenarioCard(scenario, index, "", [], {
+    metadata: { source: "email" },
+  });
+  const tags = [...(base.tags ?? []), "email"];
+  if (plan.kind === "link") {
+    return {
+      ...base,
+      content: plan.url,
+      tags,
+      type: "link",
+      url: plan.url,
+      ...(plan.notes ? { notes: plan.notes } : {}),
+    };
+  }
+  return {
+    ...base,
+    content: plan.kind === "text" ? plan.markdown : email.title,
+    tags,
+    type: "text",
+  };
+};
+
+const NEWSLETTER_HTML = `<html><head><style>p{color:#333}</style></head><body>
+<div style="display:none">Preview text nobody should see</div>
+<h1>The Weekly Leaf</h1>
+<p>This week: why <b>maple leaves</b> turn red, and a field guide to the forest floor.</p>
+${Array.from({ length: 40 }, (_, i) => `<img src="https://track.example.com/open/${i}.gif" width="1" height="1">`).join("")}
+<p><a href="https://example.us1.list-manage.com/track/click?u=abc&url=https%3A%2F%2Fexample.com%2Fmaples%3Futm_source%3Dnewsletter">Read: Why maples blush</a></p>
+<p><a href="https://www.google.com/url?q=https://example.org/forest-floor&sa=D">A field guide to the forest floor</a></p>
+<p><a href="https://nam12.safelinks.protection.outlook.com/?url=https%3A%2F%2Fexample.net%2Fmoss&data=x">Moss, up close</a></p>
+<ul><li>Leaf of the week: ginkgo</li><li>Reader photo: a frosted oak</li></ul>
+</body></html>`;
+
+const emailInPack = (): FolderScenarioPack => {
+  const scenario = "email-in" as const;
+  let index = 1;
+  const forwardChain = Array.from(
+    { length: 5 },
+    (_, level) =>
+      `---------- Forwarded message ---------\nFrom: Friend ${level} <friend${level}@example.com>\nDate: Mon, 13 Oct 2026 at 09:0${level}\nSubject: Fwd: Hike on Saturday\nTo: <someone@example.com>\n`
+  ).join("\n");
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Email in pack", []),
+      emailCard(scenario, index++, {
+        html: NEWSLETTER_HTML,
+        title: "Fwd: The Weekly Leaf — issue 12",
+      }),
+      emailCard(scenario, index++, {
+        title: "Fwd: worth a read",
+        text: "Worth a read: https://example.com/essays/slow-reading?utm_source=mail&utm_medium=email",
+      }),
+      emailCard(scenario, index++, {
+        title: "Re: Fwd: Call the plumber about the kitchen sink",
+      }),
+      emailCard(scenario, index++, {
+        title: "Fwd: Fwd: Fwd: Fwd: Fwd: Hike on Saturday",
+        text: `${forwardChain}\nMeet at the trailhead at 8. Bring water and a jacket; it gets cold at the top.`,
+      }),
+      emailCard(scenario, index++, {
+        title: "مرحبا بالعالم",
+        text: "ملاحظة قصيرة عن الاجتماع القادم.",
+      }),
+      emailCard(scenario, index++, {
+        title: "転送: 会議のメモ",
+        text: "来週の会議の議題:\n1. 予算\n2. 日程",
+      }),
+      emailCard(scenario, index++, {
+        title: "🎉 Party plans",
+        text: "Cake at 7, games at 8. Two links: https://example.com/cake and https://example.com/games",
+      }),
+    ],
+  };
+};
+
+const emailAttachmentsPack = (): FolderScenarioPack => {
+  const scenario = "email-attachments" as const;
+  const file = (
+    index: number,
+    fileName: string,
+    mimeType: string,
+    fileSize: number
+  ): FolderScenarioCard => ({
+    ...folderScenarioCard(scenario, index, "", [], {
+      metadata: { source: "email" },
+    }),
+    content: "",
+    fileMetadata: { fileName, fileSize, mimeType },
+    metadataTitle: fileName,
+    tags: [`scenario-${scenario}`, "email"],
+    type: "document",
+  });
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Email attachments pack", []),
+      emailCard(scenario, index++, {
+        title: "Trip photos and the itinerary",
+        text: "Here you go — the itinerary and the receipts are attached.",
+      }),
+      file(index++, "Itinerary.pdf", "application/pdf", 240_000),
+      file(index++, "Receipt.pdf", "application/pdf", 88_000),
+      file(index++, "Scan.pdf", "application/pdf", 1_200_000),
+      file(index++, "Scan.pdf", "application/pdf", 1_300_000),
+      file(index++, "請求書.pdf", "application/pdf", 64_000),
+      file(
+        index++,
+        "Notes from the workshop.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        32_000
+      ),
+      file(
+        index++,
+        "A 24 MB annual report.pdf",
+        "application/pdf",
+        24 * 1024 * 1024
+      ),
+    ],
+  };
+};
+
+const podcastTranscriptsPack = (): FolderScenarioPack => {
+  const scenario = "podcast-transcripts" as const;
+  const show = { siteName: "Example Podcast" };
+  const audio = (url: string) => [
+    { selector: "meta[property='og:audio']", value: url },
+    { selector: "meta[property='og:audio:type']", value: "audio/mpeg" },
+  ];
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Podcast transcripts pack", []),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/42-tide-pools",
+        { ...show, title: "Episode 42: Tide pools" },
+        {
+          extra: {
+            aiSummary: "An episode about the creatures living in tide pools.",
+            aiTranscript:
+              "Welcome back to the show. This week we wade into tide pools where the hermit crab trades shells at low tide.",
+          },
+          raw: audio("https://audio.example.com/episodes/42.mp3"),
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcasts.apple.com/us/podcast/example-show/id1200000000?i=1000700000001",
+        { siteName: "Apple Podcasts", title: "An Apple Podcasts episode" },
+        {
+          extra: {
+            aiTranscript:
+              "On today's episode the baker explains why sourdough starter needs a warm kitchen.",
+          },
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://shows.example.com/field-notes/episode/7",
+        { ...show, title: "An episode found through its show's RSS feed" },
+        {
+          extra: {
+            aiTranscript:
+              "Field notes episode seven: the night the owls returned to the old barn.",
+          },
+          raw: [
+            {
+              attribute: "href",
+              selector: "link[rel='alternate'][type='application/rss+xml']",
+              value: "https://shows.example.com/field-notes/feed.xml",
+            },
+          ],
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://open.spotify.com/episode/512ojhOuo1ktJprKbVcKyQ",
+        { siteName: "Spotify", title: "A Spotify episode (no public audio)" }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/43-marathon",
+        { ...show, title: "A 2 GB episode (too large to transcribe)" },
+        { raw: audio("https://audio.example.com/episodes/43-2gb.mp3") }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/44-japanese",
+        { ...show, title: "A Japanese episode" },
+        {
+          extra: {
+            aiTranscript: "今週は京都の古い茶室と抹茶の作法について話します。",
+          },
+          raw: audio("https://audio.example.com/episodes/44.mp3"),
+        }
+      ),
+      enrichedLinkCard(
+        scenario,
+        index++,
+        "https://podcast.example.com/podcast/45-in-trash",
+        { ...show, title: "A transcribed episode in Trash" },
+        {
+          extra: {
+            aiTranscript:
+              "This deleted episode talks about the copper kettle festival.",
+            isDeleted: true,
+          },
+          raw: audio("https://audio.example.com/episodes/45.mp3"),
+        }
+      ),
+    ],
+  };
+};
+
+const richSitesPack = (): FolderScenarioPack => {
+  const scenario = "rich-sites" as const;
+  const updated = "Oct 15, 2026";
+  const link = (
+    index: number,
+    url: string,
+    preview: { description?: string; siteName: string; title: string },
+    remote?: RemoteDetails,
+    raw: { selector: string; value: string }[] = []
+  ) => enrichedLinkCard(scenario, index, url, preview, { raw, remote });
+  const wikipedia = { siteName: "Wikipedia" };
+  const arxiv = { siteName: "arXiv.org" };
+  const isbnTag = (value: string) => [
+    { selector: "meta[property='books:isbn']", value },
+  ];
+  const openLibrary = (isbn: string, pages: string): RemoteDetails => ({
+    source: "open_library",
+    facts: [
+      { label: "Authors", value: "Example Author" },
+      { label: "Pages", value: pages },
+      { label: "Publisher", value: "Example Press" },
+      { label: "Published", value: "October 1, 1988" },
+      { label: "ISBN", value: isbn },
+    ],
+  });
+  const paper = (
+    authors: string,
+    published: string,
+    subject: string,
+    extra: Partial<RemoteDetails> = {}
+  ): RemoteDetails => ({
+    source: "arxiv",
+    facts: [
+      { label: "Authors", value: authors },
+      { label: "Published", value: published },
+      { label: "Subject", value: subject },
+      ...(extra.facts ?? []),
+    ],
+    summary: "An abstract the AI summary reads.",
+    ...(extra.pdfUrl ? { pdfUrl: extra.pdfUrl } : {}),
+  });
+  let index = 1;
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Rich sites pack", []),
+      link(
+        index++,
+        "https://en.wikipedia.org/wiki/Photosynthesis",
+        { ...wikipedia, title: "Photosynthesis" },
+        {
+          source: "wikipedia",
+          facts: [
+            {
+              label: "About",
+              value: "Biological process to convert light into chemical energy",
+            },
+            { label: "Updated", value: updated },
+          ],
+          summary: "Photosynthesis turns light into chemical energy.",
+        }
+      ),
+      link(
+        index++,
+        "https://en.wikipedia.org/wiki/Mercury",
+        { ...wikipedia, title: "Mercury" },
+        {
+          source: "wikipedia",
+          facts: [
+            { label: "Page", value: "Disambiguation" },
+            { label: "Updated", value: "Oct 13, 2026" },
+          ],
+        }
+      ),
+      link(
+        index++,
+        "https://ja.wikipedia.org/wiki/%E5%AF%8C%E5%A3%AB%E5%B1%B1",
+        { ...wikipedia, title: "富士山" },
+        {
+          source: "wikipedia",
+          facts: [
+            {
+              label: "About",
+              value:
+                "静岡県と山梨県にまたがる活火山で、日本の最高峰。古くから信仰と芸術の対象として親しまれてきた山",
+            },
+            { label: "Updated", value: updated },
+          ],
+        }
+      ),
+      link(index++, "https://en.wikipedia.org/wiki/Zzzz_no_such_page", {
+        ...wikipedia,
+        title: "Wikipedia has no page with this name",
+      }),
+      link(
+        index++,
+        "https://arxiv.org/abs/1706.03762",
+        { ...arxiv, title: "A paper with a PDF to save" },
+        paper(
+          "Author One, Author Two, Author Three et al.",
+          "Jun 12, 2017",
+          "cs.CL",
+          {
+            pdfUrl: "https://arxiv.org/pdf/1706.03762",
+          }
+        )
+      ),
+      link(
+        index++,
+        "https://arxiv.org/abs/hep-th/9901001",
+        { ...arxiv, title: "A paper with an old-style id" },
+        paper("Author One", "Jan 1, 1999", "hep-th", {
+          facts: [{ label: "DOI", value: "10.1143/PTP.101.1155" }],
+          pdfUrl: "https://arxiv.org/pdf/hep-th/9901001",
+        })
+      ),
+      link(
+        index++,
+        "https://arxiv.org/abs/0910.4008",
+        { ...arxiv, title: "A withdrawn paper" },
+        paper("Author One", "Oct 21, 2009", "math.FA")
+      ),
+      link(
+        index++,
+        "https://arxiv.org/abs/2101.00001",
+        { ...arxiv, title: "A paper with 300 authors" },
+        paper("Author 1, Author 2, Author 3 et al.", "Jan 1, 2021", "hep-ex", {
+          pdfUrl: "https://arxiv.org/pdf/2101.00001",
+        })
+      ),
+      ...(
+        [
+          [
+            "track/4uLU6hMCjMI75M1A2tKUQC",
+            "A track",
+            "Track",
+            "Example Artist",
+          ],
+          ["album/1DFixLWuPkv3KT3TnV35m3", "An album", "Album", "Example Band"],
+          ["playlist/37i9dQZF1DXcBWIGoYBM5M", "A playlist", "Playlist", ""],
+          [
+            "track/0000000000000000000000",
+            "A region-locked track",
+            "Track",
+            "Example Artist",
+          ],
+        ] as const
+      ).map(([path, title, type, artist]) =>
+        link(
+          index++,
+          `https://open.spotify.com/${path}`,
+          { siteName: "Spotify", title },
+          {
+            source: "spotify",
+            facts: [
+              ...(artist ? [{ label: "Artist", value: artist }] : []),
+              { label: "Type", value: type },
+            ],
+          }
+        )
+      ),
+      link(
+        index++,
+        "https://music.apple.com/us/album/example-album/1700000000",
+        { siteName: "Apple Music", title: "An album on Apple Music" },
+        {
+          source: "apple_music",
+          facts: [
+            { label: "Artist", value: "Example Artist" },
+            { label: "Type", value: "Album" },
+            { label: "Released", value: "Oct 27, 2023" },
+          ],
+        }
+      ),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6693",
+        { siteName: "Goodreads", title: "A book with an ISBN-13" },
+        openLibrary("9780140328721", "96"),
+        isbnTag("9780140328721")
+      ),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6694",
+        { siteName: "Goodreads", title: "A book with only an ISBN-10" },
+        openLibrary("9780140328721", "112"),
+        isbnTag("0140328726")
+      ),
+      link(index++, "https://www.goodreads.com/book/show/6695", {
+        siteName: "Goodreads",
+        title: "A book with no ISBN",
+      }),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6696",
+        {
+          siteName: "Goodreads",
+          title: "A book whose ISBN check digit is wrong",
+        },
+        undefined,
+        isbnTag("9780140328722")
+      ),
+      link(
+        index++,
+        "https://www.goodreads.com/book/show/6697",
+        { siteName: "Goodreads", title: "A book Open Library doesn't know" },
+        undefined,
+        isbnTag("9781234567897")
+      ),
+    ],
+  };
+};
+
+export const DONE_STATES_IMAGES_SIZE = 1000;
+const DONE_STATES_IMAGES_PAGE_SIZE = 200;
+
+const doneStatesImagesPage = (page: number): DevScenarioCardDef[] => {
+  const start = page * DONE_STATES_IMAGES_PAGE_SIZE;
+  const end = Math.min(
+    start + DONE_STATES_IMAGES_PAGE_SIZE,
+    DONE_STATES_IMAGES_SIZE
+  );
+  if (end <= start) {
+    return [];
+  }
+  const marker = `https://example.com/done-states-images#${SCENARIO_MARKER}-${page}`;
+  const images = Array.from({ length: end - start }, (_, offset) => {
+    const index = start + offset;
+    return {
+      type: "image" as const,
+      content: `Image ${String(index).padStart(4, "0")}`,
+      createdAt: FOLDER_SCENARIO_START + index * 60_000,
+      tags: ["scenario-done-states-images"],
+      colors: [{ hex: index % 2 ? "#3b82f6" : "#f59e0b" }],
+      fileMetadata: {
+        fileName: `done-states-${index}.png`,
+        fileSize: 0,
+        mimeType: "image/png",
+        width: 1200,
+        height: 900,
+      },
+    };
+  });
+  return [
+    {
+      type: "link",
+      content: marker,
+      url: marker,
+      metadataTitle: `Done states images, page ${page + 1}`,
+      tags: ["scenario-done-states-images"],
+    },
+    ...images,
+  ];
+};
+
 export const CHECKLIST_LONG_ITEMS = 200;
 
-/** Notes with task lists for checklist sorting. */
 const checklistsPack = (): FolderScenarioPack => {
   const scenario = "checklists" as const;
   const note = (index: number, content: string) =>
@@ -1269,11 +2299,6 @@ const checklistsPack = (): FolderScenarioPack => {
   };
 };
 
-/**
- * Hidden cards: reserved tags in odd case and spacing, a hidden card in every
- * library state, in a folder, matched by smart folders and on a `site:`
- * host, and a card whose only `hidden` is an AI tag (not hidden).
- */
 const hiddenMixPack = (): FolderScenarioPack => {
   const scenario = "hidden-mix" as const;
   const tagged = (...tags: string[]) => ({
@@ -1283,7 +2308,7 @@ const hiddenMixPack = (): FolderScenarioPack => {
     index: number,
     label: string,
     folders: number[],
-    extra: Partial<DefaultCardDef> = {}
+    extra: Partial<DevScenarioCardDef> = {}
   ) => folderScenarioCard(scenario, index, label, folders, extra);
   const hostLink = (index: number, title: string, tags: string[]) => {
     const url = `https://hidden-mix.example/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
@@ -1341,7 +2366,6 @@ const hiddenMixPack = (): FolderScenarioPack => {
   };
 };
 
-/** Revisit's tag groups, by size: `#rv0` holds only a hidden card. */
 export const REVISIT_SIZE_GROUPS = [0, 1, 19, 20, 21] as const;
 
 const REVISIT_START = Date.UTC(2019, 2, 1);
@@ -1361,7 +2385,8 @@ const REVISIT_SHAPES = [
 const revisitCard = (
   shape: (typeof REVISIT_SHAPES)[number],
   label: string
-): Partial<DefaultCardDef> & Pick<DefaultCardDef, "content" | "type"> => {
+): Partial<DevScenarioCardDef> &
+  Pick<DevScenarioCardDef, "content" | "type"> => {
   const color = { hex: "#4d96ff" };
   const file = (
     fileName: string,
@@ -1436,12 +2461,6 @@ const revisitCard = (
   }
 };
 
-/**
- * Revisit's deck sizes: tag groups `#rv1`, `#rv19`, `#rv20` and `#rv21`
- * mixing every card type (a very tall image, video, audio, a 300-character
- * title), and one hidden card in each group, which a deck must never deal;
- * `#rv0` holds only a hidden card.
- */
 const revisitSizesPack = (): FolderScenarioPack => {
   const scenario = "revisit-sizes" as const;
   const cards: FolderScenarioCard[] = [
@@ -1475,8 +2494,7 @@ const revisitSizesPack = (): FolderScenarioPack => {
 
 export const HIDDEN_MIX_VOLUME_SIZE = ORDERING_SCENARIO_SIZE;
 
-/** The ordering pack's 1,000 cards with every fifth tagged `secret`. */
-export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
+export const hiddenMixVolumeCard = (position: number): DevScenarioCardDef => {
   const ordering = orderingScenarioCard(position);
   const index = orderingIndexAt(position);
   const hidden = index % 5 === 0;
@@ -1492,7 +2510,7 @@ export const hiddenMixVolumeCard = (position: number): DefaultCardDef => {
   };
 };
 
-const hiddenMixVolumePage = (page: number): DefaultCardDef[] => {
+const hiddenMixVolumePage = (page: number): DevScenarioCardDef[] => {
   const start = page * ORDERING_SCENARIO_PAGE_SIZE;
   const end = Math.min(
     start + ORDERING_SCENARIO_PAGE_SIZE,
@@ -1552,7 +2570,7 @@ const seedFolderScenario = async (
         )
         .first()
     : null;
-  const cards: DefaultCardDef[] = seeded
+  const cards: DevScenarioCardDef[] = seeded
     ? []
     : pack.cards.map(({ folders, ...card }) => ({
         ...card,
@@ -1587,7 +2605,9 @@ const VOLUME_RARE_HOSTS = [
   "blog.example.com",
 ] as const;
 
-export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
+export const searchQualifiersVolumeCard = (
+  index: number
+): DevScenarioCardDef => {
   const host =
     index % 10 === 0
       ? VOLUME_RARE_HOSTS[(index / 10) % VOLUME_RARE_HOSTS.length]
@@ -1608,7 +2628,7 @@ export const searchQualifiersVolumeCard = (index: number): DefaultCardDef => {
   };
 };
 
-const searchQualifiersVolumePage = (page: number): DefaultCardDef[] => {
+const searchQualifiersVolumePage = (page: number): DevScenarioCardDef[] => {
   const start = page * SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE;
   const end = Math.min(
     start + SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
@@ -1639,7 +2659,9 @@ const KEYBOARD_MIXED_COLORS = [
   "#0f766e",
 ];
 
-export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
+export const keyboardMixedScenarioCard = (
+  index: number
+): DevScenarioCardDef => {
   const shape = KEYBOARD_MIXED_SHAPES[index % KEYBOARD_MIXED_SHAPES.length];
   const label = `Keyboard mix #${String(index).padStart(2, "0")} ${shape}`;
   const color =
@@ -1648,7 +2670,7 @@ export const keyboardMixedScenarioCard = (index: number): DefaultCardDef => {
     createdAt: KEYBOARD_MIXED_START + index * 60_000,
     tags: ["scenario-keyboard-mixed"],
   };
-  const block = (width: number, height: number): DefaultCardDef => ({
+  const block = (width: number, height: number): DevScenarioCardDef => ({
     ...base,
     type: "image",
     content: label,
@@ -1688,7 +2710,9 @@ const SHUFFLE_PARTIAL_PAGE_SIZE = 200;
 const SHUFFLE_PARTIAL_START = Date.UTC(2024, 0, 1);
 const SHUFFLE_PARTIAL_TYPES = ["text", "quote", "palette"] as const;
 
-export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
+export const shufflePartialScenarioCard = (
+  index: number
+): DevScenarioCardDef => {
   const keyed = index % 4 === 0;
   const label = `Shuffle #${String(index).padStart(3, "0")} ${
     keyed ? "keyed" : "no key"
@@ -1713,7 +2737,7 @@ export const shufflePartialScenarioCard = (index: number): DefaultCardDef => {
   };
 };
 
-const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
+const shufflePartialScenarioPage = (page: number): DevScenarioCardDef[] => {
   const start = page * SHUFFLE_PARTIAL_PAGE_SIZE;
   const end = Math.min(
     start + SHUFFLE_PARTIAL_PAGE_SIZE,
@@ -1725,15 +2749,14 @@ const shufflePartialScenarioPage = (page: number): DefaultCardDef[] => {
 };
 
 type ScenarioPack = { description: string } & (
-  | { cards: (page: number) => DefaultCardDef[] }
+  | { cards: (page: number) => DevScenarioCardDef[] }
   | { folders: () => FolderScenarioPack }
-  /** Tops the library up to this many active cards. */
   | { fillTo: number }
+  | { links: CardLinkScenario }
 );
 
 const FILL_START = Date.UTC(2025, 0, 1);
 
-/** Text cards that bring the library to `target` active cards, at most. */
 const fillScenarioCards = async (
   ctx: MutationCtx,
   userId: string,
@@ -1747,7 +2770,7 @@ const fillScenarioCards = async (
     .take(target);
   return Array.from(
     { length: Math.max(0, target - active.length) },
-    (_, index): DefaultCardDef => ({
+    (_, index): DevScenarioCardDef => ({
       type: "text",
       content: `Filler card ${index + 1}`,
       createdAt: FILL_START + index * 60_000,
@@ -1756,7 +2779,7 @@ const fillScenarioCards = async (
   );
 };
 
-const firstPageOnly = (cards: DefaultCardDef[]) => (page: number) =>
+const firstPageOnly = (cards: DevScenarioCardDef[]) => (page: number) =>
   page === 0 ? cards : [];
 
 const SCENARIOS: Record<string, ScenarioPack> = {
@@ -1844,6 +2867,19 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "Titles for the extension's address-bar suggestions: &, <script>, quotes, 1 < 2 > 0 in a note saved from a page, 300 characters, emoji, RTL, CJK and an empty title (shown as the host), plus a secret card that must never be suggested. Search `#scenario-omnibox-titles`; seed ordering too for many results.",
     folders: omniboxTitlesPack,
   },
+  "ocr-images": {
+    description: `40 images and video thumbnails with their text already read: receipts, code, memes, handwriting, Arabic, Hebrew, Japanese, Hindi, Korean and Russian signs, a 4,000-character wall of text and photos with none, plus twin notes that share a word with an image (${OCR_SHARED_KEYWORD}, "total due", Tokyo Station, fizzbuzz). Compare \`${OCR_SHARED_KEYWORD}\` with \`text:${OCR_SHARED_KEYWORD}\`.`,
+    folders: ocrImagesPack,
+  },
+  "ocr-documents": {
+    description: `Scanned PDFs with their first pages already read: a lease whose page 2 says "Lease agreement", a 300-page archive, a scan with only a "Scanned by" footer, Arabic and Chinese scans, and unread controls (a text PDF, a password-protected PDF), plus a twin note. Compare \`${OCR_LEASE_PHRASE}\` with \`text:lease\`.`,
+    folders: ocrDocumentsPack,
+  },
+  "ocr-links": {
+    description:
+      'Links whose preview image and screenshot were already read: a talk\'s slide title, a docs page, a code-heavy blog post, an RTL news site, and a single-page app that rendered blank, plus a twin note. Compare `scaling postgres` with `text:"scaling postgres"`.',
+    folders: ocrLinksPack,
+  },
   "card-limit-199": {
     description:
       "Fills a free account's library to 199 cards, one under the free limit, so the next save is its last. Run it again after saving and it adds nothing.",
@@ -1878,11 +2914,78 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       )
     ),
   },
+  "done-states": {
+    description:
+      'One link per category, every other one marked done; done links in Trash and Archive; a link with no category yet; done links with 300-character, RTL and CJK titles; and a smart folder `is:todo folder:"Reading list"`.',
+    folders: doneStatesPack,
+  },
+  "rich-sites": {
+    description:
+      "Links with details from their sites: Wikipedia (English, a disambiguation page, Japanese, a missing page), arXiv (a paper with a PDF to save, an old-style id, a withdrawn paper, 300 authors), Spotify (track, album, playlist, region-locked), Apple Music, and books with an ISBN-13, an ISBN-10, none, a bad check digit and one Open Library doesn't know. Search `#scenario-rich-sites`.",
+    folders: richSitesPack,
+  },
+  "video-captions": {
+    description:
+      "YouTube links with Channel, Length and Uploaded facts (a talk, a Short, a live stream with no length), and Vimeo links with transcripts as captions give them (English, unlisted, Japanese, a two-hour lecture whose line at minute 90 is searchable), a private Vimeo video with none, and a Vimeo link saved as a note. YouTube captions aren't read. Search `#scenario-video-captions`.",
+    folders: videoCaptionsPack,
+  },
+  "podcast-transcripts": {
+    description:
+      "Podcast episode links with transcripts as Whisper gives them (og:audio, Apple Podcasts, an RSS-only show, a Japanese episode, one in Trash), and episodes that get none (Spotify, a 2 GB file). Search `#scenario-podcast-transcripts` or a spoken phrase such as `hermit crab`.",
+    folders: podcastTranscriptsPack,
+  },
+  "card-links": {
+    description: CARD_LINK_SCENARIO_DESCRIPTIONS["card-links"],
+    links: "card-links",
+  },
+  backlinks: {
+    description: CARD_LINK_SCENARIO_DESCRIPTIONS.backlinks,
+    links: "backlinks",
+  },
+  "email-in": {
+    description:
+      "Cards as Save by email makes them, all tagged email: a newsletter with 40 tracking pixels and four kinds of redirect, a link with a sentence (a link card with a note), a subject with no body, a five-level forward chain, RTL, CJK and emoji subjects, and two links (a note). Also turns Save by email on. Search `#scenario-email-in` or `#email`.",
+    folders: emailInPack,
+  },
+  "email-attachments": {
+    description:
+      "An email's body note and its attachments as their own document cards, tagged email: PDFs, two with the same name, a CJK name, a Word file and a 24 MB report. Search `#scenario-email-attachments`.",
+    folders: emailAttachmentsPack,
+  },
+  "done-states-images": {
+    description:
+      "1,000 image cards and no links, so `is:todo` lists nothing. Seed it on an account without links. 200 per page.",
+    cards: doneStatesImagesPage,
+  },
   "shuffle-partial": {
     description:
       "400 cards, 300 without a Shuffle key as before its backfill; Shuffle must still show each card once. 200 per page.",
     cards: shufflePartialScenarioPage,
   },
+};
+
+/** Save by email on, as if an email arrived an hour ago. */
+const turnOnSaveByEmail = async (ctx: MutationCtx, userId: string) => {
+  const now = Date.now();
+  const existing = await ctx.db
+    .query("inboundEmailSettings")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .unique();
+  if (existing) {
+    await ctx.db.patch("inboundEmailSettings", existing._id, {
+      enabled: true,
+      lastReceivedAt: now - 3_600_000,
+      updatedAt: now,
+    });
+    return;
+  }
+  await ctx.db.insert("inboundEmailSettings", {
+    createdAt: now,
+    enabled: true,
+    lastReceivedAt: now - 3_600_000,
+    updatedAt: now,
+    userId,
+  });
 };
 
 const unknownScenarioMessage = () =>
@@ -1921,7 +3024,13 @@ export const seedScenario = internalMutation({
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
     }
+    if ("links" in pack) {
+      return await seedCardLinkScenario(ctx, owner.teakUserId, pack.links);
+    }
     if ("folders" in pack) {
+      if (scenario === "email-in") {
+        await turnOnSaveByEmail(ctx, owner.teakUserId);
+      }
       return await seedFolderScenario(ctx, owner.teakUserId, pack.folders());
     }
     if ("fillTo" in pack) {

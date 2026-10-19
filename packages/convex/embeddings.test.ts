@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
@@ -22,10 +21,8 @@ const stubWorker = ({
   onCall,
 }: {
   fail?: string[];
-  /** What a failing call answers: INTERNAL (500) or RATE_LIMITED (429). */
   failCode?: "INTERNAL" | "RATE_LIMITED";
   failNext?: Record<string, number>;
-  /** What `vector-query` answers. */
   matches?: { id: string; score: number }[];
   onCall?: (call: WorkerCall) => Promise<void> | void;
 } = {}) => {
@@ -172,8 +169,6 @@ describe("embedding cards", () => {
 
     await runScheduled(t);
 
-    // One job claims the owner's due cards; the burst's other jobs find
-    // theirs claimed. On one write per card, Vectorize answers 429s.
     expect(
       upserts(calls)
         .map((call) => call.params.items.length)
@@ -281,6 +276,25 @@ describe("embedding cards", () => {
     expect(upserts(calls).map((call) => call.params.items)).toEqual([
       [{ id: cardId, text: "https://example.com/photo.jpg", type: "text" }],
       [{ id: cardId, text: "https://example.com/photo.jpg", type: "image" }],
+    ]);
+  });
+
+  test("text read from an image embeds a card that had none, and new text re-embeds it", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await createCard(t, "");
+    await editCard(t, cardId, { type: "image" });
+    await runScheduled(t);
+    expect(upserts(calls)).toEqual([]);
+
+    await editCard(t, cardId, { aiOcrText: "Invoice 4411\nTotal due" });
+    await runScheduled(t);
+    await editCard(t, cardId, { aiOcrText: "Invoice 4412\nTotal due" });
+    await runScheduled(t);
+
+    expect(upserts(calls).map((call) => call.params.items)).toEqual([
+      [{ id: cardId, text: "Invoice 4411\nTotal due", type: "image" }],
+      [{ id: cardId, text: "Invoice 4412\nTotal due", type: "image" }],
     ]);
   });
 
@@ -539,7 +553,6 @@ describe("stale writes", () => {
   });
 });
 
-/** A card saved before embeddings shipped: no search sync, so no ledger row. */
 const insertOldCard = (
   t: T,
   content: string,
@@ -562,7 +575,6 @@ const insertOldCard = (
 const backfill = (t: T, args: Parameters<typeof t.mutation>[1] = {}) =>
   t.mutation(internal.migration.backfillEmbeddings.backfillEmbeddings, args);
 
-/** One card in every state the backfill tells apart. */
 const seedLedgerStates = async (t: T) => {
   const embedded = await createCard(t, "already embedded");
   await runScheduled(t);
@@ -618,7 +630,6 @@ describe("backfill", () => {
     await backfill(t, { dryRun: false });
     await runScheduled(t);
 
-    // The card already due for its own embed rides along in the same write.
     const writes = upserts(calls).slice(1);
     expect(writes).toHaveLength(1);
     expect(
@@ -655,7 +666,6 @@ describe("backfill", () => {
     expect(starts.slice(1).map((time, i) => time - (starts[i] ?? 0))).toEqual([
       3200,
     ]);
-    // Each job runs at its own time, before the next batch is due.
     for (const start of starts) {
       vi.advanceTimersByTime(Math.max(0, start - Date.now()));
       await t.finishInProgressScheduledFunctions();
@@ -677,7 +687,6 @@ describe("backfill", () => {
     await backfill(t, { dryRun: false });
     await runScheduled(t);
 
-    // The retry is one batched write too, not one write per card.
     expect(upserts(calls).map((call) => call.params.items.length)).toEqual([
       2, 2,
     ]);
@@ -696,7 +705,6 @@ describe("backfill", () => {
     stubWorker({ fail: ["embed-upsert"] });
     await editCard(t, cardId, { content: "edited text" });
     await runScheduled(t);
-    // The old vector and hash stay; the edit is never embedded.
     expect(await rowOf(t, cardId)).toMatchObject({
       hash: expect.any(String),
       lastError: expect.any(String),

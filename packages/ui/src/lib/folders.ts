@@ -15,21 +15,17 @@ import {
 } from "@teak/convex/shared/folders";
 import { ConvexError } from "convex/values";
 
-/** A folder as `api.folders.listFolders` returns it. */
 export interface FolderSummary {
   _id: Id<"folders">;
-  /** Cards in a manual folder that are neither archived nor in Trash. */
   activeCardCount: number;
   color?: FolderColor;
   createdAt: number;
   kind: FolderKind;
   name: string;
-  /** A smart folder's search, written the canonical way. */
   query?: string;
   updatedAt: number;
 }
 
-/** Folders cards can be put in: smart folders show a search instead. */
 export const manualFolders = <T extends Pick<FolderSummary, "kind">>(
   folders: readonly T[]
 ): T[] => folders.filter((folder) => folder.kind !== "smart");
@@ -46,7 +42,6 @@ export {
  */
 export const FOLDER_NAME_INPUT_MAX_LENGTH = MAX_FOLDER_NAME_LENGTH * 2;
 
-/** The dot color for each palette color; no color is a quiet outline. */
 export const FOLDER_DOT_CLASSES: Record<FolderColor, string> = {
   gray: "bg-zinc-400",
   red: "bg-red-500",
@@ -59,7 +54,6 @@ export const FOLDER_DOT_CLASSES: Record<FolderColor, string> = {
   pink: "bg-pink-500",
 };
 
-/** Folder icon tints, so folders read at a glance even in the icon rail. */
 export const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
   gray: "text-zinc-500 fill-zinc-500/15",
   red: "text-red-500 fill-red-500/15",
@@ -84,10 +78,8 @@ export const FOLDER_COLOR_LABELS: Record<FolderColor, string> = {
   pink: "Pink",
 };
 
-/** The drag data a card carries, so a sidebar folder can take it. */
 export const CARD_DRAG_TYPE = "application/x-teak-card";
 
-/** Whether a drag carries a card (its ID is only readable on drop). */
 export const isCardDrag = (dataTransfer: DataTransfer | null): boolean =>
   Boolean(
     dataTransfer && Array.from(dataTransfer.types).includes(CARD_DRAG_TYPE)
@@ -96,7 +88,6 @@ export const isCardDrag = (dataTransfer: DataTransfer | null): boolean =>
 export const folderPath = (folderId: string) =>
   `/f/${encodeURIComponent(folderId)}`;
 
-/** The folder id a pathname shows (`/f/:id`), or null outside a folder. */
 export const folderIdForPath = (
   pathname: string | null | undefined
 ): string | null => {
@@ -104,11 +95,6 @@ export const folderIdForPath = (
   return match ? decodeFolderSegment(match[1]) : null;
 };
 
-/**
- * A folder ID from its address segment. A mangled escape (`/f/%E0`) is kept
- * as typed instead of throwing; no folder has that ID, so the page shows
- * Folder not found.
- */
 export const decodeFolderSegment = (segment: string): string => {
   try {
     return decodeURIComponent(segment);
@@ -117,7 +103,6 @@ export const decodeFolderSegment = (segment: string): string => {
   }
 };
 
-/** Folders whose name contains the query, ignoring case. */
 export const filterFolders = (
   folders: readonly FolderSummary[],
   query: string
@@ -128,7 +113,6 @@ export const filterFolders = (
     : [...folders];
 };
 
-/** Whether a folder already has this name, ignoring case and spaces. */
 export const hasFolderNamed = (
   folders: readonly FolderSummary[],
   name: string,
@@ -140,7 +124,6 @@ export const hasFolderNamed = (
   );
 };
 
-/** The message a folder mutation failed with, for a toast or inline error. */
 export const folderErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof ConvexError) {
     const message = (error.data as { message?: unknown } | undefined)?.message;
@@ -151,24 +134,14 @@ export const folderErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-/** What the screen shows besides the search box, for saving it. */
 export interface SmartFolderSearchContext {
   folder?: Pick<FolderSummary, "kind" | "name" | "query"> | null;
-  /** The sidebar tag (`?tag=`). */
   tag?: string;
-  /** The search box's chips and text, as the server reads them. */
   terms: string;
   types?: readonly CardType[];
   view?: "all" | "favorites" | "archive" | "trash";
 }
 
-/**
- * The search a smart folder would save for what is on screen: the words
- * and chips, the card types, the sidebar tag, the Favorites or Archive
- * view, and the folder being viewed (a manual one as `folder:`, a smart
- * one's own search). Null when there is nothing to save: Trash, an empty
- * search, or a smart folder with nothing added to its search.
- */
 export const buildSmartFolderQuery = ({
   folder,
   tag,
@@ -202,11 +175,6 @@ export const buildSmartFolderQuery = ({
 const capitalize = (text: string) =>
   text ? `${text[0]?.toUpperCase() ?? ""}${text.slice(1)}` : text;
 
-/**
- * A readable name for a smart folder from its search, such as
- * "Design · Links · github.com" for `tag:design type:link site:github.com`,
- * clipped to the name limit.
- */
 export const suggestSmartFolderName = (query: string): string => {
   const parsed = parseSearchQuery(query);
   const parts = [
@@ -224,6 +192,8 @@ export const suggestSmartFolderName = (query: string): string => {
             ? `Price ${describePriceBound(bound).toLowerCase()}`
             : "";
         }
+        case "text":
+          return `Text “${qualifier.value}”`;
         default:
           return qualifier.value;
       }

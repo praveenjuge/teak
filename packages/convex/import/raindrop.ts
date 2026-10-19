@@ -24,14 +24,9 @@ function isTruthyFavorite(raw: string): boolean {
 }
 
 /**
- * Parses a Raindrop.io CSV export into the shared bookmark item shape so it
- * reuses the same downstream normalization as the HTML bookmark importer.
- *
- * Columns are matched by header name (case-insensitive), so both the full
- * export (`id, title, note, excerpt, url, folder, tags, created, cover,
- * highlights, favorite`) and the import-compatible subset are supported. The
- * `url` column is required; `id`, `excerpt`, `cover`, and `highlights` are
- * ignored. The `folder` column becomes a Teak folder.
+ * Raindrop.io's CSV export: the full export (`id, title, note, excerpt, url,
+ * folder, tags, created, cover, highlights, favorite`) or its
+ * import-compatible subset.
  */
 export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
   const normalized = csv.charCodeAt(0) === 0xfe_ff ? csv.slice(1) : csv;

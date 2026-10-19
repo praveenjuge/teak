@@ -60,18 +60,24 @@ export const ensureCredentialsForNoViewCommand = async (): Promise<boolean> => {
   return false;
 };
 
+const isHttpUrl = (value: string): boolean => {
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 export const extractFirstHttpUrl = (value: string): string | null => {
   const trimmed = value.trim();
   if (!trimmed) {
     return null;
   }
 
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      return trimmed;
-    }
-  } catch {}
+  if (isHttpUrl(trimmed)) {
+    return trimmed;
+  }
 
   const match = trimmed.match(URL_INLINE_PATTERN);
   if (!match?.[1]) {
@@ -126,7 +132,7 @@ export const saveFilesWithFeedback = async (
       toast.message = `${index + 1} of ${paths.length}`;
     }
     try {
-      saved.push(await saveFileCard(path, { source }, "stored"));
+      saved.push(await saveFileCard(path, { source }, "silent"));
     } catch (error) {
       lastError = error;
     }
@@ -159,7 +165,7 @@ export const saveFilesWithFeedback = async (
 export const showIfAlreadySaved = async (url: string): Promise<boolean> => {
   let cardId: string | null = null;
   try {
-    cardId = await findSavedCardId(url, "stored");
+    cardId = await findSavedCardId(url, "silent");
   } catch {
     return false;
   }
@@ -191,7 +197,7 @@ export const saveCardWithFeedback = async (
   });
 
   try {
-    const result = await createCard(input, "stored");
+    const result = await createCard(input, "silent");
 
     const appUrl = result.appUrl;
     if (appUrl) {

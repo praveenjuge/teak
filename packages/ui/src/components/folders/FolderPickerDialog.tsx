@@ -32,7 +32,6 @@ import { cn } from "../../lib/utils";
 import { FolderDot } from "./FolderDot";
 
 interface FolderPickerDialogProps {
-  /** A folder to leave out, such as the one being viewed when moving. */
   excludeFolderId?: string;
   mode: "add" | "move";
   onOpenChange: (open: boolean) => void;
@@ -41,10 +40,6 @@ interface FolderPickerDialogProps {
   selectedCount: number;
 }
 
-/**
- * Picks the folder a bulk Add or Move puts cards in. Typing filters the
- * folders; a name that matches none can be created on the spot.
- */
 export function FolderPickerDialog({
   excludeFolderId,
   mode,
@@ -215,7 +210,7 @@ export function FolderPickerDialog({
               </span>
             </button>
           ))}
-          {canCreate && (
+          {canCreate ? (
             <button
               aria-selected={activeIndex === matches.length}
               className={cn(
@@ -239,16 +234,16 @@ export function FolderPickerDialog({
                 Create folder “{trimmed}”
               </span>
             </button>
-          )}
+          ) : null}
         </div>
-        {(error || (isNewName && atCap)) && (
+        {error || (isNewName && atCap) ? (
           <p
             className="border-t px-5 py-3 text-destructive text-sm"
             role="alert"
           >
             {error ?? FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS}
           </p>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );

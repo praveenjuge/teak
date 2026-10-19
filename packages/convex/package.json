@@ -39,7 +39,7 @@
     "test:edge": "SITE_URL=http://localhost:3000 vitest run --config vitest.config.ts",
     "test:unit": "SITE_URL=http://localhost:3000 bun test __tests__ --coverage --dots --isolate",
     "typecheck": "tsc --noEmit && bun run typecheck:tests",
-    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json"
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.edge.json"
   },
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",

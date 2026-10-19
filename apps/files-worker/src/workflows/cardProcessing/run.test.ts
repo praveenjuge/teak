@@ -15,6 +15,8 @@ import {
 } from "../../test/cardProcessingKit";
 import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
 import { createFakeStep } from "../../test/fakeStep";
+import { FakeBucket } from "../../test/testsupport";
+import type { CardProcessingDeps } from "./context";
 import { AI_CAPACITY_RETRIES, runCardProcessing } from "./run";
 
 const gzipBase64 = async (text: string) => {
@@ -47,7 +49,6 @@ const clefAnswer = (decision: null) => ({
   data: { decision, model: "@cf/cloudflare/clef", version: 1 },
 });
 
-/** Clef reviews notes and guessed link categories; here it never objects. */
 const NO_DECISIONS: Partial<Record<FilesOp, OpAnswer>> = {
   "decide-card-type": clefAnswer(null),
   "decide-link-category": clefAnswer(null),
@@ -57,7 +58,11 @@ const setup = (
   card: FakeCard | null,
   answers: Partial<Record<FilesOp, OpAnswer | (() => OpAnswer)>>,
   options: {
+    /** Podcast audio needs a bucket with multipart uploads. */
+    bucket?: FakeBucket;
+    deps?: Partial<CardProcessingDeps>;
     handlers?: Parameters<typeof createCardConvex>[1];
+    metadataOnly?: boolean;
     refresh?: boolean;
     rev?: number;
     step?: Parameters<typeof createFakeStep>[0];
@@ -66,7 +71,9 @@ const setup = (
   const convex = createCardConvex(card, options.handlers);
   const ops = createFakeOps({ ...NO_DECISIONS, ...answers });
   const fakeStep = createFakeStep(options.step);
-  const env = testEnv();
+  const env = testEnv(
+    options.bucket ? { BUCKET: options.bucket as unknown as R2Bucket } : {}
+  );
   const run = () =>
     runCardProcessing(
       {
@@ -75,17 +82,17 @@ const setup = (
         params: {
           cardId: CARD_ID,
           convexSiteUrl: TEST_CONVEX_SITE_URL,
+          ...(options.metadataOnly ? { metadataOnly: true } : {}),
           ...(options.refresh ? { refresh: true } : {}),
           rev: options.rev ?? 1,
         },
         step: fakeStep.step,
       },
-      testDeps(env, convex.fetcher, ops.ops)
+      testDeps(env, convex.fetcher, ops.ops, options.deps)
     );
   return { convex, fakeStep, ops, run };
 };
 
-/** Each stage's writes, in order, e.g. classify: in_progress → completed. */
 const stageHistory = (
   writes: Array<{ stage: string; status: string }>,
   stage: string
@@ -162,6 +169,7 @@ describe("card processing", () => {
     const page = await linkPage();
     const { convex, fakeStep, ops, run } = setup(card, {
       "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "A good article\nRead more" } },
       "fetch-link-page": page,
       "generate-link-metadata": textMetadataAnswer(["article"]),
     });
@@ -175,9 +183,20 @@ describe("card processing", () => {
       "categorize",
       "generate metadata",
       "capture screenshot",
+      "read link image text",
       "emit completion",
       "report complete",
     ]);
+    const screenshotKey = (
+      card.metadata as { linkPreview: { screenshotStorageKey: string } }
+    ).linkPreview.screenshotStorageKey;
+    expect(
+      ops.calls
+        .filter((call) => call.op === "extract-image-text")
+        .map((call) => call.params.sourceKey)
+    ).toEqual([screenshotKey]);
+    expect(card.aiOcrText).toBe("A good article\nRead more");
+    expect(card.ocrCheckedAt).toEqual(expect.any(Number));
     expect(
       (card.metadata as { linkPreview: { title: string } }).linkPreview.title
     ).toBe("A good article");
@@ -189,8 +208,6 @@ describe("card processing", () => {
       "in_progress",
       "completed",
     ]);
-    // The page is read once per step from the op (cached for a day there):
-    // the preview, the JSON-LD and the screenshot HTML.
     expect(ops.opsCalled().filter((op) => op === "fetch-link-page")).toEqual([
       "fetch-link-page",
       "fetch-link-page",
@@ -215,6 +232,177 @@ describe("card processing", () => {
       url: "https://example.com/article",
     });
 
+  const EPISODE_HTML = `<html><head>
+  <title>Episode 42</title>
+  <meta property="og:title" content="Episode 42: Leaves">
+  <meta property="og:audio" content="https://audio.example.com/42.mp3">
+</head><body></body></html>`;
+
+  const episodeAudio = (url: string) =>
+    Promise.resolve(
+      url === "https://audio.example.com/42.mp3"
+        ? new Response(new Uint8Array([1, 2, 3]), {
+            headers: { "content-type": "audio/mpeg" },
+          })
+        : new Response("missing", { status: 404 })
+    );
+
+  const podcastRun = async (step?: Parameters<typeof createFakeStep>[0]) => {
+    const card = makeCard({
+      content: "https://example.com/podcast/episode-42",
+      processingStatus: {
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/podcast/episode-42",
+    });
+    const ctx = setup(
+      card,
+      {
+        "capture-screenshot": { data: { height: 900, width: 1440 } },
+        "extract-image-text": { data: { text: "" } },
+        "fetch-link-page": {
+          data: {
+            charset: "utf-8",
+            fetched: true,
+            htmlGzipBase64: await gzipBase64(EPISODE_HTML),
+            pageUrl: "https://example.com/podcast/episode-42",
+            selectors: buildSelectorResultsFromHtml(
+              EPISODE_HTML,
+              SCRAPE_ELEMENTS
+            ),
+            source: "static",
+          },
+        },
+        "generate-link-metadata": textMetadataAnswer(["podcast"]),
+        "process-audio": {
+          data: {
+            facts: { durationSeconds: 1800, hasAudio: true, hasVideo: false },
+            transcript: { status: "completed", text: "Today, leaves." },
+          },
+        },
+      },
+      {
+        bucket: new FakeBucket(),
+        deps: { podcastFetch: { episode: episodeAudio, feed: episodeAudio } },
+        step,
+      }
+    );
+    return { card, ...ctx };
+  };
+
+  test("a podcast link's transcript comes after the run has completed", async () => {
+    const { card, convex, fakeStep, run } = await podcastRun();
+
+    const result = await run();
+
+    expect(
+      (card.metadata as { linkCategory: { category: string } }).linkCategory
+        .category
+    ).toBe("podcast");
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "classify",
+      "fetch link metadata",
+      "categorize",
+      "generate metadata",
+      "capture screenshot",
+      "read link image text",
+      "emit completion",
+      "transcribe podcast",
+      "report complete",
+    ]);
+    // No stage waits on it: the card was complete before it started.
+    expect(
+      Object.values(card.processingStatus ?? {}).map((stage) => stage.status)
+    ).not.toContain("in_progress");
+    expect(fakeStep.records.at(-2)).toMatchObject({
+      name: "transcribe podcast",
+      outcome: "ok",
+    });
+    expect(card.aiTranscript).toBe("Today, leaves.");
+    expect(card.workflowArtifactKeys).toEqual([]);
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("an episode whose AI metadata waited is transcribed by the metadata-only run", async () => {
+    const url = "https://example.com/podcast/episode-42";
+    const card = makeCard({
+      content: url,
+      metadata: {
+        linkCategory: { category: "podcast", fetchedAt: 1, sourceUrl: url },
+        linkPreview: {
+          raw: [
+            {
+              results: [
+                {
+                  attributes: [
+                    {
+                      name: "content",
+                      value: "https://audio.example.com/42.mp3",
+                    },
+                  ],
+                },
+              ],
+              selector: "meta[property='og:audio']",
+            },
+          ],
+          status: "success",
+          title: "Episode 42: Leaves",
+        },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url,
+    });
+    const { fakeStep, run } = setup(
+      card,
+      {
+        "generate-link-metadata": textMetadataAnswer(["podcast"]),
+        "process-audio": {
+          data: {
+            facts: { durationSeconds: 1800, hasAudio: true, hasVideo: false },
+            transcript: { status: "completed", text: "Today, leaves." },
+          },
+        },
+      },
+      {
+        bucket: new FakeBucket(),
+        deps: { podcastFetch: { episode: episodeAudio, feed: episodeAudio } },
+        metadataOnly: true,
+      }
+    );
+
+    expect(await run()).toMatchObject({ mode: "completed" });
+    expect(fakeStep.names()).toContain("transcribe podcast");
+    expect(card.aiTranscript).toBe("Today, leaves.");
+  });
+
+  test("a podcast transcript that fails for good leaves the run completed", async () => {
+    const { convex, fakeStep, run } = await podcastRun({
+      failures: {
+        "transcribe podcast": {
+          error: new Error("renderer unavailable"),
+          times: 5,
+        },
+      },
+    });
+
+    const result = await run();
+
+    expect(fakeStep.records.at(-2)).toMatchObject({
+      name: "transcribe podcast",
+      outcome: "error",
+    });
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
   const finalError = (message: string) =>
     Object.assign(new Error(message), { name: "NonRetryableError" });
 
@@ -234,6 +422,24 @@ describe("card processing", () => {
       status: "failed",
     });
     expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("link image text that fails leaves the screenshot completed and the card unread", async () => {
+    const card = linkCard();
+    const { run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": {
+        throws: new Error("files_worker_ai: rate limit reached 429"),
+      },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    const result = await run();
+
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(card.processingStatus?.screenshot?.status).toBe("completed");
+    expect(card.ocrCheckedAt).toBeUndefined();
   });
 
   test("an edit while the screenshot fails still ends the run as replaced", async () => {
@@ -298,7 +504,6 @@ describe("card processing", () => {
     );
 
     expect(await run()).toMatchObject({ mode: "completed" });
-    // The preview fetch was retried before giving up.
     expect(
       ops.opsCalled().filter((op) => op === "fetch-link-page").length
     ).toBeGreaterThan(2);
@@ -307,7 +512,6 @@ describe("card processing", () => {
     expect(
       (card.metadata as { linkPreview: { title: string } }).linkPreview.title
     ).toBe("Stored title");
-    // The run went on past the preview to categorize the link.
     expect(card.processingStatus?.categorize?.status).toBe("completed");
     expect(reported(convex)).toEqual(["complete"]);
   });
@@ -321,6 +525,31 @@ describe("card processing", () => {
 
     await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable:");
     expect(fakeStep.names()).not.toContain("keep link preview after refresh");
+  });
+
+  test("a link to a PDF keeps a failed preview and the run still categorizes it", async () => {
+    const card = linkCard();
+    const { convex, ops, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "fetch-link-page": {
+        data: {
+          contentType: "application/pdf",
+          fetched: false,
+          reason: "unsupported_type",
+        },
+      },
+      "generate-link-metadata": textMetadataAnswer(["paper"]),
+    });
+
+    expect(await run()).toMatchObject({ mode: "completed" });
+    expect(card.metadataStatus).toBe("failed");
+    expect(card.processingStatus?.categorize?.status).toBe("completed");
+    expect(card.processingStatus?.metadata?.status).toBe("completed");
+    expect(reported(convex)).toEqual(["complete"]);
+    // One fetch for the preview, one for structured data: no retries.
+    expect(
+      ops.opsCalled().filter((op) => op === "fetch-link-page")
+    ).toHaveLength(2);
   });
 
   test("a metadata-only run regenerates the AI metadata and nothing else", async () => {
@@ -516,11 +745,14 @@ describe("card processing", () => {
     const generating = new Promise<void>((resolve) => {
       metadataStarted = resolve;
     });
-    // Each side waits until the other has started: run one after the
-    // other, they would never finish.
     const answers = createFakeOps({
       "generate-text-metadata": textMetadataAnswer(["report"]),
-      inspect: { data: { facts: { pageCount: 1 }, text: "Quarterly report" } },
+      inspect: {
+        data: {
+          facts: { pageCount: 1 },
+          text: "Quarterly report for the freight team",
+        },
+      },
       "render-pdf-thumbnail": { data: { height: 1100, width: 850 } },
     });
     const gatedOps: typeof answers.ops = async (spec) => {
@@ -693,8 +925,6 @@ describe("card processing", () => {
       { "generate-text-metadata": textMetadataAnswer() },
       {
         handlers: {
-          // The edit lands while the metadata step reads the AI gate (the
-          // classify step's Clef review reads it first).
           "adminAccess:getAiGate": () => {
             gateReads += 1;
             if (gateReads === 2) {

@@ -86,7 +86,6 @@ export const reportUnhandledError = (
       : {}
   );
 
-/** Reports an error from background work (a workflow step, queue or cron). */
 export const reportBackgroundError = (
   env: TelemetryEnvVars,
   ctx: WaitUntil | undefined,

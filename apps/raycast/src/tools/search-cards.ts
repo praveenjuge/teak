@@ -33,7 +33,7 @@ export default async function tool(input: Input = {}) {
       tag: input.tag,
       type: input.type,
     },
-    "stored",
+    "silent",
   );
 
   return result.items.map((card) => ({

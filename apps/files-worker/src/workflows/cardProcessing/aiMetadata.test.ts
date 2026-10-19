@@ -19,7 +19,6 @@ import {
   sanitizeTranscript,
 } from "./aiMetadata";
 
-/** A job whose metadata ops answer `answer`, and the PostHog events it sends. */
 const setup = (answer: OpAnswer) => {
   const fakes = createFakeOps({
     "generate-link-metadata": answer,

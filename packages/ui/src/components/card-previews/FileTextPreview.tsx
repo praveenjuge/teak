@@ -155,11 +155,12 @@ export function FileTextPreview({
 
     void (async () => {
       try {
-        const text = await requestFileTextPreview({ cacheKey, fileUrl });
+        const text = await requestFileTextPreview({ cacheKey, fileUrl }).catch(
+          () => null
+        );
         if (active && text !== null) {
           setSource(text);
         }
-      } catch {
       } finally {
         if (active) {
           setIsLoading(false);

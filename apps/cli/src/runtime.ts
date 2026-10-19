@@ -151,8 +151,8 @@ const parseCredentials = (text: string): StoredCredentials | null => {
   }
   return {
     accessToken: raw.accessToken,
-    refreshToken: (raw.refreshToken as string) ?? "",
-    expiresAt: (raw.expiresAt as number) ?? 0,
+    refreshToken: typeof raw.refreshToken === "string" ? raw.refreshToken : "",
+    expiresAt: typeof raw.expiresAt === "number" ? raw.expiresAt : 0,
     ...(savedBinding ? { binding: savedBinding } : {}),
   };
 };
@@ -391,6 +391,7 @@ export const logout = (options: ClientOptions = {}) =>
       }
     }
     clearCredentials(options);
+    return "Logged out of Teak.";
   });
 const exchangeToken = async (
   options: ClientOptions,
@@ -472,7 +473,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
         if (error instanceof TeakApiError && error.code === "AUTH_REQUIRED") {
           clearCredentials(options);
         }
-        await discovery(options, true).catch(() => {});
+        await discovery(options, true).catch(() => undefined);
         throw error;
       }
     });
@@ -483,7 +484,7 @@ const tokenProvider = (options: ClientOptions): TokenProvider => {
           pending = undefined;
         }
       })
-      .catch(() => {});
+      .catch(() => undefined);
     return work;
   };
   return {
@@ -566,7 +567,9 @@ export const openBrowser = (url: string): Promise<boolean> => {
 };
 
 export const login = async (options: ClientOptions & { browser?: boolean }) => {
-  const signoutEpoch = readLogoutMarker(options);
+  const logoutEpochAtStart = readLogoutMarker(options);
+  const signInCancelledByLogout = () =>
+    readLogoutMarker(options) !== logoutEpochAtStart;
   const auth = await discovery(options, true);
   const saved = readCredentials(options);
   if (
@@ -685,10 +688,8 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
           });
         }
       );
-      // Discarding a failed sign-in must not revoke the same app on other
-      // installations. Only explicit logout owns that access change.
       await credentialOperation(options, async () => {
-        if (readLogoutMarker(options) !== signoutEpoch) {
+        if (signInCancelledByLogout()) {
           throw new Error(
             "Sign-in was cancelled by logout. Run teak login again."
           );
@@ -727,7 +728,7 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
       if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {
         continue;
       }
-      await discovery(options, true).catch(() => {});
+      await discovery(options, true).catch(() => undefined);
       throw error;
     }
   }

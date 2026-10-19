@@ -17,7 +17,6 @@ const RESOLVE =
   "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle";
 const THREAD = "https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread";
 
-/** The AppView answering the handle lookup and then the given thread. */
 const appView = (thread: unknown, did = DID) =>
   socialFetch((url) => {
     if (url.startsWith(RESOLVE)) {
@@ -76,7 +75,6 @@ describe("fetchBlueskyPost", () => {
       "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:z72/d@jpeg",
     ]);
     expect(post?.media?.[0]).toMatchObject({ width: 2000, height: 1500 });
-    // One handle lookup, one thread read with no replies or parents.
     expect(requests).toHaveLength(2);
     const threadUrl = new URL(requests[1] as string);
     expect(threadUrl.searchParams.get("uri")).toBe(

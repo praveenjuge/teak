@@ -90,6 +90,9 @@ teak cards update <card-id> --title "Homepage ideas" --tags design,reference
 teak tags add <card-id> inspiration
 teak tags rm <card-id> inspiration
 teak fav <card-id>
+teak done <card-id>
+teak done <card-id> --undo
+teak cards save-pdf <card-id>
 teak rm <card-id>
 teak trash
 teak restore <card-id>
@@ -101,6 +104,7 @@ teak refresh <card-id>
 teak cards thumbnail <card-id> ./cover.png
 teak cards thumbnail <card-id> --reset
 teak content <card-id>
+teak links <card-id>
 teak tags
 teak tags rename Design design-systems --wait
 ```
@@ -122,7 +126,11 @@ Like the web composer, Teak works out the card type from what you add: a URL bec
 
 `teak cards get` shows the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
 
+`teak cards save-pdf` saves an arXiv link's paper as its own document card and prints its ID; for a paper you already saved it prints that card's ID. `--json` prints `{ cardId, created }`.
+
 `teak content` prints a card's full text: the text Teak extracted from its document (PDF, Word, PowerPoint, text or code), its transcript, or a text card's content, so you can pipe it to other tools. When a document is longer than Teak keeps (the first 500 pages and 524,288 characters), or only its start could be read just now, a note goes to standard error. `--json` prints `{ cardId, kind, text, charCount, truncated }`. A card without text exits with the not-found code.
+
+`teak links` (also `teak cards links`) lists the cards a card links to with `[[Title|teak:<card-id>]]` under **Links**, then your cards that link to it under **Linked from** (leaving out cards in Trash and hidden cards), one per line as `<id>  <type>  <title>`. A link to a card in Trash, a deleted card or another account's card shows `(missing)`. It prints `No links.` when there are none, and shows at most 100 of each. `--json` prints `{ links, backlinks, linksTruncated, backlinksTruncated }`. An unknown card exits with the not-found code. To link cards, write that token in a note's content, for example with `teak cards update <card-id> --content -`.
 
 `teak refresh` refreshes one or more cards: it clears their summaries, tags Teak added, and transcripts and processes them again, including link previews. It returns right away; check the result later with `teak cards get`. You can refresh a card once a minute, and up to six cards a minute.
 
@@ -169,7 +177,7 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 | `--created-after` / `--created-before` | Millisecond timestamps |
 | `--mode hybrid\|keyword\|semantic` | How the search text finds cards: words and meaning (the default), words only, or meaning only. When meaning search is unavailable, the CLI prints `mode: keyword` to stderr (`searchMode` with `--json`). |
 | `--sort newest\|oldest\|relevance\|shuffle`, `--limit`, `--cursor` | Order and paging. `relevance` (Best match, with `--query`) puts the best matches first; the CLI prints `relevance: unranked` when it couldn't score them. |
-| `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). |
+| `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). To get the next page of a shuffle, pass `--sort shuffle`, its seed, and the cursor together, for example `--sort shuffle --seed <n> --cursor <cursor>`: a cursor works only with the seed that issued it. |
 | `--include content,metadata,processing` | Extra fields (`content` by default) |
 | `--all` | Fetch every page |
 
@@ -178,12 +186,13 @@ teak ls --type image --type link --hue blue --date "last month"
 teak search "homepage" --tag design --all --json > cards.json
 ```
 
-The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. Quote the whole search for your shell:
+The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `is:done`, `is:todo`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"…"`, and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. `text:` finds images, videos, links and scanned PDFs by the words Teak read in them. Quote the whole search for your shell:
 
 ```bash
 teak search 'site:github.com tag:design "design system"'
 teak search 'folder:"Reading list" is:fav'
 teak search 'lamp price:>20 price:<100'
+teak search 'text:"total due"'
 teak search "cozy reading nook" --mode semantic
 teak similar <card-id> --type link
 ```

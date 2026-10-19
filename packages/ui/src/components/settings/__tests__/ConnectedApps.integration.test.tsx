@@ -79,9 +79,9 @@ async function mount() {
   root = createRoot(container);
   function Fixture() {
     latest = useSettingsController({
-      onDeleteAccount: async () => {},
-      onOpenExternal: () => {},
-      onSignOut: () => {},
+      onDeleteAccount: async () => undefined,
+      onOpenExternal: () => undefined,
+      onSignOut: () => undefined,
     });
     return (
       <SecurityConnections
@@ -182,7 +182,7 @@ test("cached app retry retains devices and pages separate same-client grants", a
   expect(buttons("Disconnect Raycast")[0].disabled).toBe(true);
   await act(async () => {
     failDisconnect(new Error("Mutation outage"));
-    await rejectedDisconnect.catch(() => {});
+    await rejectedDisconnect.catch(() => undefined);
   });
   expect(region("Connected apps").textContent).toContain("Could not update");
   expect(buttons("Disconnect Raycast")).toHaveLength(2);

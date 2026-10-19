@@ -5,10 +5,8 @@ public enum CardType: String, CaseIterable, Codable, Sendable, Identifiable, Has
 
     public var id: String { rawValue }
 
-    /// Palettes already show their colors as the preview, so their summary leaves them out.
     public var showsSummaryColors: Bool { self != .palette }
 
-    /// "Text", "Link", … (`CARD_TYPE_LABELS`).
     public var label: String { SharedConstants.shared.cardTypeLabels[rawValue] ?? rawValue.capitalized }
 
     public var plural: String {
@@ -38,7 +36,6 @@ public enum CardType: String, CaseIterable, Codable, Sendable, Identifiable, Has
     }
 }
 
-/// One grid tile (`cards:searchMobileCardSummariesPaginated`).
 public struct CardSummary: Decodable, Sendable, Identifiable, Hashable {
     public let id: String
     public let creationTime: Double
@@ -95,6 +92,21 @@ public struct CardSummaryPage: Decodable, Sendable {
         self.page = page
         self.isDone = isDone
         self.continueCursor = continueCursor
+    }
+}
+
+public struct CardSummaryPageResult: Decodable, Sendable {
+    public let page: CardSummaryPage
+    public let splitCursor: String?
+    public let pageStatus: String?
+
+    enum CodingKeys: String, CodingKey { case splitCursor, pageStatus }
+
+    public init(from decoder: any Decoder) throws {
+        page = try CardSummaryPage(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        splitCursor = try container.decodeIfPresent(String.self, forKey: .splitCursor)
+        pageStatus = try container.decodeIfPresent(String.self, forKey: .pageStatus)
     }
 }
 
@@ -227,7 +239,6 @@ public struct LinkPreviewMedia: Codable, Sendable, Hashable {
     }
 }
 
-/// The full card for the detail and edit screens (`cards:getCard`).
 public struct Card: Decodable, Sendable, Identifiable, Hashable {
     public let id: String
     public let creationTime: Double
@@ -336,7 +347,6 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
     public var deleted: Bool { isDeleted == true }
 }
 
-/// `auth:getCurrentUser`.
 public struct CurrentUser: Decodable, Sendable, Hashable {
     public let id: String
     public let email: String
@@ -372,7 +382,6 @@ public struct CurrentUser: Decodable, Sendable, Hashable {
     }
 }
 
-/// `auth:getAuthMode`: whether sign-up is open and which WorkOS client signs in.
 public struct AuthMode: Codable, Sendable, Hashable {
     public let primary: String
     public let signupsDisabled: Bool
@@ -384,7 +393,6 @@ public struct AuthMode: Codable, Sendable, Hashable {
         self.authKitClientId = authKitClientId
     }
 
-    /// Anything but a WorkOS mode with a well-formed client ID is rejected.
     public static func parse(_ data: Data) throws -> AuthMode {
         guard let mode = try? JSONDecoder().decode(AuthMode.self, from: data),
               mode.primary == "workos",
@@ -401,7 +409,6 @@ public enum WorkOSClientID {
     }
 }
 
-/// The color buckets the server can filter by (`COLOR_HUE_BUCKETS`).
 public struct ColorHue: Hashable, Sendable, Identifiable {
     public let id: String
     public var label: String { SharedConstants.shared.colorHueLabels[id] ?? id.capitalized }

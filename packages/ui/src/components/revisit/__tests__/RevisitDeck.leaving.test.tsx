@@ -10,7 +10,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const realCacheHooks = await import("convex-helpers/react/cache/hooks");
 mock.module("convex-helpers/react/cache/hooks", () => ({
   ...realCacheHooks,
-  // No live copy: the deck shows its snapshot.
   useQuery: () => undefined,
 }));
 const { act } = await import("react");
@@ -66,10 +65,8 @@ async function show(deck: RevisitDeck) {
 
 test("the last card of a deck doesn't slide over the next deal", async () => {
   await show(deckState({ current: card("c1", "Last card of the deck") }));
-  // Kept: the end screen.
   await show(deckState({ done: true, kept: 1, move: "keep", position: 1 }));
   expect(document.body.textContent).toContain("All caught up");
-  // "Revisit 20 more" deals a new deck.
   await show(deckState({ current: card("c2", "First card of the next deal") }));
   expect(document.body.textContent).toContain("First card of the next deal");
   expect(document.body.textContent).not.toContain("Last card of the deck");

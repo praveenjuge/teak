@@ -13,7 +13,7 @@ test("release observation retries only a transient missing run", async () => {
             stdout: "",
           }
         : { status: 0, stderr: "", stdout: "" },
-    wait: async () => {},
+    wait: () => Promise.resolve(),
   });
   expect(observations).toBe(2);
 });
@@ -43,7 +43,7 @@ test("permanently missing release observation has a bounded retry window", async
           stdout: "",
         };
       },
-      wait: async () => {},
+      wait: () => Promise.resolve(),
     })
   ).rejects.toThrow("HTTP 404");
   expect(observations).toBe(15);

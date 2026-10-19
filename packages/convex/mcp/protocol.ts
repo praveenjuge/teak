@@ -1,9 +1,3 @@
-// The MCP protocol answers that need no Convex: the tool list, the
-// initialize result and the JSON-RPC envelopes. Pure (no Convex server or
-// zod imports), so the Files Worker answers `initialize`, `ping`,
-// `notifications/*` and `tools/list` at the edge with exactly what
-// mcp/httpServer.ts answers (apps/files-worker/src/mcpEdge.ts).
-
 import { MAX_SOURCE_URL_LENGTH } from "../shared/cardSource";
 import { COLOR_HUE_BUCKETS, VISUAL_STYLE_TAXONOMY } from "../shared/constants";
 import {
@@ -57,7 +51,7 @@ const cardFilterProperties = {
   q: {
     type: "string",
     description:
-      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), and "quoted phrases". Qualifiers combine with the other filters.',
+      'Search text with optional qualifiers: tag:name or #name, type:link, is:fav, is:archived, is:done, is:todo, site:github.com, folder:"Reading list", like:<cardId> (cards similar in meaning to that card), mood:"moody brutalist" (images by mood), price:<100 (also >, <=, >= and =; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs), and "quoted phrases". Qualifiers combine with the other filters.',
   },
   similarTo: {
     type: "string",
@@ -125,7 +119,6 @@ const cardFilterProperties = {
   },
 };
 
-// MCP tool annotations let clients decide when to ask before a call.
 const READ_ONLY = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -154,6 +147,15 @@ export const TEAK_V1_TOOLS = [
     description:
       "Get a card by ID, including AI summary, tags, transcript and processing status.",
     annotations: { title: "Get card", ...READ_ONLY },
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
+  },
+  {
+    name: "teak_v1_get_card_links",
+    description:
+      "Cards this card links to with [[…]] and cards that link to it. Returns { links, backlinks, linksTruncated, backlinksTruncated }, at most 100 of each; a link to a card in Trash, deleted or not yours is missing. To link cards, write [[Title|teak:<cardId>]] in a text card's content.",
+    annotations: { title: "Get card links", ...READ_ONLY },
     inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
       "cardId",
     ]),
@@ -358,7 +360,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only) and "quoted phrases"; tags, folders and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
@@ -476,6 +478,28 @@ export const TEAK_V1_TOOLS = [
       },
       ["cardId", "isArchived"]
     ),
+  },
+  {
+    name: "teak_v1_set_card_done",
+    description:
+      "Mark a link card read, watched, listened, bought, cooked, played or done (the word follows its linkCategory), or not done. Only link cards can be marked; completedAt says when. Find what is left with is:todo and what is finished with is:done.",
+    annotations: { title: "Set done", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema(
+      {
+        cardId: { type: "string", minLength: 1 },
+        done: { type: "boolean" },
+      },
+      ["cardId", "done"]
+    ),
+  },
+  {
+    name: "teak_v1_save_card_pdf",
+    description:
+      "Save an arXiv link card's paper as its own document card, so its text is searchable and the PDF is kept in Teak. Saving the same link again returns that document (created: false). Fails with INVALID_INPUT when the card has no PDF (not an arXiv link, or a withdrawn paper) and IN_PROGRESS while another save of it runs. Counts toward the card limit.",
+    annotations: { title: "Save PDF", ...IDEMPOTENT_WRITE },
+    inputSchema: inputSchema({ cardId: { type: "string", minLength: 1 } }, [
+      "cardId",
+    ]),
   },
   {
     name: "teak_v1_list_folders",
@@ -630,7 +654,6 @@ export const jsonRpcError = (
   error: { code, message },
 });
 
-/** The `initialize` result: the client's protocol version is echoed. */
 export const buildInitializeResult = (params: unknown) => ({
   protocolVersion:
     typeof (params as { protocolVersion?: unknown } | null)?.protocolVersion ===
@@ -641,16 +664,21 @@ export const buildInitializeResult = (params: unknown) => ({
   serverInfo: MCP_SERVER_INFO,
 });
 
+export type ProtocolAnswer =
+  | { kind: "reply"; reply: JsonObject }
+  | { kind: "noReply" }
+  | { kind: "needsConvex" };
+
+const NO_REPLY: ProtocolAnswer = { kind: "noReply" };
+const NEEDS_CONVEX: ProtocolAnswer = { kind: "needsConvex" };
+
 /**
- * Answers a JSON-RPC message that needs no Convex. `null` means no reply
- * (a notification); `undefined` means the message needs Convex (a tool call,
- * an unknown method or an invalid message).
+ * Answers a JSON-RPC message that needs no Convex. A notification gets no
+ * reply; a tool call, an unknown method or an invalid message needs Convex.
  */
-export const answerProtocolMessage = (
-  message: unknown
-): JsonObject | null | undefined => {
+export const answerProtocolMessage = (message: unknown): ProtocolAnswer => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
-    return;
+    return NEEDS_CONVEX;
   }
   const rpc = message as {
     id?: null | number | string;
@@ -659,20 +687,25 @@ export const answerProtocolMessage = (
     params?: unknown;
   };
   if (rpc.jsonrpc !== "2.0" || typeof rpc.method !== "string") {
-    return;
+    return NEEDS_CONVEX;
   }
   if (rpc.method.startsWith("notifications/")) {
-    return null;
+    return NO_REPLY;
   }
   switch (rpc.method) {
     case "initialize":
-      return jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params));
-    // MCP's ping answers an empty result.
+      return {
+        kind: "reply",
+        reply: jsonRpcResponse(rpc.id, buildInitializeResult(rpc.params)),
+      };
     case "ping":
-      return jsonRpcResponse(rpc.id, {});
+      return { kind: "reply", reply: jsonRpcResponse(rpc.id, {}) };
     case "tools/list":
-      return jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS });
+      return {
+        kind: "reply",
+        reply: jsonRpcResponse(rpc.id, { tools: TEAK_V1_TOOLS }),
+      };
     default:
-      return;
+      return NEEDS_CONVEX;
   }
 };

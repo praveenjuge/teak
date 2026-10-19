@@ -46,7 +46,15 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   if ((${#stray[@]} > 0)); then
     printf 'Warning: this cloud environment exports %s. They override the dotenv files bun run dev writes; remove them from the environment settings (only CONVEX_DEPLOY_KEY is needed) or unset them for the command. See .agents/cloud.md.\n' "${stray[*]}"
   fi
+  # The image ships Docker without running it; the Files Worker's Containers
+  # need it (.agents/cloud.md, "Containers"). Processes aren't cached with the
+  # setup script's snapshot, so start it each session.
+  .agents/hooks/start-docker.sh || true
 fi
+
+# Stdout becomes the agent's context, so every session starts knowing that
+# work ends with proof (AGENTS.md, Verification).
+printf '%s\n' 'Every change ends with proof: follow .agents/skills/principle-prove-it-works, and for anything a user can observe, .agents/skills/verify-teak (launch, doctor, drive the touched features, keep the evidence, update features/ for new or changed features). See AGENTS.md, Verification.'
 
 command -v bun >/dev/null 2>&1 || exit 0
 bun --no-env-file scripts/dev.ts --status 2>/dev/null || true

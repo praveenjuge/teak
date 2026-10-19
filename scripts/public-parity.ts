@@ -1,9 +1,3 @@
-// Which public surface exposes each public API operation. The parity test
-// (public-parity.test.ts) checks this table against the OpenAPI document,
-// the MCP tools, the SDK client and the CLI command tree, and calls every
-// MCP tool and SDK method to prove it reaches the operation listed here.
-// Run this file to print the table: `bun scripts/public-parity.ts`.
-
 export interface IntentionalGap {
   none: string;
 }
@@ -115,9 +109,17 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   {
     operationId: "getCard",
     feature: "Get a card",
-    mcp: ["teak_v1_get_card", "fetch"],
-    sdk: ["cards.get"],
-    cli: ["cards get", "cards open", "cards download", "open", "download"],
+    mcp: ["teak_v1_get_card", "teak_v1_get_card_links", "fetch"],
+    sdk: ["cards.get", "cards.links"],
+    cli: [
+      "cards get",
+      "cards links",
+      "cards open",
+      "cards download",
+      "links",
+      "open",
+      "download",
+    ],
   },
   {
     operationId: "updateCard",
@@ -182,6 +184,31 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     mcp: ["teak_v1_reset_card_thumbnail"],
     sdk: ["cards.resetThumbnail"],
     cli: ["cards thumbnail"],
+  },
+  {
+    operationId: "markCardDone",
+    feature: "Mark a link done",
+    mcp: ["teak_v1_set_card_done"],
+    sdk: ["cards.setDone"],
+    cli: ["cards done", "done"],
+  },
+  {
+    operationId: "unmarkCardDone",
+    feature: "Unmark a link done",
+    mcp: {
+      none: "teak_v1_set_card_done with done: false calls it; one tool sets both states",
+    },
+    sdk: {
+      none: "cards.setDone(id, false) calls it; one method sets both states",
+    },
+    cli: ["cards done", "done"],
+  },
+  {
+    operationId: "saveCardPdf",
+    feature: "Save a paper's PDF",
+    mcp: ["teak_v1_save_card_pdf"],
+    sdk: ["cards.savePdf"],
+    cli: ["cards save-pdf"],
   },
   {
     operationId: "setCardFavorite",

@@ -186,6 +186,57 @@ export function ImportProgressSummary({
   );
 }
 
+interface PendingImport {
+  file: File;
+  mode: ImportMode;
+}
+
+export type ImportPanelState =
+  | { kind: "idle" }
+  | { kind: "confirming"; pending: PendingImport; resume: boolean }
+  | { kind: "interrupted"; job: ImportJob }
+  | { kind: "running"; job: ImportJob };
+
+function uploadStartingJob(mode: ImportMode): ImportJob {
+  return {
+    id: "pending",
+    mode,
+    status: "uploading",
+    phase: "Uploading",
+    parsedCount: 0,
+    processedCount: 0,
+    createdCount: 0,
+    skippedCount: 0,
+    failedCount: 0,
+    reportAvailable: false,
+    updatedAt: Date.now(),
+  };
+}
+
+export function importPanelState(
+  job: ImportJob | null,
+  transporting: boolean,
+  pending: PendingImport | null
+): ImportPanelState {
+  const uploadInterrupted = job?.status === "uploading" && !transporting;
+  if (job && isActive(job.status) && !uploadInterrupted) {
+    return { kind: "running", job };
+  }
+  if (transporting) {
+    return {
+      kind: "running",
+      job: uploadStartingJob(job?.mode ?? "bookmarks"),
+    };
+  }
+  if (pending) {
+    return { kind: "confirming", pending, resume: uploadInterrupted };
+  }
+  if (job && uploadInterrupted) {
+    return { kind: "interrupted", job };
+  }
+  return { kind: "idle" };
+}
+
 function errorMessage(error: unknown, fallback = "Import could not start") {
   if (error && typeof error === "object" && "data" in error) {
     const data = (error as { data?: { message?: unknown } }).data;
@@ -218,23 +269,13 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const observedImportIdRef = useRef<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number>();
   const [transporting, setTransporting] = useState(false);
-  const [pending, setPending] = useState<{
-    file: File;
-    mode: ImportMode;
-  } | null>(null);
+  const [pending, setPending] = useState<PendingImport | null>(null);
 
   const job = latest ?? null;
-  // A persisted "uploading" status only advances while this client is PUTting
-  // parts, so an uploading job with no local transfer running means the upload
-  // was interrupted (e.g. a page reload) and can be resumed. Server-driven
-  // phases stay active regardless of this client.
-  const serverProcessing =
-    job?.status === "queued" ||
-    job?.status === "parsing" ||
-    job?.status === "importing";
-  const active = transporting || serverProcessing;
-  const isResuming = job?.status === "uploading" && !transporting;
-  const terminalFailure = job ? describeFailure(job) : null;
+  const state = importPanelState(job, transporting, pending);
+  const running = state.kind === "running";
+  const finishedJob = !running && job && !isActive(job.status) ? job : null;
+  const terminalFailure = finishedJob ? describeFailure(finishedJob) : null;
 
   const failureSamples = useQuery(
     api.dataImport.getImportFailureSamples,
@@ -396,46 +437,27 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     }
   };
 
-  const showIdle = !(active || pending || isResuming);
-  const showModes = showIdle && !isResuming;
-  // Only surface the "last import" summary when at rest — not while a new
-  // import is starting up.
-  const terminal = !active && job && !isActive(job.status) ? job : null;
-  // Keep the last-import row permanently mounted (in the resting state) so it
-  // doesn't pop in a second after the query resolves.
   const lastLoading = latest === undefined;
-  const lastText = latest ? describeImport(latest) : "No imports yet.";
-  // While the upload is being kicked off, `getLatestImport` may still return the
-  // previous (terminal) job for a beat. Show an "Uploading" placeholder until
-  // the server reflects the new active job so we never flash a stale phase like
-  // "Import failed".
-  const progressJob: ImportJob = isActive(job?.status)
-    ? (job as ImportJob)
-    : {
-        id: job?.id ?? "pending",
-        mode: pending?.mode ?? job?.mode ?? "bookmarks",
-        status: "uploading",
-        phase: "Uploading",
-        parsedCount: 0,
-        processedCount: 0,
-        createdCount: 0,
-        skippedCount: 0,
-        failedCount: 0,
-        reportAvailable: false,
-        updatedAt: Date.now(),
-      };
+  let lastText = "No imports yet.";
+  if (lastLoading) {
+    lastText = "Loading last import details…";
+  } else if (latest) {
+    lastText = describeImport(latest);
+  }
 
   return (
     <div className="min-w-0 space-y-4 text-sm">
-      {pending ? (
+      {state.kind === "confirming" ? (
         <div className="space-y-4 rounded-xl border p-4">
           <div className="flex min-w-0 items-center gap-3">
             <SettingsIconTile icon={FileText} />
             <div className="min-w-0">
-              <div className="truncate font-medium">{pending.file.name}</div>
+              <div className="truncate font-medium">
+                {state.pending.file.name}
+              </div>
               <div className="text-muted-foreground text-xs leading-5">
-                {IMPORT_SOURCES[pending.mode].title} ·{" "}
-                {formatBytes(pending.file.size)}
+                {IMPORT_SOURCES[state.pending.mode].title} ·{" "}
+                {formatBytes(state.pending.file.size)}
               </div>
             </div>
           </div>
@@ -448,18 +470,17 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               Cancel
             </Button>
             <Button onClick={confirmPending} size="sm">
-              {isResuming ? "Resume upload" : "Start import"}
+              {state.resume ? "Resume upload" : "Start import"}
             </Button>
           </div>
         </div>
       ) : null}
 
-      {showModes ? (
+      {state.kind === "idle" ? (
         <div className="space-y-3 rounded-xl border p-4">
           <div className="space-y-1.5">
             <Label htmlFor="import-source">Import from</Label>
             <Select
-              disabled={active}
               onValueChange={(value) => setSource(value as ImportMode)}
               value={source}
             >
@@ -479,23 +500,19 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               {formatBytes(IMPORT_SOURCES[source].maxBytes)}.
             </p>
           </div>
-          <Button
-            disabled={active}
-            onClick={() => fileInput.current?.click()}
-            size="sm"
-          >
+          <Button onClick={() => fileInput.current?.click()} size="sm">
             <Upload />
             Choose file
           </Button>
         </div>
       ) : null}
 
-      {isResuming && !(active || pending) ? (
+      {state.kind === "interrupted" ? (
         <div className="space-y-2 rounded-xl border p-4">
           <div className="font-medium">Upload interrupted</div>
           <div className="text-muted-foreground">
-            Choose the same {IMPORT_SOURCES[job.mode].title} file to resume
-            where it left off.
+            Choose the same {IMPORT_SOURCES[state.job.mode].title} file to
+            resume where it left off.
           </div>
           <Button
             onClick={() => resumeInput.current?.click()}
@@ -525,25 +542,22 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         type="file"
       />
 
-      {active ? (
-        <ImportProgressSummary
-          job={progressJob}
-          uploadPercent={uploadPercent}
-        />
+      {state.kind === "running" ? (
+        <ImportProgressSummary job={state.job} uploadPercent={uploadPercent} />
       ) : null}
 
-      {active || isResuming ? (
+      {running ||
+      state.kind === "interrupted" ||
+      (state.kind === "confirming" && state.resume) ? (
         <Button onClick={() => void cancel()} size="sm" variant="outline">
           Cancel import
         </Button>
       ) : null}
 
-      {showIdle ? (
+      {state.kind === "idle" ? (
         <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
           {lastLoading ? <Spinner className="size-4" /> : null}
-          <span className="min-w-0 break-words">
-            {lastLoading ? "Loading last import details…" : lastText}
-          </span>
+          <span className="min-w-0 break-words">{lastText}</span>
         </div>
       ) : null}
 
@@ -554,7 +568,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         </div>
       ) : null}
 
-      {terminal && failureSamples && failureSamples.length > 0 ? (
+      {finishedJob && failureSamples && failureSamples.length > 0 ? (
         <div className="min-w-0 space-y-1.5">
           <div className="font-medium">Items that couldn't be imported</div>
           <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
@@ -576,7 +590,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         </div>
       ) : null}
 
-      {!active && job?.reportAvailable ? (
+      {!running && job?.reportAvailable ? (
         <div className="flex min-w-0 flex-wrap gap-2">
           <Button
             className="min-w-0"

@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createWriteStream, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { WorkOS } from "@workos-inc/node";
 import {
@@ -24,6 +24,7 @@ import {
   selectStaleCloudAccounts,
 } from "./lib/dev-account.ts";
 import {
+  recordStartingStack,
   type StackState,
   stackStatePath,
   stopGroup,
@@ -186,9 +187,7 @@ export const startDevStack = async (
   });
   pipe(web);
 
-  // Recorded now, not once ready, so a stack whose owner dies while it
-  // starts can still be found and stopped (stopOrphanedStack).
-  const state: StackState = {
+  const { save: writeState, state } = recordStartingStack(ROOT, {
     mode: "dev",
     groups: web.pid ? [web.pid] : [],
     pid: process.pid,
@@ -199,13 +198,8 @@ export const startDevStack = async (
       apiOrigin: DEV_DEPLOYMENT_URLS.convexSiteUrl,
     },
     pushing: false,
-    ready: false,
     logPath: DEV_LOG_PATH,
-    startedAt: new Date().toISOString(),
-  };
-  const writeState = () =>
-    writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
-  writeState();
+  });
 
   let stopping = false;
   let finish: () => void = () => undefined;
@@ -338,7 +332,7 @@ export const startDevStack = async (
     throw error;
   }
 
-  const env = loadTargetEnv("web", "local").values;
+  const env = loadTargetEnv("web").values;
   const workos = {
     apiKey: env.get("WORKOS_API_KEY") ?? "",
     clientId: env.get("WORKOS_CLIENT_ID") ?? "",

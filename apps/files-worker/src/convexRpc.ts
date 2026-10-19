@@ -5,6 +5,7 @@ import {
   normalizeConvexSiteUrl,
   parseConvexSiteUrls,
   WORKFLOW_RPC_HEADERS,
+  WORKFLOW_RPC_MAX_TTL_SECONDS,
   WORKFLOW_RPC_PATH,
   type WorkflowRpcGuard,
   type WorkflowRpcKind,
@@ -19,30 +20,14 @@ import {
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { hmacSha256Hex, sha256Hex } from "./lib";
 
-/**
- * Workflow steps and queue consumers read and write Convex through its
- * signed workflow RPC gateway (`packages/convex/workflowGateway.ts`), one
- * allowlisted internal function per call.
- */
-
 export interface ConvexRpcEnv {
-  /**
-   * The Convex deployments (HTTP actions origins, `*.convex.site`) this
-   * Worker serves, comma-separated. The first is the primary one.
-   */
   CONVEX_SITE_URLS?: string;
-  /**
-   * Root of every deployment's workflow RPC secret. Only the Worker holds it;
-   * each deployment holds its own derived secret (`workflowRpcSecret`).
-   */
   WORKFLOW_RPC_ROOT_SECRET?: string;
 }
 
-/** The deployments this Worker serves. */
 export const convexSiteUrls = (env: ConvexRpcEnv): string[] =>
   parseConvexSiteUrls(env.CONVEX_SITE_URLS);
 
-/** The origin when this Worker serves it, else null. */
 export const allowedConvexSiteUrl = (
   env: ConvexRpcEnv,
   value: unknown
@@ -51,11 +36,6 @@ export const allowedConvexSiteUrl = (
   return origin && convexSiteUrls(env).includes(origin) ? origin : null;
 };
 
-/**
- * The secret one deployment signs and verifies workflow RPCs and dispatch
- * proofs with. Deriving it per origin means the development deployment's
- * secret never works for production.
- */
 export const workflowRpcSecret = async (
   env: ConvexRpcEnv,
   convexSiteUrl: string
@@ -67,8 +47,7 @@ export const workflowRpcSecret = async (
       )
     : null;
 
-/** Signed RPCs stay valid this long; the gateway allows at most 5 minutes. */
-const RPC_TTL_SECONDS = 120;
+const RPC_TTL_SECONDS = Math.min(120, WORKFLOW_RPC_MAX_TTL_SECONDS);
 const RPC_TIMEOUT_MS = 60_000;
 /**
  * Convex lets an action run for 10 minutes; a long one (the vector ledger
@@ -76,13 +55,11 @@ const RPC_TIMEOUT_MS = 60_000;
  */
 const ACTION_RPC_TIMEOUT_MS = 10 * 60_000 + 30_000;
 
-/** The gateway refused a write for a card this run no longer owns. */
 const NON_RETRYABLE_CODES = new Set([
   "card_missing",
   "stale_processing_revision",
 ]);
 
-/** A Convex function threw; `code` is its ConvexError code, when it had one. */
 export class ConvexRpcError extends Error {
   readonly code: string | undefined;
   readonly data: unknown;
@@ -113,7 +90,6 @@ export interface ConvexRpc {
   ) => Promise<FunctionReturnType<Ref>>;
 }
 
-/** An RPC client for one of the deployments this Worker serves. */
 export const createConvexRpc = (
   env: ConvexRpcEnv,
   convexSiteUrl: string,
@@ -170,8 +146,6 @@ export const createConvexRpc = (
     }
     if (response.status === 401 || response.status === 403) {
       await response.body?.cancel().catch(() => undefined);
-      // A wrong secret or a function missing from the allowlist won't fix
-      // itself on retry.
       throw new NonRetryableError(
         `convex_rpc_refused:${name}:${String(response.status)}`
       );

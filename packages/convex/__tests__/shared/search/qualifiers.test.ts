@@ -3,8 +3,11 @@ import {
   combineSearchQueries,
   describePriceBound,
   formatSearchQualifier,
+  matchesDoneState,
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
+  type PriceBound,
   parseSearchQuery,
   renameFolderInSearchQuery,
 } from "../../../shared/search/qualifiers";
@@ -47,6 +50,11 @@ describe("parseSearchQuery", () => {
     ["is:favourites", "favorite", true],
     ["is:starred", "favorite", true],
     ["is:archived", "archived", true],
+    ["is:done", "done", true],
+    ["is:Completed", "done", true],
+    ["is:finished", "done", true],
+    ["is:todo", "todo", true],
+    ["is:to-do", "todo", true],
     ["is:nope", "terms", ["is:nope"]],
     ["site:www.Example.com", "sites", ["example.com"]],
     ["site:https://example.com/path:8080", "sites", ["example.com"]],
@@ -66,6 +74,14 @@ describe("parseSearchQuery", () => {
     ["tag:a tag:A #a", "tags", ["a"]],
     ["site:a.com site:b.com", "sites", ["a.com", "b.com"]],
     ["🎨 #🎨", "tags", ["🎨"]],
+    ["text:4411", "ocrTexts", ["4411"]],
+    ['TEXT:"Total  Due"', "ocrTexts", ["Total Due"]],
+    ["text:Total text:total", "ocrTexts", ["Total"]],
+    ["text:a text:b", "ocrTexts", ["a", "b"]],
+    ["text:", "terms", []],
+    ['text:"  "', "ocrTexts", []],
+    ["text:4411", "text", ""],
+    ["text:東京駅", "ocrTexts", ["東京駅"]],
   ])("%s → %s %p", (input: string, field: string, expected: unknown) => {
     expect(parseSearchQuery(input)[field as "tags"]).toEqual(
       expected as string[]
@@ -130,8 +146,7 @@ describe("parseSearchQuery", () => {
     ).toBe('is:fav site:例え.jp tag:design "a b" notes');
   });
 
-  test.each([
-    // [input, prices, canonical]
+  test.each<[input: string, prices: PriceBound[], canonical: string]>([
     ["price:<100", [{ op: "<", amount: 100 }], "price:<100"],
     ["PRICE:>20", [{ op: ">", amount: 20 }], "price:>20"],
     ["price:<=9.99", [{ op: "<=", amount: 9.99 }], "price:<=9.99"],
@@ -147,16 +162,13 @@ describe("parseSearchQuery", () => {
       ],
       "price:>20 price:<100",
     ],
-  ])(
-    "reads %p as price bounds",
-    (input: string, prices: unknown, canonical: string) => {
-      const parsed = parseSearchQuery(input);
-      expect(parsed.prices).toEqual(prices as typeof parsed.prices);
-      expect(parsed.terms).toEqual([]);
-      expect(parsed.canonical).toBe(canonical);
-      expect(parseSearchQuery(parsed.canonical).prices).toEqual(parsed.prices);
-    }
-  );
+  ])("reads %p as price bounds", (input, prices, canonical) => {
+    const parsed = parseSearchQuery(input);
+    expect(parsed.prices).toEqual(prices);
+    expect(parsed.terms).toEqual([]);
+    expect(parsed.canonical).toBe(canonical);
+    expect(parseSearchQuery(parsed.canonical).prices).toEqual(parsed.prices);
+  });
 
   test.each([
     "price:abc",
@@ -192,6 +204,29 @@ describe("parseSearchQuery", () => {
   });
 });
 
+describe("text:", () => {
+  test("keeps its value's case and quotes in the canonical form", () => {
+    expect(
+      parseSearchQuery('receipt text:"Total due" text:4411').canonical
+    ).toBe('text:"Total due" text:4411 receipt');
+    expect(formatSearchQualifier({ key: "text", value: 'say "hi"' })).toBe(
+      'text:"say \\"hi\\""'
+    );
+  });
+
+  test("is a filter, not words to search by meaning", () => {
+    expect(semanticQueryText(parseSearchQuery("text:invoice"))).toBe("");
+  });
+
+  test("every value must appear in the image text, across line breaks", () => {
+    const text = "ACME\nInvoice 4411\nTotal   DUE";
+    expect(matchesImageText(text, ["total due", "4411"])).toBe(true);
+    expect(matchesImageText(text, ["4411", "tokyo"])).toBe(false);
+    expect(matchesImageText(undefined, ["4411"])).toBe(false);
+    expect(matchesImageText(undefined, [])).toBe(true);
+  });
+});
+
 describe("matchesSearchPhrases", () => {
   test("every phrase must appear, ignoring case", () => {
     expect(
@@ -219,11 +254,15 @@ describe("combineSearchQueries", () => {
     ["site:a.com site:b.com", "site:B.com", "site:b.com"],
     ["type:link", "site:a.com", "type:link site:a.com"],
     ["tag:x tag:x", "#X", "tag:x"],
-    // Price bounds add up, so a smart folder's bound and a typed one make
-    // a range.
     ["price:<100", "price:>20", "price:<100 price:>20"],
     ["price:<100", "price:<100 lamp", "price:<100 lamp"],
     ["type:link price:<100", "", "price:<100 type:link"],
+    ["text:invoice", "text:4411 acme", "text:invoice text:4411 acme"],
+    [
+      'is:todo folder:"Reading list"',
+      "is:done",
+      'is:todo folder:"Reading list" is:done',
+    ],
   ])("%j with %j", (scope: string, typed: string, combined: string) => {
     expect(combineSearchQueries(scope, typed)).toBe(combined);
   });
@@ -329,7 +368,6 @@ describe("like: and mood:", () => {
     expect(parseSearchQuery(`like:${ID} mood:calm`).terms).toEqual([
       "mood:calm",
     ]);
-    // The same anchor twice is one anchor.
     expect(parseSearchQuery(`like:${ID} like:${ID}`).terms).toEqual([]);
   });
 
@@ -342,10 +380,37 @@ describe("like: and mood:", () => {
     expect(combineSearchQueries("type:link", `like:${ID}`)).toBe(
       `like:${ID} type:link`
     );
-    // The same mood in another case is the same anchor.
     expect(combineSearchQueries('mood:"Calm  Blue"', 'mood:"calm blue"')).toBe(
       'mood:"Calm Blue"'
     );
     expect(parseSearchQuery("mood:Calm mood:calm").terms).toEqual([]);
+  });
+});
+
+describe("is:done and is:todo", () => {
+  test("write the one canonical way", () => {
+    expect(parseSearchQuery("IS:Finished is:TO-DO lamp").canonical).toBe(
+      "is:done is:todo lamp"
+    );
+  });
+
+  const link = (category: string | undefined, completedAt?: number) => ({
+    completedAt,
+    metadata: category ? { linkCategory: { category } } : undefined,
+  });
+
+  test.each([
+    ["a done film", link("movie", 1), { done: true }, true],
+    ["a film to watch", link("movie"), { done: true }, false],
+    ["a film to watch", link("movie"), { todo: true }, true],
+    ["a done film", link("movie", 1), { todo: true }, false],
+    ["a repository", link("repo"), { todo: true }, false],
+    ["a done repository", link("repo", 1), { done: true }, true],
+    ["a link with no category yet", link(undefined), { todo: true }, false],
+    ["anything", link("movie"), {}, true],
+  ])("%s with %j", (_name, card, query, matches) => {
+    expect(matchesDoneState(card, { done: false, todo: false, ...query })).toBe(
+      matches
+    );
   });
 });

@@ -34,8 +34,6 @@ private struct Unavailable: View {
     }
 }
 
-// MARK: Image
-
 struct ImagePreview: View {
     let card: Card
     static let maxHeight = 440.0
@@ -111,8 +109,6 @@ struct AnimatedImage: View {
     }
 }
 
-// MARK: Video
-
 struct VideoPreview: View {
     let card: Card
     @State private var player: AVPlayer?
@@ -150,8 +146,6 @@ struct VideoPreview: View {
         return width / height
     }
 }
-
-// MARK: Audio
 
 @MainActor @Observable
 final class AudioPlayback {
@@ -265,8 +259,6 @@ struct AudioPreview: View {
     }
 }
 
-// MARK: Document
-
 struct DocumentPreview: View {
     let card: Card
     @Environment(\.openURL) private var openURL
@@ -345,8 +337,6 @@ extension PDFPreview {
     }
 }
 
-// MARK: Palette
-
 struct PalettePreview: View {
     let card: Card
     @State private var copied = 0
@@ -379,8 +369,6 @@ struct PalettePreview: View {
     }
 }
 
-// MARK: Link
-
 struct LinkPreviewView: View {
     let card: Card
     @Environment(\.openURL) private var openURL
@@ -408,8 +396,6 @@ struct LinkPreviewView: View {
         }
     }
 }
-
-// MARK: Quote
 
 struct QuotePreview: View {
     let card: Card

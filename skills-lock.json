@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "cloudflare-email-service": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "skillPath": "skills/cloudflare-email-service/SKILL.md",
+      "computedHash": "ab3734ed36339d1f7c48de02fedd9e42da4f7eee2950a3f094d91cfec604b8d8"
+    },
     "convex": {
       "source": "get-convex/agent-skills",
       "sourceType": "github",
@@ -37,11 +43,35 @@
       "skillPath": "skills/convex-setup-auth/SKILL.md",
       "computedHash": "b1a940758751c5b2fdc6ced105b19927a1655f0c1d4bd2fd5536dc3264202c00"
     },
+    "create-verification-skill": {
+      "source": "cursor/plugins",
+      "sourceType": "github",
+      "skillPath": "harness/pstack/claude-code/skills/create-verification-skill/SKILL.md",
+      "computedHash": "8eff1bcd42739eaf76717d042c2ec22251cea022863e54901728b575b9c4eb52"
+    },
+    "durable-objects": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "skillPath": "skills/durable-objects/SKILL.md",
+      "computedHash": "f328205f9d11381902a160ace4622cd1ac9602acba00b091f6d63f59a6869900"
+    },
     "e2e": {
       "source": "tester-army/e2e",
       "sourceType": "github",
       "skillPath": "skills/e2e/SKILL.md",
       "computedHash": "9ace6b1a3375a1fdeb7ba5bcc3bd6f2cafabeccc8f0d41c3f7e5657ade054e18"
+    },
+    "maintain-verification-skill": {
+      "source": "cursor/plugins",
+      "sourceType": "github",
+      "skillPath": "harness/pstack/claude-code/skills/maintain-verification-skill/SKILL.md",
+      "computedHash": "515e7ca21ff18f2cc0daf26243e1a4f41e2f7b73490fa5e116e7c73cf7a5eb6e"
+    },
+    "principle-prove-it-works": {
+      "source": "cursor/plugins",
+      "sourceType": "github",
+      "skillPath": "harness/pstack/claude-code/skills/principle-prove-it-works/SKILL.md",
+      "computedHash": "b9ecbfdbfb6d4207c2158a25228793c196870a5865bba432d169de7e375246c6"
     },
     "shadcn": {
       "source": "shadcn/ui",
@@ -53,11 +83,23 @@
       "sourceType": "github",
       "computedHash": "3cb96bbf386ec392fcc27d5f5973657cf00b06464958ee5d07a79b8601ac7f82"
     },
+    "workers-best-practices": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "skillPath": "skills/workers-best-practices/SKILL.md",
+      "computedHash": "e12970301753ed7eaa5ca375d4b98e0e36c9554e8f2809cb4b543c2ea7d9b4b8"
+    },
     "workos": {
       "source": "workos/skills",
       "sourceType": "github",
       "skillPath": "plugins/workos/skills/workos/SKILL.md",
       "computedHash": "38717cb09eff2924866cd4d0ed73bc1889775b85ff22c78e92870245be19392f"
+    },
+    "wrangler": {
+      "source": "cloudflare/skills",
+      "sourceType": "github",
+      "skillPath": "skills/wrangler/SKILL.md",
+      "computedHash": "9b410cfe14c41d3d4ace5d42e2e19f4eb96104c659b5ed45abf341db28d81029"
     }
   }
 }

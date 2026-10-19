@@ -8,32 +8,22 @@ import {
   type CardProcessingDeps,
   createCardProcessingDeps,
 } from "../workflows/cardProcessing/context";
+import { readLinkImageText } from "../workflows/cardProcessing/linkText";
 import { generateCardMetadata } from "../workflows/cardProcessing/metadata";
+import { transcribePodcastEpisode } from "../workflows/cardProcessing/podcast";
 import { isSuperseded } from "../workflows/cardProcessing/run";
 import { captureScreenshotStep } from "../workflows/cardProcessing/screenshot";
 import type { BackgroundEnv } from "../workflows/runtime";
 import { withWorkflowTelemetry } from "../workflows/telemetry";
 
-// Cards whose first processing run left their AI metadata for later (Workers
-// AI was busy, its output never validated, AI was paused). Every 6 hours the
-// cron claims a batch per deployment; Convex counts each claim and gives a
-// card up after a day of attempts.
-
-/** One card whose AI metadata the backfill should (re)generate. */
 export interface AiBackfillMessage {
   cardId: string;
   convexSiteUrl: string;
-  /** The card's processing revision when it was claimed. */
   rev: number;
 }
 
-/** Deliveries a message gets (wrangler.jsonc `max_retries` + 1). */
-const MAX_DELIVERIES = 11;
+export const MAX_DELIVERIES = 11;
 
-/**
- * Claims the cards one deployment still needs AI metadata for and queues
- * them. Returns how many were queued.
- */
 export const enqueueAiBackfill = async (
   env: BackgroundEnv,
   convexSiteUrl: string,
@@ -41,7 +31,6 @@ export const enqueueAiBackfill = async (
 ): Promise<number> => {
   const queue = env.AI_BACKFILL;
   if (!queue) {
-    // Claiming without a queue would spend the cards' attempts on nothing.
     throw new Error("ai_backfill_queue_missing");
   }
   const { convex } = createCardProcessingDeps(env, convexSiteUrl, overrides);
@@ -70,7 +59,6 @@ export const enqueueAiBackfill = async (
         )
       );
     } catch (error) {
-      // Nothing was queued: give the cards back the attempt the claim took.
       await convex
         .mutation(internal.ai.backfill.releaseAiBackfillCards, {
           cardIds: cards.map(({ cardId }: { cardId: Id<"cards"> }) => cardId),
@@ -125,8 +113,6 @@ const runMessage = async (
       restorePendingOnDefer: false,
     })
   );
-  // A link's screenshot waits for its AI metadata, as in card processing:
-  // one attempt here, recorded on the screenshot stage either way.
   if (result.mode === "completed" && result.cardType === "link") {
     await captureScreenshotStep(job, 1, { lastAttempt: true }).catch(
       (error: unknown) => {
@@ -139,14 +125,38 @@ const runMessage = async (
         });
       }
     );
+    await readLinkImageText(job).catch((error: unknown) => {
+      if (isSuperseded(error)) {
+        return;
+      }
+      console.warn("[aiBackfill] link image text failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    // A podcast episode, which card processing left untranscribed while its
+    // AI metadata waited; one attempt, never failing the message.
+    await withWorkflowTelemetry(env, (telemetry) =>
+      transcribePodcastEpisode(job, telemetry, { keepTranscript: true })
+    ).then(
+      (outcome) =>
+        console.log("[aiBackfill] podcast transcript", {
+          cardId: job.cardId,
+          ...outcome,
+        }),
+      (error: unknown) => {
+        if (isSuperseded(error)) {
+          return;
+        }
+        console.warn("[aiBackfill] podcast transcript failed", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    );
   }
 };
 
-/**
- * Regenerates AI metadata one card at a time. Workers AI capacity retries
- * the message later, a minute more each time; other failures retry on the
- * queue's schedule. A card edited since it was claimed is dropped.
- */
 export const handleAiBackfillBatch = async (
   batch: MessageBatch<AiBackfillMessage>,
   env: BackgroundEnv,

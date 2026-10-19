@@ -2,9 +2,6 @@ import { describe, expect, mock, test } from "bun:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// NOTE: bun:test's mock.module() registrations leak across test files that run
-// in the same `bun test` process. Every factory below spreads the real module
-// so a leaked mock still exposes the full export surface.
 const realTeakConvex = await import("@teak/convex");
 const realConvexReact = await import("convex/react");
 const realCardUi = await import("@teak/ui/components/ui/card");
@@ -513,6 +510,37 @@ describe("Cards/Card redesign", () => {
     );
     expect(markup).not.toContain("og.jpg");
     expect(markup).toMatch(/Desk lamp<\/p><span[^>]*>\$24\.99<\/span>/);
+  });
+
+  test.each([
+    [true, "product", "Marked as bought"],
+    [false, "product", "Marked as bought"],
+    [true, "article", "Marked as read"],
+    [false, "movie", "Marked as watched"],
+    [true, "a-category-from-the-future", "Marked as done"],
+  ])(
+    "marks a done link, with or without an image (%p, %s)",
+    (withImage, category, label) => {
+      const link = pricedLink({ amount: 24.99, currency: "USD" }, withImage);
+      const card = {
+        ...link,
+        completedAt: 1,
+        metadata: {
+          ...link.metadata,
+          linkCategory: { ...link.metadata?.linkCategory, category },
+        },
+      };
+      const markup = renderToStaticMarkup(<Card card={card as any} />);
+      expect(markup).toContain(`aria-label="${label}"`);
+      expect(markup).toContain('role="img"');
+    }
+  );
+
+  test("shows no done mark on a link that isn't done", () => {
+    const markup = renderToStaticMarkup(
+      <Card card={pricedLink(undefined) as any} />
+    );
+    expect(markup).not.toContain("Marked as");
   });
 
   test("offers open, favorite and more actions on an active card", () => {

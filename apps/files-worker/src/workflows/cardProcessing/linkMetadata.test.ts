@@ -271,6 +271,27 @@ describe("link metadata", () => {
       }
     );
 
+    test("stores a failed preview for a PDF, without retrying", async () => {
+      const { fetch, saved } = setup(linkCard(), {
+        "fetch-link-page": {
+          data: {
+            contentType: "application/pdf",
+            fetched: false,
+            reason: "unsupported_type",
+          },
+        },
+      });
+      expect(await fetch()).toEqual({
+        errorType: "unsupported_type",
+        status: "failed",
+      });
+      expect(saved()?.status).toBe("failed");
+      expect(saved()?.linkPreview.error).toMatchObject({
+        details: { contentType: "application/pdf" },
+        type: "unsupported_type",
+      });
+    });
+
     test.each([
       ["a 429", { reason: "http_error", status: 429 }, /"type":"rate_limit"/],
       [
@@ -279,9 +300,9 @@ describe("link metadata", () => {
         /^(?=.*"type":"scrape_error")(?=.*HTTP 503)/,
       ],
       [
-        "a non-HTML page",
-        { contentType: "application/pdf", reason: "unsupported_type" },
-        /unsupported_type: application\/pdf/,
+        "a JSON reply in place of a page",
+        { contentType: "application/json", reason: "unsupported_type" },
+        /unsupported_type: application\/json/,
       ],
       ["a page over 2 MiB", { reason: "too_large" }, /too_large/],
       ["a failed connection", { reason: "fetch_failed" }, /fetch_failed/],
@@ -377,7 +398,6 @@ describe("link metadata", () => {
           type: "image",
         }),
       ]);
-      // The stored image stands in for og:image; it is not stored twice.
       expect(saved()?.linkPreview).not.toHaveProperty("imageStorageKey");
     });
   });
@@ -403,7 +423,6 @@ describe("link metadata", () => {
       expect(network.requests).toEqual([
         { addresses: [PUBLIC], url: MASTODON_API },
       ]);
-      // The status's own media is stored; its page is never fetched.
       expect(new Set(fakes.opsCalled())).toEqual(
         new Set(["store-remote-asset"])
       );
@@ -533,7 +552,6 @@ describe("link metadata", () => {
       expect(await fetch()).toEqual({ status: "success" });
       expect(fakes.calls).toEqual([]);
       expect(saved()?.linkPreview.title).toBe("just setting up my twttr");
-      // Only X's fixed public hosts, never the status page itself.
       expect(
         requested.every((host) =>
           ["publish.x.com", "cdn.syndication.twimg.com"].includes(host)

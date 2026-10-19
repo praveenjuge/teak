@@ -1,6 +1,5 @@
 /// <reference types="bun" />
 
-/** An in-memory storage area, enough for the modules under test. */
 const memoryArea = (items: Map<string, unknown>) => ({
   get: async (key: string) => (items.has(key) ? { [key]: items.get(key) } : {}),
   remove: (key: string) => {
@@ -15,7 +14,6 @@ const memoryArea = (items: Map<string, unknown>) => ({
   },
 });
 
-/** In-memory `chrome.storage.local` and `.session`; returns the local items. */
 export function installChromeStorage(
   extra: Record<string, unknown> = {}
 ): Map<string, unknown> {

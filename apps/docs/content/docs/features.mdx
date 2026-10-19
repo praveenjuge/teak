@@ -40,11 +40,13 @@ Drag the sidebar's edge to make it wider or narrower, and double-click the edge 
 
 ### Smart search
 
-Search titles, descriptions, tags, transcripts, and the text inside your files.
+Search titles, descriptions, tags, transcripts, the text inside your files, and the words in your images.
 
 Search finds cards by meaning, not just exact words. `cozy reading nook` also finds a photo of an armchair by a window with books, a misspelled `typograhpy` still finds your type notes, and a search in another language finds cards saved in English. Cards that match your words always appear; cards related by meaning join them a moment later. Tokens and filters below apply to both, and the order you pick in **View** decides how they are sorted.
 
-Teak reads the text of PDFs, Word and PowerPoint files, and text and code files when you save them, and transcribes the speech in audio and video. Search then finds a card by a sentence in a PDF or a line someone said in a video. For a long document, search covers its first 32 KB of text (roughly 5,000 words); Teak keeps the text of the first 500 pages, and the API, MCP and CLI return all of it. When the words appear in the text of very many of your documents, search shows the 128 closest matches among them. Scanned PDFs without a text layer have no text to search.
+Teak reads the text of PDFs, Word and PowerPoint files, and text and code files when you save them, and transcribes the speech in audio and video. Search then finds a card by a sentence in a PDF or a line someone said in a video. Links count too: a Vimeo video's captions, and what's said in a podcast episode whose page links to its audio (up to 100 MB of audio), become the card's transcript, so search finds the episode by a phrase in it, and its summary and tags describe what's said. For a long document, search covers its first 32 KB of text (roughly 5,000 words); Teak keeps the text of the first 500 pages, and the API, MCP and CLI return all of it. When the words appear in the text of very many of your documents, search shows the 128 closest matches among them. A scanned PDF without a text layer is read instead: Teak reads the words on its first 3 pages, for search, its summary and its tags.
+
+Teak also reads the words in images and in a video's thumbnail when you save them: a receipt, a screenshot of code, a sign, a slide. Search then finds the receipt by its invoice number. Teak uses these words only to find your cards; it doesn't show them.
 
 ![Searching "typography" finds a font site, type notes, and a typewriter photo tagged by AI](./images/search.webp)
 
@@ -60,15 +62,18 @@ Special tokens work automatically:
 | **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
 | **Type** | `type:link`, `type:images` | Cards of that type |
 | **Favorites or archived** | `is:fav`, `is:archived` | Only favorites, or only archived cards |
+| **Done** | `is:done` | Links you marked read, watched, listened to, bought, cooked, played or done |
+| **To do** | `is:todo` | Articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done |
 | **Site** | `site:github.com` | Links from that website, and text saved from its pages |
 | **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder (not a smart folder) |
 | **Price** | `price:<100`, `price:>20`, `price:<=50`, `price:>=10`, `price:=0` | Product links whose price is under, over or exactly that amount |
+| **Text in image** | `text:4411`, `text:"total due"` | Images, videos, links and scanned PDFs whose own words contain that text, and not the notes that mention it |
 | **Phrase** | `"design system"` | Those words together, in that order |
 | **Similar** | `like:<card id>` | Cards closest in meaning to that card (use **More like this**) |
 | **Mood** | `mood:"moody brutalist"` | Images whose look and description match the mood |
 | **Keyword** | anything else | Full-text match |
 
-Mix tokens in one query — all recognized filters apply together. Tags, folders and prices must all match, so `price:>20 price:<100` is a range; several types or sites match any of them.
+Mix tokens in one query — all recognized filters apply together. Tags, folders, image text and prices must all match, so `price:>20 price:<100` is a range; several types or sites match any of them.
 
 ```
 blue button hover state
@@ -84,6 +89,7 @@ A few details:
 
 - `site:` matches the website exactly. `www.` and capital letters don't matter, so `site:www.GitHub.com` is the same as `site:github.com`, but `site:example.com` doesn't include `blog.example.com`.
 - Text saved from a page with the browser extension's **Save Text to Teak** keeps that page as its source. Its details show **From** and the site, `site:` finds it, and the site shows under the text in your library.
+- `text:` looks only at the words Teak read in images, video thumbnails, a link's preview image and screenshot, and the first 3 pages of a scanned PDF, ignoring capitals and line breaks, so `text:"total due"` finds a receipt with **Total** and **Due** on two lines. Cards saved before Teak read their words get them once Teak catches up on them, or right away with **Refresh details**.
 - `price:` compares the amount only, whatever the currency, so `price:<100` includes both $90 and ¥90. Links without a price never match.
 - `#` followed by a color code, like `#fff` or `#3B82F6`, is a color. Use `tag:fff` for a tag that looks like one.
 - Quoted phrases also match the text inside your documents.
@@ -143,11 +149,27 @@ Deleted cards go to trash first. Restore them, or delete permanently (including 
 
 Archive a card to keep it out of your library without deleting it. Right-click it in the grid, or open it and choose **Archive**. Open **Archive** from the sidebar (or type `archive` and press Enter) to see archived cards, and **Unarchive** to bring one back. Archived cards stay out of search, favorites, filters, and tags until you return them, and they still count toward your card limit. Moving an archived card to Trash and restoring it puts it back in Archive.
 
+### Read, watch and buy
+
+Mark a link done when you've finished with it. Open the link and click the circle beside the heart: it says **Mark as read** for an article, news story, book or research paper, **Mark as watched** for a film or show, **Mark as listened** for a podcast or music, **Mark as bought** for a product, **Mark as cooked** for a recipe, **Mark as played** for a game, and **Mark as done** for anything else. A toast lets you undo it, and the link's tile shows a check.
+
+Search `is:todo` to see what's left: the articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done. When there's nothing left, Teak says **Nothing left to do.** Search `is:done` to see what you've finished. Both work in smart folders too, so `is:todo folder:"Reading list"` is a folder of what's left to read there. Only links can be marked done.
+
 ### Hidden cards
 
 Tag a card `secret` or `hidden` to hide it. A hidden card leaves your library, Favorites, Archive, Trash, folders, smart folders, search, and Shuffle, on every app and in the API. Adding one of these tags to an open card shows **Hidden** with the search that shows it, such as **Search #secret to see it.**, and **Undo**. The card's tags show **Hidden** while it is.
 
 To see hidden cards, search for one of those tags: `#secret`, `tag:hidden`, or a tag from the **Tags** page. A smart folder whose search names one of them shows them too. Searching for the word `secret` doesn't. Remove the tag and the card comes back. Tags Teak adds never hide a card, and hidden cards still count toward your card limit and in tag counts. A view whose only cards are hidden says so.
+
+### Link cards
+
+Link one card from another inside a note. Type `[[` in a note on the web, in the card view, in Focus, or in the note you're writing on the home page, and Teak offers up to 8 of your cards that match what you type next; with nothing typed yet, it offers your newest cards. Use the arrow keys and Enter, or click, to pick one, and Esc to close the list. The card you're editing isn't offered, and a card tagged `secret` or `hidden` is offered only when what you type includes that tag, such as `[[diary #secret`.
+
+The link shows as a pill with the card's type and its current title, so renaming the card updates every pill that links to it. Click a pill, or select it and press Enter, to open that card. A link to a card in Trash, a deleted card, or a card that isn't yours shows as **Missing card** and does nothing; restoring the card from Trash brings its link back. Links inside code stay plain text.
+
+When you open a card that other notes link to, its details show **Linked from**, with up to 50 of those notes, most recently updated first, and **and more** when there are others. Click one to open it, after any edits to the open card save. Notes in Trash, and notes tagged `secret` or `hidden`, aren't listed. For a card more than 500 notes link to, the list draws on the 500 links made most recently.
+
+On card tiles in your library, on the web and on Mac, iPhone and iPad, a link reads as its title, and search finds a note by a linked card's title. Tiles and search use the title the card had when you linked it; pills always show the current one. Opening the note on Mac, iPhone or iPad shows the link as written: `[[Title|teak:<card-id>]]`, the same form exports, the API, MCP and the CLI use. A note can link to any number of cards, but only its first 500 linked cards list it under **Linked from**.
 
 ### Grid
 
@@ -245,12 +267,13 @@ Each card is processed automatically:
 | **Summaries** | Short descriptions for scanning |
 | **Categorization** | Link type (article, news, book, movie, TV, podcast, music, product, recipe, course, research, event, software, design, place, typeface, social post, app, game, or code repository), read from the page when no site rule fits |
 | **Color extraction** | Dominant colors in images |
-| **Transcription** | Audio → searchable text |
+| **Transcription** | Audio, video, Vimeo captions and podcast episodes → searchable text |
+| **Text in images** | Words in images, video thumbnails, link previews and screenshots, and the first 3 pages of scanned PDFs, for search |
 | **Thumbnails** | Previews for video and documents |
 
 ### Refresh details
 
-If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, reading the link's page again for its preview. If the page can't be reached, the card keeps the preview it has. Your own tags and notes stay. You can refresh a card once a minute, and up to six cards a minute.
+If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, reading the link's page again for its preview, and a Vimeo video's captions or a podcast episode's audio again for its transcript. If the page can't be reached, the card keeps the preview it has. Your own tags and notes stay. You can refresh a card once a minute, and up to six cards a minute.
 
 ### Replace a link's image
 
@@ -264,6 +287,18 @@ Link cards show who wrote the page and when it was published, next to the site n
 
 Places, apps, and games get their own facts when the page publishes them: a restaurant or home's address, cuisine, price range, and rating; an app's platform, category, and rating; and a game's platform, genre, rating, and release date. Code repositories on GitHub show their stars, forks, and language.
 
+Some sites tell Teak more about a link than the page does:
+
+- **Wikipedia:** the article's short description and when it was last edited, and its lead image when the page has none. A disambiguation page says so. The article's opening paragraph also shapes Teak's summary.
+- **arXiv:** the paper's authors (the first three, then "et al."), publish date, subject and DOI. The abstract shapes the summary.
+- **YouTube:** the channel, the video's length and when it was uploaded.
+- **Spotify and Apple Music:** the artist and whether it's a track, album, playlist or episode, with the cover art.
+- **Books:** a book page that states its ISBN in its page data (as Goodreads does), or an Amazon book link with its 10-digit ISBN in the address, gets its author, page count, publisher, publish date and ISBN from Open Library, and its cover when the page has none. What the page says itself always wins.
+
+If a site is down or slow, the card keeps the details it had. Links you saved before get these details when you use **Refresh details**.
+
+**Save PDF:** an arXiv paper's card has **Save PDF** under its details. It saves the paper's PDF as its own document card, so you can read it in Teak and search its text; **Open** in the message that follows shows it. Saving the same paper again opens the card you already have. A withdrawn paper has no PDF to save. The PDF counts as a card toward your plan's limit.
+
 **Social posts:** a saved post from X, Instagram, Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn, or Substack Notes keeps its text and author, and its date when the site shares it. Bluesky, Mastodon, and Reddit posts keep up to 10 photos, and a video when the site offers it as a file (otherwise its cover image). A TikTok keeps its caption and cover image, and Threads, LinkedIn, and Substack Notes keep the text and image their page shares. A private, deleted, or login-only post is saved like any other page.
 
 ## Apps and access
@@ -271,3 +306,14 @@ Places, apps, and games get their own facts when the page publishes them: a rest
 Everything syncs in real time — pick your apps on the [Apps page](/apps).
 
 Sign in with your browser, or create a long-lived key under **Settings → Security → API keys**.
+
+### Save by email
+
+Turn on **Settings → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email address you sign in to Teak with.
+
+- An email that's just a link, with at most a sentence or two, becomes a link card, and the sentence becomes its note. Anything else becomes a note, headed with the subject. Tracking images and redirect wrappers are removed, and a forwarded email's "Fwd:" and forwarding header are dropped.
+- Attachments become their own cards, with the same formats as uploads. An email can carry about 18 MB of attachments in total.
+- Every card is tagged `email`.
+- Mail from any other address isn't saved, and neither is mail that fails its domain's sender checks (DMARC); your mail app shows it was refused. Forwarding from a work account only works if that's the email you sign in with.
+- Mail past 60 emails an hour, or once a free account has 200 cards, is dropped without a reply.
+

@@ -9,8 +9,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 URL.createObjectURL = () => "blob:preview";
 URL.revokeObjectURL = () => undefined;
 
-// Convex is the boundary: the upload URL never arrives, so the change stays
-// running for the whole test.
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,

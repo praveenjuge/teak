@@ -30,10 +30,13 @@ The typed catalog lives in `packages/convex/shared/analytics.ts`. Add new events
 Client events (`captureEvent`):
 
 - `card_create_submitted` {card_type, source, via}
-- `search_performed` {zero_result}
+- `search_performed` {zero_result, qualifiers?}: `qualifiers` lists the qualifier keys the search used (`text`, `tag`, `price`…), never their values
 - `similar_search_opened` {source}: "More like this" in a card's details
 - `revisit_started` and `revisit_finished` {archived, kept, completed}: a Revisit deck opened, then closed or finished. The counts are cards, 0 to 20; `completed` is true when the deck reached its end screen
 - `card_thumbnail_replaced` {source: `drop`, `paste` or `pick`} and `card_thumbnail_reset`, when someone replaces or resets a link's image in the card dialog
+- `card_backlink_opened`: a card opened from another card's "Linked from" list in the card dialog
+- `card_done_toggled` {done, category, source: `panel`}: a link marked read, watched, bought or done (or not) in the card dialog. `category` is its link category, or `none`
+- `link_pdf_saved` {source: `panel`}: Save PDF made a document card from an arXiv link in the card dialog
 - `file_upload_completed` {bucket, size_bucket} and `file_upload_failed` {bucket, size_bucket, error_class}
 - `import_started`, `import_completed`, `import_failed` {error_class}
 - `export_started`, `export_completed` (download), `export_failed` {error_class}
@@ -51,6 +54,11 @@ Server events (`captureBackendEvent`):
 - `billing_portal_opened`
 - `mcp_tool_called` {tool, outcome, status, duration_ms}
 - `card_thumbnail_replaced` {source: `api`} and `card_thumbnail_reset`, when the public API (and so MCP, the SDK and the CLI) replaces or resets a link's image
+- `card_done_toggled` {done, category, source: `api`}, when the public API (and so MCP, the SDK and the CLI) marks a link done or not
+- `link_pdf_saved` {source: `api`}, when the public API (and so MCP, the SDK and the CLI) saves an arXiv link's PDF as a document card
+- `email_save_toggled` {enabled}: Save by email turned on or off in Settings
+- `email_received` {outcome}: one email from an account's owner reached Save by email. `outcome` is `saved`, `duplicate` (a redelivery), `empty`, `dropped_limit` (the free card limit), `dropped_rate` (over 60 an hour) or `deferred_rate` (the card creation limit; the sender retries). Mail Teak refuses at delivery never reaches Convex and has no event
+- `email_attachment_saved` {kind, size_bucket} and `email_attachment_skipped` {reason: `format`, `size` or `limit`}: an emailed attachment made, or didn't make, its own card. An upload that fails in the Email Worker has no event: a transient failure fails the delivery so the sender retries, and a part the Files Worker refuses is skipped there, seen only in the Worker's `upload_refused` log count. `card_created` with `source: "email"` is sent for every card Save by email makes
 - `$ai_generation` with `$ai_model`, `$ai_provider`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_latency` (seconds), `$ai_total_cost_usd`, `$ai_trace_id` (workflow or card id), `$ai_span_name`, `$ai_is_error`. Prompts and outputs are never sent.
 
 Exceptions are `$exception` events built by `buildExceptionProperties` in `packages/convex/shared/posthog.ts` (raw frames, scrubbed with `scrubTelemetryValue`). Backend retryable errors (rate limits, validation retries) are not reported; workflow retries own them.

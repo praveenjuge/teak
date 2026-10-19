@@ -9,6 +9,8 @@ import {
   FETCHER_HOP_MAX_BYTES,
   FETCHER_HOP_MAX_TIMEOUT_MS,
   FETCHER_HOP_REQUEST_HEADERS,
+  FETCHER_STREAM_MAX_BYTES,
+  FETCHER_STREAM_MAX_TIMEOUT_MS,
   type FetcherHopFailureReason,
   type FetcherHopRequest,
 } from "./protocol";
@@ -23,8 +25,21 @@ const isPositiveInteger = (value: unknown, max: number): value is number =>
   value > 0 &&
   value <= max;
 
+/** A streamed hop may ask for more bytes and time than a buffered one. */
+export const HOP_LIMITS = {
+  buffered: {
+    maxBytes: FETCHER_HOP_MAX_BYTES,
+    timeoutMs: FETCHER_HOP_MAX_TIMEOUT_MS,
+  },
+  streamed: {
+    maxBytes: FETCHER_STREAM_MAX_BYTES,
+    timeoutMs: FETCHER_STREAM_MAX_TIMEOUT_MS,
+  },
+} as const;
+
 export const parseFetcherHopRequest = (
-  value: unknown
+  value: unknown,
+  limits: (typeof HOP_LIMITS)[keyof typeof HOP_LIMITS] = HOP_LIMITS.buffered
 ): FetcherHopRequest | null => {
   if (!value || typeof value !== "object") {
     return null;
@@ -43,8 +58,8 @@ export const parseFetcherHopRequest = (
     addresses.some(
       (address) => typeof address !== "string" || detectIpVersion(address) === 0
     ) ||
-    !isPositiveInteger(maxBytes, FETCHER_HOP_MAX_BYTES) ||
-    !isPositiveInteger(timeoutMs, FETCHER_HOP_MAX_TIMEOUT_MS) ||
+    !isPositiveInteger(maxBytes, limits.maxBytes) ||
+    !isPositiveInteger(timeoutMs, limits.timeoutMs) ||
     !headers ||
     typeof headers !== "object" ||
     Array.isArray(headers)
@@ -83,7 +98,6 @@ export type HopOutcome =
     }
   | { ok: false; reason: FetcherHopFailureReason };
 
-/** At most `limit` bytes of the body; the rest is never read. */
 const readAtMost = async (
   response: Response,
   limit: number
@@ -113,17 +127,27 @@ const readAtMost = async (
   return bytes;
 };
 
-/**
- * Makes one request for the Worker's `safeFetch`. The Worker resolved the
- * host and checked its addresses; they are checked here again with the same
- * policy, so this endpoint never reaches a private address whatever it is
- * sent. The connection is pinned to those addresses, and a redirect comes
- * back as it is, for the Worker to check its target before the next hop.
- */
-export const performHop = async (
+interface HopFacts {
+  contentLength: string | null;
+  contentType: string | null;
+  location: string | null;
+  status: number;
+}
+
+const factsOf = (response: Response): HopFacts => ({
+  contentLength: response.headers.get("content-length"),
+  contentType: response.headers.get("content-type"),
+  location: response.headers.get("location"),
+  status: response.status,
+});
+
+const openHop = async (
   request: FetcherHopRequest,
   { pinnedFetch }: Pick<FetchAssetDeps, "pinnedFetch">
-): Promise<HopOutcome> => {
+): Promise<
+  | { ok: true; response: Response }
+  | { ok: false; reason: FetcherHopFailureReason }
+> => {
   try {
     assertUrlStructureSafe(request.url);
   } catch (error) {
@@ -135,28 +159,102 @@ export const performHop = async (
   if (request.addresses.some(isBlockedIp)) {
     return { ok: false, reason: "blocked_url" };
   }
-  let response: Response;
   try {
-    response = await pinnedFetch(request.url, request.addresses, {
+    const response = await pinnedFetch(request.url, request.addresses, {
       headers: request.headers,
       redirect: "manual",
       signal: AbortSignal.timeout(request.timeoutMs),
     });
+    return { ok: true, response };
   } catch {
     return { ok: false, reason: "fetch_failed" };
+  }
+};
+
+export const performHop = async (
+  request: FetcherHopRequest,
+  deps: Pick<FetchAssetDeps, "pinnedFetch">
+): Promise<HopOutcome> => {
+  const opened = await openHop(request, deps);
+  if (!opened.ok) {
+    return opened;
   }
   let body: Uint8Array;
   try {
-    body = await readAtMost(response, request.maxBytes + 1);
+    body = await readAtMost(opened.response, request.maxBytes + 1);
   } catch {
     return { ok: false, reason: "fetch_failed" };
   }
-  return {
-    body,
-    contentLength: response.headers.get("content-length"),
-    contentType: response.headers.get("content-type"),
-    location: response.headers.get("location"),
-    ok: true,
-    status: response.status,
+  return { body, ok: true, ...factsOf(opened.response) };
+};
+
+export type StreamedHopOutcome =
+  | (HopFacts & { body: ReadableStream<Uint8Array>; ok: true })
+  | { ok: false; reason: FetcherHopFailureReason };
+
+/**
+ * `performHop`, with the body passed on as it arrives: at most
+ * `maxBytes + 1` bytes, then the upstream is cancelled. `done` runs once,
+ * when the body ends, fails, is cancelled, or the hop never opens.
+ */
+export const performStreamedHop = async (
+  request: FetcherHopRequest,
+  deps: Pick<FetchAssetDeps, "pinnedFetch">,
+  done: () => void
+): Promise<StreamedHopOutcome> => {
+  let finished = false;
+  const finish = () => {
+    if (!finished) {
+      finished = true;
+      done();
+    }
   };
+  const opened = await openHop(request, deps).catch((error: unknown) => {
+    finish();
+    throw error;
+  });
+  if (!opened.ok) {
+    finish();
+    return opened;
+  }
+  const { response } = opened;
+  if (!response.body) {
+    finish();
+    return {
+      body: new ReadableStream({ start: (c) => c.close() }),
+      ok: true,
+      ...factsOf(response),
+    };
+  }
+  const reader = response.body.getReader();
+  const limit = request.maxBytes + 1;
+  let sent = 0;
+  const body = new ReadableStream<Uint8Array>({
+    async cancel(reason) {
+      finish();
+      await reader.cancel(reason).catch(() => undefined);
+    },
+    async pull(controller) {
+      try {
+        const { done: ended, value } = await reader.read();
+        if (ended) {
+          finish();
+          controller.close();
+          return;
+        }
+        const kept = value.subarray(0, limit - sent);
+        sent += kept.byteLength;
+        controller.enqueue(kept);
+        if (sent >= limit) {
+          finish();
+          controller.close();
+          await reader.cancel().catch(() => undefined);
+        }
+      } catch (error) {
+        finish();
+        controller.error(error);
+      }
+    },
+  });
+  return { body, ok: true, ...factsOf(response) };
 };

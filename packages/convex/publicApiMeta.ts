@@ -3,6 +3,7 @@ import { OAUTH_SURFACES } from "./client/authDiscovery";
 import { isLocalDevelopmentHostname, resolveTeakDevApiUrl } from "./devUrls";
 import { readWorkosConnectIssuer, readWorkosResources } from "./env";
 import { PUBLIC_API_CORS_HEADERS } from "./shared/publicApiHeaders";
+import { WORKOS_CLIENT_ID } from "./shared/workosIds";
 
 export const API_VERSION = "v1";
 
@@ -175,7 +176,7 @@ export const readWorkosConnectClients = () => {
   return Object.fromEntries(
     OAUTH_SURFACES.map((surface) => {
       const clientId = configured[surface];
-      if (!(clientId && /^client_[A-Za-z0-9]+$/.test(clientId))) {
+      if (!(clientId && WORKOS_CLIENT_ID.test(clientId))) {
         throw new Error(
           `Missing or invalid WorkOS Connect client for ${surface}.`
         );

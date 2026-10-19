@@ -3,6 +3,7 @@ import type {
   LinkCategory,
   LinkCategoryMetadata,
 } from "../../../../shared/linkCategories";
+import type { JsonLdEntity } from "../../../../workflows/steps/categorization/enrichment";
 import {
   type CategorizationContextCard,
   classifyLinkCategory,
@@ -10,11 +11,19 @@ import {
   projectCategorizationSnapshot,
 } from "../../../../workflows/steps/categorization/rules";
 
-// The pure categorization rules the Files Worker's step runs.
-
 const linkCard = (
   fields: Partial<CategorizationContextCard>
 ): CategorizationContextCard => ({ _id: "card_1", type: "link", ...fields });
+
+// A category stored by an earlier pass, for an unrelated source URL.
+const storedCategory = (
+  raw: LinkCategoryMetadata["raw"]
+): LinkCategoryMetadata => ({
+  category: "other",
+  fetchedAt: 0,
+  raw,
+  sourceUrl: "https://earlier.example/",
+});
 
 const factValue = (result: LinkCategoryMetadata, label: string) =>
   result.facts?.find((fact) => fact.label === label)?.value;
@@ -85,6 +94,50 @@ describe("classifyLinkCategory", () => {
     );
     expect(bogus?.category).toBe("place");
     expect(failed?.category).toBe("place");
+  });
+
+  const withAudio = (url: string) =>
+    linkCard({
+      url,
+      metadata: {
+        linkPreview: {
+          status: "success",
+          raw: [
+            {
+              selector: "meta[property='og:audio']",
+              results: [
+                {
+                  attributes: [
+                    { name: "content", value: "https://cdn.example/ep.mp3" },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+  test("an /episodes/ page with its own audio is a podcast, not TV", async () => {
+    const url = "https://show.example.com/episodes/the-long-walk";
+    expect((await classifyLinkCategory(linkCard({ url })))?.category).toBe(
+      "tv"
+    );
+    expect(await classifyLinkCategory(withAudio(url))).toMatchObject({
+      category: "podcast",
+      reason: "page_audio",
+    });
+  });
+
+  test("page audio never moves a site known by domain, or a song", async () => {
+    expect(
+      (await classifyLinkCategory(withAudio("https://vimeo.com/76979871")))
+        ?.category
+    ).toBe("tv");
+    expect(
+      (await classifyLinkCategory(withAudio("https://band.example/track/song")))
+        ?.category
+    ).toBe("music");
   });
 
   test("returns null for missing targetUrl", async () => {
@@ -396,7 +449,7 @@ describe("enrichLinkCategory", () => {
     });
     const enrich = (
       card: CategorizationContextCard,
-      entities: unknown[] | null
+      entities: JsonLdEntity[] | null
     ) =>
       enrichLinkCategory(
         card,
@@ -447,7 +500,6 @@ describe("enrichLinkCategory", () => {
         product({ "@type": "Offer", price: "89.00", priceCurrency: "CAD" }),
       ]);
       expect(result.price).toEqual({ amount: 89, currency: "CAD" });
-      // Both prices stay as facts.
       expect(
         result.facts?.filter((fact) => fact.label === "Price").length
       ).toBe(2);
@@ -469,15 +521,13 @@ describe("enrichLinkCategory", () => {
       const card = linkCard({
         url: "https://shop.example/lamp",
         metadata: {
-          linkCategory: {
-            raw: {
-              structured: product({
-                "@type": "Offer",
-                price: "12.00",
-                priceCurrency: "EUR",
-              }),
-            },
-          },
+          linkCategory: storedCategory({
+            structured: product({
+              "@type": "Offer",
+              price: "12.00",
+              priceCurrency: "EUR",
+            }),
+          }),
         },
       });
       const result = await enrichLinkCategory(
@@ -492,15 +542,13 @@ describe("enrichLinkCategory", () => {
       const card = linkCard({
         url: "https://shop.example/lamp",
         metadata: {
-          linkCategory: {
-            raw: {
-              structured: product({
-                "@type": "Offer",
-                price: "12.00",
-                priceCurrency: "EUR",
-              }),
-            },
-          },
+          linkCategory: storedCategory({
+            structured: product({
+              "@type": "Offer",
+              price: "12.00",
+              priceCurrency: "EUR",
+            }),
+          }),
         },
       });
       const result = await enrich(card, []);
@@ -509,7 +557,6 @@ describe("enrichLinkCategory", () => {
     });
 
     test("prices a ProductGroup by its cheapest variant, and again from what it stored", async () => {
-      // How Shopify stores describe a product with sizes.
       const group = {
         "@type": "ProductGroup",
         name: "T-shirt",
@@ -533,7 +580,6 @@ describe("enrichLinkCategory", () => {
         label: "Price",
         value: "€39.99",
       });
-      // Only the variants' offers are kept.
       const stored = result.raw?.structured as { hasVariant: unknown[] };
       expect(stored.hasVariant[0]).toEqual({
         offers: group.hasVariant[0]?.offers,
@@ -602,7 +648,7 @@ describe("enrichLinkCategory", () => {
       const result = await enrichLinkCategory(
         linkCard({
           url: "https://site.example/lamp",
-          metadata: { linkCategory: { raw: fresh.raw } },
+          metadata: { linkCategory: storedCategory(fresh.raw) },
         }),
         { category, confidence: 0.9 },
         { structuredData: null }
@@ -611,6 +657,24 @@ describe("enrichLinkCategory", () => {
       expect(result.raw?.structured).toEqual(fresh.raw?.structured);
     }
   );
+
+  test.each([
+    [2019, "2019"],
+    [1_700_000_000_000, undefined],
+  ])("a numeric datePublished of %p shows as %p", async (published, shown) => {
+    const result = await enrichLinkCategory(
+      linkCard({ url: "https://site.example/book" }),
+      { category: "book", confidence: 0.9 },
+      {
+        structuredData: {
+          entities: [
+            { "@type": "Book", name: "Lamps", datePublished: published },
+          ],
+        },
+      }
+    );
+    expect(factValue(result, "Published")).toBe(shown);
+  });
 
   test("covers full GitHub enrichment", async () => {
     const card = linkCard({
@@ -1070,7 +1134,10 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
     aiTranscript: "transcript",
     content: "private ".repeat(10_000),
     metadata: {
-      linkCategory: { category: "article", raw: { provider: "facts" } },
+      linkCategory: {
+        ...storedCategory({ provider: "facts" }),
+        category: "article" as const,
+      },
       linkPreview: {
         imageUrl: "https://example.com/image.png",
         media: [{ caption: "unneeded" }],
@@ -1089,8 +1156,8 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
   };
   const before = structuredClone(card);
   const snapshot = projectCategorizationSnapshot(card);
-  expect(snapshot.metadata.linkCategory).toEqual(card.metadata.linkCategory);
-  expect(snapshot.metadata.linkPreview).toMatchObject({
+  expect(snapshot.metadata?.linkCategory).toEqual(card.metadata.linkCategory);
+  expect(snapshot.metadata?.linkPreview).toMatchObject({
     raw: card.metadata.linkPreview.raw,
     rawSha256: "digest",
     rawStorageKey: "key",
@@ -1100,7 +1167,7 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
   for (const field of ["content", "notes", "tags", "aiTranscript"]) {
     expect(snapshot).not.toHaveProperty(field);
   }
-  expect(snapshot.metadata.linkPreview).not.toHaveProperty("media");
+  expect(snapshot.metadata?.linkPreview).not.toHaveProperty("media");
   expect(JSON.stringify(snapshot).length).toBeLessThan(1024);
   expect(card).toEqual(before);
 });

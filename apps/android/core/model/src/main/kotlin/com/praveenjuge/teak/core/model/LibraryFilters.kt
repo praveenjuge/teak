@@ -22,7 +22,6 @@ data class LibraryFilters(
             return if (types.size > 1) "Filtered" else "Home"
         }
 
-    /** The search query's filter arguments; filters that are off are left out. */
     fun toSearchArgs(): Map<String, Any> = buildMap {
         if (favoritesOnly) put("favoritesOnly", true)
         hue?.let { put("hueFilters", listOf(it.wireName)) }

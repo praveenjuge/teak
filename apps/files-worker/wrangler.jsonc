@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "teak-files-proxy",
+  "name": "teak-files-prod",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,10 +9,7 @@
       "pattern": "files.teakvault.com",
       "custom_domain": true
     },
-    // The public API, MCP server and their OAuth discovery documents on the
-    // marketing site, proxied to Convex by src/apiProxy.ts. The rest of
-    // teakvault.com stays on its own origin. Patterns end in "*" so query
-    // strings match; paths Convex does not serve fall through to the origin.
+    // Patterns end in "*" so query strings match.
     { "pattern": "teakvault.com/api*", "zone_name": "teakvault.com" },
     { "pattern": "teakvault.com/mcp*", "zone_name": "teakvault.com" },
     {
@@ -30,12 +27,6 @@
       "bucket_name": "teak-files-prod"
     }
   ],
-  // src/edgeIdentity.ts: which user each API key hash or WorkOS user belongs
-  // to, cached for edge rate limits.
-  // src/edgeRateLimit.ts: per-user (and per-address) limits on the public
-  // API and MCP server. Counted per Cloudflare location in fixed windows; the
-  // limits match EDGE_API_REQUEST_LIMIT and EDGE_UNKNOWN_CREDENTIAL_LIMIT.
-  // namespace_id must be unique across the account.
   "ratelimits": [
     {
       "name": "API_REQUEST_LIMITER",
@@ -54,7 +45,6 @@
       "id": "d53e5a8c82194effbbb281eab9875615"
     },
     {
-      // fetch-link-page results for a day (src/linkPage.ts).
       "binding": "LINK_PAGE_CACHE",
       "id": "bdda56e1f09b4ff68fbec54123fb1d4d"
     }
@@ -80,23 +70,19 @@
       "new_sqlite_classes": ["LinkFetcher"]
     }
   ],
-  // Media renderer: ffmpeg and poppler for video frames, scrub sprites, media
-  // facts, audio waveforms and conversion, and PDF thumbnails and text. One
-  // job per instance, no internet; see container/Dockerfile.
   "containers": [
     {
       "class_name": "MediaRenderer",
+      // Container apps keep the names they got before the Worker was renamed
+      // from teak-files-proxy; a deploy under a new name cannot create new ones.
+      "name": "teak-files-proxy-mediarenderer",
       "image": "./container/Dockerfile",
       "instance_type": "basic",
       "max_instances": 4
     },
-    // Link fetcher: the only Container with internet access. It downloads
-    // remote preview images and media under Convex's SSRF policy, pinned to
-    // the addresses it checked, and the Worker stores them in R2; see
-    // fetcher/Dockerfile. Its build context is the repository root so it can
-    // bundle that policy by path.
     {
       "class_name": "LinkFetcher",
+      "name": "teak-files-proxy-linkfetcher",
       "image": "./fetcher/Dockerfile",
       "image_build_context": "../..",
       "instance_type": "basic",
@@ -111,22 +97,15 @@
   "images": {
     "binding": "IMAGES"
   },
-  // Browser Run: offline HTML screenshots and scrapes.
   "browser": {
     "binding": "BROWSER"
   },
-  // Card embeddings for semantic search: one 768-dimension cosine index per
-  // shard, one namespace per user (packages/files-protocol/src/embeddings.ts).
   "vectorize": [
     {
       "binding": "CARD_VECTORS_0",
       "index_name": "teak-cards-0"
     }
   ],
-  // Background work (src/workflows/): Convex records it and dispatches it here
-  // with the `dispatch` op; steps call this Worker's ops in-process and read
-  // and write Convex through its signed workflow RPC gateway. Instance IDs are
-  // deterministic, so a repeated dispatch is a no-op.
   "workflows": [
     {
       "name": "teak-card-processing",
@@ -154,9 +133,6 @@
       "class_name": "MaintenanceWorkflow"
     }
   ],
-  // Queues (src/queues/). Object deletions come from Convex through
-  // `dispatch`; AI backfill from the 6-hourly cron; WorkOS events from the
-  // webhook route; R2 events from the bucket's event notification.
   "queues": {
     "producers": [
       { "binding": "OBJECT_DELETIONS", "queue": "teak-object-deletions" },
@@ -207,13 +183,9 @@
       }
     ]
   },
-  // AI usage per Workers AI call (src/aiUsage.ts), rolled up into Convex's
-  // aiUsageDaily every hour.
   "analytics_engine_datasets": [
     { "binding": "AI_USAGE", "dataset": "teak_ai_usage" }
   ],
-  // Background tasks that used to be Convex crons (src/cron.ts). Each records
-  // the Convex cron heartbeat the admin health view reads.
   "triggers": {
     "crons": [
       "0 2 * * *",
@@ -224,10 +196,6 @@
       "45 * * * *"
     ]
   },
-  // This config deploys the production custom domain. Local dev overrides it.
-  // Workers Paid. Exports stream up to 10,000 files (5 GB) into one ZIP in a
-  // single request: CPU for the ZIP's checksums, and one R2 read per file plus
-  // the upload parts. Other operations use a small fraction of either limit.
   "limits": {
     "cpu_ms": 300000,
     "subrequests": 20000
@@ -238,16 +206,10 @@
     "AI_GATEWAY_ID": "teak-files",
     // Public PostHog project token for error reports (production only).
     "POSTHOG_PROJECT_TOKEN": "phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn",
-    // Matches containers[0].max_instances.
     "MEDIA_RENDERER_INSTANCES": "4",
-    // Matches containers[1].max_instances.
     "LINK_FETCHER_INSTANCES": "4",
-    // src/apiProxy.ts: requests to this host's API paths go to the
-    // production Convex deployment's HTTP origin.
     "API_PUBLIC_HOST": "teakvault.com",
     "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site",
-    // src/edgeIdentity.ts: issuer of the WorkOS access tokens the API accepts,
-    // the production deployment's WORKOS_AUTHKIT_DOMAIN.
     "API_WORKOS_ISSUER": "https://scholarly-hay-77.authkit.app",
     // The Convex deployments whose background work this Worker runs; the
     // first is primary. Development shares this Worker until the storage
@@ -255,14 +217,16 @@
     // that deploys development/wrangler.jsonc: two Workers serving one
     // deployment would both run its crons, and each would reconcile runs
     // that live in the other's workflows as missing.
-    "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site,https://reminiscent-kangaroo-59.convex.site",
-    // In-process ops transform large images through this Worker's own URL.
+    "CONVEX_SITE_URLS": "https://uncommon-ladybug-882.convex.site",
     "FILES_PUBLIC_ORIGIN": "https://files.teakvault.com",
-    // The account and dataset the hourly AI usage rollup reads through the
-    // Analytics Engine SQL API (src/aiUsageRollup.ts); the token is the
-    // ANALYTICS_API_TOKEN secret.
     "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
     "AI_USAGE_DATASET": "teak_ai_usage"
+  },
+  // Put with `wrangler secret put` (README, "Secrets and local vars"). A
+  // deploy fails while either is missing. ANALYTICS_API_TOKEN stays optional,
+  // so it isn't listed.
+  "secrets": {
+    "required": ["FILES_SIGNING_SECRET", "WORKFLOW_RPC_ROOT_SECRET"]
   },
   "observability": {
     "enabled": true,

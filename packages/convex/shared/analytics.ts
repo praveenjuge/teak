@@ -1,3 +1,4 @@
+import type { SearchQualifierKey } from "./search/qualifiers";
 import { ignoreTelemetryError } from "./telemetry";
 
 export type CardCreationSource =
@@ -13,21 +14,48 @@ export type CardCreationSource =
   | "drag_drop"
   | "import"
   | "paste"
+  | "email"
   | "unknown";
 
 export type SizeBucket = "<1MB" | "1-10MB" | "10-100MB" | ">100MB";
 
-/** How a link's image was replaced: on the web, or through the public API. */
+/**
+ * `dropped_limit` is the free card limit, `dropped_rate` the 60-an-hour
+ * inbound limit (both silent), `deferred_rate` the card creation bucket (the
+ * sender retries).
+ */
+export type EmailReceivedOutcome =
+  | "saved"
+  | "dropped_limit"
+  | "dropped_rate"
+  | "deferred_rate"
+  | "empty"
+  | "duplicate";
+
+export type EmailAttachmentSkipReason = "format" | "size" | "limit";
+
+export type CardDoneSource = "panel" | "api";
+
+interface CardDoneToggled {
+  category: string;
+  done: boolean;
+  source: CardDoneSource;
+}
+
+export type LinkPdfSaveSource = "panel" | "api";
+
 export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
 type NoProperties = Record<string, never>;
 
 export interface ClientEventCatalog {
+  card_backlink_opened: NoProperties;
   card_create_submitted: {
     card_type: string;
     source: CardCreationSource;
     via?: string;
   };
+  card_done_toggled: CardDoneToggled;
   card_thumbnail_replaced: { source: ThumbnailReplaceSource };
   card_thumbnail_reset: NoProperties;
   checkout_opened: NoProperties;
@@ -36,7 +64,6 @@ export interface ClientEventCatalog {
   export_failed: { error_class?: string };
   export_started: NoProperties;
   extension_card_saved: { card_type?: string; via?: string };
-  /** Enter in the address bar's Teak mode: a suggested card, or the search. */
   extension_omnibox_used: { result: "card" | "search" };
   file_upload_completed: { bucket: string; size_bucket: SizeBucket };
   file_upload_failed: {
@@ -47,9 +74,13 @@ export interface ClientEventCatalog {
   import_completed: NoProperties;
   import_failed: { error_class?: string };
   import_started: NoProperties;
+  link_pdf_saved: { source: LinkPdfSaveSource };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
-  search_performed: { zero_result: boolean };
+  search_performed: {
+    qualifiers?: SearchQualifierKey[];
+    zero_result: boolean;
+  };
   signed_in: NoProperties;
   similar_search_opened: { source: "panel" };
 }
@@ -74,6 +105,7 @@ export interface ServerEventCatalog {
     source: string;
   };
   card_created: { card_type: string; source: string };
+  card_done_toggled: CardDoneToggled;
   card_processing_completed: { card_type: string; duration_ms: number };
   card_processing_failed: {
     card_type?: string;
@@ -84,6 +116,15 @@ export interface ServerEventCatalog {
   card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;
   checkout_failed: { error_class: string };
+  /** A file attached to a saved email became its own card. */
+  email_attachment_saved: { kind: string; size_bucket: SizeBucket };
+  /** An attachment that wasn't saved, and why. */
+  email_attachment_skipped: { reason: EmailAttachmentSkipReason };
+  /** Save by email: what happened to one email from an account's owner. */
+  email_received: { outcome: EmailReceivedOutcome };
+  /** Save by email turned on or off in Settings. */
+  email_save_toggled: { enabled: boolean };
+  link_pdf_saved: { source: LinkPdfSaveSource };
   mcp_tool_called: {
     duration_ms: number;
     outcome: "ok" | "error" | "unauthorized";

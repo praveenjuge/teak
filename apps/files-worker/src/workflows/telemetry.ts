@@ -14,7 +14,6 @@ import { reportBackgroundError, type TelemetryEnvVars } from "../telemetry";
 export const WORKERS_AI_PROVIDER = "cloudflare";
 
 export interface WorkflowTelemetry {
-  /** Sends every queued event. Never throws. */
   flush: () => Promise<void>;
   record: <Name extends "$ai_generation" | "card_processing_completed">(
     event: Name,
@@ -50,7 +49,6 @@ export const createWorkflowTelemetry = (
   };
 };
 
-/** Runs `callback` with a batch and sends it once the callback settles. */
 export const withWorkflowTelemetry = async <T>(
   env: TelemetryEnvVars,
   callback: (telemetry: WorkflowTelemetry) => Promise<T>
@@ -73,10 +71,6 @@ const usageOf = (value: unknown): AiUsage | undefined =>
     ? ((value as { usage?: AiUsage }).usage ?? undefined)
     : undefined;
 
-/**
- * Records one `$ai_generation` event for a model call: model, tokens,
- * latency and cost. Prompts and outputs never leave Teak.
- */
 export const observeAiGeneration = async <T>(
   telemetry: WorkflowTelemetry,
   input: { functionId: string; model: string; traceId?: string },
@@ -117,7 +111,6 @@ export const observeAiGeneration = async <T>(
   }
 };
 
-/** `card_processing_completed`, once per finished run. */
 export const emitCardProcessingCompleted = (
   env: TelemetryEnvVars,
   properties: { cardType: string; durationMs: number }
@@ -130,10 +123,6 @@ export const emitCardProcessingCompleted = (
     return Promise.resolve();
   });
 
-/**
- * Failures a retry (or the AI backfill) is expected to fix: rate limits,
- * validation retries, work waiting on another step. They are not reported.
- */
 export const isRetryableBackgroundError = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
   return /retry|waiting|not yet|no (?:object|output) generated|failed to validate json|response did not match schema|rate.?limit|too many requests|tokens per (?:day|minute)|\b(?:tpd|tpm|429)\b|stale_processing_revision|card_missing/iu.test(
@@ -144,16 +133,11 @@ export const isRetryableBackgroundError = (error: unknown): boolean => {
 const isNonRetryable = (error: unknown): boolean =>
   error instanceof Error && error.name === "NonRetryableError";
 
-/**
- * Wraps a step body: reports an unexpected error once retrying is over (the
- * step's last attempt, or an error that never retries) and rethrows it.
- */
 export const reportedStep =
   <T>(
     env: TelemetryEnvVars,
     context: {
       cardId?: string;
-      /** Attempts the step's retry config allows in all. */
       maxAttempts: number;
       name: string;
       stage: string;

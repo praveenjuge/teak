@@ -31,7 +31,6 @@ test("the command palette goes to folders and cards, and leaves the editor its â
     screen.getByRole("button", `Text: ${marker} card`, { exact: false })
   ).toBeVisible({ timeout: 30_000 });
 
-  // A folder, by name.
   await press("ControlOrMeta+k");
   await expect(palette).toBeVisible();
   await expect(input).toBeFocused();
@@ -42,7 +41,6 @@ test("the command palette goes to folders and cards, and leaves the editor its â
   await expect.poll(() => pathOf(browser.url())).toMatch(/^\/f\//);
   await expect(screen.getByPlaceholder(`Search ${folderName}`)).toBeVisible();
 
-  // A card, from the server's search: it opens over the folder.
   await press("ControlOrMeta+k");
   await input.pressSequentially(marker);
   const cardRow = screen.getByRole("option", `${marker} card`, {
@@ -61,12 +59,10 @@ test("the command palette goes to folders and cards, and leaves the editor its â
     library.ids[0]
   );
 
-  // Inside the card modal, âŒ˜K does nothing.
   await press("ControlOrMeta+k");
   await expect(palette).toBeHidden();
   await press("Escape");
 
-  // Esc gives focus back to where it was.
   await gotoApp(browser, "/");
   await expect(
     screen.getByRole("button", `Text: ${marker} card`, { exact: false })
@@ -80,7 +76,6 @@ test("the command palette goes to folders and cards, and leaves the editor its â
   await expect(palette).toBeHidden();
   await expect(search).toBeFocused();
 
-  // In the composer, âŒ˜K edits a link instead.
   await search.fill("");
   await browser.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
@@ -104,7 +99,6 @@ test("Export in the palette opens the Export tab in Settings", async ({
   webAccount: _signedIn,
 }) => {
   await gotoApp(browser, "/settings");
-  // Settings has loaded (and hydrated) once its account rows show.
   await expect(screen.getByRole("button", "Sign out")).toBeEnabled({
     timeout: 30_000,
   });
@@ -121,6 +115,5 @@ test("Export in the palette opens the Export tab in Settings", async ({
     "aria-selected",
     "true"
   );
-  // The deep link doesn't stay in the URL or history.
   await expect.poll(async () => new URL(await browser.url()).search).toBe("");
 });

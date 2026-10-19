@@ -59,6 +59,7 @@ import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
 import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
+import { useStableHandlers } from "../hooks/useStableHandlers";
 import { useViewHasHiddenCards } from "../hooks/useViewHasHiddenCards";
 import { getAdjacentCardIds } from "../lib/cardNeighbors";
 import {
@@ -107,52 +108,38 @@ const clipName = (name: string) =>
 export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
-  /**
-   * Choosing cards for this folder (`?addTo=` on the library): the grid
-   * opens in selection mode with "Add to <folder>" as its action.
-   */
   addToFolderId?: string;
   contentContainerClassName?: string;
-  /** A folder view: the folder id from the route, valid or not. */
+  focusComposer?: boolean;
   folderId?: string;
   headerLeading?: ReactNode;
-  /** Filters to start with, kept from before a failed read was retried. */
   initialVisualFilters?: CardsVisualFilters;
-  /** Starts choosing cards to add to an (empty) folder. */
   onAddCardsToFolder?: (folderId: string) => void;
-  /** Leaves "choose cards for a folder", after adding or on Cancel. */
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
   onCloseCard: () => void;
-  /**
-   * Called when the settled search changes, to mirror it into the URL.
-   * `sortChanged` marks a deliberate change worth its own history entry.
-   */
+  onFocusComposerHandled?: () => void;
   onNavigateView?: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
-  /** Opens a folder's view, such as a smart folder just saved. */
   onOpenFolder?: (folderId: string) => void;
   onSearchUrlStateChange?: (
     state: SearchUrlState,
     change: SearchUrlChange
   ) => void;
-  /** Shows another card in the open dialog, for previous and next. */
   onSwitchCard?: (cardId: string) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
-  /** Called when the in-memory filters change, so a retry can keep them. */
   onVisualFiltersChange?: (filters: CardsVisualFilters) => void;
   queryRetryKey?: string;
-  /** The search in the page URL; back and forward apply it. */
   searchUrlState?: SearchUrlState;
   selectedCardId: string | null;
   toastIdPrefix?: string;
   UpgradeLinkComponent?: AddCardFormProps["UpgradeLinkComponent"];
   upgradeUrl: string;
-  /** The routed library view; quick commands navigate between views. */
   view?: LibraryView;
 }
 
 export function CardsScreen({
   addToFolderId,
+  focusComposer = false,
   folderId,
   initialVisualFilters,
   onAddCardsToFolder,
@@ -160,6 +147,7 @@ export function CardsScreen({
   selectedCardId,
   onOpenCard,
   onCloseCard,
+  onFocusComposerHandled,
   onOpenFolder,
   onUpgrade,
   queryRetryKey,
@@ -180,7 +168,27 @@ export function CardsScreen({
   );
   const [tagInput, setTagInput] = useState("");
   const draftContentRef = useRef("");
-  const gridRef = useRef<MasonryGridHandle>(null);
+  const [composerFocus, setComposerFocus] = useState(() => ({
+    pending: focusComposer,
+    requested: focusComposer,
+  }));
+  if (focusComposer !== composerFocus.requested) {
+    setComposerFocus({
+      pending: focusComposer || composerFocus.pending,
+      requested: focusComposer,
+    });
+  }
+  useEffect(() => {
+    if (focusComposer) {
+      onFocusComposerHandled?.();
+    }
+  }, [focusComposer, onFocusComposerHandled]);
+  const handleComposerFocus = useCallback(() => {
+    setComposerFocus((current) =>
+      current.pending ? { ...current, pending: false } : current
+    );
+  }, []);
+  const gridRef = useRef<MasonryGridHandle | null>(null);
   const returnFocusToGrid = useCallback(
     (cardId: string) => gridRef.current?.returnFocusTo(cardId) ?? false,
     []
@@ -267,8 +275,6 @@ export function CardsScreen({
   const queryArgs = searchController.queryArgs;
   const searchKey = useMemo(() => JSON.stringify(queryArgs), [queryArgs]);
   const reportedSearchKeyRef = useRef<string | null>(null);
-  // Best match: scores that arrive in time order this search; until then
-  // (at most a moment) the grid waits instead of reordering later.
   const relevance = useRelevanceRanking({
     ...queryArgs,
     enabled: !(isFolderView && !folder),
@@ -288,18 +294,22 @@ export function CardsScreen({
         },
     { initialNumItems: SEARCH_DEFAULT_CARD_LIMIT }
   );
-  // Meaning matches merge into the query above once they are cached.
   const semanticSearch = useSemanticSearch({
     ...queryArgs,
     enabled: !(isFolderView && !folder),
   });
-  // A typed `like:` chip reads "Similar to" and its card's title.
   const similarity = useMemo(
     () => parseSearchQuery(queryArgs.searchQuery ?? "").similarity ?? null,
     [queryArgs.searchQuery]
   );
   const anchorCardId =
     similarity?.kind === "like" ? similarity.cardId : undefined;
+  const listsTodo = useMemo(
+    () =>
+      parseSearchQuery(queryArgs.searchQuery ?? "").todo ||
+      (isSmartFolder && parseSearchQuery(folder?.query ?? "").todo),
+    [queryArgs.searchQuery, isSmartFolder, folder?.query]
+  );
   const similarAnchor = useQuery(
     api.cards.similarAnchorSummary,
     anchorCardId ? { cardId: anchorCardId } : "skip"
@@ -397,9 +407,14 @@ export function CardsScreen({
     []
   );
 
-  useEffect(() => {
+  const [fedResults, setFedResults] = useState<{
+    cards: typeof cards;
+    key: string;
+  } | null>(null);
+  if (fedResults?.cards !== cards || fedResults.key !== searchKey) {
+    setFedResults({ cards, key: searchKey });
     setRemoteCards(cards, searchKey);
-  }, [cards, searchKey, setRemoteCards]);
+  }
 
   const { isSeekingFirstMatch, requestMore: requestMoreCards } =
     useLoadUntilMatches({
@@ -420,11 +435,22 @@ export function CardsScreen({
       return;
     }
     reportedSearchKeyRef.current = searchKey;
-    captureEvent("search_performed", { zero_result: cards.length === 0 });
+    const qualifiers = Array.from(
+      new Set(
+        parseSearchQuery(queryArgs.searchQuery ?? "").qualifiers.map(
+          (qualifier) => qualifier.key
+        )
+      )
+    );
+    captureEvent("search_performed", {
+      ...(qualifiers.length > 0 ? { qualifiers } : {}),
+      zero_result: cards.length === 0,
+    });
   }, [
     cards.length,
     cardsStatus,
     isSeekingFirstMatch,
+    queryArgs.searchQuery,
     searchController.hasActiveSearch,
     searchKey,
     semanticSearch.isPending,
@@ -575,8 +601,6 @@ export function CardsScreen({
     onCloseModal: onCloseCard,
   });
 
-  // "More like this": the library lists the card's neighbors, in the
-  // current order; Back returns to the card.
   const handleMoreLikeThis = useCallback(
     (cardId: string) => {
       onCloseCard();
@@ -591,16 +615,50 @@ export function CardsScreen({
     toast.error("Card not found");
   }, [onCloseCard]);
 
+  const composerHandlers = useStableHandlers({ onOpenCard });
+  const gridHandlers = useStableHandlers({
+    onAddTags: handleAddTags,
+    onAddToFolderDone: (added: boolean) => {
+      if (addToFolder) {
+        onAddToFolderDone?.(addToFolder._id, added);
+      }
+    },
+    onBulkAction: runBulkAction,
+    onCardClick: handleCardClick,
+    onCopyImage: handleCopyImage,
+    onDeleteCard: async (cardId: string) => {
+      const { failedIds } = await runBulkAction("delete", [cardId]);
+      return failedIds.length === 0;
+    },
+    onLoadMore: requestMoreCards,
+    onPermanentDeleteCard: (cardId: string) =>
+      cardActions.handlePermanentDeleteCard(cardId as Id<"cards">),
+    onRestoreCard: (cardId: string) =>
+      cardActions.handleRestoreCard(cardId as Id<"cards">),
+    onToggleArchive: handleToggleArchive,
+    onToggleFavorite: handleToggleFavorite,
+  });
+
   const addCardForm = useMemo(
     () => (
       <AddCardForm
+        autoFocus={composerFocus.pending}
         draftContentRef={draftContentRef}
+        onFocus={handleComposerFocus}
+        onOpenCard={composerHandlers.onOpenCard}
         onUpgrade={onUpgrade}
         UpgradeLinkComponent={UpgradeLinkComponent}
         upgradeUrl={upgradeUrl}
       />
     ),
-    [UpgradeLinkComponent, onUpgrade, upgradeUrl]
+    [
+      UpgradeLinkComponent,
+      composerFocus.pending,
+      composerHandlers,
+      handleComposerFocus,
+      onUpgrade,
+      upgradeUrl,
+    ]
   );
 
   const renderEmptyState = () => {
@@ -616,11 +674,11 @@ export function CardsScreen({
               It may have been deleted.
             </p>
           </div>
-          {onNavigateView && (
+          {onNavigateView ? (
             <Button onClick={() => onNavigateView("all")} variant="outline">
               Go to Everything
             </Button>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -641,7 +699,11 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted">
             <FolderSearch aria-hidden="true" className="size-4" />
           </span>
-          <p>No cards match this smart folder.</p>
+          <p>
+            {listsTodo
+              ? "Nothing left to do."
+              : "No cards match this smart folder."}
+          </p>
           <Button onClick={editSmartFolder} variant="outline">
             <Pencil />
             Edit search
@@ -658,7 +720,7 @@ export function CardsScreen({
           </span>
           <p>No cards in this folder yet.</p>
           {hiddenCardsHint}
-          {onAddCardsToFolder && (
+          {onAddCardsToFolder ? (
             <Button
               onClick={() => onAddCardsToFolder(folder._id)}
               variant="outline"
@@ -666,7 +728,7 @@ export function CardsScreen({
               <Plus />
               Add cards
             </Button>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -691,22 +753,19 @@ export function CardsScreen({
     }
 
     if (displayCards.length === 0 && hasNoFilters) {
-      // Until a new account's cards land, show them on their way rather
-      // than an empty library. Cards that have arrived reach the grid an
-      // effect later, so they are on their way too: an empty library here
-      // would mount its composer and take focus for that one render.
-      if (vaultSetup === "loading" || cards.length > 0) {
+      if (vaultSetup === "loading") {
         return <CardsGridSkeleton />;
       }
       return (
         <>
           <AddCardEmptyState
+            onFocus={handleComposerFocus}
             UpgradeLinkComponent={UpgradeLinkComponent}
             upgradeUrl={upgradeUrl}
           />
-          {hiddenCardsHint && (
+          {hiddenCardsHint ? (
             <div className="mt-4 text-center">{hiddenCardsHint}</div>
-          )}
+          ) : null}
         </>
       );
     }
@@ -743,7 +802,9 @@ export function CardsScreen({
       return (
         <div className="space-y-4 py-12 text-center">
           <p className="text-muted-foreground">
-            Nothing found matching your filters
+            {listsTodo
+              ? "Nothing left to do."
+              : "Nothing found matching your filters"}
           </p>
           <Button onClick={clearAllFilters} variant="outline">
             Clear filters
@@ -841,7 +902,7 @@ export function CardsScreen({
         title={title}
       />
 
-      {showVaultSetup && <VaultSetupState />}
+      {showVaultSetup ? <VaultSetupState /> : null}
 
       {!showVaultSetup && displayCards.length > 0 && (
         <MasonryGrid
@@ -855,28 +916,7 @@ export function CardsScreen({
           }
           initialBatchSize={SEARCH_DEFAULT_CARD_LIMIT}
           isLoadingMore={cardsStatus === "LoadingMore"}
-          onAddTags={handleAddTags}
-          onAddToFolderDone={(added) => {
-            if (addToFolder) {
-              onAddToFolderDone?.(addToFolder._id, added);
-            }
-          }}
-          onBulkAction={runBulkAction}
-          onCardClick={handleCardClick}
-          onCopyImage={handleCopyImage}
-          onDeleteCard={async (cardId) => {
-            const { failedIds } = await runBulkAction("delete", [cardId]);
-            return failedIds.length === 0;
-          }}
-          onLoadMore={requestMoreCards}
-          onPermanentDeleteCard={(cardId) =>
-            cardActions.handlePermanentDeleteCard(cardId as Id<"cards">)
-          }
-          onRestoreCard={(cardId) =>
-            cardActions.handleRestoreCard(cardId as Id<"cards">)
-          }
-          onToggleArchive={handleToggleArchive}
-          onToggleFavorite={handleToggleFavorite}
+          {...gridHandlers}
           ref={gridRef}
           resetKey={resetKey}
           showAddForm={
@@ -903,7 +943,7 @@ export function CardsScreen({
         </>
       )}
 
-      {revisit.revisiting && (
+      {revisit.revisiting ? (
         <ConnectedRevisitDeck
           onArchive={revisit.onArchive}
           onExit={revisit.exit}
@@ -912,7 +952,7 @@ export function CardsScreen({
           onUnarchive={revisit.onUnarchive}
           queryArgs={isFolderView && !folder ? null : queryArgs}
         />
-      )}
+      ) : null}
 
       <ConnectedCardModal
         card={selectedCard}
@@ -927,6 +967,7 @@ export function CardsScreen({
             ? () => onSwitchCard(nextCardId)
             : undefined
         }
+        onOpenCard={onSwitchCard ?? onOpenCard}
         onPrevious={
           onSwitchCard && previousCardId
             ? () => onSwitchCard(previousCardId)

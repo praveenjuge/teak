@@ -1,5 +1,6 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { Button } from "@teak/ui/components/ui/button";
 import {
   Dialog,
@@ -23,6 +24,8 @@ import {
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
+  Circle,
+  CircleCheck,
   Copy,
   Download,
   Heart,
@@ -37,11 +40,13 @@ import {
   X,
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useGlobalFileDrop } from "../../hooks/GlobalFileDropProvider";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
+import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
+import { useStableHandlers } from "../../hooks/useStableHandlers";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import {
   ariaKeyShortcut,
@@ -65,8 +70,14 @@ import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { SiteFavicon } from "../cards/SiteFavicon";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import type { CardLinkOptions } from "../text-editor/types";
 import { ConfirmDialog } from "../ui/confirm-dialog";
-import { CardMetadataPanel, type CardTagsControl } from "./CardMetadataPanel";
+import {
+  type CardBacklinks,
+  CardMetadataPanel,
+  type CardTagsControl,
+  type SavePdfControl,
+} from "./CardMetadataPanel";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -77,17 +88,18 @@ import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
 import { useLeaveGuard } from "./useLeaveGuard";
 
-/** How long typing pauses before an edit saves on its own. */
 export const AUTOSAVE_DELAY_MS = 800;
 
 function CardPreview({
   card,
+  cardLinks,
   getCurrentValue,
   saveChanges,
   thumbnail,
   updateContent,
 }: {
   card: CardModalCard;
+  cardLinks?: CardLinkOptions;
   getCurrentValue: GetCurrentValue;
   saveChanges: () => void;
   thumbnail?: LinkThumbnailControl;
@@ -98,6 +110,7 @@ function CardPreview({
       return (
         <TextPreview
           card={card}
+          cardLinks={cardLinks}
           getCurrentValue={getCurrentValue}
           onContentChange={updateContent}
           onSaveShortcut={saveChanges}
@@ -176,9 +189,11 @@ const SAVE_STATE_LABELS: Record<CardSaveState, string> = {
 };
 
 interface CardModalProps {
+  backlinks?: CardBacklinks;
   card?: CardModalCard | null;
-  /** The card being opened, before its data arrives. */
   cardId?: string | null;
+  /** `[[` links in a note: card search, live titles and opening a card. */
+  cardLinks?: CardLinkOptions;
   downloadFile: () => void;
   getCurrentValue: GetCurrentValue;
   handleDelete: (onClose?: () => void) => Promise<void>;
@@ -187,30 +202,24 @@ interface CardModalProps {
   hasUnsavedChanges: boolean;
   isDownloading?: boolean;
   isReprocessing?: boolean;
-  /** Replaces or resets a link card's image. */
   linkThumbnail?: LinkThumbnailControl;
   onCancel?: () => void;
   onCardTypeClick?: (cardType: string) => void;
-  /** Lists the cards closest in meaning to a card (`like:<id>`). */
   onMoreLikeThis?: (cardId: string) => void;
-  /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
-  /** Shows the previous card in the grid; absent on the first card. */
+  onOpenCard?: (cardId: string) => void;
   onPrevious?: () => void;
   onReprocess?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
-  /**
-   * Called as the dialog closes with the card it showed last; true when it
-   * moved focus there, so the dialog leaves focus alone.
-   */
   returnFocus?: (cardId: string) => boolean;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
+  savePdf?: SavePdfControl;
   saveState: CardSaveState;
   tags: Omit<CardTagsControl, "inputRef">;
-  /** Archives or unarchives the card; the dialog then closes. */
   toggleArchive?: () => void;
+  toggleDone?: () => void;
   toggleFavorite: () => void;
   updateContent: (value: string) => void;
   updateNotes: (value: string) => void;
@@ -218,12 +227,15 @@ interface CardModalProps {
 }
 
 export function CardModal({
+  backlinks,
   card: cardProp,
   cardId,
+  cardLinks,
   open,
   onCancel,
   onCardTypeClick,
   onNext,
+  onOpenCard,
   onPrevious,
   onTagClick,
   onMoreLikeThis,
@@ -233,6 +245,7 @@ export function CardModal({
   updateNotes,
   updateTitle,
   toggleArchive,
+  toggleDone,
   toggleFavorite,
   handleDelete,
   handleRestore,
@@ -240,6 +253,7 @@ export function CardModal({
   openLink,
   downloadFile,
   saveChanges,
+  savePdf,
   saveState,
   tags,
   isDownloading,
@@ -250,18 +264,10 @@ export function CardModal({
 }: CardModalProps) {
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
-  // Closing clears the open card in the same render; keep showing the last
-  // one so the dialog never flashes the loading layout on its way out.
-  const lastCardRef = useRef(cardProp);
-  if (cardProp) {
-    lastCardRef.current = cardProp;
-  }
-  const card = open ? cardProp : (cardProp ?? lastCardRef.current);
+  const card = useRetainedWhileClosing(cardProp, open);
   const contentRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
-  // The menu's "Replace image" opens this picker; it stays mounted while the
-  // menu closes.
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
@@ -289,32 +295,28 @@ export function CardModal({
     return () => window.clearTimeout(timer);
   }, [open, hasUnsavedChanges, saveChanges]);
 
-  // A link's image can be replaced or reset; not from Trash.
   const imageControl =
     card?.type === "link" && !card.isDeleted ? linkThumbnail : undefined;
 
-  // Pasting an image while a link is open replaces its image, unless a text
-  // field has focus. Capture runs before the library's paste-to-save.
   const canPasteImage = Boolean(open && imageControl);
+  const claimPaste = useGlobalFileDrop()?.claimPaste;
   useEffect(() => {
-    if (!(canPasteImage && linkThumbnail)) {
+    if (!(canPasteImage && linkThumbnail && claimPaste)) {
       return;
     }
-    const handlePaste = (event: ClipboardEvent) => {
+    return claimPaste((event) => {
       if (isTextEntryTarget(event.target)) {
-        return;
+        return false;
       }
       const file = imageFromClipboard(event.clipboardData);
       if (!file) {
-        return;
+        return false;
       }
       event.preventDefault();
-      event.stopPropagation();
       linkThumbnail.replace(file, "paste");
-    };
-    document.addEventListener("paste", handlePaste, true);
-    return () => document.removeEventListener("paste", handlePaste, true);
-  }, [canPasteImage, linkThumbnail]);
+      return true;
+    });
+  }, [canPasteImage, claimPaste, linkThumbnail]);
 
   const commit = () => {
     if (hasUnsavedChanges) {
@@ -340,23 +342,9 @@ export function CardModal({
     updateTitle(value);
   };
 
-  // Closing re-renders the whole grid behind the dialog, so the dialog
-  // hides itself and paints first, then tells the page.
-  const [hidden, setHidden] = useState(false);
-  if (hidden && !open) {
-    setHidden(false);
-  }
-  const leave = () => {
-    if (!onCancel) {
-      return;
-    }
-    flushSync(() => setHidden(true));
-    requestAnimationFrame(() => setTimeout(onCancel, 0));
-  };
-
   const handleClose = async () => {
     if (await readyToLeave()) {
-      leave();
+      onCancel?.();
     }
   };
 
@@ -364,7 +352,7 @@ export function CardModal({
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
     }
-    leave();
+    onCancel?.();
   };
 
   const goTo = async (show?: () => void) => {
@@ -375,6 +363,26 @@ export function CardModal({
       show();
     }
   };
+
+  // A pill or a Linked from row opens its card through goTo, like the
+  // arrows, so unsaved edits save first.
+  const linkHandlers = useStableHandlers({
+    openBacklink: (linkedCardId: string) => {
+      void goTo(() => onOpenCard?.(linkedCardId));
+    },
+    openPill: (linkedCardId: string) => {
+      void goTo(() => cardLinks?.onOpenCard?.(linkedCardId));
+    },
+  });
+  const openLinkedCard = onOpenCard ? linkHandlers.openBacklink : undefined;
+  const guardedCardLinks = useMemo(
+    () =>
+      cardLinks && {
+        ...cardLinks,
+        onOpenCard: cardLinks.onOpenCard ? linkHandlers.openPill : undefined,
+      },
+    [cardLinks, linkHandlers]
+  );
 
   const isDeleted = Boolean(card?.isDeleted);
   const canDownload = Boolean(
@@ -467,7 +475,7 @@ export function CardModal({
             void handleClose();
           }
         }}
-        open={open && !hidden}
+        open={open}
       >
         <DialogContent
           className={cn(
@@ -482,8 +490,6 @@ export function CardModal({
           }}
           onKeyDown={handleKeyDown}
           onOpenAutoFocus={(event) => {
-            // Focus the dialog itself, not its first field, so its keys
-            // work at once and nothing starts in edit mode.
             event.preventDefault();
             contentRef.current?.focus();
           }}
@@ -544,14 +550,14 @@ export function CardModal({
                     </DialogTitle>
                   )}
                   <DialogDescription className="flex min-w-0 items-center gap-1.5 truncate text-muted-foreground text-xs">
-                    {hostname && (
+                    {hostname ? (
                       <span className="truncate max-sm:hidden">{hostname}</span>
-                    )}
-                    {hostname && (
+                    ) : null}
+                    {hostname ? (
                       <span aria-hidden="true" className="max-sm:hidden">
                         ·
                       </span>
-                    )}
+                    ) : null}
                     <span className="shrink-0">
                       {formatAddedDate(card.createdAt)}
                     </span>
@@ -573,7 +579,7 @@ export function CardModal({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-0.5">
-                  {(onPrevious || onNext) && (
+                  {onPrevious || onNext ? (
                     <div className="mr-1 flex items-center gap-0.5 md:mr-2">
                       <HeaderIconButton
                         disabled={!onPrevious}
@@ -592,7 +598,7 @@ export function CardModal({
                         <ChevronRight />
                       </HeaderIconButton>
                     </div>
-                  )}
+                  ) : null}
 
                   {!isDeleted && (
                     <HeaderIconButton
@@ -608,6 +614,14 @@ export function CardModal({
                         )}
                       />
                     </HeaderIconButton>
+                  )}
+
+                  {toggleDone && card.type === "link" && !isDeleted && (
+                    <DoneButton
+                      category={card.metadata?.linkCategory?.category}
+                      done={card.completedAt !== undefined}
+                      onClick={toggleDone}
+                    />
                   )}
 
                   {card.url && !isDeleted && (
@@ -636,7 +650,7 @@ export function CardModal({
                     </Button>
                   )}
 
-                  {imageControl && (
+                  {imageControl ? (
                     <input
                       accept={LINK_THUMBNAIL_ACCEPT}
                       aria-hidden="true"
@@ -644,7 +658,6 @@ export function CardModal({
                       data-testid="link-image-input"
                       onChange={(event) => {
                         const file = firstFile(event.target.files);
-                        // The same file can be picked again after a failure.
                         event.target.value = "";
                         if (file) {
                           imageControl.replace(file, "pick");
@@ -654,7 +667,7 @@ export function CardModal({
                       tabIndex={-1}
                       type="file"
                     />
-                  )}
+                  ) : null}
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
                       <HeaderIconButton label="More actions">
@@ -662,7 +675,7 @@ export function CardModal({
                       </HeaderIconButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
-                      {card.url && (
+                      {card.url ? (
                         <DropdownMenuItem
                           onClick={() =>
                             void copyToClipboard(
@@ -674,8 +687,8 @@ export function CardModal({
                           <Copy />
                           Copy Link
                         </DropdownMenuItem>
-                      )}
-                      {copyableText && (
+                      ) : null}
+                      {copyableText ? (
                         <DropdownMenuItem
                           onClick={() =>
                             void copyToClipboard(copyableText, "Copied text")
@@ -684,8 +697,8 @@ export function CardModal({
                           <Copy />
                           Copy Text
                         </DropdownMenuItem>
-                      )}
-                      {canDownload && card.url && (
+                      ) : null}
+                      {canDownload && card.url ? (
                         <DropdownMenuItem
                           disabled={isDownloading}
                           onClick={downloadFile}
@@ -693,7 +706,7 @@ export function CardModal({
                           <Download />
                           Download
                         </DropdownMenuItem>
-                      )}
+                      ) : null}
                       {isDeleted ? (
                         <>
                           <DropdownMenuItem
@@ -715,15 +728,15 @@ export function CardModal({
                         </>
                       ) : (
                         <>
-                          {onMoreLikeThis && (
+                          {onMoreLikeThis ? (
                             <DropdownMenuItem
                               onClick={() => onMoreLikeThis(card._id)}
                             >
                               <Sparkles />
                               More like this
                             </DropdownMenuItem>
-                          )}
-                          {imageControl && (
+                          ) : null}
+                          {imageControl ? (
                             <DropdownMenuItem
                               disabled={imageControl.isBusy}
                               onClick={() => imageInputRef.current?.click()}
@@ -731,8 +744,8 @@ export function CardModal({
                               {imageControl.isBusy ? <Spinner /> : <ImageUp />}
                               Replace image
                             </DropdownMenuItem>
-                          )}
-                          {imageControl && card.thumbnailOverride && (
+                          ) : null}
+                          {imageControl && card.thumbnailOverride ? (
                             <DropdownMenuItem
                               disabled={imageControl.isBusy}
                               onClick={imageControl.reset}
@@ -740,8 +753,8 @@ export function CardModal({
                               <Undo2 />
                               Reset to original image
                             </DropdownMenuItem>
-                          )}
-                          {onReprocess && (
+                          ) : null}
+                          {onReprocess ? (
                             <DropdownMenuItem
                               disabled={isReprocessing}
                               onClick={onReprocess}
@@ -749,8 +762,8 @@ export function CardModal({
                               {isReprocessing ? <Spinner /> : <RefreshCw />}
                               Refresh details
                             </DropdownMenuItem>
-                          )}
-                          {toggleArchive && (
+                          ) : null}
+                          {toggleArchive ? (
                             <DropdownMenuItem
                               aria-keyshortcuts={menuShortcuts.archive.keys}
                               onClick={archive}
@@ -765,7 +778,7 @@ export function CardModal({
                                 {menuShortcuts.archive.label}
                               </DropdownMenuShortcut>
                             </DropdownMenuItem>
-                          )}
+                          ) : null}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             aria-keyshortcuts={menuShortcuts.delete.keys}
@@ -803,6 +816,7 @@ export function CardModal({
                   <div className={stageContentClass(card)}>
                     <CardPreview
                       card={card}
+                      cardLinks={guardedCardLinks}
                       getCurrentValue={getCurrentValue}
                       key={card._id}
                       saveChanges={() => {
@@ -819,17 +833,20 @@ export function CardModal({
                   className="shrink-0 border-t bg-muted/25 md:w-80 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[21rem]"
                 >
                   <CardMetadataPanel
+                    backlinks={backlinks}
                     card={card}
                     getCurrentValue={getCurrentValue}
                     notesRef={notesRef}
                     onCardTypeClick={() => onCardTypeClick?.(card.type)}
                     onCommit={commit}
                     onNotesChange={editNotes}
+                    onOpenCard={openLinkedCard}
                     onPermanentDelete={() =>
                       setIsPermanentDeleteConfirmOpen(true)
                     }
                     onRestore={() => void handleRestore(closeAfterAction)}
                     onTagClick={onTagClick}
+                    savePdf={savePdf}
                     tags={{ ...tags, inputRef: tagInputRef }}
                   />
                 </aside>
@@ -876,6 +893,26 @@ async function copyToClipboard(text: string, message: string) {
   }
 }
 
+export function DoneButton({
+  category,
+  done,
+  onClick,
+}: {
+  category?: string;
+  done: boolean;
+  onClick: () => void;
+}) {
+  const verb = doneActionLabel(category);
+  const label = done
+    ? `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`
+    : `Mark as ${verb}`;
+  return (
+    <HeaderIconButton label={label} onClick={onClick} pressed={done}>
+      {done ? <CircleCheck className="text-primary" /> : <Circle />}
+    </HeaderIconButton>
+  );
+}
+
 function HeaderIconButton({
   children,
   label,
@@ -887,7 +924,6 @@ function HeaderIconButton({
   children: ReactNode;
   label: string;
   pressed?: boolean;
-  /** Keys that do the same, shown on the right of the button's tooltip. */
   shortcut?: readonly string[];
 }) {
   const button = (

@@ -13,21 +13,13 @@ import {
 
 export type LinkThumbnailSource = "drop" | "paste" | "pick";
 
-/** What the card dialog needs to replace or reset a link's image. */
 export interface LinkThumbnailControl {
-  /** True while an upload, apply or reset is running. */
   isBusy: boolean;
   replace: (file: File, source: LinkThumbnailSource) => void;
   reset: () => void;
-  /** The file being uploaded, shown at once while it uploads. */
   uploadingPreviewUrl?: string;
 }
 
-/**
- * Replace a link card's image with a dropped, pasted or picked file, or go
- * back to the one Teak found. Each change offers Undo for as long as the
- * server keeps the image it replaced.
- */
 export function useLinkThumbnail(
   cardId: string | null | undefined
 ): LinkThumbnailControl {
@@ -43,14 +35,11 @@ export function useLinkThumbnail(
   const undoThumbnailChange = useMutation(
     api.card.thumbnailOverride.undoThumbnailChange
   );
-  // The change running now and the card it is for. The dialog can move to
-  // another card while it runs, so it only shows as busy, with its preview,
-  // on its own card.
   const [active, setActive] = useState<{
     cardId: string;
     previewUrl?: string;
   } | null>(null);
-  const busy = useRef(false);
+  const busy = useRef<boolean>(false);
   const activePreviewUrl = active?.previewUrl;
 
   useEffect(() => {

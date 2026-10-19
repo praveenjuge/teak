@@ -1,10 +1,6 @@
 import { filesCardKeyPrefix } from "@teak/files-protocol";
 import { sha256Hex } from "../../lib";
 
-// Raw link metadata above 1 KiB lives in R2 (storage/rawMetadata.ts in
-// Convex archives it); a card keeps its key and SHA-256. Categorization
-// reads it back here, straight from the bucket.
-
 const RAW_METADATA_MAX_BYTES = 512 * 1024;
 type RawMetadataKind = "linkCategory" | "linkPreview";
 
@@ -49,10 +45,6 @@ interface ArchivablePart {
   rawStorageKey?: string;
 }
 
-/**
- * The card with each archived raw metadata part read back inline, checked
- * against the digest its key names.
- */
 export const hydrateArchivedMetadata = async <
   T extends {
     _id: string;

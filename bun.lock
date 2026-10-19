@@ -33,12 +33,25 @@
       "version": "1.0.87",
       "dependencies": {
         "@teak/convex": "workspace:*",
+        "@teak/ui": "workspace:*",
         "@vercel/functions": "^3.7.6",
         "blume": "^2.2.1",
       },
       "devDependencies": {
         "@types/bun": "^1.4.0",
         "typescript": "^6.0.3",
+      },
+    },
+    "apps/email-worker": {
+      "name": "@teak/email-worker",
+      "version": "1.0.86",
+      "dependencies": {
+        "postal-mime": "2.7.3",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.4.0",
+        "typescript": "^6.0.3",
+        "wrangler": "^4.151.0",
       },
     },
     "apps/extension": {
@@ -91,7 +104,7 @@
       "version": "1.0.87",
       "dependencies": {
         "@raycast/api": "^1.104.24",
-        "teak-sdk": "1.0.81",
+        "teak-sdk": "1.0.86",
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "20.14.5",
@@ -1258,6 +1271,8 @@
     "@teak/convex": ["@teak/convex@workspace:packages/convex"],
 
     "@teak/docs": ["@teak/docs@workspace:apps/docs"],
+
+    "@teak/email-worker": ["@teak/email-worker@workspace:apps/email-worker"],
 
     "@teak/extension": ["@teak/extension@workspace:apps/extension"],
 
@@ -2699,6 +2714,8 @@
 
     "points-on-path": ["points-on-path@0.2.1", "", { "dependencies": { "path-data-parser": "0.1.0", "points-on-curve": "0.2.0" } }, "sha512-25ClnWWuw7JbWZcgqY/gJ4FQWadKxGWk+3kR/7kD0tCaDtPPMj7oHu2ToLaVhfpnHrZzYby2w6tUA0eOIuUg8g=="],
 
+    "postal-mime": ["postal-mime@2.7.3", "", {}, "sha512-MjhXadAJaWgYzevi46+3kLak8y6gbg0ku14O1gO/LNOuay8dO+1PtcSGvAdgDR0DoIsSaiIA8y/Ddw6MnrO0Tw=="],
+
     "postcss": ["postcss@8.5.26", "", { "dependencies": { "nanoid": "^3.3.17", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ=="],
 
     "postcss-selector-parser": ["postcss-selector-parser@6.0.10", "", { "dependencies": { "cssesc": "^3.0.0", "util-deprecate": "^1.0.2" } }, "sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w=="],
@@ -3706,8 +3723,6 @@
     "svgo/css-what": ["css-what@7.0.0", "", {}, "sha512-wD5oz5xibMOPHzy13CyGmogB3phdvcDaB5t0W/Nr5Z2O/agcB8YwOz6e2Lsp10pNDzBoDO9nVa3RGs/2BttpHQ=="],
 
     "svgo/sax": ["sax@1.6.1", "", {}, "sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q=="],
-
-    "teak-raycast/teak-sdk": ["teak-sdk@1.0.81", "", {}, "sha512-r8XV0MhcjI8FbwDoSR5/gocznz2bPdOzIUX6aqDkTBUzfNsS9hxBfds/2O+7hpRNcvIvnuAQ1JZeWdGs9/j3WQ=="],
 
     "tinyglobby/picomatch": ["picomatch@4.0.4", "", {}, "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A=="],
 

@@ -26,7 +26,6 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Each staged file gets its own folder, which [UploadWorker] deletes once the file is uploaded. */
 object StagingArea {
     private const val DIRECTORY = "uploads"
 
@@ -51,10 +50,8 @@ data class UploadStatus(
 }
 
 interface UploadRepository {
-    /** Copies picked or shared files into app storage so they survive until uploaded. */
     suspend fun stage(uris: List<Uri>, metadata: (Uri) -> Map<String, Double> = { emptyMap() }): StageResult
 
-    /** Queues files to upload one after another in the background, with a progress notification. */
     fun enqueue(files: List<StagedFile>)
 
     val uploads: Flow<List<UploadStatus>>
@@ -130,7 +127,7 @@ class WorkManagerUploadRepository @Inject constructor(
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
         val outcome = uploadOutcome(info.state, output)
-        val skipped = outcome == UploadOutcome.Skipped
+        val skipped = outcome == UploadOutcome.NotRunAfterLimit
         val state = when {
             info.state == WorkInfo.State.CANCELLED -> UploadStatus.State.Failed
             outcome != null && outcome != UploadOutcome.Saved -> UploadStatus.State.Failed
@@ -201,7 +198,7 @@ internal fun uploadOutcome(state: WorkInfo.State, output: Data): UploadOutcome? 
     val hasError = output.getString(UploadWorker.Output.ERROR) != null
     return when {
         state == WorkInfo.State.FAILED && hasError -> UploadOutcome.LimitReached
-        state == WorkInfo.State.FAILED -> UploadOutcome.Skipped
+        state == WorkInfo.State.FAILED -> UploadOutcome.NotRunAfterLimit
         state.isFinished && hasError -> UploadOutcome.Failed
         else -> null
     }

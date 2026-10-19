@@ -31,7 +31,9 @@ import {
   keepPreviewAfterFailedRefresh,
   parseLinkMetadataRetryableError,
 } from "./linkMetadata";
+import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
+import { isPodcastLink, transcribePodcastEpisode } from "./podcast";
 import {
   extractPaletteFromImage,
   generateRenderables,
@@ -39,18 +41,12 @@ import {
 } from "./renderables";
 import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 
-// Card processing: classify, link metadata, categorize, then AI metadata
-// and renderables, then a link's screenshot. Step names are durable history:
-// never rename one, and add new steps after the existing ones.
+// Step names are durable history: never rename one, and add new steps after
+// the existing ones.
 
 export interface CardProcessingParams {
   cardId: string;
-  /** Only regenerate the AI metadata (the admin's AI backfill retry). */
   metadataOnly?: boolean;
-  /**
-   * A person asked to refresh the card ("Refresh details"): the link preview
-   * and category are read again even when the stored ones worked.
-   */
   refresh?: boolean;
   rev: number;
 }
@@ -59,17 +55,13 @@ const LINK_METADATA_STEP = retryConfig(5, 5000);
 const CATEGORIZE_STEP = retryConfig(5, 1200);
 const RENDERABLES_STEP = retryConfig(4, 5000);
 const RENDERABLES_ATTEMPTS = 4;
+const PODCAST_STEP = retryConfig(2, 60_000, "15 minutes");
+const LINK_TEXT_STEP = retryConfig(3, 30_000, "5 minutes");
 
-/** Attempts for any metadata failure but Workers AI capacity. */
 const METADATA_ATTEMPTS = 8;
 const METADATA_INITIAL_BACKOFF_MS = 400;
-/** Workers AI capacity retries in the step before the backfill takes over. */
 export const AI_CAPACITY_RETRIES = 10;
 
-/**
- * Workers AI capacity (`rate limit reached 429`) backs off 30 s more each
- * attempt; anything else backs off exponentially for its 8 attempts.
- */
 export const METADATA_STEP: StepConfig = {
   retries: {
     delay: ({ ctx, error }) =>
@@ -81,9 +73,14 @@ export const METADATA_STEP: StepConfig = {
   timeout: "15 minutes",
 };
 
-/** A newer revision (an edit) or a deletion took the card from this run. */
+// A NonRetryableError thrown inside a step reaches the workflow as a plain
+// Error whose message starts with "NonRetryableError: " (engine.test.ts).
+const NON_RETRYABLE_PREFIX = /^NonRetryableError:\s*/u;
+
 export const isSuperseded = (error: unknown): boolean => {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = (
+    error instanceof Error ? error.message : String(error)
+  ).replace(NON_RETRYABLE_PREFIX, "");
   return (
     message.startsWith("stale_processing_revision") ||
     message.startsWith("card_missing")
@@ -99,6 +96,8 @@ const rethrowSuperseded = (error: unknown): void => {
 interface InitialFacts {
   classification: CompletedClassification | null;
   creationTime: number;
+  /** The link's stored category, for a metadata-only run's podcast check. */
+  linkCategory?: string;
   rev: number;
 }
 
@@ -205,6 +204,9 @@ const processCard = async (
               }
             : null,
         creationTime: card._creationTime,
+        ...(card.metadata?.linkCategory?.category
+          ? { linkCategory: card.metadata.linkCategory.category }
+          : {}),
         rev: card.processingRev ?? 0,
       };
     }
@@ -231,10 +233,16 @@ const processCard = async (
   const cardType = classified.type;
 
   if (metadataOnly) {
-    // Every other stage keeps what the card's earlier runs left.
     const metadata = classified.shouldGenerateMetadata
       ? await runMetadataStep(job, step, reported, cardType)
       : null;
+    // An episode whose first run had no AI metadata wasn't transcribed.
+    if (
+      isPodcastLink(cardType, initial.linkCategory) &&
+      metadata?.mode === "completed"
+    ) {
+      await transcribePodcastStep(job, step, { keepTranscript: true });
+    }
     return completedResult(classified, cardType, metadata, null);
   }
 
@@ -252,8 +260,6 @@ const processCard = async (
         })
       );
     } catch (error) {
-      // A refresh that still can't read the page keeps the preview the card
-      // has and goes on; an automatic run fails as before.
       const failure = job.refresh
         ? parseLinkMetadataRetryableError(error)
         : null;
@@ -343,7 +349,6 @@ const processCard = async (
     ]);
   }
 
-  // A link's screenshot follows the AI metadata it was stored with.
   if (cardType === "link" && metadata?.mode === "completed") {
     await step
       .do(
@@ -354,15 +359,11 @@ const processCard = async (
         )
       )
       .catch(async (error: unknown) => {
-        // The screenshot is its own stage: a failure is recorded on it and
-        // does not fail the card's run.
         rethrowSuperseded(error);
         console.error("[cardProcessing] Screenshot failed", {
           cardId: job.cardId,
           error: error instanceof Error ? error.message : String(error),
         });
-        // A failure the step gave up on without recording (a final error)
-        // must not leave the stage in progress.
         await step.do("mark screenshot failed", CONVEX_STEP, async () => {
           const loaded = await loadCard(job);
           const status = loaded?.card.processingStatus?.screenshot?.status;
@@ -383,6 +384,16 @@ const processCard = async (
         });
         return null;
       });
+    await step
+      .do("read link image text", LINK_TEXT_STEP, () => readLinkImageText(job))
+      .catch((error: unknown) => {
+        rethrowSuperseded(error);
+        console.warn("[cardProcessing] Link image text failed", {
+          cardId: job.cardId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      });
   }
 
   await step
@@ -394,6 +405,15 @@ const processCard = async (
       return null;
     })
     .catch(() => null);
+
+  // A podcast episode's transcript comes after the card is complete: no
+  // stage waits on it, and a miss or an error never fails the card.
+  if (
+    isPodcastLink(cardType, categorization?.category) &&
+    metadata?.mode === "completed"
+  ) {
+    await transcribePodcastStep(job, step);
+  }
 
   return {
     ...completedResult(classified, cardType, metadata, renderables),
@@ -423,6 +443,32 @@ const completedResult = (
     : {}),
 });
 
+/** The podcast transcript, logged; only a superseded run's error escapes. */
+const transcribePodcastStep = (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"],
+  options: { keepTranscript?: boolean } = {}
+) =>
+  step
+    .do("transcribe podcast", PODCAST_STEP, () =>
+      withWorkflowTelemetry(job.env, async (telemetry) => {
+        const outcome = await transcribePodcastEpisode(job, telemetry, options);
+        console.log("[cardProcessing] podcast transcript", {
+          cardId: job.cardId,
+          ...outcome,
+        });
+        return outcome;
+      })
+    )
+    .catch((error: unknown) => {
+      rethrowSuperseded(error);
+      console.warn("[cardProcessing] Podcast transcript failed", {
+        cardId: job.cardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    });
+
 const runMetadataStep = (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],
@@ -441,9 +487,8 @@ const runMetadataStep = (
           await markInProgress(job, ["metadata"]);
           return await withWorkflowTelemetry(job.env, (telemetry) =>
             generateCardMetadata(job, telemetry, cardType, {
-              // The last attempt leaves a card Workers AI still can't take
-              // to the backfill.
               capacity: ctx.attempt > AI_CAPACITY_RETRIES ? "defer" : "retry",
+              lastAttempt: ctx.attempt >= METADATA_ATTEMPTS,
               restorePendingOnDefer: true,
             })
           );

@@ -43,7 +43,7 @@ final class CaptureModel {
         defer { isSavingText = false }
         do {
             let input = LinkDetection.resolve(raw)
-            let id: String = try await backend.mutation("cards:createCard", input.createArgs)
+            let id = try await backend.mutation(ConvexFunctions.createCard, input.createArgs)
             saved(input.type == .link ? "Link saved" : "Note saved")
             return id
         } catch let error as TeakError where error.isCardLimit {

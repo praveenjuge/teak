@@ -52,6 +52,14 @@ describe("buildSearchSuggestions", () => {
     });
   });
 
+  test("text: is offered while typing te", () => {
+    expect(buildSearchSuggestions("te", sources).suggestions[0]).toMatchObject({
+      insert: "text:",
+      detail: "Words in images and scans",
+      complete: false,
+    });
+  });
+
   test("a word suggests keys, tags, folders and sites that match", () => {
     expect(inserts("de")).toEqual([
       "tag:design",
@@ -67,8 +75,15 @@ describe("buildSearchSuggestions", () => {
     expect(inserts("site:例")).toEqual(["site:例え.jp"]);
     expect(inserts('folder:"read')).toEqual(['folder:"Reading list"']);
     expect(inserts("type:im")).toEqual(["type:image"]);
-    expect(inserts("is:")).toEqual(["is:fav", "is:archived"]);
+    expect(inserts("is:")).toEqual([
+      "is:fav",
+      "is:archived",
+      "is:done",
+      "is:todo",
+    ]);
     expect(inserts("IS:arch")).toEqual(["is:archived"]);
+    expect(inserts("is:fin")).toEqual(["is:done"]);
+    expect(inserts("is:to")).toEqual(["is:todo"]);
     expect(buildSearchSuggestions("site:g", sources).completingValue).toBe(
       true
     );
@@ -156,12 +171,16 @@ describe("describeQualifierChip", () => {
     ["tag:design", "Tag", "design"],
     ["type:link", "Type", "Link"],
     ["is:fav", "Show", "Favorites"],
+    ["is:archived", "Show", "Archived"],
+    ["is:finished", "Show", "Done"],
+    ["is:to-do", "Show", "To do"],
     ['folder:"Reading list"', "Folder", "Reading list"],
     ["like:j979t50bv7gjxz2mazwwf5tes18gbvnt", "Similar to", "a card"],
     ['mood:"moody brutalist"', "Mood", "“moody brutalist”"],
     ["price:<100", "Price", "Under 100"],
     ["price:>=1250.5", "Price", "1,250.5 or more"],
     ["price:=0", "Price", "Exactly 0"],
+    ['text:"Total due"', "Text in image", "Total due"],
   ])("%s", (chip: string, title: string, label: string) => {
     expect(describeQualifierChip(chip)).toMatchObject({ title, label });
   });

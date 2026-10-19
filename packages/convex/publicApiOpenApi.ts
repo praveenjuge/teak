@@ -50,6 +50,15 @@ const THUMBNAIL_TYPES_DESCRIPTION =
 const apiErrorContent = {
   "application/json": { schema: { $ref: "#/components/schemas/ApiError" } },
 } as const;
+const doneErrorResponses = {
+  400: {
+    content: apiErrorContent,
+    description: "TYPE_MISMATCH: only link cards can be marked done",
+  },
+  404: { content: apiErrorContent, description: "Card not found" },
+  409: { content: apiErrorContent, description: "The card is in Trash" },
+  429: { content: apiErrorContent, description: "RATE_LIMITED" },
+} as const;
 const thumbnailErrorResponses = {
   400: {
     content: apiErrorContent,
@@ -78,7 +87,11 @@ const tagListSchema = {
 const cardProperties = {
   aiSummary: { type: ["string", "null"] },
   aiTags: { items: { type: "string" }, type: "array" },
-  aiTranscript: { type: ["string", "null"] },
+  aiTranscript: {
+    description:
+      "What is said in the card: an audio or video file's transcript, a Vimeo video's captions, or a podcast episode's transcript.",
+    type: ["string", "null"],
+  },
   appUrl: { format: "uri", type: "string" },
   compactUrl: {
     description:
@@ -104,6 +117,11 @@ const cardProperties = {
     },
   },
   linkPreviewTitle: { type: ["string", "null"] },
+  linkCategory: {
+    description:
+      "What a link is, such as `article`, `movie`, `product` or `game`, or null before Teak has read it. A plain string: new categories are added over time, so accept values you don't know.",
+    type: ["string", "null"],
+  },
   linkPrice: {
     description:
       "A product link's price, read from the page: `amount` in the page's currency and `currency` as an ISO 4217 code, or null when the page didn't say which. Null for cards without a price. `price:` in `q` compares `amount`.",
@@ -162,6 +180,11 @@ const cardProperties = {
   id: { type: "string" },
   archivedAt: {
     description: "When the card was archived, or null when it isn't.",
+    type: ["number", "null"],
+  },
+  completedAt: {
+    description:
+      "When the link was marked read, watched, bought or otherwise done (POST /v1/cards/{cardId}/done), or null when it isn't. `is:done` and `is:todo` in `q` filter on it.",
     type: ["number", "null"],
   },
   folderIds: {
@@ -233,6 +256,26 @@ const cardProperties = {
   type: { type: "string" },
   updatedAt: { type: "number" },
   url: { type: ["string", "null"] },
+  links: {
+    description:
+      "Cards this card links to with `[[Title|teak:<id>]]`, in the order they appear in `content`, at most 100. A link to a card in Trash, a deleted card or another account's card is `missing`, with a null `title` and `type`. Only on single-card responses: lists and the changes feed leave it out.",
+    items: { $ref: "#/components/schemas/CardLinkRef" },
+    type: "array",
+  },
+  linksTruncated: {
+    description: "True when the card has more than 100 links.",
+    type: "boolean",
+  },
+  backlinks: {
+    description:
+      "Your cards that link to this card, most recently updated first, at most 100; cards in Trash and hidden cards are left out. Only on single-card responses.",
+    items: { $ref: "#/components/schemas/CardLinkRef" },
+    type: "array",
+  },
+  backlinksTruncated: {
+    description: "True when more than 100 cards link to this card.",
+    type: "boolean",
+  },
 } as const;
 
 const components = {
@@ -244,6 +287,20 @@ const components = {
         retryAt: { type: ["number", "null"] },
       },
       required: ["code", "error"],
+      type: "object",
+    },
+    CardLinkRef: {
+      properties: {
+        id: { type: "string" },
+        missing: {
+          description:
+            "True when the linked card is in Trash, deleted or not yours.",
+          type: "boolean",
+        },
+        title: { type: ["string", "null"] },
+        type: { type: ["string", "null"] },
+      },
+      required: ["id", "missing", "title", "type"],
       type: "object",
     },
     Card: {
@@ -297,6 +354,7 @@ const components = {
         id: { type: "string" },
         isDeleted: cardProperties.isDeleted,
         isArchived: cardProperties.isArchived,
+        completedAt: cardProperties.completedAt,
         folderIds: cardProperties.folderIds,
         isFavorited: { type: "boolean" },
         isHidden: cardProperties.isHidden,
@@ -305,6 +363,7 @@ const components = {
         linkFacts: cardProperties.linkFacts,
         linkFaviconUrl: cardProperties.linkFaviconUrl,
         linkPreviewTitle: cardProperties.linkPreviewTitle,
+        linkCategory: cardProperties.linkCategory,
         linkPrice: cardProperties.linkPrice,
         linkPreviewMedia: cardProperties.linkPreviewMedia,
         linkSiteName: cardProperties.linkSiteName,
@@ -792,6 +851,20 @@ const components = {
       required: ["isFavorited"],
       type: "object",
     },
+    SavedPdf: {
+      properties: {
+        cardId: {
+          description: "The document card holding the PDF",
+          type: "string",
+        },
+        created: {
+          description: "False when an earlier save already made the card",
+          type: "boolean",
+        },
+      },
+      required: ["cardId", "created"],
+      type: "object",
+    },
     TagSummary: {
       properties: {
         count: { type: "number" },
@@ -994,7 +1067,7 @@ export const openApiSpec = {
             in: "query",
             name: "q",
             description:
-              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match) and `"quoted phrases"`. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret`. The plain word `secret` does not show them.',
+              'Search text with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `is:done` (links marked done), `is:todo` (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), `site:github.com`, `folder:"Reading list"`, `like:<cardId>` (the cards closest in meaning to that card), `mood:"moody brutalist"` (images by mood), `price:<100` (also `>`, `<=`, `>=` and `=`, on the amount in any currency; only links with a price match), `text:"total due"` (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and `"quoted phrases"`. Qualifiers combine with the other parameters; several `price:` bounds make a range. Cards tagged `secret` or `hidden` (`isHidden`) are left out of every list unless the search names one of those tags: `q=#secret`, `q=tag:hidden` or `tag=secret`. The plain word `secret` does not show them.',
             schema: { type: "string" },
           },
           {
@@ -1537,6 +1610,104 @@ export const openApiSpec = {
         summary: "Reset a link's image",
         description:
           "Goes back to the image Teak found for the link and deletes the uploaded one.",
+      },
+    },
+    "/v1/cards/{cardId}/done": {
+      post: {
+        parameters: [cardIdParameter],
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Card" },
+              },
+            },
+            description:
+              "The card with `completedAt` set. Marking a card that is already done keeps its first `completedAt`",
+          },
+          ...doneErrorResponses,
+        },
+        security: apiKeySecurity,
+        operationId: "markCardDone",
+        summary: "Mark a link done",
+        description:
+          "Marks a link card read, watched, listened, bought, cooked, played or done, depending on its category. Only link cards can be marked done.",
+      },
+      delete: {
+        parameters: [cardIdParameter],
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Card" },
+              },
+            },
+            description:
+              "The card with `completedAt` null. Unmarking a card that isn't done changes nothing",
+          },
+          ...doneErrorResponses,
+        },
+        security: apiKeySecurity,
+        operationId: "unmarkCardDone",
+        summary: "Unmark a link done",
+        description: "Clears a link card's done state.",
+      },
+    },
+    "/v1/cards/{cardId}/save-pdf": {
+      post: {
+        parameters: [cardIdParameter],
+        responses: {
+          200: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SavedPdf" },
+              },
+            },
+            description:
+              "The document an earlier save made from this link, with `created: false`",
+          },
+          201: {
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/SavedPdf" },
+              },
+            },
+            description: "A new document card holding the paper's PDF",
+          },
+          400: {
+            content: apiErrorContent,
+            description:
+              "INVALID_INPUT: the card is not an arXiv link with a PDF (a withdrawn paper has none). CARD_LIMIT_REACHED: the free plan's card limit",
+          },
+          404: { content: apiErrorContent, description: "Card not found" },
+          409: {
+            content: apiErrorContent,
+            description:
+              "CONFLICT: the card is in Trash. IN_PROGRESS: a save of this PDF is still running; try again in a moment",
+          },
+          413: {
+            content: apiErrorContent,
+            description: "FILE_TOO_LARGE: the PDF is over 100 MB",
+          },
+          415: {
+            content: apiErrorContent,
+            description: "UNSUPPORTED_TYPE: arXiv didn't answer with a PDF",
+          },
+          429: {
+            content: apiErrorContent,
+            description:
+              "RATE_LIMITED: 30 new cards a minute, as for creating cards",
+          },
+          503: {
+            content: apiErrorContent,
+            description: "SERVICE_UNAVAILABLE: arXiv couldn't be reached",
+          },
+        },
+        security: apiKeySecurity,
+        operationId: "saveCardPdf",
+        summary: "Save a paper's PDF",
+        description:
+          "Saves an arXiv link's paper as its own document card. Saving the same link again returns that card; a save still running answers 409 IN_PROGRESS. Counts as a new card toward the plan's limit.",
       },
     },
     "/v1/cards/{cardId}/favorite": {

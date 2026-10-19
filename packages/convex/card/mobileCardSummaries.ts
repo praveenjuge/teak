@@ -1,14 +1,12 @@
 import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { cardTypeValidator } from "../schema";
+import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
 import {
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
 } from "./getCards";
-import type { CardWithUrls } from "./queryUtils";
-
-const CONTENT_PREVIEW_LENGTH = 280;
-const WWW_PREFIX = /^www\./;
+import { type CardWithUrls, linkPreviewImageFields } from "./queryUtils";
 
 const mobileCardSummaryValidator = v.object({
   _creationTime: v.number(),
@@ -17,10 +15,8 @@ const mobileCardSummaryValidator = v.object({
   colors: v.optional(v.array(v.string())),
   compactUrl: v.optional(v.string()),
   fileName: v.optional(v.string()),
-  /** linkPreviewImageUrl is an image someone chose for the link. */
-  hasThumbnailOverride: v.optional(v.literal(true)),
   isFavorited: v.optional(v.boolean()),
-  linkPreviewImageUrl: v.optional(v.string()),
+  ...linkPreviewImageFields,
   placeholderUrl: v.optional(v.string()),
   previewText: v.optional(v.string()),
   screenshotUrl: v.optional(v.string()),
@@ -39,14 +35,6 @@ const paginationResultValidator = v.object({
   ),
   splitCursor: v.optional(v.union(v.string(), v.null())),
 });
-
-const compactText = (value?: string | null) => {
-  const normalized = value?.trim();
-  if (!normalized) {
-    return;
-  }
-  return normalized.slice(0, CONTENT_PREVIEW_LENGTH);
-};
 
 const ratio = (width?: number, height?: number) =>
   width && height && width > 0 && height > 0 ? width / height : undefined;
@@ -67,31 +55,10 @@ const mediaAspectRatio = (card: CardWithUrls) => {
   return ratio(card.fileMetadata?.width, card.fileMetadata?.height);
 };
 
-const linkHostname = (url?: string) => {
-  if (!url) {
-    return;
-  }
-  try {
-    return new URL(url).hostname.replace(WWW_PREFIX, "") || undefined;
-  } catch {}
-};
-
 export const toMobileCardSummary = (card: CardWithUrls) => {
   const fileName = card.fileMetadata?.fileName;
-  const previewText = compactText(
-    card.type === "audio" ? card.aiTranscript : card.content
-  );
-  const linkTitle =
-    card.metadata?.linkPreview?.status === "success"
-      ? card.metadata.linkPreview.title
-      : undefined;
-  const title =
-    linkTitle ||
-    card.metadataTitle ||
-    fileName ||
-    (card.type === "link" ? linkHostname(card.url) : undefined) ||
-    previewText?.split("\n", 1)[0] ||
-    (card.type === "palette" ? "Color palette" : "Saved card");
+  const previewText = cardPreviewText(card);
+  const title = cardDisplayTitle(card, previewText);
 
   return {
     _creationTime: card._creationTime,

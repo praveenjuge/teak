@@ -136,6 +136,16 @@ describe("shared search helpers", () => {
       kind: "hex",
       value: "#663399",
     });
+    for (const word of ["4411", "bed", "cafe", "add", "12345678"]) {
+      expect(classifySearchToken(word)).toEqual({
+        kind: "keyword",
+        value: word,
+      });
+    }
+    expect(classifySearchToken("#fff")).toEqual({
+      kind: "hex",
+      value: "#FFFFFF",
+    });
     expect(classifySearchToken("mytag")).toEqual({
       kind: "keyword",
       value: "mytag",
@@ -570,7 +580,6 @@ describe("filterLocalCards price:", () => {
     priced("pricey", { amount: 1299, currency: "JPY" }, 4),
     priced("free", { amount: 0 }, 3),
     priced("unpriced", undefined, 2),
-    // Not a link: a stray price on another type never matches.
     priced("note", { amount: 5 }, 1, { type: "text" }),
   ];
   const ids = (searchTerms: string) =>
@@ -588,10 +597,69 @@ describe("filterLocalCards price:", () => {
     ["price:<100 price:>200", []],
     ["price:<1 lamp", ["free"]],
     ["price:<100 type:image", []],
-    // A malformed bound is a word: no card has it.
     ["price:abc", []],
   ])("%s", (searchTerms: string, expected: string[]) => {
     expect(ids(searchTerms)).toEqual(expected);
+  });
+});
+
+describe("filterLocalCards is:done and is:todo", () => {
+  const link = (
+    _id: string,
+    category: string | undefined,
+    createdAt: number,
+    overrides: CardOverrides = {}
+  ) =>
+    makeCard({
+      _id,
+      type: "link",
+      content: `${_id} link`,
+      url: `https://example.com/${_id}`,
+      ...(category
+        ? {
+            metadata: {
+              linkCategory: {
+                category,
+                fetchedAt: 1,
+                sourceUrl: `https://example.com/${_id}`,
+              },
+            } as Doc<"cards">["metadata"],
+          }
+        : {}),
+      createdAt,
+      ...overrides,
+    });
+  const cards = [
+    link("read", "article", 7, { completedAt: 1 }),
+    link("unread", "article", 6),
+    link("film", "movie", 5),
+    link("repo", "repo", 4),
+    link("pending", undefined, 3),
+    link("archived-done", "book", 2, { completedAt: 1, isArchived: true }),
+    makeCard({
+      _id: "note",
+      content: "note link",
+      completedAt: 1,
+      createdAt: 1,
+    }),
+  ];
+  const ids = (searchTerms: string, showArchivedOnly = false) =>
+    filterLocalCards([...cards], { searchTerms, showArchivedOnly }).map(
+      (card): string => card._id
+    );
+
+  it.each([
+    ["is:done", ["read"]],
+    ["is:todo", ["unread", "film"]],
+    ["is:todo film", ["film"]],
+    ["is:done is:todo", []],
+    ["is:todo type:image", []],
+  ])("%s", (searchTerms: string, expected: string[]) => {
+    expect(ids(searchTerms)).toEqual(expected);
+  });
+
+  it("is:done in Archive lists the archived done links", () => {
+    expect(ids("is:done", true)).toEqual(["archived-done"]);
   });
 });
 
@@ -646,7 +714,6 @@ describe("filterLocalCards textMatchedByServer", () => {
         textMatchedByServer,
       }).map((card): string => card._id);
     expect(ids(true)).toEqual(["armchair"]);
-    // Stale results for earlier words are still narrowed to the new ones.
     expect(ids(false)).toEqual([]);
   });
 
@@ -670,7 +737,6 @@ describe("filterLocalCards hidden cards", () => {
       tags: ["Secret"],
       isHidden: true,
     }),
-    // Hidden in another tab: the cache has the tag before the flag.
     makeCard({ _id: "unflagged", content: "beach", tags: [" HIDDEN "] }),
     makeCard({ _id: "ai-only", content: "beach", aiTags: ["hidden"] }),
   ];

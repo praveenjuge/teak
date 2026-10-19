@@ -3,7 +3,6 @@ import type { LinkCategoryDetail, LinkPrice } from "@teak/convex/shared";
 export interface ProviderEnrichmentResult {
   facts?: LinkCategoryDetail[];
   imageUrl?: string;
-  /** A product's price, when the page states one. */
   price?: LinkPrice;
   raw?: Record<string, unknown>;
 }
@@ -102,17 +101,29 @@ export const formatRating = (value?: string): string | undefined => {
   return numeric.toFixed(2);
 };
 
+const ISO_DAY_REGEX = /^(\d{4}-\d{2}-\d{2})(?:T|$)/;
+
 export const formatDate = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
-  const date = new Date(value);
+  const source = value.trim();
+  const isoDay = ISO_DAY_REGEX.exec(source)?.[1];
+  const date = new Date(isoDay ?? source);
   if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  if (
+    isoDay &&
+    (Number.isNaN(new Date(source).getTime()) ||
+      date.toISOString().slice(0, 10) !== isoDay)
+  ) {
     return undefined;
   }
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 };

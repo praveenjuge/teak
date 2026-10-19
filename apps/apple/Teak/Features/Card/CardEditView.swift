@@ -73,7 +73,8 @@ struct CardEditView: View {
             if CardEdit.canEditContent(card.type) {
                 Section(card.type == .quote ? "Quote" : "Note") {
                     TextField(card.type == .quote ? "Write the quote" : "Write a note",
-                              text: Binding(get: { draft.wrappedValue.content ?? "" }, set: { draft.wrappedValue.content = $0 }),
+                              text: Binding(get: { draft.wrappedValue.editableContent ?? "" },
+                                            set: { draft.wrappedValue.editableContent = $0 }),
                               axis: .vertical)
                         .lineLimit(4...16)
                 }

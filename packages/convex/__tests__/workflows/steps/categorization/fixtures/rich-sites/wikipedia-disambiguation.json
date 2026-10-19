@@ -1,0 +1,39 @@
+{
+  "type": "disambiguation",
+  "title": "Mercury",
+  "displaytitle": "<span lang=\"en\" dir=\"ltr\"><span class=\"mw-page-title-main\">Mercury</span></span>",
+  "namespace": {
+    "id": 0,
+    "text": ""
+  },
+  "wikibase_item": "Q48397",
+  "titles": {
+    "canonical": "Mercury",
+    "normalized": "Mercury",
+    "display": "<span lang=\"en\" dir=\"ltr\"><span class=\"mw-page-title-main\">Mercury</span></span>"
+  },
+  "pageid": 19007,
+  "lang": "en",
+  "dir": "ltr",
+  "revision": "1380113383",
+  "tid": "f6124f59-c74d-11f1-b32c-7f1c7846e7f1",
+  "timestamp": "2026-10-13T21:35:08Z",
+  "description": "Topics referred to by the same term",
+  "description_source": "local",
+  "content_urls": {
+    "desktop": {
+      "page": "https://en.wikipedia.org/wiki/Mercury",
+      "revisions": "https://en.wikipedia.org/wiki/Mercury?action=history",
+      "edit": "https://en.wikipedia.org/wiki/Mercury?action=edit",
+      "talk": "https://en.wikipedia.org/wiki/Talk:Mercury"
+    },
+    "mobile": {
+      "page": "https://en.wikipedia.org/wiki/Mercury",
+      "revisions": "https://en.wikipedia.org/wiki/Special:History/Mercury",
+      "edit": "https://en.wikipedia.org/wiki/Mercury?action=edit",
+      "talk": "https://en.wikipedia.org/wiki/Talk:Mercury"
+    }
+  },
+  "extract": "Mercury most commonly refers to:Mercury (planet), the closest planet to the Sun\nMercury (element), a chemical element\nMercury (mythology), a Roman deity",
+  "extract_html": "<p><b>Mercury</b> most commonly refers to:</p><ul><li>Mercury (planet), the closest planet to the Sun</li>\n<li>Mercury (element), a chemical element</li>\n<li>Mercury (mythology), a Roman deity</li></ul>"
+}

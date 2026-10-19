@@ -1,6 +1,6 @@
 import { createApiAccount } from "../helpers/app";
 import { runCli } from "../helpers/cli";
-import { expect, test } from "../helpers/test";
+import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
 test.beforeAll(async () => {
@@ -71,4 +71,88 @@ test("CLI favorites, unfavorites, searches, deletes, and lists tags", async () =
     apiKey
   );
   await runCli(["--json", "cards", "delete", created.cardId], apiKey);
+});
+
+test("CLI marks a link done, finds it with is:done, and undoes it", async () => {
+  const url = `https://example.com/cli-done-${Date.now()}`;
+  const created = JSON.parse(
+    await runCli(["--json", "cards", "create", url], apiKey)
+  );
+  const done = JSON.parse(
+    await runCli(["--json", "done", created.cardId], apiKey)
+  );
+  expect(done.completedAt).toEqual(expect.any(Number));
+
+  const listsDone = async () =>
+    (
+      JSON.parse(await runCli(["--json", "cards", "search", "is:done"], apiKey))
+        .items ?? []
+    ).some((card: { id?: string }) => card.id === created.cardId);
+  expect(await listsDone()).toBe(true);
+
+  const undone = JSON.parse(
+    await runCli(["--json", "cards", "done", created.cardId, "--undo"], apiKey)
+  );
+  expect(undone.completedAt).toBeNull();
+  expect(await listsDone()).toBe(false);
+});
+
+test("CLI save-pdf refuses a note", async () => {
+  const note = JSON.parse(
+    await runCli(
+      ["--json", "cards", "create", `cli save pdf ${Date.now()}`],
+      apiKey
+    )
+  );
+  const refused = await runCli(["cards", "save-pdf", note.cardId], apiKey).then(
+    () => "",
+    (error: Error) => error.message
+  );
+  expect(refused).toContain("This card has no PDF to save.");
+});
+
+test("teak links lists a card's links and the notes that link to it", async () => {
+  const stamp = Date.now();
+  const target = JSON.parse(
+    await runCli(
+      ["--json", "cards", "create", `cli-link-target-${stamp}`],
+      apiKey
+    )
+  );
+  const note = JSON.parse(
+    await runCli(
+      [
+        "--json",
+        "cards",
+        "create",
+        `See [[Target|teak:${target.cardId}]] ${stamp}`,
+      ],
+      apiKey
+    )
+  );
+  await retry(
+    async () => {
+      expect(await runCli(["links", note.cardId], apiKey)).toContain(
+        `${target.cardId}  text      cli-link-target-${stamp}`
+      );
+      expect(await runCli(["links", target.cardId], apiKey)).toContain(
+        `Linked from\n${note.cardId}  text`
+      );
+    },
+    { timeout: 30_000 }
+  );
+
+  await runCli(
+    [
+      "cards",
+      "update",
+      target.cardId,
+      "--content",
+      `cli-link-renamed-${stamp}`,
+    ],
+    apiKey
+  );
+  expect(await runCli(["links", target.cardId], apiKey)).toContain(
+    `${note.cardId}  text      See cli-link-renamed-${stamp} ${stamp}`
+  );
 });

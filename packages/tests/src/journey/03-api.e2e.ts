@@ -1,6 +1,6 @@
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
-import { expect, test } from "../helpers/test";
+import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
 test.beforeAll(async () => {
@@ -103,6 +103,86 @@ test("saving a URL as content creates a link card, not a text card", async () =>
   expect(fetchedPayload.url).toBe(bookUrl);
 });
 
+test("a link is marked done and found with is:done; a note can't be", async () => {
+  const openapi = await loadOpenApi();
+  const url = `https://example.com/done-${Date.now()}`;
+  const created = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({ content: url, source: "e2e" }),
+  });
+  const { cardId } = await created.json();
+  const donePath = `/v1/cards/${cardId}/done`;
+
+  const marked = await apiFetch(donePath, apiKey, { method: "POST" });
+  expect(marked.status).toBe(200);
+  const markedCard = await marked.json();
+  openapi.validate("/v1/cards/{cardId}/done", "POST", 200, markedCard);
+  expect(markedCard.completedAt).toEqual(expect.any(Number));
+  const again = await (
+    await apiFetch(donePath, apiKey, { method: "POST" })
+  ).json();
+  expect(again.completedAt).toBe(markedCard.completedAt);
+
+  const done = await (
+    await apiFetch(`/v1/cards?q=${encodeURIComponent("is:done")}`, apiKey)
+  ).json();
+  expect(done.items.map((item: { id: string }) => item.id)).toContain(cardId);
+
+  const cleared = await apiFetch(donePath, apiKey, { method: "DELETE" });
+  expect(cleared.status).toBe(200);
+  const clearedCard = await cleared.json();
+  openapi.validate("/v1/cards/{cardId}/done", "DELETE", 200, clearedCard);
+  expect(clearedCard.completedAt).toBeNull();
+  expect((await apiFetch(donePath, apiKey, { method: "DELETE" })).status).toBe(
+    200
+  );
+
+  const note = await (
+    await apiFetch("/v1/cards", apiKey, {
+      method: "POST",
+      body: JSON.stringify({ content: `done note ${Date.now()}` }),
+    })
+  ).json();
+  const refused = await apiFetch(`/v1/cards/${note.cardId}/done`, apiKey, {
+    method: "POST",
+  });
+  expect(refused.status).toBe(400);
+  expect(await refused.json()).toMatchObject({ code: "TYPE_MISMATCH" });
+});
+
+test("Save PDF refuses a card that isn't an arXiv paper, and another account's card", async () => {
+  const openapi = await loadOpenApi();
+  const note = await (
+    await apiFetch("/v1/cards", apiKey, {
+      method: "POST",
+      body: JSON.stringify({ content: `save pdf note ${Date.now()}` }),
+    })
+  ).json();
+  const refused = await apiFetch(`/v1/cards/${note.cardId}/save-pdf`, apiKey, {
+    method: "POST",
+  });
+  expect(refused.status).toBe(400);
+  const body = await refused.json();
+  expect(body).toMatchObject({ code: "INVALID_INPUT" });
+  openapi.validate("/v1/cards/{cardId}/save-pdf", "POST", 400, body);
+
+  const missing = await apiFetch("/v1/cards/not-a-card/save-pdf", apiKey, {
+    method: "POST",
+  });
+  expect(missing.status).toBe(404);
+
+  const other = await createApiAccount("service-api-other");
+  const strangers = await apiFetch(
+    `/v1/cards/${note.cardId}/save-pdf`,
+    other.apiKey,
+    {
+      method: "POST",
+    }
+  );
+  expect(strangers.status).toBe(404);
+  expect(await strangers.json()).toMatchObject({ code: "NOT_FOUND" });
+});
+
 test("REST text cards preserve raw Markdown and enforce the UTF-8 limit", async () => {
   const marker = `api-markdown-${Date.now()}`;
   const original = `\uFEFF  # ${marker}\r\n\r\n- [ ] task  \r\nhttps://example.com  `;
@@ -187,4 +267,48 @@ test("saving a color as content creates a palette card, not a text card", async 
       { timeout: 30_000, interval: 2000 }
     )
     .toBe("palette");
+});
+
+test("a card's links and backlinks are on the card, not on lists", async () => {
+  const openapi = await loadOpenApi();
+  const create = async (content: string) =>
+    (
+      await (
+        await apiFetch("/v1/cards", apiKey, {
+          method: "POST",
+          body: JSON.stringify({ content }),
+        })
+      ).json()
+    ).cardId as string;
+  const stamp = Date.now();
+  const targetId = await create(`api-link-target-${stamp}`);
+  const noteId = await create(`See [[Target|teak:${targetId}]] ${stamp}`);
+
+  await retry(
+    async () => {
+      const note = await apiFetch(`/v1/cards/${noteId}`, apiKey);
+      const body = await note.json();
+      openapi.validate("/v1/cards/{cardId}", "GET", note.status, body);
+      expect(body.links).toEqual([
+        {
+          id: targetId,
+          missing: false,
+          title: `api-link-target-${stamp}`,
+          type: "text",
+        },
+      ]);
+      const target = await (
+        await apiFetch(`/v1/cards/${targetId}`, apiKey)
+      ).json();
+      expect(target.backlinks.map((card: { id: string }) => card.id)).toEqual([
+        noteId,
+      ]);
+    },
+    { timeout: 30_000 }
+  );
+  const listed = await (await apiFetch("/v1/cards?limit=5", apiKey)).json();
+  for (const item of listed.items) {
+    expect(item).not.toHaveProperty("links");
+    expect(item).not.toHaveProperty("backlinks");
+  }
 });

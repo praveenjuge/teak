@@ -12,6 +12,8 @@ import {
   textMetadataAnswer,
 } from "../test/cardProcessingKit";
 import { createFakeConvex, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
+import { FakeBucket } from "../test/testsupport";
+import type { CardProcessingDeps } from "../workflows/cardProcessing/context";
 import {
   type AiBackfillMessage,
   enqueueAiBackfill,
@@ -64,16 +66,20 @@ const consume = async (
   card: FakeCard,
   answers: Record<string, OpAnswer>,
   bodies: unknown[] = [message()],
-  attempts = 1
+  attempts = 1,
+  extra: { bucket?: FakeBucket; deps?: Partial<CardProcessingDeps> } = {}
 ) => {
   const convex = createCardConvex(card);
   const fakes = createFakeOps(answers);
-  const env = testEnv();
+  const env = testEnv(
+    extra.bucket ? { BUCKET: extra.bucket as unknown as R2Bucket } : {}
+  );
   const { batch, outcomes } = batchOf(bodies, attempts);
   await handleAiBackfillBatch(batch, env, {
     convex: createConvexRpc(env, TEST_CONVEX_SITE_URL, convex.fetcher),
     filesOp: fakes.ops,
     ...noNetwork,
+    ...extra.deps,
   });
   return { convex, fakes, outcomes };
 };
@@ -115,7 +121,6 @@ describe("enqueueAiBackfill", () => {
   });
 
   test("gives the attempts back when the queue refuses the batch", async () => {
-    // The deployment counts an attempt per claim and gives it back on release.
     const attempts: Record<string, number> = { c1: 0, c2: 2 };
     const convex = createFakeConvex({
       "ai/backfill:claimAiBackfillCards": () => {
@@ -159,7 +164,6 @@ describe("handleAiBackfillBatch", () => {
     expect(card.aiTags).toEqual(["note"]);
     const save = convex.callsTo("workflows/aiMetadata/mutations:updateCardAI");
     expect(save[0]?.guard).toEqual({ cardId: CARD_ID, rev: 1 });
-    // The backfill never marks the stage in progress.
     expect(convex.callsTo("card/processingRpc:markStagesInProgress")).toEqual(
       []
     );
@@ -223,7 +227,7 @@ describe("handleAiBackfillBatch", () => {
     expect(convex.calls).toEqual([]);
   });
 
-  test("a backfilled link gets its screenshot", async () => {
+  test("a backfilled link gets its screenshot, then its images' text", async () => {
     const card = makeCard({
       metadata: { linkPreview: { status: "success", title: "A page" } },
       type: "link",
@@ -241,10 +245,82 @@ describe("handleAiBackfillBatch", () => {
           source: "static",
         },
       },
+      "extract-image-text": { data: { text: "A page heading" } },
       "generate-link-metadata": textMetadataAnswer(["page"]),
     });
     expect(outcomes).toEqual([{ acked: true }]);
-    expect(fakes.opsCalled()).toContain("capture-screenshot");
+    expect(fakes.opsCalled().slice(-2)).toEqual([
+      "capture-screenshot",
+      "extract-image-text",
+    ]);
     expect(card.processingStatus?.screenshot?.status).toBe("completed");
+    expect(card.aiOcrText).toBe("A page heading");
+  });
+
+  test("a backfilled podcast episode is transcribed, once", async () => {
+    const url = "https://example.com/podcast/episode-42";
+    const audioUrl = "https://audio.example.com/42.mp3";
+    const card = makeCard({
+      metadata: {
+        linkCategory: { category: "podcast", fetchedAt: 1, sourceUrl: url },
+        linkPreview: {
+          raw: [
+            {
+              results: [{ attributes: [{ name: "content", value: audioUrl }] }],
+              selector: "meta[property='og:audio']",
+            },
+          ],
+          status: "success",
+          title: "Episode 42",
+        },
+      },
+      type: "link",
+      url,
+    });
+    const requests: string[] = [];
+    const episode = (requested: string) => {
+      requests.push(requested);
+      return Promise.resolve(
+        requested === audioUrl
+          ? new Response(new Uint8Array([1, 2, 3]), {
+              headers: { "content-type": "audio/mpeg" },
+            })
+          : new Response("missing", { status: 404 })
+      );
+    };
+    const answers = {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "" } },
+      "fetch-link-page": {
+        data: {
+          charset: "utf-8",
+          fetched: true,
+          htmlGzipBase64: "H4sIAAAAAAAAA7PJMLTzSM3JyVcozy/KSQEAqZ/2YREAAAA=",
+          pageUrl: url,
+          selectors: [],
+          source: "static",
+        },
+      },
+      "generate-link-metadata": textMetadataAnswer(["podcast"]),
+      "process-audio": {
+        data: {
+          facts: { durationSeconds: 60, hasAudio: true, hasVideo: false },
+          transcript: { status: "completed", text: "Today, leaves." },
+        },
+      },
+    };
+    const extra = {
+      bucket: new FakeBucket(),
+      deps: { podcastFetch: { episode, feed: episode } },
+    };
+
+    const first = await consume(card, answers, [message()], 1, extra);
+    expect(first.outcomes).toEqual([{ acked: true }]);
+    expect(card.aiTranscript).toBe("Today, leaves.");
+    expect(requests).toEqual([audioUrl]);
+
+    // A later backfill of the same card doesn't fetch the episode again.
+    await consume(card, answers, [message()], 1, extra);
+    expect(requests).toEqual([audioUrl]);
   });
 });

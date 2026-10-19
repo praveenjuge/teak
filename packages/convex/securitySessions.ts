@@ -10,7 +10,11 @@ import {
 } from "./_generated/server";
 import { workosIssuer } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
-import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
+import {
+  WORKOS_CLIENT_ID,
+  WORKOS_SESSION_ID,
+  WORKOS_USER_ID,
+} from "./shared/workosIds";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -19,14 +23,12 @@ import {
 import type { ProviderProfile } from "./workosProfileRead";
 import { validWorkosExternalId } from "./workosTokens";
 
-// Convex has already verified this JWT through auth.config.ts. These checks bind
-// its claims to the session provider; live session revocation is still required.
 function readWorkosSessionClaims(
   identity: UserIdentity | null,
   clientId: string
 ) {
   if (
-    !(/^client_[A-Za-z0-9]+$/.test(clientId) && identity) ||
+    !(WORKOS_CLIENT_ID.test(clientId) && identity) ||
     identity.issuer !== workosIssuer(clientId) ||
     !WORKOS_USER_ID.test(identity.subject) ||
     typeof identity.sid !== "string" ||
@@ -112,8 +114,6 @@ function sessionDisplayName(agent: string | null | undefined): string {
 }
 
 export type TeakUserId = string & { readonly __brand: "TeakUserId" };
-// Queries and mutations pass their database so identity reads stay in their
-// own transaction. Actions have none and go through internal queries.
 type SessionCtx =
   | Pick<ActionCtx, "auth" | "runQuery">
   | Pick<QueryCtx, "auth" | "runQuery" | "db">;
@@ -151,8 +151,6 @@ export const readComponentUser = (
 ) =>
   ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, { id: workosUserId });
 
-// API keys and internal jobs carry the permanent Teak owner. It still has to
-// map to a verified, undeleted WorkOS user.
 export async function resolveStoredUserId(
   ctx: SessionCtx,
   ownerId: string
@@ -196,9 +194,6 @@ interface SessionUser {
   workosUserId: string;
 }
 
-// AuthKit session tokens are verified by Convex and stay valid until their
-// five-minute TTL. Ownership and deletion checks stay reactive through the
-// canonical resolver.
 export async function getSessionUser(
   ctx: SessionCtx
 ): Promise<SessionUser | null> {
@@ -239,7 +234,6 @@ export async function getSessionUser(
     : null;
 }
 
-/** The signed-in user's Teak id; throws when the request has no session. */
 export async function requireSessionUserId(
   ctx: SessionCtx
 ): Promise<TeakUserId> {
@@ -433,8 +427,6 @@ export const revokeAuthkitSession = action({
   },
 });
 
-// This proves only that the caller may acknowledge an existing deletion. It is
-// never used to admit a new request or authorize vault access.
 export async function getDeletionRetryPrincipal(ctx: SessionCtx) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {

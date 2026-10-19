@@ -1,4 +1,3 @@
-/** Canonical text/link metadata policy shared by Convex and Files Worker. */
 export const TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
@@ -97,7 +96,6 @@ export const parseTextMetadata = (
   }
 };
 
-/** Only bounded numeric diagnostics may cross the private operation boundary. */
 export const readFilesAiGenerationFacts = (
   value: unknown
 ): FilesAiGenerationFacts | null => {
@@ -142,4 +140,49 @@ export const readFilesAiGenerationFacts = (
     }
   }
   return result;
+};
+
+export const MAX_IMAGE_OCR_CHARS = 4000;
+export interface FilesImageMetadataResult extends FilesTextMetadataResult {
+  text?: string;
+}
+
+export interface FilesImageTextResult {
+  text: string;
+}
+
+export const FILES_PDF_OCR_MAX_PAGES = 3;
+
+export interface FilesPdfOcrResult {
+  /** `null` when the renderer couldn't open the PDF. */
+  pageCount: number | null;
+  pagesRead: number;
+  text: string;
+}
+
+const MIN_OCR_LETTERS_OR_DIGITS = 3;
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/gu;
+const CONTROL_CHARACTERS = /\p{Cc}/gu;
+const LINE_BREAKS = /\r\n?/gu;
+const TRAILING_SPACE = /[^\S\n]+$/gmu;
+const SPACE_RUNS = /(\S)[^\S\n]{2,}/gu;
+const BLANK_LINE_RUNS = /\n{3,}/gu;
+
+export const normalizeImageOcrText = (value: string): string | undefined => {
+  const tidy = value
+    .replace(LINE_BREAKS, "\n")
+    .replace(CONTROL_CHARACTERS, (character) =>
+      character === "\n" || character === "\t" ? character : ""
+    )
+    .replace(TRAILING_SPACE, "")
+    .replace(SPACE_RUNS, "$1 ")
+    .replace(BLANK_LINE_RUNS, "\n\n")
+    .trim();
+  const text = Array.from(tidy)
+    .slice(0, MAX_IMAGE_OCR_CHARS)
+    .join("")
+    .trimEnd();
+  return (text.match(LETTER_OR_DIGIT)?.length ?? 0) >= MIN_OCR_LETTERS_OR_DIGITS
+    ? text
+    : undefined;
 };

@@ -3,6 +3,8 @@ import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
   combineSearchQueries,
+  matchesDoneState,
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   type ParsedSearchQuery,
@@ -17,9 +19,7 @@ import {
   normalizeCardSearchTag,
 } from "./searchDocumentHelpers";
 
-/** What a view asks for besides its search text (grid args, API params). */
 export interface SearchViewFilters {
-  /** Archived cards outside Trash; `is:archived` turns on `"only"`. */
   archived: ArchivedFilter;
   favoritesOnly?: boolean;
   folderId?: Id<"folders">;
@@ -28,41 +28,19 @@ export interface SearchViewFilters {
   types?: readonly CardType[];
 }
 
-/**
- * A search with its qualifiers merged into the view's own filters and
- * folder names resolved. Folders and tags must all match; types and sites
- * match any one. Null when nothing can match (an unknown folder name, or a
- * `type:` outside the view's types).
- */
 export interface ResolvedSearch {
   archived: ArchivedFilter;
   favoritesOnly: boolean;
-  /** Every folder a card must be in; the first can drive the read. */
   folderIds: Id<"folders">[];
-  /** Whether a card read from a driver index still needs `matches`. */
   hasCardFilters: boolean;
-  /**
-   * The search names a reserved tag (`#secret`), so hidden cards are in
-   * it; otherwise `matches` drops them and every read leaves them out.
-   */
   includeHidden: boolean;
-  /** Every qualifier and view filter that a card itself can answer. */
-  /**
-   * `searchableText` is the card's search document text when the caller has
-   * it: it also holds text extracted from the card's file, which quoted
-   * phrases then match too.
-   */
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
+  ocrText: string;
   phrases: string[];
-  /** `price:` bounds a card's link price must all meet. */
   prices: PriceBound[];
-  /** `like:` or `mood:`: the search lists meaning matches only. */
   similarity: ParsedSearchQuery["similarity"];
-  /** Normalized hosts; a card on any of them matches. */
   sites: string[];
-  /** Lowercase tags a card must all carry; the first can drive the read. */
   tags: string[];
-  /** The words for the full-text index, without qualifiers. */
   text: string;
   trash: boolean;
   types?: CardType[];
@@ -78,12 +56,6 @@ export const cardUrlHost = (
   card: Pick<Doc<"cards">, "sourceUrl" | "url" | "urlHost">
 ) => cardSiteHost(card) ?? card.urlHost ?? null;
 
-/**
- * The user's folders for `folder:` name keys (trimmed, lowercased names),
- * or null when any name is not one of their manual folders. A folder being
- * deleted no longer answers to its name, and no card is ever in a smart
- * folder, so naming one matches nothing.
- */
 export const resolveFolderNames = async (
   ctx: QueryCtx,
   userId: string,
@@ -110,19 +82,11 @@ export const resolveFolderNames = async (
   return folderIds;
 };
 
-/**
- * A folder view's search. A manual folder keeps its id as the view's
- * filter; a smart folder has no cards of its own, so its stored search
- * joins the typed one (both must match) and the view drops the folder.
- * Null when nothing can match: the folder is missing, another user's or
- * being deleted, or the two searches contradict each other.
- */
 export const expandFolderSearch = async (
   ctx: QueryCtx,
   userId: string,
   folderId: Id<"folders"> | undefined,
   searchQuery: string,
-  /** A smart folder's search as the caller read it, over the stored one. */
   folderQuery?: string
 ): Promise<{ folderId?: Id<"folders">; searchQuery: string } | null> => {
   if (!folderId) {
@@ -142,13 +106,6 @@ export const expandFolderSearch = async (
   return combined === null ? null : { searchQuery: combined };
 };
 
-/**
- * Merges a parsed search into a view's filters: `type:` narrows the view's
- * types, `price:` narrows them to links, `is:fav` turns on favorites,
- * `is:archived` reads Archive (or the archived cards in Trash), and
- * `folder:` names resolve to the user's folders. The server re-reads every search this way and never trusts a
- * client's chips.
- */
 export const resolveSearch = async (
   ctx: QueryCtx,
   userId: string,
@@ -166,15 +123,16 @@ export const resolveSearch = async (
       return null;
     }
   }
-  // Only links have a price.
-  if (parsed.prices.length > 0) {
+  if (parsed.done && parsed.todo) {
+    return null;
+  }
+  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
     if (types && !types.includes("link")) {
       return null;
     }
     types = ["link"];
   }
 
-  // `mood:` reads images only.
   if (parsed.similarity?.kind === "mood") {
     types = types ? types.filter((type) => type === "image") : ["image"];
     if (types.length === 0) {
@@ -211,7 +169,7 @@ export const resolveSearch = async (
   const tags = Array.from(
     new Set([view.tag ?? "", ...parsed.tags].map(normalizeCardSearchTag))
   ).filter(Boolean);
-  const { sites, phrases, prices } = parsed;
+  const { sites, phrases, prices, ocrTexts } = parsed;
   const includeHidden = revealsHidden(tags);
 
   const matches = (card: Doc<"cards">, searchableText?: string) => {
@@ -248,6 +206,12 @@ export const resolveSearch = async (
     ) {
       return false;
     }
+    if (!matchesImageText(card.aiOcrText, ocrTexts)) {
+      return false;
+    }
+    if (!matchesDoneState(card, parsed)) {
+      return false;
+    }
     return matchesSearchPhrases(
       searchableText ?? buildCardSearchText(card),
       phrases
@@ -264,9 +228,13 @@ export const resolveSearch = async (
       tags.length > 1 ||
       sites.length > 0 ||
       phrases.length > 0 ||
-      prices.length > 0,
+      prices.length > 0 ||
+      ocrTexts.length > 0 ||
+      parsed.done ||
+      parsed.todo,
     includeHidden,
     matches,
+    ocrText: ocrTexts.join(" "),
     phrases,
     similarity: parsed.similarity ?? null,
     prices,

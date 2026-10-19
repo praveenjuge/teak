@@ -8,12 +8,11 @@ import {
   LIBRARY_VIEW_SEARCH_PLACEHOLDERS,
   libraryViewForPath,
 } from "@teak/ui/lib/libraryViews";
-import { LibraryPageSkeleton, SettingsShell } from "@teak/ui/screens";
-import { SettingsContentSkeleton } from "@teak/ui/settings/SettingsContentSkeleton";
+import { LibraryPageSkeleton } from "@teak/ui/screens";
 import { AppSidebar, SidebarFoldersSkeleton } from "@teak/ui/sidebar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SettingsHeader } from "./SettingsBackLink";
+import { SettingsPageSkeleton } from "./SettingsPageSkeleton";
 
 export function AppShellSkeleton({
   defaultOpen,
@@ -24,7 +23,7 @@ export function AppShellSkeleton({
 }) {
   const pathname = usePathname();
   const view = libraryViewForPath(pathname);
-  const isSettings = pathname?.startsWith("/settings") ?? false;
+  const isSettings = pathname.startsWith("/settings");
   const isTags = pathname === "/tags";
   let title = "";
   if (view) {
@@ -43,11 +42,7 @@ export function AppShellSkeleton({
     />
   );
   if (isSettings) {
-    content = (
-      <SettingsShell header={<SettingsHeader />}>
-        <SettingsContentSkeleton />
-      </SettingsShell>
-    );
+    content = <SettingsPageSkeleton />;
   }
   return (
     <SidebarProvider defaultOpen={defaultOpen} defaultWidth={defaultWidth}>

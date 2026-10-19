@@ -120,7 +120,7 @@ function ConnectionList({
               size="sm"
               variant="ghost"
             >
-              {busy === row.id ? <Spinner /> : verb}
+              {busy === row.id ? <Spinner /> : <span>{verb}</span>}
             </Button>
           </li>
         ))}

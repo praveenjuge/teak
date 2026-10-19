@@ -6,8 +6,6 @@ const cloudflareModules = new URL(
 ).pathname;
 
 export default defineConfig({
-  // Suites that run the Files Worker in-process (see
-  // __tests__/helpers/filesWorker.test-utils.ts) need its runtime modules.
   resolve: {
     alias: {
       "cloudflare:workers": cloudflareModules,
@@ -35,6 +33,11 @@ export default defineConfig({
       "./importUploadDeletion.test.ts",
       "./mediaFacts.test.ts",
       "./documentText.test.ts",
+      "./linkedPdfs.test.ts",
+      "./arxivSlots.test.ts",
+      "./podcastTranscripts.test.ts",
+      "./inboundEmail.test.ts",
+      "./cardLinks.test.ts",
       "./workosSessions.test.ts",
       "./workosDevices.test.ts",
       "./workosBootstrap.test.ts",
@@ -73,6 +76,7 @@ export default defineConfig({
       "./bestMatch.test.ts",
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
+      "./ocrBackfills.test.ts",
       "./hiddenCards.test.ts",
       "./adminConsole.test.ts",
       "./onboarding.test.ts",

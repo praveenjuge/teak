@@ -2,7 +2,6 @@ import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import {
   type BearerCredentialClass,
-  isExpiredJwt,
   logPublicApiAuthOutcome,
   type PublicApiAuthReason,
 } from "./authMonitoring";
@@ -27,7 +26,10 @@ import { isWellFormedApiKey } from "./shared/apiKeyFormat";
 import { RATE_LIMIT_CONFIG } from "./shared/rateLimits";
 import { ignoreTelemetryError } from "./shared/telemetry";
 import { sha256Hex } from "./storage/r2Keys";
-import { verifyWorkosConnectToken, type WorkosResource } from "./workosTokens";
+import {
+  verifyWorkosConnectTokenSignature,
+  type WorkosResource,
+} from "./workosTokens";
 
 const buildIdempotentResponse = (record: {
   responseBody: unknown;
@@ -47,10 +49,11 @@ const trackIdempotency = async (
   outcome: string,
   requestKey: string
 ) => {
-  await ctx.runMutation(
-    (internal as any).idempotencyAnalytics.trackIdempotencyOutcome,
-    { endpoint, outcome, requestKey }
-  );
+  await ctx.runMutation(internal.idempotencyAnalytics.trackIdempotencyOutcome, {
+    endpoint,
+    outcome,
+    requestKey,
+  });
 };
 
 const maybeHandleIdempotency = async (
@@ -86,7 +89,7 @@ const maybeHandleIdempotency = async (
   ]);
 
   const reservation = await ctx.runMutation(
-    (internal as any).idempotency.beginIdempotencyRequestForUser,
+    internal.idempotency.beginIdempotencyRequestForUser,
     {
       keyHash,
       method: args.method,
@@ -156,14 +159,14 @@ const completeIdempotencyResponse = async (
     responseStatus: args.responseStatus,
     userId: args.userId,
   };
-  const reference = (internal as any).idempotency
-    .completeIdempotencyRequestForUser;
+  const reference = internal.idempotency.completeIdempotencyRequestForUser;
   for (let attempt = 0; ; attempt += 1) {
     try {
       await ctx.runMutation(reference, completion);
       return;
     } catch (error) {
-      const delay = IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS[attempt];
+      const delay: number | undefined =
+        IDEMPOTENCY_COMPLETE_RETRY_DELAYS_MS[attempt];
       if (delay === undefined) {
         console.error("[idempotency] Completion failed; scheduling retry", {
           error,
@@ -203,10 +206,15 @@ const releaseReservationKeepingOriginalError = async (
 
   try {
     await ctx.runMutation(
-      (internal as any).idempotency.releaseIdempotencyRequestForUser,
+      internal.idempotency.releaseIdempotencyRequestForUser,
       args
     );
-  } catch {}
+  } catch (error) {
+    console.error("[idempotency] Release failed", {
+      error,
+      keyHash: args.keyHash,
+    });
+  }
 };
 
 interface AuthOptions {
@@ -279,7 +287,7 @@ const recordAuthOutcome = (
   options: AuthOptions,
   reason: PublicApiAuthReason,
   status: number
-): void =>
+): boolean =>
   ignoreTelemetryError(() => {
     logPublicApiAuthOutcome({
       check: options.chargeRateLimit === false ? "gate" : "request",
@@ -373,9 +381,13 @@ const authorizeBearer = async (
         );
       }
       let jwksUnavailable = false;
-      const principal = await verifyWorkosConnectToken(token, {
+      let tokenExpired = false;
+      const principal = await verifyWorkosConnectTokenSignature(token, {
         issuer,
         audience: resources[options.resource ?? "api"],
+        onExpired: () => {
+          tokenExpired = true;
+        },
         onUnavailable: () => {
           jwksUnavailable = true;
         },
@@ -400,11 +412,11 @@ const authorizeBearer = async (
       } else if (jwksUnavailable) {
         rejection = "jwks_unavailable";
       } else {
-        rejection = isExpiredJwt(token) ? "expired_token" : "invalid_token";
+        rejection = tokenExpired ? "expired_token" : "invalid_token";
       }
     } else {
       const credential = await ctx.runMutation(
-        (internal as any).apiKeys.validateUserApiKey,
+        internal.apiKeys.validateUserApiKey,
         { token, chargeRateLimit }
       );
       if (credential) {

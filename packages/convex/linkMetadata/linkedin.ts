@@ -29,7 +29,7 @@ const linkedInAuthor = (parsed: ParsedLinkPreview): string | undefined =>
     128
   );
 
-/** A LinkedIn post from its Open Graph tags (LinkedIn has no public API). */
+// LinkedIn has no public API for posts.
 export const mapLinkedInOpenGraph = (
   url: string,
   parsed: ParsedLinkPreview

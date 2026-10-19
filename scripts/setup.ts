@@ -1,26 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Idempotent local bootstrap for agents and developers.
- *
- * 1. Check the Bun and Node versions pinned by package.json.
- * 2. Run `bun ci` when node_modules is stale.
- * 3. Select the shared cloud dev deployment (scripts/dev-deployment.ts),
- *    reached with your Convex login or a cloud session's dev deploy key, and
- *    refuse any production or other deployment.
- * 4. Read the WorkOS staging credentials the web app needs from the dev
- *    deployment. Setup never writes deployment variables.
- * 5. Derive the target's ignored local configuration from canonical facts.
- *    Setup never overwrites a value a person set, but refreshes generated
- *    values (loopback URLs from an earlier local stack, synced credentials).
- *
- * Never uses production, Apple, Cloudflare, billing, or release credentials.
- * Every step is check-then-act, so re-running setup changes nothing once the
- * tree is ready. `--check` reports without changing state; `--json` emits a
- * stable machine-readable report with capabilities.
- *
- * Usage: bun run setup [--target <target>] [--convex cloud|skip] [--check] [--json]
- */
-
 import { join } from "node:path";
 import {
   type Capabilities,
@@ -95,7 +73,7 @@ export interface SetupReport {
 }
 
 export const SETUP_USAGE =
-  "Usage: bun run setup [--target web|docs|cli|extension|files-worker] [--convex cloud|skip] [--check] [--json]";
+  "Usage: bun run setup [--target web|docs|cli|extension|files-worker|email-worker] [--convex cloud|skip] [--check] [--json]";
 
 const CONVEX_MODES: readonly string[] = ["cloud", "skip"];
 
@@ -166,6 +144,7 @@ const DERIVED_FILE_PLANS: Record<SupportedTarget, DerivedFilePlan[]> = {
     },
   ],
   "files-worker": [],
+  "email-worker": [],
 };
 
 const reportWith = (
@@ -317,6 +296,7 @@ export const runSetup = async (
     target === "web" ? join(root, "apps/web/.env.local") : undefined;
 
   let workosValues: Partial<Record<WorkosCredentialName, string>> = {};
+  let convexEnv = process.env;
   const prepared = await prepareCheckout(root, checkOnly);
   const checks = prepared.checks;
   if (!prepared.ok) {
@@ -338,6 +318,7 @@ export const runSetup = async (
       return fail(checks);
     }
     workosValues = cloud.workos;
+    convexEnv = cloud.env;
   }
 
   const plans = DERIVED_FILE_PLANS[target];
@@ -395,6 +376,7 @@ export const runSetup = async (
     report.capabilities = await planCapabilities({
       checkNetwork: true,
       convex,
+      env: convexEnv,
       root,
       target,
       worktree,

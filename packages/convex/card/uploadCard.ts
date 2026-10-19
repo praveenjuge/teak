@@ -151,10 +151,44 @@ export const uploadAndCreateCard = mutation({
   },
 });
 
+const UPLOAD_FILE_FACT_FIELDS = [
+  "recordingTimestamp",
+  "duration",
+  "width",
+  "height",
+] as const;
+
+// Picks the file facts a client measured. A fact of the wrong type is refused,
+// as the schema would refuse it on insert; a zero or missing fact is skipped.
+const readUploadFileFacts = (
+  metadata: unknown
+): Partial<Record<(typeof UPLOAD_FILE_FACT_FIELDS)[number], number>> => {
+  const facts: Partial<
+    Record<(typeof UPLOAD_FILE_FACT_FIELDS)[number], number>
+  > = {};
+  if (typeof metadata !== "object" || metadata === null) {
+    return facts;
+  }
+  for (const field of UPLOAD_FILE_FACT_FIELDS) {
+    const value: unknown = Reflect.get(metadata, field);
+    if (!value) {
+      continue;
+    }
+    if (typeof value !== "number") {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `additionalMetadata.${field} must be a number`,
+      });
+    }
+    facts[field] = value;
+  }
+  return facts;
+};
+
 export const createUploadedCardForUser = async (
   ctx: MutationCtx,
   args: {
-    additionalMetadata?: any;
+    additionalMetadata?: unknown;
     cardType?: CardType;
     content?: string;
     fileKey: string;
@@ -163,6 +197,8 @@ export const createUploadedCardForUser = async (
     fileType?: string;
     storedFileSize?: number;
     storedFileType?: string;
+    /** Where the file came from, kept as `metadata.source` (e.g. "email"). */
+    metadataSource?: string;
     notes?: string | null;
     source?: CardCreationSource;
     tags?: string[];
@@ -244,7 +280,7 @@ export const createUploadedCardForUser = async (
   if (storedFileType && !isGenericMimeType(storedFileType)) {
     resolvedMimeType = storedFileType;
   }
-  const additionalMeta = args.additionalMetadata || {};
+  const fileFacts = readUploadFileFacts(args.additionalMetadata);
   const fileMetadataObj = {
     extension: storedFormat.extension,
     fileName: args.fileName,
@@ -253,12 +289,7 @@ export const createUploadedCardForUser = async (
     language: storedFormat.language,
     mimeType: resolvedMimeType,
     ...(storedFormat.id === "gif" && { preview: { animated: true } }),
-    ...(additionalMeta.recordingTimestamp && {
-      recordingTimestamp: additionalMeta.recordingTimestamp,
-    }),
-    ...(additionalMeta.duration && { duration: additionalMeta.duration }),
-    ...(additionalMeta.width && { width: additionalMeta.width }),
-    ...(additionalMeta.height && { height: additionalMeta.height }),
+    ...fileFacts,
   };
 
   const cardId = await insertCountedCard(
@@ -273,7 +304,9 @@ export const createUploadedCardForUser = async (
       metadataTitle: args.fileName,
       notes: args.notes ?? undefined,
       tags: args.tags,
-      metadata: undefined,
+      metadata: args.metadataSource
+        ? { source: args.metadataSource }
+        : undefined,
       processingStatus: buildInitialProcessingStatus({
         now,
         cardType,

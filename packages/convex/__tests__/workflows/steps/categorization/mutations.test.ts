@@ -80,3 +80,55 @@ describe("categorization updateCategorization", () => {
     ).resolves.toBeNull();
   });
 });
+
+describe("categorization updateCategorization preview image", () => {
+  const run = async (linkPreview: Record<string, unknown>) => {
+    let cardState: any = {
+      _id: "card_1",
+      metadata: { linkPreview },
+      processingStatus: {},
+    };
+    const ctx = {
+      db: withSearchSyncDb({
+        get: async () => cardState,
+        patch: (_table: string, _id: string, updates: any) => {
+          cardState = { ...cardState, ...updates };
+        },
+      }),
+    };
+    await withScheduler(updateCategorization)(ctx, {
+      cardId: "card_1",
+      metadata: { category: "book", fetchedAt: 1, sourceUrl: "https://x" },
+      previewImage: {
+        imageHeight: 500,
+        imageStorageKey: "users/u/cards/card_1/link-preview-image",
+        imageUpdatedAt: 2,
+        imageWidth: 330,
+      },
+    });
+    return cardState.metadata.linkPreview;
+  };
+
+  it("gives a preview with no image the site's", async () => {
+    expect(await run({ status: "success", title: "A book" })).toEqual({
+      imageHeight: 500,
+      imageStorageKey: "users/u/cards/card_1/link-preview-image",
+      imageUpdatedAt: 2,
+      imageWidth: 330,
+      status: "success",
+      title: "A book",
+    });
+  });
+
+  it("never replaces the page's own image", async () => {
+    const own = {
+      imageStorageKey: "users/u/cards/card_1/own",
+      status: "success",
+    };
+    expect(await run(own)).toEqual(own);
+  });
+
+  it("leaves a failed preview alone", async () => {
+    expect(await run({ status: "error" })).toEqual({ status: "error" });
+  });
+});

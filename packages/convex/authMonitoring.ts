@@ -4,9 +4,6 @@ import {
 } from "./shared/telemetry";
 import { sha256Hex } from "./storage/r2Keys";
 
-// No signal carries an email, raw user ID, token, URL, request body or
-// profile field; WorkOS subjects are hashed here before anything is logged.
-
 const REASON_PATTERN = /[^a-z0-9_]+/gu;
 
 const normalizeMonitoringReason = (value: unknown): string => {
@@ -24,7 +21,6 @@ const normalizeMonitoringReason = (value: unknown): string => {
 export const hashMonitoringSubject = async (
   subject: string
 ): Promise<string> => {
-  // The first 8 bytes of the digest.
   const hex = (await sha256Hex(subject)).slice(0, 16);
   return `s_${hex}`;
 };
@@ -33,11 +29,20 @@ export type ResolverVerification =
   | { kind: "session"; emailVerified: boolean }
   | { kind: "connect" };
 
+export type ResolverDenialReason =
+  | "missing_mapping"
+  | "duplicate_mapping"
+  | "deleted_user"
+  | "workos_deleted_user"
+  | "deleting_user"
+  | "external_id_mismatch"
+  | "verify_email";
+
 export const logResolverDenial = async (input: {
-  reason: string;
+  reason: ResolverDenialReason;
   verification: ResolverVerification;
   workosUserId: string;
-}): Promise<void> =>
+}): Promise<boolean> =>
   ignoreTelemetryErrorAsync(async () => {
     console.warn("identity_resolver_denial", {
       provider: "workos",
@@ -83,7 +88,9 @@ export interface PublicApiAuthOutcome {
   surface: "rest" | "mcp";
 }
 
-export const logPublicApiAuthOutcome = (outcome: PublicApiAuthOutcome): void =>
+export const logPublicApiAuthOutcome = (
+  outcome: PublicApiAuthOutcome
+): boolean =>
   ignoreTelemetryError(() => {
     console.log("public_api_auth_outcome", {
       surface: outcome.surface,
@@ -93,16 +100,3 @@ export const logPublicApiAuthOutcome = (outcome: PublicApiAuthOutcome): void =>
       reason: normalizeMonitoringReason(outcome.reason),
     });
   });
-
-export const isExpiredJwt = (token: string, nowMs = Date.now()): boolean => {
-  try {
-    const segment = token.split(".")[1] ?? "";
-    const base64 = segment.replace(/-/gu, "+").replace(/_/gu, "/");
-    const payload = JSON.parse(
-      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))
-    ) as { exp?: unknown };
-    return typeof payload.exp === "number" && payload.exp * 1000 <= nowMs;
-  } catch {
-    return false;
-  }
-};

@@ -6,8 +6,6 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Keep the editor's plain stand-in on screen: the rich editor's code never
-// finishes loading here. The package's test script runs each file alone.
 mock.module("../../text-editor/LoadedMarkdownTextEditor", () => ({
   default: () => {
     throw new Promise(() => undefined);
@@ -32,7 +30,6 @@ const card = {
   type: "text",
 } as unknown as Doc<"cards">;
 
-/** The card's dialog with the note in it, and a second dialog over it. */
 async function renderCardWithDialogOver() {
   const cardDialog = document.createElement("div");
   cardDialog.setAttribute("role", "dialog");
@@ -60,7 +57,6 @@ const pressFocusKey = (target: Element) =>
     );
   });
 
-// Focus's code loads on demand, so give it time to appear.
 async function focusIsOpen() {
   for (let attempt = 0; attempt < 40; attempt++) {
     if (document.querySelector("[data-focus-editor]")) {

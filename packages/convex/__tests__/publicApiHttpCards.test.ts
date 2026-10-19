@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import {
@@ -132,6 +132,7 @@ describe("publicApiHttp card endpoints", () => {
           storageKey: "private-object-key",
           colors: [{ hex: "#112233", name: "Ink", rgb: { r: 1, g: 2, b: 3 } }],
           aiTranscript: "Transcript",
+          aiOcrText: "STOP",
           linkPreviewMedia: [
             { type: "image", url: "https://files.example.com/signed" },
           ],
@@ -175,6 +176,7 @@ describe("publicApiHttp card endpoints", () => {
     const item = (await response.json()).items[0];
     expect(item.colors).toEqual([{ hex: "#112233", name: "Ink" }]);
     expect(item.aiTranscript).toBe("Transcript");
+    expect(item).not.toHaveProperty("aiOcrText");
     expect(item.linkPreviewMedia).toEqual([
       { type: "image", url: "https://files.example.com/signed" },
     ]);
@@ -309,6 +311,52 @@ describe("publicApiHttp card endpoints", () => {
     expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
   });
 
+  test("listCardsV1 searches image text for text: in q", async () => {
+    const runQuery = mock().mockResolvedValue({
+      items: [],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    const response = await runHandler(
+      listCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      authorized(
+        `https://example.com/v1/cards?mode=keyword&q=${encodeURIComponent('text:"Total due" text:4411')}`
+      )
+    );
+    expect(response.status).toBe(200);
+    expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+      ocrTexts: ["Total due", "4411"],
+    });
+    expect(runQuery.mock.calls[0]?.[1].searchQuery).toBeUndefined();
+    expect(runQuery.mock.calls[0]?.[1].scanLimit).toBeUndefined();
+  });
+
+  test.each([
+    ["is:todo", { todo: true }],
+    ["is:done", { done: true }],
+  ])(
+    "listCardsV1 reads %s in q as links filtered by done state",
+    async (q, filter) => {
+      const runQuery = mock().mockResolvedValue({
+        items: [],
+        pageInfo: { hasMore: false, nextCursor: null },
+        itemCursors: [],
+        nextCursor: null,
+        scannedRows: 0,
+      });
+      const response = await runHandler(
+        listCardsV1,
+        { runMutation: buildAuthorizedMutationMock(), runQuery },
+        authorized(`https://example.com/v1/cards?q=${encodeURIComponent(q)}`)
+      );
+      expect(response.status).toBe(200);
+      expect(runQuery.mock.calls[0]?.[1]).toMatchObject({
+        type: "link",
+        ...filter,
+      });
+    }
+  );
+
   test("listCardsV1 searches the words beside a price: bound", async () => {
     const runQuery = mock().mockResolvedValue({
       items: [],
@@ -333,6 +381,8 @@ describe("publicApiHttp card endpoints", () => {
     ["is:archived", "archived=exclude"],
     ["price:<50", "type=image"],
     ["price:<50 type:text", "limit=5"],
+    ["is:done is:todo", "limit=5"],
+    ["is:todo", "type=image"],
   ])("listCardsV1 answers %s with %s with no cards", async (q, param) => {
     const runQuery = mock();
     const response = await runHandler(
@@ -681,6 +731,148 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.code).toBe("NOT_FOUND");
   });
 
+  test("cardByIdV1 GET adds the card's links and backlinks", async () => {
+    const links = {
+      backlinks: [{ id: "card_3", missing: false, title: "C", type: "text" }],
+      backlinksTruncated: false,
+      links: [{ id: "card_2", missing: true, title: null, type: null }],
+      linksTruncated: true,
+    };
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        content: "See [[B|teak:card_2]]",
+        createdAt: 1,
+        type: "text",
+        updatedAt: 2,
+        userId: "user_1",
+      })
+      .mockResolvedValueOnce(links);
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: "card_1", ...links });
+    expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
+      "card/cardLinks:getCardLinksForUser"
+    );
+  });
+
+  test("cardByIdV1 PATCH returns the edited card with its links", async () => {
+    const links = {
+      backlinks: [],
+      backlinksTruncated: false,
+      links: [{ id: "card_2", missing: false, title: "B", type: "text" }],
+      linksTruncated: false,
+    };
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+      _id: "card_1",
+      aiTags: [],
+      content: "See [[B|teak:card_2]]",
+      createdAt: 1,
+      isFavorited: false,
+      tags: [],
+      type: "text",
+      updatedAt: 2,
+    });
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({ _id: "card_1", userId: "user_1" })
+      .mockResolvedValueOnce(links);
+    const response = await runHandler(
+      cardByIdV1,
+      { runMutation, runQuery },
+      new Request("https://example.com/v1/cards/card_1", {
+        method: "PATCH",
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: "See [[B|teak:card_2]]" }),
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: "card_1", ...links });
+    expect(getFunctionName(runQuery.mock.calls[2]?.[0])).toBe(
+      "card/cardLinks:getCardLinksForUser"
+    );
+  });
+
+  test("cardByIdV1 GET still returns the card when its links can't load", async () => {
+    const runQuery = mock()
+      .mockResolvedValueOnce("card_1")
+      .mockResolvedValueOnce({
+        _id: "card_1",
+        content: "See [[B|teak:card_2]]",
+        createdAt: 1,
+        type: "text",
+        updatedAt: 2,
+        userId: "user_1",
+      })
+      .mockRejectedValueOnce(new Error("timed out"));
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
+    let response: Response;
+    try {
+      response = await runHandler(
+        cardByIdV1,
+        { runMutation: buildAuthorizedMutationMock(), runQuery },
+        new Request("https://example.com/v1/cards/card_1", {
+          headers: {
+            Authorization:
+              "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          },
+        })
+      );
+    } finally {
+      warn.mockRestore();
+    }
+    expect(response.status).toBe(200);
+    const card = await response.json();
+    expect(card.id).toBe("card_1");
+    expect(card).not.toHaveProperty("links");
+    expect(card).not.toHaveProperty("backlinks");
+  });
+
+  test("changesCardsV1 leaves links and backlinks out of each item", async () => {
+    const runQuery = mock().mockResolvedValueOnce({
+      deletedIds: [],
+      items: [
+        {
+          _id: "card_1",
+          content: "See [[B|teak:card_2]]",
+          createdAt: 1,
+          type: "text",
+          updatedAt: 2,
+        },
+      ],
+      pageInfo: { hasMore: false, nextCursor: null },
+    });
+    const response = await runHandler(
+      changesCardsV1,
+      { runMutation: buildAuthorizedMutationMock(), runQuery },
+      new Request("https://example.com/v1/cards/changes?since=1&limit=10", {
+        headers: {
+          Authorization:
+            "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        },
+      })
+    );
+    const [item] = (await response.json()).items;
+    expect(item.id).toBe("card_1");
+    expect(item).not.toHaveProperty("links");
+    expect(item).not.toHaveProperty("backlinks");
+    expect(runQuery).toHaveBeenCalledTimes(1);
+  });
+
   test("cardByIdV1 returns native display fields without internal metadata", async () => {
     const runQuery = mock()
       .mockResolvedValueOnce("card_1")
@@ -692,6 +884,7 @@ describe("publicApiHttp card endpoints", () => {
         updatedAt: 2,
         colors: [{ hex: "#112233", hsl: { h: 1, s: 2, l: 3 } }],
         aiTranscript: "A transcript",
+        aiOcrText: "Invoice 4411",
         linkPreviewMedia: [
           { type: "video", url: "https://files.example.com/signed-video" },
         ],
@@ -717,6 +910,7 @@ describe("publicApiHttp card endpoints", () => {
     const card = await response.json();
     expect(card.colors).toEqual([{ hex: "#112233" }]);
     expect(card.aiTranscript).toBe("A transcript");
+    expect(card).not.toHaveProperty("aiOcrText");
     expect(card.linkPreviewMedia).toEqual([
       { type: "video", url: "https://files.example.com/signed-video" },
     ]);
@@ -1128,6 +1322,181 @@ describe("publicApiHttp card endpoints", () => {
     });
   });
 
+  const doneRequest = (method: "POST" | "DELETE") =>
+    new Request("https://example.com/v1/cards/card_1/done", {
+      method,
+      headers: {
+        Authorization:
+          "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+    });
+  const linkCard = {
+    _id: "card_1",
+    userId: "user_1",
+    type: "link",
+    content: "https://example.com",
+    url: "https://example.com",
+    createdAt: 1,
+    updatedAt: 1,
+    metadata: {
+      linkCategory: {
+        category: "movie",
+        fetchedAt: 1,
+        sourceUrl: "https://example.com",
+      },
+    },
+  };
+
+  test.each([
+    ["POST", true, 1_700_000_000_000],
+    ["DELETE", false, null],
+  ] as const)(
+    "%s /done sets done to %p and returns the card",
+    async (method, done, completedAt) => {
+      const runMutation = buildAuthorizedMutationMock().mockResolvedValueOnce({
+        card: { ...linkCard, ...(completedAt ? { completedAt } : {}) },
+        changed: true,
+      });
+      const response = await runHandler(
+        cardByIdV1,
+        {
+          runMutation,
+          runQuery: mock()
+            .mockResolvedValueOnce("card_1")
+            .mockResolvedValueOnce(linkCard),
+        },
+        doneRequest(method)
+      );
+      expect(response.status).toBe(200);
+      expect(runMutation.mock.calls[1]?.[1]).toEqual({
+        cardId: "card_1",
+        done,
+        userId: "user_1",
+      });
+      expect(await response.json()).toMatchObject({
+        completedAt,
+        id: "card_1",
+        linkCategory: "movie",
+      });
+    }
+  );
+
+  test.each([
+    ["TYPE_MISMATCH", "Only link cards can be marked done", 400],
+    ["CONFLICT", "Restore this card from Trash before marking it done", 409],
+  ])("/done maps %s to %p", async (code, message, status) => {
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runMutation: buildAuthorizedMutationMock().mockRejectedValueOnce(
+          new ConvexError({ code, message })
+        ),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce({ ...linkCard, isDeleted: true }),
+      },
+      doneRequest("POST")
+    );
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ code, error: message });
+  });
+
+  const savePdfRequest = (method = "POST") =>
+    new Request("https://example.com/v1/cards/card_1/save-pdf", {
+      method,
+      headers: {
+        Authorization:
+          "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+    });
+  const savePdf = (runAction: ReturnType<typeof mock>, card = linkCard) =>
+    runHandler(
+      cardByIdV1,
+      {
+        runAction,
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock()
+          .mockResolvedValueOnce("card_1")
+          .mockResolvedValueOnce(card),
+      },
+      savePdfRequest()
+    );
+
+  test.each([
+    [true, 201],
+    [false, 200],
+  ])("/save-pdf answers created: %p with %p", async (created, status) => {
+    const runAction = mock().mockResolvedValueOnce({
+      cardId: "doc_1",
+      created,
+    });
+    const response = await savePdf(runAction);
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ cardId: "doc_1", created });
+    expect(runAction.mock.calls[0]?.[1]).toEqual({
+      cardId: "card_1",
+      userId: "user_1",
+    });
+  });
+
+  test.each([
+    ["INVALID_INPUT", "This card has no PDF to save.", 400],
+    ["CARD_LIMIT_REACHED", "Card limit reached.", 400],
+    ["NOT_FOUND", "Card not found", 404],
+    ["CONFLICT", "Restore this card from Trash before saving its PDF.", 409],
+    ["IN_PROGRESS", "This PDF is already being saved.", 409],
+    ["FILE_TOO_LARGE", "This PDF is too large.", 413],
+    ["UNSUPPORTED_TYPE", "arXiv didn't send a PDF for this paper.", 415],
+    ["SERVICE_UNAVAILABLE", "Couldn't get the PDF from arXiv.", 503],
+  ])("/save-pdf maps %s to %p", async (code, message, status) => {
+    const response = await savePdf(
+      mock().mockRejectedValueOnce(new ConvexError({ code, message }))
+    );
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({ code, error: message });
+  });
+
+  test("/save-pdf answers a rate limit with 429 and Retry-After", async () => {
+    const response = await savePdf(
+      mock().mockRejectedValueOnce(
+        new ConvexError({
+          code: "RATE_LIMITED",
+          message: "Too many cards created.",
+          retryAt: Date.now() + 30_000,
+        })
+      )
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+  });
+
+  test("/save-pdf on a card in Trash still reaches the save, which refuses it", async () => {
+    const runAction = mock().mockRejectedValueOnce(
+      new ConvexError({ code: "CONFLICT", message: "In Trash" })
+    );
+    const response = await savePdf(runAction, {
+      ...linkCard,
+      isDeleted: true,
+    } as typeof linkCard);
+    expect(response.status).toBe(409);
+    expect(runAction).toHaveBeenCalledTimes(1);
+  });
+
+  test("GET /save-pdf is not a route", async () => {
+    const runAction = mock();
+    const response = await runHandler(
+      cardByIdV1,
+      {
+        runAction,
+        runMutation: buildAuthorizedMutationMock(),
+        runQuery: mock().mockResolvedValueOnce("card_1"),
+      },
+      savePdfRequest("GET")
+    );
+    expect(response.status).toBe(404);
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
   const refreshRequest = (cardId = "card_1") =>
     new Request(`https://example.com/v1/cards/${cardId}/refresh`, {
       method: "POST",
@@ -1247,6 +1616,37 @@ describe("publicApiHttp card endpoints", () => {
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ status: "queued" });
   });
+
+  test.each(["POST", "DELETE"])(
+    "%s /done is reachable through executePublicApiOperation, as MCP calls it",
+    async (method) => {
+      const link = { _id: "card_1", userId: "user_1", type: "link" };
+      const response = await executePublicApiOperation(
+        mockActionCtx(
+          withMappedOwner({
+            runMutation: buildAuthorizedMutationMock().mockResolvedValueOnce({
+              card: { ...link, completedAt: method === "POST" ? 1 : undefined },
+              changed: true,
+            }),
+            runQuery: mock()
+              .mockResolvedValueOnce("card_1")
+              .mockResolvedValueOnce(link),
+          })
+        ),
+        {
+          method,
+          path: "/v1/cards/card_1/done",
+          headers: {
+            Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+          },
+        }
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        completedAt: method === "POST" ? 1 : null,
+      });
+    }
+  );
 
   test("a permanent delete of an active card asks to trash it first", async () => {
     const runMutation = buildAuthorizedMutationMock();
@@ -1422,7 +1822,6 @@ describe("listCardsV1 search modes", () => {
   };
   const ranking = [{ cardId: "card_meaning", score: 0.5 }];
 
-  // The worker answers `vector-query` with `answer`, or fails.
   const withWorker = async (
     answer: "ok" | "fail",
     run: (calls: string[]) => Promise<void>
@@ -1466,7 +1865,6 @@ describe("listCardsV1 search modes", () => {
     }
   };
 
-  // Dispatches by function: the shard and cache lookups, then the page.
   const ctxFor = () => {
     const pageArgs: any[] = [];
     const runQuery = mock((ref: any, args: any): Promise<unknown> => {
@@ -1490,11 +1888,12 @@ describe("listCardsV1 search modes", () => {
         authorized = true;
         return authorize(ref, args);
       }
-      // The rate limiter's component function has no plain name.
       let name = "";
       try {
         name = getFunctionName(ref);
-      } catch {}
+      } catch {
+        name = "";
+      }
       return Promise.resolve(
         name.endsWith("storeRanking")
           ? ranking
@@ -1618,7 +2017,6 @@ describe("listCardsV1 search modes", () => {
         type: "image",
       });
 
-      // The anchor check says no: nothing is read.
       const missing = ctxFor();
       missing.ctx.runQuery.mockImplementation((ref: any) =>
         Promise.resolve(

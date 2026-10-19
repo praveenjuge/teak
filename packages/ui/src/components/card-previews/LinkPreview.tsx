@@ -40,20 +40,14 @@ type CardWithUrls = Doc<"cards"> & {
   hasThumbnailOverride?: true;
 };
 
-/** Lets the preview take a dropped image as the link's new image. */
 export interface LinkPreviewThumbnail {
   onFile: (file: File) => void;
-  /** The image being uploaded, shown with a shimmer until it is applied. */
   uploadingPreviewUrl?: string;
 }
 
 const hasFiles = (event: DragEvent) =>
   Array.from(event.dataTransfer?.types ?? []).includes("Files");
 
-/**
- * A drop target for a new image, outlined while a file is dragged over it.
- * Drop-only: the card menu's Replace image item is the keyboard path.
- */
 function ThumbnailDropZone({
   children,
   className,
@@ -77,9 +71,7 @@ function ThumbnailDropZone({
       if (!hasFiles(event)) {
         return false;
       }
-      // Keep the drop from the browser and from the library's drop-to-save.
       event.preventDefault();
-      event.stopPropagation();
       return true;
     };
     const handleDragEnter = (event: DragEvent) => {
@@ -127,6 +119,7 @@ function ThumbnailDropZone({
         className
       )}
       data-drop-target={isOver ? "active" : undefined}
+      data-no-drop=""
       ref={ref}
     >
       {children}
@@ -144,7 +137,6 @@ interface LinkPreviewProps {
     children: React.ReactNode;
   }>;
   showScreenshot?: boolean;
-  /** Set where the link's image can be replaced (the card dialog). */
   thumbnail?: LinkPreviewThumbnail;
 }
 
@@ -243,8 +235,6 @@ export function LinkPreview({
     );
   }
 
-  // With no image, the dialog offers a quiet place to drop one, outside the
-  // link so a click never opens the site.
   const emptyDropArea =
     thumbnail && !image ? (
       <ThumbnailDropZone onFile={thumbnail.onFile}>
@@ -255,17 +245,19 @@ export function LinkPreview({
       </ThumbnailDropZone>
     ) : null;
 
+  const imageSlot =
+    image && thumbnail ? (
+      <ThumbnailDropZone className="self-start" onFile={thumbnail.onFile}>
+        {image}
+      </ThumbnailDropZone>
+    ) : (
+      image
+    );
+
   const linkContent = (
     <>
       <div className="flex flex-col gap-4">
-        {image &&
-          (thumbnail ? (
-            <ThumbnailDropZone className="self-start" onFile={thumbnail.onFile}>
-              {image}
-            </ThumbnailDropZone>
-          ) : (
-            image
-          ))}
+        {imageSlot}
 
         <div className="space-y-1.5 px-1">
           <div className="flex items-start gap-2">
@@ -275,7 +267,7 @@ export function LinkPreview({
             <ArrowUpRight className="mt-1 size-4 shrink-0 text-muted-foreground" />
           </div>
 
-          {(hostname || byline) && (
+          {hostname || byline ? (
             <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
               {hostname && (
                 <SiteFavicon className="size-4" hostname={hostname} />
@@ -285,24 +277,24 @@ export function LinkPreview({
                   {hostname}
                 </span>
               )}
-              {hostname && byline && (
+              {hostname && byline ? (
                 <span aria-hidden="true" className="shrink-0">
                   ·
                 </span>
-              )}
+              ) : null}
               {byline && (
                 <span className="min-w-0 truncate" title={byline}>
                   {byline}
                 </span>
               )}
             </div>
-          )}
+          ) : null}
 
-          {linkDescription && (
+          {linkDescription ? (
             <p className="line-clamp-3 pt-1 text-muted-foreground text-sm leading-relaxed">
               {linkDescription}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
 

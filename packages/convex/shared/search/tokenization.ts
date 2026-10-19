@@ -49,6 +49,8 @@ export function tokenizeSearchInput(query: string): string[] {
     .filter(Boolean);
 }
 
+const SIX_DIGIT_BARE_HEX = /^[0-9a-f]{6}$/i;
+
 export function classifySearchToken(
   rawToken: string
 ): SearchTokenClassification | null {
@@ -67,7 +69,10 @@ export function classifySearchToken(
     return { kind: "hue", value: hueFilter };
   }
 
-  const hexFilter = normalizeHexColor(token);
+  const hexFilter =
+    token.startsWith("#") || SIX_DIGIT_BARE_HEX.test(token)
+      ? normalizeHexColor(token)
+      : null;
   if (hexFilter) {
     return { kind: "hex", value: hexFilter };
   }

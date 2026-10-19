@@ -7,7 +7,7 @@ Native Kotlin and Jetpack Compose. The app matches the Apple app (`apps/apple`):
 - One Gradle project. Use the wrapper from this directory: `./gradlew`. It needs JDK 17 or newer, and `local.properties` with `sdk.dir`.
 - `./gradlew :app:installDebug` installs "Teak Dev". It talks to the shared dev deployment and WorkOS staging.
 - Release builds use production. The version comes from the root `package.json`, so `bun run release:prepare` covers Android. Don't add version files here.
-- Checks: `./gradlew lint testDebugUnitTest :app:assembleRelease`. CI runs the same in the `Unit Tests` workflow.
+- Checks: `./gradlew lint testDebugUnitTest :app:assembleRelease` and `bun --no-env-file test apps/android/tests/` (from the repo root). CI runs both in the `Unit Tests` workflow.
 
 ## Layout
 
@@ -18,7 +18,8 @@ Native Kotlin and Jetpack Compose. The app matches the Apple app (`apps/apple`):
 
 ## Backend rules
 
-- Convex calls go through `ConvexApi`, by function name. `LiveConvexApi` sends every number argument as a `Double`: the SDK sends `Int` and `Long` as int64, which `v.number()` rejects.
+- Convex calls go through `ConvexApi` with an entry from `ConvexFunctions`, which binds each function name to its result serializer. `LiveConvexApi` sends every number argument as a `Double`: the SDK sends `Int` and `Long` as int64, which `v.number()` rejects.
+- Shared backend constants (limits, card types, color hues, messages) live in the generated `core/model/.../SharedConstants.kt`. Regenerate it with `bun --no-env-file run apps/android/scripts/shared-constants.ts --write`; `apps/android/tests/shared-constants.test.ts` fails when it drifts.
 - Sign-in uses the WorkOS SDK to build the PKCE authorize URL. The code exchange and refresh are posted directly without `client_secret`, because SDK 0.4.0 always sends one and WorkOS rejects an empty one. Never log tokens.
 - Sessions are encrypted with an Android Keystore key and stored in no-backup storage.
 - JNA is pinned to 5.17 or newer. Convex's own JNA 5.14 can't load on 16 KB-page devices. Keep the AAR artifact type.

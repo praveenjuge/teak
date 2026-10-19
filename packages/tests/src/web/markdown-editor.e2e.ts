@@ -16,6 +16,8 @@ import {
 } from "./editor-library";
 import { expect, generateTestContent, test } from "./fixtures";
 
+const RESPONSIVE_KEYSTROKE_TIMEOUT_MS = 30_000;
+
 describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
   test("creates, saves, and reopens every supported Markdown block", async ({
     app,
@@ -273,7 +275,7 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await goToEnd(browser, DIALOG_EDITOR);
     await blocks.pressSequentially(" edited");
     // e2e reads rendered text (innerText), so the three paragraphs read with
-    // a separator, where Playwright's textContent ran them together.
+    // a separator.
     await expect(blocks).toHaveText(`${marker} First Second edited`);
     await blocks.press("ControlOrMeta+z");
     await expect(blocks).toHaveText(`${marker} First Second`);
@@ -316,7 +318,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     );
     await expect.poll(() => library.read(id)).toBe(after);
 
-    // One undo restores both the tick and the position.
     await browser.keyboard.press("ControlOrMeta+z");
     await expect(firstItem()).toHaveAttribute(
       "aria-label",
@@ -325,7 +326,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await expect(firstItem()).not.toBeChecked();
     await expect.poll(() => library.read(id)).toBe(before);
 
-    // Tick again; the card reopens with the stored order.
     await dialog
       .getByRole("checkbox", "Water plants", { exact: false })
       .check();
@@ -349,10 +349,9 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
       await input.fill(valid);
       await expect(input).toHaveText(valid);
       await input.press("End");
-      // The default action timeout also checks the keystroke stays
-      // responsive: a long unbroken run of kerned "é" once took the browser
-      // over 80 seconds to lay out again.
-      await input.pressSequentially("x");
+      await input.pressSequentially("x", {
+        timeout: RESPONSIVE_KEYSTROKE_TIMEOUT_MS,
+      });
       await expect(input).toHaveText(valid);
       await expect(
         screen

@@ -35,6 +35,35 @@ describe("card query optimistic updates", () => {
     );
   });
 
+  it("reads a smart folder by its search, not by the card's folders", () => {
+    const toRead = card({
+      content: "https://example.com/book",
+      metadata: {
+        linkCategory: {
+          category: "book",
+          fetchedAt: 1,
+          sourceUrl: "https://example.com/book",
+        },
+      },
+      type: "link",
+      url: "https://example.com/book",
+    });
+    const smartFolder = {
+      folderId: "folder-1" as Id<"folders">,
+      folderQuery: "is:todo",
+    };
+    expect(cardMatchesSearchQuery(toRead, smartFolder)).toBe(true);
+    expect(
+      cardMatchesSearchQuery({ ...toRead, completedAt: 5 }, smartFolder)
+    ).toBe(false);
+    expect(
+      cardMatchesSearchQuery(toRead, { ...smartFolder, searchQuery: "is:done" })
+    ).toBe(false);
+    expect(
+      cardMatchesSearchQuery(toRead, { folderId: "folder-1" as Id<"folders"> })
+    ).toBe(false);
+  });
+
   it("drops a hidden card unless the query names its reserved tag", () => {
     const hidden = card({ tags: ["secret"], isHidden: true });
     expect(cardMatchesSearchQuery(hidden, {})).toBe(false);

@@ -102,19 +102,12 @@ function htmlQuality(entries: AcceptEntry[]): number {
   );
 }
 
-/**
- * True when the client explicitly accepts Markdown and does not clearly
- * prefer HTML. Plain browser Accept headers never mention Markdown, so
- * browser traffic is unaffected. The most specific matching range wins.
- */
 export function prefersMarkdown(acceptHeader: string | null): boolean {
   if (!acceptHeader) {
     return false;
   }
 
   const entries = parseAcceptHeader(acceptHeader);
-  // Only an explicit text/markdown range counts. Wildcards like */* are the
-  // default for plain HTTP clients and must keep receiving HTML.
   const markdownQ = explicitQuality(entries, "text/markdown") ?? 0;
 
   if (markdownQ <= 0) {

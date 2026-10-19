@@ -1,6 +1,9 @@
 package com.praveenjuge.teak.core.data.upload
 
 import com.praveenjuge.teak.core.data.convex.ConvexApi
+import com.praveenjuge.teak.core.data.convex.ConvexFunctions
+import com.praveenjuge.teak.core.data.convex.action
+import com.praveenjuge.teak.core.data.convex.mutation
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.string
 import com.praveenjuge.teak.core.data.repository.CARD_SOURCE
@@ -10,7 +13,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -32,10 +34,6 @@ data class StagedFile(
     val metadata: Map<String, Double> = emptyMap(),
 )
 
-/**
- * Uploads one file the way every Teak client does: `uploadAndCreateCard` signs an upload URL, the
- * bytes go up in a single PUT, then `finalizeUploadedCard` creates the card from the stored file.
- */
 @Singleton
 class FileUploader @Inject constructor(
     private val convex: ConvexApi,
@@ -48,14 +46,14 @@ class FileUploader @Inject constructor(
         }
         val metadata = file.metadata.takeIf { it.isNotEmpty() }
         val prepared = convex.mutation(
-            "cards:uploadAndCreateCard",
+            ConvexFunctions.uploadAndCreateCard,
             buildMap {
                 put("fileName", file.fileName)
                 put("fileType", file.mimeType)
                 put("fileSize", file.size)
                 metadata?.let { put("additionalMetadata", it) }
             },
-        ).jsonObject
+        )
         prepared.requireSuccess("Failed to prepare upload")
         val uploadKey = prepared.string("uploadKey") ?: throw TeakException(null, "Failed to prepare upload")
         val uploadUrl = prepared.string("uploadUrl") ?: throw TeakException(null, "Failed to prepare upload")
@@ -64,7 +62,7 @@ class FileUploader @Inject constructor(
         val etag = put(uploadUrl, File(file.path), file.mimeType) { sent -> onProgress(0.05f + 0.9f * sent) }
 
         val finalized = convex.action(
-            "cards:finalizeUploadedCard",
+            ConvexFunctions.finalizeUploadedCard,
             buildMap {
                 put("fileKey", uploadKey)
                 put("fileName", file.fileName)
@@ -74,7 +72,7 @@ class FileUploader @Inject constructor(
                 etag?.let { put("fileEtag", it) }
                 metadata?.let { put("additionalMetadata", it) }
             },
-        ).jsonObject
+        )
         finalized.requireSuccess("Failed to create card")
         onProgress(1f)
         return finalized.string("cardId") ?: throw TeakException(null, "Failed to create card")

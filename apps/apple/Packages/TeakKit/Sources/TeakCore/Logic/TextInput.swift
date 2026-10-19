@@ -9,7 +9,6 @@ public struct TextCardInput: Hashable, Sendable {
     public let type: CardType
     public let url: String?
 
-    /// Arguments for `cards:createCard`.
     public var createArgs: ConvexArgs {
         var args: ConvexArgs = ["content": .string(content), "source": CardSource.apple]
         if type == .link, let url {
@@ -57,9 +56,6 @@ public enum LinkDetection {
     }
 }
 
-/// Reads the text from a `teak://save?text=…` link straight from the raw URL,
-/// so a `#`, `&` or `%` inside the text survives exactly as the automation
-/// app sent it.
 public enum SaveLink {
     public static func text(from url: String?) -> String {
         guard let url, let queryStart = url.firstIndex(of: "?") else { return "" }

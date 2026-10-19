@@ -15,11 +15,7 @@ import { useDeviceSessions } from "./useDeviceSessions";
 
 interface UseSettingsControllerOptions {
   onDeleteAccount: () => Promise<void>;
-  /**
-   * Trigger a file download for the given URL. Optional; defaults to
-   * `onOpenExternal`. Web should pass a handler that does not rely on
-   * `window.open` (which the popup blocker rejects after an await).
-   */
+  /** `window.open` after an await is rejected by the popup blocker. */
   onDownloadFile?: (url: string) => Promise<unknown> | unknown;
   onOpenExternal: (url: string) => Promise<unknown> | unknown;
   onSignOut: () => Promise<void> | void;

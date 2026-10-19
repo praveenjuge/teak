@@ -18,7 +18,7 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 
 ## Rules
 
-- Convex calls go by function name with `ConvexArgs`; every number is a `Double` (`v.number()` rejects int64).
+- Convex calls go through `ConvexFunctions` (TeakCore), which binds each function name to its result type; arguments are `ConvexArgs`, and every number is a `Double` (`v.number()` rejects int64).
 - The session lives in the shared keychain group; refreshes take the cross-process lock in the app group, because WorkOS rotates refresh tokens. Never log tokens.
 - Hold a file lock in the app group only inside `BackgroundActivity` time, as `FileCredentialLock` does: iOS kills a process suspended while holding one (`0xdead10cc`).
 - Shared backend constants come from `Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json`. Regenerate it with `bun --no-env-file run apps/apple/scripts/shared-constants.ts --write`; `apps/apple/tests/shared-constants.test.ts` fails when it drifts.

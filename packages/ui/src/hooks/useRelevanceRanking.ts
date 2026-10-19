@@ -21,14 +21,6 @@ interface RelevanceSearchArgs {
   types?: string[];
 }
 
-/**
- * Best match for a grid search. Under `sort: "relevance"` it asks the server
- * to score the search's top results and holds the first paint up to
- * `RELEVANCE_HOLD_MS`. Scores in time order the grid; scores that land later
- * are kept for the next time, and this search stays in its unscored order,
- * so cards never move under the person. Every search input counts: changing
- * a filter starts a new request, since it changes which cards are on top.
- */
 export function useRelevanceRanking(
   args: RelevanceSearchArgs & { enabled?: boolean }
 ): { holding: boolean; useRelevanceScores: boolean } {
@@ -60,7 +52,6 @@ export function useRelevanceRanking(
       setDecided({ key: requestKey, useScores });
     };
     const timeout = setTimeout(() => decide(false), RELEVANCE_HOLD_MS);
-    // Late, failed or rate-limited, the search keeps its unscored order.
     requestRelevanceScores(JSON.parse(requestKey))
       .then(({ outcome }) => decide(outcome === "ok"))
       .catch(() => decide(false));

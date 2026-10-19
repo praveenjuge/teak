@@ -8,11 +8,6 @@ type IntentLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
   href: string;
 };
 
-/**
- * Next.js `Link` that also warms the destination's Convex queries on intent
- * (hover, focus or touch), not as it scrolls into view: a long folder or tag
- * list would otherwise load every page it shows.
- */
 export function IntentLink({
   href,
   onFocus,

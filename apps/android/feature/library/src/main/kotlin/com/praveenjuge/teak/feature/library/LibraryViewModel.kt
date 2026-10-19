@@ -31,6 +31,21 @@ enum class EmptyKind { Search, Trash, Filters }
 
 data class EmptyCopy(val title: String, val message: String, val kind: EmptyKind)
 
+sealed interface LibraryEmptyState {
+    data object FirstCard : LibraryEmptyState
+    data class NoMatches(val copy: EmptyCopy) : LibraryEmptyState
+}
+
+sealed interface Selection {
+    data object None : Selection
+    data class Active(val pickedIds: List<String>) : Selection
+
+    fun tileSelection(cardId: String): TileSelection = when (this) {
+        None -> TileSelection.NotSelecting
+        is Active -> if (cardId in pickedIds) TileSelection.Selected else TileSelection.Unselected
+    }
+}
+
 data class BulkFailure(val failed: Int, val total: Int) {
     val message: String get() = "$failed of $total failed. Please try again."
 }
@@ -40,26 +55,26 @@ data class LibraryUiState(
     val search: String = "",
     val timeFilter: TimeFilter? = null,
     val paged: PagedCards = PagedCards(),
-    /** Null when not selecting. Keeps the order cards were picked in. */
-    val selection: Set<String>? = null,
+    val selection: Selection = Selection.None,
     val isRunningBulkAction: Boolean = false,
     val bulkFailure: BulkFailure? = null,
 ) {
-    val isSelecting: Boolean get() = selection != null
+    val isSelecting: Boolean get() = selection is Selection.Active
+
+    val pickedIds: List<String> get() = (selection as? Selection.Active)?.pickedIds.orEmpty()
 
     val title: String
         get() = when {
-            selection == null -> filters.title
-            selection.isEmpty() -> "Select Cards"
-            else -> "${selection.size} Selected"
+            selection == Selection.None -> filters.title
+            pickedIds.isEmpty() -> "Select Cards"
+            else -> "${pickedIds.size} Selected"
         }
 
-    /** Copy for an empty grid, or null for a brand-new library, which gets the first-card prompt. */
-    val emptyCopy: EmptyCopy?
+    val emptyState: LibraryEmptyState
         get() {
             val searching = search.isNotEmpty()
-            return when {
-                !searching && !filters.isActive -> null
+            val copy = when {
+                !searching && !filters.isActive -> return LibraryEmptyState.FirstCard
                 !searching && filters.trashOnly ->
                     EmptyCopy("Trash Is Empty", "Cards you delete stay here for 30 days.", EmptyKind.Trash)
                 !searching -> EmptyCopy("No Matching Cards", "Try other filters.", EmptyKind.Filters)
@@ -69,6 +84,7 @@ data class LibraryUiState(
                     kind = EmptyKind.Search,
                 )
             }
+            return LibraryEmptyState.NoMatches(copy)
         }
 }
 
@@ -125,14 +141,14 @@ class LibraryViewModel @Inject constructor(
     fun refresh() = pager.refresh()
 
     fun beginSelection(cardId: String? = null) =
-        _state.update { it.copy(selection = setOfNotNull(cardId)) }
+        _state.update { it.copy(selection = Selection.Active(listOfNotNull(cardId))) }
 
     fun toggleSelected(cardId: String) = _state.update { state ->
-        val current = state.selection ?: return@update state
-        state.copy(selection = if (cardId in current) current - cardId else current + cardId)
+        val picked = (state.selection as? Selection.Active)?.pickedIds ?: return@update state
+        state.copy(selection = Selection.Active(if (cardId in picked) picked - cardId else picked + cardId))
     }
 
-    fun endSelection() = _state.update { it.copy(selection = null) }
+    fun endSelection() = _state.update { it.copy(selection = Selection.None) }
 
     fun moveSelectedToTrash() = runBulk(repository::moveToTrash)
 
@@ -145,7 +161,7 @@ class LibraryViewModel @Inject constructor(
     /** There are no bulk endpoints: one call per card, in order, counting the ones that fail. */
     private fun runBulk(action: suspend (String) -> Unit) {
         val current = _state.value
-        val ids = current.selection?.toList().orEmpty()
+        val ids = current.pickedIds
         if (ids.isEmpty() || current.isRunningBulkAction) return
         _state.update { it.copy(isRunningBulkAction = true) }
         viewModelScope.launch {
@@ -162,7 +178,7 @@ class LibraryViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     isRunningBulkAction = false,
-                    selection = null,
+                    selection = Selection.None,
                     bulkFailure = if (failed > 0) BulkFailure(failed, ids.size) else null,
                 )
             }

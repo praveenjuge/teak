@@ -1,4 +1,4 @@
-import type { Id } from "./_generated/dataModel";
+import type { Doc } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   deleteAccountDataHandler,
@@ -7,6 +7,21 @@ import {
 } from "./accountDeletion";
 import { cardStorageObjectKeys } from "./storage/r2";
 import { sha256Hex } from "./storage/r2Keys";
+
+declare const ownerIndexBrand: unique symbol;
+
+type DeletionBatchRow =
+  | Doc<"cards">
+  | Doc<"importJobs">
+  | Doc<"importJobItems">
+  | Doc<"exportJobs">
+  | Doc<"exportJobItems">
+  | Doc<"fileUploadSessions">
+  | Doc<"accountStorageObjects">;
+
+export type OwnedDeletionRows = DeletionBatchRow[] & {
+  readonly [ownerIndexBrand]: true;
+};
 
 export type DeletionBatchKind =
   | "cards"
@@ -19,7 +34,7 @@ export async function captureDeletionBatch(
   userId: string,
   kind: DeletionBatchKind
 ) {
-  let rows: unknown[];
+  let rows: DeletionBatchRow[];
   let cardIds: OwnedCardIds | undefined;
   let keys: string[] = [];
   let aborts: { key: string; uploadId: string }[] = [];
@@ -100,28 +115,24 @@ export async function captureDeletionBatch(
   const fingerprint = await sha256Hex(
     JSON.stringify({ kind, rows, keys, aborts })
   );
-  return { rows, keys, aborts, fingerprint, cardIds };
+  return {
+    rows: rows as OwnedDeletionRows,
+    keys,
+    aborts,
+    fingerprint,
+    cardIds,
+  };
 }
 
 export async function commitDeletionBatch(
   ctx: MutationCtx,
-  { rows, cardIds }: { rows: unknown[]; cardIds?: OwnedCardIds }
+  { rows, cardIds }: { rows: OwnedDeletionRows; cardIds?: OwnedCardIds }
 ) {
   if (cardIds) {
     await deleteAccountDataHandler(ctx, cardIds);
     return;
   }
-  // Rows originate exclusively from owner-bound indexes and are re-captured in
-  // the same transaction immediately before this call. No caller supplies IDs.
-  for (const row of rows as {
-    _id:
-      | Id<"importJobs">
-      | Id<"importJobItems">
-      | Id<"exportJobs">
-      | Id<"exportJobItems">
-      | Id<"fileUploadSessions">
-      | Id<"accountStorageObjects">;
-  }[]) {
+  for (const row of rows) {
     await ctx.db.delete(row._id);
   }
 }

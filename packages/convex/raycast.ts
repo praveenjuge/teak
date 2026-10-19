@@ -88,7 +88,6 @@ const patchCardForUserArgs = {
   tags: v.optional(v.array(v.string())),
   removeAiTags: v.optional(v.array(v.string())),
   isArchived: v.optional(v.boolean()),
-  /** Replaces the card's folders; every id must be one of the user's folders. */
   folderIds: v.optional(v.array(v.string())),
 } as const;
 
@@ -96,6 +95,12 @@ const setCardFavoriteForUserArgs = {
   userId: v.string(),
   cardId: v.id("cards"),
   isFavorited: v.boolean(),
+} as const;
+
+const setCardDoneForUserArgs = {
+  userId: v.string(),
+  cardId: v.id("cards"),
+  done: v.boolean(),
 } as const;
 
 const cardReferenceArgs = {
@@ -114,9 +119,7 @@ interface SearchOptions {
   type?: Doc<"cards">["type"];
 }
 
-// Unlike the public API's `normalizeLimit`, 0 means the default and an
-// infinite limit clamps to the maximum.
-const normalizeLimit = (limit?: number): number => {
+const normalizeRaycastLimit = (limit?: number): number => {
   if (!limit || Number.isNaN(limit)) {
     return DEFAULT_LIMIT;
   }
@@ -149,7 +152,6 @@ const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions
 ): boolean => {
-  // Hidden cards show only when the tag searched is a reserved one.
   if (isCardHidden(card) && !revealsHidden([options.tag])) {
     return false;
   }
@@ -182,34 +184,32 @@ const sortAndLimitCards = (
   options: SearchOptions
 ): Doc<"cards">[] => {
   const sort = normalizeSort(options.sort);
-  const limit = normalizeLimit(options.limit);
+  const limit = normalizeRaycastLimit(options.limit);
   return cards
     .sort((left, right) => compareCards(left, right, sort))
     .slice(0, limit);
 };
 
 const collectFromBaseQuery = async (
-  baseQuery: any,
+  baseQuery: ReturnType<typeof buildCardListQuery>,
   options: SearchOptions
 ): Promise<Doc<"cards">[]> => {
   const sort = normalizeSort(options.sort);
-  const limit = normalizeLimit(options.limit);
+  const limit = normalizeRaycastLimit(options.limit);
   const pageSize = Math.min(Math.max(limit * 2, 50), 100);
   const matches: Doc<"cards">[] = [];
   let cursor: string | null = null;
   let scanned = 0;
 
   while (matches.length < limit && scanned < MAX_QUERY_SCAN) {
-    const page: {
-      continueCursor: string | null;
-      isDone: boolean;
-      page: Doc<"cards">[];
-    } = await baseQuery.order(sort === "oldest" ? "asc" : "desc").paginate({
-      cursor,
-      numItems: pageSize,
-    });
+    const page = await baseQuery
+      .order(sort === "oldest" ? "asc" : "desc")
+      .paginate({
+        cursor,
+        numItems: pageSize,
+      });
 
-    for (const card of page.page as Doc<"cards">[]) {
+    for (const card of page.page) {
       scanned += 1;
       if (matchesStructuredFilters(card, options)) {
         matches.push(card);
@@ -240,8 +240,8 @@ const searchCardsByQuery = async (
   }
 
   const searchLimit = Math.max(
-    normalizeLimit(options.limit) * SEARCH_MULTIPLIER,
-    normalizeLimit(options.limit) + 20
+    normalizeRaycastLimit(options.limit) * SEARCH_MULTIPLIER,
+    normalizeRaycastLimit(options.limit) + 20
   );
 
   const unique = (
@@ -271,8 +271,8 @@ const searchCardsByTag = async (
   }
 
   const searchLimit = Math.max(
-    normalizeLimit(options.limit) * SEARCH_MULTIPLIER,
-    normalizeLimit(options.limit) + 20
+    normalizeRaycastLimit(options.limit) * SEARCH_MULTIPLIER,
+    normalizeRaycastLimit(options.limit) + 20
   );
 
   const unique = (
@@ -303,7 +303,7 @@ const getCardsForUser = async (
     createdAfter: normalizeCreatedTimestamp(options.createdAfter),
     createdBefore: normalizeCreatedTimestamp(options.createdBefore),
     favoritesOnly: Boolean(options.favoritesOnly),
-    limit: normalizeLimit(options.limit),
+    limit: normalizeRaycastLimit(options.limit),
     searchQuery: normalizeSearchText(options.searchQuery),
     sort: normalizeSort(options.sort),
     tag: normalizeTag(options.tag),
@@ -329,8 +329,7 @@ const getCardsForUser = async (
   } else {
     const baseQuery = buildCardListQuery(ctx, {
       userId,
-      // Hidden rows count toward the scan limit; the loop's filter skips them.
-      includeHidden: true,
+      scanHiddenRows: true,
       favoritesOnly: normalizedOptions.favoritesOnly,
       types: normalizedOptions.type ? [normalizedOptions.type] : undefined,
       createdAt: {
@@ -531,5 +530,27 @@ export const setCardFavoriteForUser = internalMutation({
       value: args.isFavorited,
     });
     return getCardForUserHandler(ctx, userId, args.cardId);
+  },
+});
+
+export const setCardDoneForUser = internalMutation({
+  args: setCardDoneForUserArgs,
+  returns: v.union(
+    v.null(),
+    v.object({ card: cardReturnValidator, changed: v.boolean() })
+  ),
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    const before = await ctx.db.get("cards", args.cardId);
+    await updateCardFieldForUserHandler(ctx, {
+      userId,
+      cardId: args.cardId,
+      field: args.done ? "done" : "undone",
+    });
+    const card = await getCardForUserHandler(ctx, userId, args.cardId);
+    if (!card) {
+      return null;
+    }
+    return { card, changed: (before?.completedAt !== undefined) !== args.done };
   },
 });

@@ -61,10 +61,6 @@ export const withStageStatus = (
   [stage]: status,
 });
 
-/**
- * Merges stage updates into the status read in the writer's transaction, so
- * a stage another step wrote in parallel keeps its value.
- */
 export const mergeProcessingStages = (
   current: ProcessingStatus | undefined,
   stages: Partial<ProcessingStatus>

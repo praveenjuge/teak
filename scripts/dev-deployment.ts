@@ -21,11 +21,6 @@ const KEY_REMEDIATION = [
   `Use a dev deploy key for ${TEAK_DEV_DEPLOYMENT_NAME} (\`bunx convex deployment token create <name> --deployment ${TEAK_DEV_DEPLOYMENT_NAME}\`), or unset CONVEX_DEPLOY_KEY and run \`bunx convex login\``,
 ];
 
-/**
- * How this process reaches the dev deployment. A deploy key must be a dev key
- * for the pinned deployment (`dev:<name>|…`); production, preview, project and
- * admin keys are refused.
- */
 export const resolveConvexAccess = (deployKey?: string): ConvexAccess => {
   const key = deployKey?.trim();
   if (!key) {
@@ -57,7 +52,6 @@ export const resolveConvexAccess = (deployKey?: string): ConvexAccess => {
   };
 };
 
-/** This process's access, read from its environment; never returns the key. */
 export const readConvexAccess = (
   env: NodeJS.ProcessEnv = process.env
 ): ConvexAccess => resolveConvexAccess(env.CONVEX_DEPLOY_KEY);
@@ -67,20 +61,18 @@ export type SelectionPlan =
   | { action: "select" }
   | { action: "refuse"; detail: string; remediation: string[] };
 
-/**
- * What dev does with the checkout's current selection. Local and anonymous
- * backends are what the E2E stack provisions, so dev selects the shared
- * deployment over them; anything else a person chose is left alone.
- */
+export const isLocalSelection = (
+  deployment: string | undefined
+): deployment is undefined | `anonymous:${string}` | `local:${string}` =>
+  !deployment ||
+  deployment.startsWith("anonymous:") ||
+  deployment.startsWith("local:");
+
 export const planDevSelection = (deployment?: string): SelectionPlan => {
   if (deployment === DEV_DEPLOYMENT) {
     return { action: "keep" };
   }
-  if (
-    !deployment ||
-    deployment.startsWith("anonymous:") ||
-    deployment.startsWith("local:")
-  ) {
+  if (isLocalSelection(deployment)) {
     return { action: "select" };
   }
   return {
@@ -96,11 +88,6 @@ export const planDevSelection = (deployment?: string): SelectionPlan => {
 
 const SELECTION_KEYS = ["CONVEX_DEPLOYMENT", "CONVEX_URL", "CONVEX_SITE_URL"];
 
-/**
- * Point packages/convex/.env.local at `deployment`, or clear the selection
- * when it is null (the E2E stack then provisions its local backend). Only the
- * selection keys the Convex CLI writes are touched; other lines stay.
- */
 export const writeConvexSelection = (
   dotenvPath: string,
   deployment: { name: string; url: string; siteUrl: string } | null

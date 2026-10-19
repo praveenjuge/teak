@@ -3,11 +3,6 @@
 // Teak's upload ceiling.
 export const IMAGES_BINDING_MAX_INPUT_BYTES = 20 * 1024 * 1024;
 
-/**
- * Runs `use` on a stored image through the Images binding. Null sends the
- * caller to the URL-transformation path: no binding, a source over the
- * binding's limit, a missing object, or a binding failure.
- */
 export const throughImagesBinding = async <T>(
   images: ImagesBinding | undefined,
   sourceSize: number,
@@ -24,9 +19,7 @@ export const throughImagesBinding = async <T>(
   try {
     return await use(images, object);
   } catch {
-    try {
-      await object.body.cancel();
-    } catch {}
+    await object.body.cancel().catch(() => undefined);
     return null;
   }
 };

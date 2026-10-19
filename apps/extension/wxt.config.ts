@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
-import { missingBuildEnvError } from "./lib/env";
+import { FIREFOX_SENDS_TELEMETRY, missingBuildEnvError } from "./lib/env";
+import { OMNIBOX_KEYWORD } from "./lib/omnibox";
 
 /** Pins the Chrome extension id, so OAuth redirects and the store item match. */
 const CHROME_KEY =
@@ -41,10 +42,11 @@ export default defineConfig({
       gecko: {
         id: "teak@teakvault.com",
         strict_min_version: "140.0",
-        // Saved pages and text, the URL of the page being saved or checked,
-        // and address-bar searches go to Teak. Firefox sends no error reports.
         data_collection_permissions: {
           required: ["websiteContent", "browsingActivity", "searchTerms"],
+          ...(FIREFOX_SENDS_TELEMETRY
+            ? { optional: ["technicalAndInteraction"] }
+            : {}),
         },
       },
     },
@@ -57,8 +59,7 @@ export default defineConfig({
       "scripting",
     ],
     host_permissions: ["<all_urls>"],
-    // `teak` then Space or Tab searches Teak from the address bar.
-    omnibox: { keyword: "teak" },
+    omnibox: { keyword: OMNIBOX_KEYWORD },
     action: {
       default_title: "Save to Teak",
       // Firefox otherwise keeps the button in the extensions menu, a click
@@ -98,11 +99,10 @@ export default defineConfig({
       "**/node_modules/**",
       "apps/extension/.output/**",
       "packages/convex/_generated/ai/**",
-      // Onboarding sample media; nothing in the extension imports it.
       "packages/convex/card/onboarding/**",
     ],
   },
   vite: () => ({
-    plugins: [tailwindcss()] as any,
+    plugins: [tailwindcss()],
   }),
 });

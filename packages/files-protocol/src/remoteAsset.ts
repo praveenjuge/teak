@@ -1,13 +1,3 @@
-/**
- * Remote preview assets: a link preview's image, and the images, videos and
- * posters of social posts. The Files Worker downloads each one through its
- * internet-enabled fetcher Container (SSRF-checked, with the connection pinned
- * to the checked addresses) and stores it in R2, so the bytes never pass
- * through Convex.
- *
- * This module has no imports: the fetcher Container bundles it by path.
- */
-
 export type FilesRemoteAssetKind = "image" | "video";
 
 export const FILES_REMOTE_ASSET_MAX_BYTES: Record<
@@ -22,7 +12,6 @@ export const FILES_REMOTE_ASSET_MAX_URL_LENGTH = 4096;
 
 export interface FilesRemoteAssetParams {
   destinationKey: string;
-  /** Used when the response has no Content-Type header. */
   fallbackContentType?: string;
   kind: FilesRemoteAssetKind;
   /**
@@ -34,11 +23,6 @@ export interface FilesRemoteAssetParams {
   url: string;
 }
 
-/**
- * Why an asset was not stored. The link keeps its preview without it, as it
- * did when Convex downloaded assets itself; only `fetch_failed` (a network
- * error or timeout) might have gone differently on another try.
- */
 export type FilesRemoteAssetSkipReason =
   | "blocked_url"
   | "empty"
@@ -62,7 +46,6 @@ export type FilesRemoteAssetResult =
       stored: false;
     };
 
-/** An http(s) URL no longer than an asset URL may be. */
 export const isRemoteAssetPageUrl = (value: unknown): value is string => {
   if (
     typeof value !== "string" ||
@@ -108,7 +91,6 @@ export const guessVideoContentType = (url: string): string | null => {
   return extension ? (VIDEO_TYPES[extension] ?? null) : null;
 };
 
-/** The response's type, else the caller's fallback, else the URL's extension. */
 export const resolveRemoteAssetContentType = (
   headerValue: string | null,
   url: string,

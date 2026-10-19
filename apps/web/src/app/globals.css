@@ -3,3 +3,9 @@
 @import "@teak/ui/styles.css";
 
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+@layer base {
+  html {
+    min-height: 100%;
+  }
+}

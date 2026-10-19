@@ -68,15 +68,15 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 
     @Test func namesDownloadsSafely() {
-        #expect(CardSheet.downloadFileName(url: "https://files.example/a", fallback: "photo.jpg") == "photo.jpg")
+        #expect(CardSheet.downloadFileName(url: "https://files.example/a", savedName: "photo.jpg") == "photo.jpg")
         #expect(CardSheet.downloadFileName(url: "https://files.example/uploads/report.pdf") == "report.pdf")
         #expect(CardSheet.downloadFileName(
             url: "https://files.example/files/image/grid/users%2Fabc%2Ffile%2Fuuid-photo.heic?exp=1&sig=2")
             == "uuid-photo.heic")
         #expect(CardSheet.downloadFileName(url: nil).wholeMatch(of: /download-\d+/) != nil)
         #expect(CardSheet.downloadFileName(url: "not a url").wholeMatch(of: /download-\d+/) != nil)
-        #expect(CardSheet.downloadFileName(url: nil, fallback: "../../etc/passwd") == ".._.._etc_passwd")
-        #expect(CardSheet.downloadFileName(url: nil, fallback: "..").wholeMatch(of: /download-\d+/) != nil)
+        #expect(CardSheet.downloadFileName(url: nil, savedName: "../../etc/passwd") == ".._.._etc_passwd")
+        #expect(CardSheet.downloadFileName(url: nil, savedName: "..").wholeMatch(of: /download-\d+/) != nil)
         #expect(CardSheet.downloadFileName(url: nil, mimeType: "image/jpeg").wholeMatch(of: /download-\d+\.jpg/) != nil)
         #expect(CardSheet.downloadFileName(url: nil, mimeType: "unknown/type").wholeMatch(of: /download-\d+/) != nil)
     }
@@ -137,7 +137,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 
     @Test func turnsEachEditIntoTheFieldUpdateTheWebMakes() {
-        let draft = CardEditDraft(content: "Rewritten", notes: "  ", tags: ["keep", "new"], aiTags: ["Design"])
+        let draft = CardEditDraft(editableContent: "Rewritten", notes: "  ", tags: ["keep", "new"], aiTags: ["Design"])
         #expect(CardEdit.changes(from: original, to: draft)
             == [.content("Rewritten"), .notes(nil), .tags(["keep", "new"]), .removeAiTag("Color")])
         #expect(CardFieldChange.notes(nil).args(cardId: "c") == ["cardId": "c", "field": "notes", "value": nil])
@@ -147,7 +147,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
     @Test func leavesContentAloneForTypesThatCantBeRewritten() {
         let link = card(.link, content: "x", notes: "Old notes", tags: ["keep"], aiTags: ["Design", "Color"])
-        #expect(CardEdit.draft(for: link).content == nil)
+        #expect(CardEdit.draft(for: link).editableContent == nil)
         #expect(CardEdit.changes(from: link, to: CardEdit.draft(for: link)).isEmpty)
     }
 
@@ -159,7 +159,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     @Test func rejectsAnEmptyQuote() {
         let quote = card(.quote, content: "To be")
         var draft = CardEdit.draft(for: quote)
-        draft.content = "  "
+        draft.editableContent = "  "
         #expect(CardEdit.validationError(for: quote, draft: draft) != nil)
     }
 }
@@ -239,5 +239,30 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     @Test func picksTheAudioOrVideoFlavorFromTheMimeType() {
         #expect(FileFormats.infer(fileName: "memo.mp4", mimeType: "audio/mp4")?.type == .audio)
         #expect(FileFormats.infer(fileName: "clip.mp4", mimeType: "video/mp4")?.type == .video)
+    }
+}
+
+@Suite struct CardDecodingTests {
+    @Test func decodesACardMarkedDoneInACategoryItDoesNotKnow() throws {
+        let json = """
+        {
+          "_id": "card_1",
+          "_creationTime": 1782000000000,
+          "type": "link",
+          "content": "https://example.com/game",
+          "url": "https://example.com/game",
+          "completedAt": 1782000500000,
+          "metadata": {
+            "linkCategory": {
+              "category": "a-category-from-the-future",
+              "fetchedAt": 1,
+              "sourceUrl": "https://example.com/game"
+            }
+          }
+        }
+        """
+        let card = try JSONDecoder().decode(Card.self, from: Data(json.utf8))
+        #expect(card.id == "card_1")
+        #expect(card.metadata?.linkCategory?.category == "a-category-from-the-future")
     }
 }

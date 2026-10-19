@@ -101,6 +101,15 @@ export const cleanupSemanticSearchCache = internalAction({
     }),
 });
 
+export const cleanupInboundEmailReceipts = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(ctx, CRONS.cleanupInboundEmailReceipts.name, () =>
+      ctx.runMutation(internal.inbound.ingest.pruneReceipts, {})
+    ),
+});
+
 export const adminDailySnapshot = internalAction({
   args: {},
   returns: v.null(),

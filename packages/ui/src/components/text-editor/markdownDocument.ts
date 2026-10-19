@@ -8,10 +8,15 @@ import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { MarkdownManager } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
-import { Marked, type Token, type Tokens } from "marked";
+import { Marked, type Token, type Tokens, type TokensList } from "marked";
+import { CardLinkNode } from "./CardLinkNode";
 import { LiteralMarkdown } from "./LiteralMarkdown";
 
-export function documentExtensions() {
+export function documentExtensions({
+  cardLinkNode = CardLinkNode,
+}: {
+  cardLinkNode?: typeof CardLinkNode;
+} = {}) {
   return [
     StarterKit.configure({
       underline: false,
@@ -26,6 +31,7 @@ export function documentExtensions() {
     LiteralMarkdown,
     TaskList,
     TaskItem.configure({ nested: true }),
+    cardLinkNode,
   ];
 }
 
@@ -34,9 +40,7 @@ const extensions = documentExtensions();
 const schema = getSchema(extensions);
 export const markdownManager = new MarkdownManager({ extensions });
 
-// Compare independently parsed Markdown semantics, not Tiptap JSON. Unknown
-// syntax fails closed before the rich parser gets a chance to discard it.
-function semantics(tokens: Token[] | undefined): unknown[] {
+function markdownMeaning(tokens: Token[] | undefined): unknown[] {
   if (!tokens) {
     throw new Error("Missing Markdown tokens");
   }
@@ -46,20 +50,20 @@ function semantics(tokens: Token[] | undefined): unknown[] {
       case "checkbox":
         return [];
       case "paragraph":
-        return [["paragraph", semantics(token.tokens)]];
+        return [["paragraph", markdownMeaning(token.tokens)]];
       case "text":
         return token.tokens
-          ? semantics(token.tokens)
+          ? markdownMeaning(token.tokens)
           : [["text", decodeHtmlEntities(token.text)]];
       case "escape":
         return [["text", decodeHtmlEntities(token.text)]];
       case "heading":
-        return [["heading", token.depth, semantics(token.tokens)]];
+        return [["heading", token.depth, markdownMeaning(token.tokens)]];
       case "strong":
       case "em":
       case "del":
       case "blockquote":
-        return [[token.type, semantics(token.tokens)]];
+        return [[token.type, markdownMeaning(token.tokens)]];
       case "codespan":
         return [["codespan", token.text]];
       case "code":
@@ -72,7 +76,12 @@ function semantics(tokens: Token[] | undefined): unknown[] {
           throw new Error("Unsafe link");
         }
         return [
-          ["link", token.href, token.title ?? "", semantics(token.tokens)],
+          [
+            "link",
+            token.href,
+            token.title ?? "",
+            markdownMeaning(token.tokens),
+          ],
         ];
       case "list": {
         const list = token as Tokens.List;
@@ -84,7 +93,7 @@ function semantics(tokens: Token[] | undefined): unknown[] {
             list.items.map((item) => [
               item.task,
               item.checked ?? false,
-              semantics(item.tokens),
+              markdownMeaning(item.tokens),
             ]),
           ],
         ];
@@ -95,11 +104,33 @@ function semantics(tokens: Token[] | undefined): unknown[] {
   });
 }
 
+const hasFrontmatter = (source: string) => /^---\r?\n/u.test(source);
+
+const hasReferenceLinks = (tokens: TokensList) =>
+  Object.keys(tokens.links).length > 0;
+
+function hasUnsupportedSyntax(tokens: TokensList): boolean {
+  try {
+    markdownMeaning(tokens);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function mustStayLiteral(source: string, tokens: TokensList): boolean {
+  return (
+    hasFrontmatter(source) ||
+    hasReferenceLinks(tokens) ||
+    hasUnsupportedSyntax(tokens)
+  );
+}
+
 export function hasSameMarkdownMeaning(left: string, right: string): boolean {
   try {
     return (
-      JSON.stringify(semantics(lexer.lexer(left))) ===
-      JSON.stringify(semantics(lexer.lexer(right)))
+      JSON.stringify(markdownMeaning(lexer.lexer(left))) ===
+      JSON.stringify(markdownMeaning(lexer.lexer(right)))
     );
   } catch {
     return false;
@@ -133,17 +164,10 @@ export function prepareMarkdownDocument(source: string): MarkdownDocument {
       document: { type: "doc", content: [{ type: "paragraph" }] },
     };
   }
-  // Frontmatter and image references stay verbatim as literal text. Images
-  // and raw HTML are never mounted, fetched, or passed to an HTML parser.
-  if (/^---\r?\n/u.test(source)) {
-    return literal;
-  }
   try {
-    const tokens = lexer.lexer(source);
-    if (Object.keys(tokens.links).length) {
+    if (mustStayLiteral(source, lexer.lexer(source))) {
       return literal;
     }
-    semantics(tokens);
     const document = markdownManager.parse(source);
     schema.nodeFromJSON(document).check();
     if (!hasSameMarkdownMeaning(source, markdownManager.serialize(document))) {

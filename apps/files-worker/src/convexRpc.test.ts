@@ -20,7 +20,6 @@ const twoDeploymentEnv = {
   CONVEX_SITE_URLS: `${TEST_CONVEX_SITE_URL},${DEV_SITE_URL}`,
 };
 
-/** What the gateway at `origin` would say about the request. */
 const gatewayAccepts = async (
   init: RequestInit | undefined,
   origin: string,
@@ -67,8 +66,6 @@ describe("createConvexRpc", () => {
       complete,
       { instanceId: "card-a-1", status: "complete" }
     );
-    // Production refuses what was signed for development, whether checked
-    // with production's secret, development's, or the shared files secret.
     expect(await gatewayAccepts(sent, DEV_SITE_URL, devSecret ?? "")).toBe(
       true
     );

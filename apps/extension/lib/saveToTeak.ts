@@ -1,3 +1,4 @@
+import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";
 import { oauthRequest } from "./oauthAuth";
@@ -13,10 +14,6 @@ export interface SaveToTeakInput {
   enforceAllowedHosts?: boolean;
   idempotencyKey?: string;
   source: SaveSource;
-  /**
-   * The page a text save came from. Sent only when the content is saved as
-   * text; a pending save stored by an older build has neither.
-   */
   sourceTitle?: string;
   sourceUrl?: string;
 }
@@ -48,7 +45,6 @@ const isAllowedInlineHost = (hostname: string): boolean =>
 const MAX_SOURCE_URL_LENGTH = 2048;
 const MAX_SOURCE_TITLE_LENGTH = 300;
 
-/** The page fields a text card keeps, or none when the page has no web URL. */
 export const textSource = ({
   sourceTitle,
   sourceUrl,
@@ -57,11 +53,10 @@ export const textSource = ({
   if (!(url && parseContentAsUrl(url)) || url.length > MAX_SOURCE_URL_LENGTH) {
     return {};
   }
-  // Cut by code point, so an emoji at the limit isn't split in half.
-  const title = [...(sourceTitle?.trim() ?? "")]
-    .slice(0, MAX_SOURCE_TITLE_LENGTH)
-    .join("")
-    .trim();
+  const title = truncateCodePoints(
+    sourceTitle?.trim() ?? "",
+    MAX_SOURCE_TITLE_LENGTH
+  ).trim();
   return title ? { sourceTitle: title, sourceUrl: url } : { sourceUrl: url };
 };
 

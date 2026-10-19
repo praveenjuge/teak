@@ -14,6 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 class LibraryViewModelTest {
@@ -68,7 +69,7 @@ class LibraryViewModelTest {
         val query = repository.queries.last()
         assertEquals("", query.search)
         assertEquals(TimeSearch.parse("2024-06-05")?.range, query.range)
-        assertEquals("No cards from Jun 5, 2024.", viewModel.state.value.emptyCopy?.message)
+        assertEquals("No cards from Jun 5, 2024.", assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.message)
     }
 
     @Test
@@ -77,7 +78,7 @@ class LibraryViewModelTest {
         viewModel.toggleTrash()
         advanceUntilIdle()
 
-        assertEquals("Trash Is Empty", viewModel.state.value.emptyCopy?.title)
+        assertEquals("Trash Is Empty", assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.title)
         assertEquals("Trash", viewModel.state.value.title)
     }
 
@@ -107,7 +108,7 @@ class LibraryViewModelTest {
         val state = viewModel.state.value
         assertEquals("2 of 5 failed. Please try again.", state.bulkFailure?.message)
         assertEquals(listOf("trash:a", "trash:c", "trash:e"), repository.writes)
-        assertNull(state.selection)
+        assertEquals(Selection.None, state.selection)
     }
 
     @Test

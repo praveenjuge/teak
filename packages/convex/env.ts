@@ -59,7 +59,9 @@ export const readWorkosResources = (): WorkosResources => {
   let origin: string | undefined;
   try {
     origin = validateOAuthUrl(value, true).origin;
-  } catch {}
+  } catch {
+    origin = undefined;
+  }
   if (origin !== value) {
     throw new Error(
       "WORKOS_RESOURCE_ORIGIN must be an HTTPS (or loopback) origin without a path or trailing slash."

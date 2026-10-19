@@ -51,7 +51,6 @@ const cardOf = (id: string, tags: string[]) =>
     userId: "user_a",
   }) as never;
 
-/** The hook as the dialog uses it, showing whichever card it is given. */
 async function renderHook(id: string | null, tags: string[]) {
   let hook = {} as ReturnType<typeof useCardModal>;
   function Harness(props: { id: string | null; tags: string[] }) {

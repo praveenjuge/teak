@@ -1,47 +1,68 @@
 engine biome(1.0)
 language js(typescript, jsx)
 
-// An icon is several overlapping strokes. With a see-through color (text-x/55)
-// each stroke is blended on its own, so the overlaps show as brighter spots.
-// Keep the icon's color solid and fade the whole <svg> with opacity instead.
-or {
-  // A class string that styles svgs: `[&>svg]:text-x/55`, or a see-through
-  // color the svgs inherit with no solid `[&>svg]:text-x` override.
+pattern see_through_color() {
+  r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*"
+}
+
+pattern solid_svg_text_override() {
+  r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
+}
+
+pattern svg_selector_with_see_through_color() {
+  r"(?s).*svg[^\s]*\]:(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*"
+}
+
+pattern icon_name() { r"[A-Z].*" }
+
+pattern see_through_icon_class() {
+  and { see_through_color(),
+  not r"(?s).*placeholder:text-.*",
+  not solid_svg_text_override() }
+}
+
+pattern class_string_with_see_through_svgs() {
   or {
     JsStringLiteralExpression(),
     JsxString()
-  } as $match where {
+  } as $string where {
     or {
-      $match <: r"(?s).*svg[^\s]*\]:(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
+      $string <: svg_selector_with_see_through_color(),
       and {
-        $match <: r"(?s).*svg.*",
-        $match <: r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
-        not $match <: r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
+        $string <: r"(?s).*svg.*",
+        $string <: see_through_color(),
+        not $string <: solid_svg_text_override()
       }
     }
-  },
-  // An icon component given a see-through color: <Hash className="text-x/60" />
-  JsxSelfClosingElement(name=$name, attributes=$attributes) as $match where {
-    $name <: r"[A-Z].*",
+  }
+}
+
+pattern icon_with_see_through_color() {
+  JsxSelfClosingElement(name=$name, attributes=$attributes) where {
+    $name <: icon_name(),
     $attributes <: contains JsxAttribute(name=$attribute, initializer=$value) where {
       $attribute <: `className`,
-      $value <: r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
-      not $value <: r"(?s).*placeholder:text-.*",
-      not $value <: r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
-    }
-  },
-  // An element with a see-through color around an icon that inherits it.
-  JsxElement(opening_element=$opening) as $match where {
-    $opening <: contains JsxAttribute(name=$attribute, initializer=$value) where {
-      $attribute <: `className`,
-      $value <: r"(?s).*(?:^|[\s\x22':])(?:text|fill|stroke)-[a-z][a-z0-9-]*/(?:[0-9]+|\[).*",
-      not $value <: r"(?s).*placeholder:text-.*",
-      not $value <: r"(?s).*svg[^\s]*\]:text-[a-z][a-z0-9-]*(?:\s|\x22|$).*"
-    },
-    $match <: contains JsxSelfClosingElement(name=$child) where {
-      $child <: r"[A-Z].*"
+      $value <: see_through_icon_class()
     }
   }
-} where {
+}
+
+pattern see_through_wrapper_around_icon() {
+  JsxElement(opening_element=$opening) as $element where {
+    $opening <: contains JsxAttribute(name=$attribute, initializer=$value) where {
+      $attribute <: `className`,
+      $value <: see_through_icon_class()
+    },
+    $element <: contains JsxSelfClosingElement(name=$child) where {
+      $child <: icon_name()
+    }
+  }
+}
+
+or {
+  class_string_with_see_through_svgs(),
+  icon_with_see_through_color(),
+  see_through_wrapper_around_icon()
+} as $match where {
   register_diagnostic(span=$match, message="Icons need a solid color: overlapping strokes in a see-through color (text-x/55) show brighter spots. Use a solid color and fade the svg with opacity, e.g. [&>svg]:text-x [&>svg]:opacity-55.", severity="error")
 }

@@ -10,7 +10,10 @@ public enum TeakServices {
     }
 
     public static func http(config: TeakConfig = .current, session: TeakSession) -> ConvexHTTP {
-        ConvexHTTP(baseURL: config.convexURL) { try await session.accessToken() }
+        ConvexHTTP(baseURL: config.convexURL) {
+            guard let token = try await session.accessToken() else { throw TeakError.signedOut }
+            return token
+        }
     }
 
     public static func sharedDefaults(config: TeakConfig = .current) -> UserDefaults {

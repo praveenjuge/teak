@@ -1,4 +1,4 @@
-import type { Card } from "@teak/convex/sdk";
+import type { Card, CardLinkRef, CardLinks } from "@teak/convex/sdk";
 import { formatLinkPrice } from "@teak/convex/shared/price";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 
@@ -72,6 +72,9 @@ export const formatDetail = (card: Card) =>
     `created: ${new Date(card.createdAt).toISOString()}`,
     `updated: ${new Date(card.updatedAt).toISOString()}`,
     card.isFavorited ? "favorite: yes" : null,
+    card.completedAt
+      ? `done: ${new Date(card.completedAt).toISOString()}`
+      : null,
     card.isHidden ? "hidden: yes (search #secret or #hidden)" : null,
     card.isDeleted ? "in trash: yes" : null,
     card.url ? `url: ${card.url}` : null,
@@ -90,8 +93,8 @@ export const formatDetail = (card: Card) =>
     fileLine(card),
     card.notes ? `notes: ${card.notes}` : null,
     card.tags.length ? `tags: ${card.tags.join(", ")}` : null,
-    card.aiTags?.length ? `ai tags: ${card.aiTags.join(", ")}` : null,
-    card.colors?.length
+    card.aiTags.length ? `ai tags: ${card.aiTags.join(", ")}` : null,
+    card.colors.length
       ? `colors: ${card.colors.map((color) => color.hex).join(" ")}`
       : null,
     card.aiSummary ? `summary: ${card.aiSummary}` : null,
@@ -102,3 +105,34 @@ export const formatDetail = (card: Card) =>
   ]
     .filter((line) => line !== null)
     .join("\n");
+
+const linkLine = (link: CardLinkRef) =>
+  link.missing
+    ? `${link.id}  (missing)`
+    : `${link.id}  ${(link.type ?? "").padEnd(8)}  ${link.title ?? ""}`.trimEnd();
+
+/** `teak links`: "Links" then "Linked from", one card per line. */
+export const formatCardLinks = (links: CardLinks) => {
+  if (links.links.length === 0 && links.backlinks.length === 0) {
+    return "No links.";
+  }
+  const section = (title: string, items: CardLinkRef[], truncated: boolean) =>
+    items.length === 0
+      ? []
+      : [
+          title,
+          ...items.map(linkLine),
+          ...(truncated ? ["and more (first 100 shown)"] : []),
+        ];
+  const links_ = section("Links", links.links, links.linksTruncated);
+  const backlinks = section(
+    "Linked from",
+    links.backlinks,
+    links.backlinksTruncated
+  );
+  return [
+    ...links_,
+    ...(links_.length && backlinks.length ? [""] : []),
+    ...backlinks,
+  ].join("\n");
+};

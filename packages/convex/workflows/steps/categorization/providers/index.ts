@@ -5,6 +5,7 @@ import { enrichDribbble } from "./dribbble";
 import { enrichGithub } from "./github";
 import { enrichGoodreads } from "./goodreads";
 import { enrichImdb } from "./imdb";
+import { enrichYoutube } from "./youtube";
 
 interface ProviderHandler {
   categories: LinkCategory[];
@@ -32,6 +33,10 @@ const handlers: Record<string, ProviderHandler> = {
     categories: ["design_portfolio"],
     enrich: enrichDribbble,
   },
+  youtube: {
+    categories: ["tv", "movie", "course"],
+    enrich: enrichYoutube,
+  },
 };
 
 export const enrichProvider = (
@@ -56,10 +61,6 @@ export const enrichProvider = (
   return handler.enrich(rawMap);
 };
 
-/**
- * Whether a category keeps a provider's facts: true for providers without a
- * handler, since there is nothing to lose.
- */
 export const providerSupportsCategory = (
   provider: string | undefined,
   category: LinkCategory

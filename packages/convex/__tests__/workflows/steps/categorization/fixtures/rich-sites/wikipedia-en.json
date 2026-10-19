@@ -1,0 +1,49 @@
+{
+  "type": "standard",
+  "title": "Ada Lovelace",
+  "displaytitle": "<span lang=\"en\" dir=\"ltr\"><span class=\"mw-page-title-main\">Ada Lovelace</span></span>",
+  "namespace": {
+    "id": 0,
+    "text": ""
+  },
+  "wikibase_item": "Q7259",
+  "titles": {
+    "canonical": "Ada_Lovelace",
+    "normalized": "Ada Lovelace",
+    "display": "<span lang=\"en\" dir=\"ltr\"><span class=\"mw-page-title-main\">Ada Lovelace</span></span>"
+  },
+  "pageid": 974,
+  "thumbnail": {
+    "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Ada_Lovelace_daguerreotype_by_Antoine_Claudet_1843_-_cropped.png/330px-Ada_Lovelace_daguerreotype_by_Antoine_Claudet_1843_-_cropped.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+    "width": 330,
+    "height": 427
+  },
+  "originalimage": {
+    "source": "https://upload.wikimedia.org/wikipedia/commons/4/4c/Ada_Lovelace_daguerreotype_by_Antoine_Claudet_1843_-_cropped.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=thumbnail_unscaled",
+    "width": 957,
+    "height": 1239
+  },
+  "lang": "en",
+  "dir": "ltr",
+  "revision": "1380448378",
+  "tid": "f20e39e8-c8cf-11f1-b9fb-34cd580e4969",
+  "timestamp": "2026-10-15T19:38:07Z",
+  "description": "English mathematician (1815\u20131852)",
+  "description_source": "local",
+  "content_urls": {
+    "desktop": {
+      "page": "https://en.wikipedia.org/wiki/Ada_Lovelace",
+      "revisions": "https://en.wikipedia.org/wiki/Ada_Lovelace?action=history",
+      "edit": "https://en.wikipedia.org/wiki/Ada_Lovelace?action=edit",
+      "talk": "https://en.wikipedia.org/wiki/Talk:Ada_Lovelace"
+    },
+    "mobile": {
+      "page": "https://en.wikipedia.org/wiki/Ada_Lovelace",
+      "revisions": "https://en.wikipedia.org/wiki/Special:History/Ada_Lovelace",
+      "edit": "https://en.wikipedia.org/wiki/Ada_Lovelace?action=edit",
+      "talk": "https://en.wikipedia.org/wiki/Talk:Ada_Lovelace"
+    }
+  },
+  "extract": "Augusta Ada King, Countess of Lovelace, also known as Ada Lovelace, was an English mathematician and writer chiefly known for work on Charles Babbage's proposed mechanical general-purpose computer, the analytical engine. She was the first to recognise the machine had applications beyond pure calculation. Lovelace is often considered the first computer programmer.",
+  "extract_html": "<p><b>Augusta Ada King, Countess of Lovelace</b>, also known as <b>Ada Lovelace</b>, was an English mathematician and writer chiefly known for work on Charles Babbage's proposed mechanical general-purpose computer, the analytical engine. She was the first to recognise the machine had applications beyond pure calculation. Lovelace is often considered the first computer programmer.</p>"
+}

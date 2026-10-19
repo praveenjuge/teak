@@ -12,6 +12,8 @@ import type { CreatedAtRange } from "../utils/timeSearch";
 import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
+  matchesDoneState,
+  matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   parseSearchQuery,
@@ -29,13 +31,10 @@ export interface LocalSearchFilters {
   hexFilters?: string[];
   hueFilters?: string[];
   searchTerms?: string;
-  /** The Archive view: archived cards outside Trash. */
   showArchivedOnly?: boolean;
   showTrashOnly?: boolean;
-  /** Order by saved date; newest first when omitted. */
   sort?: CardListSort;
   styleFilters?: string[];
-  /** Only cards with this tag (user or AI), matched ignoring case. */
   tag?: string;
   /**
    * The server already matched these cards to these words. A card with
@@ -58,6 +57,7 @@ const searchableParts = (card: Doc<"cards">) =>
     card.notes,
     card.aiSummary,
     card.aiTranscript,
+    card.aiOcrText,
     card.metadataTitle,
     card.metadataDescription,
     ...(card.tags ?? []),
@@ -133,7 +133,6 @@ export const filterLocalCards = (
   const tagKeys = [tag?.trim().toLowerCase() ?? "", ...parsed.tags].filter(
     Boolean
   );
-  // Hidden cards show only when a searched tag is a reserved one.
   const revealsHidden = isHiddenTagList(tagKeys);
   const archivedOnly = showArchivedOnly || parsed.archived;
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
@@ -163,6 +162,15 @@ export const filterLocalCards = (
         return false;
       }
       if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
+        return false;
+      }
+      if (!matchesImageText(card.aiOcrText, parsed.ocrTexts)) {
+        return false;
+      }
+      if (
+        (parsed.done || parsed.todo) &&
+        !(card.type === "link" && matchesDoneState(card, parsed))
+      ) {
         return false;
       }
       if (
@@ -270,15 +278,6 @@ export function mergeCardsIntoLocalSearchCache(
   return merged.sort((a, b) => b.createdAt - a.createdAt).slice(0, cacheLimit);
 }
 
-/**
- * Drop cached cards that a remote query returned before but no longer does.
- *
- * The local cache only learns about cards the server sends back, so a card
- * deleted (or permanently deleted) on another client would otherwise stay in
- * local search results forever. Callers pass the ids the *same* remote query
- * returned last time; cards that dropped out of it are removed, while cached
- * cards that query never returned (e.g. ones beyond its loaded pages) stay.
- */
 export function pruneCardsMissingFromRemote(
   cachedCards: Doc<"cards">[],
   previousRemoteIds: ReadonlySet<string>,
@@ -298,13 +297,6 @@ export function pruneCardsMissingFromRemote(
   return pruned.length === cachedCards.length ? cachedCards : pruned;
 }
 
-/**
- * Instant local matches plus what the server found, without duplicates.
- * With `sort`, the combined list is ordered by saved date, so cards the cache
- * picked up in another view never land out of order. Shuffle and Best match
- * keep the server's order and add local matches it has not returned yet
- * after it.
- */
 export function mergeLocalAndRemoteSearchResults(
   remoteCards: Doc<"cards">[],
   localSearchResults: Doc<"cards">[],

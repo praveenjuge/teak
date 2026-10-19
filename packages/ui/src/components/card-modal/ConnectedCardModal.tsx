@@ -3,9 +3,11 @@ import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { useQuery } from "../../convexQueryHooks";
 import { useBulkCardActions } from "../../hooks/useBulkCardActions";
+import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
+import { useSaveLinkedPdf } from "../../hooks/useSaveLinkedPdf";
 import { CardModal } from "./CardModal";
 import { shouldReportInvalidHydratedCard } from "./cardHydrationState";
 import type { CardModalCard } from "./types";
@@ -17,11 +19,9 @@ export interface ConnectedCardModalProps {
   onCardTypeClick?: (cardType: string) => void;
   onCardUpdate?: (card: CardModalCard) => void;
   onInvalidCard?: () => void;
-  /** Lists the cards closest in meaning to a card. */
   onMoreLikeThis?: (cardId: string) => void;
-  /** Shows the next card in the grid; absent on the last card. */
   onNext?: () => void;
-  /** Shows the previous card in the grid; absent on the first card. */
+  onOpenCard?: (cardId: string) => void;
   onPrevious?: () => void;
   onTagClick?: (tag: string) => void;
   open: boolean;
@@ -37,6 +37,7 @@ export function ConnectedCardModal({
   onCardUpdate,
   onInvalidCard,
   onNext,
+  onOpenCard,
   onPrevious,
   onTagClick,
   onMoreLikeThis,
@@ -63,6 +64,7 @@ export function ConnectedCardModal({
     updateNotes,
     updateTitle,
     toggleFavorite,
+    toggleDone,
     addTag,
     removeTag,
     removeAiTag,
@@ -82,7 +84,19 @@ export function ConnectedCardModal({
     onCardUpdate,
   });
 
+  const cardLinks = useCardLinkEditor({
+    currentCardId: card?._id,
+    onOpenCard,
+    value: card?.type === "text" ? (getCurrentValue("content") ?? "") : "",
+  });
+  // Only a server-confirmed card: an optimistic one has no real id yet.
+  const backlinks = useQuery(
+    api.cards.getCardBacklinks,
+    canHydrateCard && hydratedCard?._id ? { cardId: hydratedCard._id } : "skip"
+  );
+
   const linkThumbnail = useLinkThumbnail(card?._id);
+  const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
   const runBulkAction = useBulkCardActions("card-modal");
   const toggleArchive = useCallback(() => {
@@ -119,8 +133,10 @@ export function ConnectedCardModal({
 
   return (
     <CardModal
+      backlinks={backlinks}
       card={card}
       cardId={cardId}
+      cardLinks={card?.type === "text" ? cardLinks : undefined}
       downloadFile={downloadFile}
       getCurrentValue={getCurrentValue}
       handleDelete={handleDelete}
@@ -134,6 +150,7 @@ export function ConnectedCardModal({
       onCardTypeClick={onCardTypeClick}
       onMoreLikeThis={onMoreLikeThis}
       onNext={onNext}
+      onOpenCard={onOpenCard}
       onPrevious={onPrevious}
       onReprocess={
         cardId
@@ -147,6 +164,14 @@ export function ConnectedCardModal({
       openLink={openLink}
       returnFocus={returnFocus}
       saveChanges={saveChanges}
+      savePdf={
+        card?.type === "link" && card.metadata?.linkCategory?.pdfUrl
+          ? {
+              isSaving: isSavingPdf(card._id),
+              save: () => void savePdf(card._id),
+            }
+          : undefined
+      }
       saveState={saveState}
       tags={{
         addTag,
@@ -156,6 +181,7 @@ export function ConnectedCardModal({
         tagInput,
       }}
       toggleArchive={toggleArchive}
+      toggleDone={toggleDone}
       toggleFavorite={toggleFavorite}
       updateContent={updateContent}
       updateNotes={updateNotes}

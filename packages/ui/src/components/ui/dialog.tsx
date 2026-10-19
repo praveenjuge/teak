@@ -46,9 +46,17 @@ function DialogOverlay({
   );
 }
 
+function isInsideToaster(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest("[data-sonner-toaster]") !== null
+  );
+}
+
 function DialogContent({
   className,
   children,
+  onInteractOutside,
   overlayClassName,
   showCloseButton = true,
   ...props
@@ -59,7 +67,7 @@ function DialogContent({
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay className={overlayClassName}>
-        {showCloseButton && (
+        {showCloseButton ? (
           <DialogPrimitive.Close
             className="absolute top-3 right-3 rounded-full ring-offset-background transition-opacity focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-white [&_svg:not([class*='size-'])]:size-6 [&_svg]:pointer-events-none [&_svg]:shrink-0"
             data-slot="dialog-close"
@@ -67,7 +75,7 @@ function DialogContent({
             <XIcon className="text-white" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
-        )}
+        ) : null}
       </DialogOverlay>
       <DialogPrimitive.Content
         className={cn(
@@ -75,6 +83,12 @@ function DialogContent({
           className
         )}
         data-slot="dialog-content"
+        onInteractOutside={(event) => {
+          if (isInsideToaster(event.target)) {
+            event.preventDefault();
+          }
+          onInteractOutside?.(event);
+        }}
         {...props}
       >
         {children}

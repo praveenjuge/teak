@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -14,6 +13,8 @@ import {
   type FolderScenario,
   HIDDEN_MIX_VOLUME_SIZE,
   hiddenMixVolumeCard,
+  OCR_LEASE_PHRASE,
+  OCR_SHARED_KEYWORD,
   OMNIBOX_HIDDEN_TITLE,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
@@ -37,7 +38,10 @@ import {
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import { LINK_CATEGORIES } from "./shared/linkCategories";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "./shared/markdown";
+import { buildRawSelectorMap } from "./workflows/steps/categorization/enrichment";
+import { findFeedUrl } from "./workflows/steps/podcast/resolveEnclosure";
 
 const modules = import.meta.glob("./**/*.ts");
 const WORKOS_USER_ID = "user_01TEAKDEVSEED0000000000000";
@@ -112,7 +116,6 @@ describe("devSeed", () => {
           (card) => card.processingStatus?.metadata?.status === "completed"
         )
     ).toBe(true);
-    // Only the links are processed: one queued run each.
     const runs = await t.run((ctx) =>
       ctx.db.query("workflowDispatches").collect()
     );
@@ -335,6 +338,49 @@ describe("devSeed.seedScenario", () => {
     );
     expect(error).toContain("  shuffle-partial: 400 cards");
     expect(await cardsOf(t)).toHaveLength(0);
+  });
+});
+
+describe("devSeed card link packs", () => {
+  const seedPack = async (scenario: "card-links" | "backlinks") => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const args = { workosUserId: WORKOS_USER_ID, scenario };
+    const first = await t.mutation(internal.devSeed.seedScenario, args);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const again = await t.mutation(internal.devSeed.seedScenario, args);
+    const rows = await t.run((ctx) => ctx.db.query("cardLinks").take(2000));
+    return { again, first, rows, t };
+  };
+
+  test("card-links links real cards, caps a note at 500, and runs once", async () => {
+    const { again, first, rows } = await seedPack("card-links");
+    expect(first).toMatchObject({ status: "seeded" });
+    expect(again).toEqual({ status: "already_seeded", cards: 0 });
+    // Each of the 500- and 501-link notes indexes the 120 real targets;
+    // the broken-links note keeps its 6 real targets (in Trash, renamed,
+    // 300-character, RTL, CJK, emoji), not the deleted or unknown ids;
+    // the cycle has 3 rows and the code note 1.
+    const byNote = new Map<string, number>();
+    for (const row of rows) {
+      byNote.set(row.fromCardId, (byNote.get(row.fromCardId) ?? 0) + 1);
+    }
+    expect([...byNote.values()].sort((a, b) => a - b)).toEqual([
+      1, 1, 1, 1, 6, 120, 120,
+    ]);
+    expect(rows.every((row) => row.fromCardId !== row.toCardId)).toBe(true);
+  });
+
+  test("backlinks gives the hub 60 and the crowded card 120", async () => {
+    const { again, rows } = await seedPack("backlinks");
+    expect(again).toEqual({ status: "already_seeded", cards: 0 });
+    const byTarget = new Map<string, number>();
+    for (const row of rows) {
+      byTarget.set(row.toCardId, (byTarget.get(row.toCardId) ?? 0) + 1);
+    }
+    expect([...byTarget.values()].sort((a, b) => a - b)).toEqual([
+      1, 1, 60, 120,
+    ]);
   });
 });
 
@@ -794,6 +840,325 @@ describe("devSeed folder packs", () => {
     ).toContain("secret");
   });
 
+  test("ocr-images seeds image text and twin notes for text:", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "ocr-images")).toMatchObject({
+      status: "seeded",
+      cards: 45,
+    });
+    const cards = await cardsOf(t);
+    const read = cards.filter((card) => card.aiOcrText);
+    expect(read).toHaveLength(35);
+    expect(read.every((card) => card.ocrCheckedAt !== undefined)).toBe(true);
+    expect(
+      cards.filter(
+        (card) =>
+          (card.type === "image" || card.type === "video") && !card.aiOcrText
+      )
+    ).toHaveLength(5);
+    expect(Math.max(...read.map((card) => card.aiOcrText?.length ?? 0))).toBe(
+      4000
+    );
+    const shared = cards.filter((card) =>
+      [card.aiOcrText, card.content].some((text) =>
+        text?.includes(OCR_SHARED_KEYWORD)
+      )
+    );
+    expect(shared.map((card) => card.type).sort()).toEqual([
+      "image",
+      "text",
+      "video",
+    ]);
+  });
+
+  test("ocr-documents seeds scanned PDFs read for text:, controls and a twin note", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "ocr-documents")).toMatchObject({
+      status: "seeded",
+      cards: 10,
+    });
+    const cards = await cardsOf(t);
+    const pdfs = cards.filter((card) => card.type === "document");
+    expect(pdfs).toHaveLength(8);
+    expect(pdfs.filter((card) => card.aiOcrText)).toHaveLength(5);
+    const shared = cards.filter((card) =>
+      [card.aiOcrText, card.content].some((text) =>
+        text?.toLowerCase().includes(OCR_LEASE_PHRASE)
+      )
+    );
+    expect(shared.map((card) => card.type).sort()).toEqual([
+      "document",
+      "text",
+    ]);
+  });
+
+  test("ocr-links seeds links read for text:, a blank render and a twin note", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "ocr-links")).toMatchObject({
+      status: "seeded",
+      cards: 7,
+    });
+    const cards = await cardsOf(t);
+    const links = cards.filter(
+      (card) =>
+        card.type === "link" &&
+        card.metadata?.linkPreview?.status === "success" &&
+        card.metadataTitle !== "OCR links pack"
+    );
+    expect(links).toHaveLength(5);
+    expect(links.filter((card) => card.aiOcrText)).toHaveLength(4);
+    expect(
+      cards.filter((card) =>
+        [card.aiOcrText, card.content].some((text) =>
+          text?.toLowerCase().includes("scaling postgres")
+        )
+      )
+    ).toHaveLength(2);
+  });
+
+  test("done-states seeds every category, half done, and a to-do smart folder", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "done-states")).toMatchObject({
+      status: "seeded",
+      cards: 28,
+      folders: 2,
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-done-states")
+    );
+    const categories = new Set(
+      cards.map((card) => card.metadata?.linkCategory?.category)
+    );
+    expect(categories).toEqual(new Set([...LINK_CATEGORIES, undefined]));
+    expect(cards.filter((card) => card.completedAt)).toHaveLength(15);
+    expect(cards.some((card) => card.completedAt && card.isDeleted)).toBe(true);
+    expect(cards.some((card) => card.completedAt && card.isArchived)).toBe(
+      true
+    );
+    expect(
+      (await foldersOf(t)).find((folder) => folder.kind === "smart")?.query
+    ).toBe('is:todo folder:"Reading list"');
+  });
+
+  test("rich-sites seeds links with their sites' details, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "rich-sites")).toMatchObject({
+      status: "seeded",
+      cards: 19,
+    });
+    expect(await seedFolders(t, "rich-sites")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-rich-sites")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title)?.metadata
+        ?.linkCategory;
+    expect(byTitle("Mercury")?.facts).toContainEqual({
+      label: "Page",
+      value: "Disambiguation",
+    });
+    expect(byTitle("A paper with a PDF to save")).toMatchObject({
+      category: "research",
+      pdfUrl: "https://arxiv.org/pdf/1706.03762",
+    });
+    expect(byTitle("A withdrawn paper")).toMatchObject({
+      category: "research",
+    });
+    expect(byTitle("A withdrawn paper")?.pdfUrl).toBeUndefined();
+    expect(byTitle("A book with an ISBN-13")?.facts).toContainEqual({
+      label: "Publisher",
+      value: "Example Press",
+    });
+    expect(byTitle("A book whose ISBN check digit is wrong")?.facts).toEqual([
+      { label: "ISBN", value: "9780140328722" },
+    ]);
+    expect(
+      cards.every(
+        (card) => (card.metadata?.linkCategory?.facts?.length ?? 0) <= 8
+      )
+    ).toBe(true);
+  });
+
+  test("video-captions seeds YouTube facts and Vimeo transcripts, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "video-captions")).toMatchObject({
+      status: "seeded",
+      cards: 10,
+    });
+    expect(await seedFolders(t, "video-captions")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-video-captions")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title);
+    expect(
+      byTitle("A YouTube talk with channel, length and date")?.metadata
+        ?.linkCategory?.facts
+    ).toEqual([
+      { label: "Channel", value: "Example Channel" },
+      { label: "Length", value: "1h 2m 3s" },
+      { label: "Uploaded", value: "Sep 14, 2026" },
+    ]);
+    expect(
+      byTitle("A YouTube talk with channel, length and date")?.aiTranscript
+    ).toBeUndefined();
+    expect(byTitle("A two-hour Vimeo lecture")?.aiTranscript).toContain(
+      "velvet harbor theorem"
+    );
+    expect(
+      byTitle("A private Vimeo video with no captions")?.aiTranscript
+    ).toBeUndefined();
+  });
+
+  test("podcast-transcripts seeds episodes with and without transcripts, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "podcast-transcripts")).toMatchObject({
+      status: "seeded",
+      cards: 8,
+    });
+    expect(await seedFolders(t, "podcast-transcripts")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-podcast-transcripts")
+    );
+    const byTitle = (title: string) =>
+      cards.find((card) => card.metadataTitle === title);
+    expect(byTitle("Episode 42: Tide pools")).toMatchObject({
+      aiTranscript: expect.stringContaining("hermit crab"),
+      metadata: { linkCategory: { category: "podcast" } },
+    });
+    expect(
+      byTitle("A Spotify episode (no public audio)")?.aiTranscript
+    ).toBeUndefined();
+    // Every episode is a podcast link, so processing would try it.
+    expect(
+      cards
+        .filter(
+          (card) =>
+            card.type === "link" &&
+            card.metadataTitle !== "Podcast transcripts pack"
+        )
+        .map((card) => card.metadata?.linkCategory?.category)
+    ).toEqual(new Array(7).fill("podcast"));
+    expect(byTitle("A transcribed episode in Trash")?.isDeleted).toBe(true);
+    // The RSS-only episode's feed is where processing would look for it.
+    const rssOnly = byTitle("An episode found through its show's RSS feed");
+    expect(
+      findFeedUrl(
+        buildRawSelectorMap(rssOnly?.metadata?.linkPreview?.raw),
+        rssOnly?.url ?? ""
+      )
+    ).toBe("https://shows.example.com/field-notes/feed.xml");
+  });
+
+  test("email-in seeds cards as Save by email makes them, and turns it on", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "email-in")).toMatchObject({
+      status: "seeded",
+      cards: 8,
+    });
+    expect(await seedFolders(t, "email-in")).toMatchObject({
+      status: "already_seeded",
+    });
+    const cards = (await cardsOf(t)).filter(
+      (card) =>
+        card.tags?.includes("scenario-email-in") && card.tags.includes("email")
+    );
+    expect(cards).toHaveLength(7);
+    for (const card of cards) {
+      expect(card.metadata?.source).toBe("email");
+    }
+    const newsletter = cards.find((card) =>
+      card.content.startsWith("# The Weekly Leaf")
+    );
+    expect(newsletter?.content).toContain("https://example.com/maples");
+    expect(newsletter?.content).not.toContain("track.example.com");
+    expect(newsletter?.content).not.toContain("utm_source");
+    expect(cards.find((card) => card.type === "link")).toMatchObject({
+      notes: "Worth a read:",
+      url: "https://example.com/essays/slow-reading",
+    });
+    // As Save by email makes it: the page's own title comes from the scrape.
+    expect(
+      cards.find((card) => card.type === "link")?.metadataTitle
+    ).toBeUndefined();
+    const settings = await t.run((ctx) =>
+      ctx.db.query("inboundEmailSettings").collect()
+    );
+    expect(settings).toEqual([
+      expect.objectContaining({
+        enabled: true,
+        lastReceivedAt: expect.any(Number),
+      }),
+    ]);
+  });
+
+  test("email-attachments seeds a body note and its files as cards", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "email-attachments")).toMatchObject({
+      status: "seeded",
+      cards: 9,
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes("scenario-email-attachments")
+    );
+    expect(
+      cards
+        .filter((card) => card.type === "document")
+        .map((card) => card.fileMetadata?.fileName)
+        .sort()
+    ).toEqual(
+      [
+        "A 24 MB annual report.pdf",
+        "Itinerary.pdf",
+        "Notes from the workshop.docx",
+        "Receipt.pdf",
+        "Scan.pdf",
+        "Scan.pdf",
+        "請求書.pdf",
+      ].sort()
+    );
+  });
+
+  test("done-states-images seeds 1,000 images in pages, and nothing to do", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "done-states-images",
+        page,
+      });
+    expect(await seed(0)).toEqual({ status: "seeded", cards: 201 });
+    expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    for (const page of [1, 2, 3, 4]) {
+      expect(await seed(page)).toEqual({ status: "seeded", cards: 201 });
+    }
+    expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(cards.filter((card) => card.type === "image")).toHaveLength(1000);
+    expect(cards.filter((card) => card.metadata?.linkCategory)).toHaveLength(0);
+  }, 60_000);
+
   test("save-details seeds text from pages and a page already saved", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();
@@ -832,7 +1197,6 @@ describe("devSeed folder packs", () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();
     await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
-    // Cards in Trash don't count toward the limit.
     const active = () =>
       t.run((ctx) =>
         ctx.db

@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import counterTest from "@convex-dev/sharded-counter/test";
 import authKitTest from "@convex-dev/workos-authkit/test";

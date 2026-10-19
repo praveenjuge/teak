@@ -1,8 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-// The preview image refreshes expired URLs through a Convex action; spread the
-// real module because bun:test module mocks leak across files.
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,
@@ -164,7 +162,6 @@ describe("LinkPreview in the card dialog", () => {
       <LinkPreview card={createLinkCard() as any} thumbnail={thumbnail} />
     );
     expect(markup).toContain("Add an image");
-    // Outside the link, so a click never opens the site.
     expect(markup.indexOf("Add an image")).toBeLessThan(markup.indexOf("<a "));
   });
 

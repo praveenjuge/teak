@@ -85,10 +85,7 @@ const dialog = () => document.querySelector("[role='dialog']");
 const closeButton = () =>
   dialog()?.querySelector<HTMLButtonElement>("button[aria-label='Close']");
 
-const nextPaint = () =>
-  new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-
-test("closing hides the dialog first, then tells the page", async () => {
+test("closing tells the page, which closes the dialog", async () => {
   const onCancel = mock();
   await renderModal({
     card: paletteCard("card_a", "#112233"),
@@ -99,11 +96,10 @@ test("closing hides the dialog first, then tells the page", async () => {
   await act(() => {
     closeButton()?.click();
   });
-  expect(dialog()).toBeNull();
-  expect(onCancel).not.toHaveBeenCalled();
-
-  await act(nextPaint);
   expect(onCancel).toHaveBeenCalledTimes(1);
+
+  await renderModal({ card: null, onCancel, open: false });
+  expect(dialog()).toBeNull();
 });
 
 test("opens again after a close", async () => {
@@ -116,7 +112,6 @@ test("opens again after a close", async () => {
   await act(() => {
     closeButton()?.click();
   });
-  await act(nextPaint);
 
   await renderModal({ card: null, onCancel, open: false });
   await renderModal({

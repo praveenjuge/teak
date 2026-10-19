@@ -372,6 +372,14 @@ describe("formatDate", () => {
     expect(formatDate("2020-02-29")).toBeDefined();
   });
 
+  it("refuses an ISO value with a malformed time or a day that doesn't exist", () => {
+    expect(formatDate("2024-01-02Tgarbage")).toBeUndefined();
+    expect(formatDate("2024-02-30")).toBeUndefined();
+    expect(formatDate("2023-02-29T10:00:00Z")).toBeUndefined();
+    expect(formatDate("2024-13-45T00:00:00Z")).toBeUndefined();
+    expect(formatDate("2009-10-24T23:57:33-07:00")).toBe("Oct 24, 2009");
+  });
+
   it("should handle edge cases", () => {
     expect(formatDate("1970-01-01")).toBeDefined();
     expect(formatDate("2099-12-31")).toBeDefined();

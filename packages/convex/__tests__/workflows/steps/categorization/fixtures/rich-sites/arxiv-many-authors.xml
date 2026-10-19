@@ -1,0 +1,925 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/8QKJFvn9z5L41YhrwltMCQ2v0nk</id>
+  <title>arXiv Query: search_query=&amp;id_list=2101.00001&amp;start=0&amp;max_results=10</title>
+  <updated>2026-10-18T03:38:12Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=2101.00001" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2101.00001v3</id>
+    <title>A paper with three hundred authors</title>
+    <updated>1999-05-10T04:45:54Z</updated>
+    <link href="https://arxiv.org/abs/2101.00001v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2101.00001v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>  We explicitly give the correspondence between spectra of heterotic string theory compactified on $T^2$ and string junctions in type IIB theory compactified on $S^2$.</summary>
+    <category term="hep-th" scheme="http://arxiv.org/schemas/atom"/>
+    <published>1999-01-01T01:01:10Z</published>
+    <arxiv:comment>13 pages + 4 eps figures, PTPTeX, typographical errors corrected</arxiv:comment>
+    <arxiv:primary_category term="hep-th"/>
+    <arxiv:journal_ref>Prog.Theor.Phys.101:1155-1164,1999</arxiv:journal_ref>
+    <author>
+      <name>Author 1</name>
+    </author>
+    <author>
+      <name>Author 2</name>
+    </author>
+    <author>
+      <name>Author 3</name>
+    </author>
+    <author>
+      <name>Author 4</name>
+    </author>
+    <author>
+      <name>Author 5</name>
+    </author>
+    <author>
+      <name>Author 6</name>
+    </author>
+    <author>
+      <name>Author 7</name>
+    </author>
+    <author>
+      <name>Author 8</name>
+    </author>
+    <author>
+      <name>Author 9</name>
+    </author>
+    <author>
+      <name>Author 10</name>
+    </author>
+    <author>
+      <name>Author 11</name>
+    </author>
+    <author>
+      <name>Author 12</name>
+    </author>
+    <author>
+      <name>Author 13</name>
+    </author>
+    <author>
+      <name>Author 14</name>
+    </author>
+    <author>
+      <name>Author 15</name>
+    </author>
+    <author>
+      <name>Author 16</name>
+    </author>
+    <author>
+      <name>Author 17</name>
+    </author>
+    <author>
+      <name>Author 18</name>
+    </author>
+    <author>
+      <name>Author 19</name>
+    </author>
+    <author>
+      <name>Author 20</name>
+    </author>
+    <author>
+      <name>Author 21</name>
+    </author>
+    <author>
+      <name>Author 22</name>
+    </author>
+    <author>
+      <name>Author 23</name>
+    </author>
+    <author>
+      <name>Author 24</name>
+    </author>
+    <author>
+      <name>Author 25</name>
+    </author>
+    <author>
+      <name>Author 26</name>
+    </author>
+    <author>
+      <name>Author 27</name>
+    </author>
+    <author>
+      <name>Author 28</name>
+    </author>
+    <author>
+      <name>Author 29</name>
+    </author>
+    <author>
+      <name>Author 30</name>
+    </author>
+    <author>
+      <name>Author 31</name>
+    </author>
+    <author>
+      <name>Author 32</name>
+    </author>
+    <author>
+      <name>Author 33</name>
+    </author>
+    <author>
+      <name>Author 34</name>
+    </author>
+    <author>
+      <name>Author 35</name>
+    </author>
+    <author>
+      <name>Author 36</name>
+    </author>
+    <author>
+      <name>Author 37</name>
+    </author>
+    <author>
+      <name>Author 38</name>
+    </author>
+    <author>
+      <name>Author 39</name>
+    </author>
+    <author>
+      <name>Author 40</name>
+    </author>
+    <author>
+      <name>Author 41</name>
+    </author>
+    <author>
+      <name>Author 42</name>
+    </author>
+    <author>
+      <name>Author 43</name>
+    </author>
+    <author>
+      <name>Author 44</name>
+    </author>
+    <author>
+      <name>Author 45</name>
+    </author>
+    <author>
+      <name>Author 46</name>
+    </author>
+    <author>
+      <name>Author 47</name>
+    </author>
+    <author>
+      <name>Author 48</name>
+    </author>
+    <author>
+      <name>Author 49</name>
+    </author>
+    <author>
+      <name>Author 50</name>
+    </author>
+    <author>
+      <name>Author 51</name>
+    </author>
+    <author>
+      <name>Author 52</name>
+    </author>
+    <author>
+      <name>Author 53</name>
+    </author>
+    <author>
+      <name>Author 54</name>
+    </author>
+    <author>
+      <name>Author 55</name>
+    </author>
+    <author>
+      <name>Author 56</name>
+    </author>
+    <author>
+      <name>Author 57</name>
+    </author>
+    <author>
+      <name>Author 58</name>
+    </author>
+    <author>
+      <name>Author 59</name>
+    </author>
+    <author>
+      <name>Author 60</name>
+    </author>
+    <author>
+      <name>Author 61</name>
+    </author>
+    <author>
+      <name>Author 62</name>
+    </author>
+    <author>
+      <name>Author 63</name>
+    </author>
+    <author>
+      <name>Author 64</name>
+    </author>
+    <author>
+      <name>Author 65</name>
+    </author>
+    <author>
+      <name>Author 66</name>
+    </author>
+    <author>
+      <name>Author 67</name>
+    </author>
+    <author>
+      <name>Author 68</name>
+    </author>
+    <author>
+      <name>Author 69</name>
+    </author>
+    <author>
+      <name>Author 70</name>
+    </author>
+    <author>
+      <name>Author 71</name>
+    </author>
+    <author>
+      <name>Author 72</name>
+    </author>
+    <author>
+      <name>Author 73</name>
+    </author>
+    <author>
+      <name>Author 74</name>
+    </author>
+    <author>
+      <name>Author 75</name>
+    </author>
+    <author>
+      <name>Author 76</name>
+    </author>
+    <author>
+      <name>Author 77</name>
+    </author>
+    <author>
+      <name>Author 78</name>
+    </author>
+    <author>
+      <name>Author 79</name>
+    </author>
+    <author>
+      <name>Author 80</name>
+    </author>
+    <author>
+      <name>Author 81</name>
+    </author>
+    <author>
+      <name>Author 82</name>
+    </author>
+    <author>
+      <name>Author 83</name>
+    </author>
+    <author>
+      <name>Author 84</name>
+    </author>
+    <author>
+      <name>Author 85</name>
+    </author>
+    <author>
+      <name>Author 86</name>
+    </author>
+    <author>
+      <name>Author 87</name>
+    </author>
+    <author>
+      <name>Author 88</name>
+    </author>
+    <author>
+      <name>Author 89</name>
+    </author>
+    <author>
+      <name>Author 90</name>
+    </author>
+    <author>
+      <name>Author 91</name>
+    </author>
+    <author>
+      <name>Author 92</name>
+    </author>
+    <author>
+      <name>Author 93</name>
+    </author>
+    <author>
+      <name>Author 94</name>
+    </author>
+    <author>
+      <name>Author 95</name>
+    </author>
+    <author>
+      <name>Author 96</name>
+    </author>
+    <author>
+      <name>Author 97</name>
+    </author>
+    <author>
+      <name>Author 98</name>
+    </author>
+    <author>
+      <name>Author 99</name>
+    </author>
+    <author>
+      <name>Author 100</name>
+    </author>
+    <author>
+      <name>Author 101</name>
+    </author>
+    <author>
+      <name>Author 102</name>
+    </author>
+    <author>
+      <name>Author 103</name>
+    </author>
+    <author>
+      <name>Author 104</name>
+    </author>
+    <author>
+      <name>Author 105</name>
+    </author>
+    <author>
+      <name>Author 106</name>
+    </author>
+    <author>
+      <name>Author 107</name>
+    </author>
+    <author>
+      <name>Author 108</name>
+    </author>
+    <author>
+      <name>Author 109</name>
+    </author>
+    <author>
+      <name>Author 110</name>
+    </author>
+    <author>
+      <name>Author 111</name>
+    </author>
+    <author>
+      <name>Author 112</name>
+    </author>
+    <author>
+      <name>Author 113</name>
+    </author>
+    <author>
+      <name>Author 114</name>
+    </author>
+    <author>
+      <name>Author 115</name>
+    </author>
+    <author>
+      <name>Author 116</name>
+    </author>
+    <author>
+      <name>Author 117</name>
+    </author>
+    <author>
+      <name>Author 118</name>
+    </author>
+    <author>
+      <name>Author 119</name>
+    </author>
+    <author>
+      <name>Author 120</name>
+    </author>
+    <author>
+      <name>Author 121</name>
+    </author>
+    <author>
+      <name>Author 122</name>
+    </author>
+    <author>
+      <name>Author 123</name>
+    </author>
+    <author>
+      <name>Author 124</name>
+    </author>
+    <author>
+      <name>Author 125</name>
+    </author>
+    <author>
+      <name>Author 126</name>
+    </author>
+    <author>
+      <name>Author 127</name>
+    </author>
+    <author>
+      <name>Author 128</name>
+    </author>
+    <author>
+      <name>Author 129</name>
+    </author>
+    <author>
+      <name>Author 130</name>
+    </author>
+    <author>
+      <name>Author 131</name>
+    </author>
+    <author>
+      <name>Author 132</name>
+    </author>
+    <author>
+      <name>Author 133</name>
+    </author>
+    <author>
+      <name>Author 134</name>
+    </author>
+    <author>
+      <name>Author 135</name>
+    </author>
+    <author>
+      <name>Author 136</name>
+    </author>
+    <author>
+      <name>Author 137</name>
+    </author>
+    <author>
+      <name>Author 138</name>
+    </author>
+    <author>
+      <name>Author 139</name>
+    </author>
+    <author>
+      <name>Author 140</name>
+    </author>
+    <author>
+      <name>Author 141</name>
+    </author>
+    <author>
+      <name>Author 142</name>
+    </author>
+    <author>
+      <name>Author 143</name>
+    </author>
+    <author>
+      <name>Author 144</name>
+    </author>
+    <author>
+      <name>Author 145</name>
+    </author>
+    <author>
+      <name>Author 146</name>
+    </author>
+    <author>
+      <name>Author 147</name>
+    </author>
+    <author>
+      <name>Author 148</name>
+    </author>
+    <author>
+      <name>Author 149</name>
+    </author>
+    <author>
+      <name>Author 150</name>
+    </author>
+    <author>
+      <name>Author 151</name>
+    </author>
+    <author>
+      <name>Author 152</name>
+    </author>
+    <author>
+      <name>Author 153</name>
+    </author>
+    <author>
+      <name>Author 154</name>
+    </author>
+    <author>
+      <name>Author 155</name>
+    </author>
+    <author>
+      <name>Author 156</name>
+    </author>
+    <author>
+      <name>Author 157</name>
+    </author>
+    <author>
+      <name>Author 158</name>
+    </author>
+    <author>
+      <name>Author 159</name>
+    </author>
+    <author>
+      <name>Author 160</name>
+    </author>
+    <author>
+      <name>Author 161</name>
+    </author>
+    <author>
+      <name>Author 162</name>
+    </author>
+    <author>
+      <name>Author 163</name>
+    </author>
+    <author>
+      <name>Author 164</name>
+    </author>
+    <author>
+      <name>Author 165</name>
+    </author>
+    <author>
+      <name>Author 166</name>
+    </author>
+    <author>
+      <name>Author 167</name>
+    </author>
+    <author>
+      <name>Author 168</name>
+    </author>
+    <author>
+      <name>Author 169</name>
+    </author>
+    <author>
+      <name>Author 170</name>
+    </author>
+    <author>
+      <name>Author 171</name>
+    </author>
+    <author>
+      <name>Author 172</name>
+    </author>
+    <author>
+      <name>Author 173</name>
+    </author>
+    <author>
+      <name>Author 174</name>
+    </author>
+    <author>
+      <name>Author 175</name>
+    </author>
+    <author>
+      <name>Author 176</name>
+    </author>
+    <author>
+      <name>Author 177</name>
+    </author>
+    <author>
+      <name>Author 178</name>
+    </author>
+    <author>
+      <name>Author 179</name>
+    </author>
+    <author>
+      <name>Author 180</name>
+    </author>
+    <author>
+      <name>Author 181</name>
+    </author>
+    <author>
+      <name>Author 182</name>
+    </author>
+    <author>
+      <name>Author 183</name>
+    </author>
+    <author>
+      <name>Author 184</name>
+    </author>
+    <author>
+      <name>Author 185</name>
+    </author>
+    <author>
+      <name>Author 186</name>
+    </author>
+    <author>
+      <name>Author 187</name>
+    </author>
+    <author>
+      <name>Author 188</name>
+    </author>
+    <author>
+      <name>Author 189</name>
+    </author>
+    <author>
+      <name>Author 190</name>
+    </author>
+    <author>
+      <name>Author 191</name>
+    </author>
+    <author>
+      <name>Author 192</name>
+    </author>
+    <author>
+      <name>Author 193</name>
+    </author>
+    <author>
+      <name>Author 194</name>
+    </author>
+    <author>
+      <name>Author 195</name>
+    </author>
+    <author>
+      <name>Author 196</name>
+    </author>
+    <author>
+      <name>Author 197</name>
+    </author>
+    <author>
+      <name>Author 198</name>
+    </author>
+    <author>
+      <name>Author 199</name>
+    </author>
+    <author>
+      <name>Author 200</name>
+    </author>
+    <author>
+      <name>Author 201</name>
+    </author>
+    <author>
+      <name>Author 202</name>
+    </author>
+    <author>
+      <name>Author 203</name>
+    </author>
+    <author>
+      <name>Author 204</name>
+    </author>
+    <author>
+      <name>Author 205</name>
+    </author>
+    <author>
+      <name>Author 206</name>
+    </author>
+    <author>
+      <name>Author 207</name>
+    </author>
+    <author>
+      <name>Author 208</name>
+    </author>
+    <author>
+      <name>Author 209</name>
+    </author>
+    <author>
+      <name>Author 210</name>
+    </author>
+    <author>
+      <name>Author 211</name>
+    </author>
+    <author>
+      <name>Author 212</name>
+    </author>
+    <author>
+      <name>Author 213</name>
+    </author>
+    <author>
+      <name>Author 214</name>
+    </author>
+    <author>
+      <name>Author 215</name>
+    </author>
+    <author>
+      <name>Author 216</name>
+    </author>
+    <author>
+      <name>Author 217</name>
+    </author>
+    <author>
+      <name>Author 218</name>
+    </author>
+    <author>
+      <name>Author 219</name>
+    </author>
+    <author>
+      <name>Author 220</name>
+    </author>
+    <author>
+      <name>Author 221</name>
+    </author>
+    <author>
+      <name>Author 222</name>
+    </author>
+    <author>
+      <name>Author 223</name>
+    </author>
+    <author>
+      <name>Author 224</name>
+    </author>
+    <author>
+      <name>Author 225</name>
+    </author>
+    <author>
+      <name>Author 226</name>
+    </author>
+    <author>
+      <name>Author 227</name>
+    </author>
+    <author>
+      <name>Author 228</name>
+    </author>
+    <author>
+      <name>Author 229</name>
+    </author>
+    <author>
+      <name>Author 230</name>
+    </author>
+    <author>
+      <name>Author 231</name>
+    </author>
+    <author>
+      <name>Author 232</name>
+    </author>
+    <author>
+      <name>Author 233</name>
+    </author>
+    <author>
+      <name>Author 234</name>
+    </author>
+    <author>
+      <name>Author 235</name>
+    </author>
+    <author>
+      <name>Author 236</name>
+    </author>
+    <author>
+      <name>Author 237</name>
+    </author>
+    <author>
+      <name>Author 238</name>
+    </author>
+    <author>
+      <name>Author 239</name>
+    </author>
+    <author>
+      <name>Author 240</name>
+    </author>
+    <author>
+      <name>Author 241</name>
+    </author>
+    <author>
+      <name>Author 242</name>
+    </author>
+    <author>
+      <name>Author 243</name>
+    </author>
+    <author>
+      <name>Author 244</name>
+    </author>
+    <author>
+      <name>Author 245</name>
+    </author>
+    <author>
+      <name>Author 246</name>
+    </author>
+    <author>
+      <name>Author 247</name>
+    </author>
+    <author>
+      <name>Author 248</name>
+    </author>
+    <author>
+      <name>Author 249</name>
+    </author>
+    <author>
+      <name>Author 250</name>
+    </author>
+    <author>
+      <name>Author 251</name>
+    </author>
+    <author>
+      <name>Author 252</name>
+    </author>
+    <author>
+      <name>Author 253</name>
+    </author>
+    <author>
+      <name>Author 254</name>
+    </author>
+    <author>
+      <name>Author 255</name>
+    </author>
+    <author>
+      <name>Author 256</name>
+    </author>
+    <author>
+      <name>Author 257</name>
+    </author>
+    <author>
+      <name>Author 258</name>
+    </author>
+    <author>
+      <name>Author 259</name>
+    </author>
+    <author>
+      <name>Author 260</name>
+    </author>
+    <author>
+      <name>Author 261</name>
+    </author>
+    <author>
+      <name>Author 262</name>
+    </author>
+    <author>
+      <name>Author 263</name>
+    </author>
+    <author>
+      <name>Author 264</name>
+    </author>
+    <author>
+      <name>Author 265</name>
+    </author>
+    <author>
+      <name>Author 266</name>
+    </author>
+    <author>
+      <name>Author 267</name>
+    </author>
+    <author>
+      <name>Author 268</name>
+    </author>
+    <author>
+      <name>Author 269</name>
+    </author>
+    <author>
+      <name>Author 270</name>
+    </author>
+    <author>
+      <name>Author 271</name>
+    </author>
+    <author>
+      <name>Author 272</name>
+    </author>
+    <author>
+      <name>Author 273</name>
+    </author>
+    <author>
+      <name>Author 274</name>
+    </author>
+    <author>
+      <name>Author 275</name>
+    </author>
+    <author>
+      <name>Author 276</name>
+    </author>
+    <author>
+      <name>Author 277</name>
+    </author>
+    <author>
+      <name>Author 278</name>
+    </author>
+    <author>
+      <name>Author 279</name>
+    </author>
+    <author>
+      <name>Author 280</name>
+    </author>
+    <author>
+      <name>Author 281</name>
+    </author>
+    <author>
+      <name>Author 282</name>
+    </author>
+    <author>
+      <name>Author 283</name>
+    </author>
+    <author>
+      <name>Author 284</name>
+    </author>
+    <author>
+      <name>Author 285</name>
+    </author>
+    <author>
+      <name>Author 286</name>
+    </author>
+    <author>
+      <name>Author 287</name>
+    </author>
+    <author>
+      <name>Author 288</name>
+    </author>
+    <author>
+      <name>Author 289</name>
+    </author>
+    <author>
+      <name>Author 290</name>
+    </author>
+    <author>
+      <name>Author 291</name>
+    </author>
+    <author>
+      <name>Author 292</name>
+    </author>
+    <author>
+      <name>Author 293</name>
+    </author>
+    <author>
+      <name>Author 294</name>
+    </author>
+    <author>
+      <name>Author 295</name>
+    </author>
+    <author>
+      <name>Author 296</name>
+    </author>
+    <author>
+      <name>Author 297</name>
+    </author>
+    <author>
+      <name>Author 298</name>
+    </author>
+    <author>
+      <name>Author 299</name>
+    </author>
+    <author>
+      <name>Author 300</name>
+    </author>
+    <arxiv:doi>10.1143/PTP.101.1155</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1143/PTP.101.1155" title="doi"/>
+  </entry>
+</feed>

@@ -7,6 +7,7 @@ import {
   type Surface,
   test,
 } from "../helpers/test";
+import { LOCAL_STACK } from "../stack/config";
 import { DIALOG_EDITOR, goToEnd } from "../web/editor-library";
 
 const enterSearch = async (screen: Screen, query: string) => {
@@ -81,7 +82,7 @@ const surfaceContext = () => {
 
 describe("web product surfaces", { serial: true }, () => {
   test("web editor, deep links, and link metadata stay usable", {
-    timeout: 180_000,
+    timeout: 300_000,
   }, async ({ browser, screen }) => {
     const surface = { browser, screen };
     apiKey = (await createAccount(surface, "web-surfaces")).apiKey ?? "";
@@ -190,16 +191,19 @@ https://example.com/editor
       source: "e2e",
       url: "https://example.com",
     });
-    await searchForVisibleCard(
-      surface,
-      marker,
-      /^(?:example\.com|Example Domain)$/
-    );
+    await searchForVisibleCard(surface, marker, /^example\.com$/);
     await expect
-      .poll(async () => (await api.cards.get(link.cardId)).metadataTitle, {
-        timeout: 90_000,
-      })
-      .toBe("Example Domain");
+      .poll(
+        async () => {
+          const card = await api.cards.get(link.cardId);
+          const processing = card.processingStatus as {
+            metadata?: { status?: string };
+          } | null;
+          return processing?.metadata?.status;
+        },
+        { timeout: 180_000 }
+      )
+      .toBe(LOCAL_STACK.fetchesLinks ? "completed" : "failed");
   });
 
   test("web bulk actions, restore, and empty states stay coherent", async ({

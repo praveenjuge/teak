@@ -47,8 +47,6 @@ export async function putParts(
         return;
       }
       try {
-        // Each worker uploads its assigned parts sequentially; cross-part
-        // concurrency comes from running UPLOAD_CONCURRENCY workers in parallel.
         // react-doctor-disable-next-line react-doctor/async-await-in-loop
         await uploadPart(part);
       } catch (error) {
@@ -112,7 +110,6 @@ async function putPartWithRetry(
       }
     }
 
-    // Retry sleeps must also be abortable by the Cancel import button.
     // react-doctor-disable-next-line react-doctor/async-await-in-loop
     await sleep(UPLOAD_RETRY_DELAYS_MS[attempt], controllers);
   }

@@ -1,4 +1,4 @@
-import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
+import { HOUR, MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 import { components } from "../_generated/api";
 
 export const RATE_LIMIT_CONFIG = {
@@ -40,8 +40,6 @@ export const RATE_LIMIT_CONFIG = {
     capacity: 60,
     shards: 6,
   },
-  // Vector searches a user's searches start, counted only when the meaning
-  // matches are not cached; past it, search is keyword-only for a while.
   semanticSearch: {
     kind: "token bucket",
     rate: 60,
@@ -54,12 +52,46 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 5,
   },
-  // Replacing or resetting a link's image (card/thumbnailOverride.ts).
   thumbnailReplace: {
     kind: "token bucket",
     rate: 20,
     period: MINUTE,
     capacity: 20,
+  },
+  savePdf: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 10,
+  },
+  podcastTranscription: {
+    kind: "token bucket",
+    rate: 20,
+    period: HOUR,
+    capacity: 20,
+  },
+  // Save by email: mail one account saves an hour (past it, mail is dropped
+  // silently), and how often its Settings switch can change.
+  inboundEmailPerAccount: {
+    kind: "token bucket",
+    rate: 60,
+    period: HOUR,
+    capacity: 60,
+  },
+  inboundEmailSettings: {
+    kind: "token bucket",
+    rate: 10,
+    period: MINUTE,
+    capacity: 10,
+  },
+  // arXiv's API terms ask for at most one request every 3 seconds:
+  // https://info.arxiv.org/help/api/tou.html
+  arxivApi: {
+    kind: "token bucket",
+    rate: 20,
+    period: MINUTE,
+    capacity: 1,
+    maxReserved: 3,
   },
 } as const;
 

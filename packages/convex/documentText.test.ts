@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
@@ -100,7 +99,6 @@ const setup = async () => {
       charCount: text.length,
       truncated: false,
     });
-  /** Keys queued for deletion through the dispatch outbox. */
   const deletedKeys = () => queuedObjectDeletions(t);
   const runScheduled = () => t.finishAllScheduledFunctions(vi.runAllTimers);
   const search = async (searchQuery: string) => {

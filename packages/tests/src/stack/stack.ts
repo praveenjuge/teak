@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import { createWriteStream, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createWriteStream, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { api } from "@teak/convex";
 import { ConvexHttpClient } from "convex/browser";
 import {
-  type StackState,
+  recordStartingStack,
   type StackUrls,
   stackStatePath,
   stopGroup,
@@ -14,7 +14,8 @@ import {
   isPortInUse,
   type WorktreePorts,
 } from "../../../../scripts/worktree-env.ts";
-import { emulatorWebEnv, filesWorkerPort, stackUrls } from "./config";
+import { localBackendEnv } from "./backend";
+import { emulatorWebEnv, stackUrls } from "./config";
 import { startEmulator } from "./emulator";
 import { startFilesWorker } from "./filesWorker";
 
@@ -25,6 +26,7 @@ export const STACK_LOG_PATH = join(dirname(STATE_PATH), "stack.log");
 
 export interface StackOptions {
   echo: boolean;
+  env?: NodeJS.ProcessEnv;
   ports: WorktreePorts;
 }
 
@@ -64,9 +66,9 @@ export const startStack = async (
     ports.convex,
     ports.convexSite,
     ports.emulator,
-    ports.emulator + 1,
-    filesWorkerPort(ports),
-    filesWorkerPort(ports) + 1,
+    ports.emulatorUpstream,
+    ports.filesWorker,
+    ports.filesWorkerInspector,
   ]) {
     if (await isPortInUse(port)) {
       busy.push(port);
@@ -80,9 +82,7 @@ export const startStack = async (
 
   mkdirSync(dirname(STATE_PATH), { recursive: true });
   const emulator = await startEmulator(ports);
-  // Setup already wired the local backend. The web server runs alongside it
-  // so both stop together; the Convex CLI passes the environment through.
-  const { CONVEX_DEPLOY_KEY: _cloudKey, ...env } = process.env;
+  const env = options.env ?? localBackendEnv();
   const convex = spawn(
     "bunx",
     [
@@ -105,7 +105,6 @@ export const startStack = async (
       detached: true,
       env: {
         ...env,
-        CONVEX_AGENT_MODE: "anonymous",
         PORT: String(ports.web),
         ...emulatorWebEnv(ports),
       },
@@ -113,9 +112,7 @@ export const startStack = async (
     }
   );
   const log = createWriteStream(STACK_LOG_PATH);
-  // The Files Worker runs the backend's background work (Cloudflare
-  // Workflows and Queues, emulated locally) and serves its files.
-  const filesWorker = startFilesWorker(ports, log);
+  const filesWorker = startFilesWorker(ports, log, env);
   for (const stream of [convex.stdout, convex.stderr]) {
     stream?.pipe(log);
     if (options.echo) {
@@ -123,9 +120,7 @@ export const startStack = async (
     }
   }
 
-  // Recorded now, not once ready, so a stack whose owner dies while it
-  // starts can still be found and stopped (stopOrphanedStack).
-  const state: StackState = {
+  const { save: saveState, state } = recordStartingStack(ROOT, {
     groups: [convex.pid, filesWorker.child.pid].filter(
       (pid): pid is number => pid !== undefined
     ),
@@ -133,13 +128,8 @@ export const startStack = async (
     mode: "e2e",
     ports,
     urls,
-    ready: false,
     logPath: STACK_LOG_PATH,
-    startedAt: new Date().toISOString(),
-  };
-  const writeState = () =>
-    writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`);
-  writeState();
+  });
 
   let stopping = false;
   const stop = async () => {
@@ -172,6 +162,6 @@ export const startStack = async (
   }
 
   state.ready = true;
-  writeState();
+  saveState();
   return { exited, stop, urls };
 };

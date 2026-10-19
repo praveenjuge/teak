@@ -18,7 +18,7 @@ import type {
   VisualStyle,
 } from "@teak/convex/shared/constants";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import type { SearchBarProps } from "../components/search";
 import {
@@ -58,48 +58,22 @@ import {
 import { semanticSearchText } from "./useSemanticSearch";
 
 export interface UseCardsSearchControllerOptions {
-  /** A folder view: every read is limited to this folder's cards. */
   folderId?: Id<"folders">;
-  /**
-   * A smart folder's search (its view's `folderId` is the smart folder):
-   * its cards are what this and the typed search both match.
-   */
   folderQuery?: string;
-  /** The search to start with, usually read from the page URL. */
   initialUrlState?: SearchUrlState;
-  /** Filters to start with, kept from a screen that was remounted. */
   initialVisualFilters?: CardsVisualFilters;
   localSearchCacheLimit?: number;
-  /**
-   * Called when a quick command (`fav`, `trash`, `archive`) is entered in a
-   * routed view: the app navigates instead of toggling hidden state.
-   */
   onNavigateView?: (view: LibraryView) => void;
-  /**
-   * The routed view (All, Favorites, Archive, Trash). It decides the
-   * favorites, archive and trash flags; without it they are toggles.
-   */
   view?: LibraryView;
   weekStart?: 0 | 1;
 }
 
-/**
- * How long typing must pause before the remote search query changes. Local
- * results from the search cache still update on every keystroke.
- */
 export const REMOTE_SEARCH_DEBOUNCE_MS = 200;
 
 export interface UseCardsSearchControllerResult {
   addFilter: (filter: CardType) => void;
   addKeywordTag: (keyword: string) => void;
-  /** Adds a qualifier chip (`site:github.com`); invalid text is ignored. */
   addQualifier: (qualifier: string) => void;
-  /**
-   * Replaces the search with one from the URL (back, forward or a pasted
-   * link): the text becomes the typed query and chips are cleared. With
-   * `keepSearch`, only the types and sort follow the URL, so text still
-   * being typed survives a change made elsewhere (a sidebar type).
-   */
   applyUrlState: (
     state: SearchUrlState,
     options?: { keepSearch?: boolean }
@@ -109,31 +83,19 @@ export interface UseCardsSearchControllerResult {
   filterTags: CardType[];
   hasActiveSearch: boolean;
   hasNoFilters: boolean;
-  /** True when nothing narrows the current view (search, chips or types). */
   hasNoSearchFilters: boolean;
   hexFilters: string[];
   hueFilters: ColorHueBucket[];
-  /** True while typed text waits for the debounce before querying remotely. */
   isSearchPending: boolean;
   keywordTags: string[];
-  /** The sort as chosen, Revisit included; `sort` is how it queries. */
   librarySort: LibrarySort;
   qualifierChips: string[];
   queryArgs: CardsSearchQueryArgs;
   resetKey: string;
-  /**
-   * Shuffle again with a new seed (switching to Shuffle if needed); in
-   * Revisit, deal again from a new seed.
-   */
   reshuffle: () => void;
   searchBarProps: SearchBarProps;
   searchQuery: string;
   searchTerms: string;
-  /**
-   * Feed the latest remote results into the controller. Pass the key of the
-   * query that produced them (e.g. `JSON.stringify(queryArgs)`) so cards the
-   * same query stops returning (deleted elsewhere) leave the local cache.
-   */
   setRemoteCards: (
     cards: Doc<"cards">[] | undefined,
     remoteQueryKey?: string
@@ -143,20 +105,25 @@ export interface UseCardsSearchControllerResult {
   showArchivedOnly: boolean;
   showFavoritesOnly: boolean;
   showTrashOnly: boolean;
-  /** Shuffle's seed while the sort is Shuffle (or Revisit). */
   shuffleSeed?: number;
   sort: CardListSort;
   styleFilters: VisualStyle[];
   tagFilter: string;
   timeFilter: TimeFilter | null;
   updateCachedCard: (card: Doc<"cards">) => void;
-  /**
-   * The settled search to mirror into the URL: the debounced terms, the sort
-   * and the card types. Changes only once typing pauses, so URL writes stay
-   * infrequent.
-   */
   urlState: SearchUrlState;
 }
+
+interface SearchResultsCache {
+  localCards: Doc<"cards">[];
+  remoteCards: Doc<"cards">[];
+  remoteKey?: string;
+}
+
+const EMPTY_RESULTS_CACHE: SearchResultsCache = {
+  localCards: [],
+  remoteCards: [],
+};
 
 export function useCardsSearchController(
   options: UseCardsSearchControllerOptions = {}
@@ -187,8 +154,6 @@ export function useCardsSearchController(
   const [order, setOrder] = useState<CardsOrder>(() =>
     orderFromUrl(initialUrlState)
   );
-  // Whether the person chose an order during this search; Best match stays
-  // the default until they do.
   const [sortPicked, setSortPicked] = useState(false);
   const setSort = useCallback((next: LibrarySort) => {
     setSortPicked(true);
@@ -204,45 +169,35 @@ export function useCardsSearchController(
   const reshuffle = useCallback(() => {
     setOrder((prev) => ({
       seed: nextShuffleSeed(isSeededSort(prev.sort) ? prev.seed : undefined),
-      // Revisit deals again from the new seed; anything else shuffles.
       sort: prev.sort === "revisit" ? "revisit" : "shuffle",
     }));
   }, []);
-  const [remoteCards, setRemoteCardsState] = useState<Doc<"cards">[]>([]);
-  // The query the remote cards answer, as the screen keys it.
-  const [remoteCardsKey, setRemoteCardsKey] = useState<string | undefined>();
-  const [localCards, setLocalCards] = useState<Doc<"cards">[]>([]);
-  const lastRemoteResultRef = useRef<{
-    ids: ReadonlySet<string>;
-    key: string;
-  } | null>(null);
+  const [results, setResults] =
+    useState<SearchResultsCache>(EMPTY_RESULTS_CACHE);
+  const { localCards, remoteCards, remoteKey: remoteCardsKey } = results;
 
   const setRemoteCards = useCallback(
     (cards: Doc<"cards">[] | undefined, remoteQueryKey?: string) => {
       const nextCards = cards ?? [];
-      setRemoteCardsState(nextCards);
-      setRemoteCardsKey(remoteQueryKey);
-
-      const previousResult = lastRemoteResultRef.current;
-      const previousRemoteIds =
-        remoteQueryKey !== undefined && previousResult?.key === remoteQueryKey
-          ? previousResult.ids
-          : new Set<string>();
-      lastRemoteResultRef.current =
-        remoteQueryKey === undefined
-          ? null
-          : {
-              ids: new Set(nextCards.map((card) => card._id)),
-              key: remoteQueryKey,
-            };
-
-      setLocalCards((prev) =>
-        mergeCardsIntoLocalSearchCache(
-          pruneCardsMissingFromRemote(prev, previousRemoteIds, nextCards),
-          nextCards,
-          localSearchCacheLimit
-        )
-      );
+      setResults((prev) => {
+        const previousRemoteIds =
+          remoteQueryKey !== undefined && prev.remoteKey === remoteQueryKey
+            ? new Set(prev.remoteCards.map((card) => card._id))
+            : new Set<string>();
+        return {
+          localCards: mergeCardsIntoLocalSearchCache(
+            pruneCardsMissingFromRemote(
+              prev.localCards,
+              previousRemoteIds,
+              nextCards
+            ),
+            nextCards,
+            localSearchCacheLimit
+          ),
+          remoteCards: nextCards,
+          remoteKey: remoteQueryKey,
+        };
+      });
     },
     [localSearchCacheLimit]
   );
@@ -252,8 +207,11 @@ export function useCardsSearchController(
       cards.map((cachedCard) =>
         cachedCard._id === card._id ? card : cachedCard
       );
-    setRemoteCardsState(replaceCard);
-    setLocalCards(replaceCard);
+    setResults((prev) => ({
+      ...prev,
+      localCards: replaceCard(prev.localCards),
+      remoteCards: replaceCard(prev.remoteCards),
+    }));
   }, []);
 
   const searchTerms = useMemo(
@@ -279,9 +237,8 @@ export function useCardsSearchController(
     return () => clearTimeout(timeout);
   }, [isSearchQueryEmpty, searchState.searchQuery]);
 
-  // A click (a link, a card, a sidebar view) ends the typing, so apply the
-  // text before the click's own handlers run. Mirrored into the URL after a
-  // navigation has started, it would cancel that navigation.
+  // A URL write after a navigation has started cancels that navigation, so
+  // a click applies the typed text before its own handlers run.
   useEffect(() => {
     if (
       isSearchQueryEmpty ||
@@ -407,7 +364,6 @@ export function useCardsSearchController(
   ]);
 
   const isSearchPending = remoteSearchQuery !== searchState.searchQuery;
-  // Remote cards answer the words typed now: their query is the current one.
   const remoteCardsAreCurrent =
     !isSearchPending && remoteCardsKey === JSON.stringify(queryArgs);
 
@@ -551,8 +507,6 @@ export function useCardsSearchController(
   const applyUrlState = useCallback(
     (state: SearchUrlState, options?: { keepSearch?: boolean }) => {
       const keepSearch = options?.keepSearch ?? false;
-      // A search from the URL is not typing: query it at once, so the screen
-      // never reports the previous search back into the URL meanwhile.
       if (!keepSearch) {
         setDebouncedSearchQuery(state.q);
       }

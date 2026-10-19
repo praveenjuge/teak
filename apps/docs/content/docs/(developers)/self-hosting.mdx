@@ -37,6 +37,8 @@ The webhook and Action routes exist only when `WORKOS_ENVIRONMENT_ID` is set on 
 
 `convex.json` declares AuthKit redirect URIs, CORS origins, and the app homepage URL under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
 
+The iPhone, iPad, Mac, and Android apps sign in through AuthKit with PKCE and the same `WORKOS_CLIENT_ID` as the web app, which they read from the deployment. Their redirect URI, `teak://auth/callback`, is already in `convex.json`.
+
 ### Use the WorkOS CLI
 
 The [WorkOS CLI](https://www.npmjs.com/package/workos) can set two of the steps above. Sign in with `workos auth login` and select the environment first:
@@ -52,9 +54,9 @@ workos webhook create --url <convex-site>/workos/webhook \
 
 `logout-uris set` replaces the environment's whole list of sign-out URIs.
 
-### Connect: CLI, browser extensions, Mac app, Raycast, and MCP
+### Connect: CLI, browser extensions, Raycast, and MCP
 
-The CLI, browser extensions, Mac app, Raycast, and MCP clients sign in through WorkOS Connect. They need a few more settings.
+The CLI, browser extensions, Raycast, and MCP clients sign in through WorkOS Connect. They need a few more settings.
 
 1. Turn on Client ID Metadata Document (CIMD) support, and dynamic client registration for MCP clients that don't support CIMD yet.
 2. Add the resource indicators `<origin>/api` and `<origin>/mcp`. These are the deployment's token audiences, and Teak rejects any other audience. `<origin>` is `WORKOS_RESOURCE_ORIGIN`, an HTTPS origin with no path or trailing slash. Unset, it is `https://teakvault.com`. Set it to your public origin, normally the same as `PUBLIC_ORIGIN`, so that the MCP resource matches the URL that MCP clients connect to. Clients that require the resource to match the server URL reject any other value.

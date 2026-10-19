@@ -185,7 +185,7 @@ internal fun LibraryScreen(
             if (state.isSelecting) {
                 SelectionToolbar(
                     inTrash = state.filters.trashOnly,
-                    enabled = !state.selection.isNullOrEmpty() && !state.isRunningBulkAction,
+                    enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction,
                     onMoveToTrash = actions.onMoveToTrash,
                     onRestore = actions.onRestore,
                     onDeleteForever = { confirmDeleteForever = true },
@@ -196,7 +196,7 @@ internal fun LibraryScreen(
     }
 
     if (confirmDeleteForever) {
-        val count = state.selection?.size ?: 0
+        val count = state.pickedIds.size
         val noun = if (count == 1) "This card" else "$count cards"
         ConfirmDialog(
             title = "Delete Forever?",
@@ -239,7 +239,7 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
             if (paged.cards.isEmpty()) {
                 // Scrollable so pull to refresh still works on an empty screen.
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    LibraryEmpty(state.emptyCopy, actions.onWriteNote)
+                    LibraryEmpty(state.emptyState, actions.onWriteNote)
                 }
             } else {
                 LibraryGrid(state, selectedCardId, actions)
@@ -249,21 +249,24 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
 }
 
 @Composable
-private fun LibraryEmpty(copy: EmptyCopy?, onWriteNote: () -> Unit) {
-    if (copy == null) {
-        EmptyState(
-            title = "Let's add your first card!",
-            message = "Save notes, links, photos, and voice memos. They'll show up here.",
-            icon = ImageVector.vectorResource(DesignR.drawable.teak_logo),
-            action = {
-                Button(onClick = onWriteNote) {
-                    Icon(Icons.Outlined.EditNote, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                    Text("Write a Note")
-                }
-            },
-        )
-        return
+private fun LibraryEmpty(emptyState: LibraryEmptyState, onWriteNote: () -> Unit) {
+    val copy = when (emptyState) {
+        is LibraryEmptyState.NoMatches -> emptyState.copy
+        LibraryEmptyState.FirstCard -> {
+            EmptyState(
+                title = "Let's add your first card!",
+                message = "Save notes, links, photos, and voice memos. They'll show up here.",
+                icon = ImageVector.vectorResource(DesignR.drawable.teak_logo),
+                action = {
+                    Button(onClick = onWriteNote) {
+                        Icon(Icons.Outlined.EditNote, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text("Write a Note")
+                    }
+                },
+            )
+            return
+        }
     }
     val icon = when (copy.kind) {
         EmptyKind.Search -> Icons.Outlined.SearchOff
@@ -306,19 +309,19 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
             modifier = Modifier.fillMaxSize(),
         ) {
             items(cards, key = { it.id }, contentType = { it.type }) { card ->
-                val selection = state.selection
+                val selecting = state.isSelecting
                 CardTile(
                     card = card,
-                    selected = selection?.contains(card.id),
+                    selection = state.selection.tileSelection(card.id),
                     highlighted = card.id == selectedCardId,
                     onClick = {
                         focusManager.clearFocus()
-                        if (selection != null) actions.onToggleSelected(card.id) else actions.onOpenCard(card.id)
+                        if (selecting) actions.onToggleSelected(card.id) else actions.onOpenCard(card.id)
                     },
                     onLongClick = {
                         focusManager.clearFocus()
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (selection != null) actions.onToggleSelected(card.id) else actions.onBeginSelection(card.id)
+                        if (selecting) actions.onToggleSelected(card.id) else actions.onBeginSelection(card.id)
                     },
                     modifier = Modifier.animateItem(),
                 )

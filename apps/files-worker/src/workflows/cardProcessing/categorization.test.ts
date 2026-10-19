@@ -47,12 +47,16 @@ const pageWith = async (html: string): Promise<OpAnswer> => ({
 const jsonLd = (value: unknown) =>
   `<script type="application/ld+json">${JSON.stringify(value)}</script>`;
 
-/** Categorizes a link card held by a fake deployment. */
 const categorize = (
   fields: Partial<FakeCard> | null,
   answers: Partial<Record<FilesOp, OpAnswer>> = {},
   bucket: R2Bucket = createMemoryBucket().bucket,
-  options: { aiGate?: string; refresh?: boolean } = {}
+  options: {
+    aiGate?: string;
+    arxivSlot?: { retryAfter: number } | null;
+    network?: (url: string) => Response | undefined;
+    refresh?: boolean;
+  } = {}
 ) => {
   const card = fields
     ? makeCard({
@@ -63,20 +67,40 @@ const categorize = (
     : null;
   const convex = createCardConvex(card, {
     "adminAccess:getAiGate": () => options.aiGate ?? "allowed",
+    "workflows/steps/categorization/mutations:takeArxivSlot": () =>
+      options.arxivSlot === undefined ? { retryAfter: 0 } : options.arxivSlot,
   });
   const fakes = createFakeOps(answers);
   const env = testEnv({ BUCKET: bucket });
+  const siteRequests: string[] = [];
+  const network = options.network
+    ? {
+        pinnedFetch: (url: string) => {
+          siteRequests.push(url);
+          return Promise.resolve(
+            options.network?.(url) ?? new Response("{}", { status: 404 })
+          );
+        },
+      }
+    : {};
   const run = () =>
     categorizeLink({
-      ...testJob(env, testDeps(env, convex.fetcher, fakes.ops)),
+      ...testJob(env, testDeps(env, convex.fetcher, fakes.ops, network)),
       ...(options.refresh ? { refresh: true } : {}),
     });
   const saved = () =>
     convex
       .callsTo("workflows/steps/categorization/mutations:updateCategorization")
       .at(-1)?.args.metadata as LinkCategoryMetadata | undefined;
-  return { card, convex, fakes, run, saved };
+  return { card, convex, fakes, run, saved, siteRequests };
 };
+
+const json = (body: unknown) => Response.json(body);
+
+const WIKIPEDIA_ARTICLE = "https://en.wikipedia.org/wiki/Photosynthesis";
+const WIKIPEDIA_SUMMARY =
+  "https://en.wikipedia.org/api/rest_v1/page/summary/Photosynthesis";
+const LEAD_IMAGE = "https://upload.wikimedia.org/leaf.png";
 
 describe("categorization", () => {
   describe("categorizeLink", () => {
@@ -188,6 +212,141 @@ describe("categorization", () => {
         | { fetchedAt?: number }
         | undefined;
       expect(structuredMeta?.fetchedAt).toBeGreaterThan(fetchedAt);
+    });
+
+    describe("site details", () => {
+      const wikipedia = () =>
+        json({
+          description: "Biological process",
+          extract: "Photosynthesis turns light into chemical energy.",
+          originalimage: { source: LEAD_IMAGE },
+          timestamp: "2026-10-01T00:00:00Z",
+          type: "standard",
+        });
+
+      test("adds Wikipedia's facts and stores its lead image for a page with none", async () => {
+        const { convex, fakes, run, saved, siteRequests } = categorize(
+          {
+            metadata: { linkPreview: { status: "success", title: "Leaf" } },
+            url: WIKIPEDIA_ARTICLE,
+          },
+          {
+            "fetch-link-page": { fallback: "NOT_FOUND" },
+            "store-remote-asset": {
+              data: {
+                contentType: "image/png",
+                height: 600,
+                size: 10,
+                stored: true,
+                width: 800,
+              },
+            },
+          },
+          undefined,
+          {
+            network: (url) =>
+              url === WIKIPEDIA_SUMMARY ? wikipedia() : undefined,
+          }
+        );
+
+        expect((await run()).category).toBe("article");
+        expect(siteRequests).toEqual([WIKIPEDIA_SUMMARY]);
+        expect(saved()?.facts).toEqual([
+          { label: "About", value: "Biological process" },
+          { label: "Updated", value: "Oct 1, 2026" },
+        ]);
+        const store = fakes.calls.find(
+          (call) => call.op === "store-remote-asset"
+        );
+        expect(store?.params).toMatchObject({ kind: "image", url: LEAD_IMAGE });
+        const write = convex
+          .callsTo(
+            "workflows/steps/categorization/mutations:updateCategorization"
+          )
+          .at(-1)?.args;
+        expect(write?.previewImage).toMatchObject({
+          imageHeight: 600,
+          imageWidth: 800,
+        });
+      });
+
+      test("never replaces the page's own image", async () => {
+        const { convex, fakes, run } = categorize(
+          {
+            metadata: {
+              linkPreview: {
+                imageUrl: "https://upload.wikimedia.org/og.png",
+                status: "success",
+              },
+            },
+            url: WIKIPEDIA_ARTICLE,
+          },
+          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          undefined,
+          { network: () => wikipedia() }
+        );
+
+        await run();
+
+        expect(fakes.opsCalled()).not.toContain("store-remote-asset");
+        expect(
+          convex
+            .callsTo(
+              "workflows/steps/categorization/mutations:updateCategorization"
+            )
+            .at(-1)?.args.previewImage
+        ).toBeUndefined();
+      });
+
+      test("a site that is down still saves the category", async () => {
+        const { run, saved } = categorize(
+          {
+            metadata: { linkPreview: { status: "success" } },
+            url: WIKIPEDIA_ARTICLE,
+          },
+          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          undefined,
+          { network: () => new Response("down", { status: 503 }) }
+        );
+
+        expect(await run()).toMatchObject({
+          category: "article",
+          mode: "categorized",
+        });
+        expect(saved()?.facts).toBeUndefined();
+      });
+
+      test("arXiv is asked only with a free API slot", async () => {
+        const { run, saved, siteRequests } = categorize(
+          {
+            metadata: { linkPreview: { status: "success" } },
+            url: "https://arxiv.org/abs/1706.03762",
+          },
+          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          undefined,
+          { arxivSlot: null, network: () => undefined }
+        );
+
+        expect((await run()).category).toBe("research");
+        expect(siteRequests).toEqual([]);
+        expect(saved()?.pdfUrl).toBeUndefined();
+      });
+
+      test("other links ask no site", async () => {
+        const { run, siteRequests } = categorize(
+          {
+            metadata: { linkPreview: { status: "success" } },
+            url: "https://example.com/blog/post",
+          },
+          { "fetch-link-page": { fallback: "NOT_FOUND" } },
+          undefined,
+          { network: () => undefined }
+        );
+
+        await run();
+
+        expect(siteRequests).toEqual([]);
+      });
     });
 
     describe("Clef review", () => {
@@ -304,7 +463,6 @@ describe("categorization", () => {
         }
       );
       await run();
-      // The same selectors as the preview: the op serves its cached page.
       expect(fakes.calls).toEqual([
         {
           op: "fetch-link-page",

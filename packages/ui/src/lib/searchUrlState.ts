@@ -5,18 +5,11 @@ import {
 } from "@teak/convex/shared";
 import { type CardType, isCardType } from "@teak/convex/shared/constants";
 
-/**
- * How the library is shown: a list order, or Revisit, a deck of 20 cards
- * from a Shuffle of the view. Revisit exists only in the app; it queries
- * as Shuffle.
- */
 export type LibrarySort = CardListSort | "revisit";
 
-/** Sorts that carry a seed: Shuffle, and Revisit, which deals from one. */
 export const isSeededSort = (sort: LibrarySort): boolean =>
   sort === "shuffle" || sort === "revisit";
 
-/** The order a view is queried in: Revisit reads a Shuffle. */
 export const queryOrder = (state: {
   seed?: number;
   sort: LibrarySort;
@@ -28,22 +21,10 @@ export const queryOrder = (state: {
       }
     : { sort: normalizeCardListSort(state.sort) };
 
-/**
- * The search a library URL carries: `?q=`, `?sort=oldest` (or
- * `?sort=shuffle&seed=42`, or `?sort=revisit&seed=42`), the card types
- * picked in the sidebar as `?type=link,image`, and a sidebar tag as
- * `?tag=design`.
- */
 export interface SearchUrlState {
   q: string;
-  /**
-   * Shuffle's seed, so a shared link or Back shows the same order. Only
-   * read with `sort: "shuffle"` or `"revisit"`; missing there means "pick
-   * one".
-   */
   seed?: number;
   sort: LibrarySort;
-  /** A tag, lowercased like the tag list; empty or missing for none. */
   tag?: string;
   types: CardType[];
 }
@@ -55,7 +36,6 @@ export interface SearchUrlState {
  */
 const MAX_URL_TAG_LENGTH = 256;
 
-/** A tag from the URL as the tag list names it: trimmed and lowercased. */
 export function parseTagParam(value: string | null): string {
   return (value ?? "").trim().toLowerCase().slice(0, MAX_URL_TAG_LENGTH);
 }
@@ -73,7 +53,6 @@ export const EMPTY_SEARCH_URL_STATE: SearchUrlState = {
   types: [],
 };
 
-/** Known card types from `?type=`, once each, in the order given. */
 export function parseCardTypesParam(value: string | null): CardType[] {
   const types: CardType[] = [];
   for (const part of (value ?? "").split(",")) {
@@ -85,11 +64,9 @@ export function parseCardTypesParam(value: string | null): CardType[] {
   return types;
 }
 
-/** `?sort=` as the library reads it; unknown values are newest. */
 export const parseLibrarySort = (value: string | null): LibrarySort =>
   value === "revisit" ? value : normalizeCardListSort(value);
 
-/** Reads the search from a URL. Unknown or malformed values fall back. */
 export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
   const sort = parseLibrarySort(params.get("sort"));
   const seed = isSeededSort(sort)
@@ -107,11 +84,6 @@ export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
 const shuffleSeedOf = (state: SearchUrlState): number | undefined =>
   isSeededSort(parseLibrarySort(state.sort)) ? state.seed : undefined;
 
-/**
- * Writes the search into a copy of `params` and returns the query string.
- * Defaults are left out (`newest`, an empty search), and every other
- * parameter, such as `card`, is kept as it was.
- */
 export function serializeSearchUrlState(
   state: SearchUrlState,
   params: URLSearchParams | string = ""
@@ -149,7 +121,6 @@ export function serializeSearchUrlState(
   } else {
     next.delete("tag");
   }
-  // Commas are valid in a query; keep `?type=link,image` readable.
   return next.toString().replace(/%2C/g, ",");
 }
 

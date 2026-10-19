@@ -13,6 +13,7 @@ const renderSearchBar = (
     onReshuffle,
     onSortChange,
     onToggleFilter,
+    qualifierChips,
     sort,
   }: {
     filterTags?: CardType[];
@@ -20,6 +21,7 @@ const renderSearchBar = (
     onReshuffle?: () => void;
     onSortChange?: (sort: CardListSort) => void;
     onToggleFilter?: (filter: CardType) => void;
+    qualifierChips?: string[];
     sort?: CardListSort;
   } = {}
 ) =>
@@ -30,19 +32,20 @@ const renderSearchBar = (
       hueFilters={[]}
       keywordTags={keywordTags}
       leading={<button type="button">Toggle sidebar</button>}
-      onClearAll={() => {}}
-      onKeyDown={() => {}}
-      onRemoveFilter={() => {}}
-      onRemoveHexFilter={() => {}}
-      onRemoveHueFilter={() => {}}
-      onRemoveKeyword={() => {}}
-      onRemoveStyleFilter={() => {}}
-      onRemoveTimeFilter={() => {}}
+      onClearAll={() => undefined}
+      onKeyDown={() => undefined}
+      onRemoveFilter={() => undefined}
+      onRemoveHexFilter={() => undefined}
+      onRemoveHueFilter={() => undefined}
+      onRemoveKeyword={() => undefined}
+      onRemoveStyleFilter={() => undefined}
+      onRemoveTimeFilter={() => undefined}
       onReshuffle={onReshuffle}
-      onSearchChange={() => {}}
+      onSearchChange={() => undefined}
       onSortChange={onSortChange}
       onToggleFilter={onToggleFilter}
       placeholder="Search favorites"
+      qualifierChips={qualifierChips}
       searchQuery={searchQuery}
       sort={sort}
       styleFilters={[]}
@@ -101,6 +104,22 @@ describe("SearchBar filter chips", () => {
     expect(markup).toContain('aria-label="Clear all"');
   });
 
+  test("gives done, to do and archived their own icons", () => {
+    const markup = renderSearchBar("", {
+      qualifierChips: ["is:done", "is:todo", "is:archived"],
+    });
+    const icons = [
+      ...markup.matchAll(
+        /aria-label="Remove ([^"]+)"[\s\S]*?lucide-([a-z-]+)/g
+      ),
+    ].map((match) => [match[1], match[2]]);
+    expect(icons).toEqual([
+      ["show Done", "circle-check"],
+      ["show To do", "circle"],
+      ["show Archived", "archive"],
+    ]);
+  });
+
   test("folds chips past the third into a +N menu", () => {
     const markup = renderSearchBar("", {
       filterTags: ["link", "image", "quote"],
@@ -124,7 +143,7 @@ describe("SearchBar View menu", () => {
   test("names the picked types and a changed order on its button", () => {
     const markup = renderSearchBar("", {
       filterTags: ["link", "image"],
-      onToggleFilter: () => {},
+      onToggleFilter: () => undefined,
     });
     expect(markup).toContain('aria-label="View: Link, Image"');
     expect(viewMenuLabel(["quote"], "oldest")).toBe(
@@ -134,21 +153,21 @@ describe("SearchBar View menu", () => {
 
   test("shows Reshuffle beside the View menu only while shuffling", () => {
     const shuffled = renderSearchBar("", {
-      onReshuffle: () => {},
-      onSortChange: () => {},
+      onReshuffle: () => undefined,
+      onSortChange: () => undefined,
       sort: "shuffle",
     });
     expect(shuffled).toContain('aria-label="Reshuffle"');
     expect(shuffled).toContain('aria-label="View: shuffled"');
     const newest = renderSearchBar("", {
-      onReshuffle: () => {},
-      onSortChange: () => {},
+      onReshuffle: () => undefined,
+      onSortChange: () => undefined,
     });
     expect(newest).not.toContain('aria-label="Reshuffle"');
   });
 
   test("reads as the default view when nothing is changed", () => {
-    const markup = renderSearchBar("", { onToggleFilter: () => {} });
+    const markup = renderSearchBar("", { onToggleFilter: () => undefined });
     expect(markup).toContain('aria-label="View"');
   });
 

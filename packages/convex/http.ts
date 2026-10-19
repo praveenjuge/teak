@@ -2,6 +2,7 @@ import { EDGE_IDENTITY_PATH, WORKFLOW_RPC_PATH } from "@teak/files-protocol";
 import { httpRouter } from "convex/server";
 import { polar, polarWebhookEvents } from "./billing";
 import { edgeIdentityV1 } from "./edgeIdentity";
+import { registerInboundRoutes } from "./inbound/http";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
 import { duplicateCardV1 } from "./publicApiDuplicate";
 import { exportsV1 } from "./publicApiExports";
@@ -55,8 +56,9 @@ http.route({
 });
 
 registerWorkosRoutes(http);
+registerInboundRoutes(http);
 
-polar.registerRoutes(http as any, { events: polarWebhookEvents });
+polar.registerRoutes(http, { events: polarWebhookEvents });
 
 http.route({ path: "/v1/me", method: "GET", handler: meV1 });
 http.route({
@@ -226,7 +228,6 @@ http.route({
   handler: cardByIdV1,
 });
 
-// PUT /v1/cards/:cardId/thumbnail
 http.route({
   pathPrefix: "/v1/cards/",
   method: "PUT",

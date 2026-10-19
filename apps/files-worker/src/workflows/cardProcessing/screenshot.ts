@@ -17,17 +17,10 @@ import {
 } from "./context";
 import { fetchLinkPageForCard } from "./linkMetadata";
 
-// A link card's screenshot: its page (from the cached `fetch-link-page`
-// result) rendered offline by Browser Run.
-
 export const SCREENSHOT_RETRYABLE_PREFIX = "workflow:screenshot:retryable:";
 
 export interface ScreenshotRetryableError {
   message?: string;
-  /**
-   * http_error: the page's server or the network failed.
-   * renderer_unavailable: Browser Run or the link fetcher is busy or down.
-   */
   type: "http_error" | "renderer_unavailable";
 }
 
@@ -63,18 +56,17 @@ export const parseScreenshotRetryableError = (
   }
 };
 
-/**
- * The capture step's retries: a busy renderer 3 times 30 s apart, a failing
- * page once after 5 s. The callback turns an error that has used its own
- * budget into a final one, since one step config serves both.
- */
 export const SCREENSHOT_STEP: StepConfig = {
   retries: {
     delay: ({ error }) =>
-      parseScreenshotRetryableError(error)?.type === "http_error"
-        ? SCREENSHOT_RETRY_POLICY.http_error.delayMs
-        : SCREENSHOT_RETRY_POLICY.renderer_unavailable.delayMs,
-    limit: SCREENSHOT_RETRY_POLICY.renderer_unavailable.maxRetries,
+      SCREENSHOT_RETRY_POLICY[
+        parseScreenshotRetryableError(error)?.type ?? "renderer_unavailable"
+      ].delayMs,
+    limit: Math.max(
+      ...Object.values(SCREENSHOT_RETRY_POLICY).map(
+        ({ maxRetries }) => maxRetries
+      )
+    ),
   },
   timeout: "5 minutes",
 };
@@ -114,8 +106,6 @@ const capture = async (
     page = await fetchLinkPageForCard(job, normalizeUrl(card.url));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // A busy link fetcher waits like a busy renderer; anything else is the
-    // page's server or the network.
     return throwRetryable({
       message,
       type: message.includes(":RENDERER_UNAVAILABLE:")
@@ -204,11 +194,6 @@ const capture = async (
   return { status: "captured" };
 };
 
-/**
- * One capture attempt, recording the stage: in progress first, then
- * completed or failed. A retryable error that has used its budget is
- * recorded as failed and returned instead of thrown, so the run goes on.
- */
 export const captureScreenshotStep = async (
   job: CardJob,
   attempt: number,

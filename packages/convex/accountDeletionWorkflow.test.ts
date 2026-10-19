@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import betterAuthTest from "@convex-dev/better-auth/test";
 import polarTest from "@convex-dev/polar/test";
 import workosTest from "@convex-dev/workos-authkit/test";
@@ -149,11 +148,9 @@ describe("durable deletion admission and tombstones", () => {
     expect(imports).toMatchObject({ done: true, workflowIds: [] });
     await checkpoint("importJobs", null, imports.cursor, imports.done);
     const first = await page("exportJobs", null);
-    // The Worker waits for these runs before it deletes anything.
     expect(first.workflowIds).toEqual(["export-running"]);
     expect(await cancelled()).toBe(20);
     await checkpoint("exportJobs", null, first.cursor, first.done);
-    // A checkpoint whose reply was lost is refused when replayed.
     await expect(
       checkpoint("exportJobs", null, first.cursor, first.done)
     ).rejects.toThrow("stale_deletion_writer_page");
@@ -698,6 +695,7 @@ describe("durable deletion admission and tombstones", () => {
       "exports/exact/export-2.zip.checkpoint.json",
       "users/exact/unclaimed.pdf",
       "users/exact/document-text/digest.txt",
+      "users/exact/linked.pdf",
     ]) {
       bucket.objects.set(key, { bytes: new Uint8Array([1]) });
     }
@@ -818,6 +816,26 @@ describe("durable deletion admission and tombstones", () => {
         charCount: 7,
         truncated: false,
       });
+      await ctx.db.insert("linkedPdfs", {
+        userId: "permanent-owner",
+        sourceCardId: card,
+        pdfUrl: "https://arxiv.org/pdf/1706.03762",
+        status: "pending",
+        fileKey: "users/exact/linked.pdf",
+        claimToken: "claim",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("accountStorageObjects", {
+        userId: "permanent-owner",
+        key: "users/exact/linked.pdf",
+      });
+      await ctx.db.insert("cardLinks", {
+        userId: "permanent-owner",
+        fromCardId: card,
+        toCardId: card,
+        createdAt: 1,
+      });
       await ctx.db.insert("userTagSummaries", {
         userId: "permanent-owner",
         items: [{ name: "private", count: 1 }],
@@ -915,8 +933,6 @@ describe("durable deletion admission and tombstones", () => {
       ctx.db.query("accountDeletionStates").unique()
     );
     const binding = { stateId: state!._id, generation: 1 };
-    // The Files Worker's workflow runs every stage against this database;
-    // its storage ops run in-process on the bucket above.
     await filesWorker.runAccountDeletion(
       {
         env,
@@ -959,6 +975,8 @@ describe("durable deletion admission and tombstones", () => {
       "cardSearchDocuments",
       "cardSearchTags",
       "cardTextContents",
+      "linkedPdfs",
+      "cardLinks",
       "userTagSummaries",
       "tagSummaryRefreshes",
       "tagOperations",

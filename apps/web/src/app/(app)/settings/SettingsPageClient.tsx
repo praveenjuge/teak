@@ -6,6 +6,7 @@ import { captureClientException } from "@teak/convex/shared/client-telemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { getPolarPlanIds } from "@teak/ui/constants/billing";
 import { TOAST_IDS } from "@teak/ui/constants/toast";
+import { useQuery } from "@teak/ui/convex-query-hooks";
 import { useSettingsController } from "@teak/ui/hooks";
 import { parseSettingsDialogParam } from "@teak/ui/lib/commandPalette";
 import {
@@ -20,29 +21,33 @@ import { toast } from "sonner";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { signOut } from "@/lib/sign-out-client";
 
-export function SettingsPageClient() {
-  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
-  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
-  const checkoutOpenedRef = useRef(false);
-  const createCheckoutLink = useAction(api.billing.createCheckoutLink);
-  const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
+function useConsumeDialogParam() {
   const router = useRouter();
   const dialogParam = useSearchParams().get("dialog");
-  const [importExportRequest, setImportExportRequest] =
-    useState<ImportExportOpenRequest | null>(null);
-
-  // `?dialog=import|export` (from the command palette) opens that tab once,
-  // then leaves the URL so closing the dialog or Back doesn't reopen it.
+  const [request, setRequest] = useState<ImportExportOpenRequest | null>(null);
   useEffect(() => {
     if (dialogParam === null) {
       return;
     }
     const tab = parseSettingsDialogParam(dialogParam);
     if (tab) {
-      setImportExportRequest({ id: Date.now(), tab });
+      setRequest({ id: Date.now(), tab });
     }
     router.replace("/settings", { scroll: false });
   }, [dialogParam, router]);
+  return request;
+}
+
+export function SettingsPageClient() {
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const checkoutOpenedRef = useRef(false);
+  const createCheckoutLink = useAction(api.billing.createCheckoutLink);
+  const deleteMyAccount = useMutation(api.accountDeletion.deleteMyAccount);
+  const inboundEmail = useQuery(api.inbound.settings.getMine, {});
+  const enableInboundEmail = useMutation(api.inbound.settings.enable);
+  const disableInboundEmail = useMutation(api.inbound.settings.disable);
+  const importExportRequest = useConsumeDialogParam();
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
@@ -130,6 +135,11 @@ export function SettingsPageClient() {
       exportState={settings.exportState}
       hasPremium={settings.hasPremium}
       importExportRequest={importExportRequest}
+      inboundEmail={{
+        onDisable: () => disableInboundEmail({}),
+        onEnable: () => enableInboundEmail({}),
+        state: inboundEmail,
+      }}
       keys={settings.keys}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}

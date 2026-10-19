@@ -4,20 +4,26 @@ import {
   SlashCommand,
   type SlashCommandSuggestionItem,
 } from "@editorcn/block-editor";
+import { cardLinkTokenTitle } from "@teak/convex/shared/cardLinks";
 import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { type Editor, Extension } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 import {
   AddMarkStep,
   ReplaceAroundStep,
   ReplaceStep,
 } from "@tiptap/pm/transform";
 import { EditorContent, useEditor } from "@tiptap/react";
-import { exitSuggestion, type SuggestionProps } from "@tiptap/suggestion";
-import { useEffect, useRef, useState } from "react";
+import Suggestion, {
+  exitSuggestion,
+  type SuggestionProps,
+} from "@tiptap/suggestion";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { CardLinkMenu, type CardLinkMenuState } from "./CardLinkMenu";
+import { CardLinkPillNode, CardLinkViewContext } from "./CardLinkPill";
 import { EditorFormatting } from "./EditorControls";
 import {
   documentExtensions,
@@ -27,16 +33,38 @@ import {
 } from "./markdownDocument";
 import { SlashMenu } from "./SlashMenu";
 import { TaskListSort } from "./taskListSort";
-import type { MarkdownTextEditorProps } from "./types";
+import type { CardLinkSuggestion, MarkdownTextEditorProps } from "./types";
 
 const commands = defaultSlashCommandItems;
 const slashKey = new PluginKey("teakSlashCommands");
+const cardLinkKey = new PluginKey("teakCardLinks");
+const CARD_LINK_SEARCH_DEBOUNCE_MS = 150;
+
+const inCode = (editor: Editor) =>
+  editor.isActive("codeBlock") ||
+  editor.isActive("literalMarkdown") ||
+  editor.isActive("code");
+
+/** Enter on a selected pill opens its card. */
+const openSelectedCardLink = (
+  editor: Editor,
+  open?: (cardId: string) => void
+): boolean => {
+  const { selection } = editor.state;
+  if (
+    !(open && selection instanceof NodeSelection) ||
+    selection.node.type.name !== "cardLink"
+  ) {
+    return false;
+  }
+  open(String(selection.node.attrs.cardId));
+  return true;
+};
 
 export function RichMarkdownEditor({
   onEditorReady,
   ...props
 }: MarkdownTextEditorProps & {
-  /** Called once Tiptap has made the editor (and with each new one). */
   onEditorReady?: (editor: Editor) => void;
 }) {
   const callbacks = useRef(props);
@@ -57,9 +85,21 @@ export function RichMarkdownEditor({
   const selectedCommand = useRef(0);
   const menuRef = useRef(menu);
   menuRef.current = menu;
+  const [linkMenu, setLinkMenu] =
+    useState<SuggestionProps<CardLinkSuggestion> | null>(null);
+  const linkMenuRef = useRef(linkMenu);
+  linkMenuRef.current = linkMenu;
+  const [linkState, setLinkState] = useState<CardLinkMenuState>({
+    status: "loading",
+  });
+  const linkStateRef = useRef(linkState);
+  linkStateRef.current = linkState;
+  const [selectedLink, setSelectedLink] = useState(0);
+  const selectedLinkRef = useRef(selectedLink);
+  selectedLinkRef.current = selectedLink;
+  const linkQuery = linkMenu?.query;
   const [extensions] = useState(() => [
-    ...documentExtensions(),
-    // Editor only: markdownManager parses and serializes without it.
+    ...documentExtensions({ cardLinkNode: CardLinkPillNode }),
     TaskListSort,
     Markdown,
     Placeholder.configure({
@@ -114,6 +154,95 @@ export function RichMarkdownEditor({
           !(
             current.isActive("codeBlock") || current.isActive("literalMarkdown")
           ),
+      },
+    }),
+    Extension.create({
+      name: "teakCardLinks",
+      addKeyboardShortcuts() {
+        const openSelectedPill = () =>
+          openSelectedCardLink(
+            this.editor,
+            callbacks.current.cardLinks?.onOpenCard
+          );
+        return { Enter: openSelectedPill };
+      },
+      addProseMirrorPlugins() {
+        return [
+          Suggestion<CardLinkSuggestion>({
+            editor: this.editor,
+            pluginKey: cardLinkKey,
+            char: "[[",
+            allowSpaces: true,
+            allowedPrefixes: null,
+            items: () => [],
+            allow: ({ editor: current }) =>
+              Boolean(callbacks.current.cardLinks) &&
+              !callbacks.current.disabled &&
+              !inCode(current),
+            command: ({ editor: current, range, props: item }) => {
+              current
+                .chain()
+                .focus()
+                .insertContentAt(range, [
+                  {
+                    type: "cardLink",
+                    attrs: {
+                      cardId: item.id,
+                      title: cardLinkTokenTitle(item.title),
+                    },
+                  },
+                  { type: "text", text: " " },
+                ])
+                .run();
+            },
+            render: () => ({
+              onStart: (next) => {
+                setSelectedLink(0);
+                setLinkMenu(next);
+              },
+              onUpdate: (next) => {
+                setSelectedLink(0);
+                setLinkMenu(next);
+              },
+              onExit: () => setLinkMenu(null),
+              onKeyDown: ({ event, view }) => {
+                const current = linkMenuRef.current;
+                if (event.key === "Escape") {
+                  exitSuggestion(view, cardLinkKey);
+                  return true;
+                }
+                const state = linkStateRef.current;
+                const items = state.status === "ready" ? state.items : [];
+                if (!(current && items.length)) {
+                  // Enter waits for a search in flight; with no match or an
+                  // error it types a new line as usual.
+                  return (
+                    event.key === "Enter" &&
+                    Boolean(current) &&
+                    state.status === "loading"
+                  );
+                }
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                  setSelectedLink(
+                    (selectedLinkRef.current +
+                      (event.key === "ArrowDown" ? 1 : -1) +
+                      items.length) %
+                      items.length
+                  );
+                  return true;
+                }
+                if (event.key === "Enter") {
+                  const item = items[selectedLinkRef.current];
+                  if (item) {
+                    current.command(item);
+                  }
+                  return true;
+                }
+                return false;
+              },
+            }),
+          }),
+        ];
       },
     }),
     Extension.create({
@@ -243,7 +372,6 @@ export function RichMarkdownEditor({
             content: [{ type: "text", text }],
           });
         } else if (editor?.isActive("literalMarkdown") || prepared.literal) {
-          // A text node keeps HTML/images inert and preserves the pasted text.
           editor?.commands.insertContent({ type: "text", text });
         } else {
           editor?.commands.insertContent(prepared.document.content ?? []);
@@ -302,6 +430,36 @@ export function RichMarkdownEditor({
     }
   }, [editor, onEditorReady]);
 
+  // The `[[` menu's cards: searched after typing pauses; a slower answer to
+  // an older query is dropped.
+  useEffect(() => {
+    const search = callbacks.current.cardLinks?.search;
+    if (linkQuery === undefined || !search) {
+      return;
+    }
+    let current = true;
+    setLinkState({ status: "loading" });
+    const timer = setTimeout(() => {
+      search(linkQuery.trim()).then(
+        (items) => {
+          if (current) {
+            setSelectedLink(0);
+            setLinkState({ items, status: "ready" });
+          }
+        },
+        () => {
+          if (current) {
+            setLinkState({ status: "error" });
+          }
+        }
+      );
+    }, CARD_LINK_SEARCH_DEBOUNCE_MS);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [linkQuery]);
+
   // A dialog around the editor sees Esc first and prevents it to stay open
   // (Focus does, while the slash menu is up), and ProseMirror ignores
   // prevented events, so the menu listens for that Esc itself.
@@ -313,6 +471,13 @@ export function RichMarkdownEditor({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && event.defaultPrevented && menuRef.current) {
         exitSuggestion(view, slashKey);
+      }
+      if (
+        event.key === "Escape" &&
+        event.defaultPrevented &&
+        linkMenuRef.current
+      ) {
+        exitSuggestion(view, cardLinkKey);
       }
     };
     view.dom.addEventListener("keydown", onKeyDown);
@@ -328,14 +493,41 @@ export function RichMarkdownEditor({
     }
   }, [editor, props.disabled, props.placeholder]);
 
+  const onOpenCard = props.cardLinks?.onOpenCard;
+  const targets = props.cardLinks?.targets;
+  const cardLinkView = useMemo(
+    () => ({ onOpenCard, targets }),
+    [onOpenCard, targets]
+  );
+  const linkAnchor = useMemo(
+    () =>
+      linkMenu
+        ? { clientRect: linkMenu.clientRect, dom: linkMenu.editor.view.dom }
+        : undefined,
+    [linkMenu]
+  );
+
   if (!editor) {
     return null;
   }
   return (
-    <BlockEditor editor={editor}>
-      {!props.disabled && <EditorFormatting editor={editor} />}
-      <EditorContent className="block-editor-content" editor={editor} />
-      {menu && <SlashMenu menu={menu} selected={selectedCommand.current} />}
-    </BlockEditor>
+    <CardLinkViewContext.Provider value={cardLinkView}>
+      <BlockEditor editor={editor}>
+        {!props.disabled && <EditorFormatting editor={editor} />}
+        <EditorContent className="block-editor-content" editor={editor} />
+        {menu ? (
+          <SlashMenu menu={menu} selected={selectedCommand.current} />
+        ) : null}
+        {linkMenu ? (
+          <CardLinkMenu
+            anchor={linkAnchor}
+            onChoose={(item) => linkMenu.command(item)}
+            query={linkMenu.query}
+            selected={selectedLink}
+            state={linkState}
+          />
+        ) : null}
+      </BlockEditor>
+    </CardLinkViewContext.Provider>
   );
 }

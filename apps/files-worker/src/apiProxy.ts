@@ -4,9 +4,7 @@ import type { EdgeRateLimitOutcome } from "./edgeRateLimit";
 import { answerMcpAtEdge } from "./mcpEdge";
 
 export interface ApiProxyEnv {
-  /** Host whose API paths this Worker proxies (`teakvault.com`). Unset disables the proxy. */
   API_PUBLIC_HOST?: string;
-  /** Convex HTTP origin the paths are forwarded to (`https://<name>.convex.site`). */
   API_UPSTREAM_ORIGIN?: string;
 }
 
@@ -41,7 +39,6 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options": "DENY",
 };
 
-/** Restores the upstream Cache-Control on a response served from the edge cache. */
 const CLIENT_CACHE_CONTROL_HEADER = "X-Teak-Client-Cache-Control";
 
 const isEdgeOwnedHeader = (name: string): boolean =>
@@ -183,7 +180,6 @@ export const handleApiProxyRequest = async (
       return withSecurityHeaders(outcome.response);
     }
     attestation = outcome.attestation;
-    // MCP protocol chatter from a known user is answered here (mcpEdge.ts).
     if (upstreamPath === "/mcp") {
       const answered = await answerMcpAtEdge(request, outcome.identity);
       if (answered) {

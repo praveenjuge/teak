@@ -36,11 +36,6 @@ import {
   type WorkflowRun,
 } from "./runtime";
 
-// Exports a user's library: snapshots the card set into exportJobItems, then
-// builds the ZIP in R2 with the in-process build-export op. Mirrors the
-// former Convex export workflow; the archive no longer costs Convex action
-// time while the Worker streams it.
-
 export interface ExportParams {
   jobId: string;
   userId: string;
@@ -53,7 +48,6 @@ const CARDS_PAGE_SIZE = 100;
 const PER_CARD_JSON_BYTES = 2 * 1024;
 const ITEM_CLEANUP_PAGE_SIZE = 200;
 
-/** Builds the archive in one step: reading cards, both attempts, cleanup. */
 const ARCHIVE_STEP = retryConfig(3, 30_000, "30 minutes");
 
 interface ArchiveCard {
@@ -74,7 +68,6 @@ type ArchiveResult =
 
 const base64 = (text: string) => Buffer.from(text, "utf8").toString("base64");
 
-/** The job's snapshot, once per card even if a snapshot page was retried. */
 const readArchiveCards = async (
   convex: ConvexRpc,
   jobId: Id<"exportJobs">
@@ -105,11 +98,6 @@ const readArchiveCards = async (
   }
 };
 
-/**
- * The build-export manifest: the JSON, bookmarks and CSV entries inline and
- * each original file by storage key. Cards whose file is in `omittedCardIds`
- * lose their `file` entry, as the archive will not hold it.
- */
 export const buildExportManifest = (args: {
   createdAtMs: number;
   expiresAtMs: number;
@@ -253,11 +241,9 @@ export const runExport = (
           input.card._id,
         ])
     );
-    const omittedCardIds = new Set<string>();
-    let built: BuildExportResult | null = null;
-    // A file missing from storage is left out: the second pass rebuilds
-    // cards.json without its `file` entry, as the archive won't hold it.
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    const archiveWithout = async (
+      omittedCardIds: ReadonlySet<string>
+    ): Promise<FilesOpOutcome<BuildExportResult>> => {
       await gatedEnv(env).BUCKET.put(
         manifestKey,
         JSON.stringify(
@@ -271,9 +257,8 @@ export const runExport = (
         ),
         { httpMetadata: { contentType: "application/json" } }
       );
-      let outcome: FilesOpOutcome<BuildExportResult>;
       try {
-        outcome = await ops<BuildExportResult>({
+        return await ops<BuildExportResult>({
           op: "build-export",
           params: { artifactKey, fileName, manifestKey },
         });
@@ -282,33 +267,34 @@ export const runExport = (
           () => undefined
         );
       }
-      if (outcome.kind === "fallback") {
-        console.warn("[workflows/export] archive declined", {
-          code: outcome.code,
-          jobId,
-        });
-        return { failureClass: EXPORT_FAILURE_CLASS.ARCHIVE_FAILED, ok: false };
-      }
-      built = outcome.data;
-      if (built.omittedPaths.length === 0 || attempt === 1) {
-        break;
-      }
-      for (const path of built.omittedPaths) {
-        const cardId = cardIdByPath.get(path);
-        if (cardId) {
-          omittedCardIds.add(cardId);
-        }
-      }
+    };
+    let outcome = await archiveWithout(new Set());
+    if (outcome.kind === "ok" && outcome.data.omittedPaths.length > 0) {
+      const missingFileCardIds = new Set(
+        outcome.data.omittedPaths.flatMap((path) => {
+          const cardId = cardIdByPath.get(path);
+          return cardId ? [cardId] : [];
+        })
+      );
+      outcome = await archiveWithout(missingFileCardIds);
     }
+    if (outcome.kind === "fallback") {
+      console.warn("[workflows/export] archive declined", {
+        code: outcome.code,
+        jobId,
+      });
+      return { failureClass: EXPORT_FAILURE_CLASS.ARCHIVE_FAILED, ok: false };
+    }
+    const built = outcome.data;
     if (await convex.query(internal.dataExport.isCancelRequested, { jobId })) {
       return { failureClass: EXPORT_FAILURE_CLASS.CANCELED, ok: false };
     }
     return {
-      artifactBytes: built?.artifactBytes ?? 0,
+      artifactBytes: built.artifactBytes,
       artifactKey,
       cardCount: inputs.length,
-      filesIncluded: built?.filesIncluded ?? 0,
-      filesOmitted: built?.filesOmitted ?? 0,
+      filesIncluded: built.filesIncluded,
+      filesOmitted: built.filesOmitted,
       ok: true,
     };
   };
@@ -424,8 +410,6 @@ export const runExport = (
       try {
         return await body();
       } catch (error) {
-        // A job never stays running: fail it here, and the completion report
-        // fails it again if this cannot.
         if (!settled) {
           await fail(EXPORT_FAILURE_CLASS.UNKNOWN).catch((failError) => {
             console.error("[workflows/export] could not fail the job", {

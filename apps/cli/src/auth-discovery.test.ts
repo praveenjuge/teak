@@ -29,8 +29,8 @@ let holdFirstApi = false;
 let rotateAccessToken = false;
 let apiStarted: Promise<void>;
 let apiReleased: Promise<void>;
-let notifyApiStarted = () => {};
-let releaseApi = () => {};
+let notifyApiStarted = () => undefined;
+let releaseApi = () => undefined;
 let discoveryRequests = 0;
 let transmitted: URLSearchParams | null = null;
 let unsafeTokenEndpoint: string | undefined;
@@ -651,11 +651,11 @@ test("CLI refreshes a rejected token after joining an overlapping ordinary read"
     TEAK_API_KEY: env.TEAK_API_KEY,
   };
   const originalFetch = globalThis.fetch;
-  let releaseMetadata = () => {};
+  let releaseMetadata = () => undefined;
   const metadataGate = new Promise<void>((resolve) => {
     releaseMetadata = resolve;
   });
-  let notifyMetadata = () => {};
+  let notifyMetadata = () => undefined;
   const metadataStarted = new Promise<void>((resolve) => {
     notifyMetadata = resolve;
   });

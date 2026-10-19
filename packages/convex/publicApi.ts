@@ -17,6 +17,7 @@ import {
   archivedFilterValidator,
   buildFolderCardListQuery,
   buildTagCardListQuery,
+  cardListScope,
 } from "./card/listQuery";
 import { attachFileUrls } from "./card/queryUtils";
 import { applyQuoteFormattingToList } from "./card/quoteFormatting";
@@ -152,6 +153,9 @@ export const searchCardsPageForUser = internalQuery({
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
     prices: v.optional(v.array(priceBoundValidator)),
+    ocrTexts: v.optional(v.array(v.string())),
+    done: v.optional(v.boolean()),
+    todo: v.optional(v.boolean()),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -160,10 +164,6 @@ export const searchCardsPageForUser = internalQuery({
     sort: v.optional(apiCardSortValidator),
     limit: v.optional(v.number()),
     ...semanticSearchArgs,
-    /**
-     * Best match for a search: keep the search's own order, scored first
-     * when `scores` (fetched by the HTTP handler) are given.
-     */
     relevance: v.optional(
       v.object({ scores: v.optional(v.array(relevanceScoreValidator)) })
     ),
@@ -189,7 +189,6 @@ export const searchCardsPageForUser = internalQuery({
     const decodedCursor = decodeCursor(args.cursor);
     if (
       decodedCursor.mode === "list" ||
-      decodedCursor.mode === "index" ||
       (decodedCursor.mode === "relevance" && !args.relevance)
     ) {
       throw invalidCursorError();
@@ -207,7 +206,7 @@ export const searchCardsPageForUser = internalQuery({
     let pageItems: Doc<"cards">[];
     let hasMore: boolean;
 
-    if (options.searchQuery || options.similarity) {
+    if (options.searchQuery || options.ocrTexts || options.similarity) {
       const result = await searchCardsByQuery(ctx, userId, options);
       const remaining = anchor
         ? result.cards.filter((card) => isAfterMatchAnchor(card, anchor, sort))
@@ -271,6 +270,9 @@ export const shuffleCardsPageForUser = internalQuery({
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
     prices: v.optional(v.array(priceBoundValidator)),
+    ocrTexts: v.optional(v.array(v.string())),
+    done: v.optional(v.boolean()),
+    todo: v.optional(v.boolean()),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
@@ -379,7 +381,7 @@ export const shuffleCardsPageForUser = internalQuery({
     };
     const types = options.type ? [options.type] : options.types;
 
-    if (options.searchQuery || options.similarity) {
+    if (options.searchQuery || options.ocrTexts || options.similarity) {
       return setPage((await searchCardsByQuery(ctx, userId, options)).cards);
     }
     const tag = normalizeTag(options.tag);
@@ -387,8 +389,7 @@ export const shuffleCardsPageForUser = internalQuery({
       const rows = await buildTagCardListQuery(ctx, {
         userId,
         tag,
-        trash: options.showTrashOnly,
-        archived: options.archived,
+        scope: cardListScope(options.archived, options.showTrashOnly),
         types,
         favoritesOnly: options.favorited === true,
         createdAt,
@@ -400,8 +401,7 @@ export const shuffleCardsPageForUser = internalQuery({
     if (options.folderId) {
       const rows = await buildFolderCardListQuery(ctx, {
         folderId: options.folderId,
-        trash: options.showTrashOnly,
-        archived: options.archived,
+        scope: cardListScope(options.archived, options.showTrashOnly),
         types,
         createdAt,
       })
@@ -417,8 +417,7 @@ export const shuffleCardsPageForUser = internalQuery({
       userId,
       seed,
       includeHidden: options.includeHidden,
-      trash: options.showTrashOnly,
-      archived: options.archived,
+      scope: cardListScope(options.archived, options.showTrashOnly),
       favoritesOnly: options.favorited === true,
       types: options.type ? [options.type] : options.types,
       createdAt: {
@@ -468,6 +467,9 @@ export const scanCardsPageForUser = internalQuery({
     sites: v.optional(v.array(v.string())),
     phrases: v.optional(v.array(v.string())),
     prices: v.optional(v.array(priceBoundValidator)),
+    ocrTexts: v.optional(v.array(v.string())),
+    done: v.optional(v.boolean()),
+    todo: v.optional(v.boolean()),
     folderNames: v.optional(v.array(v.string())),
     archivedInTrash: v.optional(v.boolean()),
   },
@@ -1056,8 +1058,6 @@ const toRateLimitResult = (
       : undefined,
 });
 
-// Only a credential's validation mutation mints one, from the identity it
-// validated, so a raw bearer token can never key the limiter.
 export type ValidatedRateLimitKey = string & {
   readonly __brand: "ValidatedRateLimitKey";
 };

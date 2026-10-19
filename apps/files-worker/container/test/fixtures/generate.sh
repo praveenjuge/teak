@@ -1,16 +1,9 @@
 #!/usr/bin/env bash
-# Regenerates the renderer integration-test fixtures in this directory.
-# Needs ffmpeg (with libx264, libx265, libvpx-vp9, libsvtav1, libopus,
-# libmp3lame), qpdf and bun. Every file stays well under 50 KB.
-#
-#   apps/files-worker/container/test/fixtures/generate.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 
 ff() { ffmpeg -nostdin -hide_banner -loglevel error -y "$@"; }
 
-# 3 s, 160×96, 10 fps test pattern with a keyframe every second, so the
-# scrub sprite's keyframe seeks land on distinct frames.
 video="-f lavfi -i testsrc=size=160x96:duration=3:rate=10"
 tone="-f lavfi -i sine=frequency=440:duration=3:sample_rate=8000"
 

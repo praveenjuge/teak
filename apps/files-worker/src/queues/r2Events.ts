@@ -1,16 +1,6 @@
 import { callFilesOp, type FilesOpOutcome } from "../workflows/filesOps";
 import type { BackgroundEnv } from "../workflows/runtime";
 
-/**
- * Pending uploads (`.../cards/upload-pending-v2/...`) are objects a client
- * uploaded but never finalized into a card. The bucket's event notification
- * sends each one here when it is written; the consumer holds it in the
- * queue until it is 24 hours old, then deletes it if it is still there and
- * was not uploaded again since. The weekly cron sweep (`sweepStalePendingUploads`)
- * is the backstop for any event that never arrived.
- */
-
-/** R2 event notification, as the bucket sends it. */
 export interface R2EventNotification {
   account?: string;
   action: string;
@@ -19,11 +9,9 @@ export interface R2EventNotification {
   object: { eTag?: string; key: string; size?: number };
 }
 
-/** A pending upload re-queued until it is old enough to judge. */
 export interface PendingUploadCheck {
   key: string;
   kind: "pending-upload-check";
-  /** When the object was written (ms), from the original event. */
   uploadedAt: number;
 }
 
@@ -44,7 +32,6 @@ export const isPendingUploadKey = (key: string): boolean =>
   key.includes(PENDING_UPLOAD_SEGMENT) &&
   !key.split("/").includes("..");
 
-/** The pending upload a message is about, or null to just acknowledge it. */
 export const pendingUploadOf = (
   body: unknown
 ): { key: string; uploadedAt: number } | null => {
@@ -72,7 +59,6 @@ export const pendingUploadOf = (
   return Number.isFinite(uploadedAt) ? { key, uploadedAt } : null;
 };
 
-/** Seconds until the next look, capped at the queue's maximum delay. */
 export const recheckDelaySeconds = (uploadedAt: number, now: number): number =>
   Math.min(
     MAX_QUEUE_DELAY_SECONDS,
@@ -82,7 +68,6 @@ export const recheckDelaySeconds = (uploadedAt: number, now: number): number =>
     )
   );
 
-/** Deletes the object when it is still there and at least 24 hours old. */
 const deleteIfStale = async (
   bucket: R2Bucket,
   key: string,
@@ -90,7 +75,6 @@ const deleteIfStale = async (
 ): Promise<boolean> => {
   const head = await bucket.head(key);
   if (!head || head.uploaded.getTime() > now - PENDING_UPLOAD_STALE_AFTER_MS) {
-    // Gone (finalized or deleted), or written again: its own event covers it.
     return false;
   }
   await bucket.delete(key);
@@ -165,11 +149,6 @@ export interface PendingSweepSummary {
   deleted: number;
 }
 
-/**
- * The weekly backstop: walks every user prefix with the
- * `cleanup-stale-pending-uploads` op (ten list pages a call) until done or
- * out of time. Each run starts over; the R2 events do the daily work.
- */
 export const sweepStalePendingUploads = async (
   env: BackgroundEnv,
   deps: { budgetMs?: number; clock?: () => number } = {}

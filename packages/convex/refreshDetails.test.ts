@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
@@ -7,12 +6,6 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 import { queueCardProcessing } from "./workflowDispatch";
-
-// "Refresh details" queues a card-processing run that reads the link's
-// preview and category again. The run itself is the Files Worker's
-// (apps/files-worker/src/workflows/cardProcessing/run.test.ts); this covers
-// what Convex owns: the queued run, the reset it applies, and keeping the
-// stored preview when the refresh can't read the page.
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -31,7 +24,6 @@ const setup = async () => {
   rateLimiterTest.register(t, "rateLimiterV2");
   workosTest.register(t);
   await seedWorkosOwner(t, "owner");
-  // A link whose preview was read a day ago.
   const fetchedAt = NOW - DAY_MS;
   const cardId = await t.run((ctx) =>
     ctx.db.insert("cards", {
@@ -77,7 +69,6 @@ describe("Refresh details on a link", () => {
       type: "workflow",
       workflow: "card-processing",
     });
-    // The preview worked, but a refresh fetches it again.
     expect((await getCard())?.metadataStatus).toBe("pending");
   });
 
@@ -118,7 +109,6 @@ describe("Refresh details on a link", () => {
       cardId,
       userId: "owner",
     });
-    // A metadata-only retry replaces the waiting refresh before it is sent.
     await t.run((ctx) =>
       queueCardProcessing(ctx, cardId, { metadataOnly: true })
     );

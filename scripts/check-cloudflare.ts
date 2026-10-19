@@ -1,26 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Read-only Cloudflare / R2 configuration parity check.
- * Reports names and parity status without exposing secret values.
- *
- * Checks:
- * - Wrangler top-level bindings (R2, Images, AI) and removal of development env
- * - Local .dev.vars presence (ignored, per-surface; never blocks)
- * - Expected Convex env names and their parity if deployments are reachable
- * - Development storage state: the current shared production Worker/bucket
- *   (prefix-only separation) or the isolated development target. Credential
- *   parity follows that state; a mix of both blocks.
- *
- * Exit code is 1 when a blocking finding exists (missing or mismatched
- * repository or deployment configuration). Warnings for unreachable
- * deployments and the per-developer .dev.vars file never block.
- *
- * --only checks one deployment, for a deploy key scoped to that deployment.
- *
- * Usage: bun run check:cloudflare [--only prod|dev]
- *        bun run scripts/check-cloudflare.ts [--only prod|dev]
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TEAK_FILES_ORIGINS } from "../packages/convex/shared/filesOrigins";
@@ -95,16 +73,15 @@ export const PRODUCTION_FILES_BASE = TEAK_FILES_ORIGINS.production;
 export const DEVELOPMENT_STORAGE_BUCKET = "teak-files-development-20261006";
 export const DEVELOPMENT_KEY_PREFIX = "dev/";
 
-/** workers.dev origin of the dedicated `teak-files-development` Worker. */
 export const DEVELOPMENT_FILES_ORIGIN = TEAK_FILES_ORIGINS.development;
 
 export const isDevelopmentFilesOrigin = (value: string | undefined): boolean =>
   value === DEVELOPMENT_FILES_ORIGIN;
 
 /**
- * `shared`: the current state. Development uses the production Worker and
+ * `shared`: the older state. Development used the production Worker and
  * bucket, separated only by the `dev/` key prefix and sharing credentials.
- * `isolated`: the target. Development uses its own Worker and bucket.
+ * `isolated`: the current state. Development uses its own Worker and bucket.
  * Anything else, including a partial switch, is `invalid`.
  */
 export type DevStorageState = "shared" | "isolated" | "invalid";
@@ -276,7 +253,11 @@ const checkDevVars = () => {
           "R2_BUCKET/R2_KEY_PREFIX/FILES_BASE belong in Convex env, not .dev.vars"
         );
       }
-    } catch {}
+    } catch (error) {
+      log(".dev.vars", "warn", `unreadable: ${String(error)}`, {
+        blocking: false,
+      });
+    }
   } else {
     log(".dev.vars", "missing", "run bun run sync:cloudflare-dev", {
       blocking: false,
@@ -287,7 +268,7 @@ const checkDevVars = () => {
     existsSync(ISOLATED_DEV_VARS_PATH) ? "ok" : "warn",
     existsSync(ISOLATED_DEV_VARS_PATH)
       ? "present for the isolated development Worker"
-      : "not needed until isolated development storage is active",
+      : "run bun run sync:cloudflare-dev --isolated",
     { blocking: false }
   );
 };
@@ -300,7 +281,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
-    `  Dev storage: current shared routing (R2_BUCKET=${PRODUCTION_STORAGE_BUCKET}, FILES_BASE=${PRODUCTION_FILES_BASE}) or isolated target (R2_BUCKET=${DEVELOPMENT_STORAGE_BUCKET}, FILES_BASE=${DEVELOPMENT_FILES_ORIGIN}); R2_KEY_PREFIX=dev/ in both`
+    `  Dev storage: isolated (R2_BUCKET=${DEVELOPMENT_STORAGE_BUCKET}, FILES_BASE=${DEVELOPMENT_FILES_ORIGIN}) or older shared routing (R2_BUCKET=${PRODUCTION_STORAGE_BUCKET}, FILES_BASE=${PRODUCTION_FILES_BASE}); R2_KEY_PREFIX=dev/ in both`
   );
 
   const getDeploymentValue = async (
@@ -443,7 +424,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       log(
         "dev storage routing",
         "ok",
-        `current shared production Worker and bucket, dev/ prefix${scopeNote}`
+        `older shared production Worker and bucket, dev/ prefix${scopeNote}`
       );
       console.log(
         "  Isolation is not active: dev still shares production storage credentials bucket-wide. The prefix is routine-mistake protection, not a security boundary."
@@ -458,7 +439,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       log(
         "dev storage routing",
         "different",
-        `matches neither the current shared routing nor the isolated target${scopeNote}`
+        `matches neither the isolated routing nor the older shared routing${scopeNote}`
       );
     }
   }
@@ -481,13 +462,13 @@ const main = async () => {
   await checkConvexEnv(only);
   console.log("\n== Summary ==");
   console.log(
-    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev files` (remote bindings) vs `bun run dev files:local` (Miniflare, low-fidelity Images)."
+    "  • Keep `bun run dev --all` for all-surface stack; use `bun run dev files` (development config, remote dev bindings) vs `bun run dev files:local` (Miniflare, low-fidelity Images)."
   );
   console.log(
-    "  • .dev.vars is ignored and per-developer; sync it only from Convex dev (`bun run sync:cloudflare-dev`, or `bun run sync:cloudflare-dev --isolated` once isolation is active)."
+    "  • .dev.vars is ignored and per-developer; sync it only from Convex dev (`bun run sync:cloudflare-dev`, or `bun run sync:cloudflare-dev --isolated` for the development Worker)."
   );
   console.log(
-    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is the prepared isolated development Worker; never reuse the retired teak-files-dev bucket."
+    "  • wrangler.jsonc is prod-only. development/wrangler.jsonc is the development Worker Convex dev uses; the old teak-files-dev R2 bucket is deleted, and the name now belongs to the development Worker."
   );
   if (failureCount > 0) {
     console.log(

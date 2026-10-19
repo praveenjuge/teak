@@ -1,5 +1,6 @@
 ---
 import type { CardType } from "@teak/convex/shared/constants";
+import { AUDIO_WAVE_BARS, getAudioWaveHeight } from "@teak/ui/lib/audioWave";
 import Icon from "blume/components/Icon.astro";
 import {
   DEMO_CARD_TYPES,
@@ -7,16 +8,12 @@ import {
   type DemoCard,
 } from "../lib/home-demo-cards";
 
-// Same deterministic waveform as AudioWavePreview in the web app.
-const AUDIO_WAVE_BARS = 45;
-const waveHeight = (seed: string, index: number) => {
-  const hash = seed.split("").reduce((acc, char) => {
-    const next = (acc << 5) - acc + char.charCodeAt(0);
-    return next & next;
-  }, index);
-  const value = Math.abs(Math.sin(hash)) * 0.6 + 0.2;
-  return `${Number((value * 60 + 20).toFixed(3))}%`;
-};
+interface Props {
+  /** Cards to show, one array per column. Defaults to the homepage set. */
+  columns?: DemoCard[][];
+}
+
+const { columns = DEMO_COLUMNS } = Astro.props;
 
 const searchText = (card: DemoCard) =>
   [
@@ -42,7 +39,7 @@ const typeEntries = Object.entries(DEMO_CARD_TYPES) as [
 ][];
 
 const cardsById = Object.fromEntries(
-  DEMO_COLUMNS.flat().map((card) => [card.id, card])
+  columns.flat().map((card) => [card.id, card])
 );
 
 const chipClass =
@@ -110,7 +107,7 @@ const iconButtonClass =
         </div>
 
         <div class="demo-grid" data-demo-grid>
-          {DEMO_COLUMNS.map((column, columnIndex) => (
+          {columns.map((column, columnIndex) => (
             <div class="demo-col">
               {columnIndex === 0 && (
                 <div class="demo-item" data-demo-note-item>
@@ -161,7 +158,7 @@ const iconButtonClass =
                     {card.type === "link" && card.image && (
                       <span class="block divide-y overflow-hidden rounded-2xl border bg-card">
                         <span class="block w-full overflow-hidden" style={`aspect-ratio: ${card.image.width} / ${card.image.height}`}>
-                          <img alt={card.title} class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                          <img alt="" class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
                         </span>
                         <span class="block px-4 py-3">
                           <span class="block max-w-full truncate font-medium">{card.title}</span>
@@ -192,7 +189,7 @@ const iconButtonClass =
                     {card.type === "audio" && (
                       <span class="flex h-14 items-center justify-between space-x-0.5 rounded-2xl border bg-card px-4 py-2">
                         {Array.from({ length: AUDIO_WAVE_BARS }, (_, index) => (
-                          <span class="block rounded-full bg-muted-foreground" style={`width: 2px; height: ${waveHeight(card.id, index)}`}></span>
+                          <span class="block rounded-full bg-muted-foreground" style={`width: 2px; height: ${getAudioWaveHeight(card.id, index)}`}></span>
                         ))}
                       </span>
                     )}
@@ -247,7 +244,7 @@ const iconButtonClass =
                 <Icon name="heart" size={14} />
                 <span>Favorite</span>
               </button>
-              <a class={`${chipClass} no-underline`} data-demo-modal-link rel="noopener noreferrer" target="_blank">
+              <a class={`${chipClass} no-underline`} data-demo-modal-link href="https://app.teakvault.com" rel="noopener noreferrer" target="_blank">
                 <Icon name="external-link" size={14} />
                 <span>Open Link</span>
               </a>
@@ -258,7 +255,6 @@ const iconButtonClass =
     </div>
   </div>
 
-  {/* Icons the client script clones into chips, badges, and previews. */}
   {[...typeEntries.map(([type, { icon }]) => [type, icon]), ["hash", "hash"], ["sparkles", "sparkles"], ["play", "play"], ["heart", "heart"], ["trash", "trash-2"]].map(([key, icon]) => (
     <template data-demo-icon={key}><Icon name={icon} size={14} /></template>
   ))}
@@ -320,7 +316,7 @@ const iconButtonClass =
     margin-inline: auto;
     border-radius: 0.5rem;
     background: var(--muted);
-    color: var(--muted-foreground);
+    color: color-mix(in oklch, var(--muted-foreground) 80%, var(--foreground));
     font-size: 0.75rem;
   }
 
@@ -330,7 +326,6 @@ const iconButtonClass =
     overflow: hidden;
   }
 
-  /* Five columns like the app's large breakpoint, three on tablets, two on phones. */
   .demo-grid {
     --demo-gap: 1.5rem;
     display: flex;
@@ -429,7 +424,6 @@ const iconButtonClass =
     transform-origin: 50% 40%;
   }
 
-  /* The app plays videos on hover; the preview mimics it with a slow pan. */
   .demo-card[data-type="video"]:hover .demo-play {
     display: none;
   }

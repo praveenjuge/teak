@@ -1,19 +1,11 @@
 import { internal } from "@teak/convex/_generated/api";
+import { MAX_DAILY_USAGE_ROWS } from "@teak/files-protocol";
+import { aiUsageColumn } from "./aiUsage";
 import { type ConvexRpc, createConvexRpc } from "./convexRpc";
 import type { BackgroundEnv } from "./workflows/runtime";
 
-/**
- * Hourly rollup of the AI usage data points (aiUsage.ts `recordAiCall`) into
- * Convex's `aiUsageDaily`, which the admin console reads. It queries the
- * Workers Analytics Engine SQL API for today and yesterday (UTC), so the
- * first run after midnight finalizes yesterday, and writes each user's
- * absolute totals for the day: a repeated run sets the same numbers again.
- */
-
 export interface AiUsageRollupEnv extends BackgroundEnv {
-  /** The `AI_USAGE` binding's dataset name, which SQL queries by name. */
   AI_USAGE_DATASET?: string;
-  /** The account whose Analytics Engine datasets the SQL API reads. */
   ANALYTICS_ACCOUNT_ID?: string;
   /** API token with Account Analytics: Read (a Wrangler secret). */
   ANALYTICS_API_TOKEN?: string;
@@ -28,9 +20,6 @@ export interface DailyUsageRow {
   userId: string;
 }
 
-/** Convex's `replaceDailyUsage` takes at most this many users per call. */
-export const DAILY_USAGE_BATCH = 200;
-/** One day's users per deployment; far above Teak's daily AI users. */
 const MAX_USERS_PER_DAY = 50_000;
 const DEFAULT_DATASET = "teak_ai_usage";
 const SQL_TIMEOUT_MS = 30_000;
@@ -39,10 +28,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const utcDate = (time: number): string =>
   new Date(time).toISOString().slice(0, 10);
 
+const DAILY_USAGE_SUMS = [
+  "calls",
+  "errors",
+  "inputTokens",
+  "outputTokens",
+  "costUsd",
+] as const satisfies readonly (keyof DailyUsageRow)[];
+
 const DATASET_PATTERN = /^[A-Za-z0-9_]+$/u;
 const SQL_LITERAL_PATTERN = /^[A-Za-z0-9:/._-]+$/u;
 
-/** The day's totals per user for one deployment, weighted for sampling. */
 export const dailyUsageSql = (
   dataset: string,
   convexSiteUrl: string,
@@ -61,14 +57,15 @@ export const dailyUsageSql = (
   }
   const next = utcDate(Date.parse(`${date}T00:00:00Z`) + DAY_MS);
   return [
-    "SELECT index1 AS userId,",
-    "SUM(_sample_interval * double1) AS calls,",
-    "SUM(_sample_interval * double2) AS errors,",
-    "SUM(_sample_interval * double3) AS inputTokens,",
-    "SUM(_sample_interval * double4) AS outputTokens,",
-    "SUM(_sample_interval * double5) AS costUsd",
+    "SELECT",
+    [
+      "index1 AS userId",
+      ...DAILY_USAGE_SUMS.map(
+        (name) => `SUM(_sample_interval * ${aiUsageColumn(name)}) AS ${name}`
+      ),
+    ].join(", "),
     `FROM ${dataset}`,
-    `WHERE blob1 = '${convexSiteUrl}'`,
+    `WHERE ${aiUsageColumn("convexSiteUrl")} = '${convexSiteUrl}'`,
     `AND timestamp >= toDateTime('${date} 00:00:00')`,
     `AND timestamp < toDateTime('${next} 00:00:00')`,
     "GROUP BY userId",
@@ -84,7 +81,6 @@ const nonNegative = (value: unknown): number => {
     : 0;
 };
 
-/** Rows from the SQL API's JSON reply; counts are rounded to whole calls. */
 export const parseDailyUsage = (body: unknown): DailyUsageRow[] => {
   const data = (body as { data?: unknown } | null)?.data;
   if (!Array.isArray(data)) {
@@ -140,10 +136,6 @@ export interface AiUsageRollupDeps {
   now?: number;
 }
 
-/**
- * Rolls up yesterday and today for one deployment. Returns null when the
- * SQL API is not configured (development, tests), else the users written.
- */
 export const rollUpAiUsage = async (
   env: AiUsageRollupEnv,
   convexSiteUrl: string,
@@ -159,10 +151,10 @@ export const rollUpAiUsage = async (
   let written = 0;
   for (const date of [utcDate(now - DAY_MS), utcDate(now)]) {
     const rows = await queryDailyUsage(env, convexSiteUrl, date, fetcher);
-    for (let index = 0; index < rows.length; index += DAILY_USAGE_BATCH) {
+    for (let index = 0; index < rows.length; index += MAX_DAILY_USAGE_ROWS) {
       const result = await convex.mutation(
         internal.adminUsage.replaceDailyUsage,
-        { date, rows: rows.slice(index, index + DAILY_USAGE_BATCH) }
+        { date, rows: rows.slice(index, index + MAX_DAILY_USAGE_ROWS) }
       );
       written += result.written;
     }

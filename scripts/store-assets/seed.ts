@@ -1,17 +1,3 @@
-/**
- * Puts the showcase library (showcase.ts) at the top of the Teak account the
- * CLI is signed in to, so every app opens on it.
- *
- *   bun scripts/store-assets/seed.ts            report what is missing
- *   bun scripts/store-assets/seed.ts --apply    add the missing cards
- *   bun scripts/store-assets/seed.ts --refresh  move existing showcase cards to
- *                                               Trash, then add the whole set
- *
- * It runs the repository's CLI (apps/cli), built first with
- * `bun run build:cli`. Cards are matched by URL, text, or file name, so no
- * marker tag shows up in the screenshots.
- */
-
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { SHOWCASE, type ShowcaseCard } from "./showcase.ts";

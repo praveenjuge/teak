@@ -236,6 +236,13 @@ describe("serializeCard", () => {
     expect(out).not.toHaveProperty("metadataTitle");
   });
 
+  test("writes when a link was marked done, and nothing for one that isn't", () => {
+    const link = { ...baseCard, type: "link" as const };
+    const done = serializeCard({ ...link, completedAt: 1_700_000_900_000 });
+    expect(done.completedAt).toEqual(toDualTimestamp(1_700_000_900_000));
+    expect(serializeCard(link)).not.toHaveProperty("completedAt");
+  });
+
   test("leaves out blank titles and summaries", () => {
     const out = serializeCard({
       _id: "c3",

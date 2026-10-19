@@ -9,11 +9,10 @@ import { type CardType, cardTypeValidator, colorValidator } from "../schema";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
+import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
 import { normalizeErrorClass } from "../shared/telemetry";
-import {
-  assertSafeExternalUrl,
-  isSafeExternalUrl,
-} from "../shared/utils/safeUrl";
+import type { FileMetadata } from "../shared/types";
+import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { buildR2UserPrefix } from "../storage/r2";
 import { scheduleCardOutcome } from "../telemetry/schedule";
@@ -31,8 +30,7 @@ import { syncCardSearch } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
 import { extractUrlFromContent } from "./validationUtils";
 
-// The signed-in apps say which surface saved the card, for analytics only.
-// Older app versions omit it and report "unknown".
+// Older app versions send no `source`, so their cards report "unknown".
 export const clientCardSourceValidator = v.union(
   v.literal("web"),
   v.literal("apple"),
@@ -47,11 +45,51 @@ const createCardArgs = {
   thumbnailKey: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
-  metadata: v.optional(v.any()), // Allow any metadata from client, we'll process it
-  colors: v.optional(v.array(colorValidator)), // For palette cards
+  metadata: v.optional(v.any()),
+  colors: v.optional(v.array(colorValidator)),
 } as const;
 
 const PIPELINE_OWNED_METADATA_FIELDS = ["linkCategory", "linkPreview"] as const;
+
+const CLIENT_FILE_METADATA_FIELDS = {
+  fileName: "string",
+  fileSize: "number",
+  mimeType: "string",
+  duration: "number",
+  width: "number",
+  height: "number",
+  recordingTimestamp: "number",
+} as const satisfies Partial<
+  Record<keyof NonNullable<FileMetadata>, "string" | "number">
+>;
+
+type ClientFileMetadata = Pick<
+  NonNullable<FileMetadata>,
+  keyof typeof CLIENT_FILE_METADATA_FIELDS
+>;
+
+// Moves the file facts a client sent inside `metadata` into `fileMetadata`.
+// A value of the wrong type is refused, as the schema would refuse it on insert.
+const takeClientFileMetadata = (
+  metadata: Record<string, unknown>
+): ClientFileMetadata | undefined => {
+  const taken: Record<string, string | number> = {};
+  for (const [field, expected] of Object.entries(CLIENT_FILE_METADATA_FIELDS)) {
+    const value = metadata[field];
+    if (value === undefined) {
+      continue;
+    }
+    if (typeof value !== expected) {
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `metadata.${field} must be a ${expected}`,
+      });
+    }
+    taken[field] = value as string | number;
+    delete metadata[field];
+  }
+  return Object.keys(taken).length > 0 ? taken : undefined;
+};
 
 const sessionCreateCardArgs = {
   ...createCardArgs,
@@ -86,20 +124,13 @@ interface CreateCardArgs {
 }
 
 interface ImportedVisibleFields {
+  completedAt?: number;
   createdAt?: number;
   isArchived?: boolean;
   isFavorited?: boolean;
   metadataTitle?: string;
 }
 
-const MAX_IMPORTED_TITLE_LENGTH = 512;
-
-/**
- * An explicit type is always kept, so a note a client saves as text stays
- * text even when it mentions a URL. Otherwise quoted text is a quote and a URL
- * makes a link, as the classifier would decide, so a link never shows as text
- * before classification runs.
- */
 export const resolveCreatedCardType = ({
   providedType,
   hasUrl,
@@ -118,6 +149,21 @@ export const resolveCreatedCardType = ({
   return hasUrl ? "link" : "text";
 };
 
+const assertClientKeysInUserNamespace = (
+  userId: TeakUserId,
+  keys: Record<string, string | undefined>
+) => {
+  const userPrefix = `${buildR2UserPrefix(userId)}/`;
+  for (const [label, key] of Object.entries(keys)) {
+    if (key !== undefined && !key.startsWith(userPrefix)) {
+      throw new ConvexError({
+        code: "INVALID_STORAGE_KEY",
+        message: `${label} does not belong to the current user`,
+      });
+    }
+  }
+};
+
 export const createCardForUserHandler = async (
   ctx: MutationCtx,
   userId: TeakUserId,
@@ -129,20 +175,10 @@ export const createCardForUserHandler = async (
 ): Promise<Id<"cards">> => {
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
-  // Client-supplied storage keys must live in the caller's namespace so a
-  // stale or forged key can never persist and break later reads.
-  const userPrefix = `${buildR2UserPrefix(userId)}/`;
-  for (const [label, key] of [
-    ["fileKey", args.fileKey],
-    ["thumbnailKey", args.thumbnailKey],
-  ] as const) {
-    if (key !== undefined && !key.startsWith(userPrefix)) {
-      throw new ConvexError({
-        code: "INVALID_STORAGE_KEY",
-        message: `${label} does not belong to the current user`,
-      });
-    }
-  }
+  assertClientKeysInUserNamespace(userId, {
+    fileKey: args.fileKey,
+    thumbnailKey: args.thumbnailKey,
+  });
 
   const now = Date.now();
 
@@ -151,7 +187,6 @@ export const createCardForUserHandler = async (
   let finalContent = args.content;
   let finalUrl = assertSafeExternalUrl(args.url);
   const originalMetadata = args.metadata || {};
-  let fileMetadata: any;
   const classificationRequired = !providedType;
   const classificationStatus = classificationRequired
     ? stagePending()
@@ -159,38 +194,13 @@ export const createCardForUserHandler = async (
 
   const processedMetadata = { ...originalMetadata } as Record<string, unknown>;
 
-  const fileRelatedFields = [
-    "fileName",
-    "fileSize",
-    "mimeType",
-    "duration",
-    "width",
-    "height",
-    "recordingTimestamp",
-  ] as const;
-  const extractedFileMetadata: any = {};
-
-  for (const field of fileRelatedFields) {
-    if (processedMetadata[field] !== undefined) {
-      extractedFileMetadata[field] = processedMetadata[field];
-      delete processedMetadata[field];
-    }
-  }
+  const fileMetadata = takeClientFileMetadata(processedMetadata);
 
   for (const field of PIPELINE_OWNED_METADATA_FIELDS) {
     delete processedMetadata[field];
   }
 
-  if (args.fileKey) {
-    fileMetadata =
-      Object.keys(extractedFileMetadata).length > 0
-        ? extractedFileMetadata
-        : undefined;
-  } else if (Object.keys(extractedFileMetadata).length > 0) {
-    fileMetadata = extractedFileMetadata;
-  }
-
-  if (!(explicitText || finalUrl) && args.content?.trim()) {
+  if (!(explicitText || finalUrl) && args.content.trim()) {
     const urlExtraction = extractUrlFromContent(args.content);
     if (urlExtraction.url) {
       finalUrl = urlExtraction.url;
@@ -216,7 +226,7 @@ export const createCardForUserHandler = async (
   let resolvedColors = args.colors;
   if (!resolvedColors && cardType === "palette") {
     const paletteText = [
-      finalContent ?? "",
+      finalContent,
       args.notes ?? "",
       Array.isArray(args.tags) ? args.tags.join(" ") : "",
     ]
@@ -228,15 +238,14 @@ export const createCardForUserHandler = async (
   }
   const { colorHexes, colorHues } = buildColorFacets(resolvedColors);
 
-  // Callers validate the source; this keeps an unsafe URL out regardless.
   const cardSource = normalizeCardSource({
     sourceTitle: args.sourceTitle,
-    sourceUrl: isSafeExternalUrl(args.sourceUrl) ? args.sourceUrl : undefined,
+    sourceUrl: args.sourceUrl,
   });
 
   const importedTitle = options.importedVisibleFields?.metadataTitle
     ?.trim()
-    .slice(0, MAX_IMPORTED_TITLE_LENGTH);
+    .slice(0, MAX_CARD_TITLE_LENGTH);
 
   const cardData = {
     userId,
@@ -264,6 +273,10 @@ export const createCardForUserHandler = async (
     updatedAt: now,
     shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
+    ...(cardType === "link" &&
+      options.importedVisibleFields?.completedAt !== undefined && {
+        completedAt: options.importedVisibleFields.completedAt,
+      }),
     ...(options.importedVisibleFields?.isArchived
       ? { isArchived: true as const, archivedAt: now }
       : {}),

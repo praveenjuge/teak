@@ -22,11 +22,7 @@ const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   Delete: "delete",
 };
 
-/**
- * What a key pressed in the open card dialog does, or null when it is
- * someone typing, a media control, a held repeat or a modified key.
- * Backspace deletes only on Apple platforms, where it is the Delete key (⌫).
- */
+/** On Apple platforms Backspace is the Delete key (⌫). */
 export function cardModalKeyAction(
   event: {
     altKey: boolean;

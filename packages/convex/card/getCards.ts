@@ -38,7 +38,9 @@ import {
   buildFolderCardListQuery,
   buildHostCardListQuery,
   buildTagCardListQuery,
+  type CardListScope,
   type CardListSort,
+  cardListScope,
   cardListSortValidator,
   cardListSortWithShuffleValidator,
   compareCardsByCreatedAt,
@@ -50,11 +52,13 @@ import {
   attachGridFileUrls,
   ensureValidRange,
   isCreatedAtInRange,
+  linkPreviewImageFields,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import {
   loadSemanticMatches,
   searchCardsByDocument,
+  searchCardsByOcrText,
 } from "./searchDocumentHelpers";
 import { expandFolderSearch, resolveSearch } from "./searchPlanner";
 import {
@@ -98,14 +102,7 @@ export const cardReturnValidator = v.object({
       })
     )
   ),
-  linkPreviewImageUrl: v.optional(v.string()),
-  /** linkPreviewImageUrl is an image someone chose for the link. */
-  hasThumbnailOverride: v.optional(v.literal(true)),
-  /**
-   * A search result matched by meaning (shared/search/semantic.ts), which
-   * need not contain the searched words; clients keep it when they narrow
-   * results to the words.
-   */
+  ...linkPreviewImageFields,
   matchedByMeaning: v.optional(v.literal(true)),
 });
 
@@ -125,7 +122,6 @@ const createdAtRangeValidator = v.object({
 });
 
 const SEARCH_PAGE_CANDIDATE_LIMIT = 401;
-/** The most results one search index query returns. */
 const SEARCH_INDEX_RESULT_LIMIT = 1024;
 
 const isSearchTooBroadError = (error: unknown): boolean =>
@@ -211,6 +207,7 @@ export const searchCards = query({
       createdAtRange,
     } = args;
     const archived: ArchivedFilter = args.showArchivedOnly ? "only" : "exclude";
+    const scope = cardListScope(archived, showTrashOnly);
     const limit = clampSearchLimit(args.limit);
     const sort = normalizeCardListSort(args.sort);
     const order = sort === "oldest" ? "asc" : "desc";
@@ -249,7 +246,7 @@ export const searchCards = query({
       if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
         const trashed = await buildCardListQuery(ctx, {
           userId: user.teakUserId,
-          trash: true,
+          scope: "trash",
         })
           .order(order)
           .take(limit);
@@ -298,8 +295,7 @@ export const searchCards = query({
     if (visualFilters.hasVisualFilters) {
       const visualResults = await findVisualMatches(ctx, {
         userId: user.teakUserId,
-        showTrashOnly,
-        archived,
+        scope,
         types,
         favoritesOnly,
         createdAtRange,
@@ -318,8 +314,7 @@ export const searchCards = query({
     const cards = keepVisible(
       await buildCardListQuery(ctx, {
         userId: user.teakUserId,
-        trash: showTrashOnly,
-        archived,
+        scope,
         favoritesOnly,
         types,
         createdAt: createdAtRange
@@ -340,38 +335,17 @@ export const searchCardsPaginatedArgsValidator = v.object({
   types: v.optional(v.array(cardTypeValidator)),
   favoritesOnly: v.optional(v.boolean()),
   showTrashOnly: v.optional(v.boolean()),
-  /** The Archive view: archived cards that are not in Trash. */
   showArchivedOnly: v.optional(v.boolean()),
   styleFilters: v.optional(v.array(v.string())),
   hueFilters: v.optional(v.array(v.string())),
   hexFilters: v.optional(v.array(v.string())),
   createdAtRange: v.optional(createdAtRangeValidator),
   sort: v.optional(cardListSortWithShuffleValidator),
-  /** Shuffle's seed: the same seed gives the same order. Defaults to 0. */
   shuffleSeed: v.optional(v.number()),
-  /** Only cards in this folder (the folder view). */
   folderId: v.optional(v.id("folders")),
-  /**
-   * For a smart folder, the search the client last read for it. The view
-   * runs this search, so a page's cursor always belongs to the search that
-   * issued it and editing the folder starts a new query; without it, the
-   * stored search. Any search the user could type is fine here.
-   */
   folderQuery: v.optional(v.string()),
-  /** Only cards with this tag (user or AI), matched ignoring case. */
   tag: v.optional(v.string()),
-  /**
-   * How a search finds cards (shared/search/semantic.ts); hybrid when
-   * missing. Meaning matches come from `requestSemanticResults`, which the
-   * client starts with the same search: this query merges them in when they
-   * are cached, and stays keyword-only until then.
-   */
   mode: v.optional(searchModeValidator),
-  /**
-   * With `sort: "relevance"`, order the search by the Best match scores that
-   * `requestRelevanceScores` cached. The client sets it once per search, when
-   * the scores arrived in time; false keeps the unscored search order.
-   */
   useRelevanceScores: v.optional(v.boolean()),
   /**
    * Ignored. A client retrying a failed read sends a new one, so its cached
@@ -432,6 +406,7 @@ export const searchCardsPaginatedHandler = async (
     return emptyPage;
   }
   const { archived, types, sites, includeHidden } = resolved;
+  const scope = cardListScope(archived, showTrashOnly);
   // Every page passes through here, so a hidden card the backfill hasn't
   // flagged yet never reaches the client, whichever read found it.
   const attachListUrls = (listCtx: QueryCtx, cards: Doc<"cards">[]) =>
@@ -482,7 +457,6 @@ export const searchCardsPaginatedHandler = async (
     walk: Omit<ShuffleWalkOptions, "seed" | "userId">,
     keep?: (cards: Doc<"cards">[]) => Doc<"cards">[]
   ) => {
-    // A cursor from another walk (an older format) starts over.
     const position = decodeShuffleWalkCursor(seed, paginationOpts.cursor) ?? {
       segment: 0,
       page: null,
@@ -518,8 +492,6 @@ export const searchCardsPaginatedHandler = async (
     };
   };
 
-  // `like:` and `mood:` list the cached meaning matches, filtered by the
-  // view and the other qualifiers; until they are cached, nothing.
   if (resolved.similarity) {
     const { similarity } = resolved;
     const request = similarityRequest(similarity);
@@ -572,7 +544,7 @@ export const searchCardsPaginatedHandler = async (
     );
   }
 
-  if (searchQuery) {
+  if (searchQuery || resolved.ocrText) {
     const query = searchQuery.toLowerCase();
     const quickCommand = !(
       folderId ||
@@ -619,7 +591,7 @@ export const searchCardsPaginatedHandler = async (
       ["trash", "deleted", "bin", "recycle", "trashed"].includes(query)
     ) {
       if (shuffle) {
-        return shuffleWalkPage({ trash: true }, (cards) =>
+        return shuffleWalkPage({ scope: "trash" }, (cards) =>
           applyCardLevelFilters(cards, {
             types,
             favoritesOnly,
@@ -630,7 +602,7 @@ export const searchCardsPaginatedHandler = async (
       }
       const trashed = await buildCardListQuery(ctx, {
         userId: user.teakUserId,
-        trash: true,
+        scope: "trash",
       })
         .order(order)
         .paginate(paginationOpts);
@@ -672,7 +644,6 @@ export const searchCardsPaginatedHandler = async (
       includeHidden,
       limit: SEARCH_PAGE_CANDIDATE_LIMIT,
     };
-    // Semantic mode with no cached meaning matches falls back to keyword.
     const mode = args.mode ?? "hybrid";
     const semanticText = mode === "keyword" ? "" : semanticQueryText(parsed);
     const ranking = semanticText
@@ -681,22 +652,40 @@ export const searchCardsPaginatedHandler = async (
     const keywordSearch = !(mode === "semantic" && ranking);
     let searchResults: Doc<"cards">[] = [];
     const searchTexts = new Map<Id<"cards">, string>();
+    const readKeywordMatches = async (
+      options: Pick<typeof searchArgs, "limit"> & {
+        resultFilter?: typeof matchesFilters;
+      }
+    ) => {
+      const read = { ...searchArgs, ...options, searchTexts };
+      if (!resolved.ocrText) {
+        return searchCardsByDocument(ctx, read);
+      }
+      const imageMatches = await searchCardsByOcrText(ctx, {
+        ...read,
+        searchQuery: resolved.ocrText,
+      });
+      if (!searchQuery) {
+        return imageMatches;
+      }
+      const wordMatches = new Set(
+        (await searchCardsByDocument(ctx, read)).map((card) => card._id)
+      );
+      return imageMatches.filter((card) => wordMatches.has(card._id));
+    };
     try {
       if (keywordSearch) {
-        searchResults = await searchCardsByDocument(ctx, {
-          ...searchArgs,
+        searchResults = await readKeywordMatches({
+          limit: SEARCH_PAGE_CANDIDATE_LIMIT,
           resultFilter: matchesFilters,
-          searchTexts,
         });
       }
     } catch (error) {
       if (!isSearchTooBroadError(error)) {
         throw error;
       }
-      searchResults = await searchCardsByDocument(ctx, {
-        ...searchArgs,
+      searchResults = await readKeywordMatches({
         limit: SEARCH_INDEX_RESULT_LIMIT,
-        searchTexts,
       });
     }
     const uniqueResults = searchResults
@@ -706,7 +695,6 @@ export const searchCardsPaginatedHandler = async (
     let filteredResults = uniqueResults;
     const matchedByMeaning = new Set<Id<"cards">>();
     if (ranking) {
-      // Fusion picks which cards are in the set; the sort below orders it.
       const cardsById = new Map(
         uniqueResults.map((card) => [card._id, card] as const)
       );
@@ -729,9 +717,6 @@ export const searchCardsPaginatedHandler = async (
       ).flatMap((cardId) => cardsById.get(cardId) ?? []);
     }
 
-    // Best match keeps the search's own order, scored first when the client
-    // asks for the cached scores (it decides once per search, so a page
-    // never reorders when late scores land).
     const relevanceText = sort === "relevance" ? semanticQueryText(parsed) : "";
     let sortedResults: Doc<"cards">[];
     if (shuffle) {
@@ -790,8 +775,7 @@ export const searchCardsPaginatedHandler = async (
       const rows = await buildTagCardListQuery(ctx, {
         userId: user.teakUserId,
         tag,
-        trash: showTrashOnly,
-        archived,
+        scope,
         types,
         favoritesOnly,
         createdAt: createdAtBounds,
@@ -811,8 +795,7 @@ export const searchCardsPaginatedHandler = async (
     const rows = await buildTagCardListQuery(ctx, {
       userId: user.teakUserId,
       tag,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       favoritesOnly,
       createdAt: createdAtBounds,
@@ -840,8 +823,7 @@ export const searchCardsPaginatedHandler = async (
   if (folderId && shuffle) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       createdAt: createdAtBounds,
     })
@@ -867,8 +849,7 @@ export const searchCardsPaginatedHandler = async (
   ) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       createdAt: createdAtBounds,
     })
@@ -898,10 +879,11 @@ export const searchCardsPaginatedHandler = async (
   }
 
   if (resolved.hasCardFilters || visualFilters.hasVisualFilters) {
-    const scanTypes = visualFilterTypes(types, visualFilters);
-    if (scanTypes?.length === 0) {
+    const visualScanTypes = visualFilterTypes(types, visualFilters);
+    if (visualScanTypes === "none") {
       return emptyPage;
     }
+    const scanTypes = visualScanTypes === "any" ? undefined : visualScanTypes;
     const host =
       sites.length === 1 && !showTrashOnly && archived !== "include"
         ? sites[0]
@@ -916,8 +898,7 @@ export const searchCardsPaginatedHandler = async (
     if (shuffle) {
       return shuffleWalkPage(
         {
-          trash: showTrashOnly,
-          archived,
+          scope,
           favoritesOnly,
           types: scanTypes,
           createdAt: createdAtBounds,
@@ -929,13 +910,12 @@ export const searchCardsPaginatedHandler = async (
       ? buildHostCardListQuery(ctx, {
           userId: user.teakUserId,
           host,
-          archived: archived === "only" ? "only" : "exclude",
+          scope: archived === "only" ? "archive" : "library",
           createdAt: createdAtBounds,
         })
       : buildCardListQuery(ctx, {
           userId: user.teakUserId,
-          trash: showTrashOnly,
-          archived,
+          scope,
           favoritesOnly,
           types: scanTypes,
           createdAt: createdAtBounds,
@@ -968,8 +948,7 @@ export const searchCardsPaginatedHandler = async (
   if (folderId) {
     const rows = await buildFolderCardListQuery(ctx, {
       folderId,
-      trash: showTrashOnly,
-      archived,
+      scope,
       types,
       createdAt: createdAtBounds,
     })
@@ -991,8 +970,7 @@ export const searchCardsPaginatedHandler = async (
 
   if (shuffle) {
     return shuffleWalkPage({
-      trash: showTrashOnly,
-      archived,
+      scope,
       favoritesOnly,
       types,
       createdAt: createdAtBounds,
@@ -1001,8 +979,7 @@ export const searchCardsPaginatedHandler = async (
 
   const cards = await buildCardListQuery(ctx, {
     userId: user.teakUserId,
-    trash: showTrashOnly,
-    archived,
+    scope,
     favoritesOnly,
     types,
     createdAt: createdAtBounds,
@@ -1014,6 +991,15 @@ export const searchCardsPaginatedHandler = async (
     ...cards,
     page: applyQuoteFormattingToList(cardsWithUrls),
   };
+};
+
+const viewScope = (
+  view: "all" | "favorites" | "archive" | "trash" | undefined
+): CardListScope => {
+  if (view === "trash") {
+    return "trash";
+  }
+  return view === "archive" ? "archive" : "library";
 };
 
 /**
@@ -1057,8 +1043,7 @@ export const viewHasHiddenCards = query({
       userId: user.teakUserId,
       includeHidden: true,
       favoritesOnly: args.view === "favorites",
-      archived: args.view === "archive" ? "only" : "exclude",
-      trash: args.view === "trash",
+      scope: viewScope(args.view),
     })
       .order("desc")
       .first();

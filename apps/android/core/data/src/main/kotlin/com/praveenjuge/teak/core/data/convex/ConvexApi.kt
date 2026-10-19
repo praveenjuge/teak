@@ -13,7 +13,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 
-/** The Convex functions Teak calls, by name. Arguments are plain maps; numbers of any type are sent as Doubles. */
 interface ConvexApi {
     fun subscribe(name: String, args: Map<String, Any?> = emptyMap()): Flow<Result<JsonElement>>
     suspend fun mutation(name: String, args: Map<String, Any?> = emptyMap()): JsonElement

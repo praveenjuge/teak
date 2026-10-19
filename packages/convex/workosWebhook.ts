@@ -85,7 +85,9 @@ const deadLetterKey = async (id: unknown) => {
   if (typeof id === "string" && id.length > 0 && id.length <= 256) {
     return id;
   }
-  return `sha256:${await sha256Hex(JSON.stringify(id) ?? String(id))}`;
+  // JSON.stringify returns undefined for undefined, functions and symbols.
+  const json: string | undefined = JSON.stringify(id);
+  return `sha256:${await sha256Hex(json ?? String(id))}`;
 };
 
 export const ingestWorkosEvent = async (
@@ -121,7 +123,8 @@ export const ingestWorkosEvent = async (
   } catch (error) {
     if (
       error instanceof ConvexError &&
-      (error.data as { code?: unknown })?.code === INVALID_WORKOS_EVENT
+      (error.data as { code?: unknown } | undefined)?.code ===
+        INVALID_WORKOS_EVENT
     ) {
       await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
         eventId: await deadLetterKey(event.id),
@@ -161,7 +164,6 @@ export const workosWebhook = httpAction(async (ctx, request) => {
   }
   let event: Awaited<ReturnType<typeof kit.workos.webhooks.constructEvent>>;
   try {
-    // Verify the exact body with the official SDK before deserialization.
     event = await kit.workos.webhooks.constructEvent({
       payload,
       sigHeader: signature,
@@ -216,12 +218,6 @@ export const recordDeadLetter = internalMutation({
   },
 });
 
-/**
- * The Files Worker's WorkOS event queue gave up delivering an event to the
- * webhook route above (Convex kept failing). Recorded once per event, and
- * not at all when the event was applied after all; the hourly WorkOS event
- * catch-up replays it from the Events API either way.
- */
 export const recordUndeliverable = internalMutation({
   args: { eventId: v.string(), event: v.string() },
   returns: v.null(),
@@ -243,16 +239,8 @@ export const recordUndeliverable = internalMutation({
   },
 });
 
-/** Dead letters are recorded only for webhooks signed this recently. */
 const UNDELIVERABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-/**
- * Records a webhook the Files Worker could not deliver: its signature aged
- * out while it waited in the queue, or it exhausted its retries. The Worker
- * doesn't hold the webhook secret, so the signature is verified here, on
- * everything but its age, before anything is recorded; a forged webhook
- * never becomes a dead letter.
- */
 export const recordUndeliverableWebhook = internalAction({
   args: { body: v.string(), signature: v.string() },
   returns: v.object({ recorded: v.boolean() }),

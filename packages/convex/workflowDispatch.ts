@@ -37,11 +37,6 @@ import {
 } from "./storage/filesWorkerClient";
 import { hmacSha256Hex, isR2KeyInNamespace, sha256Hex } from "./storage/r2Keys";
 
-// Background work runs on Cloudflare Workflows and Queues in the Files
-// Worker. Mutations record it here, in the same transaction as the change
-// that needs it, and `flush` hands it over with the `dispatch` op. Workflow
-// instance IDs are deterministic, so sending a row twice is harmless.
-
 type DispatchKind = Doc<"workflowDispatches">["kind"];
 
 const WORKFLOW_BY_KIND: Record<
@@ -55,7 +50,6 @@ const WORKFLOW_BY_KIND: Record<
   maintenance: "maintenance",
 };
 
-/** How long a sent run may go without reporting before reconcile checks it. */
 export const STALE_AFTER_MS: Record<DispatchKind, number> = {
   accountDeletion: 6 * 60 * 60 * 1000,
   cardProcessing: 60 * 60 * 1000,
@@ -65,13 +59,10 @@ export const STALE_AFTER_MS: Record<DispatchKind, number> = {
   maintenance: 6 * 60 * 60 * 1000,
 };
 
-/** Finished rows are kept this long for investigation, then deleted. */
 export const DISPATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-/** A row that could not be handed over this many times is given up. */
 export const MAX_DISPATCH_ATTEMPTS = 20;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
-// One flush per transaction is enough: it hands over every pending row.
 const flushScheduled = new WeakSet<object>();
 
 const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
@@ -103,20 +94,29 @@ const insertDispatch = async (
   return id;
 };
 
-/**
- * Starts a card-processing run: bumps the card's processing revision, so
- * any earlier run stops writing, and queues the run for that revision.
- * With `reset`, the card's AI output and stages are cleared when the run
- * is sent (after `delayMs`), not now. With `metadataOnly`, the run only
- * regenerates the AI metadata (the admin's AI backfill retry).
- */
+const pendingRunToTakeOver = async (
+  ctx: MutationCtx,
+  card: Doc<"cards">
+): Promise<Doc<"workflowDispatches"> | null> => {
+  const currentRev = card.processingRev;
+  if (!currentRev) {
+    return null;
+  }
+  const currentRun = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_instanceId", (q) =>
+      q.eq("instanceId", cardProcessingInstanceId(card._id, currentRev))
+    )
+    .first();
+  return currentRun?.state === "pending" ? currentRun : null;
+};
+
 export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   options: {
     delayMs?: number;
     metadataOnly?: boolean;
-    /** "Refresh details": read the link preview and category again. */
     refresh?: boolean;
     reset?: boolean;
   } = {}
@@ -125,22 +125,7 @@ export const queueCardProcessing = async (
   if (!card) {
     return null;
   }
-  // The run for the current revision, if it is still waiting to be sent, is
-  // replaced by this one, which takes over what it owed: its reset, and the
-  // whole pipeline. Each run takes over from the one before, so the
-  // previous revision is the only one to look at.
-  const previous = card.processingRev
-    ? await ctx.db
-        .query("workflowDispatches")
-        .withIndex("by_instanceId", (q) =>
-          q.eq(
-            "instanceId",
-            cardProcessingInstanceId(cardId, card.processingRev ?? 0)
-          )
-        )
-        .first()
-    : null;
-  const replaced = previous?.state === "pending" ? previous : null;
+  const replaced = await pendingRunToTakeOver(ctx, card);
   const reset = options.reset === true || replaced?.reset === true;
   const refresh =
     options.refresh === true || replaced?.params?.refresh === true;
@@ -230,7 +215,6 @@ export const queueAccountDeletionWorkflow = async (
   return instanceId;
 };
 
-/** Queues storage objects for deletion, in batches the Worker accepts. */
 export const enqueueObjectDeletion = async (
   ctx: MutationCtx,
   keys: readonly string[]
@@ -274,10 +258,6 @@ interface ClaimedItem {
   item: DispatchItem;
 }
 
-/**
- * Takes the pending rows that are due and marks them sent. A card run
- * whose revision was replaced before it was sent is dropped instead.
- */
 export const claim = internalMutation({
   args: { limit: v.optional(v.number()) },
   returns: v.array(v.object({ id: v.id("workflowDispatches"), item: v.any() })),
@@ -325,8 +305,6 @@ export const claim = internalMutation({
           : [];
       await ctx.db.patch("workflowDispatches", row._id, {
         attempts: (row.attempts ?? 0) + 1,
-        // The reset is applied once: sending the row again after a lost
-        // reply must not wipe what the run has written since.
         ...(row.reset ? { reset: undefined } : {}),
         sentAt: now,
         state: "sent",
@@ -349,7 +327,6 @@ export const claim = internalMutation({
 const retryDelayMs = (attempts: number) =>
   Math.min(60 * 60 * 1000, 30_000 * 2 ** Math.max(0, attempts - 1));
 
-/** Rows the Worker did not accept go back to pending, with a delay. */
 export const release = internalMutation({
   args: {
     error: v.string(),
@@ -389,13 +366,8 @@ export const release = internalMutation({
   },
 });
 
-/** A dispatch proof stays valid this long. */
 const DISPATCH_PROOF_TTL_SECONDS = 120;
 
-/**
- * Proves to the Worker that this deployment sent the items, so it only
- * starts runs that report back here.
- */
 export const signDispatch = async (
   secret: string,
   convexSiteUrl: string,
@@ -414,10 +386,6 @@ export const signDispatch = async (
   return { expiresAt, signature };
 };
 
-/**
- * Hands every due row to the Files Worker. Without a Worker (the local E2E
- * stack), rows stay pending until one is configured.
- */
 export const flush = internalAction({
   args: {},
   returns: v.null(),
@@ -450,7 +418,7 @@ export const flush = internalAction({
           },
           timeoutMs: 60_000,
         });
-        if (outcome.kind === "fallback") {
+        if (outcome.kind === "declined") {
           failedIds = claimed.map(({ id }) => id);
           error = outcome.code;
         } else {
@@ -496,7 +464,6 @@ export const flush = internalAction({
   },
 });
 
-/** Leaves the job a failed run owned in a state the user can see. */
 const handleRunFailure = async (
   ctx: MutationCtx,
   row: Doc<"workflowDispatches">,
@@ -574,7 +541,6 @@ const handleRunFailure = async (
         typeof state.generation === "number" &&
         state.generation === params.generation
       ) {
-        // Account deletion must finish: start the next attempt.
         await queueAccountDeletionWorkflow(
           ctx,
           { generation: state.generation, stateId },
@@ -588,10 +554,8 @@ const handleRunFailure = async (
   }
 };
 
-/** Reconcile's error for a sent run Cloudflare has no instance for. */
 export const INSTANCE_MISSING = "instance_missing";
 
-/** A workflow reports how it ended (the Worker, or reconcile on its behalf). */
 export const complete = internalMutation({
   args: {
     error: v.optional(v.string()),
@@ -611,9 +575,6 @@ export const complete = internalMutation({
       return null;
     }
     const now = Date.now();
-    // Reconcile found no instance: the hand-over was lost after the claim
-    // (the flush died before the Worker started it). Instance IDs are
-    // deterministic, so sending the row again is safe.
     if (
       error === INSTANCE_MISSING &&
       row.state === "sent" &&
@@ -639,11 +600,6 @@ export const complete = internalMutation({
   },
 });
 
-/**
- * Object deletions the Worker accepted belong to its queue from then on, so
- * their rows are done at once and never crowd the sent rows reconcile pages
- * through.
- */
 export const markDelivered = internalMutation({
   args: { ids: v.array(v.id("workflowDispatches")) },
   returns: v.null(),
@@ -662,11 +618,6 @@ export const markDelivered = internalMutation({
   },
 });
 
-/**
- * Sent runs that have not reported for longer than their kind allows, for
- * the Worker's hourly reconcile to look up. Object deletions are queued, not
- * workflows: once sent they are the queue's, so they are just marked done.
- */
 export const listStale = internalQuery({
   args: { limit: v.optional(v.number()) },
   returns: v.array(
@@ -701,12 +652,6 @@ export const listStale = internalQuery({
   },
 });
 
-/**
- * Hourly housekeeping from the Worker: reschedules a flush when rows have
- * waited too long (a lost flush), marks done the sent object deletions a
- * flush could not (it died after the hand-over), and deletes finished rows
- * past retention.
- */
 export const pruneFinished = internalMutation({
   args: {},
   returns: v.object({

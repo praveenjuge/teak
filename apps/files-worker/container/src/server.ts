@@ -1,30 +1,3 @@
-// Teak media renderer: the Files Worker's Cloudflare Container.
-//
-// The Worker streams a source file (≤ 100 MiB) as the raw POST body; the
-// renderer spools it to WORK_DIR/<job-id>/input, runs ffprobe/ffmpeg or
-// poppler under hard limits (see exec.ts and args.ts), answers, and deletes
-// the job directory. It never makes outbound requests. One job at a time:
-// a second POST while a job runs gets 503 busy.
-//
-//   GET  /health                  {"ok":true,"protocol":1,"busy":bool}
-//   POST /probe                   facts only                        (15 s)
-//   POST /video?frameMax&scrubFrames&scrubMax    frame [+ scrub]    (60 s)
-//   POST /audio?peaks=45,200&whisper=auto|never|always  [whisper]   (120 s)
-//   POST /pdf/page?max            page                              (30 s)
-//   POST /pdf/text?maxPages&maxChars             text               (30 s)
-//   POST /animation/palette?frames               palette only       (30 s)
-//
-// Success is 200 with an `x-teak-manifest` JSON header ({protocol, facts,
-// parts, …job fields}) and the parts' bytes concatenated as the body.
-// Errors are {"error","message"} JSON: 400 bad_request, 404 not_found,
-// 413 too_large, 415 unsupported, 422 timeout, 503 busy, 500 internal.
-//
-// Environment:
-//   PORT                    listen port (default 8080)
-//   WORK_DIR                spool directory (default /work)
-//   RENDERER_TIMEOUT_SCALE  multiplies every job's wall clock (default 1);
-//                           tests use a tiny value to exercise 422 timeout
-
 import { randomUUID } from "node:crypto";
 import { mkdir, open, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -34,7 +7,7 @@ import type { JobContext } from "./jobs/context";
 import { pdfPageJob, pdfTextJob } from "./jobs/pdf";
 import { probeJob } from "./jobs/probe";
 import { animationPaletteJob, videoJob } from "./jobs/video";
-import { type JobResult, jobResponse, PROTOCOL } from "./manifest";
+import { type JobResult, jobResponse } from "./manifest";
 import {
   animationParams,
   audioParams,
@@ -42,11 +15,17 @@ import {
   pdfTextParams,
   videoParams,
 } from "./params";
+import {
+  RENDERER_JOBS,
+  RENDERER_MAX_INPUT_BYTES,
+  RENDERER_PORT,
+  RENDERER_PROTOCOL,
+  type RendererJob,
+} from "./protocol";
 
-const MAX_INPUT_BYTES = 100 * 1024 * 1024;
 const SPOOL_TIMEOUT_MS = 120_000;
 
-const PORT = Number(process.env.PORT ?? 8080);
+const PORT = Number(process.env.PORT ?? RENDERER_PORT);
 const WORK_DIR = process.env.WORK_DIR ?? "/work";
 
 function timeoutScale(raw: string | undefined): number {
@@ -60,44 +39,36 @@ interface Route {
   wallClockMs: number;
 }
 
-const ROUTES: Record<string, Route> = {
-  "/probe": { wallClockMs: 15_000, prepare: () => probeJob },
-  "/video": {
-    wallClockMs: 60_000,
-    prepare: (query) => {
-      const params = videoParams(query);
-      return (ctx) => videoJob(ctx, params);
-    },
+const PREPARE: Record<RendererJob, Route["prepare"]> = {
+  animationPalette: (query) => {
+    const params = animationParams(query);
+    return (ctx) => animationPaletteJob(ctx, params);
   },
-  "/audio": {
-    wallClockMs: 120_000,
-    prepare: (query) => {
-      const params = audioParams(query);
-      return (ctx) => audioJob(ctx, params);
-    },
+  audio: (query) => {
+    const params = audioParams(query);
+    return (ctx) => audioJob(ctx, params);
   },
-  "/pdf/page": {
-    wallClockMs: 30_000,
-    prepare: (query) => {
-      const params = pdfPageParams(query);
-      return (ctx) => pdfPageJob(ctx, params);
-    },
+  pdfPage: (query) => {
+    const params = pdfPageParams(query);
+    return (ctx) => pdfPageJob(ctx, params);
   },
-  "/pdf/text": {
-    wallClockMs: 30_000,
-    prepare: (query) => {
-      const params = pdfTextParams(query);
-      return (ctx) => pdfTextJob(ctx, params);
-    },
+  pdfText: (query) => {
+    const params = pdfTextParams(query);
+    return (ctx) => pdfTextJob(ctx, params);
   },
-  "/animation/palette": {
-    wallClockMs: 30_000,
-    prepare: (query) => {
-      const params = animationParams(query);
-      return (ctx) => animationPaletteJob(ctx, params);
-    },
+  probe: () => probeJob,
+  video: (query) => {
+    const params = videoParams(query);
+    return (ctx) => videoJob(ctx, params);
   },
 };
+
+const ROUTES = new Map<string, Route>(
+  (Object.keys(RENDERER_JOBS) as RendererJob[]).map((job) => [
+    RENDERER_JOBS[job].path,
+    { prepare: PREPARE[job], wallClockMs: RENDERER_JOBS[job].wallClockMs },
+  ])
+);
 
 let busy = false;
 
@@ -123,13 +94,13 @@ async function spool(request: Request, path: string): Promise<void> {
     const deadline = Date.now() + SPOOL_TIMEOUT_MS;
     let total = 0;
     try {
-      while (true) {
+      for (;;) {
         const { done, value } = await readWithin(reader.read(), deadline);
         if (done) {
           return;
         }
         total += value.byteLength;
-        if (total > MAX_INPUT_BYTES) {
+        if (total > RENDERER_MAX_INPUT_BYTES) {
           throw tooLarge();
         }
         await file.write(value);
@@ -166,9 +137,9 @@ async function handle(
 ): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/health") {
-    return Response.json({ ok: true, protocol: PROTOCOL, busy });
+    return Response.json({ ok: true, protocol: RENDERER_PROTOCOL, busy });
   }
-  const route = ROUTES[url.pathname];
+  const route = ROUTES.get(url.pathname);
   if (!(route && request.method === "POST")) {
     return errorResponse(new JobError("not_found", "Not found"));
   }
@@ -180,7 +151,7 @@ async function handle(
       );
     }
     const declared = Number(request.headers.get("content-length") ?? 0);
-    if (declared > MAX_INPUT_BYTES) {
+    if (declared > RENDERER_MAX_INPUT_BYTES) {
       throw tooLarge();
     }
     busy = true;
@@ -205,7 +176,7 @@ async function handle(
 const server = Bun.serve({
   port: PORT,
   // The spool enforces the real cap; this only stops Bun refusing first.
-  maxRequestBodySize: MAX_INPUT_BYTES * 2,
+  maxRequestBodySize: RENDERER_MAX_INPUT_BYTES * 2,
   fetch: handle,
 });
 

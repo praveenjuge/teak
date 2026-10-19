@@ -180,13 +180,18 @@ const isAllowedMediaUrl = (value: string | undefined): value is string => {
   }
 };
 
-const resolveUrl = (pageUrl: string, value: string | undefined) => {
+const resolveUrl = (
+  pageUrl: string,
+  value: string | undefined
+): string | undefined => {
   if (!value?.trim()) {
     return;
   }
   try {
     return new URL(value.trim(), pageUrl).toString();
-  } catch {}
+  } catch {
+    return undefined;
+  }
 };
 
 const pickFromSrcset = (
@@ -234,7 +239,7 @@ const belowMinSize = (width: number, height: number) =>
 
 const imageCandidate = (
   pageUrl: string,
-  attributes: Record<string, string>
+  attributes: Record<string, string | undefined>
 ): DomCandidate | undefined => {
   const fromSrcset = pickFromSrcset(attributes.srcset);
   const url = resolveUrl(pageUrl, fromSrcset?.url ?? attributes.src);
@@ -291,11 +296,8 @@ const videoCandidate = (
 };
 
 /**
- * Post media from the page HTML, normalised; undefined when none is found.
- *
- * Reads the relay JSON Instagram embeds in script tags and only trusts the item whose
- * shortcode matches the URL. Without a match it falls back to static `<article>` media
- * served from Instagram's own CDNs.
+ * Instagram embeds relay JSON in script tags that can describe other posts:
+ * only the item whose shortcode matches the URL is this post.
  */
 export const extractInstagramMediaFromHtml = (
   pageUrl: string,

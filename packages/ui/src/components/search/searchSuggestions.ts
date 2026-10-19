@@ -14,7 +14,6 @@ import {
 } from "@teak/convex/shared/constants";
 import { isHiddenTagList } from "@teak/convex/shared/tags";
 
-/** What the search box can suggest from: cached lists the app already has. */
 export interface SearchSuggestionSources {
   folders?: readonly { name: string }[];
   sites?: readonly { count: number; host: string; label: string }[];
@@ -30,30 +29,21 @@ export type SearchSuggestionGroup =
   | "Show";
 
 export interface SearchSuggestion {
-  /** A qualifier ready to become a chip; false for a bare key (`site:`). */
   complete: boolean;
-  /** A count or a hint shown at the end of the row. */
   detail?: string;
   group: SearchSuggestionGroup;
   id: string;
-  /** Replaces the word being typed. */
   insert: string;
   key: SearchQualifierKey;
   label: string;
-  /** For type rows, the card type (its icon). */
   type?: CardType;
 }
 
 export interface SearchSuggestionResult {
-  /**
-   * Completing a qualifier's value (`site:git`): the first row is picked
-   * on Enter. Plain words keep Enter for searching what was typed.
-   */
   completingValue: boolean;
   suggestions: SearchSuggestion[];
 }
 
-/** Most rows one group shows. */
 export const SEARCH_SUGGESTION_GROUP_LIMIT = 8;
 const WORD_GROUP_LIMIT = 4;
 
@@ -62,22 +52,25 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "type", hint: "Links, images, notes…" },
   { key: "site", hint: "Links from a website" },
   { key: "folder", hint: "Cards in a folder" },
-  { key: "is", hint: "Favorites or archived" },
+  { key: "is", hint: "Favorites, archived, done or to do" },
   { key: "mood", hint: "Images by mood" },
   { key: "price", hint: "Price under or over" },
+  { key: "text", hint: "Words in images and scans" },
 ];
 
 const IS_OPTIONS = [
   { value: "fav", label: "Favorites", words: ["fav", "favorites", "starred"] },
   { value: "archived", label: "Archived", words: ["archived", "archive"] },
+  {
+    value: "done",
+    label: "Done",
+    words: ["done", "completed", "finished"],
+  },
+  { value: "todo", label: "To do", words: ["todo", "to-do"] },
 ] as const;
 
 const QUOTES = new Set(['"', "“", "”"]);
 
-/**
- * The word being typed at the end of the search: from the last space outside
- * quotes to the end. `start` is where it begins in `text`.
- */
 export function currentSearchToken(text: string): {
   start: number;
   token: string;
@@ -173,7 +166,6 @@ const valueSuggestions = (
           { key: "tag", value: tag.name },
           "Tags",
           tag.name,
-          // A reserved tag's search is the one way to see hidden cards.
           isHiddenTagList([tag.name])
             ? `Shows hidden cards · ${countLabel(tag.count)}`
             : countLabel(tag.count)
@@ -226,10 +218,6 @@ const valueSuggestions = (
   }
 };
 
-/**
- * Suggestions for the word being typed: qualifier keys, then tags, folders
- * and sites that match it. After `key:` (or `#`), values for that key.
- */
 export function buildSearchSuggestions(
   token: string,
   sources: SearchSuggestionSources
@@ -297,10 +285,6 @@ export function buildSearchSuggestions(
   };
 }
 
-/**
- * How a chip reads: "Site" and "github.com". A `like:` chip reads "Similar
- * to" and the card's title, which the caller looks up.
- */
 export function describeQualifierChip(
   chip: string,
   anchorTitle?: string
@@ -326,7 +310,9 @@ export function describeQualifierChip(
       return {
         qualifier,
         title: "Show",
-        label: qualifier.value === "fav" ? "Favorites" : "Archived",
+        label:
+          IS_OPTIONS.find((option) => option.value === qualifier.value)
+            ?.label ?? qualifier.value,
       };
     case "site":
       return {
@@ -350,6 +336,8 @@ export function describeQualifierChip(
         ? { qualifier, title: "Price", label: describePriceBound(bound) }
         : null;
     }
+    case "text":
+      return { qualifier, title: "Text in image", label: qualifier.value };
     default:
       return null;
   }

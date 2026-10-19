@@ -9,25 +9,28 @@ import {
 
 const SOURCE = "Instapaper";
 
+const parseJsonOrUndefined = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+};
+
 function parseTags(raw: string): string[] {
   if (!raw) {
     return [];
   }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.map((tag) => String(tag));
-    }
-  } catch {}
-  return raw.split(",");
+  const parsed = parseJsonOrUndefined(raw);
+  return Array.isArray(parsed)
+    ? parsed.map((tag) => String(tag))
+    : raw.split(",");
 }
 
 /**
  * Instapaper's CSV export: `URL, Title, Selection, Folder, Timestamp` and,
  * in newer exports, `Tags`. Folder is "Unread", "Archive", "Starred" or a
- * folder of the user's: Archive and Starred become archive state and
- * favorites, other folders become Teak folders. Selection (the highlighted
- * passage) becomes the card's note.
+ * folder of the user's. Selection is the highlighted passage.
  */
 export function parseInstapaperCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv);

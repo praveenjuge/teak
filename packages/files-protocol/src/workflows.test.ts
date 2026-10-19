@@ -13,7 +13,6 @@ import {
   parseWorkflowRpcRequest,
 } from "./workflows";
 
-// A real-shaped Convex document ID.
 const CARD_ID = "jd7f2kz9m8w6y1v3h4n5q0r8s2t6u4x1";
 
 describe("parseWorkflowRpcRequest", () => {

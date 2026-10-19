@@ -3,12 +3,23 @@ import {
   stageCompleted,
   stagePending,
 } from "@teak/convex/card/processingStatus";
+import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import {
   extractVisualStylesFromTags,
   isVisualStyleCardType,
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
+import {
+  fetchVideoCaptions,
+  hasCaptionSource,
+  type VideoCaptions,
+} from "@teak/convex/workflows/steps/captions/index";
+import {
+  buildLinkMetadataPrompt,
+  isScannedPdf,
+  MAX_AI_METADATA_INPUT_CHARS,
+} from "@teak/files-protocol";
 import { runWithAiUsage } from "../../aiUsage";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
@@ -28,11 +39,10 @@ import {
 import {
   extractFileTextForKey,
   processAudioCard,
+  readScannedPdfText,
   storeDocumentText,
 } from "./files";
-
-// The AI summary, tags and transcript for one card. The card-processing
-// workflow and the AI backfill queue both run it.
+import { hydrateArchivedMetadata } from "./rawMetadata";
 
 interface LinkPreviewFields {
   author?: string;
@@ -43,11 +53,15 @@ interface LinkPreviewFields {
   title?: string;
 }
 
-export const buildLinkContentParts = (card: {
-  content?: string;
-  metadata?: { linkPreview?: LinkPreviewFields };
-  url?: string;
-}): string[] => {
+export const buildLinkContentParts = (
+  card: {
+    content?: string;
+    metadata?: { linkPreview?: LinkPreviewFields };
+    url?: string;
+  },
+  siteSummary?: string,
+  transcript?: string
+): string[] => {
   const preview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -74,21 +88,72 @@ export const buildLinkContentParts = (card: {
       contentParts.push(`URL: ${urlFallback}`);
     }
   }
+  const promptOverhead = buildLinkMetadataPrompt(
+    "",
+    card.url || card.content
+  ).length;
+  for (const [label, text] of [
+    [SUMMARY_LABEL, siteSummary],
+    [TRANSCRIPT_LABEL, transcript],
+  ] as const) {
+    const trimmed = text?.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const used = contentParts.reduce(
+      (total, part) => total + part.length + 1,
+      0
+    );
+    const room =
+      MAX_AI_METADATA_INPUT_CHARS - promptOverhead - used - label.length;
+    if (room > 0) {
+      contentParts.push(`${label}${trimmed.slice(0, room)}`);
+    }
+  }
   return contentParts;
 };
 
-/** Facts about what the step stored, never the text itself. */
+const SUMMARY_LABEL = "Summary: ";
+const TRANSCRIPT_LABEL = "Transcript: ";
+
+const linkSiteSummary = async (
+  job: CardJob,
+  loaded: LoadedCard
+): Promise<string | undefined> => {
+  const { card } = loaded;
+  const linkCategory = card.metadata?.linkCategory;
+  if (!linkCategory) {
+    return;
+  }
+  try {
+    const hydrated = await hydrateArchivedMetadata(job.env, loaded.keyPrefix, {
+      _id: card._id,
+      metadata: { linkCategory },
+      userId: card.userId,
+    });
+    const raw = hydrated.metadata.linkCategory?.raw as
+      | { remote?: { sourceUrl?: unknown; summary?: unknown } }
+      | undefined;
+    // Details a site gave for the link's earlier URL describe another page.
+    if (raw?.remote?.sourceUrl !== (card.url || linkCategory.sourceUrl)) {
+      return;
+    }
+    const summary = raw?.remote?.summary;
+    return typeof summary === "string" ? summary : undefined;
+  } catch (error) {
+    console.warn("[cardProcessing/metadata] site summary unavailable", {
+      cardId: job.cardId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 export interface MetadataResult {
   aiTagsCount: number;
-  /** The type the metadata was generated for, once stored. */
   cardType?: string;
   confidence: number;
   hasSummary: boolean;
   hasTranscript: boolean;
-  /**
-   * `completed`: stored. `deferred`: left for the AI backfill. `skipped`:
-   * nothing to do (card missing, AI turned off for its owner).
-   */
   mode: "completed" | "deferred" | "skipped";
 }
 
@@ -101,23 +166,39 @@ const nothing = (mode: MetadataResult["mode"]): MetadataResult => ({
 });
 
 export interface MetadataOptions {
-  /**
-   * What Workers AI capacity errors do: `retry` rethrows them so the step
-   * (or queue message) retries with a delay; `defer` leaves the card for
-   * the backfill, as every other deferred error does.
-   */
   capacity: "defer" | "retry";
-  /** The stage was marked in progress; a deferral puts it back to pending. */
+  lastAttempt?: boolean;
   restorePendingOnDefer: boolean;
 }
 
 interface Generated {
+  aiOcrText?: string;
   aiSummary: string;
   aiTags: string[];
   aiTranscript?: string;
   confidence: number;
+  ocrChecked?: boolean;
   visualStyles?: string[];
 }
+
+/**
+ * A video link's captions as its transcript (Vimeo), or undefined for any
+ * other link and whenever the site has none or can't be reached.
+ */
+const videoCaptions = async (
+  job: CardJob,
+  card: CardDoc
+): Promise<VideoCaptions | undefined> => {
+  if (!hasCaptionSource(card.url)) {
+    return;
+  }
+  return (
+    (await fetchVideoCaptions(card.url as string, {
+      pinnedFetch: job.deps.pinnedFetch,
+      resolveDns: job.deps.resolveDns,
+    })) ?? undefined
+  );
+};
 
 const transcribeVideo = async (
   job: CardJob,
@@ -169,11 +250,31 @@ const paletteText = (card: CardDoc): string => {
   return content;
 };
 
+const readScan = async (
+  job: CardJob,
+  sourceKey: string,
+  options: MetadataOptions
+): Promise<string | null> => {
+  try {
+    return await readScannedPdfText(job, sourceKey);
+  } catch (error) {
+    if (!options.lastAttempt || isAiProviderCapacityError(error)) {
+      throw error;
+    }
+    console.warn("[cardProcessing/metadata] scan not read", {
+      cardId: job.cardId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
+
 const generateForType = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,
   loaded: LoadedCard,
-  cardType: string
+  cardType: string,
+  options: MetadataOptions
 ): Promise<Generated> => {
   const { card } = loaded;
   const empty: Generated = { aiSummary: "", aiTags: [], confidence: 0.9 };
@@ -183,7 +284,12 @@ const generateForType = async (
       if (cardType === "quote" && !card.content?.trim()) {
         return empty;
       }
-      const result = await generateTextMetadata(job, telemetry, card.content);
+      // `[[Title|teak:<id>]]` links reach the model as their titles.
+      const result = await generateTextMetadata(
+        job,
+        telemetry,
+        cardLinkTokensToText(card.content ?? "")
+      );
       return { ...result, confidence: 0.95 };
     }
     case "image": {
@@ -200,6 +306,7 @@ const generateForType = async (
       return {
         ...result,
         confidence: 0.9,
+        ocrChecked: result.ocrChecked,
         visualStyles:
           result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
       };
@@ -219,6 +326,7 @@ const generateForType = async (
         generated = {
           ...result,
           confidence: 0.88,
+          ocrChecked: result.ocrChecked,
           visualStyles:
             result.visualStyles ?? extractVisualStylesFromTags(result.aiTags),
         };
@@ -242,9 +350,14 @@ const generateForType = async (
       return { ...result, aiTranscript: transcript, confidence: 0.85 };
     }
     case "link": {
-      const content = buildLinkContentParts(card).join("\n");
+      const captions = await videoCaptions(job, card);
+      const content = buildLinkContentParts(
+        card,
+        await linkSiteSummary(job, loaded),
+        captions?.text
+      ).join("\n");
       if (!content.trim()) {
-        return empty;
+        return captions ? { ...empty, aiTranscript: captions.text } : empty;
       }
       const result = await generateLinkMetadata(
         job,
@@ -252,10 +365,16 @@ const generateForType = async (
         content,
         card.url || card.content
       );
-      return { ...result, confidence: 0.9 };
+      return {
+        ...result,
+        confidence: 0.9,
+        ...(captions ? { aiTranscript: captions.text } : {}),
+      };
     }
     case "document": {
       const contentParts: string[] = [];
+      let aiOcrText = "";
+      let ocrChecked = false;
       const fileName = card.fileMetadata?.fileName;
       if (fileName) {
         contentParts.push(fileName);
@@ -276,6 +395,16 @@ const generateForType = async (
             contentParts.push(extracted.text);
             await keepDocumentText(job, loaded, extracted);
           }
+          if (format.kind === "pdf") {
+            const scanText = isScannedPdf(extracted)
+              ? await readScan(job, card.fileKey, options)
+              : "";
+            aiOcrText = scanText ?? "";
+            if (aiOcrText) {
+              contentParts.push(aiOcrText);
+            }
+            ocrChecked = scanText !== null;
+          }
         }
       }
       if (card.content?.trim()) {
@@ -286,7 +415,12 @@ const generateForType = async (
         return empty;
       }
       const result = await generateTextMetadata(job, telemetry, content);
-      return { ...result, confidence: 0.85 };
+      return {
+        ...result,
+        confidence: 0.85,
+        ocrChecked,
+        ...(aiOcrText ? { aiOcrText } : {}),
+      };
     }
     case "palette": {
       const content = paletteText(card);
@@ -301,24 +435,24 @@ const generateForType = async (
   }
 };
 
-const completeWithoutAi = async (job: CardJob): Promise<MetadataResult> => {
+const completeWithoutAi = async (
+  job: CardJob,
+  read: Pick<Generated, "aiOcrText" | "ocrChecked"> = {}
+): Promise<MetadataResult> => {
   await job.deps.convex.mutation(
     internal.workflows.aiMetadata.mutations.updateCardAI,
     {
       aiTags: [],
       cardId: job.cardId,
       processingStatus: { metadata: stageCompleted(Date.now(), 0) },
+      ...(read.aiOcrText ? { aiOcrText: read.aiOcrText } : {}),
+      ...(read.ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
     },
     guardOf(job)
   );
   return nothing("skipped");
 };
 
-/**
- * Leaves metadata incomplete for the bounded AI backfill to retry, with the
- * stage back to pending as the first run left it. Only a stage this run
- * still has in progress goes back: one that finished stays finished.
- */
 const deferToBackfill = async (
   job: CardJob,
   options: MetadataOptions
@@ -337,7 +471,6 @@ const deferToBackfill = async (
   return nothing("deferred");
 };
 
-/** Generates and stores a card's AI metadata. */
 export const generateCardMetadata = async (
   job: CardJob,
   telemetry: WorkflowTelemetry,
@@ -373,7 +506,13 @@ export const generateCardMetadata = async (
       const type = cardType ?? card.type ?? "text";
       let generated: Generated;
       try {
-        generated = await generateForType(job, telemetry, loaded, type);
+        generated = await generateForType(
+          job,
+          telemetry,
+          loaded,
+          type,
+          options
+        );
       } catch (error) {
         if (
           !isAiMetadataDeferredError(error) ||
@@ -387,15 +526,22 @@ export const generateCardMetadata = async (
         );
         return await deferToBackfill(job, options);
       }
-      const { aiSummary, aiTags, aiTranscript, confidence, visualStyles } =
-        generated;
+      const {
+        aiOcrText,
+        aiSummary,
+        aiTags,
+        aiTranscript,
+        confidence,
+        ocrChecked,
+        visualStyles,
+      } = generated;
       if (
         aiTags.length === 0 &&
         !aiSummary &&
         !aiTranscript &&
         !visualStyles?.length
       ) {
-        return await completeWithoutAi(job);
+        return await completeWithoutAi(job, { aiOcrText, ocrChecked });
       }
       const saved = await job.deps.convex.mutation(
         internal.workflows.aiMetadata.mutations.updateCardAI,
@@ -407,6 +553,8 @@ export const generateCardMetadata = async (
           ...(aiTags.length > 0 ? { aiTags } : {}),
           ...(aiSummary ? { aiSummary } : {}),
           ...(aiTranscript ? { aiTranscript } : {}),
+          ...(aiOcrText ? { aiOcrText } : {}),
+          ...(ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
           ...(isVisualStyleCardType(type) && visualStyles?.length
             ? { visualStyles }
             : {}),

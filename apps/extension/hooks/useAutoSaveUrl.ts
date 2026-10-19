@@ -25,10 +25,10 @@ export interface DuplicateCard {
   url?: string;
 }
 
+export const TAB_READ_DELAY_MS = 300;
+
 export interface UseAutoSaveUrlResult {
-  /** The saved card, or the card already saved for this page. */
   cardId?: string;
-  /** The API's code for a failed save, such as `CARD_LIMIT_REACHED`. */
   code?: string;
   currentUrl?: string;
   duplicateCard?: DuplicateCard | null;
@@ -174,7 +174,7 @@ export const useAutoSaveUrl = (
       }
     };
 
-    const timeoutId = setTimeout(getCurrentTab, 300);
+    const timeoutId = setTimeout(getCurrentTab, TAB_READ_DELAY_MS);
     return () => clearTimeout(timeoutId);
   }, [isAuthenticated]);
 

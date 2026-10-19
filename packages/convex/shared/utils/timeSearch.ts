@@ -88,6 +88,13 @@ const formatMonthLabel = (date: Date) =>
     year: "numeric",
   }).format(date);
 
+const EARLIEST_SEARCH_YEAR = 1900;
+const LATEST_SEARCH_YEAR_AHEAD = 10;
+
+const isSearchYear = (year: number, now: Date): boolean =>
+  year >= EARLIEST_SEARCH_YEAR &&
+  year <= now.getFullYear() + LATEST_SEARCH_YEAR_AHEAD;
+
 const isValidDate = (year: number, monthIndex: number, day: number) => {
   const candidate = new Date(year, monthIndex, day);
   return (
@@ -218,7 +225,7 @@ const parseWeekday = (query: string, now: Date): DateRange | null => {
   };
 };
 
-const parseExplicitDate = (query: string): DateRange | null => {
+const parseExplicitDate = (query: string, now: Date): DateRange | null => {
   const normalized = query;
 
   const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -291,8 +298,8 @@ const parseExplicitDate = (query: string): DateRange | null => {
   }
 
   const yearMatch = normalized.match(/^(\d{4})$/);
-  if (yearMatch) {
-    const year = Number(yearMatch[1]);
+  const year = Number(yearMatch?.[1]);
+  if (yearMatch && isSearchYear(year, now)) {
     const start = new Date(year, 0, 1);
     return {
       start,
@@ -312,7 +319,7 @@ const parseSingleExpression = (
 ): DateRange | null =>
   parseRelative(query, now, weekStart) ||
   parseWeekday(query, now) ||
-  parseExplicitDate(query);
+  parseExplicitDate(query, now);
 
 export function parseTimeSearchQuery(
   query: string,

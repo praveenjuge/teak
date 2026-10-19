@@ -22,14 +22,8 @@ export interface StartTagOperationInput {
 }
 
 export interface UseTagOperationsResult {
-  /**
-   * The latest change, running or finished, so the tag list can show it
-   * before the background counts catch up.
-   */
   latest: TagOperationView | null | undefined;
-  /** The change being followed: the one this tab started or one running. */
   operation: TagOperationView | null | undefined;
-  /** Starts a change and follows it in one progress toast. Throws on refusal. */
   start: (input: StartTagOperationInput) => Promise<TagOperationView>;
 }
 
@@ -43,11 +37,6 @@ const asStalled = <T extends TagOperationView | null | undefined>(
     ? { ...operation, status: "failed" as const }
     : operation;
 
-/**
- * Library-wide tag changes: starting one, and a single toast that tracks it
- * until it finishes. A change already running (after a reload, or from
- * another tab) is picked up and followed too.
- */
 export function useTagOperations(): UseTagOperationsResult {
   const startMutation = useMutation(api.tags.startTagOperation);
   const latest: TagOperationView | null | undefined = useQuery(

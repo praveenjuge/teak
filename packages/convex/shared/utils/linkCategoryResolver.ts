@@ -24,7 +24,6 @@ interface DomainRule {
   confidence?: number;
   description?: string;
   domain: string;
-  /** Match the domain itself (or its `www.`) only, never other subdomains. */
   exactHost?: boolean;
   pathIncludes?: Pick<RegExp, "test">[];
   provider?: string;
@@ -43,7 +42,6 @@ const PROVIDER_CONFIDENCE = 0.72;
 const HEURISTIC_CONFIDENCE = 0.58;
 const FALLBACK_CONFIDENCE = 0.35;
 
-// First path segments on code hosts that are site pages, not owners.
 const CODE_HOST_RESERVED_SEGMENTS = new Set([
   "-",
   "about",
@@ -81,7 +79,6 @@ const CODE_HOST_RESERVED_SEGMENTS = new Set([
   "users",
 ]);
 
-// `/<owner>/<repo>` and anything deeper, unless the owner is a site page.
 const OWNER_REPO_PATH = /^\/([^/]+)\/[^/]+/;
 const REPO_PATH: Pick<RegExp, "test"> = {
   test: (path) => {
@@ -96,6 +93,10 @@ const SOURCEHUT_REPO_PATH = /^\/~[^/]+\/[^/]+/;
 const MASTODON_STATUS_PATH = /^\/@[^/]+\/\d+\/?$/;
 const X_STATUS_PATH = /\/status(?:es)?\/\d+/i;
 const THREADS_POST_PATH = /^\/@[^/]+\/post\/[^/]+/i;
+const SUBSTACK_NOTE_PATH = /\/note\/[^/]+/i;
+const SUBSTACK_ARTICLE_PATH: Pick<RegExp, "test"> = {
+  test: (path) => !SUBSTACK_NOTE_PATH.test(path),
+};
 
 const repoRule = (domain: string, provider?: string): DomainRule => ({
   domain,
@@ -113,7 +114,6 @@ const DOMAIN_RULES: DomainRule[] = [
   repoRule("codeberg.org"),
   repoRule("git.sr.ht"),
   repoRule("hg.sr.ht"),
-  // Social posts. Substack Notes sits before Substack's article rule.
   { domain: "x.com", category: "social_post", pathIncludes: [X_STATUS_PATH] },
   {
     domain: "twitter.com",
@@ -158,7 +158,7 @@ const DOMAIN_RULES: DomainRule[] = [
   {
     domain: "substack.com",
     category: "social_post",
-    pathIncludes: [/\/note\/[^/]+/i],
+    pathIncludes: [SUBSTACK_NOTE_PATH],
   },
   ...MASTODON_HOSTS.map(
     (domain): DomainRule => ({
@@ -169,7 +169,6 @@ const DOMAIN_RULES: DomainRule[] = [
       description: `${domain} status`,
     })
   ),
-  // Apps
   { domain: "apps.apple.com", category: "app", pathIncludes: [/\/app\//i] },
   {
     domain: "play.google.com",
@@ -191,7 +190,6 @@ const DOMAIN_RULES: DomainRule[] = [
     category: "app",
     pathIncludes: [/\/detail\//i],
   },
-  // Games
   {
     domain: "store.steampowered.com",
     category: "game",
@@ -205,7 +203,6 @@ const DOMAIN_RULES: DomainRule[] = [
     category: "game",
     pathIncludes: [/^\/boardgame\//i],
   },
-  // Places: maps, food and travel, real estate
   {
     domain: "google.com",
     category: "place",
@@ -233,7 +230,6 @@ const DOMAIN_RULES: DomainRule[] = [
     pathIncludes: [/^\/properties\//i],
   },
   { domain: "realtor.com", category: "place" },
-  // Typefaces
   {
     domain: "fonts.google.com",
     category: "typeface",
@@ -277,8 +273,20 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "youtube.com", category: "tv", provider: "youtube" },
   { domain: "youtu.be", category: "tv", provider: "youtube" },
   { domain: "vimeo.com", category: "tv" },
+  {
+    domain: "wikipedia.org",
+    category: "article",
+    provider: "wikipedia",
+    pathIncludes: [/^\/wiki\/./],
+    description: "wikipedia article",
+  },
   { domain: "medium.com", category: "article", provider: "medium" },
-  { domain: "substack.com", category: "article", provider: "substack" },
+  {
+    domain: "substack.com",
+    category: "article",
+    provider: "substack",
+    pathIncludes: [SUBSTACK_ARTICLE_PATH],
+  },
   { domain: "dev.to", category: "article" },
   {
     domain: "open.spotify.com",
@@ -296,7 +304,7 @@ const DOMAIN_RULES: DomainRule[] = [
   { domain: "hulu.com", category: "tv" },
   { domain: "eventbrite.com", category: "event" },
   { domain: "lu.ma", category: "event" },
-  { domain: "arxiv.org", category: "research" },
+  { domain: "arxiv.org", category: "research", provider: "arxiv" },
   { domain: "doi.org", category: "research" },
 ];
 

@@ -54,44 +54,36 @@ export interface DefaultCardDef {
   aiTranscript?: string;
   colors?: ReturnType<typeof createColor>[];
   content: string;
-  /** The saved date; defaults to the moment of insertion. */
   createdAt?: number;
-  /** A stored original, with its processed facts in `fileMetadata`. */
   fileKey?: string;
-  /**
-   * File facts: a stored original's, or, in dev scenario packs, an image's
-   * with no stored file, which the grid shows as a block of the card's first
-   * color at that size.
-   */
   fileMetadata?: Doc<"cards">["fileMetadata"];
-  /** Dev scenario packs only: the folders the card starts in. */
-  folderIds?: Id<"folders">[];
-  /** Inserted archived (hidden from the library, still counted). */
   isArchived?: boolean;
-  /** Inserted, then moved to the trash. */
   isDeleted?: boolean;
   isFavorited?: boolean;
   metadata?: Doc<"cards">["metadata"];
   metadataDescription?: string;
   metadataTitle?: string;
   notes?: string;
-  /** Marks a getting-started card (see ONBOARDING_CARDS). */
   onboarding?: string;
-  /** Inserted pending and handed to the card processing workflow. */
   runProcessing?: boolean;
   scrubKey?: string;
-  /**
-   * Dev scenario packs only: the Shuffle key, or `null` for none (a card
-   * saved before Shuffle). Normally a fresh random key.
-   */
-  shuffleKey?: number | null;
-  /** The page a text card was saved from (see `cards.sourceUrl`). */
   sourceTitle?: string;
   sourceUrl?: string;
   tags?: string[];
   thumbnailKey?: string;
   type: CardType;
   url?: string;
+}
+
+/** A card a dev scenario pack seeds, in the state the scenario starts in. */
+export interface DevScenarioCardDef extends DefaultCardDef {
+  /** Text read from the image, filled in directly. */
+  aiOcrText?: string;
+  /** When the link was marked done. */
+  completedAt?: number;
+  folderIds?: Id<"folders">[];
+  /** The Shuffle key, or `null` for none (a card saved before Shuffle). */
+  shuffleKey?: number | null;
 }
 
 /**
@@ -104,7 +96,6 @@ export const LEGACY_ONBOARDING_CARD_CONTENTS: readonly string[] = [
   "Sunset gradient palette",
 ];
 
-/** True for a getting-started card, old or new. */
 export const isOnboardingCard = (card: {
   content: string;
   onboarding?: string;
@@ -112,21 +103,17 @@ export const isOnboardingCard = (card: {
   card.onboarding !== undefined ||
   LEGACY_ONBOARDING_CARD_CONTENTS.includes(card.content);
 
-/** Every getting-started card carries it, so `#getting-started` finds them. */
 export const ONBOARDING_TAG = "getting-started";
-/** The folder holding the getting-started cards. */
 export const ONBOARDING_FOLDER = {
   name: "Start here",
   color: "orange",
 } as const;
-/** A smart folder that shows how saved searches fill themselves. */
 export const ONBOARDING_SMART_FOLDER = {
   name: "Moodboard",
   color: "pink",
   query: "type:image type:palette",
 } as const;
 
-/** Where a stored getting-started file goes on its card. */
 export type OnboardingSlot =
   | "file"
   | "linkImage"
@@ -134,17 +121,13 @@ export type OnboardingSlot =
   | "scrub"
   | "thumbnail";
 
-/** A file stored in the new account before its card is inserted. */
 export interface OnboardingUpload {
   mimeType: string;
-  /** The stored name; for `file`, also the name the card shows. */
   name: string;
   slot: OnboardingSlot;
-  /** The file in card/onboarding, embedded by scripts/onboarding-files.ts. */
   source: string;
 }
 
-/** The storage keys of a card's uploads, and its original's size. */
 export interface OnboardingStored {
   fileSize?: number;
   keys: Partial<Record<OnboardingSlot, string>>;
@@ -153,10 +136,6 @@ export interface OnboardingStored {
 
 export interface OnboardingCardDef extends DefaultCardDef {
   onboarding: string;
-  /**
-   * Files the card needs, with the pipeline's output for them captured in
-   * card/onboarding (see its README), so the card arrives finished.
-   */
   uploads?: OnboardingUpload[];
 }
 
@@ -178,12 +157,6 @@ const WELCOME_CONTENT = `Welcome to Teak, a home for everything that inspires yo
 
 These cards live in the **Start here** folder. When you're done exploring, select them and move them to Trash.`;
 
-/**
- * The getting-started cards, newest first, so the welcome card leads the grid.
- * Each one is an example of its card type, and its note says what to try.
- * File cards carry what Teak's pipeline made of their files, so a new account
- * gets every card complete and at its final size, with nothing left to process.
- */
 export const ONBOARDING_CARDS: OnboardingCardDef[] = [
   {
     onboarding: "welcome",
@@ -416,19 +389,14 @@ export const ONBOARDING_CARDS: OnboardingCardDef[] = [
   },
 ];
 
-/**
- * Insert fully processed cards, one second apart so they keep their order.
- * Usage counts and search documents are kept in step, like any other card.
- * A `runProcessing` card is inserted pending instead and processed like a
- * newly created card.
- */
 export const insertCompletedCards = async (
   ctx: MutationCtx,
   userId: string,
-  cards: DefaultCardDef[],
+  cards: readonly DevScenarioCardDef[],
   /** Dev scenario packs only: count the cards as on Pro, past the free cap. */
   options: { ignoreCardLimit?: boolean } = {}
-): Promise<void> => {
+): Promise<Id<"cards">[]> => {
+  const ids: Id<"cards">[] = [];
   await initializeCardUsageShards(
     ctx,
     await getOrInitializeCardUsage(ctx, userId)
@@ -437,7 +405,7 @@ export const insertCompletedCards = async (
   const processingStatus = buildCompletedProcessingStatus(now);
   for (const [i, cardDef] of cards.entries()) {
     const timestamp = cardDef.createdAt ?? now + i * 1000;
-    const { colorHexes, colorHues } = buildColorFacets(cardDef.colors as any);
+    const { colorHexes, colorHues } = buildColorFacets(cardDef.colors);
     const cardId = await ctx.db.insert("cards", {
       userId,
       type: cardDef.type,
@@ -452,12 +420,15 @@ export const insertCompletedCards = async (
         : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),
       tags: cardDef.tags,
       notes: cardDef.notes,
-      colors: cardDef.colors as any,
+      colors: cardDef.colors,
       colorHexes,
       colorHues,
       aiTags: cardDef.aiTags,
       aiSummary: cardDef.aiSummary,
       aiTranscript: cardDef.aiTranscript,
+      ...(cardDef.aiOcrText
+        ? { aiOcrText: cardDef.aiOcrText, ocrCheckedAt: timestamp }
+        : {}),
       fileKey: cardDef.fileKey,
       fileMetadata: cardDef.fileMetadata,
       thumbnailKey: cardDef.thumbnailKey,
@@ -471,6 +442,9 @@ export const insertCompletedCards = async (
       ...(cardDef.isArchived
         ? { isArchived: true as const, archivedAt: timestamp }
         : {}),
+      ...(cardDef.completedAt === undefined
+        ? {}
+        : { completedAt: cardDef.completedAt }),
       ...(isHiddenTagList(cardDef.tags) ? { isHidden: true as const } : {}),
       ...(cardDef.runProcessing
         ? {
@@ -505,14 +479,16 @@ export const insertCompletedCards = async (
     ) {
       await ctx.scheduler.runAfter(
         0,
-        (internal as any)["migration/extractDocumentText"].extractDocumentText,
+        internal["migration/extractDocumentText"].extractDocumentText,
         { cardId }
       );
     }
     if (cardDef.runProcessing) {
       await queueCardProcessing(ctx, cardId);
     }
+    ids.push(cardId);
   }
+  return ids;
 };
 
 const ensureFolder = async (
@@ -544,11 +520,6 @@ const ensureFolder = async (
   );
 };
 
-/**
- * A getting-started card as inserted: its stored files in place, or null when
- * one is missing. A link without its preview files is processed instead, like
- * any saved link.
- */
 export const finishOnboardingCard = (
   def: OnboardingCardDef,
   stored: OnboardingStored | undefined,
@@ -603,7 +574,6 @@ export const finishOnboardingCard = (
   };
 };
 
-/** Mark a new account's getting-started cards as on their way. */
 export const startVaultSetup = async (ctx: MutationCtx, userId: string) => {
   await ctx.db.insert("vaultSetups", { userId, startedAt: Date.now() });
 };
@@ -614,10 +584,6 @@ const vaultSetupsOf = (ctx: MutationCtx, userId: string) =>
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .take(10);
 
-/**
- * Clears the account's setup mark. True for the one caller that found it, so
- * of the upload action and the backstop only the first inserts cards.
- */
 const claimVaultSetup = async (
   ctx: MutationCtx,
   userId: string
@@ -629,7 +595,6 @@ const claimVaultSetup = async (
   return rows.length > 0;
 };
 
-/** How long the backstop waits before inserting what needs no files. */
 export const ONBOARDING_BACKSTOP_MS = 5 * 60 * 1000;
 
 const hasOnboardingCards = async (ctx: MutationCtx, userId: string) => {
@@ -675,13 +640,6 @@ const insertOnboardingCardSet = async (
   return cards.length;
 };
 
-/**
- * Give a new account its getting-started cards. Their files are stored first
- * (addOnboardingCards), then every card is inserted in one go, so the grid
- * fills once and nothing moves. Without the Files Worker (a self-hosted setup
- * without files), the cards that need no files are inserted right away. Runs
- * only while the account has no cards.
- */
 export const createDefaultCardsForUser = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
@@ -727,13 +685,6 @@ export const createDefaultCardsForUser = internalMutation({
 
 const onboardingSlotValidator = v.optional(v.string());
 
-/**
- * Insert the getting-started cards once addOnboardingCards stored their files,
- * or, with none stored, the ones that need no files. The upload action and
- * the backstop both arrive; only the first finds the setup mark and inserts,
- * so cards deleted for good in between never come back. Returns how many
- * cards it inserted.
- */
 export const insertOnboardingCards = internalMutation({
   args: {
     createdAt: v.number(),

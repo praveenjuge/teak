@@ -1,4 +1,5 @@
 ---
+import { serializeJsonLd } from "@teak/convex/shared/utils/jsonLd";
 import "../theme.css";
 import "../styles/marketing.css";
 
@@ -31,19 +32,6 @@ const {
 } = Astro.props;
 
 const fullTitle = title.includes("| Teak") ? title : `${title} | Teak`;
-
-function buildJsonLd(schema: object | object[]) {
-  if (Array.isArray(schema)) {
-    return JSON.stringify({
-      "@context": "https://schema.org",
-      "@graph": schema.map((item) => {
-        const { "@context": _, ...rest } = item as Record<string, unknown>;
-        return rest;
-      }),
-    });
-  }
-  return JSON.stringify(schema);
-}
 ---
 
 <!doctype html>
@@ -67,7 +55,6 @@ function buildJsonLd(schema: object | object[]) {
     <meta name="author" content="Teak Team" />
     <link rel="canonical" href={canonical} />
 
-    <!-- Open Graph -->
     <meta property="og:title" content={ogTitle || title} />
     <meta property="og:description" content={ogDescription || description} />
     <meta property="og:type" content={ogType} />
@@ -77,21 +64,18 @@ function buildJsonLd(schema: object | object[]) {
     <meta property="og:image:width" content="1600" />
     <meta property="og:image:height" content="840" />
 
-    <!-- Twitter -->
     <meta name="twitter:card" content={twitterCard} />
     <meta name="twitter:title" content={ogTitle || title} />
     <meta name="twitter:description" content={ogDescription || description} />
     <meta name="twitter:image" content={ogImage} />
 
-    <!-- Robots -->
     {noIndex ? (
       <meta name="robots" content="noindex, nofollow" />
     ) : (
       <meta name="robots" content="index, follow" />
     )}
 
-    <!-- JSON-LD -->
-    {jsonLd && <script is:inline type="application/ld+json" set:html={buildJsonLd(jsonLd)} />}
+    {jsonLd && <script is:inline type="application/ld+json" set:html={serializeJsonLd(jsonLd)} />}
 
     <meta name="referrer" content="strict-origin-when-cross-origin" />
   </head>

@@ -7,7 +7,7 @@ Teak's repository is public, so every PR title, body, comment, and linked image 
 - Title: a conventional commit, `type(scope): outcome`, for example `fix(web): steady grid selection`. Scopes match the workspace (`web`, `extension`, `convex`, `docs`, `plans`, `admin`...).
 - Fill the template's sections in order. Delete sections that don't apply and every HTML comment; leave no empty headings or placeholders.
 - Write for a reviewer who hasn't seen the session: the user-visible outcome first, then the detail they need to review the diff. Name files, functions, and tables in backticks when they help.
-- Report verification faithfully: the commands you ran and what they returned, what you checked in the real interface, and anything you could not check and why.
+- Report verification faithfully: the commands you ran and what they returned, the `verify-teak` features you drove and what you observed, and anything you could not check and why.
 - Keep the tool attribution lines the agent harness adds; add nothing else about the session.
 
 ## Never in a PR

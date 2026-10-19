@@ -176,7 +176,7 @@ private struct VideoTileMedia: View {
             guard isHovering, videoURL == nil else { return }
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled, isHovering else { return }
-            let full: Card? = try? await app.backend.query("cards:getCard", ["id": .string(card.id)])
+            let full = try? await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
             withAnimation(.easeOut(duration: 0.2)) { videoURL = SafeURL.sanitize(full?.fileUrl) }
         }
     }

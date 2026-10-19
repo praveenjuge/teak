@@ -5,50 +5,37 @@ import type { CardType } from "../schema";
 import { shuffleDescends, shuffleStart } from "../shared/search/shuffle";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
 import {
-  type ArchivedFilter,
-  archivedFilterMatch,
+  type CardListScope,
   type CreatedAtBounds,
+  scopeArchivedMatch,
+  scopeDeletedMatch,
 } from "./listQuery";
 
-/** The Shuffle key a new card gets: uniform in [0, 1), never changed. */
 export const newShuffleKey = (): number => Math.random();
 
 export interface ShuffleWalkOptions {
-  archived?: ArchivedFilter;
   createdAt?: CreatedAtBounds;
   favoritesOnly?: boolean;
-  /** Hidden cards too: the search names a reserved tag. */
   includeHidden?: boolean;
+  scope?: CardListScope;
   seed: number;
-  trash?: boolean;
   types?: readonly CardType[];
   userId: string;
 }
 
-/**
- * Where a walk is: the segment it is reading and the page cursor inside it
- * (null at the segment's start).
- */
 export interface ShuffleWalkPosition {
   page: string | null;
   segment: number;
 }
 
 const archiveStates = (options: ShuffleWalkOptions): (true | undefined)[] => {
-  const match = archivedFilterMatch(options.archived, options.trash);
+  const match = scopeArchivedMatch(options.scope);
   return match === "any" ? [undefined, true] : [match];
 };
 
-/** How many segments a walk reads: two per archive state. */
 export const shuffleSegmentCount = (options: ShuffleWalkOptions): number =>
   archiveStates(options).length * 2;
 
-/**
- * One segment of the walk. Going up, a state's cards are read from the
- * seed's start point to the top (keys >= start), then from the bottom back
- * up to it (keys < start, cards without a key first); going down, the
- * other way round. Every card is read exactly once, whatever the seed.
- */
 export const buildShuffleSegmentQuery = (
   ctx: QueryCtx,
   options: ShuffleWalkOptions,
@@ -65,7 +52,7 @@ export const buildShuffleSegmentQuery = (
     ctx.db.query("cards").withIndex("by_user_deleted_archived_shuffle", (q) => {
       const base = q
         .eq("userId", options.userId)
-        .eq("isDeleted", options.trash ? true : undefined)
+        .eq("isDeleted", scopeDeletedMatch(options.scope))
         .eq("isArchived", state);
       return upperRange
         ? base.gte("shuffleKey", start)
@@ -108,12 +95,8 @@ export const buildShuffleSegmentQuery = (
   });
 };
 
-/**
- * One page of the walk: up to `numItems` cards from the current segment.
- * A page never crosses into the next segment (a query can paginate once),
- * so it can come back short, or empty, with more still to read. Reads at
- * most `maximumRowsRead` rows when the filters skip many.
- */
+// A Convex query can paginate once, so a page stays inside one segment and
+// can come back short, or empty, with more still to read.
 export const pageShuffleWalk = async (
   ctx: QueryCtx,
   options: ShuffleWalkOptions,
@@ -151,7 +134,6 @@ export const pageShuffleWalk = async (
 
 const WALK_CURSOR_VERSION = 1;
 
-/** A walk position as a page cursor, tied to the seed that started it. */
 export const encodeShuffleWalkCursor = (
   seed: number,
   position: ShuffleWalkPosition
@@ -163,10 +145,6 @@ export const encodeShuffleWalkCursor = (
     page: position.page,
   });
 
-/**
- * The position in a cursor this walk issued for `seed`, the start for no
- * cursor, or null for any other cursor (another seed or sort, or garbage).
- */
 export const decodeShuffleWalkCursor = (
   seed: number,
   cursor: string | null | undefined

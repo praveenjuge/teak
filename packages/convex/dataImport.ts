@@ -78,6 +78,7 @@ const itemInputValidator = v.object({
   folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
+  importedCompletedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
   fileSize: v.optional(v.number()),
@@ -311,10 +312,6 @@ export const getJob = internalQuery({
   handler: (ctx, { jobId }) => ctx.db.get(jobId),
 });
 
-/**
- * What the import workflow needs from its job, with the owner's storage
- * prefix for the objects it writes.
- */
 export const getWorkflowJob = internalQuery({
   args: { jobId: v.id("importJobs") },
   returns: v.union(
@@ -627,6 +624,7 @@ export const createPendingBatch = internalMutation({
           {
             importedVisibleFields: {
               createdAt: item.importedCreatedAt,
+              completedAt: item.importedCompletedAt,
               isFavorited: item.isFavorited,
               isArchived: item.isArchived === true,
               metadataTitle: importedBookmarkTitle(job.mode, item),
@@ -634,8 +632,6 @@ export const createPendingBatch = internalMutation({
             source: "import",
           }
         );
-        // Folders come after the card so a card refused at the card limit
-        // leaves no empty folders behind.
         if (item.folders?.length) {
           const folderIds = await getOrCreateImportFolderIds(
             ctx,

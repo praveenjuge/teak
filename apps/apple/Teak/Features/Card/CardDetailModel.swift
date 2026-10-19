@@ -25,7 +25,7 @@ final class CardDetailModel {
         task = Task {
             while !Task.isCancelled {
                 do {
-                    for try await value in backend.subscribe("cards:getCard", ["id": .string(id)], as: Card?.self) {
+                    for try await value in backend.subscribe(ConvexFunctions.getCard, ["id": .string(id)]) {
                         card = value
                         isLoading = false
                         if favoriteOverride == value?.isFavorited { favoriteOverride = nil }
@@ -47,7 +47,7 @@ final class CardDetailModel {
     var isFavorited: Bool { favoriteOverride ?? card?.favorited ?? false }
 
     private func update(_ args: ConvexArgs) async throws {
-        let _: ConvexVoid = try await backend.mutation("cards:updateCardField", args.merging(["cardId": .string(id)]) { $1 })
+        let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, args.merging(["cardId": .string(id)]) { $1 })
     }
 
     func toggleFavorite() async -> Bool {
@@ -73,7 +73,7 @@ final class CardDetailModel {
 
     func deleteForever() async -> Bool {
         await perform("Couldn't delete this card.") {
-            let _: ConvexVoid = try await self.backend.mutation("cards:permanentDeleteCard", ["id": .string(self.id)])
+            let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(self.id)])
         }
     }
 
@@ -81,7 +81,7 @@ final class CardDetailModel {
         isSaving = true
         defer { isSaving = false }
         for change in changes {
-            let _: ConvexVoid = try await backend.mutation("cards:updateCardField", change.args(cardId: id))
+            let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, change.args(cardId: id))
         }
     }
 

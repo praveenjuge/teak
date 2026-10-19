@@ -1,10 +1,10 @@
 import { type CardType, cardTypes } from "../constants";
+import { ACTIONABLE_LINK_CATEGORIES } from "../linkCategories";
 import { MAX_TAG_KEY_LENGTH, tagKey } from "../tags";
 import { normalizeHexColor } from "../utils/colorUtils";
 import { hostForDisplay, normalizeUrlHost } from "../utils/urlHost";
 import { SEARCH_TOKEN_TRIM_CHARACTERS } from "./constants";
 
-/** The keys a search can use, as in `tag:design`. */
 export const SEARCH_QUALIFIER_KEYS = [
   "tag",
   "type",
@@ -14,73 +14,54 @@ export const SEARCH_QUALIFIER_KEYS = [
   "like",
   "mood",
   "price",
+  "text",
 ] as const;
 export type SearchQualifierKey = (typeof SEARCH_QUALIFIER_KEYS)[number];
 
-export type SearchIsValue = "fav" | "archived";
+export type SearchIsValue = "fav" | "archived" | "done" | "todo";
 
 export type PriceComparison = "<" | ">" | "<=" | ">=" | "=";
 
-/** A `price:` bound, as in `price:<100`: compared with a card's amount. */
 export interface PriceBound {
   amount: number;
   op: PriceComparison;
 }
 
-/**
- * One qualifier in a search. Values are normalized: tags lowercased, sites
- * as normalized hosts (see normalizeUrlHost); folder names keep their
- * spelling and match ignoring case.
- */
 export type SearchQualifier =
   | { key: "tag"; value: string }
   | { key: "type"; value: CardType }
   | { key: "is"; value: SearchIsValue }
   | { key: "site"; value: string }
   | { key: "folder"; value: string }
-  /** The cards closest in meaning to this card (its id). */
   | { key: "like"; value: string }
-  /** Images whose description matches this text by meaning. */
   | { key: "mood"; value: string }
-  /** The bound written the canonical way: `<100`, `>=9.99`. */
-  | { key: "price"; value: string };
+  | { key: "price"; value: string }
+  | { key: "text"; value: string };
 
-/** What a search finds by meaning instead of by its words (one at most). */
 export type SearchSimilarity =
   | { kind: "like"; cardId: string }
   | { kind: "mood"; text: string };
 
-/** Longest `mood:` text kept. */
 const MAX_MOOD_LENGTH = 200;
-/** A Convex document id: lowercase letters and digits. */
-const CARD_ID_PATTERN = /^[0-9a-z]{31,37}$/;
+const MAX_OCR_TEXT_LENGTH = 200;
+const CONVEX_ID_PATTERN = /^[0-9a-z]{31,37}$/;
 
 export interface ParsedSearchQuery {
-  /** True with `is:archived`: archived cards (or archived cards in Trash). */
   archived: boolean;
-  /** The query written the one way every surface writes it. */
   canonical: string;
-  /** True with `is:fav`. */
+  done: boolean;
   favorite: boolean;
-  /** `folder:` names, trimmed and lowercased like a folder's name key. */
   folders: string[];
-  /** Quoted phrases, matched as written (ignoring case) in a card's text. */
+  ocrTexts: string[];
   phrases: string[];
-  /** `price:` bounds; a card's amount must meet every one. */
   prices: PriceBound[];
-  /** Every qualifier, deduplicated, in the order typed. */
   qualifiers: SearchQualifier[];
-  /** `like:` or `mood:`, when the search has one. */
   similarity?: SearchSimilarity | null;
-  /** `site:` hosts, normalized. */
   sites: string[];
-  /** `tag:` and `#tag` values, lowercased. */
   tags: string[];
-  /** Plain words, as typed (hex colors like `#fff` stay words). */
   terms: string[];
-  /** The words to give the full-text index: plain words and phrase words. */
   text: string;
-  /** `type:` card types. */
+  todo: boolean;
   types: CardType[];
 }
 
@@ -96,6 +77,8 @@ const FAVORITE_WORDS = new Set([
   "starred",
 ]);
 const ARCHIVED_WORDS = new Set(["archived", "archive"]);
+const DONE_WORDS = new Set(["done", "completed", "finished"]);
+const TODO_WORDS = new Set(["todo", "to-do"]);
 
 interface RawToken {
   prefix: string;
@@ -185,10 +168,6 @@ const parseType = (value: string): CardType | null => {
 
 const PRICE_BOUND_PATTERN = /^(<=|>=|<|>|=)(\d{1,12}(?:\.\d{1,6})?)$/;
 
-/**
- * A `price:` value: `<N`, `>N`, `<=N`, `>=N` or `=N` with a plain decimal
- * amount. Null for anything else (`abc`, `<`, `<1e9`, `<-5`).
- */
 export const parsePriceBound = (value: string): PriceBound | null => {
   const match = PRICE_BOUND_PATTERN.exec(value.trim());
   if (!match) {
@@ -200,11 +179,9 @@ export const parsePriceBound = (value: string): PriceBound | null => {
     : null;
 };
 
-/** A bound written the canonical way: `<100`, `>=9.99`. */
 export const formatPriceBound = (bound: PriceBound): string =>
   `${bound.op}${bound.amount}`;
 
-/** Whether an amount meets a bound. */
 export const priceMeetsBound = (amount: number, bound: PriceBound) => {
   switch (bound.op) {
     case "<":
@@ -220,10 +197,6 @@ export const priceMeetsBound = (amount: number, bound: PriceBound) => {
   }
 };
 
-/**
- * Whether a card's price meets every bound. A card without a price never
- * does when there is a bound.
- */
 export const matchesPriceBounds = (
   amount: number | null | undefined,
   bounds: readonly PriceBound[]
@@ -232,7 +205,6 @@ export const matchesPriceBounds = (
   (typeof amount === "number" &&
     bounds.every((bound) => priceMeetsBound(amount, bound)));
 
-/** A bound for people: "Under 100", "20 or more". */
 export const describePriceBound = (bound: PriceBound): string => {
   const amount = bound.amount.toLocaleString("en-US", {
     maximumFractionDigits: 6,
@@ -275,6 +247,12 @@ const parseQualifier = (
       if (FAVORITE_WORDS.has(word)) {
         return { key, value: "fav" };
       }
+      if (DONE_WORDS.has(word)) {
+        return { key, value: "done" };
+      }
+      if (TODO_WORDS.has(word)) {
+        return { key, value: "todo" };
+      }
       return ARCHIVED_WORDS.has(word) ? { key, value: "archived" } : null;
     }
     case "site": {
@@ -284,7 +262,7 @@ const parseQualifier = (
     case "folder":
       return { key, value };
     case "like":
-      return CARD_ID_PATTERN.test(value) ? { key, value } : null;
+      return CONVEX_ID_PATTERN.test(value) ? { key, value } : null;
     case "mood": {
       const text = value.replace(/\s+/g, " ").slice(0, MAX_MOOD_LENGTH).trim();
       return text ? { key, value: text } : null;
@@ -292,6 +270,10 @@ const parseQualifier = (
     case "price": {
       const bound = parsePriceBound(value);
       return bound ? { key, value: formatPriceBound(bound) } : null;
+    }
+    case "text": {
+      const text = value.replace(/\s+/g, " ").slice(0, MAX_OCR_TEXT_LENGTH);
+      return text.trim() ? { key, value: text.trim() } : null;
     }
     default:
       return null;
@@ -301,11 +283,11 @@ const parseQualifier = (
 const isSimilarityKey = (key: SearchQualifierKey) =>
   key === "like" || key === "mood";
 
-// Folder names and moods match whatever their case: `mood:Calm` and
-// `mood:calm` are one anchor.
 const qualifierIdentity = (qualifier: SearchQualifier): string =>
   `${qualifier.key}:${
-    qualifier.key === "folder" || qualifier.key === "mood"
+    qualifier.key === "folder" ||
+    qualifier.key === "mood" ||
+    qualifier.key === "text"
       ? qualifier.value.toLowerCase()
       : qualifier.value
   }`;
@@ -331,14 +313,6 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
   return `${qualifier.key}:${needsQuotes(value) ? quoteSearchValue(value) : value}`;
 };
 
-/**
- * Reads a search: qualifiers (`tag:`, `#tag`, `type:`, `is:fav`,
- * `is:archived`, `site:`, `folder:`, `price:<100`, `like:<card id>`,
- * `mood:"…"`), quoted phrases and plain words. Keys
- * ignore case and take quoted values (`folder:"Reading list"`). A value a
- * key cannot use, an unknown key and a valid hex color after `#` stay plain
- * words. Every surface reads searches with this one parser.
- */
 export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   const qualifiers: SearchQualifier[] = [];
   const seen = new Set<string>();
@@ -380,7 +354,6 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
             qualifierIdentity(other) !== qualifierIdentity(qualifier)
         )
       ) {
-        // One anchor per search: a second one is just text.
         terms.push(token.text);
       } else if (qualifier) {
         addQualifier(qualifier);
@@ -423,6 +396,7 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   const sites: string[] = [];
   const folders: string[] = [];
   const prices: PriceBound[] = [];
+  const ocrTexts: string[] = [];
   const is = new Set<SearchIsValue>();
   let similarity: SearchSimilarity | null = null;
   for (const qualifier of qualifiers) {
@@ -443,6 +417,8 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       if (bound) {
         prices.push(bound);
       }
+    } else if (qualifier.key === "text") {
+      ocrTexts.push(qualifier.value);
     } else {
       is.add(qualifier.value);
     }
@@ -460,9 +436,12 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     phrases,
     text: [...terms, ...phrases].join(" ").trim(),
     tags,
+    ocrTexts,
     types,
     favorite: is.has("fav"),
     archived: is.has("archived"),
+    done: is.has("done"),
+    todo: is.has("todo"),
     sites,
     folders,
     similarity,
@@ -471,21 +450,12 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
   };
 };
 
-/**
- * One search that matches what both `scope` and `typed` match, written the
- * canonical way, or null when nothing can match both. Within one search
- * `type:` and `site:` match any of their values, so across the two they
- * intersect; tags, folders, prices, phrases, words and `is:` add up, so
- * `price:>20` and `price:<100` make a range. A smart folder's stored query
- * is the scope and the search box's text is typed.
- */
 export const combineSearchQueries = (
   scope: string,
   typed: string
 ): string | null => {
   const outer = parseSearchQuery(scope);
   const inner = parseSearchQuery(typed);
-  // One anchor per search: two different ones can never both match.
   if (
     outer.similarity &&
     inner.similarity &&
@@ -529,11 +499,6 @@ export const combineSearchQueries = (
   ).canonical;
 };
 
-/**
- * The search with every `folder:` naming `fromNameKey` (a folder's name
- * key) renamed to `toName`, written the canonical way; unchanged when it
- * names no such folder. Keeps smart folders pointing at a renamed folder.
- */
 export const renameFolderInSearchQuery = (
   query: string,
   fromNameKey: string,
@@ -558,11 +523,9 @@ export const renameFolderInSearchQuery = (
   ).canonical;
 };
 
-/** Whether a search uses any qualifier. */
 export const hasSearchQualifiers = (parsed: ParsedSearchQuery) =>
   parsed.qualifiers.length > 0;
 
-/** Whether a card's text contains every quoted phrase (ignoring case). */
 export const matchesSearchPhrases = (
   searchableText: string,
   phrases: readonly string[]
@@ -572,4 +535,43 @@ export const matchesSearchPhrases = (
   }
   const text = searchableText.toLowerCase();
   return phrases.every((phrase) => text.includes(phrase.toLowerCase()));
+};
+
+const WHITESPACE_RUNS = /\s+/g;
+
+export const matchesDoneState = (
+  card: {
+    completedAt?: number;
+    metadata?: { linkCategory?: { category?: string } };
+  },
+  parsed: Pick<ParsedSearchQuery, "done" | "todo">
+): boolean => {
+  if (parsed.done && card.completedAt === undefined) {
+    return false;
+  }
+  if (parsed.todo) {
+    const category = card.metadata?.linkCategory?.category;
+    return (
+      card.completedAt === undefined &&
+      category !== undefined &&
+      ACTIONABLE_LINK_CATEGORIES.has(category)
+    );
+  }
+  return true;
+};
+
+export const matchesImageText = (
+  imageText: string | null | undefined,
+  values: readonly string[]
+) => {
+  if (values.length === 0) {
+    return true;
+  }
+  if (!imageText) {
+    return false;
+  }
+  const text = imageText.replace(WHITESPACE_RUNS, " ").toLowerCase();
+  return values.every((value) =>
+    text.includes(value.replace(WHITESPACE_RUNS, " ").toLowerCase())
+  );
 };

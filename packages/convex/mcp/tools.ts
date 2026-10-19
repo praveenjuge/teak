@@ -212,6 +212,10 @@ const archivedInputSchema = z.object({
   cardId: nonEmptyString,
   isArchived: z.boolean(),
 });
+const doneInputSchema = z.object({
+  cardId: nonEmptyString,
+  done: z.boolean(),
+});
 const folderNameSchema = nonEmptyString.max(MAX_FOLDER_NAME_LENGTH);
 const folderColorSchema = z.enum(FOLDER_COLORS);
 const smartFolderQuerySchema = nonEmptyString.max(
@@ -475,13 +479,47 @@ const executeToolOperation = async (
   };
 };
 
-interface ToolConfig {
+interface ToolSpec<Input> {
   isError?: (payload: JsonObject) => boolean;
-  operation: (input: any) => PublicApiToolOperation;
-  schema: z.ZodTypeAny;
-  summary: (payload: JsonObject, input: any) => string;
-  transform?: (payload: JsonObject, input: any) => JsonObject;
+  operation: (input: Input) => PublicApiToolOperation;
+  schema: z.ZodType<Input>;
+  summary: (payload: JsonObject, input: Input) => string;
+  transform?: (payload: JsonObject, input: Input) => JsonObject;
 }
+
+type ToolRun = (
+  input: unknown,
+  request: Request,
+  executor: PublicApiToolExecutor
+) => Promise<McpToolResult>;
+
+const defineTool =
+  <Input>(spec: ToolSpec<Input>): ToolRun =>
+  async (input, request, executor) => {
+    const parsed = spec.schema.safeParse(input);
+    if (!parsed.success) {
+      return validationError(
+        parsed.error.issues[0]?.message ?? "Invalid input"
+      );
+    }
+    const result = await executeToolOperation(
+      spec.operation(parsed.data),
+      request,
+      executor
+    );
+    if (!result.ok) {
+      return result.result;
+    }
+    const payload =
+      spec.transform?.(result.payload, parsed.data) ?? result.payload;
+    const toolResult = successResult(
+      payload,
+      spec.summary(payload, parsed.data)
+    );
+    return spec.isError?.(payload)
+      ? { ...toolResult, isError: true }
+      : toolResult;
+  };
 
 const count = (payload: JsonObject, field = "items"): number =>
   Array.isArray(payload[field]) ? payload[field].length : 0;
@@ -511,28 +549,33 @@ const cardsQuery = ({ include, ...filters }: JsonObject) =>
     ...(filters as Record<string, QueryValue>),
     include: Array.isArray(include) ? include.join(",") : FULL_CARD_INCLUDE,
   });
-const queryTool = (extraQuery: Record<string, QueryValue>): ToolConfig => ({
-  schema: queryInputSchema,
-  operation: (input) => ({
-    method: "GET",
-    path: "/v1/cards",
-    query: queryParams({ ...cardsQuery(input), ...extraQuery }),
-  }),
-  transform: (payload) => ({
-    ...pageToCardResults(payload),
-    pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
-    ...(payload.searchMode ? { searchMode: payload.searchMode } : {}),
-    ...(typeof payload.relevanceRanked === "boolean"
-      ? { relevanceRanked: payload.relevanceRanked }
-      : {}),
-  }),
-  summary: (payload) => `Fetched ${Number(payload.total) || 0} cards`,
-});
+const queryTool = (
+  extraQuery: Record<string, QueryValue>,
+  summary: (payload: JsonObject) => string = (payload) =>
+    `Fetched ${Number(payload.total) || 0} cards`
+): ToolRun =>
+  defineTool({
+    schema: queryInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: "/v1/cards",
+      query: queryParams({ ...cardsQuery(input), ...extraQuery }),
+    }),
+    transform: (payload) => ({
+      ...pageToCardResults(payload),
+      pageInfo: payload.pageInfo ?? { hasMore: false, nextCursor: null },
+      ...(payload.searchMode ? { searchMode: payload.searchMode } : {}),
+      ...(typeof payload.relevanceRanked === "boolean"
+        ? { relevanceRanked: payload.relevanceRanked }
+        : {}),
+    }),
+    summary,
+  });
 const idempotencyHeaders = (key?: string): HeadersInit | undefined =>
   key ? { "Idempotency-Key": key } : undefined;
 
-const toolConfigs: Record<string, ToolConfig> = {
-  teak_v1_list_cards: {
+const toolConfigs: Record<string, ToolRun> = {
+  teak_v1_list_cards: defineTool({
     schema: listCardsInputSchema,
     operation: (input) => ({
       method: "GET",
@@ -540,13 +583,29 @@ const toolConfigs: Record<string, ToolConfig> = {
       query: cardsQuery(input),
     }),
     summary: (payload) => `Fetched ${count(payload)} cards`,
-  },
-  teak_v1_get_card: {
+  }),
+  teak_v1_get_card: defineTool({
     schema: cardIdInputSchema,
     operation: (input) => ({ method: "GET", path: cardPath(input.cardId) }),
     summary: (_payload, input) => `Fetched card ${input.cardId}`,
-  },
-  teak_v1_get_card_content: {
+  }),
+  teak_v1_get_card_links: defineTool({
+    schema: cardIdInputSchema,
+    operation: (input) => ({ method: "GET", path: cardPath(input.cardId) }),
+    transform: (payload) => ({
+      backlinks: Array.isArray(payload.backlinks) ? payload.backlinks : [],
+      backlinksTruncated: payload.backlinksTruncated === true,
+      links: Array.isArray(payload.links) ? payload.links : [],
+      linksTruncated: payload.linksTruncated === true,
+    }),
+    summary: (payload, input) => {
+      const backlinks = count(payload, "backlinks");
+      const more = (truncated: unknown) =>
+        truncated === true ? " (truncated)" : "";
+      return `Card ${input.cardId} links to ${countLabel(count(payload, "links"), "card")}${more(payload.linksTruncated)}; ${countLabel(backlinks, "card")}${more(payload.backlinksTruncated)} ${backlinks === 1 ? "links" : "link"} to it`;
+    },
+  }),
+  teak_v1_get_card_content: defineTool({
     schema: cardIdInputSchema,
     operation: (input) => ({
       method: "GET",
@@ -554,15 +613,15 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (payload, input) =>
       `Read ${Number(payload.charCount) || 0} characters of ${typeof payload.kind === "string" ? payload.kind : "text"} from card ${input.cardId}${payload.truncated ? " (truncated)" : ""}`,
-  },
-  teak_v1_get_me: {
+  }),
+  teak_v1_get_me: defineTool({
     schema: z.object({}),
     operation: () => ({ method: "GET", path: "/v1/me" }),
     transform: (payload) => toObjectPayload(payload.data),
     summary: (payload) =>
       `Signed in on the ${payload.plan === "pro" ? "Pro" : "Free"} plan with ${Number(payload.cardCount) || 0} cards`,
-  },
-  teak_v1_check_duplicate_url: {
+  }),
+  teak_v1_check_duplicate_url: defineTool({
     schema: duplicateInputSchema,
     operation: (input) => ({
       method: "GET",
@@ -571,8 +630,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (payload) =>
       payload.cardId ? `Already saved as ${payload.cardId}` : "Not saved yet",
-  },
-  teak_v1_restore_card: {
+  }),
+  teak_v1_restore_card: defineTool({
     schema: cardIdInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -583,16 +642,16 @@ const toolConfigs: Record<string, ToolConfig> = {
       cardId: input.cardId,
     }),
     summary: (_payload, input) => `Restored card ${input.cardId}`,
-  },
-  teak_v1_refresh_card: {
+  }),
+  teak_v1_refresh_card: defineTool({
     schema: cardIdInputSchema,
     operation: (input) => ({
       method: "POST",
       path: `${cardPath(input.cardId)}/refresh`,
     }),
     summary: (_payload, input) => `Refreshing card ${input.cardId}`,
-  },
-  teak_v1_create_card: {
+  }),
+  teak_v1_create_card: defineTool({
     schema: createCardInputSchema,
     operation: ({ idempotencyKey, ...body }) => ({
       method: "POST",
@@ -602,9 +661,9 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (payload) =>
       `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
-  },
+  }),
   teak_v1_search_cards: queryTool({}),
-  teak_v1_find_similar_cards: {
+  teak_v1_find_similar_cards: defineTool({
     schema: findSimilarInputSchema,
     operation: ({ cardId, ...input }) => ({
       method: "GET",
@@ -620,13 +679,12 @@ const toolConfigs: Record<string, ToolConfig> = {
       ...(payload.similarity ? { similarity: payload.similarity } : {}),
     }),
     summary: (payload) => `Found ${Number(payload.total) || 0} similar cards`,
-  },
-  teak_v1_list_favorite_cards: {
-    ...queryTool({ favorited: true }),
-    summary: (payload) =>
-      `Fetched ${Number(payload.total) || 0} favorite cards`,
-  },
-  teak_v1_update_card: {
+  }),
+  teak_v1_list_favorite_cards: queryTool(
+    { favorited: true },
+    (payload) => `Fetched ${Number(payload.total) || 0} favorite cards`
+  ),
+  teak_v1_update_card: defineTool({
     schema: updateCardInputSchema,
     operation: ({ cardId, ...body }) => ({
       method: "PATCH",
@@ -636,8 +694,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       ),
     }),
     summary: () => "Card updated",
-  },
-  teak_v1_set_card_favorite: {
+  }),
+  teak_v1_set_card_favorite: defineTool({
     schema: favoriteInputSchema,
     operation: (input) => ({
       method: "PATCH",
@@ -646,8 +704,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isFavorited ? "favorited" : "unfavorited"}`,
-  },
-  teak_v1_create_thumbnail_upload: {
+  }),
+  teak_v1_create_thumbnail_upload: defineTool({
     schema: thumbnailUploadInputSchema,
     operation: ({ cardId, ...body }) => ({
       method: "POST",
@@ -656,8 +714,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: () =>
       "Upload URL created. PUT the image to uploadUrl, then call teak_v1_set_card_thumbnail with fileKey.",
-  },
-  teak_v1_set_card_thumbnail: {
+  }),
+  teak_v1_set_card_thumbnail: defineTool({
     schema: setThumbnailInputSchema,
     operation: (input) => ({
       method: "PUT",
@@ -665,8 +723,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       body: { fileKey: input.fileKey },
     }),
     summary: (_payload, input) => `Replaced the image of card ${input.cardId}`,
-  },
-  teak_v1_reset_card_thumbnail: {
+  }),
+  teak_v1_reset_card_thumbnail: defineTool({
     schema: cardIdInputSchema,
     operation: (input) => ({
       method: "DELETE",
@@ -674,8 +732,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.cardId} shows its original image`,
-  },
-  teak_v1_set_card_archived: {
+  }),
+  teak_v1_set_card_archived: defineTool({
     schema: archivedInputSchema,
     operation: (input) => ({
       method: "PATCH",
@@ -684,8 +742,28 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Card ${input.isArchived ? "archived" : "returned to the library"}`,
-  },
-  teak_v1_delete_card: {
+  }),
+  teak_v1_set_card_done: defineTool({
+    schema: doneInputSchema,
+    operation: (input) => ({
+      method: input.done ? "POST" : "DELETE",
+      path: `${cardPath(input.cardId)}/done`,
+    }),
+    summary: (_payload, input) =>
+      `Card ${input.cardId} marked ${input.done ? "done" : "not done"}`,
+  }),
+  teak_v1_save_card_pdf: defineTool({
+    schema: cardIdInputSchema,
+    operation: (input) => ({
+      method: "POST",
+      path: `${cardPath(input.cardId)}/save-pdf`,
+    }),
+    summary: (payload) =>
+      payload.created
+        ? `Saved the PDF as card ${String(payload.cardId)}`
+        : `The PDF is already card ${String(payload.cardId)}`,
+  }),
+  teak_v1_delete_card: defineTool({
     schema: deleteCardInputSchema,
     operation: (input) => ({ method: "DELETE", path: cardPath(input.cardId) }),
     transform: (_payload, input) => ({
@@ -693,13 +771,13 @@ const toolConfigs: Record<string, ToolConfig> = {
       cardId: input.cardId,
     }),
     summary: (_payload, input) => `Moved card ${input.cardId} to Trash`,
-  },
-  teak_v1_list_folders: {
+  }),
+  teak_v1_list_folders: defineTool({
     schema: z.object({}),
     operation: () => ({ method: "GET", path: "/v1/folders" }),
     summary: (payload) => `Fetched ${countLabel(count(payload), "folder")}`,
-  },
-  teak_v1_create_folder: {
+  }),
+  teak_v1_create_folder: defineTool({
     schema: createFolderInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -707,8 +785,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       body: input,
     }),
     summary: (payload) => `Created folder ${String(payload.name ?? "")}`,
-  },
-  teak_v1_update_folder: {
+  }),
+  teak_v1_update_folder: defineTool({
     schema: updateFolderInputSchema,
     operation: ({ folderId, ...body }) => ({
       method: "PATCH",
@@ -716,14 +794,14 @@ const toolConfigs: Record<string, ToolConfig> = {
       body,
     }),
     summary: (payload) => `Updated folder ${String(payload.name ?? "")}`,
-  },
-  teak_v1_get_folder: {
+  }),
+  teak_v1_get_folder: defineTool({
     schema: folderIdInputSchema,
     operation: (input) => ({ method: "GET", path: folderPath(input.folderId) }),
     summary: (payload, input) =>
       `Fetched folder ${typeof payload.name === "string" ? payload.name : input.folderId}`,
-  },
-  teak_v1_delete_folder: {
+  }),
+  teak_v1_delete_folder: defineTool({
     schema: deleteFolderInputSchema,
     operation: (input) => ({
       method: "DELETE",
@@ -734,8 +812,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       folderId: input.folderId,
     }),
     summary: (_payload, input) => `Deleted folder ${input.folderId}`,
-  },
-  teak_v1_add_cards_to_folder: {
+  }),
+  teak_v1_add_cards_to_folder: defineTool({
     schema: folderCardsInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -745,8 +823,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     isError: (payload) => count(payload, "failedIds") > 0,
     summary: (payload) =>
       `Added ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
-  },
-  teak_v1_remove_cards_from_folder: {
+  }),
+  teak_v1_remove_cards_from_folder: defineTool({
     schema: folderCardsInputSchema,
     operation: (input) => ({
       method: "DELETE",
@@ -756,13 +834,13 @@ const toolConfigs: Record<string, ToolConfig> = {
     isError: (payload) => count(payload, "failedIds") > 0,
     summary: (payload) =>
       `Removed ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
-  },
-  teak_v1_list_tags: {
+  }),
+  teak_v1_list_tags: defineTool({
     schema: z.object({}),
     operation: () => ({ method: "GET", path: "/v1/tags" }),
     summary: (payload) => `Fetched ${count(payload)} tags`,
-  },
-  teak_v1_rename_tag: {
+  }),
+  teak_v1_rename_tag: defineTool({
     schema: renameTagInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -770,8 +848,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       body: { from: input.from, to: input.to },
     }),
     summary: (_payload, input) => `Renaming tag ${input.from} to ${input.to}`,
-  },
-  teak_v1_merge_tags: {
+  }),
+  teak_v1_merge_tags: defineTool({
     schema: mergeTagsInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -780,8 +858,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (_payload, input) =>
       `Merging tag ${input.from} into ${input.into}`,
-  },
-  teak_v1_delete_tag: {
+  }),
+  teak_v1_delete_tag: defineTool({
     schema: deleteTagInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -789,8 +867,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       body: { tag: input.tag },
     }),
     summary: (_payload, input) => `Deleting tag ${input.tag}`,
-  },
-  teak_v1_get_tag_operation: {
+  }),
+  teak_v1_get_tag_operation: defineTool({
     schema: tagOperationInputSchema,
     operation: (input) => ({
       method: "GET",
@@ -798,8 +876,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (payload) =>
       `Tag ${String(payload.kind ?? "change")} ${String(payload.status ?? "")}: ${countLabel(Number(payload.changed) || 0, "card")} changed of ${Number(payload.total) || 0}`,
-  },
-  teak_v1_get_card_changes: {
+  }),
+  teak_v1_get_card_changes: defineTool({
     schema: getCardChangesInputSchema,
     operation: (input) => ({
       method: "GET",
@@ -808,8 +886,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: (payload) =>
       `Fetched ${count(payload)} changed cards and ${count(payload, "deletedIds")} deleted IDs`,
-  },
-  teak_v1_bulk_cards: {
+  }),
+  teak_v1_bulk_cards: defineTool({
     schema: bulkCardsInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -836,8 +914,8 @@ const toolConfigs: Record<string, ToolConfig> = {
         ...failures,
       ].join("\n");
     },
-  },
-  teak_v1_create_upload: {
+  }),
+  teak_v1_create_upload: defineTool({
     schema: createUploadInputSchema,
     operation: (input) => ({
       method: "POST",
@@ -846,8 +924,8 @@ const toolConfigs: Record<string, ToolConfig> = {
     }),
     summary: () =>
       "Upload URL created. PUT bytes to uploadUrl, then create a card with fileKey.",
-  },
-  search: {
+  }),
+  search: defineTool({
     schema: chatgptSearchInputSchema,
     operation: (input) => ({
       method: "GET",
@@ -867,8 +945,8 @@ const toolConfigs: Record<string, ToolConfig> = {
       ),
     }),
     summary: (payload) => `Found ${count(payload, "results")} cards`,
-  },
-  fetch: {
+  }),
+  fetch: defineTool({
     schema: chatgptFetchInputSchema,
     operation: (input) => ({ method: "GET", path: cardPath(input.id) }),
     transform: (payload, input) => ({
@@ -882,36 +960,13 @@ const toolConfigs: Record<string, ToolConfig> = {
       metadata: payload,
     }),
     summary: (payload) => `Fetched card ${payload.id}`,
-  },
+  }),
 };
 
 const buildToolHandler = (name: string, executor: PublicApiToolExecutor) =>
-  instrumentToolHandler(name, async (input: unknown, request) => {
-    const config = toolConfigs[name];
-    const parsed = config.schema.safeParse(input);
-    if (!parsed.success) {
-      return validationError(
-        parsed.error.issues[0]?.message ?? "Invalid input"
-      );
-    }
-    const result = await executeToolOperation(
-      config.operation(parsed.data),
-      request,
-      executor
-    );
-    if (!result.ok) {
-      return result.result;
-    }
-    const payload =
-      config.transform?.(result.payload, parsed.data) ?? result.payload;
-    const toolResult = successResult(
-      payload,
-      config.summary(payload, parsed.data)
-    );
-    return config.isError?.(payload)
-      ? { ...toolResult, isError: true }
-      : toolResult;
-  });
+  instrumentToolHandler(name, (input: unknown, request) =>
+    toolConfigs[name](input, request, executor)
+  );
 
 export const isTeakV1Tool = (name: string): boolean =>
   Object.keys(toolConfigs).includes(name);

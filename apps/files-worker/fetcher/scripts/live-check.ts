@@ -1,20 +1,3 @@
-/**
- * Live link check for the link fetcher (manual; it uses the real internet).
- *
- *   bun run fetcher:live-check [links.json]
- *
- * Builds the fetcher the way its Dockerfile does, starts it locally, and runs
- * every link through what production does: fetch the page with Convex's
- * pinned fetch, read its static preview metadata, Instagram and X media, then
- * send each preview asset to the fetcher. It also follows the newest items on
- * a few design listings (Dribbble, Behance, Awwwards, ...). Prints one line per
- * link and a summary; a skipped asset shows the fetcher's reason.
- *
- * Results depend on where it runs: many sites refuse data-centre addresses, so
- * a refused *page* is about the network, not the fetcher. Asset lines are the
- * fetcher's behaviour.
- */
-
 import { type ChildProcess, spawn } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -296,11 +279,13 @@ const startFetcher = async (): Promise<ChildProcess> => {
     stdio: "inherit",
   });
   for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      if ((await fetch(`http://127.0.0.1:${PORT}/health`)).ok) {
-        return server;
-      }
-    } catch {}
+    const healthy = await fetch(`http://127.0.0.1:${PORT}/health`).then(
+      (response) => response.ok,
+      () => false
+    );
+    if (healthy) {
+      return server;
+    }
     await Bun.sleep(200);
   }
   server.kill();

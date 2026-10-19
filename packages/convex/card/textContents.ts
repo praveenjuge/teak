@@ -1,8 +1,7 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
-/** Removes a card's text row; the R2 object goes with the card's keys. */
-export const deleteCardTextContents = async (
+export const deleteCardTextRow = async (
   ctx: Pick<MutationCtx, "db">,
   cardId: Id<"cards">
 ): Promise<void> => {

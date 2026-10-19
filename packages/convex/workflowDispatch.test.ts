@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import type { DispatchItem } from "@teak/files-protocol";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -20,8 +19,6 @@ const HOUR_MS = 60 * 60 * 1000;
 const NOW = new Date("2026-10-16T10:00:00Z").getTime();
 
 beforeEach(() => {
-  // Enqueueing schedules a flush. Holding timers keeps those scheduled flushes
-  // from running later, in another test, against that test's fetch stub.
   vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
   vi.setSystemTime(NOW);
 });
@@ -247,8 +244,6 @@ describe("complete", () => {
       status: "errored",
     });
     const next = (await rows(t)).find((row) => row.state === "pending");
-    // Attempts are numbered by when they were queued, so an ID is never
-    // reused even after older rows are pruned.
     expect(next?.instanceId).toBe(`account-deletion-${stateId}-1-${NOW + 1}`);
     expect(next?.notBefore).toBe(NOW + 5 * 60 * 1000);
   });
@@ -398,7 +393,6 @@ describe("flush", () => {
     expect(sent).toHaveLength(1);
     const params = sent[0];
     expect(params?.convexSiteUrl).toBe("https://session-tests.convex.site");
-    // The proof is signed with this deployment's own RPC secret.
     expect(params?.signature).toBe(
       (
         await signDispatch(
@@ -412,7 +406,6 @@ describe("flush", () => {
     const states = Object.fromEntries(
       (await rows(t)).map((row) => [row.kind, row.state])
     );
-    // Accepted deletions are the queue's now; refused runs wait to be sent again.
     expect(states).toEqual({ deleteObjects: "done", export: "pending" });
   });
 });

@@ -1,11 +1,52 @@
 ---
 title: "October 2026"
-description: Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
+description: Link cards together with [[ and see which cards link to a card, save to Teak by email, with attachments as cards, search what's said in Vimeo videos and podcast episodes, YouTube channel, length and upload date, richer details for Wikipedia, arXiv, music and books, and Save PDF for papers, mark links as read, watched or bought, find screenshots and scanned PDFs by the words in them, Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-17"
+date: "2026-10-18"
 changelog:
   category: Product updates
 ---
+
+## Link cards together with [[
+
+- In a note on the web, type `[[` to link another card: pick one of your cards from the list, and it shows as a pill with that card's current title, so renaming the card updates every link to it. Click a pill to open the card. A link to a card in Trash or deleted shows **Missing card** until you restore it. See [Link cards](/docs/features#link-cards).
+- Open a card to see which notes link to it under **Linked from**, and click one to open it.
+- Card tiles show a link as its title, and search finds a note by a linked card's title.
+- **API, MCP, SDK, and CLI:** links are written `[[Title|teak:<card-id>]]` in a note's content. A single card's response includes `links` and `backlinks`, and `teak_v1_get_card_links`, `cards.links` and `teak links <card-id>` list both. See [Links between cards](/docs/api#links-between-cards).
+
+## Save to Teak by email
+
+- Turn on **Settings → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email you sign in with. A link becomes a link card, anything else a note, and every card is tagged `email`. See [Save by email](/docs/features#save-by-email).
+- Attachments are saved as their own cards, with the same formats as uploads.
+- Only mail from your sign-in email that passes its domain's sender checks is saved; anything else is refused.
+
+## Search what's said in Vimeo videos and podcast episodes
+
+- A Vimeo link's captions become the card's transcript, so search finds the video by a line someone says in it, and its summary and tags describe what's said.
+- A podcast episode whose page links to its audio, or that Apple Podcasts or the show's feed lists, is transcribed after it's saved, up to 100 MB of audio. The transcript arrives a few minutes later, and the episode's summary and tags are rewritten from it. Spotify episodes and longer episodes get no transcript. See [Smart search](/docs/features#smart-search).
+- YouTube links show their channel, length and upload date when the video's page has them. YouTube doesn't let Teak read its captions, so YouTube videos get no transcript.
+- The transcript is in `aiTranscript` in the API, and in `teak content <card-id>` and the MCP `teak_v1_get_card_content` tool. Links you saved before get transcripts when you use **Refresh details**.
+
+## Richer details for Wikipedia, arXiv, music and books
+
+- Wikipedia articles show their short description and when they were last edited, and a disambiguation page says so. arXiv papers show their authors, publish date, subject and DOI. Spotify and Apple Music links show the artist and whether it's a track, album or playlist. Book links that name an ISBN get their author, page count, publisher and publish date from Open Library, and a cover when the page has none. See [Card details](/docs/features#card-details).
+- Teak's summary of a Wikipedia article or an arXiv paper now reads its opening paragraph or abstract, not just the title.
+- **Save PDF** on an arXiv paper's card saves its PDF as its own document card, so its text is searchable in Teak. Saving it again opens the one you have.
+- **API, MCP, SDK, and CLI:** `POST /v1/cards/:cardId/save-pdf`, `teak_v1_save_card_pdf`, `cards.savePdf`, and `teak cards save-pdf <card-id>`. See [Save a paper's PDF](/docs/api#save-a-papers-pdf).
+- Links you saved before get these details when you use **Refresh details**.
+
+## Mark links as read, watched or bought
+
+- Open a link and click the circle beside the heart to mark it done. It says **Mark as read** for an article, **Mark as watched** for a film, **Mark as bought** for a product, **Mark as played** for a game, and so on, and a check appears on the link's tile. A toast lets you undo it.
+- Search `is:todo` for what's left to read, watch, listen to or buy, and `is:done` for what you've finished. Both work in smart folders, such as `is:todo folder:"Reading list"`. See [Read, watch and buy](/docs/features#read-watch-and-buy).
+- **API, MCP, SDK, and CLI:** `POST /v1/cards/:cardId/done` and `DELETE` to undo, `teak_v1_set_card_done`, `cards.setDone`, and `teak done <card-id>` (`--undo` to clear it). Cards include `completedAt` and `linkCategory`. See [Mark a link done](/docs/api#mark-a-link-done).
+
+## Find screenshots and scanned PDFs by the words in them
+
+- Teak now reads the words in the images and videos you save: receipts, screenshots, signs, slides and code. Search finds an image by any word in it, and `text:` searches only those words, so `text:4411` finds the receipt and not the note that mentions it. See [Smart search](/docs/features#smart-search).
+- Scanned PDFs are searchable too. Teak reads the first 3 pages of a PDF that has no text of its own, so search finds a scanned lease by a phrase on page 2, and its summary and tags describe what the scan says instead of only its file name.
+- Links count as well: Teak reads the words in a link's preview image and in its screenshot, such as a talk's slide title.
+- **API, MCP, SDK, and CLI:** `q` takes `text:"…"` too. See [Search qualifiers](/docs/api#search-qualifiers).
 
 ## Teak for Firefox
 

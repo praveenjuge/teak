@@ -18,11 +18,6 @@ const card = (id: string): RevisitCard =>
 const ids = (prefix: string, count: number) =>
   Array.from({ length: count }, (_, index) => `${prefix}${index}`);
 
-/**
- * A view the way the server pages a bounded one (a tag, a search): every
- * request rebuilds the list of cards still in the view, in the seed's
- * Shuffle order, and the cursor is an offset into it.
- */
 function fakeView(cardIds: string[], pageSize = 7) {
   const archived = new Set<string>();
   const ordered = (seed: number) =>
@@ -51,7 +46,6 @@ function fakeView(cardIds: string[], pageSize = 7) {
 }
 
 let view = fakeView([]);
-// One client for every render, like the real provider's.
 const client = {
   query: (...args: Parameters<typeof view.query>) => view.query(...args),
 };
@@ -92,7 +86,6 @@ describe("dealRevisitCards", () => {
     const next = await dealt(view.loadPage(), first.ids);
     expect(next.ids).toEqual(ids("c", 40).slice(20));
 
-    // Paging on from offset 20 instead would skip five unseen cards.
     const offsetPage = await view.loadPage()("20");
     expect(offsetPage.page[0]?._id).toBe("c25");
   });
@@ -230,7 +223,6 @@ async function mountDeck(
   return { onArchive, onUnarchive, render };
 }
 
-/** Lets a deal's pages arrive. */
 const settle = () =>
   act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -253,7 +245,6 @@ describe("useRevisitDeck", () => {
       "c0",
     ]);
 
-    // Cards leaving the view meanwhile don't reshuffle the deck.
     view.archived.add("c1");
     await step(() => deck.keep());
     expect([deck.position, deck.current?._id]).toEqual([2, "c1"]);
@@ -309,7 +300,6 @@ describe("useRevisitDeck", () => {
       undoing = deck.undo();
     });
     expect(deck.pending).toBe(true);
-    // Held keys or a second click while it waits do nothing.
     await act(() => deck.keep());
     expect(deck.position).toBe(1);
 
@@ -339,7 +329,6 @@ describe("useRevisitDeck", () => {
     await act(() => {
       archiving = deck.archive();
     });
-    // A new seed deals afresh while the archive is on its way.
     await render(1);
     expect(deck.current?._id).toBe("c3");
     release();
@@ -348,7 +337,6 @@ describe("useRevisitDeck", () => {
     });
     await settle();
     expect([deck.position, deck.archived, deck.canUndo]).toEqual([1, 0, false]);
-    // Z has nothing of the new deal's to take back.
     await step(() => deck.undo());
     expect(onUnarchive).not.toHaveBeenCalled();
   });
@@ -369,7 +357,6 @@ describe("useRevisitDeck", () => {
     await step(() => deck.keep());
     expect(deck.done).toBe(true);
 
-    // A new seed starts afresh: seen cards may come back.
     await render(1);
     expect([deck.position, deck.total, deck.current?._id]).toEqual([
       1,

@@ -1,0 +1,127 @@
+---
+import Accordion from "blume/components/content/Accordion.astro";
+import AccordionItem from "blume/components/content/AccordionItem.astro";
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import {
+  type AudiencePage,
+  audiencePageUrl,
+  buildAudiencePageSchemas,
+  splitInlineCode,
+  toPlainText,
+} from "../lib/audience-pages";
+import { pickDemoColumns } from "../lib/home-demo-cards";
+import { FREE_CARD_LIMIT } from "../lib/pricing";
+import FeatureCard from "./FeatureCard.astro";
+import HomeAppDemo from "./HomeAppDemo.astro";
+
+interface Props {
+  page: AudiencePage;
+}
+
+const { page } = Astro.props;
+const registerHref = "https://app.teakvault.com/register";
+const url = audiencePageUrl(page.slug);
+const description = toPlainText(page.description);
+const columns = pickDemoColumns(page.demoCardIds);
+const codeClass =
+  "rounded-md bg-muted px-1.5 py-0.5 font-mono text-[0.875em] whitespace-nowrap text-foreground";
+---
+
+<MarketingLayout
+  title={page.title}
+  description={description}
+  canonical={url}
+  ogTitle={page.title}
+  ogDescription={description}
+  jsonLd={buildAudiencePageSchemas(page)}
+>
+  <main class="flex flex-1 flex-col">
+    <section class="px-4 pt-14 pb-12 max-md:pt-10">
+      <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
+        <h1 class="max-w-xl text-[clamp(2.125rem,4.4vw,3.125rem)] leading-[1.04] font-bold tracking-[-0.04em] text-balance">
+          {page.h1}
+        </h1>
+        <p class="mx-auto mt-4 mb-6 max-w-xl text-base leading-[1.6] text-balance text-muted-foreground">
+          {page.intro}
+        </p>
+        <a
+          class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90"
+          href={registerHref}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          Get started →
+        </a>
+      </div>
+    </section>
+
+    <section aria-label="Preview of a Teak library" class="px-6 pb-20 max-md:px-4 max-md:pb-16">
+      <div class="mx-auto max-w-[78rem]">
+        <HomeAppDemo columns={columns} />
+      </div>
+    </section>
+
+    <section aria-labelledby="features-title" class="px-4 pb-24 max-md:pb-16">
+      <div class="mx-auto max-w-5xl">
+        <h2 class="mx-auto mb-10 max-w-md text-balance text-center font-bold text-2xl tracking-tight" id="features-title">
+          {page.featuresTitle}
+        </h2>
+        <ul class="grid list-none grid-cols-1 gap-x-8 gap-y-12 p-0 min-[561px]:grid-cols-2 min-[861px]:grid-cols-3">
+          {page.features.map((feature) => (
+            <li class="min-w-0">
+              <FeatureCard icon={feature.icon} title={feature.title}>
+                {splitInlineCode(feature.description).map((segment) =>
+                  segment.code ? <code class={codeClass}>{segment.text}</code> : segment.text
+                )}
+              </FeatureCard>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="faq-title" class="px-4 pb-24 max-md:pb-16">
+      <div class="mx-auto max-w-2xl">
+        <h2 class="mb-8 text-center font-bold text-2xl tracking-tight" id="faq-title">Questions, answered</h2>
+        <Accordion>
+          {page.faqs.map((faq) => (
+            <AccordionItem title={faq.question}>
+              <p class="text-muted-foreground">
+                {splitInlineCode(faq.answer).map((segment) =>
+                  segment.code ? <code class={codeClass}>{segment.text}</code> : segment.text
+                )}
+              </p>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
+    </section>
+
+    <section aria-labelledby="closing-title" class="px-4 pb-8">
+      <div class="mx-auto flex max-w-3xl flex-col gap-5 rounded-2xl border border-border bg-card p-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="mb-0.5 font-semibold text-base" id="closing-title">Try it with the next thing you save.</h2>
+          <p class="text-muted-foreground text-sm">
+            Free for your first {FREE_CARD_LIMIT} cards, with every feature.
+          </p>
+        </div>
+        <div class="flex shrink-0 flex-wrap gap-2">
+          <a
+            class="inline-flex h-9 flex-1 items-center justify-center rounded-full border bg-background px-4 font-medium text-sm whitespace-nowrap hover:bg-accent hover:text-accent-foreground md:flex-none"
+            href={page.guide.href}
+          >
+            {page.guide.label}
+          </a>
+          <a
+            class="inline-flex h-9 flex-1 items-center justify-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm whitespace-nowrap no-underline hover:bg-primary/90 md:flex-none"
+            href={registerHref}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Get started
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+</MarketingLayout>

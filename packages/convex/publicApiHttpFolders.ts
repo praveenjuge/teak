@@ -1,6 +1,3 @@
-/**
- * Public API folder endpoints: /v1/folders and /v1/folders/:id[/cards].
- */
 import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { withAuthorizedUser } from "./publicApiHttpAuth";
@@ -28,7 +25,6 @@ const readJson = async (
   }
 };
 
-/** GET /v1/folders lists folders by name; POST creates one. */
 export const handleFoldersRequest = async (
   ctx: ActionCtx,
   request: Request,
@@ -82,11 +78,6 @@ export const handleFoldersRequest = async (
   }
 };
 
-/**
- * GET, PATCH and DELETE /v1/folders/:id, and POST or DELETE
- * /v1/folders/:id/cards with `{ cardIds }` to add or remove cards (409
- * SMART_FOLDER for a smart folder).
- */
 export const handleFolderByIdRequest = async (
   ctx: ActionCtx,
   request: Request,

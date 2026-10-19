@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/8QKJFvn9z5L41YhrwltMCQ2v0nk</id>
+  <title>arXiv Query: search_query=&amp;id_list=hep-th/9901001&amp;start=0&amp;max_results=10</title>
+  <updated>2026-10-18T03:38:12Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=hep-th/9901001" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/hep-th/9901001v3</id>
+    <title>String Junctions and Their Duals in Heterotic String Theory</title>
+    <updated>1999-05-10T04:45:54Z</updated>
+    <link href="https://arxiv.org/abs/hep-th/9901001v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/hep-th/9901001v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>  We explicitly give the correspondence between spectra of heterotic string theory compactified on $T^2$ and string junctions in type IIB theory compactified on $S^2$.</summary>
+    <category term="hep-th" scheme="http://arxiv.org/schemas/atom"/>
+    <published>1999-01-01T01:01:10Z</published>
+    <arxiv:comment>13 pages + 4 eps figures, PTPTeX, typographical errors corrected</arxiv:comment>
+    <arxiv:primary_category term="hep-th"/>
+    <arxiv:journal_ref>Prog.Theor.Phys.101:1155-1164,1999</arxiv:journal_ref>
+    <author>
+      <name>Yosuke Imamura</name>
+    </author>
+    <arxiv:doi>10.1143/PTP.101.1155</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1143/PTP.101.1155" title="doi"/>
+  </entry>
+</feed>

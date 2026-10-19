@@ -1,7 +1,6 @@
 import { isAbsolute, relative, resolve } from "node:path";
 
 declare const builtHere: unique symbol;
-/** An argv only this module builds, so `run` never gets one without the hardening flags. */
 export type ToolCommand = string[] & { readonly [builtHere]: true };
 
 const toolCommand = (argv: string[]): ToolCommand =>
@@ -43,7 +42,6 @@ const INPUT_FLAGS = [
   "1",
 ];
 
-/** Resolves `path` and refuses anything outside `jobDir`. */
 export function jobPath(jobDir: string, path: string): string {
   const resolved = resolve(path);
   const rel = relative(resolve(jobDir), resolved);
@@ -60,7 +58,6 @@ export interface FfmpegInput {
 
 export interface FfmpegOutput {
   options: string[];
-  /** An absolute path inside the job directory, or "pipe:1". */
   target: string;
 }
 
@@ -340,14 +337,15 @@ export function pdfPageCommand(
   jobDir: string,
   input: string,
   max: number,
-  outputPrefix: string
+  outputPrefix: string,
+  page = 1
 ): ToolCommand {
   return toolCommand([
     "pdftoppm",
     "-f",
-    "1",
+    String(page),
     "-l",
-    "1",
+    String(page),
     "-singlefile",
     "-png",
     "-scale-to",

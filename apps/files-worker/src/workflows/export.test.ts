@@ -33,7 +33,6 @@ const card = (id: string, fileName?: string): FakeCard => ({
     : {}),
 });
 
-/** Convex's export job, item snapshot and card reads, in memory. */
 const exportBackend = (
   cards: FakeCard[],
   options: { cancelRequested?: boolean; pageSize?: number } = {}
@@ -223,7 +222,6 @@ describe("runExport", () => {
       ["c2", null],
       ["c3", null],
     ]);
-    // Every object the archive writes is registered to its owner first.
     expect(backend.owned).toEqual([
       ARTIFACT_KEY,
       `${ARTIFACT_KEY}.checkpoint.json`,
@@ -244,7 +242,6 @@ describe("runExport", () => {
       { jobId: "job-1", userId: "u1" },
       {
         handlers: backend.handlers,
-        // The first snapshot page commits, but its reply never arrives.
         wrapFetch: (fetcher) =>
           (async (input, init) => {
             const response = await fetcher(input, init);

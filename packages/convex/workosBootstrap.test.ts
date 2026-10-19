@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";

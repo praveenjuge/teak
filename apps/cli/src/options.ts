@@ -12,9 +12,6 @@ import { parseShuffleSeed } from "@teak/convex/shared/search/shuffle";
 import { parseTimeSearchQuery } from "@teak/convex/shared/utils/timeSearch";
 import { type Command, InvalidArgumentError } from "commander";
 
-// Argument parsers and the shared listing options. Command wiring lives in
-// index.ts.
-
 export const parseLimit = (value: string) => {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed < 1) {
@@ -156,7 +153,7 @@ export const withListOptions = (command: Command) =>
   command
     .option(
       "-q, --query <text>",
-      'search text; accepts tag:, #tag, type:, is:fav, is:archived, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =) and "phrases"'
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, is:done, is:todo, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =), text:"…" (words read from images and scans) and "phrases"'
     )
     .option("--similar-to <id>", "only the cards closest in meaning to a card")
     .option(

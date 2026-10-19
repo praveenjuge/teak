@@ -56,9 +56,6 @@ function selfLinkHref(token: Token | undefined): string | undefined {
   return text === token.href ? token.href : undefined;
 }
 
-/** Keep bare URL/color/quote capture, but never classify an authored Markdown
- * document as a link card just because it contains a link. A note that is only
- * a link showing its own address is captured as that bare URL. */
 export function prepareNoteCapture(source: string): NoteCapture {
   const tokens = lexer.lexer(source).filter((token) => token.type !== "space");
   const token = tokens[0];

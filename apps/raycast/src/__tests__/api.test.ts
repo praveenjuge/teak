@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  buildCardsSearchParams,
   getRecoveryHint,
   getUserFacingErrorMessage,
   RaycastApiError,
@@ -8,56 +7,6 @@ import {
 } from "../lib/apiErrors";
 
 describe("raycast api helpers", () => {
-  test("buildCardsSearchParams trims and encodes query params", () => {
-    expect(
-      buildCardsSearchParams({
-        favorited: true,
-        limit: 50,
-        query: "  design systems  ",
-        sort: "oldest",
-        tag: "research",
-        type: "link",
-      }),
-    ).toBe(
-      "q=design+systems&type=link&tag=research&favorited=true&sort=oldest&limit=50",
-    );
-  });
-
-  test("buildCardsSearchParams omits empty query", () => {
-    expect(buildCardsSearchParams({ query: "   ", limit: 50 })).toBe(
-      "limit=50",
-    );
-  });
-
-  test("buildCardsSearchParams includes full-card fields on request", () => {
-    expect(
-      buildCardsSearchParams({ include: "content,metadata", limit: 10 }),
-    ).toBe("include=content%2Cmetadata&limit=10");
-  });
-
-  test.each([
-    [0, "limit=1"],
-    [101, "limit=100"],
-    [Number.NaN, "limit=50"],
-    [undefined, "limit=50"],
-  ])("buildCardsSearchParams clamps limit %p to %s", (limit, params) => {
-    expect(buildCardsSearchParams({ limit })).toBe(params);
-  });
-
-  test("buildCardsSearchParams keeps Trash and color filters", () => {
-    expect(
-      buildCardsSearchParams({
-        hex: ["#112233"],
-        hue: ["blue", "teal"],
-        limit: 20,
-        style: ["minimal"],
-        trashed: true,
-      }),
-    ).toBe(
-      "limit=20&trashed=true&style=minimal&hue=blue&hue=teal&hex=%23112233",
-    );
-  });
-
   test("toErrorCode falls back for unknown values", () => {
     expect(toErrorCode("INVALID_API_KEY", "REQUEST_FAILED")).toBe(
       "INVALID_API_KEY",

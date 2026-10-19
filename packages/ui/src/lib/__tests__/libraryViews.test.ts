@@ -3,6 +3,7 @@ import {
   LIBRARY_VIEW_PATHS,
   LIBRARY_VIEWS,
   libraryViewForPath,
+  libraryViewHref,
   quickCommandTarget,
 } from "../libraryViews";
 import {
@@ -32,6 +33,22 @@ describe("libraryViewForPath", () => {
       expect(libraryViewForPath(path)).toBeNull();
     }
   );
+});
+
+describe("libraryViewHref", () => {
+  test("goes to the view's path", () => {
+    expect(libraryViewHref("favorites")).toBe("/favorites");
+  });
+
+  test("carries a new-note request so the library focuses the composer", () => {
+    expect(libraryViewHref("all", { focusComposer: true })).toBe("/?compose=1");
+    expect(
+      libraryViewForPath(
+        new URL(`http://x${libraryViewHref("all", { focusComposer: true })}`)
+          .pathname
+      )
+    ).toBe("all");
+  });
 });
 
 describe("quickCommandTarget", () => {

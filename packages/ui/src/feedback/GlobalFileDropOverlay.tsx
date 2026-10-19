@@ -4,14 +4,6 @@ interface GlobalFileDropOverlayProps {
   isDragActive: boolean;
 }
 
-/**
- * Subtle drag-active affordance mounted once per authenticated surface.
- *
- * Renders a thin outline around the viewport plus a compact top-center bar
- * while a file drag is over the app. Pointer events stay disabled so the
- * overlay never eats the drop event — the provider captures that on
- * `document`.
- */
 export function GlobalFileDropOverlay({
   isDragActive,
 }: GlobalFileDropOverlayProps) {

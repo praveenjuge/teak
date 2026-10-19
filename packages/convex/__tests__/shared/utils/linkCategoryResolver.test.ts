@@ -443,7 +443,6 @@ const NEWER_CATEGORIES = [
 
 describe("newer categories", () => {
   test.each([
-    // Code repositories: owner/repo paths and deeper, on the code hosts
     ["https://github.com/vercel/next.js", "repo"],
     ["https://www.github.com/vercel/next.js/tree/canary/packages", "repo"],
     ["https://github.com/vercel/next.js.git", "repo"],
@@ -452,18 +451,15 @@ describe("newer categories", () => {
     ["https://bitbucket.org/atlassian/python-bitbucket", "repo"],
     ["https://codeberg.org/forgejo/forgejo", "repo"],
     ["https://git.sr.ht/~sircmpwn/hare", "repo"],
-    // Apps
     ["https://apps.apple.com/us/app/things-3/id904237743", "app"],
     ["https://play.google.com/store/apps/details?id=com.spotify.music", "app"],
     ["https://chromewebstore.google.com/detail/ublock/cjpalhdlnbpafiam", "app"],
     ["https://apps.microsoft.com/detail/9nblggh4nns1", "app"],
-    // Games
     ["https://store.steampowered.com/app/1145360/Hades/", "game"],
     ["https://supergiant.itch.io/hades", "game"],
     ["https://store.epicgames.com/en-US/p/hades", "game"],
     ["https://www.gog.com/en/game/hades", "game"],
     ["https://boardgamegeek.com/boardgame/13/catan", "game"],
-    // Places
     ["https://www.google.com/maps/place/Blue+Bottle+Coffee", "place"],
     ["https://maps.google.com/?q=coffee", "place"],
     ["https://maps.app.goo.gl/AbCdEf123", "place"],
@@ -478,13 +474,11 @@ describe("newer categories", () => {
     ["https://www.redfin.com/CA/San-Francisco/1-Main-St/home/1", "place"],
     ["https://www.rightmove.co.uk/properties/123456", "place"],
     ["https://www.realtor.com/realestateandhomes-detail/1-Main-St", "place"],
-    // Typefaces
     ["https://fonts.google.com/specimen/Inter", "typeface"],
     ["https://fonts.adobe.com/fonts/source-sans", "typeface"],
     ["https://www.myfonts.com/collections/helvetica-font-linotype", "typeface"],
     ["https://www.fontshare.com/fonts/satoshi", "typeface"],
     ["https://www.futurefonts.xyz/ohno/obviously", "typeface"],
-    // Social posts
     ["https://x.com/jack/status/20", "social_post"],
     ["https://mobile.twitter.com/jack/status/20", "social_post"],
     ["https://www.instagram.com/p/DBY4WfSxA0a/", "social_post"],
@@ -519,7 +513,6 @@ describe("newer categories", () => {
   });
 
   test.each([
-    // Site pages and owners on code hosts are not repositories
     ["https://github.com/features/actions", "software"],
     ["https://github.com/Features/actions", "software"],
     ["https://github.com/pricing", "software"],
@@ -529,7 +522,6 @@ describe("newer categories", () => {
     ["https://github.com/torvalds", "software"],
     ["https://gist.github.com/torvalds/1234567", "software"],
     ["https://docs.github.com/en/actions", "software"],
-    // A Substack post stays an article; only notes are posts
     ["https://example.substack.com/p/a-long-read", "article"],
   ] as const)("%s stays %s", (url: string, category: string) => {
     expect<string>(resolveLinkCategory(url).category).toBe(category);
@@ -543,7 +535,6 @@ describe("newer categories", () => {
     "https://bsky.app/profile/jay.bsky.team",
     "https://www.tiktok.com/@scout2015",
     "https://apps.apple.com/us/charts/iphone",
-    // A Mastodon-like path on a host that isn't a known instance
     "https://example.com/@alice/123456",
     "https://mastodon.social.example.com/@alice/123456",
     "https://mastodon.social/@Gargron",

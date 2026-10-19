@@ -32,6 +32,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_get_card",
       "teak_v1_get_card_changes",
       "teak_v1_get_card_content",
+      "teak_v1_get_card_links",
       "teak_v1_get_folder",
       "teak_v1_get_me",
       "teak_v1_get_tag_operation",
@@ -45,8 +46,10 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_rename_tag",
       "teak_v1_reset_card_thumbnail",
       "teak_v1_restore_card",
+      "teak_v1_save_card_pdf",
       "teak_v1_search_cards",
       "teak_v1_set_card_archived",
+      "teak_v1_set_card_done",
       "teak_v1_set_card_favorite",
       "teak_v1_set_card_thumbnail",
       "teak_v1_update_card",
@@ -65,11 +68,42 @@ test("MCP lists and calls every public tool", async () => {
   });
   expect(folder.isError).not.toBe(true);
   const folderId = folder.structuredContent.id;
-  // teak_v1_create_upload needs Files storage, which the local stack lacks.
+  const link: any = await client.callTool({
+    name: "teak_v1_create_card",
+    arguments: { content: `https://example.com/mcp-done-${Date.now()}` },
+  });
+  const linkId = link.structuredContent.cardId;
+  const setDone = (done: boolean): Promise<any> =>
+    client.callTool({
+      name: "teak_v1_set_card_done",
+      arguments: { cardId: linkId, done },
+    });
+  const doneIds = async () => {
+    const found: any = await client.callTool({
+      name: "teak_v1_search_cards",
+      arguments: { q: "is:done", mode: "keyword" },
+    });
+    return found.structuredContent.items.map((item: { id: string }) => item.id);
+  };
+  const marked = await setDone(true);
+  expect(marked.isError).not.toBe(true);
+  expect(marked.structuredContent.completedAt).toEqual(expect.any(Number));
+  expect(await doneIds()).toContain(linkId);
+  const unmarked = await setDone(false);
+  expect(unmarked.isError).not.toBe(true);
+  expect(unmarked.structuredContent.completedAt).toBeNull();
+  expect(await doneIds()).not.toContain(linkId);
+  const noPdf: any = await client.callTool({
+    name: "teak_v1_save_card_pdf",
+    arguments: { cardId },
+  });
+  expect(noPdf.isError).toBe(true);
+  expect(JSON.stringify(noPdf.content)).toContain("INVALID_INPUT");
   const calls = [
     ["teak_v1_list_cards", { limit: 5 }],
     ["teak_v1_get_card", { cardId }],
     ["teak_v1_get_card_content", { cardId }],
+    ["teak_v1_get_card_links", { cardId }],
     ["teak_v1_search_cards", { q: "mcp" }],
     ["teak_v1_list_favorite_cards", {}],
     ["teak_v1_update_card", { cardId, notes: "updated" }],
@@ -157,6 +191,35 @@ test("MCP lists and calls every public tool", async () => {
       name: "teak_v1_delete_tag",
       arguments: { tag: `${tag}-renamed`, confirm: true },
     })
+  );
+  await client.close();
+});
+
+test("MCP returns a card's links and the cards that link to it", async () => {
+  const client = await connectMcp(apiKey);
+  const stamp = Date.now();
+  const create = async (content: string) =>
+    (
+      (await client.callTool({
+        name: "teak_v1_create_card",
+        arguments: { content },
+      })) as any
+    ).structuredContent.cardId as string;
+  const targetId = await create(`mcp-link-target-${stamp}`);
+  const noteId = await create(`See [[Target|teak:${targetId}]] ${stamp}`);
+  await retry(
+    async () => {
+      const result: any = await client.callTool({
+        name: "teak_v1_get_card_links",
+        arguments: { cardId: targetId },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        backlinks: [{ id: noteId, missing: false }],
+        links: [],
+      });
+    },
+    { timeout: 30_000 }
   );
   await client.close();
 });

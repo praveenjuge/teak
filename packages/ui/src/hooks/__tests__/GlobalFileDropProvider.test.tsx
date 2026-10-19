@@ -137,3 +137,47 @@ test("a rate-limited upload still says which files were skipped", async () => {
     `Too many cards created. Please wait a moment. 3 files were skipped. You can upload up to ${MAX_FILES_PER_UPLOAD} at a time.`
   );
 });
+
+function pasteFile() {
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", {
+    value: { files: files(1), items: [], types: ["Files"] },
+  });
+  document.body.dispatchEvent(event);
+  return event;
+}
+
+test("a pasted file uploads as a new card", async () => {
+  await act(async () => pasteFile());
+  for (let step = 0; step < 100 && resultToasts().length === 0; step += 1) {
+    await act(async () => jest.advanceTimersByTime(100));
+  }
+
+  expect(globalThis.fetch).toHaveBeenCalled();
+});
+
+test("a paste the open card claims never uploads", async () => {
+  const claimed: ClipboardEvent[] = [];
+  const release = drop?.claimPaste((event) => {
+    claimed.push(event);
+    return true;
+  });
+
+  await act(async () => pasteFile());
+  await act(async () => jest.advanceTimersByTime(1000));
+
+  expect(claimed).toHaveLength(1);
+  expect(globalThis.fetch).not.toHaveBeenCalled();
+  release?.();
+});
+
+test("a paste the card passes on still uploads", async () => {
+  drop?.claimPaste(() => false);
+
+  await act(async () => pasteFile());
+  for (let step = 0; step < 100 && resultToasts().length === 0; step += 1) {
+    await act(async () => jest.advanceTimersByTime(100));
+  }
+
+  expect(globalThis.fetch).toHaveBeenCalled();
+});

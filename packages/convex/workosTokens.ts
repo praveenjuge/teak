@@ -1,6 +1,10 @@
 import { createRemoteJWKSet, customFetch, errors, jwtVerify } from "jose";
 import { validateOAuthUrl } from "./shared/oauthUrl";
-import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
+import {
+  CONNECT_CONSENT_ID,
+  WORKOS_CLIENT_ID,
+  WORKOS_USER_ID,
+} from "./shared/workosIds";
 
 export type WorkosResource = "api" | "mcp";
 
@@ -14,8 +18,6 @@ export interface WorkosConnectPrincipal extends WorkosPrincipal {
   consentId: string;
 }
 
-// An expired token still proves which grant it was issued for, which is
-// enough to revoke that grant and nothing more.
 export interface WorkosRevocationPrincipal extends WorkosConnectPrincipal {
   tokenExpiresAt: number;
 }
@@ -23,10 +25,10 @@ export interface WorkosRevocationPrincipal extends WorkosConnectPrincipal {
 interface ConnectTokenConfig {
   audience: string;
   issuer: string;
+  onExpired?: () => void;
   onUnavailable?: () => void;
 }
 
-const CLIENT_ID = /^client_[A-Za-z0-9]+$/;
 class WorkosJwksUnavailableError extends Error {}
 
 const REQUIRED_SCOPES = ["openid", "profile", "email"];
@@ -48,7 +50,7 @@ function validClientId(value: unknown): value is string {
   if (typeof value !== "string" || value.length > 2048) {
     return false;
   }
-  if (CLIENT_ID.test(value)) {
+  if (WORKOS_CLIENT_ID.test(value)) {
     return true;
   }
   // CIMD identifies the client by its metadata document URL. This URL is never fetched.
@@ -70,15 +72,13 @@ function validClientId(value: unknown): value is string {
 const CLOCK_TOLERANCE_SECONDS = 60;
 
 // Configuration must come from the server, never from request/token claims.
-// This verifies credentials only: callers must also check consent revocation,
-// canonical owner mapping, verified email, deletion state and authorization.
-export const verifyWorkosConnectToken = (
+export const verifyWorkosConnectTokenSignature = (
   token: string,
   config: ConnectTokenConfig
 ): Promise<WorkosConnectPrincipal | null> =>
   verifyConnectToken(token, config, false);
 
-export const verifyWorkosConnectTokenForRevocation = (
+export const verifyWorkosConnectTokenSignatureForRevocation = (
   token: string,
   config: ConnectTokenConfig
 ): Promise<WorkosRevocationPrincipal | null> =>
@@ -198,6 +198,8 @@ async function verifyConnectToken(
       error instanceof WorkosJwksUnavailableError
     ) {
       config.onUnavailable?.();
+    } else if (error instanceof errors.JWTExpired) {
+      config.onExpired?.();
     }
     return null;
   }

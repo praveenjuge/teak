@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { published } from "../helpers/env";
 import { expect, test } from "../helpers/test";
 
@@ -69,6 +71,19 @@ const probes: Probe[] = [
     url: `${published.siteUrl}/.well-known/mcp.json`,
     kind: "json",
     body: /endpoint/,
+  },
+  {
+    name: "agent skills index",
+    url: `${published.siteUrl}/.well-known/agent-skills/index.json`,
+    kind: "json",
+    body: /"skills"/,
+  },
+  {
+    // A Cloudflare redirect to the teakvault.com index (.agents/environment.md).
+    name: "api subdomain agent skills index",
+    url: "https://api.teakvault.com/.well-known/agent-skills/index.json",
+    kind: "json",
+    body: /"skills"/,
   },
   {
     name: "apex api health",
@@ -192,3 +207,45 @@ for (const [index, probe] of probes.entries()) {
     );
   });
 }
+
+interface SkillsIndex {
+  skills: { digest: string; name: string; type: string; url: string }[];
+}
+
+const sha256 = (bytes: ArrayBuffer | Buffer) =>
+  `sha256:${createHash("sha256")
+    .update(new Uint8Array(bytes as ArrayBuffer))
+    .digest("hex")}`;
+
+test("extra agent skills index matches what it serves and this checkout", async () => {
+  const indexUrl = `${published.siteUrl}/.well-known/agent-skills/index.json`;
+  const response = await fetchWithNetworkRetry(indexUrl);
+  expect(
+    response.headers.get("access-control-allow-origin"),
+    "any agent can read the index"
+  ).toBe("*");
+  const index = (await response.json()) as SkillsIndex;
+  expect(index.skills.map((skill) => skill.name)).toContain("teak");
+  for (const skill of index.skills) {
+    const artifact = await fetchWithNetworkRetry(
+      new URL(skill.url, indexUrl).toString()
+    );
+    expect(artifact.status, `${skill.name} artifact is served`).toBe(200);
+    expect(
+      artifact.headers.get("access-control-allow-origin"),
+      `${skill.name} artifact is readable cross-origin`
+    ).toBe("*");
+    expect(
+      sha256(await artifact.arrayBuffer()),
+      `${skill.name} digest matches the served file`
+    ).toBe(skill.digest);
+  }
+  const teak = index.skills.find((skill) => skill.name === "teak");
+  const local = readFileSync(
+    new URL("../../../../.agents/skills/teak/SKILL.md", import.meta.url)
+  );
+  expect(teak?.type).toBe("skill-md");
+  expect(teak?.digest, "teak digest matches .agents/skills/teak").toBe(
+    sha256(local)
+  );
+});

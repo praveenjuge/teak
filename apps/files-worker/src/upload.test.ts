@@ -499,10 +499,15 @@ describe("additive files ops", () => {
   test("generate-image-metadata validates AI output with bounded retries", async () => {
     let calls = 0;
     let capturedImageUrl: unknown;
+    const capturedSampling: unknown[] = [];
     const aiEnv = withObjectGates({
       AI: {
         run: (_model: string, args: Record<string, unknown>) => {
           calls += 1;
+          capturedSampling.push({
+            chat_template_kwargs: args.chat_template_kwargs,
+            frequency_penalty: args.frequency_penalty,
+          });
           const messages = args.messages as Array<{
             content?: Array<{ image_url?: unknown; type?: string }>;
           }>;
@@ -521,6 +526,7 @@ describe("additive files ops", () => {
                   content: JSON.stringify({
                     summary: "A red square.",
                     tags: ["red", "square"],
+                    text: "STOP\n  4411",
                   }),
                 },
               },
@@ -561,7 +567,13 @@ describe("additive files ops", () => {
     );
     expect(result.tags).toEqual(["red", "square"]);
     expect(result.summary).toBe("A red square.");
+    expect(result.text).toBe("STOP\n  4411");
     expect(calls).toBe(2);
+    const sampling = {
+      chat_template_kwargs: { enable_thinking: false },
+      frequency_penalty: 0.3,
+    };
+    expect(capturedSampling).toEqual([sampling, sampling]);
     expect(capturedImageUrl).toEqual({
       url: "data:image/jpeg;base64,AQID",
     });
@@ -576,6 +588,108 @@ describe("additive files ops", () => {
       width: 1600,
       "origin-auth": "share-publicly",
     });
+  });
+
+  test("generate-image-metadata keeps tags and summary when dense text keeps cutting the answer off", async () => {
+    const prompts: string[] = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const messages = args.messages as Array<{
+            content?: string | Array<{ text?: string; type?: string }>;
+          }>;
+          const prompt =
+            messages
+              .flatMap((message) =>
+                Array.isArray(message.content) ? message.content : []
+              )
+              .find((part) => part.type === "text")?.text ?? "";
+          prompts.push(prompt);
+          const content = prompt.includes('text set to ""')
+            ? JSON.stringify({ summary: "A menu.", tags: ["menu"], text: "" })
+            : `{"tags":["menu"],"summary":"A menu.","text":"${"本日".repeat(900)}`;
+          return { choices: [{ message: { content } }] };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    (aiEnv.BUCKET as unknown as FakeBucket).objects.set("users/u1/menu.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as unknown as typeof fetch;
+
+    const { generateImageMetadataForOp } = await import("./imageMetadata");
+    const result = await generateImageMetadataForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/menu.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    expect(result).toEqual({ summary: "A menu.", tags: ["menu"] });
+    expect(prompts).toHaveLength(3);
+    expect(prompts[1]).toContain("at most 1000 characters");
+  });
+
+  test("extract-image-text reads only the text, and retries a cut-off answer for less", async () => {
+    const calls: Array<{ prompt: string; system: string }> = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const [system, user] = args.messages as Array<{
+            content: string | Array<{ text?: string; type?: string }>;
+          }>;
+          const prompt = Array.isArray(user?.content)
+            ? (user.content.find((part) => part.type === "text")?.text ?? "")
+            : "";
+          calls.push({ prompt, system: String(system?.content) });
+          expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
+          expect(args.frequency_penalty).toBeUndefined();
+          const content =
+            calls.length === 1
+              ? `{"text":"${"Slide ".repeat(900)}`
+              : JSON.stringify({ text: "Q3 roadmap\nShip OCR" });
+          return { choices: [{ message: { content } }] };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    (aiEnv.BUCKET as unknown as FakeBucket).objects.set("users/u1/og.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as unknown as typeof fetch;
+
+    const { extractImageTextForOp, IMAGE_TEXT_SYSTEM_PROMPT } = await import(
+      "./imageMetadata"
+    );
+    const result = await extractImageTextForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/og.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    expect(result).toEqual({ text: "Q3 roadmap\nShip OCR" });
+    expect(calls.map((call) => call.system)).toEqual([
+      IMAGE_TEXT_SYSTEM_PROMPT,
+      IMAGE_TEXT_SYSTEM_PROMPT,
+    ]);
+    expect(IMAGE_TEXT_SYSTEM_PROMPT).not.toContain("tags");
+    expect(calls[1]?.prompt).toContain("at most 1000 characters");
   });
 
   test("generate-image-metadata retries transient Workers AI capacity errors", async () => {

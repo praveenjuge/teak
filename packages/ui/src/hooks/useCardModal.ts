@@ -1,5 +1,7 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { captureEvent } from "@teak/convex/shared/analytics";
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { isCardHidden, isHiddenTagList } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
@@ -43,7 +45,6 @@ interface PendingChanges {
   url?: string;
 }
 
-/** Where the open card's edits stand, for the dialog's save indicator. */
 export type CardSaveState = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 export interface CardModalConfig {
@@ -59,10 +60,6 @@ export interface CardModalOptions extends CardModalConfig {
   card?: CardWithUrls | null;
 }
 
-/**
- * Edited text fields still to write: changed from the card, and not the
- * value a save already sent (the card may not show it yet).
- */
 export function getUnsavedUpdates(
   card: Partial<Record<TextField, string | undefined>>,
   pending: PendingChanges,
@@ -93,6 +90,8 @@ export function useCardModal(
   const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
+  const [pendingDone, setPendingDone] = useState<Record<string, boolean>>({});
+  const doneInFlight = useRef(new Set<string>());
 
   if (editsCardId !== cardId) {
     setEditsCardId(cardId);
@@ -131,11 +130,24 @@ export function useCardModal(
         break;
       }
 
+      case "done":
+      case "undone": {
+        const setDone = (card: Doc<"cards">): Doc<"cards"> =>
+          card.type === "link"
+            ? {
+                ...card,
+                completedAt:
+                  field === "done" ? (card.completedAt ?? now) : undefined,
+                updatedAt: now,
+              }
+            : card;
+        updateCardInSearchQueries(localStore, updateCardId, setDone);
+        break;
+      }
+
       case "tags": {
         const tags =
           Array.isArray(value) && value.length > 0 ? value : undefined;
-        // A reserved tag hides the card: lists that don't reveal hidden
-        // cards drop it until the server answers.
         const updateTags = (card: Doc<"cards">): Doc<"cards"> => ({
           ...card,
           tags,
@@ -228,11 +240,6 @@ export function useCardModal(
     });
   }, [card, savedValues]);
 
-  /**
-   * Writes every unsaved edit. `silent` skips the toast, for saves that run
-   * on their own while someone types. Resolves false when a write failed, so
-   * the dialog can stay open instead of dropping the edit.
-   */
   const saveChanges = useCallback(
     async ({ silent = false }: { silent?: boolean } = {}): Promise<boolean> => {
       if (!(cardId && unsavedUpdates.length > 0)) {
@@ -326,7 +333,6 @@ export function useCardModal(
     setPendingChanges((prev) => ({ ...prev, notes }));
   }, []);
 
-  /** Edits a link's title; undefined drops the edit and keeps the saved one. */
   const updateTitle = useCallback((metadataTitle: string | undefined) => {
     setPendingChanges((prev) => ({ ...prev, metadataTitle }));
   }, []);
@@ -356,6 +362,61 @@ export function useCardModal(
     });
   }, [card, config.onCardUpdate, updateField]);
 
+  const setDone = useCallback(
+    async (done: boolean, { isUndo = false } = {}) => {
+      if (
+        !(cardId && card?.type === "link") ||
+        doneInFlight.current.has(cardId)
+      ) {
+        return;
+      }
+      const category = card.metadata?.linkCategory?.category;
+      const verb = doneActionLabel(category);
+      doneInFlight.current.add(cardId);
+      setPendingDone((pending) => ({ ...pending, [cardId]: done }));
+      try {
+        await updateCardField({
+          cardId: cardId as Id<"cards">,
+          field: done ? "done" : "undone",
+        });
+        captureEvent("card_done_toggled", {
+          category: category ?? "none",
+          done,
+          source: "panel",
+        });
+        if (!isUndo) {
+          toast.success(done ? `Marked as ${verb}` : `Marked as not ${verb}`, {
+            action: {
+              label: "Undo",
+              onClick: () => {
+                void setDone(!done, { isUndo: true });
+              },
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Failed to update done state:", error);
+        toast.error("Couldn't update. Try again.");
+        config.onError?.(error as Error, "update done state");
+      } finally {
+        doneInFlight.current.delete(cardId);
+        setPendingDone((pending) => {
+          const { [cardId]: _settled, ...rest } = pending;
+          return rest;
+        });
+      }
+    },
+    [card, cardId, config.onError, updateCardField]
+  );
+
+  const toggleDone = useCallback(() => {
+    if (!card) {
+      return;
+    }
+    const isDone = pendingDone[card._id] ?? card.completedAt !== undefined;
+    void setDone(!isDone);
+  }, [card, pendingDone, setDone]);
+
   const removeAiTag = useCallback(
     (tagToRemove: string) => {
       void updateField("removeAiTag", undefined, tagToRemove);
@@ -363,8 +424,6 @@ export function useCardModal(
     [updateField]
   );
 
-  // The open card and its tags as they are now, for an Undo that runs after
-  // later edits; the dialog may since show another card, or none.
   const latestTags = useRef<{ cardId?: string | null; tags?: string[] }>({});
   latestTags.current = { cardId, tags: card?.tags };
 
@@ -381,9 +440,6 @@ export function useCardModal(
           toast(`Hidden. Search #${tag} to see it.`, {
             action: {
               label: "Undo",
-              // Remove only the tag added here. While the dialog still shows
-              // this card, keep its later edits; otherwise start from the
-              // tags this edit wrote. `updateField` is this card's.
               onClick: () => {
                 const base =
                   latestTags.current.cardId === cardId
@@ -566,14 +622,20 @@ export function useCardModal(
     if (!card) {
       return null;
     }
+    let completedAt = card.completedAt;
+    const pending = pendingDone[card._id];
+    if (pending !== undefined) {
+      completedAt = pending ? (card.completedAt ?? Date.now()) : undefined;
+    }
     return {
       ...card,
+      completedAt,
       isFavorited:
         pendingChanges.isFavorited === undefined
           ? card.isFavorited
           : pendingChanges.isFavorited,
     } satisfies CardWithUrls;
-  }, [card, pendingChanges.isFavorited]);
+  }, [card, pendingChanges.isFavorited, pendingDone]);
 
   return {
     card: cardWithOptimisticUpdates,
@@ -585,6 +647,7 @@ export function useCardModal(
     updateTitle,
     updateAiSummary,
     toggleFavorite,
+    toggleDone,
     removeAiTag,
     addTag,
     removeTag,

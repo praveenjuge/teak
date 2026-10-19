@@ -1,6 +1,3 @@
-# Questions Teak users and their agents ask. `bun run eval` has an agent answer
-# each one from these docs alone, then a judge checks the expected facts.
-# Facts must stay true to the shipped product; never weaken one to get green.
 questions:
   - id: install-cli
     question: How do I install the Teak command-line app?

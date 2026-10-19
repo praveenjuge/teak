@@ -1,4 +1,3 @@
-/// <reference types="vite/client" />
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
@@ -58,7 +57,6 @@ const setup = async () => {
     });
   };
 
-  /** A card saved before the flag existed: reserved tag, no `isHidden`. */
   const unflag = (cardId: Id<"cards">) =>
     t.run(async (ctx) => {
       await ctx.db.patch("cards", cardId, { isHidden: undefined });
@@ -86,7 +84,6 @@ const setup = async () => {
 
   const runScheduled = () => t.finishAllScheduledFunctions(vi.runAllTimers);
 
-  /** Every page of the grid's read, as card contents. */
   const grid = async (
     args: Record<string, unknown> = {},
     as = owner,
@@ -129,10 +126,6 @@ const setup = async () => {
 
 type Setup = Awaited<ReturnType<typeof setup>>;
 
-/**
- * A library with one visible card and one hidden card in each place a read
- * can find it, plus a card whose only `hidden` is an AI tag.
- */
 const seedLibrary = async ({ insert, owner, t }: Setup) => {
   const folder = await owner.mutation(api.folders.createFolder, {
     name: "Beach trips",
@@ -210,7 +203,6 @@ describe("the isHidden flag", () => {
       field: "tags",
       value: ["work", "Hidden"],
     });
-    // The flag lands in the tag edit's own write.
     expect((await card(id))?.isHidden).toBe(true);
   });
 
@@ -286,7 +278,6 @@ describe.each([
   test("a search for a reserved tag shows them", async () => {
     const { grid, folder, secretSmart } = await prepare();
     expect(await grid({ searchQuery: "#secret" })).toEqual(["beach hidden"]);
-    // A tag search matches AI tags too; the AI-only card was never hidden.
     expect(await grid({ searchQuery: "tag:HIDDEN" })).toEqual([
       "beach ai only",
       "beach favorite hidden",
@@ -314,7 +305,6 @@ describe.each([
 
   test("mobile summaries, the older list queries and top sites leave them out", async () => {
     const { owner, grid } = await prepare();
-    // A summary's title is the link's host.
     expect(
       await grid({}, owner, api.cards.searchMobileCardSummariesPaginated)
     ).toEqual(["beach ai only", "photos.example"]);
@@ -455,7 +445,6 @@ describe.each([
     expect(await has({ view: "favorites" })).toBe(true);
     expect(await has({ view: "archive" })).toBe(true);
     expect(await has({ view: "trash" })).toBe(true);
-    // Someone else's folder, and an account with nothing hidden.
     expect(await has({ folderId: folder._id }, stranger)).toBe(false);
     expect(await has({ view: "favorites" }, stranger)).toBe(false);
   });
@@ -480,7 +469,6 @@ describe("backfillHiddenCards", () => {
     for (const id of [ids.secret, ids.both, ids.stranger]) {
       await unflag(id);
     }
-    // A flag left behind on a card that no longer has the tag.
     await t.run((ctx) => ctx.db.patch("cards", ids.stale, { isHidden: true }));
     return ids;
   };

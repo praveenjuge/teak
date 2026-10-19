@@ -6,10 +6,6 @@ import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { queueCardProcessing } from "../workflowDispatch";
 import { findCardsMissingAiCandidates } from "./queries";
 
-// The Files Worker's AI backfill queue (apps/files-worker/src/queues/
-// aiBackfill.ts) regenerates AI metadata for cards whose first run deferred
-// it. Every 6 hours it claims a batch here; each claim counts one attempt.
-
 export const AI_BACKFILL_INTERVAL_HOURS = 6;
 const AI_BACKFILL_RETRY_WINDOW_HOURS = 24;
 export const MAX_AI_BACKFILL_ATTEMPTS =
@@ -19,11 +15,6 @@ export type AiBackfillClaim =
   | { outcome: "claimed"; rev: number }
   | { outcome: "exhausted" | "skipped" };
 
-/**
- * Counts one backfill attempt for a card, or, once the card has used every
- * attempt, stops retrying it. A claimed card carries its processing
- * revision, so the backfill's writes stop if the card is edited meanwhile.
- */
 export const claimAiBackfillCard = async (
   ctx: MutationCtx,
   cardId: Id<"cards">
@@ -59,7 +50,6 @@ export const claimAiBackfillCard = async (
   return { outcome: "claimed", rev: card.processingRev ?? 0 };
 };
 
-/** The cards one backfill run should regenerate AI metadata for. */
 export const claimAiBackfillCards = internalMutation({
   args: {},
   returns: v.object({
@@ -84,10 +74,6 @@ export const claimAiBackfillCards = internalMutation({
   },
 });
 
-/**
- * Gives back the attempts a claim counted when the Worker could not queue
- * the cards, so an attempt is only spent on a card that was queued.
- */
 export const releaseAiBackfillCards = internalMutation({
   args: { cardIds: v.array(v.id("cards")) },
   returns: v.null(),
@@ -105,11 +91,6 @@ export const releaseAiBackfillCards = internalMutation({
   },
 });
 
-/**
- * The admin console's "retry AI backfill": claims a batch now and starts a
- * metadata-only card-processing run for each claimed card, which
- * regenerates its AI metadata and leaves every other stage as it is.
- */
 export const retryAiBackfillNow = internalMutation({
   args: {},
   returns: v.object({

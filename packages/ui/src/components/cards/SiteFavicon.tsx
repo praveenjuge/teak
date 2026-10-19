@@ -3,7 +3,6 @@ import { useState } from "react";
 import { cn } from "../../lib/utils";
 import { getFaviconUrl } from "./cardDisplay";
 
-/** A site's favicon, or a globe when it has none or it fails to load. */
 export function SiteFavicon({
   className,
   hostname,
@@ -22,15 +21,16 @@ export function SiteFavicon({
     );
   }
   return (
-    // biome-ignore lint/correctness/useImageSize: sized by its class
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: a failed load swaps in the globe; the image isn't interactive
     <img
       alt=""
       className={cn("size-3.5 shrink-0 rounded-[3px]", className)}
       decoding="async"
+      height={14}
       loading="lazy"
       onError={() => setFailedFor(src)}
       src={src}
+      width={14}
     />
   );
 }

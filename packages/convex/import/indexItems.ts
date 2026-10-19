@@ -2,10 +2,6 @@ import { inferFileFormat } from "../shared/fileFormats";
 import { MAX_IMPORT_FILE_BYTES } from "./constants";
 import { validateImportCard } from "./validate";
 
-// The import workflow (Files Worker) turns each indexed source entry into an
-// `importJobItems` row with these helpers. They are pure so the Worker can
-// run them next to the source it reads.
-
 export type ImportIndexItem = ReturnType<typeof normalizeIndexItem>;
 
 export function normalizeIndexItem(
@@ -59,6 +55,7 @@ export function normalizeIndexItem(
       folders: card.folders,
       colors: card.colors,
       importedCreatedAt: card.createdAt,
+      importedCompletedAt: card.completedAt,
       filePath: card.file?.path,
       fileName: card.file?.fileName,
       fileSize: card.file
@@ -88,7 +85,6 @@ export function normalizeIndexItem(
 
 const ACTIVE_IMPORT_FORMATS = new Set(["html", "svg"]);
 
-/** Imported HTML and SVG are stored as text, so they never render inline. */
 export const importStoredContentType = (item: {
   fileName?: string | null;
   mimeType?: string | null;
@@ -105,11 +101,6 @@ export const importStoredContentType = (item: {
     : format.mimeType;
 };
 
-/**
- * Where an extracted archive file goes. Deterministic per item, so a retried
- * extraction overwrites rather than leaks. `userKeyPrefix` is the owner's
- * `buildR2UserPrefix`.
- */
 export const importFileKey = (
   userKeyPrefix: string,
   jobId: string,

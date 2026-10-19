@@ -77,11 +77,61 @@ export const LINK_CATEGORY_ICONS: Record<LinkCategory, string> = {
   other: "Link",
 };
 
-/**
- * Mastodon instances whose `/@user/<id>` paths the URL rules trust as posts.
- * The path alone is not enough (any blog can use it); other instances are
- * confirmed through their status API when the link's metadata is fetched.
- */
+export type LinkDoneVerb =
+  | "read"
+  | "watched"
+  | "listened"
+  | "bought"
+  | "cooked"
+  | "played"
+  | "done";
+
+export const LINK_CATEGORY_DONE_VERB: Record<LinkCategory, LinkDoneVerb> = {
+  book: "read",
+  movie: "watched",
+  tv: "watched",
+  article: "read",
+  news: "read",
+  podcast: "listened",
+  music: "listened",
+  product: "bought",
+  recipe: "cooked",
+  course: "done",
+  research: "read",
+  event: "done",
+  software: "done",
+  design_portfolio: "done",
+  place: "done",
+  typeface: "done",
+  social_post: "done",
+  app: "done",
+  game: "played",
+  repo: "done",
+  other: "done",
+};
+
+export const ACTIONABLE_LINK_CATEGORIES: ReadonlySet<string> =
+  new Set<LinkCategory>([
+    "book",
+    "movie",
+    "tv",
+    "article",
+    "news",
+    "podcast",
+    "music",
+    "product",
+    "recipe",
+    "course",
+    "event",
+    "app",
+    "game",
+  ]);
+
+export const doneActionLabel = (category?: string | null): LinkDoneVerb =>
+  category && isLinkCategory(category)
+    ? LINK_CATEGORY_DONE_VERB[category]
+    : "done";
+
 export const MASTODON_HOSTS = [
   "mastodon.social",
   "mastodon.online",
@@ -105,7 +155,7 @@ export interface LinkCategoryMetadata {
   facts?: LinkCategoryDetail[];
   fetchedAt: number;
   imageUrl?: string;
-  /** A product's price, from JSON-LD or the provider's page selectors. */
+  pdfUrl?: string;
   price?: LinkPrice;
   raw?: Record<string, unknown>;
   rawHasStructured?: boolean;

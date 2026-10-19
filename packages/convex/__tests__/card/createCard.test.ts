@@ -172,7 +172,6 @@ describe("card/createCard.ts", () => {
 
     expect((error as any)?.data?.code).toBe("CARD_LIMIT_REACHED");
     expect([...cards.keys()]).toEqual([]);
-    // No card, so no processing run was queued.
     expect(
       ctx.db.insert.mock.calls.some(
         ([table]: [string]) => table === "workflowDispatches"
@@ -278,8 +277,6 @@ describe("card/createCard.ts", () => {
       "cardSearchDocuments",
       expect.objectContaining({ cardId: "c1", userId: "u1" })
     );
-    // Processing is queued in the same transaction, for the card's first
-    // revision.
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "workflowDispatches",
       expect.objectContaining({

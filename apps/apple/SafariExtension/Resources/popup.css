@@ -1,5 +1,3 @@
-/* Native-looking on both Safaris: system fonts and colors, a 300 pt popover
-   on the Mac, and the full sheet width on iPhone and iPad. */
 :root {
   --accent: #dc2626;
   --label: -apple-system-label;
@@ -177,7 +175,6 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-/* Each state shows only the actions that apply. */
 #sign-in,
 #retry,
 #sign-out {

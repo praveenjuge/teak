@@ -44,7 +44,6 @@ const keyEvent = (
   ...modifiers,
 });
 
-// Parsed rather than assigned to innerHTML: the fixtures are fixed strings.
 const mount = (html: string): HTMLElement => {
   const parsed = new DOMParser().parseFromString(html, "text/html");
   document.body.replaceChildren(...parsed.body.childNodes);

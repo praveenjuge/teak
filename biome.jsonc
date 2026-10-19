@@ -17,6 +17,21 @@
       ]
     },
     {
+      "path": "./scripts/lint/identity-boundary-callers.grit",
+      "includes": [
+        "**/packages/convex/**/*.ts",
+        "**/apps/**/*.ts",
+        "!**/packages/convex/_generated/**",
+        "!**/packages/convex/__tests__/**",
+        "!**/*.test.ts",
+        "!**/packages/convex/securitySessions.ts",
+        "!**/packages/convex/workosBootstrap.ts",
+        "!**/packages/convex/workosLifecycle.ts",
+        "!**/packages/convex/publicApiHttpAuth.ts",
+        "!**/packages/convex/workosWebhook.ts"
+      ]
+    },
+    {
       "path": "./scripts/lint/no-remove-child.grit",
       "includes": ["**/apps/web/src/**", "**/packages/ui/src/**"]
     },
@@ -38,6 +53,23 @@
     ]
   },
   "overrides": [
+    {
+      "includes": [
+        "**/__tests__/**",
+        "**/*.test.*",
+        "**/*.test-utils.*",
+        "**/test/**",
+        "**/tests/**",
+        "**/*.e2e.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
     {
       // Generated or vendored files that must stay byte-for-byte as their
       // writers leave them:
@@ -109,9 +141,6 @@
       }
     },
     {
-      // Flags source files that have grown past the point of being easy to
-      // review, so a split happens before the next feature lands in them.
-      // Tests, generated code and vendored shadcn primitives are exempt.
       "includes": [
         "**/*.ts",
         "**/*.tsx",
@@ -140,9 +169,9 @@
         "packages/convex/shared/utils/colorUtils.ts",
         "packages/convex/apiKeys.ts",
         "packages/convex/storage/r2.ts",
+        "packages/convex/shared/search/shuffle.ts",
         "packages/convex/__tests__/helpers/r2Mock.test-utils.ts",
-        "packages/ui/src/components/cards/previews/AudioWavePreview.tsx",
-        "apps/docs/components/HomeAppDemo.astro"
+        "packages/ui/src/lib/audioWave.ts"
       ],
       "linter": {
         "rules": {
@@ -153,13 +182,17 @@
       }
     },
     {
-      // Pure modules, unit tested and bundled for any runtime.
       "includes": [
         "packages/convex/export/bookmarks.ts",
         "packages/convex/export/constants.ts",
         "packages/convex/export/csv.ts",
         "packages/convex/export/serialize.ts",
-        "packages/convex/linkMetadata/ssrf.ts"
+        "packages/convex/linkMetadata/ssrf.ts",
+        "packages/convex/card/classificationRules.ts",
+        "packages/convex/card/documentTextFormat.ts",
+        "packages/convex/mcp/protocol.ts",
+        "packages/convex/shared/aiPricing.ts",
+        "packages/convex/shared/posthog.ts"
       ],
       "linter": {
         "rules": {
@@ -174,11 +207,77 @@
                       "convex/**",
                       "**/_generated/**",
                       "node:*",
-                      "node:*/**"
+                      "node:*/**",
+                      "zod",
+                      "zod/**"
                     ],
-                    "message": "This module stays free of Convex and Node imports."
+                    "message": "This module stays free of Convex, Node and zod imports."
                   }
                 ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/convex/shared/filesOrigins.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["**"],
+                    "message": "Repo scripts read this module before dependencies are installed, so it imports nothing."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/convex/storage/fileUrls.ts",
+        "packages/convex/storage/r2Keys.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["./*", "!./r2Keys"],
+                    "message": "Tests mock storage/r2 process-wide, so leaf storage modules import only storage/r2Keys."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/convex/linkMetadata/**",
+        "!packages/convex/linkMetadata/ssrf.ts",
+        "!packages/convex/linkMetadata/x.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "fetch": "Fetch user-controlled URLs with safeFetch from linkMetadata/ssrf.ts."
+                }
               }
             }
           }
@@ -239,9 +338,6 @@
       }
     },
     {
-      // The extension's OAuth module keeps sign-in state for the background
-      // worker. Only the worker and the save modules it calls may import it,
-      // so the popup and content script never bundle it.
       "includes": [
         "apps/extension/**",
         "!apps/extension/entrypoints/background.ts",
@@ -273,9 +369,6 @@
   "linter": {
     "rules": {
       "a11y": {
-        // Static brand SVG assets (logos, badges, icons) are referenced via
-        // `<img>`/links where the accessible name comes from `alt`.
-        "noSvgWithoutTitle": "off",
         // Safari's `-apple-system-body` font shorthand is the sanctioned
         // dynamic-type value for Apple-only stylesheets.
         "useGenericFontNames": "off"
@@ -286,12 +379,11 @@
         "noIncrementDecrement": "off",
         // Requires ES2022 lib (`Array.at`) in the Convex tsconfig.
         "useAtIndex": "off",
-        // Requires threading the caught error through every rethrow; tracked
-        // as a separate error-handling pass.
+        // Requires threading the caught error through every rethrow.
         "useErrorCause": "off"
       },
       "complexity": {
-        // Many functions are over the threshold; refactors tracked separately.
+        // Many functions are over the threshold.
         "noExcessiveCognitiveComplexity": "off",
         "noVoid": "off"
       },
@@ -312,24 +404,12 @@
         "useImportExtensions": "off"
       },
       "suspicious": {
-        // Widespread in tests and Convex glue; burn down gradually before
-        // enabling.
-        "noExplicitAny": "off",
-        // Standard `{condition && <jsx/>}` render pattern; the falsy-leak
-        // concern is handled by our shared UI primitives.
-        "noLeakedRender": "off",
-        // Optional chaining and redundant-condition checks are defensive
-        // against future shape changes, especially in tests.
-        "noUnnecessaryConditions": "off",
         // Shadowed loop/parameter names; renaming risks churn across many
         // files for a readability-only win.
         "noShadow": "off",
         // Biome flags any Astro file without script-y frontmatter (and
         // comment-only generated bundles) as an empty source.
-        "noEmptySource": "off",
-        // Intentional error-swallowing `catch` blocks: comment-only bodies are
-        // still flagged, and a trailing `return;` trips noUselessReturn.
-        "noEmptyBlockStatements": "off"
+        "noEmptySource": "off"
       }
     }
   },

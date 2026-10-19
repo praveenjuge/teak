@@ -7,10 +7,6 @@ const transpilers = {
   tsx: new Bun.Transpiler({ loader: "tsx" }),
 };
 
-/**
- * Every chain of static imports from `entry` that reaches a `@tiptap/*`
- * package. Dynamic `import()` is where code splits, so it is not followed.
- */
 function staticTiptapImports(entry: string): string[] {
   const seen = new Set<string>();
   const chains: string[] = [];

@@ -16,10 +16,6 @@ import {
   TEST_CONVEX_SITE_URL,
 } from "./fakeConvex";
 
-// A card-processing test bench: one card in a fake Convex deployment that
-// answers the RPCs card processing makes the way the real functions do,
-// enforces the revision guard, and records every call; and fake Files ops.
-
 export const CARD_ID = "k57card0000000000000000000000001";
 export const USER_ID = "user_1";
 
@@ -55,10 +51,6 @@ const merge = (card: FakeCard, stages: Record<string, unknown> | undefined) => {
   };
 };
 
-/**
- * A fake deployment holding `card`. Pass handlers to replace or add
- * functions; `card` is mutated in place as mutations land.
- */
 export const createCardConvex = (
   card: FakeCard | null,
   handlers: Record<string, FakeHandler> = {}
@@ -164,7 +156,6 @@ export const createCardConvex = (
           | { linkPreview?: { status?: string } }
           | undefined
       )?.linkPreview;
-      // Like Convex: a refresh that can't read the page keeps the preview.
       if (
         args.refresh === true &&
         args.status === "failed" &&
@@ -184,7 +175,21 @@ export const createCardConvex = (
     }),
     "linkMetadata:updateCardScreenshot": write(
       "updateCardScreenshot",
-      () => null
+      (args) => {
+        const metadata = (card as FakeCard).metadata as
+          | { linkPreview?: object }
+          | undefined;
+        Object.assign(card as FakeCard, {
+          metadata: {
+            ...metadata,
+            linkPreview: {
+              ...metadata?.linkPreview,
+              screenshotStorageKey: args.screenshotStorageKey,
+            },
+          },
+        });
+        return null;
+      }
     ),
     "storage/ownership:registerObject": write("registerObject", () => true),
     "workflowDispatch:complete": () => null,
@@ -245,6 +250,20 @@ export const createCardConvex = (
         return null;
       }
     ),
+    "workflows/steps/podcast/mutations:takePodcastTranscriptSlot": () => true,
+    "workflows/steps/podcast/mutations:trackPodcastAudio": write(
+      "trackPodcastAudio",
+      (args) => {
+        const keys = (
+          ((card as FakeCard).workflowArtifactKeys as string[] | undefined) ??
+          []
+        ).filter((key) => key !== args.key);
+        (card as FakeCard).workflowArtifactKeys = args.stored
+          ? [...keys, args.key as string]
+          : keys;
+        return true;
+      }
+    ),
     "workflows/steps/renderables/mutations:markCardRenderablesFailed": write(
       "markCardRenderablesFailed",
       (args) => {
@@ -285,7 +304,6 @@ export type OpAnswer =
   | { fallback: FilesErrorCode; message?: string }
   | { throws: Error };
 
-/** Fake Files ops: answer by op name; every call is recorded. */
 export const createFakeOps = (
   answers: Partial<
     Record<FilesOp, OpAnswer | ((params: Record<string, unknown>) => OpAnswer)>
@@ -317,7 +335,6 @@ export const createFakeOps = (
   return { calls, ops, opsCalled: () => calls.map((call) => call.op) };
 };
 
-/** A Workers AI metadata op answer, as `generate-text-metadata` gives it. */
 export const textMetadataAnswer = (
   tags: string[] = ["design", "notes"],
   summary = "A short summary"
@@ -330,7 +347,6 @@ export const textMetadataAnswer = (
   },
 });
 
-/** An in-memory R2 bucket with the methods card processing uses. */
 export const createMemoryBucket = () => {
   const objects = new Map<string, string>();
   const bucket = {
@@ -361,12 +377,18 @@ export const testEnv = (fields: Partial<BackgroundEnv> = {}): BackgroundEnv =>
     ...fields,
   }) as BackgroundEnv;
 
-export const noNetwork = {
-  pinnedFetch: () => Promise.reject(new Error("unexpected network request")),
-  resolveDns: () => Promise.resolve(["93.184.216.34"]),
-} satisfies Pick<CardProcessingDeps, "pinnedFetch" | "resolveDns">;
+const unexpectedRequest = () =>
+  Promise.reject(new Error("unexpected network request"));
 
-/** Deps for the fake deployment and ops. */
+export const noNetwork = {
+  pinnedFetch: unexpectedRequest,
+  podcastFetch: { episode: unexpectedRequest, feed: unexpectedRequest },
+  resolveDns: () => Promise.resolve(["93.184.216.34"]),
+} satisfies Pick<
+  CardProcessingDeps,
+  "pinnedFetch" | "podcastFetch" | "resolveDns"
+>;
+
 export const testDeps = (
   env: BackgroundEnv,
   fetcher: typeof fetch,
@@ -391,11 +413,6 @@ export const testJob = (
   rev,
 });
 
-/**
- * The link fetcher Container's real handler behind a fake Durable Object
- * namespace. `route` answers the upstream requests it makes (404 when it
- * returns nothing); every upstream URL is recorded.
- */
 export const createContainerNetwork = (
   route: (url: string, init: RequestInit) => Response | undefined
 ) => {

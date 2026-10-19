@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const appleSafariManifest =
   "apps/apple/SafariExtension/Resources/manifest.json";
-// The MCP registry entry, published by hand (apps/docs development guide).
 const mcpServerManifest = "server.json";
 // project.yml is the source of truth; Teak.xcodeproj is generated from it, so
 // both carry the same MARKETING_VERSION. Build numbers come from App Store

@@ -11,15 +11,10 @@ import {
 test("a change counts only when Clef disagrees, is sure, and may", () => {
   const rows = choiceRows(
     [
-      // Right change.
       { rules: "other", label: "recipe", choice: "recipe", probability: 0.9 },
-      // Wrong change.
       { rules: "other", label: "article", choice: "news", probability: 0.92 },
-      // Agrees with the rules.
       { rules: "book", label: "book", choice: "book", probability: 0.99 },
-      // Unsure.
       { rules: "other", label: "course", choice: "course", probability: 0.6 },
-      // Not allowed.
       { rules: "article", label: "other", choice: "other", probability: 0.99 },
     ],
     ["other"]

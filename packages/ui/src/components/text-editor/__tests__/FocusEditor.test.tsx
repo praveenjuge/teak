@@ -5,9 +5,6 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-// Keep the editor's plain stand-in (with its real Ctrl+E and Ctrl+Enter
-// handling) on screen: the rich editor's code never finishes loading here.
-// The package's test script runs each file alone, so this doesn't leak.
 mock.module("../LoadedMarkdownTextEditor", () => ({
   default: () => {
     throw new Promise(() => undefined);
@@ -119,12 +116,10 @@ test("Cmd/Ctrl+E leaves Focus from Close or Save too, not only the note", async 
     close.dispatchEvent(event);
   });
   expect(onRequestClose).toHaveBeenCalledTimes(1);
-  // The browser's own Ctrl+E (the address bar) doesn't run.
   expect(event.defaultPrevented).toBe(true);
 });
 
 test("typing hides the bar and the count; a pause shows the new count", async () => {
-  // Holds the note like the composer or the card dialog does.
   function Harness() {
     const [value, setValue] = useState("Three small words");
     return (
@@ -178,6 +173,11 @@ test.each([
   [
     "the slash menu is open",
     "<div role='listbox' aria-label='Formatting commands'></div><p data-active></p>",
+    true,
+  ],
+  [
+    "the card link menu is open",
+    "<div role='listbox' aria-label='Link a card'></div><p data-active></p>",
     true,
   ],
   [

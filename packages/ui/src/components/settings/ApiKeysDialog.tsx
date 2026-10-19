@@ -150,7 +150,7 @@ export function ApiKeysPanel({
     message: string;
     error: boolean;
   } | null>(null);
-  const actionInFlight = useRef(false);
+  const actionInFlight = useRef<boolean>(false);
 
   const perform = async (id: string, action: () => Promise<string>) => {
     if (actionInFlight.current) {

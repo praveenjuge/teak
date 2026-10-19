@@ -1,16 +1,20 @@
 ---
+import Icon from "blume/components/Icon.astro";
+
 interface Props {
-  description: string;
+  description?: string;
   emojiAlt?: string;
   emojiSrc?: string;
+  /** A Lucide icon name, shown decoratively when there is no emoji. */
+  icon?: string;
   title: string;
 }
 
-const { title, description, emojiSrc, emojiAlt } = Astro.props;
+const { title, description, emojiSrc, emojiAlt, icon } = Astro.props;
 ---
 
 <div class="flex flex-col items-center justify-center text-center">
-  {emojiSrc && (
+  {emojiSrc ? (
     <img
       alt={emojiAlt || ""}
       class="size-14 object-contain"
@@ -18,7 +22,13 @@ const { title, description, emojiSrc, emojiAlt } = Astro.props;
       src={emojiSrc}
       width="56"
     />
+  ) : icon && (
+    <span class="inline-flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <Icon name={icon} size={22} />
+    </span>
   )}
-  <h3 class="mt-3 mb-1.5 font-semibold text-lg">{title}</h3>
-  <p class="text-balance text-muted-foreground">{description}</p>
+  <h3 class="mt-3 mb-1.5 font-semibold text-lg text-balance">{title}</h3>
+  <p class="text-balance text-muted-foreground">
+    {Astro.slots.has("default") ? <slot /> : description}
+  </p>
 </div>
