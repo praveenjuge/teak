@@ -80,7 +80,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
     - it runs `findTagGroups`, sends the unsure pairs to the Files Worker `decide-tag-pairs` through `ai/decisions.ts` `runDecision`;
     - it writes the cache through an internal mutation.
     - It first claims the computation with an internal mutation that sets `computingUntil = now + 2 min` on the cache row; a call that finds an unexpired claim for the same `summaryComputedAt` returns without calling Clef. The claim expires on its own if the action dies.
-    - If the AI gate is denied or the worker call fails, it stores the sure groups with `aiComplete: false`. A cache with `aiComplete: false` reads as `stale` once 24 hours have passed, so spelling and meaning groups come back after AI is available again.
+    - If the AI gate is denied, or the worker call fails, times out or returns a malformed reply, it stores the sure groups with `aiComplete: false`. A cache with `aiComplete: false` reads as `stale` once 24 hours have passed, so spelling and meaning groups come back after AI is available again.
   - `keepTagsSeparate` (mutation, `{ tags: string[] }`): inserts every pair in the group as a dismissal, up to 15 pairs, and returns their ids.
   - `undoKeepTagsSeparate` (mutation, `{ dismissalIds }`): deletes those dismissals, checking that each belongs to the caller. The toast's Undo calls it.
 - `tag/tagOperations.ts`: `startTagOperation` and `startTagOperationForUser` accept an optional `alsoFrom: v.array(v.string())` (at most 5) for `kind: "merge"`.
