@@ -25,7 +25,6 @@ import type * as adminStats from "../adminStats.js";
 import type * as adminUsage from "../adminUsage.js";
 import type * as adminUsers from "../adminUsers.js";
 import type * as ai_backfill from "../ai/backfill.js";
-import type * as ai_decisions from "../ai/decisions.js";
 import type * as ai_mutations from "../ai/mutations.js";
 import type * as ai_queries from "../ai/queries.js";
 import type * as ai_usage from "../ai/usage.js";
@@ -270,7 +269,6 @@ import type * as workflows_steps_captions_index from "../workflows/steps/caption
 import type * as workflows_steps_captions_parse from "../workflows/steps/captions/parse.js";
 import type * as workflows_steps_captions_types from "../workflows/steps/captions/types.js";
 import type * as workflows_steps_captions_vimeo from "../workflows/steps/captions/vimeo.js";
-import type * as workflows_steps_categorization_clef from "../workflows/steps/categorization/clef.js";
 import type * as workflows_steps_categorization_enrichment from "../workflows/steps/categorization/enrichment.js";
 import type * as workflows_steps_categorization_mutations from "../workflows/steps/categorization/mutations.js";
 import type * as workflows_steps_categorization_providers_amazon from "../workflows/steps/categorization/providers/amazon.js";
@@ -333,7 +331,6 @@ declare const fullApi: ApiFromModules<{
   adminUsage: typeof adminUsage;
   adminUsers: typeof adminUsers;
   "ai/backfill": typeof ai_backfill;
-  "ai/decisions": typeof ai_decisions;
   "ai/mutations": typeof ai_mutations;
   "ai/queries": typeof ai_queries;
   "ai/usage": typeof ai_usage;
@@ -578,7 +575,6 @@ declare const fullApi: ApiFromModules<{
   "workflows/steps/captions/parse": typeof workflows_steps_captions_parse;
   "workflows/steps/captions/types": typeof workflows_steps_captions_types;
   "workflows/steps/captions/vimeo": typeof workflows_steps_captions_vimeo;
-  "workflows/steps/categorization/clef": typeof workflows_steps_categorization_clef;
   "workflows/steps/categorization/enrichment": typeof workflows_steps_categorization_enrichment;
   "workflows/steps/categorization/mutations": typeof workflows_steps_categorization_mutations;
   "workflows/steps/categorization/providers/amazon": typeof workflows_steps_categorization_providers_amazon;

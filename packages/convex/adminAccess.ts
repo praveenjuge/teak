@@ -154,6 +154,11 @@ export const readUserFlags = (ctx: DbCtx, teakUserId: string) =>
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
     .unique();
 
+/**
+ * The Files Worker caches this answer for up to 60 seconds
+ * (`apps/files-worker/src/aiGate.ts`), so a pause or an account's
+ * `aiDisabled` flag reaches card processing within a minute.
+ */
 export const getAiGate = internalQuery({
   args: { userId: v.string() },
   returns: v.union(

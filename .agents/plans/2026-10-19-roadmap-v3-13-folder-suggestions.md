@@ -36,7 +36,6 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - A `choice` question takes `criteria: Record<string, description>`. The reply's `choice` must be one of those keys and carries a probability for every key (`readAnswer`, around line 140).
   - `buildLinkCategoryRequest` and `decideLinkCategory` (around lines 315–400) are the template: build the state, ask one choice question, and return `decision: null` below the threshold.
 - **Calling Clef from a workflow step:** `apps/files-worker/src/workflows/cardProcessing/decisions.ts` `runDecision` checks the AI gate (`internal.adminAccess.getAiGate`), applies a 3 s timeout, records telemetry and meters usage. `DecisionOp` and `DECISION_MODELS` list the ops it accepts.
-  - The Convex-side `packages/convex/ai/decisions.ts` `runDecision` does the same from Convex actions.
 - **Card processing** (`apps/files-worker/src/workflows/cardProcessing/run.ts`):
   - The steps end with "read link image text" (382), "emit completion" (393) and "transcribe podcast" (447).
   - "generate metadata" (`runMetadataStep`, 466–503) produces `aiTags` and `aiSummary`.

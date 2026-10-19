@@ -114,10 +114,7 @@ export const transcribePodcastEpisode = async (
   if (options.keepTranscript && card.aiTranscript) {
     return miss("already_transcribed");
   }
-  const aiGate = await job.deps.convex.query(internal.adminAccess.getAiGate, {
-    userId: card.userId,
-  });
-  if (aiGate !== "allowed") {
+  if ((await job.deps.aiGate(card.userId)) !== "allowed") {
     return miss("ai_off");
   }
   const page = await pageData(job, loaded);

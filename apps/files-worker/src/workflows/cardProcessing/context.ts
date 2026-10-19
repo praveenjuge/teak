@@ -7,6 +7,7 @@ import {
   FILES_UPLOAD_MAX_BYTES,
   filesUserKeyRoot,
 } from "@teak/files-protocol";
+import { type AiGateReader, createAiGateReader } from "../../aiGate";
 import { type ConvexRpc, createConvexRpc } from "../../convexRpc";
 import {
   createContainerPinnedFetch,
@@ -19,6 +20,8 @@ import type { BackgroundEnv } from "../runtime";
 import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
 
 export interface CardProcessingDeps {
+  /** The account's AI gate, reused for up to a minute (`src/aiGate.ts`). */
+  aiGate: AiGateReader;
   convex: ConvexRpc;
   filesOp: FilesOpCaller;
   pinnedFetch: PinnedFetch;
@@ -34,21 +37,25 @@ export const createCardProcessingDeps = (
   env: BackgroundEnv,
   convexSiteUrl: string,
   overrides: Partial<CardProcessingDeps> = {}
-): CardProcessingDeps => ({
-  convex: overrides.convex ?? createConvexRpc(env, convexSiteUrl),
-  filesOp: overrides.filesOp ?? ((spec) => callFilesOp(env, spec)),
-  pinnedFetch: overrides.pinnedFetch ?? createContainerPinnedFetch(env),
-  podcastFetch: overrides.podcastFetch ?? {
-    episode: createContainerStreamingFetch(env, {
-      maxBytes: FILES_UPLOAD_MAX_BYTES,
-      timeoutMs: EPISODE_DOWNLOAD_TIMEOUT_MS,
-    }),
-    feed: createContainerPinnedFetch(env, {
-      maxBytes: PODCAST_LOOKUP_MAX_BYTES,
-    }),
-  },
-  resolveDns: overrides.resolveDns ?? createDohResolver(),
-});
+): CardProcessingDeps => {
+  const convex = overrides.convex ?? createConvexRpc(env, convexSiteUrl);
+  return {
+    aiGate: overrides.aiGate ?? createAiGateReader(convex, convexSiteUrl),
+    convex,
+    filesOp: overrides.filesOp ?? ((spec) => callFilesOp(env, spec)),
+    pinnedFetch: overrides.pinnedFetch ?? createContainerPinnedFetch(env),
+    podcastFetch: overrides.podcastFetch ?? {
+      episode: createContainerStreamingFetch(env, {
+        maxBytes: FILES_UPLOAD_MAX_BYTES,
+        timeoutMs: EPISODE_DOWNLOAD_TIMEOUT_MS,
+      }),
+      feed: createContainerPinnedFetch(env, {
+        maxBytes: PODCAST_LOOKUP_MAX_BYTES,
+      }),
+    },
+    resolveDns: overrides.resolveDns ?? createDohResolver(),
+  };
+};
 
 export interface CardJob {
   cardId: Id<"cards">;

@@ -77,7 +77,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
   - `getTagCleanup` (query): the cached groups, filtered live against the current summary and the dismissals. It returns `{ status: "ready" | "stale" | "none", groups }`.
   - `refreshTagCleanup` (action), called by the Tags page when the status is `stale` or `none` (a capped, incomplete summary is used as described under API, marked `partial`):
     - it reads the summary and dismissals through internal queries;
-    - it runs `findTagGroups`, sends the unsure pairs to the Files Worker `decide-tag-pairs` through `ai/decisions.ts` `runDecision`;
+    - it runs `findTagGroups`, sends the unsure pairs to the Files Worker `decide-tag-pairs` the way `search/relevanceActions.ts` asks Clef (AI gate, `callFilesWorkerJson` with a timeout, `aiUsageParams`). The old Convex `ai/decisions.ts` `runDecision` helper was removed while nothing used it; bring it back from the repository history if a shared helper is simpler;
     - it writes the cache through an internal mutation.
     - It first claims the computation with an internal mutation that sets `computingUntil = now + 2 min` on the cache row; a call that finds an unexpired claim for the same `summaryComputedAt` returns without calling Clef. The claim expires on its own if the action dies.
     - If the AI gate is denied, or the worker call fails, times out or returns a malformed reply, it stores the sure groups with `aiComplete: false`. A cache with `aiComplete: false` reads as `stale` once 24 hours have passed, so spelling and meaning groups come back after AI is available again.
@@ -94,7 +94,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - `apps/files-worker/src/decisions.ts`: `buildTagPairsRequest` builds one `noul` question per pair, on `clef-flash`.
   - instructions, built per pair with that pair's own tags: `For organizing saved items, do the tags "${a}" and "${b}" mean the same thing (a typo, spelling variant, plural or synonym)?` (for example `"javascript"` and `"javscript"`). Each tag is JSON-escaped before it is inserted.
   - The state is empty. The reply maps to `same` probabilities.
-- Dispatch it in `ops.ts`. The Convex `runDecision` `DecisionOp` union gains it.
+- Dispatch it in `ops.ts`. The Convex caller's op type gains it.
 
 ## Web
 
