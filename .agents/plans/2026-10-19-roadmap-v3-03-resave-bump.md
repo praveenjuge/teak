@@ -84,7 +84,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
   - `cardSavedAt` on `folderCards` and `cardSearchTags`;
   - the 13 `…_saved` indexes beside their `…_created` twins.
 - **Writes:**
-  - `createCardForUserHandler` sets `savedAt` to the same value as `createdAt`.
+  - Every production card insert sets `savedAt` to the same value as `createdAt`: `insertCountedCard` (`card/cardUsage.ts:414`) fills it when missing, which covers `createCardForUserHandler` and `card/uploadCard.ts:295`; `card/defaultCards.ts:409` (onboarding) and `devSeedLinks.ts:55` insert directly and set it themselves. A test asserts each path writes it, since a card without `savedAt` would drop out of the `…_saved` indexes.
   - Folder-row sync (`syncCardFolderRows`) and tag-row sync (`restartCardSearchTagSync`) copy `savedAt ?? createdAt` into `cardSavedAt`. The tag-sync snapshot kept in `cardSearchTagSyncStates` (`schema.ts:1098`) records it too, and its "has anything changed" comparison includes it, so a bump alone re-syncs the tag rows.
 - **New `migration/backfillSavedAt.ts`:**
   - pages `cards` and sets `savedAt = createdAt` where it is missing;
@@ -139,13 +139,14 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 - **`POST /v1/cards`:**
   - `status` stays `"created"`: the OpenAPI schema is `enum: ["created"]` (`publicApiOpenApi.ts:467`) and the SDK's `asCreate` (`client/sdk.ts:717`) throws `PARSE_ERROR` on any other value, so a new status would break every shipped SDK and CLI. A re-save adds `resaved: true` (and `wasArchived: true` when it un-archived the card) beside it. Old clients ignore the extra fields.
   - The response code stays 200, and idempotency replay returns the original response.
+- **Tags and notes on a re-save** are ignored (owner decision). The API, MCP and CLI docs say so, and `resaved: true` in the response tells a caller to `PATCH` the card if it wants them applied.
 - **Card schema:** `savedAt: number` in `serializeCard` and `serializeListCard` (`publicApiHttpValidation.ts`). `createdAt` keeps its meaning.
 - **`GET /v1/cards`:** `sort=newest|oldest` follows `savedAt`. The OpenAPI description says so.
 - **Bulk create:** a resaved item keeps `status: "created"` and adds `resaved: true`, with its `cardId`.
 - **MCP:** `teak_v1_create_card` (or the current save tool name) returns the status, and its description explains re-save.
 - **SDK:** `CreateCardResponse` gains optional `resaved` and `wasArchived`, and `Card.savedAt` is added. `asCreate` keeps requiring `status: "created"`.
 - **CLI:** `teak save` prints "Already in Teak, moved to the top: <id>" when `resaved` is true. `cards get` prints "Saved again <date>".
-- **Export:** `savedAt` goes in `cards.json` as a `DualTimestamp`. `SCHEMA_VERSION` stays 2; it is an additive field.
+- **Export:** `savedAt` goes in `cards.json` as a `DualTimestamp`. `SCHEMA_VERSION` stays 2; it is an additive field. The Teak archive importer reads it back through `importedVisibleFields` for the cards it creates (falling back to `createdAt` for older exports), so a round trip keeps the order; existing duplicates are still skipped, not bumped.
 
 ## Docs
 
