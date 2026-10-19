@@ -88,7 +88,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
   - Public `removeImageBackground` (action) and `removeImageBackgroundForUser` (internal action, for the API).
   - Reset and undo accept image cards too: clearing the override shows the original renditions again.
 - `card/queryUtils.ts`: for `type === "image"` with `thumbnailOverride`, `thumbnailUrl`, `compactUrl`, `detailUrl` and `placeholderUrl` come from the override's renditions, `fileUrl` stays the original, and `hasThumbnailOverride` is set. Expose `thumbnailCutout: true` when `cutout` is set.
-- `mobileCardSummaries.ts` stays as it is for image cards (they show the original). It already passes the link override through.
+- `card/mobileCardSummaries.ts` copies `thumbnailUrl` from the `CardWithUrls` that `queryUtils` builds (line 76), so the change above would reach the native apps. `queryUtils` therefore also keeps the original renditions as `originalThumbnailUrl` (and siblings) on image cards with an override, and the mobile summary uses those for image cards, so native apps keep showing the original until they support cut-outs. Link overrides pass through as today. A test checks a mobile summary for an image card with a cut-out.
 - Card hard delete and account deletion already cover `thumbnail-override` keys through `cardStorageObjectKeys`. Add a test for an image card with an override.
 
 ## Web
@@ -109,7 +109,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
 ## API / MCP / SDK / CLI
 
 - `POST /v1/cards/{cardId}/thumbnail/remove-background` returns 200 `{ changeId, undoUntil, card }`.
-  - Errors: 400 `NO_IMAGE` and `UNSUPPORTED_IMAGE`, 404, 409 for Trash, 413 `IMAGE_TOO_LARGE`, 429. Add the codes to `PUBLIC_API_ERROR_CODES` and the SDK's `ERROR_CODES`.
+  - Errors: 400 `NO_IMAGE` and `UNSUPPORTED_IMAGE`, 404, 409 for Trash, 413 `IMAGE_TOO_LARGE`, 429. Add the codes to `PUBLIC_API_ERROR_CODES` and the SDK's `ERROR_CODES`. Add the new route operation (`thumbnail-remove-background`) to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApiHttpCards.ts:739`), as the other thumbnail operations are, or the pre-handler check answers 404 for a trashed card instead of 409.
 - `DELETE /v1/cards/{cardId}/thumbnail` (reset) now also accepts image cards.
 - The serializers add `thumbnailCutout: boolean`.
 - MCP: `teak_v1_remove_card_background { cardId }`.
