@@ -75,7 +75,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
   - Both are covered by account deletion (`accountDeletionData.ts` `ancillaryPage`) and seeded in the "complete stages" test. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows.
 - `tag/tagCleanup.ts` (new):
   - `getTagCleanup` (query): the cached groups, filtered live against the current summary and the dismissals. It returns `{ status: "ready" | "stale" | "none", groups }`.
-  - `refreshTagCleanup` (action), called by the Tags page when the status is `stale` or `none` and the summary is complete:
+  - `refreshTagCleanup` (action), called by the Tags page when the status is `stale` or `none` (a capped, incomplete summary is used as described under API, marked `partial`):
     - it reads the summary and dismissals through internal queries;
     - it runs `findTagGroups`, sends the unsure pairs to the Files Worker `decide-tag-pairs` through `ai/decisions.ts` `runDecision`;
     - it writes the cache through an internal mutation.
@@ -124,7 +124,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 
 - `GET /v1/tags/duplicates` is a new route: add `"/v1/tags/duplicates"` to the GET paths in `http.ts` (beside `/v1/tags`, line 184) and a branch in `publicApiHttp.ts` (beside line 100). It returns `{ status, groups: [{ tags: [{ name, count }], reason }] }`, read-only, in the same shape as the web.
   - It never calls Clef: it serves the cache, or the sure groups computed on the fly when the cache is missing, so the API doesn't get slower.
-  - It computes groups only from a complete tag summary (`isComplete`, `tag/tagSummary.ts:191`; the summary stops at 3,000 tags). When the summary is incomplete it returns `{ status: "incomplete", groups: [] }` rather than a partial list, and the web banner stays hidden for the same reason.
+  - The tag summary stops at 3,000 tags (`MAX_TAG_SUMMARY_ITEMS`, `isComplete` at `tag/tagSummary.ts:191`). With an incomplete summary, groups are computed from the 3,000 tags it holds and the result says so: `status: "partial"`, and the web banner reads "Likely duplicates among 3,000 of your tags". Nothing claims to cover tags it didn't see.
 - `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`into` unchanged; that is the merge endpoint's existing field, `publicApiHttpTags.ts:21`). An array is sent as `from[0]` plus `alsoFrom`.
 - Add to OpenAPI, and the row in `scripts/public-parity.ts`.
 - MCP: `teak_v1_find_duplicate_tags`, and `teak_v1_merge_tags` accepts an array `from`.
@@ -179,7 +179,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - **Backend:**
   - Clef timeout, capacity error or bad reply (the sure groups still show);
   - 0 and 64+ unsure pairs;
-  - summary not complete;
+  - summary not complete (3,001+ tags): a `partial` result and banner;
   - `alsoFrom` with a tag equal to `to`, with duplicates, with 7 entries, or with a hidden tag;
   - merging past the 10,000 limit;
   - a stalled operation;

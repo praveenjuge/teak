@@ -37,7 +37,7 @@ Close the most useful gaps between Teak and three comparable save-everything app
     - Up to 500 manual or smart folders per user and 50 per card.
     - Membership is stored in `cards.folderIds` and in `folderCards`.
     - The folder menu is on the sidebar row (`sidebar/SidebarFolders.tsx`).
-  - **Export:** `dataExport.ts` plus the Files Worker `workflows/export.ts`. One export per 7 days, up to 10,000 cards. The ZIP holds `cards.json`, `cards.csv`, `bookmarks.html` and `files/`.
+  - **Export:** `dataExport.ts` plus the Files Worker `workflows/export.ts`. One export per 7 days, up to 10,000 cards. The ZIP holds `manifest.json`, `cards.json`, `cards.csv`, `bookmarks.html` and `files/`.
   - **Import:** `shared/importSources.ts` lists 10 sources. OneTab already parses one URL per line, and `import/csv.ts` parses RFC 4180 CSV.
   - **Note editor:** Tiptap with editorcn. Markdown tables are kept as literal Markdown blocks; no table extension and no table rendering exist anywhere.
   - **Localization:**

@@ -82,7 +82,7 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
     | Outcome | Badge | Tooltip | Then |
     |---|---|---|---|
     | saved | "✓" | "Saved to Teak" | Cache the URL as saved. |
-    | duplicate | "✓" | "Already in Teak" | — |
+    | duplicate | "✓" | "Already in Teak" | Cache the URL as saved. |
     | unauthenticated | — | — | `openPopup()`. |
     | `CARD_LIMIT_REACHED` | — | — | `openPopup()`, which shows the upgrade prompt. |
     | rate limited | "!" | "Too many saves. Try again in a minute." | — |
