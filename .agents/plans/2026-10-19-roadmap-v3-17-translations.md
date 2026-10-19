@@ -92,7 +92,7 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
   - On a locale change (`storage.onChanged`), rebuild the context menus with translated titles.
   - Content scripts ask the background for the locale and messages they need: the inline "Save to Teak" button labels and the saved and error states.
 - **Omnibox suggestions:** the description templates are translated. The user's own card titles are not.
-- **`public/_locales/<lang>/messages.json`** (WXT) for `extName` and `extDescription`, in the 7 languages plus `en`.
+- **`public/_locales/<extension-locale>/messages.json`** (WXT) for `extName` and `extDescription`, in the 7 languages plus `en`. The directory names use the WebExtension locale codes, which differ from the app's: `pt-BR` → `pt_BR` and `zh-Hans` → `zh_CN` (the others are `es`, `de`, `fr`, `ja`, `ko`).
   - Chrome picks these by the browser's language. That is the store and manifest convention, so it is an accepted exception to "Settings only" for the manifest name.
 - **Store listing text** (Chrome Web Store and AMO, by hand in their dashboards): translated description and summary, kept in `apps/extension/store-listing/<lang>.md` so the owner can paste them. Add a release-runbook step.
 

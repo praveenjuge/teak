@@ -17,9 +17,9 @@ It ships English only, plus a development pseudo-locale. Phase 17 adds the seven
 
 - **Library and catalog:** one library serves Next.js (server and client components), `packages/ui`, and the WXT extension's React popup. The shared English catalog lives in one place.
 - **Nothing visible changes in English:** screenshot diffs of the main screens show no change.
-- **The pseudo-locale** `en-XA` works only in development, set by a cookie or the `?__locale=en-XA` parameter. It wraps every string as `[Ŝéţţîñĝš ~~~~]` and lengthens it by about 40%. Every screen in the break-it list renders with no un-wrapped English, no clipped buttons and no overflow at 390 px.
-- **Dates and numbers** go through formatters keyed on the active locale. No `"en-US"` literal is left in `packages/ui` or `apps/web`.
-- **`<html lang>`** follows the active locale (it is hardcoded `"en"` today).
+- **The pseudo-locale** `en-XA` works only in development, set by a cookie or the `?__locale=en-XA` parameter (a dev-only exception to "no locale in URLs"; production ignores the parameter). In the extension, a dev build reads an `en-XA` override from `chrome.storage.local` (set from the popup's dev menu), which the popup, the background's context menus and the omnibox all follow. It wraps every string as `[Ŝéţţîñĝš ~~~~]` and lengthens it by about 40%. Every screen in the break-it list renders with no un-wrapped English, no clipped buttons and no overflow at 390 px.
+- **Dates and numbers** go through formatters keyed on the active locale. No `"en-US"` literal is left in `packages/ui` or `apps/web`. While the UI language is English, each formatter keeps the locale it uses today: the browser's locale where the code calls `toLocaleDateString()` with no locale, and `en-US` where it is hardcoded. So English output doesn't change for anyone; another UI language uses that language. A test renders a date with the UI in English and the browser in `de-DE` and checks it matches today's output.
+- **`<html lang>`** follows the active locale in every HTML root: `layout.tsx`, `global-error.tsx` (it replaces the root layout, so it reads the cookie and loads its few messages itself; `<html lang="en">` at line 41 today), and the extension popup, whose static `index.html` says `lang="en"`, so the popup sets `document.documentElement.lang` once the stored locale is loaded.
 - **CI fails when:**
   - a non-English catalog has missing or extra keys, or ICU placeholders that don't match English (wired up now, used from phase 17);
   - a new JSX string literal is added in the covered paths.
@@ -62,7 +62,7 @@ Default: **next-intl / use-intl**. Spend half a day confirming that next-intl's 
 - **Scope:** `apps/web`, `packages/ui` and `apps/extension` only. Not the Apple, Android, Raycast or Safari extension apps, the docs site, or email.
 - **No locale in URLs.** The locale comes from a `teak-locale` cookie, defaulting to `en`. Phase 17 sets the cookie from the account preference.
 - **Search syntax stays English** (`is:fav`, `type:image`, date words in `timeSearch.ts`). Suggestion and pill labels shown to people are translated.
-- **Server-made strings stay English in v3:** link facts, bylines, price labels in `qualifiers.ts`, import errors, and Convex `message`s. The web maps known error `code`s to catalog messages and falls back to the server's English text for unknown codes.
+- **Server-made strings stay English in v3:** link facts, bylines, price labels in `qualifiers.ts`, import errors, and Convex `message`s. The web maps known error `code`s to catalog messages and falls back to the server's English text for unknown codes. Those server fallbacks are exempt from the `en-XA` "no unwrapped English" check, which covers only catalog strings.
 - **Keys** are namespaced by component (`cardModal.menu.replaceImage`), with ICU plurals (`{count, plural, one {# card} other {# cards}}`), and no string concatenation.
 - **No feature flags.** The pseudo-locale is dev-only and stripped from production by `process.env.NODE_ENV`.
 
@@ -71,6 +71,7 @@ Default: **next-intl / use-intl**. Spend half a day confirming that next-intl's 
 - `packages/ui/src/i18n/` (new):
   - `locales.ts`: `SUPPORTED_LOCALES = ["en"]` (phase 17 extends it), `DEFAULT_LOCALE`, `isSupportedLocale`, and `LOCALE_COOKIE = "teak-locale"`.
   - `messages/en.json`: the single source catalog for ui, web and extension.
+  - `packages/ui/package.json` gains `"./i18n": "./src/i18n/index.ts"` and `"./i18n/messages/*": "./src/i18n/messages/*"` in its `exports` map, which is explicit today, so the web and extension can import them.
   - `pseudo.ts`: builds `en-XA` from `en.json` at runtime in development.
   - `format.ts`: `useTeakFormatter()` wrapping use-intl's `useFormatter`, with presets `date.short` ("Oct 19, 2026"), `date.long`, `dateTime`, `number`, `count` and `bytes`. Also a non-hook `formatDate(locale, …)` for helpers called outside React (`cardHeading.ts`, `cardDetails.ts`, `exif.ts`, `linkByline.ts`).
   - `errors.ts`: `messageForError(t, code, fallback)` for `CARD_LIMIT_REACHED`, `RATE_LIMITED`, folder and tag codes, thumbnail codes, and `TAG_OPERATION_RUNNING`.
@@ -81,9 +82,10 @@ Default: **next-intl / use-intl**. Spend half a day confirming that next-intl's 
 - `apps/extension`:
   - The popup root wraps in `IntlProvider` with `en.json`. Phase 17 picks the locale.
   - Background context-menu titles (`entrypoints/background.ts` around 476) use a small `t()` over the same JSON, since there is no React there.
-  - WXT `_locales/en/messages.json` holds the manifest `name` and `description` (`__MSG_extName__`), so store listings can be localized in phase 17.
+  - WXT `_locales/en/messages.json` holds the manifest `name` and `description` (`__MSG_extName__`), and the manifest sets `default_locale: "en"`, which Chrome requires once `__MSG_…__` fields are used, so store listings can be localized in phase 17.
 - **Lint:**
   - Enable Biome `noJsxLiterals` for `packages/ui/src/**`, `apps/web/src/**` and `apps/extension/entrypoints/**`, excluding tests, `ui/components/ui/**` (shadcn primitives) and icon-only or punctuation literals (check the rule's options; if it can't express this, write a GritQL plugin in `scripts/lint/no-jsx-literal.grit`).
+  - `noJsxLiterals` only sees JSX text, so add a GritQL rule (`scripts/lint/no-ui-string.grit`) for the other places people read strings: the `aria-label`, `placeholder`, `title` and `alt` attributes, and the first argument of `toast()`, `toast.success()`, `toast.error()` and `toast.loading()`. An allowlist covers data values and icon-only or punctuation strings.
   - Also flag `"en-US"` literals with a GritQL rule in the same paths.
 - **Catalog check:** `scripts/i18n-catalog.test.ts` (run by the root `bun run test`). For every locale file under `messages/`, the keys equal `en.json`'s, the ICU parses, and each message has the same placeholder names and plural or select arguments as English. With only `en.json` today it checks ICU validity, and checks the `en-XA` generator against a fixture.
 
