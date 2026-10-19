@@ -24,7 +24,8 @@ Give every archived link a clean reading view, and make what it says findable. A
   - **Meaning search:** the embedding text for a link includes the article's title, the AI summary and its opening (see Constraints).
   - **The summary:** a new step, "summarize article", regenerates a link's `aiSummary` from the article's first 6,000 characters when the article has 200 words or more. Tags are not regenerated.
 - **API.**
-  - `GET /v1/cards/{cardId}/content` returns `kind: "article"` with the Markdown. Images are signed absolute URLs, valid 7 days.
+  - `GET /v1/cards/{cardId}/content?kind=article` returns `kind: "article"` with the Markdown. When the response is built, each `teak-image:<n>` reference in the Markdown is rewritten to a signed absolute URL for that image, valid 7 days, so API, MCP and SDK callers get plain Markdown.
+  - Without `?kind`, the endpoint answers exactly as today and never returns `kind: "article"`, because shipped SDKs and CLIs reject unknown kinds (`client/sdk.ts:754`). New clients ask for the article explicitly.
   - An optional `?kind=article|transcript|document|content` picks one kind when a card has more than one.
   - Serialized cards gain `article: { wordCount, readingMinutes } | null`.
   - MCP `teak_v1_get_card_content` gains `kind`, the SDK `cards.content(id, { kind })`, the CLI `teak cards content <id> [--kind article]`.
@@ -102,16 +103,16 @@ Give every archived link a clean reading view, and make what it says findable. A
   - It is guarded, and listed in `workflowRpcAllowlist.ts`.
   - It writes the `kind: "article"` row, with the plain text from Markdown and `searchPrefix`.
   - It sets `hasExtractedText`, `documentTextKey = textKey` and `extractedTextCharCount`, plus `cards.article`, through `patchCardWithSearchSync`.
-  - It queues the old text and image keys for deletion.
+  - It queues for deletion only the old text and image keys that the new article doesn't use. They are content-addressed, so an unchanged re-extraction produces the same keys, and deleting them would delete the new article.
   - Reusing `documentTextKey`/`hasExtractedText` means keyword search, the embedding loader and the content API all pick it up with small changes.
 - **`documentTextObjectKey`** gets a sibling, `articleTextObjectKey(prefix, cardId, digest)`: `.../article-text/<sha256>.md`. Article images live at `.../article-image/<sha256>.webp`.
 - **`storage/cardObjectKeys.ts`:** add `card.article?.textKey` and `...(card.article?.imageKeys ?? [])`.
 - **`getCardTextSource`:**
   - takes an optional `kind`;
   - returns `row.kind` (`"article"` or `"document"`) instead of always `"document"`;
-  - without `kind`, the order is article or document, then transcript, then content;
+  - without `kind`, the order is document, then transcript, then content, exactly as today (an article row is skipped, for the compatibility reason above);
   - with `kind`, it returns that kind or null.
-- **`addCardsFoundByFileText`:** run when `args.type` is undefined, `"document"` or `"link"`.
+- **`addCardsFoundByFileText`** (`card/searchDocumentHelpers.ts:972`): run when `args.type` is undefined, `"document"` or `"link"`. Its `search_text` index filters on `userId` only, so with a type filter, document rows could fill the bounded `take(textLimit)` before any link was seen. Add a new search index beside it, `search_text_by_kind` with `filterFields: ["userId", "kind"]`, and query it with `kind: "article"` for `type: "link"` and `kind: "document"` for `type: "document"`; an unfiltered search keeps the old index.
 - **`embedding/text.ts`:**
   - when the card is a link and `extractedText` is an article, use the article's opening (1,500 characters) as `body`;
   - `content` is used only if it isn't the URL or the preview title;
@@ -138,12 +139,12 @@ Give every archived link a clean reading view, and make what it says findable. A
 ## Web
 
 - **`card-modal/CardModal.tsx`:**
-  - For link cards with `card.article` (ready, or with a pending or in-progress `processingStatus.article`), render a `ToggleGroup` (shadcn, `type="single"`, size sm) at the top of `<main>`. It is sticky, with `bg-background/80 backdrop-blur`, and its items are "Preview" and "Read".
+  - For link cards with `card.article` (ready), or with a pending, in-progress or failed `processingStatus.article` (so the failed state's message and "Try again" are reachable), render a `ToggleGroup` (shadcn, `type="single"`, size sm) at the top of `<main>`. It is sticky, with `bg-background/80 backdrop-blur`, and its items are "Preview" and "Read".
   - The choice is held in `useCardModal` state and resets per card. Its initial value follows the category rule above.
   - `R` toggles it, and is added to the "Card" group of the shortcut sheet: `{ keys: ["R"], label: "Read or preview" }`.
 - **`card-previews/ArticleReader.tsx`** (new):
   - **Loading:** load `articleUrl` through the same cached fetcher as `FileTextPreview` (`requestFileTextPreview`, `card-previews/fileTextPreviewCache.ts:92`), with the cache keyed on `textKey`. While loading, a skeleton of a 2-line title and 8 text lines at reading width.
-  - **Rendering:** `react-markdown` with `remark-gfm` (add `remark-gfm` to `packages/ui`) and `rehype-sanitize`. `img` with `teak-image:<n>` maps to `articleImageUrls[n]`, using `ResilientMediaImage`. `a` gets `target="_blank" rel="noopener noreferrer"`.
+  - **Rendering:** `react-markdown` with `remark-gfm` (add `remark-gfm` to `packages/ui`), then a small rehype plugin that resolves each valid `teak-image:<n>` to `articleImageUrls[n]` (and drops the image when `n` is out of range), then `rehype-sanitize`. The default sanitize schema would strip the custom `teak-image:` scheme, so the tokens are resolved before it runs. Images render through `ResilientMediaImage`. `a` gets `target="_blank" rel="noopener noreferrer"`.
   - **Header:** a `SiteFavicon` with the host, `·` byline, and `·` "N min read" (the minimum is "1 min read"), muted, at 14px.
   - **Title:** the `h1` from `card.article.title`, falling back to the link title. The first `h1` in the Markdown is dropped when it equals the title.
   - **Footer:** a thin rule, then "Saved from {host} · {date}" and the link "Open original ↗". The date uses the existing `cardDetails` formatter.
@@ -154,12 +155,12 @@ Give every archived link a clean reading view, and make what it says findable. A
 
 - **`/v1/cards/{cardId}/content`:**
   - adds the optional query `kind`;
-  - the `kind` enum gains `"article"`, and the description says article is Markdown with signed image URLs;
+  - the `kind` enum gains `"article"`, returned only when asked for, and the description says article is Markdown with signed image URLs;
   - `400 VALIDATION_ERROR` for an unknown kind;
   - `404 NO_CONTENT` when that kind is missing.
 - **Serializers** (`serializeCard`, `serializeListCard`) add `article`.
 - **OpenAPI, MCP** (`teak_v1_get_card_content` gains `kind`), **SDK** (the `kind` union gains `"article"` and the validator at `sdk.ts:754` accepts it) and **CLI** (`--kind`). The `scripts/public-parity.ts` row is unchanged, because the operation is the same.
-- **Older SDKs** throw on an unknown `kind` value (`sdk.ts:754`). Older CLI and SDK builds reading an article card get an error instead of text. Add a `.agents/sunset.md` entry, and note in the changelog that `teak` must be updated to read articles.
+- **Older SDKs** throw on an unknown `kind` value (`sdk.ts:754`), which is why the default response never carries `"article"`. Older CLI and SDK builds keep reading link cards as before; only a new build that passes `kind: "article"` gets the article. The new SDK also accepts unknown kinds instead of throwing, so a later kind won't need this again.
 
 ## Docs
 
