@@ -1,6 +1,6 @@
 ## Goal
 
-Close the most useful gaps between Teak and mymind, Karakeep and Raindrop.io, as 18 separate plans. Each phase is one PR, deployed and verified in production before the next one starts. It follows roadmap v2, which closed on 2026-10-18 (#760): phases 1–24 and 26–28 shipped, and phases 25 (feed extras) and 29–31 (Apple, Raycast and Android follow-ups) were skipped.
+Close the most useful gaps between Teak and three comparable save-everything apps, as 18 separate plans. Each phase is one PR, deployed and verified in production before the next one starts. It follows roadmap v2, which closed on 2026-10-18 (#760): phases 1–24 and 26–28 shipped, and phases 25 (feed extras) and 29–31 (Apple, Raycast and Android follow-ups) were skipped.
 
 ## Success Criteria
 
@@ -15,7 +15,7 @@ Close the most useful gaps between Teak and mymind, Karakeep and Raindrop.io, as
 
 ## Context And Current Facts
 
-- On 2026-10-17 a research pass read the full docs, help centers, changelogs and pricing pages of mymind, Karakeep and Raindrop.io. It compared them with Teak's code and docs and produced a list of features the competitors have and Teak doesn't.
+- On 2026-10-17 a research pass read the full docs, help centers, changelogs and pricing pages of three comparable save-everything apps. It compared them with Teak's code and docs and produced a list of features the competitors have and Teak doesn't.
 - On 2026-10-19 the owner chose features from that list in a Q&A. The answers are the decisions below.
 - Local `main` was at `2f95762` (#765) when this roadmap was written.
 - Facts several phases rely on (each phase plan lists its own):
@@ -173,7 +173,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 ## Risks And Open Questions
 
 - **Archive cost.** Every link archived, plus a backfill, adds R2 storage and Browser Rendering time. Phase 9 measures the median and p95 archive size and the Browser Rendering minutes on dev before merging, and estimates the cost of the backfill for the owner before it runs.
-- **Archive engine licence.** SingleFile and monolith are what Karakeep uses. SingleFile is AGPL-3.0 and Teak is MIT. Phase 9 plans its own inliner on `HTMLRewriter`, and flags this for the owner.
+- **Archive engine licence.** The common open-source page archivers are SingleFile and monolith. SingleFile is AGPL-3.0 and Teak is MIT. Phase 9 plans its own inliner on `HTMLRewriter`, and flags this for the owner.
 - **Saved badge rate limits.** Checking each tab costs one API request, against 120 per minute per user at both the API and the edge. Phase 1 caches results and debounces, and may add a batched, lighter endpoint.
 - **Privacy wording.** The badge sends visited URLs, and the extension sends page HTML. Both change what Teak collects. The privacy policy and the extension store listings change in phases 1 and 9.
 - **Article text and embeddings.** EmbeddingGemma reads 512 tokens, so long articles are embedded from their title, summary and opening. Phase 10 decides whether to add chunked vectors.
