@@ -1,14 +1,8 @@
 # Getting-started files
 
-New accounts get one card of each type (`ONBOARDING_CARDS` in `../defaultCards.ts`). `../onboardingFiles.ts` stores every file below in the new account at once, then inserts all eight cards in one mutation, already processed. The grid fills once and nothing moves or reflows afterwards, and sign-up runs no AI or rendering work.
+New accounts get one card of each type (`ONBOARDING_CARDS` in `packages/convex/card/defaultCards.ts`). `packages/convex/card/onboardingFiles.ts` asks this Worker to store every file below in the new account at once (the `store-onboarding-files` op, `apps/files-worker/src/onboardingFiles.ts`), then inserts all eight cards in one mutation, already processed. The grid fills once and nothing moves or reflows afterwards, and sign-up runs no AI or rendering work.
 
-`files.ts` embeds these files so every deployment, self-hosted ones included, has them without a network fetch. After changing a file, run:
-
-```bash
-bun run scripts/onboarding-files.ts
-```
-
-`scripts/onboarding-files.test.ts` fails while `files.ts` is out of date.
+The files ship with the Worker as [static assets](https://developers.cloudflare.com/workers/static-assets/) (`assets` in `apps/files-worker/wrangler.jsonc`), read through `env.ASSETS`. They do not count toward the Worker's script size, and the Worker runs first for every request, so none of them is served at a public path. `.assetsignore` keeps this README and the cheat sheet's HTML source out of the upload. A file a card names must exist here; `packages/convex/__tests__/card/defaultCards.test.ts` checks.
 
 ## Originals
 
@@ -23,7 +17,7 @@ The voice memo's transcript must keep the word "serif", which its card's note as
 
 ## Processed output
 
-The cards carry what Teak's own pipeline made of the originals: dimensions, duration, waveform and transcript (`processed.ts`), colors, AI summaries and tags, and these derivatives:
+The cards carry what Teak's own pipeline made of the originals: dimensions, duration, waveform and transcript (`packages/convex/card/onboarding/processed.ts`), colors, AI summaries and tags, and these derivatives:
 
 | File | Card field |
 | --- | --- |
@@ -35,4 +29,4 @@ The cards carry what Teak's own pipeline made of the originals: dimensions, dura
 
 To capture them again after changing an original: sign up a fresh account on the dev deployment, wait until its cards finish processing, read them with `bunx convex data cards --format jsonArray`, and download each derivative through a signed Files Worker URL. Copy the facts into `ONBOARDING_CARDS` and `processed.ts`; summaries and tags may be tightened by hand.
 
-Keep the set small: it is embedded in the backend bundle, so it adds to every deploy (about 4.8 MB of base64 today).
+Keep the set small: every new account stores its own copy in R2 (about 3.6 MB today), and each file must stay under the 25 MiB static asset limit.

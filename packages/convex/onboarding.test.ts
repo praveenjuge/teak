@@ -84,7 +84,34 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
+
+interface WorkerCall {
+  op: string;
+  params: {
+    cards?: {
+      files: { contentType: string; key: string; source: string }[];
+      onboarding: string;
+    }[];
+  };
+}
+
+/** Answers Files Worker ops the way a Worker with the assets binding does. */
+const stubFilesWorker = () => {
+  const calls: WorkerCall[] = [];
+  vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+    const call = JSON.parse(String(init.body)) as WorkerCall;
+    calls.push(call);
+    const cards = (call.params.cards ?? []).map((card) => ({
+      onboarding: card.onboarding,
+      stored: true,
+      files: card.files.map((file) => ({ key: file.key, size: 4321 })),
+    }));
+    return Promise.resolve(Response.json({ ok: true, data: { cards } }));
+  });
+  return calls;
+};
 
 describe("getting-started cards", () => {
   test("a new account's files are stored first; nothing is inserted until then", async () => {
@@ -108,6 +135,56 @@ describe("getting-started cards", () => {
     );
     expect(await cardsOf(t)).toHaveLength(0);
     expect(await foldersOf(t)).toHaveLength(0);
+  });
+
+  test("the sign-up job has the Files Worker store the files, and the cards carry them", async () => {
+    const calls = stubFilesWorker();
+    const t = setup();
+    await createDefaults(t);
+    const [job] = await scheduled(t, "card/onboardingFiles:addOnboardingCards");
+
+    await t.action(
+      internal.card.onboardingFiles.addOnboardingCards,
+      job!.args[0] as { createdAt: number; userId: string }
+    );
+
+    expect(calls.map((call) => call.op)).toEqual(["store-onboarding-files"]);
+    const sent = new Map(
+      (calls[0]?.params.cards ?? []).map((card) => [
+        card.onboarding,
+        card.files.map((file) => file.key),
+      ])
+    );
+    const cards = await cardsOf(t);
+    expect(cards).toHaveLength(ONBOARDING_CARDS.length);
+    const byType = (type: string) => cards.find((card) => card.type === type);
+    expect(byType("image")).toMatchObject({
+      fileKey: sent.get("image")?.[0],
+      fileMetadata: { fileName: "Coral lily.webp", fileSize: 4321 },
+    });
+    expect(byType("video")).toMatchObject({
+      fileKey: sent.get("video")?.[0],
+      thumbnailKey: sent.get("video")?.[1],
+      scrubKey: sent.get("video")?.[2],
+    });
+    expect(byType("document")).toMatchObject({
+      fileKey: sent.get("document")?.[0],
+      thumbnailKey: sent.get("document")?.[1],
+    });
+    expect(byType("link")?.metadata?.linkPreview).toMatchObject({
+      imageStorageKey: sent.get("link")?.[0],
+      screenshotStorageKey: sent.get("link")?.[1],
+    });
+    expect(byType("link")?.metadataStatus).toBe("completed");
+    const owned = await t.run((ctx) =>
+      ctx.db
+        .query("accountStorageObjects")
+        .withIndex("by_userId_and_key", (q) => q.eq("userId", USER_ID))
+        .take(50)
+    );
+    expect(owned.map((row) => row.key).sort()).toEqual(
+      [...sent.values()].flat().sort()
+    );
   });
 
   test("every card arrives at once, finished, in Start here, newest first", async () => {

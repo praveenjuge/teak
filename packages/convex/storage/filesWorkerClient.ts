@@ -48,6 +48,7 @@ const OP_TIMEOUT_MS: Partial<Record<OpTimeoutKey, number>> = {
   "vector-similar": 30_000,
   "store-remote-asset": SAFE_FETCH_MAX_DURATION_MS + 60_000,
   "store-linked-pdf": STORE_LINKED_PDF_TIMEOUT_MS,
+  "store-onboarding-files": 90_000,
 };
 
 const opTimeoutMs = (spec: {

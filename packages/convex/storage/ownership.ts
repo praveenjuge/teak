@@ -58,6 +58,22 @@ export const registerObject = internalMutation({
   handler: (ctx, { userId, key, exportJobId }) =>
     registerOwnedObject(ctx, userId, key, exportJobId),
 });
+/** Registers several keys at once; false when the account takes no writes. */
+export const registerObjects = internalMutation({
+  args: { userId: v.string(), keys: v.array(v.string()) },
+  returns: v.boolean(),
+  handler: async (ctx, { userId, keys }) => {
+    if (keys.length > 100) {
+      throw new Error("too_many_storage_keys");
+    }
+    for (const key of keys) {
+      if (!(await registerOwnedObject(ctx, userId, key))) {
+        return false;
+      }
+    }
+    return true;
+  },
+});
 export const getObjectsPage = internalQuery({
   args: { userId: v.string() },
   handler: (ctx, { userId }) =>

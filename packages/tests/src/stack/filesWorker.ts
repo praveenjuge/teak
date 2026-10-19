@@ -64,6 +64,11 @@ export const filesWorkerConfigs = (ports: StackPorts) => {
     main: join(WORKER_DIR, "src/index.ts"),
     compatibility_date: compatibilityDate,
     compatibility_flags: ["nodejs_compat"],
+    assets: {
+      directory: join(WORKER_DIR, "assets"),
+      binding: "ASSETS",
+      run_worker_first: true,
+    },
     r2_buckets: [{ binding: "BUCKET", bucket_name: "teak-files-e2e" }],
     kv_namespaces: [
       { binding: "EDGE_IDENTITY", id: "teak-e2e-edge-identity" },

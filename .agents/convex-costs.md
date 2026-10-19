@@ -101,6 +101,13 @@ to the Files Worker's signed upload URLs, and Convex only mints those and
 finalizes. Receipts are pruned after 30 days by the Files Worker's daily
 `cleanup-inbound-email-receipts` task.
 
+Sign-up's getting-started files ship with the Files Worker as static assets
+(`apps/files-worker/assets/onboarding/`), not in the backend bundle.
+`card/onboardingFiles:addOnboardingCards` runs in the default runtime, not
+Node: it registers the nine keys in one mutation, makes one
+`store-onboarding-files` call that copies the files into R2 inside the Worker,
+and inserts the cards in one mutation. No file bytes pass through Convex.
+
 ## Scheduled and edge work on Cloudflare
 
 The Files Worker's Cron Triggers run the daily card and export cleanups,

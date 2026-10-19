@@ -20,6 +20,7 @@ const required = [
   "fetch-link-page",
   "store-remote-asset",
   "store-linked-pdf",
+  "store-onboarding-files",
   "embed-upsert",
   "vector-delete",
   "vector-get",
@@ -88,6 +89,7 @@ for (;;) {
         crons?: string[];
         importModes?: string[];
         maintenanceTasks?: string[];
+        onboardingFiles?: boolean;
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
@@ -108,6 +110,7 @@ for (;;) {
       result.data.vectors === true &&
       result.data.workflows === true &&
       result.data.vectorTypes === true &&
+      result.data.onboardingFiles === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
       requiredDispatchItems.every((type) =>
         result.data?.dispatchItems?.includes(type)
@@ -128,7 +131,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks and signing verified."
+      "Files worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
     );
     break;
   }

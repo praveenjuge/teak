@@ -52,7 +52,6 @@ import type * as card_linkedPdfs from "../card/linkedPdfs.js";
 import type * as card_listQuery from "../card/listQuery.js";
 import type * as card_markdown from "../card/markdown.js";
 import type * as card_mobileCardSummaries from "../card/mobileCardSummaries.js";
-import type * as card_onboarding_files from "../card/onboarding/files.js";
 import type * as card_onboarding_processed from "../card/onboarding/processed.js";
 import type * as card_onboardingFiles from "../card/onboardingFiles.js";
 import type * as card_processingLifecycle from "../card/processingLifecycle.js";
@@ -360,7 +359,6 @@ declare const fullApi: ApiFromModules<{
   "card/listQuery": typeof card_listQuery;
   "card/markdown": typeof card_markdown;
   "card/mobileCardSummaries": typeof card_mobileCardSummaries;
-  "card/onboarding/files": typeof card_onboarding_files;
   "card/onboarding/processed": typeof card_onboarding_processed;
   "card/onboardingFiles": typeof card_onboardingFiles;
   "card/processingLifecycle": typeof card_processingLifecycle;
