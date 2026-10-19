@@ -18,7 +18,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
   - "Newest first" and "Oldest first" order by `savedAt`, everywhere a list is ordered by date: the library, archive, favorites, folders, smart folders, tags, sites, search with a date sort, the API, MCP, CLI and the native apps' server-sorted lists.
   - The card details show "Added <first date>" from `createdAt`, plus "Saved again <date>" when `savedAt` is later.
 - **What clients are told:**
-  - `POST /v1/cards` returns `status: "resaved"` with the card.
+  - `POST /v1/cards` returns `status: "created"` with `resaved: true` and the card.
   - The web toast says "Already in Teak · Moved to the top", with an Open action.
   - The extension and Raycast show "Already in Teak" and the card moves.
 - **Compatibility:**
@@ -85,7 +85,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
   - the 13 `…_saved` indexes beside their `…_created` twins.
 - **Writes:**
   - `createCardForUserHandler` sets `savedAt` to the same value as `createdAt`.
-  - Folder-row sync (`syncCardFolderRows`) and tag-row sync (`restartCardSearchTagSync`) copy `savedAt ?? createdAt` into `cardSavedAt`.
+  - Folder-row sync (`syncCardFolderRows`) and tag-row sync (`restartCardSearchTagSync`) copy `savedAt ?? createdAt` into `cardSavedAt`. The tag-sync snapshot kept in `cardSearchTagSyncStates` (`schema.ts:1098`) records it too, and its "has anything changed" comparison includes it, so a bump alone re-syncs the tag rows.
 - **New `migration/backfillSavedAt.ts`:**
   - pages `cards` and sets `savedAt = createdAt` where it is missing;
   - pages `folderCards` and `cardSearchTags`, filling `cardSavedAt` from the card;
@@ -96,7 +96,8 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 - **Readers:**
   - `card/listQuery.ts` switches every `withIndex` to its `…_saved` twin, with bounds on `savedAt`.
   - `compareCardsByCreatedAt` becomes `compareCardsBySavedAt`, using `savedAt ?? createdAt`, in its four callers.
-  - Date words bound `savedAt`; the `createdAtRange` argument name stays for client compatibility.
+  - Date words bound `savedAt`; the `createdAtRange` argument name stays for client compatibility. Every card-level date predicate and post-filter uses `savedAt ?? createdAt` too, not only the index bounds: `card/getCards.ts`, `card/queryUtils.ts`, `card/visualFilters.ts`, `publicApiSearch.ts` and the local cache's `shared/search/localSearch.ts` (both its date filter and its ordering), or a re-saved card would drop out of "last week".
+  - Pagination anchors move with the order: `publicApiCursors.ts` encodes `savedAt ?? createdAt` (as `savedAt`) beside the id, and still decodes an old cursor's `createdAt` as the anchor value, so a cursor issued before the deploy keeps working. The folder and tag page cursors do the same.
   - `card/cardLinks.ts` moves too.
 - **The rule (`card/createCard.ts`):**
   - Before inserting, when `type` resolves to `link` and the content is only the URL:
@@ -104,11 +105,13 @@ When you save a link you already have, Teak moves that card to the top of "Newes
     2. On a hit, `patchCardWithSearchSync(ctx, id, { savedAt: now, updatedAt: now, ...(archived ? { isArchived: undefined, archivedAt: undefined } : {}) })`.
     3. Re-sync folder and tag rows so `cardSavedAt` follows.
     4. Return `{ cardId, outcome: "resaved" }`.
+
+    The lookup runs after `authorizeCardCreation` (which spends the rate-limit token but does not check the cap) and before `insertCountedCard` (which enforces the 200-card cap), so a re-save at the cap succeeds. The web composer still disables saving at the cap from `getCardCreationStatus`, since it can't know in advance that a link is already saved; the extension, share sheets and API re-save at the cap.
   - `createCardForUserHandler` returns `{ cardId, outcome: "created" | "resaved" }`.
   - Callers that need only the id (`createCard`, `publicApi.ts` bulk, `inbound/ingest.ts`) take `.cardId`.
   - The public `createCard` mutation still returns `v.id("cards")`, for the native apps.
   - A new public mutation, `createCardWithOutcome`, returns `{cardId, outcome}` for the web.
-- **Raycast quick save:** `raycast.quickSaveForUser` returns `status: "created" | "resaved"`.
+- **Raycast quick save:** `raycast.quickSaveForUser` keeps `status: "created"` and adds `resaved: true` on a re-save.
 - **Processing:** a bumped card is not reprocessed.
 
 ## Web
@@ -126,28 +129,28 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 
 - **Extension** (`apps/extension/lib/saveToTeak.ts`):
   - Drop the duplicate pre-check before `POST /v1/cards` for URL saves. The POST now bumps.
-  - Map `status: "resaved"` to the existing `duplicate` outcome, so the popup shows "Already in Teak", now with the card moved.
+  - Map `resaved: true` to the existing `duplicate` outcome, so the popup shows "Already in Teak", now with the card moved.
   - The phase 1 badge still uses `GET /v1/cards/duplicate`.
-- **Raycast:** `capture.ts` `showIfAlreadySaved` is replaced by the save's result. A `resaved` result shows the "Already saved" toast with "Moved to the top" as its message.
+- **Raycast:** `capture.ts` `showIfAlreadySaved` is replaced by the save's result. A `resaved: true` result shows the "Already saved" toast with "Moved to the top" as its message.
 - **Safari:** `popup.js` drops its `findDuplicateCard` pre-check and calls `createCard`. A `resaved` result can't be seen through `createCard`'s id-only return, so it shows "Saved". This ships with the next Apple app build.
 
 ## API / MCP / SDK / CLI
 
 - **`POST /v1/cards`:**
-  - `status` becomes `"created" | "resaved"` in the OpenAPI response schema (`publicApiOpenApi.ts`). The schema describes an open string, so old SDKs accept it.
+  - `status` stays `"created"`: the OpenAPI schema is `enum: ["created"]` (`publicApiOpenApi.ts:467`) and the SDK's `asCreate` (`client/sdk.ts:717`) throws `PARSE_ERROR` on any other value, so a new status would break every shipped SDK and CLI. A re-save adds `resaved: true` (and `wasArchived: true` when it un-archived the card) beside it. Old clients ignore the extra fields.
   - The response code stays 200, and idempotency replay returns the original response.
 - **Card schema:** `savedAt: number` in `serializeCard` and `serializeListCard` (`publicApiHttpValidation.ts`). `createdAt` keeps its meaning.
 - **`GET /v1/cards`:** `sort=newest|oldest` follows `savedAt`. The OpenAPI description says so.
-- **Bulk create:** a resaved item reports `status: "resaved"` with its `cardId`.
+- **Bulk create:** a resaved item keeps `status: "created"` and adds `resaved: true`, with its `cardId`.
 - **MCP:** `teak_v1_create_card` (or the current save tool name) returns the status, and its description explains re-save.
-- **SDK:** the `CreateCardResult.status` type widens, and `Card.savedAt` is added.
-- **CLI:** `teak save` prints "Already in Teak, moved to the top: <id>" for `resaved`. `cards get` prints "Saved again <date>".
+- **SDK:** `CreateCardResponse` gains optional `resaved` and `wasArchived`, and `Card.savedAt` is added. `asCreate` keeps requiring `status: "created"`.
+- **CLI:** `teak save` prints "Already in Teak, moved to the top: <id>" when `resaved` is true. `cards get` prints "Saved again <date>".
 - **Export:** `savedAt` goes in `cards.json` as a `DualTimestamp`. `SCHEMA_VERSION` stays 2; it is an additive field.
 
 ## Docs
 
 - `features.mdx`: a "Saving something again" note, and the Date token row now reads "Date saved (or saved again)".
-- `(developers)/api.mdx`: `status: "resaved"` and `savedAt`. Also `mcp.mdx` and `(apps)/cli.mdx`.
+- `(developers)/api.mdx`: `resaved` and `savedAt`. Also `mcp.mdx` and `(apps)/cli.mdx`.
 - `(apps)/extension.mdx` and `raycast.mdx`: what "Already in Teak" now does.
 - The month's changelog: "Saving a link again moves it to the top".
 
@@ -201,7 +204,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 - `apps/extension/__tests__/lib/saveToTeak.test.ts`: `resaved` maps to duplicate, and no pre-check request is made.
 - `apps/raycast/src/__tests__/capture.test.ts`.
 - `packages/ui` `AddCardForm` test: the resaved toast with no optimistic tile left.
-- e2e: `packages/tests/src/web/resave.e2e.ts` (new), plus `journey/03-api.e2e.ts` for `status: "resaved"`.
+- e2e: `packages/tests/src/web/resave.e2e.ts` (new), plus `journey/03-api.e2e.ts` for `resaved: true` (and an old-SDK parse of that response).
 
 ## Proof before the PR
 
