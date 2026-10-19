@@ -40,7 +40,7 @@ Paste a list of links into the web composer, one per line, and get one link card
 
 - **Web composer only,** including Focus mode. No API, MCP or CLI operation: they already have `POST /v1/cards/bulk` and stdin bulk.
 - **No preview dialog and no checkboxes** (owner decision: always split).
-- **One job per user at a time.** Starting a second while one runs adds it to a queue that holds one, and further pastes are refused with a toast: "Still saving your last links. Try again in a moment.".
+- **One job per user at a time.** A second paste while one runs is refused (no queue), with the toast "Still saving your last links. Try again in a moment." and the draft kept.
 - **Each card is created through `createCardForUserHandler`** with `source: "web"`. Phase 3's re-save rule and the URL key come for free.
 - **New table:** `linkPasteJobs`. It is covered by account deletion and removed 7 days after the job finishes (a cron sweep).
 - **Analytics:** `link_paste_saved { count, created, resaved, stoppedAtLimit }` in `shared/analytics.ts` first.
@@ -49,7 +49,8 @@ Paste a list of links into the web composer, one per line, and get one link card
 
 - **`schema.ts`:** `linkPasteJobs`:
   - `userId`, `urls: v.array(v.string())` (at most 100);
-  - `nextIndex`, `created`, `resaved`, `failed`;
+  - `total` (the URLs kept after normalizing), `omittedOverLimit` (lines past 100), `omittedRepeats` and `omittedUnsafe`, all stored at start so both toasts use the normalized counts, not the raw input;
+  - `nextIndex`, `created`, `resaved`, `failed`, and `attempts` for the current URL;
   - `status: "running" | "done" | "stopped_at_limit" | "failed"`;
   - `createdAt`, `updatedAt`, `finishedAt?`;
   - `.index("by_user_status", ["userId", "status"])` and `.index("by_status_finished", ["status", "finishedAt"])`.
@@ -63,9 +64,11 @@ Paste a list of links into the web composer, one per line, and get one link card
   - **`processLinkPaste({ jobId })`** (internal mutation), creating up to 10 cards per run:
     - on success, it bumps `created` or `resaved` from phase 3's outcome;
     - `RATE_LIMITED` means it schedules itself at `retryAt` and stops this run;
-    - `CARD_LIMIT_REACHED` ends the job with status `stopped_at_limit`;
-    - any other error counts as `failed` and moves on;
-    - after the last URL the status is `done`.
+    - `CARD_LIMIT_REACHED` ends the job with status `stopped_at_limit`. A re-save never hits it (phase 3 checks for a match before the cap), so links already in Teak before that point are still bumped;
+    - a permanent input error for that URL (`INVALID_INPUT`, unsafe URL, `CONTENT_TOO_LARGE`) counts as `failed` and moves on;
+    - any other error keeps the URL, bumps `attempts`, and schedules the job again with backoff (5 s, 30 s, 2 min); after the third attempt that URL counts as `failed` and the job moves on;
+    - when a run ends with URLs left and no other reschedule, it schedules `processLinkPaste` again at once (`ctx.scheduler.runAfter(0, …)`);
+    - the status becomes `done` only after the run that handles the last URL.
   - **`getLinkPaste({ jobId })`** (public query): the counts and status, owner-checked.
 - **`crons.ts`:** a daily sweep deletes `linkPasteJobs` whose `finishedAt` is older than 7 days.
 - **Account deletion:** `accountDeletionData.ts` `ancillaryPage` deletes the user's `linkPasteJobs`. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows. Add it to the "complete stages" test.
@@ -81,14 +84,14 @@ Paste a list of links into the web composer, one per line, and get one link card
   - **Button label:** "Save" stays the same when `linkList` is null. Otherwise it reads `Save ${n} links`, or "Save first 100 links" past 100. The width animates over 150 ms.
   - **On submit with a list:**
     1. Reset the draft and call `startLinkPaste`.
-    2. Show a loading toast, "Saving links · 0 of n", fed by `useQuery(api.card.pasteLinks.getLinkPaste, { jobId })`.
+    2. Show a loading toast, "Saving links · 0 of n" (n is the job's stored `total`), fed by `useQuery(api.card.pasteLinks.getLinkPaste, { jobId })`.
     3. Swap it for the final toast (copy in Success Criteria).
   - **The final toast:**
     - with resaves, it adds "· 3 already in Teak, moved to the top";
     - with failures, "· 2 couldn't be saved".
   - **Errors:**
     - `PASTE_ACTIVE` restores the draft and shows "Still saving your last links. Try again in a moment.".
-    - A free user at 200/200 gets the existing upgrade toast without starting a job.
+    - At 200/200 the composer's `canCreateCard` gate (`AddCardForm.tsx:227`) would block the submit, but some links may only be re-saves. So a link list stays submittable at the cap: the job starts, re-saves bump, and the first new link stops the job (`stopped_at_limit`), which shows the existing upgrade toast with the counts so far.
   - No optimistic tiles: cards appear as the job creates them, through the reactive grid.
 - **Focus mode** (`FocusEditor`) shares `submitTextCard`, so it gets the same label and behaviour.
 
