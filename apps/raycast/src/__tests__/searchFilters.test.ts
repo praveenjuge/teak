@@ -207,6 +207,20 @@ describe("qualifier filters", () => {
     });
   });
 
+  test("Archive and Trash are separate views", () => {
+    const archive = parseSearchFilters(
+      applyArchivedFilter(applyTrashedFilter("poster", true), true),
+    );
+    expect(archive.archived).toBe(true);
+    expect(archive.trashed).toBeUndefined();
+
+    const trash = parseSearchFilters(
+      applyTrashedFilter(applyArchivedFilter("poster", true), true),
+    );
+    expect(trash.trashed).toBe(true);
+    expect(trash.archived).toBeUndefined();
+  });
+
   test("Archive and Done filters toggle without losing the query", () => {
     const archived = applyArchivedFilter("poster type:image", true);
     expect(parseSearchFilters(archived)).toMatchObject({

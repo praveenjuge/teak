@@ -556,7 +556,12 @@ export const applyTrashedFilter = (
   trashed?: boolean,
 ): string => {
   const parsed = parseSearchFilters(rawQuery);
-  return buildSearchText({ ...parsed, trashed });
+  // Trash and Archive are separate views: entering one leaves the other.
+  return buildSearchText({
+    ...parsed,
+    archived: trashed ? undefined : parsed.archived,
+    trashed,
+  });
 };
 
 export const applyHueFilter = (rawQuery: string, hue?: string): string => {
@@ -588,7 +593,11 @@ export const applyArchivedFilter = (
   archived?: boolean,
 ): string => {
   const parsed = parseSearchFilters(rawQuery);
-  return buildSearchText({ ...parsed, archived });
+  return buildSearchText({
+    ...parsed,
+    archived,
+    trashed: archived ? undefined : parsed.trashed,
+  });
 };
 
 export const applyDoneFilter = (

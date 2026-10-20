@@ -116,6 +116,10 @@ data class LibraryUiState(
         get() = timeFilter?.let { CardQuery(range = it.range, filters = filters, folderId = folderId) }
             ?: CardQuery(search = search, filters = filters, folderId = folderId)
 
+    /** What Save as smart folder would save: the typed search plus the filters it can keep. */
+    val smartFolderQuery: String?
+        get() = if (folderId != null || timeFilter != null || search.isBlank()) null else filters.smartFolderQuery(search)
+
     val canRevisit: Boolean get() = !filters.trashOnly && !filters.archivedOnly && paged.cards.isNotEmpty()
 
     val title: String
@@ -332,9 +336,9 @@ class LibraryViewModel @AssistedInject constructor(
 
     /** Saves the current search as a smart folder: it shows every card that matches, as you save them. */
     fun saveSearchAsFolder(name: String) {
-        val search = _state.value.search.takeIf { it.isNotBlank() } ?: return
+        val query = _state.value.smartFolderQuery ?: return
         viewModelScope.launch {
-            catchingFailures { folders.create(name, query = search) }
+            catchingFailures { folders.create(name, query = query) }
                 .onSuccess { post("Saved “${it.name}”") }
                 .onFailure { post((it as? TeakException)?.message ?: "Couldn't create the folder") }
         }

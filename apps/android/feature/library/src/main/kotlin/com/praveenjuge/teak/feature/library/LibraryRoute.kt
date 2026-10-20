@@ -255,7 +255,7 @@ internal fun LibraryScreen(
                 onSort = actions.onSort,
                 onRevisit = actions.onRevisit,
                 onBack = actions.onBack,
-                onSaveSearch = if (state.search.isNotBlank() && state.folderId == null) ({ dialog = LibraryDialog.SaveSearch }) else null,
+                onSaveSearch = if (state.smartFolderQuery != null) ({ dialog = LibraryDialog.SaveSearch }) else null,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

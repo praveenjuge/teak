@@ -5,15 +5,18 @@ public struct FolderScope: Hashable, Sendable {
     public let id: String
     public var name: String
     public var isSmart: Bool
+    /// A smart folder's saved search, so the view knows when it lists archived cards.
+    public var query: String?
 
-    public init(id: String, name: String, isSmart: Bool = false) {
+    public init(id: String, name: String, isSmart: Bool = false, query: String? = nil) {
         self.id = id
         self.name = name
         self.isSmart = isSmart
+        self.query = query
     }
 
     public init(_ folder: Folder) {
-        self.init(id: folder.id, name: folder.name, isSmart: folder.isSmart)
+        self.init(id: folder.id, name: folder.name, isSmart: folder.isSmart, query: folder.isSmart ? folder.query : nil)
     }
 }
 
@@ -304,9 +307,10 @@ public struct LibraryQuery: Hashable, Sendable {
 
     public var isTrash: Bool { effectiveFilters.trashOnly }
 
-    /// The Archive view, or a search for `is:archived`.
+    /// The Archive view, a search for `is:archived`, or a smart folder that saves one.
     public var isArchive: Bool {
-        !isTrash && (filters.archivedOnly || parsedSearch.has(.archived))
+        !isTrash && (filters.archivedOnly || parsedSearch.has(.archived)
+            || filters.folder?.query.map { SearchQualifiers.parse($0).has(.archived) } == true)
     }
 
     public func timeFilter(now: Date = Date(), timeZone: TimeZone = .current) -> TimeFilter? {

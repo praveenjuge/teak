@@ -39,6 +39,19 @@ data class LibraryFilters(
             return if (types.size > 1) "Filtered" else "Home"
         }
 
+    /**
+     * The search a smart folder saves, matching Apple: types, favorites and archive as qualifiers,
+     * then the typed [search]. Colors aren't saved, and Trash can't be a smart folder.
+     */
+    fun smartFolderQuery(search: String): String? {
+        if (trashOnly) return null
+        val parts = types.map { SearchQuery.format(SearchQualifier.Type(it)) }.toMutableList()
+        if (favoritesOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Favorite))
+        if (archivedOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Archived))
+        search.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
+        return parts.joinToString(" ").takeIf { it.isNotEmpty() }
+    }
+
     fun toSearchArgs(): Map<String, Any> = buildMap {
         if (favoritesOnly) put("favoritesOnly", true)
         hue?.let { put("hueFilters", listOf(it.wireName)) }

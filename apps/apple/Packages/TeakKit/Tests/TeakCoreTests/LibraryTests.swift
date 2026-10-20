@@ -47,6 +47,15 @@ private func day(_ milliseconds: Double) -> String {
 }
 
 @Suite struct LibraryFilterTests {
+    @Test func aSmartFolderThatSavesIsArchivedIsAnArchiveView() {
+        let archived = Folder(id: "f1", name: "Old reads", kind: .smart, query: "is:archived type:link")
+        #expect(LibraryQuery(filters: LibraryFilters(folder: FolderScope(archived))).isArchive)
+        let plain = Folder(id: "f2", name: "Links", kind: .smart, query: "type:link")
+        #expect(!LibraryQuery(filters: LibraryFilters(folder: FolderScope(plain))).isArchive)
+        let manual = Folder(id: "f3", name: "is:archived", kind: .manual, query: "is:archived")
+        #expect(!LibraryQuery(filters: LibraryFilters(folder: FolderScope(manual))).isArchive)
+    }
+
     @Test func trashAndArchiveAreSeparateViews() {
         var filters = LibraryFilters(archivedOnly: true)
         filters.trashOnly = true
