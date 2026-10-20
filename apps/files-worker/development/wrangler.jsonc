@@ -191,6 +191,11 @@
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
+    // Signed file links carry their signature in the query string, so logs
+    // keep only the path.
+    "redact_query_string": true,
+    // A deploy without this key turns Issues off.
+    "issues": { "enabled": true }
   }
 }
