@@ -1,10 +1,17 @@
-export { formatBytes } from "../shared/utils/formatBytes";
+export { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 export {
   type AuthDiscovery,
   discoverAuthServer,
   type OAuthSurface,
   validateOAuthUrl,
 } from "./authDiscovery";
+export {
+  type CredentialBinding,
+  isRefreshTokenDead,
+  isWorkosCredential,
+  matchesBinding,
+  refreshAndSave,
+} from "./oauthCredentials";
 export {
   type ConnectTokenResult,
   type ConnectTokens,
@@ -17,12 +24,15 @@ export {
   WORKOS_CONNECT_SCOPE,
 } from "./workosConnect";
 
-import { type CardType, cardTypes } from "../shared/constants";
-import type { FileKind, FilePreviewFacts } from "../shared/fileFormats";
+import { type CardType, cardTypes } from "@teak/convex/shared/constants";
+import type {
+  FileKind,
+  FilePreviewFacts,
+} from "@teak/convex/shared/fileFormats";
 
-import type { FOLDER_COLORS } from "../shared/folders";
+import type { FOLDER_COLORS } from "@teak/convex/shared/folders";
 
-export type { CardType } from "../shared/constants";
+export type { CardType } from "@teak/convex/shared/constants";
 
 export const CARD_TYPES = cardTypes;
 export const CARD_SORTS = ["newest", "oldest", "relevance", "shuffle"] as const;

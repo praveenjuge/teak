@@ -28,7 +28,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
 - **Callers of the internal query:**
   - `publicApiDuplicate.ts` (`GET /v1/cards/duplicate`, routed at `http.ts:238`);
   - MCP `teak_v1_check_duplicate_url` (`mcp/tools.ts:624`);
-  - SDK `cards.duplicate` (`client/sdk.ts:969`);
+  - SDK `cards.duplicate` (`packages/sdk/src/index.ts:976`);
   - CLI `cards duplicate` (`apps/cli/src/index.ts:433`).
 
   The parity row is `scripts/public-parity.ts:105–107`.

@@ -1,6 +1,6 @@
 import type { BrowserWorker } from "@cloudflare/puppeteer";
 import { CRONS, cronTasksOn } from "@teak/convex/cronSchedules";
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
   buildFilesOpSigningPayload,

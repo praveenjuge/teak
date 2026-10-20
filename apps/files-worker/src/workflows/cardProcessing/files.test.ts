@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import {
-  hasKnownTinyImageDimensions,
-  hasMinimumImageAnalysisDimensions,
-  MIN_IMAGE_ANALYSIS_DIMENSION,
-} from "@teak/convex/shared/imageAnalysis";
 import type { FilesOp } from "@teak/files-protocol";
 import {
   CARD_ID,
@@ -26,6 +21,11 @@ import {
   recordMediaFacts,
   transcribeStoredAudio,
 } from "./files";
+import {
+  hasKnownTinyImageDimensions,
+  hasMinimumImageAnalysisDimensions,
+  MIN_IMAGE_ANALYSIS_DIMENSION,
+} from "./imageAnalysisKey";
 
 const setup = (
   fields: Partial<FakeCard>,

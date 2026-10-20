@@ -1,7 +1,7 @@
 import { env, httpAction } from "./_generated/server";
-import { OAUTH_SURFACES } from "./client/authDiscovery";
 import { isLocalDevelopmentHostname, resolveTeakDevApiUrl } from "./devUrls";
 import { readWorkosConnectIssuer, readWorkosResources } from "./env";
+import { OAUTH_SURFACES } from "./shared/oauthSurfaces";
 import { PUBLIC_API_CORS_HEADERS } from "./shared/publicApiHeaders";
 import { WORKOS_CLIENT_ID } from "./shared/workosIds";
 

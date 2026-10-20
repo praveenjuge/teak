@@ -1,4 +1,4 @@
-import { validateOAuthUrl } from "@teak/convex/sdk";
+import { validateOAuthUrl } from "teak-sdk";
 import { getConvexSiteUrl } from "./env";
 
 let selectedSite: string | undefined;

@@ -8,7 +8,7 @@ Keep user documentation synchronized in the same change:
 - MCP behavior under `packages/convex/mcp` -> `content/docs/(developers)/mcp.mdx`
 - Apple app behavior under `apps/apple` -> `content/docs/(apps)/mac.mdx` (Mac) and `content/docs/(apps)/mobile.mdx` (iPhone and iPad)
 - Raycast commands or authentication -> `content/docs/(apps)/raycast.mdx`
-- CLI or public SDK behavior under `apps/cli` or `packages/convex/client/sdk.ts` -> `content/docs/(apps)/cli.mdx`
+- CLI or public SDK behavior under `apps/cli` or `packages/sdk/src` -> `content/docs/(apps)/cli.mdx`
 - Public skills under `.agents/skills` -> `content/docs/(developers)/ai-agents.mdx` and `pages/apps.astro` (`/docs/skills` redirects to `/docs/ai-agents`)
 
 For a notable, shipped product change, update its calendar month's entry in `content/changelog`. Keep one changelog entry per month. Internal maintenance and marketing page changes need no public entry.

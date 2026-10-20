@@ -1,4 +1,4 @@
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { hexToRgb } from "@teak/convex/shared/utils/colorUtils";
 import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
 

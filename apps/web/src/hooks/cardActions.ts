@@ -1,5 +1,5 @@
-import { captureClientException } from "../../shared/client_telemetry";
-import type { Id } from "../../shared/types";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
+import type { Id } from "@teak/convex/shared/types";
 
 export interface CardActionsConfig {
   onDeleteSuccess?: (message?: string) => void;

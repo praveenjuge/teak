@@ -81,7 +81,7 @@ mock.module("../../../lib/convexQueryHooks", () => ({
   useQuery: () => cardCreationStatusResult,
 }));
 
-mock.module("@teak/convex/shared/hooks/useFileUpload", () => ({
+mock.module("@/hooks/useFileUploadCore", () => ({
   useFileUploadCore: () => ({
     uploadFile: mock(() => ({
       success: true,

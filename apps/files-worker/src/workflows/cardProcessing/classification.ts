@@ -1,17 +1,17 @@
 import { internal } from "@teak/convex/_generated/api";
-import {
-  buildPaletteAnalysisText,
-  colorsMatch,
-  deterministicClassify,
-  extractCardColors,
-  toDbColor,
-} from "@teak/convex/card/classificationRules";
 import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
 import type { CardType } from "@teak/convex/shared/constants";
 import {
   CARD_TYPE_DECISION_TYPES,
   readCardTypeDecision,
 } from "@teak/files-protocol";
+import {
+  buildPaletteAnalysisText,
+  colorsMatch,
+  deterministicClassify,
+  extractCardColors,
+  toDbColor,
+} from "./classificationRules";
 import {
   type CardDoc,
   type CardJob,

@@ -7,7 +7,7 @@ import {
   fetchConnectOwnerId,
   randomBase64Url,
   requestConnectTokens,
-} from "../../client/sdk";
+} from "./index";
 
 const auth: AuthDiscovery = {
   primary: "workos",

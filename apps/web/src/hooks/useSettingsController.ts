@@ -2,7 +2,7 @@
 
 import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
-import { captureClientException } from "@teak/convex/shared/client-telemetry";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import { useAction, useMutation } from "convex/react";
 import { useMemo, useRef, useState } from "react";

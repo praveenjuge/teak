@@ -37,6 +37,9 @@ Release scripts that workflows run with plain `node`, often before Bun is instal
 the other products. Branch dispatches, mismatched tags, and commits outside
 `main` are rejected. The workflow installs and exercises the packed SDK in
 an independent consumer before publishing the exact tarball with provenance.
+The tarball is packed from `packages/sdk/dist`, which
+`bun run --cwd packages/sdk build` fills with the bundle, the declarations and
+the published `package.json`.
 Retries verify both npm metadata and the downloaded tarball against that
 artifact; only an explicit registry version 404 permits publication.
 

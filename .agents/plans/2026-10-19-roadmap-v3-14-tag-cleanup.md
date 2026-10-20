@@ -128,7 +128,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`into` unchanged; that is the merge endpoint's existing field, `publicApiHttpTags.ts:21`). An array is sent as `from[0]` plus `alsoFrom`.
 - Add to OpenAPI, and the row in `scripts/public-parity.ts`.
 - MCP: `teak_v1_find_duplicate_tags`, and `teak_v1_merge_tags` accepts an array `from`.
-- SDK: `tags.duplicates()`, and `tags.merge(from: string | string[], into: string)`, keeping today's positional signature (`client/sdk.ts:1163`) so existing callers still work.
+- SDK: `tags.duplicates()`, and `tags.merge(from: string | string[], into: string)`, keeping today's positional signature (`packages/sdk/src/index.ts:1170`) so existing callers still work.
 - CLI:
   - `teak tags duplicates` prints the groups as a table;
   - `teak tags merge <from...> --into <to>`.

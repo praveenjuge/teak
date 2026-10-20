@@ -3,7 +3,7 @@ import {
   MAX_MCP_JSON_RPC_BATCH,
   MCP_CORS_HEADERS,
 } from "@teak/convex/mcp/protocol";
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import { PUBLIC_API_CORS_HEADERS } from "@teak/convex/shared/publicApiHeaders";
 import type { EdgeIdentity } from "./edgeIdentity";
 

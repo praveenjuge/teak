@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import {
-  type FileUploadDependencies,
-  useFileUploadCore,
-} from "../../../client/hooks/useFileUpload.client";
-import { configureClientTelemetry } from "../../../shared/client_telemetry";
+import { configureClientTelemetry } from "@teak/convex/shared/clientTelemetry";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
-} from "../../../shared/constants";
+} from "@teak/convex/shared/constants";
+import {
+  type FileUploadDependencies,
+  useFileUploadCore,
+} from "../useFileUploadCore";
 import {
   mockFetch,
   mockSetState,
   mockUseEffectCleanups,
-} from "./useFileUpload.testSupport";
+} from "./useFileUploadCore.testSupport";
 
 describe("useFileUploadCore", () => {
   const mockUploadAndCreateCard = mock();

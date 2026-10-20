@@ -26,7 +26,7 @@ import {
   VISUAL_STYLE_QUESTION_PREFIX,
 } from "../../apps/files-worker/src/decisions";
 import type { FilesOpsEnv } from "../../apps/files-worker/src/ops";
-import { textCardRulesType } from "../../packages/convex/card/classificationRules";
+import { textCardRulesType } from "../../apps/files-worker/src/workflows/cardProcessing/classificationRules";
 import { resolveCreatedCardType } from "../../packages/convex/card/createCard";
 import { normalizeQuoteContent } from "../../packages/convex/card/quoteFormatting";
 import { VISUAL_STYLE_TAXONOMY } from "../../packages/convex/shared/constants";

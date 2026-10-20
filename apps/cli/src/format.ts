@@ -1,6 +1,6 @@
-import type { Card, CardLinkRef, CardLinks } from "@teak/convex/sdk";
 import { formatLinkPrice } from "@teak/convex/shared/price";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
+import type { Card, CardLinkRef, CardLinks } from "teak-sdk";
 
 const relativeAge = (ms: number) => {
   const minutes = Math.max(1, Math.floor(ms / 60_000));

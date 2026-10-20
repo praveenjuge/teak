@@ -4,7 +4,6 @@ import {
   stageFailed,
 } from "@teak/convex/card/processingStatus";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import { hasKnownTinyImageDimensions } from "@teak/convex/shared/imageAnalysis";
 import type {
   FilesAnimationPaletteResult,
   FilesOp,
@@ -21,6 +20,7 @@ import {
   objectKey,
 } from "./context";
 import { buildFilePreviewFactsForKey, recordMediaFacts } from "./files";
+import { hasKnownTinyImageDimensions } from "./imageAnalysisKey";
 
 interface ImageAnalysis {
   exif?: Record<string, number | string>;

@@ -1,14 +1,14 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { FOLDER_COLORS } from "@teak/convex/shared/folders";
+import { randomShuffleSeed } from "@teak/convex/shared/search/shuffle";
+import { Command, CommanderError, InvalidArgumentError } from "commander";
 import {
   type BulkCardsOperation,
   type CardsPage,
   parseTags,
   TeakApiError,
-} from "@teak/convex/sdk";
-import { FOLDER_COLORS } from "@teak/convex/shared/folders";
-import { randomShuffleSeed } from "@teak/convex/shared/search/shuffle";
-import { Command, CommanderError, InvalidArgumentError } from "commander";
+} from "teak-sdk";
 import { addCard, readStdin } from "./files";
 import { formatCardLine, formatDetail } from "./format";
 import {

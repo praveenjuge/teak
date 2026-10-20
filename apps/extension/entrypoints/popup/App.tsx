@@ -1,4 +1,4 @@
-import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
+import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
 import {
   ArrowUpRight,
   BookmarkCheck,

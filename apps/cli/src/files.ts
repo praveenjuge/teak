@@ -1,18 +1,18 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { type CardType, parseTags } from "@teak/convex/sdk";
 import {
   inferFileFormat,
   isGenericMimeType,
   MAX_FILE_SIZE,
   mimeTypeForFileName,
-} from "@teak/convex/shared/file-formats";
+} from "@teak/convex/shared/fileFormats";
 import {
   isMarkdownFileName,
   MARKDOWN_CONTENT_MAX_BYTES,
   MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
 } from "@teak/convex/shared/markdown";
 import { InvalidArgumentError } from "commander";
+import { type CardType, parseTags } from "teak-sdk";
 import { type ClientOptions, client } from "./runtime";
 
 const MAX_STDIN_BYTES = 1024 * 1024;

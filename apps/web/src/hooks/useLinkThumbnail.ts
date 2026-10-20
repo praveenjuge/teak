@@ -1,11 +1,11 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { uploadWithTransientRetry } from "@teak/convex/client/hooks/fileUploadTransport.client";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { toThumbnailMimeType } from "@teak/convex/shared/thumbnails";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { uploadWithTransientRetry } from "@/lib/upload/transport";
 import {
   linkThumbnailErrorMessage,
   linkThumbnailFileProblem,

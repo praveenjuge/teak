@@ -1,5 +1,5 @@
 import { api } from "@teak/convex";
-import { createTeakClient } from "@teak/convex/sdk";
+import { createTeakClient } from "teak-sdk";
 import { waitForTeakAccount } from "../../../../scripts/lib/teak-account.ts";
 import {
   createEmulatorUser,

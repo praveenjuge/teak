@@ -11,13 +11,8 @@ import {
 import { createServer } from "node:http";
 import { homedir, platform } from "node:os";
 import path from "node:path";
-import {
-  isRefreshTokenDead,
-  isWorkosCredential,
-  matchesBinding,
-  refreshAndSave,
-} from "@teak/convex/client/oauthCredentials";
-import { isLocalDevelopmentHostname } from "@teak/convex/dev-urls";
+import { isLocalDevelopmentHostname } from "@teak/convex/devUrls";
+import { InvalidArgumentError } from "commander";
 import {
   type AuthDiscovery,
   createConnectAuthorizeUrl,
@@ -26,13 +21,16 @@ import {
   disconnectConnectGrant,
   discoverAuthServer,
   fetchConnectOwnerId,
+  isRefreshTokenDead,
+  isWorkosCredential,
+  matchesBinding,
   randomBase64Url,
+  refreshAndSave,
   requestConnectTokens,
   TeakApiError,
   type TeakClient,
   type TokenProvider,
-} from "@teak/convex/sdk";
-import { InvalidArgumentError } from "commander";
+} from "teak-sdk";
 import { credentialLockPath, withCredentialLock } from "./credentialLock";
 
 const readPackageVersion = () => {

@@ -90,6 +90,7 @@ export default defineConfig({
       "apps/extension/**",
       "packages/convex/**",
       "packages/files-protocol/**",
+      "packages/sdk/**",
     ],
     excludeSources: [
       "**/__tests__/**",
@@ -97,6 +98,7 @@ export default defineConfig({
       "**/*.test.tsx",
       "**/node_modules/**",
       "apps/extension/.output/**",
+      "packages/sdk/dist/**",
       "packages/convex/_generated/ai/**",
       "packages/convex/card/onboarding/**",
     ],

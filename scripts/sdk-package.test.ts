@@ -62,7 +62,7 @@ test("packed SDK installs and discovers both providers outside the monorepo", as
         "--pack-destination",
         artifact,
       ],
-      workspace
+      join(workspace, "dist")
     );
     const metadataPath = join(artifact, "pack.json");
     writeFileSync(metadataPath, packed);

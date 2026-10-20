@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useAction } from "convex/react";
 import {

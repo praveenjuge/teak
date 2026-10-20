@@ -1,7 +1,9 @@
 import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { discoverAuthServer } from "./client/authDiscovery";
+// The SDK depends on this package, so the test reads its source directly to
+// prove the SDK can read what these endpoints serve.
+import { discoverAuthServer } from "../sdk/src/authDiscovery";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");

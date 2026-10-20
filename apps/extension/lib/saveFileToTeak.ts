@@ -1,11 +1,11 @@
 import { assertUrlStructureSafe } from "@teak/convex/linkMetadata/ssrf";
-import { readResponseBlobWithinLimit } from "@teak/convex/shared/bounded-response";
+import { readResponseBlobWithinLimit } from "@teak/convex/shared/boundedResponse";
 import {
   inferFileFormat,
   isGenericMimeType,
   MAX_FILE_SIZE,
   validateFileName,
-} from "@teak/convex/shared/file-formats";
+} from "@teak/convex/shared/fileFormats";
 import type { TeakSaveResponse } from "../types/messages";
 import { oauthRequest, reachTeak } from "./oauthAuth";
 import {

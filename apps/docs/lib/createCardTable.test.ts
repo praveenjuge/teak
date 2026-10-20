@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import path from "node:path";
-import { CARD_TYPES } from "@teak/convex/sdk";
 import { extractTypeTable } from "blume/components/content/auto-type-table.ts";
+import { CARD_TYPES } from "teak-sdk";
 
 const docsRoot = path.join(import.meta.dir, "..");
 

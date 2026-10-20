@@ -9,7 +9,6 @@ import {
   isVisualStyleCardType,
 } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import {
   fetchVideoCaptions,
   hasCaptionSource,
@@ -42,6 +41,7 @@ import {
   readScannedPdfText,
   storeDocumentText,
 } from "./files";
+import { resolveImageAnalysisKey } from "./imageAnalysisKey";
 import { hydrateArchivedMetadata } from "./rawMetadata";
 
 interface LinkPreviewFields {

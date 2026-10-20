@@ -6,9 +6,9 @@ import {
   parseTags,
   type TagOperation,
   type TeakApiError,
-} from "../client/sdk";
+} from "./index";
 
-describe("@teak/convex/sdk", () => {
+describe("teak-sdk", () => {
   test("normalizes search params", () => {
     expect(
       buildCardsSearchParams({

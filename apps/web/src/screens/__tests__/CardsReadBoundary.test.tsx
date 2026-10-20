@@ -9,7 +9,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { configureClientTelemetry, resetClientTelemetry } = await import(
-  "@teak/convex/shared/client-telemetry"
+  "@teak/convex/shared/clientTelemetry"
 );
 const { CardsReadBoundary } = await import("../CardsReadBoundary");
 const { Component } = await import("react");

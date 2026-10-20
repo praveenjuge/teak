@@ -15,7 +15,11 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 ## Architecture invariants
 
-- This is a Turborepo monorepo. Applications live in `apps/*`; shared backend code lives in `packages/convex`.
+- This is a Turborepo monorepo. Applications live in `apps/*`. Packages:
+  - `packages/convex`: the backend, plus the pure helpers in `shared/` that other surfaces import.
+  - `packages/files-protocol`: the contract between Convex and the Files Worker.
+  - `packages/sdk`: the public `teak-sdk` client. The CLI, extension, docs and e2e tests use it from source.
+  - `packages/tests`: the end-to-end suite.
 - Client reads use the cached Convex query hooks. Writes use Convex mutations or actions. WorkOS AuthKit sessions provide Convex identity; WorkOS is the only sign-in provider in every environment.
 - Import backend APIs from `@teak/convex`, generated data types from `@teak/convex/_generated/dataModel`, and shared constants from `@teak/convex/shared/constants`.
 - The web app owns its UI in `apps/web/src`; read its `AGENTS.md` for where each kind of file goes. The browser extension keeps its own small copies of the button, wordmark and theme tokens. Pure helpers that several surfaces share (web, docs, extension, native ports) go in `packages/convex/shared`.
