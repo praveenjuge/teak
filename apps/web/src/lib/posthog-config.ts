@@ -193,6 +193,21 @@ export const filterPostHogEvent = (
   };
 };
 
+/**
+ * PostHog's feedback tab hangs from the middle of the right edge, right under
+ * an open card's Next button. This hangs it near the bottom instead, clear of
+ * that button and of a phone's action bar. Only the right-edge tab has
+ * `right` in its inline style, so the other tab positions are left alone.
+ */
+export const FEEDBACK_TAB_CSS =
+  '.ph-survey-widget-tab[style*="right"]{top:calc(100% - 11rem)!important}';
+
+/** The SDK passes each stylesheet it injects, the survey widget's included, through here. */
+export const lowerFeedbackTab = (style: HTMLStyleElement): HTMLStyleElement => {
+  style.append(FEEDBACK_TAB_CSS);
+  return style;
+};
+
 // Teak uses no feature flags, but the /flags response still carries the
 // feedback survey's targeting, so it stays on (after the deferred load).
 export const buildPostHogOptions = (): Partial<PostHogConfig> => ({
@@ -209,6 +224,7 @@ export const buildPostHogOptions = (): Partial<PostHogConfig> => ({
   mask_personal_data_properties: true,
   person_profiles: "identified_only",
   persistence: "localStorage+cookie",
+  prepare_external_dependency_stylesheet: lowerFeedbackTab,
   session_recording: {
     blockSelector: "img, picture, video, audio, canvas, iframe",
     captureJsonLd: false,

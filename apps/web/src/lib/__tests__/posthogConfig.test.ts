@@ -1,10 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { CaptureResult } from "posthog-js";
 import {
   buildPostHogOptions,
+  FEEDBACK_TAB_CSS,
   filterPostHogEvent,
   resolvePostHogToken,
 } from "@/lib/posthog-config";
+
+if (!GlobalRegistrator.isRegistered) {
+  GlobalRegistrator.register({ url: "http://localhost:3000" });
+}
 
 const exception = (entries: Record<string, unknown>[]): CaptureResult => ({
   event: "$exception",
@@ -134,6 +140,17 @@ describe("web PostHog configuration", () => {
     }[];
     expect(entry?.value).not.toContain("owner@example.com");
     expect(entry?.value).toContain("Save failed");
+  });
+
+  test("lowers the feedback tab in the stylesheet the SDK injects, keeping its own rules", () => {
+    const style = document.createElement("style");
+    style.textContent = ".ph-survey-widget-tab{position:fixed}";
+    const prepared =
+      buildPostHogOptions().prepare_external_dependency_stylesheet?.(style);
+    expect(prepared).toBe(style);
+    expect(prepared?.textContent).toBe(
+      `.ph-survey-widget-tab{position:fixed}${FEEDBACK_TAB_CSS}`
+    );
   });
 
   test("asks the SDK to mask the search in page URLs and replays", () => {
