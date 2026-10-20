@@ -15,6 +15,7 @@
     "./shared/folders": "./shared/folders.ts",
     "./shared/tags": "./shared/tags.ts",
     "./shared/analytics": "./shared/analytics.ts",
+    "./shared/audioWave": "./shared/audioWave.ts",
     "./shared/markdown": "./shared/markdown.ts",
     "./shared/posthog": "./shared/posthog.ts",
     "./shared/price": "./shared/price.ts",

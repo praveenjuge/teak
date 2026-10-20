@@ -174,7 +174,7 @@ private func day(_ milliseconds: Double) -> String {
         #expect(CardGrid.estimatedHeight(summary(.image, aspectRatio: 0.5, compactUrl: "x"), columnWidth: 180) == 360)
     }
 
-    /// Reference values from `getAudioWaveHeight("k17abc123", i)` in packages/ui.
+    /// Reference values from `getAudioWaveHeight("k17abc123", i)` in packages/convex/shared/audioWave.ts.
     @Test func drawsTheSameWaveformAsTheWeb() {
         let heights = CardGrid.waveformHeights(seed: "k17abc123")
         #expect(heights.count == 45)

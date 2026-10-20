@@ -55,7 +55,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
     - Raycast: `apps/raycast/src/lib/capture.ts:165` `showIfAlreadySaved`;
     - Safari: `apps/apple/SafariExtension/Resources/popup.js:72`, through the `findDuplicateCard` query.
   - **Import** skips duplicates (`dataImport.ts:554–600`).
-- **Details panel:** `packages/ui/src/components/card-modal/cardDetails.ts:63` shows "Added" from `createdAt`.
+- **Details panel:** `apps/web/src/components/card-modal/cardDetails.ts:63` shows "Added" from `createdAt`.
 - **Native apps:** they decode `createdAt`, falling back to `_creationTime` (`apps/apple/.../Models/Card.swift:331`). They pass `createdAtRange` (`LibraryQuery.swift:219`) and don't sort lists themselves.
 
 ## Constraints And Non-goals
@@ -116,7 +116,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 
 ## Web
 
-- **`packages/ui/src/components/forms/AddCardForm.tsx`:**
+- **`apps/web/src/components/forms/AddCardForm.tsx`:**
   - `submitTextCard` calls `createCardWithOutcome`.
   - On `resaved`, the toast reads "Already in Teak · Moved to the top", with an "Open" action that opens the card modal. If the card was archived, it reads "Already in Teak · Moved back from Archive".
   - The optimistic card (lines 202–217) is removed when the outcome is `resaved`, so no ghost tile is left. The real card's `savedAt` change moves the tile through the reactive query.
@@ -204,7 +204,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 - `packages/convex/__tests__/publicApiHttpCards.test.ts`, `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `__tests__/export/serialize.test.ts`.
 - `apps/extension/__tests__/lib/saveToTeak.test.ts`: `resaved` maps to duplicate, and no pre-check request is made.
 - `apps/raycast/src/__tests__/capture.test.ts`.
-- `packages/ui` `AddCardForm` test: the resaved toast with no optimistic tile left.
+- `apps/web` `AddCardForm` test: the resaved toast with no optimistic tile left.
 - e2e: `packages/tests/src/web/resave.e2e.ts` (new), plus `journey/03-api.e2e.ts` for `resaved: true` (and an old-SDK parse of that response).
 
 ## Proof before the PR

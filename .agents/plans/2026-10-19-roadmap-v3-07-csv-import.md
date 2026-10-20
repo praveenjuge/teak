@@ -49,7 +49,7 @@ Import links from any CSV file whose header names the columns: url, title, tags,
   - `import/sourceItems.ts` `linkItem` (around line 81) validates the URL (`sanitizeExternalUrl`), caps notes at 100,000 characters, and builds the card. `parseImportedTimestamp` handles the dates.
 - **Failure messages:** `describeImportFailure` (`importSources.ts:99–117`) turns `invalid_source` into "This doesn't look like a … export". Failure classes containing spaces pass through as written.
 - **UI:**
-  - `packages/ui/src/components/settings/ImportPanel.tsx` lists every `IMPORT_MODES` entry in a `Select` (lines 491–494) and shows its hint and size (lines 499–500). The `accept` list is derived from the extensions (lines 62–65).
+  - `apps/web/src/components/settings/ImportPanel.tsx` lists every `IMPORT_MODES` entry in a `Select` (lines 491–494) and shows its hint and size (lines 499–500). The `accept` list is derived from the extensions (lines 62–65).
   - The failure report is copied or downloaded at lines 405–437.
 - **Duplicate checks:** `dataImport.ts` checks the library (around line 554) and the same file (around line 439). Phase 2 moves both to the URL key.
 - **Docs:** `apps/docs/content/docs/(data)/import.mdx`. The sources table has a OneTab row at line 44.
@@ -157,7 +157,7 @@ Import links from any CSV file whose header names the columns: url, title, tags,
 - `packages/convex/__tests__/import/onetab.test.ts`: the source label.
 - `packages/convex/__tests__/shared/importSources.test.ts`: hidden sources are excluded from the visible list, and the new failure is described.
 - `apps/files-worker/src/importSource.test.ts`: the failure-class mapping.
-- `packages/ui/src/components/settings/__tests__/ImportPanel.test.tsx`: the picker order and that OneTab is hidden.
+- `apps/web/src/components/settings/__tests__/ImportPanel.test.tsx`: the picker order and that OneTab is hidden.
 - e2e: `packages/tests/src/web/import-csv.e2e.ts` (new). Import `full.csv` and see cards with their tags and folders; import `no-url.csv` and see the error.
 
 ## Proof before the PR

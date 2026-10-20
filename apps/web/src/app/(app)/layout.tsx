@@ -1,6 +1,6 @@
 import { type ReactNode, Suspense } from "react";
-import { AppShellFrame } from "@/components/AppShellFrame";
-import AuthenticatedAppProvider from "@/components/AuthenticatedAppProvider";
+import { AppShellFrame } from "@/components/app-shell/AppShellFrame";
+import AuthenticatedAppProvider from "@/components/providers/AuthenticatedAppProvider";
 import Loading from "../loading";
 
 export default function AppLayout({ children }: { children: ReactNode }) {

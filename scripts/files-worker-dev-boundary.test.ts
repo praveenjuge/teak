@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import config from "../apps/files-worker/development/wrangler.jsonc";
+import { TEAK_FILES_HOSTS } from "../apps/web/src/components/cards/previews/mediaRecovery";
 import { TEAK_DEV_FILES_ORIGIN as webOrigin } from "../apps/web/src/lib/security-headers";
-import { TEAK_FILES_HOSTS } from "../packages/ui/src/components/cards/previews/mediaRecovery";
 import { DEVELOPMENT_FILES_ORIGIN } from "./check-cloudflare";
 import {
   assertDevelopmentWorkerConfig,

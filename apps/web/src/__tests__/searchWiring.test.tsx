@@ -2,8 +2,8 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 let screenProps: Record<string, any> = {};
-const realScreens = await import("@teak/ui/screens");
-mock.module("@teak/ui/screens", () => ({
+const realScreens = await import("@/screens");
+mock.module("@/screens", () => ({
   ...realScreens,
   CardsScreenAdapter: (props: Record<string, any>) => {
     screenProps = props;

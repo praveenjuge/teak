@@ -49,7 +49,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - `POST /v1/folders/{id}/cards` is `addCardsToFolder` (`publicApiOpenApi.ts:2043`).
   - `PATCH /v1/cards/{id}` accepts `folderIds` (`publicApiHttpValidation.ts:911`).
   - `serializeCard` returns `folderIds` (`publicApiHttpValidation.ts:143`).
-- **Side panel:** `packages/ui/src/components/card-modal/CardMetadataPanel.tsx` builds the Folders row at 425–454. It shows "Add…" when the card is in no folder and opens `CardFoldersDialog`. It resolves folders with `useFolders()` (195).
+- **Side panel:** `apps/web/src/components/card-modal/CardMetadataPanel.tsx` builds the Folders row at 425–454. It shows "Add…" when the card is in no folder and opens `CardFoldersDialog`. It resolves folders with `useFolders()` (195).
 - **Extension popup** (`apps/extension/entrypoints/popup/SaveDetails.tsx`):
   - It shows tags and a note after a save, and loads them through `LOAD_SAVE_DETAILS`.
   - `apps/extension/lib/cardDetails.ts` `loadSaveDetails` (77) calls `/v1/tags`, plus `/v1/cards/:id` when the page was already saved.
@@ -207,7 +207,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - adding to a folder clears the suggestion.
 - `packages/convex/__tests__/publicApiHttpCards.test.ts`: the serialized field, including null once the folder is deleted; the DELETE route; 404 and 409.
 - `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
-- `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the chip shows only with no folders and an existing suggested folder.
+- `apps/web/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the chip shows only with no folders and an existing suggested folder.
 - `apps/extension/__tests__/cardDetails.test.ts`: polling stops on a suggestion, on a folder and on abort.
 - e2e: `packages/tests/src/web/folder-suggestions.e2e.ts` (new) checks accepting and dismissing in the panel, against a seeded suggestion.
 

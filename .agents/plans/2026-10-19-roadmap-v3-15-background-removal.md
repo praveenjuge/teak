@@ -43,9 +43,9 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
 - **Display:**
   - `card/queryUtils.ts` reads `card.thumbnailOverride` (115–117, 308), signs the override as `linkPreviewImageUrl`, and sets `hasThumbnailOverride` (235–263).
   - Image cards use `imageRenditions` for `thumbnailUrl`, `compactUrl` and `detailUrl` (240–251), and `fileUrl` for the original.
-  - `packages/ui/src/components/cards/linkCardImage.ts:31-88` picks the image for a link tile: override, then media, then preview image, then screenshot.
+  - `apps/web/src/components/cards/linkCardImage.ts:31-88` picks the image for a link tile: override, then media, then preview image, then screenshot.
   - `FileCardBody.tsx:20-21` shows `thumbnailUrl ?? compactUrl ?? fileUrl` for image tiles.
-- **Modal menu:** `packages/ui/src/components/card-modal/CardModal.tsx` 739–756 holds "Replace image" and "Reset to original image", driven by `imageControl` from `hooks/useLinkThumbnail.ts` (wired in `ConnectedCardModal.tsx`).
+- **Modal menu:** `apps/web/src/components/card-modal/CardModal.tsx` 739–756 holds "Replace image" and "Reset to original image", driven by `imageControl` from `hooks/useLinkThumbnail.ts` (wired in `ConnectedCardModal.tsx`).
 - **Public API:**
   - The routes are `thumbnail-set`, `thumbnail-reset` and `thumbnail-upload` (`publicApiHttpValidation.ts:717-765`).
   - Serializers expose `thumbnailOverridden` (160, 217).
@@ -56,7 +56,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
 
 - **On request only.** Nothing is automatic, and there is no setting.
 - **Eligible images:**
-  - **Link cards:** the image the tile shows, in `resolveLinkCardImage`'s order (`packages/ui/src/components/cards/linkCardImage.ts`): the current override, else the first attached image in `metadata.linkPreview.media`, else the link preview image (`imageStorageKey`). Never the screenshot (`screenshot` role) or a video poster.
+  - **Link cards:** the image the tile shows, in `resolveLinkCardImage`'s order (`apps/web/src/components/cards/linkCardImage.ts`): the current override, else the first attached image in `metadata.linkPreview.media`, else the link preview image (`imageStorageKey`). Never the screenshot (`screenshot` role) or a video poster.
   - **Image cards:** the original file key, when the file is a still raster image (JPEG, PNG, WebP, AVIF or HEIC) of 20 MB or less. Animated GIFs, animated WebPs and SVG are refused; still WebP is allowed.
 - **Output:** WebP with alpha, quality 90, longest edge capped at 2048 px, stored under the `thumbnail-override` role. `thumbnailOverrideValidator` gains `cutout: v.optional(v.literal(true))` so tiles know to use `object-contain`.
 - **Display, "pure transparent":** no backdrop, no padding beyond the tile's normal inset. `object-contain`, centred. It must stay legible in light and dark: dark subjects on dark tiles are accepted, as chosen.
@@ -169,7 +169,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
   - rate limits.
 - `packages/convex/__tests__/card/queryUtils.test.ts`: image cards with an override use the override renditions and keep `fileUrl`.
 - API, MCP, SDK and CLI tests for the new operation and its error codes.
-- `packages/ui/src/components/card-modal/__tests__/CardModal.menu.test.tsx`: the item appears, its disabled reasons, and Reset for image cards.
+- `apps/web/src/components/card-modal/__tests__/CardModal.menu.test.tsx`: the item appears, its disabled reasons, and Reset for image cards.
 - e2e: `packages/tests/src/web/background-removal.e2e.ts` runs on a seeded product link, with the worker mocked on the E2E stack if the Images binding isn't available locally (see Risks).
 
 ## Proof before the PR

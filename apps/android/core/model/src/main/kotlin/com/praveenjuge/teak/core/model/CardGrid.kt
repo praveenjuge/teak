@@ -59,7 +59,7 @@ object CardGrid {
         return result
     }
 
-    /** Port of `getAudioWaveHeight` in packages/ui, so a recording looks the same everywhere. */
+    /** Port of `getAudioWaveHeight` in packages/convex/shared/audioWave.ts, so a recording looks the same everywhere. */
     fun waveformHeights(seed: String): List<Float> = List(WAVEFORM_BAR_COUNT) { index ->
         var hash = index
         for (char in seed) {

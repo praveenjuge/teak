@@ -33,7 +33,7 @@
     },
     {
       "path": "./scripts/lint/no-remove-child.grit",
-      "includes": ["**/apps/web/src/**", "**/packages/ui/src/**"]
+      "includes": ["**/apps/web/src/**"]
     },
     {
       "path": "./scripts/lint/no-translucent-icon-color.grit",
@@ -150,7 +150,7 @@
         "!**/__tests__/**",
         "!**/_generated/**",
         "!**/*.d.ts",
-        "!packages/ui/src/components/ui/**"
+        "!apps/web/src/components/ui/**"
       ],
       "linter": {
         "rules": {
@@ -171,7 +171,7 @@
         "packages/convex/storage/r2.ts",
         "packages/convex/shared/search/shuffle.ts",
         "packages/convex/__tests__/helpers/r2Mock.test-utils.ts",
-        "packages/ui/src/lib/audioWave.ts"
+        "packages/convex/shared/audioWave.ts"
       ],
       "linter": {
         "rules": {
@@ -285,10 +285,12 @@
       }
     },
     {
-      // next/image is unavailable here: shared UI package (consumed outside
-      // Next.js), browser extension, and OG-image generation via ImageResponse.
+      // Plain <img> on purpose: card media and favicons load straight from
+      // their source with Teak's own retry and sizing, the browser extension
+      // has no next/image, and OG images render through ImageResponse.
       "includes": [
-        "packages/ui/**",
+        "apps/web/src/components/card-previews/**",
+        "apps/web/src/components/cards/**",
         "apps/extension/**",
         "apps/web/src/app/opengraph-image.tsx"
       ],
