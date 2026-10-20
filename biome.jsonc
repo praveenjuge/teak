@@ -188,10 +188,8 @@
         "packages/convex/export/csv.ts",
         "packages/convex/export/serialize.ts",
         "packages/convex/linkMetadata/ssrf.ts",
-        "packages/convex/card/classificationRules.ts",
         "packages/convex/card/documentTextFormat.ts",
         "packages/convex/mcp/protocol.ts",
-        "packages/convex/shared/aiPricing.ts",
         "packages/convex/shared/posthog.ts"
       ],
       "linter": {

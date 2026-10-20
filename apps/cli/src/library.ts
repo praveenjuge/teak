@@ -1,6 +1,14 @@
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
+import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
+import {
+  THUMBNAIL_ERROR_MESSAGES,
+  THUMBNAIL_MAX_BYTES,
+  toThumbnailMimeType,
+} from "@teak/convex/shared/thumbnails";
+import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
+import { InvalidArgumentError } from "commander";
 import {
   type CardsPage,
   type ExportJob,
@@ -10,15 +18,7 @@ import {
   type TagOperation,
   TeakApiError,
   type TeakClient,
-} from "@teak/convex/sdk";
-import { TAG_OPERATION_STALL_MS } from "@teak/convex/shared/tags";
-import {
-  THUMBNAIL_ERROR_MESSAGES,
-  THUMBNAIL_MAX_BYTES,
-  toThumbnailMimeType,
-} from "@teak/convex/shared/thumbnails";
-import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
-import { InvalidArgumentError } from "commander";
+} from "teak-sdk";
 import { mimeFor } from "./files";
 import { formatCardLinks } from "./format";
 import {

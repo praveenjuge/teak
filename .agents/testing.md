@@ -28,7 +28,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `packages/convex` | `__tests__/**/*.test.ts` (Bun). Root `*.test.ts` files listed in `vitest.config.ts` (Vitest). Do not colocate Bun tests next to source files. |
 | `apps/web` | `src/**/*.test.{ts,tsx}` (Bun, one process per file). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. |
 | `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
-| `apps/cli`, `apps/files-worker`, `packages/files-protocol` | `src/**` |
+| `apps/cli`, `apps/files-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |
 | `apps/extension` | `__tests__/**` |
 | `apps/docs` | `lib/**` |

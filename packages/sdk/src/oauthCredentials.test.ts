@@ -4,7 +4,7 @@ import {
   isWorkosCredential,
   matchesBinding,
   refreshAndSave,
-} from "../../client/oauthCredentials";
+} from "./oauthCredentials";
 
 const current = {
   origin: "https://teakvault.com/api",

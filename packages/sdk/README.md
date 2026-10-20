@@ -1,8 +1,8 @@
 # Teak SDK
 
-Typed API client and OAuth discovery for Teak. The distribution bundles the
-canonical implementation from `packages/convex/client/sdk.ts`; it has no runtime
-dependencies and works without the Teak monorepo.
+Typed API client and OAuth discovery for Teak. The source lives in `src/`, and
+`bun run build` writes the npm package to `dist/`: one bundle with no runtime
+dependencies, so it works without the Teak monorepo.
 
 ```ts
 import { createTeakClient, discoverAuthServer } from "teak-sdk";

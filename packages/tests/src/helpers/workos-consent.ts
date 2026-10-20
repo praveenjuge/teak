@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { type AuthDiscovery, validateOAuthUrl } from "@teak/convex/sdk";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import { workosResourcesFor } from "@teak/convex/shared/workosResources";
+import { type AuthDiscovery, validateOAuthUrl } from "teak-sdk";
 import { apiFetch } from "./api";
 import { openSecurity } from "./app";
 import { connectMcp } from "./mcp";

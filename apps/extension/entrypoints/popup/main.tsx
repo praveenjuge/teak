@@ -2,7 +2,7 @@ import {
   type ClientEventName,
   configureAnalytics,
 } from "@teak/convex/shared/analytics";
-import { configureClientTelemetry } from "@teak/convex/shared/client-telemetry";
+import { configureClientTelemetry } from "@teak/convex/shared/clientTelemetry";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import {

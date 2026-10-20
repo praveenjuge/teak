@@ -25,7 +25,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - **The summary:** a new step, "summarize article", regenerates a link's `aiSummary` from the article's first 6,000 characters when the article has 200 words or more. Tags are not regenerated.
 - **API.**
   - `GET /v1/cards/{cardId}/content?kind=article` returns `kind: "article"` with the Markdown. When the response is built, each `teak-image:<n>` reference in the Markdown is rewritten to a signed absolute URL for that image, valid 7 days, so API, MCP and SDK callers get plain Markdown.
-  - Without `?kind`, the endpoint answers exactly as today and never returns `kind: "article"`, because shipped SDKs and CLIs reject unknown kinds (`client/sdk.ts:754`). New clients ask for the article explicitly.
+  - Without `?kind`, the endpoint answers exactly as today and never returns `kind: "article"`, because shipped SDKs and CLIs reject unknown kinds (`packages/sdk/src/index.ts:761`). New clients ask for the article explicitly.
   - An optional `?kind=article|transcript|document|content` picks one kind when a card has more than one.
   - Serialized cards gain `article: { wordCount, readingMinutes } | null`.
   - MCP `teak_v1_get_card_content` gains `kind`, the SDK `cards.content(id, { kind })`, the CLI `teak cards content <id> [--kind article]`.
@@ -63,7 +63,7 @@ Give every archived link a clean reading view, and make what it says findable. A
 - **Link AI input:** `buildLinkContentParts` (`apps/files-worker/src/workflows/cardProcessing/metadata.ts:56`) takes the title, description, author and so on, plus an optional `transcript` (YouTube captions, 354–358). The model input is capped at 6,000 characters.
 - **The content API:**
   - `GET /v1/cards/{cardId}/content` (`publicApiOpenApi.ts:1407-1462`), `cardContentResponse` (`publicApiHttpCards.ts:611-640`);
-  - SDK `kind: "document" | "transcript" | "content"` (`client/sdk.ts:411-420`, validated at 754);
+  - SDK `kind: "document" | "transcript" | "content"` (`packages/sdk/src/index.ts:418-427`, validated at 761);
   - CLI `cards content <id>` (`apps/cli/src/index.ts:440`).
 - **The workflow** ends, after phase 9, with "transcribe podcast" and then "archive page".
 

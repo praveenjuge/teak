@@ -8,9 +8,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createConnectAuthorizeUrl } from "@teak/convex/sdk";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import type { Command } from "commander";
+import { createConnectAuthorizeUrl } from "teak-sdk";
 import {
   bulkItems,
   formatCardLine,

@@ -1,5 +1,5 @@
-import { readResponseTextWithinLimit } from "../shared/boundedResponse";
-import { workosResourcesFor } from "../shared/workosResources";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
+import { workosResourcesFor } from "@teak/convex/shared/workosResources";
 import { type AuthDiscovery, validateOAuthUrl } from "./authDiscovery";
 
 export const WORKOS_CONNECT_SCOPE = "openid profile email offline_access";

@@ -1,6 +1,6 @@
 "use client";
 
-import { captureClientException } from "@teak/convex/shared/client-telemetry";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { useEffect } from "react";
 import "./globals.css";
 import { StatusScreen } from "@/components/StatusScreen";

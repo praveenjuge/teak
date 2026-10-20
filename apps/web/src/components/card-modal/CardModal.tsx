@@ -1,5 +1,5 @@
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import {
   Archive,

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Doc } from "@teak/convex/_generated/dataModel";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { Archive, Code, ExternalLink, File, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileTextPreview } from "./FileTextPreview";

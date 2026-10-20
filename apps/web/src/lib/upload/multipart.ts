@@ -2,7 +2,7 @@ import {
   getUploadEtag,
   throwIfAborted,
   uploadWithTransientRetry,
-} from "./fileUploadTransport.client";
+} from "./transport";
 
 export interface MultipartUploadDependencies {
   completeMultipartUpload: (args: {

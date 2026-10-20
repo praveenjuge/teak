@@ -18,7 +18,8 @@
     "@teak/files-protocol": "workspace:*",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "node-html-parser": "^9.0.1"
+    "node-html-parser": "^9.0.1",
+    "teak-sdk": "workspace:*"
   },
   "devDependencies": {
     "@e2e-dev/github": "0.4.0",

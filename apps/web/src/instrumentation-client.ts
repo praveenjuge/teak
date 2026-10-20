@@ -1,5 +1,5 @@
 import { configureAnalytics } from "@teak/convex/shared/analytics";
-import { configureClientTelemetry } from "@teak/convex/shared/client-telemetry";
+import { configureClientTelemetry } from "@teak/convex/shared/clientTelemetry";
 import { startPostHog, withPostHog } from "./lib/posthog-client";
 
 startPostHog(process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN);

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { resolveImageAnalysisKey } from "@teak/convex/shared/imageAnalysis";
 import {
   buildLinkMetadataPrompt,
   type FilesOp,
@@ -23,6 +22,7 @@ import { TEST_CONVEX_SITE_URL } from "../../test/fakeConvex";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import { createWorkflowTelemetry, type WorkflowTelemetry } from "../telemetry";
+import { resolveImageAnalysisKey } from "./imageAnalysisKey";
 import {
   buildLinkContentParts,
   generateCardMetadata,

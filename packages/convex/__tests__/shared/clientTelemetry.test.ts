@@ -5,7 +5,7 @@ import {
   createClientRequestError,
   createClientRequestErrorFromContext,
   resetClientTelemetry,
-} from "../../shared/client_telemetry";
+} from "../../shared/clientTelemetry";
 
 afterEach(() => {
   resetClientTelemetry();

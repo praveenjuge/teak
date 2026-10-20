@@ -1,4 +1,4 @@
-import type { CardErrorCode } from "../../shared/constants";
+import type { CardErrorCode } from "@teak/convex/shared/constants";
 
 export type CodedUploadError = Error & { code?: CardErrorCode };
 

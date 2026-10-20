@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { estimateWorkersAiCostUsd } from "@teak/convex/shared/aiPricing";
+import { estimateWorkersAiCostUsd } from "./aiPricing";
 
 export interface AiUsageContext {
   cardId?: string;

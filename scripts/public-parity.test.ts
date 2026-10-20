@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Command } from "commander";
 import { program } from "../apps/cli/src/index";
-import { createTeakClient, ERROR_CODES } from "../packages/convex/client/sdk";
-import { disconnectConnectGrant } from "../packages/convex/client/workosConnect";
 import {
   callTeakV1Tool,
   type PublicApiToolOperation,
@@ -11,6 +9,11 @@ import {
 import { PUBLIC_API_ERROR_CODES } from "../packages/convex/publicApiHttpShared";
 import { openApiSpec } from "../packages/convex/publicApiOpenApi";
 import { CARD_ERROR_CODES } from "../packages/convex/shared/constants";
+import {
+  createTeakClient,
+  disconnectConnectGrant,
+  ERROR_CODES,
+} from "../packages/sdk/src/index";
 import {
   CLI_LOCAL_COMMANDS,
   PUBLIC_PARITY,

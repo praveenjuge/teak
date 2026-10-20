@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { AuthDiscovery } from "@teak/convex/sdk";
 import { workosResourcesFor } from "@teak/convex/shared/workosResources";
+import type { AuthDiscovery } from "teak-sdk";
 import { env } from "../helpers/env";
 import { expect, test } from "../helpers/test";
 import {

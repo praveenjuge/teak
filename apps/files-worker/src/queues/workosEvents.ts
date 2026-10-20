@@ -1,5 +1,5 @@
 import { internal } from "@teak/convex/_generated/api";
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import {
   allowedConvexSiteUrl,
   type ConvexRpc,

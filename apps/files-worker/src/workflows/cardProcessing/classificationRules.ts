@@ -1,12 +1,12 @@
-import type { CardType } from "../shared/constants";
-import { inferFileFormat } from "../shared/fileFormats";
+import { normalizeQuoteContent } from "@teak/convex/card/quoteFormatting";
+import type { CardType } from "@teak/convex/shared/constants";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import {
   type Color,
   extractPaletteColors,
   MAX_COLOR_NAME_WORDS,
   parseColorString,
-} from "../shared/utils/colorUtils";
-import { normalizeQuoteContent } from "./quoteFormatting";
+} from "@teak/convex/shared/utils/colorUtils";
 
 export interface PaletteSource {
   content?: unknown;

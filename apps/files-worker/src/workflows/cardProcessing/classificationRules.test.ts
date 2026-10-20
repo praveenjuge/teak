@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   MAX_COLOR_FN_ARG_CHARS,
   textCardRulesType,
-} from "../../card/classificationRules";
+} from "./classificationRules";
 
 describe("textCardRulesType", () => {
   test.each([

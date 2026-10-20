@@ -1,10 +1,5 @@
-import {
-  isRefreshTokenDead,
-  isWorkosCredential,
-  matchesBinding,
-  refreshAndSave,
-} from "@teak/convex/client/oauthCredentials";
-import { resolveTeakDevAppUrl } from "@teak/convex/dev-urls";
+import { resolveTeakDevAppUrl } from "@teak/convex/devUrls";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
 import {
   type AuthDiscovery,
   createConnectAuthorizeUrl,
@@ -12,11 +7,14 @@ import {
   disconnectConnectGrant,
   discoverAuthServer,
   fetchConnectOwnerId,
+  isRefreshTokenDead,
+  isWorkosCredential,
+  matchesBinding,
   randomBase64Url,
+  refreshAndSave,
   requestConnectTokens,
   validateOAuthUrl,
-} from "@teak/convex/sdk";
-import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
+} from "teak-sdk";
 import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
 import { isPrivateSession } from "./privateSession";
 import { captureExtensionEvent } from "./telemetry";

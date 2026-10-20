@@ -24,8 +24,8 @@ The web app owns all of its UI; nothing under `src` is shared with another works
 | `components/providers/` | Providers and auth gates that layouts mount: WorkOS, Convex, PostHog and theme. |
 | `components/feedback/` | Loading, empty, error and retry states that screens share. |
 | `components/` (root) | Standalone pieces used across areas: `Logo`, `StatusScreen`, `JsonLd`, `lazyDialogs`. |
-| `hooks/` | React hooks (`use*`), including the card, search, upload and settings controllers. |
-| `lib/` | Helpers and modules without UI: URL and search state, keyboard shortcuts, the cached Convex query hooks (`convexQueryHooks.ts`), auth, session and security headers. |
+| `hooks/` | React hooks (`use*`), including the card, search, upload and settings controllers. A hook that calls Convex keeps its testable core beside it: `useFileUpload.ts` wires `useFileUploadCore.ts`, and `useCardActions.ts` wires `cardActions.ts`. |
+| `lib/` | Helpers and modules without UI: URL and search state, keyboard shortcuts, the cached Convex query hooks (`convexQueryHooks.ts`), file uploads (`upload/`: transport, multipart and media metadata), auth, session and security headers. |
 | `constants/` | Static values: billing plans, settings and toast ids. |
 | `styles/` | `theme.css` (design tokens and app-wide CSS), `typeset.css` (prose) and the SN Pro fonts that `app/layout.tsx` loads. `app/globals.css` imports them. |
 

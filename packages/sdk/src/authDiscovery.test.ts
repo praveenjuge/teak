@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { discoverAuthServer } from "../client/sdk";
-import { asFetch } from "./helpers/convex.test-utils";
+import { discoverAuthServer } from "./index";
+import { asFetch } from "./testSupport";
 
 const surfaces = ["cli", "raycast", "chrome", "firefox"] as const;
 const clientIds = Object.fromEntries(

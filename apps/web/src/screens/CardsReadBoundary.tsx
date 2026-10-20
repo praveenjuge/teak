@@ -1,6 +1,6 @@
 "use client";
 
-import { captureClientException } from "@teak/convex/shared/client-telemetry";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { RetryableQueryBoundary } from "../components/feedback/RetryableQueryBoundary";

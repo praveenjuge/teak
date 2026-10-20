@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { createCardActions } from "../../../client/hooks/useCardActions.client";
 import {
   configureClientTelemetry,
   resetClientTelemetry,
-} from "../../../shared/client_telemetry";
-import { testId } from "../../helpers/convex.test-utils";
+} from "@teak/convex/shared/clientTelemetry";
+import { testId } from "@/__tests__/helpers/testDoubles";
+import { createCardActions } from "../cardActions";
 
 describe("defaults", () => {
   test("uses the default no-op error capture without error", async () => {

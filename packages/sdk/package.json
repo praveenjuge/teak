@@ -10,19 +10,12 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": {
-      "types": "./dist/types/client/sdk.d.ts",
-      "import": "./dist/sdk.js"
-    }
+    ".": "./src/index.ts"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "scripts": {
     "build": "bun --no-env-file run build.ts",
-    "prepack": "bun run build",
-    "typecheck": "tsc build.ts ../convex/client/sdk.ts --strict --noEmit --moduleResolution bundler --module esnext --target es2022 --skipLibCheck --types bun,node"
+    "test": "bun test src --coverage --dots",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@teak/convex": "workspace:*",

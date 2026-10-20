@@ -770,7 +770,7 @@ step runs them for a card) writes one data point to the `AI_USAGE` dataset
 `meteredAiRun` in `src/aiUsage.ts`: index `[userId]`, blobs
 `[convexSiteUrl, model, functionId, outcome]` and doubles
 `[calls, errors, inputTokens, outputTokens, costUsd, latencyMs]`, with the cost
-from the Workers AI price list in `packages/convex/shared/aiPricing.ts`. Calls
+from the Workers AI price list in `src/aiPricing.ts`. Calls
 outside a card's context (search, ops Convex calls directly) are not charged
 to anyone, and a failed write never fails the call.
 

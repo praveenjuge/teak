@@ -1,6 +1,6 @@
 export * from "./analytics";
 export * from "./boundedResponse";
-export * from "./client_telemetry";
+export * from "./clientTelemetry";
 export * from "./constants";
 export * from "./fileFormats";
 export * from "./linkCategories";

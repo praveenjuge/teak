@@ -58,7 +58,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/sdk-release"
           bun run --cwd packages/sdk build
-          npm pack ./packages/sdk --ignore-scripts --json --pack-destination "$RUNNER_TEMP/sdk-release" > "$RUNNER_TEMP/sdk-release/pack.json"
+          npm pack ./packages/sdk/dist --ignore-scripts --json --pack-destination "$RUNNER_TEMP/sdk-release" > "$RUNNER_TEMP/sdk-release/pack.json"
           version="${GITHUB_REF_NAME#v}"
           TEAK_SDK_RELEASE_ARTIFACT="$RUNNER_TEMP/sdk-release/teak-sdk-${version}.tgz" bun --no-env-file test scripts/sdk-package.test.ts
 

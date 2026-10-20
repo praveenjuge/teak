@@ -21,7 +21,8 @@
   "dependencies": {
     "@teak/convex": "workspace:*",
     "@vercel/functions": "^3.7.6",
-    "blume": "^2.2.1"
+    "blume": "^2.2.1",
+    "teak-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",

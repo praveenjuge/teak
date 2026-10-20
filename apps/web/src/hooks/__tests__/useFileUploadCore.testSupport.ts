@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, mock } from "bun:test";
-import { asFetch } from "../../helpers/convex.test-utils";
+import { asFetch } from "@/__tests__/helpers/testDoubles";
 
 export const mockSetState = mock();
 export const mockUseEffectCleanups: Array<() => void> = [];

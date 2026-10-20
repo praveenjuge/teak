@@ -1,4 +1,4 @@
-import type { CreateCardInput } from "@teak/convex/sdk";
+import type { CreateCardInput } from "teak-sdk";
 
 export type CreateCardBody = Omit<CreateCardInput, CreateCardUploadField>;
 

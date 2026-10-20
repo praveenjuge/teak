@@ -1,17 +1,23 @@
-import { readResponseTextWithinLimit } from "../shared/boundedResponse";
+import { readResponseTextWithinLimit } from "@teak/convex/shared/boundedResponse";
+import {
+  OAUTH_SURFACES,
+  type OAuthSurface,
+} from "@teak/convex/shared/oauthSurfaces";
 import {
   isLoopbackHostname as loopback,
   validateOAuthUrl,
-} from "../shared/oauthUrl";
+} from "@teak/convex/shared/oauthUrl";
 import {
   PRODUCTION_WORKOS_RESOURCES,
   workosResourcesFor,
-} from "../shared/workosResources";
+} from "@teak/convex/shared/workosResources";
 
-export { validateOAuthUrl } from "../shared/oauthUrl";
+export {
+  OAUTH_SURFACES,
+  type OAuthSurface,
+} from "@teak/convex/shared/oauthSurfaces";
+export { validateOAuthUrl } from "@teak/convex/shared/oauthUrl";
 
-export const OAUTH_SURFACES = ["cli", "raycast", "chrome", "firefox"] as const;
-export type OAuthSurface = (typeof OAUTH_SURFACES)[number];
 export interface AuthDiscovery {
   readonly authorizationEndpoint: string;
   readonly clients: Readonly<Record<OAuthSurface, string>>;

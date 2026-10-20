@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - apps/extension/**
-      - packages/convex/client/**
+      - packages/sdk/src/**
       - packages/convex/shared/boundedResponse.ts
       - packages/convex/devUrls.ts
       - packages/tests/src/extension/oauth-runtime.e2e.ts
@@ -20,7 +20,7 @@ on:
     branches: [main]
     paths:
       - apps/extension/**
-      - packages/convex/client/**
+      - packages/sdk/src/**
       - packages/convex/shared/boundedResponse.ts
       - packages/convex/devUrls.ts
       - packages/tests/src/extension/oauth-runtime.e2e.ts

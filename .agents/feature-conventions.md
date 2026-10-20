@@ -16,7 +16,7 @@ in this order:
 3. Route plus its `OPTIONS` in `http.ts`.
 4. The operation in `publicApiOpenApi.ts`.
 5. The tool in `mcp/tools.ts`.
-6. The method in `client/sdk.ts`.
+6. The method in `packages/sdk/src/index.ts`.
 7. The command in `apps/cli/src/index.ts` and `library.ts`.
 8. The row in `scripts/public-parity.ts`, which maps every OpenAPI operation
    to its MCP tool, SDK method and CLI command, or gives the reason a surface

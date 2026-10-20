@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
-import { readResponseBlobWithinLimit } from "@teak/convex/shared/bounded-response";
-import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
+import { readResponseBlobWithinLimit } from "@teak/convex/shared/boundedResponse";
+import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
 import {
   isSafeDownloadableAssetUrl,
   saveAssetUrlToTeak,

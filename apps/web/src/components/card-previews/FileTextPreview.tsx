@@ -1,6 +1,6 @@
 "use client";
 
-import type { FileFormat } from "@teak/convex/shared/file-formats";
+import type { FileFormat } from "@teak/convex/shared/fileFormats";
 import { Highlight, type Language, themes } from "prism-react-renderer";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";

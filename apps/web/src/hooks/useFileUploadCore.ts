@@ -1,35 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { captureEvent, resolveSizeBucket } from "../../shared/analytics";
-import { captureClientException } from "../../shared/client_telemetry";
-import type { CardErrorCode, CardType } from "../../shared/constants";
+import { captureEvent, resolveSizeBucket } from "@teak/convex/shared/analytics";
+import { captureClientException } from "@teak/convex/shared/clientTelemetry";
+import type { CardErrorCode, CardType } from "@teak/convex/shared/constants";
 import {
   CARD_ERROR_CODES,
   CARD_ERROR_MESSAGES,
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
   MULTIPART_UPLOAD_THRESHOLD,
-} from "../../shared/constants";
-import { inferFileFormat, isGenericMimeType } from "../../shared/fileFormats";
-import { normalizeErrorClass } from "../../shared/telemetry";
+} from "@teak/convex/shared/constants";
+import {
+  inferFileFormat,
+  isGenericMimeType,
+} from "@teak/convex/shared/fileFormats";
+import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
-} from "../../shared/types";
+} from "@teak/convex/shared/types";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AdditionalFileMetadata,
   buildAdditionalFileMetadata,
-} from "./fileMediaMetadata.client";
+} from "@/lib/upload/mediaMetadata";
+import {
+  type MultipartUploadDependencies,
+  uploadMultipartFile,
+} from "@/lib/upload/multipart";
 import {
   type CodedUploadError,
   getUploadEtag,
   isAbortError,
   throwIfAborted,
   uploadWithTransientRetry,
-} from "./fileUploadTransport.client";
-import {
-  type MultipartUploadDependencies,
-  uploadMultipartFile,
-} from "./multipartUpload.client";
+} from "@/lib/upload/transport";
 
 export interface UnifiedFileUploadConfig {
   onError?: (error: FileUploadError) => void;

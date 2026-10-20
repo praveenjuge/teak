@@ -137,7 +137,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 ## API / MCP / SDK / CLI
 
 - **`POST /v1/cards`:**
-  - `status` stays `"created"`: the OpenAPI schema is `enum: ["created"]` (`publicApiOpenApi.ts:467`) and the SDK's `asCreate` (`client/sdk.ts:717`) throws `PARSE_ERROR` on any other value, so a new status would break every shipped SDK and CLI. A re-save adds `resaved: true` (and `wasArchived: true` when it un-archived the card) beside it. Old clients ignore the extra fields.
+  - `status` stays `"created"`: the OpenAPI schema is `enum: ["created"]` (`publicApiOpenApi.ts:467`) and the SDK's `asCreate` (`packages/sdk/src/index.ts:724`) throws `PARSE_ERROR` on any other value, so a new status would break every shipped SDK and CLI. A re-save adds `resaved: true` (and `wasArchived: true` when it un-archived the card) beside it. Old clients ignore the extra fields.
   - The response code stays 200, and idempotency replay returns the original response.
 - **Tags and notes on a re-save** are ignored (owner decision). The API, MCP and CLI docs say so, and `resaved: true` in the response tells a caller to `PATCH` the card if it wants them applied.
 - **Card schema:** `savedAt: number` in `serializeCard` and `serializeListCard` (`publicApiHttpValidation.ts`). `createdAt` keeps its meaning.

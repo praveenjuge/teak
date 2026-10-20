@@ -1,12 +1,7 @@
 import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
-import { inferFileFormat } from "@teak/convex/shared/file-formats";
-import {
-  type FinalizeUploadedCardArgs,
-  type UploadAndCreateCardArgs,
-  useFileUploadCore,
-} from "@teak/convex/shared/hooks/useFileUpload";
+import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useAction, useMutation } from "convex/react";
 import { Mic, PenLine, Plus, Square, Upload } from "lucide-react";
 import {
@@ -42,6 +37,11 @@ import {
   TOAST_IDS,
 } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
+import {
+  type FinalizeUploadedCardArgs,
+  type UploadAndCreateCardArgs,
+  useFileUploadCore,
+} from "@/hooks/useFileUploadCore";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { registerUploadFiles } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
