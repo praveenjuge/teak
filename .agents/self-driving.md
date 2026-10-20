@@ -47,3 +47,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Inbox empty. Backend Deploy green on main (latest run 39058206602). Product health (24h): 10 `card_created`, 131 `card_processing_completed`, zero failure events.
 - Exceptions: 6 `malformed_workers_ai_response` from the files worker, 16:37–16:57 UTC on 10-17, before #747 (Gemma thinking off for image metadata, deployed 17:20 UTC); none since, so the fix held. No 40041 or DO "Connection closed" repeats. Both earlier watch items cleared.
 - Nothing fixed. Check tomorrow: zero `malformed_workers_ai_response` after 10-17 17:20 UTC; first non-zero failure events.
+
+### 2026-10-20
+- Inbox empty. Backend Deploy green on main (latest run 39304085856). Product health (24h): 12 `card_created` (web, android, raycast, email), 23 `card_processing_completed`, 1 `card_processing_failed` (`categorize`, `workflow_failed`, one card), no `card_create_failed`. `source` is populated everywhere except processing events (they carry no `source` by design).
+- Exceptions: 2 files-worker `NonRetryableError convex_rpc_refused:...:401` (`adminUsage:replaceDailyUsage`, `workflowDispatch:listStale`) at 12:15-12:46 IST on 10-19, during the Worker rename/dev-split deploys (#767-#769); none since. Watch for repeats; if they recur, investigate the derived secret, endpoint, deployment target and request timing (secret drift between worker and Convex is one possible cause). One web `ResizeObserver loop` (benign). `malformed_workers_ai_response` stayed at zero after #747: fix held.
+- Nothing fixed, nothing merged earlier to measure. Sentry/Vercel/Cloudflare connectors were not queried this run (time-boxed to PostHog and GitHub).
+- Check tomorrow: recurrence of `convex_rpc_refused` 401s; `card_processing_failed` at `categorize`; Backend Deploy green.
