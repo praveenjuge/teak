@@ -11,9 +11,14 @@ import {
   CircleCheck,
   Copy,
   Download,
+  FileDown,
+  FolderPlus,
   Heart,
   ImageUp,
   MoreHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
+  Pencil,
   RefreshCw,
   RotateCcw,
   Sparkles,
@@ -36,16 +41,21 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import type { CardSaveState } from "../../hooks/useCardModal";
+import { useIsMobile } from "../../hooks/useIsMobile";
+import { CARD_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
+import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import {
   ariaKeyShortcut,
@@ -68,6 +78,7 @@ import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { SiteFavicon } from "../cards/SiteFavicon";
+import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { useGlobalFileDrop } from "../providers/GlobalFileDropProvider";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import type { CardLinkOptions } from "../text-editor/types";
@@ -78,17 +89,25 @@ import {
   type CardTagsControl,
   type SavePdfControl,
 } from "./CardMetadataPanel";
+import { CardModalSkeleton } from "./CardModalSkeleton";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
+  CARD_MODAL_SURFACE_CLASS,
   cardModalFrameClass,
+  GUTTER_CLOSE_STYLE,
+  gutterNavStyle,
+  isFullBleedType,
 } from "./cardModalFrame";
 import { cardModalKeyAction } from "./cardModalKeys";
-import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
+import { useCardSteps } from "./useCardSteps";
 import { useLeaveGuard } from "./useLeaveGuard";
+import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
+
+export const DETAILS_HIDDEN_KEY = "teak.cardModal.detailsHidden";
 
 function CardPreview({
   card,
@@ -172,9 +191,9 @@ function stageContentClass(card: CardModalCard): string {
         : "p-5 md:p-8";
     }
     case "link":
-      return "px-5 py-6 md:px-10 md:py-10";
+      return "px-5 pt-2 pb-6 md:px-10 md:pb-10";
     case "text":
-      return "mx-auto w-full max-w-2xl px-5 py-6 md:px-8 md:py-10";
+      return "mx-auto w-full max-w-3xl px-5 pb-6 md:px-10 md:pb-12";
     default:
       return "flex min-h-full items-center justify-center p-5 md:p-10";
   }
@@ -187,6 +206,18 @@ const SAVE_STATE_LABELS: Record<CardSaveState, string> = {
   saved: "Saved",
   error: "Couldn't save",
 };
+
+/** The header's one main action, in ink rather than the brand color. */
+const PRIMARY_ACTION_CLASS =
+  "h-8 rounded-full bg-foreground px-3.5 text-background hover:bg-foreground/85";
+
+/** Single-letter keys the dialog answers, shown beside their menu items. */
+const DIALOG_KEYS = {
+  copy: { keys: "C", label: "C" },
+  details: { keys: "I", label: "I" },
+  done: { keys: "D", label: "D" },
+  favorite: { keys: "F", label: "F" },
+} as const;
 
 interface CardModalProps {
   backlinks?: CardBacklinks;
@@ -264,11 +295,19 @@ export function CardModal({
 }: CardModalProps) {
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
+  const [isFoldersOpen, setIsFoldersOpen] = useState(false);
   const card = useRetainedWhileClosing(cardProp, open);
   const contentRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
+  const [isDetailsHidden, setIsDetailsHidden] =
+    useStoredFlag(DETAILS_HIDDEN_KEY);
+  // Phones always stack the details under the card.
+  const detailsHidden = isDetailsHidden && !isMobile;
+  const pendingFocus = useRef<"notes" | "tags" | null>(null);
+  const saveStatus = useSaveStatus(saveState);
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
   if (originRef.current.open !== open) {
@@ -294,6 +333,16 @@ export function CardModal({
     }, AUTOSAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [open, hasUnsavedChanges, saveChanges]);
+
+  // N and T reopen hidden details, then focus their field.
+  useEffect(() => {
+    if (detailsHidden || !pendingFocus.current) {
+      return;
+    }
+    const target = pendingFocus.current;
+    pendingFocus.current = null;
+    (target === "notes" ? notesRef : tagInputRef).current?.focus();
+  }, [detailsHidden]);
 
   const imageControl =
     card?.type === "link" && !card.isDeleted ? linkThumbnail : undefined;
@@ -364,8 +413,16 @@ export function CardModal({
     }
   };
 
-  // A pill or a Linked from row opens its card through goTo, like the
-  // arrows, so unsaved edits save first.
+  const step = useCardSteps({
+    cardId,
+    onNext,
+    onPrevious,
+    open,
+    readyToLeave,
+  });
+
+  // A pill or a Linked from row opens its card through goTo, so unsaved
+  // edits save first, as they do before each step.
   const linkHandlers = useStableHandlers({
     openBacklink: (linkedCardId: string) => {
       void goTo(() => onOpenCard?.(linkedCardId));
@@ -392,12 +449,46 @@ export function CardModal({
     card?.type === "text" || card?.type === "quote"
       ? (getCurrentValue("content") ?? "")
       : "";
+  const canToggleDone = Boolean(
+    toggleDone && card?.type === "link" && !isDeleted
+  );
+  const isDone = card?.completedAt !== undefined;
+  const doneVerb = doneActionLabel(card?.metadata?.linkCategory?.category);
+  const doneMenuLabel = isDone
+    ? `Mark as not ${doneVerb}`
+    : `Mark as ${doneVerb}`;
 
   const archive = () => {
     if (toggleArchive && !isDeleted) {
       toggleArchive();
       void closeAfterAction();
     }
+  };
+
+  /** The one main action: open a link, or download a file. */
+  const primaryAction = () => {
+    if (card?.url && !isDeleted) {
+      openLink();
+    } else if (canDownload && !isDownloading) {
+      downloadFile();
+    }
+  };
+
+  const copyCard = () => {
+    if (card?.url) {
+      void copyToClipboard(card.url, "Copied link");
+    } else if (copyableText) {
+      void copyToClipboard(copyableText, "Copied text");
+    }
+  };
+
+  const focusPanelField = (field: "notes" | "tags") => {
+    if (detailsHidden) {
+      pendingFocus.current = field;
+      setIsDetailsHidden(false);
+      return;
+    }
+    (field === "notes" ? notesRef : tagInputRef).current?.focus();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -424,10 +515,10 @@ export function CardModal({
     event.preventDefault();
     switch (action) {
       case "previous":
-        void goTo(onPrevious);
+        step(-1, { repeat: event.repeat });
         break;
       case "next":
-        void goTo(onNext);
+        step(1, { repeat: event.repeat });
         break;
       case "favorite":
         if (!isDeleted) {
@@ -443,10 +534,30 @@ export function CardModal({
         }
         break;
       case "focusTags":
-        tagInputRef.current?.focus();
+        if (!isDeleted) {
+          focusPanelField("tags");
+        }
         break;
       case "focusNotes":
-        notesRef.current?.focus();
+        if (!isDeleted) {
+          focusPanelField("notes");
+        }
+        break;
+      case "done":
+        if (canToggleDone) {
+          toggleDone?.();
+        }
+        break;
+      case "open":
+        primaryAction();
+        break;
+      case "copy":
+        copyCard();
+        break;
+      case "toggleDetails":
+        if (!isMobile) {
+          setIsDetailsHidden((hidden) => !hidden);
+        }
         break;
       default:
         break;
@@ -455,7 +566,6 @@ export function CardModal({
 
   const menuShortcuts = cardMenuShortcuts();
   const heading = card ? getCardHeading(card) : null;
-  const TypeIcon = getCardTypeIconComponent(card?.type as CardType);
   const hostname =
     card?.type === "link" ? getDisplayHostname(card.url) : undefined;
   const typeLabel = card
@@ -466,6 +576,386 @@ export function CardModal({
     card && editedTitle !== card.metadataTitle
       ? (editedTitle ?? "")
       : (heading?.title ?? "");
+  const fullBleed = !isMobile && isFullBleedType(card?.type);
+  // "Note", "Quote" and "Palette" say nothing the card doesn't, so the
+  // content is the heading.
+  const showTitle = Boolean(
+    heading &&
+      (heading.editable || heading.title !== typeLabel) &&
+      !(card?.type === "text" || card?.type === "quote")
+  );
+
+  let primaryButton: ReactNode = null;
+  if (card?.url && !isDeleted) {
+    primaryButton = (
+      <ShortcutTooltip keys={["O"]} label="Open the link">
+        <Button
+          aria-keyshortcuts="O"
+          className={PRIMARY_ACTION_CLASS}
+          onClick={openLink}
+          size="sm"
+        >
+          Open
+          <ArrowUpRight />
+        </Button>
+      </ShortcutTooltip>
+    );
+  } else if (canDownload && !card?.url) {
+    primaryButton = (
+      <ShortcutTooltip keys={["O"]} label="Download the file">
+        <Button
+          aria-busy={isDownloading}
+          aria-keyshortcuts="O"
+          className={PRIMARY_ACTION_CLASS}
+          disabled={isDownloading}
+          onClick={downloadFile}
+          size="sm"
+        >
+          {isDownloading ? <Spinner /> : <Download />}
+          {isDownloading ? "Downloading…" : "Download"}
+        </Button>
+      </ShortcutTooltip>
+    );
+  }
+
+  const favoriteButton =
+    card && !isDeleted ? (
+      <HeaderIconButton
+        label={card.isFavorited ? "Unfavorite" : "Favorite"}
+        onClick={toggleFavorite}
+        pressed={Boolean(card.isFavorited)}
+        shortcut={["F"]}
+      >
+        <Heart
+          className={cn(
+            card.isFavorited && "fill-destructive text-destructive"
+          )}
+        />
+      </HeaderIconButton>
+    ) : null;
+
+  const menu = card ? (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <HeaderIconButton label="More actions">
+          <MoreHorizontal />
+        </HeaderIconButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        {isDeleted ? null : (
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              aria-keyshortcuts={DIALOG_KEYS.favorite.keys}
+              onClick={toggleFavorite}
+            >
+              <Heart />
+              {card.isFavorited ? "Unfavorite" : "Favorite"}
+              <DropdownMenuShortcut aria-hidden>
+                {DIALOG_KEYS.favorite.label}
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+            {canToggleDone ? (
+              <DropdownMenuItem
+                aria-keyshortcuts={DIALOG_KEYS.done.keys}
+                onClick={toggleDone}
+              >
+                {isDone ? <CircleCheck /> : <Circle />}
+                {doneMenuLabel}
+                <DropdownMenuShortcut aria-hidden>
+                  {DIALOG_KEYS.done.label}
+                </DropdownMenuShortcut>
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem onClick={() => setIsFoldersOpen(true)}>
+              <FolderPlus />
+              Add to folder…
+            </DropdownMenuItem>
+            {toggleArchive ? (
+              <DropdownMenuItem
+                aria-keyshortcuts={menuShortcuts.archive.keys}
+                onClick={archive}
+              >
+                {card.isArchived ? <ArchiveRestore /> : <Archive />}
+                {card.isArchived ? "Unarchive" : "Archive"}
+                <DropdownMenuShortcut aria-hidden>
+                  {menuShortcuts.archive.label}
+                </DropdownMenuShortcut>
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+        )}
+        {card.url || copyableText ? (
+          <>
+            {isDeleted ? null : <DropdownMenuSeparator />}
+            <DropdownMenuGroup>
+              {card.url ? (
+                <DropdownMenuItem
+                  aria-keyshortcuts={DIALOG_KEYS.copy.keys}
+                  onClick={() =>
+                    void copyToClipboard(card.url as string, "Copied link")
+                  }
+                >
+                  <Copy />
+                  Copy Link
+                  <DropdownMenuShortcut aria-hidden>
+                    {DIALOG_KEYS.copy.label}
+                  </DropdownMenuShortcut>
+                </DropdownMenuItem>
+              ) : null}
+              {copyableText ? (
+                <DropdownMenuItem
+                  aria-keyshortcuts={
+                    card.url ? undefined : DIALOG_KEYS.copy.keys
+                  }
+                  onClick={() =>
+                    void copyToClipboard(copyableText, "Copied text")
+                  }
+                >
+                  <Copy />
+                  Copy Text
+                  {card.url ? null : (
+                    <DropdownMenuShortcut aria-hidden>
+                      {DIALOG_KEYS.copy.label}
+                    </DropdownMenuShortcut>
+                  )}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+        {(canDownload && card.url) ||
+        (savePdf && !isDeleted) ||
+        imageControl ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {canDownload && card.url ? (
+                <DropdownMenuItem
+                  disabled={isDownloading}
+                  onClick={downloadFile}
+                >
+                  <Download />
+                  Download
+                </DropdownMenuItem>
+              ) : null}
+              {savePdf && !isDeleted ? (
+                <DropdownMenuItem
+                  aria-busy={savePdf.isSaving}
+                  disabled={savePdf.isSaving}
+                  onClick={savePdf.save}
+                >
+                  {savePdf.isSaving ? <Spinner /> : <FileDown />}
+                  {savePdf.isSaving ? "Saving PDF…" : "Save PDF"}
+                </DropdownMenuItem>
+              ) : null}
+              {imageControl ? (
+                <DropdownMenuItem
+                  disabled={imageControl.isBusy}
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  {imageControl.isBusy ? <Spinner /> : <ImageUp />}
+                  Replace image
+                </DropdownMenuItem>
+              ) : null}
+              {imageControl && card.thumbnailOverride ? (
+                <DropdownMenuItem
+                  disabled={imageControl.isBusy}
+                  onClick={imageControl.reset}
+                >
+                  <Undo2 />
+                  Reset to original image
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+        {!isDeleted && (onMoreLikeThis || onReprocess) ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {onMoreLikeThis ? (
+                <DropdownMenuItem onClick={() => onMoreLikeThis(card._id)}>
+                  <Sparkles />
+                  More like this
+                </DropdownMenuItem>
+              ) : null}
+              {onReprocess ? (
+                <DropdownMenuItem
+                  disabled={isReprocessing}
+                  onClick={onReprocess}
+                >
+                  {isReprocessing ? <Spinner /> : <RefreshCw />}
+                  Refresh details
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+        {isMobile ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              aria-keyshortcuts={DIALOG_KEYS.details.keys}
+              onClick={() => setIsDetailsHidden((hidden) => !hidden)}
+            >
+              {detailsHidden ? <PanelRightOpen /> : <PanelRightClose />}
+              {detailsHidden ? "Show details" : "Hide details"}
+              <DropdownMenuShortcut aria-hidden>
+                {DIALOG_KEYS.details.label}
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </>
+        )}
+        {isDeleted ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              aria-keyshortcuts={menuShortcuts.delete.keys}
+              onClick={() => void handleDelete(closeAfterAction)}
+              variant="destructive"
+            >
+              <Trash2 />
+              Delete
+              <DropdownMenuShortcut aria-hidden>
+                {menuShortcuts.delete.label}
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </>
+        )}
+        {isMobile ? null : (
+          <DropdownMenuLabel className="border-t pt-2 font-normal text-muted-foreground text-xs">
+            Press <kbd className="font-sans">?</kbd> for all shortcuts
+          </DropdownMenuLabel>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
+  const closeButton = (
+    <DialogClose asChild>
+      <HeaderIconButton
+        className={cn(
+          !isMobile &&
+            "absolute size-9 bg-background/90 text-foreground shadow-md ring-1 ring-border/60 hover:bg-background"
+        )}
+        label="Close"
+        shortcut={["Esc"]}
+        style={isMobile ? undefined : GUTTER_CLOSE_STYLE}
+      >
+        <X />
+      </HeaderIconButton>
+    </DialogClose>
+  );
+
+  const header =
+    card && heading ? (
+      <header
+        className={cn(
+          "flex h-14 shrink-0 items-center gap-2 pr-2 pl-4 md:pr-3 md:pl-5",
+          isMobile && "border-b",
+          fullBleed &&
+            "absolute inset-x-0 top-0 z-20 bg-background/85 opacity-0 pointer-coarse:opacity-100 shadow-sm backdrop-blur-md transition-opacity duration-150 focus-within:opacity-100 group-hover/stage:opacity-100"
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {hostname && showTitle ? (
+            <SiteFavicon className="size-4" hostname={hostname} />
+          ) : null}
+          {heading.editable && !isDeleted ? (
+            <div className="group/title relative min-w-0 flex-1">
+              <DialogTitle className="sr-only">{heading.title}</DialogTitle>
+              <input
+                aria-label="Title"
+                className="-mx-1.5 block w-[calc(100%+0.75rem)] truncate rounded-md bg-transparent py-0.5 pr-7 pl-1.5 font-medium text-sm outline-none transition-colors hover:bg-muted/70 focus-visible:bg-muted/70"
+                dir="auto"
+                maxLength={512}
+                onBlur={(event) => {
+                  if (event.target.value.trim()) {
+                    commit();
+                  } else {
+                    editTitle(undefined);
+                  }
+                }}
+                onChange={(event) => editTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }
+                }}
+                placeholder="Untitled link"
+                value={titleValue}
+              />
+              <Pencil
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 right-0 size-3.5 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 group-has-[input:focus]/title:opacity-0"
+              />
+            </div>
+          ) : (
+            <DialogTitle
+              className={cn(
+                "min-w-0 flex-1 truncate font-medium text-sm leading-6",
+                !showTitle && "sr-only"
+              )}
+              dir="auto"
+              title={heading.title}
+            >
+              {heading.title}
+            </DialogTitle>
+          )}
+          <DialogDescription className="sr-only">
+            {formatAddedDate(card.createdAt)}
+          </DialogDescription>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {saveStatus ? (
+            <span
+              className={cn(
+                "whitespace-nowrap px-1 text-muted-foreground text-xs",
+                saveStatus === "error" && "text-destructive"
+              )}
+            >
+              {SAVE_STATE_LABELS[saveStatus]}
+            </span>
+          ) : null}
+          {isMobile ? null : (
+            <>
+              {favoriteButton}
+              {menu}
+              {primaryButton ? (
+                <span className="ml-1">{primaryButton}</span>
+              ) : null}
+            </>
+          )}
+          {isMobile ? closeButton : null}
+        </div>
+      </header>
+    ) : null;
+
+  const mobileHeader = isMobile ? header : null;
+  const desktopHeader = isMobile ? null : header;
+
+  const navButton = (direction: "previous" | "next") => {
+    const show = direction === "previous" ? onPrevious : onNext;
+    return (
+      <HeaderIconButton
+        className={cn(
+          // Disabled at either end, it still catches a quick extra click,
+          // which would otherwise land on the backdrop and close the card.
+          "absolute top-1/2 size-10 -translate-y-1/2 bg-background/90 text-foreground shadow-md ring-1 ring-border/60 hover:bg-background disabled:pointer-events-auto disabled:cursor-default disabled:opacity-0 [&_svg]:size-5"
+        )}
+        disabled={!show}
+        label={direction === "previous" ? "Previous card" : "Next card"}
+        onClick={() => step(direction === "previous" ? -1 : 1)}
+        shortcut={[direction === "previous" ? "←" : "→"]}
+        style={gutterNavStyle(direction === "previous" ? "left" : "right")}
+        tooltipSide={direction === "previous" ? "right" : "left"}
+      >
+        {direction === "previous" ? <ChevronLeft /> : <ChevronRight />}
+      </HeaderIconButton>
+    );
+  };
 
   return (
     <>
@@ -478,6 +968,7 @@ export function CardModal({
         open={open}
       >
         <DialogContent
+          {...{ [CARD_DIALOG_ATTRIBUTE]: "" }}
           className={cn(
             cardModalFrameClass(card?.type),
             openOrigin &&
@@ -500,375 +991,184 @@ export function CardModal({
         >
           {card && heading ? (
             <>
-              <header className="flex h-14 shrink-0 items-center gap-2 border-b pr-2 pl-3 md:gap-3 md:pr-3 md:pl-4">
-                <div
+              {imageControl ? (
+                <input
+                  accept={LINK_THUMBNAIL_ACCEPT}
                   aria-hidden="true"
-                  className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
-                >
-                  {hostname ? (
-                    <SiteFavicon className="size-4" hostname={hostname} />
-                  ) : (
-                    <TypeIcon className="size-4" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  {heading.editable && !isDeleted ? (
-                    <>
-                      <DialogTitle className="sr-only">
-                        {heading.title}
-                      </DialogTitle>
-                      <input
-                        aria-label="Title"
-                        className="-mx-1.5 block w-[calc(100%+0.75rem)] truncate rounded-md bg-transparent px-1.5 py-0.5 font-medium text-sm outline-none transition-colors hover:bg-muted/70 focus-visible:bg-muted/70"
-                        dir="auto"
-                        maxLength={512}
-                        onBlur={(event) => {
-                          if (event.target.value.trim()) {
-                            commit();
-                          } else {
-                            editTitle(undefined);
-                          }
-                        }}
-                        onChange={(event) => editTitle(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            event.currentTarget.blur();
-                          }
-                        }}
-                        placeholder="Untitled link"
-                        value={titleValue}
-                      />
-                    </>
-                  ) : (
-                    <DialogTitle
-                      className="truncate font-medium text-sm leading-6"
-                      dir="auto"
-                      title={heading.title}
-                    >
-                      {heading.title}
-                    </DialogTitle>
-                  )}
-                  <DialogDescription className="flex min-w-0 items-center gap-1.5 truncate text-muted-foreground text-xs">
-                    {hostname ? (
-                      <span className="truncate max-sm:hidden">{hostname}</span>
-                    ) : null}
-                    {hostname ? (
-                      <span aria-hidden="true" className="max-sm:hidden">
-                        ·
-                      </span>
-                    ) : null}
-                    <span className="shrink-0">
-                      {formatAddedDate(card.createdAt)}
-                    </span>
-                    {saveState !== "idle" && (
-                      <>
-                        <span aria-hidden="true">·</span>
-                        <span
-                          aria-live="polite"
-                          className={cn(
-                            "shrink-0",
-                            saveState === "error" && "text-destructive"
-                          )}
-                        >
-                          {SAVE_STATE_LABELS[saveState]}
-                        </span>
-                      </>
-                    )}
-                  </DialogDescription>
-                </div>
-
-                <div className="flex shrink-0 items-center gap-0.5">
-                  {onPrevious || onNext ? (
-                    <div className="mr-1 flex items-center gap-0.5 md:mr-2">
-                      <HeaderIconButton
-                        disabled={!onPrevious}
-                        label="Previous card"
-                        onClick={() => void goTo(onPrevious)}
-                        shortcut={["←"]}
-                      >
-                        <ChevronLeft />
-                      </HeaderIconButton>
-                      <HeaderIconButton
-                        disabled={!onNext}
-                        label="Next card"
-                        onClick={() => void goTo(onNext)}
-                        shortcut={["→"]}
-                      >
-                        <ChevronRight />
-                      </HeaderIconButton>
-                    </div>
-                  ) : null}
-
-                  {!isDeleted && (
-                    <HeaderIconButton
-                      label={card.isFavorited ? "Unfavorite" : "Favorite"}
-                      onClick={toggleFavorite}
-                      pressed={Boolean(card.isFavorited)}
-                      shortcut={["F"]}
-                    >
-                      <Heart
-                        className={cn(
-                          card.isFavorited &&
-                            "fill-destructive text-destructive"
-                        )}
-                      />
-                    </HeaderIconButton>
-                  )}
-
-                  {toggleDone && card.type === "link" && !isDeleted && (
-                    <DoneButton
-                      category={card.metadata?.linkCategory?.category}
-                      done={card.completedAt !== undefined}
-                      onClick={toggleDone}
-                    />
-                  )}
-
-                  {card.url && !isDeleted && (
-                    <Button
-                      className="mx-1 h-8 rounded-full px-3 max-sm:w-8 max-sm:px-0"
-                      onClick={openLink}
-                      size="sm"
-                      variant="outline"
-                    >
-                      <ArrowUpRight />
-                      <span className="max-sm:sr-only">Open</span>
-                    </Button>
-                  )}
-                  {canDownload && !card.url && (
-                    <Button
-                      className="mx-1 h-8 rounded-full px-3 max-sm:w-8 max-sm:px-0"
-                      disabled={isDownloading}
-                      onClick={downloadFile}
-                      size="sm"
-                      variant="outline"
-                    >
-                      {isDownloading ? <Spinner /> : <Download />}
-                      <span className="max-sm:sr-only">
-                        {isDownloading ? "Downloading…" : "Download"}
-                      </span>
-                    </Button>
-                  )}
-
-                  {imageControl ? (
-                    <input
-                      accept={LINK_THUMBNAIL_ACCEPT}
-                      aria-hidden="true"
-                      className="sr-only"
-                      data-testid="link-image-input"
-                      onChange={(event) => {
-                        const file = firstFile(event.target.files);
-                        event.target.value = "";
-                        if (file) {
-                          imageControl.replace(file, "pick");
-                        }
-                      }}
-                      ref={imageInputRef}
-                      tabIndex={-1}
-                      type="file"
-                    />
-                  ) : null}
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <HeaderIconButton label="More actions">
-                        <MoreHorizontal />
-                      </HeaderIconButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                      {card.url ? (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            void copyToClipboard(
-                              card.url as string,
-                              "Copied link"
-                            )
-                          }
-                        >
-                          <Copy />
-                          Copy Link
-                        </DropdownMenuItem>
-                      ) : null}
-                      {copyableText ? (
-                        <DropdownMenuItem
-                          onClick={() =>
-                            void copyToClipboard(copyableText, "Copied text")
-                          }
-                        >
-                          <Copy />
-                          Copy Text
-                        </DropdownMenuItem>
-                      ) : null}
-                      {canDownload && card.url ? (
-                        <DropdownMenuItem
-                          disabled={isDownloading}
-                          onClick={downloadFile}
-                        >
-                          <Download />
-                          Download
-                        </DropdownMenuItem>
-                      ) : null}
-                      {isDeleted ? (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => void handleRestore(closeAfterAction)}
-                          >
-                            <RotateCcw />
-                            Restore
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() =>
-                              setIsPermanentDeleteConfirmOpen(true)
-                            }
-                            variant="destructive"
-                          >
-                            <Trash />
-                            Delete Forever
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <>
-                          {onMoreLikeThis ? (
-                            <DropdownMenuItem
-                              onClick={() => onMoreLikeThis(card._id)}
-                            >
-                              <Sparkles />
-                              More like this
-                            </DropdownMenuItem>
-                          ) : null}
-                          {imageControl ? (
-                            <DropdownMenuItem
-                              disabled={imageControl.isBusy}
-                              onClick={() => imageInputRef.current?.click()}
-                            >
-                              {imageControl.isBusy ? <Spinner /> : <ImageUp />}
-                              Replace image
-                            </DropdownMenuItem>
-                          ) : null}
-                          {imageControl && card.thumbnailOverride ? (
-                            <DropdownMenuItem
-                              disabled={imageControl.isBusy}
-                              onClick={imageControl.reset}
-                            >
-                              <Undo2 />
-                              Reset to original image
-                            </DropdownMenuItem>
-                          ) : null}
-                          {onReprocess ? (
-                            <DropdownMenuItem
-                              disabled={isReprocessing}
-                              onClick={onReprocess}
-                            >
-                              {isReprocessing ? <Spinner /> : <RefreshCw />}
-                              Refresh details
-                            </DropdownMenuItem>
-                          ) : null}
-                          {toggleArchive ? (
-                            <DropdownMenuItem
-                              aria-keyshortcuts={menuShortcuts.archive.keys}
-                              onClick={archive}
-                            >
-                              {card.isArchived ? (
-                                <ArchiveRestore />
-                              ) : (
-                                <Archive />
-                              )}
-                              {card.isArchived ? "Unarchive" : "Archive"}
-                              <DropdownMenuShortcut aria-hidden>
-                                {menuShortcuts.archive.label}
-                              </DropdownMenuShortcut>
-                            </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            aria-keyshortcuts={menuShortcuts.delete.keys}
-                            onClick={() => void handleDelete(closeAfterAction)}
-                            variant="destructive"
-                          >
-                            <Trash2 />
-                            Delete
-                            <DropdownMenuShortcut aria-hidden>
-                              {menuShortcuts.delete.label}
-                            </DropdownMenuShortcut>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-                  <DialogClose asChild>
-                    <HeaderIconButton label="Close" shortcut={["Esc"]}>
-                      <X />
-                    </HeaderIconButton>
-                  </DialogClose>
-                </div>
-              </header>
-
-              <div className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row">
-                <main
-                  aria-label={`${typeLabel} content`}
-                  className={cn(
-                    "relative min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto",
-                    card.type === "image" && "bg-muted/40",
-                    card.type === "video" && "bg-black"
-                  )}
-                >
-                  <div className={stageContentClass(card)}>
-                    <CardPreview
-                      card={card}
-                      cardLinks={guardedCardLinks}
-                      getCurrentValue={getCurrentValue}
-                      key={card._id}
-                      saveChanges={() => {
-                        void saveChanges();
-                      }}
-                      thumbnail={linkThumbnail}
-                      updateContent={editContent}
-                    />
-                  </div>
-                </main>
-
-                <aside
-                  aria-label="Card details"
-                  className="shrink-0 border-t bg-muted/25 md:w-80 md:overflow-y-auto md:border-t-0 md:border-l lg:w-[21rem]"
-                >
-                  <CardMetadataPanel
-                    backlinks={backlinks}
-                    card={card}
-                    getCurrentValue={getCurrentValue}
-                    notesRef={notesRef}
-                    onCardTypeClick={() => onCardTypeClick?.(card.type)}
-                    onCommit={commit}
-                    onNotesChange={editNotes}
-                    onOpenCard={openLinkedCard}
-                    onPermanentDelete={() =>
-                      setIsPermanentDeleteConfirmOpen(true)
+                  className="sr-only"
+                  data-testid="link-image-input"
+                  onChange={(event) => {
+                    const file = firstFile(event.target.files);
+                    event.target.value = "";
+                    if (file) {
+                      imageControl.replace(file, "pick");
                     }
-                    onRestore={() => void handleRestore(closeAfterAction)}
-                    onTagClick={onTagClick}
-                    savePdf={savePdf}
-                    tags={{ ...tags, inputRef: tagInputRef }}
-                  />
-                </aside>
+                  }}
+                  ref={imageInputRef}
+                  tabIndex={-1}
+                  type="file"
+                />
+              ) : null}
+
+              <div className={CARD_MODAL_SURFACE_CLASS}>
+                {isDeleted ? (
+                  <div
+                    className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-muted/60 py-1.5 pr-1.5 pl-4"
+                    role="status"
+                  >
+                    <p className="flex items-center gap-2 text-muted-foreground text-sm">
+                      <Trash2 aria-hidden="true" className="size-3.5" />
+                      This card is in Trash
+                    </p>
+                    <div className="flex gap-1">
+                      <Button
+                        className="h-7 px-2.5"
+                        onClick={() => void handleRestore(closeAfterAction)}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        <RotateCcw />
+                        Restore
+                      </Button>
+                      <Button
+                        className="h-7 px-2.5 text-destructive hover:text-destructive"
+                        onClick={() => setIsPermanentDeleteConfirmOpen(true)}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        <Trash />
+                        Delete Forever
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {mobileHeader}
+
+                <div className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row">
+                  <div className="group/stage relative flex min-w-0 flex-col md:min-h-0 md:flex-1">
+                    {desktopHeader}
+                    <main
+                      aria-label={`${typeLabel} content`}
+                      className={cn(
+                        "relative min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto",
+                        card.type === "image" && "bg-muted/40",
+                        card.type === "video" && "bg-black"
+                      )}
+                    >
+                      <div className={stageContentClass(card)}>
+                        <CardPreview
+                          card={card}
+                          cardLinks={guardedCardLinks}
+                          getCurrentValue={getCurrentValue}
+                          key={card._id}
+                          saveChanges={() => {
+                            void saveChanges();
+                          }}
+                          thumbnail={linkThumbnail}
+                          updateContent={editContent}
+                        />
+                      </div>
+                    </main>
+                  </div>
+
+                  <aside
+                    aria-label="Card details"
+                    className={cn(
+                      "shrink-0 border-border/60 max-md:border-t md:w-72 md:overflow-y-auto md:border-l lg:w-80 xl:w-[21rem]",
+                      detailsHidden && "md:hidden"
+                    )}
+                  >
+                    <CardMetadataPanel
+                      backlinks={backlinks}
+                      card={card}
+                      done={
+                        canToggleDone && toggleDone
+                          ? {
+                              category: card.metadata?.linkCategory?.category,
+                              done: isDone,
+                              onToggle: toggleDone,
+                            }
+                          : undefined
+                      }
+                      getCurrentValue={getCurrentValue}
+                      notesRef={notesRef}
+                      onCardTypeClick={() => onCardTypeClick?.(card.type)}
+                      onCommit={commit}
+                      onNotesChange={editNotes}
+                      onOpenCard={openLinkedCard}
+                      onOpenFolders={
+                        isDeleted ? undefined : () => setIsFoldersOpen(true)
+                      }
+                      onTagClick={onTagClick}
+                      tags={{ ...tags, inputRef: tagInputRef }}
+                    />
+                  </aside>
+                </div>
+
+                {isMobile ? (
+                  <nav
+                    aria-label="Card actions"
+                    className="flex shrink-0 items-center gap-1 border-t bg-background px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+                  >
+                    {onPrevious || onNext ? (
+                      <>
+                        <HeaderIconButton
+                          disabled={!onPrevious}
+                          label="Previous card"
+                          onClick={() => step(-1)}
+                        >
+                          <ChevronLeft />
+                        </HeaderIconButton>
+                        <HeaderIconButton
+                          disabled={!onNext}
+                          label="Next card"
+                          onClick={() => step(1)}
+                        >
+                          <ChevronRight />
+                        </HeaderIconButton>
+                      </>
+                    ) : null}
+                    <span className="flex-1" />
+                    {favoriteButton}
+                    {menu}
+                    {primaryButton}
+                  </nav>
+                ) : null}
               </div>
+              {/* After the card, so Tab reaches the card's own controls first. */}
+              {isMobile ? null : (
+                <>
+                  {onPrevious || onNext ? (
+                    <>
+                      {navButton("previous")}
+                      {navButton("next")}
+                    </>
+                  ) : null}
+                  {closeButton}
+                </>
+              )}
             </>
           ) : (
-            <div className="flex flex-1 flex-col">
+            <>
               <DialogTitle className="sr-only">Loading card</DialogTitle>
               <DialogDescription className="sr-only">
                 Loading card details
               </DialogDescription>
-              <div className="flex h-14 shrink-0 items-center gap-3 border-b px-4">
-                <div className="size-8 animate-pulse rounded-lg bg-muted" />
-                <div className="h-3 w-48 animate-pulse rounded bg-muted" />
-              </div>
-              <div className="flex flex-1 items-center justify-center">
-                <Spinner className="size-5 text-muted-foreground" />
-              </div>
-            </div>
+              <CardModalSkeleton />
+            </>
           )}
         </DialogContent>
       </Dialog>
+
+      {card ? (
+        <CardFoldersDialog
+          cardId={card._id}
+          folderIds={(card.folderIds ?? []) as string[]}
+          onOpenChange={setIsFoldersOpen}
+          open={isFoldersOpen}
+        />
+      ) : null}
 
       <ConfirmDialog
         confirmLabel="Delete Forever"
@@ -893,31 +1193,13 @@ async function copyToClipboard(text: string, message: string) {
   }
 }
 
-export function DoneButton({
-  category,
-  done,
-  onClick,
-}: {
-  category?: string;
-  done: boolean;
-  onClick: () => void;
-}) {
-  const verb = doneActionLabel(category);
-  const label = done
-    ? `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`
-    : `Mark as ${verb}`;
-  return (
-    <HeaderIconButton label={label} onClick={onClick} pressed={done}>
-      {done ? <CircleCheck className="text-primary" /> : <Circle />}
-    </HeaderIconButton>
-  );
-}
-
 function HeaderIconButton({
   children,
+  className,
   label,
   pressed,
   shortcut,
+  tooltipSide,
   ref,
   ...props
 }: React.ComponentProps<"button"> & {
@@ -925,26 +1207,24 @@ function HeaderIconButton({
   label: string;
   pressed?: boolean;
   shortcut?: readonly string[];
+  tooltipSide?: "top" | "right" | "bottom" | "left";
 }) {
-  const button = (
-    <button
-      aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
-      aria-label={label}
-      aria-pressed={pressed}
-      className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-muted data-[state=open]:text-foreground [&_svg]:size-4"
-      ref={ref}
-      title={shortcut ? undefined : label}
-      type="button"
-      {...props}
-    >
-      {children}
-    </button>
-  );
-  return shortcut ? (
-    <ShortcutTooltip keys={shortcut} label={label}>
-      {button}
+  return (
+    <ShortcutTooltip keys={shortcut} label={label} side={tooltipSide}>
+      <button
+        aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
+        aria-label={label}
+        aria-pressed={pressed}
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-muted data-[state=open]:text-foreground [&_svg]:size-4",
+          className
+        )}
+        ref={ref}
+        type="button"
+        {...props}
+      >
+        {children}
+      </button>
     </ShortcutTooltip>
-  ) : (
-    button
   );
 }

@@ -43,6 +43,10 @@ describe("cardModalKeyAction", () => {
     ["e", "archive"],
     ["t", "focusTags"],
     ["n", "focusNotes"],
+    ["d", "done"],
+    ["o", "open"],
+    ["c", "copy"],
+    ["i", "toggleDetails"],
     ["Delete", "delete"],
   ])("%s does %s", (key, action) => {
     expect(press(key, plain)).toBe(action as never);
@@ -69,6 +73,16 @@ describe("cardModalKeyAction", () => {
     expect(press("f", input)).toBeNull();
     expect(press("ArrowRight", textarea)).toBeNull();
     expect(press("n", inside)).toBeNull();
+  });
+
+  test("Mod+Enter opens the card, but saves in a field", () => {
+    const input = document.createElement("textarea");
+    document.body.append(input);
+    expect(press("Enter", plain, { metaKey: true }, true)).toBe("open");
+    expect(press("Enter", plain, { ctrlKey: true }, false)).toBe("open");
+    expect(press("Enter", plain, { ctrlKey: true }, true)).toBeNull();
+    expect(press("Enter", plain)).toBeNull();
+    expect(press("Enter", input, { metaKey: true }, true)).toBeNull();
   });
 
   test("lets a focused player keep its arrow keys", () => {

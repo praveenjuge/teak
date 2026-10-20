@@ -424,6 +424,17 @@ export function useCardModal(
     [updateField]
   );
 
+  /** Keeps a tag Teak suggested as one of the card's own tags. */
+  const acceptAiTag = useCallback(
+    (tag: string) => {
+      const currentTags = card?.tags || [];
+      if (!currentTags.includes(tag)) {
+        void updateField("tags", [...currentTags, tag]);
+      }
+    },
+    [card?.tags, updateField]
+  );
+
   const latestTags = useRef<{ cardId?: string | null; tags?: string[] }>({});
   latestTags.current = { cardId, tags: card?.tags };
 
@@ -476,7 +487,18 @@ export function useCardModal(
           cardId: cardId as Id<"cards">,
           field: "delete",
         });
-        toast.success("Card deleted");
+        const deletedId = cardId;
+        toast.success("Card deleted", {
+          action: {
+            label: "Undo",
+            onClick: () => {
+              updateCardField({
+                cardId: deletedId as Id<"cards">,
+                field: "restore",
+              }).catch(() => toast.error("Failed to restore card"));
+            },
+          },
+        });
         onClose?.();
       } catch (error) {
         console.error("Failed to delete card:", error);
@@ -649,6 +671,7 @@ export function useCardModal(
     toggleFavorite,
     toggleDone,
     removeAiTag,
+    acceptAiTag,
     addTag,
     removeTag,
     handleDelete,

@@ -259,8 +259,7 @@ https://example.com/editor
     await expect(dialog).not.toBeVisible();
     await showTrash(surface);
     await screen.getByText(`${marker} restore-me`, { exact: false }).click();
-    await dialog.getByRole("button", "More actions").click();
-    await screen.getByRole("menuitem", "Restore").click();
+    await dialog.getByRole("button", "Restore").click();
     await expect(dialog).not.toBeVisible();
     await searchForVisibleCard(
       surface,
