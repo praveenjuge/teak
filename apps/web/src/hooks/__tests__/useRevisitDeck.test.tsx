@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import type { CardsSearchQueryArgs } from "../cardsSearchState";
+import type { CardsSearchQueryArgs } from "../../lib/cardsSearchState";
 import type {
   LoadRevisitPage,
   RevisitCard,

@@ -115,7 +115,7 @@ email receipt pruning and admin snapshot, the weekly orphan sweep, the
 6-hourly AI backfill, the hourly AI usage rollup, the hourly workflow
 reconcile, and the hourly cleanups of the search
 caches, abandoned import uploads, expired upload sessions and (once enabled)
-idempotency records (`apps/files-worker/src/cron.ts`). Convex keeps only the
+idempotency records (`apps/files-worker/src/scheduled/cron.ts`). Convex keeps only the
 WorkOS event catch-up in `crons.ts`, which needs the WorkOS API key.
 `cronSchedules.ts` lists both, so the admin health view still shows every
 task.
@@ -159,7 +159,7 @@ user's totals for today and yesterday in `aiUsageDaily` in batches of 200.
 The AI gate (`adminAccess:getAiGate`, a gateway HTTP action plus the query)
 used to be read before every AI step of a card run: two reads for a text
 card, three or more for a link. The Worker now reuses each answer for 60
-seconds in the isolate and the Cache API (`apps/files-worker/src/aiGate.ts`),
+seconds in the isolate and the Cache API (`apps/files-worker/src/ai/aiGate.ts`),
 so a run reads it at most once and later runs for the same account within
 the minute usually not at all. An admin's AI pause takes up to a minute to
 reach running work.

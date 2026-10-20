@@ -4,7 +4,7 @@ import {
   type PostHogBatch,
 } from "@teak/convex/shared/posthog";
 import packageJson from "../../package.json";
-import { estimateWorkersAiCostUsd } from "../aiPricing";
+import { estimateWorkersAiCostUsd } from "../ai/aiPricing";
 import { reportBackgroundError, type TelemetryEnvVars } from "../telemetry";
 
 // PostHog events from workflow steps and queue consumers. One isolate runs

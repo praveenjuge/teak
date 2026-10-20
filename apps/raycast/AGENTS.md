@@ -14,3 +14,18 @@ on the mirrored extension, so the lockfile must stay in sync with
 `npm install --package-lock-only --ignore-scripts --workspaces=false`. The
 `--workspaces=false` flag prevents npm from traversing Bun workspace packages.
 Then confirm lockstep versions still match.
+
+## API calls
+
+`src/lib/api.ts` sends every request through `teak-sdk`'s `createTeakClient`.
+It adds what Raycast needs on top: the auth mode (an interactive command signs
+in again after a 401, a silent one reports it), the `localhost` to `127.0.0.1`
+retry, Raycast's error codes, and the strict card parsers in `apiParsers.ts`.
+
+Raycast pins the published `teak-sdk` in `package.json` and
+`package-lock.json`, but Bun resolves it to the workspace copy, so monorepo
+checks cannot catch a call the pinned version lacks. Use only what the pinned
+version publishes. To prove it, copy `apps/raycast` out of the monorepo, run
+`npm ci`, then `npx tsc --noEmit`, `bun test src/__tests__ --isolate` and
+`npx ray build` there (`searchFilters.test.ts` needs the monorepo and fails
+outside it).

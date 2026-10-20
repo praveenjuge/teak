@@ -1,0 +1,809 @@
+import { describe, expect, test } from "bun:test";
+import {
+  buildFilesOpSigningPayload,
+  buildUploadSigningPayload,
+  FILES_PROTOCOL_VERSION,
+} from "@teak/files-protocol";
+import { freezeObject } from "../deletionGate";
+import worker, { type Env } from "../index";
+import { hmacSha256Hex, sha256Hex } from "../lib";
+import { FakeBucket, withObjectGates } from "../test/testsupport";
+
+const SECRET = "test-secret";
+
+const env = (): Env =>
+  withObjectGates({
+    BUCKET: new FakeBucket() as unknown as R2Bucket,
+    FILES_SIGNING_SECRET: SECRET,
+  }) as Env;
+
+interface UploadUrlOptions {
+  boundSize?: number | null;
+  contentType?: string;
+  expSecondsFromNow?: number;
+  key?: string;
+}
+
+const signedUploadRequest = async (
+  body: Uint8Array | null,
+  {
+    boundSize = null,
+    contentType = "text/plain",
+    expSecondsFromNow = 600,
+    key = "users/u1/cards/file/abc-test.txt",
+  }: UploadUrlOptions = {},
+  overrides: Record<string, string> = {}
+): Promise<Request> => {
+  const url = new URL(`https://files.teakvault.com/__upload/v1/${key}`);
+  const exp = String(Math.floor(Date.now() / 1000) + expSecondsFromNow);
+  const sig = await hmacSha256Hex(
+    SECRET,
+    buildUploadSigningPayload({
+      contentType,
+      expiresAt: exp,
+      key: decodeURIComponent(key),
+      size: boundSize,
+    })
+  );
+  url.searchParams.set("exp", exp);
+  url.searchParams.set("sig", sig);
+  if (contentType) {
+    url.searchParams.set("ct", contentType);
+  }
+  if (boundSize !== null) {
+    url.searchParams.set("sz", String(boundSize));
+  }
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === "") {
+      url.searchParams.delete(name);
+    } else {
+      url.searchParams.set(name, value);
+    }
+  }
+  return new Request(url.toString(), {
+    body: body === null ? undefined : body,
+    method: "PUT",
+    headers:
+      body === null
+        ? { "x-teak-request-id": crypto.randomUUID() }
+        : {
+            "content-length": String(body.byteLength),
+            "content-type": `${contentType}; charset=utf-8`,
+            "x-teak-request-id": crypto.randomUUID(),
+          },
+  });
+};
+
+const signedOpRequest = async (
+  op: string,
+  params: Record<string, unknown>
+): Promise<Request> => {
+  const body = JSON.stringify({ op, params, version: FILES_PROTOCOL_VERSION });
+  const requestId = crypto.randomUUID();
+  const expiresAt = String(Math.floor(Date.now() / 1000) + 600);
+  const bodySha256 = await sha256Hex(body);
+  return new Request("https://files.teakvault.com/__ops/v1", {
+    body,
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-teak-expires-at": expiresAt,
+      "x-teak-request-id": requestId,
+      "x-teak-signature": await hmacSha256Hex(
+        SECRET,
+        buildFilesOpSigningPayload({ bodySha256, expiresAt, requestId })
+      ),
+    },
+  });
+};
+
+describe("signed single-file uploads", () => {
+  test("accepts a valid upload and stores the object with signed metadata", async () => {
+    const bucket = new FakeBucket();
+    const envWithBucket = withObjectGates({
+      BUCKET: bucket,
+      FILES_SIGNING_SECRET: SECRET,
+    }) as Env;
+    const bytes = new TextEncoder().encode("hello teak");
+    const response = await worker.fetch(
+      await signedUploadRequest(bytes, { boundSize: bytes.byteLength }),
+      envWithBucket,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: { etag: string; key: string; size: number };
+      ok: boolean;
+    };
+    expect(payload.ok).toBe(true);
+    expect(payload.data.key).toBe("users/u1/cards/file/abc-test.txt");
+    expect(payload.data.size).toBe(bytes.byteLength);
+    expect(payload.data.etag).toBeTruthy();
+    expect(response.headers.get("etag")).toBe(payload.data.etag);
+    const stored = bucket.objects.get("users/u1/cards/file/abc-test.txt");
+    expect(stored?.httpMetadata?.contentType).toBe("text/plain");
+    expect(new TextDecoder().decode(stored?.bytes ?? new Uint8Array())).toBe(
+      "hello teak"
+    );
+  });
+
+  test("accepts an unbound content type and stores the request header", async () => {
+    const bucket = new FakeBucket();
+    const envWithBucket = withObjectGates({
+      BUCKET: bucket,
+      FILES_SIGNING_SECRET: SECRET,
+    }) as Env;
+    const key = "users/u1/cards/thumbnail/frame";
+    const exp = String(Math.floor(Date.now() / 1000) + 600);
+    const sig = await hmacSha256Hex(
+      SECRET,
+      buildUploadSigningPayload({ contentType: "", expiresAt: exp, key })
+    );
+    const url = new URL(`https://files.teakvault.com/__upload/v1/${key}`);
+    url.searchParams.set("exp", exp);
+    url.searchParams.set("sig", sig);
+    const body = new Uint8Array([1, 2, 3, 4]);
+    const response = await worker.fetch(
+      new Request(url.toString(), {
+        body,
+        method: "PUT",
+        headers: {
+          "content-length": String(body.byteLength),
+          "content-type": "image/webp",
+          "x-teak-request-id": crypto.randomUUID(),
+        },
+      }),
+      envWithBucket,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const stored = bucket.objects.get(key);
+    expect(stored?.httpMetadata?.contentType).toBe("image/webp");
+  });
+
+  test("rejects expired signatures", async () => {
+    const response = await worker.fetch(
+      await signedUploadRequest(new TextEncoder().encode("x"), {
+        expSecondsFromNow: -10,
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(410);
+  });
+
+  test("rejects signatures too far in the future", async () => {
+    const response = await worker.fetch(
+      await signedUploadRequest(new TextEncoder().encode("x"), {
+        expSecondsFromNow: 60 * 60 * 24 * 30,
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(403);
+  });
+
+  test("rejects tampered signatures", async () => {
+    const response = await worker.fetch(
+      await signedUploadRequest(
+        new TextEncoder().encode("x"),
+        {},
+        { sig: "0".repeat(64) }
+      ),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(403);
+  });
+
+  test("rejects content type mismatch between signature and request", async () => {
+    const response = await worker.fetch(
+      await signedUploadRequest(
+        new TextEncoder().encode("x"),
+        {},
+        { ct: "image/png" }
+      ),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(403);
+  });
+
+  test("binds the signature to the exact object key", async () => {
+    const signed = await signedUploadRequest(new TextEncoder().encode("x"));
+    const url = new URL(signed.url);
+    url.pathname = "/__upload/v1/users/u1/cards/file/other.txt";
+    const response = await worker.fetch(
+      new Request(url.toString(), {
+        body: new TextEncoder().encode("x"),
+        method: "PUT",
+        headers: {
+          "content-length": "1",
+          "content-type": "text/plain",
+        },
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(403);
+  });
+
+  test("stores an export manifest under the exports prefix", async () => {
+    const bucket = new FakeBucket();
+    const request = await signedUploadRequest(new TextEncoder().encode("{}"), {
+      contentType: "application/json",
+      key: "exports/h1/job.zip.manifest.json",
+    });
+    const response = await worker.fetch(
+      request,
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(bucket.objects.has("exports/h1/job.zip.manifest.json")).toBe(true);
+  });
+
+  test("rejects path traversal keys", async () => {
+    for (const key of [
+      "users/../secrets/x.txt",
+      "users/u1//double/x.txt",
+      "not-users/u1/x.txt",
+    ]) {
+      const response = await worker.fetch(
+        await signedUploadRequest(new TextEncoder().encode("x"), { key }),
+        env(),
+        { waitUntil: () => undefined } as never
+      );
+      expect(response.status).toBe(400);
+    }
+  });
+
+  test("requires Content-Length", async () => {
+    const request = await signedUploadRequest(null);
+    const response = await worker.fetch(request, env(), {
+      waitUntil: () => undefined,
+    } as never);
+    expect(response.status).toBe(411);
+  });
+
+  test("accepts uploads without a bound size", async () => {
+    const bytes = new Uint8Array(2048);
+    const response = await worker.fetch(
+      await signedUploadRequest(bytes),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+  });
+
+  test("enforces a bound size mismatch", async () => {
+    const bytes = new TextEncoder().encode("hello");
+    const request = await signedUploadRequest(bytes, { boundSize: 999 });
+    const response = await worker.fetch(request, env(), {
+      waitUntil: () => undefined,
+    } as never);
+    expect(response.status).toBe(409);
+  });
+
+  test("answers OPTIONS preflight for the upload path", async () => {
+    const response = await worker.fetch(
+      new Request("https://files.teakvault.com/__upload/v1/users/u1/x.txt", {
+        method: "OPTIONS",
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(204);
+  });
+});
+
+describe("additive files ops", () => {
+  test("cleans bounded stale pending-upload pages inside one worker call", async () => {
+    const bucket = new FakeBucket();
+    for (let index = 0; index < 1001; index += 1) {
+      bucket.objects.set(
+        `users/u1/cards/upload-pending-v2/file/${index
+          .toString()
+          .padStart(4, "0")}`,
+        { bytes: new Uint8Array([1]) }
+      );
+    }
+    const recentKey = "users/u1/cards/upload-pending-v2/file/recent";
+    bucket.objects.set(recentKey, {
+      bytes: new Uint8Array([2]),
+      uploadedAt: Date.now(),
+    });
+    bucket.objects.set("users/u1/cards/card-1/file/old", {
+      bytes: new Uint8Array([3]),
+    });
+    const response = await worker.fetch(
+      await signedOpRequest("cleanup-stale-pending-uploads", {
+        prefix: "users/",
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { cursor: null, deleted: 1001, pages: 2 },
+      ok: true,
+    });
+    expect(bucket.listCalls).toBe(2);
+    expect(bucket.deleteBatches.length).toBeGreaterThan(0);
+    expect(bucket.deleteBatches.every((batch) => batch.length <= 100)).toBe(
+      true
+    );
+    expect(
+      bucket.objects.has("users/u1/cards/upload-pending-v2/file/0000")
+    ).toBe(false);
+    expect(
+      bucket.objects.has("users/u1/cards/upload-pending-v2/file/1000")
+    ).toBe(false);
+    expect(bucket.objects.has(recentKey)).toBe(true);
+    expect(bucket.objects.has("users/u1/cards/card-1/file/old")).toBe(true);
+  });
+
+  test("caps each cleanup operation and returns a continuation cursor", async () => {
+    const bucket = new FakeBucket();
+    for (let index = 0; index < 10_001; index += 1) {
+      bucket.objects.set(
+        `users/u1/cards/card-1/file/${index.toString().padStart(5, "0")}`,
+        { bytes: new Uint8Array([1]) }
+      );
+    }
+    const response = await worker.fetch(
+      await signedOpRequest("cleanup-stale-pending-uploads", {
+        prefix: "users/",
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: { cursor: string | null; deleted: number; pages: number };
+      ok: boolean;
+    };
+    expect(payload).toMatchObject({
+      data: { deleted: 0, pages: 10 },
+      ok: true,
+    });
+    expect(payload.data.cursor).toBeString();
+    expect(bucket.listCalls).toBe(10);
+  });
+
+  test("rejects cleanup outside the bounded user namespaces", async () => {
+    const response = await worker.fetch(
+      await signedOpRequest("cleanup-stale-pending-uploads", {
+        pendingCardId: "card-1",
+        prefix: "exports/",
+        staleBefore: Date.now(),
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(400);
+  });
+
+  test("delete-objects removes batches and tolerates missing keys", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u1/a.txt", {
+      bytes: new TextEncoder().encode("a"),
+    });
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", {
+        keys: ["users/u1/a.txt", "users/u1/missing.bin"],
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      data: { deleted: number };
+      ok: boolean;
+    };
+    expect(payload.ok).toBe(true);
+    expect(payload.data.deleted).toBe(2);
+    expect(bucket.objects.has("users/u1/a.txt")).toBe(false);
+  });
+
+  test("delete-objects deletes a key listed twice once", async () => {
+    const bucket = new FakeBucket();
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", {
+        keys: ["users/u1/a.txt", "users/u1/a.txt"],
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: { deleted: 1 } });
+    expect(bucket.deleteBatches).toEqual([["users/u1/a.txt"]]);
+  });
+
+  test("delete-objects removes export archives under the exports prefix", async () => {
+    const bucket = new FakeBucket();
+    for (const key of ["exports/h1/job.zip", "dev/exports/h1/job.zip"]) {
+      bucket.objects.set(key, { bytes: new TextEncoder().encode("zip") });
+    }
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", {
+        keys: ["exports/h1/job.zip", "dev/exports/h1/job.zip"],
+      }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(200);
+    expect(bucket.objects.size).toBe(0);
+  });
+
+  test.each([
+    "exportsx/h1/job.zip",
+    "export/h1/job.zip",
+    "exports/../users/u1/a.txt",
+  ])("delete-objects rejects %s", async (key) => {
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", { keys: [key] }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(400);
+  });
+
+  test("delete-objects rejects oversized and malformed batches", async () => {
+    const response = await worker.fetch(
+      await signedOpRequest("delete-objects", {
+        keys: Array.from({ length: 101 }, (_, index) => `users/u1/${index}`),
+      }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(response.status).toBe(400);
+
+    const traversal = await worker.fetch(
+      await signedOpRequest("delete-objects", { keys: ["../escape"] }),
+      env(),
+      { waitUntil: () => undefined } as never
+    );
+    expect(traversal.status).toBe(400);
+  });
+
+  test("head-object reports existence, size, and content type", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("users/u1/img.png", {
+      bytes: new TextEncoder().encode("png-bytes"),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const present = await worker.fetch(
+      await signedOpRequest("head-object", { key: "users/u1/img.png" }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    const payload = (await present.json()) as {
+      data: Record<string, unknown>;
+    };
+    expect(payload.data.exists).toBe(true);
+    expect(payload.data.size).toBe(9);
+    expect(payload.data.contentType).toBe("image/png");
+
+    const missing = await worker.fetch(
+      await signedOpRequest("head-object", { key: "users/u1/nope.png" }),
+      withObjectGates({ BUCKET: bucket, FILES_SIGNING_SECRET: SECRET }) as Env,
+      { waitUntil: () => undefined } as never
+    );
+    const missingPayload = (await missing.json()) as {
+      data: Record<string, unknown>;
+    };
+    expect(missingPayload.data.exists).toBe(false);
+  });
+
+  test("generate-image-metadata validates AI output with bounded retries", async () => {
+    let calls = 0;
+    let capturedImageUrl: unknown;
+    const capturedSampling: unknown[] = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          calls += 1;
+          capturedSampling.push({
+            chat_template_kwargs: args.chat_template_kwargs,
+            frequency_penalty: args.frequency_penalty,
+          });
+          const messages = args.messages as Array<{
+            content?: Array<{ image_url?: unknown; type?: string }>;
+          }>;
+          capturedImageUrl = messages
+            .flatMap((message) => message.content ?? [])
+            .find((part) => part.type === "image_url")?.image_url;
+          if (calls === 1) {
+            return {
+              choices: [{ message: { content: "not json at all" } }],
+            };
+          }
+          return {
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "A red square.",
+                    tags: ["red", "square"],
+                    text: "STOP\n  4411",
+                  }),
+                },
+              },
+            ],
+          };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+
+    const bucket = aiEnv.BUCKET as unknown as FakeBucket;
+    bucket.objects.set("users/u1/pic.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+
+    let capturedTransform: Record<string, unknown> | undefined;
+    const fakeFetch = ((
+      _input: RequestInfo | URL,
+      init?: RequestInit & { cf?: { image?: Record<string, unknown> } }
+    ): Promise<Response> => {
+      capturedTransform = init?.cf?.image;
+      return Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      );
+    }) as typeof fetch;
+
+    const { generateImageMetadataForOp } = await import(
+      "../images/imageMetadata"
+    );
+    const result = await generateImageMetadataForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/pic.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    expect(result.tags).toEqual(["red", "square"]);
+    expect(result.summary).toBe("A red square.");
+    expect(result.text).toBe("STOP\n  4411");
+    expect(calls).toBe(2);
+    const sampling = {
+      chat_template_kwargs: { enable_thinking: false },
+      frequency_penalty: 0.3,
+    };
+    expect(capturedSampling).toEqual([sampling, sampling]);
+    expect(capturedImageUrl).toEqual({
+      url: "data:image/jpeg;base64,AQID",
+    });
+    expect(capturedTransform).toEqual({
+      anim: false,
+      fit: "scale-down",
+      format: "jpeg",
+      height: 1600,
+      metadata: "none",
+      quality: 85,
+      sharpen: 1,
+      width: 1600,
+      "origin-auth": "share-publicly",
+    });
+  });
+
+  test("generate-image-metadata keeps tags and summary when dense text keeps cutting the answer off", async () => {
+    const prompts: string[] = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const messages = args.messages as Array<{
+            content?: string | Array<{ text?: string; type?: string }>;
+          }>;
+          const prompt =
+            messages
+              .flatMap((message) =>
+                Array.isArray(message.content) ? message.content : []
+              )
+              .find((part) => part.type === "text")?.text ?? "";
+          prompts.push(prompt);
+          const content = prompt.includes('text set to ""')
+            ? JSON.stringify({ summary: "A menu.", tags: ["menu"], text: "" })
+            : `{"tags":["menu"],"summary":"A menu.","text":"${"本日".repeat(900)}`;
+          return { choices: [{ message: { content } }] };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    (aiEnv.BUCKET as unknown as FakeBucket).objects.set("users/u1/menu.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as unknown as typeof fetch;
+
+    const { generateImageMetadataForOp } = await import(
+      "../images/imageMetadata"
+    );
+    const result = await generateImageMetadataForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/menu.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    expect(result).toEqual({ summary: "A menu.", tags: ["menu"] });
+    expect(prompts).toHaveLength(3);
+    expect(prompts[1]).toContain("at most 1000 characters");
+  });
+
+  test("extract-image-text reads only the text, and retries a cut-off answer for less", async () => {
+    const calls: Array<{ prompt: string; system: string }> = [];
+    const aiEnv = withObjectGates({
+      AI: {
+        run: (_model: string, args: Record<string, unknown>) => {
+          const [system, user] = args.messages as Array<{
+            content: string | Array<{ text?: string; type?: string }>;
+          }>;
+          const prompt = Array.isArray(user?.content)
+            ? (user.content.find((part) => part.type === "text")?.text ?? "")
+            : "";
+          calls.push({ prompt, system: String(system?.content) });
+          expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
+          expect(args.frequency_penalty).toBeUndefined();
+          const content =
+            calls.length === 1
+              ? `{"text":"${"Slide ".repeat(900)}`
+              : JSON.stringify({ text: "Q3 roadmap\nShip OCR" });
+          return { choices: [{ message: { content } }] };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    (aiEnv.BUCKET as unknown as FakeBucket).objects.set("users/u1/og.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as unknown as typeof fetch;
+
+    const { extractImageTextForOp, IMAGE_TEXT_SYSTEM_PROMPT } = await import(
+      "../images/imageMetadata"
+    );
+    const result = await extractImageTextForOp(
+      aiEnv,
+      { origin: "https://files.teakvault.com", sourceKey: "users/u1/og.png" },
+      Math.floor(Date.now() / 1000),
+      fakeFetch
+    );
+    expect(result).toEqual({ text: "Q3 roadmap\nShip OCR" });
+    expect(calls.map((call) => call.system)).toEqual([
+      IMAGE_TEXT_SYSTEM_PROMPT,
+      IMAGE_TEXT_SYSTEM_PROMPT,
+    ]);
+    expect(IMAGE_TEXT_SYSTEM_PROMPT).not.toContain("tags");
+    expect(calls[1]?.prompt).toContain("at most 1000 characters");
+  });
+
+  test("generate-image-metadata retries transient Workers AI capacity errors", async () => {
+    let calls = 0;
+    const aiEnv = withObjectGates({
+      AI: {
+        run: () => {
+          calls += 1;
+          if (calls === 1) {
+            throw new Error(
+              "3040: Capacity temporarily exceeded, please try again."
+            );
+          }
+          return {
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    summary: "A recovered request.",
+                    tags: ["recovered"],
+                  }),
+                },
+              },
+            ],
+          };
+        },
+      },
+      BUCKET: new FakeBucket(),
+      FILES_SIGNING_SECRET: SECRET,
+    }) as unknown as Env;
+    const bucket = aiEnv.BUCKET as unknown as FakeBucket;
+    bucket.objects.set("users/u1/retry.png", {
+      bytes: new Uint8Array([1]),
+      httpMetadata: { contentType: "image/png" },
+    });
+    const fakeFetch = (() =>
+      Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      )) as typeof fetch;
+    const { generateImageMetadataForOp } = await import(
+      "../images/imageMetadata"
+    );
+
+    await expect(
+      generateImageMetadataForOp(
+        aiEnv,
+        {
+          origin: "https://files.teakvault.com",
+          sourceKey: "users/u1/retry.png",
+        },
+        Math.floor(Date.now() / 1000),
+        fakeFetch
+      )
+    ).resolves.toEqual({
+      summary: "A recovered request.",
+      tags: ["recovered"],
+    });
+    expect(calls).toBe(2);
+  });
+});
+
+test("frozen signed upload returns a conflict without replacing stored bytes", async () => {
+  const testEnv = env();
+  const key = "users/u1/cards/file/frozen.txt";
+  const original = new TextEncoder().encode("keep these bytes");
+  expect(
+    (
+      await worker.fetch(
+        await signedUploadRequest(original, { key }),
+        testEnv,
+        { waitUntil: () => undefined } as never
+      )
+    ).status
+  ).toBe(200);
+  expect(await freezeObject(testEnv, key)).toBe(true);
+  const response = await worker.fetch(
+    await signedUploadRequest(new TextEncoder().encode("late replacement"), {
+      key,
+    }),
+    testEnv,
+    { waitUntil: () => undefined } as never
+  );
+  expect(response.status).toBe(409);
+  expect(await response.json()).toMatchObject({
+    ok: false,
+    error: { code: "CONFLICT" },
+  });
+  expect(
+    (testEnv.BUCKET as unknown as FakeBucket).objects.get(key)?.bytes
+  ).toEqual(original);
+});
+
+test("unexpected storage failures remain internal errors and retain the pending write fence", async () => {
+  const testEnv = env();
+  const key = "users/u1/cards/file/unknown-write.txt";
+  testEnv.BUCKET.put = () => Promise.reject(new Error("object_gate_write_409"));
+  const response = await worker.fetch(
+    await signedUploadRequest(new TextEncoder().encode("unknown outcome"), {
+      key,
+    }),
+    testEnv,
+    { waitUntil: () => undefined } as never
+  );
+  expect(response.status).toBe(500);
+  expect(await response.json()).toMatchObject({
+    ok: false,
+    error: { code: "INTERNAL" },
+  });
+  expect(await freezeObject(testEnv, key)).toBe(false);
+});

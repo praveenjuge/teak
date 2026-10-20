@@ -4,7 +4,7 @@ import { unstable_readConfig } from "wrangler";
 import {
   API_PROXY_MAX_BODY_BYTES,
   upstreamPathFor,
-} from "../apps/files-worker/src/apiProxy";
+} from "../apps/files-worker/src/edge/apiProxy";
 import {
   API_REQUESTS,
   declaredLengthOver,

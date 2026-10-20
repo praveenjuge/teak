@@ -7,7 +7,7 @@ import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
+import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 
 export type CardWithUrls = Doc<"cards"> & {
   detailUrl?: string;

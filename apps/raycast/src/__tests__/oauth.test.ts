@@ -529,16 +529,16 @@ test.each([false, true])(
         "Sign Out before reconnecting",
       );
     } else {
-      const { request } = await import("../lib/api");
+      const { searchCards } = await import("../lib/api");
       globalThis.fetch = (async (input, init) => {
-        if (String(input).endsWith("/cards")) {
+        if (new URL(String(input)).pathname.endsWith("/cards")) {
           return json({}, 401);
         }
         return await transport(input, init);
       }) as typeof fetch;
-      await expect(
-        request("/cards", (payload) => payload, {}, "interactive"),
-      ).rejects.toThrow("Sign Out before reconnecting");
+      await expect(searchCards({}, "interactive")).rejects.toThrow(
+        "Sign Out before reconnecting",
+      );
     }
     expect(stores.get(key)).toBe(saved);
     expect(browserCount).toBe(0);

@@ -1,7 +1,7 @@
 import { internal } from "@teak/convex/_generated/api";
 import { buildRawSelectorMap } from "@teak/convex/workflows/steps/categorization/enrichment";
 import { resolveEnclosure } from "@teak/convex/workflows/steps/podcast/resolveEnclosure";
-import { runWithAiUsage } from "../../aiUsage";
+import { runWithAiUsage } from "../../ai/aiUsage";
 import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata, sanitizeTranscript } from "./aiMetadata";
 import {

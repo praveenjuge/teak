@@ -41,7 +41,7 @@ Import links from any CSV file whose header names the columns: url, title, tags,
   - The Convex validator is `importModeValidator` (`schema.ts:293–304`).
 - **Parsing:**
   - `import/sources.ts` `parseImportSource` switches on mode (lines 14–40).
-  - The Files Worker calls it in `apps/files-worker/src/importSource.ts` (around line 131) and maps `ImportLimitExceeded` to `invalid_bookmark_count`, everything else to `invalid_import_source`.
+  - The Files Worker calls it in `apps/files-worker/src/archives/importSource.ts` (around line 131) and maps `ImportLimitExceeded` to `invalid_bookmark_count`, everything else to `invalid_import_source`.
 - **Existing parsers to reuse:**
   - `import/onetab.ts` `parseOneTabText` already reads one `URL | Title` per line, caps at 10,000, and fails with `notAnExport("OneTab")` when there are no links.
   - `import/csv.ts` `parseCsvRows` is RFC 4180, capped at 10,000 rows. `isEmptyRow` skips blank rows.
@@ -85,7 +85,7 @@ Import links from any CSV file whose header names the columns: url, title, tags,
   - Tags split on `,`, else `|`, else `;`, with `#` stripped, through `cleanTags`.
 - **`import/sources.ts`:** `case "csv": return parseGenericCsv(text)` and `case "links": return parseOneTabText(text, "Text file")`.
 - **`import/onetab.ts`:** `parseOneTabText(text, source = "OneTab")`, so the `notAnExport` message names the chosen source.
-- **`apps/files-worker/src/importSource.ts`:** map an error whose message equals `missing_url_column` to that failure class, instead of `invalid_import_source`.
+- **`apps/files-worker/src/archives/importSource.ts`:** map an error whose message equals `missing_url_column` to that failure class, instead of `invalid_import_source`.
 
 ## Web
 
@@ -156,7 +156,7 @@ Import links from any CSV file whose header names the columns: url, title, tags,
 - `packages/convex/__tests__/import/genericCsv.test.ts`: every fixture, including the alias table (`test.each`), tag splitting, date formats, and the missing-url-column error.
 - `packages/convex/__tests__/import/onetab.test.ts`: the source label.
 - `packages/convex/__tests__/shared/importSources.test.ts`: hidden sources are excluded from the visible list, and the new failure is described.
-- `apps/files-worker/src/importSource.test.ts`: the failure-class mapping.
+- `apps/files-worker/src/archives/importSource.test.ts`: the failure-class mapping.
 - `apps/web/src/components/settings/__tests__/ImportPanel.test.tsx`: the picker order and that OneTab is hidden.
 - e2e: `packages/tests/src/web/import-csv.e2e.ts` (new). Import `full.csv` and see cards with their tags and folders; import `no-url.csv` and see the error.
 

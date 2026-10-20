@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { parseCardsPageResponse } from "../lib/apiParsers";
 import { createRaycastApiMock } from "./raycastApiMock";
 
 const getPreferenceValuesMock = mock(() => ({ apiKey: "valid-test-key" }));
@@ -50,7 +49,6 @@ const {
   createCard,
   getCardById,
   RaycastApiError,
-  request,
   restoreCard,
   saveFileCard,
   searchCards,
@@ -169,31 +167,31 @@ afterEach(() => {
 });
 
 describe("raycast request handling", () => {
-  test("enforces auth/content-type headers while preserving custom headers", async () => {
-    let capturedHeaders: Headers | null = null;
+  test("sends the API key, the Raycast user agent and a JSON body type", async () => {
+    const captured: Headers[] = [];
     const fetchMock = mock((_input: RequestInfo | URL, init?: RequestInit) => {
-      capturedHeaders = new Headers(init?.headers);
-      return createCardsResponse();
+      captured.push(new Headers(init?.headers));
+      return init?.method === "POST"
+        ? new Response(
+            JSON.stringify({
+              appUrl: null,
+              cardId: "card_1",
+              status: "created",
+            }),
+            { headers: { "Content-Type": "application/json" }, status: 201 },
+          )
+        : createCardsResponse();
     });
     globalThis.fetch = withDiscovery(fetchMock as unknown as typeof fetch);
 
-    await request(
-      "/cards?limit=1",
-      parseCardsPageResponse,
-      {
-        headers: {
-          Authorization: "Bearer attacker",
-          "Content-Type": "text/plain",
-          "X-Teak-Test": "present",
-        },
-        method: "GET",
-      },
-      "interactive",
-    );
+    await searchCards({ limit: 1 }, "interactive");
+    await createCard({ content: "Hello" }, "interactive");
 
-    expect(capturedHeaders?.get("authorization")).toBe("Bearer valid-test-key");
-    expect(capturedHeaders?.get("content-type")).toBe("application/json");
-    expect(capturedHeaders?.get("x-teak-test")).toBe("present");
+    const [listHeaders, createHeaders] = captured;
+    expect(listHeaders?.get("authorization")).toBe("Bearer valid-test-key");
+    expect(listHeaders?.get("user-agent")).toBe("teak-raycast");
+    expect(createHeaders?.get("authorization")).toBe("Bearer valid-test-key");
+    expect(createHeaders?.get("content-type")).toBe("application/json");
   });
 
   test("maps fetch failures to NETWORK_ERROR", async () => {
@@ -670,7 +668,10 @@ describe("raycast file saves and Trash", () => {
       if (url.endsWith("/uploads")) {
         return Promise.resolve(
           Response.json({
+            expiresIn: 900,
             fileKey: "users/u/file/poster.png",
+            maxFileSize: 104_857_600,
+            method: "PUT",
             uploadUrl: "https://files.example/put",
           }),
         );

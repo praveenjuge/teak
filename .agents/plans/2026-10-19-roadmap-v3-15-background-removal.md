@@ -26,10 +26,10 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
 
 - **Cloudflare Images supports background removal.** The Images binding's `ImageTransform` type has `segment?: 'foreground'` (`apps/files-worker/worker-configuration.d.ts:13749`), next to `background`, `fit` and `trim`. The binding is `IMAGES: ImagesBinding` (`worker-configuration.d.ts:18`, `wrangler.jsonc:93`).
   - Confirm on dev that `segment` runs through the binding (not only URL transforms) and how it is billed, before building on it. The fallback is in Risks.
-- `apps/files-worker/src/imagesBinding.ts`:
+- `apps/files-worker/src/images/imagesBinding.ts`:
   - `IMAGES_BINDING_MAX_INPUT_BYTES = 20 MB` (4);
   - `throughImagesBinding` (6).
-- `apps/files-worker/src/imageTransform.ts`:
+- `apps/files-worker/src/images/imageTransform.ts`:
   - Renditions tiny 48, compact 256, grid 512 and detail 1600 (30–35).
   - `transformViaBinding` (163) only outputs `image/avif` or `image/webp` (`bindingOutputFormat`, 150). Both keep alpha.
   - Other `Accept` values return `null` and fall back to another path (check that path for alpha; see Risks).

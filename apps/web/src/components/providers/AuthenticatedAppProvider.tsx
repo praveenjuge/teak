@@ -5,7 +5,7 @@ import {
 } from "@workos-inc/authkit-nextjs";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
-import { GlobalFileDropProvider } from "@/hooks/GlobalFileDropProvider";
+import { GlobalFileDropProvider } from "@/components/providers/GlobalFileDropProvider";
 import { readSidebarCookies } from "../app-shell/AppShellFrame";
 import { AppShellSkeleton } from "../app-shell/AppShellSkeleton";
 import { WebMcpTools } from "../app-shell/WebMcpTools";

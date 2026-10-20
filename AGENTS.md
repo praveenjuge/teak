@@ -25,7 +25,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 - The web app owns its UI in `apps/web/src`; read its `AGENTS.md` for where each kind of file goes. The browser extension keeps its own small copies of the button, wordmark and theme tokens. Pure helpers that several surfaces share (web, docs, extension, native ports) go in `packages/convex/shared`.
 - Card processing is orchestrated by the Files Worker's Cloudflare Workflow (`apps/files-worker/src/workflows/cardProcessing/run.ts`), started from Convex with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Preserve workflow retries, the processing-revision guard on every write, and `processingStatus` consistency.
 - Supported card types are text, link, image, video, audio, document, palette, and quote.
-- `teakvault.com/api`, `/mcp` and the OAuth discovery documents reach Convex only through the Files Worker's edge proxy (`apps/files-worker/src/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them.
+- `teakvault.com/api`, `/mcp` and the OAuth discovery documents reach Convex only through the Files Worker's edge proxy (`apps/files-worker/src/edge/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them.
 
 ## Convex work
 

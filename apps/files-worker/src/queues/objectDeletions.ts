@@ -1,7 +1,7 @@
 import { parseCardObjectKey } from "@teak/files-protocol";
 import { DELETE_OBJECTS_MAX_KEYS } from "../ops";
+import { isValidUploadKey } from "../storage/upload";
 import { reportBackgroundError } from "../telemetry";
-import { isValidUploadKey } from "../upload";
 import type { FilesOpCaller } from "../workflows/deps";
 import type { ObjectDeletionMessage } from "../workflows/dispatch";
 import { callFilesOp } from "../workflows/filesOps";

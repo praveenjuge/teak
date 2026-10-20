@@ -5,8 +5,8 @@ import {
 } from "./deletionGate";
 
 export { ObjectDeletionGate } from "./deletionGate";
-export { MediaRenderer } from "./mediaRenderer";
-export { LinkFetcher } from "./remoteAsset";
+export { MediaRenderer } from "./media/mediaRenderer";
+export { LinkFetcher } from "./media/remoteAsset";
 export {
   AccountDeletionWorkflow,
   CardProcessingWorkflow,
@@ -24,10 +24,15 @@ import {
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
 } from "@teak/files-protocol";
-import { handleApiProxyRequest } from "./apiProxy";
-import { handleScheduled } from "./cron";
-import { applyEdgeRateLimit, type EdgeRateLimitEnv } from "./edgeRateLimit";
-import { handleImageRequest, handleImageSourceRequest } from "./imageTransform";
+import { handleApiProxyRequest } from "./edge/apiProxy";
+import {
+  applyEdgeRateLimit,
+  type EdgeRateLimitEnv,
+} from "./edge/edgeRateLimit";
+import {
+  handleImageRequest,
+  handleImageSourceRequest,
+} from "./images/imageTransform";
 import {
   parseSingleByteRange,
   verifyHmacPayload,
@@ -39,9 +44,10 @@ import {
   handleWorkosWebhookIngress,
   WORKOS_WEBHOOK_PATH_PREFIX,
 } from "./queues/workosEvents";
-import { retryingReads } from "./r2Retry";
+import { handleScheduled } from "./scheduled/cron";
+import { retryingReads } from "./storage/r2Retry";
+import { handleSignedUpload } from "./storage/upload";
 import { reportUnhandledError } from "./telemetry";
-import { handleSignedUpload } from "./upload";
 import type { BackgroundEnv } from "./workflows/runtime";
 
 export type Env = BackgroundEnv & EdgeRateLimitEnv;

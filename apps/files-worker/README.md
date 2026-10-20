@@ -29,7 +29,7 @@ The worker also owns the Images (`IMAGES`) and Workers AI (`AI`) bindings:
 only unique transformed variants (`tiny`, `compact`, `grid`, `detail`) consume
 Image Transformations, and image understanding runs on Workers AI inside the
 worker. Text, link and image metadata calls go through the AI Gateway named by
-the `AI_GATEWAY_ID` var (`src/aiGateway.ts`) for request, token, cost and error
+the `AI_GATEWAY_ID` var (`src/ai/aiGateway.ts`) for request, token, cost and error
 analytics. Whisper transcription calls Workers AI directly, because it streams
 the audio and AI Gateway does not accept streamed bodies. Calls set
 `collectLog: false`, so prompts and replies, which hold card content, are never
@@ -46,12 +46,28 @@ Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
 audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
 "Rendering and media" and "Media renderer Container").
 
+## Source layout
+
+`src/index.ts` is the entry: file delivery, signed uploads and the routes below. The root of `src/` keeps only it and the plumbing every area shares (`ops.ts`, the internal ops router; `lib.ts`; `telemetry.ts`; `convexRpc.ts`; `opFailure.ts`; `deletionGate.ts`). Everything else sits in the folder for its area, and a module's tests sit next to it as `*.test.ts`:
+
+| Folder | What goes there |
+| --- | --- |
+| `edge/` | The public API and MCP proxy, edge identity and edge rate limits ("Public API and MCP proxy"). |
+| `ai/` | Workers AI calls and their accounting: the AI gate and Gateway, usage and pricing, decisions, text metadata, transcripts and Vectorize embeddings. |
+| `images/` | Image transforms, analysis, EXIF, palettes, the Images binding and the WASM decoders. |
+| `media/` | Browser Run, the media renderer and link fetcher Containers, link pages, linked PDFs, PDF OCR and remote assets ("Rendering and media"). |
+| `archives/` | ZIP reading, file inspection, export archives and import sources. |
+| `storage/` | Signed uploads, R2 retries, multipart cleanup and onboarding files. |
+| `scheduled/` | Cron Triggers: the cron router, hourly cleanup and workflow reconciliation. |
+| `workflows/`, `queues/` | Cloudflare Workflows (card processing, imports, exports, account deletion) and queue consumers. |
+| `test/`, `fixtures/` | Shared test doubles and binary fixtures. |
+
 ## Public API and MCP proxy
 
 `teakvault.com/api`, `/mcp` and the OAuth discovery documents
 (`/.well-known/oauth-protected-resource`, `/.well-known/oauth-protected-resource/mcp`
 and `/.well-known/teak-oauth-clients.json`) reach Convex through this Worker
-(`src/apiProxy.ts`). Zone routes in `wrangler.jsonc` catch those paths on
+(`src/edge/apiProxy.ts`). Zone routes in `wrangler.jsonc` catch those paths on
 `teakvault.com`, which Cloudflare already proxies, and the rest of the site
 stays on its own origin. The proxy forwards each request to the same Convex
 HTTP path the docs site's Vercel rewrites used (`/api` → `/v1`,
@@ -70,7 +86,7 @@ Worker proxies nothing, and the development Worker sets neither.
   site's origin.
 - This Worker is the only way these paths reach Convex: the docs site's Vercel
   rewrites are gone, so without the zone routes they would get the site's 404.
-  `src/apiProxy.test.ts` checks that every path the rewrites used to serve
+  `src/edge/apiProxy.test.ts` checks that every path the rewrites used to serve
   still reaches the same Convex URL through a route here.
 - Errors the Worker answers itself carry the API's CORS headers, an
   `X-Request-Id` and `no-store`, like Convex's own API errors.
@@ -97,7 +113,7 @@ WAF: Read for a dry run or `--check`).
 
 ### Edge identity
 
-`src/edgeIdentity.ts` resolves each API and MCP request to one rate-limit
+`src/edge/edgeIdentity.ts` resolves each API and MCP request to one rate-limit
 bucket, so limits follow the user across their API keys and OAuth apps:
 `user:<teakUserId>` for a known Teak API key or a WorkOS access token that
 verifies at the edge (`verifyWorkosConnectToken` from `@teak/convex`, against
@@ -119,7 +135,7 @@ cached.
 
 ### Edge rate limits
 
-`src/edgeRateLimit.ts` charges every proxied request (not preflights) to its
+`src/edge/edgeRateLimit.ts` charges every proxied request (not preflights) to its
 bucket before it reaches Convex:
 
 - `API_REQUEST_LIMITER`, 120 a minute, for a known user, and for a request
@@ -154,7 +170,7 @@ requests, defer edits rather than refusing them, or never pass the edge.
 MCP clients open every session with `initialize`, a
 `notifications/initialized`, `tools/list`, and then `ping` now and then. For a
 `/mcp` POST the edge has tied to a Teak user (`user:` identity) and charged to
-that user's limit, `src/mcpEdge.ts` answers those messages itself: if every
+that user's limit, `src/edge/mcpEdge.ts` answers those messages itself: if every
 message in the body (one, or a batch of up to 100) is one of them, the Worker
 replies with the JSON-RPC result, `202` with no body for notifications alone,
 and the headers Convex adds (`MCP_CORS_HEADERS`, the API's CORS headers,
@@ -181,9 +197,9 @@ Operation request bodies are limited to 1 MiB before signature verification.
   Renditions are generated on demand and no image derivative is written to R2.
 - `build-export` — streams a manifest-described set of objects through
   client-zip into a checkpointed multipart ZIP upload that resumes after
-  transient failures (`src/export.ts`).
+  transient failures (`src/archives/export.ts`).
 - `inspect` — bounded inspection returning facts or AI text without the
-  object transiting Convex (`src/inspect.ts`): zip archives are walked via R2
+  object transiting Convex (`src/archives/inspect.ts`): zip archives are walked via R2
   ranged reads (EOCD → central directory → selected entries) so memory stays
   flat regardless of archive size; CSS and text modes are byte-bounded.
   The `pdf` mode runs `pdftotext` in the media renderer on PDFs up to the
@@ -216,10 +232,10 @@ Operation request bodies are limited to 1 MiB before signature verification.
 - `generate-image-metadata` feeds the existing `detail` rendition into
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
-  bytes never leave the worker (`src/imageMetadata.ts`).
+  bytes never leave the worker (`src/images/imageMetadata.ts`).
 - `store-onboarding-files` copies a new account's getting-started files into
   R2 at the keys Convex names (at most 32), with the content type Convex gives,
-  and answers each object's size (`src/onboardingFiles.ts`). The files ship
+  and answers each object's size (`src/storage/onboardingFiles.ts`). The files ship
   with the Worker as static assets (`assets/onboarding/`, the `ASSETS`
   binding, read with `env.ASSETS.fetch`), so they never pass through Convex
   and do not count toward the script size. A card's files land together or
@@ -277,7 +293,7 @@ The Worker targets Workers Paid. `wrangler.jsonc` raises `cpu_ms` to 5 minutes
 and `subrequests` to 20,000 so an export of up to 10,000 files (5 GB) fits in
 one request; Workers Free allows 10 ms of CPU and 1,000 R2 calls per request.
 
-Browser Run is shared across operations (`src/browserSessions.ts`): each one
+Browser Run is shared across operations (`src/media/browserSessions.ts`): each one
 joins a running browser when there is one and launches a browser that stays up
 for 60 seconds otherwise, then works in its own browser context and
 disconnects. Joining a running browser does not count against Browser Run's
@@ -297,9 +313,9 @@ Run's local mode runs a real Chrome under `wrangler dev`, and the tests in
 `container/` is a Bun server compiled into one static binary
 (`bun build --compile`) on Alpine with ffmpeg and poppler-utils; its header
 comment in `container/src/server.ts` is the HTTP contract. The Worker reaches
-it through the `MediaRenderer` Durable Object (`src/mediaRenderer.ts`), which
+it through the `MediaRenderer` Durable Object (`src/media/mediaRenderer.ts`), which
 starts the Container with `enableInternet: false`, waits for `/health`, and
-forwards jobs. `src/rendererClient.ts` picks a random instance from
+forwards jobs. `src/media/rendererClient.ts` picks a random instance from
 `renderer-0` to `renderer-<MEDIA_RENDERER_INSTANCES - 1>`, moves to the next
 on `busy`, and checks the manifest and every output (JPEG, PNG and MP3
 signatures, size caps) before anything is stored. The Container has no R2
@@ -345,7 +361,7 @@ stores every output.
 - `read-import-markdown` returns one UTF-8 Markdown entry (512 KiB maximum),
   or a typed per-item decoding/size failure. The Workflow decides whether a
   legacy document becomes a text card.
-- ZIP inspection, indexing, and `extract-import-files` share `src/zip.ts`.
+- ZIP inspection, indexing, and `extract-import-files` share `src/archives/zip.ts`.
   Ranged reads support classic ZIP and ZIP64 offsets within the existing 5 GiB
   archive/expanded-byte limits. Central directories are capped at 32 MiB and
   20,002 entries (10,000 cards plus files and metadata). Multi-disk, encrypted,
@@ -406,7 +422,7 @@ through the old functions until they finish (`.agents/sunset.md`).
 and posters of social posts, and stores them in R2, so their bytes no longer
 pass through Convex. Convex names the URL, the kind (`image` or `video`) and the
 destination key; the Worker forwards the download to the link fetcher
-Container (`LINK_FETCHER`, `src/remoteAsset.ts`) and writes what comes back.
+Container (`LINK_FETCHER`, `src/media/remoteAsset.ts`) and writes what comes back.
 
 The fetcher (`fetcher/`) is the only Container with internet access. It runs
 Node, because the policy depends on a pinned connection that the Workers
@@ -427,7 +443,7 @@ SSRF guard Convex used runs unchanged, bundled by path rather than copied:
 Card processing (`src/workflows/cardProcessing/`) runs the same `safeFetch`
 in the Worker for the requests it makes to user URLs (Bluesky, Mastodon,
 Reddit and TikTok post APIs): it resolves each hop's host with DNS over HTTPS
-(`src/pinnedHop.ts`) and sends one hop at a time to `POST /hop`
+(`src/media/pinnedHop.ts`) and sends one hop at a time to `POST /hop`
 (`fetcher/src/hop.ts`), which checks the addresses again with the same policy,
 connects only to them, and returns a redirect unfollowed, so the Worker checks
 its target before the next hop. A hop carries only `accept` and `user-agent`
@@ -463,7 +479,7 @@ else UTF-8), so non-UTF-8 sites no longer get garbled titles.
 
 When the static HTML matches nothing, as on pages that build their tags in
 script, the Worker renders the same HTML offline on Browser Run
-(`src/linkPage.ts`), as Convex did with a second `scrape-html` call; a failed
+(`src/media/linkPage.ts`), as Convex did with a second `scrape-html` call; a failed
 or unavailable browser keeps the static result. The result carries the
 selectors, the page's URL after redirects, the charset, which pass produced
 them (`static` or `browser`), and the decoded page as gzipped UTF-8 for
@@ -530,7 +546,7 @@ cosine, a string metadata index on `type`), which holds card embeddings for
 semantic search, one namespace per user. `capabilities` reports `vectors` when it is bound. The model, prompts and
 shard layout are in `.agents/semantic-search.md`.
 
-Four signed ops read and write the index (`src/vectors.ts`):
+Four signed ops read and write the index (`src/ai/vectors.ts`):
 
 - `embed-upsert` embeds up to 32 card texts with the document prompt and
   upserts them into one namespace, each with its card's `type` as metadata.
@@ -595,7 +611,7 @@ go inline, and Convex archives those itself as before. The rules are in
 
 Before an AI call (Clef decisions, AI metadata, link image text, podcast
 transcripts) a step checks the account's AI gate (`adminAccess:getAiGate`)
-through `src/aiGate.ts`, which reuses an answer for up to 60 seconds: first
+through `src/ai/aiGate.ts`, which reuses an answer for up to 60 seconds: first
 from a memo in the isolate, then from the Cache API in that data center, and
 only then over the RPC endpoint. A card run asks Convex once instead of once
 per AI step, and runs for the same account within the minute usually not at
@@ -626,7 +642,7 @@ Explorer shows each run's steps, logs and stored objects
 
 ## Cron Triggers
 
-`src/cron.ts` runs the background tasks that used to be Convex crons; Convex
+`src/scheduled/cron.ts` runs the background tasks that used to be Convex crons; Convex
 keeps the table logic in internal functions the Worker calls. The
 schedules live in `packages/convex/cronSchedules.ts` (`runsOn: "cloudflare"`)
 and must equal `triggers.crons` in both Wrangler configs; a Convex test checks.
@@ -646,7 +662,7 @@ health view lists them beside Convex's own crons.
 | `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below) |
 | `45 * * * *` | Workflow reconcile (`reconcile-workflows`) and the hourly cleanups below |
 
-The hourly cleanups (`src/hourlyCleanup.ts`) run side by side, each with its
+The hourly cleanups (`src/scheduled/hourlyCleanup.ts`) run side by side, each with its
 own heartbeat, and page Convex until it has nothing left:
 
 - `cleanup-semantic-search-cache` deletes expired rows from both search
@@ -673,7 +689,7 @@ includes every `runsOn: "cloudflare"` task, so no cleanup stops running in
 between. Every cleanup is safe to repeat, so a Convex cron and the Worker
 running the same task during a deploy do no harm.
 
-The reconcile (`src/workflowReconcile.ts`) asks Convex for runs that have not
+The reconcile (`src/scheduled/workflowReconcile.ts`) asks Convex for runs that have not
 reported for longer than their kind allows (`workflowDispatch:listStale`) and
 looks each instance up through its binding: `complete` reports complete, and
 `errored` or `terminated` reports errored with the instance's error, so the
@@ -767,14 +783,14 @@ Every Workers AI call made inside `runWithAiUsage` (card metadata for text,
 links and images, Whisper transcripts and embeddings, when a workflow or queue
 step runs them for a card) writes one data point to the `AI_USAGE` dataset
 (`teak_ai_usage`; `teak_dev_ai_usage` for the development Worker) through
-`meteredAiRun` in `src/aiUsage.ts`: index `[userId]`, blobs
+`meteredAiRun` in `src/ai/aiUsage.ts`: index `[userId]`, blobs
 `[convexSiteUrl, model, functionId, outcome]` and doubles
 `[calls, errors, inputTokens, outputTokens, costUsd, latencyMs]`, with the cost
-from the Workers AI price list in `src/aiPricing.ts`. Calls
+from the Workers AI price list in `src/ai/aiPricing.ts`. Calls
 outside a card's context (search, ops Convex calls directly) are not charged
 to anyone, and a failed write never fails the call.
 
-The hourly rollup (`src/aiUsageRollup.ts`) queries the Analytics Engine SQL API
+The hourly rollup (`src/ai/aiUsageRollup.ts`) queries the Analytics Engine SQL API
 for today and yesterday (UTC), per deployment, weighting every sum by
 `_sample_interval`, and sets each user's absolute totals for the day with
 `adminUsage:replaceDailyUsage`, at most 200 users a call. A repeated run writes
@@ -833,14 +849,14 @@ request's validated `Content-Type` header is stored verbatim (used when the
 encoding is decided at generation time, e.g. WebP-vs-JPEG video frames).
 `Content-Length` is mandatory, oversized bodies are rejected, and keys must
 live under a `users/<id>/...` (or `dev/users/<id>/...` for dev) prefix
-with no traversal segments (`src/upload.ts`). Server-generated media signs
+with no traversal segments (`src/storage/upload.ts`). Server-generated media signs
 without a bound size and relies on the worker's hard cap instead.
 
 Convex owns authorization, durable product state, and workflow orchestration;
 this Worker is the one canonical implementation for file-byte operations.
 
 WASM modules are statically imported and arrive as build-time compiled
-`WebAssembly.Module`s under wrangler (see `src/wasm.ts`).
+`WebAssembly.Module`s under wrangler (see `src/images/wasm.ts`).
 
 ## Commands
 

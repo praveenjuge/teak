@@ -24,8 +24,8 @@ import {
   FILES_EXPORT_MANIFEST_VERSION,
   type FilesExportManifest,
 } from "@teak/files-protocol";
+import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
-import type { BuildExportResult } from "../export";
 import { resolveDeps, settleConvexErrors, type WorkflowDeps } from "./deps";
 import { type FilesOpOutcome, gatedEnv } from "./filesOps";
 import {

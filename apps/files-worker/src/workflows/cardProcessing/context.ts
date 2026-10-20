@@ -7,20 +7,20 @@ import {
   FILES_UPLOAD_MAX_BYTES,
   filesUserKeyRoot,
 } from "@teak/files-protocol";
-import { type AiGateReader, createAiGateReader } from "../../aiGate";
+import { type AiGateReader, createAiGateReader } from "../../ai/aiGate";
 import { type ConvexRpc, createConvexRpc } from "../../convexRpc";
 import {
   createContainerPinnedFetch,
   createContainerStreamingFetch,
   createDohResolver,
-} from "../../pinnedHop";
+} from "../../media/pinnedHop";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import type { BackgroundEnv } from "../runtime";
 import { EPISODE_DOWNLOAD_TIMEOUT_MS } from "./podcastAudio";
 
 export interface CardProcessingDeps {
-  /** The account's AI gate, reused for up to a minute (`src/aiGate.ts`). */
+  /** The account's AI gate, reused for up to a minute (`src/ai/aiGate.ts`). */
   aiGate: AiGateReader;
   convex: ConvexRpc;
   filesOp: FilesOpCaller;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createContainerStreamingFetch } from "../../pinnedHop";
+import { createContainerStreamingFetch } from "../../media/pinnedHop";
 import { createContainerNetwork } from "../../test/cardProcessingKit";
 import { FakeBucket } from "../../test/testsupport";
 import {

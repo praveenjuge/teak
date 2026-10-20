@@ -5,7 +5,7 @@ import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
 import type { FilesOp } from "@teak/files-protocol";
 import { sha256Hex } from "../../lib";
-import { createContainerPinnedFetch } from "../../pinnedHop";
+import { createContainerPinnedFetch } from "../../media/pinnedHop";
 import {
   CARD_ID,
   createCardConvex,

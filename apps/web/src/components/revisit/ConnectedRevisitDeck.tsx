@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import type { CardsSearchQueryArgs } from "../../hooks/cardsSearchState";
 import { useRevisitDeck } from "../../hooks/useRevisitDeck";
+import type { CardsSearchQueryArgs } from "../../lib/cardsSearchState";
 import { RevisitDeck } from "./RevisitDeck";
 
 export interface ConnectedRevisitDeckProps {

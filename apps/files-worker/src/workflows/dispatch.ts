@@ -18,8 +18,8 @@ import {
 } from "../convexRpc";
 import { sha256Hex, verifyHmacPayload } from "../lib";
 import { sendInBatches } from "../queues/sendBatch";
+import { isValidUploadKey } from "../storage/upload";
 import { sendBackendEvents, type TelemetryEnvVars } from "../telemetry";
-import { isValidUploadKey } from "../upload";
 
 export interface ObjectDeletionMessage {
   keys: string[];

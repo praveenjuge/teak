@@ -14,7 +14,7 @@ import {
   runBulkInChunks,
   UNDO_BULK_ACTION,
 } from "../lib/bulkCardActions";
-import { updateCardsInSearchQueries } from "./cardQueryOptimisticUpdates";
+import { updateCardsInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 
 export interface BulkActionOptions {
   folder?: BulkFolderTarget;

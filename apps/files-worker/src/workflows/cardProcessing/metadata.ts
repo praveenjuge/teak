@@ -19,7 +19,7 @@ import {
   isScannedPdf,
   MAX_AI_METADATA_INPUT_CHARS,
 } from "@teak/files-protocol";
-import { runWithAiUsage } from "../../aiUsage";
+import { runWithAiUsage } from "../../ai/aiUsage";
 import type { WorkflowTelemetry } from "../telemetry";
 import {
   generateImageMetadataForStoredKey,

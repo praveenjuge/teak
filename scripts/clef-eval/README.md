@@ -2,7 +2,7 @@
 
 Measures the Clef decisions (link category, card type, visual styles and Best
 match) on the hand-labelled fixtures in `fixtures/`, using the Files Worker's
-own prompts from `apps/files-worker/src/decisions.ts`. Use it before changing a
+own prompts from `apps/files-worker/src/ai/decisions.ts`. Use it before changing a
 prompt or a threshold in `DECISION_THRESHOLDS`
 (`packages/files-protocol/src/decisions.ts`), and bump that decision's
 `DECISION_VERSIONS` entry when you do.

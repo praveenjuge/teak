@@ -43,10 +43,10 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 
   New steps go at the end (`.agents/feature-conventions.md`).
 - **Page HTML today:**
-  - `fetchLinkPage` (`apps/files-worker/src/linkPage.ts:159-221`) asks the fetcher container for the static HTML. The fetcher caps a page at `MAX_PAGE_BYTES = 2 MiB` (`apps/files-worker/fetcher/src/fetchPage.ts:17`).
+  - `fetchLinkPage` (`apps/files-worker/src/media/linkPage.ts:159-221`) asks the fetcher container for the static HTML. The fetcher caps a page at `MAX_PAGE_BYTES = 2 MiB` (`apps/files-worker/fetcher/src/fetchPage.ts:17`).
   - It returns `htmlGzipBase64` and caches the result for 24 hours in KV `LINK_PAGE_CACHE` (`LINK_PAGE_CACHE_TTL_SECONDS`, line 25) when the page is cacheable.
   - The HTML is used for scraping and for the screenshot, then dropped. Nothing keeps it.
-- **Browser Rendering** (`apps/files-worker/src/browserRender.ts`):
+- **Browser Rendering** (`apps/files-worker/src/media/browserRender.ts`):
   - `withPage` (14–51) aborts every network request and disables WebSocket, EventSource and `sendBeacon`. It only `setContent`s the static HTML, at most `MAX_RENDER_HTML_BYTES = 2 MiB` (11).
   - So today Teak never runs a page's JavaScript and never loads its subresources. That is the safe default the archive keeps for server captures.
 - **Fetching assets safely:**

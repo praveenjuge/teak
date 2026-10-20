@@ -5,7 +5,7 @@ import { captureEvent } from "@teak/convex/shared/analytics";
 import { useConvex } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CardWithUrls } from "../components/cards/types";
-import type { CardsSearchQueryArgs } from "./cardsSearchState";
+import type { CardsSearchQueryArgs } from "../lib/cardsSearchState";
 
 export type RevisitCard = CardWithUrls & Pick<Doc<"cards">, "createdAt">;
 

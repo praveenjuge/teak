@@ -31,7 +31,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - Constants: `MAX_DECISION_QUESTIONS = 64`, `DECISION_VERSIONS` (`cardType`, `linkCategory`, `relevance`, `visualStyles`) and `DECISION_THRESHOLDS`.
   - Each decision has a reader function, for example `readLinkCategoryDecision`.
   - Ops are listed in `FILES_OPS` (`packages/files-protocol/src/index.ts:70-73`) and dispatched in `apps/files-worker/src/ops.ts:687-705`.
-- **Worker side** (`apps/files-worker/src/decisions.ts`):
+- **Worker side** (`apps/files-worker/src/ai/decisions.ts`):
   - `runClef` (around line 245) checks the question count, calls `ai.run`, retries capacity errors twice, and parses the reply with `parseClefReply`.
   - A `choice` question takes `criteria: Record<string, description>`. The reply's `choice` must be one of those keys and carries a probability for every key (`readAnswer`, around line 140).
   - `buildLinkCategoryRequest` and `decideLinkCategory` (around lines 315–400) are the template: build the state, ask one choice question, and return `decision: null` below the threshold.
@@ -93,7 +93,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - `FilesFolderDecisionParams { card: { title?, summary?, tags: string[], host?, type }, folders: Array<{ key, name, samples: string[] }> }`.
   - `FilesFolderDecisionResult extends FilesDecisionFacts { decision: { key: string; confidence: number } | null }`.
   - `readFolderDecision(value, keys)`.
-- `apps/files-worker/src/decisions.ts`:
+- `apps/files-worker/src/ai/decisions.ts`:
   - `buildFolderRequest(params)`: model `clef`. The state is the card. One `choice` question named `folder`:
     - instructions: "Which of the person's folders would they file this saved item in? Choose none unless one clearly fits."
     - criteria: `{ none: "None of these folders clearly fits", f0: 'Folder "Design". It holds: "Brutalist web layouts", "Type specimen sites"…', … }`
@@ -196,7 +196,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
 ## Tests
 
 - `packages/files-protocol/src/decisions.test.ts`: `readFolderDecision` accepts the given keys and rejects unknown keys and bad probabilities.
-- `apps/files-worker/src/decisions.test.ts`:
+- `apps/files-worker/src/ai/decisions.test.ts`:
   - `buildFolderRequest` checks its input and builds the criteria, including `none`;
   - `decideFolder` applies the threshold and handles `none` (Workers AI mocked).
 - `apps/files-worker/src/workflows/cardProcessing/run.test.ts`: the step is skipped when metadata did not complete, and records the suggestion when it did.
