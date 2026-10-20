@@ -232,6 +232,23 @@ test("Hide details in the menu hides the details, and I brings them back", async
   expect(window.localStorage.getItem(DETAILS_HIDDEN_KEY)).toBe("0");
 });
 
+test("I from a control in the details keeps focus in the dialog, so card keys still work", async () => {
+  await render(linkCard());
+  const aside = document.querySelector("aside[aria-label='Card details']");
+  const control = document.createElement("button");
+  aside?.append(control);
+  control.focus();
+  await act(() => {
+    control.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "i" })
+    );
+  });
+  expect(aside?.className).toContain("md:hidden");
+  expect(document.activeElement).toBe(
+    document.querySelector("[role='dialog']")
+  );
+});
+
 test("O and Mod+Enter open the link, and D marks it done", async () => {
   const toggleDone = mock();
   const { openLink } = await render(linkCard(), { toggleDone });

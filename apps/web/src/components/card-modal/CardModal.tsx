@@ -491,6 +491,16 @@ export function CardModal({
     (field === "notes" ? notesRef : tagInputRef).current?.focus();
   };
 
+  const asideRef = useRef<HTMLElement>(null);
+  const toggleDetails = () => {
+    // Hiding the panel would hide a focused control in it, dropping focus
+    // out of the dialog and with it every card key.
+    if (!detailsHidden && asideRef.current?.contains(document.activeElement)) {
+      contentRef.current?.focus();
+    }
+    setIsDetailsHidden((hidden) => !hidden);
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (
       event.defaultPrevented ||
@@ -556,7 +566,7 @@ export function CardModal({
         break;
       case "toggleDetails":
         if (!isMobile) {
-          setIsDetailsHidden((hidden) => !hidden);
+          toggleDetails();
         }
         break;
       default:
@@ -796,7 +806,7 @@ export function CardModal({
             <DropdownMenuSeparator />
             <DropdownMenuItem
               aria-keyshortcuts={DIALOG_KEYS.details.keys}
-              onClick={() => setIsDetailsHidden((hidden) => !hidden)}
+              onClick={toggleDetails}
             >
               {detailsHidden ? <PanelRightOpen /> : <PanelRightClose />}
               {detailsHidden ? "Show details" : "Hide details"}
@@ -1078,6 +1088,7 @@ export function CardModal({
                       "shrink-0 border-border/60 max-md:border-t md:w-72 md:overflow-y-auto md:border-l lg:w-80 xl:w-[21rem]",
                       detailsHidden && "md:hidden"
                     )}
+                    ref={asideRef}
                   >
                     <CardMetadataPanel
                       backlinks={backlinks}
