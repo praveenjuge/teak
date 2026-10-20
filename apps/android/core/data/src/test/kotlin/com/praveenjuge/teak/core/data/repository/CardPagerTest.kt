@@ -1,6 +1,12 @@
 package com.praveenjuge.teak.core.data.repository
 
+import com.praveenjuge.teak.core.model.BulkAction
+import com.praveenjuge.teak.core.model.BulkResult
 import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardLinkTarget
+import com.praveenjuge.teak.core.model.RefreshOutcome
+import com.praveenjuge.teak.core.model.SimilarAnchor
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
@@ -39,6 +45,15 @@ class CardPagerTest {
         override suspend fun deleteForever(id: String) = error("unused")
         override suspend fun apply(id: String, changes: List<CardFieldChange>) = error("unused")
         override suspend fun createFromText(text: String): String = error("unused")
+        override suspend fun setArchived(id: String, archived: Boolean) = error("unused")
+        override suspend fun setDone(id: String, done: Boolean) = error("unused")
+        override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult = error("unused")
+        override suspend fun refresh(id: String): RefreshOutcome = error("unused")
+        override fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>> = error("unused")
+        override fun backlinks(id: String): Flow<Result<CardBacklinks>> = error("unused")
+        override fun similarAnchor(id: String): Flow<Result<SimilarAnchor>> = error("unused")
+        override fun viewHasHiddenCards(view: LibraryView, folderId: String?): Flow<Result<Boolean>> = error("unused")
+        override suspend fun requestSemanticResults(search: String, folderId: String?): String = error("unused")
 
         companion object {
             val Card1 = CardSummary(id = "card_1", creationTime = 0.0, type = CardType.Text, title = "One")

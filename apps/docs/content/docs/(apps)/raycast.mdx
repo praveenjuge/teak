@@ -31,15 +31,18 @@ Prefer an API key? Paste one from **Teak Settings → Security → API keys** in
 
 ## Commands
 
-- **Quick Save**: Open an input form to type or paste text and URLs to save.
-- **Save to Teak**: Save any text or URL in one step. Accepts an optional argument and works as a [Raycast fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results can save that query straight to Teak.
+- **Quick Save**: Open an input form to type or paste text and URLs to save. Add tags and a note if you like.
+- **Save to Teak**: Save any text or URL in one step. Accepts optional content, tags and note arguments, and works as a [Raycast fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results can save that query straight to Teak.
 - **Save Clipboard**: Save the current clipboard contents to Teak with no prompt. A copied file or image is uploaded as a file card.
 - **Save Selected Text**: Save the text currently highlighted in any app. Ideal paired with a global hotkey.
 - **Save Current Browser Tab**: Save the active browser tab directly from Raycast. If the page is already in Teak, it says **Already saved** and offers to open the card instead. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
 - **Save Finder Selection**: Upload the files selected in Finder, up to 100 MB each, the same as dropping them on the web app.
 - **Search Cards**: Find and open cards instantly. Results keep loading as you scroll.
 - **Favorites**: Jump to your starred cards.
-- **Browse Tags**: See every tag in your vault with per-tag card counts, then drill into a tag to search within it.
+- **Browse Folders**: See your folders and smart folders, then open one to browse its cards.
+- **Browse Tags**: See every tag in your vault with per-tag card counts, then drill into a tag to search within it. Rename, merge or delete a tag from its actions.
+- **Random Cards**: See 20 shuffled cards from your vault. **Keep** moves to the next one; **Archive Card** puts it away. **Shuffle Again** (⌘R) deals a new set.
+- **Find Similar Cards**: Paste a card ID or a Teak link to see the cards closest to it in meaning.
 
 Like the web, Teak works out the card type from what you save: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Structured Markdown stays a text card exactly as entered.
 
@@ -52,19 +55,33 @@ Type these into **Search Cards** or **Favorites**, or pick them from the **Filte
 | Type | `type:image` |
 | Tag | `tag:design` or `tag:"design systems"` |
 | Favorites | `fav` |
+| Archive | `is:archived` |
+| Done or still to do (links) | `is:done`, `is:todo` |
+| Folder | `folder:"Reading list"` |
+| Similar to a card | `like:<card ID>` |
+| Image mood | `mood:"moody brutalist"` |
+| Words inside images and scans | `text:"total due"` |
+| Price | `price:<100` (also `>`, `<=`, `>=`, `=`) |
 | Trash | `trash` |
 | Color family | `hue:blue` |
 | Visual style | `style:minimal` |
 | Exact color | `#112233` |
 | Saved on or after / before | `after:2026-09`, `before:2026-10-15` |
-| Oldest first | `sort:oldest` |
+| Oldest first, or shuffled | `sort:oldest`, `sort:shuffle` |
 
-Cards tagged `secret` or `hidden` stay out of search and favorites unless you search that tag, such as `tag:secret`. See [Hidden cards](/docs/features#hidden-cards).
+**Filters** also has **Show Archive**, **Filter by Progress** (Done or To Do) and **Shuffle** under **Sort Results**. With a search typed, **Save Search as Smart Folder…** saves it as a smart folder; Trash, color, style and date filters can't be saved.
+
+Cards tagged `secret` or `hidden` stay out of search and favorites unless you search that tag, such as `tag:secret` or `#secret`. When a list is empty and you have hidden cards, Raycast says so, and after you add one of those tags in **Edit Card** it tells you how to find the card again. See [Hidden cards](/docs/features#hidden-cards).
 
 ### Card details and actions
 
-A card shows its image, text, notes, Teak's summary and tags, file name and size, link facts, palette colors, and transcript. Raycast can't play video or audio or preview documents, so use **Open File** (⌘⇧O) or **Open in Teak** (⌘O) for those.
+A card shows its image, text, notes, Teak's summary and tags, file name and size, link facts, palette colors, and transcript. A link also shows its category, price, byline and published date, and when you marked it done. Text with `[[` links shows each linked card by its current title, with a **Linked from** section for the cards that link back. Text saved from a web page shows **From** and the page's site. Raycast can't play video or audio or preview documents, so use **Open File** (⌘⇧O) or **Open in Teak** (⌘O) for those.
 
+- **Mark as Read** (⌘⇧D): on a link, marks it read, watched, listened, bought, cooked, played or done, depending on what the link is, and marks it again to take the mark off. A check shows beside done links.
+- **Find Similar** (⌘⇧S): opens a **Like:** list of the cards closest in meaning to this one.
+- **Add to Folder…** (⌘⇧F): puts the card in one of your folders. A smart folder shows the cards its search finds, so it isn't offered.
+- **Archive Card** (⌘⇧A): takes the card out of your library without deleting it, with an **Undo** option. **Unarchive** brings it back.
+- **Refresh Details** (⌘R): asks Teak to read the page and card again; the summary, tags and preview update in a moment.
 - **Edit Card** (⌘E): change notes and tags, rewrite text and quote cards, and remove tags Teak added.
 - **Copy Color**: copy any color from a palette or image.
 - **Move to Trash** (⌃X): moves the card to Trash with an **Undo** option.
@@ -77,12 +94,13 @@ Teak exposes the following tools for [Raycast AI](https://www.raycast.com/ai):
 | Tool                      | What it does                                                      |
 | ------------------------- | ----------------------------------------------------------------- |
 | **Save to Teak**          | Save a note or URL to your Teak library.                          |
-| **Search Teak Cards**     | Search cards by text, type, tags, favorite state, and sort order. |
+| **Search Teak Cards**     | Search cards by text, type, tags, folder, favorite, done and archive state, mood, similarity to a card, and sort order, including shuffle. |
 | **Get Recent Teak Cards** | Fetch the newest cards without a search query.                    |
 | **Get Teak Card**         | Fetch the full details of a specific card by ID.                  |
 | **List Teak Tags**        | List your tags with per-tag card counts.                          |
+| **List Teak Folders**     | List your folders and smart folders with card counts.             |
 | **Toggle Favorite**       | Favorite or unfavorite a card. Requires confirmation.             |
-| **Update Teak Card**      | Add or remove tags, including Teak's, or change notes. Requires confirmation. |
+| **Update Teak Card**      | Add or remove tags, including Teak's, change notes, mark a link done, archive a card, or add it to a folder. Requires confirmation. |
 
 AI tools use the same sign-in as the extension — no extra setup required.
 

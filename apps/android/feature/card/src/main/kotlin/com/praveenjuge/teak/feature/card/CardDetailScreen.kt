@@ -16,7 +16,34 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Download
@@ -67,6 +94,7 @@ import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
 import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ShareTarget
@@ -85,9 +113,27 @@ internal class CardDetailCallbacks(
     val onDeleteForever: () -> Unit = {},
     val onShareFile: () -> Unit = {},
     val onDownload: () -> Unit = {},
+    val onToggleDone: () -> Unit = {},
+    val onToggleArchived: () -> Unit = {},
+    val onRefreshDetails: () -> Unit = {},
+    val onMoreLikeThis: () -> Unit = {},
+    val onOpenCard: (String) -> Unit = {},
+    val onSetFolders: (List<String>) -> Unit = {},
+    val onCreateFolder: (String, (Folder) -> Unit) -> Unit = { _, _ -> },
 )
 
-private enum class PendingConfirm { Trash, DeleteForever }
+/** What a hardware key does on an open card: E archives, D marks done, R refreshes details, F favorites. */
+internal enum class DetailKey { Archive, Done, Refresh, Favorite }
+
+internal fun detailKeyAction(key: Key): DetailKey? = when (key) {
+    Key.E -> DetailKey.Archive
+    Key.D -> DetailKey.Done
+    Key.R -> DetailKey.Refresh
+    Key.F -> DetailKey.Favorite
+    else -> null
+}
+
+private enum class PendingConfirm { Trash, DeleteForever, Folders }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -100,9 +146,26 @@ internal fun CardDetailScreen(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val actions = rememberUiActions(snackbarHostState)
     var confirm by rememberSaveable { mutableStateOf<PendingConfirm?>(null) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(card?.id) { if (card != null) runCatching { focus.requestFocus() } }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
+            .focusRequester(focus)
+            .focusable()
+            .onKeyEvent { event ->
+                if (card == null || card.deleted || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed) return@onKeyEvent false
+                when (detailKeyAction(event.key)) {
+                    DetailKey.Archive -> callbacks.onToggleArchived()
+                    DetailKey.Done -> if (state.canMarkDone) callbacks.onToggleDone() else return@onKeyEvent false
+                    DetailKey.Refresh -> callbacks.onRefreshDetails()
+                    DetailKey.Favorite -> callbacks.onToggleFavorite()
+                    null -> return@onKeyEvent false
+                }
+                true
+            },
         topBar = {
             Column {
                 TopAppBar(
@@ -116,6 +179,23 @@ internal fun CardDetailScreen(
                     navigationIcon = {
                         IconButton(onClick = callbacks.onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        if (state.canMarkDone) {
+                            if (state.isDone) {
+                                FilledTonalButton(onClick = callbacks.onToggleDone, modifier = Modifier.semantics { selected = true }) {
+                                    Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                    Text(state.doneLabel)
+                                }
+                            } else {
+                                OutlinedButton(onClick = callbacks.onToggleDone) {
+                                    Icon(Icons.Outlined.Circle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                    Text(state.doneLabel)
+                                }
+                            }
                         }
                     },
                     scrollBehavior = scrollBehavior,
@@ -135,9 +215,11 @@ internal fun CardDetailScreen(
                 else -> CardToolbar(
                     card = card,
                     isFavorited = state.isFavorited,
+                    isRefreshing = state.isRefreshing,
                     callbacks = callbacks,
                     actions = actions,
                     onMoveToTrash = { confirm = PendingConfirm.Trash },
+                    onEditFolders = { confirm = PendingConfirm.Folders },
                 )
             }
         },
@@ -151,13 +233,16 @@ internal fun CardDetailScreen(
                     icon = Icons.Outlined.ErrorOutline,
                 )
             }
-            else -> CardDetailContent(
-                card = card,
-                documentText = state.documentText,
-                onSearchTag = callbacks.onSearchTag,
-                actions = actions,
-                modifier = Modifier.padding(padding),
-            )
+            else -> CompositionLocalProvider(LocalCardLinks provides CardLinkContext(state.linkTargets, callbacks.onOpenCard)) {
+                CardDetailContent(
+                    card = card,
+                    state = state,
+                    callbacks = callbacks,
+                    actions = actions,
+                    onEditFolders = { confirm = PendingConfirm.Folders },
+                    modifier = Modifier.padding(padding),
+                )
+            }
         }
     }
 
@@ -182,6 +267,16 @@ internal fun CardDetailScreen(
             },
             onDismiss = { confirm = null },
         )
+        PendingConfirm.Folders -> CardFoldersDialog(
+            folders = state.folders.filterNot { it.isSmart },
+            initial = card?.folderIds.orEmpty(),
+            onSave = { ids ->
+                confirm = null
+                callbacks.onSetFolders(ids)
+            },
+            onCreate = callbacks.onCreateFolder,
+            onDismiss = { confirm = null },
+        )
         null -> Unit
     }
 }
@@ -189,11 +284,14 @@ internal fun CardDetailScreen(
 @Composable
 private fun CardDetailContent(
     card: Card,
-    documentText: String?,
-    onSearchTag: (String) -> Unit,
+    state: CardDetailUiState,
+    callbacks: CardDetailCallbacks,
     actions: UiActions,
+    onEditFolders: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val documentText = state.documentText
+    val onSearchTag = callbacks.onSearchTag
     val openImage = rememberImageViewer(null)
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
@@ -213,7 +311,8 @@ private fun CardDetailContent(
             LinkDetailsSections(card, onOpenImage = openImage)
             NotesAndTagsSections(card, onSearchTag)
             SummarySections(card, onSearchTag)
-            InfoSection(card)
+            LinkedFromSection(state.backlinks, callbacks.onOpenCard)
+            InfoSection(card, state.cardFolders, onOpenSource = actions.openLink, onEditFolders = onEditFolders)
         }
     }
 }
@@ -223,9 +322,11 @@ private fun CardDetailContent(
 private fun CardToolbar(
     card: Card,
     isFavorited: Boolean,
+    isRefreshing: Boolean,
     callbacks: CardDetailCallbacks,
     actions: UiActions,
     onMoveToTrash: () -> Unit,
+    onEditFolders: () -> Unit,
 ) {
     val copyText = CardSheet.copyText(card)
     val shareTarget = CardSheet.shareTarget(card)
@@ -273,6 +374,32 @@ private fun CardToolbar(
                 Icon(Icons.Outlined.MoreVert, contentDescription = "More")
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                fun close(action: () -> Unit): () -> Unit = {
+                    menuOpen = false
+                    action()
+                }
+                DropdownMenuItem(
+                    text = { Text(if (card.archived) "Unarchive" else "Archive") },
+                    leadingIcon = { Icon(if (card.archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = null) },
+                    trailingIcon = { Text("E", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    onClick = close(callbacks.onToggleArchived),
+                )
+                DropdownMenuItem(
+                    text = { Text("More like this") },
+                    leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
+                    onClick = close(callbacks.onMoreLikeThis),
+                )
+                DropdownMenuItem(
+                    text = { Text("Folders…") },
+                    leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null) },
+                    onClick = close(onEditFolders),
+                )
+                DropdownMenuItem(
+                    text = { Text("Refresh details") },
+                    leadingIcon = { Icon(Icons.Outlined.Refresh, contentDescription = null) },
+                    enabled = !isRefreshing,
+                    onClick = close(callbacks.onRefreshDetails),
+                )
                 if (card.fileUrl != null) {
                     DropdownMenuItem(
                         text = { Text("Download") },

@@ -113,3 +113,29 @@ val ACTIONABLE_LINK_CATEGORIES: List<String> = listOf(
     "recipe",
     "tv",
 )
+
+const val MAX_TAG_KEY_LENGTH = 256
+
+const val MAX_BULK_CARD_IDS = 100
+
+const val MAX_BULK_TAGS = 20
+
+const val SEMANTIC_QUERY_MAX_CHARS = 500
+
+const val CARD_LINK_TITLE_MAX_LENGTH = 200
+
+const val MAX_CARD_LINKS = 500
+
+const val SEARCH_TOKEN_TRIM_CHARACTERS = ",.;:!?()[]{}\"'"
+
+val SEARCH_QUALIFIER_KEYS: List<String> = listOf(
+    "tag",
+    "type",
+    "is",
+    "site",
+    "folder",
+    "like",
+    "mood",
+    "price",
+    "text",
+)

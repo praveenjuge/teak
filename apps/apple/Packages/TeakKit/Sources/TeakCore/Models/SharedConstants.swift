@@ -7,6 +7,7 @@ public struct SharedConstants: Decodable, Sendable {
         public let maxFilesPerUpload: Int
         public let maxFileNameLength: Int
         public let markdownContentMaxBytes: Int
+        public let maxTagNameLength: Int
     }
 
     public struct Messages: Decodable, Sendable {
@@ -18,6 +19,10 @@ public struct SharedConstants: Decodable, Sendable {
     public let limits: Limits
     public let messages: Messages
     public let cardErrorMessages: [String: String]
+    public let tagErrorMessages: [String: String]
+    public let hiddenTagKeys: [String]
+    public let linkCategoryDoneVerbs: [String: String]
+    public let actionableLinkCategories: [String]
     public let visualStyles: [String]
     public let visualStyleLabels: [String: String]
     public let visualStyleAliases: [String: String]

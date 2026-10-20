@@ -13,7 +13,8 @@ import javax.inject.Inject
 sealed interface ShareResult {
     data object Empty : ShareResult
     data object SignInRequired : ShareResult
-    data object Saved : ShareResult
+    /** Everything was saved; [cardIds] are the text and link cards made right away (files upload later). */
+    data class Saved(val cardIds: List<String> = emptyList()) : ShareResult
     data class Partial(val saved: Int, val total: Int, val detail: String?) : ShareResult
     data class Failed(val detail: String?) : ShareResult
 }
@@ -32,9 +33,12 @@ class ShareImporter @Inject constructor(
         val processed = items.take(MAX_FILES_PER_UPLOAD)
         val extras = items.size - processed.size
         val failures = mutableListOf<String?>()
+        val created = mutableListOf<String>()
 
         for (item in processed.filterIsInstance<ShareItem.Text>()) {
-            catchingFailures { cards.createFromText(item.text) }.onFailure { failures += it.detail() }
+            catchingFailures { cards.createFromText(item.text) }
+                .onSuccess { created += it }
+                .onFailure { failures += it.detail() }
         }
 
         val files = processed.filterIsInstance<ShareItem.File>()
@@ -49,7 +53,7 @@ class ShareImporter @Inject constructor(
         val saved = processed.size - failures.size
         val detail = failures.firstNotNullOfOrNull { it } ?: if (extras > 0) TOO_MANY_ITEMS else null
         return when {
-            saved == items.size -> ShareResult.Saved
+            saved == items.size -> ShareResult.Saved(created)
             saved > 0 -> ShareResult.Partial(saved, items.size, detail)
             else -> ShareResult.Failed(detail)
         }

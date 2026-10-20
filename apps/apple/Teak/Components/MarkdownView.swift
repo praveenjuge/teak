@@ -4,6 +4,8 @@ import TeakCore
 struct MarkdownView: View {
     let markdown: String
     var baseFont: Font = .body
+    /// Live titles for `[[Title|teak:id]]` links; nil leaves tokens as text.
+    var cardLinks: [String: CardLinkTarget]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -49,11 +51,40 @@ struct MarkdownView: View {
     }
 
     private func inline(_ text: String) -> Text {
-        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        if let attributed = try? AttributedString(markdown: text, options: options) {
-            return Text(attributed)
+        guard let cardLinks, CardLinks.mayHaveCardLinks(text) else { return Text(attributed(text)) }
+        let source = text as NSString
+        var result = AttributedString()
+        var cursor = 0
+        for match in CardLinks.matches(text) {
+            result += attributed(source.substring(with: NSRange(location: cursor, length: match.start - cursor)))
+            result += pill(match, target: cardLinks[match.id])
+            cursor = match.end
         }
-        return Text(text)
+        result += attributed(source.substring(from: cursor))
+        return Text(result)
+    }
+
+    private func attributed(_ text: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+    }
+
+    /// A linked card as a tappable pill with its current title, or
+    /// "Missing card" when it's in Trash, deleted or not yours.
+    private func pill(_ match: CardLinks.Match, target: CardLinkTarget?) -> AttributedString {
+        if target?.missing == true {
+            var missing = AttributedString("\u{2009}Missing card\u{2009}")
+            missing.foregroundColor = .secondary
+            missing.backgroundColor = Color.secondary.opacity(0.12)
+            missing.strikethroughStyle = .single
+            return missing
+        }
+        let title = target?.title?.nonEmptyTrimmed ?? match.title.nonEmptyTrimmed ?? "Card"
+        var pill = AttributedString("\u{2009}\(title)\u{2009}")
+        pill.link = CardLinkURL.url(for: match.id)
+        pill.foregroundColor = .accentColor
+        pill.backgroundColor = Color.accentColor.opacity(0.12)
+        return pill
     }
 
     private func headingFont(_ level: Int) -> Font {
@@ -62,5 +93,24 @@ struct MarkdownView: View {
         case 2: .title3
         default: .headline
         }
+    }
+}
+
+/// `teak-card://<id>` links that open a card inside the app.
+enum CardLinkURL {
+    static let scheme = "teak-card"
+
+    static func url(for id: String) -> URL? { URL(string: "\(scheme)://\(id)") }
+
+    static func cardId(_ url: URL) -> String? {
+        guard url.scheme == scheme, let host = url.host(), !host.isEmpty else { return nil }
+        return host
+    }
+}
+
+private extension String {
+    var nonEmptyTrimmed: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }

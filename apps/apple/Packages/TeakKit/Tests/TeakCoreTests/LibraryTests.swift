@@ -118,7 +118,7 @@ private func day(_ milliseconds: Double) -> String {
         #expect(args["hexFilters"] == ["#FFFFFF"])
         #expect(args["showTrashOnly"] == true)
         #expect(args["types"] == ["video"])
-        #expect(args["searchQuery"] == "travel poster")
+        #expect(args["searchQuery"] == "tag:travel poster")
         guard case let .object(range)? = args["createdAtRange"], case let .number(start)? = range["start"] else {
             Issue.record("Expected a date range")
             return

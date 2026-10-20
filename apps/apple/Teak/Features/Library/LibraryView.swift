@@ -6,12 +6,18 @@ struct LibraryView: View {
     let namespace: Namespace.ID
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
+    private var services: AppServices { AppServices.shared }
     @State private var width = 0.0
     @State private var editing: CardRoute?
     @State private var exporting: CardFile?
     @State private var confirmingDelete: CardSummary?
     @State private var confirmingDeleteForever: CardSummary?
     @State private var confirmingBulkDelete = false
+    @State private var addingTags = false
+    @State private var bulkTags = ""
+    @State private var pickingFolder = false
+    @State private var folderPrompt: FolderPrompt?
+    @State private var revisiting = false
     @State private var tapCount = 0
     @FocusState private var focusedCard: String?
 
@@ -55,10 +61,43 @@ struct LibraryView: View {
                 Text("This removes the card and its files. You can't undo it.")
             }
             .confirmationDialog("Delete Forever?", isPresented: $confirmingBulkDelete) {
-                Button("Delete Forever", role: .destructive) { Task { await library.run(.deleteForever) } }
+                Button("Delete Forever", role: .destructive) { Task { await library.deleteSelectedForever() } }
             } message: {
                 let count = library.selection?.count ?? 0
                 Text("\(count == 1 ? "This card" : "\(count) cards") and their files will be removed. You can't undo it.")
+            }
+            .alert("Add Tags to \(BulkCardAction.cards(library.selection?.count ?? 0))", isPresented: $addingTags) {
+                TextField("design, inspiration", text: $bulkTags)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                Button("Cancel", role: .cancel) { bulkTags = "" }
+                Button("Add Tags") {
+                    let tags = CardEdit.adding(bulkTags, to: [])
+                    bulkTags = ""
+                    Task { await library.run(.addTags, tags: tags) }
+                }
+            } message: {
+                Text("Separate tags with commas.")
+            }
+            .sheet(isPresented: $pickingFolder) {
+                FolderPickerView(mode: .bulk(count: library.selection?.count ?? 0), folders: services.folders) { folder in
+                    Task { await library.run(.addToFolder, folder: folder) }
+                }
+            }
+            .sheet(isPresented: $revisiting) {
+                RevisitView(model: RevisitModel(backend: app.backend, library: library))
+            }
+            // The menu command asks the main library, never a folder's.
+            .onChange(of: router.isRevisiting) { _, asked in
+                guard asked, library === services.home else { return }
+                router.isRevisiting = false
+                revisiting = true
+            }
+            .folderPrompt($folderPrompt, actions: FolderActions(folders: services.folders, library: library))
+            .onChange(of: library.cards.isEmpty) { _, empty in if empty { library.checkHiddenCards() } }
+            .onChange(of: library.pager.isLoading) { _, loading in
+                if !loading, library.cards.isEmpty { library.checkHiddenCards() }
             }
             .sensoryFeedback(.impact(weight: .light), trigger: tapCount)
             .sensoryFeedback(trigger: library.status) { _, status in
@@ -109,6 +148,14 @@ struct LibraryView: View {
             // One scroll view for the skeleton and the grid, so the large title
             // keeps tracking it when the first page arrives.
             ScrollView {
+                if library.query.revealsHiddenCards {
+                    Label(HiddenTags.searchHint, systemImage: "eye.slash")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, CardGrid.edge + 4)
+                        .padding(.top, 4)
+                }
                 if cards.isEmpty {
                     SkeletonGrid(columns: columns, columnWidth: columnWidth)
                 } else {
@@ -225,7 +272,8 @@ struct LibraryView: View {
                 confirmingDelete = card
                 #endif
             },
-            confirmDeleteForever: { confirmingDeleteForever = $0 })
+            confirmDeleteForever: { confirmingDeleteForever = $0 },
+            moreLikeThis: { library.moreLike($0.id, title: $0.title) })
     }
 
     @ViewBuilder private var emptyState: some View {
@@ -237,13 +285,35 @@ struct LibraryView: View {
             ContentUnavailableView {
                 Label(state.title, systemImage: state.symbol)
             } description: {
-                Text(state.message)
+                VStack(spacing: 8) {
+                    if let message = semanticMessage ?? (state.message.isEmpty ? nil : state.message) { Text(message) }
+                    if library.hasHiddenCards, !query.hasSearch { Text(HiddenTags.emptyViewHint) }
+                }
             } actions: {
-                if library.filters.isActive || !library.tokens.isEmpty {
-                    Button("Clear Filters") { library.clearFilters() }
-                        .buttonStyle(.bordered)
+                if ["pending", "unavailable", "anchor_unavailable"].contains(library.semanticOutcome) {
+                    Button("Try Again") { library.reload() }.buttonStyle(.bordered)
+                } else if !library.tokens.isEmpty || (library.filters.isActive && library.filters.folder == nil) {
+                    // A folder page clears its search but stays on the folder.
+                    Button("Clear Filters") {
+                        let folder = library.filters.folder
+                        library.clearFilters()
+                        library.filters.folder = folder
+                    }
+                    .buttonStyle(.bordered)
+                } else if library.filters.folder != nil, library === services.home {
+                    Button("Show All Cards") { library.clearFilters() }.buttonStyle(.bordered)
                 }
             }
+        }
+    }
+
+    /// Why search by meaning found nothing, in the web's words.
+    private var semanticMessage: String? {
+        switch library.semanticOutcome {
+        case "pending", "anchor_unavailable": "Still learning about this card. Try again in a moment."
+        case "rate_limited": "Too many searches. Try again in a minute."
+        case "unavailable": "Couldn't search by meaning right now."
+        default: nil
         }
     }
 
@@ -268,13 +338,17 @@ struct LibraryView: View {
             }
             #endif
             ToolbarItem {
-                Button("Select", systemImage: "checkmark.circle") { library.beginSelection() }
-                    .accessibilityLabel("Select cards")
-                    .accessibilityIdentifier("library.select")
+                LibraryMenu(library: library, revisit: { revisiting = true }, saveSmartFolder: saveSmartFolder)
             }
-            ToolbarItem {
-                FilterMenu(library: library)
-            }
+        }
+    }
+
+    private var saveSmartFolder: (() -> Void)? {
+        let query = library.query
+        guard let smart = query.smartFolderQuery, query.filters.folder == nil else { return nil }
+        return {
+            folderPrompt = .smart(query: smart, name: query.suggestedSmartFolderName,
+                                  dropsFilters: query.smartFolderDropsFilters)
         }
     }
 
@@ -285,7 +359,8 @@ struct LibraryView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             if library.isSelecting {
-                SelectionBar(library: library, confirmDeleteForever: { confirmingBulkDelete = true })
+                SelectionBar(library: library, confirmDeleteForever: { confirmingBulkDelete = true },
+                             addTags: { addingTags = true }, addToFolder: { pickingFolder = true })
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -295,52 +370,113 @@ struct LibraryView: View {
     }
 }
 
-struct FilterMenu: View {
+/// The library's one header menu: select and revisit, what to show, and
+/// the order to show it in.
+struct LibraryMenu: View {
     @Bindable var library: LibraryModel
+    let revisit: () -> Void
+    let saveSmartFolder: (() -> Void)?
 
     var body: some View {
         Menu {
-            Toggle(isOn: $library.filters.favoritesOnly) { Label("Favorites", systemImage: "heart") }
-            Toggle(isOn: $library.filters.trashOnly) { Label("Trash", systemImage: "trash") }
-            Menu {
-                ForEach(CardType.allCases) { type in
-                    Toggle(type.plural, isOn: Binding(
-                        get: { library.filters.types.contains(type) },
-                        set: { _ in library.filters = library.filters.togglingType(type) }))
-                }
-            } label: {
-                Label("Type", systemImage: "square.grid.2x2")
+            Section {
+                Button("Select", systemImage: "checkmark.circle") { library.beginSelection() }
+                    .accessibilityIdentifier("library.select")
+                Button("Revisit", systemImage: "rectangle.stack", action: revisit)
+                    .disabled(library.isTrash || library.isArchive || library.cards.isEmpty)
+                    .accessibilityIdentifier("library.revisit")
             }
-            Menu {
-                ForEach(ColorHue.all) { hue in
-                    Toggle(isOn: Binding(
-                        get: { library.filters.hue == hue },
-                        set: { library.filters.hue = $0 ? hue : nil })) {
-                        Label {
-                            Text(hue.label)
-                        } icon: {
-                            colorDot(Color(hex: hue.hex) ?? .gray)
+            Section("Show") {
+                Toggle(isOn: $library.filters.favoritesOnly) { Label("Favorites", systemImage: "heart") }
+                Toggle(isOn: $library.filters.archivedOnly) { Label("Archive", systemImage: "archivebox") }
+                Toggle(isOn: $library.filters.trashOnly) { Label("Trash", systemImage: "trash") }
+                Menu {
+                    ForEach(CardType.allCases) { type in
+                        Toggle(type.plural, isOn: Binding(
+                            get: { library.filters.types.contains(type) },
+                            set: { _ in library.filters = library.filters.togglingType(type) }))
+                    }
+                } label: {
+                    Label("Type", systemImage: "square.grid.2x2")
+                }
+                Menu {
+                    ForEach(ColorHue.all) { hue in
+                        Toggle(isOn: Binding(
+                            get: { library.filters.hue == hue },
+                            set: { library.filters.hue = $0 ? hue : nil })) {
+                            Label {
+                                Text(hue.label)
+                            } icon: {
+                                colorDot(Color(hex: hue.hex) ?? .gray)
+                            }
+                        }
+                    }
+                } label: {
+                    Label("Color", systemImage: "paintpalette")
+                }
+            }
+            Picker("Sort", selection: Binding(get: { sortKind }, set: { chooseSort($0) })) {
+                Text(LibrarySort.newest.label).tag(0)
+                Text(LibrarySort.oldest.label).tag(1)
+                Text("Shuffle").tag(2)
+            }
+            .pickerStyle(.inline)
+            if library.sort.isShuffle {
+                Section {
+                    Button("Reshuffle", systemImage: "shuffle") { library.shuffle() }
+                }
+            }
+            if saveSmartFolder != nil || narrowed {
+                Section {
+                    if let saveSmartFolder {
+                        Button("Save as Smart Folder…", systemImage: "folder.badge.gearshape", action: saveSmartFolder)
+                    }
+                    if narrowed {
+                        // A folder page keeps its folder.
+                        Button("Clear Filters", systemImage: "xmark.circle", role: .destructive) {
+                            library.filters = LibraryFilters(folder: library.filters.folder)
                         }
                     }
                 }
-            } label: {
-                Label("Color", systemImage: "paintpalette")
-            }
-            if library.filters.isActive {
-                Divider()
-                Button("Clear Filters", systemImage: "xmark.circle", role: .destructive) { library.filters = .empty }
             }
         } label: {
-            Label("Filter", systemImage: library.filters.isActive
-                ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+            Label("More", systemImage: narrowed || library.sort != .newest
+                ? "ellipsis.circle.fill" : "ellipsis.circle")
+                .labelStyle(.iconOnly)
         }
-        .accessibilityLabel("Filter")
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("library.more")
+    }
+
+    /// Filters beyond the folder a page is scoped to.
+    private var narrowed: Bool {
+        var filters = library.filters
+        filters.folder = nil
+        return filters.isActive
+    }
+
+    private var sortKind: Int {
+        switch library.sort {
+        case .newest: 0
+        case .oldest: 1
+        case .shuffle: 2
+        }
+    }
+
+    private func chooseSort(_ kind: Int) {
+        switch kind {
+        case 1: library.sort = .oldest
+        case 2: if !library.sort.isShuffle { library.shuffle() }
+        default: library.sort = .newest
+        }
     }
 }
 
 struct SelectionBar: View {
     let library: LibraryModel
     let confirmDeleteForever: () -> Void
+    let addTags: () -> Void
+    let addToFolder: () -> Void
     @Namespace private var glass
 
     var body: some View {
@@ -353,11 +489,25 @@ struct SelectionBar: View {
                     Button("Delete Forever", systemImage: "trash", role: .destructive, action: confirmDeleteForever)
                         .glassEffectID("forever", in: glass)
                 } else {
-                    Button("Favorite", systemImage: "heart") { Task { await library.run(.favorite) } }
-                        .glassEffectID("favorite", in: glass)
-                    Button("Unfavorite", systemImage: "heart.slash") { Task { await library.run(.unfavorite) } }
-                        .glassEffectID("unfavorite", in: glass)
-                    Button("Delete", systemImage: "trash", role: .destructive) { Task { await library.run(.trash) } }
+                    if library.isArchive {
+                        Button("Unarchive", systemImage: "tray.and.arrow.up") { Task { await library.run(.unarchive) } }
+                            .glassEffectID("unarchive", in: glass)
+                    } else {
+                        Button("Archive", systemImage: "archivebox") { Task { await library.run(.archive) } }
+                            .glassEffectID("archive", in: glass)
+                    }
+                    Button("Add Tags…", systemImage: "tag", action: addTags)
+                        .glassEffectID("tags", in: glass)
+                    Button("Add to Folder…", systemImage: "folder.badge.plus", action: addToFolder)
+                        .glassEffectID("folder", in: glass)
+                    // Unfavorites when every chosen card is already a favorite.
+                    let unfavorite = !library.selectedCards.isEmpty && library.selectedCards.allSatisfy(\.favorited)
+                    Button(unfavorite ? "Remove from Favorites" : "Add to Favorites",
+                           systemImage: unfavorite ? "heart.slash" : "heart") {
+                        Task { await library.run(unfavorite ? .unfavorite : .favorite) }
+                    }
+                    .glassEffectID("favorite", in: glass)
+                    Button("Move to Trash", systemImage: "trash", role: .destructive) { Task { await library.run(.delete) } }
                         .glassEffectID("delete", in: glass)
                 }
             }
@@ -379,6 +529,12 @@ struct StatusToast: View {
             Image(systemName: status.isError ? "exclamationmark.circle" : "checkmark.circle")
                 .foregroundStyle(status.isError ? .red : .green)
             Text(status.text).font(.subheadline.weight(.medium))
+            if let undo = status.undo {
+                Button("Undo") { undo() }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.borderless)
+                    .accessibilityIdentifier("status.undo")
+            }
             #if os(macOS)
             if status.isCardLimit {
                 Button("Upgrade…") { openURL(app.config.webURL.appending(path: "settings")) }
@@ -389,7 +545,7 @@ struct StatusToast: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .glassEffect(.regular, in: .capsule)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: status.undo == nil ? .combine : .contain)
         .accessibilityAddTraits(.isStaticText)
         .onAppear { AccessibilityNotification.Announcement(status.text).post() }
     }

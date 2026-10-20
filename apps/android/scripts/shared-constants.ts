@@ -4,6 +4,14 @@
  */
 import { resolve } from "node:path";
 import {
+  MAX_BULK_CARD_IDS,
+  MAX_BULK_TAGS,
+} from "../../../packages/convex/card/bulkActions";
+import {
+  CARD_LINK_TITLE_MAX_LENGTH,
+  MAX_CARD_LINKS,
+} from "../../../packages/convex/shared/cardLinks";
+import {
   CARD_TYPE_LABELS,
   COLOR_HUE_BUCKETS,
   COLOR_HUE_LABELS,
@@ -17,11 +25,15 @@ import {
   ACTIONABLE_LINK_CATEGORIES,
   LINK_CATEGORY_DONE_VERB,
 } from "../../../packages/convex/shared/linkCategories";
+import { SEARCH_TOKEN_TRIM_CHARACTERS } from "../../../packages/convex/shared/search/constants";
+import { SEARCH_QUALIFIER_KEYS } from "../../../packages/convex/shared/search/qualifiers";
 import {
   HIDDEN_TAG_KEYS,
+  MAX_TAG_KEY_LENGTH,
   MAX_TAG_NAME_LENGTH,
   TAG_ERROR_MESSAGES,
 } from "../../../packages/convex/shared/tags";
+import { VECTOR_QUERY_MAX_CHARS } from "../../../packages/files-protocol/src/embeddings";
 
 export const SHARED_CONSTANTS_PATH = resolve(
   import.meta.dir,
@@ -70,6 +82,22 @@ export const renderSharedConstants = () =>
     `val LINK_CATEGORY_DONE_VERBS: Map<String, String> = ${kotlinMap(LINK_CATEGORY_DONE_VERB)}`,
     "",
     `val ACTIONABLE_LINK_CATEGORIES: List<String> = ${kotlinList([...ACTIONABLE_LINK_CATEGORIES].sort())}`,
+    "",
+    `const val MAX_TAG_KEY_LENGTH = ${MAX_TAG_KEY_LENGTH}`,
+    "",
+    `const val MAX_BULK_CARD_IDS = ${MAX_BULK_CARD_IDS}`,
+    "",
+    `const val MAX_BULK_TAGS = ${MAX_BULK_TAGS}`,
+    "",
+    `const val SEMANTIC_QUERY_MAX_CHARS = ${VECTOR_QUERY_MAX_CHARS}`,
+    "",
+    `const val CARD_LINK_TITLE_MAX_LENGTH = ${CARD_LINK_TITLE_MAX_LENGTH}`,
+    "",
+    `const val MAX_CARD_LINKS = ${MAX_CARD_LINKS}`,
+    "",
+    `const val SEARCH_TOKEN_TRIM_CHARACTERS = ${kotlinString(SEARCH_TOKEN_TRIM_CHARACTERS)}`,
+    "",
+    `val SEARCH_QUALIFIER_KEYS: List<String> = ${kotlinList(SEARCH_QUALIFIER_KEYS)}`,
     "",
   ].join("\n");
 

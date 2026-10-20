@@ -26,6 +26,26 @@ class LibraryFiltersTest {
     }
 
     @Test
+    fun `archive and trash are separate views`() {
+        val archive = LibraryFilters(trashOnly = true).toggleArchive()
+        assertEquals(LibraryFilters(archivedOnly = true), archive)
+        assertEquals(mapOf("showArchivedOnly" to true), archive.toSearchArgs())
+        assertEquals("Archive", archive.title)
+        assertEquals(LibraryFilters(trashOnly = true), archive.toggleTrash())
+    }
+
+    @Test
+    fun `each shuffle draws a fresh seed and sends it with the sort`() {
+        val random = kotlin.random.Random(7)
+        val first = LibraryFilters.Empty.sorted(CardSort.Shuffle, random)
+        val second = first.sorted(CardSort.Shuffle, random)
+        assertTrue(first.shuffleSeed != second.shuffleSeed)
+        assertEquals(mapOf("sort" to "shuffle", "shuffleSeed" to second.shuffleSeed), second.toSearchArgs())
+        assertEquals(mapOf("sort" to "oldest"), first.sorted(CardSort.Oldest).toSearchArgs())
+        assertEquals(emptyMap(), first.sorted(CardSort.Newest).toSearchArgs())
+    }
+
+    @Test
     fun `toggling a type adds it, then removes it`() {
         val withImages = LibraryFilters.Empty.toggleType(CardType.Image)
         assertEquals(listOf(CardType.Image), withImages.types)

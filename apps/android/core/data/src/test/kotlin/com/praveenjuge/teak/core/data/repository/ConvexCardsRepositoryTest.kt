@@ -1,7 +1,10 @@
 package com.praveenjuge.teak.core.data.repository
 
 import com.praveenjuge.teak.core.data.FakeConvexApi
+import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.LinkPrice
+import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.CreatedAtRange
 import com.praveenjuge.teak.core.model.LibraryFilters
@@ -105,4 +108,82 @@ class ConvexCardsRepositoryTest {
         assertEquals(mapOf("cardId" to "c2", "field" to "delete"), convex.calls[1].args)
     }
 
+    @Test
+    fun `summaries carry archive, done, category and price`() = runTest {
+        convex.responses["cards:searchMobileCardSummariesPaginated"] = {
+            buildJsonObject {
+                put("page", buildJsonArray {
+                    add(buildJsonObject {
+                        put("_id", "c1")
+                        put("_creationTime", 1.0)
+                        put("type", "link")
+                        put("title", "Lamp")
+                        put("isArchived", true)
+                        put("completedAt", 5.0)
+                        put("linkCategory", "product")
+                        put("linkPrice", buildJsonObject {
+                            put("amount", 24.99)
+                            put("currency", "USD")
+                        })
+                    })
+                })
+                put("isDone", true)
+                put("continueCursor", "")
+            }
+        }
+        val card = repository.page(CardQuery(folderId = "f1", filters = LibraryFilters(archivedOnly = true)), null, 20)
+            .first().getOrThrow().page.single()
+        assertEquals(true, card.archived)
+        assertEquals(true, card.isDone)
+        assertEquals("product", card.linkCategory)
+        assertEquals(LinkPrice(24.99, "USD"), card.linkPrice)
+        val args = convex.calls.single().args
+        assertEquals("f1", args["folderId"])
+        assertEquals(true, args["showArchivedOnly"])
+    }
+
+    @Test
+    fun `bulk actions go in batches of 100 and gather the failures`() = runTest {
+        convex.responses["cards:bulkUpdateCards"] = { args ->
+            @Suppress("UNCHECKED_CAST")
+            val ids = args["cardIds"] as List<String>
+            buildJsonObject {
+                put("updatedIds", buildJsonArray { ids.drop(1).forEach { add(JsonPrimitive(it)) } })
+                put("failedIds", buildJsonArray { add(JsonPrimitive(ids.first())) })
+            }
+        }
+        val ids = (1..250).map { "c$it" }
+        val result = repository.bulk(BulkAction.AddTags, ids, tags = listOf("design"))
+
+        assertEquals(listOf(100, 100, 50), convex.calls.map { (it.args["cardIds"] as List<*>).size })
+        assertEquals(listOf("c1", "c101", "c201"), result.failedIds)
+        assertEquals(247, result.updatedIds.size)
+        assertEquals(mapOf("action" to "addTags", "tags" to listOf("design")), convex.calls.first().args - "cardIds")
+    }
+
+    @Test
+    fun `a refused refresh carries the server's reason`() = runTest {
+        convex.responses["cards:reprocessCard"] = {
+            buildJsonObject {
+                put("status", "refused")
+                put("code", "RATE_LIMITED")
+                put("message", "This card is already refreshing. Try again in a minute.")
+            }
+        }
+        assertEquals(
+            RefreshOutcome.Refused("This card is already refreshing. Try again in a minute."),
+            repository.refresh("c1"),
+        )
+        convex.responses["cards:reprocessCard"] = { buildJsonObject { put("status", "queued") } }
+        assertEquals(RefreshOutcome.Queued, repository.refresh("c1"))
+    }
+
+    @Test
+    fun `archive and done use their own fields`() = runTest {
+        repository.setArchived("c1", true)
+        repository.setArchived("c1", false)
+        repository.setDone("c1", true)
+        repository.setDone("c1", false)
+        assertEquals(listOf("archive", "unarchive", "done", "undone"), convex.calls.map { it.args["field"] })
+    }
 }

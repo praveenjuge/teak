@@ -14,7 +14,10 @@ struct CardDetailView: View {
     @State private var showEditSheet = false
     @State private var exporting: CardFile?
     @State private var confirmDeleteForever = false
+    @State private var pickingFolders = false
     @State private var feedback = 0
+
+    private var library: LibraryModel { AppServices.shared.home }
 
     var body: some View {
         Group {
@@ -60,7 +63,7 @@ struct CardDetailView: View {
                     if let message = model.message {
                         Label(message, systemImage: "exclamationmark.circle").foregroundStyle(.red)
                     }
-                    if !isWide { CardSections(card: card) }
+                    if !isWide { sections(card, model) }
                 }
                 .padding(20)
                 .frame(maxWidth: 820)
@@ -68,11 +71,33 @@ struct CardDetailView: View {
             }
             .scrollEdgeEffectStyle(.soft, for: .top)
             .inspector(isPresented: Binding(get: { isWide && showsInspector }, set: { showsInspector = $0 })) {
-                ScrollView { CardSections(card: card).padding(20) }
+                ScrollView { sections(card, model).padding(20) }
                     .inspectorColumnWidth(min: 260, ideal: 320, max: 420)
             }
             .toolbar { toolbar(card, model) }
             .sheet(isPresented: $showEditSheet) { CardEditView(cardId: card.id) }
+            .sheet(isPresented: $pickingFolders) {
+                FolderPickerView(mode: .card(id: card.id, folderIds: card.folderIds ?? []), folders: AppServices.shared.folders)
+            }
+            .overlay(alignment: .bottom) {
+                if let notice = model.notice {
+                    Label(notice, systemImage: "checkmark.circle")
+                        .font(.subheadline.weight(.medium))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .glassEffect(.regular, in: .capsule)
+                        .padding(.bottom, 16)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .onAppear { AccessibilityNotification.Announcement(notice).post() }
+                }
+            }
+            .animation(.smooth, value: model.notice)
+            .environment(\.openURL, OpenURLAction { url in
+                guard let id = CardLinkURL.cardId(url) else { return .systemAction }
+                router.open(CardRoute(id: id, summary: nil))
+                return .handled
+            })
+            .focusedSceneValue(\.cardCommands, commands(card, model))
             .fileExporter(isPresented: Binding(presenting: $exporting), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [], defaultFilename: exporting?.fileName) { _ in
                 exporting = nil
@@ -91,8 +116,53 @@ struct CardDetailView: View {
         }
     }
 
+    private func sections(_ card: Card, _ model: CardDetailModel) -> some View {
+        CardSections(card: card, backlinks: model.backlinks?.backlinks ?? [], hasMoreBacklinks: model.backlinks?.hasMore == true,
+                     folderNames: folderNames(card), openCard: { router.open(CardRoute(id: $0, summary: nil)) },
+                     openSource: open, editFolders: card.deleted ? nil : { pickingFolders = true })
+    }
+
+    private func folderNames(_ card: Card) -> [String] {
+        let folders = AppServices.shared.folders
+        return (card.folderIds ?? []).compactMap { folders.folder($0)?.name }
+    }
+
+    private func commands(_ card: Card, _ model: CardDetailModel) -> CardCommands? {
+        guard !card.deleted else { return nil }
+        return CardCommands(
+            archiveTitle: card.archived ? "Unarchive" : "Archive",
+            doneTitle: card.type == .link ? (model.isDone ? "Mark as Not \(LinkDone.verb(card.linkCategoryName).capitalized)"
+                                                           : LinkDone.markLabel(card.linkCategoryName)) : nil,
+            toggleArchive: { toggleArchive(card, model) },
+            toggleDone: { Task { if await model.toggleDone() { feedback += 1 } } },
+            moreLikeThis: { moreLikeThis(card) },
+            refresh: { Task { await model.refreshDetails() } })
+    }
+
+    private func toggleArchive(_ card: Card, _ model: CardDetailModel) {
+        let archived = !card.archived
+        let action: BulkCardAction = archived ? .archive : .unarchive
+        run {
+            guard await model.setArchived(archived) else { return false }
+            library.show(action.done(1)) {
+                Task {
+                    library.dismissStatus()
+                    do { try await library.updateArchive(card.id, !archived) } catch { library.show(error) }
+                }
+            }
+            return true
+        }
+    }
+
+    private func moreLikeThis(_ card: Card) {
+        router.homePath.removeAll()
+        router.foldersPath.removeAll()
+        router.tab = .home
+        library.moreLike(card.id, title: CardSheet.title(card, fallback: route.summary?.title))
+    }
+
     @ViewBuilder private func hero(_ card: Card, _ model: CardDetailModel) -> some View {
-        CardPreview(card: card)
+        CardPreview(card: card, linkTargets: model.linkTargets)
             #if os(macOS)
             .onTapGesture(count: 2) { if CardEdit.canEditContent(card.type) { showEditSheet = true } }
             #endif
@@ -118,9 +188,20 @@ struct CardDetailView: View {
                 }
                 .tint(model.isFavorited ? .red : nil)
                 .symbolEffect(.bounce, value: model.isFavorited)
+                if card.type == .link {
+                    Button(model.isDone ? LinkDone.doneLabel(card.linkCategoryName) : LinkDone.markLabel(card.linkCategoryName),
+                           systemImage: model.isDone ? "checkmark.circle.fill" : "circle") {
+                        Task { if await model.toggleDone() { feedback += 1 } }
+                    }
+                    .tint(model.isDone ? .green : nil)
+                    .contentTransition(.symbolEffect(.replace))
+                    .accessibilityAddTraits(model.isDone ? .isSelected : [])
+                    .accessibilityIdentifier("detail.done")
+                }
                 Button("Edit", systemImage: "pencil") { showEditSheet = true }
                 .keyboardShortcut("e", modifiers: .command)
                 Menu("More", systemImage: "ellipsis") { moreMenu(card, model) }
+                    .accessibilityIdentifier("detail.more")
             }
             if isWide {
                 ToolbarItem {
@@ -151,6 +232,15 @@ struct CardDetailView: View {
                     exporting = CardFile(fileName: name) { url }
                 }
             }
+        }
+        Section {
+            Button(card.archived ? "Unarchive" : "Archive", systemImage: card.archived ? "tray.and.arrow.up" : "archivebox") {
+                toggleArchive(card, model)
+            }
+            Button("Folders…", systemImage: "folder") { pickingFolders = true }
+            Button("More Like This", systemImage: "sparkles") { moreLikeThis(card) }
+            Button("Refresh Details", systemImage: "arrow.clockwise") { Task { await model.refreshDetails() } }
+                .disabled(model.isRefreshing)
         }
         Section {
             Button("Copy Link to Card", systemImage: "link") {
@@ -201,7 +291,7 @@ struct CardDetailView: View {
         Task {
             if await action() {
                 feedback += 1
-                router.homePath.removeAll { $0.id == route.id }
+                router.close(route.id)
             }
         }
     }

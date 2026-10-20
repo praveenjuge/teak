@@ -17,10 +17,13 @@ import {
   getUserFacingErrorMessage,
   quickSaveCard,
 } from "./lib/api";
+import { parseCaptureExtras } from "./lib/capture";
 import { useTeakAuth } from "./lib/useTeakAuth";
 
 interface FormValues {
   content: string;
+  notes: string;
+  tags: string;
 }
 
 const addSuccessActions = (
@@ -50,6 +53,8 @@ const addSuccessActions = (
 
 export default function QuickSaveCommand() {
   const [content, setContent] = useState("");
+  const [tags, setTags] = useState("");
+  const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const {
@@ -97,6 +102,7 @@ export default function QuickSaveCommand() {
         {
           content: values.content,
           source: "raycast_quick_save",
+          ...parseCaptureExtras(values),
         },
         "interactive",
       );
@@ -105,6 +111,8 @@ export default function QuickSaveCommand() {
       toast.title = "Saved to Teak";
 
       setContent("");
+      setTags("");
+      setNotes("");
     } catch (error) {
       toast.style = Toast.Style.Failure;
       toast.title = "Save failed";
@@ -146,6 +154,20 @@ export default function QuickSaveCommand() {
         placeholder="Paste or type text, links, or notes..."
         title="Content"
         value={content}
+      />
+      <Form.TextField
+        id="tags"
+        onChange={setTags}
+        placeholder="design, research (optional)"
+        title="Tags"
+        value={tags}
+      />
+      <Form.TextArea
+        id="notes"
+        onChange={setNotes}
+        placeholder="Add a note (optional)"
+        title="Note"
+        value={notes}
       />
     </Form>
   );

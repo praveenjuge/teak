@@ -23,13 +23,41 @@ The Teak app runs natively on your Mac with your whole library, quick ways to sa
 
 ## Your library
 
-The sidebar has **Home**, **Add**, **Favorites**, **Trash**, and a **Types** section for notes, links, images, and the other card types. **Settings** sits at the bottom.
+The sidebar has **Home**, **Add**, **Favorites**, **Archive**, **Tags**, **Trash** and **Settings**, then your **Folders** and a **Types** section for notes, links, images, and the other card types.
 
-Search by words or by when you saved something, such as "last week" or "March 2026". Words like "image", "favorites", "trash", a color, a hex code, or `#tag` turn into filters in the search field; press Return to add one. The filter button narrows by type or color, and **Clear Filters** goes back to everything.
+Search by words or by when you saved something, such as "last week" or "March 2026". Teak also searches by meaning, so "cozy reading corner" can find a photo that never says those words. Words like "image", "favorites", "trash", a color, a hex code, or `#tag` turn into filters in the search field; press Return to add one. You can also type `is:archived`, `is:done`, `is:todo`, `price:<100`, `text:"total due"` or `mood:calm`, the same filters the web app understands. Put quotes around words that belong together.
 
-Click a card to open it. Right-click a card to open its link, copy or share it, add tags, favorite it, copy a link to the card, open it on the web, select it, or delete it. Deleted cards move to Trash, where you can restore them or delete them forever.
+The **More** button (the circled ellipsis) in the toolbar lets you **Select** cards, start **Revisit**, show **Favorites**, **Archive** or **Trash**, narrow by type or color, and sort by **Newest First**, **Oldest First** or **Shuffle** (**Reshuffle** draws a new order). **Save as Smart Folder…** saves the current search, and **Clear Filters** goes back to everything.
 
-To work with several cards, choose **Select** in the toolbar or **View › Select Cards**, click the cards you want, then favorite, unfavorite, or delete them together. In Trash, restore them or delete them forever.
+Click a card to open it. Right-click a card to open its link, copy or share it, add tags, favorite or archive it, see **More Like This**, **Refresh Details**, copy a link to the card, open it on the web, select it, or delete it. Deleted cards move to Trash, where you can restore them or delete them forever.
+
+In an open card:
+
+- Links you mean to read, watch or buy have a toggle in the toolbar: **Mark as read**, **Mark as watched**, **Mark as bought**, or **Mark as done**. Done links show a check on their tile.
+- Links between notes show as pills with the linked card's current title; click one to open it. A link to a card in Trash, deleted or not yours shows **Missing card**. **Linked from** lists the notes that link to the card.
+- The details show a product's price, when a page was published, camera details for photos, and **From** with the site for text saved from a web page.
+- **Folders** in the details files the card in folders.
+- Adding the tag `secret` or `hidden` while editing hides the card everywhere except a search for that tag.
+
+### Archive
+
+Archive cards you're done with to keep them out of your library without deleting them: right-click a card, use the **Card** menu, or the card's **More** menu. A message lets you **Undo**. **Archive** in the sidebar shows them, where you can unarchive them.
+
+### Folders and smart folders
+
+Your folders sit in the sidebar. Click **+** next to **Folders** to make one, and right-click a folder to rename or delete it (**Undo** brings it back; its cards stay in your library). A smart folder is a saved search that shows every card that matches, including cards you save later.
+
+### Tags
+
+**Tags** in the sidebar lists every tag with its card count. Right-click a tag to **Rename…**, **Merge Into…** another tag, or **Delete…** it from every card. Teak shows the progress while it works.
+
+### Revisit
+
+Choose **Revisit** from the **More** button or **View › Revisit** (⌃⌘R) to go through up to 20 shuffled cards from the current view, one at a time. Press ← or click **Archive** for cards you're done with, → or **Keep** for the rest, and Z to undo the last one.
+
+### Selecting cards
+
+To work with several cards, choose **Select** from the **More** button or **View › Select Cards**, click the cards you want, then archive them, add tags, add them to a folder, favorite them, or move them to Trash. In Archive, unarchive them; in Trash, restore them or delete them forever.
 
 ## Saving
 
@@ -73,10 +101,15 @@ A short confirmation appears near the top of the screen after each save.
 | Paste as new card | ⌃⌘V |
 | Refresh library | ⌘R |
 | Select all cards | ⇧⌘A |
+| Revisit | ⌃⌘R |
+| Archive or unarchive the open card | ⌃⌘A |
+| Mark the open link done | ⇧⌘D |
+| More like this | ⇧⌘L |
+| Refresh details of the open card | ⌥⌘R |
 
 ## Settings
 
-Open **Settings** (⌘,) from the **Teak** menu or the bottom of the sidebar:
+Open **Settings** (⌘,) from the **Teak** menu or the sidebar:
 
 - **General**: appearance (Auto, Light, or Dark), the menu bar item, the Quick Capture shortcut, and the Safari extension's status.
 - **Account**: your email, usage, and plan. On the Free plan, **Upgrade…** opens billing on the web; on Pro, **Manage…** does. **Log Out** and **Delete Account** are here too.

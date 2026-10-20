@@ -24,12 +24,27 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material.icons.outlined.SearchOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,9 +81,17 @@ import com.praveenjuge.teak.core.designsystem.R as DesignR
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
+import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardGrid
+import com.praveenjuge.teak.core.model.CardSort
+import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ColorHue
+import com.praveenjuge.teak.core.model.Folder
+import com.praveenjuge.teak.core.model.QualifierChips
+import com.praveenjuge.teak.core.model.SearchIsValue
+import com.praveenjuge.teak.core.model.SearchQualifier
+import com.praveenjuge.teak.core.model.Tags
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val LOAD_MORE_THRESHOLD = 5
@@ -80,14 +103,25 @@ fun LibraryRoute(
     selectedCardId: String?,
     onOpenCard: (String) -> Unit,
     onWriteNote: () -> Unit,
+    folderId: String? = null,
+    onBack: (() -> Unit)? = null,
 ) {
-    val viewModel: LibraryViewModel = hiltViewModel()
+    val viewModel = hiltViewModel<LibraryViewModel, LibraryViewModel.Factory>(
+        key = folderId ?: "home",
+        creationCallback = { it.create(folderId) },
+    )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searchState = rememberTextFieldState()
+    var revisiting by rememberSaveable { mutableStateOf(false) }
+    fun setSearch(text: String) = searchState.setTextAndPlaceCursorAtEnd(text)
+    fun toggleQualifier(qualifier: SearchQualifier, on: Boolean) {
+        val text = searchState.text.toString()
+        setSearch(if (on) QualifierChips.add(text, qualifier) else QualifierChips.remove(text, qualifier))
+    }
 
     LaunchedEffect(searchRequest) {
         if (searchRequest == null) return@LaunchedEffect
-        if (searchRequest.isNotBlank()) searchState.setTextAndPlaceCursorAtEnd(searchRequest)
+        if (searchRequest.isNotBlank()) setSearch(searchRequest)
         onSearchRequestHandled()
     }
     LaunchedEffect(searchState) {
@@ -101,42 +135,83 @@ fun LibraryRoute(
         actions = LibraryActions(
             onOpenCard = onOpenCard,
             onWriteNote = onWriteNote,
+            onBack = onBack,
             onToggleFavorites = viewModel::toggleFavorites,
+            onToggleArchive = viewModel::toggleArchive,
             onToggleTrash = viewModel::toggleTrash,
+            onToggleDone = { toggleQualifier(SearchQualifier.Is(SearchIsValue.Done), !state.showsDone) },
+            onToggleTodo = { toggleQualifier(SearchQualifier.Is(SearchIsValue.Todo), !state.showsTodo) },
+            onRemoveQualifier = { toggleQualifier(it, on = false) },
             onToggleType = viewModel::toggleType,
             onSelectHue = viewModel::selectHue,
+            onSort = viewModel::sort,
             onClearFilters = viewModel::clearFilters,
             onLoadMore = viewModel::loadMore,
             onRefresh = viewModel::refresh,
             onBeginSelection = viewModel::beginSelection,
             onToggleSelected = viewModel::toggleSelected,
             onEndSelection = viewModel::endSelection,
-            onMoveToTrash = viewModel::moveSelectedToTrash,
-            onRestore = viewModel::restoreSelected,
+            onBulk = { viewModel.runOnSelected(it) },
+            onAddTags = { viewModel.runOnSelected(BulkAction.AddTags, tags = it) },
+            onAddToFolder = { viewModel.runOnSelected(BulkAction.AddToFolder, folder = it) },
+            onAddToNewFolder = viewModel::addSelectedToNewFolder,
             onDeleteForever = viewModel::deleteSelectedForever,
-            onDismissBulkFailure = viewModel::dismissBulkFailure,
+            onArchiveCard = viewModel::setArchived,
+            onRestoreCard = viewModel::restoreCard,
+            onMoreLikeThis = { id -> setSearch("like:$id") },
+            onRevisit = { revisiting = true },
+            onSaveSearch = viewModel::saveSearchAsFolder,
+            onUndo = viewModel::undo,
+            onDismissMessage = viewModel::dismissMessage,
         ),
     )
+
+    if (revisiting) {
+        RevisitRoute(
+            view = state.revisitQuery,
+            onOpenCard = { id ->
+                revisiting = false
+                onOpenCard(id)
+            },
+            onClose = { revisiting = false },
+        )
+    }
 }
 
 internal data class LibraryActions(
     val onOpenCard: (String) -> Unit = {},
     val onWriteNote: () -> Unit = {},
+    val onBack: (() -> Unit)? = null,
     val onToggleFavorites: () -> Unit = {},
+    val onToggleArchive: () -> Unit = {},
     val onToggleTrash: () -> Unit = {},
+    val onToggleDone: () -> Unit = {},
+    val onToggleTodo: () -> Unit = {},
+    val onRemoveQualifier: (SearchQualifier) -> Unit = {},
     val onToggleType: (CardType) -> Unit = {},
     val onSelectHue: (ColorHue) -> Unit = {},
+    val onSort: (CardSort) -> Unit = {},
     val onClearFilters: () -> Unit = {},
     val onLoadMore: () -> Unit = {},
     val onRefresh: () -> Unit = {},
     val onBeginSelection: (String?) -> Unit = {},
     val onToggleSelected: (String) -> Unit = {},
     val onEndSelection: () -> Unit = {},
-    val onMoveToTrash: () -> Unit = {},
-    val onRestore: () -> Unit = {},
+    val onBulk: (BulkAction) -> Unit = {},
+    val onAddTags: (List<String>) -> Unit = {},
+    val onAddToFolder: (Folder) -> Unit = {},
+    val onAddToNewFolder: (String) -> Unit = {},
     val onDeleteForever: () -> Unit = {},
-    val onDismissBulkFailure: () -> Unit = {},
+    val onArchiveCard: (String, Boolean) -> Unit = { _, _ -> },
+    val onRestoreCard: (String) -> Unit = {},
+    val onMoreLikeThis: (String) -> Unit = {},
+    val onRevisit: () -> Unit = {},
+    val onSaveSearch: (String) -> Unit = {},
+    val onUndo: (LibraryMessage) -> Unit = {},
+    val onDismissMessage: (Long) -> Unit = {},
 )
+
+private enum class LibraryDialog { DeleteForever, AddTags, AddToFolder, SaveSearch }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -147,11 +222,22 @@ internal fun LibraryScreen(
     actions: LibraryActions,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    var confirmDeleteForever by rememberSaveable { mutableStateOf(false) }
-    val haptics = LocalHapticFeedback.current
+    var dialog by rememberSaveable { mutableStateOf<LibraryDialog?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
     BackHandler(enabled = state.isSelecting, onBack = actions.onEndSelection)
-    LaunchedEffect(state.bulkFailure) {
-        if (state.bulkFailure != null) haptics.performHapticFeedback(HapticFeedbackType.Reject)
+    LaunchedEffect(state.message) {
+        val message = state.message ?: return@LaunchedEffect
+        // Dismiss even when leaving the screen cuts the snackbar short, so it doesn't come back later.
+        try {
+            val result = snackbarHostState.showSnackbar(
+                message.text,
+                actionLabel = if (message.undo != null) "Undo" else null,
+                duration = if (message.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) actions.onUndo(message)
+        } finally {
+            actions.onDismissMessage(message.id)
+        }
     }
 
     Scaffold(
@@ -161,11 +247,18 @@ internal fun LibraryScreen(
                 title = state.title,
                 isSelecting = state.isSelecting,
                 canSelect = state.paged.cards.isNotEmpty(),
+                canRevisit = state.canRevisit,
+                sort = state.filters.sort,
                 scrollBehavior = scrollBehavior,
                 onSelect = { actions.onBeginSelection(null) },
                 onDone = actions.onEndSelection,
+                onSort = actions.onSort,
+                onRevisit = actions.onRevisit,
+                onBack = actions.onBack,
+                onSaveSearch = if (state.search.isNotBlank() && state.folderId == null) ({ dialog = LibraryDialog.SaveSearch }) else null,
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
@@ -173,49 +266,85 @@ internal fun LibraryScreen(
                 if (!state.isSelecting) {
                     LibraryFilterRow(
                         filters = state.filters,
+                        showsDone = state.showsDone,
+                        showsTodo = state.showsTodo,
                         onToggleFavorites = actions.onToggleFavorites,
+                        onToggleArchive = actions.onToggleArchive,
                         onToggleTrash = actions.onToggleTrash,
+                        onToggleDone = actions.onToggleDone,
+                        onToggleTodo = actions.onToggleTodo,
                         onToggleType = actions.onToggleType,
                         onSelectHue = actions.onSelectHue,
                         onClear = actions.onClearFilters,
                     )
+                    QualifierChipRow(state.chips, actions.onRemoveQualifier, Modifier.padding(top = 4.dp))
+                    if (state.showsHiddenCards) HiddenCardsHeader()
                 }
                 LibraryContent(state, selectedCardId, actions)
             }
             if (state.isSelecting) {
                 SelectionToolbar(
-                    inTrash = state.filters.trashOnly,
+                    view = when {
+                        state.filters.trashOnly -> SelectionView.Trash
+                        state.filters.archivedOnly -> SelectionView.Archive
+                        else -> SelectionView.Library
+                    },
                     enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction,
-                    onMoveToTrash = actions.onMoveToTrash,
-                    onRestore = actions.onRestore,
-                    onDeleteForever = { confirmDeleteForever = true },
+                    onAction = actions.onBulk,
+                    onAddTags = { dialog = LibraryDialog.AddTags },
+                    onAddToFolder = { dialog = LibraryDialog.AddToFolder },
+                    onDeleteForever = { dialog = LibraryDialog.DeleteForever },
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
                 )
             }
         }
     }
 
-    if (confirmDeleteForever) {
-        val count = state.pickedIds.size
-        val noun = if (count == 1) "This card" else "$count cards"
-        ConfirmDialog(
-            title = "Delete Forever?",
-            message = "$noun and their files will be removed. You can't undo it.",
-            confirmLabel = "Delete Forever",
-            onConfirm = {
-                confirmDeleteForever = false
-                actions.onDeleteForever()
+    val count = state.pickedIds.size
+    when (dialog) {
+        LibraryDialog.DeleteForever -> {
+            val noun = if (count == 1) "This card" else "$count cards"
+            ConfirmDialog(
+                title = "Delete Forever?",
+                message = "$noun and their files will be removed. You can't undo it.",
+                confirmLabel = "Delete Forever",
+                onConfirm = {
+                    dialog = null
+                    actions.onDeleteForever()
+                },
+                onDismiss = { dialog = null },
+            )
+        }
+        LibraryDialog.AddTags -> AddTagsDialog(
+            count = count,
+            onAdd = {
+                dialog = null
+                actions.onAddTags(it)
             },
-            onDismiss = { confirmDeleteForever = false },
+            onDismiss = { dialog = null },
         )
-    }
-    state.bulkFailure?.let { failure ->
-        AlertDialog(
-            onDismissRequest = actions.onDismissBulkFailure,
-            title = { Text("Some cards didn't change") },
-            text = { Text(failure.message) },
-            confirmButton = { TextButton(onClick = actions.onDismissBulkFailure) { Text("OK") } },
+        LibraryDialog.AddToFolder -> FolderPickerDialog(
+            count = count,
+            folders = state.manualFolders,
+            onPick = {
+                dialog = null
+                actions.onAddToFolder(it)
+            },
+            onCreate = {
+                dialog = null
+                actions.onAddToNewFolder(it)
+            },
+            onDismiss = { dialog = null },
         )
+        LibraryDialog.SaveSearch -> SaveSearchDialog(
+            search = state.search,
+            onSave = {
+                dialog = null
+                actions.onSaveSearch(it)
+            },
+            onDismiss = { dialog = null },
+        )
+        null -> Unit
     }
 }
 
@@ -224,6 +353,12 @@ internal fun LibraryScreen(
 private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actions: LibraryActions) {
     val paged = state.paged
     when {
+        state.folderMissing -> EmptyState(
+            title = "Folder not found",
+            message = "It may have been deleted.",
+            icon = Icons.Outlined.Folder,
+            action = actions.onBack?.let { back -> { Button(onClick = back) { Text("Go back") } } },
+        )
         paged.isLoading && paged.cards.isEmpty() -> TeakLoading()
         paged.error != null && paged.cards.isEmpty() -> EmptyState(
             title = "Couldn't Load Cards",
@@ -238,8 +373,20 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
         ) {
             if (paged.cards.isEmpty()) {
                 // Scrollable so pull to refresh still works on an empty screen.
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     LibraryEmpty(state.emptyState, actions.onWriteNote)
+                    if (state.hasHiddenCards) {
+                        Text(
+                            Tags.HIDDEN_CARDS_HINT,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                        )
+                    }
                 }
             } else {
                 LibraryGrid(state, selectedCardId, actions)
@@ -272,6 +419,9 @@ private fun LibraryEmpty(emptyState: LibraryEmptyState, onWriteNote: () -> Unit)
         EmptyKind.Search -> Icons.Outlined.SearchOff
         EmptyKind.Trash -> Icons.Outlined.Delete
         EmptyKind.Filters -> Icons.Outlined.FilterList
+        EmptyKind.Archive -> Icons.Outlined.Archive
+        EmptyKind.Folder -> Icons.Outlined.Folder
+        EmptyKind.Similar -> Icons.Outlined.AutoAwesome
     }
     EmptyState(title = copy.title, message = copy.message, icon = icon)
 }
@@ -283,6 +433,7 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
     val gridState = rememberLazyStaggeredGridState()
     val haptics = LocalHapticFeedback.current
     val focusManager = LocalFocusManager.current
+    var menuCardId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.isScrollInProgress }.collect { scrolling -> if (scrolling) focusManager.clearFocus() }
@@ -310,21 +461,36 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
         ) {
             items(cards, key = { it.id }, contentType = { it.type }) { card ->
                 val selecting = state.isSelecting
-                CardTile(
-                    card = card,
-                    selection = state.selection.tileSelection(card.id),
-                    highlighted = card.id == selectedCardId,
-                    onClick = {
-                        focusManager.clearFocus()
-                        if (selecting) actions.onToggleSelected(card.id) else actions.onOpenCard(card.id)
-                    },
-                    onLongClick = {
-                        focusManager.clearFocus()
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (selecting) actions.onToggleSelected(card.id) else actions.onBeginSelection(card.id)
-                    },
-                    modifier = Modifier.animateItem(),
-                )
+                val menu = tileMenu(card, inTrash = state.filters.trashOnly, actions)
+                Box(Modifier.animateItem()) {
+                    CardTile(
+                        card = card,
+                        selection = state.selection.tileSelection(card.id),
+                        highlighted = card.id == selectedCardId,
+                        onClick = {
+                            focusManager.clearFocus()
+                            if (selecting) actions.onToggleSelected(card.id) else actions.onOpenCard(card.id)
+                        },
+                        onLongClick = {
+                            focusManager.clearFocus()
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (selecting) actions.onToggleSelected(card.id) else menuCardId = card.id
+                        },
+                        actions = menu.map { item -> CustomAccessibilityAction(item.label) { item.onClick(); true } },
+                    )
+                    DropdownMenu(expanded = menuCardId == card.id, onDismissRequest = { menuCardId = null }) {
+                        menu.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(item.label) },
+                                leadingIcon = { Icon(item.icon, contentDescription = null) },
+                                onClick = {
+                                    menuCardId = null
+                                    item.onClick()
+                                },
+                            )
+                        }
+                    }
+                }
             }
             if (state.paged.isLoadingMore) {
                 item(span = StaggeredGridItemSpan.FullLine) {
@@ -352,5 +518,34 @@ private fun LoadMoreFailed(onRetry: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         TextButton(onClick = onRetry) { Text("Try Again") }
+    }
+}
+
+internal class TileMenuItem(val label: String, val icon: ImageVector, val onClick: () -> Unit)
+
+/** A tile's long-press menu, also offered to TalkBack as custom actions. */
+internal fun tileMenu(card: CardSummary, inTrash: Boolean, actions: LibraryActions): List<TileMenuItem> = buildList {
+    add(TileMenuItem("Select", Icons.Outlined.CheckCircle) { actions.onBeginSelection(card.id) })
+    if (inTrash) {
+        add(TileMenuItem("Restore", Icons.Outlined.Restore) { actions.onRestoreCard(card.id) })
+        return@buildList
+    }
+    if (card.archived) {
+        add(TileMenuItem("Unarchive", Icons.Outlined.Unarchive) { actions.onArchiveCard(card.id, false) })
+    } else {
+        add(TileMenuItem("Archive", Icons.Outlined.Archive) { actions.onArchiveCard(card.id, true) })
+    }
+    add(TileMenuItem("More like this", Icons.Outlined.AutoAwesome) { actions.onMoreLikeThis(card.id) })
+}
+
+@Composable
+private fun HiddenCardsHeader() {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        Text("Shows hidden cards", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

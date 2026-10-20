@@ -46,14 +46,23 @@ const mockRaycastApi = (isDevelopment: boolean) => {
 mockRaycastApi(false);
 
 const {
+  addCardToFolder,
   createCard,
+  createSmartFolder,
   getCardById,
+  getTagOperation,
+  hasHiddenCards,
+  listFolders,
   RaycastApiError,
+  refreshCard,
   restoreCard,
   saveFileCard,
   searchCards,
+  setCardArchived,
+  setCardDone,
   setCardFavorite,
   softDeleteCard,
+  startTagOperation,
   updateCard,
 } = await import("../lib/api");
 const { signOutTeak, authorizeTeak, getStoredTeakAccessToken } =
@@ -768,5 +777,301 @@ describe("raycast file saves and Trash", () => {
     expect(urls).toEqual([
       "POST https://teakvault.com/api/v1/cards/card_123/restore",
     ]);
+  });
+
+  describe("archive, done, folders and tags", () => {
+    const calls: Array<{ body: unknown; method: string; url: string }> = [];
+    const respondWith = (response: () => Response) => {
+      calls.length = 0;
+      globalThis.fetch = withDiscovery(
+        mock((input: RequestInfo | URL, init?: RequestInit) => {
+          calls.push({
+            body: init?.body ? JSON.parse(String(init.body)) : null,
+            method: init?.method ?? "GET",
+            url: String(input),
+          });
+          return Promise.resolve(response());
+        }) as unknown as typeof fetch,
+      );
+    };
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), {
+        headers: { "Content-Type": "application/json" },
+        status,
+      });
+
+    test("archives and unarchives a card and reads the new state", async () => {
+      respondWith(() => json({ ...sampleCard, isArchived: true }));
+      const archived = await setCardArchived("card_123", true, "interactive");
+      expect(calls).toEqual([
+        {
+          body: { isArchived: true },
+          method: "PATCH",
+          url: "https://teakvault.com/api/v1/cards/card_123",
+        },
+      ]);
+      expect(archived.isArchived).toBe(true);
+    });
+
+    test("marks a link done with POST and not done with DELETE", async () => {
+      respondWith(() =>
+        json({ ...sampleCard, completedAt: 1_739_250_000_000 }),
+      );
+      const done = await setCardDone("card_123", true, "interactive");
+      await setCardDone("card_123", false, "interactive");
+      expect(calls.map(({ method, url }) => `${method} ${url}`)).toEqual([
+        "POST https://teakvault.com/api/v1/cards/card_123/done",
+        "DELETE https://teakvault.com/api/v1/cards/card_123/done",
+      ]);
+      expect(done.completedAt).toBe(1_739_250_000_000);
+    });
+
+    test("queues a details refresh", async () => {
+      respondWith(() =>
+        json({ cardId: "card_123", requestedAt: 1, status: "queued" }, 202),
+      );
+      await refreshCard("card_123", "interactive");
+      expect(calls).toEqual([
+        {
+          body: null,
+          method: "POST",
+          url: "https://teakvault.com/api/v1/cards/card_123/refresh",
+        },
+      ]);
+    });
+
+    test("lists manual and smart folders", async () => {
+      const folder = {
+        cardCount: 3,
+        color: "blue",
+        createdAt: 1,
+        id: "folder_1",
+        kind: "manual",
+        name: "Reading list",
+        query: null,
+        updatedAt: 1,
+      };
+      respondWith(() =>
+        json({
+          items: [
+            folder,
+            {
+              ...folder,
+              cardCount: null,
+              id: "folder_2",
+              kind: "smart",
+              name: "Moodboard",
+              query: "type:image",
+            },
+          ],
+        }),
+      );
+      const { items } = await listFolders("interactive");
+      expect(items.map((item) => [item.name, item.kind, item.query])).toEqual([
+        ["Reading list", "manual", null],
+        ["Moodboard", "smart", "type:image"],
+      ]);
+    });
+
+    test("rejects a folder list the extension can't read", async () => {
+      respondWith(() => json({ items: [{ id: "folder_1" }] }));
+      await expect(listFolders("interactive")).rejects.toBeInstanceOf(
+        RaycastApiError,
+      );
+    });
+
+    test("creates a smart folder from a search", async () => {
+      respondWith(() =>
+        json(
+          {
+            cardCount: null,
+            color: null,
+            createdAt: 1,
+            id: "folder_3",
+            kind: "smart",
+            name: "Unread links",
+            query: "is:todo",
+            updatedAt: 1,
+          },
+          201,
+        ),
+      );
+      await createSmartFolder(
+        { name: "Unread links", query: "is:todo" },
+        "interactive",
+      );
+      expect(calls[0]).toEqual({
+        body: { kind: "smart", name: "Unread links", query: "is:todo" },
+        method: "POST",
+        url: "https://teakvault.com/api/v1/folders",
+      });
+    });
+
+    test("says so when a folder with that name already exists", async () => {
+      respondWith(() =>
+        json(
+          {
+            code: "REQUEST_FAILED",
+            error: "A folder with this name already exists",
+          },
+          409,
+        ),
+      );
+      const failure = await createSmartFolder(
+        { name: "Reading list", query: "is:todo" },
+        "interactive",
+      ).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(RaycastApiError);
+      expect((failure as InstanceType<typeof RaycastApiError>).code).toBe(
+        "FOLDER_EXISTS",
+      );
+      expect((failure as Error).message).toContain("already exists");
+    });
+
+    test("adds a card to a folder and reports cards that couldn't be added", async () => {
+      respondWith(() =>
+        json({
+          failedIds: ["card_123"],
+          folderLimitIds: ["card_123"],
+          updatedIds: [],
+        }),
+      );
+      const result = await addCardToFolder(
+        "folder_1",
+        " card_123 ",
+        "interactive",
+      );
+      expect(calls[0]).toEqual({
+        body: { cardIds: ["card_123"] },
+        method: "POST",
+        url: "https://teakvault.com/api/v1/folders/folder_1/cards",
+      });
+      expect(result.folderLimitIds).toEqual(["card_123"]);
+    });
+
+    test("starts a tag rename and polls its progress", async () => {
+      const operation = {
+        changed: 0,
+        completedAt: null,
+        createdAt: 1,
+        error: null,
+        from: "design",
+        id: "op_1",
+        kind: "rename",
+        processed: 0,
+        status: "running",
+        to: "ui",
+        total: 4,
+        updatedAt: 1,
+      };
+      respondWith(() => json(operation, 202));
+      const started = await startTagOperation(
+        { kind: "rename", tag: "design", to: "ui" },
+        "interactive",
+      );
+      respondWith(() =>
+        json({ ...operation, changed: 4, processed: 4, status: "completed" }),
+      );
+      const finished = await getTagOperation("op_1", "interactive");
+      expect(started.status).toBe("running");
+      expect(finished).toMatchObject({ changed: 4, status: "completed" });
+      expect(calls[0]?.url).toBe(
+        "https://teakvault.com/api/v1/tags/operations/op_1",
+      );
+    });
+
+    test("names the tag a merge folds in and the one it keeps", async () => {
+      respondWith(() =>
+        json({
+          changed: 0,
+          error: null,
+          id: "op_2",
+          kind: "merge",
+          status: "running",
+          total: 1,
+        }),
+      );
+      await startTagOperation(
+        { into: "design", kind: "merge", tag: "ui" },
+        "interactive",
+      );
+      expect(calls[0]).toEqual({
+        body: { from: "ui", into: "design" },
+        method: "POST",
+        url: "https://teakvault.com/api/v1/tags/merge",
+      });
+    });
+
+    test("maps a running tag change to its own error", async () => {
+      respondWith(() =>
+        json({ code: "TAG_OPERATION_RUNNING", error: "busy" }, 409),
+      );
+      const failure = await startTagOperation(
+        { kind: "delete", tag: "design" },
+        "interactive",
+      ).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(RaycastApiError);
+      expect((failure as InstanceType<typeof RaycastApiError>).code).toBe(
+        "TAG_OPERATION_RUNNING",
+      );
+    });
+
+    test("searches with a shuffle seed, similar card, folder and archive filter", async () => {
+      respondWith(() =>
+        json({ items: [], pageInfo: { hasMore: false, nextCursor: null } }),
+      );
+      await searchCards(
+        {
+          archived: "only",
+          folder: "folder_1",
+          query: "is:todo",
+          shuffleSeed: 42,
+          similarTo: "card_123",
+          sort: "shuffle",
+        },
+        "interactive",
+      );
+      const url = new URL(calls[0]?.url ?? "");
+      expect(Object.fromEntries(url.searchParams)).toMatchObject({
+        archived: "only",
+        folder: "folder_1",
+        q: "is:todo",
+        shuffleSeed: "42",
+        similarTo: "card_123",
+        sort: "shuffle",
+      });
+    });
+
+    test("creates a card with tags and a note", async () => {
+      respondWith(() =>
+        json({ appUrl: null, cardId: "card_9", status: "created" }, 201),
+      );
+      await createCard(
+        { content: "Idea", notes: "from a call", tags: ["design", "ideas"] },
+        "interactive",
+      );
+      expect(calls[0]?.body).toEqual({
+        content: "Idea",
+        notes: "from a call",
+        tags: ["design", "ideas"],
+      });
+    });
+
+    test("finds hidden cards by checking both hidden tags", async () => {
+      respondWith(() =>
+        json({ items: [], pageInfo: { hasMore: false, nextCursor: null } }),
+      );
+      expect(await hasHiddenCards("silent")).toBe(false);
+      expect(
+        calls.map((call) => new URL(call.url).searchParams.get("tag")).sort(),
+      ).toEqual(["hidden", "secret"]);
+      respondWith(() =>
+        json({
+          items: [sampleCard],
+          pageInfo: { hasMore: false, nextCursor: null },
+        }),
+      );
+      expect(await hasHiddenCards("silent")).toBe(true);
+    });
   });
 });

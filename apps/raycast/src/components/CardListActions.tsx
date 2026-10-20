@@ -1,42 +1,18 @@
 import { Action, ActionPanel, Icon } from "@raycast/api";
 import type { RaycastCard } from "../lib/api";
 import { getOpenableUrl, getTeakUrl } from "../lib/cardDetailModel";
-import {
-  applyFavoritedFilter,
-  applyHueFilter,
-  applySortFilter,
-  applyTagFilter,
-  applyTrashedFilter,
-  applyTypeFilter,
-  clearSearchFilters,
-  HUE_OPTIONS,
-  type ParsedSearchFilters,
-  type RaycastCardType,
-} from "../lib/searchFilters";
+import type { ParsedSearchFilters } from "../lib/searchFilters";
 import {
   deleteCardForever,
   moveCardToTrash,
   restoreFromTrash,
 } from "../lib/trashActions";
 import { CardDetail } from "./CardDetail";
+import { CardFilterActions } from "./CardFilterActions";
+import { CardOrganizeActions } from "./CardOrganizeActions";
 import { EditCardForm } from "./EditCardForm";
 import { SetApiKeyAction } from "./SetApiKeyAction";
 import { SignOutAction } from "./SignOutAction";
-
-const TYPE_OPTIONS: Array<{ title: string; value?: RaycastCardType }> = [
-  { title: "All Types" },
-  { title: "Text", value: "text" },
-  { title: "Links", value: "link" },
-  { title: "Images", value: "image" },
-  { title: "Videos", value: "video" },
-  { title: "Audio", value: "audio" },
-  { title: "Documents", value: "document" },
-  { title: "Palettes", value: "palette" },
-  { title: "Quotes", value: "quote" },
-];
-
-const capitalize = (value: string) =>
-  value.charAt(0).toUpperCase() + value.slice(1);
 
 export interface CardListActionsProps {
   card: RaycastCard;
@@ -46,119 +22,11 @@ export interface CardListActionsProps {
   onCardUpdated: (card: RaycastCard) => void;
   onFilterByTag: (tag: string) => void;
   onQueryChange: (update: (previous: string) => string) => void;
+  onShuffle: () => void;
   onSignedOut: () => void;
   onToggleFavorite: (card: RaycastCard) => void;
   removeTagFilterFromList: boolean;
   showFavoritesFilter: boolean;
-}
-
-function FilterActions({
-  card,
-  filters,
-  onQueryChange,
-  removeTagFilterFromList,
-  showFavoritesFilter,
-}: Pick<
-  CardListActionsProps,
-  | "card"
-  | "filters"
-  | "onQueryChange"
-  | "removeTagFilterFromList"
-  | "showFavoritesFilter"
->) {
-  const tagOptions = [...card.tags, ...card.aiTags].slice(0, 8);
-  return (
-    <ActionPanel.Section title="Filters">
-      {showFavoritesFilter ? (
-        <Action
-          icon={Icon.Star}
-          onAction={() =>
-            onQueryChange((previous) =>
-              applyFavoritedFilter(
-                previous,
-                filters.favorited ? undefined : true,
-              ),
-            )
-          }
-          title={filters.favorited ? "Show All Cards" : "Show Favorites Only"}
-        />
-      ) : null}
-      <Action
-        icon={Icon.Trash}
-        onAction={() =>
-          onQueryChange((previous) =>
-            applyTrashedFilter(previous, filters.trashed ? undefined : true),
-          )
-        }
-        shortcut={{ modifiers: ["cmd", "shift"], key: "t" }}
-        title={filters.trashed ? "Leave Trash" : "Show Trash"}
-      />
-      <ActionPanel.Submenu icon={Icon.List} title="Filter by Type">
-        {TYPE_OPTIONS.map((option) => (
-          <Action
-            key={option.title}
-            onAction={() =>
-              onQueryChange((previous) =>
-                applyTypeFilter(previous, option.value),
-              )
-            }
-            title={option.title}
-          />
-        ))}
-      </ActionPanel.Submenu>
-      <ActionPanel.Submenu icon={Icon.Swatch} title="Filter by Color">
-        <Action
-          onAction={() => onQueryChange((previous) => applyHueFilter(previous))}
-          title="All Colors"
-        />
-        {HUE_OPTIONS.map((hue) => (
-          <Action
-            key={hue}
-            onAction={() =>
-              onQueryChange((previous) => applyHueFilter(previous, hue))
-            }
-            title={capitalize(hue)}
-          />
-        ))}
-      </ActionPanel.Submenu>
-      <ActionPanel.Submenu icon={Icon.ArrowUp} title="Sort Results">
-        <Action
-          onAction={() =>
-            onQueryChange((previous) => applySortFilter(previous, "newest"))
-          }
-          title="Newest First"
-        />
-        <Action
-          onAction={() =>
-            onQueryChange((previous) => applySortFilter(previous, "oldest"))
-          }
-          title="Oldest First"
-        />
-      </ActionPanel.Submenu>
-      {tagOptions.length > 0 && !removeTagFilterFromList ? (
-        <ActionPanel.Submenu icon={Icon.Tag} title="Filter by Tag">
-          {tagOptions.map((tag) => (
-            <Action
-              key={tag}
-              onAction={() =>
-                onQueryChange((previous) => applyTagFilter(previous, tag))
-              }
-              title={tag}
-            />
-          ))}
-        </ActionPanel.Submenu>
-      ) : null}
-      {filters.hasExplicitFilters ? (
-        <Action
-          icon={Icon.XMarkCircle}
-          onAction={() =>
-            onQueryChange((previous) => clearSearchFilters(previous))
-          }
-          title="Clear Filters"
-        />
-      ) : null}
-    </ActionPanel.Section>
-  );
 }
 
 export function CardListActions(props: CardListActionsProps) {
@@ -242,10 +110,14 @@ export function CardListActions(props: CardListActionsProps) {
           />
         </ActionPanel.Section>
       )}
-      <FilterActions
+      {inTrash ? null : (
+        <CardOrganizeActions card={card} onCardUpdated={onCardUpdated} />
+      )}
+      <CardFilterActions
         card={card}
         filters={props.filters}
         onQueryChange={props.onQueryChange}
+        onShuffle={props.onShuffle}
         removeTagFilterFromList={props.removeTagFilterFromList}
         showFavoritesFilter={props.showFavoritesFilter}
       />

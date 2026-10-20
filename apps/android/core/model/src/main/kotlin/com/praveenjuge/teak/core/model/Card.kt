@@ -39,7 +39,14 @@ data class CardSummary(
     val placeholderUrl: String? = null,
     val screenshotUrl: String? = null,
     val linkPreviewImageUrl: String? = null,
-)
+    val isArchived: Boolean? = null,
+    val completedAt: Double? = null,
+    val linkCategory: String? = null,
+    val linkPrice: LinkPrice? = null,
+) {
+    val archived: Boolean get() = isArchived == true
+    val isDone: Boolean get() = completedAt != null
+}
 
 @Serializable
 data class CardSummaryPage(
@@ -74,6 +81,7 @@ data class FileMetadata(
     val width: Double? = null,
     val height: Double? = null,
     val preview: FilePreviewFacts? = null,
+    val exif: ImageExif? = null,
 )
 
 @Serializable
@@ -87,18 +95,21 @@ data class LinkPreview(
     val siteName: String? = null,
     val author: String? = null,
     val publisher: String? = null,
+    val publishedAt: String? = null,
 )
 
 @Serializable
 data class LinkFact(
     val label: String,
     val value: String,
+    val icon: String? = null,
 )
 
 @Serializable
 data class LinkCategory(
     val category: String? = null,
     val facts: List<LinkFact>? = null,
+    val price: LinkPrice? = null,
 )
 
 @Serializable
@@ -145,9 +156,19 @@ data class Card(
     val screenshotUrl: String? = null,
     val linkPreviewImageUrl: String? = null,
     val linkPreviewMedia: List<LinkPreviewMedia>? = null,
+    val isArchived: Boolean? = null,
+    val completedAt: Double? = null,
+    val isHidden: Boolean? = null,
+    val sourceUrl: String? = null,
+    val sourceTitle: String? = null,
+    val folderIds: List<String>? = null,
 ) {
     val favorited: Boolean get() = isFavorited == true
     val deleted: Boolean get() = isDeleted == true
+    val archived: Boolean get() = isArchived == true
+    val isDone: Boolean get() = completedAt != null
+    val hidden: Boolean get() = isHidden == true || Tags.isHiddenList(tags)
+    val linkCategoryName: String? get() = metadata?.linkCategory?.category
 }
 
 @Serializable

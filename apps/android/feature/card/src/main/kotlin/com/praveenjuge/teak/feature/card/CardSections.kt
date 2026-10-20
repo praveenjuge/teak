@@ -1,6 +1,17 @@
 package com.praveenjuge.teak.feature.card
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.outlined.Notes
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FormatQuote
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +44,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardDetails
+import com.praveenjuge.teak.core.model.CardSource
+import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.DetailRow
@@ -106,7 +121,19 @@ internal fun NotesAndTagsSections(card: Card, onSearchTag: (String) -> Unit) {
         DetailSection("Notes") { MarkdownText(notes) }
     }
     if (tags.isNotEmpty()) {
-        DetailSection("Tags") { ChipRow(tags = tags, onPressTag = onSearchTag) }
+        DetailSection("Tags") {
+            if (card.hidden) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Text(
+                        "Hidden. Only a search for #secret or #hidden shows this card.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            ChipRow(tags = tags, onPressTag = onSearchTag)
+        }
     }
 }
 
@@ -130,15 +157,97 @@ internal fun SummarySections(card: Card, onSearchTag: (String) -> Unit) {
 }
 
 @Composable
-internal fun InfoSection(card: Card) {
+internal fun InfoSection(card: Card, folders: List<Folder>, onOpenSource: (String) -> Unit, onEditFolders: () -> Unit) {
     DetailSection("Info") {
+        CardDetails.source(card)?.let { source ->
+            SourceRow(source, onOpenSource)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }
+        if (!card.deleted) {
+            FoldersRow(folders, onEditFolders)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        }
         DetailRows(
-            CardSheet.detailRows(card) + listOf(
+            CardSheet.detailRows(card) + CardDetails.extraRows(card) + listOf(
                 DetailRow("Created", formatTimestamp(card.createdAt)),
                 DetailRow("Updated", formatTimestamp(card.updatedAt)),
             ),
         )
     }
+}
+
+/** "From example.com": where a text card was saved from, opening the page. */
+@Composable
+private fun SourceRow(source: CardSource, onOpen: (String) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "Open ${source.title ?: source.host}") { onOpen(source.url) },
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("From", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            source.host,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun FoldersRow(folders: List<Folder>, onEdit: () -> Unit) {
+    val value = when {
+        folders.isEmpty() -> "Add…"
+        folders.size == 1 -> folders.single().name
+        else -> "${folders.first().name} +${folders.size - 1}"
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = if (folders.isEmpty()) "Add to a folder" else "Change folders", onClick = onEdit),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("Folders", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** Cards whose notes link here with `[[`, newest first; hidden when there are none. */
+@Composable
+internal fun LinkedFromSection(backlinks: CardBacklinks, onOpenCard: (String) -> Unit) {
+    if (backlinks.backlinks.isEmpty()) return
+    DetailSection("Linked from") {
+        backlinks.backlinks.forEach { linked ->
+            Row(
+                Modifier.fillMaxWidth().clickable { onOpenCard(linked.id) },
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(cardTypeIcon(linked.type), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(linked.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (backlinks.hasMore) Text("and more", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+internal fun cardTypeIcon(type: CardType): ImageVector = when (type) {
+    CardType.Text -> Icons.AutoMirrored.Outlined.Notes
+    CardType.Link -> Icons.Outlined.Link
+    CardType.Image -> Icons.Outlined.Image
+    CardType.Video -> Icons.Outlined.Movie
+    CardType.Audio -> Icons.Outlined.GraphicEq
+    CardType.Document -> Icons.Outlined.Description
+    CardType.Palette -> Icons.Outlined.Palette
+    CardType.Quote -> Icons.Outlined.FormatQuote
 }
 
 internal fun formatTimestamp(epochMillis: Double, locale: Locale = Locale.getDefault(), zone: ZoneId = ZoneId.systemDefault()): String =

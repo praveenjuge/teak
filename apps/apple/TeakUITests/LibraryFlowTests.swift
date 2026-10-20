@@ -95,8 +95,13 @@ final class LibraryFlowTests: XCTestCase {
         #endif
     }
 
+    @MainActor private func byId(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    /// Picks an item from the library's header menu ("More").
     @MainActor private func filter(_ name: String) {
-        let button = menu("Filter").waitToAppear()
+        let button = byId("library.more").waitToAppear()
         tap(button)
         #if os(macOS)
         // Scoped to the menu: the Window menu also lists a window titled "Trash".
@@ -168,7 +173,7 @@ final class LibraryFlowTests: XCTestCase {
             || app.searchFields.firstMatch.exists)
 
         tap(tile(containing: note))
-        tap(menu("More").waitToAppear())
+        tap(byId("detail.more").waitToAppear())
         tap(menuItem("Delete Card").waitToAppear())
         tile(containing: note).waitToDisappear()
 
@@ -180,7 +185,7 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToAppear()
 
         tap(tile(containing: note))
-        tap(menu("More").waitToAppear())
+        tap(byId("detail.more").waitToAppear())
         tap(menuItem("Delete Card").waitToAppear())
         filter("Trash")
         tile(containing: note).waitToAppear().openContextMenu()
@@ -197,15 +202,78 @@ final class LibraryFlowTests: XCTestCase {
         let second = marker("bulk")
         save("One \(first)", expecting: first)
         save("Two \(second)", expecting: second)
-        tap(app.buttons["library.select"].firstMatch.waitToAppear())
+        filter("Select")
         tap(tile(containing: first))
         tap(tile(containing: second))
         app.staticTexts["2 Selected"].firstMatch.waitToAppear()
-        tap(app.buttons["Favorite"].firstMatch)
-        app.staticTexts["Favorited 2 cards"].firstMatch.waitToAppear()
+        tap(app.buttons["Add to Favorites"].firstMatch.waitToAppear())
+        app.staticTexts["Added 2 cards to favorites"].firstMatch.waitToAppear()
         filter("Favorites")
         tile(containing: first).waitToAppear()
         tile(containing: second).waitToAppear()
+    }
+
+    @MainActor
+    func testArchiveDoneAndRevisit() async throws {
+        try await start()
+        let page = marker("done")
+        save("https://example.org/\(page)", expecting: "example.org")
+
+        // Marking a link done flips the toggle and says so.
+        tap(tile(containing: "example.org"))
+        tap(app.buttons["Mark as done"].firstMatch.waitToAppear())
+        app.staticTexts["Marked as done"].firstMatch.waitToAppear()
+        app.buttons["Done"].firstMatch.waitToAppear()
+
+        // Archiving leaves the library, shows in Archive and comes back.
+        tap(byId("detail.more").waitToAppear())
+        tap(menuItem("Archive").waitToAppear())
+        app.staticTexts["Archived 1 card"].firstMatch.waitToAppear()
+        tile(containing: "example.org").waitToDisappear()
+        filter("Archive")
+        tile(containing: "example.org").waitToAppear().openContextMenu()
+        tap(menuItem("Unarchive").waitToAppear())
+        app.staticTexts["Returned 1 card to the library"].firstMatch.waitToAppear()
+        tile(containing: "example.org").waitToDisappear()
+        filter("Archive")
+        tile(containing: "example.org").waitToAppear()
+
+        // Revisit deals the view's cards one at a time; Keep moves on.
+        filter("Revisit")
+        let position = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "1 of ")).firstMatch
+        position.waitToAppear(20)
+        tap(app.buttons["Keep"].firstMatch)
+        position.waitToDisappear()
+        tap(app.buttons["Close Revisit"].firstMatch)
+        tile(containing: "example.org").waitToAppear()
+    }
+
+    @MainActor
+    func testFoldersOpenFromTheFoldersTabOrSidebar() async throws {
+        try await start()
+        let name = marker("folder")
+        // iPhone has a Folders tab; iPad and Mac keep folders in the sidebar.
+        let tabBar = app.tabBars.buttons["Folders"]
+        if tabBar.waitForExistence(timeout: 3) {
+            tap(tabBar)
+            tap(byId("folders.new").waitToAppear())
+        } else {
+            tap(byId("sidebar.newFolder").waitToAppear())
+        }
+        #if os(macOS)
+        let field = app.sheets.textFields.firstMatch.waitToAppear()
+        #else
+        let field = app.alerts.textFields.firstMatch.waitToAppear()
+        #endif
+        enter(name, into: field)
+        tap(app.buttons["Create Folder"].firstMatch)
+        let row = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
+        tap(row.waitToAppear())
+        app.staticTexts["Empty Folder"].firstMatch.waitToAppear()
+        #if os(iOS)
+        app.navigationBars[name].firstMatch.waitToAppear()
+        #endif
+        byId("library.more").waitToAppear()
     }
 
     #if os(macOS)
@@ -235,7 +303,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(app.buttons["composer.save"])
         tile(containing: menuNote).waitToAppear(20)
 
-        tap(app.buttons["Settings"].firstMatch.waitToAppear())
+        tap(sidebar.staticTexts["Settings"].waitToAppear())
         tap(app.toolbars.buttons["Account"].firstMatch.waitToAppear())
         app.buttons["settings.logOut"].firstMatch.waitToAppear()
     }

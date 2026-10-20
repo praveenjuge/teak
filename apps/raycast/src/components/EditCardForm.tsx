@@ -15,6 +15,7 @@ import {
   getUserFacingErrorMessage,
   updateCard,
 } from "../lib/api";
+import { hiddenAfterTaggingMessage, newlyHiddenTag } from "../lib/hiddenTags";
 
 interface EditCardFormProps {
   card: RaycastCard;
@@ -77,6 +78,10 @@ export function EditCardForm({ card, onCardUpdated }: EditCardFormProps) {
       onCardUpdated(updated);
       toast.style = Toast.Style.Success;
       toast.title = "Card updated";
+      const hiddenTag = newlyHiddenTag(card.tags, updated.tags);
+      if (hiddenTag) {
+        toast.message = hiddenAfterTaggingMessage(hiddenTag);
+      }
       pop();
     } catch (error) {
       toast.style = Toast.Style.Failure;

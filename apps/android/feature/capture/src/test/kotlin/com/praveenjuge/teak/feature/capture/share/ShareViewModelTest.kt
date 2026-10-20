@@ -22,7 +22,7 @@ class ShareViewModelTest {
     private val cards = FakeCardsRepository()
 
     private fun viewModel(appScope: CoroutineScope, signedIn: Boolean = true) =
-        ShareViewModel(ShareImporter(cards, FakeUploadRepository(), FakeAccountRepository(signedIn)), appScope)
+        ShareViewModel(ShareImporter(cards, FakeUploadRepository(), FakeAccountRepository(signedIn)), cards, appScope)
 
     @Test
     fun `a saved share closes the sheet after a moment`() = runTest(mainDispatcher.dispatcher) {
@@ -30,9 +30,9 @@ class ShareViewModelTest {
         viewModel.close.test {
             viewModel.start(listOf(ShareItem.Text("hello")))
             runCurrent()
-            assertEquals(ShareUiState.Saved, viewModel.uiState.value)
+            assertEquals(ShareUiState.Saved(cardId = "new-1"), viewModel.uiState.value)
 
-            advanceTimeBy(ShareViewModel.SAVED_DISMISS_MILLIS - 1)
+            advanceTimeBy(ShareViewModel.DETAILS_OFFER_MILLIS - 1)
             expectNoEvents()
             advanceTimeBy(2)
             awaitItem()
@@ -59,7 +59,7 @@ class ShareViewModelTest {
 
         viewModel.startAgain(listOf(ShareItem.Text("second share")))
         runCurrent()
-        assertEquals(ShareUiState.Saved, viewModel.uiState.value)
+        assertEquals(ShareUiState.Saved(cardId = "new-1"), viewModel.uiState.value)
         assertEquals(listOf("second share"), cards.created)
     }
 
@@ -70,5 +70,37 @@ class ShareViewModelTest {
         viewModel.viewModelScope.cancel()
         runCurrent()
         assertEquals(listOf("hello"), cards.created)
+    }
+
+    @Test
+    fun `tags and a note go on the saved card, and the sheet waits for them`() = runTest(mainDispatcher.dispatcher) {
+        cards.cards.value = mapOf("new-1" to com.praveenjuge.teak.core.model.Card(id = "new-1", creationTime = 0.0, type = com.praveenjuge.teak.core.model.CardType.Link))
+        val viewModel = viewModel(backgroundScope)
+        viewModel.close.test {
+            viewModel.start(listOf(ShareItem.Text("https://teakvault.com")))
+            runCurrent()
+            viewModel.addDetails()
+            advanceTimeBy(ShareViewModel.DETAILS_OFFER_MILLIS * 2)
+            expectNoEvents()
+
+            viewModel.updateTagInput("Secret")
+            viewModel.addTag()
+            viewModel.updateTagInput("reading")
+            viewModel.updateNote("  For the weekend ")
+            val details = (viewModel.uiState.value as ShareUiState.Saved).details!!
+            assertEquals(listOf("secret"), details.tags)
+            assertEquals("Hidden. Search #secret to see it.", details.hiddenHint)
+
+            viewModel.saveDetails()
+            runCurrent()
+            awaitItem()
+        }
+        assertEquals(
+            listOf(
+                "edit:new-1:${com.praveenjuge.teak.core.model.CardFieldChange.Tags(listOf("secret", "reading"))}",
+                "edit:new-1:${com.praveenjuge.teak.core.model.CardFieldChange.Notes("For the weekend")}",
+            ),
+            cards.writes,
+        )
     }
 }

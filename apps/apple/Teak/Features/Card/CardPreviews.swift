@@ -6,6 +6,7 @@ import TeakCore
 
 struct CardPreview: View {
     let card: Card
+    var linkTargets: [String: CardLinkTarget] = [:]
 
     var body: some View {
         switch card.type {
@@ -16,7 +17,7 @@ struct CardPreview: View {
         case .palette: PalettePreview(card: card)
         case .link: LinkPreviewView(card: card)
         case .quote: QuotePreview(card: card)
-        case .text: MarkdownView(markdown: card.content.isEmpty ? "No content" : card.content)
+        case .text: MarkdownView(markdown: card.content.isEmpty ? "No content" : card.content, cardLinks: linkTargets)
         }
     }
 }

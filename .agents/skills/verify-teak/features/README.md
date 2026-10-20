@@ -42,6 +42,10 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Card processing](./card-processing.md) covers the background work after a save (stages, AI tags and summary), read through the local Files Worker's Workflow runs, logs, stored files and crons in Cloudflare's Local Explorer.
 - [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.
 
+- [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.
+- [Android app](./android.md) covers the Android app on the phone and tablet emulators against the local E2E stack: archive, folders, tags, Revisit, done toggles, link pills, search chips and the share sheet's tags and note.
+- [Raycast](./raycast.md) covers the Raycast commands, card actions and AI tools through the extension's own API client.
+
 ## Not mapped yet
 
-Add a file here when a change touches one of these: import and export (Settings), the browser extension (`.agents/cloud.md` has the load steps), Raycast, the docs site, the Apple and Android apps (no macOS or Android SDK in cloud sessions), and billing ("Upgrade to Pro" with Polar's sandbox).
+Add a file here when a change touches one of these: import and export (Settings), the browser extension (`.agents/cloud.md` has the load steps), the docs site, and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.

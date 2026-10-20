@@ -20,6 +20,7 @@ struct CardMenuActions {
     var export: (CardSummary) -> Void
     var confirmDelete: (CardSummary) -> Void
     var confirmDeleteForever: (CardSummary) -> Void
+    var moreLikeThis: (CardSummary) -> Void
 }
 
 struct CardContextMenu: View {
@@ -53,6 +54,11 @@ struct CardContextMenu: View {
                 Button(card.favorited ? "Unfavorite" : "Favorite", systemImage: card.favorited ? "heart.slash" : "heart") {
                     Task { await library.setFavorite(card, !card.favorited) }
                 }
+                Button(card.archived ? "Unarchive" : "Archive", systemImage: card.archived ? "tray.and.arrow.up" : "archivebox") {
+                    Task { await library.setArchived(card.id, !card.archived) }
+                }
+                Button("More Like This", systemImage: "sparkles") { actions.moreLikeThis(card) }
+                Button("Refresh Details", systemImage: "arrow.clockwise") { Task { await library.refreshDetails(card.id) } }
                 Button("Copy Link to Card", systemImage: "link") {
                     Pasteboard.copy(webURL.absoluteString)
                     library.show("Link copied")
@@ -152,6 +158,11 @@ struct CardSwipeActions: ViewModifier {
                             Task { await library.setFavorite(card, !card.favorited) }
                         }
                         .tint(.pink)
+                        Button(card.archived ? "Unarchive" : "Archive",
+                               systemImage: card.archived ? "tray.and.arrow.up" : "archivebox") {
+                            Task { await library.setArchived(card.id, !card.archived) }
+                        }
+                        .tint(.indigo)
                     }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {

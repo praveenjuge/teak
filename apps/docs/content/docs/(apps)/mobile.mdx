@@ -34,23 +34,64 @@ If you reach the Free plan's card limit, Teak tells you before saving.
 
 ## Your Library
 
-**Home** shows your cards, newest first, with more columns on iPad. Search by words or by when you saved something, such as "last week" or "March 2026". Words like "image", "favorites", or a color turn into filters in the search bar; press Return to add one.
+**Home** shows your cards, newest first, with more columns on iPad. Search by words or by when you saved something, such as "last week" or "March 2026". Teak also searches by meaning, so "cozy reading corner" can find a photo that never says those words. Words like "image", "favorites", or a color turn into filters in the search bar; press Return to add one.
 
-Tap the filter button to show **Favorites**, open **Trash**, or narrow by **Type** (notes, links, images, and more) or **Color**. The title shows what you're looking at; choose **Clear Filters** to go back to everything.
+You can also type filters the way the web app does, and each becomes a chip:
 
-Tap a card to open it. Notes show their formatting, links show their details (like price or rating) and any photos from the post, and documents show inline when they're Markdown or code. Tap **View Document** to read a PDF or other file. Tap a tag to search for it.
+| Filter | Shows |
+| --- | --- |
+| `#tag` or `tag:design` | Cards with that tag |
+| `is:archived` | Archived cards |
+| `is:done` / `is:todo` | Links you've marked done, or ones still to read, watch or buy |
+| `price:<100` | Product links under (or `>` over) a price |
+| `text:"total due"` | Words read from images and scans |
+| `mood:calm` | Images by mood |
+
+Put quotes around words that belong together, like `text:"total due"` or `"design system"`.
+
+Tap the **More** button (the circled ellipsis) to **Select** cards, start **Revisit**, show **Favorites**, **Archive** or **Trash**, narrow by **Type** or **Color**, or sort by **Newest First**, **Oldest First** or **Shuffle** (choose **Reshuffle** for a new order). **Save as Smart Folder…** saves the current search. The title shows what you're looking at; choose **Clear Filters** to go back to everything.
+
+Tap a card to open it. Notes show their formatting, links show their details (like price, rating or when they were published) and any photos from the post, photos show camera details, and documents show inline when they're Markdown or code. Tap **View Document** to read a PDF or other file. Tap a tag to search for it. Text saved from a web page shows **From** and the site at the bottom; tap it to open the page.
 
 On iPad, a card's notes, tags, summary, and details sit in a panel beside it.
 
+### Links between notes
+
+A note can link to other cards. Links show as tappable pills with the linked card's current title; tap one to open that card. A link to a card that's in Trash, deleted or not yours shows **Missing card**. Notes that link to the card you're viewing are listed under **Linked from**.
+
+### Mark links done
+
+Links you mean to read, watch or buy have a toggle in the toolbar: **Mark as read**, **Mark as watched**, **Mark as bought** and so on, or **Mark as done** for other links. Done links show a check on their tile. Search `is:todo` for what's left.
+
+### More like this and Refresh Details
+
+In a card's **More** menu (or when you press and hold a card), **More Like This** shows cards similar to it, and **Refresh Details** asks Teak to read the card again and update its summary and tags.
+
 ### Edit a card
 
-Tap the pencil in a card's toolbar to edit it in one place: rewrite a note or quote, change its notes and tags, or remove tags Teak added. Tap **Save** when you're done.
+Tap the pencil in a card's toolbar to edit it in one place: rewrite a note or quote, change its notes and tags, or remove tags Teak added. Tap **Save** when you're done. Adding the tag `secret` or `hidden` hides the card everywhere except a search for that tag; the Edit sheet says so when you add one.
+
+### Archive
+
+Archive cards you're done with to keep them out of your library without deleting them. Press and hold a card and choose **Archive**, or use **Archive** in a card's **More** menu. A message lets you **Undo**. Open **Archive** from the **More** button (on iPad, from the sidebar) to see archived cards and **Unarchive** them.
+
+### Folders and smart folders
+
+On iPhone, the **Folders** tab lists your folders and smart folders, with each folder's card count; tap one to see its cards, with its own search and **More** menu, or tap **New Folder** to make one. On iPad, folders sit in the sidebar. Press and hold a folder to rename or delete it; a deleted folder can be brought back with **Undo**, and its cards stay in your library. To file a card, open it and tap **Folders** in its details, or select cards and choose **Add to Folder**. A smart folder is a saved search: it shows every card that matches, including cards you save later.
+
+### Tags
+
+Open **Settings › Tags** on iPhone, or **Tags** in the iPad sidebar, to see every tag with its card count. Press and hold a tag to **Rename…**, **Merge Into…** another tag, or **Delete…** it from every card. Teak shows the progress while it works. Tap a tag to see its cards.
+
+### Revisit
+
+Choose **Revisit** from the **More** button to go through up to 20 shuffled cards from the current view, one at a time. Swipe left or tap **Archive** for cards you're done with, swipe right or tap **Keep** for the rest. **Undo** brings back the last archived card. When the deck ends, Teak shows how many you archived and kept.
 
 ### Trash and selecting cards
 
-Deleting a card moves it to **Trash**, where it stays for 30 days. Open Trash from the filter button, then tap a card to **Restore** it or **Delete Forever**. You can also press and hold a card for the same actions. On iOS 27, swipe a card to favorite or delete it.
+Deleting a card moves it to **Trash**, where it stays for 30 days. Open Trash from the **More** button, then tap a card to **Restore** it or **Delete Forever**. You can also press and hold a card for the same actions. On iOS 27, swipe a card to favorite, archive or delete it.
 
-To act on several cards, tap the checkmark button (or press and hold a card and choose **Select**), tap the cards you want, then delete them, or restore or delete them forever in Trash. Tap **Done** to stop selecting.
+To act on several cards, choose **Select** from the **More** button (or press and hold a card and choose **Select**), tap the cards you want, then archive them, add tags, add them to a folder, favorite them, or move them to Trash. In Archive, unarchive them; in Trash, restore them or delete them forever. Tap **Done** to stop selecting.
 
 ## Share Sheet (Import from Other Apps)
 
@@ -68,7 +109,7 @@ Use the iOS Share Sheet to save content to Teak without leaving another app:
   </Step>
 </Steps>
 
-The share extension shows live status while saving. If it asks you to sign in, open Teak, sign in, then retry.
+The share extension shows live status while saving. When a single item is saved, you can add tags (separated by commas) and a note before tapping **Save**; if you don't, it closes by itself. If it asks you to sign in, open Teak, sign in, then retry.
 
 Supported share sources include links, text, images, and files, with the same format support as the web app (see [Features](/docs/features)), up to 100 MB — except Markdown shares, which become text cards limited to 512 KiB.
 
@@ -95,6 +136,7 @@ Add **Save to Teak** to a shortcut in the Shortcuts app, or say "Save to Teak" t
 
 The **Settings** tab lets you:
 
+- Open **Tags** to rename, merge, or delete tags (iPhone)
 - Switch appearance between **Auto** (follows iOS system setting), **Light**, and **Dark** via **Settings → Appearance**
 - View your account email, card usage, and plan
 - Log out

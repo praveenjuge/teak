@@ -10,3 +10,6 @@ import kotlinx.serialization.Serializable
 @Serializable data class NoteComposer(val text: String = "") : NavKey
 @Serializable data object VoiceMemo : NavKey
 @Serializable data object Settings : NavKey
+@Serializable data object Folders : NavKey
+@Serializable data class FolderLibrary(val id: String) : NavKey
+@Serializable data object TagManager : NavKey

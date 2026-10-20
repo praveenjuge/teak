@@ -12,6 +12,12 @@ extension EnvironmentValues {
 
 struct CardSections: View {
     let card: Card
+    var backlinks: [LinkedCard] = []
+    var hasMoreBacklinks = false
+    var folderNames: [String] = []
+    var openCard: (String) -> Void = { _ in }
+    var openSource: (URL) -> Void = { _ in }
+    var editFolders: (() -> Void)?
     @Environment(\.filterLibrary) private var filterLibrary
     @Environment(\.dismiss) private var dismiss
 
@@ -29,7 +35,9 @@ struct CardSections: View {
             if let transcript = card.aiTranscript?.trimmingCharacters(in: .whitespacesAndNewlines), !transcript.isEmpty {
                 section("Transcript") { paragraph(transcript) }
             }
+            linkedFrom
             info
+            source
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -49,7 +57,7 @@ struct CardSections: View {
 
     @ViewBuilder private var linkDetails: some View {
         if card.type == .link {
-            let facts = CardSheet.linkFacts(card)
+            let facts = linkRows
             if !facts.isEmpty {
                 section("Details") { rows(facts) }
             }
@@ -84,8 +92,70 @@ struct CardSections: View {
         }
     }
 
+    /// A product's price first, then the site's facts, then when it was published.
+    private var linkRows: [DetailRow] {
+        var rows = CardSheet.linkFacts(card)
+        if let price = card.metadata?.linkCategory?.price { rows.insert(DetailRow("Price", price.formatted()), at: 0) }
+        if let published = PublishedDate.format(card.metadata?.linkPreview?.publishedAt) {
+            rows.append(DetailRow("Published", published))
+        }
+        return rows
+    }
+
+    @ViewBuilder private var linkedFrom: some View {
+        if !backlinks.isEmpty {
+            section("Linked from") {
+                VStack(spacing: 0) {
+                    ForEach(Array(backlinks.enumerated()), id: \.element.id) { index, linked in
+                        if index > 0 { Divider().padding(.leading, 16) }
+                        Button { openCard(linked.id) } label: {
+                            Label(linked.title, systemImage: linked.type.symbol)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if hasMoreBacklinks {
+                        Divider().padding(.leading, 16)
+                        Text("and more")
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                    }
+                }
+                .grouped()
+            }
+        }
+    }
+
+    /// "From example.com": where a saved note or quote came from.
+    @ViewBuilder private var source: some View {
+        if let host = CardSourceRow.host(card.sourceUrl) {
+            Button {
+                if let url = SafeURL.sanitize(card.sourceUrl) { openSource(url) }
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("From \(host)", systemImage: "arrow.up.right.square")
+                        .font(.footnote.weight(.medium))
+                    if let title = card.sourceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                        Text(title).font(.footnote).foregroundStyle(Color.secondary).lineLimit(1)
+                    }
+                }
+                .padding(.leading, 4)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.tint)
+            .accessibilityHint(card.sourceUrl ?? "")
+            .accessibilityIdentifier("detail.source")
+        }
+    }
+
     private var info: some View {
-        let details = CardSheet.detailRows(card).filter { $0.label != "Type" }
+        let exif = card.type == .image ? ExifFacts.rows(card.fileMetadata?.exif) : []
+        let details = CardSheet.detailRows(card).filter { $0.label != "Type" } + exif
             + [DetailRow("Created", CardSheet.formatTimestamp(card.createdAt)),
                DetailRow("Updated", CardSheet.formatTimestamp(card.updatedAt))]
         return section("Info") {
@@ -104,6 +174,16 @@ struct CardSections: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Shows every \(card.type.label.lowercased()) card")
+                if let editFolders {
+                    Divider().padding(.leading, 16)
+                    Button(action: editFolders) {
+                        InfoRow(label: "Folders") {
+                            Text(folderSummary).foregroundStyle(.tint)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(folderNames.isEmpty ? "Add to a folder" : "In \(folderNames.joined(separator: ", ")). Change folders")
+                }
                 ForEach(details, id: \.self) { row in
                     Divider().padding(.leading, 16)
                     InfoRow(label: row.label) { Text(row.value) }
@@ -114,6 +194,11 @@ struct CardSections: View {
             }
             .grouped()
         }
+    }
+
+    private var folderSummary: String {
+        guard let first = folderNames.first else { return "Add…" }
+        return folderNames.count > 1 ? "\(first) +\(folderNames.count - 1)" : first
     }
 
     private func rows(_ rows: [DetailRow]) -> some View {

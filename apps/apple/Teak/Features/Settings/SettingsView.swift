@@ -18,9 +18,15 @@ enum Appearance: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @State private var account = AccountModel()
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
 
     var body: some View {
         Form {
+            #if os(iOS)
+            if sizeClass == .compact { LibrarySection() }
+            #endif
             AppearanceSection()
             AccountSection(account: account)
             SafariExtensionSection()
@@ -31,6 +37,30 @@ struct SettingsView: View {
         .task { await account.watch(app.backend) }
     }
 }
+
+#if os(iOS)
+/// iPhone's way to the tag manager; the iPad and Mac have it in the sidebar.
+struct LibrarySection: View {
+    @Environment(AppRouter.self) private var router
+
+    var body: some View {
+        Section("Library") {
+            NavigationLink {
+                TagsView(model: AppServices.shared.tags) { tag in
+                    let library = AppServices.shared.home
+                    library.open(nil)
+                    library.filterByTag(tag)
+                    router.homePath = []
+                    router.tab = .home
+                }
+            } label: {
+                Label("Tags", systemImage: "number")
+            }
+            .accessibilityIdentifier("settings.tags")
+        }
+    }
+}
+#endif
 
 struct AppearanceSection: View {
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
