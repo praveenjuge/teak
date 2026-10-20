@@ -66,36 +66,73 @@ type ArchiveResult =
     }
   | { failureClass: ExportFailureClass; ok: false };
 
+/**
+ * One `snapshot page N` step result. The snapshot is the ids, kept here in
+ * step state (200 ids are about 7 KB). A page without `cardIds` was written as
+ * `exportJobItems` rows instead: by a run that started on an older Worker, or
+ * while Convex did not have `getExportSnapshotPage` yet.
+ */
+interface SnapshotPage {
+  addedBytes: number;
+  addedCount: number;
+  canceled: boolean;
+  cardIds?: Id<"cards">[];
+  cursor: string | null;
+  isDone: boolean;
+}
+
+const SNAPSHOT_QUERY_REFUSED =
+  "convex_rpc_refused:dataExport:getExportSnapshotPage:";
+
 const base64 = (text: string) => Buffer.from(text, "utf8").toString("base64");
 
 const readArchiveCards = async (
   convex: ConvexRpc,
-  jobId: Id<"exportJobs">
+  jobId: Id<"exportJobs">,
+  pages: readonly SnapshotPage[],
+  hasJobItems: boolean
 ): Promise<ArchiveCard[]> => {
   const inputs: ArchiveCard[] = [];
   const seen = new Set<string>();
-  let cursor: string | null = null;
-  for (;;) {
-    const page: {
-      cards: ExportableCard[];
-      cursor: string | null;
-      isDone: boolean;
-    } = await convex.query(internal.dataExport.getExportCardsPage, {
-      cursor,
-      jobId,
-      numItems: CARDS_PAGE_SIZE,
-    });
-    for (const card of page.cards) {
+  const add = (cards: readonly ExportableCard[]) => {
+    for (const card of cards) {
       if (!seen.has(card._id)) {
         seen.add(card._id);
         inputs.push({ card, fileKey: card.fileKey });
       }
     }
-    if (page.isDone) {
-      return inputs;
+  };
+  // Row pages can only come before id pages: Convex gains the snapshot query
+  // during a run, never loses it.
+  if (hasJobItems) {
+    let cursor: string | null = null;
+    for (;;) {
+      const page: {
+        cards: ExportableCard[];
+        cursor: string | null;
+        isDone: boolean;
+      } = await convex.query(internal.dataExport.getExportCardsPage, {
+        cursor,
+        jobId,
+        numItems: CARDS_PAGE_SIZE,
+      });
+      add(page.cards);
+      if (page.isDone) {
+        break;
+      }
+      cursor = page.cursor;
     }
-    cursor = page.cursor;
   }
+  const cardIds = pages.flatMap((page) => page.cardIds ?? []);
+  for (let start = 0; start < cardIds.length; start += CARDS_PAGE_SIZE) {
+    add(
+      await convex.query(internal.dataExport.getExportCardsByIds, {
+        cardIds: cardIds.slice(start, start + CARDS_PAGE_SIZE),
+        jobId,
+      })
+    );
+  }
+  return inputs;
 };
 
 export const buildExportManifest = (args: {
@@ -168,8 +205,17 @@ export const runExport = (
   const { env, instanceId, step } = run;
   const jobId = run.params.jobId as Id<"exportJobs">;
   const { userId } = run.params;
+  const pages: SnapshotPage[] = [];
+  // Set in this execution when a snapshot step fell back to writing rows, so a
+  // failure in that same step still drains them.
+  let wroteJobItems = false;
+  const hasJobItems = () =>
+    wroteJobItems || pages.some((page) => page.cardIds === undefined);
 
   const cleanupItems = async () => {
+    if (!hasJobItems()) {
+      return;
+    }
     for (;;) {
       const result = await convex.mutation(
         internal.dataExport.deleteJobItemsPage,
@@ -178,6 +224,36 @@ export const runExport = (
       if (!result.hasMore) {
         return;
       }
+    }
+  };
+
+  const takeSnapshotPage = async (
+    cursor: string | null
+  ): Promise<Omit<SnapshotPage, "canceled">> => {
+    try {
+      const page = await convex.query(
+        internal.dataExport.getExportSnapshotPage,
+        { cursor, jobId, numItems: SNAPSHOT_PAGE_SIZE }
+      );
+      return {
+        addedBytes: page.addedBytes,
+        addedCount: page.cardIds.length,
+        cardIds: page.cardIds,
+        cursor: page.cursor,
+        isDone: page.isDone,
+      };
+    } catch (error) {
+      // The Worker deploys before Convex: until Convex has the query, snapshot
+      // the old way.
+      if (!errorMessage(error).includes(SNAPSHOT_QUERY_REFUSED)) {
+        throw error;
+      }
+      wroteJobItems = true;
+      return await convex.mutation(internal.dataExport.recordSnapshotPage, {
+        cursor,
+        jobId,
+        numItems: SNAPSHOT_PAGE_SIZE,
+      });
     }
   };
 
@@ -213,7 +289,7 @@ export const runExport = (
     if (await convex.query(internal.dataExport.isCancelRequested, { jobId })) {
       return { failureClass: EXPORT_FAILURE_CLASS.CANCELED, ok: false };
     }
-    const inputs = await readArchiveCards(convex, jobId);
+    const inputs = await readArchiveCards(convex, jobId, pages, hasJobItems());
     const folders: Array<{ id: string; name: string }> = await convex.query(
       internal.dataExport.getExportFolderNames,
       { jobId }
@@ -329,25 +405,26 @@ export const runExport = (
     let totalCount = 0;
     let totalBytes = 0;
     for (let page = 1; ; page += 1) {
-      const recorded = await step.do(`snapshot page ${page}`, CONVEX_STEP, () =>
-        settleConvexErrors(async () => {
-          const snapshot = await convex.mutation(
-            internal.dataExport.recordSnapshotPage,
-            { cursor, jobId, numItems: SNAPSHOT_PAGE_SIZE }
-          );
-          await convex.mutation(internal.dataExport.recordExportProgress, {
-            jobId,
-            processedCount: totalCount + snapshot.addedCount,
-            stage: "snapshotting",
-          });
-          const canceled =
-            !snapshot.isDone &&
-            (await convex.query(internal.dataExport.isCancelRequested, {
+      const recorded: SnapshotPage = await step.do(
+        `snapshot page ${page}`,
+        CONVEX_STEP,
+        () =>
+          settleConvexErrors(async () => {
+            const snapshot = await takeSnapshotPage(cursor);
+            await convex.mutation(internal.dataExport.recordExportProgress, {
               jobId,
-            }));
-          return { ...snapshot, canceled };
-        })
+              processedCount: totalCount + snapshot.addedCount,
+              stage: "snapshotting",
+            });
+            const canceled =
+              !snapshot.isDone &&
+              (await convex.query(internal.dataExport.isCancelRequested, {
+                jobId,
+              }));
+            return { ...snapshot, canceled };
+          })
       );
+      pages.push(recorded);
       totalCount += recorded.addedCount;
       totalBytes += recorded.addedBytes;
       if (
@@ -395,12 +472,14 @@ export const runExport = (
       })
     );
     settled = true;
-    await step.do("delete job items", CONVEX_STEP, () =>
-      settleConvexErrors(async () => {
-        await cleanupItems();
-        return null;
-      })
-    );
+    if (hasJobItems()) {
+      await step.do("delete job items", CONVEX_STEP, () =>
+        settleConvexErrors(async () => {
+          await cleanupItems();
+          return null;
+        })
+      );
+    }
     return { status: "ready" };
   };
 

@@ -113,7 +113,7 @@ describe("signed WorkOS bootstrap", () => {
       },
     ]);
     const before = await state(t);
-    expect(before.jobs).toHaveLength(2);
+    expect(before.jobs).toHaveLength(1);
     expect(await signed(t).mutation(ensure, {})).toEqual(result);
     expect(await state(t)).toEqual(before);
   });
@@ -313,7 +313,7 @@ describe("signed WorkOS bootstrap", () => {
       status: "ok",
     });
     expect((await state(t)).users).toHaveLength(1);
-    expect((await state(t)).jobs).toHaveLength(2);
+    expect((await state(t)).jobs).toHaveLength(1);
   });
   test.each([
     { email: "changed@example.com", externalId: null },
@@ -337,7 +337,7 @@ describe("signed WorkOS bootstrap", () => {
           { email: "changed@example.com", workosUserId: "user_NEW" },
         ]);
         expect((await state(t)).users).toHaveLength(1);
-        expect((await state(t)).jobs).toHaveLength(2);
+        expect((await state(t)).jobs).toHaveLength(1);
       } else {
         expect(result).toEqual({
           status: "quarantined",
@@ -383,7 +383,7 @@ describe("signed WorkOS bootstrap", () => {
     const after = await state(t);
     expect(after.users).toHaveLength(1);
     expect(after.users[0].workosUserId).toBe("user_NEW");
-    expect(after.jobs).toHaveLength(2);
+    expect(after.jobs).toHaveLength(1);
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "ok",
       teakUserId: after.users[0].teakUserId,

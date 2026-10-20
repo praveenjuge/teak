@@ -57,6 +57,62 @@ export const processingStatusValidator = v.optional(
   processingStatusObjectValidator
 );
 
+const metadataStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("completed"),
+  v.literal("failed")
+);
+
+const stageSummaryValidator = v.object({
+  pending: v.number(),
+  inProgress: v.number(),
+  failed: v.number(),
+});
+
+/** `admin:getOverview`'s result (`AdminOverview` in adminStats.ts). */
+export const adminOverviewFields = {
+  generatedAt: v.number(),
+  totals: v.object({
+    totalCards: v.number(),
+    activeCards: v.number(),
+    deletedCards: v.number(),
+    uniqueUsers: v.number(),
+  }),
+  growth: v.object({
+    createdLastSevenDays: v.number(),
+    createdLastThirtyDays: v.number(),
+  }),
+  cardsByType: v.record(v.string(), v.number()),
+  metadataStatus: v.object({
+    pending: v.number(),
+    completed: v.number(),
+    failed: v.number(),
+    unset: v.number(),
+  }),
+  aiPipeline: v.object({
+    missingAiMetadata: v.number(),
+    pendingEnrichment: v.number(),
+    failedCards: v.number(),
+    stageSummaries: v.object({
+      classify: stageSummaryValidator,
+      categorize: stageSummaryValidator,
+      metadata: stageSummaryValidator,
+      renderables: stageSummaryValidator,
+    }),
+    missingCards: v.array(
+      v.object({
+        cardId: v.id("cards"),
+        type: v.string(),
+        createdAt: v.number(),
+        metadataStatus: v.optional(metadataStatusValidator),
+        processingStatus: processingStatusValidator,
+        reasons: v.array(v.string()),
+      })
+    ),
+  }),
+  isApproximate: v.boolean(),
+};
+
 const linkCategoryFactValidator = v.object({
   label: v.string(),
   value: v.string(),
@@ -372,6 +428,14 @@ export const exportJobItemValidator = v.object({
   createdAt: v.number(),
 });
 
+export const stagedItemsValidator = v.object({
+  pages: v.number(),
+  parts: v.number(),
+  cursor: v.union(v.number(), v.null()),
+  part: v.number(),
+  offset: v.number(),
+});
+
 export const importJobValidator = v.object({
   userId: v.string(),
   mode: importModeValidator,
@@ -402,8 +466,18 @@ export const importJobValidator = v.object({
   updatedAt: v.number(),
   startedAt: v.optional(v.number()),
   completedAt: v.optional(v.number()),
+  /**
+   * Set when the job is queued: the import Workflow stages its items in R2
+   * (`importStagedPartKey`) instead of `importJobItems` rows. `pages` source
+   * pages and `parts` staged objects are recorded, and indexing resumes at
+   * `cursor` (null once the source is read). Cards are created from staged
+   * part `part`, item `offset`. Jobs without it use the rows.
+   */
+  stagedItems: v.optional(stagedItemsValidator),
 });
 
+// A job with `stagedItems` keeps only its failed items here, for the failure
+// samples and the report. Older jobs staged every item.
 export const importJobItemValidator = v.object({
   jobId: v.id("importJobs"),
   userId: v.string(),
@@ -691,7 +765,8 @@ export default defineSchema({
       v.literal("import"),
       v.literal("accountDeletion"),
       v.literal("maintenance"),
-      v.literal("deleteObjects")
+      v.literal("deleteObjects"),
+      v.literal("analyticsEvent")
     ),
     key: v.string(),
     instanceId: v.optional(v.string()),
@@ -1163,6 +1238,7 @@ export default defineSchema({
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),
+  // Unused; kept for old rows until `.agents/sunset.md` says it can go.
   pendingUploadCleanupStates: defineTable({
     cursor: v.union(v.string(), v.null()),
     name: v.string(),
@@ -1242,6 +1318,12 @@ export default defineSchema({
     ),
     isApproximate: v.boolean(),
   }).index("by_date", ["date"]),
+  // The admin overview as the Files Worker last counted it (hourly), one row
+  // with onboarding cards and one without. Aggregates only.
+  adminOverviews: defineTable({
+    includeOnboarding: v.boolean(),
+    ...adminOverviewFields,
+  }).index("by_includeOnboarding", ["includeOnboarding"]),
   aiUsageDaily: defineTable({
     date: v.string(),
     userId: v.string(),

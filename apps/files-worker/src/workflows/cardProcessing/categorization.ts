@@ -35,7 +35,7 @@ import {
   gunzipBase64,
   storeLinkPreviewImage,
 } from "./linkMetadata";
-import { hydrateArchivedMetadata } from "./rawMetadata";
+import { archiveRawMetadata, hydrateArchivedMetadata } from "./rawMetadata";
 
 const MAX_FETCH_BODY_SIZE = 250_000;
 const METADATA_TTL_MS = 1000 * 60 * 60 * 24 * 30;
@@ -201,7 +201,12 @@ export const categorizeLink = async (
       internal.workflows.steps.categorization.mutations.updateCategorization,
       {
         cardId: job.cardId,
-        metadata,
+        metadata: await archiveRawMetadata(
+          job,
+          { keyPrefix: loaded.keyPrefix, userId: card.userId },
+          "linkCategory",
+          metadata
+        ),
         ...(previewImage ? { previewImage } : {}),
       },
       guardOf(job)

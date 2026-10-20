@@ -20,6 +20,7 @@ import {
 import { assertUrlIsSafe, SsrfError } from "@teak/convex/linkMetadata/ssrf";
 import type {
   LinkPreviewMediaItem,
+  LinkPreviewMetadata,
   ScrapeResponse,
 } from "@teak/convex/linkMetadata/types";
 import { normalizeUrl } from "@teak/convex/linkMetadata/url";
@@ -42,6 +43,7 @@ import {
   loadCard,
   objectKey,
 } from "./context";
+import { archiveRawMetadata } from "./rawMetadata";
 
 export const LINK_METADATA_RETRYABLE_PREFIX =
   "workflow:linkMetadata:retryable:";
@@ -372,12 +374,40 @@ export const fetchLinkMetadata = async (
   const card = await convex.query(internal.linkMetadata.getCardForLinkFetch, {
     cardId: job.cardId,
   });
-  const save = async (linkPreview: unknown, status: "completed" | "failed") => {
+  let loaded: LoadedCard | null = null;
+  const owner = async (): Promise<LoadedCard> => {
+    loaded ??= await loadCard(job);
+    if (!loaded) {
+      throw new Error("card_missing");
+    }
+    return loaded;
+  };
+  // A Convex deployed before the reader returned its key prefix sends none;
+  // the full card read gives it.
+  const rawOwner = async () =>
+    card?.keyPrefix === undefined
+      ? await owner().then((found) => ({
+          keyPrefix: found.keyPrefix,
+          userId: found.card.userId,
+        }))
+      : { keyPrefix: card.keyPrefix, userId: card.userId };
+  const save = async (
+    linkPreview: LinkPreviewMetadata,
+    status: "completed" | "failed"
+  ) => {
     await convex.mutation(
       internal.linkMetadata.updateCardMetadata,
       {
         cardId: job.cardId,
-        linkPreview,
+        linkPreview:
+          linkPreview.raw === undefined
+            ? linkPreview
+            : await archiveRawMetadata(
+                job,
+                await rawOwner(),
+                "linkPreview",
+                linkPreview
+              ),
         ...(job.refresh ? { refresh: true } : {}),
         status,
       },
@@ -451,15 +481,6 @@ export const fetchLinkMetadata = async (
     }
     throw error;
   }
-
-  let loaded: LoadedCard | null = null;
-  const owner = async (): Promise<LoadedCard> => {
-    loaded ??= await loadCard(job);
-    if (!loaded) {
-      throw new Error("card_missing");
-    }
-    return loaded;
-  };
 
   const saveSocialPost = async (
     post: SocialPostMetadata,

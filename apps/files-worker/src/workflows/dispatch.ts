@@ -1,4 +1,5 @@
 import {
+  type AnalyticsEventItem,
   buildWorkflowDispatchSigningPayload,
   type DispatchItem,
   type DispatchItemResult,
@@ -17,13 +18,14 @@ import {
 } from "../convexRpc";
 import { sha256Hex, verifyHmacPayload } from "../lib";
 import { sendInBatches } from "../queues/sendBatch";
+import { sendBackendEvents, type TelemetryEnvVars } from "../telemetry";
 import { isValidUploadKey } from "../upload";
 
 export interface ObjectDeletionMessage {
   keys: string[];
 }
 
-export interface WorkflowBindingsEnv extends ConvexRpcEnv {
+export interface WorkflowBindingsEnv extends ConvexRpcEnv, TelemetryEnvVars {
   ACCOUNT_DELETION?: Workflow;
   CARD_PROCESSING?: Workflow;
   EXPORTS?: Workflow;
@@ -61,11 +63,66 @@ export const isMissingInstance = (error: unknown): boolean =>
 /** createBatch reports an ID that already exists, or repeats, with these. */
 export const DUPLICATE_INSTANCE_CODES = new Set([10_405, 10_415]);
 
-const parseItem = (value: unknown): DispatchItem | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+const EVENT_NAME = /^[a-z][a-z0-9_]{0,99}$/u;
+const EVENT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+/** The string, undefined when absent, or null when it isn't a short string. */
+const optionalString = (
+  value: unknown,
+  max: number
+): string | null | undefined => {
+  if (value === undefined) {
+    return;
+  }
+  return typeof value === "string" && value.length > 0 && value.length <= max
+    ? value
+    : null;
+};
+
+const parseAnalyticsEvent = (
+  record: Record<string, unknown>
+): AnalyticsEventItem | null => {
+  const { event, properties, set, timestamp, uuid } = record;
+  const appVersion = optionalString(record.appVersion, 64);
+  const distinctId = optionalString(record.distinctId, 200);
+  if (
+    appVersion === null ||
+    distinctId === null ||
+    typeof event !== "string" ||
+    !EVENT_NAME.test(event) ||
+    !isPlainObject(properties) ||
+    (set !== undefined && !isPlainObject(set)) ||
+    typeof timestamp !== "string" ||
+    timestamp.length > 40 ||
+    !Number.isFinite(Date.parse(timestamp)) ||
+    typeof uuid !== "string" ||
+    !EVENT_UUID.test(uuid)
+  ) {
     return null;
   }
-  const record = value as Record<string, unknown>;
+  return {
+    ...(appVersion ? { appVersion } : {}),
+    ...(distinctId ? { distinctId } : {}),
+    event,
+    properties,
+    ...(set ? { set } : {}),
+    timestamp,
+    type: "analytics-event",
+    uuid,
+  };
+};
+
+const parseItem = (record: unknown): DispatchItem | null => {
+  if (!isPlainObject(record)) {
+    return null;
+  }
+  if (record.type === "analytics-event") {
+    return parseAnalyticsEvent(record);
+  }
   if (record.type === "delete-objects") {
     const { keys } = record;
     if (
@@ -175,7 +232,8 @@ const terminateInstances = async (binding: Workflow, ids: string[]) => {
 export const runDispatch = async (
   env: WorkflowBindingsEnv,
   params: Record<string, unknown>,
-  now = Date.now()
+  now = Date.now(),
+  ctx?: Pick<ExecutionContext, "waitUntil">
 ): Promise<DispatchResult> => {
   const convexSiteUrl = allowedConvexSiteUrl(env, params.convexSiteUrl);
   if (!convexSiteUrl) {
@@ -190,6 +248,24 @@ export const runDispatch = async (
     ok: false,
     ...(item ? {} : { error: "invalid_item" }),
   }));
+
+  // Convex keeps no row for an event it hands over, so each one counts as
+  // delivered; the send is best effort and runs after the response.
+  const events = items.flatMap((item, index) => {
+    if (item?.type !== "analytics-event") {
+      return [];
+    }
+    results[index] = { index, ok: true };
+    return [item];
+  });
+  if (events.length > 0) {
+    const sent = sendBackendEvents(env, events);
+    if (ctx) {
+      ctx.waitUntil(sent);
+    } else {
+      await sent;
+    }
+  }
 
   const deletions = items.flatMap((item, index) =>
     item?.type === "delete-objects" ? [{ index, keys: item.keys }] : []

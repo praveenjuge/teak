@@ -12,6 +12,7 @@ import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { buildR2UserPrefix } from "./storage/r2";
 
 vi.mock("@resvg/resvg-wasm/index_bg.wasm", () => ({ default: null }));
 const filesWorker = await loadFilesWorker();
@@ -889,7 +890,14 @@ describe("durable deletion admission and tombstones", () => {
         failedCount: 1,
         createdAt: 1,
         updatedAt: 1,
+        stagedItems: { pages: 1, parts: 2, cursor: 1, part: 1, offset: 0 },
       });
+      for (const part of [1, 2]) {
+        bucket.objects.set(
+          `${buildR2UserPrefix("permanent-owner")}/imports/${jobId}/staged/${part}.json`,
+          { bytes: new Uint8Array([1]) }
+        );
+      }
       await ctx.db.insert("importJobItems", {
         userId: "permanent-owner",
         jobId,

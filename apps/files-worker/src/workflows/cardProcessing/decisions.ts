@@ -1,4 +1,3 @@
-import { internal } from "@teak/convex/_generated/api";
 import {
   CLEF_FLASH_MODEL_ID,
   CLEF_MODEL_ID,
@@ -58,10 +57,7 @@ export const runDecision = async <T>(
     return null;
   }
   try {
-    const gate = await job.deps.convex.query(internal.adminAccess.getAiGate, {
-      userId,
-    });
-    if (gate !== "allowed") {
+    if ((await job.deps.aiGate(userId)) !== "allowed") {
       return null;
     }
     const decide = (batch: WorkflowTelemetry) =>

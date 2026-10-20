@@ -1,8 +1,14 @@
+import {
+  archivedRawSummary,
+  RAW_METADATA_MAX_BYTES,
+  type RawMetadataKind,
+  serializeArchivableRaw,
+} from "@teak/convex/storage/rawMetadataJson";
 import { filesCardKeyPrefix } from "@teak/files-protocol";
+import { convexToJson, jsonToConvex, type Value } from "convex/values";
 import { sha256Hex } from "../../lib";
-
-const RAW_METADATA_MAX_BYTES = 512 * 1024;
-type RawMetadataKind = "linkCategory" | "linkPreview";
+import { gatedEnv } from "../filesOps";
+import { type CardJob, ensureObjectOwnership } from "./context";
 
 export const rawMetadataKey = (
   keyPrefix: string,
@@ -44,6 +50,77 @@ interface ArchivablePart {
   rawSha256?: string;
   rawStorageKey?: string;
 }
+
+/**
+ * The archivable JSON of `raw` as Convex would store it: the RPC drops
+ * undefined fields (a selector result without attributes), so the digest
+ * matches the one Convex's own archive would compute.
+ */
+const storedRawJson = (raw: unknown): string | null => {
+  if (raw === undefined) {
+    return null;
+  }
+  try {
+    return serializeArchivableRaw(jsonToConvex(convexToJson(raw as Value)));
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Moves a part's raw provider payload to R2 before the part reaches Convex,
+ * so the card stores only the reference and Convex never schedules its own
+ * archive. Same rules as `storage/rawMetadataMaintenance:archiveCard`: tiny or
+ * non-lossless JSON stays inline, and the object is read back and its hash
+ * and JSON checked first. A superseded run (a `NonRetryableError` from the
+ * guarded ownership write) ends the step; any other failure keeps the payload
+ * inline, which Convex then archives as before.
+ */
+export const archiveRawMetadata = async <T extends ArchivablePart>(
+  job: CardJob,
+  owner: { keyPrefix: string; userId: string },
+  kind: RawMetadataKind,
+  part: T
+): Promise<T> => {
+  const json = storedRawJson(part.raw);
+  if (json === null) {
+    return part;
+  }
+  try {
+    const digest = await sha256Hex(json);
+    const key = rawMetadataKey(
+      owner.keyPrefix,
+      { _id: job.cardId, userId: owner.userId },
+      kind,
+      digest
+    );
+    await ensureObjectOwnership(job, owner.userId, key);
+    const bucket = gatedEnv(job.env).BUCKET;
+    await bucket.put(key, json, {
+      httpMetadata: { contentType: "application/json" },
+    });
+    const restored = await readArchivedRaw(bucket, key, digest);
+    if (JSON.stringify(restored) !== json) {
+      throw new Error("raw_metadata_roundtrip_mismatch");
+    }
+    const { raw: _archived, ...rest } = part;
+    return {
+      ...rest,
+      rawSha256: digest,
+      rawStorageKey: key,
+      ...archivedRawSummary(kind, part.raw),
+    } as T;
+  } catch (error) {
+    if (error instanceof Error && error.name === "NonRetryableError") {
+      throw error;
+    }
+    console.warn("[rawMetadata] Archive failed; keeping raw inline", {
+      kind,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return part;
+  }
+};
 
 export const hydrateArchivedMetadata = async <
   T extends {

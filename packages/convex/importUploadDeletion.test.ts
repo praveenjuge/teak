@@ -701,3 +701,51 @@ test("orphan import items still retain their owner's deletion fence", async () =
   ).rejects.toThrow("Account deletion is already in progress");
   expect(await t.run((ctx) => ctx.db.get(itemId))).not.toBeNull();
 });
+
+test("the hourly cron aborts an abandoned import upload, fails the job and queues its source for deletion", async () => {
+  const { t } = await importSession();
+  const bucket = new FakeBucket();
+  const upload = bucket.createMultipartUpload(key);
+  const reserve = (userId: string, sourceKey: string, expiresIn: number) =>
+    t.mutation(internal.dataImport.reserveJob, {
+      userId,
+      mode: "archive",
+      fileName: "proof.zip",
+      fileSize: 1,
+      fileLastModified: 0,
+      sourceKey,
+      uploadExpiresAt: Date.now() + expiresIn,
+    });
+  const abandoned = await reserve(ownerId, key, -1);
+  await t.run((ctx) => ctx.db.patch(abandoned, { uploadId: upload.uploadId }));
+  const live = await reserve(
+    "import-live-owner",
+    "users/import-live-owner/imports/live/source.zip",
+    86_400_000
+  );
+  const env = { BUCKET: bucket, FILES_SIGNING_SECRET: "test" };
+
+  expect(await filesWorker.expireImportUploads(env, convexForWorker(t))).toBe(
+    1
+  );
+  expect(await filesWorker.expireImportUploads(env, convexForWorker(t))).toBe(
+    0
+  );
+
+  expect(bucket.multipartUploads.has(upload.uploadId)).toBe(false);
+  const expired = await t.run((ctx) => ctx.db.get(abandoned));
+  expect(expired).toMatchObject({
+    status: "failed",
+    failureClass: "upload_expired",
+  });
+  expect(expired).not.toHaveProperty("uploadId");
+  expect(await t.run((ctx) => ctx.db.get(live))).toMatchObject({
+    status: "uploading",
+  });
+  const dispatches = await t.run((ctx) =>
+    ctx.db.query("workflowDispatches").collect()
+  );
+  expect(
+    dispatches.filter((row) => row.kind === "deleteObjects")
+  ).toMatchObject([{ keys: [key] }]);
+});

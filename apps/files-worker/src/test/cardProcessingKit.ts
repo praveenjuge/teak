@@ -1,5 +1,6 @@
 import type { FilesErrorCode, FilesOp } from "@teak/files-protocol";
 import { createFetcherHandler } from "../../fetcher/src/handler";
+import { createAiGateReader } from "../aiGate";
 import { createConvexRpc } from "../convexRpc";
 import type {
   CardJob,
@@ -127,6 +128,7 @@ export const createCardConvex = (
     "linkMetadata:getCardForLinkFetch": () =>
       card
         ? {
+            keyPrefix: "",
             processingStatus: card.processingStatus?.classify
               ? { classify: { status: card.processingStatus.classify.status } }
               : undefined,
@@ -394,12 +396,21 @@ export const testDeps = (
   fetcher: typeof fetch,
   ops: FilesOpCaller,
   extra: Partial<CardProcessingDeps> = {}
-): CardProcessingDeps => ({
-  convex: createConvexRpc(env, TEST_CONVEX_SITE_URL, fetcher),
-  filesOp: ops,
-  ...noNetwork,
-  ...extra,
-});
+): CardProcessingDeps => {
+  const convex =
+    extra.convex ?? createConvexRpc(env, TEST_CONVEX_SITE_URL, fetcher);
+  return {
+    // A memo of its own, so one test's gate never answers another's.
+    aiGate: createAiGateReader(convex, TEST_CONVEX_SITE_URL, {
+      cache: () => Promise.resolve(null),
+      memo: new Map(),
+    }),
+    convex,
+    filesOp: ops,
+    ...noNetwork,
+    ...extra,
+  };
+};
 
 export const testJob = (
   env: BackgroundEnv,

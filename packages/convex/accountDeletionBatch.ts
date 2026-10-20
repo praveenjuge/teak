@@ -5,7 +5,8 @@ import {
   type OwnedCardIds,
   takeOwnedCards,
 } from "./accountDeletion";
-import { cardStorageObjectKeys } from "./storage/r2";
+import { importStagedPartKeys } from "./import/indexItems";
+import { buildR2UserPrefix, cardStorageObjectKeys } from "./storage/r2";
 import { sha256Hex } from "./storage/r2Keys";
 
 declare const ownerIndexBrand: unique symbol;
@@ -65,6 +66,11 @@ export async function captureDeletionBatch(
       ...jobs.flatMap((row) => [
         row.sourceKey,
         ...(row.reportKey ? [row.reportKey] : []),
+        ...importStagedPartKeys(
+          buildR2UserPrefix(row.userId),
+          row._id,
+          row.stagedItems
+        ),
       ]),
       ...items.flatMap((row) =>
         row.extractedFileKey ? [row.extractedFileKey] : []

@@ -24,7 +24,7 @@ import {
   buildR2UserPrefix,
   PENDING_UPLOAD_CARD_ID,
 } from "../storage/r2";
-import { scheduleCardOutcome } from "../telemetry/schedule";
+import { queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
 import {
@@ -321,7 +321,7 @@ export const createUploadedCardForUser = async (
 
   await queueCardProcessing(ctx, cardId, { reset: true });
 
-  await scheduleCardOutcome(ctx, {
+  await queueCardOutcome(ctx, {
     cardId,
     cardType,
     outcome: "success",

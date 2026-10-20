@@ -2,31 +2,13 @@
 
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { type ActionCtx, env, internalAction } from "../_generated/server";
+import { type ActionCtx, internalAction } from "../_generated/server";
 import { CRONS } from "../cronSchedules";
 import { catchUpHandler } from "../workosEventCatchUp";
 import { captureBackendException } from "./posthog";
 
-export const cleanupExpiredIdempotency = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupExpiredIdempotency.name, async () => {
-      if (env.OPERATIONAL_RETENTION_ENABLED !== "true") {
-        return;
-      }
-      await ctx.runMutation(
-        internal.operationalRetention.cleanupExpiredRecords,
-        {
-          kind: "idempotency",
-          dryRun: false,
-        }
-      );
-    }),
-});
-
 const recordHeartbeat = async (
-  ctx: ActionCtx,
+  ctx: Pick<ActionCtx, "runMutation">,
   args: {
     name: string;
     phase: "started" | "succeeded" | "failed";
@@ -41,8 +23,8 @@ const recordHeartbeat = async (
 };
 
 // Crons never retry, so every failure is reported, then rethrown for the logs.
-const monitored = async (
-  ctx: ActionCtx,
+export const monitored = async (
+  ctx: Pick<ActionCtx, "runMutation">,
   slug: string,
   callback: () => Promise<unknown>
 ): Promise<null> => {
@@ -64,24 +46,6 @@ const monitored = async (
   return null;
 };
 
-export const cleanupAbandonedImportUploads = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupAbandonedImportUploads.name, () =>
-      ctx.runAction(internal["import/runImport"].cleanupExpiredUploads, {})
-    ),
-});
-
-export const cleanupExpiredUploadSessions = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupExpiredUploadSessions.name, () =>
-      ctx.runAction(internal.fileUploads.cleanupExpiredMultipartUploads, {})
-    ),
-});
-
 export const workosEventCatchUp = internalAction({
   args: {},
   returns: v.null(),
@@ -91,30 +55,13 @@ export const workosEventCatchUp = internalAction({
     }),
 });
 
-export const cleanupSemanticSearchCache = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupSemanticSearchCache.name, async () => {
-      await ctx.runMutation(internal.search.semanticCache.cleanupExpired, {});
-      await ctx.runMutation(internal.search.relevanceCache.cleanupExpired, {});
-    }),
-});
-
-export const cleanupInboundEmailReceipts = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: (ctx: ActionCtx) =>
-    monitored(ctx, CRONS.cleanupInboundEmailReceipts.name, () =>
-      ctx.runMutation(internal.inbound.ingest.pruneReceipts, {})
-    ),
-});
-
+// The Files Worker runs the snapshot now; this only catches a Convex cron
+// firing queued before that deploy (.agents/sunset.md).
 export const adminDailySnapshot = internalAction({
   args: {},
   returns: v.null(),
   handler: (ctx: ActionCtx) =>
     monitored(ctx, CRONS.adminDailySnapshot.name, () =>
-      ctx.runAction(internal.adminMetrics.captureDailySnapshot, {})
+      ctx.runMutation(internal.adminMetrics.queueSnapshot, {})
     ),
 });

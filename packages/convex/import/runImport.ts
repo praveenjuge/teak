@@ -5,8 +5,10 @@ import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { TELEMETRY_OPERATIONS } from "../shared/telemetry";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
+import { buildR2UserPrefix } from "../storage/r2";
 import { assertR2KeyInNamespace } from "../storage/r2Keys";
 import { withBackendErrorCapture } from "../telemetry/posthog";
+import { importStagedPartKeys } from "./indexItems";
 
 const observeImport =
   <TArgs, TResult>(
@@ -81,7 +83,15 @@ export const cleanupImportJob = internalAction({
         return null;
       }
       await abortImportUpload(job.sourceKey, job.uploadId);
-      await queueImportObjectDeletion(ctx, [job.sourceKey, job.reportKey]);
+      await queueImportObjectDeletion(ctx, [
+        job.sourceKey,
+        job.reportKey,
+        ...importStagedPartKeys(
+          buildR2UserPrefix(job.userId),
+          jobId,
+          job.stagedItems
+        ),
+      ]);
       await queueUnclaimedImportFiles(ctx, jobId);
       for (;;) {
         const result = await ctx.runMutation(
@@ -93,40 +103,6 @@ export const cleanupImportJob = internalAction({
         }
       }
       await ctx.runMutation(internal.dataImport.deleteJob, { jobId });
-      return null;
-    }
-  ),
-});
-
-export const cleanupExpiredUploads = internalAction({
-  args: {},
-  returns: v.null(),
-  handler: observeImport(
-    "import.cleanup_expired",
-    async (ctx, _args: Record<string, never>) => {
-      const jobs = await ctx.runQuery(internal.dataImport.findExpiredUploads, {
-        now: Date.now(),
-        limit: 50,
-      });
-      let failureCount = 0;
-      for (const job of jobs) {
-        try {
-          await abortImportUpload(job.sourceKey, job.uploadId);
-          await queueImportObjectDeletion(ctx, [job.sourceKey]);
-          await ctx.runMutation(internal.dataImport.finishJob, {
-            jobId: job._id,
-            status: "failed",
-            failureClass: "upload_expired",
-          });
-        } catch {
-          failureCount += 1;
-        }
-      }
-      if (failureCount) {
-        throw new Error(
-          `Import cleanup incomplete for ${failureCount} jobs; retry required`
-        );
-      }
       return null;
     }
   ),

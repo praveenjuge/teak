@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { buildDebugRaw } from "@teak/convex/linkMetadata/parsing";
 import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
 import type { FilesOp } from "@teak/files-protocol";
+import { sha256Hex } from "../../lib";
 import { createContainerPinnedFetch } from "../../pinnedHop";
 import {
   CARD_ID,
   createCardConvex,
   createContainerNetwork,
   createFakeOps,
+  createMemoryBucket,
   type FakeCard,
   makeCard,
   type OpAnswer,
@@ -18,6 +21,7 @@ import {
   USER_ID,
 } from "../../test/cardProcessingKit";
 import { fetchLinkMetadata } from "./linkMetadata";
+import { rawMetadataKey } from "./rawMetadata";
 
 const PUBLIC = "93.184.216.34";
 const URL_ = "https://example.com/article";
@@ -81,6 +85,7 @@ const setup = (
   > = {},
   options: {
     addresses?: string[];
+    bucket?: R2Bucket;
     handlers?: Parameters<typeof createCardConvex>[1];
     route?: (url: string) => Response | undefined;
   } = {}
@@ -88,7 +93,11 @@ const setup = (
   const convex = createCardConvex(card, options.handlers);
   const fakes = createFakeOps(answers);
   const network = createContainerNetwork(options.route ?? (() => undefined));
-  const env = testEnv(network.env);
+  const memory = createMemoryBucket();
+  const env = testEnv({
+    ...network.env,
+    BUCKET: options.bucket ?? memory.bucket,
+  });
   const job = testJob(
     env,
     testDeps(env, convex.fetcher, fakes.ops, {
@@ -108,6 +117,7 @@ const setup = (
     fakes,
     fetch: () => fetchLinkMetadata(job),
     network,
+    objects: memory.objects,
     saved,
   };
 };
@@ -176,6 +186,103 @@ describe("link metadata", () => {
     expect(await fetch()).toEqual({ status: "success" });
     expect(saved()?.linkPreview.title).toBe("A good article");
     expect(saved()?.linkPreview).not.toHaveProperty("imageStorageKey");
+  });
+
+  describe("raw scrape", () => {
+    const LONG_PAGE = `<html><head>
+      <meta property="og:title" content="A long read">
+      <meta property="og:description" content="${"word ".repeat(400)}">
+    </head></html>`;
+    const scrapeOf = (html: string) =>
+      buildDebugRaw(buildSelectorResultsFromHtml(html, SCRAPE_ELEMENTS));
+
+    test("archives a large scrape in R2 and sends Convex only its reference", async () => {
+      const { convex, fetch, objects, saved } = setup(linkCard(), {
+        "fetch-link-page": await page(LONG_PAGE),
+      });
+
+      expect(await fetch()).toEqual({ status: "success" });
+
+      expect(objects.size).toBe(1);
+      const [[key, json]] = [...objects];
+      expect(JSON.parse(json)).toEqual(scrapeOf(LONG_PAGE));
+      const digest = await sha256Hex(json);
+      expect(key).toBe(
+        rawMetadataKey(
+          "",
+          { _id: CARD_ID, userId: USER_ID },
+          "linkPreview",
+          digest
+        )
+      );
+      expect(key).toContain(`/cards/${CARD_ID}/raw-linkPreview/${digest}.json`);
+      expect(saved()?.status).toBe("completed");
+      expect(saved()?.linkPreview).toMatchObject({
+        rawSha256: digest,
+        rawStorageKey: key,
+        title: "A long read",
+      });
+      expect(saved()?.linkPreview).not.toHaveProperty("raw");
+      const [registration] = convex.callsTo("storage/ownership:registerObject");
+      expect(registration).toMatchObject({
+        args: { key, userId: USER_ID },
+        guard: { cardId: CARD_ID, rev: 1 },
+      });
+    });
+
+    test("keeps a small scrape inline", async () => {
+      const html = "<html><head><title>Hi</title></head></html>";
+      const { convex, fetch, objects, saved } = setup(linkCard(), {
+        "fetch-link-page": {
+          data: {
+            charset: "utf-8",
+            fetched: true,
+            htmlGzipBase64: await gzipBase64(html),
+            pageUrl: URL_,
+            selectors: [{ results: [{ text: "Hi" }], selector: "title" }],
+            source: "static",
+          },
+        },
+      });
+
+      await fetch();
+
+      expect(saved()?.linkPreview.raw).toEqual([
+        { results: [{ text: "Hi" }], selector: "title" },
+      ]);
+      expect(saved()?.linkPreview).not.toHaveProperty("rawStorageKey");
+      expect(objects.size).toBe(0);
+      expect(convex.callsTo("storage/ownership:registerObject")).toEqual([]);
+    });
+
+    test("keeps the scrape inline when the archive cannot be written", async () => {
+      const { fetch, saved } = setup(
+        linkCard(),
+        { "fetch-link-page": await page(LONG_PAGE) },
+        {
+          bucket: {
+            get: () => Promise.resolve(null),
+            put: () => Promise.reject(new Error("put: unavailable (10001)")),
+          } as unknown as R2Bucket,
+        }
+      );
+
+      expect(await fetch()).toEqual({ status: "success" });
+
+      expect(saved()?.linkPreview.raw).toEqual(scrapeOf(LONG_PAGE));
+      expect(saved()?.linkPreview).not.toHaveProperty("rawStorageKey");
+    });
+
+    test("a run an edit replaced writes neither the archive nor the preview", async () => {
+      const { convex, fetch, objects } = setup(
+        linkCard(URL_, { processingRev: 2 }),
+        { "fetch-link-page": await page(LONG_PAGE) }
+      );
+
+      await expect(fetch()).rejects.toThrow("stale_processing_revision");
+      expect(objects.size).toBe(0);
+      expect(convex.callsTo("linkMetadata:updateCardMetadata")).toEqual([]);
+    });
   });
 
   describe("cards it cannot fetch for", () => {

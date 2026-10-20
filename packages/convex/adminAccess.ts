@@ -154,6 +154,11 @@ export const readUserFlags = (ctx: DbCtx, teakUserId: string) =>
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
     .unique();
 
+/**
+ * The Files Worker caches this answer for up to 60 seconds
+ * (`apps/files-worker/src/aiGate.ts`), so a pause or an account's
+ * `aiDisabled` flag reaches card processing within a minute.
+ */
 export const getAiGate = internalQuery({
   args: { userId: v.string() },
   returns: v.union(
@@ -177,20 +182,6 @@ export const isLinkFetchPaused = internalQuery({
   returns: v.boolean(),
   handler: async (ctx) => (await readAdminSettings(ctx)).linkFetchPaused,
 });
-
-const RESERVED_EMAIL_DOMAIN =
-  /(^|\.)(example\.(com|net|org)|example|test|invalid|localhost)$/;
-
-export const isAutoInternalAccount = (
-  user: Pick<Doc<"users">, "email" | "role">
-): boolean => {
-  if (user.role === "admin") {
-    return true;
-  }
-  const email = user.email.toLowerCase();
-  const domain = email.split("@").pop() ?? "";
-  return email.includes("e2e-") || RESERVED_EMAIL_DOMAIN.test(domain);
-};
 
 const INTERNAL_ACCOUNT_LIMIT = 2000;
 

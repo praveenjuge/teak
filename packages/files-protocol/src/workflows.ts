@@ -148,8 +148,48 @@ export const accountDeletionInstanceId = (
   attempt: number
 ) => `account-deletion-${stateId}-${generation}-${attempt}`;
 
+/** Tasks the maintenance workflow runs; `capabilities` lists them. */
+export const MAINTENANCE_TASKS = [
+  "card-cleanup",
+  "export-cleanup",
+  "orphan-sweep",
+  "receipt-cleanup",
+  "admin-snapshot",
+] as const;
+export type MaintenanceTask = (typeof MAINTENANCE_TASKS)[number];
+
+export interface MaintenanceParams {
+  /** The admin snapshot's UTC day (YYYY-MM-DD); yesterday when omitted. */
+  date?: string;
+  /** Started through Convex's outbox, so the run reports back to it. */
+  dispatched?: true;
+  task: MaintenanceTask;
+}
+
+/** An admin's snapshot request; every request is its own run. */
+export const adminSnapshotInstanceId = (date: string, requestedAt: number) =>
+  `admin-snapshot-${date}-manual-${requestedAt}`;
+
 export const MAX_DISPATCH_ITEMS = 100;
 export const MAX_DISPATCH_DELETE_KEYS = 100;
+
+/**
+ * A backend product event the Worker sends to PostHog as Convex would have
+ * (`$lib: teak-backend`). Convex field names can't start with `$`, so the
+ * Worker adds `$app_version` and `$set` itself.
+ */
+export interface AnalyticsEventItem {
+  appVersion?: string;
+  distinctId?: string;
+  event: string;
+  properties: Record<string, unknown>;
+  set?: Record<string, unknown>;
+  /** ISO time of the change that recorded the event. */
+  timestamp: string;
+  type: "analytics-event";
+  /** PostHog drops a repeat of an event with the same UUID. */
+  uuid: string;
+}
 
 export type DispatchItem =
   | {
@@ -159,7 +199,15 @@ export type DispatchItem =
       type: "workflow";
       workflow: WorkflowName;
     }
-  | { keys: string[]; type: "delete-objects" };
+  | { keys: string[]; type: "delete-objects" }
+  | AnalyticsEventItem;
+
+/** Item types the `dispatch` op accepts, listed by the `capabilities` op. */
+export const DISPATCH_ITEM_TYPES = [
+  "workflow",
+  "delete-objects",
+  "analytics-event",
+] as const satisfies readonly DispatchItem["type"][];
 
 export interface DispatchParams {
   convexSiteUrl: string;

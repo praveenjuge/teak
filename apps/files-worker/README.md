@@ -217,6 +217,17 @@ Operation request bodies are limited to 1 MiB before signature verification.
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
   bytes never leave the worker (`src/imageMetadata.ts`).
+- `store-onboarding-files` copies a new account's getting-started files into
+  R2 at the keys Convex names (at most 32), with the content type Convex gives,
+  and answers each object's size (`src/onboardingFiles.ts`). The files ship
+  with the Worker as static assets (`assets/onboarding/`, the `ASSETS`
+  binding, read with `env.ASSETS.fetch`), so they never pass through Convex
+  and do not count toward the script size. A card's files land together or
+  not at all: when one is missing or fails, the others are deleted and the
+  card answers `stored: false`. `assets.run_worker_first` is `true`, so every
+  request still reaches the Worker and no asset has a public path.
+  `capabilities` reports `onboardingFiles` when the binding is there, and the
+  deploy readiness check requires it.
 
 ## Rendering and media
 
@@ -329,13 +340,11 @@ stores every output.
 
 - `index-import-source` accepts archive/bookmarks/raindrop, expected source size,
   and an offset cursor. It returns at most 100 items and 4 MiB of item JSON;
-  continuation requests bind the original ETag. The import action binds
-  that ETag to the job before storing rows and uses it during extraction. Convex owns card
-  validation, deduplication across pages, cancellation, and database writes.
+  continuation requests bind the original ETag. The import Workflow binds
+  that ETag to the job before staging items and uses it during extraction.
 - `read-import-markdown` returns one UTF-8 Markdown entry (512 KiB maximum),
-  or a typed per-item decoding/size failure. Convex decides whether a legacy
-  document becomes a text card. Import writes are batched by both item count
-  and encoded size after Markdown expansion.
+  or a typed per-item decoding/size failure. The Workflow decides whether a
+  legacy document becomes a text card.
 - ZIP inspection, indexing, and `extract-import-files` share `src/zip.ts`.
   Ranged reads support classic ZIP and ZIP64 offsets within the existing 5 GiB
   archive/expanded-byte limits. Central directories are capped at 32 MiB and
@@ -355,10 +364,41 @@ stores every output.
   20 MiB and 10,000 bookmarks. HTML is parsed without building a DOM, with a
   nesting limit of 128; CSV is limited to 256 columns and assembles quoted
   fields in bounded chunks.
-- Convex generates bounded error-report excerpts and uploads them through the
-  existing signed PUT endpoint. Source/report cleanup is handed to the durable
-  object-deletion workflow before import rows are removed. Multipart abort is
-  idempotent only for R2 `NoSuchUpload` (10024); other errors propagate.
+- The Workflow writes the error report (bounded excerpts of the failed items)
+  under `<user>/imports/<job>/error-report.txt`. Source/report cleanup is
+  handed to the durable object-deletion queue before import rows are removed.
+  Multipart abort is idempotent only for R2 `NoSuchUpload` (10024); other
+  errors propagate.
+
+### Import staging
+
+The import Workflow (`src/workflows/import.ts`) keeps the items it reads in
+R2, not in Convex. Each source page is normalized and deduplicated in the
+Worker (a URL seen on an earlier page is skipped; earlier pages' URLs travel
+in the step results as short hashes), then its importable items are written
+as staged parts of about 8 MiB at `<user>/imports/<job>/staged/<n>.json`.
+Before writing them, `import/staging:recordPage` adds the page's counts and
+its number of parts to `importJobs.stagedItems`, so every cleanup knows the
+parts' keys, and `recordFailures` stores the page's failed items as
+`importJobItems` rows. Those rows are all Convex keeps: the failure samples
+and the report read them. A page whose answer was lost is read again and
+writes the same parts; its counts are not added twice.
+
+Cards are created five at a time from the job's position (`part`,
+`offset`) with `import/staging:createBatch`, which runs only while the job is
+still at the position the batch started from, so a retried batch creates
+nothing twice. Archive files are extracted to
+`<user>/import-<job>/item-<sourceIndex>/file/<name>` first; a file whose card
+is not created is queued for deletion in the same transaction. When the run
+finishes, fails or is canceled, it deletes the source, the staged parts and
+any file extracted for the batch it stopped at. If the run dies without
+finishing, the workflow outbox's failure handler deletes the parts; starting
+the next import (`cleanupImportJob`) and account deletion delete them too.
+
+A new run of a job that was indexing (`resume staged index`) rebuilds the
+earlier pages' URL hashes from the source and writes the last recorded page's
+parts again. Jobs queued before `stagedItems` existed still stage rows
+through the old functions until they finish (`.agents/sunset.md`).
 
 ### Remote preview assets: the link fetcher Container
 
@@ -468,13 +508,13 @@ The streaming binding contract is also documented in the
 
 Deploy the worker operations before their Convex callers. The backend deployment
 runs `bun run scripts/check-files-readiness.ts --prod --wait`: an authenticated,
-read-only capability probe must confirm the required operations and AI/Images
-bindings before Convex deploys. It waits at most ten minutes for Cloudflare Builds.
+read-only capability probe must confirm the required operations, dispatch item
+types and AI/Images bindings before Convex deploys. It waits at most ten minutes for Cloudflare Builds.
 
 The first index step retains its original function reference and arguments.
 Old journal results have no continuation cursor and follow their existing step
-sequence. New imports checkpoint one page per action and deduplicate across
-pages using the job/URL index. Markdown reads run eight at a time. The optional `importJobs.sourceEtag` is bound atomically
+sequence. New imports checkpoint one page per step and deduplicate across
+pages in the Worker (see Import staging). Markdown reads run eight at a time. The optional `importJobs.sourceEtag` is bound atomically
 inside indexing/extraction, so existing journals can resume without a restart
 or backfill. A local backend plus real R2 run indexed 10,000 items (about
 55 MiB of JSON, including 256 Markdown files) across 100 pages in 391 seconds.
@@ -523,6 +563,19 @@ exists counts as started, so a resend is safe) and queues object deletions
 on `OBJECT_DELETIONS`. Rows the Worker refuses go back to pending with
 backoff; deletions it accepts are done at once.
 
+Backend analytics events from mutations (`card_created`, `user_signed_up`,
+`card_processing_failed`, Save by email's events) ride the same outbox as
+`analytics-event` items, so a mutation that already starts work adds no
+function call. Convex writes them only when it has `POSTHOG_PROJECT_TOKEN`,
+and deletes each row as it hands it over: events are best effort, never
+retried by Convex. The op answers them ok and, after the response
+(`waitUntil`), sends all of one dispatch's events in one PostHog `/batch/`
+request with this Worker's `POSTHOG_PROJECT_TOKEN`, exactly as Convex would
+(`$lib: teak-backend`, the deployment's `$app_version`, `$set`, the time of
+the change). A failed request is tried once more; each event carries a UUID,
+so PostHog keeps one copy. `capabilities` lists the item types the op takes in
+`dispatchItems`, and the backend readiness check requires `analytics-event`.
+
 Steps read and write Convex through one signed endpoint,
 `POST <convex.site>/__workflow/v1` (`src/convexRpc.ts` →
 `packages/convex/workflowGateway.ts`), which runs one function from
@@ -530,6 +583,25 @@ Steps read and write Convex through one signed endpoint,
 write carries the run's processing revision and lands only while the card is
 still on it, so an edit (which bumps the revision and stops the older run)
 can never be overwritten by the run it replaced.
+
+A link's raw scrape and its category's raw provider data (1 KiB to 512 KiB of
+JSON) go to R2 from the step, not through Convex
+(`src/workflows/cardProcessing/rawMetadata.ts`). The step registers the
+card's `raw-<kind>/<SHA-256>.json` key, writes it through the deletion gate,
+reads it back and checks its hash, and sends Convex only the reference.
+Smaller or non-lossless payloads, and any payload whose archive failed, still
+go inline, and Convex archives those itself as before. The rules are in
+`.agents/convex-costs.md` ("Raw provider metadata").
+
+Before an AI call (Clef decisions, AI metadata, link image text, podcast
+transcripts) a step checks the account's AI gate (`adminAccess:getAiGate`)
+through `src/aiGate.ts`, which reuses an answer for up to 60 seconds: first
+from a memo in the isolate, then from the Cache API in that data center, and
+only then over the RPC endpoint. A card run asks Convex once instead of once
+per AI step, and runs for the same account within the minute usually not at
+all. So pausing AI from the admin console, or turning it off for one account,
+takes up to a minute to reach running work. An unreadable cache falls back to
+the RPC; an RPC failure fails the step as before and is never cached.
 
 Each deployment has its own workflow RPC secret: the Worker derives it from
 `WORKFLOW_RPC_ROOT_SECRET` and the deployment's origin, and the deployment
@@ -554,7 +626,8 @@ Explorer shows each run's steps, logs and stored objects
 
 ## Cron Triggers
 
-`src/cron.ts` runs the background tasks that used to be Convex crons. The
+`src/cron.ts` runs the background tasks that used to be Convex crons; Convex
+keeps the table logic in internal functions the Worker calls. The
 schedules live in `packages/convex/cronSchedules.ts` (`runsOn: "cloudflare"`)
 and must equal `triggers.crons` in both Wrangler configs; a Convex test checks.
 This Worker serves every deployment in `CONVEX_SITE_URLS`, so each task runs
@@ -566,12 +639,39 @@ health view lists them beside Convex's own crons.
 
 | Cron (UTC) | Task |
 | --- | --- |
-| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat |
-| `0 3 * * *` | Export cleanup (maintenance workflow) |
+| `0 2 * * *` | Card cleanup: starts the maintenance workflow, which records its own heartbeat. Also yesterday's admin snapshot and the admin overview (`admin-daily-snapshot`, maintenance workflow; see "Admin metrics") |
+| `0 3 * * *` | Export cleanup and Save by email receipt pruning (`cleanup-inbound-email-receipts`), each a maintenance workflow |
 | `0 4 * * 1` | Orphan sweep (maintenance workflow), and the pending-upload backstop sweep (`sweep-stale-pending-uploads`) |
 | `0 */6 * * *` | AI metadata backfill into the `AI_BACKFILL` queue (`ai-metadata-backfill`) |
 | `15 * * * *` | AI usage rollup (`ai-usage-rollup`; see below) |
-| `45 * * * *` | Workflow reconcile (`reconcile-workflows`) |
+| `45 * * * *` | Workflow reconcile (`reconcile-workflows`) and the hourly cleanups below |
+
+The hourly cleanups (`src/hourlyCleanup.ts`) run side by side, each with its
+own heartbeat, and page Convex until it has nothing left:
+
+- `cleanup-semantic-search-cache` deletes expired rows from both search
+  caches, 500 a call (`search/semanticCache:cleanupExpired`,
+  `search/relevanceCache:cleanupExpired`).
+- `cleanup-abandoned-import-uploads` takes imports whose upload window passed
+  (`dataImport:findExpiredUploads`, 50 a page), aborts each multipart upload
+  in R2 in-process, then fails the job and queues its source for deletion
+  (`dataImport:expireAbandonedUpload`, which leaves a job that is no longer an
+  expired upload alone). A failed abort keeps the job for the next hour and
+  fails the run.
+- `cleanup-expired-upload-sessions` aborts the multipart upload of each
+  expired session still uploading (a failed abort is ignored) and deletes the
+  session (`fileUploads:findExpiredSessions`, `fileUploads:deleteSession`).
+- `cleanup-expired-idempotency` calls
+  `operationalRetention:startIdempotencyCleanup`, which does nothing unless
+  Convex's `OPERATIONAL_RETENTION_ENABLED` is `true`. Otherwise it starts the
+  retention scan, which keeps its lease and continues itself in bursts in
+  Convex (`.agents/convex-costs.md`).
+
+The `capabilities` op lists the names of the tasks this Worker runs (`crons`),
+and `scripts/check-files-readiness.ts` holds the Convex deploy until it
+includes every `runsOn: "cloudflare"` task, so no cleanup stops running in
+between. Every cleanup is safe to repeat, so a Convex cron and the Worker
+running the same task during a deploy do no harm.
 
 The reconcile (`src/workflowReconcile.ts`) asks Convex for runs that have not
 reported for longer than their kind allows (`workflowDispatch:listStale`) and
@@ -583,6 +683,36 @@ claimed the row, so the row is sent again (up to the dispatch attempt limit).
 Queued, running, waiting and paused runs are left alone, and a lookup that
 fails for another reason is tried again the next hour. It then prunes finished dispatch rows
 (`workflowDispatch:pruneFinished`, at most ten pages).
+
+## Admin metrics
+
+The admin console's daily snapshot and overview are counted here, so Convex
+no longer pages every user and card in an action or a reactive query. One
+maintenance workflow task, `admin-snapshot`, counts both from a single scan of
+every card over the workflow RPC gateway, at most 400 pages of 500 cards; a
+longer scan is stored as approximate. The counting code is shared with Convex
+(`packages/convex/adminStats.ts`).
+
+- It pages `adminMetrics:usersPage`, flags internal accounts
+  (`adminAccess:flagAutoInternalAccounts`), then pages `admin:overviewCardsPage`
+  once. Each row carries what both counts need.
+- It stores `admin:getOverview`'s result with and without onboarding cards in
+  `adminOverviews` (`admin:writeOverview`). `getOverview` returns the stored
+  row, with `generatedAt` set to when it was counted, so the overview can be
+  up to a day old. Before the first count it counts up to 10,000 cards itself,
+  as it used to.
+- It writes one UTC day's `adminDailyMetrics` row (yesterday from the 02:00
+  cron), leaving onboarding cards out. It reads the day's AI usage and asks
+  Convex for the billing line (`adminMetrics:readSnapshotBilling`, which calls
+  Polar; the Worker holds no Polar token) when the day is yesterday or today.
+
+An admin's "capture snapshot" (`adminMetrics:captureSnapshot`) queues the same
+task through the outbox with the day as a param, so the row lands a little
+after the action returns. That run refreshes the overview too, and reports to
+its dispatch row instead of the cron's heartbeat.
+
+`capabilities` lists the tasks in `maintenanceTasks`, and Backend Deploy waits
+for all of them.
 
 ## WorkOS webhook queue
 
@@ -628,8 +758,8 @@ it is 24 hours old the consumer reads its head and deletes it if it is still
 there and was uploaded at least 24 hours ago, the same rule as the
 `cleanup-stale-pending-uploads` op. The weekly cron runs that op in-process for
 `users/` and `dev/users/` until it reaches the end or five minutes pass, as a
-backstop for events that never arrived. Convex's hourly sweep is gone; its
-cron (`cleanup-expired-upload-sessions`) now only expires upload sessions.
+backstop for events that never arrived. Convex's hourly sweep is gone; the
+hourly `cleanup-expired-upload-sessions` task only expires upload sessions.
 
 ## AI usage (Analytics Engine)
 
@@ -650,10 +780,20 @@ for today and yesterday (UTC), per deployment, weighting every sum by
 `adminUsage:replaceDailyUsage`, at most 200 users a call. A repeated run writes
 the same numbers again. It needs the `ANALYTICS_ACCOUNT_ID` and
 `AI_USAGE_DATASET` vars and the `ANALYTICS_API_TOKEN` secret; without the
-token it is skipped and records no heartbeat. Convex's `admin-daily-snapshot`
-runs at 00:45 UTC, after the 00:15 rollup has finalized yesterday.
+token it is skipped and records no heartbeat. The `admin-daily-snapshot`
+runs at 02:00 UTC, after the 00:15 and 01:15 rollups have finalized yesterday.
 
 ## Export archive lifecycle
+
+An export's snapshot is the ids of the cards it takes, kept in the export
+workflow's own `snapshot page N` step results (200 ids, about 7 KB, a page).
+`dataExport:getExportSnapshotPage` pages the owner's live cards newest first
+and writes nothing; the archive step then reads the cards' current contents
+100 at a time with `getExportCardsByIds`, leaving out any deleted since. So a
+card edited during an export is archived as edited, and Convex writes no row
+per card. A run that snapshotted on an older Worker, or that reaches a Convex
+deployment without the query (the Worker deploys first), uses
+`exportJobItems` rows instead and drains them when it ends.
 
 Export archives, their `.checkpoint.json` and `.result.json` sidecars and the
 transient `.manifest.json` live under the top-level `exports/<userHash>/`
@@ -774,8 +914,9 @@ when one is absent. `ANALYTICS_API_TOKEN` is optional and not listed.
   `bunx wrangler secret put ANALYTICS_API_TOKEN` (and
   `--config development/wrangler.jsonc` for the development Worker); unset
   skips the rollup.
-- `POSTHOG_PROJECT_TOKEN` — public PostHog project token for error reports
-  (errors only, sent with a plain `fetch`). A plain var in the production
+- `POSTHOG_PROJECT_TOKEN` — public PostHog project token for error reports,
+  card processing's events and the backend events Convex hands to `dispatch`
+  (sent with a plain `fetch`). A plain var in the production
   `wrangler.jsonc`; the development Worker has none, so it reports nothing.
 
 - `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for

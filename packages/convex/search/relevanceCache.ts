@@ -1,6 +1,5 @@
 import { RELEVANCE_MAX_SCORE } from "@teak/files-protocol";
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
 import {
   internalMutation,
   internalQuery,
@@ -92,9 +91,10 @@ export const storeScores = internalMutation({
   },
 });
 
+/** The Files Worker's hourly cron calls this until `hasMore` is false. */
 export const cleanupExpired = internalMutation({
   args: {},
-  returns: v.number(),
+  returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx) => {
     const expired = await ctx.db
       .query("searchRelevanceResults")
@@ -103,13 +103,9 @@ export const cleanupExpired = internalMutation({
     for (const entry of expired) {
       await ctx.db.delete("searchRelevanceResults", entry._id);
     }
-    if (expired.length === CLEANUP_BATCH) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.search.relevanceCache.cleanupExpired,
-        {}
-      );
-    }
-    return expired.length;
+    return {
+      deleted: expired.length,
+      hasMore: expired.length === CLEANUP_BATCH,
+    };
   },
 });

@@ -12,11 +12,22 @@ responses and customer exports already project customer-facing fields. Grid
 responses omit raw diagnostics. Display metadata, content, notes, tags, original
 files, processing status, and card timestamps remain unchanged.
 
-Payloads between 1 KiB and 512 KiB move to the existing signed Files Worker/R2
-path. Tiny or non-lossless JSON values stay inline. The archive writes a
-user/card/kind/SHA-256 key, reads it back, verifies its hash and JSON, then
-compares the current inline value before clearing it. Any failed verification
-or concurrent change retains inline data. Backend enrichment securely hydrates
+Payloads between 1 KiB and 512 KiB live in R2. Tiny or non-lossless JSON
+values stay inline. The card-processing Workflow archives them itself
+(`apps/files-worker/src/workflows/cardProcessing/rawMetadata.ts`): before the
+link metadata and categorization writes, it registers the
+user/card/kind/SHA-256 key, writes the JSON, reads it back and verifies its
+hash and JSON, then sends Convex the reference (`rawStorageKey`, `rawSha256`)
+instead of the payload. The mutation checks the key is the card's own and
+schedules nothing. So the card is never written with the payload, and no
+archive action reads it back and rewrites it.
+
+`storage/rawMetadataMaintenance:archiveCard` still archives inline payloads:
+old cards, a Worker archive that failed (the Workflow then sends the payload
+inline), and manual migration pages. It writes through the signed Files Worker
+path, reads the object back, verifies its hash and JSON, then compares the
+current inline value before clearing it. Any failed verification or
+concurrent change retains inline data. Backend enrichment securely hydrates
 archived data; card/account cleanup and orphan scans track current references.
 
 Old archive copies are deliberately retained for recovery. The orphan process
@@ -87,23 +98,86 @@ past it `ingestEmail` records a dropped receipt. Each accepted attachment
 adds one finalize request (an HTTP action with its claim, card and done
 mutations). Attachment bytes never pass through Convex: the Worker PUTs them
 to the Files Worker's signed upload URLs, and Convex only mints those and
-finalizes. Receipts are pruned after 30 days by the daily
-`cleanup-inbound-email-receipts` cron.
+finalizes. Receipts are pruned after 30 days by the Files Worker's daily
+`cleanup-inbound-email-receipts` task.
+
+Sign-up's getting-started files ship with the Files Worker as static assets
+(`apps/files-worker/assets/onboarding/`), not in the backend bundle.
+`card/onboardingFiles:addOnboardingCards` runs in the default runtime, not
+Node: it registers the nine keys in one mutation, makes one
+`store-onboarding-files` call that copies the files into R2 inside the Worker,
+and inserts the cards in one mutation. No file bytes pass through Convex.
 
 ## Scheduled and edge work on Cloudflare
 
-The Files Worker's Cron Triggers run the daily card and export cleanups, the
-weekly orphan sweep, the 6-hourly AI backfill, the hourly AI usage rollup and
-the hourly workflow reconcile (`apps/files-worker/src/cron.ts`); Convex keeps
-only the small hourly crons in `crons.ts`. `cronSchedules.ts` lists both, so
-the admin health view still shows every task. The hourly pending-upload sweep
+The Files Worker's Cron Triggers run the daily card and export cleanups,
+email receipt pruning and admin snapshot, the weekly orphan sweep, the
+6-hourly AI backfill, the hourly AI usage rollup, the hourly workflow
+reconcile, and the hourly cleanups of the search
+caches, abandoned import uploads, expired upload sessions and (once enabled)
+idempotency records (`apps/files-worker/src/cron.ts`). Convex keeps only the
+WorkOS event catch-up in `crons.ts`, which needs the WorkOS API key.
+`cronSchedules.ts` lists both, so the admin health view still shows every
+task.
+
+The moved cleanups no longer start a Node action every hour, and the two
+upload cleanups abort multipart uploads in the Worker instead of a Convex
+action calling the Worker's signed `abort-multipart` op. Convex still runs the
+table work: each page is one internal query or mutation called through the
+workflow RPC gateway, an HTTP action plus that function, where the old crons
+paid one call per page and continued themselves with the scheduler. A quiet
+hour costs about the same number of calls as before, without the action
+compute. Idempotency retention still continues itself in Convex once the
+Worker starts it, so its lease and bursts are unchanged. The hourly pending-upload sweep
 is gone: R2 event notifications delete each abandoned pending upload after a
 day, and a weekly Worker sweep is the backstop, so Convex no longer pages the
-bucket. The `pendingUploadCleanupStates` table is unused and can be dropped.
+bucket. The `pendingUploadCleanupStates` table is unused; it stays in the
+schema until its old rows are gone (`.agents/sunset.md`).
+
+An export no longer writes a row per card. Its workflow keeps the snapshot's
+card ids in step state, so each exported card costs two document reads (one
+when it is snapshotted, one when the archive reads its contents), where the
+`exportJobItems` rows cost an insert, a delete and two more reads.
+
+Imports no longer stage every item in Convex. The Files Worker's import
+Workflow keeps the items it reads in R2 under the job's key namespace and
+creates cards from there; Convex keeps the `importJobs` row and one
+`importJobItems` row per failed item, which the failure samples and the
+report read. Per imported item that removes the row insert with its content
+(up to 100,000 characters, or a Markdown file of up to 512 KiB), its two
+index reads while staging, the pending-item read, the re-read and status
+patch when its card is made, the `setExtractedFile` mutation for an archive
+file, and the row delete at cleanup. Each source page of up to 100 items now
+costs one `recordPage` mutation (plus `recordFailures` when it has failed
+items), and card batches still cost one mutation per five items, now with
+the items in their arguments.
 
 AI usage no longer costs a mutation per card. The Worker writes a Workers
 Analytics Engine data point per model call, and the hourly rollup sets each
 user's totals for today and yesterday in `aiUsageDaily` in batches of 200.
+
+The AI gate (`adminAccess:getAiGate`, a gateway HTTP action plus the query)
+used to be read before every AI step of a card run: two reads for a text
+card, three or more for a link. The Worker now reuses each answer for 60
+seconds in the isolate and the Cache API (`apps/files-worker/src/aiGate.ts`),
+so a run reads it at most once and later runs for the same account within
+the minute usually not at all. An admin's AI pause takes up to a minute to
+reach running work.
+
+Admin metrics are counted in the Worker. The daily snapshot no longer holds
+every user and card in a Convex action, and `admin:getOverview` reads one
+stored row instead of re-reading up to 10,000 cards on every card write while
+an admin has it open. The page reads still bill Convex: the snapshot reads
+every card once a day, as before, and the overview is counted from those same
+pages, so it adds no reads. It is refreshed once a day (and on an admin's
+"capture snapshot"), so its `generatedAt` can be up to a day old.
+
+Analytics events from mutations (`card_created`, `user_signed_up`,
+`card_processing_failed`, Save by email's) no longer schedule an action each.
+They are `workflowDispatches` rows that the next flush hands to the Files
+Worker, which sends them to PostHog. A card create already queues its
+processing, so its event adds one small insert and delete and no function
+call. Deployments without `POSTHOG_PROJECT_TOKEN` write no rows.
 
 MCP sessions open with `initialize`, `notifications/initialized`, `tools/list`
 and periodic `ping`s; the Worker answers those for a known user at the edge,

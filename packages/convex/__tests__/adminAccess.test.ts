@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { isAutoInternalAccount, requireReason } from "../adminAccess";
+import { requireReason } from "../adminAccess";
+import { isAutoInternalAccount } from "../adminStats";
 
 describe("isAutoInternalAccount", () => {
   test.each([

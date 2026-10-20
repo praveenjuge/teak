@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
+import { CRONS, cronTasksOn } from "../packages/convex/cronSchedules";
 import { IMPORT_MODES } from "../packages/convex/shared/importSources";
 import { buildSignedWorkerOpRequest } from "../packages/convex/storage/filesWorkerClient";
+import { MAINTENANCE_TASKS } from "../packages/files-protocol/src/workflows";
 
 const required = [
   "extract-animation-palette",
@@ -18,6 +20,7 @@ const required = [
   "fetch-link-page",
   "store-remote-asset",
   "store-linked-pdf",
+  "store-onboarding-files",
   "embed-upsert",
   "vector-delete",
   "vector-get",
@@ -29,6 +32,9 @@ const required = [
   "decide-visual-styles",
   "score-relevance",
 ];
+
+// Item types Convex hands to the `dispatch` op.
+const requiredDispatchItems = ["workflow", "delete-objects", "analytics-event"];
 
 async function productionEnv(name: string): Promise<string> {
   const child = Bun.spawn(
@@ -77,9 +83,13 @@ for (;;) {
       data?: {
         ai?: boolean;
         browser?: boolean;
+        dispatchItems?: string[];
         fetcher?: boolean;
         images?: boolean;
+        crons?: string[];
         importModes?: string[];
+        maintenanceTasks?: string[];
+        onboardingFiles?: boolean;
         operations?: string[];
         renderer?: boolean;
         rendererHealthy?: boolean;
@@ -100,8 +110,19 @@ for (;;) {
       result.data.vectors === true &&
       result.data.workflows === true &&
       result.data.vectorTypes === true &&
+      result.data.onboardingFiles === true &&
       required.every((op) => result.data?.operations?.includes(op)) &&
-      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode));
+      requiredDispatchItems.every((type) =>
+        result.data?.dispatchItems?.includes(type)
+      ) &&
+      IMPORT_MODES.every((mode) => result.data?.importModes?.includes(mode)) &&
+      // Convex stops running a cron once the Worker's Cron Triggers run it.
+      cronTasksOn("cloudflare").every((task) =>
+        result.data?.crons?.includes(CRONS[task].name)
+      ) &&
+      MAINTENANCE_TASKS.every((task) =>
+        result.data?.maintenanceTasks?.includes(task)
+      );
   } catch (error) {
     failedWith =
       error instanceof Error && /^[A-Za-z]{1,64}$/.test(error.name)
@@ -110,7 +131,7 @@ for (;;) {
   }
   if (ready) {
     console.log(
-      "Files worker ready: required operations, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows and signing verified."
+      "Files worker ready: required operations and dispatch items, AI, Images, Browser Run, the media renderer, the link fetcher, the vector index, workflows, cron tasks, the getting-started files and signing verified."
     );
     break;
   }

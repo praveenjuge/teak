@@ -315,6 +315,17 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     kind: "binding",
     note: "Cloudflare Images binding for transforms.",
   }),
+  spec("ASSETS", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["local", "preview", "production"],
+    secret: false,
+    validation: "string",
+    providers: ["cloudflare"],
+    required: false,
+    kind: "binding",
+    note: "Workers Static Assets binding holding the getting-started sample files that `store-onboarding-files` copies into a new account.",
+  }),
   spec("MEDIA_RENDERER", {
     owners: ["@teak/files-worker"],
     targets: ["files-worker"],

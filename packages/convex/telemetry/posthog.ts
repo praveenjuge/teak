@@ -1,6 +1,7 @@
 import { env } from "../_generated/server";
 import type { ServerEventCatalog, ServerEventName } from "../shared/analytics";
 import {
+  BACKEND_POSTHOG_LIB,
   createPostHogBatch,
   type PostHogBatch,
   type PostHogProperties,
@@ -15,7 +16,6 @@ import {
   type TelemetrySurface,
 } from "../shared/telemetry";
 
-const BACKEND_LIB = "teak-backend";
 const APP_VERSION_LENGTH = 12;
 
 interface TelemetryScope {
@@ -34,18 +34,21 @@ const capturedErrors = new WeakSet<object>();
 const readToken = (): string | undefined =>
   env.POSTHOG_PROJECT_TOKEN?.trim() || undefined;
 
-const appVersion = (): string | undefined =>
+/** Whether this deployment sends backend events at all. */
+export const isBackendCaptureEnabled = (): boolean => Boolean(readToken());
+
+export const backendAppVersion = (): string | undefined =>
   env.CONVEX_GIT_COMMIT_SHA?.trim().slice(0, APP_VERSION_LENGTH) || undefined;
 
 const createBatch = (): PostHogBatch =>
   createPostHogBatch({
-    lib: BACKEND_LIB,
+    lib: BACKEND_POSTHOG_LIB,
     platform: "node:javascript",
     token: readToken(),
   });
 
 const baseProperties = (): PostHogProperties => {
-  const version = appVersion();
+  const version = backendAppVersion();
   return { surface: "backend", ...(version ? { $app_version: version } : {}) };
 };
 

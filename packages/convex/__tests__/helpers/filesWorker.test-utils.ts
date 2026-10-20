@@ -27,19 +27,28 @@ runtime.caches ??= {
 };
 
 export const loadFilesWorker = async () => {
-  const [index, support, filesOps, fakeStep, accountDeletion, imports] =
-    await Promise.all([
-      import(workerFile("index.ts")),
-      import(workerFile("test/testsupport.ts")),
-      import(workerFile("workflows/filesOps.ts")),
-      import(workerFile("test/fakeStep.ts")),
-      import(workerFile("workflows/accountDeletion.ts")),
-      import(workerFile("workflows/import.ts")),
-    ]);
+  const [
+    index,
+    support,
+    filesOps,
+    fakeStep,
+    accountDeletion,
+    imports,
+    hourlyCleanup,
+  ] = await Promise.all([
+    import(workerFile("index.ts")),
+    import(workerFile("test/testsupport.ts")),
+    import(workerFile("workflows/filesOps.ts")),
+    import(workerFile("test/fakeStep.ts")),
+    import(workerFile("workflows/accountDeletion.ts")),
+    import(workerFile("workflows/import.ts")),
+    import(workerFile("hourlyCleanup.ts")),
+  ]);
   return {
     callFilesOp: filesOps.callFilesOp,
     createFakeStep: fakeStep.createFakeStep,
     drainStorageBatch: accountDeletion.drainStorageBatch,
+    expireImportUploads: hourlyCleanup.expireImportUploads,
     FakeBucket: support.FakeBucket,
     runAccountDeletion: accountDeletion.runAccountDeletion,
     runImport: imports.runImport,

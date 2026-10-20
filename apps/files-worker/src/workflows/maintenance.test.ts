@@ -1,13 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { utcDay } from "@teak/convex/adminStats";
+import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
 import { fakeConvexEnv, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
-import { createTestRun } from "../test/fakeRun";
+import { completionReports, createTestRun } from "../test/fakeRun";
 import type { FilesOpCaller } from "./deps";
 import { callFilesOp } from "./filesOps";
-import {
-  type MaintenanceTask,
-  runMaintenance,
-  startMaintenanceTask,
-} from "./maintenance";
+import { runMaintenance, startMaintenanceTask } from "./maintenance";
 import type { BackgroundEnv } from "./runtime";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -195,6 +193,27 @@ describe("export cleanup", () => {
   });
 });
 
+describe("email receipt cleanup", () => {
+  test("prunes receipts page by page until none are left past retention", async () => {
+    const remaining = [200, 200, 37];
+    const test = setup("receipt-cleanup", {
+      "inbound/ingest:pruneReceipts": () => {
+        const deleted = remaining.shift() ?? 0;
+        return { deleted, hasMore: deleted === 200 };
+      },
+    });
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      pruned: 437,
+    });
+    expect(remaining).toEqual([]);
+    expect(heartbeats(test.calls)).toEqual([
+      "cleanup-inbound-email-receipts started",
+      "cleanup-inbound-email-receipts succeeded",
+    ]);
+  });
+});
+
 describe("orphan sweep", () => {
   test("reports week-old objects nothing references and sweeps the vector ledger", async () => {
     const old = Date.now() - 8 * DAY_MS;
@@ -239,5 +258,317 @@ describe("orphan sweep", () => {
       "sweep-orphaned-objects started",
       "sweep-orphaned-objects succeeded",
     ]);
+  });
+});
+
+const pages =
+  <T>(...contents: T[][]) =>
+  ({ cursor }: Record<string, unknown>) => {
+    const index = cursor === null ? 0 : Number(cursor);
+    return {
+      rows: contents[index] ?? [],
+      isDone: index >= contents.length - 1,
+      continueCursor: String(index + 1),
+    };
+  };
+
+/** A card as `admin:overviewCardsPage` returns it. */
+const card = (
+  cardId: string,
+  userId: string,
+  creationTime: number,
+  extra: Record<string, unknown> = {}
+) => ({
+  cardId,
+  createdAt: creationTime,
+  creationTime,
+  deleted: false,
+  fileSize: 0,
+  hasAiSummary: true,
+  hasAiTags: true,
+  hasAiTranscript: false,
+  onboarding: false,
+  type: "text",
+  userId,
+  ...extra,
+});
+
+interface StoredOverview {
+  includeOnboarding: boolean;
+  overview: {
+    aiPipeline: { failedCards: number; missingCards: unknown[] };
+    cardsByType: Record<string, number>;
+    generatedAt: number;
+    isApproximate: boolean;
+    totals: { totalCards: number; uniqueUsers: number };
+  };
+}
+
+const snapshotRun = (
+  params: Omit<MaintenanceParams, "task">,
+  handlers: Parameters<typeof createTestRun>[1]["handlers"] = {}
+) => {
+  const flagged: string[][] = [];
+  const written: Record<string, unknown>[] = [];
+  const overviews: StoredOverview[] = [];
+  const test = createTestRun(
+    { task: "admin-snapshot", ...params },
+    {
+      handlers: {
+        "admin:overviewCardsPage": pages(),
+        "admin:writeOverview": (args) => {
+          overviews.push(args as unknown as StoredOverview);
+          return null;
+        },
+        "adminAccess:flagAutoInternalAccounts": ({ teakUserIds }) => {
+          flagged.push(teakUserIds as string[]);
+          return (teakUserIds as string[]).length;
+        },
+        "adminAccess:listInternalUserIds": () => ["qa", "staff"],
+        "adminHealth:recordCronRun": () => null,
+        "adminMetrics:readSnapshotBilling": () => ({
+          billing: {
+            canceling: 0,
+            currency: "usd",
+            mrr: 500,
+            mrrAtRisk: 0,
+            netMrr: 460,
+            pastDue: 0,
+            paying: 1,
+            trialing: 0,
+          },
+          isComplete: true,
+        }),
+        "adminMetrics:usersPage": pages(),
+        "adminMetrics:writeSnapshot": ({ snapshot }) => {
+          written.push(snapshot as Record<string, unknown>);
+          return null;
+        },
+        "adminUsage:usageForDay": () => [],
+        ...handlers,
+      },
+    }
+  );
+  const stored = (includeOnboarding: boolean) =>
+    overviews.find((row) => row.includeOnboarding === includeOnboarding)
+      ?.overview;
+  return { flagged, overviews, stored, test, written };
+};
+
+describe("admin snapshot", () => {
+  test("pages every user and card, flags internal accounts and writes the day", async () => {
+    const day = utcDay(Date.now() - DAY_MS);
+    const dayStart = Date.parse(`${day}T00:00:00.000Z`);
+    const user = (teakUserId: string, email: string, createdAt: number) => ({
+      createdAt,
+      deleted: false,
+      email,
+      isAdmin: false,
+      teakUserId,
+    });
+    const { flagged, test, written } = snapshotRun(
+      { date: day },
+      {
+        "admin:overviewCardsPage": pages(
+          [
+            card("c1", "reader", dayStart + 3_600_000, { fileSize: 100 }),
+            card("c2", "new", dayStart - 3 * DAY_MS),
+            // The snapshot leaves onboarding cards out.
+            card("c3", "new", dayStart + 7_200_000, {
+              fileSize: 5000,
+              onboarding: true,
+            }),
+          ],
+          [
+            card("c4", "qa", dayStart + 60_000, { fileSize: 999 }),
+            card("c5", "reader", dayStart + DAY_MS + 60_000, { fileSize: 7 }),
+            card("c6", "new", dayStart - 20 * DAY_MS, {
+              deleted: true,
+              fileSize: 50,
+            }),
+          ]
+        ),
+        "adminMetrics:usersPage": pages(
+          [
+            user("reader", "reader@gmail.com", dayStart - 10 * DAY_MS),
+            user("new", "new@gmail.com", dayStart + 60_000),
+          ],
+          [
+            user("qa", "e2e-bot@gmail.com", dayStart - DAY_MS),
+            {
+              ...user("gone", "gone@gmail.com", dayStart - DAY_MS),
+              deleted: true,
+            },
+          ]
+        ),
+        "adminUsage:usageForDay": () => [
+          { calls: 2, costUsd: 0.5, userId: "reader" },
+          { calls: 9, costUsd: 3, userId: "qa" },
+        ],
+      }
+    );
+
+    expect(await runMaintenance(test.run, { convex: test.convex })).toEqual({
+      date: day,
+      isApproximate: false,
+    });
+
+    expect(flagged).toEqual([["qa"]]);
+    expect(test.callsTo("adminMetrics:usersPage")).toHaveLength(2);
+    expect(test.callsTo("admin:overviewCardsPage")).toHaveLength(2);
+    expect(written).toEqual([
+      {
+        accounts: 2,
+        activeSavers1d: 1,
+        activeSavers28d: 2,
+        activeSavers7d: 2,
+        aiCalls: 2,
+        aiCostUsd: 0.5,
+        billing: {
+          canceling: 0,
+          currency: "usd",
+          mrr: 500,
+          mrrAtRisk: 0,
+          netMrr: 460,
+          pastDue: 0,
+          paying: 1,
+          trialing: 0,
+        },
+        capturedAt: expect.any(Number),
+        cardsSaved: 1,
+        date: day,
+        isApproximate: false,
+        signups: 1,
+        storageBytes: 100,
+        storageBytesAdded: 100,
+        topStorage: [{ bytes: 100, teakUserId: "reader" }],
+        totalCards: 2,
+      },
+    ]);
+    expect(heartbeats(test.calls)).toEqual([
+      "admin-daily-snapshot started",
+      "admin-daily-snapshot succeeded",
+    ]);
+  });
+
+  test("one run stores the snapshot and both overviews from a single card scan", async () => {
+    const now = Date.now();
+    const { overviews, stored, test, written } = snapshotRun(
+      { date: utcDay(now - DAY_MS) },
+      {
+        "admin:overviewCardsPage": pages(
+          [
+            card("c1", "reader", now - DAY_MS),
+            card("c2", "reader", now - DAY_MS, { onboarding: true }),
+            card("c3", "staff", now - DAY_MS),
+          ],
+          [
+            card("c4", "writer", now - DAY_MS, {
+              hasAiSummary: false,
+              hasAiTags: false,
+              metadataStatus: "pending",
+              processingStatus: { classify: { status: "failed" } },
+              type: "link",
+            }),
+          ]
+        ),
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    // Every card is read once, through one page query, for all three rows.
+    expect(
+      test.calls
+        .map((call) => call.name)
+        .filter((name) => /cards?page/iu.test(name))
+    ).toEqual(["admin:overviewCardsPage", "admin:overviewCardsPage"]);
+    expect(written).toHaveLength(1);
+    expect(written[0]?.totalCards).toBe(2);
+    expect(overviews.map((row) => row.includeOnboarding).sort()).toEqual([
+      false,
+      true,
+    ]);
+    expect(stored(true)?.totals).toMatchObject({
+      totalCards: 3,
+      uniqueUsers: 2,
+    });
+    expect(stored(true)?.cardsByType).toEqual({ link: 1, text: 2 });
+    expect(stored(false)?.totals).toMatchObject({
+      totalCards: 2,
+      uniqueUsers: 2,
+    });
+    expect(stored(false)?.aiPipeline.failedCards).toBe(1);
+    expect(stored(false)?.aiPipeline.missingCards).toEqual([
+      expect.objectContaining({
+        cardId: "c4",
+        reasons: [
+          "AI metadata missing",
+          "AI summary missing",
+          "AI tags missing",
+          "Link metadata still pending",
+        ],
+      }),
+    ]);
+    expect(stored(false)?.isApproximate).toBe(false);
+    expect(stored(true)?.generatedAt).toBe(written[0]?.capturedAt as number);
+  });
+
+  test("an admin's request for an older day has no billing, refreshes the overview and reports back to its dispatch row", async () => {
+    const day = utcDay(Date.now() - 5 * DAY_MS);
+    const { overviews, test, written } = snapshotRun({
+      date: day,
+      dispatched: true,
+    });
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("adminMetrics:readSnapshotBilling")).toEqual([]);
+    expect(written).toHaveLength(1);
+    expect(written[0]?.date).toBe(day);
+    expect(written[0]).not.toHaveProperty("billing");
+    expect(overviews).toHaveLength(2);
+    expect(heartbeats(test.calls)).toEqual([]);
+    expect(completionReports(test.callsTo)).toEqual(["complete"]);
+  });
+
+  test("a scan cut short marks the day and the overview approximate", async () => {
+    const { stored, test, written } = snapshotRun(
+      { date: utcDay(Date.now() - DAY_MS) },
+      {
+        "admin:overviewCardsPage": ({ cursor }) => ({
+          rows: [],
+          isDone: false,
+          continueCursor: `${String(cursor)}+`,
+        }),
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("admin:overviewCardsPage")).toHaveLength(400);
+    expect(written[0]?.isApproximate).toBe(true);
+    expect(stored(true)?.isApproximate).toBe(true);
+    expect(stored(false)?.isApproximate).toBe(true);
+  });
+
+  test("a user scan cut short marks the overview approximate too", async () => {
+    const { stored, test, written } = snapshotRun(
+      { date: utcDay(Date.now() - DAY_MS) },
+      {
+        "adminMetrics:usersPage": ({ cursor }) => ({
+          rows: [],
+          isDone: false,
+          continueCursor: `${String(cursor)}+`,
+        }),
+      }
+    );
+
+    await runMaintenance(test.run, { convex: test.convex });
+
+    expect(test.callsTo("adminMetrics:usersPage")).toHaveLength(400);
+    expect(written[0]?.isApproximate).toBe(true);
+    expect(stored(true)?.isApproximate).toBe(true);
+    expect(stored(false)?.isApproximate).toBe(true);
   });
 });

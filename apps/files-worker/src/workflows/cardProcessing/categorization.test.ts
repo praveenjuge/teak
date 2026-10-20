@@ -639,6 +639,59 @@ describe("categorization", () => {
       });
     });
 
+    test("archives a large raw category in R2 and sends Convex only its reference", async () => {
+      const memory = createMemoryBucket();
+      const raw = {
+        structured: { "@type": "Article", headline: "Keep ".repeat(300) },
+        structuredMeta: { fetchedAt: 120 },
+      };
+      const { convex, run, saved } = categorize(
+        {
+          metadata: {
+            linkCategory: {
+              category: "article",
+              confidence: 0.8,
+              fetchedAt: Date.now() - 1000,
+              raw,
+              sourceUrl: "https://example.com/a",
+            },
+          },
+          url: "https://example.com/a",
+        },
+        {},
+        memory.bucket
+      );
+
+      await run();
+
+      expect(memory.objects.size).toBe(1);
+      const [[key, json]] = [...memory.objects];
+      expect(JSON.parse(json)).toEqual(raw);
+      const digest = await sha256Hex(json);
+      expect(key).toBe(
+        rawMetadataKey(
+          "",
+          { _id: CARD_ID, userId: USER_ID },
+          "linkCategory",
+          digest
+        )
+      );
+      expect(saved()).toMatchObject({
+        category: "article",
+        rawHasStructured: true,
+        rawSha256: digest,
+        rawStorageKey: key,
+        rawStructuredFetchedAt: 120,
+      });
+      expect(saved()).not.toHaveProperty("raw");
+      expect(
+        convex.callsTo("storage/ownership:registerObject")[0]
+      ).toMatchObject({
+        args: { key, userId: USER_ID },
+        guard: { cardId: CARD_ID, rev: 1 },
+      });
+    });
+
     test("does not read the page again when its JSON-LD is stored and fresh", async () => {
       const { fakes, run } = categorize({
         metadata: {

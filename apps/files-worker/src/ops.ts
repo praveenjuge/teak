@@ -1,8 +1,10 @@
 import type { BrowserWorker } from "@cloudflare/puppeteer";
+import { CRONS, cronTasksOn } from "@teak/convex/cronSchedules";
 import { readResponseTextWithinLimit } from "@teak/convex/shared/bounded-response";
 import { IMPORT_MODES } from "@teak/convex/shared/importSources";
 import {
   buildFilesOpSigningPayload,
+  DISPATCH_ITEM_TYPES,
   FILES_OPS,
   FILES_PDF_OCR_MAX_PAGES,
   FILES_PROCESSOR_VERSION,
@@ -14,6 +16,7 @@ import {
   type FilesOpRequest,
   isFilesInspectMode,
   isFilesOp,
+  MAINTENANCE_TASKS,
   VECTOR_DELETE_MAX_IDS,
   VECTOR_GET_MAX_IDS,
 } from "@teak/files-protocol";
@@ -66,6 +69,10 @@ import {
   renderPdfPage,
 } from "./mediaJobs";
 import { isMissingMultipartUpload } from "./missingMultipartUpload";
+import {
+  parseStoreOnboardingFilesParams,
+  storeOnboardingFiles,
+} from "./onboardingFiles";
 import { OpFailure } from "./opFailure";
 import { ocrPdfPages } from "./pdfOcr";
 import { parseRemoteAssetParams, storeRemoteAsset } from "./remoteAsset";
@@ -120,6 +127,7 @@ export const getFilesOpObjectKey = (params: unknown): string => {
 
 export interface FilesOpsEnv extends AiGatewayEnv, WorkflowBindingsEnv {
   AI?: WorkersAiBinding;
+  ASSETS?: Fetcher;
   BROWSER?: BrowserWorker;
   BUCKET: R2Bucket;
   CARD_VECTORS_0?: Vectorize;
@@ -340,14 +348,18 @@ const dispatch = async (
   env: FilesOpsEnv,
   requestId: string,
   body: FilesOpRequest,
-  origin: string
+  origin: string,
+  ctx?: Pick<ExecutionContext, "waitUntil">
 ): Promise<Response> => {
   const params = (body.params ?? {}) as Record<string, unknown>;
   switch (body.op) {
     case "capabilities":
       return success(requestId, {
         operations: FILES_OPS,
+        dispatchItems: DISPATCH_ITEM_TYPES,
         importModes: IMPORT_MODES,
+        crons: cronTasksOn("cloudflare").map((task) => CRONS[task].name),
+        maintenanceTasks: MAINTENANCE_TASKS,
         ai: Boolean(env.AI),
         browser: Boolean(env.BROWSER),
         images: Boolean(env.IMAGES),
@@ -356,6 +368,7 @@ const dispatch = async (
         vectors: Boolean(env.CARD_VECTORS_0),
         workflows: Boolean(env.WORKFLOW_RPC_ROOT_SECRET && env.CARD_PROCESSING),
         vectorTypes: true,
+        onboardingFiles: Boolean(env.ASSETS),
         ...(params.checkRenderer === true
           ? await checkRendererHealth(env)
           : {}),
@@ -747,6 +760,11 @@ const dispatch = async (
         requestId,
         await storeLinkedPdf(env, parseLinkedPdfParams(params))
       );
+    case "store-onboarding-files":
+      return success(
+        requestId,
+        await storeOnboardingFiles(env, parseStoreOnboardingFilesParams(params))
+      );
     case "embed-upsert":
       return success(
         requestId,
@@ -835,7 +853,10 @@ const dispatch = async (
       );
     }
     case "dispatch":
-      return success(requestId, await runDispatch(env, params));
+      return success(
+        requestId,
+        await runDispatch(env, params, Date.now(), ctx)
+      );
     default:
       throw new Error("invalid_operation");
   }
@@ -942,7 +963,7 @@ export const runFilesOp = async (
       env,
       (body.params as Record<string, unknown>).aiUsage
     );
-    const run = () => dispatch(env, requestId, body, origin);
+    const run = () => dispatch(env, requestId, body, origin, ctx);
     return await (usage ? runWithAiUsage(usage, run) : run());
   } catch (error) {
     if (error instanceof MetadataCapacityError) {

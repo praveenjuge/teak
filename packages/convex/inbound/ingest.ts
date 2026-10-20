@@ -1,5 +1,4 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   internalMutation,
@@ -12,6 +11,7 @@ import { CARD_ERROR_CODES } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { normalizeIdentityEmail } from "../shared/workosIds";
 import { queueObjectDeletion } from "../storage/r2";
+import { queueInboundEmailEvent } from "../telemetry/schedule";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { readInboundSettings } from "./settings";
 
@@ -108,8 +108,7 @@ const emit = (
         reason: "format" | "size" | "limit";
         userId: string;
       }
-) =>
-  ctx.scheduler.runAfter(0, internal.telemetry.events.emitInboundEmail, args);
+) => queueInboundEmailEvent(ctx, args);
 
 // What upload validation says about a file Teak won't take. Any other error
 // (an account being deleted, say) fails the email, so the sender retries.
@@ -484,9 +483,10 @@ export const dropEmailAttachment = internalMutation({
 export const RECEIPT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const PRUNE_BATCH = 200;
 
+/** The Files Worker's daily maintenance calls this until `hasMore` is false. */
 export const pruneReceipts = internalMutation({
   args: {},
-  returns: v.number(),
+  returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx) => {
     const expired = await ctx.db
       .query("inboundEmailReceipts")
@@ -497,13 +497,9 @@ export const pruneReceipts = internalMutation({
     for (const receipt of expired) {
       await ctx.db.delete("inboundEmailReceipts", receipt._id);
     }
-    if (expired.length === PRUNE_BATCH) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.inbound.ingest.pruneReceipts,
-        {}
-      );
-    }
-    return expired.length;
+    return {
+      deleted: expired.length,
+      hasMore: expired.length === PRUNE_BATCH,
+    };
   },
 });

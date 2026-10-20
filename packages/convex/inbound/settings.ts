@@ -1,5 +1,4 @@
 import { ConvexError, v } from "convex/values";
-import { internal } from "../_generated/api";
 import {
   env,
   type MutationCtx,
@@ -9,6 +8,7 @@ import {
 } from "../_generated/server";
 import { getSessionUser } from "../securitySessions";
 import { rateLimiter } from "../shared/rateLimits";
+import { queueInboundEmailEvent } from "../telemetry/schedule";
 
 // Save by email: one shared address, save@<domain>. Mail sent to it from an
 // account's sign-in email becomes cards once the account turns it on here.
@@ -122,7 +122,7 @@ const setEnabled = async (ctx: MutationCtx, enabled: boolean) => {
   } else {
     return null;
   }
-  await ctx.scheduler.runAfter(0, internal.telemetry.events.emitInboundEmail, {
+  await queueInboundEmailEvent(ctx, {
     event: "email_save_toggled",
     enabled,
     userId,

@@ -8,6 +8,14 @@
   "main": "../src/index.ts",
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
+  // Files the Worker reads through env.ASSETS: the getting-started files
+  // new accounts get (src/onboardingFiles.ts). The Worker runs first for
+  // every request, so no path serves an asset directly.
+  "assets": {
+    "directory": "../assets",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
   "workers_dev": true,
   "preview_urls": false,
   "routes": [],

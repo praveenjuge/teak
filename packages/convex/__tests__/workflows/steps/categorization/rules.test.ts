@@ -5,10 +5,15 @@ import type {
 } from "../../../../shared/linkCategories";
 import type { JsonLdEntity } from "../../../../workflows/steps/categorization/enrichment";
 import {
+  applyLinkCategoryDecision,
   type CategorizationContextCard,
+  type CategoryClassificationResult,
   classifyLinkCategory,
   enrichLinkCategory,
+  jsonLdTypesFrom,
+  linkCategoryDecisionParams,
   projectCategorizationSnapshot,
+  readLinkCategoryReply,
 } from "../../../../workflows/steps/categorization/rules";
 
 const linkCard = (
@@ -1170,4 +1175,97 @@ test("the snapshot it works from leaves unrelated customer fields out", () => {
   expect(snapshot.metadata?.linkPreview).not.toHaveProperty("media");
   expect(JSON.stringify(snapshot).length).toBeLessThan(1024);
   expect(card).toEqual(before);
+});
+
+describe("Clef's link category review", () => {
+  const card = linkCard({
+    metadata: {
+      linkPreview: {
+        status: "success",
+        title: "Weeknight lentil soup",
+        description: "Ingredients and steps.",
+        siteName: "Example Kitchen",
+      },
+    },
+  });
+  const fallback: CategoryClassificationResult = {
+    category: "other",
+    confidence: 0.35,
+    reason: "fallback",
+  };
+  const amazon: CategoryClassificationResult = {
+    category: "product",
+    confidence: 0.72,
+    providerHint: "amazon",
+    reason: "provider_mapping",
+  };
+  const reply = (category: string | null, confidence = 0.93) =>
+    readLinkCategoryReply({
+      model: "@cf/cloudflare/clef",
+      version: 1,
+      usage: { inputTokens: 100, outputTokens: 0 },
+      decision: category ? { category, confidence } : null,
+    });
+
+  test("asks about a fallback guess with the page's facts", () => {
+    expect(
+      linkCategoryDecisionParams(card, fallback, "https://example.com/soup", [
+        { "@type": "Recipe" },
+      ])
+    ).toEqual({
+      url: "https://example.com/soup",
+      rulesCategory: "other",
+      title: "Weeknight lentil soup",
+      description: "Ingredients and steps.",
+      siteName: "Example Kitchen",
+      jsonLdTypes: ["Recipe"],
+    });
+  });
+
+  test.each(["domain_rule", "path_rule"])("never asks about a %s", (reason) => {
+    expect(
+      linkCategoryDecisionParams(
+        card,
+        { category: "article", confidence: 0.8, reason } as const,
+        "https://a.b/c",
+        []
+      )
+    ).toBeNull();
+  });
+
+  test("takes Clef's category for a fallback guess", () => {
+    expect(applyLinkCategoryDecision(fallback, reply("recipe"))).toEqual({
+      category: "recipe",
+      confidence: 0.93,
+      reason: "clef",
+    });
+  });
+
+  test("keeps the rules without a decision or for an unknown category", () => {
+    expect(applyLinkCategoryDecision(fallback, reply(null))).toBe(fallback);
+    expect(applyLinkCategoryDecision(fallback, null)).toBe(fallback);
+    expect(reply("cookbook")).toBeNull();
+  });
+
+  test("keeps a provider's category when Clef's would drop its facts", () => {
+    expect(applyLinkCategoryDecision(amazon, reply("article"))).toBe(amazon);
+  });
+
+  test("allows a provider category its handler also enriches", () => {
+    expect(applyLinkCategoryDecision(amazon, reply("book")).category).toBe(
+      "book"
+    );
+  });
+
+  test("JSON-LD types come from entities, graphs and arrays, once each", () => {
+    expect(
+      jsonLdTypesFrom(
+        [
+          { "@type": ["Recipe", "HowTo"] },
+          { "@graph": [{ "@type": "WebPage" }, { "@type": "Recipe" }] },
+        ],
+        { "@type": "Organization" }
+      )
+    ).toEqual(["Recipe", "HowTo", "WebPage", "Organization"]);
+  });
 });

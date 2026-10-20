@@ -4,6 +4,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
+import { buildR2UserPrefix } from "./storage/r2";
+import {
+  queueCardOutcome,
+  queueCardProcessingFailed,
+  queueUserCreated,
+} from "./telemetry/schedule";
 import {
   DISPATCH_RETENTION_MS,
   enqueueObjectDeletion,
@@ -225,6 +231,33 @@ describe("complete", () => {
     expect(job?.failureClass).toBe("import_workflow_failed");
   });
 
+  test("deletes the items an import staged in R2 when its run errors", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertImportJob(t, "importing");
+    await t.run((ctx) =>
+      ctx.db.patch("importJobs", jobId, {
+        stagedItems: { pages: 3, parts: 2, cursor: null, part: 1, offset: 4 },
+      })
+    );
+    await t.run((ctx) => queueImportWorkflow(ctx, jobId));
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: `import-${jobId}`,
+      status: "errored",
+    });
+    const prefix = buildR2UserPrefix("user-1");
+    expect(
+      (await rows(t)).filter((row) => row.kind === "deleteObjects")
+    ).toMatchObject([
+      {
+        keys: [
+          `${prefix}/imports/${jobId}/staged/1.json`,
+          `${prefix}/imports/${jobId}/staged/2.json`,
+        ],
+      },
+    ]);
+  });
+
   test("starts the next account deletion attempt when a run errors", async () => {
     const t = convexTest(schema, modules);
     const stateId = await t.run((ctx) =>
@@ -407,5 +440,133 @@ describe("flush", () => {
       (await rows(t)).map((row) => [row.kind, row.state])
     );
     expect(states).toEqual({ deleteObjects: "done", export: "pending" });
+  });
+});
+
+describe("analytics events", () => {
+  const UUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+  const signUp = {
+    email: "a@example.com",
+    source: "auth",
+    userId: "teak_u1",
+  };
+
+  const workerConfigured = () => {
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
+  };
+
+  const scheduledNames = (t: ReturnType<typeof convexTest>) =>
+    t.run(async (ctx) =>
+      (await ctx.db.system.query("_scheduled_functions").collect()).map(
+        (job) => job.name
+      )
+    );
+
+  test("queues nothing while PostHog capture is off", async () => {
+    workerConfigured();
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => queueUserCreated(ctx, signUp));
+    expect(await rows(t)).toEqual([]);
+    expect(await scheduledNames(t)).toEqual([]);
+  });
+
+  test("rides the flush the same change already scheduled", async () => {
+    workerConfigured();
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run(async (ctx) => {
+      await queueExportWorkflow(ctx, jobId, "user-1");
+      await queueCardOutcome(ctx, {
+        cardType: "text",
+        outcome: "success",
+        source: "web",
+        userId: "teak_u1",
+      });
+      await queueUserCreated(ctx, signUp);
+    });
+    expect((await rows(t)).map((row) => row.kind)).toEqual([
+      "export",
+      "analyticsEvent",
+      "analyticsEvent",
+    ]);
+    expect(await scheduledNames(t)).toEqual(["workflowDispatch:flush"]);
+  });
+
+  test("claim hands events over as Convex captures them and removes their rows", async () => {
+    workerConfigured();
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("CONVEX_GIT_COMMIT_SHA", "abc123def4567890");
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await queueUserCreated(ctx, signUp);
+      await queueCardProcessingFailed(ctx, {
+        errorClass: "timeout",
+        stage: "renderables",
+      });
+    });
+    const claimed = await t.mutation(internal.workflowDispatch.claim, {});
+    const now = new Date(NOW).toISOString();
+    expect(claimed.map(({ item }: { item: unknown }) => item)).toEqual([
+      {
+        appVersion: "abc123def456",
+        distinctId: "teak_u1",
+        event: "user_signed_up",
+        properties: { source: "auth", surface: "backend" },
+        set: { email: "a@example.com", plan: "free", signed_up_at: now },
+        timestamp: now,
+        type: "analytics-event",
+        uuid: expect.stringMatching(UUID),
+      },
+      {
+        appVersion: "abc123def456",
+        event: "card_processing_failed",
+        properties: {
+          error_class: "timeout",
+          stage: "renderables",
+          surface: "backend",
+        },
+        timestamp: now,
+        type: "analytics-event",
+        uuid: expect.stringMatching(UUID),
+      },
+    ]);
+    expect(await rows(t)).toEqual([]);
+  });
+
+  test("a failed hand-over drops events but retries the rest", async () => {
+    workerConfigured();
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("WORKFLOW_RPC_SECRET", "deployment-rpc-secret");
+    const sent: DispatchItem[][] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init: RequestInit) => {
+        sent.push(
+          (
+            JSON.parse(String(init.body)) as {
+              params: { items: DispatchItem[] };
+            }
+          ).params.items
+        );
+        return Promise.reject(new Error("worker_down"));
+      })
+    );
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run(async (ctx) => {
+      await queueExportWorkflow(ctx, jobId, "user-1");
+      await queueUserCreated(ctx, signUp);
+    });
+    await t.action(internal.workflowDispatch.flush, {});
+    expect(sent.flat().map((item) => item.type)).toEqual([
+      "workflow",
+      "analytics-event",
+    ]);
+    expect((await rows(t)).map((row) => [row.kind, row.state])).toEqual([
+      ["export", "pending"],
+    ]);
   });
 });

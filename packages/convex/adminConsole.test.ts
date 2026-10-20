@@ -342,6 +342,44 @@ describe("daily snapshots", () => {
     isApproximate: false,
   };
 
+  test("an admin's capture starts the Files Worker's snapshot and is audited", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    const dispatches = () =>
+      t.run((ctx) => ctx.db.query("workflowDispatches").take(10));
+
+    await expect(
+      asCustomer(t).action(api.adminMetrics.captureSnapshot, {})
+    ).rejects.toThrow("Unauthorized");
+    await expect(
+      asAdmin(t).action(api.adminMetrics.captureSnapshot, {
+        date: "2999-01-01",
+      })
+    ).rejects.toThrow("Snapshot date must not be in the future");
+    expect(await dispatches()).toEqual([]);
+
+    expect(
+      await asAdmin(t).action(api.adminMetrics.captureSnapshot, {
+        date: "2026-10-01",
+      })
+    ).toEqual({ date: "2026-10-01" });
+
+    const [row] = await dispatches();
+    expect(row).toMatchObject({
+      kind: "maintenance",
+      state: "pending",
+      params: { date: "2026-10-01", dispatched: true, task: "admin-snapshot" },
+    });
+    expect(row?.instanceId).toMatch(/^admin-snapshot-2026-10-01-manual-\d+$/u);
+    expect(await auditRows(t)).toEqual([
+      expect.objectContaining({
+        action: "metrics.capture_snapshot",
+        details: { date: "2026-10-01" },
+      }),
+    ]);
+  });
+
   test("recapturing a past day keeps the billing seen on that day", async () => {
     const t = setup();
     const billing = {
@@ -366,6 +404,89 @@ describe("daily snapshots", () => {
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ cardsSaved: 7, billing });
+  });
+});
+
+describe("overview", () => {
+  test("is counted live until the Files Worker stores one, then read from the stored row", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    await privateCard(t);
+
+    const live = await asAdmin(t).query(api.admin.getOverview, {});
+    expect(live.totals).toEqual({
+      totalCards: 1,
+      activeCards: 1,
+      deletedCards: 0,
+      uniqueUsers: 1,
+    });
+    expect(live.isApproximate).toBe(false);
+
+    const stored = {
+      ...live,
+      generatedAt: 5000,
+      totals: { ...live.totals, totalCards: 1234 },
+      isApproximate: true,
+    };
+    await t.mutation(internal.admin.writeOverview, {
+      includeOnboarding: false,
+      overview: stored,
+    });
+    await t.mutation(internal.admin.writeOverview, {
+      includeOnboarding: false,
+      overview: { ...stored, generatedAt: 4000 },
+    });
+
+    expect(await asAdmin(t).query(api.admin.getOverview, {})).toEqual(stored);
+    const withOnboarding = await asAdmin(t).query(api.admin.getOverview, {
+      includeOnboarding: true,
+    });
+    expect(withOnboarding.totals.totalCards).toBe(1);
+    await expect(
+      asCustomer(t).query(api.admin.getOverview, {})
+    ).rejects.toThrow("Unauthorized");
+  });
+
+  test("the Files Worker's card page carries what the snapshot counts too", async () => {
+    const t = setup();
+    const cardId = await privateCard(t);
+    await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "teak_customer",
+        type: "image",
+        content: "",
+        onboarding: "coral-lily",
+        fileMetadata: { fileName: "lily.webp", fileSize: 2048 },
+        isDeleted: true,
+        createdAt: 2,
+        updatedAt: 2,
+      })
+    );
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+
+    const page = await t.query(internal.admin.overviewCardsPage, {
+      cursor: null,
+    });
+
+    expect(page.isDone).toBe(true);
+    expect(page.rows).toEqual([
+      expect.objectContaining({
+        cardId,
+        createdAt: 1,
+        creationTime: card?._creationTime,
+        deleted: false,
+        fileSize: 0,
+        onboarding: false,
+        userId: "teak_customer",
+      }),
+      expect.objectContaining({
+        createdAt: 2,
+        deleted: true,
+        fileSize: 2048,
+        onboarding: true,
+      }),
+    ]);
   });
 });
 
