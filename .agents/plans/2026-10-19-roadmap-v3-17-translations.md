@@ -34,7 +34,7 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
 ## Context And Current Facts
 
 - After phase 16:
-  - `apps/web/src/i18n/locales.ts` has `SUPPORTED_LOCALES = ["en"]` and `LOCALE_COOKIE = "teak-locale"`.
+  - `packages/i18n/src/locales.ts` has `SUPPORTED_LOCALES = ["en"]` and `LOCALE_COOKIE = "teak-locale"`.
   - `apps/web/src/i18n/request.ts` reads the cookie.
   - The extension popup is wrapped in `IntlProvider` (check these paths when starting; phase 16 may have moved them).
 - **No preference storage today.** The `users` table (`packages/convex/schema.ts:529-541`) holds only identity fields. Theme is per device, through `ThemeToggle` (`apps/web/src/components/settings/SettingsContent.tsx:192-194`).
@@ -108,7 +108,7 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
   - every PR that adds or changes English keys also updates all seven catalogs;
   - how to translate: using the glossary, keeping ICU placeholders, plural categories per language (CLDR: `ja`, `ko` and `zh` use only `other`), and no machine-literal UI jargon;
   - how to check: run the catalog check and look at the screen.
-- **`apps/web/src/i18n/glossary.md`** has one row per term with its translation in all 7 languages:
+- **`packages/i18n/glossary.md`** has one row per term with its translation in all 7 languages:
   - card, note, link, folder, smart folder, tag, archive, trash, favorite;
   - Revisit, Shuffle, Focus mode, Refresh details;
   - "More like this", highlight, reader;

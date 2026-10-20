@@ -31,7 +31,7 @@ It ships English only, plus a development pseudo-locale. Phase 17 adds the seven
   - `apps/web` uses `next` 16.4.0 with `reactCompiler: true` (`apps/web/next.config.ts:56`).
   - React is 19.3.0 (root `package.json:49-50`).
   - The extension uses `wxt` ^0.21.3 and `@wxt-dev/module-react` (`apps/extension/package.json:32-35`), and keeps its own copies of the button and wordmark (`apps/extension/components/`); it shares no UI package with the web app.
-- **No i18n library or catalog anywhere** in web, ui, extension or docs.
+- **No i18n library or catalog anywhere** in web, extension or docs.
   - `apps/web/src/app/layout.tsx:48` hardcodes `lang="en"`.
   - The WXT extension has no `_locales`. The separate Safari extension in `apps/apple/SafariExtension` has `_locales/en/messages.json` and is out of scope.
 - **Hardcoded strings:** about 340 JSX text lines and 57 toast calls across about 149 `.tsx` files in `apps/web`, plus aria-labels, titles and placeholders. The extension popup's `App.tsx` alone is 566 lines.
@@ -50,7 +50,7 @@ It ships English only, plus a development pseudo-locale. Phase 17 adds the seven
 
 | Option | Fit |
 |---|---|
-| **next-intl (web) + use-intl (ui, extension)**, the default | One ICU message format and one `useTranslations` / `useFormatter` API everywhere. next-intl supports App Router without i18n routing, with the locale read from a cookie in `i18n/request.ts`. use-intl's `IntlProvider` is plain React, so it works in the WXT popup. Message keys are plain JSON, so AI translation and key checks are simple. No compiler plugin, so it doesn't interact with the React Compiler |
+| **next-intl (web) + use-intl (extension)**, the default | One ICU message format and one `useTranslations` / `useFormatter` API everywhere. next-intl supports App Router without i18n routing, with the locale read from a cookie in `i18n/request.ts`. use-intl's `IntlProvider` is plain React, so it works in the WXT popup. Message keys are plain JSON, so AI translation and key checks are simple. No compiler plugin, so it doesn't interact with the React Compiler |
 | Lingui | Good extraction from macros, but needs its SWC plugin for Next 16.4 and a Babel or Vite macro setup for the extension. That is two build integrations, plus a check that the SWC plugin works alongside the React Compiler. More moving parts |
 | react-i18next | Works everywhere, but has a heavier runtime and weaker ICU (a plugin). Its server-component story in Next is DIY |
 | Native `Intl` plus a small in-house `t()` | Smallest, but rebuilds plurals, rich text and type-safe keys by hand |
@@ -68,15 +68,16 @@ Default: **next-intl / use-intl**. Spend half a day confirming that next-intl's 
 
 ## Packages and files
 
-- `apps/web/src/i18n/` (new):
-  - `locales.ts`: `SUPPORTED_LOCALES = ["en"]` (phase 17 extends it), `DEFAULT_LOCALE`, `isSupportedLocale`, and `LOCALE_COOKIE = "teak-locale"`.
+- `packages/i18n/` (new workspace, `@teak/i18n`), so the web app and the extension share one catalog without sharing UI code. It joins the lockstep version (`.agents/releases.md`), and the extension's AMO sources zip (`apps/extension/wxt.config.ts`) adds `packages/i18n/**`:
+  - `src/locales.ts`: `SUPPORTED_LOCALES = ["en"]` (phase 17 extends it), `DEFAULT_LOCALE`, `isSupportedLocale`, and `LOCALE_COOKIE = "teak-locale"`.
   - `messages/en.json`: the single source catalog for the web app and the extension.
-  - The extension can't import from `apps/web`; the open decision below settles how it reads the catalog.
-  - `pseudo.ts`: builds `en-XA` from `en.json` at runtime in development.
-  - `format.ts`: `useTeakFormatter()` wrapping use-intl's `useFormatter`, with presets `date.short` ("Oct 19, 2026"), `date.long`, `dateTime`, `number`, `count` and `bytes`. Also a non-hook `formatDate(locale, …)` for helpers called outside React (`cardHeading.ts`, `cardDetails.ts`, `exif.ts`, `linkByline.ts`).
-  - `errors.ts`: `messageForError(t, code, fallback)` for `CARD_LIMIT_REACHED`, `RATE_LIMITED`, folder and tag codes, thumbnail codes, and `TAG_OPERATION_RUNNING`.
+  - `package.json` exports `"."` (`src/index.ts`) and `"./messages/*"` (`messages/*`), so both apps import the code and load a catalog by locale.
+  - `src/pseudo.ts`: builds `en-XA` from `en.json` at runtime in development.
+  - `src/format.ts`: `useTeakFormatter()` wrapping use-intl's `useFormatter`, with presets `date.short` ("Oct 19, 2026"), `date.long`, `dateTime`, `number`, `count` and `bytes`. Also a non-hook `formatDate(locale, …)` for helpers called outside React (`cardHeading.ts`, `cardDetails.ts`, `exif.ts`, `linkByline.ts`).
+  - `src/errors.ts`: `messageForError(t, code, fallback)` for `CARD_LIMIT_REACHED`, `RATE_LIMITED`, folder and tag codes, thumbnail codes, and `TAG_OPERATION_RUNNING`.
+  - Depends on `use-intl` only, never on Next.js or WXT.
 - `apps/web`:
-  - `src/i18n/request.ts` (next-intl `getRequestConfig`): reads the `teak-locale` cookie, checks it, and loads messages.
+  - `src/i18n/request.ts` (next-intl `getRequestConfig`): reads the `teak-locale` cookie, checks it with `@teak/i18n`, and loads messages from `@teak/i18n/messages`.
   - `layout.tsx` wraps the app in `NextIntlClientProvider` and sets `<html lang={locale}>`.
   - `next.config.ts` adds the next-intl plugin.
 - `apps/extension`:
@@ -128,8 +129,8 @@ Default: **next-intl / use-intl**. Spend half a day confirming that next-intl's 
 ## Tests
 
 - `scripts/i18n-catalog.test.ts` as above.
-- `apps/web/src/i18n/__tests__/format.test.ts`: `formatDate` and the count presets for `en` and `de` (by constructing them), checking that the locale reaches `Intl`.
-- `apps/web/src/i18n/__tests__/errors.test.ts`: known codes map to messages, and unknown codes fall back.
+- `packages/i18n/src/__tests__/format.test.ts`: `formatDate` and the count presets for `en` and `de` (by constructing them), checking that the locale reaches `Intl`.
+- `packages/i18n/src/__tests__/errors.test.ts`: known codes map to messages, and unknown codes fall back.
 - Update the existing `renderToStaticMarkup` tests to render inside a test `IntlProvider` (a `renderWithIntl` helper in `apps/web/src/test-utils`), keeping their assertions on visible English text.
 - `apps/web/src/__tests__/i18nRequest.test.ts`: the cookie is read and checked, and a missing or invalid cookie gives `en`.
 - e2e: run the existing web specs unchanged (English). Add `packages/tests/src/web/i18n-pseudo.e2e.ts`, which sets the `en-XA` cookie on the dev stack and checks that page landmarks have pseudo text and no raw English for a sample of strings.
@@ -152,6 +153,6 @@ Default: **next-intl / use-intl**. Spend half a day confirming that next-intl's 
 
 - **Size of the PR.** Extracting about 500 strings in one PR is large. The phase stays one PR (one feature), but the commits are split as in the extraction plan, and reviewers can follow them commit by commit.
 - **next-intl and Next 16.4.** If next-intl has no release that supports Next 16.4, use `use-intl` alone. Pass messages from the root layout through a client provider and pick the locale server-side from the cookie.
-- **Open decision:** catalog location now that the web app and the extension share no UI package: a new `packages/i18n` workspace both import (default), or `apps/web/src/i18n/messages` plus a separate popup catalog in the extension.
+- **Decided:** the catalog and its helpers live in a new `packages/i18n` workspace that the web app and the extension both import. Its tests run from its own `test` script, and `.agents/testing.md` gains a row for it.
 - **Open decision:** whether server-made strings stored on cards (link facts, bylines, price labels) get translated in v3 (default: no, they stay English; noted for a later phase).
 - **The editorcn slash menu and its toolbar tooltips** may hardcode labels inside the package. If they can't be overridden, wrap or fork the item list. That is fine because `RichMarkdownEditor.tsx` already filters it.
