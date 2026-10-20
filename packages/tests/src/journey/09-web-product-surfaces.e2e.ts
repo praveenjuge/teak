@@ -279,7 +279,7 @@ https://example.com/editor
     await expect(
       screen.getByText(`${marker} restore-me`, { exact: false })
     ).toBeVisible();
-    await enterSearch(screen, `${marker}-tag-empty`);
+    await enterSearch(screen, "zzzz-no-match-tag-empty");
     await expect(
       screen.getByRole("button", `Remove ${marker}-tag`)
     ).toBeVisible();
@@ -289,7 +289,7 @@ https://example.com/editor
     ).toBeVisible();
     await clearFilters(screen);
 
-    await searchFor(surface, `${marker}-no-results`);
+    await searchFor(surface, "zzzz-no-match-results");
     await expect(screen.getByText(/nothing found/i)).toBeVisible();
     await clearFilters(screen);
     await expect(screen.getByPlaceholder("Search everything")).toHaveValue("");
@@ -299,7 +299,7 @@ https://example.com/editor
       `${marker} bulk-a`,
       `${marker} bulk-a`
     );
-    await enterSearch(screen, `${marker}-trash-empty`);
+    await enterSearch(screen, "zzzz-no-match-trash-empty");
     await expect(screen.getByText(/nothing found/i)).toBeVisible();
     await clearFilters(screen);
   });
