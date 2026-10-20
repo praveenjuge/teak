@@ -11,7 +11,6 @@ navigation3 = "1.2.0"
 lifecycle = "2.11.0"
 activity = "1.13.0"
 coreKtx = "1.19.1"
-coreSplashscreen = "1.2.0"
 browser = "1.10.0"
 datastore = "1.2.1"
 work = "2.12.0"
@@ -41,7 +40,6 @@ turbine = "1.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }

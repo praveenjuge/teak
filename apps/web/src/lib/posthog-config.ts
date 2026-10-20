@@ -52,6 +52,11 @@ const INJECTED_FRAME_PREFIXES = [
 
 const INJECTED_GLOBAL_PATTERN = /\bwindow\.videoSniffer\b/u;
 
+// Browsers raise these without a stack: "Script error." hides a cross-origin
+// script's real error, and the ResizeObserver loop warning is harmless.
+const STACKLESS_BROWSER_NOISE =
+  /^(?:Script error\.|ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?)$/u;
+
 const REMOVE_CHILD_MESSAGE =
   "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.";
 
@@ -86,6 +91,8 @@ export const isNoiseException = (entries: ExceptionEntry[]): boolean =>
     (entry) =>
       framesOf(entry).some(isExtensionFrame) ||
       INJECTED_GLOBAL_PATTERN.test(entry.value ?? "") ||
+      (framesOf(entry).length === 0 &&
+        STACKLESS_BROWSER_NOISE.test(entry.value ?? "")) ||
       isExternalDomMutation(entry)
   );
 
