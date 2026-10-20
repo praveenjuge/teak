@@ -6,6 +6,7 @@ on:
       - apps/extension/**
       - packages/sdk/src/**
       - packages/convex/shared/boundedResponse.ts
+      - packages/convex/shared/oauthSurfaces.ts
       - packages/convex/devUrls.ts
       - packages/tests/src/extension/oauth-runtime.e2e.ts
       - packages/tests/src/auth-runtime/**
@@ -22,6 +23,7 @@ on:
       - apps/extension/**
       - packages/sdk/src/**
       - packages/convex/shared/boundedResponse.ts
+      - packages/convex/shared/oauthSurfaces.ts
       - packages/convex/devUrls.ts
       - packages/tests/src/extension/oauth-runtime.e2e.ts
       - packages/tests/src/auth-runtime/**
