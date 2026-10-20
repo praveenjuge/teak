@@ -379,7 +379,12 @@ class LibraryViewModel @AssistedInject constructor(
     fun undo(message: LibraryMessage) {
         val undo = message.undo ?: return
         dismissMessage(message.id)
-        viewModelScope.launch { catchingFailures { repository.bulk(undo.action, undo.ids) } }
+        viewModelScope.launch {
+            val failed = catchingFailures { repository.bulk(undo.action, undo.ids) }
+                .map { it.failedIds.size }
+                .getOrDefault(undo.ids.size)
+            if (failed > 0) post(BulkCopy.result(undo.action, undo.ids.size - failed, failed, "the folder"))
+        }
     }
 
     fun dismissMessage(id: Long) = _state.update { if (it.message?.id == id) it.copy(message = null) else it }

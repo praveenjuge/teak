@@ -47,6 +47,14 @@ private func day(_ milliseconds: Double) -> String {
 }
 
 @Suite struct LibraryFilterTests {
+    @Test func trashAndArchiveAreSeparateViews() {
+        var filters = LibraryFilters(archivedOnly: true)
+        filters.trashOnly = true
+        #expect(filters.trashOnly && !filters.archivedOnly)
+        filters.archivedOnly = true
+        #expect(filters.archivedOnly && !filters.trashOnly)
+    }
+
     @Test func sendsOnlyTheFiltersThatAreOn() {
         #expect(LibraryQuery().searchArgs(now: tuesdayNoon) == [:])
         let filters = LibraryFilters(favoritesOnly: true, trashOnly: true, types: [.image, .link], hue: ColorHue("blue"))

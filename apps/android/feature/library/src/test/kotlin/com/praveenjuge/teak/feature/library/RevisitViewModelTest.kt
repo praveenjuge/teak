@@ -68,6 +68,27 @@ class RevisitViewModelTest {
     }
 
     @Test
+    fun `a failed archive or undo says so and leaves the deck where it was`() = runTest {
+        val viewModel = deck("a", "b")
+        advanceUntilIdle()
+        viewModel.archive()
+        advanceUntilIdle()
+        repository.failingIds = setOf("a")
+        viewModel.undo()
+        advanceUntilIdle()
+
+        assertEquals("b", viewModel.state.value.current?.id)
+        assertEquals("Couldn't update this card.", viewModel.state.value.error)
+        viewModel.errorShown()
+
+        repository.failingIds = setOf("b")
+        viewModel.archive()
+        advanceUntilIdle()
+        assertEquals("b", viewModel.state.value.current?.id)
+        assertEquals("Couldn't update this card.", viewModel.state.value.error)
+    }
+
+    @Test
     fun `a short shuffled page reads on until the deck is full`() = runTest {
         val repository = object : CardsRepository by this@RevisitViewModelTest.repository {
             override fun page(query: CardQuery, cursor: String?, numItems: Int) = flowOf(

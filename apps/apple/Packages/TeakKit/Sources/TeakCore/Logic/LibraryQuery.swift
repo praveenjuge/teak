@@ -41,8 +41,9 @@ public enum LibrarySort: Hashable, Sendable {
 
 public struct LibraryFilters: Hashable, Sendable {
     public var favoritesOnly = false
-    public var trashOnly = false
-    public var archivedOnly = false
+    /// Trash and Archive are separate views: turning one on turns the other off.
+    public var trashOnly = false { didSet { if trashOnly { archivedOnly = false } } }
+    public var archivedOnly = false { didSet { if archivedOnly { trashOnly = false } } }
     public var types: [CardType] = []
     public var hue: ColorHue?
     public var folder: FolderScope?

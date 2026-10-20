@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
+import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.CardSort
@@ -29,6 +30,8 @@ data class RevisitUiState(
     val archivingId: String? = null,
     /** Set after an archive, for the "Archived 1 card" note with Undo. */
     val archivedNote: Long? = null,
+    /** Why the last archive or Undo didn't go through. */
+    val error: String? = null,
 ) {
     val current: CardSummary? get() = cards.getOrNull(position)
     val isEmpty: Boolean get() = !isLoading && !failed && cards.isEmpty()
@@ -106,18 +109,41 @@ class RevisitViewModel @Inject constructor(
                         )
                     }
                 }
-                .onFailure { _state.update { it.copy(archivingId = null) } }
+                .onFailure { e -> _state.update { it.copy(archivingId = null, error = failureMessage(e)) } }
         }
     }
 
     /** Takes back the last step: an archived card goes back to the library. */
     fun undo() {
-        val last = _state.value.steps.lastOrNull() ?: return
-        _state.update { it.copy(position = (it.position - 1).coerceAtLeast(0), steps = it.steps.dropLast(1), archivedNote = null) }
-        if (last.archived) viewModelScope.launch { catchingFailures { repository.setArchived(last.cardId, false) } }
+        val state = _state.value
+        val last = state.steps.lastOrNull() ?: return
+        if (state.archivingId != null) return
+        if (!last.archived) return stepBack()
+        _state.update { it.copy(archivingId = last.cardId, archivedNote = null) }
+        viewModelScope.launch {
+            catchingFailures { repository.setArchived(last.cardId, false) }
+                .onSuccess {
+                    _state.update { it.copy(archivingId = null) }
+                    stepBack()
+                }
+                .onFailure { e -> _state.update { it.copy(archivingId = null, error = failureMessage(e)) } }
+        }
+    }
+
+    private fun stepBack() = _state.update {
+        it.copy(position = (it.position - 1).coerceAtLeast(0), steps = it.steps.dropLast(1), archivedNote = null)
     }
 
     fun noteShown() = _state.update { it.copy(archivedNote = null) }
+
+    fun errorShown() = _state.update { it.copy(error = null) }
+
+    private fun failureMessage(error: Throwable): String =
+        if ((error as? TeakException)?.code == TeakException.RATE_LIMITED) {
+            "Too many changes. Try again in a moment."
+        } else {
+            "Couldn't update this card."
+        }
 
     companion object {
         const val DECK_SIZE = 20

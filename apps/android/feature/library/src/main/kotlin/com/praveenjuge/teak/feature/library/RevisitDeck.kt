@@ -125,6 +125,7 @@ internal fun RevisitRoute(view: CardQuery, onOpenCard: (String) -> Unit, onClose
             onUndo = viewModel::undo,
             onDealAgain = viewModel::deal,
             onNoteShown = viewModel::noteShown,
+            onErrorShown = viewModel::errorShown,
             onOpenCard = onOpenCard,
             onClose = onClose,
         )
@@ -140,6 +141,7 @@ internal fun RevisitDeck(
     onUndo: () -> Unit,
     onDealAgain: () -> Unit,
     onNoteShown: () -> Unit,
+    onErrorShown: () -> Unit,
     onOpenCard: (String) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -150,6 +152,11 @@ internal fun RevisitDeck(
         if (state.archivedNote == null) return@LaunchedEffect
         val result = snackbarHostState.showSnackbar("Archived 1 card", actionLabel = "Undo", duration = SnackbarDuration.Long)
         if (result == SnackbarResult.ActionPerformed) onUndo() else onNoteShown()
+    }
+    LaunchedEffect(state.error) {
+        val error = state.error ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(error)
+        onErrorShown()
     }
     Scaffold(
         modifier = Modifier
