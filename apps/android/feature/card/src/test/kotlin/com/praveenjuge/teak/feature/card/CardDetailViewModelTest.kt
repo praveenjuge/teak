@@ -233,6 +233,29 @@ class CardDetailViewModelTest {
     }
 
     @Test
+    fun `a failed Undo says so and keeps the change it couldn't take back`() = runTest {
+        cards.cards.value = mapOf(card.id to card, link.id to link)
+        val linkModel = linkViewModel()
+        linkModel.events.test {
+            linkModel.toggleDone()
+            val note = awaitItem() as CardDetailEvent.Message
+            cards.failingIds = setOf(link.id)
+            note.undo!!.invoke()
+            assertEquals(CardDetailEvent.Message("Couldn't undo. Try again."), awaitItem())
+        }
+        assertTrue(linkModel.uiState.value.isDone)
+
+        val cardModel = viewModel()
+        cardModel.events.test {
+            cardModel.toggleArchived()
+            val note = awaitItem() as CardDetailEvent.Message
+            cards.failingIds = setOf(card.id)
+            note.undo!!.invoke()
+            assertEquals(CardDetailEvent.Message("Couldn't undo. Try again."), awaitItem())
+        }
+    }
+
+    @Test
     fun `link titles load once per set of linked cards, with backlinks`() = runTest {
         val target = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         cards.cards.value = mapOf(card.id to card.copy(content = "See [[Old title|teak:$target]]"))

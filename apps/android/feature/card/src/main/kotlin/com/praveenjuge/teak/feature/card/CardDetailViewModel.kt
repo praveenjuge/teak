@@ -137,7 +137,12 @@ class CardDetailViewModel @AssistedInject constructor(
                     _events.send(
                         CardDetailEvent.Message(LinkState.toggledMessage(card.linkCategoryName, next)) {
                             _uiState.update { it.copy(doneOverride = !next) }
-                            viewModelScope.launch { catchingFailures { repository.setDone(card.id, !next) } }
+                            viewModelScope.launch {
+                                catchingFailures { repository.setDone(card.id, !next) }.onFailure {
+                                    _uiState.update { it.copy(doneOverride = next) }
+                                    _events.send(CardDetailEvent.Message("Couldn't undo. Try again."))
+                                }
+                            }
                         },
                     )
                 }
@@ -155,7 +160,14 @@ class CardDetailViewModel @AssistedInject constructor(
             catchingFailures { repository.setArchived(card.id, archive) }
                 .onSuccess {
                     val text = if (archive) "Archived 1 card" else "Returned 1 card to the library"
-                    _events.send(CardDetailEvent.Message(text) { viewModelScope.launch { catchingFailures { repository.setArchived(card.id, !archive) } } })
+                    _events.send(
+                        CardDetailEvent.Message(text) {
+                            viewModelScope.launch {
+                                catchingFailures { repository.setArchived(card.id, !archive) }
+                                    .onFailure { _events.send(CardDetailEvent.Message("Couldn't undo. Try again.")) }
+                            }
+                        },
+                    )
                 }
                 .onFailure { _events.send(CardDetailEvent.Message(if (archive) "Couldn't archive this card" else "Couldn't unarchive this card")) }
         }
