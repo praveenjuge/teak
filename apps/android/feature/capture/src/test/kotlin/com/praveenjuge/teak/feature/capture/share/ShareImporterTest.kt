@@ -54,7 +54,7 @@ class ShareImporterTest {
             listOf(ShareItem.Text("https://teakvault.com"), ShareItem.File(Uri.parse("content://photos/1"))),
         )
 
-        assertEquals(ShareResult.Saved, result)
+        assertEquals(ShareResult.Saved(listOf("new-1")), result)
         assertEquals(listOf("https://teakvault.com"), cards.created)
         assertEquals(listOf(photo), uploads.enqueued)
     }

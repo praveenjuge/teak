@@ -52,17 +52,23 @@ public struct CardSummary: Decodable, Sendable, Identifiable, Hashable {
     public var placeholderUrl: String?
     public var screenshotUrl: String?
     public var linkPreviewImageUrl: String?
+    public var isArchived: Bool?
+    public var completedAt: Double?
+    public var linkCategory: String?
+    public var linkPrice: LinkPrice?
 
     enum CodingKeys: String, CodingKey {
         case id = "_id", creationTime = "_creationTime", type, title, previewText, url, fileName,
              isFavorited, colors, aspectRatio, thumbnailUrl, compactUrl, placeholderUrl,
-             screenshotUrl, linkPreviewImageUrl
+             screenshotUrl, linkPreviewImageUrl, isArchived, completedAt, linkCategory, linkPrice
     }
 
     public init(id: String, creationTime: Double, type: CardType, title: String, previewText: String? = nil,
                 url: String? = nil, fileName: String? = nil, isFavorited: Bool? = nil, colors: [String]? = nil,
                 aspectRatio: Double? = nil, thumbnailUrl: String? = nil, compactUrl: String? = nil,
-                placeholderUrl: String? = nil, screenshotUrl: String? = nil, linkPreviewImageUrl: String? = nil) {
+                placeholderUrl: String? = nil, screenshotUrl: String? = nil, linkPreviewImageUrl: String? = nil,
+                isArchived: Bool? = nil, completedAt: Double? = nil, linkCategory: String? = nil,
+                linkPrice: LinkPrice? = nil) {
         self.id = id
         self.creationTime = creationTime
         self.type = type
@@ -78,9 +84,15 @@ public struct CardSummary: Decodable, Sendable, Identifiable, Hashable {
         self.placeholderUrl = placeholderUrl
         self.screenshotUrl = screenshotUrl
         self.linkPreviewImageUrl = linkPreviewImageUrl
+        self.isArchived = isArchived
+        self.completedAt = completedAt
+        self.linkCategory = linkCategory
+        self.linkPrice = linkPrice
     }
 
     public var favorited: Bool { isFavorited == true }
+    public var archived: Bool { isArchived == true }
+    public var isDone: Bool { completedAt != nil }
 }
 
 public struct CardSummaryPage: Decodable, Sendable {
@@ -148,10 +160,11 @@ public struct FileMetadata: Codable, Sendable, Hashable {
     public var width: Double?
     public var height: Double?
     public var preview: FilePreviewFacts?
+    public var exif: ImageExif?
 
     public init(fileSize: Double? = nil, fileName: String? = nil, mimeType: String? = nil, extension: String? = nil,
                 kind: String? = nil, language: String? = nil, duration: Double? = nil, width: Double? = nil,
-                height: Double? = nil, preview: FilePreviewFacts? = nil) {
+                height: Double? = nil, preview: FilePreviewFacts? = nil, exif: ImageExif? = nil) {
         self.fileSize = fileSize
         self.fileName = fileName
         self.mimeType = mimeType
@@ -162,6 +175,7 @@ public struct FileMetadata: Codable, Sendable, Hashable {
         self.width = width
         self.height = height
         self.preview = preview
+        self.exif = exif
     }
 }
 
@@ -206,10 +220,12 @@ public struct LinkFact: Codable, Sendable, Hashable {
 public struct LinkCategory: Codable, Sendable, Hashable {
     public var category: String?
     public var facts: [LinkFact]?
+    public var price: LinkPrice?
 
-    public init(category: String? = nil, facts: [LinkFact]? = nil) {
+    public init(category: String? = nil, facts: [LinkFact]? = nil, price: LinkPrice? = nil) {
         self.category = category
         self.facts = facts
+        self.price = price
     }
 }
 
@@ -267,12 +283,18 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
     public var screenshotUrl: String?
     public var linkPreviewImageUrl: String?
     public var linkPreviewMedia: [LinkPreviewMedia]?
+    public var isArchived: Bool?
+    public var completedAt: Double?
+    public var sourceUrl: String?
+    public var sourceTitle: String?
+    public var folderIds: [String]?
 
     enum CodingKeys: String, CodingKey {
         case id = "_id", creationTime = "_creationTime", type, content, url, notes, tags, aiTags, aiSummary,
              aiTranscript, metadataTitle, metadataDescription, isFavorited, isDeleted, createdAt, updatedAt,
              colors, fileMetadata, metadata, fileUrl, detailUrl, thumbnailUrl, compactUrl, placeholderUrl,
-             screenshotUrl, linkPreviewImageUrl, linkPreviewMedia
+             screenshotUrl, linkPreviewImageUrl, linkPreviewMedia, isArchived, completedAt, sourceUrl, sourceTitle,
+             folderIds
     }
 
     public init(id: String, creationTime: Double = 0, type: CardType, content: String = "", url: String? = nil,
@@ -282,7 +304,9 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
                 colors: [CardColor]? = nil, fileMetadata: FileMetadata? = nil, metadata: CardMetadata? = nil,
                 fileUrl: String? = nil, detailUrl: String? = nil, thumbnailUrl: String? = nil,
                 compactUrl: String? = nil, placeholderUrl: String? = nil, screenshotUrl: String? = nil,
-                linkPreviewImageUrl: String? = nil, linkPreviewMedia: [LinkPreviewMedia]? = nil) {
+                linkPreviewImageUrl: String? = nil, linkPreviewMedia: [LinkPreviewMedia]? = nil,
+                isArchived: Bool? = nil, completedAt: Double? = nil, sourceUrl: String? = nil,
+                sourceTitle: String? = nil, folderIds: [String]? = nil) {
         self.id = id
         self.creationTime = creationTime
         self.type = type
@@ -310,6 +334,11 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
         self.screenshotUrl = screenshotUrl
         self.linkPreviewImageUrl = linkPreviewImageUrl
         self.linkPreviewMedia = linkPreviewMedia
+        self.isArchived = isArchived
+        self.completedAt = completedAt
+        self.sourceUrl = sourceUrl
+        self.sourceTitle = sourceTitle
+        self.folderIds = folderIds
     }
 
     public init(from decoder: any Decoder) throws {
@@ -341,10 +370,18 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
         screenshotUrl = try c.decodeIfPresent(String.self, forKey: .screenshotUrl)
         linkPreviewImageUrl = try c.decodeIfPresent(String.self, forKey: .linkPreviewImageUrl)
         linkPreviewMedia = try c.decodeIfPresent([LinkPreviewMedia].self, forKey: .linkPreviewMedia)
+        isArchived = try c.decodeIfPresent(Bool.self, forKey: .isArchived)
+        completedAt = try c.decodeIfPresent(Double.self, forKey: .completedAt)
+        sourceUrl = try c.decodeIfPresent(String.self, forKey: .sourceUrl)
+        sourceTitle = try c.decodeIfPresent(String.self, forKey: .sourceTitle)
+        folderIds = try c.decodeIfPresent([String].self, forKey: .folderIds)
     }
 
     public var favorited: Bool { isFavorited == true }
     public var deleted: Bool { isDeleted == true }
+    public var archived: Bool { isArchived == true }
+    public var isDone: Bool { completedAt != nil }
+    public var linkCategoryName: String? { metadata?.linkCategory?.category }
 }
 
 public struct CurrentUser: Decodable, Sendable, Hashable {

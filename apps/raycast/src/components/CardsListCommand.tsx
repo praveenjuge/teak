@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Color, Icon, List } from "@raycast/api";
+import { Action, ActionPanel, Icon, List } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type CardSearchInput,
@@ -7,16 +7,26 @@ import {
   type RaycastCard,
   setCardFavorite,
 } from "../lib/api";
-import { getCardDomain, getCardTitle } from "../lib/cardDetailModel";
+import { getCardTitle } from "../lib/cardDetailModel";
 import { getCardTypeIcon } from "../lib/cardIcons";
 import { removeCardById, upsertCard } from "../lib/cardListState";
 import {
+  HIDDEN_CARDS_HINT,
+  searchNamesHiddenTag,
+  shouldCheckForHiddenCards,
+} from "../lib/hiddenTags";
+import {
+  applySortFilter,
   applyTagFilter,
   clearSearchFilters,
   parseSearchFilters,
+  toApiQuery,
 } from "../lib/searchFilters";
+import { newShuffleSeed } from "../lib/shuffleSeed";
+import { useHiddenCardsHint } from "../lib/useHiddenCardsHint";
 import { useTeakAuth } from "../lib/useTeakAuth";
 import { CardListActions } from "./CardListActions";
+import { getCardAccessories, getCardSubtitle } from "./cardListItem";
 import { MissingApiKeyDetail } from "./MissingApiKeyDetail";
 import { SetApiKeyAction } from "./SetApiKeyAction";
 import { SignOutAction } from "./SignOutAction";
@@ -33,52 +43,12 @@ interface CardsListCommandProps {
   removeTagFilterFromList?: boolean;
   removeUnfavoritedFromList?: boolean;
   searchBarPlaceholder: string;
+  /** Keeps the API's own order (closest first) until a sort is typed. */
+  serverOrder?: boolean;
 }
 
-const getCardSubtitle = (card: RaycastCard): string => {
-  const domain = getCardDomain(card);
-  if (card.type === "link") {
-    return domain || card.metadataDescription || card.notes || card.url || "";
-  }
-
-  return (
-    card.notes ||
-    card.fileName ||
-    card.metadataDescription ||
-    card.url ||
-    domain ||
-    ""
-  );
-};
-
-const getCardAccessories = (card: RaycastCard): List.Item.Accessory[] => {
-  const accessories: List.Item.Accessory[] = [];
-
-  if (card.tags[0]) {
-    accessories.push({
-      tag: {
-        color: Color.Blue,
-        value: card.tags[0],
-      },
-      tooltip: "First tag",
-    });
-  }
-
-  if (card.isFavorited) {
-    accessories.push({
-      icon: { source: Icon.Star, tintColor: Color.Yellow },
-      tooltip: "Favorited",
-    });
-  }
-
-  accessories.push({
-    date: new Date(card.createdAt),
-    tooltip: "Created at",
-  });
-
-  return accessories;
-};
-
+// A whole number the API takes as a shuffle seed; the same seed gives the
+// same order on every page.
 export function CardsListCommand({
   emptyDescription,
   emptyIcon,
@@ -89,8 +59,11 @@ export function CardsListCommand({
   removeTagFilterFromList = false,
   removeUnfavoritedFromList = false,
   searchBarPlaceholder,
+  serverOrder = false,
 }: CardsListCommandProps) {
   const [query, setQuery] = useState("");
+  const [shuffleSeed, setShuffleSeed] = useState(newShuffleSeed);
+  const [similarity, setSimilarity] = useState<CardsResponse["similarity"]>();
   const [items, setItems] = useState<RaycastCard[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +80,7 @@ export function CardsListCommand({
   const parsedFilters = useMemo(() => parseSearchFilters(query), [query]);
   const requestInput = useMemo<CardSearchInput>(
     () => ({
+      archived: parsedFilters.archived ? "only" : undefined,
       createdAfter: parsedFilters.createdAfter,
       createdBefore: parsedFilters.createdBefore,
       favorited:
@@ -114,14 +88,17 @@ export function CardsListCommand({
       hex: parsedFilters.hex,
       hue: parsedFilters.hue,
       limit: PAGE_SIZE,
-      query: parsedFilters.query,
-      sort: parsedFilters.sort,
+      query: toApiQuery(parsedFilters),
+      shuffleSeed: parsedFilters.sort === "shuffle" ? shuffleSeed : undefined,
+      sort:
+        parsedFilters.sort ??
+        (serverOrder || parsedFilters.like ? undefined : "newest"),
       style: parsedFilters.style,
       tag: parsedFilters.tag,
       trashed: parsedFilters.trashed,
       type: parsedFilters.type,
     }),
-    [parsedFilters, removeUnfavoritedFromList],
+    [parsedFilters, removeUnfavoritedFromList, serverOrder, shuffleSeed],
   );
 
   const load = useCallback(
@@ -135,12 +112,14 @@ export function CardsListCommand({
         if (generation === requestGeneration.current) {
           setItems(response.items);
           setNextCursor(response.nextCursor);
+          setSimilarity(response.similarity);
         }
       } catch (requestError) {
         if (generation === requestGeneration.current) {
           setError(getUserFacingErrorMessage(requestError));
           setItems([]);
           setNextCursor(null);
+          setSimilarity(undefined);
         }
       } finally {
         if (generation === requestGeneration.current) {
@@ -195,15 +174,21 @@ export function CardsListCommand({
     void load(requestInput);
   }, [isCheckingAuth, isAuthenticated, load, requestInput]);
 
+  const showsHiddenCards = searchNamesHiddenTag(parsedFilters);
+  const archivedView = Boolean(parsedFilters.archived);
+  const inTrash = Boolean(parsedFilters.trashed);
+
   const handleCardUpdated = useCallback(
     (next: RaycastCard) => {
       setItems((previous) =>
         upsertCard(previous, next, {
+          archivedView: inTrash ? undefined : archivedView,
+          removeWhenHidden: !showsHiddenCards,
           removeWhenUnfavorited: removeUnfavoritedFromList,
         }),
       );
     },
-    [removeUnfavoritedFromList],
+    [archivedView, inTrash, removeUnfavoritedFromList, showsHiddenCards],
   );
 
   const handleCardRemoved = useCallback((cardId: string) => {
@@ -212,6 +197,11 @@ export function CardsListCommand({
 
   const handleFilterByTag = useCallback((tag: string) => {
     setQuery((previous) => applyTagFilter(previous, tag));
+  }, []);
+
+  const handleShuffle = useCallback(() => {
+    setShuffleSeed(newShuffleSeed());
+    setQuery((previous) => applySortFilter(previous, "shuffle"));
   }, []);
 
   const handleToggleFavorite = useCallback(
@@ -230,6 +220,13 @@ export function CardsListCommand({
     [handleCardUpdated],
   );
 
+  const showHiddenCardsHint = useHiddenCardsHint(
+    isAuthenticated &&
+      !(isLoading || error) &&
+      items.length === 0 &&
+      shouldCheckForHiddenCards(parsedFilters),
+  );
+
   if (isCheckingAuth) {
     return <List isLoading navigationTitle={navigationTitle} />;
   }
@@ -238,7 +235,6 @@ export function CardsListCommand({
     return <MissingApiKeyDetail error={authError} onSignedIn={refreshAuth} />;
   }
 
-  const inTrash = Boolean(parsedFilters.trashed);
   const isFiltered = Boolean(parsedFilters.rawQuery.trim());
   let title = isFiltered ? navigationTitle : latestSectionTitle;
   let empty = isFiltered
@@ -248,6 +244,14 @@ export function CardsListCommand({
         title: "No matching cards",
       }
     : { description: emptyDescription, icon: emptyIcon, title: emptyTitle };
+  if (archivedView && !inTrash) {
+    title = "Archive";
+    empty = {
+      description: "Cards you archive stay here, out of your library.",
+      icon: Icon.Box,
+      title: "Nothing archived",
+    };
+  }
   if (inTrash) {
     title = "Trash";
     empty = {
@@ -255,6 +259,22 @@ export function CardsListCommand({
       icon: Icon.Trash,
       title: "Trash is empty",
     };
+  }
+  if (similarity === "pending") {
+    empty = {
+      description: "Teak is still reading this card. Try again in a moment.",
+      icon: Icon.Clock,
+      title: "Finding similar cards",
+    };
+  } else if (similarity === "unavailable") {
+    empty = {
+      description: "The card is in Trash or no longer exists.",
+      icon: Icon.ExclamationMark,
+      title: "No similar cards",
+    };
+  }
+  if (showHiddenCardsHint) {
+    empty = { ...empty, description: HIDDEN_CARDS_HINT };
   }
 
   return (
@@ -317,6 +337,7 @@ export function CardsListCommand({
                 onCardUpdated={handleCardUpdated}
                 onFilterByTag={handleFilterByTag}
                 onQueryChange={setQuery}
+                onShuffle={handleShuffle}
                 onSignedOut={refreshAuth}
                 onToggleFavorite={(next) => void handleToggleFavorite(next)}
                 removeTagFilterFromList={removeTagFilterFromList}

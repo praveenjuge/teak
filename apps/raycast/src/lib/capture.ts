@@ -1,5 +1,6 @@
 import { statSync } from "node:fs";
 import { open, showToast, Toast } from "@raycast/api";
+import { parseTags } from "teak-sdk";
 import {
   type CreateCardInput,
   createCard,
@@ -17,6 +18,19 @@ import {
   TeakSignOutRequiredError,
 } from "./oauth";
 import { grandfatheredApiKey } from "./preferences";
+
+/** Optional tags (comma separated) and a note to send with a new card. */
+export const parseCaptureExtras = (extras: {
+  notes?: string;
+  tags?: string;
+}): Pick<CreateCardInput, "notes" | "tags"> => {
+  const tags = parseTags(extras.tags);
+  const notes = extras.notes?.trim();
+  return {
+    ...(tags?.length ? { tags } : {}),
+    ...(notes ? { notes } : {}),
+  };
+};
 
 const URL_INLINE_PATTERN = /(https?:\/\/[^\s]+)/i;
 

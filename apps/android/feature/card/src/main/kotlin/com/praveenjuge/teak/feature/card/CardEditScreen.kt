@@ -21,6 +21,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -103,6 +106,7 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
                     type = card.type,
                     draft = draft,
                     newTag = state.newTag,
+                    hiddenHint = state.hiddenHint,
                     showAiTags = card.aiTags.orEmpty().isNotEmpty(),
                     callbacks = callbacks,
                 )
@@ -137,6 +141,7 @@ private fun EditForm(
     type: CardType,
     draft: CardEditDraft,
     newTag: String,
+    hiddenHint: String?,
     showAiTags: Boolean,
     callbacks: CardEditCallbacks,
 ) {
@@ -190,6 +195,16 @@ private fun EditForm(
                     modifier = Modifier.weight(1f),
                 )
                 FilledTonalButton(onClick = callbacks.onAddTag, enabled = newTag.isNotBlank()) { Text("Add") }
+            }
+            if (hiddenHint != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                ) {
+                    Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Text(hiddenHint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         if (showAiTags) {

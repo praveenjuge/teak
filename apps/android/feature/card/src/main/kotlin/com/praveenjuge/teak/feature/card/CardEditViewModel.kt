@@ -10,6 +10,7 @@ import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardEditDraft
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.Tags
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -32,6 +33,8 @@ data class CardEditUiState(
     val newTag: String = "",
     val isSaving: Boolean = false,
     val alert: EditAlert? = null,
+    /** Shown after adding a tag that hides the card: "Hidden. Search #secret to see it." */
+    val hiddenHint: String? = null,
 ) {
     val changes: List<CardFieldChange>
         get() = if (card != null && draft != null) CardEdit.changes(card, draft) else emptyList()
@@ -77,11 +80,16 @@ class CardEditViewModel @AssistedInject constructor(
         _uiState.update { state ->
             val draft = state.draft ?: return@update state
             val tags = if (tag in draft.tags) draft.tags else draft.tags + tag
-            state.copy(draft = draft.copy(tags = tags), newTag = "")
+            val hint = if (state.card?.isHidden == true) null else Tags.hiddenHint(draft.tags, tag)
+            state.copy(draft = draft.copy(tags = tags), newTag = "", hiddenHint = hint ?: state.hiddenHint)
         }
     }
 
-    fun removeTag(tag: String) = updateDraft { it.copy(tags = it.tags - tag) }
+    fun removeTag(tag: String) = _uiState.update { state ->
+        val draft = state.draft ?: return@update state
+        val tags = draft.tags - tag
+        state.copy(draft = draft.copy(tags = tags), hiddenHint = state.hiddenHint.takeIf { Tags.isHiddenList(tags) })
+    }
 
     fun removeAiTag(tag: String) = updateDraft { it.copy(aiTags = it.aiTags - tag) }
 

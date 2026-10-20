@@ -14,8 +14,14 @@ const mobileCardSummaryValidator = v.object({
   aspectRatio: v.optional(v.number()),
   colors: v.optional(v.array(v.string())),
   compactUrl: v.optional(v.string()),
+  completedAt: v.optional(v.number()),
   fileName: v.optional(v.string()),
+  isArchived: v.optional(v.boolean()),
   isFavorited: v.optional(v.boolean()),
+  linkCategory: v.optional(v.string()),
+  linkPrice: v.optional(
+    v.object({ amount: v.number(), currency: v.optional(v.string()) })
+  ),
   ...linkPreviewImageFields,
   placeholderUrl: v.optional(v.string()),
   previewText: v.optional(v.string()),
@@ -59,6 +65,7 @@ export const toMobileCardSummary = (card: CardWithUrls) => {
   const fileName = card.fileMetadata?.fileName;
   const previewText = cardPreviewText(card);
   const title = cardDisplayTitle(card, previewText);
+  const linkCategory = card.metadata?.linkCategory;
 
   return {
     _creationTime: card._creationTime,
@@ -66,9 +73,13 @@ export const toMobileCardSummary = (card: CardWithUrls) => {
     aspectRatio: mediaAspectRatio(card),
     colors: card.colors?.map((color) => color.hex),
     compactUrl: card.compactUrl,
+    completedAt: card.completedAt,
     fileName,
     hasThumbnailOverride: card.hasThumbnailOverride,
+    isArchived: card.isArchived || undefined,
     isFavorited: card.isFavorited || undefined,
+    linkCategory: linkCategory?.category,
+    linkPrice: linkCategory?.price,
     linkPreviewImageUrl: card.linkPreviewImageUrl,
     placeholderUrl: card.placeholderUrl,
     previewText,

@@ -9,6 +9,10 @@ final class AppServices {
     let router = AppRouter()
     let capture: CaptureModel
     let home: LibraryModel
+    /// iPhone's Folders tab shows a folder's cards without changing Home.
+    let folderLibrary: LibraryModel
+    let folders: FoldersModel
+    let tags: TagsModel
     var openMainWindow: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
 
@@ -17,6 +21,9 @@ final class AppServices {
         app = AppModel()
         capture = CaptureModel(backend: app.backend)
         home = LibraryModel(backend: app.backend)
+        folderLibrary = LibraryModel(backend: app.backend)
+        folders = FoldersModel(backend: app.backend)
+        tags = TagsModel(backend: app.backend)
     }
 
 

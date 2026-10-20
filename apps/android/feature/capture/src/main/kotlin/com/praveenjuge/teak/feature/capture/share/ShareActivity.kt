@@ -26,6 +26,14 @@ class ShareActivity : ComponentActivity() {
                     closeRequests = viewModel.close,
                     onOpenTeak = ::openTeak,
                     onClosed = ::finish,
+                    details = ShareDetailsActions(
+                        onAdd = viewModel::addDetails,
+                        onTagInput = viewModel::updateTagInput,
+                        onAddTag = viewModel::addTag,
+                        onRemoveTag = viewModel::removeTag,
+                        onNote = viewModel::updateNote,
+                        onSave = viewModel::saveDetails,
+                    ),
                 )
             }
         }

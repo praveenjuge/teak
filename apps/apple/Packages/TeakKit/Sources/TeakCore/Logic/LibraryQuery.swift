@@ -1,21 +1,69 @@
 import Foundation
 
+/// The folder a library view is scoped to. A smart folder is a saved search.
+public struct FolderScope: Hashable, Sendable {
+    public let id: String
+    public var name: String
+    public var isSmart: Bool
+    /// A smart folder's saved search, so the view knows when it lists archived cards.
+    public var query: String?
+
+    public init(id: String, name: String, isSmart: Bool = false, query: String? = nil) {
+        self.id = id
+        self.name = name
+        self.isSmart = isSmart
+        self.query = query
+    }
+
+    public init(_ folder: Folder) {
+        self.init(id: folder.id, name: folder.name, isSmart: folder.isSmart, query: folder.isSmart ? folder.query : nil)
+    }
+}
+
+public enum LibrarySort: Hashable, Sendable {
+    case newest, oldest, shuffle(seed: Int)
+
+    public var label: String {
+        switch self {
+        case .newest: "Newest First"
+        case .oldest: "Oldest First"
+        case .shuffle: "Shuffle"
+        }
+    }
+
+    public var isShuffle: Bool { if case .shuffle = self { true } else { false } }
+
+    var args: ConvexArgs {
+        switch self {
+        case .newest: [:]
+        case .oldest: ["sort": "oldest"]
+        case let .shuffle(seed): ["sort": "shuffle", "shuffleSeed": .number(seed)]
+        }
+    }
+}
+
 public struct LibraryFilters: Hashable, Sendable {
     public var favoritesOnly = false
-    public var trashOnly = false
+    /// Trash and Archive are separate views: turning one on turns the other off.
+    public var trashOnly = false { didSet { if trashOnly { archivedOnly = false } } }
+    public var archivedOnly = false { didSet { if archivedOnly { trashOnly = false } } }
     public var types: [CardType] = []
     public var hue: ColorHue?
+    public var folder: FolderScope?
 
-    public init(favoritesOnly: Bool = false, trashOnly: Bool = false, types: [CardType] = [], hue: ColorHue? = nil) {
+    public init(favoritesOnly: Bool = false, trashOnly: Bool = false, archivedOnly: Bool = false, types: [CardType] = [],
+                hue: ColorHue? = nil, folder: FolderScope? = nil) {
         self.favoritesOnly = favoritesOnly
         self.trashOnly = trashOnly
+        self.archivedOnly = archivedOnly
         self.types = types
         self.hue = hue
+        self.folder = folder
     }
 
     public static let empty = LibraryFilters()
 
-    public var isActive: Bool { favoritesOnly || trashOnly || !types.isEmpty || hue != nil }
+    public var isActive: Bool { favoritesOnly || trashOnly || archivedOnly || !types.isEmpty || hue != nil || folder != nil }
 
     public func togglingType(_ type: CardType) -> LibraryFilters {
         var next = self
@@ -25,6 +73,8 @@ public struct LibraryFilters: Hashable, Sendable {
 
     public var title: String {
         if trashOnly { return "Trash" }
+        if let folder { return folder.name }
+        if archivedOnly { return "Archive" }
         let typeTitle = types.count == 1 ? types[0].plural : nil
         if favoritesOnly { return typeTitle.map { "Favorite \($0)" } ?? "Favorites" }
         if let typeTitle { return typeTitle }
@@ -34,18 +84,21 @@ public struct LibraryFilters: Hashable, Sendable {
 }
 
 public struct SearchToken: Identifiable, Hashable, Sendable {
-    public enum Kind: String, Sendable { case keyword, date, type, tag, style, hue, hex, favorites, trash }
+    public enum Kind: String, Sendable { case keyword, date, type, tag, style, hue, hex, favorites, trash, qualifier }
 
     public let kind: Kind
     public let value: String
     public let label: String
     public var range: CreatedAtRange?
+    /// For `.qualifier`: what it filters by. `value` is its search text.
+    public var qualifier: SearchQualifier?
 
-    public init(kind: Kind, value: String, label: String, range: CreatedAtRange? = nil) {
+    public init(kind: Kind, value: String, label: String, range: CreatedAtRange? = nil, qualifier: SearchQualifier? = nil) {
         self.kind = kind
         self.value = value
         self.label = label
         self.range = range
+        self.qualifier = qualifier
     }
 
     public var id: String { "\(kind.rawValue):\(value)" }
@@ -61,6 +114,27 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
         case .hex: "eyedropper"
         case .favorites: "heart"
         case .trash: "trash"
+        case .qualifier: qualifierSymbol
+        }
+    }
+
+    private var qualifierSymbol: String {
+        guard let qualifier else { return "line.3.horizontal.decrease" }
+        switch qualifier.key {
+        case .is:
+            switch SearchIsValue(rawValue: qualifier.value) {
+            case .archived: return "archivebox"
+            case .done: return "checkmark.circle"
+            case .todo: return "circle"
+            default: return "heart"
+            }
+        case .like: return "sparkles"
+        case .mood: return "camera.aperture"
+        case .price: return "banknote"
+        case .text: return "text.viewfinder"
+        case .folder: return "folder"
+        case .tag: return "number"
+        case .type: return CardType(rawValue: qualifier.value)?.symbol ?? "square.grid.2x2"
         }
     }
 }
@@ -69,6 +143,29 @@ public enum SearchTokens {
     public static func tag(_ name: String) -> SearchToken {
         SearchToken(kind: .tag, value: name, label: name)
     }
+
+    /// A chip for a parsed qualifier. Tags, types and favorites keep their own kinds.
+    public static func token(for qualifier: SearchQualifier, likeTitle: String? = nil) -> SearchToken {
+        switch qualifier.key {
+        case .tag: return tag(qualifier.value)
+        case .type: return SearchToken(kind: .type, value: qualifier.value, label: CardType(rawValue: qualifier.value)?.label ?? qualifier.value)
+        case .is where qualifier.value == SearchIsValue.fav.rawValue:
+            return SearchToken(kind: .favorites, value: "favorites", label: "Favorites")
+        default:
+            let chip = SearchQualifiers.chip(qualifier, likeTitle: likeTitle)
+            let label = qualifier.key == .is ? chip.label : "\(chip.title): \(chip.label)"
+            return SearchToken(kind: .qualifier, value: SearchQualifiers.format(qualifier), label: label, qualifier: qualifier)
+        }
+    }
+
+    /// The "More like this" chip for a card.
+    public static func like(cardId: String, title: String?) -> SearchToken {
+        token(for: SearchQualifier(.like, cardId), likeTitle: title)
+    }
+
+    private static let showOptions: [(SearchIsValue, [String])] = [
+        (.archived, ["archived", "archive"]), (.done, ["done", "completed", "finished"]), (.todo, ["todo", "to-do"]),
+    ]
 
     public static func classify(_ input: String, now: Date = Date(), timeZone: TimeZone = .current) -> SearchToken {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -79,14 +176,15 @@ public enum SearchTokens {
         if ["trash", "deleted", "bin", "recycle", "trashed"].contains(value) {
             return SearchToken(kind: .trash, value: "trash", label: "Trash")
         }
+        let parsed = SearchQualifiers.parse(trimmed)
+        if parsed.qualifiers.count == 1, parsed.terms.isEmpty, parsed.phrases.isEmpty {
+            return token(for: parsed.qualifiers[0])
+        }
         if let date = TimeSearch.parse(value, now: now, timeZone: timeZone) {
             return SearchToken(kind: .date, value: value, label: date.label, range: date.range)
         }
         if let type = CardType(rawValue: value) {
             return SearchToken(kind: .type, value: value, label: type.label)
-        }
-        if value.hasPrefix("#"), value.count > 1, !isHex(String(value.dropFirst())) {
-            return tag(String(trimmed.dropFirst()))
         }
         let constants = SharedConstants.shared
         let facet = value.filter { $0.isLetter || $0.isNumber }
@@ -104,9 +202,37 @@ public enum SearchTokens {
         return SearchToken(kind: .keyword, value: trimmed, label: trimmed)
     }
 
+    /// Chips for typed text. Quotes group words, so `text:"Total due"` and
+    /// `"design system"` stay whole; other words go through `words`.
     public static func parse(_ input: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
+        var tokens: [SearchToken] = []
+        var run: [String] = []
+        func flush() {
+            tokens += words(run, now: now, timeZone: timeZone)
+            run = []
+        }
+        for raw in SearchQualifiers.tokenize(input) {
+            let source = raw.quoted
+                ? raw.prefix + SearchQualifiers.quote(String(raw.text.dropFirst(raw.prefix.count)))
+                : raw.text
+            let parsed = SearchQualifiers.parse(source)
+            if let qualifier = parsed.qualifiers.first, raw.quoted || !raw.text.hasPrefix("#") {
+                flush()
+                tokens.append(token(for: qualifier))
+            } else if raw.quoted, raw.prefix.isEmpty, let phrase = parsed.phrases.first {
+                flush()
+                tokens.append(SearchToken(kind: .keyword, value: SearchQualifiers.quote(phrase), label: phrase))
+            } else {
+                run.append(raw.text)
+            }
+        }
+        flush()
+        return tokens.filter { !$0.value.isEmpty }
+    }
+
+    private static func words(_ input: [String], now: Date, timeZone: TimeZone) -> [SearchToken] {
         let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
-        let words = input.split(whereSeparator: \.isWhitespace).map { String($0).trimmingCharacters(in: punctuation) }
+        let words = input.map { $0.trimmingCharacters(in: punctuation) }
         var tokens: [SearchToken] = []
         var index = 0
         while index < words.count {
@@ -126,14 +252,23 @@ public enum SearchTokens {
                 index += 1
             }
         }
-        return tokens.filter { !$0.value.isEmpty }
+        return tokens
     }
 
     public static func suggestions(for text: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
-        let tokens = parse(trimmed, now: now, timeZone: timeZone)
-        return tokens.filter { $0.kind != .keyword }
+        var tokens = parse(trimmed, now: now, timeZone: timeZone).filter { $0.kind != .keyword }
+        // "is:" and the start of a word like "done" offer the Show chips.
+        let last = trimmed.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
+        let typed = last.hasPrefix("is:") ? String(last.dropFirst(3)) : last
+        if last.hasPrefix("is:") || typed.count >= 2 {
+            for (value, words) in showOptions where words.contains(where: { $0.hasPrefix(typed) }) {
+                let chip = token(for: SearchQualifier(.is, value.rawValue))
+                if !tokens.contains(where: { $0.id == chip.id }) { tokens.append(chip) }
+            }
+        }
+        return tokens
     }
 
     private static func isHex(_ value: String) -> Bool {
@@ -145,11 +280,13 @@ public struct LibraryQuery: Hashable, Sendable {
     public var text: String
     public var tokens: [SearchToken]
     public var filters: LibraryFilters
+    public var sort: LibrarySort
 
-    public init(text: String = "", tokens: [SearchToken] = [], filters: LibraryFilters = .empty) {
+    public init(text: String = "", tokens: [SearchToken] = [], filters: LibraryFilters = .empty, sort: LibrarySort = .newest) {
         self.text = text
         self.tokens = tokens
         self.filters = filters
+        self.sort = sort
     }
 
     public var effectiveFilters: LibraryFilters {
@@ -170,6 +307,12 @@ public struct LibraryQuery: Hashable, Sendable {
 
     public var isTrash: Bool { effectiveFilters.trashOnly }
 
+    /// The Archive view, a search for `is:archived`, or a smart folder that saves one.
+    public var isArchive: Bool {
+        !isTrash && (filters.archivedOnly || parsedSearch.has(.archived)
+            || filters.folder?.query.map { SearchQualifiers.parse($0).has(.archived) } == true)
+    }
+
     public func timeFilter(now: Date = Date(), timeZone: TimeZone = .current) -> TimeFilter? {
         TimeSearch.parse(text, now: now, timeZone: timeZone)
     }
@@ -179,28 +322,47 @@ public struct LibraryQuery: Hashable, Sendable {
 
     public var title: String {
         let base = effectiveFilters.title
-        let narrowing = tokens.contains { [.keyword, .tag, .style, .hex, .date].contains($0.kind) }
+        let narrowing = tokens.contains { [.keyword, .tag, .style, .hex, .date, .qualifier].contains($0.kind) }
         return base == "Home" && narrowing ? "Filtered" : base
     }
 
-    public func searchArgs(now: Date = Date(), timeZone: TimeZone = .current) -> ConvexArgs {
-        let effective = effectiveFilters
-        var args: ConvexArgs = [:]
-        if effective.favoritesOnly { args["favoritesOnly"] = true }
-        if effective.trashOnly { args["showTrashOnly"] = true }
-        if !effective.types.isEmpty { args["types"] = .array(effective.types.map { .string($0.rawValue) }) }
+    /// The search text the backend parses, with qualifiers and tags written
+    /// the canonical way.
+    public func searchText(now: Date = Date(), timeZone: TimeZone = .current) -> String? {
+        searchParts(now: now, timeZone: timeZone).words
+    }
 
-        var hues = filters.hue.map { [$0.id] } ?? []
-        var styles: [String] = []
-        var hexes: [String] = []
+    private var parsedSearch: ParsedSearchQuery { SearchQualifiers.parse(searchText() ?? "") }
+
+    /// Whether the search names a tag that reveals hidden cards.
+    public var revealsHiddenCards: Bool { parsedSearch.tags.contains(where: HiddenTags.isHidden) }
+
+    /// The anchor of a "More like this" search.
+    public var likeCardId: String? { parsedSearch.likeCardId }
+
+    /// Whether the search has words or an anchor to look up by meaning.
+    public var wantsSemanticResults: Bool {
+        guard !isTrash else { return false }
+        let parsed = parsedSearch
+        return !parsed.text.isEmpty || parsed.likeCardId != nil || parsed.mood != nil
+    }
+
+    /// Arguments for `requestSemanticResults`, which warms the results the
+    /// paged search reads.
+    public func semanticArgs(now: Date = Date(), timeZone: TimeZone = .current) -> ConvexArgs? {
+        guard wantsSemanticResults, let words = searchText(now: now, timeZone: timeZone) else { return nil }
+        var args: ConvexArgs = ["searchQuery": .string(words)]
+        if let folder = filters.folder { args["folderId"] = .string(folder.id) }
+        return args
+    }
+
+    private func searchParts(now: Date, timeZone: TimeZone) -> (words: String?, range: CreatedAtRange?) {
         var words: [String] = []
         var range: CreatedAtRange?
         for token in tokens {
             switch token.kind {
-            case .hue where !hues.contains(token.value): hues.append(token.value)
-            case .style where !styles.contains(token.value): styles.append(token.value)
-            case .hex where !hexes.contains(token.value): hexes.append(token.value)
-            case .keyword, .tag: words.append(token.value)
+            case .keyword, .qualifier: words.append(token.value)
+            case .tag: words.append(SearchQualifiers.format(SearchQualifier(.tag, SearchQualifiers.tagKey(token.value))))
             case .date where range == nil: range = token.range
             default: break
             }
@@ -213,18 +375,89 @@ public struct LibraryQuery: Hashable, Sendable {
                 words.append(typed)
             }
         }
+        return (words.isEmpty ? nil : words.joined(separator: " "), range)
+    }
+
+    public func searchArgs(now: Date = Date(), timeZone: TimeZone = .current) -> ConvexArgs {
+        let effective = effectiveFilters
+        var args = sort.args
+        if effective.favoritesOnly { args["favoritesOnly"] = true }
+        if effective.trashOnly { args["showTrashOnly"] = true }
+        if effective.archivedOnly, !effective.trashOnly { args["showArchivedOnly"] = true }
+        if let folder = effective.folder { args["folderId"] = .string(folder.id) }
+        if !effective.types.isEmpty { args["types"] = .array(effective.types.map { .string($0.rawValue) }) }
+
+        var hues = filters.hue.map { [$0.id] } ?? []
+        var styles: [String] = []
+        var hexes: [String] = []
+        for token in tokens {
+            switch token.kind {
+            case .hue where !hues.contains(token.value): hues.append(token.value)
+            case .style where !styles.contains(token.value): styles.append(token.value)
+            case .hex where !hexes.contains(token.value): hexes.append(token.value)
+            default: break
+            }
+        }
+        let (words, range) = searchParts(now: now, timeZone: timeZone)
         if !hues.isEmpty { args["hueFilters"] = .array(hues.map { .string($0) }) }
         if !styles.isEmpty { args["styleFilters"] = .array(styles.map { .string($0) }) }
         if !hexes.isEmpty { args["hexFilters"] = .array(hexes.map { .string($0) }) }
         if let range { args["createdAtRange"] = ["start": .number(range.lowerBound), "end": .number(range.upperBound)] }
-        if !words.isEmpty { args["searchQuery"] = .string(words.joined(separator: " ")) }
+        if let words { args["searchQuery"] = .string(words) }
         return args
+    }
+
+    /// The search a smart folder saves: types, favorites and archive as
+    /// qualifiers, then the search text. Colors, styles and dates aren't saved.
+    public var smartFolderQuery: String? {
+        guard !isTrash else { return nil }
+        let effective = effectiveFilters
+        var parts = effective.types.map { SearchQualifiers.format(SearchQualifier(.type, $0.rawValue)) }
+        if effective.favoritesOnly { parts.append("is:fav") }
+        if effective.archivedOnly { parts.append("is:archived") }
+        if let words = searchText() { parts.append(words) }
+        let query = parts.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty ? nil : query
+    }
+
+    /// Whether saving a smart folder would leave filters behind.
+    public var smartFolderDropsFilters: Bool {
+        filters.hue != nil || tokens.contains { [.hue, .style, .hex, .date].contains($0.kind) }
+    }
+
+    /// A name for a smart folder made from this search, like the web's.
+    public var suggestedSmartFolderName: String {
+        let effective = effectiveFilters
+        var parts = effective.types.map(\.plural)
+        if effective.favoritesOnly { parts.append("Favorites") }
+        if effective.archivedOnly { parts.append("Archived") }
+        for token in tokens where [.keyword, .tag, .qualifier].contains(token.kind) { parts.append(token.label) }
+        let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !typed.isEmpty { parts.append(typed) }
+        let name = parts.joined(separator: " \u{00B7} ")
+        let capitalized = name.prefix(1).uppercased() + name.dropFirst()
+        return String(capitalized.prefix(300))
     }
 
     public func emptyState(now: Date = Date(), timeZone: TimeZone = .current) -> (title: String, message: String, symbol: String) {
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parsed = parsedSearch
         if typed.isEmpty, tokens.isEmpty, effectiveFilters.trashOnly {
             return ("Trash Is Empty", "Cards you delete stay here for 30 days.", "trash")
+        }
+        if let folder = filters.folder, typed.isEmpty, tokens.isEmpty {
+            return folder.isSmart
+                ? ("No Matching Cards", "No cards match this smart folder.", "folder.badge.gearshape")
+                : ("Empty Folder", "No cards in this folder yet.", "folder")
+        }
+        if typed.isEmpty, tokens.isEmpty, filters.archivedOnly {
+            return ("Nothing Archived", "Archive a card to keep it out of your library.", "archivebox")
+        }
+        if parsed.likeCardId != nil {
+            return ("Nothing Similar Yet", "", "sparkles")
+        }
+        if parsed.has(.todo) {
+            return ("Nothing Left to Do", "", "checkmark.circle")
         }
         if typed.isEmpty, tokens.isEmpty, filters.isActive {
             return ("No Matching Cards", "Try other filters.", "line.3.horizontal.decrease.circle")

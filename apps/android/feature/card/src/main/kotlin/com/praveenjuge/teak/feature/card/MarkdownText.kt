@@ -12,7 +12,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.LinkOff
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.style.TextOverflow
+import com.praveenjuge.teak.core.model.CardLinkTarget
+import com.praveenjuge.teak.core.model.CardLinks
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,13 +71,14 @@ internal fun MarkdownText(text: String, modifier: Modifier = Modifier, style: Te
 private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: InlineStyles) {
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
     when (block) {
-        is MarkdownBlock.Heading -> Text(
-            text = remember(block.text, inline) { inlineMarkdown(block.text, inline) },
+        is MarkdownBlock.Heading -> InlineText(
+            text = block.text,
             style = style.copy(
                 fontSize = (style.fontSize.value + (headingSteps.getOrNull(block.level - 1) ?: 0)).sp,
                 fontWeight = FontWeight.Bold,
                 lineHeight = 1.3.em,
             ),
+            inline = inline,
             modifier = Modifier.semantics { heading() },
         )
         is MarkdownBlock.ListBlock -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -72,7 +88,7 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: In
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(item.marker, style = style, color = secondary)
-                    Text(remember(item.text, inline) { inlineMarkdown(item.text, inline) }, style = style)
+                    InlineText(item.text, style, inline)
                 }
             }
         }
@@ -83,12 +99,7 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: In
                     .fillMaxHeight()
                     .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(2.dp)),
             )
-            Text(
-                text = remember(block.text, inline) { inlineMarkdown(block.text, inline) },
-                style = style,
-                color = secondary,
-                modifier = Modifier.padding(start = 11.dp),
-            )
+            InlineText(block.text, style.copy(color = secondary), inline, Modifier.padding(start = 11.dp))
         }
         is MarkdownBlock.Code -> Text(
             text = block.text,
@@ -99,8 +110,61 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: In
                 .padding(10.dp),
         )
         MarkdownBlock.Rule -> HorizontalDivider(Modifier.padding(vertical = 4.dp))
-        is MarkdownBlock.Paragraph -> Text(remember(block.text, inline) { inlineMarkdown(block.text, inline) }, style = style)
+        is MarkdownBlock.Paragraph -> InlineText(block.text, style, inline)
     }
+}
+
+/** The live titles of `[[` links on this screen, and how to open one. Without it, links read as their stored titles. */
+internal class CardLinkContext(val targets: Map<String, CardLinkTarget>, val onOpen: (String) -> Unit)
+
+internal val LocalCardLinks = staticCompositionLocalOf<CardLinkContext?> { null }
+
+private val WORD = Regex("\\S+\\s*")
+
+/** A line of inline Markdown; `[[` links in it become pills that wrap with the words around them. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InlineText(text: String, style: TextStyle, inline: InlineStyles, modifier: Modifier = Modifier) {
+    val links = LocalCardLinks.current
+    val matches = remember(text) { CardLinks.find(text) }
+    if (matches.isEmpty()) {
+        Text(remember(text, inline) { inlineMarkdown(text, inline) }, style = style, modifier = modifier)
+        return
+    }
+    if (links == null) {
+        Text(remember(text, inline) { inlineMarkdown(CardLinks.tokensToText(text), inline) }, style = style, modifier = modifier)
+        return
+    }
+    FlowRow(modifier, itemVerticalAlignment = Alignment.CenterVertically) {
+        var cursor = 0
+        for (match in matches) {
+            WORD.findAll(text.substring(cursor, match.start)).forEach { Text(inlineMarkdown(it.value, inline), style = style) }
+            CardLinkPill(match, links.targets[match.id], links.onOpen)
+            cursor = match.end
+        }
+        WORD.findAll(text.substring(cursor)).forEach { Text(inlineMarkdown(it.value, inline), style = style) }
+    }
+}
+
+@Composable
+private fun CardLinkPill(match: CardLinks.Match, target: CardLinkTarget?, onOpen: (String) -> Unit) {
+    val missing = target?.missing == true
+    val title = if (missing) "Missing card" else target?.title ?: match.title.ifBlank { "Card" }
+    AssistChip(
+        onClick = { onOpen(match.id) },
+        enabled = !missing,
+        label = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        leadingIcon = {
+            Icon(
+                if (missing) Icons.Outlined.LinkOff else Icons.Outlined.Link,
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        modifier = Modifier.padding(horizontal = 2.dp).semantics {
+            contentDescription = if (missing) "Missing card. This card is in Trash, deleted or not yours" else "Linked card: $title"
+        },
+    )
 }
 
 internal data class InlineStyles(val code: SpanStyle, val link: TextLinkStyles)

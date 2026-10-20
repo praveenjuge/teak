@@ -34,6 +34,12 @@ declare namespace Preferences {
   export type Favorites = ExtensionPreferences & {}
   /** Preferences accessible in the `tags` command */
   export type Tags = ExtensionPreferences & {}
+  /** Preferences accessible in the `folders` command */
+  export type Folders = ExtensionPreferences & {}
+  /** Preferences accessible in the `random-cards` command */
+  export type RandomCards = ExtensionPreferences & {}
+  /** Preferences accessible in the `find-similar` command */
+  export type FindSimilar = ExtensionPreferences & {}
 }
 
 declare namespace Arguments {
@@ -42,7 +48,11 @@ declare namespace Arguments {
   /** Arguments passed to the `save-text` command */
   export type SaveText = {
   /** Text or URL */
-  "content": string
+  "content": string,
+  /** Tags (comma separated) */
+  "tags": string,
+  /** Note */
+  "note": string
 }
   /** Arguments passed to the `save-clipboard-url` command */
   export type SaveClipboardUrl = {}
@@ -58,5 +68,14 @@ declare namespace Arguments {
   export type Favorites = {}
   /** Arguments passed to the `tags` command */
   export type Tags = {}
+  /** Arguments passed to the `folders` command */
+  export type Folders = {}
+  /** Arguments passed to the `random-cards` command */
+  export type RandomCards = {}
+  /** Arguments passed to the `find-similar` command */
+  export type FindSimilar = {
+  /** Card ID or Teak link */
+  "card": string
+}
 }
 

@@ -84,6 +84,35 @@ describe("mobile card summaries", () => {
     expect(screenshotOnly.aspectRatio).toBe(0.8);
   });
 
+  test("carries the archive, done, category and price state tiles show", () => {
+    const product = toMobileCardSummary({
+      ...base,
+      completedAt: 1_700_000_000_000,
+      content: "",
+      isArchived: true,
+      metadata: {
+        linkCategory: {
+          category: "product",
+          fetchedAt: 1,
+          price: { amount: 49.5, currency: "USD" },
+          sourceUrl: "https://shop.example.com/lamp",
+        },
+      },
+      type: "link",
+      url: "https://shop.example.com/lamp",
+    });
+    expect(product.isArchived).toBe(true);
+    expect(product.completedAt).toBe(1_700_000_000_000);
+    expect(product.linkCategory).toBe("product");
+    expect(product.linkPrice).toEqual({ amount: 49.5, currency: "USD" });
+
+    const note = toMobileCardSummary({ ...base, content: "Hi", type: "text" });
+    expect(note.isArchived).toBeUndefined();
+    expect(note.completedAt).toBeUndefined();
+    expect(note.linkCategory).toBeUndefined();
+    expect(note.linkPrice).toBeUndefined();
+  });
+
   test("names an untitled link after its site instead of its URL", () => {
     const summary = toMobileCardSummary({
       ...base,

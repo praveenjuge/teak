@@ -10,10 +10,15 @@ final class LibraryModel {
     var text = "" { didSet { scheduleSearch() } }
     var tokens: [SearchToken] = [] { didSet { reload() } }
     var filters = LibraryFilters.empty { didSet { reload() } }
+    var sort = LibrarySort.newest { didSet { reload() } }
 
     private(set) var selection: Set<String>?
     private(set) var isRunningBulkAction = false
     private(set) var status: StatusMessage?
+    /// The last answer from search by meaning, for the empty state.
+    private(set) var semanticOutcome: String?
+    /// Whether an empty view is empty because its cards are hidden.
+    private(set) var hasHiddenCards = false
 
     private var favoriteOverrides: [String: Bool] = [:]
     private var hiddenIds: Set<String> = []
@@ -21,6 +26,8 @@ final class LibraryModel {
     @ObservationIgnored private var debouncedText = ""
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var statusTask: Task<Void, Never>?
+    @ObservationIgnored private var semanticTask: Task<Void, Never>?
+    @ObservationIgnored private var hiddenTask: Task<Void, Never>?
 
     init(backend: TeakBackend) {
         self.backend = backend
@@ -32,10 +39,13 @@ final class LibraryModel {
         let text: String
         let isError: Bool
         let isCardLimit: Bool
+        var undo: (@MainActor () -> Void)?
+
+        static func == (lhs: StatusMessage, rhs: StatusMessage) -> Bool { lhs.id == rhs.id }
     }
 
     var query: LibraryQuery {
-        LibraryQuery(text: debouncedText, tokens: tokens, filters: filters)
+        LibraryQuery(text: debouncedText, tokens: tokens, filters: filters, sort: sort)
     }
 
     var title: String {
@@ -44,6 +54,7 @@ final class LibraryModel {
     }
 
     var isTrash: Bool { query.isTrash }
+    var isArchive: Bool { query.isArchive }
 
     var cards: [CardSummary] {
         pager.cards.compactMap { card in
@@ -63,7 +74,9 @@ final class LibraryModel {
     func reload() {
         favoriteOverrides = [:]
         hiddenIds = []
+        hasHiddenCards = false
         pager.load(query.searchArgs())
+        requestSemanticResults()
     }
 
     private func scheduleSearch() {
@@ -73,6 +86,43 @@ final class LibraryModel {
             guard !Task.isCancelled else { return }
             debouncedText = text
             reload()
+        }
+    }
+
+    /// Asks the backend to rank cards by meaning, 300 ms after the search
+    /// settles. The paged search reads those results when they're ready; a
+    /// failure leaves the keyword results as they are.
+    private func requestSemanticResults() {
+        semanticTask?.cancel()
+        semanticOutcome = nil
+        guard let args = query.semanticArgs() else { return }
+        semanticTask = Task { [backend] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            let result = try? await backend.action(ConvexFunctions.requestSemanticResults, args)
+            guard !Task.isCancelled else { return }
+            semanticOutcome = result?.outcome
+        }
+    }
+
+    /// Asks once whether an empty view holds only hidden cards.
+    func checkHiddenCards() {
+        hiddenTask?.cancel()
+        let query = query
+        guard !query.hasSearch else { return hasHiddenCards = false }
+        var args: ConvexArgs = [:]
+        if let folder = query.filters.folder {
+            args["folderId"] = .string(folder.id)
+        } else if query.filters.types.isEmpty, query.filters.hue == nil {
+            args["view"] = query.isTrash ? "trash" : query.filters.archivedOnly ? "archive"
+                : query.filters.favoritesOnly ? "favorites" : "all"
+        } else {
+            return hasHiddenCards = false
+        }
+        hiddenTask = Task { [backend] in
+            let hidden = (try? await backend.query(ConvexFunctions.viewHasHiddenCards, args)) ?? false
+            guard !Task.isCancelled else { return }
+            hasHiddenCards = hidden
         }
     }
 
@@ -97,11 +147,38 @@ final class LibraryModel {
         filters = LibraryFilters(types: [type])
     }
 
+    func open(_ folder: Folder?) {
+        text = ""
+        debouncedText = ""
+        tokens = []
+        filters = LibraryFilters(folder: folder.map(FolderScope.init))
+    }
+
+    func showArchive() {
+        tokens = []
+        filters = LibraryFilters(archivedOnly: true)
+    }
+
+    /// "More like this": every card like this one, with filters cleared.
+    func moreLike(_ id: String, title: String?) {
+        text = ""
+        debouncedText = ""
+        sort = .newest
+        filters = .empty
+        tokens = [SearchTokens.like(cardId: id, title: title)]
+    }
+
     func clearFilters() {
         text = ""
         debouncedText = ""
         tokens = []
         filters = .empty
+    }
+
+    /// A fresh order each time, never the one just shown.
+    func shuffle() {
+        let previous: Int? = if case let .shuffle(seed) = sort { seed } else { nil }
+        sort = .shuffle(seed: ShuffleSeed.next(after: previous))
     }
 
     func refresh() async {
@@ -110,12 +187,12 @@ final class LibraryModel {
         await pager.refresh()
     }
 
-    func show(_ text: String, isError: Bool = false, isCardLimit: Bool = false) {
+    func show(_ text: String, isError: Bool = false, isCardLimit: Bool = false, undo: (@MainActor () -> Void)? = nil) {
         statusTask?.cancel()
-        let message = StatusMessage(text: text, isError: isError, isCardLimit: isCardLimit)
+        let message = StatusMessage(text: text, isError: isError, isCardLimit: isCardLimit, undo: undo)
         status = message
         statusTask = Task {
-            try? await Task.sleep(for: .seconds(isError ? 5 : 3))
+            try? await Task.sleep(for: .seconds(isError ? 5 : undo == nil ? 3 : 6))
             if status?.id == message.id { status = nil }
         }
     }
@@ -124,6 +201,10 @@ final class LibraryModel {
         let teak = error as? TeakError
         show(error.teakMessage, isError: true, isCardLimit: teak?.isCardLimit == true)
         PostHogReporting.capture(error)
+    }
+
+    func dismissStatus() {
+        status = nil
     }
 
     func setFavorite(_ card: CardSummary, _ favorite: Bool) async -> Bool {
@@ -157,6 +238,54 @@ final class LibraryModel {
     func deleteForever(_ id: String) async -> Bool {
         await hide(id, success: "Card deleted forever") {
             let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(id)])
+        }
+    }
+
+    /// Archives or returns one card, with Undo, as the web does.
+    @discardableResult
+    func setArchived(_ id: String, _ archived: Bool) async -> Bool {
+        let action: BulkCardAction = archived ? .archive : .unarchive
+        let leavesView = archived != isArchive
+        if leavesView { hiddenIds.insert(id) }
+        do {
+            try await updateArchive(id, archived)
+            show(action.done(1)) { [weak self] in
+                Task { await self?.undoArchive(id, archived) }
+            }
+            return true
+        } catch {
+            hiddenIds.remove(id)
+            show(error)
+            return false
+        }
+    }
+
+    private func undoArchive(_ id: String, _ archived: Bool) async {
+        dismissStatus()
+        do {
+            try await updateArchive(id, !archived)
+            hiddenIds.remove(id)
+        } catch {
+            show(error)
+        }
+    }
+
+    func updateArchive(_ id: String, _ archived: Bool) async throws {
+        let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField,
+                                                       ["cardId": .string(id), "field": archived ? "archive" : "unarchive"])
+    }
+
+    /// Reruns a card's processing and says how it went.
+    func refreshDetails(_ id: String) async {
+        do {
+            let result = try await backend.mutation(ConvexFunctions.reprocessCard, ["cardId": .string(id)])
+            if result.isQueued {
+                show("Refreshing details. The summary and tags update shortly.")
+            } else {
+                show(result.message ?? "Couldn't refresh this card. Try again in a moment.", isError: true)
+            }
+        } catch {
+            show("Couldn't refresh this card. Try again in a moment.", isError: true)
         }
     }
 
@@ -198,59 +327,96 @@ final class LibraryModel {
         return cards.filter { selection.contains($0.id) }
     }
 
-    enum BulkAction {
-        case favorite, unfavorite, trash, restore, deleteForever
-
-        var verb: String {
-            switch self {
-            case .favorite: "Favorited"
-            case .unfavorite: "Unfavorited"
-            case .trash: "Moved to Trash:"
-            case .restore: "Restored"
-            case .deleteForever: "Deleted forever:"
-            }
+    /// Whether a bulk action takes the cards out of this view.
+    private func leavesView(_ action: BulkCardAction) -> Bool {
+        switch action {
+        case .archive: !isArchive
+        case .unarchive: isArchive
+        case .delete, .restore: true
+        case .unfavorite: query.effectiveFilters.favoritesOnly
+        default: false
         }
     }
 
-    /// Runs one mutation per selected card, then reports any that failed.
-    func run(_ action: BulkAction) async {
+    /// Changes the selected cards through `cards:bulkUpdateCards`, 100 at a
+    /// time, then says what changed, with Undo where there's an opposite.
+    func run(_ action: BulkCardAction, tags: [String] = [], folder: Folder? = nil) async {
+        let ids = selectedCards.map(\.id)
+        guard !ids.isEmpty, !isRunningBulkAction else { return }
+        isRunningBulkAction = true
+        defer { isRunningBulkAction = false }
+        let (updated, failed) = await apply(action, ids: ids, tags: tags, folder: folder)
+        endSelection()
+        let message = action.message(updated: updated.count, failed: failed.count, folder: folder?.name)
+        if updated.isEmpty {
+            show(message, isError: true)
+        } else if let undo = action.undo {
+            show(message, isError: !failed.isEmpty) { [weak self] in
+                Task { await self?.undoBulk(undo, ids: updated) }
+            }
+        } else {
+            show(message, isError: !failed.isEmpty)
+        }
+    }
+
+    private func undoBulk(_ action: BulkCardAction, ids: [String]) async {
+        dismissStatus()
+        let (_, failed) = await apply(action, ids: ids)
+        if !failed.isEmpty { show(action.failure, isError: true) }
+        hiddenIds.subtract(ids)
+        for id in ids { favoriteOverrides[id] = nil }
+    }
+
+    private func apply(_ action: BulkCardAction, ids: [String], tags: [String] = [],
+                       folder: Folder? = nil) async -> (updated: [String], failed: [String]) {
+        let leaves = leavesView(action)
+        if leaves { hiddenIds.formUnion(ids) }
+        if action == .favorite || action == .unfavorite {
+            for id in ids { favoriteOverrides[id] = action == .favorite }
+        }
+        var updated: [String] = []
+        var failed: [String] = []
+        for chunk in BulkCardAction.chunks(ids) {
+            var args: ConvexArgs = ["cardIds": .array(chunk.map(ConvexValue.string)), "action": .string(action.rawValue)]
+            if !tags.isEmpty { args["tags"] = .array(tags.map(ConvexValue.string)) }
+            if let folder { args["folderId"] = .string(folder.id) }
+            do {
+                let result = try await backend.mutation(ConvexFunctions.bulkUpdateCards, args)
+                updated += result.updatedIds
+                failed += result.failedIds
+            } catch {
+                failed += chunk
+            }
+        }
+        for id in failed {
+            hiddenIds.remove(id)
+            favoriteOverrides[id] = nil
+        }
+        return (updated, failed)
+    }
+
+    /// Permanent deletion has no bulk action, so it goes card by card.
+    func deleteSelectedForever() async {
         let chosen = selectedCards
         guard !chosen.isEmpty, !isRunningBulkAction else { return }
         isRunningBulkAction = true
         defer { isRunningBulkAction = false }
         var failed = 0
         for card in chosen {
-            let id = card.id
+            hiddenIds.insert(card.id)
             do {
-                switch action {
-                case .favorite, .unfavorite:
-                    let favorite = action == .favorite
-                    favoriteOverrides[id] = favorite
-                    let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, [
-                        "cardId": .string(id), "field": "isFavorited", "value": .bool(favorite),
-                    ])
-                case .trash, .restore:
-                    hiddenIds.insert(id)
-                    let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, [
-                        "cardId": .string(id), "field": action == .trash ? "delete" : "restore",
-                    ])
-                case .deleteForever:
-                    hiddenIds.insert(id)
-                    let _: ConvexVoid = try await backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(id)])
-                }
+                let _: ConvexVoid = try await backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(card.id)])
             } catch {
                 failed += 1
-                favoriteOverrides[id] = nil
-                hiddenIds.remove(id)
+                hiddenIds.remove(card.id)
             }
         }
         endSelection()
         let done = chosen.count - failed
-        let noun = done == 1 ? "1 card" : "\(done) cards"
         if failed > 0 {
             show("\(failed) of \(chosen.count) didn't change. Please try again.", isError: true)
         } else {
-            show("\(action.verb) \(noun)")
+            show("Deleted forever: \(BulkCardAction.cards(done))")
         }
     }
 }

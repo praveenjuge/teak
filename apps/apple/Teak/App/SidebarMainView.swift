@@ -1,0 +1,143 @@
+import SwiftUI
+import TeakCore
+
+enum SidebarItem: Hashable {
+    case home, add, favorites, archive, trash, tags, settings, type(CardType), folder(String)
+
+    init?(_ filters: LibraryFilters) {
+        guard filters.hue == nil else { return nil }
+        if let folder = filters.folder {
+            guard !filters.favoritesOnly, !filters.trashOnly, !filters.archivedOnly, filters.types.isEmpty else { return nil }
+            self = .folder(folder.id)
+            return
+        }
+        switch (filters.favoritesOnly, filters.trashOnly, filters.archivedOnly, filters.types) {
+        case (false, false, false, []): self = .home
+        case (true, false, false, []): self = .favorites
+        case (false, false, true, []): self = .archive
+        case (_, true, _, []): self = .trash
+        case let (false, false, false, types) where types.count == 1: self = .type(types[0])
+        default: return nil
+        }
+    }
+
+    var filters: LibraryFilters? {
+        switch self {
+        case .add, .tags, .settings, .folder: nil
+        case .home: .empty
+        case .favorites: LibraryFilters(favoritesOnly: true)
+        case .archive: LibraryFilters(archivedOnly: true)
+        case .trash: LibraryFilters(trashOnly: true)
+        case let .type(type): LibraryFilters(types: [type])
+        }
+    }
+}
+
+/// The Mac's and iPad's sidebar: library views, folders and smart folders,
+/// tags and card types.
+struct SidebarMainView: View {
+    let namespace: Namespace.ID
+    @Environment(AppRouter.self) private var router
+    @State private var prompt: FolderPrompt?
+
+    private var services: AppServices { AppServices.shared }
+
+    var body: some View {
+        @Bindable var router = router
+        let library = services.home
+        let actions = FolderActions(folders: services.folders, library: library)
+        NavigationSplitView {
+            List(selection: selection(library)) {
+                Label("Home", systemImage: "house").tag(SidebarItem.home)
+                Label("Add", systemImage: "plus.circle").tag(SidebarItem.add)
+                Label("Favorites", systemImage: "heart").tag(SidebarItem.favorites)
+                Label("Archive", systemImage: "archivebox").tag(SidebarItem.archive)
+                Label("Tags", systemImage: "number").tag(SidebarItem.tags)
+                Label("Trash", systemImage: "trash").tag(SidebarItem.trash)
+                Label("Settings", systemImage: "gearshape").tag(SidebarItem.settings)
+                Section {
+                    ForEach(services.folders.folders) { folder in
+                        FolderLabel(folder: folder)
+                            .tag(SidebarItem.folder(folder.id))
+                            .contextMenu { FolderMenu(folder: folder, prompt: $prompt, actions: actions) }
+                    }
+                    if services.folders.folders.isEmpty, services.folders.isLoaded {
+                        Button("New Folder", systemImage: "folder.badge.plus") { prompt = .create }
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    HStack {
+                        Text("Folders")
+                        Spacer()
+                        Button("New Folder", systemImage: "plus") { prompt = .create }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.borderless)
+                            .accessibilityIdentifier("sidebar.newFolder")
+                    }
+                }
+                Section("Types") {
+                    ForEach(CardType.allCases) { type in
+                        Label(type.plural, systemImage: type.symbol).tag(SidebarItem.type(type))
+                    }
+                }
+            }
+            .navigationTitle("Teak")
+            .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+            .folderPrompt($prompt, actions: actions)
+        } detail: {
+            switch router.tab {
+            case .add:
+                NavigationStack { AddView() }
+            case .tags:
+                NavigationStack {
+                    TagsView(model: services.tags) { tag in
+                        library.open(nil)
+                        library.filterByTag(tag)
+                        router.homePath = []
+                        router.tab = .home
+                    }
+                }
+            case .settings:
+                NavigationStack { SettingsView() }
+            case .home, .folders:
+                LibraryTab(library: library, path: $router.homePath, namespace: namespace)
+            }
+        }
+    }
+
+    private func selection(_ library: LibraryModel) -> Binding<SidebarItem?> {
+        Binding {
+            switch router.tab {
+            case .add: .add
+            case .tags: .tags
+            case .settings: .settings
+            case .home, .folders: SidebarItem(library.filters)
+            }
+        } set: { item in
+            guard let item else { return }
+            // Leave Home with no card pushed: rebuilding the library's stack
+            // later with a stale path crashed SwiftUI's split view on iPad.
+            #if os(macOS)
+            // The Mac keeps Settings in its own window, as ⌘, opens it.
+            if item == .settings { return services.showSettings() }
+            #endif
+            if [.add, .tags, .settings].contains(item) { router.homePath = [] }
+            switch item {
+            case .add: router.tab = .add
+            case .tags: router.tab = .tags
+            case .settings: router.tab = .settings
+            case let .folder(id):
+                library.open(services.folders.folder(id))
+                router.homePath = []
+                router.tab = .home
+            default:
+                if let filters = item.filters {
+                    library.filters = filters
+                    router.homePath = []
+                    router.tab = .home
+                }
+            }
+        }
+    }
+}

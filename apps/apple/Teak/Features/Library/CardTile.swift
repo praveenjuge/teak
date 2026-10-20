@@ -57,12 +57,22 @@ struct CardTile: View {
                 if let imageURL {
                     RemoteImage(imageURL, placeholder: placeholderURL)
                         .frame(width: width, height: mediaHeight)
-                    TileFooter(title: card.title)
+                        .overlay(alignment: .bottomLeading) {
+                            if let price { PricePill(text: price).padding(8) }
+                        }
+                    TileFooter(title: card.title, isDone: card.isDone, doneLabel: doneLabel)
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(card.title).font(.subheadline.weight(.medium)).lineLimit(2)
-                        if let host = SafeURL.hostname(card.url) {
-                            Text(host).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            if card.isDone { DoneBadge(label: doneLabel) }
+                            Text(card.title).font(.subheadline.weight(.medium)).lineLimit(2)
+                        }
+                        HStack {
+                            if let host = SafeURL.hostname(card.url) {
+                                Text(host).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer(minLength: 4)
+                            if let price { Text(price).font(.footnote.weight(.medium)).monospacedDigit() }
                         }
                     }
                     .padding(14)
@@ -114,8 +124,13 @@ struct CardTile: View {
         }
     }
 
+    private var price: String? { card.linkPrice?.formatted() }
+    private var doneLabel: String { LinkDone.badgeLabel(card.linkCategory) }
+
     private var accessibilityText: String {
         var parts = [card.type.label, card.title]
+        if card.isDone { parts.append(doneLabel) }
+        if let price { parts.append(price) }
         if card.favorited { parts.append("Favorite") }
         return parts.joined(separator: ", ")
     }
@@ -135,12 +150,40 @@ private struct TileText: View {
     }
 }
 
+private struct DoneBadge: View {
+    let label: String
+
+    var body: some View {
+        Image(systemName: "checkmark.circle.fill")
+            .font(.footnote)
+            .foregroundStyle(.green)
+            .accessibilityLabel(label)
+            .accessibilityIdentifier("tile.done")
+    }
+}
+
+private struct PricePill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .monospacedDigit()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.regularMaterial, in: .capsule)
+    }
+}
+
 private struct TileFooter: View {
     let title: String
     var symbol: String?
+    var isDone = false
+    var doneLabel = ""
 
     var body: some View {
         HStack(spacing: 8) {
+            if isDone { DoneBadge(label: doneLabel) }
             if let symbol { Image(systemName: symbol).font(.footnote).foregroundStyle(.secondary) }
             Text(title).font(.footnote.weight(.medium)).lineLimit(1)
             Spacer(minLength: 0)

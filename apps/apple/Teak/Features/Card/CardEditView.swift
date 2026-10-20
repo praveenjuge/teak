@@ -84,7 +84,7 @@ struct CardEditView: View {
                     .lineLimit(3...10)
                     .accessibilityIdentifier("edit.notes")
             }
-            Section("Tags") {
+            Section {
                 ForEach(draft.wrappedValue.tags, id: \.self) { tag in
                     HStack {
                         Text(tag)
@@ -107,6 +107,13 @@ struct CardEditView: View {
                         #endif
                     Button("Add") { addTag(draft) }
                         .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            } header: {
+                Text("Tags")
+            } footer: {
+                if let hint = HiddenTags.addedHint(before: card.tags, after: draft.wrappedValue.tags) {
+                    Label(hint, systemImage: "eye.slash")
+                        .accessibilityIdentifier("edit.hiddenHint")
                 }
             }
             if !draft.wrappedValue.aiTags.isEmpty {

@@ -17,7 +17,33 @@ import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Camera
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.HeartBroken
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Sell
+import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material.icons.outlined.ViewCarousel
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.InputChip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -59,9 +85,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.praveenjuge.teak.core.model.BulkAction
+import com.praveenjuge.teak.core.model.CardSort
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ColorHue
 import com.praveenjuge.teak.core.model.LibraryFilters
+import com.praveenjuge.teak.core.model.QualifierChip
+import com.praveenjuge.teak.core.model.SearchIsValue
+import com.praveenjuge.teak.core.model.SearchQualifier
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -69,23 +100,83 @@ internal fun LibraryTopBar(
     title: String,
     isSelecting: Boolean,
     canSelect: Boolean,
+    canRevisit: Boolean,
+    sort: CardSort,
     scrollBehavior: TopAppBarScrollBehavior,
     onSelect: () -> Unit,
     onDone: () -> Unit,
+    onSort: (CardSort) -> Unit,
+    onRevisit: () -> Unit,
+    onBack: (() -> Unit)?,
+    onSaveSearch: (() -> Unit)? = null,
 ) {
+    var sortOpen by rememberSaveable { mutableStateOf(false) }
     LargeFlexibleTopAppBar(
         title = { Text(title, modifier = Modifier.semantics { heading() }) },
+        navigationIcon = {
+            if (onBack != null) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            }
+        },
         actions = {
             if (isSelecting) {
                 TextButton(onClick = onDone) { Text("Done") }
-            } else {
-                IconButton(onClick = onSelect, enabled = canSelect) {
-                    Icon(Icons.Outlined.CheckCircle, contentDescription = "Select cards")
+                return@LargeFlexibleTopAppBar
+            }
+            if (canRevisit) {
+                IconButton(onClick = onRevisit) { Icon(Icons.Outlined.ViewCarousel, contentDescription = "Revisit") }
+            }
+            Box {
+                IconButton(onClick = { sortOpen = true }) {
+                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = sortLabel(sort))
                 }
+                DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                    CardSort.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option.label) },
+                            leadingIcon = {
+                                Icon(
+                                    when (option) {
+                                        CardSort.Newest -> Icons.Filled.ArrowDownward
+                                        CardSort.Oldest -> Icons.Filled.ArrowUpward
+                                        CardSort.Shuffle -> Icons.Filled.Shuffle
+                                    },
+                                    contentDescription = null,
+                                )
+                            },
+                            trailingIcon = if (option == sort) ({ Icon(Icons.Filled.Check, contentDescription = "Selected") }) else null,
+                            onClick = {
+                                sortOpen = false
+                                onSort(option)
+                            },
+                        )
+                    }
+                    if (onSaveSearch != null) {
+                        HorizontalDivider()
+                        DropdownMenuItem(
+                            text = { Text("Save as smart folder…") },
+                            leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, contentDescription = null) },
+                            onClick = {
+                                sortOpen = false
+                                onSaveSearch()
+                            },
+                        )
+                    }
+                }
+            }
+            IconButton(onClick = onSelect, enabled = canSelect) {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = "Select cards")
             }
         },
         scrollBehavior = scrollBehavior,
     )
+}
+
+/** The sort button's spoken name, like the web's "View: oldest first". */
+internal fun sortLabel(sort: CardSort): String = when (sort) {
+    CardSort.Newest -> "Sort"
+    CardSort.Oldest -> "Sort: oldest first"
+    CardSort.Shuffle -> "Sort: shuffled"
 }
 
 @Composable
@@ -120,8 +211,13 @@ internal fun LibrarySearchField(state: TextFieldState, modifier: Modifier = Modi
 @Composable
 internal fun LibraryFilterRow(
     filters: LibraryFilters,
+    showsDone: Boolean,
+    showsTodo: Boolean,
     onToggleFavorites: () -> Unit,
+    onToggleArchive: () -> Unit,
     onToggleTrash: () -> Unit,
+    onToggleDone: () -> Unit,
+    onToggleTodo: () -> Unit,
     onToggleType: (CardType) -> Unit,
     onSelectHue: (ColorHue) -> Unit,
     onClear: () -> Unit,
@@ -138,10 +234,28 @@ internal fun LibraryFilterRow(
             leadingIcon = { ChipIcon(if (filters.favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder) },
         )
         FilterChip(
+            selected = filters.archivedOnly,
+            onClick = onToggleArchive,
+            label = { Text("Archive") },
+            leadingIcon = { ChipIcon(Icons.Outlined.Archive) },
+        )
+        FilterChip(
             selected = filters.trashOnly,
             onClick = onToggleTrash,
             label = { Text("Trash") },
             leadingIcon = { ChipIcon(Icons.Outlined.Delete) },
+        )
+        FilterChip(
+            selected = showsDone,
+            onClick = onToggleDone,
+            label = { Text("Done") },
+            leadingIcon = { ChipIcon(Icons.Outlined.CheckCircle) },
+        )
+        FilterChip(
+            selected = showsTodo,
+            onClick = onToggleTodo,
+            label = { Text("To do") },
+            leadingIcon = { ChipIcon(Icons.Outlined.Circle) },
         )
         CardType.entries.forEach { type ->
             val selected = type in filters.types
@@ -196,22 +310,103 @@ private fun ColorChip(hue: ColorHue?, onSelectHue: (ColorHue) -> Unit) {
     }
 }
 
+/** Filters typed in the search, as removable chips: "Show · Archived", "Similar to · Desk lamp". */
+@Composable
+internal fun QualifierChipRow(chips: List<QualifierChip>, onRemove: (SearchQualifier) -> Unit, modifier: Modifier = Modifier) {
+    if (chips.isEmpty()) return
+    Row(
+        modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        chips.forEach { chip ->
+            InputChip(
+                selected = true,
+                onClick = { onRemove(chip.qualifier) },
+                label = {
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) { append(chip.title) }
+                            append(" ")
+                            append(chip.label)
+                        },
+                        maxLines = 1,
+                    )
+                },
+                leadingIcon = { ChipIcon(qualifierIcon(chip.qualifier)) },
+                trailingIcon = { ChipIcon(Icons.Filled.Close) },
+                modifier = Modifier.semantics { contentDescription = chip.removeLabel },
+            )
+        }
+    }
+}
+
+private fun qualifierIcon(qualifier: SearchQualifier): ImageVector = when (qualifier) {
+    is SearchQualifier.Tag -> Icons.Outlined.Sell
+    is SearchQualifier.Type -> Icons.Outlined.FilterList
+    is SearchQualifier.Is -> when (qualifier.state) {
+        SearchIsValue.Archived -> Icons.Outlined.Archive
+        SearchIsValue.Done -> Icons.Outlined.CheckCircle
+        SearchIsValue.Todo -> Icons.Outlined.Circle
+        SearchIsValue.Favorite -> Icons.Outlined.FavoriteBorder
+    }
+    is SearchQualifier.Site -> Icons.Outlined.Language
+    is SearchQualifier.Folder -> Icons.Outlined.Folder
+    is SearchQualifier.Like -> Icons.Outlined.AutoAwesome
+    is SearchQualifier.Mood -> Icons.Outlined.Camera
+    is SearchQualifier.Price -> Icons.Outlined.Payments
+    is SearchQualifier.Text -> Icons.Outlined.DocumentScanner
+}
+
+internal enum class SelectionView { Library, Archive, Trash }
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun SelectionToolbar(
-    inTrash: Boolean,
+    view: SelectionView,
     enabled: Boolean,
-    onMoveToTrash: () -> Unit,
-    onRestore: () -> Unit,
+    onAction: (BulkAction) -> Unit,
+    onAddTags: () -> Unit,
+    onAddToFolder: () -> Unit,
     onDeleteForever: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var moreOpen by rememberSaveable { mutableStateOf(false) }
     HorizontalFloatingToolbar(expanded = true, modifier = modifier) {
-        if (inTrash) {
-            ToolbarAction("Restore", Icons.AutoMirrored.Filled.Undo, enabled, destructive = false, onClick = onRestore)
-            ToolbarAction("Delete Forever", Icons.Outlined.DeleteForever, enabled, destructive = true, onClick = onDeleteForever)
-        } else {
-            ToolbarAction("Move to Trash", Icons.Outlined.Delete, enabled, destructive = true, onClick = onMoveToTrash)
+        when (view) {
+            SelectionView.Trash -> {
+                ToolbarAction("Restore", Icons.AutoMirrored.Filled.Undo, enabled, destructive = false) { onAction(BulkAction.Restore) }
+                ToolbarAction("Delete Forever", Icons.Outlined.DeleteForever, enabled, destructive = true, onClick = onDeleteForever)
+                return@HorizontalFloatingToolbar
+            }
+            SelectionView.Archive ->
+                ToolbarAction("Unarchive", Icons.Outlined.Unarchive, enabled, destructive = false) { onAction(BulkAction.Unarchive) }
+            SelectionView.Library ->
+                ToolbarAction("Archive", Icons.Outlined.Archive, enabled, destructive = false) { onAction(BulkAction.Archive) }
+        }
+        Box {
+            IconButton(onClick = { moreOpen = true }, enabled = enabled) {
+                Icon(Icons.Outlined.MoreVert, contentDescription = "More actions")
+            }
+            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                fun item(label: String, icon: ImageVector, destructive: Boolean = false, onClick: () -> Unit): @Composable () -> Unit = {
+                    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    DropdownMenuItem(
+                        text = { Text(label, color = color) },
+                        leadingIcon = { Icon(icon, contentDescription = null, tint = color) },
+                        onClick = {
+                            moreOpen = false
+                            onClick()
+                        },
+                    )
+                }
+                item("Add to favorites", Icons.Outlined.FavoriteBorder) { onAction(BulkAction.Favorite) }()
+                item("Remove from favorites", Icons.Outlined.HeartBroken) { onAction(BulkAction.Unfavorite) }()
+                HorizontalDivider()
+                item("Add tags…", Icons.Outlined.Sell, onClick = onAddTags)()
+                item("Add to folder…", Icons.Outlined.CreateNewFolder, onClick = onAddToFolder)()
+                HorizontalDivider()
+                item("Move to Trash", Icons.Outlined.Delete, destructive = true) { onAction(BulkAction.Delete) }()
+            }
         }
     }
 }

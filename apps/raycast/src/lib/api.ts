@@ -15,15 +15,24 @@ import {
 } from "./apiErrors";
 import {
   type CardsResponse,
+  type FolderCardsResult,
+  type FoldersResponse,
   parseCardsPageResponse,
+  parseFolder,
+  parseFolderCardsResult,
+  parseFoldersResponse,
   parseQuickSaveResponse,
   parseRaycastCard,
+  parseTagOperation,
   parseTagsResponse,
   type QuickSaveResponse,
   type RaycastCard,
+  type RaycastFolder,
+  type RaycastTagOperation,
   type TagsResponse,
 } from "./apiParsers";
 import { getApiBaseUrl } from "./constants";
+import { HIDDEN_TAGS } from "./hiddenTags";
 import {
   authorizeTeak,
   getStoredTeakAccessToken,
@@ -41,21 +50,35 @@ export {
 } from "./apiErrors";
 export type {
   CardsResponse,
+  FolderCardsResult,
+  FoldersResponse,
   QuickSaveResponse,
   RaycastCard,
+  RaycastCardLink,
+  RaycastFolder,
+  RaycastLinkPrice,
+  RaycastTagOperation,
   TagSummary,
   TagsResponse,
 } from "./apiParsers";
 
 export interface CardSearchInput {
+  /** Archived cards to list; the API leaves them out by default. */
+  archived?: "exclude" | "include" | "only";
   createdAfter?: number;
   createdBefore?: number;
   cursor?: string;
   favorited?: boolean;
+  /** A folder id; a smart folder lists the cards its search finds. */
+  folder?: string;
   hex?: string[];
   hue?: string[];
   limit?: number;
   query?: string;
+  /** Required with `sort: "shuffle"`: the same seed gives the same order. */
+  shuffleSeed?: number;
+  /** A card id: only the cards closest to it in meaning. */
+  similarTo?: string;
   sort?: RaycastSort;
   style?: string[];
   tag?: string;
@@ -265,6 +288,14 @@ export const searchCards = (
     ),
   );
 
+/** Whether any card is tagged `secret` or `hidden`, and so left out of lists. */
+export const hasHiddenCards = async (auth: AuthMode): Promise<boolean> => {
+  const pages = await Promise.all(
+    HIDDEN_TAGS.map((tag) => searchCards({ limit: 1, tag }, auth)),
+  );
+  return pages.some((page) => page.items.length > 0);
+};
+
 export const getFavoriteCards = (
   input: CardSearchInput,
   auth: AuthMode,
@@ -299,6 +330,36 @@ export const setCardFavorite = (
       await client.cards.setFavorite(requireCardId(cardId), isFavorited),
     ),
   );
+
+export const setCardArchived = (
+  cardId: string,
+  isArchived: boolean,
+  auth: AuthMode,
+): Promise<RaycastCard> =>
+  withClient(auth, async (client) =>
+    parseRaycastCard(
+      await client.cards.setArchived(requireCardId(cardId), isArchived),
+    ),
+  );
+
+export const setCardDone = (
+  cardId: string,
+  done: boolean,
+  auth: AuthMode,
+): Promise<RaycastCard> =>
+  withClient(auth, async (client) =>
+    parseRaycastCard(await client.cards.setDone(requireCardId(cardId), done)),
+  );
+
+/** Queues a refresh of the summary, tags and link preview; it finishes in the background. */
+export const refreshCard = async (
+  cardId: string,
+  auth: AuthMode,
+): Promise<void> => {
+  await withClient(auth, (client) =>
+    client.cards.refresh(requireCardId(cardId)),
+  );
+};
 
 export const softDeleteCard = async (
   cardId: string,
@@ -418,4 +479,63 @@ export const saveFileCard = async (
 export const listTags = (auth: AuthMode): Promise<TagsResponse> =>
   withClient(auth, async (client) =>
     parseTagsResponse(await client.tags.list()),
+  );
+
+export const startTagOperation = (
+  operation:
+    | { kind: "delete"; tag: string }
+    | { kind: "merge"; into: string; tag: string }
+    | { kind: "rename"; tag: string; to: string },
+  auth: AuthMode,
+): Promise<RaycastTagOperation> =>
+  withClient(auth, async (client) => {
+    switch (operation.kind) {
+      case "delete":
+        return parseTagOperation(await client.tags.delete(operation.tag));
+      case "merge":
+        return parseTagOperation(
+          await client.tags.merge(operation.tag, operation.into),
+        );
+      default:
+        return parseTagOperation(
+          await client.tags.rename(operation.tag, operation.to),
+        );
+    }
+  });
+
+export const getTagOperation = (
+  operationId: string,
+  auth: AuthMode,
+): Promise<RaycastTagOperation> =>
+  withClient(auth, async (client) =>
+    parseTagOperation(await client.tags.operation(operationId)),
+  );
+
+export const listFolders = (auth: AuthMode): Promise<FoldersResponse> =>
+  withClient(auth, async (client) =>
+    parseFoldersResponse(await client.folders.list()),
+  );
+
+export const createSmartFolder = (
+  input: { name: string; query: string },
+  auth: AuthMode,
+): Promise<RaycastFolder> =>
+  withClient(auth, async (client) =>
+    parseFolder(await client.folders.create({ ...input, kind: "smart" })),
+  ).catch((error: unknown) => {
+    // A 409 here is a folder that already has this name.
+    throw error instanceof RaycastApiError && error.status === 409
+      ? new RaycastApiError("FOLDER_EXISTS", 409)
+      : error;
+  });
+
+export const addCardToFolder = (
+  folderId: string,
+  cardId: string,
+  auth: AuthMode,
+): Promise<FolderCardsResult> =>
+  withClient(auth, async (client) =>
+    parseFolderCardsResult(
+      await client.folders.addCards(folderId, [requireCardId(cardId)]),
+    ),
   );

@@ -2,6 +2,8 @@ const KNOWN_ERROR_CODES = [
   "BAD_REQUEST",
   "CONFIG_ERROR",
   "DEV_API_UNAVAILABLE",
+  "FOLDER_EXISTS",
+  "FOLDER_LIMIT",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
   "INVALID_INPUT",
@@ -11,6 +13,9 @@ const KNOWN_ERROR_CODES = [
   "NOT_FOUND",
   "RATE_LIMITED",
   "REQUEST_FAILED",
+  "SMART_FOLDER",
+  "TAG_EXISTS",
+  "TAG_OPERATION_RUNNING",
   "UNAUTHORIZED",
 ] as const;
 
@@ -41,6 +46,16 @@ const getErrorMessage = (code: RaycastApiErrorCode): string => {
     case "INVALID_INPUT":
     case "BAD_REQUEST":
       return "The request could not be processed. Please check your input and try again.";
+    case "FOLDER_EXISTS":
+      return "A folder with this name already exists. Pick another name.";
+    case "FOLDER_LIMIT":
+      return "That card is already in the most folders a card can be in.";
+    case "SMART_FOLDER":
+      return "Smart folders show the cards their search finds. Cards can't be added to one.";
+    case "TAG_EXISTS":
+      return "A tag with that name already exists. Merge into it instead.";
+    case "TAG_OPERATION_RUNNING":
+      return "Another tag change is still running. Try again in a moment.";
     case "METHOD_NOT_ALLOWED":
       return "This command is temporarily unavailable. Please update the extension and retry.";
     case "INTERNAL_ERROR":

@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,7 +22,14 @@ import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import kotlinx.coroutines.launch
 
 @Composable
-fun CardDetailRoute(cardId: String, onBack: () -> Unit, onEdit: () -> Unit, onSearchTag: (String) -> Unit) {
+fun CardDetailRoute(
+    cardId: String,
+    onBack: () -> Unit,
+    onEdit: () -> Unit,
+    onSearchTag: (String) -> Unit,
+    onMoreLikeThis: (String) -> Unit = {},
+    onOpenCard: (String) -> Unit = {},
+) {
     val viewModel = hiltViewModel<CardDetailViewModel, CardDetailViewModel.Factory>(
         key = cardId,
         creationCallback = { it.create(cardId) },
@@ -35,7 +44,14 @@ fun CardDetailRoute(cardId: String, onBack: () -> Unit, onEdit: () -> Unit, onSe
         viewModel.events.collect { event ->
             when (event) {
                 CardDetailEvent.Close -> currentOnBack()
-                is CardDetailEvent.Message -> scope.launch { snackbarHostState.showSnackbar(event.text) }
+                is CardDetailEvent.Message -> scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        event.text,
+                        actionLabel = event.undo?.let { "Undo" },
+                        duration = if (event.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) event.undo?.invoke()
+                }
                 is CardDetailEvent.ShareFile -> context.shareFile(event)
             }
         }
@@ -54,6 +70,13 @@ fun CardDetailRoute(cardId: String, onBack: () -> Unit, onEdit: () -> Unit, onSe
             onDeleteForever = viewModel::deleteForever,
             onShareFile = viewModel::shareFile,
             onDownload = viewModel::download,
+            onToggleDone = viewModel::toggleDone,
+            onToggleArchived = viewModel::toggleArchived,
+            onRefreshDetails = viewModel::refreshDetails,
+            onMoreLikeThis = { onMoreLikeThis(cardId) },
+            onOpenCard = onOpenCard,
+            onSetFolders = viewModel::setFolders,
+            onCreateFolder = viewModel::createFolder,
         ),
     )
 }

@@ -52,6 +52,9 @@ struct MainView: View {
     @Environment(AppRouter.self) private var router
     @Environment(CaptureModel.self) private var capture
     @Namespace private var namespace
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
 
     #if os(iOS)
     private var addRole: TabRole? {
@@ -61,13 +64,26 @@ struct MainView: View {
 
     @ViewBuilder private var content: some View {
         #if os(macOS)
-        MacMainView(namespace: namespace)
+        SidebarMainView(namespace: namespace)
         #else
+        if sizeClass == .regular {
+            SidebarMainView(namespace: namespace)
+        } else {
+            tabs
+        }
+        #endif
+    }
+
+    #if os(iOS)
+    @ViewBuilder private var tabs: some View {
         @Bindable var router = router
         let services = AppServices.shared
         TabView(selection: $router.tab) {
             Tab("Home", systemImage: "house", value: AppTab.home) {
                 LibraryTab(library: services.home, path: $router.homePath, namespace: namespace)
+            }
+            Tab("Folders", systemImage: "folder", value: AppTab.folders) {
+                FoldersTab(namespace: namespace)
             }
             Tab("Add", systemImage: "plus.circle", value: AppTab.add, role: addRole) {
                 NavigationStack { AddView() }
@@ -77,8 +93,8 @@ struct MainView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
-        #endif
     }
+    #endif
 
     var body: some View {
         @Bindable var router = router
@@ -86,6 +102,7 @@ struct MainView: View {
         #if os(iOS)
         .tabBarMinimizeBehavior(.onScrollDown)
         #endif
+        .task { AppServices.shared.folders.start() }
         .sheet(isPresented: $router.isComposing) { NoteComposerView() }
 
         .sheet(isPresented: $router.isRecording) { VoiceMemoView() }

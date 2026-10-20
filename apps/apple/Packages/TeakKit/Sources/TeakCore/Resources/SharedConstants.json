@@ -24,7 +24,8 @@
     "maxFileSize": 104857600,
     "maxFilesPerUpload": 20,
     "maxFileNameLength": 240,
-    "markdownContentMaxBytes": 524288
+    "markdownContentMaxBytes": 524288,
+    "maxTagNameLength": 64
   },
   "messages": {
     "signupsPaused": "New sign-ups are paused right now. Please try again later."
@@ -39,6 +40,56 @@
     "UNSUPPORTED_TYPE": "Unsupported file type. Please upload an image, video, audio, or document.",
     "TYPE_MISMATCH": "Uploaded file does not match the selected type."
   },
+  "tagErrorMessages": {
+    "EMPTY_NAME": "Name the tag",
+    "NAME_TOO_LONG": "Tags can be at most 64 characters",
+    "NOT_FOUND": "Tag not found",
+    "SAME_TAG": "Choose a different tag to merge into",
+    "OPERATION_RUNNING": "Another tag change is still running",
+    "OPERATION_NOT_FOUND": "Tag operation not found"
+  },
+  "hiddenTagKeys": [
+    "secret",
+    "hidden"
+  ],
+  "linkCategoryDoneVerbs": {
+    "app": "done",
+    "article": "read",
+    "book": "read",
+    "course": "done",
+    "design_portfolio": "done",
+    "event": "done",
+    "game": "played",
+    "movie": "watched",
+    "music": "listened",
+    "news": "read",
+    "other": "done",
+    "place": "done",
+    "podcast": "listened",
+    "product": "bought",
+    "recipe": "cooked",
+    "repo": "done",
+    "research": "read",
+    "social_post": "done",
+    "software": "done",
+    "tv": "watched",
+    "typeface": "done"
+  },
+  "actionableLinkCategories": [
+    "app",
+    "article",
+    "book",
+    "course",
+    "event",
+    "game",
+    "movie",
+    "music",
+    "news",
+    "podcast",
+    "product",
+    "recipe",
+    "tv"
+  ],
   "visualStyles": [
     "abstract",
     "cinematic",

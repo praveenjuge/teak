@@ -46,7 +46,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -60,6 +62,7 @@ import com.praveenjuge.teak.core.model.CardGrid
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.LinkState
 import com.praveenjuge.teak.core.model.MarkdownBlocks
 import com.praveenjuge.teak.core.model.parseHexArgb
 
@@ -92,6 +95,7 @@ internal fun CardTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    actions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val title = tileTitle(card)
     val spokenTitle = if (card.type == CardType.Text) remember(title) { MarkdownBlocks.toPlainText(title) } else title
@@ -99,6 +103,8 @@ internal fun CardTile(
     val description = buildString {
         append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(spokenTitle)
         if (favorite) append(", Favorite")
+        if (card.isDone) append(", ").append(LinkState.toggledMessage(card.linkCategory, isDone = true))
+        card.linkPrice?.let { append(", ").append(LinkState.formatPrice(it)) }
     }
     val selecting = selection != TileSelection.NotSelecting
     val selected = selection == TileSelection.Selected
@@ -116,6 +122,7 @@ internal fun CardTile(
             .semantics {
                 contentDescription = description
                 if (selecting) this.selected = selected
+                if (!selecting && actions.isNotEmpty()) customActions = actions
             }
             .then(if (outlined) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, TileShape) else Modifier),
     ) {
@@ -139,11 +146,20 @@ private fun TileContent(card: CardSummary, title: String) {
     val imageUrl = CardGrid.tileImageUrl(card)
     when (card.type) {
         CardType.Link -> if (imageUrl != null) {
-            TileImage(card, imageUrl)
+            Box {
+                TileImage(card, imageUrl)
+                card.linkPrice?.let { PricePill(LinkState.formatPrice(it), Modifier.align(Alignment.BottomStart).padding(8.dp)) }
+            }
             HorizontalDivider()
-            TileFooter(title, subtitle = CardSheet.hostname(card.url)?.takeIf { it != title })
+            TileFooter(title, subtitle = CardSheet.hostname(card.url)?.takeIf { it != title }, done = card.isDone)
         } else {
-            TileFooter(title, subtitle = CardSheet.hostname(card.url)?.takeIf { it != title }, titleLines = 2)
+            TileFooter(
+                title,
+                subtitle = listOfNotNull(card.linkPrice?.let(LinkState::formatPrice), CardSheet.hostname(card.url)?.takeIf { it != title })
+                    .joinToString(" · ").ifEmpty { null },
+                titleLines = 2,
+                done = card.isDone,
+            )
         }
         CardType.Document -> {
             if (imageUrl != null) {
@@ -205,7 +221,7 @@ private fun QuoteText(text: String) {
 }
 
 @Composable
-private fun TileFooter(title: String, subtitle: String? = null, icon: ImageVector? = null, titleLines: Int = 1) {
+private fun TileFooter(title: String, subtitle: String? = null, icon: ImageVector? = null, titleLines: Int = 1, done: Boolean = false) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = TilePadding, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -226,6 +242,16 @@ private fun TileFooter(title: String, subtitle: String? = null, icon: ImageVecto
                 )
             }
         }
+        if (done) {
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+private fun PricePill(text: String, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = CircleShape, color = Color.Black.copy(alpha = 0.6f), contentColor = Color.White) {
+        Text(text, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
     }
 }
 

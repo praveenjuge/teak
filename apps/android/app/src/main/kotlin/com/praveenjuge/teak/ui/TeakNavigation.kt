@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.AddCircleOutline
@@ -35,7 +37,14 @@ import com.praveenjuge.teak.feature.capture.VoiceMemoRoute
 import com.praveenjuge.teak.feature.card.CardDetailPlaceholder
 import com.praveenjuge.teak.feature.card.CardDetailRoute
 import com.praveenjuge.teak.feature.card.CardEditRoute
+import com.praveenjuge.teak.core.model.SearchQualifier
+import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.feature.library.LibraryRoute
+import com.praveenjuge.teak.feature.organize.FoldersRoute
+import com.praveenjuge.teak.feature.organize.TagsRoute
+import com.praveenjuge.teak.navigation.FolderLibrary
+import com.praveenjuge.teak.navigation.Folders
+import com.praveenjuge.teak.navigation.TagManager
 import com.praveenjuge.teak.feature.settings.SettingsRoute
 import com.praveenjuge.teak.navigation.Add
 import com.praveenjuge.teak.navigation.CardDetail
@@ -47,6 +56,7 @@ import com.praveenjuge.teak.navigation.VoiceMemo
 
 private enum class Tab(val label: String, val selected: ImageVector, val unselected: ImageVector) {
     Home("Home", Icons.Filled.Home, Icons.Outlined.Home),
+    Folders("Folders", Icons.Filled.Folder, Icons.Outlined.Folder),
     Add("Add", Icons.Filled.AddCircle, Icons.Outlined.AddCircleOutline),
     Settings("Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
@@ -56,6 +66,7 @@ private enum class Tab(val label: String, val selected: ImageVector, val unselec
 fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> Unit) {
     val stacks = mapOf(
         Tab.Home to rememberNavBackStack(Home),
+        Tab.Folders to rememberNavBackStack(Folders),
         Tab.Add to rememberNavBackStack(Add),
         Tab.Settings to rememberNavBackStack(Settings),
     )
@@ -77,6 +88,12 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
             null -> return@LaunchedEffect
         }
         onLaunchRequestHandled()
+    }
+
+    fun searchHome(search: String) {
+        searchRequest = search
+        stacks.getValue(Tab.Home).resetTo(Home)
+        tab = Tab.Home
     }
 
     // NavDisplay only handles Back when its stack has more than one entry. On another tab's first
@@ -121,16 +138,26 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         onWriteNote = { backStack.push(NoteComposer()) },
                     )
                 }
+                entry<Folders> { FoldersRoute(onOpenFolder = { id -> backStack.push(FolderLibrary(id)) }) }
+                entry<FolderLibrary>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) { key ->
+                    LibraryRoute(
+                        folderId = key.id,
+                        searchRequest = null,
+                        onSearchRequestHandled = {},
+                        selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
+                        onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
+                        onWriteNote = { backStack.push(NoteComposer()) },
+                        onBack = { backStack.remove(key) },
+                    )
+                }
                 entry<CardDetail>(metadata = ListDetailSceneStrategy.detailPane()) { key ->
                     CardDetailRoute(
                         cardId = key.id,
                         onBack = { backStack.remove(key) },
                         onEdit = { backStack.push(CardEdit(key.id)) },
-                        onSearchTag = { tag ->
-                            searchRequest = tag
-                            stacks.getValue(Tab.Home).resetTo(Home)
-                            tab = Tab.Home
-                        },
+                        onSearchTag = { tag -> searchHome(tag) },
+                        onMoreLikeThis = { id -> searchHome("like:$id") },
+                        onOpenCard = { id -> backStack.add(CardDetail(id)) },
                     )
                 }
                 entry<CardEdit>(metadata = ListDetailSceneStrategy.extraPane()) { key ->
@@ -148,7 +175,13 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                 entry<VoiceMemo> { key ->
                     VoiceMemoRoute(onDone = { backStack.remove(key) })
                 }
-                entry<Settings> { SettingsRoute() }
+                entry<Settings> { SettingsRoute(onManageTags = { backStack.push(TagManager) }) }
+                entry<TagManager> {
+                    TagsRoute(
+                        onBack = { backStack.removeLastOrNull() },
+                        onOpenTag = { tag -> searchHome(SearchQuery.format(SearchQualifier.Tag(tag))) },
+                    )
+                }
             },
         )
     }

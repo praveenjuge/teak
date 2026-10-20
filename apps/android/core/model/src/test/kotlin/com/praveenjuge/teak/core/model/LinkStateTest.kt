@@ -1,0 +1,137 @@
+package com.praveenjuge.teak.core.model
+
+import org.junit.Test
+import java.time.ZoneOffset
+import java.util.Locale
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Mirrors `packages/convex/__tests__/shared/linkCategories.test.ts`, `price.test.ts` (formatLinkPrice),
+ * `tags.test.ts` (names and hidden tags) and `apps/web/src/lib/__tests__/exif.test.ts`.
+ */
+class LinkStateTest {
+    @Test
+    fun `done verbs follow the category`() {
+        val cases = listOf("movie" to "watched", "game" to "played", "a-category-from-the-future" to "done", null to "done", "" to "done")
+        for ((category, verb) in cases) assertEquals(verb, LinkState.doneVerb(category), "$category")
+    }
+
+    @Test
+    fun `every known category gets its own verb, like doneActionLabel`() {
+        assertEquals("Mark as read", LinkState.toggleLabel("article", isDone = false))
+        assertEquals("Watched", LinkState.toggleLabel("movie", isDone = true))
+        assertEquals("Mark as read", LinkState.toggleLabel("research", isDone = false))
+        assertEquals("Marked as read", LinkState.toggledMessage("research", isDone = true))
+        assertEquals("Mark as done", LinkState.toggleLabel("a-category-from-the-future", isDone = false))
+        assertEquals("Mark as done", LinkState.toggleLabel(null, isDone = false))
+        assertEquals("Done", LinkState.toggleLabel("repo", isDone = true))
+        assertEquals("Marked as not read", LinkState.toggledMessage("book", isDone = false))
+        assertTrue(LinkState.isActionable("product"))
+        assertFalse(LinkState.isActionable("repo"))
+    }
+
+    @Test
+    fun `every done label fits in 16 characters`() {
+        for (category in LINK_CATEGORY_DONE_VERBS.keys) assertTrue(LinkState.toggleLabel(category, false).length <= 16, category)
+    }
+
+    @Test
+    fun `formats link prices`() {
+        val cases = listOf(
+            LinkPrice(24.99, "USD") to "$24.99",
+            LinkPrice(1299.0, "EUR") to "€1,299.00",
+            LinkPrice(1_299_999.0, "JPY") to "¥1,299,999",
+            LinkPrice(0.0, "USD") to "Free",
+            LinkPrice(12.5) to "12.5",
+            LinkPrice(12.0, "ZZZZ") to "12",
+        )
+        for ((price, label) in cases) assertEquals(label, LinkState.formatPrice(price, Locale.US), "$price")
+    }
+
+    @Test
+    fun `tag names must be non-empty and at most 64 characters`() {
+        assertEquals("design", Tags.key("  Design "))
+        assertEquals("Name the tag", Tags.explainInvalidName(" "))
+        assertNull(Tags.explainInvalidName("x".repeat(64)))
+        assertEquals("Tags can be at most 64 characters", Tags.explainInvalidName("x".repeat(65)))
+        assertEquals("A tag named \"web\" already exists. Merge into it instead.", Tags.existsMessage(" web "))
+    }
+
+    @Test
+    fun `hidden tags hide a card`() {
+        val cases = listOf(
+            listOf("secret") to true,
+            listOf("Secret") to true,
+            listOf(" HIDDEN ") to true,
+            listOf("work", "  hidden") to true,
+            listOf("secrets", "hidden-ish", "hide") to false,
+            emptyList<String>() to false,
+            null to false,
+        )
+        for ((tags, hidden) in cases) assertEquals(hidden, Tags.isHiddenList(tags), "$tags")
+    }
+
+    @Test
+    fun `adding a hidden tag explains how to find the card, once`() {
+        assertEquals("Hidden. Search #secret to see it.", Tags.hiddenHint(listOf("work"), "Secret"))
+        assertNull(Tags.hiddenHint(listOf("hidden"), "secret"))
+        assertNull(Tags.hiddenHint(emptyList(), "work"))
+    }
+
+    @Test
+    fun `lists a photo's facts in reading order`() {
+        val rows = Exif.rows(
+            ImageExif(
+                exposureTime = 1 / 250.0,
+                fNumber = 1.8,
+                focalLength = 50.0,
+                iso = 400.0,
+                make = "Canon",
+                model = "Canon EOS R5",
+                takenAt = java.time.Instant.parse("2026-05-17T09:00:05Z").toEpochMilli().toDouble(),
+            ),
+            ZoneOffset.UTC,
+        )
+        assertEquals(listOf("Camera", "Taken", "Exposure", "Aperture", "Focal length", "ISO"), rows.map { it.label })
+        assertEquals(
+            listOf("Canon EOS R5", "May 17, 2026, 09:00 AM", "1/250 s", "f/1.8", "50 mm", "400"),
+            rows.map { it.value },
+        )
+    }
+
+    @Test
+    fun `never shows GPS and drops invalid facts`() {
+        assertEquals(emptyList(), Exif.rows(ImageExif(latitude = 48.8584, longitude = 2.2945)))
+        assertEquals(emptyList(), Exif.rows(null))
+        assertEquals(emptyList(), Exif.rows(ImageExif(exposureTime = 0.0, fNumber = -2.0, focalLength = Double.NaN, iso = Double.POSITIVE_INFINITY)))
+        assertEquals(emptyList(), Exif.rows(ImageExif(make = "   ", model = "")))
+        assertEquals(listOf(DetailRow("Aperture", "f/8"), DetailRow("Focal length", "24 mm")), Exif.rows(ImageExif(fNumber = 8.0, focalLength = 23.99)))
+    }
+
+    @Test
+    fun `names the camera without repeating the make`() {
+        val cases = listOf(
+            Triple("Apple", "iPhone 17 Pro", "Apple iPhone 17 Pro"),
+            Triple("Canon", "Canon EOS R5", "Canon EOS R5"),
+            Triple("NIKON CORPORATION", "NIKON Z 8", "NIKON Z 8"),
+            Triple("  FUJIFILM ", "  X-T5  ", "FUJIFILM X-T5"),
+            Triple("Sony", null, "Sony"),
+            Triple(null, "Pixel 9", "Pixel 9"),
+        )
+        for ((make, model, expected) in cases) assertEquals(expected, Exif.formatCamera(make, model))
+        assertNull(Exif.formatCamera(null, " "))
+    }
+
+    @Test
+    fun `writes exposure times like a camera`() {
+        val cases = listOf(
+            1 / 4000.0 to "1/4000 s", 1 / 60.0 to "1/60 s", 1 / 4.0 to "1/4 s", 0.3 to "0.3 s", 1 / 3.0 to "0.3 s",
+            0.4 to "0.4 s", 0.6 to "0.6 s", 0.8 to "0.8 s", 1.0 to "1 s", 2.5 to "2.5 s", 30.0 to "30 s",
+        )
+        for ((seconds, label) in cases) assertEquals(label, Exif.formatExposureTime(seconds))
+        for (seconds in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY, null)) assertNull(Exif.formatExposureTime(seconds))
+    }
+}

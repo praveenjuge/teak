@@ -1,8 +1,23 @@
 import SwiftUI
 import TeakCore
 
+/// What the open card offers the menu bar (Mac) and the iPad's command menu.
+struct CardCommands {
+    let archiveTitle: String
+    let doneTitle: String?
+    let toggleArchive: () -> Void
+    let toggleDone: () -> Void
+    let moreLikeThis: () -> Void
+    let refresh: () -> Void
+}
+
+extension FocusedValues {
+    @Entry var cardCommands: CardCommands?
+}
+
 struct TeakCommands: Commands {
     let services: AppServices
+    @FocusedValue(\.cardCommands) private var card
 
     private var signedIn: Bool { services.app.user != nil }
 
@@ -47,6 +62,32 @@ struct TeakCommands: Commands {
                 services.router.tab = .home
             }
                 .disabled(!signedIn)
+            Button("Show Archive") {
+                services.home.showArchive()
+                services.router.homePath = []
+                services.router.tab = .home
+            }
+                .disabled(!signedIn)
+            Button("Revisit") {
+                services.router.tab = .home
+                services.router.isRevisiting = true
+            }
+                .keyboardShortcut("r", modifiers: [.command, .control])
+                .disabled(!signedIn || services.home.isTrash || services.home.isArchive)
+        }
+        CommandMenu("Card") {
+            Button(card?.archiveTitle ?? "Archive") { card?.toggleArchive() }
+                .keyboardShortcut("a", modifiers: [.command, .control])
+                .disabled(card == nil)
+            Button(card?.doneTitle ?? "Mark as Done") { card?.toggleDone() }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
+                .disabled(card?.doneTitle == nil)
+            Button("More Like This") { card?.moreLikeThis() }
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+                .disabled(card == nil)
+            Button("Refresh Details") { card?.refresh() }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(card == nil)
         }
     }
 

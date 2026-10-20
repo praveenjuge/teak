@@ -112,6 +112,7 @@ dependencies {
     implementation(project(":feature:card"))
     implementation(project(":feature:capture"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:organize"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

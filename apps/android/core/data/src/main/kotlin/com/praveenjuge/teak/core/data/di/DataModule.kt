@@ -17,6 +17,10 @@ import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.repository.ConvexAccountRepository
 import com.praveenjuge.teak.core.data.repository.ConvexCardsRepository
+import com.praveenjuge.teak.core.data.repository.ConvexFoldersRepository
+import com.praveenjuge.teak.core.data.repository.ConvexTagsRepository
+import com.praveenjuge.teak.core.data.repository.FoldersRepository
+import com.praveenjuge.teak.core.data.repository.TagsRepository
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.data.upload.WorkManagerUploadRepository
 import dagger.Binds
@@ -59,7 +63,7 @@ object DataProvidesModule {
 
     @Provides
     @Named(DefaultWorkOsAuthApi.WORKOS_BASE_URL)
-    fun workOsBaseUrl(): String = "https://api.workos.com"
+    fun workOsBaseUrl(config: TeakConfig): String = config.workosBaseUrl
 
     @Provides
     @Singleton
@@ -81,6 +85,8 @@ abstract class DataBindsModule {
     @Binds abstract fun workOsAuthApi(impl: DefaultWorkOsAuthApi): WorkOsAuthApi
     @Binds abstract fun userBootstrap(impl: ConvexUserBootstrap): UserBootstrap
     @Binds abstract fun cardsRepository(impl: ConvexCardsRepository): CardsRepository
+    @Binds abstract fun foldersRepository(impl: ConvexFoldersRepository): FoldersRepository
+    @Binds abstract fun tagsRepository(impl: ConvexTagsRepository): TagsRepository
     @Binds abstract fun accountRepository(impl: ConvexAccountRepository): AccountRepository
     @Binds abstract fun preferencesRepository(impl: DataStorePreferencesRepository): PreferencesRepository
     @Binds abstract fun uploadRepository(impl: WorkManagerUploadRepository): UploadRepository

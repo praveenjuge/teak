@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Policy
+import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,7 +51,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 
 @Composable
-fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
+fun SettingsRoute(onManageTags: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     SettingsScreen(
@@ -66,6 +67,7 @@ fun SettingsRoute(viewModel: SettingsViewModel = hiltViewModel()) {
         onCancelDelete = viewModel::cancelDelete,
         onDismissError = viewModel::dismissError,
         onOpenLink = { url -> CustomTabsIntent.Builder().build().launchUrl(context, url.toUri()) },
+        onManageTags = onManageTags,
     )
 }
 
@@ -84,6 +86,7 @@ fun SettingsScreen(
     onCancelDelete: () -> Unit,
     onDismissError: () -> Unit,
     onOpenLink: (String) -> Unit,
+    onManageTags: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
@@ -101,6 +104,11 @@ fun SettingsScreen(
         ) {
             ListSectionHeader("Appearance")
             ThemePicker(state.theme, onThemeChange)
+
+            ListSectionHeader("Library")
+            ListGroup {
+                ListRow("Tags", Icons.Outlined.Sell, supporting = "Rename, merge or delete your tags", onClick = onManageTags)
+            }
 
             ListSectionHeader("Account")
             ListGroup {

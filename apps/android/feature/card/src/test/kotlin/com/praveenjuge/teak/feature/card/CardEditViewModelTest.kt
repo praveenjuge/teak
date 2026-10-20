@@ -114,4 +114,23 @@ class CardEditViewModelTest {
         assertFalse(viewModel.uiState.value.isLoading)
         assertNull(viewModel.uiState.value.draft)
     }
+
+    @Test
+    fun `adding a hidden tag says how to find the card again`() = runTest {
+        val viewModel = viewModel()
+        viewModel.updateNewTag("Secret")
+        viewModel.addTag()
+        assertEquals("Hidden. Search #secret to see it.", viewModel.uiState.value.hiddenHint)
+
+        viewModel.removeTag("secret")
+        assertNull(viewModel.uiState.value.hiddenHint)
+    }
+
+    @Test
+    fun `a card that's already hidden gets no hint`() = runTest {
+        val viewModel = viewModel(note.copy(tags = listOf("hidden")))
+        viewModel.updateNewTag("secret")
+        viewModel.addTag()
+        assertNull(viewModel.uiState.value.hiddenHint)
+    }
 }

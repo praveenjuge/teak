@@ -19,6 +19,7 @@ import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import com.praveenjuge.teak.core.data.auth.SessionState
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.repository.AccountRepository
@@ -26,6 +27,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.util.Optional
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -34,6 +36,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     @Inject lateinit var account: AccountRepository
     @Inject lateinit var httpClient: OkHttpClient
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
+    @Inject lateinit var e2eLaunch: Optional<E2ELaunch>
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -42,7 +45,10 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         super.onCreate()
         initPostHog()
         publishShortcuts()
-        scope.launch { account.start() }
+        scope.launch {
+            e2eLaunch.orElse(null)?.let { launch -> catchingFailures { launch.adoptSession() } }
+            account.start()
+        }
     }
 
     private fun publishShortcuts() {

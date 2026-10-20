@@ -9,6 +9,7 @@ import {
 } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  getCardById,
   getRecoveryHint,
   getUserFacingErrorMessage,
   RaycastApiError,
@@ -17,19 +18,26 @@ import {
 } from "../lib/api";
 import {
   formatFileSize,
+  formatLinkCategory,
+  formatLinkPrice,
   getCardDomain,
+  getCardSource,
   getCardTitle,
   getDetailMarkdown,
   getDetailStatusChips,
+  getLinkByline,
+  getLinkPublishedDate,
   getOpenableUrl,
   getTeakUrl,
 } from "../lib/cardDetailModel";
-import { formatDateTime } from "../lib/dateFormat";
+import { formatDate, formatDateTime } from "../lib/dateFormat";
+import { doneStatusLabel, isDone } from "../lib/doneStates";
 import {
   deleteCardForever,
   moveCardToTrash,
   restoreFromTrash,
 } from "../lib/trashActions";
+import { CardOrganizeActions } from "./CardOrganizeActions";
 import { EditCardForm } from "./EditCardForm";
 import { SetApiKeyAction } from "./SetApiKeyAction";
 import { SignOutAction } from "./SignOutAction";
@@ -81,6 +89,8 @@ const statusColor = (
       return "#7C3AED";
     case "aiTags":
       return "#7C3AED";
+    case "done":
+      return "#16A34A";
     default:
       return "#6B7280";
   }
@@ -96,6 +106,10 @@ export function CardDetail({
   const { pop } = useNavigation();
   const [cardState, setCardState] = useState(card);
   const [isDeleting, setIsDeleting] = useState(false);
+  // A list holds cards without their `[[` links; the single-card read has them.
+  const [linkRefs, setLinkRefs] = useState<
+    Pick<RaycastCard, "backlinks" | "links">
+  >({ backlinks: card.backlinks, links: card.links });
   const cardStateRef = useRef(card);
   const favoriteMutationRef = useRef<FavoriteMutationState>({
     desired: card.isFavorited,
@@ -260,6 +274,20 @@ export function CardDetail({
     };
   }, [card.id, card]);
 
+  useEffect(() => {
+    let isMounted = true;
+    getCardById(card.id, "interactive")
+      .then((full) => {
+        if (isMounted) {
+          setLinkRefs({ backlinks: full.backlinks, links: full.links });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      isMounted = false;
+    };
+  }, [card.id]);
+
   useEffect(
     () => () => {
       const mutationState = favoriteMutationRef.current;
@@ -276,7 +304,18 @@ export function CardDetail({
     ? truncateMiddle(cardState.url, MAX_METADATA_URL_LENGTH)
     : undefined;
   const title = getCardTitle(cardState);
-  const markdown = useMemo(() => getDetailMarkdown(cardState), [cardState]);
+  const markdown = useMemo(
+    () =>
+      getDetailMarkdown({
+        ...cardState,
+        backlinks: cardState.backlinks ?? linkRefs.backlinks,
+        links: cardState.links ?? linkRefs.links,
+      }),
+    [cardState, linkRefs],
+  );
+  const byline = getLinkByline(cardState);
+  const publishedDate = getLinkPublishedDate(cardState);
+  const source = getCardSource(cardState);
   const inTrash = Boolean(cardState.isDeleted);
   const colors = cardState.colors ?? [];
   const linkFacts = cardState.linkFacts ?? [];
@@ -353,6 +392,12 @@ export function CardDetail({
               />
             </ActionPanel.Section>
           )}
+          {inTrash ? null : (
+            <CardOrganizeActions
+              card={cardState}
+              onCardUpdated={emitCardUpdate}
+            />
+          )}
           {colors.length > 0 ? (
             <ActionPanel.Submenu icon={Icon.Swatch} title="Copy Color">
               {colors.map((color) => (
@@ -416,6 +461,35 @@ export function CardDetail({
               title="File"
             />
           ) : null}
+          {cardState.linkCategory ? (
+            <Detail.Metadata.Label
+              text={formatLinkCategory(cardState.linkCategory)}
+              title="Category"
+            />
+          ) : null}
+          {cardState.linkPrice ? (
+            <Detail.Metadata.Label
+              icon={Icon.Coins}
+              text={formatLinkPrice(cardState.linkPrice)}
+              title="Price"
+            />
+          ) : null}
+          {byline ? (
+            <Detail.Metadata.Label text={byline} title="Byline" />
+          ) : null}
+          {publishedDate ? (
+            <Detail.Metadata.Label
+              text={formatDate(publishedDate.getTime())}
+              title="Published"
+            />
+          ) : null}
+          {source ? (
+            <Detail.Metadata.Link
+              target={source.url}
+              text={source.label}
+              title="Source"
+            />
+          ) : null}
           {linkFacts.map((fact) => (
             <Detail.Metadata.Label
               key={`fact-${fact.label}`}
@@ -423,6 +497,13 @@ export function CardDetail({
               title={fact.label}
             />
           ))}
+          {isDone(cardState) && typeof cardState.completedAt === "number" ? (
+            <Detail.Metadata.Label
+              icon={Icon.CheckCircle}
+              text={formatDateTime(cardState.completedAt)}
+              title={doneStatusLabel(cardState)}
+            />
+          ) : null}
           {colors.length > 0 ? (
             <Detail.Metadata.TagList title="Colors">
               {colors.map((color) => (
