@@ -23,8 +23,8 @@ export function useCardSteps({
   open: boolean;
   readyToLeave: () => Promise<boolean>;
 }) {
-  const latest = useRef({ cardId, onNext, onPrevious, readyToLeave });
-  latest.current = { cardId, onNext, onPrevious, readyToLeave };
+  const latest = useRef({ cardId, onNext, onPrevious, open, readyToLeave });
+  latest.current = { cardId, onNext, onPrevious, open, readyToLeave };
   const queued = useRef(0);
   // The card a step left from, while that step is on its way.
   const leaving = useRef<string | null | undefined>(undefined);
@@ -47,9 +47,19 @@ export function useCardSteps({
       return;
     }
     leaving.current = latest.current.cardId ?? null;
-    if (!(await latest.current.readyToLeave())) {
-      queued.current = 0;
+    const ready = await latest.current.readyToLeave();
+    // Saving can take a moment. A press the other way meanwhile drops this
+    // step too, since it hasn't shown yet, and a closed card stays closed.
+    if (
+      !(ready && latest.current.open) ||
+      Math.sign(queued.current) !== direction
+    ) {
       settle();
+      if (ready && latest.current.open) {
+        void flush();
+      } else {
+        queued.current = 0;
+      }
       return;
     }
     queued.current -= direction;

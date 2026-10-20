@@ -17,6 +17,9 @@ const CARDS = ["a", "b", "c", "d", "e", "f"];
 let root: Root | undefined;
 let current = "a";
 let ready = true;
+let open = true;
+/** When set, leaving waits for the test to say the edits have saved. */
+let saving: Promise<boolean> | null = null;
 let step: ReturnType<typeof useCardSteps> = () => undefined;
 const visited: string[] = [];
 
@@ -34,8 +37,8 @@ function Harness({ cardId }: { cardId: string }) {
     cardId,
     onNext: go(CARDS[index + 1]),
     onPrevious: go(CARDS[index - 1]),
-    open: true,
-    readyToLeave: async () => ready,
+    open,
+    readyToLeave: () => saving ?? Promise.resolve(ready),
   });
   return null;
 }
@@ -46,6 +49,8 @@ const land = () => act(() => root?.render(<Harness cardId={current} />));
 beforeEach(async () => {
   current = "a";
   ready = true;
+  open = true;
+  saving = null;
   visited.length = 0;
   root = createRoot(document.createElement("div"));
   await land();
@@ -73,6 +78,10 @@ test("three quick presses move three cards, not one", async () => {
 test("a press the other way drops the presses still waiting", async () => {
   await act(async () => {
     step(1);
+    await Promise.resolve();
+  });
+  // The first press has shown its card; these arrive before it lands.
+  await act(async () => {
     step(1);
     step(1);
     step(-1);
@@ -136,4 +145,50 @@ test("a step that never lands stops blocking the next press", async () => {
   });
   await act(async () => step(1));
   expect(visited).toEqual(["b", "b"]);
+});
+
+/** Leaving a card with unsaved edits waits for them to save. */
+function slowSave() {
+  let finish: (saved: boolean) => void = () => undefined;
+  saving = new Promise<boolean>((resolve) => {
+    finish = resolve;
+  });
+  return async (saved = true) => {
+    saving = null;
+    await act(async () => {
+      finish(saved);
+      await Promise.resolve();
+    });
+  };
+}
+
+test("pressing back while the card is still saving goes back one, without a detour", async () => {
+  current = "c";
+  await land();
+  const saved = slowSave();
+  await act(async () => {
+    step(1);
+    step(1);
+    step(1);
+    step(-1);
+    await Promise.resolve();
+  });
+  await saved();
+  await land();
+  await land();
+  expect(visited).toEqual(["b"]);
+});
+
+test("closing the card while it saves doesn't step to another card", async () => {
+  current = "c";
+  await land();
+  const saved = slowSave();
+  await act(async () => {
+    step(1);
+    await Promise.resolve();
+  });
+  open = false;
+  await land();
+  await saved();
+  expect(visited).toEqual([]);
 });
