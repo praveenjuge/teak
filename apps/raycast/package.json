@@ -19,7 +19,6 @@
     "typecheck": "tsc --noEmit"
   },
   "overrides": {
-    "brace-expansion": "5.0.10",
     "esbuild": "0.28.2"
   },
   "dependencies": {

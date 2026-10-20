@@ -40,7 +40,6 @@
   "overrides": {
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "brace-expansion": "5.0.10",
     "convex": "1.46.0",
     "convex-helpers": "0.1.128",
     "esbuild": "0.28.2",
