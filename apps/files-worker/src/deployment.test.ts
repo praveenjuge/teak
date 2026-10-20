@@ -51,6 +51,22 @@ test("only the production worker reports errors to PostHog", () => {
   );
 });
 
+// Each Workers Builds deploy resets these to what the config says, so a
+// dropped key turns Issues off or puts signed links back in the logs.
+test.each([
+  ["production", "../wrangler.jsonc"],
+  ["development", "../development/wrangler.jsonc"],
+])(
+  "the %s worker keeps Issues on and signed links out of its logs",
+  (_name, path) => {
+    const config = unstable_readConfig({
+      config: resolve(import.meta.dir, path),
+    });
+    expect(config.observability?.issues?.enabled).toBe(true);
+    expect(config.observability?.redact_query_string).toBe(true);
+  }
+);
+
 test.each([
   ["production", "../wrangler.jsonc", "teak-ai-backfill"],
   ["development", "../development/wrangler.jsonc", "teak-ai-backfill-dev"],

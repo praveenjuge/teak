@@ -12,6 +12,10 @@
     "binding": "ASSETS",
     "run_worker_first": true
   },
+  // Served only on the routes below. Set explicitly so a dashboard toggle
+  // can't leave workers.dev or preview URLs on after a deploy.
+  "workers_dev": false,
+  "preview_urls": false,
   "routes": [
     {
       "pattern": "files.teakvault.com",
@@ -238,6 +242,12 @@
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
+    // Signed file links carry their signature in the query string, so logs
+    // keep only the path.
+    "redact_query_string": true,
+    // A deploy without this key turns Issues off, even if the dashboard
+    // turned it on.
+    "issues": { "enabled": true }
   }
 }
