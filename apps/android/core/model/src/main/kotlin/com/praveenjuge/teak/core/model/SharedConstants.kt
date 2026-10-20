@@ -57,3 +57,59 @@ val COLOR_HUE_LABELS: Map<String, String> = mapOf(
     "brown" to "Brown",
     "neutral" to "Neutral",
 )
+
+const val MAX_TAG_NAME_LENGTH = 64
+
+val TAG_ERROR_MESSAGES: Map<String, String> = mapOf(
+    "EMPTY_NAME" to "Name the tag",
+    "NAME_TOO_LONG" to "Tags can be at most 64 characters",
+    "NOT_FOUND" to "Tag not found",
+    "SAME_TAG" to "Choose a different tag to merge into",
+    "OPERATION_RUNNING" to "Another tag change is still running",
+    "OPERATION_NOT_FOUND" to "Tag operation not found",
+)
+
+val HIDDEN_TAG_KEYS: List<String> = listOf(
+    "secret",
+    "hidden",
+)
+
+val LINK_CATEGORY_DONE_VERBS: Map<String, String> = mapOf(
+    "book" to "read",
+    "movie" to "watched",
+    "tv" to "watched",
+    "article" to "read",
+    "news" to "read",
+    "podcast" to "listened",
+    "music" to "listened",
+    "product" to "bought",
+    "recipe" to "cooked",
+    "course" to "done",
+    "research" to "read",
+    "event" to "done",
+    "software" to "done",
+    "design_portfolio" to "done",
+    "place" to "done",
+    "typeface" to "done",
+    "social_post" to "done",
+    "app" to "done",
+    "game" to "played",
+    "repo" to "done",
+    "other" to "done",
+)
+
+val ACTIONABLE_LINK_CATEGORIES: List<String> = listOf(
+    "app",
+    "article",
+    "book",
+    "course",
+    "event",
+    "game",
+    "movie",
+    "music",
+    "news",
+    "podcast",
+    "product",
+    "recipe",
+    "tv",
+)

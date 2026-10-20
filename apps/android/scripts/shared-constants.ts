@@ -13,6 +13,15 @@ import {
   SIGNUPS_PAUSED_MESSAGE,
 } from "../../../packages/convex/shared/constants";
 import { MAX_FILE_SIZE } from "../../../packages/convex/shared/fileFormats";
+import {
+  ACTIONABLE_LINK_CATEGORIES,
+  LINK_CATEGORY_DONE_VERB,
+} from "../../../packages/convex/shared/linkCategories";
+import {
+  HIDDEN_TAG_KEYS,
+  MAX_TAG_NAME_LENGTH,
+  TAG_ERROR_MESSAGES,
+} from "../../../packages/convex/shared/tags";
 
 export const SHARED_CONSTANTS_PATH = resolve(
   import.meta.dir,
@@ -51,6 +60,16 @@ export const renderSharedConstants = () =>
     `val COLOR_HUE_BUCKETS: List<String> = ${kotlinList(COLOR_HUE_BUCKETS)}`,
     "",
     `val COLOR_HUE_LABELS: Map<String, String> = ${kotlinMap(COLOR_HUE_LABELS)}`,
+    "",
+    `const val MAX_TAG_NAME_LENGTH = ${MAX_TAG_NAME_LENGTH}`,
+    "",
+    `val TAG_ERROR_MESSAGES: Map<String, String> = ${kotlinMap(TAG_ERROR_MESSAGES)}`,
+    "",
+    `val HIDDEN_TAG_KEYS: List<String> = ${kotlinList(HIDDEN_TAG_KEYS)}`,
+    "",
+    `val LINK_CATEGORY_DONE_VERBS: Map<String, String> = ${kotlinMap(LINK_CATEGORY_DONE_VERB)}`,
+    "",
+    `val ACTIONABLE_LINK_CATEGORIES: List<String> = ${kotlinList([...ACTIONABLE_LINK_CATEGORIES].sort())}`,
     "",
   ].join("\n");
 

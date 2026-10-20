@@ -23,7 +23,16 @@ import {
   MAX_FILE_NAME_LENGTH,
   MAX_FILE_SIZE,
 } from "../../../packages/convex/shared/fileFormats";
+import {
+  ACTIONABLE_LINK_CATEGORIES,
+  LINK_CATEGORY_DONE_VERB,
+} from "../../../packages/convex/shared/linkCategories";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../../../packages/convex/shared/markdown";
+import {
+  HIDDEN_TAG_KEYS,
+  MAX_TAG_NAME_LENGTH,
+  TAG_ERROR_MESSAGES,
+} from "../../../packages/convex/shared/tags";
 
 export const SHARED_CONSTANTS_PATH = resolve(
   import.meta.dir,
@@ -44,11 +53,16 @@ export const buildSharedConstants = () => ({
     maxFilesPerUpload: MAX_FILES_PER_UPLOAD,
     maxFileNameLength: MAX_FILE_NAME_LENGTH,
     markdownContentMaxBytes: MARKDOWN_CONTENT_MAX_BYTES,
+    maxTagNameLength: MAX_TAG_NAME_LENGTH,
   },
   messages: {
     signupsPaused: SIGNUPS_PAUSED_MESSAGE,
   },
   cardErrorMessages: CARD_ERROR_MESSAGES,
+  tagErrorMessages: TAG_ERROR_MESSAGES,
+  hiddenTagKeys: [...HIDDEN_TAG_KEYS],
+  linkCategoryDoneVerbs: sortedRecord(LINK_CATEGORY_DONE_VERB),
+  actionableLinkCategories: [...ACTIONABLE_LINK_CATEGORIES].sort(),
   visualStyles: [...VISUAL_STYLE_TAXONOMY],
   visualStyleLabels: VISUAL_STYLE_LABELS,
   visualStyleAliases: sortedRecord(VISUAL_STYLE_ALIAS_MAP),
