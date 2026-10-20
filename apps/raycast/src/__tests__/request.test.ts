@@ -282,6 +282,26 @@ describe("raycast request handling", () => {
     }
   });
 
+  test.each([
+    [401, "INVALID_API_KEY"],
+    [404, "NOT_FOUND"],
+    [429, "RATE_LIMITED"],
+  ])("maps a non-JSON %i response by its status", async (status, code) => {
+    globalThis.fetch = withDiscovery(
+      mock(
+        async () => new Response("<html>Too many requests</html>", { status }),
+      ) as unknown as typeof fetch,
+    );
+
+    try {
+      await searchCards({ limit: 1 }, "interactive");
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(RaycastApiError);
+      expect((error as InstanceType<typeof RaycastApiError>).code).toBe(code);
+    }
+  });
+
   test("maps 429 responses to RATE_LIMITED", async () => {
     globalThis.fetch = withDiscovery(
       mock(async () => createCardsResponse(429)) as unknown as typeof fetch,

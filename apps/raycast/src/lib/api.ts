@@ -198,7 +198,8 @@ const toRaycastError = (error: unknown): unknown => {
   if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
     return new RaycastApiError("NETWORK_ERROR");
   }
-  if (error.code === "PARSE_ERROR") {
+  // A non-JSON error page (an edge 429, say) still maps by its status.
+  if (error.code === "PARSE_ERROR" && (error.status ?? 0) < 400) {
     return new RaycastApiError("REQUEST_FAILED", error.status);
   }
   const code = raycastCodeFor(error);
