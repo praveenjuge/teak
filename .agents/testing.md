@@ -14,7 +14,7 @@ A test earns its place only if it fails when the behavior it names is broken. Be
 | Convex query, mutation, action, or workflow step logic | `bun test` with the helpers in `packages/convex/__tests__/helpers/` | `packages/convex/__tests__/<mirrors source path>` | `bun run --cwd packages/convex test:unit` |
 | Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/*.test.ts`, listed in `packages/convex/vitest.config.ts` | `bun run --cwd packages/convex test:edge` |
 | Files Worker Workflow behavior only the real engine decides (retries, a `NonRetryableError` ending a step, what reaches `run()` after a step fails) | `bun test` with Wrangler's `createTestHarness` (Miniflare's Workflows engine) and a local server standing in for Convex | `apps/files-worker/src/**`, like `src/workflows/cardProcessing/engine.test.ts` | `bun test <path>` in `apps/files-worker` |
-| Shared React UI | `bun test` + `renderToStaticMarkup` | `packages/ui/src/**/__tests__/` | `bun run --cwd packages/ui test` |
+| Web React UI (components, hooks, screens, lib) | `bun test` + `renderToStaticMarkup` | a `__tests__` folder beside the code, e.g. `apps/web/src/components/cards/__tests__/` | `bun run --cwd apps/web test` |
 | A real browser flow or a cross-surface journey (web, API, CLI, MCP) | [e2e](https://e2e.tester.army/docs) against the local E2E stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys (read `packages/tests/README.md` first) | `bun run --cwd packages/tests e2e`; the `E2E` workflow runs it daily and on demand |
 
 Prefer the lowest layer that can observe the behavior. Move up a layer only when the behavior lives in the integration: a query index, an auth session, a browser API.
@@ -26,8 +26,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | Workspace | Test files |
 | --- | --- |
 | `packages/convex` | `__tests__/**/*.test.ts` (Bun). Root `*.test.ts` files listed in `vitest.config.ts` (Vitest). Do not colocate Bun tests next to source files. |
-| `packages/ui` | `src/**/*.test.{ts,tsx}` |
-| `apps/web` | `src/__tests__/**` (Bun) |
+| `apps/web` | `src/**/*.test.{ts,tsx}` (Bun, one process per file). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. |
 | `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
 | `apps/cli`, `apps/files-worker`, `packages/files-protocol` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |

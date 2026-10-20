@@ -20,12 +20,12 @@ Paste a list of links into the web composer, one per line, and get one link card
 
 ## Context And Current Facts
 
-- **Composer:** `packages/ui/src/components/forms/AddCardForm.tsx`.
+- **Composer:** `apps/web/src/components/forms/AddCardForm.tsx`.
   - `submitTextCard` (around line 225) calls `createCard({...prepareNoteCapture(content), source: "web"})`, behind a "Saving note..." toast.
   - Limit toasts: `isCardLimitError` → `showUpgradeToast`, and `isRateLimitError` → "Too many cards created. Please wait a moment.".
   - The Save button is around line 363, with `SAVE_NOTE_KEYS`. Focus mode saves through `handleFocusSave` (around line 280).
   - Creation status comes from `api.auth.getCardCreationStatus`.
-- **Type detection:** `packages/ui/src/components/text-editor/noteCapture.ts` `prepareNoteCapture` (line 59).
+- **Type detection:** `apps/web/src/components/text-editor/noteCapture.ts` `prepareNoteCapture` (line 59).
   - A single self-link paragraph becomes a bare URL.
   - More than one block becomes `type: "text"`.
   - So today a list of URLs on separate lines becomes one text note.
@@ -143,7 +143,7 @@ Paste a list of links into the web composer, one per line, and get one link card
 
 ## Tests
 
-- `packages/ui/src/components/text-editor/__tests__/noteCapture.test.ts`: `extractLinkList` over every fixture text, including the negatives.
+- `apps/web/src/components/text-editor/__tests__/noteCapture.test.ts`: `extractLinkList` over every fixture text, including the negatives.
 - `packages/convex/__tests__/card/pasteLinks.test.ts`:
   - dedupe by key;
   - the cap at 100;
@@ -153,7 +153,7 @@ Paste a list of links into the web composer, one per line, and get one link card
   - `PASTE_ACTIVE`;
   - owner checks on `getLinkPaste`.
 - `packages/convex/accountDeletionWorkflow.test.ts`: seed a `linkPasteJobs` row.
-- `packages/ui` `AddCardForm` test: the label for 0, 1, 2 and 101 links.
+- `apps/web` `AddCardForm` test: the label for 0, 1, 2 and 101 links.
 - e2e: `packages/tests/src/web/paste-links.e2e.ts` (new). Paste 12 and wait for 12 tiles; paste 3 with 1 existing and see the resave toast.
 
 ## Proof before the PR

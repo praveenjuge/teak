@@ -90,7 +90,6 @@ export default defineConfig({
       "apps/extension/**",
       "packages/convex/**",
       "packages/files-protocol/**",
-      "packages/ui/**",
     ],
     excludeSources: [
       "**/__tests__/**",

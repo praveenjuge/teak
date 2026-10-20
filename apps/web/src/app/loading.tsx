@@ -1,4 +1,4 @@
-import { AppLoading } from "@/components/AppLoading";
+import { AppLoading } from "@/components/app-shell/AppLoading";
 
 export default function Loading({
   fullscreen = true,

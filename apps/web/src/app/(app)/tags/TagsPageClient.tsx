@@ -1,8 +1,8 @@
 "use client";
 
-import { TagsScreen } from "@teak/ui/screens";
-import { SidebarToggle } from "@teak/ui/sidebar";
-import { IntentLink } from "@/components/IntentLink";
+import { IntentLink } from "@/components/app-shell/IntentLink";
+import { SidebarToggle } from "@/components/sidebar";
+import { TagsScreen } from "@/screens";
 
 export function TagsPageClient() {
   return (

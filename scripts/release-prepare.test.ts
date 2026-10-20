@@ -110,12 +110,12 @@ describe("updateManifestVersions", () => {
     const root = mkdtempSync(join(tmpdir(), "teak-release-"));
     writeManifest(join(root, "package.json"), "1.0.65");
     writeManifest(join(root, "apps/web/package.json"), "1.0.65");
-    writeManifest(join(root, "packages/ui/package.json"), "1.0.64");
+    writeManifest(join(root, "packages/sdk/package.json"), "1.0.64");
     writeAppleSources(root, "1.0.65");
     const updated = updateManifestVersions(root, "1.0.66");
     expect(updated).toContain("package.json");
     expect(updated).toContain("apps/web/package.json");
-    expect(updated).toContain("packages/ui/package.json");
+    expect(updated).toContain("packages/sdk/package.json");
     expect(updated).toContain(appleSafariManifest);
     expect(updated).toContain("server.json");
     for (const relative of appleVersionSources) {
@@ -125,7 +125,7 @@ describe("updateManifestVersions", () => {
       );
     }
     expect(readVersion(join(root, appleSafariManifest))).toBe("1.0.66");
-    expect(readVersion(join(root, "packages/ui/package.json"))).toBe("1.0.66");
+    expect(readVersion(join(root, "packages/sdk/package.json"))).toBe("1.0.66");
   });
 
   test("skips manifests already at the target version", () => {

@@ -27,7 +27,7 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 
 ## Context And Current Facts
 
-- **Editor:** Tiptap 3.31.4 plus `@editorcn/block-editor` 0.2.0 (`packages/ui/package.json:53–80`). `documentExtensions` (`text-editor/markdownDocument.ts:15–37`) is StarterKit, `LiteralMarkdown`, TaskList/TaskItem and `CardLinkNode`.
+- **Editor:** Tiptap 3.31.4 plus `@editorcn/block-editor` 0.2.0 (`apps/web/package.json`). `documentExtensions` (`text-editor/markdownDocument.ts:15–37`) is StarterKit, `LiteralMarkdown`, TaskList/TaskItem and `CardLinkNode`.
   - `@tiptap/extension-table` is not installed. `node_modules/@tiptap/` has no table package.
 - **Tables stay literal:**
   - `markdownMeaning` (`markdownDocument.ts:43–106`) has no `table` case and throws "Unsupported Markdown" (line 105).
@@ -135,12 +135,12 @@ Insert and edit simple tables in text notes on the web. Tables are stored as Git
 
 ## Tests
 
-- `packages/ui/src/components/text-editor/__tests__/markdownDocument.test.ts`:
+- `apps/web/src/components/text-editor/__tests__/markdownDocument.test.ts`:
   - GFM tables round-trip;
   - aligned, ragged and escaped-pipe tables stay literal;
   - `hasSameMarkdownMeaning` for tables.
-- `packages/ui/src/components/text-editor/__tests__/LoadedMarkdownTextEditor.test.tsx`: the slash menu lists Table; inserting one serializes a 3×3 GFM table.
-- `packages/ui/src/components/card-previews/__tests__/markdownToPlainText.test.ts` (the existing file): the table rule, including a table followed by text and the row separator.
+- `apps/web/src/components/text-editor/__tests__/LoadedMarkdownTextEditor.test.tsx`: the slash menu lists Table; inserting one serializes a 3×3 GFM table.
+- `apps/web/src/components/card-previews/__tests__/markdownToPlainText.test.ts` (the existing file): the table rule, including a table followed by text and the row separator.
 - `markdownDocument.test.ts` also covers a table inside a blockquote and inside a list item staying literal.
 - `LoadedMarkdownTextEditor.test.tsx` also covers: Enter in a cell moving down (and adding a row from the last one), Shift+Tab moving back, Backspace removing an empty table, each of the 7 menu actions, and the 20-column and 200-row caps.
 - Update the tests that assert a plain table stays literal: the unsupported-content cases in `markdownDocument.test.ts` (around line 50, `| Name | State |…`) move that table to the round-trip cases and keep an aligned table as the literal example; and `packages/tests/src/web/markdown-editor.e2e.ts:520` ("existing tables remain editable as literal Markdown without table controls"), which asserts no `table` role: it now uses an aligned table, which still stays literal, and a plain GFM table is covered by the new spec.

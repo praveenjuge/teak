@@ -12,7 +12,7 @@ on:
       - packages/tests/src/helpers/**
       - packages/tests/e2e.hermetic.config.ts
       - packages/tests/src/config/**
-      - packages/ui/src/components/settings/SecurityConnections.tsx
+      - apps/web/src/components/settings/SecurityConnections.tsx
       - packages/tests/package.json
       - bun.lock
       - .github/workflows/extension-oauth-runtime.yml
@@ -28,7 +28,7 @@ on:
       - packages/tests/src/helpers/**
       - packages/tests/e2e.hermetic.config.ts
       - packages/tests/src/config/**
-      - packages/ui/src/components/settings/SecurityConnections.tsx
+      - apps/web/src/components/settings/SecurityConnections.tsx
       - packages/tests/package.json
       - bun.lock
       - .github/workflows/extension-oauth-runtime.yml

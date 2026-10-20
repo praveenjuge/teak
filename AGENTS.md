@@ -15,10 +15,10 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 ## Architecture invariants
 
-- This is a Turborepo monorepo. Applications live in `apps/*`; shared backend and UI code live in `packages/convex` and `packages/ui`.
+- This is a Turborepo monorepo. Applications live in `apps/*`; shared backend code lives in `packages/convex`.
 - Client reads use the cached Convex query hooks. Writes use Convex mutations or actions. WorkOS AuthKit sessions provide Convex identity; WorkOS is the only sign-in provider in every environment.
 - Import backend APIs from `@teak/convex`, generated data types from `@teak/convex/_generated/dataModel`, and shared constants from `@teak/convex/shared/constants`.
-- Shared web and extension UI belongs in `packages/ui` unless the behavior is surface-specific.
+- The web app owns its UI in `apps/web/src`; read its `AGENTS.md` for where each kind of file goes. The browser extension keeps its own small copies of the button, wordmark and theme tokens. Pure helpers that several surfaces share (web, docs, extension, native ports) go in `packages/convex/shared`.
 - Card processing is orchestrated by the Files Worker's Cloudflare Workflow (`apps/files-worker/src/workflows/cardProcessing/run.ts`), started from Convex with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Preserve workflow retries, the processing-revision guard on every write, and `processingStatus` consistency.
 - Supported card types are text, link, image, video, audio, document, palette, and quote.
 - `teakvault.com/api`, `/mcp` and the OAuth discovery documents reach Convex only through the Files Worker's edge proxy (`apps/files-worker/src/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them.

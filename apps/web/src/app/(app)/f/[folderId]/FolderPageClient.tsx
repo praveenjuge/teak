@@ -1,7 +1,7 @@
 "use client";
 
-import { decodeFolderSegment } from "@teak/ui/lib/folders";
 import { useParams } from "next/navigation";
+import { decodeFolderSegment } from "@/lib/folders";
 import { HomePageClient } from "../../../HomePageClient";
 
 export function FolderPageClient() {

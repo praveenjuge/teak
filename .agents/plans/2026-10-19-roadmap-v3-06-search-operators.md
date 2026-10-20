@@ -49,8 +49,8 @@ This works everywhere a search runs: the search box, smart folders, the command 
 - **Meaning search:** `shared/search/semantic.ts` `semanticQueryText` (lines 22–34) embeds terms and phrases only, and `fuseRankings` fuses the results.
 - **Local cache filter:** `shared/search/localSearch.ts` `filterLocalCards` (line 114) requires every term as a substring of `buildSearchableText(card)` (line 240).
 - **UI:**
-  - Suggestions: `packages/ui/src/components/search/searchSuggestions.ts` (`QUALIFIER_HINTS` at line 46, `IS_OPTIONS` at line 57).
-  - Shortcut sheet: `packages/ui/src/lib/keyboardShortcuts.ts:23` `KEYBOARD_SHORTCUT_GROUPS` (Cards, Open card, Go to, Anywhere), shown by `components/modals/KeyboardShortcutsDialog.tsx`.
+  - Suggestions: `apps/web/src/components/search/searchSuggestions.ts` (`QUALIFIER_HINTS` at line 46, `IS_OPTIONS` at line 57).
+  - Shortcut sheet: `apps/web/src/lib/keyboardShortcuts.ts:23` `KEYBOARD_SHORTCUT_GROUPS` (Cards, Open card, Go to, Anywhere), shown by `components/modals/KeyboardShortcutsDialog.tsx`.
 - **Docs:** `apps/docs/content/docs/features.mdx:41–75`, the Smart search token table.
 
 ## Constraints And Non-goals
@@ -188,7 +188,7 @@ This works everywhere a search runs: the search box, smart folders, the command 
   - operators across batch pages, archive, trash and hidden;
   - smart folders;
   - the scan-budget error for exclusion-only queries.
-- `packages/ui/src/components/search/__tests__/searchSuggestions.test.ts`: the Exclude group and `OR`.
+- `apps/web/src/components/search/__tests__/searchSuggestions.test.ts`: the Exclude group and `OR`.
 - e2e: `packages/tests/src/web/search-operators.e2e.ts` (new), and `journey/03-api.e2e.ts` adds one `q` with operators.
 
 ## Proof before the PR

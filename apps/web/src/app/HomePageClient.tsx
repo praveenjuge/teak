@@ -1,23 +1,23 @@
 "use client";
 
-import { folderPath } from "@teak/ui/lib/folders";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
+import { SidebarToggle } from "@/components/sidebar";
+import { folderPath } from "@/lib/folders";
+import { rememberHomeScroll } from "@/lib/homeScroll";
 import {
   FOCUS_COMPOSER_PARAM,
   LIBRARY_VIEW_PATHS,
   type LibraryView,
-} from "@teak/ui/lib/libraryViews";
+} from "@/lib/libraryViews";
 import {
   parseSearchUrlState,
   type SearchUrlState,
   serializeSearchUrlState,
-} from "@teak/ui/lib/searchUrlState";
-import type { SearchUrlChange } from "@teak/ui/screens";
-import { CardsScreenAdapter } from "@teak/ui/screens";
-import { SidebarToggle } from "@teak/ui/sidebar";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
-import { rememberHomeScroll } from "@/lib/homeScroll";
+} from "@/lib/searchUrlState";
+import type { SearchUrlChange } from "@/screens";
+import { CardsScreenAdapter } from "@/screens";
 
 export function HomePageClient({
   folderId,

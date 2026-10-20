@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Toaster } from "@teak/ui/components/ui/sonner";
 import type { PropsWithChildren } from "react";
 import { JsonLd } from "@/components/JsonLd";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { Toaster } from "@/components/ui/sonner";
 import {
   organizationSchema,
   softwareApplicationSchema,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/jsonld";
 
 const snPro = localFont({
-  src: "../../../../packages/ui/src/fonts/SNPro-VariableRegular.woff2",
+  src: "../styles/fonts/SNPro-VariableRegular.woff2",
   weight: "200 900",
   style: "normal",
   variable: "--font-sn-pro",
@@ -21,7 +21,7 @@ const snPro = localFont({
   declarations: [{ prop: "font-family", value: "SN Pro" }],
 });
 const snProItalic = localFont({
-  src: "../../../../packages/ui/src/fonts/SNPro-VariableItalic.woff2",
+  src: "../styles/fonts/SNPro-VariableItalic.woff2",
   weight: "200 900",
   style: "italic",
   variable: "--font-sn-pro-italic",

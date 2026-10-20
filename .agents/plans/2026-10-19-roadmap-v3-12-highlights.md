@@ -38,7 +38,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 - **Side panel:** `CardMetadataPanel.tsx` builds sections with `PanelSection`:
   - "Linked from" (142), "Notes" (264), "Summary" (288), "Tags" (323), "Colors" (405), "Details" (422).
   - The modal hands it `onOpenCard`, the backlinks and the edit callbacks (`CardModal.tsx:835-850`).
-- **Modal shortcuts** are listed in `packages/ui/src/lib/keyboardShortcuts.ts:40-48`. Phase 10 adds `R`, and `H` is still free.
+- **Modal shortcuts** are listed in `apps/web/src/lib/keyboardShortcuts.ts:40-48`. Phase 10 adds `R`, and `H` is still free.
 - **How imports handle highlights today:**
   - Instapaper puts `Selection` into `notes` (`packages/convex/import/instapaper.ts:30-58`, line 50).
   - Omnivore puts the `highlights/<slug>.md` Markdown into `notes` (`packages/convex/import/omnivore.ts:47-71`, read by `apps/files-worker/src/importOmnivore.ts:154-175`).
@@ -64,7 +64,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 
   Re-anchoring searches for the quote with its context, uses the offset hint to choose between repeats, and falls back to whitespace-insensitive matching. Because the article is frozen once highlighted, anchors only fail for imported or API-made highlights whose quote isn't in the extracted text.
 - **Painting** uses `CSS.highlights.set("teak-highlight", new Highlight(...ranges))` and a `::highlight(teak-highlight)` rule. The React tree is never wrapped in `<mark>`. Clicks are hit-tested with `document.caretPositionFromPoint` (or `caretRangeFromPoint`) against the stored ranges.
-- **Color tokens** in `packages/ui/src/styles.css`, each checked to keep body text at AA contrast:
+- **Color tokens** in `apps/web/src/styles/theme.css`, each checked to keep body text at AA contrast:
   - `--highlight`: light `oklch(0.94 0.11 95)`, dark `oklch(0.42 0.08 85 / 0.6)`;
   - `--highlight-active`: a step stronger, for the flash and the open popover.
 - **Not searchable, not embedded.** Highlight text doesn't enter `cardSearchDocuments` or the embedding text.
@@ -236,8 +236,8 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 - `packages/convex/accountDeletionWorkflow.test.ts`: seed highlight rows.
 - `apps/files-worker/src/workflows/cardProcessing/run.test.ts`: the frozen skip on refresh and re-save.
 - `packages/convex/__tests__/publicApiHttpCards.test.ts` (or a new `publicApiHttpHighlights.test.ts`), `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, and `apps/cli/src/commands.test.ts`.
-- `packages/ui/src/components/card-previews/__tests__/ArticleReader.test.tsx`: offsets from a selection map to the right plain-text range (pure helper); the selection button renders for a selection inside the body.
-- `packages/ui/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the section appears only with highlights; unanchored items aren't buttons.
+- `apps/web/src/components/card-previews/__tests__/ArticleReader.test.tsx`: offsets from a selection map to the right plain-text range (pure helper); the selection button renders for a selection inside the body.
+- `apps/web/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the section appears only with highlights; unanchored items aren't buttons.
 - e2e:
   - `packages/tests/src/web/highlights.e2e.ts` selects a sentence in the reader, presses `H`, sees "Highlights · 1" in the panel, adds a note, reloads, and the note is still there;
   - `journey/03-api.e2e.ts` and `04-cli.e2e.ts` create a highlight by quote and list it.

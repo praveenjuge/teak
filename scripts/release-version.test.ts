@@ -33,7 +33,7 @@ describe("release versions", () => {
     try {
       for (const directory of [
         "apps/web",
-        "packages/ui",
+        "packages/sdk",
         "apps/apple/SafariExtension/Resources",
         "apps/apple/Teak.xcodeproj",
       ]) {
@@ -42,7 +42,7 @@ describe("release versions", () => {
       for (const relative of [
         "package.json",
         "apps/web/package.json",
-        "packages/ui/package.json",
+        "packages/sdk/package.json",
         "apps/apple/SafariExtension/Resources/manifest.json",
         "server.json",
       ]) {
@@ -70,13 +70,13 @@ describe("release versions", () => {
       expect(packageFiles(root)).toEqual([
         "apps/web/package.json",
         "package.json",
-        "packages/ui/package.json",
+        "packages/sdk/package.json",
       ]);
       expect(releaseManifestFiles(root)).toEqual([
         "apps/apple/SafariExtension/Resources/manifest.json",
         "apps/web/package.json",
         "package.json",
-        "packages/ui/package.json",
+        "packages/sdk/package.json",
         "server.json",
       ]);
       expect(npmLockFiles(root)).toEqual([]);
@@ -142,11 +142,11 @@ describe("release versions", () => {
       );
 
       fs.writeFileSync(
-        path.join(root, "packages/ui/package.json"),
+        path.join(root, "packages/sdk/package.json"),
         `${JSON.stringify({ version: "1.0.59" })}\n`
       );
       expect(() => assertLockstep(root, "1.0.60")).toThrow(
-        "packages/ui/package.json: 1.0.59"
+        "packages/sdk/package.json: 1.0.59"
       );
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
