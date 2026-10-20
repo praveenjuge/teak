@@ -38,7 +38,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - **Public API:**
   - `POST /v1/tags/rename|merge|delete` and `GET /v1/tags/operations/{id}` (`http.ts:94-97,122,189-194`, `publicApiHttpTags.ts`).
   - MCP: `teak_v1_list_tags`, `teak_v1_merge_tags`, `teak_v1_get_tag_operation` (`mcp/tools.ts:838-871`).
-- **Tags page** (`packages/ui/src/screens/TagsScreen.tsx`, 416 lines):
+- **Tags page** (`apps/web/src/screens/TagsScreen.tsx`, 416 lines):
   - It reads `api.tags.listTagSummary` and requests a refresh with `requestTagSummary` (207–227).
   - It applies a running operation optimistically with `applyTagOperationToSummary` (238).
   - The row menu has Rename, Merge into… and Delete…, which open `components/modals/TagManagerDialog.tsx`.
@@ -197,7 +197,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - `packages/convex/__tests__/tag/tagOperations.test.ts`: `alsoFrom` merges every source, its limits, and its count across sources.
 - `apps/files-worker/src/decisions.test.ts`: `buildTagPairsRequest` and reading the scores.
 - `packages/convex/__tests__/publicApiHttpTags.test.ts`: `GET /v1/tags/duplicates` and an array `from`. Plus MCP, SDK and CLI tests.
-- `packages/ui/src/components/tags/__tests__/TagCleanupSheet.test.tsx`: the default kept tag, reason labels and disabled states.
+- `apps/web/src/components/tags/__tests__/TagCleanupSheet.test.tsx`: the default kept tag, reason labels and disabled states.
 - e2e: extend `packages/tests/src/web/tags.e2e.ts` to seed a plural pair, merge it from the sheet, and check the Tags list.
 
 ## Proof before the PR

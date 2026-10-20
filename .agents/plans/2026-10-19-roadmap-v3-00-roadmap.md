@@ -133,7 +133,6 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
    - `bun run typecheck`
    - `bun run --cwd packages/convex test:unit`
    - `bun run --cwd packages/convex test:edge`
-   - `bun run --cwd packages/ui test`
    - `bun run --cwd apps/web test`
    - the phase's `packages/tests` e2e specs
 
@@ -210,6 +209,6 @@ Each phase file explains its own open decisions. Until the owner decides, the ph
 | 13 | Clef model and threshold | `clef`, 0.8, at most 40 candidate folders, no backfill |
 | 14 | "Keep separate" choices | Remembered on the server. No undo for merges |
 | 15 | Daily background removal cap | 100 |
-| 16 | i18n library | next-intl for the web, use-intl for `packages/ui` and the extension |
+| 16 | i18n library | next-intl for the web, use-intl for the extension |
 | 17 | Chinese and register | Simplified Chinese only, formal register |
 | 18 | Setting to keep AI tags in English | No. No backfill of existing cards |

@@ -1,7 +1,4 @@
 import { MAX_FILE_SIZE } from "@teak/convex/shared/file-formats";
-import { Button } from "@teak/ui/components/ui/button";
-import { cn } from "@teak/ui/lib/utils";
-import { Wordmark } from "@teak/ui/logo";
 import {
   ArrowUpRight,
   BookmarkCheck,
@@ -14,6 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
+import { Button } from "../../components/ui/button";
+import { Wordmark } from "../../components/Wordmark";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
 import { useContextMenuSave } from "../../hooks/useContextMenuSave";
 import { useExtensionSession } from "../../hooks/useExtensionSession";
@@ -25,6 +24,7 @@ import {
   type PopupStatus,
   type PopupTone,
 } from "../../lib/popupStatus";
+import { cn } from "../../lib/utils";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
 import { SaveDetails } from "./SaveDetails";
 

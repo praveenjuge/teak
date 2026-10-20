@@ -4,21 +4,21 @@ import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/client-telemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
-import { getPolarPlanIds } from "@teak/ui/constants/billing";
-import { TOAST_IDS } from "@teak/ui/constants/toast";
-import { useQuery } from "@teak/ui/convex-query-hooks";
-import { useSettingsController } from "@teak/ui/hooks";
-import { parseSettingsDialogParam } from "@teak/ui/lib/commandPalette";
-import {
-  type ImportExportOpenRequest,
-  SettingsContent,
-  SubscriptionDialog,
-} from "@teak/ui/settings";
 import { useAction, useMutation } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  type ImportExportOpenRequest,
+  SettingsContent,
+  SubscriptionDialog,
+} from "@/components/settings";
+import { getPolarPlanIds } from "@/constants/billing";
+import { TOAST_IDS } from "@/constants/toast";
+import { useSettingsController } from "@/hooks";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
+import { parseSettingsDialogParam } from "@/lib/commandPalette";
+import { useQuery } from "@/lib/convexQueryHooks";
 import { signOut } from "@/lib/sign-out-client";
 
 function useConsumeDialogParam() {

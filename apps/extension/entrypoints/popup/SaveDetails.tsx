@@ -1,5 +1,4 @@
 import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
-import { Button } from "@teak/ui/components/ui/button";
 import { Check, X } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -8,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Button } from "../../components/ui/button";
 import { MAX_PATCH_TAGS } from "../../lib/cardPatch";
 import { readRecentTags, suggestTags } from "../../lib/recentTags";
 import {

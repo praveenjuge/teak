@@ -34,10 +34,10 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
 ## Context And Current Facts
 
 - After phase 16:
-  - `packages/ui/src/i18n/locales.ts` has `SUPPORTED_LOCALES = ["en"]` and `LOCALE_COOKIE = "teak-locale"`.
+  - `packages/i18n/src/locales.ts` has `SUPPORTED_LOCALES = ["en"]` and `LOCALE_COOKIE = "teak-locale"`.
   - `apps/web/src/i18n/request.ts` reads the cookie.
   - The extension popup is wrapped in `IntlProvider` (check these paths when starting; phase 16 may have moved them).
-- **No preference storage today.** The `users` table (`packages/convex/schema.ts:529-541`) holds only identity fields. Theme is per device, through `ThemeToggle` (`packages/ui/src/components/settings/SettingsContent.tsx:192-194`).
+- **No preference storage today.** The `users` table (`packages/convex/schema.ts:529-541`) holds only identity fields. Theme is per device, through `ThemeToggle` (`apps/web/src/components/settings/SettingsContent.tsx:192-194`).
 - **`/v1/me`** (`packages/convex/publicApiMe.ts`, `profileForOwner` 14–27) returns email, plan and optionally `cardCount`.
   - The extension calls it in `getOAuthState` (`apps/extension/lib/oauthAuth.ts:458`).
 - The extension's context menus are created in `entrypoints/background.ts` (around 476), and its inline buttons in `entrypoints/content/platforms/*`.
@@ -108,7 +108,7 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
   - every PR that adds or changes English keys also updates all seven catalogs;
   - how to translate: using the glossary, keeping ICU placeholders, plural categories per language (CLDR: `ja`, `ko` and `zh` use only `other`), and no machine-literal UI jargon;
   - how to check: run the catalog check and look at the screen.
-- **`packages/ui/src/i18n/glossary.md`** has one row per term with its translation in all 7 languages:
+- **`packages/i18n/glossary.md`** has one row per term with its translation in all 7 languages:
   - card, note, link, folder, smart folder, tag, archive, trash, favorite;
   - Revisit, Shuffle, Focus mode, Refresh details;
   - "More like this", highlight, reader;
@@ -163,7 +163,7 @@ Let people use Teak's web app and browser extension in Spanish, Portuguese (Braz
   - ownership;
   - account deletion removes the row.
 - `packages/convex/publicApiMe.test.ts`: `locale` in `/v1/me`. Plus SDK and CLI `whoami` tests.
-- `packages/ui/src/components/settings/__tests__/LanguageRow.test.tsx`: options in their native names, and the current value.
+- `apps/web/src/components/settings/__tests__/LanguageRow.test.tsx`: options in their native names, and the current value.
 - `apps/extension/__tests__/locale.test.ts`: `/v1/me` sets the stored locale, and menus are rebuilt on change.
 - e2e: `packages/tests/src/web/language.e2e.ts` (new):
   - change to Deutsch; the sidebar labels and a date are German;

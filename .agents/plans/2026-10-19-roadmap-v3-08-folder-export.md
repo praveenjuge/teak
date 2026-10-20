@@ -38,8 +38,8 @@ Export one folder from its sidebar menu as the same ZIP a full export makes. It 
 - **Files Worker:** the workflow is `apps/files-worker/src/workflows/export.ts`: mark running, snapshot pages, build archive, complete.
 - **Folder card reads:** `card/listQuery.ts:259–268` uses `folderCards` `by_folderId_and_isDeleted_and_cardCreatedAt` (and the archived variant). Phase 3 adds `…_cardSavedAt` twins.
 - **Smart folder search:** smart folders resolve through `card/searchPlanner.ts` `expandFolderSearch` and `getCards`.
-- **Folder menu:** `packages/ui/src/components/sidebar/SidebarFolders.tsx:318–372` has Rename…, Edit search… (smart only), the Color submenu, a separator, and Delete.
-- **Settings:** the export UI is `packages/ui/src/components/settings/ExportPanel.tsx`, with `hooks/useSettingsController.ts`.
+- **Folder menu:** `apps/web/src/components/sidebar/SidebarFolders.tsx:318–372` has Rename…, Edit search… (smart only), the Color submenu, a separator, and Delete.
+- **Settings:** the export UI is `apps/web/src/components/settings/ExportPanel.tsx`, with `hooks/useSettingsController.ts`.
 - **Public surfaces:** `POST /v1/exports` and `GET /v1/exports/latest` exist. MCP is deliberately excluded (`scripts/public-parity.ts`, `NO_AGENT_EXPORTS`).
 
 ## Constraints And Non-goals
@@ -145,7 +145,7 @@ Export one folder from its sidebar menu as the same ZIP a full export makes. It 
   - owner checks.
 - `packages/convex/__tests__/export/serialize.test.ts`: the manifest `scope`.
 - `apps/files-worker/src/workflows/export.test.ts`: the scoped artifact name and manifest.
-- `packages/ui/src/components/sidebar/__tests__/SidebarFolders.test.tsx`: the menu item states.
+- `apps/web/src/components/sidebar/__tests__/SidebarFolders.test.tsx`: the menu item states.
 - e2e: `packages/tests/src/web/folder-export.e2e.ts` (new). Export a 5-card folder, download it, unzip, and check that `cards.json` has the 5 cards and `manifest.json` has the scope.
 
 ## Proof before the PR

@@ -1,6 +1,6 @@
-import { Button } from "@teak/ui/components/ui/button";
-import { Wordmark } from "@teak/ui/logo";
 import type { ReactNode } from "react";
+import { Wordmark } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
 
 export function StatusScreen({
   message,

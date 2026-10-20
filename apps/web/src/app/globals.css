@@ -1,8 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@teak/ui/styles.css";
-
-@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@import "../styles/theme.css";
 
 @layer base {
   html {

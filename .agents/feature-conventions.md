@@ -89,7 +89,7 @@ limit; saving past it returns `400 CARD_LIMIT_REACHED`.
 
 ## UI
 
-Use the shadcn new-york primitives in `packages/ui/src/components/ui` and
+Use the shadcn new-york primitives in `apps/web/src/components/ui` and
 `lucide-react` icons. One primary action per surface; secondary actions go in
 menus. Use skeletons for loading lists, sentence-case copy, and undo toasts for
 destructive or bulk actions. Check every state (empty, loading, one item, many,

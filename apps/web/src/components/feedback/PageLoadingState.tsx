@@ -1,0 +1,27 @@
+import { Spinner } from "@/components/ui/spinner";
+
+interface PageLoadingStateProps {
+  fullScreen?: boolean;
+}
+
+export function PageLoadingState({ fullScreen = true }: PageLoadingStateProps) {
+  if (!fullScreen) {
+    return (
+      <div
+        className="flex items-center justify-center"
+        data-slot="page-loading"
+      >
+        <Spinner />
+      </div>
+    );
+  }
+
+  return (
+    <section
+      className="grid min-h-screen w-full place-items-center"
+      data-slot="page-loading"
+    >
+      <Spinner />
+    </section>
+  );
+}

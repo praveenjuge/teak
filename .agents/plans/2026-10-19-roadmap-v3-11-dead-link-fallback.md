@@ -82,7 +82,7 @@ When a saved page has died, opening its link shows Teak's archived copy instead 
 
 ## Web
 
-- **`packages/ui/src/lib/openCardLink.ts`:** `openCardLink(card, { appOrigin })` opens `${appOrigin}/open/${card._id}` in a new tab with `noopener` when `card.type === "link" && card.pageArchive`. Otherwise it opens the sanitized URL. It is used by `Card.tsx` `openLink`, `useCardModal` `openLink`, the `LinkPreview` anchors (an `onClick` that calls `preventDefault` for button 0 and for meta/ctrl), and the reader footer.
+- **`apps/web/src/lib/openCardLink.ts`:** `openCardLink(card, { appOrigin })` opens `${appOrigin}/open/${card._id}` in a new tab with `noopener` when `card.type === "link" && card.pageArchive`. Otherwise it opens the sanitized URL. It is used by `Card.tsx` `openLink`, `useCardModal` `openLink`, the `LinkPreview` anchors (an `onClick` that calls `preventDefault` for button 0 and for meta/ctrl), and the reader footer.
 - **`apps/web/src/app/(app)/open/[cardId]/page.tsx`** (client) has three phases.
   - **Checking:**
     - a centered, quiet stack with the favicon, "Opening example.com…" in muted 14px, and a 120 ms fade-in so fast redirects show nothing;
@@ -158,8 +158,8 @@ When a saved page has died, opening its link shows Teak's archived copy instead 
   - a deleted card's row removed;
   - the account deletion page.
 - `packages/convex/accountDeletionWorkflow.test.ts`: seed `linkChecks`.
-- `packages/ui/src/lib/__tests__/openCardLink.test.ts`: which URL opens for which card.
-- `packages/ui/src/components/card-previews/__tests__/LinkPreview.test.tsx`: the chip appears only for dead, and the anchor `href` stays the original URL.
+- `apps/web/src/lib/__tests__/openCardLink.test.ts`: which URL opens for which card.
+- `apps/web/src/components/card-previews/__tests__/LinkPreview.test.tsx`: the chip appears only for dead, and the anchor `href` stays the original URL.
 - e2e: `packages/tests/src/web/dead-link.e2e.ts` uses a local server that returns 404. It opens the card, sees the "Archived copy" heading in the new page, and the iframe has a `sandbox` attribute without `allow-scripts`.
 
 ## Proof before the PR

@@ -35,18 +35,18 @@ Give every archived link a clean reading view, and make what it says findable. A
 
 ## Context And Current Facts
 
-- **Link card modal** (`packages/ui/src/components/card-modal/CardModal.tsx`):
+- **Link card modal** (`apps/web/src/components/card-modal/CardModal.tsx`):
   - `CardPreview` renders `LinkPreview` for links (`127-140`).
   - The stage wrapper class for links is `"px-5 py-6 md:px-10 md:py-10"` (`stageContentClass`, around 172).
   - Layout (807–850): `<main>` holds the stage, and `<aside aria-label="Card details">` holds `CardMetadataPanel` (`md:w-80 lg:w-[21rem]`).
   - The header has icon buttons and a ⋯ menu that contains "Refresh details" (763).
   - The modal has no tabs today.
-- **Modal shortcuts** (`packages/ui/src/lib/keyboardShortcuts.ts:40-48`): ←/→, F, T, N, ⌘E, E and Delete. `R` and `H` are free.
-- **`LinkPreview`** (`packages/ui/src/components/card-previews/LinkPreview.tsx`, 416 lines) renders the title, byline, facts, image or screenshot and media, inside `max-w-2xl`, linking out at 328 and 376.
+- **Modal shortcuts** (`apps/web/src/lib/keyboardShortcuts.ts:40-48`): ←/→, F, T, N, ⌘E, E and Delete. `R` and `H` are free.
+- **`LinkPreview`** (`apps/web/src/components/card-previews/LinkPreview.tsx`, 416 lines) renders the title, byline, facts, image or screenshot and media, inside `max-w-2xl`, linking out at 328 and 376.
 - **Markdown rendering:**
-  - `react-markdown` 10.1.0 is in `packages/ui` and used only by `FileTextPreview.tsx`, with the `.typeset` prose class (`packages/ui/src/typeset.css`: leading 1.75, 1.125em on mobile).
+  - `react-markdown` 10.1.0 is in `apps/web` and used only by `FileTextPreview.tsx`, with the `.typeset` prose class (`apps/web/src/styles/typeset.css`: leading 1.75, 1.125em on mobile).
   - No remark-gfm.
-  - The body font is SN Pro (`packages/ui/src/fonts.css`). There is no serif font today.
+  - The body font is SN Pro (`apps/web/src/styles/fonts`, loaded in `apps/web/src/app/layout.tsx`). There is no serif font today.
 - **`cardTextContents`** (`packages/convex/schema.ts:949-962`):
   - `{ cardId, userId, kind: "document" | "transcript", text (search prefix), sourceKey, charCount, truncated }`, with `search_text` filtered by userId and one row per card (`.unique()` in `textContents.ts`, `documentText.ts`).
   - `storeDocumentText` (`card/documentText.ts:43-71`) writes the full text to R2 (`documentTextObjectKey`, `.../document-text/<sha256>.txt`) and the first 32 KiB to the row (`SEARCH_PREFIX_MAX_BYTES`, `documentTextFormat.ts:6`).
@@ -145,7 +145,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - `R` toggles it, and is added to the "Card" group of the shortcut sheet: `{ keys: ["R"], label: "Read or preview" }`.
 - **`card-previews/ArticleReader.tsx`** (new):
   - **Loading:** load `articleUrl` through the same cached fetcher as `FileTextPreview` (`requestFileTextPreview`, `card-previews/fileTextPreviewCache.ts:92`), with the cache keyed on `textKey`. While loading, a skeleton of a 2-line title and 8 text lines at reading width.
-  - **Rendering:** `react-markdown` with `remark-gfm` (add `remark-gfm` to `packages/ui`), then a small rehype plugin that resolves each valid `teak-image:<n>` to `articleImageUrls[n]` (and drops the image when `n` is out of range), then `rehype-sanitize`. The default sanitize schema would strip the custom `teak-image:` scheme, so the tokens are resolved before it runs. Images render through `ResilientMediaImage`. `a` gets `target="_blank" rel="noopener noreferrer"`.
+  - **Rendering:** `react-markdown` with `remark-gfm` (add `remark-gfm` to `apps/web`), then a small rehype plugin that resolves each valid `teak-image:<n>` to `articleImageUrls[n]` (and drops the image when `n` is out of range), then `rehype-sanitize`. The default sanitize schema would strip the custom `teak-image:` scheme, so the tokens are resolved before it runs. Images render through `ResilientMediaImage`. `a` gets `target="_blank" rel="noopener noreferrer"`.
   - **Header:** a `SiteFavicon` with the host, `·` byline, and `·` "N min read" (the minimum is "1 min read"), muted, at 14px.
   - **Title:** the `h1` from `card.article.title`, falling back to the link title. The first `h1` in the Markdown is dropped when it equals the title.
   - **Footer:** a thin rule, then "Saved from {host} · {date}" and the link "Open original ↗". The date uses the existing `cardDetails` formatter.
@@ -236,8 +236,8 @@ Give every archived link a clean reading view, and make what it says findable. A
 - `packages/convex/searchQualifiers.test.ts` or a new `articleSearch.test.ts` (convex-test): body phrase search for links.
 - `packages/convex/__tests__/publicApiHttpCards.test.ts`: content `kind` param, enum, errors.
 - `packages/convex/__tests__/sdk.test.ts`, `__tests__/mcp.test.ts`, `apps/cli/src/commands.test.ts`.
-- `packages/ui/src/components/card-previews/__tests__/ArticleReader.test.tsx`: renders the title, byline and "N min read"; removes a duplicate h1; maps `teak-image:`; strips scripts; renders the footer link.
-- `packages/ui/src/components/card-modal/__tests__/CardModal.test.tsx`: the toggle appears only with an article, and the initial view follows the category rule.
+- `apps/web/src/components/card-previews/__tests__/ArticleReader.test.tsx`: renders the title, byline and "N min read"; removes a duplicate h1; maps `teak-image:`; strips scripts; renders the footer link.
+- `apps/web/src/components/card-modal/__tests__/CardModal.test.tsx`: the toggle appears only with an article, and the initial view follows the category rule.
 - e2e: `packages/tests/src/web/reader.e2e.ts` opens an article card, switches to Read with `R` and sees the title heading. `journey/03-api.e2e.ts` reads `kind: "article"`.
 
 ## Proof before the PR
