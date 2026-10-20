@@ -10,14 +10,23 @@ public enum CardLinks {
     public static let maxLinks = 500
 
     static let tokenPattern = #"\[\[([^\]|\n]{0,200})\|teak:([a-z0-9]{16,64})\]\]"#
-    private static let tokenRegex = try! NSRegularExpression(pattern: tokenPattern)
-    private static let titleUnsafeRegex = try! NSRegularExpression(pattern: #"[|\]\r\n]+"#)
-    private static let spacesRegex = try! NSRegularExpression(pattern: #"\s+"#)
-    private static let fenceRegex = try! NSRegularExpression(pattern: #"^ {0,3}(`{3,}|~{3,})"#)
-    private static let closingFenceRegex = try! NSRegularExpression(pattern: #"^ {0,3}(`{3,}|~{3,})[ \t]*$"#)
-    private static let backtickRunRegex = try! NSRegularExpression(pattern: "`+")
-    private static let listItemRegex = try! NSRegularExpression(pattern: #"^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)"#)
+    private static let tokenRegex = regex(tokenPattern)
+    private static let titleUnsafeRegex = regex(#"[|\]\r\n]+"#)
+    private static let spacesRegex = regex(#"\s+"#)
+    private static let fenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})"#)
+    private static let closingFenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})[ \t]*$"#)
+    private static let backtickRunRegex = regex("`+")
+    private static let listItemRegex = regex(#"^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)"#)
     private static let codeIndent = 4
+
+    /// The patterns are constants that the tests run, so a bad one is a programming error.
+    private static func regex(_ pattern: String) -> NSRegularExpression {
+        do {
+            return try NSRegularExpression(pattern: pattern)
+        } catch {
+            preconditionFailure("Invalid card link pattern \(pattern): \(error)")
+        }
+    }
     private static let ellipsis = "\u{2026}"
     private static let fallbackTitle = "Card"
 

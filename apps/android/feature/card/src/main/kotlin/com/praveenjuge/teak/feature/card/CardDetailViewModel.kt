@@ -22,7 +22,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -179,14 +178,12 @@ class CardDetailViewModel @AssistedInject constructor(
         if (_uiState.value.isRefreshing) return
         _uiState.update { it.copy(isRefreshing = true) }
         viewModelScope.launch {
-            val text = try {
+            val text = catchingFailures {
                 when (val outcome = repository.refresh(card.id)) {
                     RefreshOutcome.Queued -> "Refreshing details. The summary and tags update shortly."
                     is RefreshOutcome.Refused -> outcome.message
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
+            }.getOrElse { e ->
                 (e as? TeakException)?.takeIf { it.code in REFUSAL_CODES }?.message ?: ConvexCardsRepository.REFRESH_FAILED
             }
             _uiState.update { it.copy(isRefreshing = false) }

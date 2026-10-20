@@ -30,7 +30,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -324,13 +323,9 @@ class LibraryViewModel @AssistedInject constructor(
     fun addSelectedToNewFolder(name: String) {
         if (name.isBlank() || _state.value.pickedIds.isEmpty()) return
         viewModelScope.launch {
-            try {
-                runOnSelected(BulkAction.AddToFolder, folder = folders.create(name))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                post((e as? TeakException)?.message ?: "Couldn't create the folder")
-            }
+            catchingFailures { folders.create(name) }
+                .onSuccess { runOnSelected(BulkAction.AddToFolder, folder = it) }
+                .onFailure { post((it as? TeakException)?.message ?: "Couldn't create the folder") }
         }
     }
 
