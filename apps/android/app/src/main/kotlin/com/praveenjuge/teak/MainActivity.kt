@@ -3,6 +3,8 @@ package com.praveenjuge.teak
 import android.content.Intent
 import android.os.Bundle
 import android.graphics.Color
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -10,7 +12,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.praveenjuge.teak.core.data.auth.SessionState
@@ -35,9 +36,8 @@ class MainActivity : ComponentActivity() {
     private val launchRequest = MutableStateFlow<LaunchRequest?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
-        splash.setKeepOnScreenCondition { account.session.value == SessionState.Loading }
+        keepSplashScreenWhileLoading()
         enableEdgeToEdge()
         if (savedInstanceState == null) handle(intent)
         setContent {
@@ -65,6 +65,22 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)
+    }
+
+    // The platform splash screen comes from Theme.Teak.Starting and stays until the first frame
+    // draws. androidx core-splashscreen is not used: with minSdk 31, R8 drops its API check, so
+    // its API 31 listener crashed devices that report an older Android.
+    private fun keepSplashScreenWhileLoading() {
+        val content = findViewById<View>(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(
+            object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    if (account.session.value == SessionState.Loading) return false
+                    content.viewTreeObserver.removeOnPreDrawListener(this)
+                    return true
+                }
+            },
+        )
     }
 
     private fun handle(intent: Intent?) {

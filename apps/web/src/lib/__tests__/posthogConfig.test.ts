@@ -74,6 +74,17 @@ describe("web PostHog configuration", () => {
         },
       ],
     ],
+    ["a cross-origin script", [{ type: "Error", value: "Script error." }]],
+    [
+      "the ResizeObserver loop warning",
+      [
+        {
+          type: "Error",
+          value:
+            "ResizeObserver loop completed with undelivered notifications.",
+        },
+      ],
+    ],
   ])("drops exceptions from %s", (_name, entries) => {
     expect(filterPostHogEvent(exception(entries))).toBeNull();
   });
@@ -91,6 +102,17 @@ describe("web PostHog configuration", () => {
         type: "NotFoundError",
         value:
           "Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.",
+      },
+    ];
+    expect(filterPostHogEvent(exception(entries))).not.toBeNull();
+  });
+
+  test("keeps a browser-noise message that carries a stack", () => {
+    const entries = [
+      {
+        ...frame("https://app.teakvault.com/_next/static/chunks/app.js"),
+        type: "Error",
+        value: "Script error.",
       },
     ];
     expect(filterPostHogEvent(exception(entries))).not.toBeNull();
