@@ -119,7 +119,12 @@ data class LibraryUiState(
     val smartFolderQuery: String?
         get() = if (folderId != null || timeFilter != null || search.isBlank()) null else filters.smartFolderQuery(search)
 
-    val canRevisit: Boolean get() = !filters.trashOnly && !filters.archivedOnly && paged.cards.isNotEmpty()
+    /** The Archive view, a search for `is:archived`, or a smart folder that saves one, as on Apple. */
+    val isArchive: Boolean
+        get() = !filters.trashOnly &&
+            (filters.archivedOnly || parsed.archived || folder?.takeIf { it.isSmart }?.query?.let { SearchQuery.parse(it).archived } == true)
+
+    val canRevisit: Boolean get() = !filters.trashOnly && !isArchive && paged.cards.isNotEmpty()
 
     val title: String
         get() = when {

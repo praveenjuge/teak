@@ -267,4 +267,20 @@ class LibraryViewModelTest {
         advanceUntilIdle()
         assertTrue(viewModel.state.value.folderMissing)
     }
+
+    @Test
+    fun `a smart folder that saves is-archived is an Archive view`() = runTest {
+        folders.all.value = listOf(
+            Folder(id = "f1", name = "Old reads", kind = FolderKind.Smart, query = "is:archived type:link"),
+            Folder(id = "f2", name = "Links", kind = FolderKind.Smart, query = "type:link"),
+        )
+        val archived = library(folderId = "f1")
+        advanceUntilIdle()
+        assertTrue(archived.state.value.isArchive)
+        assertFalse(archived.state.value.canRevisit)
+
+        val links = library(folderId = "f2")
+        advanceUntilIdle()
+        assertFalse(links.state.value.isArchive)
+    }
 }

@@ -286,7 +286,7 @@ internal fun LibraryScreen(
                 SelectionToolbar(
                     view = when {
                         state.filters.trashOnly -> SelectionView.Trash
-                        state.filters.archivedOnly -> SelectionView.Archive
+                        state.isArchive -> SelectionView.Archive
                         else -> SelectionView.Library
                     },
                     enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction,
