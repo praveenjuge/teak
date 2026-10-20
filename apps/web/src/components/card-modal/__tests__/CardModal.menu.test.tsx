@@ -17,7 +17,7 @@ mock.module("../CardMetadataPanel", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { CardModal } = await import("../CardModal");
+const { CardModal, DETAILS_HIDDEN_KEY } = await import("../CardModal");
 
 let root: Root | undefined;
 
@@ -25,6 +25,7 @@ afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
+  window.localStorage.clear();
 });
 
 const linkCard = (extra: Partial<CardModalCard> = {}) =>
@@ -52,9 +53,17 @@ async function render(
   {
     linkThumbnail = thumbnailControl(),
     onMoreLikeThis = mock(),
+    savePdf,
+    handleRestore = mock(async () => undefined),
+    openLink = mock(),
+    toggleDone,
   }: {
+    handleRestore?: (onClose?: () => void) => Promise<void>;
     linkThumbnail?: LinkThumbnailControl;
     onMoreLikeThis?: (cardId: string) => void;
+    openLink?: () => void;
+    savePdf?: { isSaving: boolean; save: () => void };
+    toggleDone?: () => void;
   } = {}
 ) {
   const container = document.body.appendChild(document.createElement("div"));
@@ -68,13 +77,14 @@ async function render(
         getCurrentValue={() => undefined}
         handleDelete={async () => undefined}
         handlePermanentDelete={async () => undefined}
-        handleRestore={async () => undefined}
+        handleRestore={handleRestore}
         hasUnsavedChanges={false}
         linkThumbnail={linkThumbnail}
         onMoreLikeThis={onMoreLikeThis}
         open
-        openLink={() => undefined}
+        openLink={openLink}
         saveChanges={async () => true}
+        savePdf={savePdf}
         saveState="idle"
         tags={{
           addTag: () => undefined,
@@ -83,6 +93,7 @@ async function render(
           setTagInput: () => undefined,
           tagInput: "",
         }}
+        toggleDone={toggleDone}
         toggleFavorite={() => undefined}
         updateContent={() => undefined}
         updateNotes={() => undefined}
@@ -90,7 +101,7 @@ async function render(
       />
     )
   );
-  return { linkThumbnail, onMoreLikeThis };
+  return { handleRestore, linkThumbnail, onMoreLikeThis, openLink, toggleDone };
 }
 
 async function openMenu() {
@@ -104,10 +115,29 @@ async function openMenu() {
   });
 }
 
-const menuItem = (label: string) =>
-  Array.from(document.querySelectorAll("[role='menuitem']")).find(
+const button = (label: string) =>
+  Array.from(document.querySelectorAll("button")).find(
     (item) => item.textContent?.trim() === label
-  ) as HTMLElement | undefined;
+  );
+
+async function press(key: string, init: KeyboardEventInit = {}) {
+  const dialog = document.querySelector<HTMLElement>("[role='dialog']");
+  await act(() => {
+    dialog?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key, ...init })
+    );
+  });
+}
+
+/** A menu item by its label, leaving out the shortcut beside it. */
+const menuItem = (label: string) =>
+  Array.from(document.querySelectorAll("[role='menuitem']")).find((item) => {
+    const shortcut = item.querySelector(
+      "[data-slot='dropdown-menu-shortcut']"
+    )?.textContent;
+    const text = item.textContent?.trim() ?? "";
+    return (shortcut ? text.slice(0, -shortcut.length) : text) === label;
+  }) as HTMLElement | undefined;
 
 test("the card menu offers More like this for the open card", async () => {
   const { onMoreLikeThis } = await render(linkCard());
@@ -155,9 +185,89 @@ test("a replaced image can be reset from the card menu", async () => {
 test("a card in Trash has neither More like this nor image actions", async () => {
   await render(linkCard({ isDeleted: true } as Partial<CardModalCard>));
   await openMenu();
-  expect(menuItem("Restore")).toBeDefined();
+  expect(menuItem("Copy Link")).toBeDefined();
   expect(menuItem("More like this")).toBeUndefined();
   expect(menuItem("Replace image")).toBeUndefined();
+});
+
+test("a card in Trash says so above the card, with Restore there and not in the menu", async () => {
+  const { handleRestore } = await render(
+    linkCard({ isDeleted: true } as Partial<CardModalCard>)
+  );
+  expect(document.querySelector("[role='status']")?.textContent).toContain(
+    "This card is in Trash"
+  );
+  await openMenu();
+  expect(menuItem("Restore")).toBeUndefined();
+  expect(menuItem("Delete Forever")).toBeUndefined();
+  await act(() => button("Restore")?.click());
+  expect(handleRestore).toHaveBeenCalledTimes(1);
+});
+
+test("Save PDF lives in the menu, and reads Saving PDF… while it saves", async () => {
+  const save = mock();
+  await render(linkCard(), { savePdf: { isSaving: false, save } });
+  await openMenu();
+  await act(() => menuItem("Save PDF")?.click());
+  expect(save).toHaveBeenCalledTimes(1);
+
+  await act(() => root?.unmount());
+  document.body.innerHTML = "";
+  await render(linkCard(), { savePdf: { isSaving: true, save } });
+  await openMenu();
+  expect(menuItem("Saving PDF…")?.getAttribute("aria-disabled")).toBe("true");
+});
+
+test("Hide details in the menu hides the details, and I brings them back", async () => {
+  await render(linkCard());
+  const aside = () =>
+    document.querySelector("aside[aria-label='Card details']");
+  await openMenu();
+  await act(() => menuItem("Hide details")?.click());
+  expect(aside()?.className).toContain("md:hidden");
+  expect(window.localStorage.getItem(DETAILS_HIDDEN_KEY)).toBe("1");
+
+  await press("i");
+  expect(aside()?.className).not.toContain("md:hidden");
+  expect(window.localStorage.getItem(DETAILS_HIDDEN_KEY)).toBe("0");
+});
+
+test("I from a control in the details keeps focus in the dialog, so card keys still work", async () => {
+  await render(linkCard());
+  const aside = document.querySelector("aside[aria-label='Card details']");
+  const control = document.createElement("button");
+  aside?.append(control);
+  control.focus();
+  await act(() => {
+    control.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "i" })
+    );
+  });
+  expect(aside?.className).toContain("md:hidden");
+  expect(document.activeElement).toBe(
+    document.querySelector("[role='dialog']")
+  );
+});
+
+test("O and Mod+Enter open the link, and D marks it done", async () => {
+  const toggleDone = mock();
+  const { openLink } = await render(linkCard(), { toggleDone });
+  await press("o");
+  await press("Enter", { ctrlKey: true });
+  expect(openLink).toHaveBeenCalledTimes(2);
+  await press("d");
+  expect(toggleDone).toHaveBeenCalledTimes(1);
+});
+
+test("C copies the link", async () => {
+  const writeText = mock(async () => undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText },
+  });
+  await render(linkCard());
+  await press("c");
+  expect(writeText).toHaveBeenCalledWith("https://example.com/lamp");
 });
 
 test("a note has More like this but no image actions", async () => {

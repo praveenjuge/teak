@@ -3,6 +3,7 @@
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CARD_DIALOG_ATTRIBUTE,
   type KeyboardShortcut,
   useKeyboardShortcuts,
 } from "../../hooks/useKeyboardShortcuts";
@@ -75,6 +76,7 @@ export function LibraryShortcuts({
   }, []);
   const afterPaletteCloseRef = useRef<(() => void) | null>(null);
   const returnPaletteFocus = useReturnFocus(isPaletteOpen);
+  const returnShortcutsFocus = useReturnFocus(isDialogOpen);
   const { resolvedTheme, setTheme } = useTheme();
 
   const newNote = useCallback(() => {
@@ -189,7 +191,11 @@ export function LibraryShortcuts({
           pressUploadFiles();
         }),
       },
-      { keys: "?", run: () => setDialogOpen(!isDialogOpenRef.current) },
+      {
+        alsoOver: CARD_DIALOG_ATTRIBUTE,
+        keys: "?",
+        run: () => setDialogOpen(!isDialogOpenRef.current),
+      },
       ...LIBRARY_VIEWS.map((view) => ({
         keys: `g ${GO_TO_VIEW_KEYS[view]}`,
         run: closeDialogThen(() => onGoToView(view)),
@@ -225,7 +231,10 @@ export function LibraryShortcuts({
             afterCloseRef.current = null;
             event.preventDefault();
             action();
+            return;
           }
+          // Opened over a card, the list hands the keys back to the card.
+          returnShortcutsFocus(event);
         }}
         onOpenChange={setDialogOpen}
         open={isDialogOpen}

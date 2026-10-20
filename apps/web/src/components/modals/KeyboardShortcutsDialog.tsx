@@ -31,36 +31,38 @@ export function KeyboardShortcutsDialog({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
-        className="max-h-[calc(100dvh-6rem)] gap-5 overflow-y-auto sm:max-w-xl"
+        className="flex max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-sm"
         onCloseAutoFocus={onCloseAutoFocus}
         {...{ [SHORTCUTS_DIALOG_ATTRIBUTE]: "" }}
       >
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
+        <DialogHeader className="gap-1 border-b px-5 pt-5 pb-3 text-left">
+          <DialogTitle className="text-base">Keyboard shortcuts</DialogTitle>
+          <DialogDescription className="text-xs">
             Shortcuts work anywhere in your library, except while you type.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+        {/* One list, each group's name staying in view while its rows scroll. */}
+        <div className="min-h-0 overflow-y-auto px-5 pb-3">
           {KEYBOARD_SHORTCUT_GROUPS.map((group, index) => (
             <section
               aria-labelledby={`shortcut-group-${index}`}
-              className={index === 0 ? "sm:row-span-2" : undefined}
               key={group.title}
             >
               <h3
-                className="mb-1.5 font-medium text-muted-foreground text-xs"
+                className="sticky top-0 z-10 bg-background pt-3 pb-1 font-medium text-muted-foreground text-xs"
                 id={`shortcut-group-${index}`}
               >
                 {group.title}
               </h3>
-              <dl className="divide-y divide-border/60">
+              <dl>
                 {group.rows.map((row) => (
                   <div
-                    className="flex items-center justify-between gap-4 py-1.5"
+                    className="flex h-7 items-center justify-between gap-3"
                     key={row.label}
                   >
-                    <dt className="text-sm">{row.label}</dt>
+                    <dt className="min-w-0 truncate text-[13px]">
+                      {row.label}
+                    </dt>
                     <dd className="shrink-0">
                       <ShortcutKeys row={row} />
                     </dd>

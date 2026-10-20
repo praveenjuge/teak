@@ -8,7 +8,11 @@ export type CardModalKeyAction =
   | "archive"
   | "delete"
   | "focusTags"
-  | "focusNotes";
+  | "focusNotes"
+  | "done"
+  | "open"
+  | "copy"
+  | "toggleDetails";
 
 const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   ArrowLeft: "previous",
@@ -19,10 +23,17 @@ const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   e: "archive",
   t: "focusTags",
   n: "focusNotes",
+  d: "done",
+  o: "open",
+  c: "copy",
+  i: "toggleDetails",
   Delete: "delete",
 };
 
-/** On Apple platforms Backspace is the Delete key (⌫). */
+/**
+ * On Apple platforms Backspace is the Delete key (⌫). ⌘↵ (Ctrl+Enter
+ * elsewhere) opens the card, except in a field, where it saves.
+ */
 export function cardModalKeyAction(
   event: {
     altKey: boolean;
@@ -36,14 +47,19 @@ export function cardModalKeyAction(
   },
   apple = isApplePlatform()
 ): CardModalKeyAction | null {
+  if (event.isComposing || isTypingTarget(event.target)) {
+    return null;
+  }
   if (
-    event.altKey ||
-    event.ctrlKey ||
-    event.metaKey ||
-    event.shiftKey ||
-    event.isComposing ||
-    isTypingTarget(event.target)
+    event.key === "Enter" &&
+    (apple
+      ? event.metaKey && !event.ctrlKey
+      : event.ctrlKey && !event.metaKey) &&
+    !(event.altKey || event.shiftKey || event.repeat)
   ) {
+    return "open";
+  }
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
     return null;
   }
   if (

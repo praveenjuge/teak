@@ -14,9 +14,11 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act, createElement } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { SHORTCUTS_DIALOG_ATTRIBUTE, useKeyboardShortcuts } = await import(
-  "../useKeyboardShortcuts"
-);
+const {
+  CARD_DIALOG_ATTRIBUTE,
+  SHORTCUTS_DIALOG_ATTRIBUTE,
+  useKeyboardShortcuts,
+} = await import("../useKeyboardShortcuts");
 
 const search = mock(() => undefined);
 const favorites = mock(() => undefined);
@@ -26,7 +28,7 @@ const newCard = mock(() => undefined);
 const SHORTCUTS = [
   { keys: "/", run: search },
   { keys: "g f", run: favorites },
-  { keys: "?", run: help },
+  { alsoOver: CARD_DIALOG_ATTRIBUTE, keys: "?", run: help },
   { keys: "n", run: newCard },
 ];
 
@@ -185,4 +187,23 @@ test("an open dialog or menu silences shortcuts, but not the shortcuts list", ()
   press("g", {}, list);
   press("f", {}, list);
   expect(favorites).toHaveBeenCalledTimes(1);
+});
+
+test("? still works over an open card, but not over a menu on it", () => {
+  const card = document.createElement("div");
+  card.setAttribute("role", "dialog");
+  card.setAttribute("data-state", "open");
+  card.setAttribute(CARD_DIALOG_ATTRIBUTE, "");
+  document.body.append(card);
+  press("n", {}, card);
+  expect(newCard).not.toHaveBeenCalled();
+  press("?", { shiftKey: true }, card);
+  expect(help).toHaveBeenCalledTimes(1);
+
+  const menu = document.createElement("div");
+  menu.setAttribute("role", "menu");
+  menu.setAttribute("data-state", "open");
+  document.body.append(menu);
+  press("?", { shiftKey: true }, menu);
+  expect(help).toHaveBeenCalledTimes(1);
 });

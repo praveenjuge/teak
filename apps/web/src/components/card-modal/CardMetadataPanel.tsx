@@ -1,5 +1,6 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { isCardHidden } from "@teak/convex/shared/tags";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
@@ -8,29 +9,30 @@ import {
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
 import {
-  Copy,
+  ChevronDown,
+  Circle,
+  CircleCheck,
   EyeOff,
-  FileDown,
-  RotateCcw,
+  FolderPlus,
+  Plus,
   Sparkles,
-  Trash,
   X,
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { useFolders } from "../../hooks/useFolders";
+import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { cn } from "../../lib/utils";
-import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { FolderDot } from "../folders/FolderDot";
-import { ShortcutKeys } from "../shortcuts/ShortcutTooltip";
+import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import { type CardDetailField, getCardDetailSections } from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
+  /** Keeps a tag Teak suggested as one of the card's own tags. */
+  acceptAiTag?: (tag: string) => void;
   addTag: () => void;
   inputRef?: RefObject<HTMLInputElement | null>;
   removeAiTag: (tag: string) => void;
@@ -50,46 +52,53 @@ export interface SavePdfControl {
   save: () => void;
 }
 
+/** A link's to-do state: read, watched, cooked and so on. */
+export interface CardDoneControl {
+  category?: string;
+  done: boolean;
+  onToggle: () => void;
+}
+
 interface CardMetadataPanelProps {
   backlinks?: CardBacklinks;
   card: CardModalCard;
+  done?: CardDoneControl;
   getCurrentValue: GetCurrentValue;
   notesRef?: RefObject<HTMLTextAreaElement | null>;
   onCardTypeClick: () => void;
   onCommit: () => void;
   onNotesChange: (notes: string) => void;
   onOpenCard?: (cardId: string) => void;
-  onPermanentDelete: () => void;
-  onRestore: () => void;
+  onOpenFolders?: () => void;
   onTagClick?: (tag: string) => void;
-  savePdf?: SavePdfControl;
   tags: CardTagsControl;
 }
 
-const SUMMARY_FOLD_LENGTH = 280;
+const SUMMARY_FOLD_LENGTH = 140;
 
-async function copyText(text: string, message: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(message);
-  } catch {
-    toast.error("Failed to copy");
-  }
-}
+/** The rows Details shows before "More details". */
+const KEY_DETAIL_LABELS = new Set(["Added", "File size"]);
+
+export const DETAILS_EXPANDED_KEY = "teak.cardModal.detailsExpanded";
 
 function PanelSection({
   action,
   children,
+  icon,
   title,
 }: {
   action?: ReactNode;
   children: ReactNode;
+  icon?: ReactNode;
   title: string;
 }) {
   return (
     <section aria-label={title} className="space-y-1.5">
       <div className="flex h-5 items-center justify-between gap-2">
-        <h3 className="font-medium text-muted-foreground text-xs">{title}</h3>
+        <h3 className="flex items-center gap-1 font-medium text-muted-foreground text-xs">
+          {icon}
+          {title}
+        </h3>
         {action}
       </div>
       {children}
@@ -126,6 +135,42 @@ function DetailRows({ fields }: { fields: CardDetailField[] }) {
 
 const chipRemoveClass =
   "flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-fine:absolute pointer-fine:-top-1.5 pointer-fine:-right-1.5 pointer-fine:rounded-full pointer-fine:bg-foreground pointer-fine:text-background pointer-fine:opacity-0 pointer-fine:shadow-sm pointer-fine:transition-opacity pointer-fine:hover:bg-foreground pointer-fine:hover:text-background pointer-fine:focus-visible:opacity-100 pointer-fine:group-hover/tag:opacity-100 [&_svg]:size-3 pointer-fine:[&_svg]:size-2.5";
+
+/** "Mark as read" and friends, as a pill at the top of the panel. */
+export function DoneButton({
+  category,
+  done,
+  onClick,
+}: {
+  category?: string;
+  done: boolean;
+  onClick: () => void;
+}) {
+  const verb = doneActionLabel(category);
+  const label = done
+    ? `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`
+    : `Mark as ${verb}`;
+  return (
+    <ShortcutTooltip keys={["D"]} label={label} side="left">
+      <button
+        aria-keyshortcuts="D"
+        aria-label={label}
+        aria-pressed={done}
+        className={cn(
+          "inline-flex h-7 max-w-full items-center gap-1.5 rounded-full px-2.5 font-medium text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [&_svg]:shrink-0",
+          done
+            ? "bg-primary/10 text-primary hover:bg-primary/15"
+            : "text-muted-foreground ring-1 ring-border ring-inset hover:bg-foreground/5 hover:text-foreground"
+        )}
+        onClick={onClick}
+        type="button"
+      >
+        {done ? <CircleCheck /> : <Circle />}
+        <span className="truncate">{label}</span>
+      </button>
+    </ShortcutTooltip>
+  );
+}
 
 /** "Linked from": the notes that link to this card, newest first. */
 export function LinkedFromSection({
@@ -174,24 +219,105 @@ export function LinkedFromSection({
   );
 }
 
+/** Tags Teak added, folded away until someone wants to look. */
+function SuggestedTags({
+  disabled,
+  onAccept,
+  onRemove,
+  onTagClick,
+  tags,
+}: {
+  disabled: boolean;
+  onAccept?: (tag: string) => void;
+  onRemove: (tag: string) => void;
+  onTagClick?: (tag: string) => void;
+  tags: string[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  if (tags.length === 0) {
+    return null;
+  }
+  return (
+    <div className="pt-1">
+      <button
+        aria-expanded={isOpen}
+        className="-mx-1 inline-flex h-6 items-center gap-1 rounded-md px-1 text-muted-foreground text-xs hover:bg-foreground/5 hover:text-foreground"
+        onClick={() => setIsOpen((value) => !value)}
+        type="button"
+      >
+        <Sparkles aria-hidden="true" className="size-3" />
+        {tags.length === 1
+          ? "1 suggested tag"
+          : `${tags.length} suggested tags`}
+        <ChevronDown
+          aria-hidden="true"
+          className={cn("size-3 transition-transform", isOpen && "rotate-180")}
+        />
+      </button>
+      {isOpen ? (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {tags.map((tag) => (
+            <span
+              className="group/tag relative inline-flex h-6 max-w-full items-center gap-1 rounded-md pointer-fine:pr-2 pr-1 pl-1.5 text-muted-foreground text-sm outline-dashed outline-1 outline-border -outline-offset-1"
+              key={tag}
+            >
+              {onAccept && !disabled ? (
+                <button
+                  aria-label={`Keep tag ${tag}`}
+                  className="inline-flex min-w-0 items-center gap-1 hover:text-foreground"
+                  onClick={() => onAccept(tag)}
+                  title={`Keep ${tag} as one of your tags`}
+                  type="button"
+                >
+                  <Plus aria-hidden="true" className="size-3 shrink-0" />
+                  <span className="truncate">{tag}</span>
+                </button>
+              ) : (
+                <button
+                  className="truncate hover:text-foreground hover:underline hover:underline-offset-2"
+                  onClick={() => onTagClick?.(tag)}
+                  title={`Tag added by Teak. Show cards tagged ${tag}`}
+                  type="button"
+                >
+                  {tag}
+                </button>
+              )}
+              {disabled ? null : (
+                <button
+                  aria-label={`Remove Teak tag ${tag}`}
+                  className={chipRemoveClass}
+                  onClick={() => onRemove(tag)}
+                  type="button"
+                >
+                  <X />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function CardMetadataPanel({
   backlinks,
   card,
+  done,
   getCurrentValue,
   notesRef,
   onCardTypeClick,
   onCommit,
   onNotesChange,
   onOpenCard,
-  onPermanentDelete,
-  onRestore,
+  onOpenFolders,
   onTagClick,
-  savePdf,
   tags,
 }: CardMetadataPanelProps) {
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
-  const [isFoldersOpen, setIsFoldersOpen] = useState(false);
+  const typeLabel = CARD_TYPE_LABELS[card.type as CardType] ?? "Card";
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useStoredFlag(DETAILS_EXPANDED_KEY);
   const folders = useFolders();
   const cardFolderIds = useMemo(
     () => (card.folderIds ?? []) as string[],
@@ -215,9 +341,20 @@ export function CardMetadataPanel({
   const summary = getCurrentValue("aiSummary");
   const isLongSummary = (summary?.length ?? 0) > SUMMARY_FOLD_LENGTH;
   const sections = getCardDetailSections(card);
+  const keyDetails = sections.details.filter((field) =>
+    KEY_DETAIL_LABELS.has(field.label)
+  );
+  const moreDetails = [
+    ...sections.details.filter((field) => !KEY_DETAIL_LABELS.has(field.label)),
+    ...sections.source,
+    ...sections.camera,
+  ];
   const safeUrl = sanitizeExternalUrl(card.url);
   const safeSourceUrl = sanitizeExternalUrl(card.sourceUrl);
   const sourceHost = normalizeUrlHost(safeSourceUrl);
+  const isDeleted = Boolean(card.isDeleted);
+  const hasOrganize =
+    !isDeleted || userTags.length + aiTags.length + cardFolders.length > 0;
 
   const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if ((event.key === "Enter" || event.key === ",") && tags.tagInput.trim()) {
@@ -233,49 +370,33 @@ export function CardMetadataPanel({
     }
   };
 
+  const folderNames = cardFolders.map((folder) => folder.name).join(", ");
+
   return (
     <div className="space-y-6 px-5 py-5">
-      {card.isDeleted ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-foreground/[0.04] py-1.5 pr-1.5 pl-3">
-          <p className="text-muted-foreground text-sm">In Trash</p>
-          <div className="flex gap-1">
-            <Button
-              className="h-7 px-2.5"
-              onClick={onRestore}
-              size="sm"
-              variant="ghost"
-            >
-              <RotateCcw />
-              Restore
-            </Button>
-            <Button
-              className="h-7 px-2.5 text-destructive hover:text-destructive"
-              onClick={onPermanentDelete}
-              size="sm"
-              variant="ghost"
-            >
-              <Trash />
-              Delete Forever
-            </Button>
-          </div>
-        </div>
+      {done && !isDeleted ? (
+        <DoneButton
+          category={done.category}
+          done={done.done}
+          onClick={done.onToggle}
+        />
       ) : null}
 
       <PanelSection title="Notes">
         <div className="relative">
           <textarea
-            aria-keyshortcuts={card.isDeleted ? undefined : "N"}
+            aria-keyshortcuts={isDeleted ? undefined : "N"}
             aria-label="Notes"
             className="peer field-sizing-content -mx-2 block max-h-72 min-h-9 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-foreground/[0.03] focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
             dir="auto"
             onBlur={onCommit}
             onChange={(event) => onNotesChange(event.target.value)}
-            placeholder={card.isDeleted ? "No notes" : "Add a note…"}
-            readOnly={card.isDeleted}
+            placeholder={isDeleted ? "No notes" : "Add a note…"}
+            readOnly={isDeleted}
             ref={notesRef}
             value={getCurrentValue("notes") ?? ""}
           />
-          {!(card.isDeleted || getCurrentValue("notes")) && (
+          {!(isDeleted || getCurrentValue("notes")) && (
             <ShortcutKeys
               className="pointer-events-none absolute top-2 right-0 peer-focus:hidden max-sm:hidden"
               keys={["N"]}
@@ -284,30 +405,7 @@ export function CardMetadataPanel({
         </div>
       </PanelSection>
 
-      {summary && (
-        <PanelSection title="Summary">
-          <p
-            className={cn(
-              "whitespace-pre-wrap break-words text-foreground/80 text-sm leading-relaxed",
-              isLongSummary && !isSummaryOpen && "line-clamp-4"
-            )}
-            dir="auto"
-          >
-            {summary}
-          </p>
-          {isLongSummary && (
-            <button
-              className="font-medium text-muted-foreground text-xs hover:text-foreground"
-              onClick={() => setIsSummaryOpen((value) => !value)}
-              type="button"
-            >
-              {isSummaryOpen ? "Show less" : "Show more"}
-            </button>
-          )}
-        </PanelSection>
-      )}
-
-      {!(card.isDeleted && userTags.length + aiTags.length === 0) && (
+      {hasOrganize ? (
         <PanelSection
           action={
             isCardHidden(card) && (
@@ -323,6 +421,31 @@ export function CardMetadataPanel({
           title="Tags"
         >
           <div className="flex flex-wrap items-center gap-1">
+            {cardFolders.length > 0 ? (
+              <button
+                aria-label={
+                  isDeleted
+                    ? `In ${folderNames}`
+                    : `In ${folderNames}. Change folders`
+                }
+                className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md px-2 text-sm ring-1 ring-border ring-inset hover:bg-foreground/5 disabled:pointer-events-none"
+                disabled={isDeleted || !onOpenFolders}
+                onClick={onOpenFolders}
+                title={folderNames}
+                type="button"
+              >
+                <span className="flex shrink-0 -space-x-0.5">
+                  {cardFolders.slice(0, 3).map((folder) => (
+                    <FolderDot color={folder.color} key={folder._id} />
+                  ))}
+                </span>
+                <span className="truncate" dir="auto">
+                  {cardFolders.length === 1
+                    ? cardFolders[0]?.name
+                    : `${cardFolders[0]?.name} +${cardFolders.length - 1}`}
+                </span>
+              </button>
+            ) : null}
             {userTags.map((tag) => (
               <span
                 className="group/tag relative inline-flex h-6 max-w-full items-center gap-0.5 rounded-md bg-secondary pointer-fine:pr-2 pr-1 pl-2 text-secondary-foreground text-sm"
@@ -336,7 +459,7 @@ export function CardMetadataPanel({
                 >
                   {tag}
                 </button>
-                {!card.isDeleted && (
+                {!isDeleted && (
                   <button
                     aria-label={`Remove tag ${tag}`}
                     className={chipRemoveClass}
@@ -348,56 +471,74 @@ export function CardMetadataPanel({
                 )}
               </span>
             ))}
-            {aiTags.map((tag) => (
-              <span
-                className="group/tag relative inline-flex h-6 max-w-full items-center gap-1 rounded-md pointer-fine:pr-2 pr-1 pl-1.5 text-muted-foreground text-sm ring-1 ring-border ring-inset"
-                key={`ai-${tag}`}
-              >
-                <Sparkles
-                  aria-hidden="true"
-                  className="size-3 shrink-0 opacity-70"
+            {!isDeleted && (
+              <span className="flex min-w-24 flex-1 items-center gap-1">
+                <input
+                  aria-keyshortcuts="T"
+                  aria-label="Add a tag"
+                  className="peer h-6 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
+                  enterKeyHint="done"
+                  maxLength={100}
+                  onChange={(event) => tags.setTagInput(event.target.value)}
+                  onKeyDown={handleTagKeyDown}
+                  placeholder="Add tag…"
+                  ref={tags.inputRef}
+                  value={tags.tagInput}
                 />
-                <button
-                  className="truncate hover:text-foreground hover:underline hover:underline-offset-2"
-                  onClick={() => onTagClick?.(tag)}
-                  title={`Tag added by Teak. Show cards tagged ${tag}`}
-                  type="button"
-                >
-                  {tag}
-                </button>
-                {!card.isDeleted && (
-                  <button
-                    aria-label={`Remove Teak tag ${tag}`}
-                    className={chipRemoveClass}
-                    onClick={() => tags.removeAiTag(tag)}
-                    type="button"
-                  >
-                    <X />
-                  </button>
+                {tags.tagInput ? null : (
+                  <ShortcutKeys
+                    className="pointer-events-none peer-focus:hidden max-sm:hidden"
+                    keys={["T"]}
+                  />
                 )}
+                {cardFolders.length === 0 && onOpenFolders ? (
+                  <ShortcutTooltip label="Add to a folder" side="left">
+                    <button
+                      aria-label="Add to a folder"
+                      className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground [&_svg]:size-3.5"
+                      onClick={onOpenFolders}
+                      type="button"
+                    >
+                      <FolderPlus />
+                    </button>
+                  </ShortcutTooltip>
+                ) : null}
               </span>
-            ))}
-            {!card.isDeleted && (
-              <input
-                aria-keyshortcuts="T"
-                aria-label="Add a tag"
-                className="peer h-6 min-w-20 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
-                enterKeyHint="done"
-                maxLength={100}
-                onChange={(event) => tags.setTagInput(event.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Add tag…"
-                ref={tags.inputRef}
-                value={tags.tagInput}
-              />
-            )}
-            {!(card.isDeleted || tags.tagInput) && (
-              <ShortcutKeys
-                className="pointer-events-none peer-focus:hidden max-sm:hidden"
-                keys={["T"]}
-              />
             )}
           </div>
+          <SuggestedTags
+            disabled={isDeleted}
+            onAccept={tags.acceptAiTag}
+            onRemove={tags.removeAiTag}
+            onTagClick={onTagClick}
+            tags={aiTags}
+          />
+        </PanelSection>
+      ) : null}
+
+      {summary && (
+        <PanelSection
+          icon={<Sparkles aria-hidden="true" className="size-3" />}
+          title="Summary"
+        >
+          <p
+            className={cn(
+              "whitespace-pre-wrap break-words text-foreground/80 text-sm leading-relaxed",
+              isLongSummary && !isSummaryOpen && "line-clamp-2"
+            )}
+            dir="auto"
+          >
+            {summary}
+          </p>
+          {isLongSummary && (
+            <button
+              className="font-medium text-muted-foreground text-xs hover:text-foreground"
+              onClick={() => setIsSummaryOpen((value) => !value)}
+              type="button"
+            >
+              {isSummaryOpen ? "Show less" : "Show more"}
+            </button>
+          )}
         </PanelSection>
       )}
 
@@ -419,51 +560,21 @@ export function CardMetadataPanel({
         </PanelSection>
       )}
 
-      <PanelSection title="Details">
+      <PanelSection
+        action={
+          <button
+            className="-mr-1 inline-flex h-5 items-center gap-1 rounded px-1.5 text-muted-foreground text-xs hover:bg-foreground/5 hover:text-foreground"
+            onClick={onCardTypeClick}
+            title={`Show all ${typeLabel} cards`}
+            type="button"
+          >
+            <TypeIcon aria-hidden="true" className="size-3" />
+            {typeLabel}
+          </button>
+        }
+        title="Details"
+      >
         <dl className="text-sm">
-          {!card.isDeleted && (
-            <PropertyRow label="Folders">
-              <button
-                aria-label={
-                  cardFolders.length
-                    ? `In ${cardFolders.map((folder) => folder.name).join(", ")}. Change folders`
-                    : "Add to a folder"
-                }
-                className="inline-flex max-w-full items-center gap-1.5 rounded-md px-1 hover:bg-foreground/5"
-                onClick={() => setIsFoldersOpen(true)}
-                title={cardFolders.map((folder) => folder.name).join(", ")}
-                type="button"
-              >
-                {cardFolders.length > 0 ? (
-                  <>
-                    <span className="flex shrink-0 -space-x-0.5">
-                      {cardFolders.slice(0, 3).map((folder) => (
-                        <FolderDot color={folder.color} key={folder._id} />
-                      ))}
-                    </span>
-                    <span className="truncate" dir="auto">
-                      {cardFolders.length === 1
-                        ? cardFolders[0]?.name
-                        : `${cardFolders[0]?.name} +${cardFolders.length - 1}`}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground/70">Add…</span>
-                )}
-              </button>
-            </PropertyRow>
-          )}
-          <PropertyRow label="Type">
-            <button
-              className="inline-flex items-center gap-1.5 rounded-md px-1 hover:bg-foreground/5"
-              onClick={onCardTypeClick}
-              title={`Show all ${CARD_TYPE_LABELS[card.type as CardType] ?? "card"} cards`}
-              type="button"
-            >
-              <TypeIcon className="size-3.5 text-muted-foreground" />
-              {CARD_TYPE_LABELS[card.type as CardType] ?? "Card"}
-            </button>
-          </PropertyRow>
           {safeSourceUrl && sourceHost ? (
             <PropertyRow label="From">
               <a
@@ -482,57 +593,42 @@ export function CardMetadataPanel({
               </a>
             </PropertyRow>
           ) : null}
-          <DetailRows fields={sections.details} />
-          <DetailRows fields={sections.source} />
-          <DetailRows fields={sections.camera} />
-          {safeUrl && (
-            <div className="group/url flex min-h-7 items-center gap-2 pt-1">
-              <dt className="sr-only">Link</dt>
-              <dd className="min-w-0 flex-1">
-                <a
-                  className="block truncate text-muted-foreground hover:text-foreground hover:underline hover:underline-offset-2"
-                  href={safeUrl}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                  title={card.url}
-                >
-                  {card.url?.replace(/^https?:\/\/(www\.)?/, "")}
-                </a>
-              </dd>
-              <button
-                aria-label="Copy link"
-                className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
-                onClick={() => void copyText(card.url as string, "Copied link")}
-                type="button"
+          {safeUrl ? (
+            <PropertyRow label="URL">
+              <a
+                className="block truncate hover:underline hover:underline-offset-2"
+                href={safeUrl}
+                rel="noopener noreferrer"
+                target="_blank"
+                title={card.url}
               >
-                <Copy className="size-3.5" />
-              </button>
-            </div>
-          )}
+                {card.url?.replace(/^https?:\/\/(www\.)?/, "")}
+              </a>
+            </PropertyRow>
+          ) : null}
+          <DetailRows fields={keyDetails} />
+          {isDetailsOpen ? <DetailRows fields={moreDetails} /> : null}
         </dl>
-        {savePdf && !card.isDeleted && (
-          <Button
-            aria-busy={savePdf.isSaving}
-            className="mt-2 w-full"
-            disabled={savePdf.isSaving}
-            onClick={savePdf.save}
-            size="sm"
-            variant="outline"
+        {moreDetails.length > 0 ? (
+          <button
+            aria-expanded={isDetailsOpen}
+            className="inline-flex items-center gap-1 font-medium text-muted-foreground text-xs hover:text-foreground"
+            onClick={() => setIsDetailsOpen((value) => !value)}
+            type="button"
           >
-            <FileDown />
-            {savePdf.isSaving ? "Saving PDF…" : "Save PDF"}
-          </Button>
-        )}
+            {isDetailsOpen ? "Fewer details" : "More details"}
+            <ChevronDown
+              aria-hidden="true"
+              className={cn(
+                "size-3 transition-transform",
+                isDetailsOpen && "rotate-180"
+              )}
+            />
+          </button>
+        ) : null}
       </PanelSection>
 
       <LinkedFromSection backlinks={backlinks} onOpenCard={onOpenCard} />
-
-      <CardFoldersDialog
-        cardId={card._id}
-        folderIds={cardFolderIds}
-        onOpenChange={setIsFoldersOpen}
-        open={isFoldersOpen}
-      />
     </div>
   );
 }

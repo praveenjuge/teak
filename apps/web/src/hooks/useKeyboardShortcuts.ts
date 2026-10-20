@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 
 export interface KeyboardShortcut {
+  /**
+   * An attribute marking the dialogs this shortcut still works over. With
+   * any other overlay open, a menu included, it waits like the rest.
+   */
+  alsoOver?: string;
   keys: string;
   run: () => void;
   when?: () => boolean;
@@ -9,6 +14,9 @@ export interface KeyboardShortcut {
 export const SHORTCUT_SEQUENCE_TIMEOUT_MS = 1000;
 
 export const SHORTCUTS_DIALOG_ATTRIBUTE = "data-keyboard-shortcuts-dialog";
+
+/** Marks the open card's dialog, which some library shortcuts work over. */
+export const CARD_DIALOG_ATTRIBUTE = "data-card-dialog";
 
 const TYPING_ROLES = new Set([
   "combobox",
@@ -45,6 +53,9 @@ export function isOverlayOpen(root: ParentNode = document): boolean {
   return root.querySelector(OVERLAY_SELECTOR) !== null;
 }
 
+const openOverlays = (): Element[] =>
+  Array.from(document.querySelectorAll(OVERLAY_SELECTOR));
+
 const shortcutKey = (event: KeyboardEvent): string | null => {
   if (event.ctrlKey || event.metaKey || event.altKey) {
     return null;
@@ -79,9 +90,19 @@ export function useKeyboardShortcuts(
       if (
         event.defaultPrevented ||
         event.isComposing ||
-        isTypingTarget(event.target) ||
-        isOverlayOpen()
+        isTypingTarget(event.target)
       ) {
+        pendingRef.current = null;
+        return;
+      }
+      const overlays = openOverlays();
+      const usable = (shortcut: KeyboardShortcut) =>
+        overlays.length === 0 ||
+        (shortcut.alsoOver !== undefined &&
+          overlays.every((overlay) =>
+            overlay.hasAttribute(shortcut.alsoOver as string)
+          ));
+      if (!shortcutsRef.current.some(usable)) {
         pendingRef.current = null;
         return;
       }
@@ -94,7 +115,7 @@ export function useKeyboardShortcuts(
         return;
       }
       const all = shortcutsRef.current.filter(
-        (shortcut) => shortcut.when?.() ?? true
+        (shortcut) => usable(shortcut) && (shortcut.when?.() ?? true)
       );
       const run = (shortcut: KeyboardShortcut) => {
         event.preventDefault();

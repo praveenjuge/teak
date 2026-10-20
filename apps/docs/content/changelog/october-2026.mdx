@@ -46,7 +46,7 @@ changelog:
 
 ## Mark links as read, watched or bought
 
-- Open a link and click the circle beside the heart to mark it done. It says **Mark as read** for an article, **Mark as watched** for a film, **Mark as bought** for a product, **Mark as played** for a game, and so on, and a check appears on the link's tile. A toast lets you undo it.
+- Open a link and click **Mark as read** at the top of its details, or press `D`, to mark it done. It says **Mark as read** for an article, **Mark as watched** for a film, **Mark as bought** for a product, **Mark as played** for a game, and so on, and a check appears on the link's tile. A toast lets you undo it.
 - Search `is:todo` for what's left to read, watch, listen to or buy, and `is:done` for what you've finished. Both work in smart folders, such as `is:todo folder:"Reading list"`. See [Read, watch and buy](/docs/features#read-watch-and-buy).
 - **API, MCP, SDK, and CLI:** `POST /v1/cards/:cardId/done` and `DELETE` to undo, `teak_v1_set_card_done`, `cards.setDone`, and `teak done <card-id>` (`--undo` to clear it). Cards include `completedAt` and `linkCategory`. See [Mark a link done](/docs/api#mark-a-link-done).
 
@@ -159,8 +159,9 @@ changelog:
 
 - On the web, cards in the grid are easier to scan: links show their site's icon beside the title, notes show their first line as a heading and more of what follows, quotes and palettes read more cleanly, documents show their file type, and audio shows its length.
 - Rest the pointer on a card to open its link, favorite it, select it, or open **More** for every other action, without right-clicking.
-- An open card has a header with its title, site, and when you added it, plus **Open** or **Download**, favorite, and **More**. Notes, tags, folders, colors, and details sit beside it and edit in place, so there are no extra windows; notes, a note's text, and a link's renamed title save on their own as you type.
-- Step through cards without closing them, with the arrows at the top or `←` and `→`. `F` favorites, `T` adds a tag, `N` writes a note, `E` archives, and `Delete` moves the card to Trash. On a phone the card opens as a sheet from the bottom. See [Grid](/docs/features#grid).
+- An open card keeps its top bar to the title, favorite, **More**, and one main action, **Open** or **Download**; everything else is in **More**, and a note or quote has no title bar at all. Notes, tags, folders, summary, colors, and details sit beside it and edit in place; notes, a note's text, and a link's renamed title save on their own as you type. Tags Teak added fold under **suggested tags**, where you can keep or remove each, and **Details** shows the essentials with **More details** for the rest.
+- Photos and videos fill the card, with the title bar appearing when you point at them. Press `I` to hide the details and read full width; the card remembers it. Deleting from an open card offers **Undo**, and a card in Trash says so above it with **Restore** and **Delete Forever**.
+- Step through cards without closing them, with the arrows beside the card or `←` and `→`. The arrows stay put whatever the card's size, so quick clicks each move one card. `F` favorites, `T` adds a tag, `N` writes a note, `O` opens the link, `C` copies it, `D` marks it done, `E` archives, `Delete` moves the card to Trash, and `?` lists every shortcut. On a phone the card opens as a sheet from the bottom, with its actions in a bar along the bottom. See [Grid](/docs/features#grid).
 - Selecting cards no longer moves them around the grid, an open card closes the moment you dismiss it, and messages such as **Copied** appear as a small centered pill instead of a bar along the bottom, so they read fully even over an open card.
 
 ## Shuffle your library

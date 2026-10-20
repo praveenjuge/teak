@@ -1,10 +1,9 @@
 "use client";
 
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { onDemand } from "../../lib/lazyWithPreload";
 import { preloadMarkdownTextEditor } from "../text-editor/MarkdownTextEditor";
+import { CardModalSkeleton } from "./CardModalSkeleton";
 import type { ConnectedCardModalProps } from "./ConnectedCardModal";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -54,13 +53,7 @@ function CardModalLoading({
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Opening card</DialogTitle>
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b pr-3 pl-4">
-          <Skeleton className="size-8 rounded-lg" />
-          <Skeleton className="h-4 w-48" />
-        </header>
-        <div className="grid flex-1 place-items-center">
-          <Spinner className="size-5 text-muted-foreground" />
-        </div>
+        <CardModalSkeleton />
       </DialogContent>
     </Dialog>
   );

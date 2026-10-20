@@ -68,6 +68,7 @@ export function ConnectedCardModal({
     addTag,
     removeTag,
     removeAiTag,
+    acceptAiTag,
     handleDelete,
     handleRestore,
     handlePermanentDelete,
@@ -174,6 +175,7 @@ export function ConnectedCardModal({
       }
       saveState={saveState}
       tags={{
+        acceptAiTag,
         addTag,
         removeAiTag,
         removeTag,
