@@ -7,7 +7,7 @@ import {
 } from "@teak/files-protocol";
 import { gatedBucket } from "../deletionGate";
 import { type FilesOpsEnv, runFilesOp } from "../ops";
-import { retryingReads } from "../r2Retry";
+import { retryingReads } from "../storage/r2Retry";
 
 /**
  * An op that neither succeeds nor declines throws, so step retries apply.

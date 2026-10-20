@@ -1,4 +1,4 @@
-import { isMissingMultipartUpload } from "./missingMultipartUpload";
+import { isMissingMultipartUpload } from "./storage/missingMultipartUpload";
 
 export interface DeletionGateEnv {
   BUCKET: R2Bucket;

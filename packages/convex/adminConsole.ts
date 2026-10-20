@@ -62,7 +62,7 @@ const writeSettings = async (
 
 /**
  * `aiPaused` reaches card processing within a minute: the Files Worker reuses
- * each `getAiGate` answer for up to 60 seconds (`apps/files-worker/src/aiGate.ts`).
+ * each `getAiGate` answer for up to 60 seconds (`apps/files-worker/src/ai/aiGate.ts`).
  */
 export const setKillSwitch = mutation({
   args: {

@@ -37,7 +37,7 @@ When a saved page has died, opening its link shows Teak's archived copy instead 
   - `apps/web/src/app/(app)/{page,archive,f/[folderId],favorites,settings,tags,trash}`; `/archive` is already the Archive view, so the new route is `/open`.
   - AuthKit protects every route except `/sign-in`, `/sign-up`, `/callback`, `/opengraph-image` and the analytics proxy (`apps/web/src/proxy.ts:7-8`).
 - **Safe fetching:**
-  - `safeFetch` (`packages/convex/linkMetadata/ssrf.ts:351`) and the Files Worker's pinned hop (`apps/files-worker/src/pinnedHop.ts`) resolve DNS over DoH. An NXDOMAIN response returns no addresses (`pinnedHop.ts:52-55`).
+  - `safeFetch` (`packages/convex/linkMetadata/ssrf.ts:351`) and the Files Worker's pinned hop (`apps/files-worker/src/media/pinnedHop.ts`) resolve DNS over DoH. An NXDOMAIN response returns no addresses (`pinnedHop.ts:52-55`).
   - Requests then go through the fetcher's `/hop`, which allows only the `accept` and `user-agent` request headers and returns at most 4 MiB, with a 30 s timeout cap (`fetcher/src/protocol.ts`).
 - **Archive objects** are served from `files.teakvault.com` with phase 9's `Content-Security-Policy: sandbox` header for the `page-archive` role. Signed URLs come from `getR2Url` (`packages/convex/storage/fileUrls.ts`).
 - **Rate limits** live in `packages/convex/shared/rateLimits.ts`.

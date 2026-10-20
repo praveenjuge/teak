@@ -1,4 +1,4 @@
-import { API_PROXY_MAX_BODY_BYTES } from "../src/apiProxy";
+import { API_PROXY_MAX_BODY_BYTES } from "../src/edge/apiProxy";
 
 export const WAF_ZONE_NAME = "teakvault.com";
 export const WAF_RULE_REF_PREFIX = "teak-api-";

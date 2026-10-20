@@ -94,14 +94,6 @@ export const parseRaycastCard = (payload: unknown): RaycastCard => {
   return payload;
 };
 
-export const getPayloadCode = (payload: unknown): string | undefined => {
-  if (!isJsonObject(payload)) {
-    return undefined;
-  }
-
-  return typeof payload.code === "string" ? payload.code : undefined;
-};
-
 export const parseCardsPageResponse = (payload: unknown): CardsResponse => {
   if (!isJsonObject(payload)) {
     throw new RaycastApiError("REQUEST_FAILED");
@@ -150,29 +142,6 @@ export const parseTagsResponse = (payload: unknown): TagsResponse => {
     items,
   };
 };
-
-export interface UploadTarget {
-  fileKey: string;
-  uploadUrl: string;
-}
-
-export const parseUploadResponse = (payload: unknown): UploadTarget => {
-  if (
-    !(
-      isJsonObject(payload) &&
-      typeof payload.fileKey === "string" &&
-      typeof payload.uploadUrl === "string"
-    )
-  ) {
-    throw new RaycastApiError("REQUEST_FAILED");
-  }
-  return { fileKey: payload.fileKey, uploadUrl: payload.uploadUrl };
-};
-
-export const parseDuplicateResponse = (payload: unknown): string | null =>
-  isJsonObject(payload) && typeof payload.cardId === "string"
-    ? payload.cardId
-    : null;
 
 export const parseQuickSaveResponse = (payload: unknown): QuickSaveResponse => {
   if (!isJsonObject(payload)) {

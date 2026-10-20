@@ -32,7 +32,6 @@ import { MasonryGrid, type MasonryGridHandle } from "@/components/grids";
 import { CardsSearchHeader } from "@/components/search";
 import { Button } from "@/components/ui/button";
 import {
-  type CardsVisualFilters,
   useBulkCardActions,
   useCardActions,
   useCardClipboard,
@@ -40,6 +39,7 @@ import {
   useCardsSearchController,
   useVaultSetup,
 } from "@/hooks";
+import type { CardsVisualFilters } from "@/lib/cardsSearchState";
 import {
   LazyConnectedCardModal as ConnectedCardModal,
   preloadCardModal,

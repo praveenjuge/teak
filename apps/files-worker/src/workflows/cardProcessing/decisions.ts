@@ -3,7 +3,7 @@ import {
   CLEF_MODEL_ID,
   type FilesOp,
 } from "@teak/files-protocol";
-import { currentAiUsageContext, runWithAiUsage } from "../../aiUsage";
+import { currentAiUsageContext, runWithAiUsage } from "../../ai/aiUsage";
 import {
   observeAiGeneration,
   type WorkflowTelemetry,

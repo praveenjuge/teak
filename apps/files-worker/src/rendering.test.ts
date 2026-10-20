@@ -5,13 +5,13 @@ import {
   buildFilesOpSigningPayload,
   FILES_PROTOCOL_VERSION,
 } from "@teak/files-protocol";
+import { hmacSha256Hex, sha256Hex } from "./lib";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
   MAX_RENDER_HTML_BYTES,
   scrapeHtml,
-} from "./browserRender";
-import { hmacSha256Hex, sha256Hex } from "./lib";
+} from "./media/browserRender";
 import { type FilesOpsEnv, handleInternalOp } from "./ops";
 import { launchLocalChrome, localChromeLease } from "./test/chromeTestSupport";
 import { FakeBucket } from "./test/testsupport";

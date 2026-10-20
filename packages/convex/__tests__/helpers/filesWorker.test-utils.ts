@@ -42,7 +42,7 @@ export const loadFilesWorker = async () => {
     import(workerFile("test/fakeStep.ts")),
     import(workerFile("workflows/accountDeletion.ts")),
     import(workerFile("workflows/import.ts")),
-    import(workerFile("hourlyCleanup.ts")),
+    import(workerFile("scheduled/hourlyCleanup.ts")),
   ]);
   return {
     callFilesOp: filesOps.callFilesOp,

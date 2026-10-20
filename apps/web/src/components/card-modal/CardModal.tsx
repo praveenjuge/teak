@@ -42,7 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { useGlobalFileDrop } from "../../hooks/GlobalFileDropProvider";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import type { LinkThumbnailControl } from "../../hooks/useLinkThumbnail";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
@@ -69,6 +68,7 @@ import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { SiteFavicon } from "../cards/SiteFavicon";
+import { useGlobalFileDrop } from "../providers/GlobalFileDropProvider";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import type { CardLinkOptions } from "../text-editor/types";
 import { ConfirmDialog } from "../ui/confirm-dialog";

@@ -7,8 +7,8 @@ import {
   convexSiteUrls,
   createConvexRpc,
 } from "../convexRpc";
-import { addressKey } from "../edgeIdentity";
-import type { RateLimiter } from "../edgeRateLimit";
+import { addressKey } from "../edge/edgeIdentity";
+import type { RateLimiter } from "../edge/edgeRateLimit";
 import { sha256Hex } from "../lib";
 
 export const WORKOS_WEBHOOK_PATH_PREFIX = "/__webhooks/workos/";

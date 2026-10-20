@@ -1,8 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
 import {
-  buildCardsSearchParams,
   type CreateCardInput,
+  createTeakClient,
+  TeakApiError,
+  type TeakClient,
+  type TokenProvider,
   type UpdateCardInput,
 } from "teak-sdk";
 import {
@@ -12,13 +15,10 @@ import {
 } from "./apiErrors";
 import {
   type CardsResponse,
-  getPayloadCode,
   parseCardsPageResponse,
-  parseDuplicateResponse,
   parseQuickSaveResponse,
   parseRaycastCard,
   parseTagsResponse,
-  parseUploadResponse,
   type QuickSaveResponse,
   type RaycastCard,
   type TagsResponse,
@@ -63,71 +63,23 @@ export interface CardSearchInput {
   type?: RaycastCardType;
 }
 
+// Raycast shows processing state, so card lists ask for it too.
 const CARD_DETAIL_INCLUDE = "content,metadata,processing";
 
 export type { CreateCardInput, UpdateCardInput } from "teak-sdk";
 
-const getErrorCodeFromResponse = (
-  payloadCode: string | undefined,
-  status: number,
-): RaycastApiErrorCode => {
-  if (status === 401) {
-    return toErrorCode(payloadCode, "INVALID_API_KEY");
-  }
-
-  if (status === 429) {
-    return "RATE_LIMITED";
-  }
-
-  if (status === 404) {
-    return toErrorCode(payloadCode, "NOT_FOUND");
-  }
-
-  return toErrorCode(payloadCode, "REQUEST_FAILED");
-};
+export type AuthMode = "interactive" | "silent";
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 const getRequestTimeoutMs = (): number => {
-  const rawValue = process.env.TEAK_API_REQUEST_TIMEOUT_MS;
-  if (!rawValue) {
-    return DEFAULT_REQUEST_TIMEOUT_MS;
-  }
-
-  const parsed = Number.parseInt(rawValue, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return DEFAULT_REQUEST_TIMEOUT_MS;
-  }
-
-  return parsed;
-};
-
-const withLoopbackFallback = (url: string): string => {
-  let parsedUrl: URL;
-
-  try {
-    parsedUrl = new URL(url);
-  } catch {
-    return url;
-  }
-
-  const hostname = parsedUrl.hostname.toLowerCase();
-  if (hostname !== "localhost" && !hostname.endsWith(".localhost")) {
-    return url;
-  }
-
-  parsedUrl.hostname = "127.0.0.1";
-  return parsedUrl.toString();
-};
-
-const parseJson = (response: Response): Promise<unknown> =>
-  response.json().catch(() => null);
-
-const buildHeaders = (apiKey: string, initHeaders?: HeadersInit): Headers => {
-  const headers = new Headers(initHeaders);
-  headers.set("Content-Type", "application/json");
-  headers.set("Authorization", `Bearer ${apiKey}`);
-  return headers;
+  const parsed = Number.parseInt(
+    process.env.TEAK_API_REQUEST_TIMEOUT_MS ?? "",
+    10,
+  );
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_REQUEST_TIMEOUT_MS;
 };
 
 const logApiRequestFailure = (
@@ -146,308 +98,223 @@ const logApiRequestFailure = (
   });
 };
 
-interface ResolvedBearer {
-  source: "apiKey" | "oauth";
-  token: string;
-}
-
-export type AuthMode = "interactive" | "silent";
-
-const resolveBearerToken = async (auth: AuthMode): Promise<ResolvedBearer> => {
-  const apiKey = grandfatheredApiKey();
-  if (apiKey) {
-    return { source: "apiKey", token: apiKey };
-  }
-
+const withLoopbackFallback = (url: string): string => {
+  let parsedUrl: URL;
   try {
-    const accessToken =
-      auth === "silent"
-        ? await getStoredTeakAccessToken()
-        : await authorizeTeak();
-    if (!accessToken) {
-      throw new RaycastApiError("INVALID_API_KEY", 401);
-    }
-    return { source: "oauth", token: accessToken };
-  } catch (error) {
-    if (error instanceof TeakDiscoveryError) {
-      throw new RaycastApiError("NETWORK_ERROR");
-    }
-    throw error;
+    parsedUrl = new URL(url);
+  } catch {
+    return url;
   }
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (hostname !== "localhost" && !hostname.endsWith(".localhost")) {
+    return url;
+  }
+  parsedUrl.hostname = "127.0.0.1";
+  return parsedUrl.toString();
 };
 
-const executeHttpRequest = async (
-  path: string,
-  bearerToken: string,
+// A local API on `localhost` may only answer on 127.0.0.1, so a failed
+// request is tried once more there before it counts as a network failure.
+const fetchWithLoopbackFallback = (async (
+  input: RequestInfo | URL,
   init?: RequestInit,
-): Promise<{ requestUrl: string; response: Response }> => {
-  const baseUrl = getApiBaseUrl();
-  const timeoutMs = getRequestTimeoutMs();
-  const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    abortController.abort(new Error(`Request timed out after ${timeoutMs}ms`));
-  }, timeoutMs);
-
-  const requestUrl = `${baseUrl}${path}`;
-  const fallbackUrl = withLoopbackFallback(requestUrl);
-  const requestInit: RequestInit = {
-    ...init,
-    headers: buildHeaders(bearerToken, init?.headers),
-    signal: abortController.signal,
-  };
-
+) => {
+  const url = input instanceof Request ? input.url : String(input);
   try {
-    return { requestUrl, response: await fetch(requestUrl, requestInit) };
+    return await fetch(url, init);
   } catch (requestError) {
-    if (fallbackUrl !== requestUrl) {
-      try {
-        return {
-          requestUrl,
-          response: await fetch(fallbackUrl, requestInit),
-        };
-      } catch (fallbackError) {
-        logApiRequestFailure(
-          {
-            fallbackUrl,
-            method: requestInit.method ?? "GET",
-            path,
-            url: requestUrl,
-          },
-          fallbackError,
-        );
-        throw new RaycastApiError("NETWORK_ERROR");
-      }
+    const fallbackUrl = withLoopbackFallback(url);
+    if (fallbackUrl === url) {
+      logApiRequestFailure(
+        { method: init?.method ?? "GET", url },
+        requestError,
+      );
+      throw requestError;
     }
+    try {
+      return await fetch(fallbackUrl, init);
+    } catch (fallbackError) {
+      logApiRequestFailure(
+        { fallbackUrl, method: init?.method ?? "GET", url },
+        fallbackError,
+      );
+      throw fallbackError;
+    }
+  }
+}) as typeof fetch;
 
-    logApiRequestFailure(
-      {
-        method: requestInit.method ?? "GET",
-        path,
-        url: requestUrl,
-      },
-      requestError,
-    );
-    throw new RaycastApiError("NETWORK_ERROR");
-  } finally {
-    clearTimeout(timeoutHandle);
+const tokenProviderFor = (auth: AuthMode): TokenProvider => {
+  let source: "apiKey" | "oauth" | undefined;
+  const throwDiscoveryAsNetwork = (error: unknown): never => {
+    throw error instanceof TeakDiscoveryError
+      ? new RaycastApiError("NETWORK_ERROR")
+      : error;
+  };
+  return {
+    getAccessToken: async () => {
+      const apiKey = grandfatheredApiKey();
+      if (apiKey) {
+        source = "apiKey";
+        return apiKey;
+      }
+      source = "oauth";
+      const accessToken = await (
+        auth === "silent" ? getStoredTeakAccessToken() : authorizeTeak()
+      ).catch(throwDiscoveryAsNetwork);
+      if (!accessToken) {
+        throw new RaycastApiError("INVALID_API_KEY", 401);
+      }
+      return accessToken;
+    },
+    // Only an interactive OAuth session signs in again after a 401; an API
+    // key or a silent command reports the 401.
+    onUnauthorized: (): Promise<string | null> | null =>
+      source === "oauth" && auth === "interactive"
+        ? reauthorizeTeak().catch(throwDiscoveryAsNetwork)
+        : null,
+  };
+};
+
+const raycastCodeFor = (error: TeakApiError): RaycastApiErrorCode => {
+  switch (error.status) {
+    case 401:
+      // The SDK reports an unknown 401 code as REQUEST_FAILED.
+      return error.code === "REQUEST_FAILED"
+        ? "INVALID_API_KEY"
+        : toErrorCode(error.code, "INVALID_API_KEY");
+    case 404:
+      return toErrorCode(error.code, "NOT_FOUND");
+    case 429:
+      return "RATE_LIMITED";
+    default:
+      return toErrorCode(error.code, "REQUEST_FAILED");
   }
 };
 
-export const request = async <T>(
-  path: string,
-  parseResponse: (payload: unknown) => T,
-  init: RequestInit,
-  auth: AuthMode,
-): Promise<T> => {
-  const bearer = await resolveBearerToken(auth);
-  let { requestUrl, response } = await executeHttpRequest(
-    path,
-    bearer.token,
-    init,
-  );
-
-  if (
-    response.status === 401 &&
-    bearer.source === "oauth" &&
-    auth === "interactive"
-  ) {
-    let refreshedToken: string;
-    try {
-      refreshedToken = await reauthorizeTeak();
-    } catch (error) {
-      if (error instanceof TeakDiscoveryError) {
-        throw new RaycastApiError("NETWORK_ERROR");
-      }
-      throw error;
-    }
-    ({ requestUrl, response } = await executeHttpRequest(
-      path,
-      refreshedToken,
-      init,
-    ));
+const toRaycastError = (error: unknown): unknown => {
+  if (!(error instanceof TeakApiError)) {
+    return error;
   }
-
-  if (response.ok) {
-    const payload = await parseJson(response);
-    return parseResponse(payload);
+  if (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") {
+    return new RaycastApiError("NETWORK_ERROR");
   }
-
-  const payload = await parseJson(response);
-  const payloadCode = getPayloadCode(payload);
-  const code = getErrorCodeFromResponse(payloadCode, response.status);
-
+  // A non-JSON error page (an edge 429, say) still maps by its status.
+  if (error.code === "PARSE_ERROR" && (error.status ?? 0) < 400) {
+    return new RaycastApiError("REQUEST_FAILED", error.status);
+  }
+  const code = raycastCodeFor(error);
   logApiRequestFailure({
     code,
-    contentType: response.headers.get("content-type"),
-    method: init?.method ?? "GET",
-    path,
-    payload,
-    payloadCode,
-    status: response.status,
-    statusText: response.statusText,
-    url: response.url || requestUrl,
+    message: error.message,
+    requestId: error.requestId,
+    status: error.status,
   });
+  return new RaycastApiError(code, error.status);
+};
 
-  throw new RaycastApiError(code, response.status);
+// Each call gets its own client because the auth mode decides how the token
+// is found and whether a 401 signs in again.
+const withClient = async <T>(
+  auth: AuthMode,
+  call: (client: TeakClient) => Promise<T>,
+): Promise<T> => {
+  const client = createTeakClient({
+    // The SDK adds the `/v1` prefix itself.
+    baseUrl: getApiBaseUrl().replace(/\/v1$/, ""),
+    fetch: fetchWithLoopbackFallback,
+    timeoutMs: getRequestTimeoutMs(),
+    tokenProvider: tokenProviderFor(auth),
+    userAgent: "teak-raycast",
+  });
+  try {
+    return await call(client);
+  } catch (error) {
+    throw toRaycastError(error);
+  }
+};
+
+const requireCardId = (cardId: string): string => {
+  const normalizedCardId = cardId.trim();
+  if (!normalizedCardId) {
+    throw new RaycastApiError("INVALID_INPUT");
+  }
+  return normalizedCardId;
 };
 
 export const createCard = (
   input: CreateCardInput,
   auth: AuthMode,
 ): Promise<QuickSaveResponse> =>
-  request<QuickSaveResponse>(
-    "/cards",
-    parseQuickSaveResponse,
-    {
-      body: JSON.stringify(input),
-      method: "POST",
-    },
-    auth,
+  withClient(auth, async (client) =>
+    parseQuickSaveResponse(await client.cards.create(input)),
   );
 
 export const quickSaveCard = (
   input: string | CreateCardInput,
   auth: AuthMode,
 ): Promise<QuickSaveResponse> =>
-  createCard(
-    typeof input === "string"
-      ? {
-          content: input,
-        }
-      : input,
-    auth,
-  );
+  createCard(typeof input === "string" ? { content: input } : input, auth);
 
 export const searchCards = (
   input: CardSearchInput,
   auth: AuthMode,
 ): Promise<CardsResponse> =>
-  request<CardsResponse>(
-    `/cards?${buildCardsSearchParams({
-      ...input,
-      include: CARD_DETAIL_INCLUDE,
-    })}`,
-    parseCardsPageResponse,
-    {
-      method: "GET",
-    },
-    auth,
+  withClient(auth, async (client) =>
+    parseCardsPageResponse(
+      await client.cards.list({ ...input, include: CARD_DETAIL_INCLUDE }),
+    ),
   );
 
 export const getFavoriteCards = (
   input: CardSearchInput,
   auth: AuthMode,
-): Promise<CardsResponse> =>
-  request<CardsResponse>(
-    `/cards?${buildCardsSearchParams({
-      ...input,
-      favorited: true,
-      include: CARD_DETAIL_INCLUDE,
-    })}`,
-    parseCardsPageResponse,
-    {
-      method: "GET",
-    },
-    auth,
-  );
+): Promise<CardsResponse> => searchCards({ ...input, favorited: true }, auth);
 
+// The id check runs inside the client call so a blank id rejects like any
+// other request failure instead of throwing synchronously.
 export const getCardById = (
   cardId: string,
   auth: AuthMode,
-): Promise<RaycastCard> => {
-  const normalizedCardId = cardId.trim();
-  if (!normalizedCardId) {
-    throw new RaycastApiError("INVALID_INPUT");
-  }
-
-  return request(
-    `/cards/${encodeURIComponent(normalizedCardId)}`,
-    parseRaycastCard,
-    {
-      method: "GET",
-    },
-    auth,
+): Promise<RaycastCard> =>
+  withClient(auth, async (client) =>
+    parseRaycastCard(await client.cards.get(requireCardId(cardId))),
   );
-};
 
 export const updateCard = (
   cardId: string,
   input: UpdateCardInput,
   auth: AuthMode,
-): Promise<RaycastCard> => {
-  const normalizedCardId = cardId.trim();
-  if (!normalizedCardId) {
-    throw new RaycastApiError("INVALID_INPUT");
-  }
-
-  return request(
-    `/cards/${encodeURIComponent(normalizedCardId)}`,
-    parseRaycastCard,
-    {
-      body: JSON.stringify(input),
-      method: "PATCH",
-    },
-    auth,
+): Promise<RaycastCard> =>
+  withClient(auth, async (client) =>
+    parseRaycastCard(await client.cards.update(requireCardId(cardId), input)),
   );
-};
 
 export const setCardFavorite = (
   cardId: string,
   isFavorited: boolean,
   auth: AuthMode,
-): Promise<RaycastCard> => {
-  const normalizedCardId = cardId.trim();
-  if (!normalizedCardId) {
-    throw new RaycastApiError("INVALID_INPUT");
-  }
-
-  return request(
-    `/cards/${encodeURIComponent(normalizedCardId)}/favorite`,
-    parseRaycastCard,
-    {
-      body: JSON.stringify({ isFavorited }),
-      method: "PATCH",
-    },
-    auth,
+): Promise<RaycastCard> =>
+  withClient(auth, async (client) =>
+    parseRaycastCard(
+      await client.cards.setFavorite(requireCardId(cardId), isFavorited),
+    ),
   );
-};
 
 export const softDeleteCard = async (
   cardId: string,
   auth: AuthMode,
 ): Promise<void> => {
-  const normalizedCardId = cardId.trim();
-  if (!normalizedCardId) {
-    throw new RaycastApiError("INVALID_INPUT");
-  }
-
-  await request<void>(
-    `/cards/${encodeURIComponent(normalizedCardId)}`,
-    () => undefined,
-    {
-      method: "DELETE",
-    },
-    auth,
+  await withClient(auth, (client) =>
+    client.cards.delete(requireCardId(cardId)),
   );
-};
-
-const cardPath = (cardId: string): string => {
-  const normalizedCardId = cardId.trim();
-  if (!normalizedCardId) {
-    throw new RaycastApiError("INVALID_INPUT");
-  }
-  return `/cards/${encodeURIComponent(normalizedCardId)}`;
 };
 
 export const restoreCard = async (
   cardId: string,
   auth: AuthMode,
 ): Promise<void> => {
-  await request<void>(
-    `${cardPath(cardId)}/restore`,
-    () => undefined,
-    { method: "POST" },
-    auth,
+  await withClient(auth, (client) =>
+    client.cards.restore(requireCardId(cardId)),
   );
 };
 
@@ -455,11 +322,8 @@ export const permanentlyDeleteCard = async (
   cardId: string,
   auth: AuthMode,
 ): Promise<void> => {
-  await request<void>(
-    `${cardPath(cardId)}?permanent=true`,
-    () => undefined,
-    { method: "DELETE" },
-    auth,
+  await withClient(auth, (client) =>
+    client.cards.delete(requireCardId(cardId), { permanent: true }),
   );
 };
 
@@ -467,12 +331,7 @@ export const findSavedCardId = (
   url: string,
   auth: AuthMode,
 ): Promise<string | null> =>
-  request(
-    `/cards/duplicate?${new URLSearchParams({ url }).toString()}`,
-    parseDuplicateResponse,
-    { method: "GET" },
-    auth,
-  );
+  withClient(auth, (client) => client.cards.duplicate(url));
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   avif: "image/avif",
@@ -504,7 +363,7 @@ export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-const requireWebUrl = (url: string): URL => {
+const requireWebUrl = (url: string): string => {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -515,7 +374,7 @@ const requireWebUrl = (url: string): URL => {
     parsed.protocol === "https:" ||
     (parsed.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname))
   ) {
-    return parsed;
+    return parsed.href;
   }
   throw new RaycastApiError("REQUEST_FAILED");
 };
@@ -531,47 +390,32 @@ export const saveFileCard = async (
     throw new RaycastApiError("INVALID_INPUT");
   }
   const mimeType = mimeTypeForFile(filePath);
-  const upload = await request(
-    "/uploads",
-    parseUploadResponse,
-    {
-      body: JSON.stringify({ fileName, fileSize, mimeType }),
-      method: "POST",
-    },
-    auth,
-  );
-  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
-  const uploaded = await fetch(requireWebUrl(upload.uploadUrl), {
-    body: await readFile(filePath),
-    headers: {
-      "Content-Length": String(fileSize),
-      "Content-Type": mimeType,
-    },
-    method: "PUT",
-  });
-  if (!uploaded.ok) {
-    throw new RaycastApiError("REQUEST_FAILED", uploaded.status);
-  }
-  return createCard(
-    {
-      fileEtag: uploaded.headers.get("etag") ?? undefined,
-      fileKey: upload.fileKey,
+  return withClient(auth, async (client) => {
+    const upload = await client.uploads.create({
       fileName,
       fileSize,
       mimeType,
-      source: input.source,
-      tags: input.tags,
-    },
-    auth,
-  );
+    });
+    const { fileEtag } = await client.uploads.putFile(
+      requireWebUrl(upload.uploadUrl),
+      await readFile(filePath),
+      mimeType,
+    );
+    return parseQuickSaveResponse(
+      await client.cards.create({
+        fileEtag,
+        fileKey: upload.fileKey,
+        fileName,
+        fileSize,
+        mimeType,
+        source: input.source,
+        tags: input.tags,
+      }),
+    );
+  });
 };
 
 export const listTags = (auth: AuthMode): Promise<TagsResponse> =>
-  request<TagsResponse>(
-    "/tags",
-    parseTagsResponse,
-    {
-      method: "GET",
-    },
-    auth,
+  withClient(auth, async (client) =>
+    parseTagsResponse(await client.tags.list()),
   );

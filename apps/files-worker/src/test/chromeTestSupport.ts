@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import puppeteer, { type Browser } from "@cloudflare/puppeteer";
-import type { AcquireBrowser } from "../browserSessions";
+import type { AcquireBrowser } from "../media/browserSessions";
 
 /**
  * A real local Chrome driven through @cloudflare/puppeteer, standing in for the

@@ -5,7 +5,7 @@
   "compatibility_date": "2026-08-01",
   "compatibility_flags": ["nodejs_compat"],
   // Files the Worker reads through env.ASSETS: the getting-started files
-  // new accounts get (src/onboardingFiles.ts). The Worker runs first for
+  // new accounts get (src/storage/onboardingFiles.ts). The Worker runs first for
   // every request, so no path serves an asset directly.
   "assets": {
     "directory": "./assets",
@@ -209,7 +209,7 @@
     "subrequests": 20000
   },
   "vars": {
-    // AI Gateway for every Workers AI call (src/aiGateway.ts). Create it in
+    // AI Gateway for every Workers AI call (src/ai/aiGateway.ts). Create it in
     // the dashboard before deploying: a named gateway must exist first.
     "AI_GATEWAY_ID": "teak-files",
     // Public PostHog project token for error reports (production only).

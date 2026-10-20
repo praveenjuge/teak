@@ -20,74 +20,20 @@ import {
   VECTOR_DELETE_MAX_IDS,
   VECTOR_GET_MAX_IDS,
 } from "@teak/files-protocol";
-import type { AiGatewayEnv, WorkersAiBinding } from "./aiGateway";
-import { type AiUsageContext, runWithAiUsage } from "./aiUsage";
-import {
-  captureHtmlScreenshot,
-  decodeHtmlParam,
-  scrapeHtml,
-  validScrapeSelectors,
-} from "./browserRender";
-import { type AcquireBrowser, createBrowserAcquirer } from "./browserSessions";
-import { allowedConvexSiteUrl } from "./convexRpc";
+import type { AiGatewayEnv, WorkersAiBinding } from "./ai/aiGateway";
+import { type AiUsageContext, runWithAiUsage } from "./ai/aiUsage";
 import {
   decideCardType,
   decideLinkCategory,
   decideVisualStyles,
   decideVisualStylesForImage,
   scoreRelevance,
-} from "./decisions";
-import { freezeObject } from "./deletionGate";
-import {
-  buildExportIntoBucket,
-  ExportManifestInvalid,
-  ExportTooLarge,
-} from "./export";
-import { finalizeImageUpload } from "./finalizeImage";
-import { analyzeImage } from "./imageAnalysis";
-import {
-  extractImageTextForOp,
-  generateImageMetadataForOp,
-  loadImageForAi,
-} from "./imageMetadata";
-import { indexImportSource, readImportMarkdown } from "./importSource";
-import {
-  extractZipEntries,
-  type InspectRequest,
-  InspectSourceMissing,
-  runInspect,
-} from "./inspect";
-import { sha256Hex, verifyBodySignature } from "./lib";
-import { parseLinkedPdfParams, storeLinkedPdf } from "./linkedPdf";
-import { fetchLinkPage, parseLinkPageParams } from "./linkPage";
-import {
-  extractAnimationPalette,
-  extractPdfTextViaRenderer,
-  extractVideoFrame,
-  probeMediaObject,
-  processAudio,
-  renderPdfPage,
-} from "./mediaJobs";
-import { isMissingMultipartUpload } from "./missingMultipartUpload";
-import {
-  parseStoreOnboardingFilesParams,
-  storeOnboardingFiles,
-} from "./onboardingFiles";
-import { OpFailure } from "./opFailure";
-import { ocrPdfPages } from "./pdfOcr";
-import { parseRemoteAssetParams, storeRemoteAsset } from "./remoteAsset";
-import {
-  checkRendererHealth,
-  RendererDeclined,
-  RendererUnavailable,
-} from "./rendererClient";
-import { reportInternalOpError } from "./telemetry";
+} from "./ai/decisions";
 import {
   generateTextMetadataForOp,
   MetadataCapacityError,
   MetadataValidationError,
-} from "./textMetadata";
-import { isValidUploadKey } from "./upload";
+} from "./ai/textMetadata";
 import {
   embedUpsert,
   parseEmbedUpsertParams,
@@ -98,9 +44,66 @@ import {
   vectorGet,
   vectorQuery,
   vectorSimilar,
-} from "./vectors";
+} from "./ai/vectors";
+import {
+  buildExportIntoBucket,
+  ExportManifestInvalid,
+  ExportTooLarge,
+} from "./archives/export";
+import { indexImportSource, readImportMarkdown } from "./archives/importSource";
+import {
+  extractZipEntries,
+  type InspectRequest,
+  InspectSourceMissing,
+  runInspect,
+} from "./archives/inspect";
+import { ArchiveEntryTooLargeError } from "./archives/zip";
+import { allowedConvexSiteUrl } from "./convexRpc";
+import { freezeObject } from "./deletionGate";
+import { finalizeImageUpload } from "./images/finalizeImage";
+import { analyzeImage } from "./images/imageAnalysis";
+import {
+  extractImageTextForOp,
+  generateImageMetadataForOp,
+  loadImageForAi,
+} from "./images/imageMetadata";
+import { sha256Hex, verifyBodySignature } from "./lib";
+import {
+  captureHtmlScreenshot,
+  decodeHtmlParam,
+  scrapeHtml,
+  validScrapeSelectors,
+} from "./media/browserRender";
+import {
+  type AcquireBrowser,
+  createBrowserAcquirer,
+} from "./media/browserSessions";
+import { parseLinkedPdfParams, storeLinkedPdf } from "./media/linkedPdf";
+import { fetchLinkPage, parseLinkPageParams } from "./media/linkPage";
+import {
+  extractAnimationPalette,
+  extractPdfTextViaRenderer,
+  extractVideoFrame,
+  probeMediaObject,
+  processAudio,
+  renderPdfPage,
+} from "./media/mediaJobs";
+import { ocrPdfPages } from "./media/pdfOcr";
+import { parseRemoteAssetParams, storeRemoteAsset } from "./media/remoteAsset";
+import {
+  checkRendererHealth,
+  RendererDeclined,
+  RendererUnavailable,
+} from "./media/rendererClient";
+import { OpFailure } from "./opFailure";
+import { isMissingMultipartUpload } from "./storage/missingMultipartUpload";
+import {
+  parseStoreOnboardingFilesParams,
+  storeOnboardingFiles,
+} from "./storage/onboardingFiles";
+import { isValidUploadKey } from "./storage/upload";
+import { reportInternalOpError } from "./telemetry";
 import { runDispatch, type WorkflowBindingsEnv } from "./workflows/dispatch";
-import { ArchiveEntryTooLargeError } from "./zip";
 
 export const getFilesOpObjectKey = (params: unknown): string => {
   if (!params || typeof params !== "object" || Array.isArray(params)) {

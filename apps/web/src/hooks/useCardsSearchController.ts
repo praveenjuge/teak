@@ -22,17 +22,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import type { SearchBarProps } from "../components/search";
 import {
-  type LibraryView,
-  libraryViewFlags,
-  quickCommandTarget,
-} from "../lib/libraryViews";
-import {
-  isSeededSort,
-  type LibrarySort,
-  queryOrder,
-  type SearchUrlState,
-} from "../lib/searchUrlState";
-import {
   addChips,
   applyBackspaceToCardsSearchState,
   applyEnterToCardsSearchState,
@@ -54,7 +43,18 @@ import {
   orderFromUrl,
   orderQueryArgs,
   qualifierChipsFromText,
-} from "./cardsSearchState";
+} from "../lib/cardsSearchState";
+import {
+  type LibraryView,
+  libraryViewFlags,
+  quickCommandTarget,
+} from "../lib/libraryViews";
+import {
+  isSeededSort,
+  type LibrarySort,
+  queryOrder,
+  type SearchUrlState,
+} from "../lib/searchUrlState";
 import { semanticSearchText } from "./useSemanticSearch";
 
 export interface UseCardsSearchControllerOptions {

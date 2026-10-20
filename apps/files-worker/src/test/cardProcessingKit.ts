@@ -1,6 +1,6 @@
 import type { FilesErrorCode, FilesOp } from "@teak/files-protocol";
 import { createFetcherHandler } from "../../fetcher/src/handler";
-import { createAiGateReader } from "../aiGate";
+import { createAiGateReader } from "../ai/aiGate";
 import { createConvexRpc } from "../convexRpc";
 import type {
   CardJob,

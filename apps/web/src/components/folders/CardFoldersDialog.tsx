@@ -18,9 +18,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { updateCardsInSearchQueries } from "../../hooks/cardQueryOptimisticUpdates";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
+import { updateCardsInSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   filterFolders,

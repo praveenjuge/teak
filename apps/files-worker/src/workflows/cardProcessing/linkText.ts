@@ -4,7 +4,7 @@ import {
   linkOcrSourceKeys,
   normalizeImageOcrText,
 } from "@teak/files-protocol";
-import { runWithAiUsage } from "../../aiUsage";
+import { runWithAiUsage } from "../../ai/aiUsage";
 import { type CardJob, guardOf, loadCard } from "./context";
 
 export type LinkTextOutcome =

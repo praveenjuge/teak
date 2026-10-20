@@ -41,7 +41,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 - **Modal shortcuts** are listed in `apps/web/src/lib/keyboardShortcuts.ts:40-48`. Phase 10 adds `R`, and `H` is still free.
 - **How imports handle highlights today:**
   - Instapaper puts `Selection` into `notes` (`packages/convex/import/instapaper.ts:30-58`, line 50).
-  - Omnivore puts the `highlights/<slug>.md` Markdown into `notes` (`packages/convex/import/omnivore.ts:47-71`, read by `apps/files-worker/src/importOmnivore.ts:154-175`).
+  - Omnivore puts the `highlights/<slug>.md` Markdown into `notes` (`packages/convex/import/omnivore.ts:47-71`, read by `apps/files-worker/src/archives/importOmnivore.ts:154-175`).
   - Readwise Reader's library CSV (`import/readwise.ts:28-31`) has no highlight column (`Title, URL, ID, Document tags, Saved date, Reading progress, Location, Seen`), so it has no highlights to import.
   - One other supported bookmark CSV source documents a `highlights` column, which its parser ignores today.
 - **Import pipeline:**

@@ -44,7 +44,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
   - The row menu has Rename, Merge into… and Delete…, which open `components/modals/TagManagerDialog.tsx`.
   - Progress comes from `hooks/useTagOperations.ts`.
 - **AI tags** are lowercased and stripped of hidden tags (`apps/files-worker/src/workflows/cardProcessing/aiMetadata.ts:38` `normalizeAiTags`). The prompt asks for single words with no spaces or hyphens (`packages/files-protocol/src/metadata.ts:5-26`).
-- **Clef** `noul` questions return a yes probability (`apps/files-worker/src/decisions.ts` `ClefQuestion`, `readAnswer`), and one request holds up to 64 questions (`MAX_DECISION_QUESTIONS`).
+- **Clef** `noul` questions return a yes probability (`apps/files-worker/src/ai/decisions.ts` `ClefQuestion`, `readAnswer`), and one request holds up to 64 questions (`MAX_DECISION_QUESTIONS`).
 - v2's "Not doing" list had "tidy-up", an automatic one-click tidy. On 2026-10-19 the owner chose this version, which is reviewed instead of automatic.
 
 ## Constraints And Non-goals
@@ -91,7 +91,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 ## Files Worker
 
 - `packages/files-protocol`: `FILES_OPS` gains `"decide-tag-pairs"`. Add `FilesTagPairsParams { pairs: Array<{ id, a, b }> }` (1–64 pairs, tags up to 64 characters), `FilesTagPairsResult` with `{ scores: Array<{ id, same: number }> }`, and `readTagPairsResult`. `DECISION_VERSIONS.tagPairs = 1`.
-- `apps/files-worker/src/decisions.ts`: `buildTagPairsRequest` builds one `noul` question per pair, on `clef-flash`.
+- `apps/files-worker/src/ai/decisions.ts`: `buildTagPairsRequest` builds one `noul` question per pair, on `clef-flash`.
   - instructions, built per pair with that pair's own tags: `For organizing saved items, do the tags "${a}" and "${b}" mean the same thing (a typo, spelling variant, plural or synonym)?` (for example `"javascript"` and `"javscript"`). Each tag is JSON-escaped before it is inserted.
   - The state is empty. The reply maps to `same` probabilities.
 - Dispatch it in `ops.ts`. The Convex caller's op type gains it.
@@ -195,7 +195,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
   - hidden tags excluded.
 - `packages/convex/tagCleanup.test.ts` (convex-test, add to `vitest.config.ts`): the cache rules, dismissals filtering, and "a new tag reopens a dismissed group".
 - `packages/convex/__tests__/tag/tagOperations.test.ts`: `alsoFrom` merges every source, its limits, and its count across sources.
-- `apps/files-worker/src/decisions.test.ts`: `buildTagPairsRequest` and reading the scores.
+- `apps/files-worker/src/ai/decisions.test.ts`: `buildTagPairsRequest` and reading the scores.
 - `packages/convex/__tests__/publicApiHttpTags.test.ts`: `GET /v1/tags/duplicates` and an array `from`. Plus MCP, SDK and CLI tests.
 - `apps/web/src/components/tags/__tests__/TagCleanupSheet.test.tsx`: the default kept tag, reason labels and disabled states.
 - e2e: extend `packages/tests/src/web/tags.e2e.ts` to seed a plural pair, merge it from the sheet, and check the Tags list.

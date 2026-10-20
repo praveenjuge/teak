@@ -1,6 +1,6 @@
 # Getting-started files
 
-New accounts get one card of each type (`ONBOARDING_CARDS` in `packages/convex/card/defaultCards.ts`). `packages/convex/card/onboardingFiles.ts` asks this Worker to store every file below in the new account at once (the `store-onboarding-files` op, `apps/files-worker/src/onboardingFiles.ts`), then inserts all eight cards in one mutation, already processed. The grid fills once and nothing moves or reflows afterwards, and sign-up runs no AI or rendering work.
+New accounts get one card of each type (`ONBOARDING_CARDS` in `packages/convex/card/defaultCards.ts`). `packages/convex/card/onboardingFiles.ts` asks this Worker to store every file below in the new account at once (the `store-onboarding-files` op, `apps/files-worker/src/storage/onboardingFiles.ts`), then inserts all eight cards in one mutation, already processed. The grid fills once and nothing moves or reflows afterwards, and sign-up runs no AI or rendering work.
 
 The files ship with the Worker as [static assets](https://developers.cloudflare.com/workers/static-assets/) (`assets` in `apps/files-worker/wrangler.jsonc`), read through `env.ASSETS`. They do not count toward the Worker's script size, and the Worker runs first for every request, so none of them is served at a public path. `.assetsignore` keeps this README and the cheat sheet's HTML source out of the upload. A file a card names must exist here; `packages/convex/__tests__/card/defaultCards.test.ts` checks.
 

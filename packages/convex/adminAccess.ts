@@ -156,7 +156,7 @@ export const readUserFlags = (ctx: DbCtx, teakUserId: string) =>
 
 /**
  * The Files Worker caches this answer for up to 60 seconds
- * (`apps/files-worker/src/aiGate.ts`), so a pause or an account's
+ * (`apps/files-worker/src/ai/aiGate.ts`), so a pause or an account's
  * `aiDisabled` flag reaches card processing within a minute.
  */
 export const getAiGate = internalQuery({

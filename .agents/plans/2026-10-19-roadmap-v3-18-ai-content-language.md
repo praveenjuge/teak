@@ -27,8 +27,8 @@ Write AI summaries and AI tags in the language of the saved item. A Japanese art
   - `packages/files-protocol/src/metadata.ts:5-26`: `TEXT_ANALYSIS_SYSTEM_PROMPT` and `LINK_ANALYSIS_SYSTEM_PROMPT` ask for "5-6 specific, relevant single words only (no spaces, no hyphens)" and a 1–2 sentence summary, as JSON `{"tags": [...], "summary": "..."}`. They set no language.
   - `buildTextMetadataPrompt` (55) and `buildLinkMetadataPrompt` (62) wrap the content, and `validateTextMetadata` (73–87) accepts any strings.
   - Model: `TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8"`, with input capped at 6,000 characters.
-- **The worker picks the prompt** in `apps/files-worker/src/textMetadata.ts:112-114`, by op (`generate-text-metadata` or the link op), and retries JSON validation up to `MAX_AI_METADATA_VALIDATION_RETRIES = 2`.
-- **Images:** `apps/files-worker/src/imageMetadata.ts:27-38` `IMAGE_ANALYSIS_SYSTEM_PROMPT` (Gemma vision) returns tags, a summary and the image's text. It already says to keep the text in its original language and script (34), but sets no language for the tags and summary. It is used at 298. The separate `IMAGE_TEXT_SYSTEM_PROMPT` (309) only reads text.
+- **The worker picks the prompt** in `apps/files-worker/src/ai/textMetadata.ts:112-114`, by op (`generate-text-metadata` or the link op), and retries JSON validation up to `MAX_AI_METADATA_VALIDATION_RETRIES = 2`.
+- **Images:** `apps/files-worker/src/images/imageMetadata.ts:27-38` `IMAGE_ANALYSIS_SYSTEM_PROMPT` (Gemma vision) returns tags, a summary and the image's text. It already says to keep the text in its original language and script (34), but sets no language for the tags and summary. It is used at 298. The separate `IMAGE_TEXT_SYSTEM_PROMPT` (309) only reads text.
 - **AI tags** are cleaned by `normalizeAiTags` (`apps/files-worker/src/workflows/cardProcessing/aiMetadata.ts:38-48`): trimmed, lowercased (a no-op for CJK), with `secret`/`hidden` removed. It is called at 90 (text and link) and 165 (image).
 - **Storage:** `cards.aiTags` and `cards.aiSummary` (`schema.ts:488-489`). Search tag rows merge user and AI tags (`searchDocumentHelpers.ts:75-79`).
 - **Tag matching:**
@@ -57,7 +57,7 @@ Write AI summaries and AI tags in the language of the saved item. A Japanese art
   - The JSON shape becomes `{"tags": [...], "summary": "...", "language": "xx"}`.
   - `validateTextMetadata` accepts an optional `language` matching `/^[a-z]{2,3}$/`. A missing or invalid value is dropped, not a retry, so the old output shape still passes.
   - `FilesTextMetadataResult` gains `language?: string`.
-- `apps/files-worker/src/imageMetadata.ts` `IMAGE_ANALYSIS_SYSTEM_PROMPT`:
+- `apps/files-worker/src/images/imageMetadata.ts` `IMAGE_ANALYSIS_SYSTEM_PROMPT`:
   - add "Write the tags and summary in the language of the text in the image. If the image has no legible text, use English.";
   - add the `language` key;
   - validate it the same way.
@@ -114,7 +114,7 @@ Write AI summaries and AI tags in the language of the saved item. A Japanese art
 ## Tests
 
 - `packages/files-protocol/src/metadata.test.ts`: the prompts include the language rules; `validateTextMetadata` keeps a valid `language` and drops invalid ones without failing.
-- `apps/files-worker/src/textMetadata.test.ts` and `imageMetadata.test.ts`: with the model mocked, `language` passes through, and its absence is tolerated.
+- `apps/files-worker/src/ai/textMetadata.test.ts` and `imageMetadata.test.ts`: with the model mocked, `language` passes through, and its absence is tolerated.
 - `apps/files-worker/src/workflows/cardProcessing/aiMetadata.test.ts`: `aiLanguage` reaches the write payload, and `normalizeAiTags` keeps CJK tags intact.
 - `packages/convex/__tests__/export/serialize.test.ts`: `aiLanguage` is exported.
 - **A live check (not CI):** a script in `scripts/` runs the `ai-languages` pack through the dev Workers AI and prints the language accuracy (expected versus `aiLanguage`, and a script check of the summary). Its output goes in the proof. Target: 90% or more for ja, es, de, ko, zh and fr.

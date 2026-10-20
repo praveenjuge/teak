@@ -2,8 +2,8 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
+import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 import { type CardActionsConfig, createCardActions } from "./cardActions";
-import { updateCardInSearchQueries } from "./cardQueryOptimisticUpdates";
 
 interface UiCardActionsConfig extends CardActionsConfig {
   onCardUpdate?: (card: Doc<"cards">) => void;
