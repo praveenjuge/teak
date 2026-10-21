@@ -53,3 +53,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Exceptions: 2 files-worker `NonRetryableError convex_rpc_refused:...:401` (`adminUsage:replaceDailyUsage`, `workflowDispatch:listStale`) at 12:15-12:46 IST on 10-19, during the Worker rename/dev-split deploys (#767-#769); none since. Watch for repeats; if they recur, investigate the derived secret, endpoint, deployment target and request timing (secret drift between worker and Convex is one possible cause). One web `ResizeObserver loop` (benign). `malformed_workers_ai_response` stayed at zero after #747: fix held.
 - Nothing fixed, nothing merged earlier to measure. Sentry/Vercel/Cloudflare connectors were not queried this run (time-boxed to PostHog and GitHub).
 - Check tomorrow: recurrence of `convex_rpc_refused` 401s; `card_processing_failed` at `categorize`; Backend Deploy green.
+
+### 2026-10-21
+- Inbox empty. **Unit Tests failed on main** for #788 (run 39464007517): `signed worker file urls > mints identical urls for repeated signing within one window` in `packages/convex/__tests__/storage/r2.test.ts`. The test signed with `buildSignedWorkerFileUrl`'s default expiry, which moves every second, so it flaked whenever the clock ticked between two calls. Fixed by signing with `bucketedSignatureExpiry` (what `getR2Url` uses). Lesson: check Unit Tests on main, not just Backend Deploy.
+- Product health (24h): 6 `card_created` (android), 6 `card_processing_completed`, zero failure events. Exceptions: 3 Android crashes (`SplashScreenView` NoClassDefFoundError, `channel closed`) from one OnePlus 8 Pro on API 30, app 1.0.88: same device as before; #785 fixes it but is unreleased (store release is Praveen's call). No files-worker `convex_rpc_refused` repeats.
+- Sentry, Vercel, Cloudflare connectors not queried this run.
+- Check tomorrow: Unit Tests green on main; Android crash from versions after the next release.
