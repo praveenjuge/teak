@@ -5,16 +5,14 @@ const FILES_BASE = "https://files.example.com";
 const SIGNING_SECRET = "test-secret-for-urls";
 
 describe("card/getFileUrl.ts", () => {
-  let getFileUrl: any;
   const previousEnv = {
     FILES_BASE: process.env.FILES_BASE,
     FILES_SIGNING_SECRET: process.env.FILES_SIGNING_SECRET,
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     process.env.FILES_BASE = FILES_BASE;
     process.env.FILES_SIGNING_SECRET = SIGNING_SECRET;
-    getFileUrl = (await import("../../card/getFileUrl")).getFileUrl;
   });
 
   afterEach(() => {
@@ -24,65 +22,6 @@ describe("card/getFileUrl.ts", () => {
       } else {
         process.env[name] = value;
       }
-    }
-  });
-
-  test("throws when unauthenticated", async () => {
-    const ctx = withTestSession({
-      auth: { getUserIdentity: mock().mockResolvedValue(null) },
-    } as any);
-    const handler = (getFileUrl as any).handler ?? getFileUrl;
-    await expect(handler(ctx, { key: "f1", cardId: "c1" })).rejects.toThrow(
-      "Unauthenticated call to getFileUrl"
-    );
-  });
-
-  test("returns file url for matching fileKey", async () => {
-    const ctx = withTestSession({
-      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-      db: {
-        get: mock().mockResolvedValue({
-          _id: "c1",
-          userId: "u1",
-          fileKey: "users/u1/cards/c1/file/payload.html",
-          fileMetadata: { fileName: "payload.html" },
-        }),
-      },
-    } as any);
-
-    const handler = (getFileUrl as any).handler ?? getFileUrl;
-    const result = await handler(ctx, {
-      key: "users/u1/cards/c1/file/payload.html",
-      cardId: "c1",
-    });
-    expect(result).toContain(
-      `${FILES_BASE}/users/u1/cards/c1/file/payload.html`
-    );
-  });
-
-  test("returns null for out-of-namespace keys", async () => {
-    process.env.R2_KEY_PREFIX = "dev/";
-    try {
-      const ctx = withTestSession({
-        auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: {
-          get: mock().mockResolvedValue({
-            _id: "c1",
-            userId: "u1",
-            fileKey: "users/u1/cards/c1/file/stale.png",
-            fileMetadata: { fileName: "stale.png" },
-          }),
-        },
-      } as any);
-
-      const handler = (getFileUrl as any).handler ?? getFileUrl;
-      const result = await handler(ctx, {
-        key: "users/u1/cards/c1/file/stale.png",
-        cardId: "c1",
-      });
-      expect(result).toBeNull();
-    } finally {
-      delete process.env.R2_KEY_PREFIX;
     }
   });
 
@@ -195,10 +134,10 @@ describe("video scrub sprites", () => {
   });
 });
 
-describe("getFileUrl authorization", () => {
-  test("rejects a card owned by another user", async () => {
-    const { getFileUrl } = await import("../../card/getFileUrl");
-    const handler = (getFileUrl as any).handler ?? getFileUrl;
+describe("media refresh authorization", () => {
+  test("refuses a card owned by another user", async () => {
+    const { getAuthorizedMedia } = await import("../../card/getFileUrl");
+    const handler = (getAuthorizedMedia as any).handler ?? getAuthorizedMedia;
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -210,14 +149,14 @@ describe("getFileUrl authorization", () => {
       },
     } as any);
 
-    await expect(
-      handler(ctx, { cardId: "c1", key: "users/u2/cards/c1/file" })
-    ).rejects.toThrow("Unauthorized access to file");
+    expect(
+      await handler(ctx, { cardId: "c1", key: "users/u2/cards/c1/file" })
+    ).toBeNull();
   });
 
   test("rejects a key that the owned card does not reference", async () => {
-    const { getFileUrl } = await import("../../card/getFileUrl");
-    const handler = (getFileUrl as any).handler ?? getFileUrl;
+    const { getAuthorizedMedia } = await import("../../card/getFileUrl");
+    const handler = (getAuthorizedMedia as any).handler ?? getAuthorizedMedia;
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
       db: {
@@ -232,6 +171,29 @@ describe("getFileUrl authorization", () => {
     await expect(
       handler(ctx, { cardId: "c1", key: "users/u1/cards/c2/file" })
     ).rejects.toThrow("File does not belong to the specified card");
+  });
+
+  test("returns the original file name for the card's own file", async () => {
+    const { getAuthorizedMedia } = await import("../../card/getFileUrl");
+    const handler = (getAuthorizedMedia as any).handler ?? getAuthorizedMedia;
+    const ctx = withTestSession({
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          fileKey: "users/u1/cards/c1/file/payload.html",
+          fileMetadata: { fileName: "payload.html" },
+        }),
+      },
+    } as any);
+
+    expect(
+      await handler(ctx, {
+        cardId: "c1",
+        key: "users/u1/cards/c1/file/payload.html",
+      })
+    ).toEqual({ fileName: "payload.html" });
   });
 });
 

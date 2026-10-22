@@ -1,11 +1,5 @@
 import { buildCardObjectKey, filesCardKeyPrefix } from "@teak/files-protocol";
-import { v } from "convex/values";
 import type { MutationCtx } from "../_generated/server";
-import { mutation, query } from "../_generated/server";
-import { getSessionUser } from "../securitySessions";
-import { ensureObjectOwnership } from "../storage/ownership";
-import { buildSignedWorkerUploadUrl } from "./filesWorkerClient";
-import { tryResolveObjectUrl } from "./fileUrls";
 
 export { cardStorageObjectKeys } from "./cardObjectKeys";
 
@@ -32,83 +26,3 @@ export const queueObjectDeletion = async (ctx: MutationCtx, key?: string) => {
   assertR2KeyInNamespace(key);
   await enqueueObjectDeletion(ctx, [key]);
 };
-
-export const generateUploadUrl = mutation({
-  args: {
-    cardId: v.optional(v.id("cards")),
-    fileName: v.optional(v.string()),
-    fileType: v.optional(v.string()),
-    fileSize: v.optional(v.number()),
-    role: v.optional(v.string()),
-  },
-  returns: v.object({
-    key: v.string(),
-    url: v.string(),
-  }),
-  handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
-    const key = buildR2ObjectKey({
-      userId: user.teakUserId,
-      cardId: args.cardId,
-      role: args.role ?? "file",
-      fileName: args.fileName,
-    });
-    const contentType = args.fileType ?? "application/octet-stream";
-    await ensureObjectOwnership(ctx, user.teakUserId, key);
-    const signed = await buildSignedWorkerUploadUrl({
-      contentType,
-      key,
-      size: args.fileSize ?? null,
-    });
-    return { key, url: signed.url };
-  },
-});
-
-export const getFileUrl = query({
-  args: {
-    key: v.string(),
-    cardId: v.id("cards"),
-  },
-  returns: v.union(v.string(), v.null()),
-  handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("Unauthenticated call to getFileUrl");
-    }
-
-    const card = await ctx.db.get(args.cardId);
-    if (!card) {
-      throw new Error("Card not found");
-    }
-    if (card.userId !== user.teakUserId) {
-      throw new Error("Unauthorized access to file");
-    }
-
-    const linkPreview = card.metadata?.linkPreview;
-    const matchesKey =
-      card.fileKey === args.key ||
-      card.thumbnailOverride?.storageKey === args.key ||
-      card.thumbnailKey === args.key ||
-      card.scrubKey === args.key ||
-      linkPreview?.screenshotStorageKey === args.key ||
-      linkPreview?.imageStorageKey === args.key ||
-      linkPreview?.media?.some(
-        (item) =>
-          item.storageKey === args.key || item.posterStorageKey === args.key
-      );
-
-    if (!matchesKey) {
-      throw new Error("File does not belong to the specified card");
-    }
-
-    return tryResolveObjectUrl(
-      args.key,
-      args.key === card.fileKey
-        ? (card.fileMetadata?.fileName ?? null)
-        : undefined
-    );
-  },
-});
