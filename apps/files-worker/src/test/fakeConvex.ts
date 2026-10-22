@@ -1,4 +1,7 @@
-import { isWorkflowRpcFunction } from "@teak/convex/workflowRpcAllowlist";
+import {
+  isWorkflowRpcFunction,
+  requiresWorkflowRpcGuard,
+} from "@teak/convex/workflowRpcAllowlist";
 import type { WorkflowRpcRequest } from "@teak/files-protocol";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 
@@ -36,6 +39,12 @@ export const createFakeConvex = (handlers: Record<string, FakeHandler>) => {
     const request = JSON.parse(String(init?.body)) as WorkflowRpcRequest;
     if (!isWorkflowRpcFunction(request.name)) {
       return Response.json({ error: "function_not_allowed" }, { status: 403 });
+    }
+    if (
+      !request.guard &&
+      requiresWorkflowRpcGuard(request.name, request.args)
+    ) {
+      return Response.json({ error: "guard_required" }, { status: 403 });
     }
     const args = jsonToConvex(request.args as never) as Record<string, unknown>;
     calls.push({
