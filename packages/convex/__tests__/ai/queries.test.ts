@@ -58,7 +58,7 @@ describe("ai/queries.ts", () => {
     const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
     const result = await handler(ctx, {});
     expect(result).toEqual([{ cardId: "unset" }, { cardId: "false" }]);
-    expect(limits).toEqual([50, 49]);
+    expect(limits).toEqual([50, 49, 48, 48]);
   });
 
   test("findCardsMissingAi caps the batch without a second query", async () => {

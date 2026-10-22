@@ -26,12 +26,27 @@ export const findCardsMissingAiCandidates = async (
   ctx: QueryCtx
 ): Promise<{ cardId: Id<"cards"> }[]> => {
   const createdBefore = Date.now() - AI_BACKFILL_GRACE_MS;
+  const found = new Map<Id<"cards">, Doc<"cards">>();
 
-  const findActiveCards = async (
-    isDeleted: boolean | undefined,
-    limit: number
-  ) =>
-    await ctx.db
+  const take = async (
+    read: (
+      isDeleted: boolean | undefined,
+      limit: number
+    ) => Promise<Doc<"cards">[]>
+  ) => {
+    for (const isDeleted of [undefined, false]) {
+      const limit = AI_BACKFILL_BATCH_SIZE - found.size;
+      if (limit <= 0) {
+        return;
+      }
+      for (const card of await read(isDeleted, limit)) {
+        found.set(card._id, card);
+      }
+    }
+  };
+
+  await take((isDeleted, limit) =>
+    ctx.db
       .query("cards")
       .withIndex("by_aiPending_and_isDeleted_and_createdAt", (q) =>
         q
@@ -39,19 +54,29 @@ export const findCardsMissingAiCandidates = async (
           .eq("isDeleted", isDeleted)
           .lt("createdAt", createdBefore)
       )
-      .take(limit);
-
-  const cardsWithUnsetDeletedFlag = await findActiveCards(
-    undefined,
-    AI_BACKFILL_BATCH_SIZE
+      .take(limit)
   );
-  const remaining = AI_BACKFILL_BATCH_SIZE - cardsWithUnsetDeletedFlag.length;
-  const cardsWithFalseDeletedFlag =
-    remaining > 0 ? await findActiveCards(false, remaining) : [];
-
-  return [...cardsWithUnsetDeletedFlag, ...cardsWithFalseDeletedFlag].map(
-    (card) => ({ cardId: card._id })
+  // Cards saved before `aiPending` existed have no flag until
+  // `backfillAiPending` runs, so the old index still finds them.
+  await take(async (isDeleted, limit) =>
+    (
+      await ctx.db
+        .query("cards")
+        .withIndex(
+          "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt",
+          (q) =>
+            q
+              .eq("aiSummary", undefined)
+              .eq("aiTags", undefined)
+              .eq("aiTranscript", undefined)
+              .eq("isDeleted", isDeleted)
+              .lt("createdAt", createdBefore)
+        )
+        .take(limit)
+    ).filter(cardNeedsAiMetadata)
   );
+
+  return [...found.keys()].map((cardId) => ({ cardId }));
 };
 
 export const findCardsMissingAi = internalQuery({

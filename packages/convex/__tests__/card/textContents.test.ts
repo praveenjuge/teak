@@ -33,3 +33,9 @@ test("a transcript's preview is its trimmed start", () => {
     `Hello there. ${"x".repeat(267)}`
   );
 });
+
+test("a transcript's preview never splits a character in two", () => {
+  const preview = transcriptPreview(`${"a".repeat(279)}🦀 crab`);
+  expect(preview).toBe(`${"a".repeat(279)}🦀`);
+  expect(preview.isWellFormed()).toBe(true);
+});

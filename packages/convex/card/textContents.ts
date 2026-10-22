@@ -7,7 +7,10 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
-import { codePointLength } from "../shared/utils/codePoints";
+import {
+  codePointLength,
+  truncateCodePoints,
+} from "../shared/utils/codePoints";
 import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 
 // A document row plus a transcript's parts. A transcript is at most
@@ -57,7 +60,7 @@ export const splitTextByBytes = (
 };
 
 export const transcriptPreview = (text: string): string =>
-  text.trim().slice(0, TRANSCRIPT_PREVIEW_CHARS);
+  truncateCodePoints(text.trim(), TRANSCRIPT_PREVIEW_CHARS);
 
 const cardTextRows = (ctx: Pick<QueryCtx, "db">, cardId: Id<"cards">) =>
   ctx.db
