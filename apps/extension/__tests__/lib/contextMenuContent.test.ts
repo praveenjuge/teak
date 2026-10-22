@@ -50,6 +50,16 @@ describe("context menu content", () => {
       )
     ).toBe(true);
     expect(
+      savesLinkInstead(
+        await download(
+          new Response("<html>Sign in</html>", {
+            headers: { "content-type": "text/html; charset=utf-8" },
+            status: 403,
+          })
+        )
+      )
+    ).toBe(true);
+    expect(
       savesLinkInstead(await download(new Response("gone", { status: 503 })))
     ).toBe(false);
     expect(
