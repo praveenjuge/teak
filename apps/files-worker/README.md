@@ -22,7 +22,11 @@ less than a signed URL stays valid). It also handles single
 HTTP `Range` requests (206 responses) so video/audio seeking works, serves
 full-object responses from the Cloudflare edge cache keyed by object path +
 content-disposition policy, answers conditional GETs with 304s, and supports
-`HEAD`. The bucket is never public. `/__health` is an unauthenticated
+`HEAD`. The edge copy outlives a deleted or replaced object while a signed
+link is still valid, so a cache hit first `head`s the object (one class B
+read, no body): a deleted object answers 404 and drops the edge copy, and a
+replaced one is read and cached again. Hits still skip streaming the body
+from R2. The bucket is never public. `/__health` is an unauthenticated
 liveness probe for uptime monitors.
 
 The worker also owns the Images (`IMAGES`) and Workers AI (`AI`) bindings:
@@ -452,6 +456,9 @@ and brings back at most its byte cap plus one.
 Podcast episode audio (`podcastAudio.ts`) is larger than a hop holds, so it
 goes to `POST /hop-stream` (`createContainerStreamingFetch`): the same checks,
 with the body streamed back as it arrives, up to 100 MB and five minutes.
+Its temporary object is written through the deletion gate in 8 MiB parts
+(the gate already carries 64 MiB upload parts), so account deletion can
+fence the key and abort the upload; a fenced key is a `blocked` miss.
 Each instance runs one streamed hop at a time, and its slot is held until the
 body ends or the Worker hangs up, so page fetches keep the other three.
 
@@ -503,9 +510,11 @@ credentials), so the cached page is what anyone requesting that exact URL
 would get. A page whose `Cache-Control` says `no-store` or `private` is never
 kept, nor is any refusal, nor a page whose Browser Run render failed (the
 next save renders it again); a page from an older fetcher image, which does
-not report its `Cache-Control`, is not kept either. A KV read or write that fails
-falls back to fetching. Without the binding (development, tests) nothing is
-cached.
+not report its `Cache-Control`, is not kept either. A card refresh sends
+`fresh`, which skips the kept copy and keeps the page it fetches, so the
+refreshed preview, category and screenshot see the page as it is now. A KV
+read or write that fails falls back to fetching. Without the binding
+(development, tests) nothing is cached.
 
 ### Verification and deployment boundary
 

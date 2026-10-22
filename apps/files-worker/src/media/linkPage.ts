@@ -48,7 +48,11 @@ export const parseLinkPageParams = (
   ) {
     throw new Error("invalid_link_page_params");
   }
-  return { selectors: validScrapeSelectors(params.selectors), url };
+  return {
+    ...(params.fresh === true ? { fresh: true } : {}),
+    selectors: validScrapeSelectors(params.selectors),
+    url,
+  };
 };
 
 /** An older fetcher image leaves out `cacheable`. */
@@ -163,7 +167,8 @@ export const fetchLinkPage = async (
 ): Promise<FilesLinkPageResult> => {
   const cache = env.LINK_PAGE_CACHE;
   const key = cache ? await cacheKey(params) : "";
-  const cached = cache ? await readCached(cache, key) : null;
+  // A refresh must see the page as it is now, so it skips the kept copy.
+  const cached = cache && !params.fresh ? await readCached(cache, key) : null;
   if (cached) {
     return cached;
   }

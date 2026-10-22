@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   buildFileSigningPayload,
   buildFilesOpSigningPayload,
@@ -640,6 +640,112 @@ describe("files worker handler", () => {
       { waitUntil: () => undefined } as never
     );
     expect(response.status).toBe(416);
+  });
+
+  describe("edge cache", () => {
+    const runtime = globalThis as unknown as { caches: { default: Cache } };
+    const original = runtime.caches;
+    let stored: Map<string, { bytes: ArrayBuffer; headers: Headers }>;
+
+    beforeEach(() => {
+      stored = new Map();
+      runtime.caches = {
+        default: {
+          delete: (key: Request) => Promise.resolve(stored.delete(key.url)),
+          match: (key: Request) => {
+            const hit = stored.get(key.url);
+            return Promise.resolve(
+              hit
+                ? new Response(hit.bytes.slice(0), { headers: hit.headers })
+                : undefined
+            );
+          },
+          put: async (key: Request, response: Response) => {
+            stored.set(key.url, {
+              bytes: await response.arrayBuffer(),
+              headers: new Headers(response.headers),
+            });
+          },
+        } as unknown as Cache,
+      };
+    });
+
+    afterEach(() => {
+      runtime.caches = original;
+    });
+
+    const download = async (env_: Env, headers: HeadersInit = {}) => {
+      const pending: Promise<unknown>[] = [];
+      const response = await worker.fetch(
+        new Request(await signedUrl("/users/u1/cards/f/x.png"), { headers }),
+        env_,
+        {
+          waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+        } as never
+      );
+      await Promise.all(pending);
+      return response;
+    };
+
+    const countGets = (env_: Env) => {
+      const bucket = env_.BUCKET as unknown as FakeBucket;
+      const get = bucket.get.bind(bucket);
+      const calls = { count: 0 };
+      bucket.get = (...args: Parameters<FakeBucket["get"]>) => {
+        calls.count += 1;
+        return get(...args);
+      };
+      return calls;
+    };
+
+    test("serves a repeat download from the edge without reading the body from R2", async () => {
+      const env_ = env();
+      seed(env_);
+      const gets = countGets(env_);
+      await (await download(env_)).arrayBuffer();
+
+      const again = await download(env_);
+      expect(again.status).toBe(200);
+      expect(new Uint8Array(await again.arrayBuffer())).toEqual(
+        makePng(32, 32)
+      );
+      expect(gets.count).toBe(1);
+    });
+
+    test("a deleted file is gone even while a signed link to it is valid", async () => {
+      const env_ = env();
+      seed(env_);
+      await (await download(env_)).arrayBuffer();
+      expect(stored.size).toBe(1);
+
+      (env_.BUCKET as unknown as FakeBucket).objects.delete(
+        "users/u1/cards/f/x.png"
+      );
+
+      const etag = fakeHttpEtag(makePng(32, 32));
+      expect((await download(env_)).status).toBe(404);
+      expect((await download(env_, { "if-none-match": etag })).status).toBe(
+        404
+      );
+      expect(stored.size).toBe(0);
+    });
+
+    test("a file replaced under the same key serves its new bytes", async () => {
+      const env_ = env();
+      seed(env_);
+      await (await download(env_)).arrayBuffer();
+
+      const replaced = makePng(16, 16);
+      (env_.BUCKET as unknown as FakeBucket).objects.set(
+        "users/u1/cards/f/x.png",
+        { bytes: replaced, httpMetadata: { contentType: "image/png" } }
+      );
+
+      const response = await download(env_);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("etag")).toBe(fakeHttpEtag(replaced));
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(replaced);
+    });
   });
 
   describe("transient R2 read failures", () => {

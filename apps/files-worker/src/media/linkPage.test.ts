@@ -357,6 +357,36 @@ describe("link page cache", () => {
     ]);
   });
 
+  test("a fresh fetch skips the kept page and keeps the new one", async () => {
+    let title = "Before";
+    const { calls, env } = setup(() =>
+      Response.json(
+        page({
+          cacheable: true,
+          selectors: [
+            { results: [], selector: SELECTORS[0] as string },
+            { results: [{ text: title }], selector: SELECTORS[1] as string },
+          ],
+        })
+      )
+    );
+    const params = { selectors: SELECTORS, url: URL_ };
+    const titleOf = (result: Awaited<ReturnType<typeof fetchLinkPage>>) =>
+      result.fetched ? result.selectors[1]?.results[0]?.text : undefined;
+
+    await fetchLinkPage(env, params);
+    title = "After";
+    expect(titleOf(await fetchLinkPage(env, params))).toBe("Before");
+    expect(titleOf(await fetchLinkPage(env, { ...params, fresh: true }))).toBe(
+      "After"
+    );
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.body).toEqual({ selectors: SELECTORS, url: URL_ });
+    // The next ordinary fetch reads the page the fresh one kept.
+    expect(titleOf(await fetchLinkPage(env, params))).toBe("After");
+    expect(calls).toHaveLength(2);
+  });
+
   test.each([
     ["another URL", { selectors: SELECTORS, url: `${URL_}?page=2` }],
     ["other selectors", { selectors: ["head > title"], url: URL_ }],
