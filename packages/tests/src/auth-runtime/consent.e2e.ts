@@ -246,12 +246,12 @@ for (const failure of [
           const rows = [...registrations.values()]
             .map(
               (r) =>
-                `<div data-testid="connection-${r.consent}"><button onclick="disconnect(this,'${r.consent}')">Disconnect</button></div>`
+                `<div data-testid="connection-${r.consent}"><button onclick="ask(this,'${r.consent}')">Disconnect</button></div>`
             )
             .join("");
           await route.fulfill({
             contentType: "text/html",
-            body: `<div><span>Security</span><button onclick="document.querySelector('[role=dialog]').hidden=false">Manage</button></div><div role="dialog" aria-label="Security" hidden><button id="connections" role="tab" aria-selected="true">Connections</button><div role="tabpanel" aria-labelledby="connections">${rows}</div></div><script>async function disconnect(button,id){await fetch('/fixture/disconnect/'+id,{method:'POST'});button.parentElement.remove()}</script>`,
+            body: `<div><span>Security</span><button onclick="document.querySelector('[role=dialog]').hidden=false">Manage</button></div><div role="dialog" aria-label="Security" hidden><button id="connections" role="tab" aria-selected="true">Connections</button><div role="tabpanel" aria-labelledby="connections">${rows}</div></div><div role="alertdialog" aria-label="Disconnect app?" hidden><button onclick="this.parentElement.hidden=true">Cancel</button><button onclick="disconnect(this.parentElement)">Disconnect</button></div><script>let pending;function ask(button,id){pending={button,id};document.querySelector('[role=alertdialog]').hidden=false}async function disconnect(confirm){confirm.hidden=true;await fetch('/fixture/disconnect/'+pending.id,{method:'POST'});pending.button.parentElement.remove()}</script>`,
           });
         });
         await browser.route(
