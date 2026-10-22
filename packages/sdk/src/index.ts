@@ -624,23 +624,42 @@ export const buildCardsSearchParams = (input: {
   return search.toString();
 };
 
+const readStream = async (
+  reader: ReadableStreamDefaultReader<Uint8Array>
+): Promise<string> => {
+  const decoder = new TextDecoder();
+  let text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return text + decoder.decode();
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+};
+
 /**
  * Reads the body before the request's timeout fires. A fetch that ignores the
- * abort could leave a stalled body pending forever, so the read races it.
+ * abort could leave a stalled body pending forever, so the read races it and
+ * the timeout cancels the body through the reader that holds its lock.
  */
 const readBody = (response: Response, signal: AbortSignal): Promise<string> =>
   new Promise((resolve, reject) => {
+    const reader = response.body?.getReader();
     const onAbort = () => {
       reject(new TeakApiError("TIMEOUT"));
-      response.body?.cancel().catch(() => undefined);
+      reader?.cancel().catch(() => undefined);
     };
     if (signal.aborted) {
       onAbort();
       return;
     }
+    if (!reader) {
+      resolve("");
+      return;
+    }
     signal.addEventListener("abort", onAbort, { once: true });
-    response
-      .text()
+    readStream(reader)
       .then(resolve, () =>
         reject(new TeakApiError(signal.aborted ? "TIMEOUT" : "NETWORK_ERROR"))
       )

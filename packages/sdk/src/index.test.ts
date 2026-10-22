@@ -149,6 +149,7 @@ describe("teak-sdk", () => {
   });
 
   test("times out a response whose body stalls after its headers", async () => {
+    let cancelled = false;
     const client = createTeakClient({
       baseUrl: "https://api.example",
       timeoutMs: 5,
@@ -159,6 +160,9 @@ describe("teak-sdk", () => {
             new ReadableStream({
               start(controller) {
                 controller.enqueue(new TextEncoder().encode('{"items":'));
+              },
+              cancel() {
+                cancelled = true;
               },
             }),
             { status: 200 }
@@ -177,6 +181,8 @@ describe("teak-sdk", () => {
     expect(outcome).toMatchObject({
       code: "TIMEOUT",
     } satisfies Partial<TeakApiError>);
+    // The stalled body is cancelled, not left buffering after the timeout.
+    expect(cancelled).toBe(true);
   });
 
   test("sends direct upload content length when known", async () => {
