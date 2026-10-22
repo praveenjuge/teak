@@ -336,6 +336,13 @@ describe("colors, styles and dates in the URL", () => {
     });
   });
 
+  test("read a hand-written date as the label the page shows", () => {
+    const label = timeFilterFromUrl("2026-01-05")?.label;
+    expect(label).toBeTruthy();
+    expect(label).not.toBe("2026-01-05");
+    expect(parse("date=2026-01-05").date).toBe(label);
+  });
+
   test("drop unknown, repeated and malformed values", () => {
     expect(
       parse(

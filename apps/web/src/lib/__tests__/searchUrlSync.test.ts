@@ -170,4 +170,15 @@ describe("searchUrlChange", () => {
       ).typesChanged
     ).toBe(true);
   });
+
+  test("typing or deleting a type: qualifier in the box is no type change", () => {
+    expect(
+      searchUrlChange(search({ q: "type:image" }), search({ q: "type:imag" }))
+        .typesChanged
+    ).toBe(false);
+    expect(
+      searchUrlChange(search({ q: "type:ima" }), search({ q: "type:image" }))
+        .typesChanged
+    ).toBe(false);
+  });
 });

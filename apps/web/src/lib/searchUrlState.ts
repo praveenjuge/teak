@@ -162,7 +162,9 @@ export function timeFilterFromUrl(
 
 export function parseDateParam(value: string | null): string {
   const date = (value ?? "").trim().slice(0, MAX_URL_FILTER_LENGTH);
-  return timeFilterFromUrl(date) ? date : "";
+  // The label the page shows, so `date=2026-01-05` and the `Jan 5, 2026`
+  // the page writes back read as the same search.
+  return timeFilterFromUrl(date)?.label ?? "";
 }
 
 export const parseLibrarySort = (value: string | null): LibrarySort =>

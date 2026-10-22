@@ -37,9 +37,15 @@ export function searchUrlChange(
       previous.sort !== next.sort ||
       (previous.seed !== undefined && previous.seed !== next.seed),
     tagChanged: (previous.tag ?? "") !== (next.tag ?? ""),
-    typesChanged: !sameMembers(
-      comparableSearch(previous).types,
-      comparableSearch(next).types
+    // A `type:` typed into the search box is not a picked type until it
+    // becomes one, so text alone never counts; turning a typed `type:x` into
+    // the same picked type doesn't count either.
+    typesChanged: !(
+      sameMembers(previous.types, next.types) ||
+      sameMembers(
+        comparableSearch(previous).types,
+        comparableSearch(next).types
+      )
     ),
   };
 }
