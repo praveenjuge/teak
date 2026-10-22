@@ -1333,7 +1333,7 @@ describe("OCC contention behavior", () => {
       });
     });
     const rows = await t.query(
-      api.idempotencyAnalytics.getIdempotencyAnalytics,
+      internal.idempotencyAnalytics.getIdempotencyAnalytics,
       {
         days: 1,
       }
