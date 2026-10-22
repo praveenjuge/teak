@@ -598,6 +598,30 @@ export const listTagsForUser = internalQuery({
   },
 });
 
+// The background tag summary answers GET /v1/tags when it is complete and no
+// refresh is pending, which saves the live count's index walk.
+export const getFreshTagSummaryForUser = internalQuery({
+  args: {
+    userId: v.string(),
+  },
+  returns: v.union(v.object({ items: v.array(tagSummaryValidator) }), v.null()),
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    const summary = await ctx.db
+      .query("userTagSummaries")
+      .withIndex("by_userId", (query) => query.eq("userId", userId))
+      .first();
+    if (!summary?.isComplete) {
+      return null;
+    }
+    const pendingRefresh = await ctx.db
+      .query("tagSummaryRefreshes")
+      .withIndex("by_userId", (query) => query.eq("userId", userId))
+      .first();
+    return pendingRefresh ? null : { items: summary.items };
+  },
+});
+
 export const listCardChangesForUser = internalQuery({
   args: {
     userId: v.string(),
