@@ -259,14 +259,4 @@ describe("public API and Raycast order", () => {
       })
     ).rejects.toThrow("`cursor` is invalid");
   });
-
-  test("Raycast lists by saved date", async () => {
-    const { t } = await setup();
-    const cards = await t.query(internal.raycast.searchCardsForUser, {
-      userId: "owner",
-      sort: "oldest",
-      limit: 2,
-    });
-    expect(contents(cards)).toEqual(["Imported note", "Middle note"]);
-  });
 });

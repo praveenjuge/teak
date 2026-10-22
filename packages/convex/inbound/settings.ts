@@ -6,7 +6,7 @@ import {
   type QueryCtx,
   query,
 } from "../_generated/server";
-import { getSessionUser } from "../securitySessions";
+import { getSessionUser, requireSessionUser } from "../securitySessions";
 import { rateLimiter } from "../shared/rateLimits";
 import { queueInboundEmailEvent } from "../telemetry/schedule";
 
@@ -78,13 +78,7 @@ export const getMine = query({
 });
 
 const setEnabled = async (ctx: MutationCtx, enabled: boolean) => {
-  const session = await getSessionUser(ctx);
-  if (!session) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "Sign in to change Save by email.",
-    });
-  }
+  const session = await requireSessionUser(ctx);
   const userId = session.teakUserId;
   if (enabled && !(await signInEmail(ctx, userId))?.verified) {
     throw new ConvexError({

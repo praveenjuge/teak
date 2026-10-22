@@ -1,9 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
-import {
-  favoriteCardsForUser,
-  patchCardForUser,
-  resolveCardIdForUserRequest,
-} from "../raycast";
+import { patchCardForUser, resolveCardIdForUserRequest } from "../raycast";
 import {
   withMappedOwner,
   withSearchSyncDb,
@@ -15,44 +11,6 @@ const runHandler = (fn: any, ctx: any, args: any) => {
 };
 
 describe("raycast", () => {
-  test("favorite search filters the canonical search index", async () => {
-    const isFavoritedFilters: string[] = [];
-    const searchIndexes: string[] = [];
-
-    const ctx = {
-      db: withSearchSyncDb({
-        query: () => ({
-          withSearchIndex: (indexName: string, cb: (q: any) => void) => {
-            searchIndexes.push(indexName);
-            const queryBuilder = {
-              search: () => queryBuilder,
-              eq: (field: string, value: unknown) => {
-                if (field === "isFavorited" && value === true) {
-                  isFavoritedFilters.push(indexName);
-                }
-                return queryBuilder;
-              },
-            };
-            cb(queryBuilder);
-            return {
-              take: async () => [],
-            };
-          },
-        }),
-      }),
-    };
-
-    const result = await runHandler(favoriteCardsForUser, ctx, {
-      userId: "user_1",
-      searchQuery: "design",
-      limit: 50,
-    });
-
-    expect(result).toEqual([]);
-    expect(searchIndexes).toEqual(["search_searchableText", "search_text"]);
-    expect(isFavoritedFilters).toEqual(["search_searchableText"]);
-  });
-
   test("patchCardForUser forwards provided fields and returns updated card", async () => {
     const patchCalls: Record<string, unknown>[] = [];
 

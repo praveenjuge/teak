@@ -719,6 +719,49 @@ describe("overlapping recomputes", () => {
   });
 });
 
+describe("GET /v1/tags summary", () => {
+  test("a settled summary answers with the live count's items, and a pending refresh or incomplete summary does not", async () => {
+    const { t, insert, runScheduled } = await setup();
+    const fresh = () =>
+      t.query(internal.publicApi.getFreshTagSummaryForUser, {
+        userId: "owner",
+      });
+    await insert({ tags: ["Design", "web"] });
+    await insert({ tags: ["design"], aiTags: ["UI"] });
+    await insert({ tags: ["design"], isDeleted: true, deletedAt: 1000 });
+    await insert({ tags: ["archived-only"], isArchived: true });
+    await runScheduled();
+
+    const live = await t.query(internal.publicApi.listTagsForUser, {
+      userId: "owner",
+    });
+    expect(live.isComplete).toBe(true);
+    expect(await fresh()).toEqual({ items: live.items });
+
+    await insert({ tags: ["new-tag"] });
+    await runScheduled();
+    expect((await fresh())?.items).toContainEqual({
+      name: "new-tag",
+      count: 1,
+    });
+
+    await t.run((ctx) => markTagSummaryDirty(ctx, "owner"));
+    expect(await fresh()).toBeNull();
+    await runScheduled();
+    expect(await fresh()).not.toBeNull();
+
+    await t.run(async (ctx) => {
+      const row = await ctx.db.query("userTagSummaries").first();
+      if (row) {
+        await ctx.db.patch("userTagSummaries", row._id, {
+          isComplete: false,
+        });
+      }
+    });
+    expect(await fresh()).toBeNull();
+  });
+});
+
 describe("tag listings with many small tags", () => {
   test("the snapshot counts every tag and the live listing stops at its bound, without failing", async () => {
     const { t, summary } = await setup();

@@ -1,14 +1,19 @@
 import { ConvexError } from "convex/values";
 import { json } from "./publicApiMeta";
 import { MAX_CARD_TITLE_LENGTH } from "./shared/cardTitle";
+import {
+  clampPublicApiLimit,
+  PUBLIC_API_DEFAULT_LIMIT,
+} from "./shared/publicApiLimits";
 import { extractPaletteColors } from "./shared/utils/colorUtils";
 
 export { json } from "./publicApiMeta";
+export {
+  PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
+  PUBLIC_API_MAX_LIMIT as MAX_LIMIT,
+} from "./shared/publicApiLimits";
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
 const MAX_QUERY_SCAN = 400;
-const MAX_BULK_ITEMS = 100;
 
 const CARD_TYPES = new Set([
   "text",
@@ -184,15 +189,15 @@ const parseStrictNumber = (raw: string): number | undefined => {
 
 const parseLimit = (raw: string | null): number => {
   if (!raw || raw.trim().length === 0) {
-    return DEFAULT_LIMIT;
+    return PUBLIC_API_DEFAULT_LIMIT;
   }
 
   const parsed = parseStrictNumber(raw);
   if (parsed === undefined || !Number.isInteger(parsed)) {
-    return DEFAULT_LIMIT;
+    return PUBLIC_API_DEFAULT_LIMIT;
   }
 
-  return Math.max(1, Math.min(parsed, MAX_LIMIT));
+  return clampPublicApiLimit(parsed);
 };
 
 const parseJsonBody = async (request: Request): Promise<unknown> => {
@@ -452,15 +457,12 @@ export {
   type CardsQueryOptions,
   type CreateCardPayload,
   type CreateUploadPayload,
-  DEFAULT_LIMIT,
   type ErrorCode,
   errorResponse,
   explainCardTypeMismatch,
   explainInvalidTags,
   isOptimisticConcurrencyError,
   isRateLimitContentionError,
-  MAX_BULK_ITEMS,
-  MAX_LIMIT,
   MAX_QUERY_SCAN,
   MAX_TAG_LENGTH,
   mapConvexErrorToResponse,

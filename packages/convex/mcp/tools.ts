@@ -8,6 +8,10 @@ import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
+import {
+  PUBLIC_API_MAX_BULK_ITEMS,
+  PUBLIC_API_MAX_LIMIT,
+} from "../shared/publicApiLimits";
 import { SEARCH_MODES } from "../shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import {
@@ -61,7 +65,7 @@ const includeSchema = z.enum(MCP_CARD_INCLUDES);
 
 const cardFiltersShape = {
   q: z.string().optional(),
-  limit: z.number().int().positive().max(100).optional(),
+  limit: z.number().int().positive().max(PUBLIC_API_MAX_LIMIT).optional(),
   cursor: nonEmptyString.optional(),
   type: z.union([cardTypeSchema, z.array(cardTypeSchema).min(1)]).optional(),
   favorited: z.boolean().optional(),
@@ -99,7 +103,7 @@ const duplicateInputSchema = z.object({ url: nonEmptyString });
 const getCardChangesInputSchema = z.object({
   since: z.number(),
   cursor: nonEmptyString.optional(),
-  limit: z.number().int().positive().max(100).optional(),
+  limit: z.number().int().positive().max(PUBLIC_API_MAX_LIMIT).optional(),
 });
 
 const createUploadInputSchema = z.object({
@@ -121,7 +125,10 @@ const bulkCardsInputSchema = z
       "removeTags",
       "restore",
     ]),
-    items: z.array(z.record(z.string(), z.unknown())).min(1).max(100),
+    items: z
+      .array(z.record(z.string(), z.unknown()))
+      .min(1)
+      .max(PUBLIC_API_MAX_BULK_ITEMS),
     confirm: z.literal(true).optional(),
     idempotencyKey: nonEmptyString.optional(),
   })

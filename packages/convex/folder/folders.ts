@@ -11,7 +11,11 @@ import {
 import { accountDeletionOwnsRows } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import { folderColorValidator } from "../schema";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import {
+  getSessionUser,
+  requireSessionUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import {
   explainInvalidFolderName,
   explainInvalidSmartFolderQuery,
@@ -84,17 +88,6 @@ export const folderNotFound = () =>
     code: "NOT_FOUND",
     message: FOLDER_ERROR_MESSAGES.NOT_FOUND,
   });
-
-const requireSignedIn = async (ctx: QueryCtx | MutationCtx) => {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "Sign in to manage folders",
-    });
-  }
-  return user.teakUserId;
-};
 
 export const getFolderForUser = async (
   ctx: QueryCtx,
@@ -569,7 +562,7 @@ export const createFolder = mutation({
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>
-    createFolderForUser(ctx, await requireSignedIn(ctx), args),
+    createFolderForUser(ctx, await requireSessionUserId(ctx), args),
 });
 
 export const updateFolder = mutation({
@@ -581,19 +574,19 @@ export const updateFolder = mutation({
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>
-    updateFolderForUser(ctx, await requireSignedIn(ctx), args),
+    updateFolderForUser(ctx, await requireSessionUserId(ctx), args),
 });
 
 export const deleteFolder = mutation({
   args: { folderId: v.id("folders") },
   returns: v.id("folders"),
   handler: async (ctx, { folderId }) =>
-    deleteFolderForUser(ctx, await requireSignedIn(ctx), folderId),
+    deleteFolderForUser(ctx, await requireSessionUserId(ctx), folderId),
 });
 
 export const restoreFolder = mutation({
   args: { folderId: v.id("folders") },
   returns: folderReturnValidator,
   handler: async (ctx, { folderId }) =>
-    restoreFolderForUser(ctx, await requireSignedIn(ctx), folderId),
+    restoreFolderForUser(ctx, await requireSessionUserId(ctx), folderId),
 });

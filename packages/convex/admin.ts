@@ -35,6 +35,7 @@ import {
   toOverviewCardRow,
 } from "./adminStats";
 import { readHasPremium } from "./auth";
+import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
@@ -112,18 +113,21 @@ const attachCardUrls = async (
     })
   );
 
-const getActiveCardCountForUser = async (
+// A premium account past the free cap can hold an inexact usage count, for
+// which getActiveCardCount scans only up to the cap; its shard total is the
+// better lower bound.
+const readCardsCount = async (
   ctx: QueryCtx,
   userId: string
 ): Promise<number> => {
-  const cards = await ctx.db
-    .query("cards")
-    .withIndex("by_user_deleted_created", (q) =>
-      q.eq("userId", userId).eq("isDeleted", undefined)
-    )
-    .collect();
-
-  return cards.length;
+  const usage = await getCardUsageSnapshot(ctx, userId);
+  if (usage?.isCountExact) {
+    return usage.activeCardCount;
+  }
+  return Math.max(
+    usage?.activeCardCount ?? 0,
+    await getActiveCardCount(ctx, userId)
+  );
 };
 
 export const getAccess = query({
@@ -331,7 +335,7 @@ export const listAllUsers = query({
             email: profile?.email ?? user.email,
             emailVerified: profile?.emailVerified ?? user.emailVerified,
             createdAt: user._creationTime,
-            cardsCount: await getActiveCardCountForUser(ctx, user.teakUserId),
+            cardsCount: await readCardsCount(ctx, user.teakUserId),
             isPro: await readHasPremium(ctx, user.teakUserId),
             internal: flags?.internal ?? false,
             aiDisabled: flags?.aiDisabled ?? false,

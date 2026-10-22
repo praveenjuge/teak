@@ -111,6 +111,48 @@ export const expandFolderSearch = async (
   return combined === null ? null : { searchQuery: combined };
 };
 
+/**
+ * The card types a parsed query can match within `types` (undefined for any
+ * type): `type:` qualifiers intersect them, `is:done`, `is:todo` and prices
+ * only match links, and a mood search only matches images. Null when the
+ * query can match no type.
+ */
+export const narrowTypesForQuery = (
+  parsed: Pick<
+    ParsedSearchQuery,
+    "done" | "prices" | "similarity" | "todo" | "types"
+  >,
+  types: readonly CardType[] | undefined
+): CardType[] | null | undefined => {
+  let narrowed = types?.length ? [...types] : undefined;
+  if (parsed.types.length > 0) {
+    narrowed = narrowed
+      ? narrowed.filter((type) => parsed.types.includes(type))
+      : [...parsed.types];
+    if (narrowed.length === 0) {
+      return null;
+    }
+  }
+  if (parsed.done && parsed.todo) {
+    return null;
+  }
+  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
+    if (narrowed && !narrowed.includes("link")) {
+      return null;
+    }
+    narrowed = ["link"];
+  }
+  if (parsed.similarity?.kind === "mood") {
+    narrowed = narrowed
+      ? narrowed.filter((type) => type === "image")
+      : ["image"];
+    if (narrowed.length === 0) {
+      return null;
+    }
+  }
+  return narrowed;
+};
+
 export const resolveSearch = async (
   ctx: QueryCtx,
   userId: string,
@@ -119,30 +161,9 @@ export const resolveSearch = async (
 ): Promise<ResolvedSearch | null> => {
   const trash = view.trash === true;
 
-  let types = view.types?.length ? [...view.types] : undefined;
-  if (parsed.types.length > 0) {
-    types = types
-      ? types.filter((type) => parsed.types.includes(type))
-      : [...parsed.types];
-    if (types.length === 0) {
-      return null;
-    }
-  }
-  if (parsed.done && parsed.todo) {
+  const types = narrowTypesForQuery(parsed, view.types);
+  if (types === null) {
     return null;
-  }
-  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
-    if (types && !types.includes("link")) {
-      return null;
-    }
-    types = ["link"];
-  }
-
-  if (parsed.similarity?.kind === "mood") {
-    types = types ? types.filter((type) => type === "image") : ["image"];
-    if (types.length === 0) {
-      return null;
-    }
   }
 
   const archivedInTrash = trash && parsed.archived;

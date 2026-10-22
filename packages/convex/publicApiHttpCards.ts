@@ -1035,6 +1035,13 @@ const handleTagsRequest = async (
 
   try {
     const userId = auth.validated.userId;
+    const fresh = await ctx.runQuery(
+      internal.publicApi.getFreshTagSummaryForUser,
+      { userId }
+    );
+    if (fresh) {
+      return json(200, { items: fresh.items, isComplete: true });
+    }
     const tags = await ctx.runQuery(internal.publicApi.listTagsForUser, {
       userId,
     });

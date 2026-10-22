@@ -1,6 +1,7 @@
 import { env } from "./_generated/server";
 import type { CardLinks } from "./card/cardLinks";
 import type { CardWithUrls } from "./card/queryUtils";
+import { narrowTypesForQuery } from "./card/searchPlanner";
 import { normalizeVisualFilterArgs } from "./card/visualFilters";
 import { isLocalDevelopmentHostname, resolveTeakDevAppUrl } from "./devUrls";
 import { readIsDevDeployment } from "./env";
@@ -23,6 +24,7 @@ import {
   parseTimestampQuery,
   truncateCardTitle,
 } from "./publicApiHttpShared";
+import type { CardType } from "./schema";
 import {
   explainInvalidCardSource,
   normalizeCardSource,
@@ -607,26 +609,10 @@ const parseCardsQueryOptions = (
   }
 
   const parsed = parseSearchQuery(query ?? "");
-  let resolvedTypes = uniqueTypes;
-  let matchesNothing = false;
-  if (parsed.types.length > 0) {
-    resolvedTypes = uniqueTypes.length
-      ? uniqueTypes.filter((type) => (parsed.types as string[]).includes(type))
-      : parsed.types;
-    matchesNothing = resolvedTypes.length === 0;
-  }
-  matchesNothing ||= parsed.done && parsed.todo;
-  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
-    matchesNothing ||=
-      resolvedTypes.length > 0 && !resolvedTypes.includes("link");
-    resolvedTypes = ["link"];
-  }
-  if (parsed.similarity?.kind === "mood") {
-    resolvedTypes = resolvedTypes.length
-      ? resolvedTypes.filter((type) => type === "image")
-      : ["image"];
-    matchesNothing ||= resolvedTypes.length === 0;
-  }
+  // Every requested type was checked against CARD_TYPES above.
+  const narrowedTypes = narrowTypesForQuery(parsed, uniqueTypes as CardType[]);
+  const resolvedTypes: string[] = narrowedTypes ?? [];
+  let matchesNothing = narrowedTypes === null;
   matchesNothing ||= combinedQuery === null;
   let resolvedArchived = archived as CardsQueryOptions["archived"];
   if (parsed.archived && trashed !== true) {

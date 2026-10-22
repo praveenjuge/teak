@@ -13,7 +13,7 @@ import {
   getAccountDeletionState,
 } from "../accountDeletion";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
-import { getSessionUser } from "../securitySessions";
+import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   explainInvalidTagName,
   explainInvalidTagSource,
@@ -375,17 +375,6 @@ export const runTagOperationBatch = internalMutation({
     runTagOperationBatchHandler(ctx, operationId),
 });
 
-const requireSignedIn = async (ctx: QueryCtx | MutationCtx) => {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "Sign in to manage tags",
-    });
-  }
-  return user.teakUserId;
-};
-
 export const startTagOperation = mutation({
   args: {
     kind: tagOperationKindValidator,
@@ -394,7 +383,7 @@ export const startTagOperation = mutation({
   },
   returns: tagOperationReturnValidator,
   handler: async (ctx, args) =>
-    startTagOperationForUser(ctx, await requireSignedIn(ctx), args),
+    startTagOperationForUser(ctx, await requireSessionUserId(ctx), args),
 });
 
 export const getTagOperation = query({

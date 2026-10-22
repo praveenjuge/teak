@@ -3,7 +3,7 @@ import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import { ConvexError } from "convex/values";
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
-import { api, components, internal } from "./_generated/api";
+import { components, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import {
@@ -1438,7 +1438,7 @@ describe("OCC contention behavior", () => {
       });
     });
     const rows = await t.query(
-      api.idempotencyAnalytics.getIdempotencyAnalytics,
+      internal.idempotencyAnalytics.getIdempotencyAnalytics,
       {
         days: 1,
       }

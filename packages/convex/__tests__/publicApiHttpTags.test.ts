@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { type FunctionReference, getFunctionName } from "convex/server";
 import { ConvexError } from "convex/values";
 import { executePublicApiOperation } from "../publicApiHttp";
 import type { PublicApiOperation } from "../publicApiHttpShared";
@@ -160,15 +161,37 @@ describe("public API tag changes", () => {
     expect(missing.status).toBe(404);
   });
 
+  const tagQueries = (results: Record<string, unknown[]>) => {
+    const calls: string[] = [];
+    const query = mock((ref: FunctionReference<"query">) => {
+      const name = getFunctionName(ref);
+      calls.push(name);
+      return Promise.resolve(results[name]?.shift() ?? null);
+    });
+    return { calls, query };
+  };
+
+  test("GET /v1/tags answers from a settled tag summary without counting live", async () => {
+    const items = [
+      { name: "design", count: 2 },
+      { name: "web", count: 1 },
+    ];
+    const { calls, query } = tagQueries({
+      "publicApi:getFreshTagSummaryForUser": [{ items }],
+    });
+    const response = await run({ method: "GET", path: "/v1/tags" }, { query });
+    expect(await response.json()).toEqual({ items, isComplete: true });
+    expect(calls).not.toContain("publicApi:listTagsForUser");
+  });
+
   test("GET /v1/tags answers live, or from the tag summary when there are too many to count", async () => {
     const live = { items: [{ name: "design", count: 2 }], isComplete: true };
-    const small = mock().mockResolvedValueOnce(live);
+    const small = tagQueries({ "publicApi:listTagsForUser": [live] });
     const fresh = await run(
       { method: "GET", path: "/v1/tags" },
-      { query: small }
+      { query: small.query }
     );
     expect(await fresh.json()).toEqual(live);
-    expect(small).toHaveBeenCalledTimes(1);
 
     const partial = { items: [{ name: "a", count: 1 }], isComplete: false };
     const summary = {
@@ -179,25 +202,24 @@ describe("public API tag changes", () => {
       isComplete: true,
       computedAt: 5,
     };
-    const large = mock()
-      .mockResolvedValueOnce(partial)
-      .mockResolvedValueOnce(summary);
+    const large = tagQueries({
+      "publicApi:listTagsForUser": [partial],
+      "tag/tagSummary:getTagSummaryForUser": [summary],
+    });
     const fromSummary = await run(
       { method: "GET", path: "/v1/tags" },
-      { query: large }
+      { query: large.query }
     );
     expect(await fromSummary.json()).toEqual({
       items: summary.items,
       isComplete: true,
     });
 
-    const none = mock()
-      .mockResolvedValueOnce(partial)
-      .mockResolvedValueOnce(null);
+    const none = tagQueries({ "publicApi:listTagsForUser": [partial] });
     const mutation = mock().mockResolvedValue(null);
     const first = await run(
       { method: "GET", path: "/v1/tags" },
-      { query: none, mutation }
+      { query: none.query, mutation }
     );
     expect(await first.json()).toEqual(partial);
     expect(mutation).toHaveBeenCalledTimes(1);

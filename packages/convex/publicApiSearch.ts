@@ -43,6 +43,7 @@ import {
   semanticRankingValidator,
 } from "./search/semanticCache";
 import type { TeakUserId } from "./securitySessions";
+import { clampPublicApiLimit } from "./shared/publicApiLimits";
 import {
   matchesDoneState,
   matchesImageText,
@@ -63,8 +64,6 @@ import {
 } from "./shared/search/semantic";
 import { isCardHidden } from "./shared/tags";
 
-export const DEFAULT_LIMIT = 50;
-export const MAX_LIMIT = 100;
 export const MAX_QUERY_SCAN = 400;
 
 export const apiCardSortValidator = v.union(
@@ -103,14 +102,6 @@ export interface SearchOptions {
   type?: Doc<"cards">["type"];
   types?: Doc<"cards">["type"][];
 }
-
-export const normalizeLimit = (limit?: number): number => {
-  if (!(typeof limit === "number" && Number.isFinite(limit))) {
-    return DEFAULT_LIMIT;
-  }
-
-  return Math.max(1, Math.min(limit, MAX_LIMIT));
-};
 
 export const normalizeSearchText = (value?: string): string | undefined => {
   const trimmed = value?.trim();
@@ -530,7 +521,7 @@ export const normalizeCardsQueryOptions = (args: {
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
     createdBefore: normalizeCreatedTimestamp(args.createdBefore),
     favorited: args.favorited,
-    limit: normalizeLimit(args.limit),
+    limit: clampPublicApiLimit(args.limit),
     searchQuery: normalizeSearchText(args.searchQuery),
     sort: normalizeSort(args.sort),
     tag: normalizeTag(args.tag),

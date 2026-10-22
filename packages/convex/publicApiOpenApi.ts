@@ -15,6 +15,10 @@ import {
   MAX_FOLDERS_PER_USER,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "./shared/folders";
+import {
+  PUBLIC_API_MAX_BULK_ITEMS,
+  PUBLIC_API_MAX_LIMIT,
+} from "./shared/publicApiLimits";
 import { SEARCH_MODES } from "./shared/search/semantic";
 import { MAX_TAG_NAME_LENGTH, TAG_OPERATION_COUNT_LIMIT } from "./shared/tags";
 import { THUMBNAIL_MAX_BYTES, THUMBNAIL_MIME_TYPES } from "./shared/thumbnails";
@@ -494,8 +498,9 @@ const components = {
         "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
-          description: `Up to 100 items. \`create\` items take content, url, notes, tags, cardType, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
+          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
           items: { additionalProperties: true, type: "object" },
+          maxItems: PUBLIC_API_MAX_BULK_ITEMS,
           type: "array",
         },
         operation: {
@@ -1084,7 +1089,15 @@ export const openApiSpec = {
               "How `q` finds cards: `hybrid` (default) matches words and meaning, so `cozy reading nook` also finds a photo of an armchair by a window; `keyword` matches words only; `semantic` matches meaning only. Filters, qualifiers and `sort` apply in every mode. The response's `searchMode` says which ran.",
             schema: { default: "hybrid", enum: SEARCH_MODES, type: "string" },
           },
-          { in: "query", name: "limit", schema: { type: "integer" } },
+          {
+            in: "query",
+            name: "limit",
+            schema: {
+              maximum: PUBLIC_API_MAX_LIMIT,
+              minimum: 1,
+              type: "integer",
+            },
+          },
           { in: "query", name: "cursor", schema: { type: "string" } },
           {
             in: "query",
@@ -1256,7 +1269,15 @@ export const openApiSpec = {
             schema: { type: "number" },
           },
           { in: "query", name: "cursor", schema: { type: "string" } },
-          { in: "query", name: "limit", schema: { type: "integer" } },
+          {
+            in: "query",
+            name: "limit",
+            schema: {
+              maximum: PUBLIC_API_MAX_LIMIT,
+              minimum: 1,
+              type: "integer",
+            },
+          },
         ],
         responses: {
           200: {
