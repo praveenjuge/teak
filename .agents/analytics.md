@@ -82,7 +82,7 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 | `POSTHOG_ANDROID_TOKEN` | Local Android release env or Gradle property | Release builds only |
 | `POSTHOG_CLI_API_KEY`, `POSTHOG_CLI_PROJECT_ID` | Vercel Production, GitHub secrets, local Android env | Personal API key with error-tracking write; uploads web source maps, Apple dSYMs, Android R8 mappings. Uploads are skipped when unset |
 | `POSTHOG_CLI_HOST` | Workflows | `https://us.posthog.com` |
-| `POSTHOG_PERSON_DELETION_API_KEY` | Convex prod (dashboard) | Personal API key with `person:write`. Account deletion's last stage (`packages/convex/accountDeletionAnalytics.ts`) deletes the owner's person, events and recordings with it. Required wherever `POSTHOG_PROJECT_TOKEN` is set; without it, deletions retry until it is |
+| `POSTHOG_PERSON_DELETION_API_KEY` | Convex prod (dashboard) | Personal API key with `person:write`. Account deletion's last stage (`packages/convex/accountDeletion/analytics.ts`) deletes the owner's person, events and recordings with it. Required wherever `POSTHOG_PROJECT_TOKEN` is set; without it, deletions retry until it is |
 
 ## Dashboards, alerts and survey
 

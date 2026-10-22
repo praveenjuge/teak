@@ -1,0 +1,206 @@
+import { env, httpAction } from "../../_generated/server";
+import {
+  isLocalDevelopmentHostname,
+  resolveTeakDevApiUrl,
+} from "../../devUrls";
+import { readWorkosConnectIssuer, readWorkosResources } from "../../env";
+import { OAUTH_SURFACES } from "../../shared/oauthSurfaces";
+import { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
+import { WORKOS_CLIENT_ID } from "../../shared/workosIds";
+
+export const API_VERSION = "v1";
+
+export const V1_ENDPOINTS = [
+  "GET /v1/me",
+  "GET /v1/cards",
+  "POST /v1/cards",
+  "POST /v1/uploads",
+  "POST /v1/cards/bulk",
+  "GET /v1/cards/changes",
+  "GET /v1/cards/duplicate",
+  "GET /v1/cards/:cardId",
+  "PATCH /v1/cards/:cardId",
+  "DELETE /v1/cards/:cardId",
+  "POST /v1/cards/:cardId/restore",
+  "POST /v1/cards/:cardId/refresh",
+  "PATCH /v1/cards/:cardId/favorite",
+  "POST /v1/cards/:cardId/thumbnail/upload",
+  "PUT /v1/cards/:cardId/thumbnail",
+  "DELETE /v1/cards/:cardId/thumbnail",
+  "GET /v1/tags",
+  "POST /v1/tags/rename",
+  "POST /v1/tags/merge",
+  "POST /v1/tags/delete",
+  "GET /v1/tags/operations/:operationId",
+  "GET /v1/folders",
+  "POST /v1/folders",
+  "GET /v1/folders/:folderId",
+  "PATCH /v1/folders/:folderId",
+  "DELETE /v1/folders/:folderId",
+  "POST /v1/folders/:folderId/cards",
+  "DELETE /v1/folders/:folderId/cards",
+  "POST /v1/exports",
+  "GET /v1/exports/latest",
+  "POST /v1/oauth/disconnect",
+] as const;
+
+export const API_AUTH_HINT =
+  "Authorization: Bearer <token> (OAuth access token or teakapi_ API key)";
+export const MCP_TRANSPORT = "streamable-http";
+
+export { PUBLIC_API_CORS_HEADERS } from "../../shared/publicApiHeaders";
+
+const PROD_PUBLIC_MCP_URL = "https://teakvault.com/mcp";
+const OAUTH_SCOPES_SUPPORTED = ["profile", "email", "offline_access"];
+
+const readPublicOrigin = (): string | undefined => {
+  const raw = env.PUBLIC_ORIGIN?.trim();
+  if (!raw) {
+    return;
+  }
+  let origin: string;
+  try {
+    origin = new URL(raw).origin;
+  } catch {
+    throw new Error(
+      `PUBLIC_ORIGIN environment variable is not a valid origin (received: "${raw}"). ` +
+        "Example: https://teak.example.com"
+    );
+  }
+  return origin === "null" ? undefined : origin;
+};
+
+const isLocalApiHost = (hostname: string): boolean =>
+  isLocalDevelopmentHostname(hostname);
+
+export const getMcpEndpointFromRequestUrl = (requestUrl: string): string =>
+  getPublicMcpUrl(requestUrl);
+
+export const getPublicMcpUrl = (requestUrl: string): string => {
+  const publicOrigin = readPublicOrigin();
+  if (publicOrigin) {
+    return `${publicOrigin}/mcp`;
+  }
+
+  const { hostname, origin } = new URL(requestUrl);
+  const devApiOrigin = resolveTeakDevApiUrl(env);
+  return isLocalApiHost(hostname) || origin === devApiOrigin
+    ? `${origin}/mcp`
+    : PROD_PUBLIC_MCP_URL;
+};
+
+export const getProtectedResourceUrl = (requestUrl: string): string => {
+  const mcpUrl = new URL(getPublicMcpUrl(requestUrl));
+  return `${mcpUrl.origin}/.well-known/oauth-protected-resource${mcpUrl.pathname}`;
+};
+
+export const buildProtectedResourceMetadata = () => ({
+  resource: readWorkosResources().mcp,
+  authorization_servers: [readWorkosConnectIssuer()],
+  bearer_methods_supported: ["header"],
+  scopes_supported: ["openid", ...OAUTH_SCOPES_SUPPORTED],
+  resource_name: "Teak",
+});
+
+export const json = (
+  status: number,
+  body: unknown,
+  headers?: HeadersInit
+): Response =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json; charset=utf-8",
+      ...(headers ?? {}),
+    },
+  });
+
+export const withPublicApiGatewayHeaders = (response: Response): Response => {
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(PUBLIC_API_CORS_HEADERS)) {
+    headers.set(key, value);
+  }
+  if (!headers.has("X-Request-Id")) {
+    headers.set("X-Request-Id", crypto.randomUUID());
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+};
+
+export const v1CorsPreflightResponse = (): Response =>
+  withPublicApiGatewayHeaders(new Response(null, { status: 204 }));
+
+export const healthzV1 = httpAction(async () =>
+  withPublicApiGatewayHeaders(
+    json(200, {
+      status: "ok",
+      service: "teak-api",
+      version: API_VERSION,
+    })
+  )
+);
+
+export const discoveryV1 = httpAction((_ctx, request) => {
+  if (request.method === "OPTIONS") {
+    return Promise.resolve(v1CorsPreflightResponse());
+  }
+
+  return Promise.resolve(
+    withPublicApiGatewayHeaders(
+      json(200, {
+        version: API_VERSION,
+        endpoints: V1_ENDPOINTS,
+        auth: API_AUTH_HINT,
+        mcp: {
+          endpoint: getMcpEndpointFromRequestUrl(request.url),
+          transport: MCP_TRANSPORT,
+          auth: API_AUTH_HINT,
+        },
+      })
+    )
+  );
+});
+
+export const v1CorsPreflight = httpAction(async () =>
+  v1CorsPreflightResponse()
+);
+
+export const readWorkosConnectClients = () => {
+  const configured = {
+    cli: env.WORKOS_CONNECT_CLI_CLIENT_ID,
+    raycast: env.WORKOS_CONNECT_RAYCAST_CLIENT_ID,
+    chrome: env.WORKOS_CONNECT_CHROME_CLIENT_ID,
+    firefox: env.WORKOS_CONNECT_FIREFOX_CLIENT_ID,
+  };
+  return Object.fromEntries(
+    OAUTH_SURFACES.map((surface) => {
+      const clientId = configured[surface];
+      if (!(clientId && WORKOS_CLIENT_ID.test(clientId))) {
+        throw new Error(
+          `Missing or invalid WorkOS Connect client for ${surface}.`
+        );
+      }
+      return [surface, clientId];
+    })
+  );
+};
+
+// Published clients still read `primary` from this document. teak-sdk up to
+// 1.0.86 (Raycast pins 1.0.81) also refuses it without a `safari` client,
+// retired with Teak for Mac. Nothing uses that ID, so it repeats the CLI's.
+export const teakOAuthClients = httpAction(() => {
+  const clients = readWorkosConnectClients();
+  return Promise.resolve(
+    withPublicApiGatewayHeaders(
+      json(200, {
+        primary: "workos",
+        issuer: readWorkosConnectIssuer(),
+        clients: { ...clients, safari: clients.cli },
+      })
+    )
+  );
+});

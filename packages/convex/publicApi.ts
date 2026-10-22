@@ -38,13 +38,13 @@ import {
   isAfterShuffleAnchor,
   matchAnchorOf,
   type ShuffleApiCursor,
-} from "./publicApiCursors";
+} from "./publicApi/cursors";
 import {
   explainCardTypeMismatch,
   explainInvalidTags,
   isRateLimitContentionError,
   parseStringArray,
-} from "./publicApiHttpShared";
+} from "./publicApi/http/shared";
 import {
   apiCardSortValidator,
   isAfterMatchAnchor,
@@ -61,7 +61,7 @@ import {
   semanticOption,
   semanticSearchArgs,
   similarityOption,
-} from "./publicApiSearch";
+} from "./publicApi/search";
 import {
   listCardTombstonesSince,
   type TombstoneCursor,

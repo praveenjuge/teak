@@ -10,7 +10,7 @@ import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   ACCOUNT_DELETION_STAGES_DONE,
   accountDeletionStage,
-} from "./accountDeletionStages";
+} from "./accountDeletion/stages";
 import {
   accountDeletionNeedsOperator,
   queueAccountDeletionWorkflow,
@@ -18,7 +18,7 @@ import {
 import {
   expectedWorkosDeletionResolution,
   sameWorkosDeletionTarget,
-} from "./workosDeletionCompletion";
+} from "./workos/deletionCompletion";
 
 const bindingArgs = {
   stateId: v.id("accountDeletionStates"),

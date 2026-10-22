@@ -7,7 +7,7 @@ import schema from "./schema";
 import {
   currentWorkosDeletionTarget,
   expectedWorkosDeletionResolution,
-} from "./workosDeletionCompletion";
+} from "./workos/deletionCompletion";
 import { readCanonicalWorkosProfile } from "./workosProfileRead";
 
 const modules = import.meta.glob("./**/*.ts");

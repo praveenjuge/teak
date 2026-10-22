@@ -9,7 +9,7 @@ import {
   snapshotDay,
   snapshotTakesBilling,
   toMetricsCardRow,
-} from "@teak/convex/adminStats";
+} from "@teak/convex/admin/stats";
 import { CRONS } from "@teak/convex/cronSchedules";
 import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { TRASH_RETENTION_MS } from "@teak/convex/shared/constants";

@@ -11,14 +11,6 @@ import {
   query,
 } from "./_generated/server";
 import {
-  ensureAdmin,
-  readAdminActor,
-  readInternalUserIds,
-  readUserFlags,
-  requireReason,
-  writeAudit,
-} from "./adminAccess";
-import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
   type ActivityRow,
@@ -33,7 +25,15 @@ import {
   summarizeQuarantine,
   toActivityRow,
   toOverviewCardRow,
-} from "./adminStats";
+} from "./admin/stats";
+import {
+  ensureAdmin,
+  readAdminActor,
+  readInternalUserIds,
+  readUserFlags,
+  requireReason,
+  writeAudit,
+} from "./adminAccess";
 import { readHasPremium } from "./auth";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";

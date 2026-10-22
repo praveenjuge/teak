@@ -1,6 +1,6 @@
 import { getApiKeyFormat } from "@teak/convex/shared/apiKeyFormat";
 import { workosResourcesFor } from "@teak/convex/shared/workosResources";
-import { verifyWorkosConnectTokenSignature } from "@teak/convex/workosTokens";
+import { verifyWorkosConnectTokenSignature } from "@teak/convex/workos/tokens";
 import {
   buildEdgeIdentitySigningPayload,
   EDGE_IDENTITY_MAX_TTL_SECONDS,

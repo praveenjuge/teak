@@ -8,7 +8,7 @@ import {
 } from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import { verifyWorkosConnectTokenSignature } from "./workosTokens";
+import { verifyWorkosConnectTokenSignature } from "./workos/tokens";
 
 const modules = import.meta.glob("./**/*.ts");
 const issuer = "https://logout-tests.authkit.app";

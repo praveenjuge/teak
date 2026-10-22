@@ -8,7 +8,7 @@ import { SEARCH_MODES } from "./shared/search/semantic";
 import {
   workosDeletionCompletionValidator,
   workosDeletionTargetValidator,
-} from "./workosDeletionCompletion";
+} from "./workos/deletionCompletion";
 
 export type { CardType } from "./shared/constants";
 
@@ -69,7 +69,7 @@ const stageSummaryValidator = v.object({
   failed: v.number(),
 });
 
-/** `admin:getOverview`'s result (`AdminOverview` in adminStats.ts). */
+/** `admin:getOverview`'s result (`AdminOverview` in admin/stats.ts). */
 export const adminOverviewFields = {
   generatedAt: v.number(),
   totals: v.object({

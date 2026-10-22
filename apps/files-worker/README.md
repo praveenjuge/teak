@@ -604,7 +604,7 @@ so PostHog keeps one copy. `capabilities` lists the item types the op takes in
 Steps read and write Convex through one signed endpoint,
 `POST <convex.site>/__workflow/v1` (`src/convexRpc.ts` →
 `packages/convex/workflowGateway.ts`), which runs one function from
-`packages/convex/workflowRpcAllowlist.ts` per call. Every card-processing
+`packages/convex/workflows/rpcAllowlist.ts` per call. Every card-processing
 write carries the run's processing revision and lands only while the card is
 still on it, so an edit (which bumps the revision and stops the older run)
 can never be overwritten by the run it replaced.
@@ -716,7 +716,7 @@ no longer pages every user and card in an action or a reactive query. One
 maintenance workflow task, `admin-snapshot`, counts both from a single scan of
 every card over the workflow RPC gateway, at most 400 pages of 500 cards; a
 longer scan is stored as approximate. The counting code is shared with Convex
-(`packages/convex/adminStats.ts`).
+(`packages/convex/admin/stats.ts`).
 
 - It pages `adminMetrics:usersPage`, flags internal accounts
   (`adminAccess:flagAutoInternalAccounts`), then pages `admin:overviewCardsPage`

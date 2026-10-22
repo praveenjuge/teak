@@ -12,7 +12,7 @@ import { setCardFoldersForUser } from "./folder/membership";
 import {
   explainCardTypeMismatch,
   explainInvalidTags,
-} from "./publicApiHttpShared";
+} from "./publicApi/http/shared";
 import { cardTypeValidator } from "./schema";
 import { requireTeakUserId } from "./securitySessions";
 import {

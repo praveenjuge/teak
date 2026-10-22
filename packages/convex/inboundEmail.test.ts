@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-utils";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
-import { accountDeletionStage } from "./accountDeletionStages";
+import { accountDeletionStage } from "./accountDeletion/stages";
 import {
   INBOUND_ATTACHMENT_PATH,
   INBOUND_EMAIL_PATH,

@@ -7,7 +7,7 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { deleteAccountDataHandler, type OwnedCardIds } from "./accountDeletion";
-import { captureDeletionBatch } from "./accountDeletionBatch";
+import { captureDeletionBatch } from "./accountDeletion/batch";
 import { documentTextKey } from "./card/documentText";
 import {
   FILE_TEXT_SEARCH_LIMIT,

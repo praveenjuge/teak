@@ -6,7 +6,7 @@ import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 import {
   currentWorkosDeletionTarget,
   expectedWorkosDeletionResolution,
-} from "./workosDeletionCompletion";
+} from "./workos/deletionCompletion";
 
 export const INVALID_WORKOS_EVENT = "invalid_workos_event";
 const permanentEventError = (message: string) =>

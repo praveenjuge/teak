@@ -9,7 +9,7 @@ import {
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   accountDeletionStage,
-} from "./accountDeletionStages";
+} from "./accountDeletion/stages";
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextRows } from "./card/textContents";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
@@ -20,7 +20,7 @@ import {
 } from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { queueAccountDeletionWorkflow } from "./workflowDispatch";
-import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
+import { currentWorkosDeletionTarget } from "./workos/deletionCompletion";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 

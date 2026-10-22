@@ -4,8 +4,14 @@ import { polar, polarWebhookEvents } from "./billing";
 import { edgeIdentityV1 } from "./edgeIdentity";
 import { registerInboundRoutes } from "./inbound/http";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
-import { duplicateCardV1 } from "./publicApiDuplicate";
-import { exportsV1 } from "./publicApiExports";
+import { duplicateCardV1 } from "./publicApi/http/duplicate";
+import { exportsV1 } from "./publicApi/http/exports";
+import {
+  discoveryV1,
+  healthzV1,
+  teakOAuthClients,
+  v1CorsPreflight,
+} from "./publicApi/http/meta";
 import {
   bulkCardsV1,
   cardByIdV1,
@@ -17,17 +23,11 @@ import {
   listCardsV1,
   tagOperationsV1,
   tagsV1,
-} from "./publicApiHttp";
+} from "./publicApi/http/routes";
+import { openApiV1 } from "./publicApi/openApi/spec";
 import { meV1 } from "./publicApiMe";
-import {
-  discoveryV1,
-  healthzV1,
-  teakOAuthClients,
-  v1CorsPreflight,
-} from "./publicApiMeta";
-import { openApiV1 } from "./publicApiOpenApi";
 import { workflowRpcV1 } from "./workflowGateway";
-import { disconnectWorkosConsent } from "./workosConnectRevocation";
+import { disconnectWorkosConsent } from "./workos/connectRevocation";
 import { registerWorkosRoutes } from "./workosWebhook";
 
 const http = httpRouter();

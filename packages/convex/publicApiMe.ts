@@ -3,13 +3,13 @@ import { internal } from "./_generated/api";
 import { type ActionCtx, httpAction, internalQuery } from "./_generated/server";
 import { readHasPremium } from "./auth";
 import { getActiveCardCount } from "./card/cardUsage";
-import { withAuthorizedUser } from "./publicApiHttpAuth";
-import { errorResponse, json } from "./publicApiHttpShared";
-import { getAppBaseUrl } from "./publicApiHttpValidation";
-import { withPublicApiGatewayHeaders } from "./publicApiMeta";
+import { withAuthorizedUser } from "./publicApi/http/auth";
+import { withPublicApiGatewayHeaders } from "./publicApi/http/meta";
+import { errorResponse, json } from "./publicApi/http/shared";
+import { getAppBaseUrl } from "./publicApi/http/validation";
 import { readWorkosProfile } from "./securitySessions";
 import { FREE_TIER_LIMIT } from "./shared/constants";
-import type { WorkosResource } from "./workosTokens";
+import type { WorkosResource } from "./workos/tokens";
 
 export const profileForOwner = internalQuery({
   args: { teakUserId: v.string(), includeUsage: v.optional(v.boolean()) },

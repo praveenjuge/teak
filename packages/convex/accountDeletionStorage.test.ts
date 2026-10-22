@@ -7,7 +7,7 @@ import {
 } from "./__tests__/helpers/filesWorker.test-utils";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { ACCOUNT_DELETION_KEY_PAGE as PAGE } from "./accountDeletionBatch";
+import { ACCOUNT_DELETION_KEY_PAGE as PAGE } from "./accountDeletion/batch";
 import schema from "./schema";
 import { ensureObjectOwnership } from "./storage/ownership";
 

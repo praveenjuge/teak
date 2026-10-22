@@ -6,8 +6,8 @@ import {
   type PublicApiToolOperation,
   TEAK_V1_TOOLS,
 } from "../packages/convex/mcp/tools";
-import { PUBLIC_API_ERROR_CODES } from "../packages/convex/publicApiHttpShared";
-import { openApiSpec } from "../packages/convex/publicApiOpenApi";
+import { PUBLIC_API_ERROR_CODES } from "../packages/convex/publicApi/http/shared";
+import { openApiSpec } from "../packages/convex/publicApi/openApi/spec";
 import { CARD_ERROR_CODES } from "../packages/convex/shared/constants";
 import {
   createTeakClient,

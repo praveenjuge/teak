@@ -15,13 +15,13 @@ import {
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
 } from "./shared/workosIds";
+import { validWorkosExternalId } from "./workos/tokens";
 import {
   type ResolveArgs,
   type ResolvedOwner,
   resolveOwner,
 } from "./workosIdentity";
 import type { ProviderProfile } from "./workosProfileRead";
-import { validWorkosExternalId } from "./workosTokens";
 
 function readWorkosSessionClaims(
   identity: UserIdentity | null,

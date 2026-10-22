@@ -20,7 +20,7 @@ import {
   CARD_LINK_SCENARIO_DESCRIPTIONS,
   type CardLinkScenario,
   seedCardLinkScenario,
-} from "./devSeedLinks";
+} from "./devSeed/links";
 import { readIsDevDeployment } from "./env";
 import { insertFolder } from "./folder/folders";
 import { planEmailCards } from "./inbound/emailContent";

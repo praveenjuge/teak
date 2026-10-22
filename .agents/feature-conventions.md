@@ -11,10 +11,10 @@ A feature in the public API ships on MCP, the SDK and the CLI in the same PR,
 in this order:
 
 1. Internal function in `packages/convex/publicApi*.ts`.
-2. Handler in `publicApiHttp*.ts`, dispatched by `executePublicApiOperation`
-   (`publicApiHttp.ts`).
+2. Handler in `publicApi/http/*.ts`, dispatched by `executePublicApiOperation`
+   (`publicApi/http/routes.ts`).
 3. Route plus its `OPTIONS` in `http.ts`.
-4. The operation in `publicApiOpenApi.ts`.
+4. The operation in `publicApi/openApi/`.
 5. The tool in `mcp/tools.ts`.
 6. The method in `packages/sdk/src/index.ts`.
 7. The command in `apps/cli/src/index.ts` and `library.ts`.
@@ -25,7 +25,7 @@ in this order:
 `scripts/public-parity.test.ts` calls every MCP tool and SDK method, walks the
 CLI command tree and compares the card list filters, so a missed step fails
 the root `bun run test`. A new error code goes in `PUBLIC_API_ERROR_CODES`
-(`publicApiHttpShared.ts`) and the SDK's `ERROR_CODES`; the same test fails
+(`publicApi/http/shared.ts`) and the SDK's `ERROR_CODES`; the same test fails
 when the SDK doesn't know a code the API returns.
 
 Update the API, MCP and CLI docs in `apps/docs` with it (`apps/docs/AGENTS.md`).
@@ -52,7 +52,7 @@ Update the API, MCP and CLI docs in `apps/docs` with it (`apps/docs/AGENTS.md`).
   durable history: never rename one, and add new steps after the existing
   ones. Every Convex write a step makes passes the run's
   `guard: { cardId, rev }`, and every function it calls is listed in
-  `workflowRpcAllowlist.ts`.
+  `workflows/rpcAllowlist.ts`.
 - Analytics events go in `shared/analytics.ts` first (`.agents/analytics.md`).
 
 ## Indexes and reads

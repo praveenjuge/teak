@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 import { action, env, internalMutation, query } from "./_generated/server";
-import { ensureAdmin, readInternalUserIds } from "./adminAccess";
 import {
   type CronHealth,
   cronHealth,
   DAY_MS,
   summarizeSignupDomains,
-} from "./adminStats";
+} from "./admin/stats";
+import { ensureAdmin, readInternalUserIds } from "./adminAccess";
 import { CRONS } from "./cronSchedules";
 import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "./shared/posthog";
 import { readDispatchHealth } from "./workflowDispatch";

@@ -4,11 +4,11 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { type ActionCtx, internalAction } from "./_generated/server";
-import { deletePostHogPerson } from "./accountDeletionAnalytics";
+import { deletePostHogPerson } from "./accountDeletion/analytics";
 import {
   ACCOUNT_DELETION_STAGES,
   type AccountDeletionStage,
-} from "./accountDeletionStages";
+} from "./accountDeletion/stages";
 import { closeBillingCustomer } from "./billing";
 import {
   deleteLegacyBetterAuthRows,
@@ -19,11 +19,11 @@ import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
-} from "./workosAuthorizedApps";
+} from "./workos/authorizedApps";
 import {
   currentWorkosDeletionTarget,
   sameWorkosDeletionTarget,
-} from "./workosDeletionCompletion";
+} from "./workos/deletionCompletion";
 
 const PROVIDER_DELETE_PAGE_SIZE = 10;
 

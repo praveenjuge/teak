@@ -1,12 +1,12 @@
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import type { DeletionBatchKind } from "@teak/convex/accountDeletionBatch";
+import type { DeletionBatchKind } from "@teak/convex/accountDeletion/batch";
 import {
   ACCOUNT_DELETION_STAGES,
   ACCOUNT_DELETION_STAGES_DONE,
   accountDeletionStage,
   deletionFailureReason,
-} from "@teak/convex/accountDeletionStages";
+} from "@teak/convex/accountDeletion/stages";
 import { VECTOR_DELETE_MAX_IDS } from "@teak/files-protocol";
 import type { ConvexRpc } from "../convexRpc";
 import {

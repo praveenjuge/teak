@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { utcDay } from "@teak/convex/adminStats";
+import { utcDay } from "@teak/convex/admin/stats";
 import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
 import { fakeConvexEnv, TEST_CONVEX_SITE_URL } from "../test/fakeConvex";
 import { completionReports, createTestRun } from "../test/fakeRun";

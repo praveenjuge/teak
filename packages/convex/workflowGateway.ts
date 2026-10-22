@@ -27,7 +27,7 @@ import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
 import {
   isWorkflowRpcFunction,
   requiresWorkflowRpcGuard,
-} from "./workflowRpcAllowlist";
+} from "./workflows/rpcAllowlist";
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {

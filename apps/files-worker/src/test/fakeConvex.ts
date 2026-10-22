@@ -1,7 +1,7 @@
 import {
   isWorkflowRpcFunction,
   requiresWorkflowRpcGuard,
-} from "@teak/convex/workflowRpcAllowlist";
+} from "@teak/convex/workflows/rpcAllowlist";
 import type { WorkflowRpcRequest } from "@teak/files-protocol";
 import { convexToJson, jsonToConvex, type Value } from "convex/values";
 

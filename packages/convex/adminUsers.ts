@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { components } from "./_generated/api";
 import { internalQuery, query } from "./_generated/server";
+import { DAY_MS, startOfUtcWeek, utcDay } from "./admin/stats";
 import { ensureAdmin, readUserFlags } from "./adminAccess";
-import { DAY_MS, startOfUtcWeek, utcDay } from "./adminStats";
 import { daysAgoDate } from "./adminUsage";
 import { readHasPremium } from "./auth";
 import { isOnboardingCard } from "./card/defaultCards";

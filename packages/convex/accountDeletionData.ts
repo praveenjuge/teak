@@ -5,12 +5,12 @@ import {
   captureDeletionBatch,
   commitDeletionBatch,
   isCurrentDeletionFingerprint,
-} from "./accountDeletionBatch";
-import { readDeletionState } from "./accountDeletionJobs";
+} from "./accountDeletion/batch";
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   accountDeletionStage,
-} from "./accountDeletionStages";
+} from "./accountDeletion/stages";
+import { readDeletionState } from "./accountDeletionJobs";
 import { deleteFolderCardCounts } from "./folder/folderRows";
 import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
 

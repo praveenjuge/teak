@@ -13,7 +13,7 @@ import {
   type OwnedCardIds,
   takeOwnedCards,
 } from "./accountDeletion";
-import { captureDeletionBatch } from "./accountDeletionBatch";
+import { captureDeletionBatch } from "./accountDeletion/batch";
 import {
   CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,

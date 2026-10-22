@@ -19,7 +19,7 @@ import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
-import { mapConvexErrorToResponse } from "./publicApiHttpShared";
+import { mapConvexErrorToResponse } from "./publicApi/http/shared";
 import schema from "./schema";
 import { MAX_CARD_TAGS } from "./shared/tags";
 

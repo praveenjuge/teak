@@ -7,5 +7,5 @@ or {
   `internal.workosConsents.authorizeConnectConsent` as $match,
   `internal.workosLifecycle.applyWorkosEvent` as $match
 } where {
-  register_diagnostic(span=$match, message="Call WorkOS identity boundaries only from the adapters that verify their caller: securitySessions.ts, workosBootstrap.ts, workosLifecycle.ts, publicApiHttpAuth.ts and workosWebhook.ts.", severity="error")
+  register_diagnostic(span=$match, message="Call WorkOS identity boundaries only from the adapters that verify their caller: securitySessions.ts, workosBootstrap.ts, workosLifecycle.ts, publicApi/http/auth.ts and workosWebhook.ts.", severity="error")
 }
