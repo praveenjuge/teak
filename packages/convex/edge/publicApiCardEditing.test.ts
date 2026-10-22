@@ -739,6 +739,78 @@ describe("Bulk card tags", () => {
   });
 });
 
+describe("Bulk items follow the single-card rules", () => {
+  const bulk = (
+    t: Awaited<ReturnType<typeof setup>>["t"],
+    operation: "create" | "update" | "favorite" | "archive" | "addTags",
+    items: Record<string, unknown>[]
+  ) =>
+    t.mutation(internal.publicApi.executeBulkCardsForUser, {
+      userId: "owner",
+      operation,
+      items,
+    });
+
+  test("an update with a blank url fails and keeps the card's link", async () => {
+    const { t, cardId } = await setup();
+    const result = await bulk(t, "update", [{ cardId, url: "  " }]);
+    expect(result.results[0]).toMatchObject({
+      status: "error",
+      code: "INVALID_INPUT",
+    });
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.url).toBe("https://example.com");
+  });
+
+  test("an update with blank content fails on a card that isn't text", async () => {
+    const { t, cardId } = await setup();
+    const result = await bulk(t, "update", [{ cardId, content: "" }]);
+    expect(result.results[0]).toMatchObject({
+      status: "error",
+      code: "INVALID_INPUT",
+    });
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.content).toBe("Original content");
+  });
+
+  test("a trashed card is not found until it is restored", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, { isDeleted: true, deletedAt: 2 })
+    );
+    const results = [
+      await bulk(t, "update", [{ cardId, tags: ["in-trash"] }]),
+      await bulk(t, "favorite", [{ cardId, isFavorited: true }]),
+      await bulk(t, "archive", [{ cardId }]),
+      await bulk(t, "addTags", [{ cardId, tags: ["in-trash"] }]),
+    ];
+    for (const result of results) {
+      expect(result.results[0]).toMatchObject({
+        status: "error",
+        code: "NOT_FOUND",
+      });
+    }
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card).toMatchObject({ tags: ["original"], isDeleted: true });
+    expect(card?.isFavorited).toBeUndefined();
+    expect(card?.isArchived).toBeUndefined();
+  });
+
+  test("a create naming a file type needs an upload even with a url", async () => {
+    const { t } = await setup();
+    const result = await bulk(t, "create", [
+      { cardType: "image", url: "https://example.com/a.png", content: "x" },
+      { cardType: "palette", url: "https://example.com/p", content: "none" },
+    ]);
+    expect(result.results).toMatchObject([
+      { status: "error", code: "INVALID_INPUT" },
+      { status: "error", code: "INVALID_INPUT" },
+    ]);
+    const cards = await t.run((ctx) => ctx.db.query("cards").collect());
+    expect(cards).toHaveLength(1);
+  });
+});
+
 describe("Refresh details", () => {
   test("queues the processing workflow for the owner's card", async () => {
     const { t, cardId } = await setup();

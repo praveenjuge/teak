@@ -477,7 +477,7 @@ export function initialCardsSearchQueryArgs(
       effectiveCardsOrder(
         orderFromUrl(urlState),
         semanticSearchText(urlState?.q ?? "") !== "",
-        false
+        urlState?.sortPicked === true
       )
     ),
   };

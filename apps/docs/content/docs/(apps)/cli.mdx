@@ -214,7 +214,7 @@ teak cards changes --since 1767225600000 --json
 teak cards bulk update --input updates.json
 ```
 
-`teak cards changes` returns cards changed since a millisecond timestamp, plus the IDs of deleted cards with `--json`. `teak cards bulk` runs `create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, or `removeTags` on up to 100 items, read from `--input` or standard input as a JSON array or an `{"items": [...]}` object. Items use the same shape as the [API's bulk endpoint](/docs/api#reliable-requests). The output lists each item's card ID or error, and the command exits with a non-zero code if any item failed.
+`teak cards changes` lists cards changed since a millisecond timestamp, one per line, then a `deleted <card-id>` line for each card moved to Trash or permanently deleted since then. When there are more changes, it prints `nextCursor: <cursor>` to stderr; pass it back with `--cursor` to get the next page. `--json` prints `{ items, deletedIds, pageInfo }`. `teak cards bulk` runs `create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, or `removeTags` on up to 100 items, read from `--input` or standard input as a JSON array or an `{"items": [...]}` object. Items use the same shape as the [API's bulk endpoint](/docs/api#reliable-requests). The output lists each item's card ID or error, and the command exits with a non-zero code if any item failed.
 
 ### Global options
 

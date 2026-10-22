@@ -177,9 +177,10 @@ describe("readExifFacts", () => {
     expect(facts?.takenAtOffset).toBe(-480);
   });
 
-  test("leaves out an offset that is not a real zone", () => {
-    for (const offset of ["+25:00", "+05:75", "+5:30 "]) {
+  test("leaves out an offset that is not a real zone and reads the time as UTC", () => {
+    for (const offset of ["+25:00", "+15:00", "+05:75", "+5:30 "]) {
       const facts = parseTiffExif(withOffset(offset));
+      expect(facts?.takenAt).toBe(Date.parse("2026-05-17T14:30:05Z"));
       expect(facts?.takenAtClock).toBe(FIXTURE_FACTS.takenAtClock);
       expect(facts).not.toHaveProperty("takenAtOffset");
     }

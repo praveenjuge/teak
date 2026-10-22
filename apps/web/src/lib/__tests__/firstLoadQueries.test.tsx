@@ -51,6 +51,7 @@ describe("first-load queries", () => {
     "/archive",
     "/trash",
     "/?q=bauhaus",
+    "/?q=bauhaus&sort=newest",
     "/?q=type:link%20poster",
     "/?sort=oldest",
     "/?sort=shuffle&seed=42",
@@ -71,6 +72,11 @@ describe("first-load queries", () => {
       id: 0,
       numItems: 30,
     });
+  });
+
+  test("warm a search's Newest order when the URL picked it over Best match", () => {
+    const url = new URL("/?q=bauhaus&sort=newest", "https://app.example");
+    expect(warmedCardsArgs(url)?.args).not.toHaveProperty("sort");
   });
 
   test("skip the cards for Shuffle without a seed, which picks one at random", () => {

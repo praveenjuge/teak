@@ -33,7 +33,11 @@ import {
 } from "./linkMetadata";
 import { readLinkImageText } from "./linkText";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
-import { isPodcastLink, transcribePodcastEpisode } from "./podcast";
+import {
+  findPodcastEpisode,
+  isPodcastLink,
+  transcribeFoundEpisode,
+} from "./podcast";
 import {
   extractPaletteFromImage,
   generateRenderables,
@@ -443,31 +447,42 @@ const completedResult = (
     : {}),
 });
 
-/** The podcast transcript, logged; only a superseded run's error escapes. */
-const transcribePodcastStep = (
+/**
+ * The podcast transcript, logged; only a superseded run's error escapes. The
+ * episode is found, and the owner's hourly slot taken, in a step of its own:
+ * its result is kept, so retrying the transcription never takes another slot.
+ */
+const transcribePodcastStep = async (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],
   options: { keepTranscript?: boolean } = {}
-) =>
-  step
-    .do("transcribe podcast", PODCAST_STEP, () =>
-      withWorkflowTelemetry(job.env, async (telemetry) => {
-        const outcome = await transcribePodcastEpisode(job, telemetry, options);
-        console.log("[cardProcessing] podcast transcript", {
-          cardId: job.cardId,
-          ...outcome,
-        });
-        return outcome;
-      })
-    )
-    .catch((error: unknown) => {
-      rethrowSuperseded(error);
-      console.warn("[cardProcessing] Podcast transcript failed", {
-        cardId: job.cardId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return null;
+) => {
+  try {
+    const found = await step.do("find podcast episode", PODCAST_STEP, () =>
+      findPodcastEpisode(job, options)
+    );
+    const outcome =
+      "audioUrl" in found
+        ? await step.do("transcribe podcast", PODCAST_STEP, () =>
+            withWorkflowTelemetry(job.env, (telemetry) =>
+              transcribeFoundEpisode(job, telemetry, found, options)
+            )
+          )
+        : found;
+    console.log("[cardProcessing] podcast transcript", {
+      cardId: job.cardId,
+      ...outcome,
     });
+    return outcome;
+  } catch (error) {
+    rethrowSuperseded(error);
+    console.warn("[cardProcessing] Podcast transcript failed", {
+      cardId: job.cardId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
 
 const runMetadataStep = (
   job: CardJob,

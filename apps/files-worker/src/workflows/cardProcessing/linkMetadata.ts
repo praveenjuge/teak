@@ -478,6 +478,19 @@ export const fetchLinkMetadata = async (
   try {
     await assertUrlIsSafe(normalizedUrl, job.deps.resolveDns);
   } catch (error) {
+    // A lookup that failed or came back empty says nothing about where the
+    // link points, so it retries like any other network failure.
+    if (
+      error instanceof SsrfError &&
+      error.reason === "dns_resolution_failed"
+    ) {
+      return throwRetryable({
+        details: { reason: error.reason },
+        message: error.message,
+        normalizedUrl,
+        type: "network_error",
+      });
+    }
     if (error instanceof SsrfError) {
       return await failBlocked();
     }

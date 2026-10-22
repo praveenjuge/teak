@@ -127,6 +127,39 @@ const declaredBodyTooLarge = (request: Request): boolean => {
   return Number.isFinite(length) && length > API_PROXY_MAX_BODY_BYTES;
 };
 
+/**
+ * Reads a body sent without a Content-Length (chunked), up to the limit.
+ * Buffering lets the proxy answer 413 before Convex sees any of it: a stream
+ * cut off mid-proxy would surface as a failed fetch, not as this answer.
+ * Returns null once the body passes the limit.
+ */
+const readBodyWithinLimit = async (
+  body: ReadableStream<Uint8Array>
+): Promise<Uint8Array | null> => {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    size += value.byteLength;
+    if (size > API_PROXY_MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+};
+
 const isEdgeCacheable = (request: Request, url: URL): boolean =>
   request.method === "GET" &&
   EDGE_CACHED_PATHS.has(url.pathname) &&
@@ -146,7 +179,7 @@ const cacheableCopy = (response: Response): Response => {
 };
 
 export const handleApiProxyRequest = async (
-  request: Request,
+  incoming: Request,
   env: ApiProxyEnv,
   ctx: Pick<ExecutionContext, "waitUntil">,
   options: {
@@ -160,7 +193,7 @@ export const handleApiProxyRequest = async (
   if (!(publicHost && upstreamOrigin)) {
     return null;
   }
-  const url = new URL(request.url);
+  const url = new URL(incoming.url);
   if (url.hostname !== publicHost) {
     return null;
   }
@@ -169,8 +202,19 @@ export const handleApiProxyRequest = async (
     return null;
   }
 
-  if (declaredBodyTooLarge(request)) {
-    return errorResponse(413, "CONTENT_TOO_LARGE", "Request body is too large");
+  const tooLarge = () =>
+    errorResponse(413, "CONTENT_TOO_LARGE", "Request body is too large");
+  if (declaredBodyTooLarge(incoming)) {
+    return tooLarge();
+  }
+  // A declared length is enforced by the runtime; a chunked body is not.
+  let request = incoming;
+  if (incoming.body && !incoming.headers.has("content-length")) {
+    const body = await readBodyWithinLimit(incoming.body);
+    if (!body) {
+      return tooLarge();
+    }
+    request = new Request(incoming, { body });
   }
 
   let attestation: string | null = null;

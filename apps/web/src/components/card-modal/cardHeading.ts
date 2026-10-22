@@ -44,8 +44,6 @@ export function getCardHeading(card: HeadingSource): {
   return { editable: false, title: typeLabel === "Text" ? "Note" : typeLabel };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 export function formatAddedDate(timestamp: number, now = Date.now()): string {
   const saved = new Date(timestamp);
   const today = new Date(now);
@@ -54,10 +52,17 @@ export function formatAddedDate(timestamp: number, now = Date.now()): string {
     today.getMonth(),
     today.getDate()
   ).getTime();
+  // The local calendar day before, not 24 hours before: days around a
+  // daylight saving change are 23 or 25 hours long.
+  const startOfYesterday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() - 1
+  ).getTime();
   if (timestamp >= startOfToday) {
     return "Added today";
   }
-  if (timestamp >= startOfToday - DAY_MS) {
+  if (timestamp >= startOfYesterday) {
     return "Added yesterday";
   }
   return `Added ${saved.toLocaleDateString("en-US", {

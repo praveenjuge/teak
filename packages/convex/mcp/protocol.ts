@@ -7,7 +7,7 @@ import {
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
 import { SEARCH_MODES } from "../shared/search/semantic";
-import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
+import { MAX_TAG_KEY_LENGTH, MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import {
   THUMBNAIL_MAX_BYTES,
   THUMBNAIL_MIME_TYPES,
@@ -241,7 +241,7 @@ export const TEAK_V1_TOOLS = [
     annotations: { title: "Rename tag", ...WRITES },
     inputSchema: inputSchema(
       {
-        from: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+        from: { type: "string", minLength: 1, maxLength: MAX_TAG_KEY_LENGTH },
         to: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
       },
       ["from", "to"]
@@ -254,7 +254,7 @@ export const TEAK_V1_TOOLS = [
     annotations: { title: "Merge tags", ...WRITES },
     inputSchema: inputSchema(
       {
-        from: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+        from: { type: "string", minLength: 1, maxLength: MAX_TAG_KEY_LENGTH },
         into: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
       },
       ["from", "into"]
@@ -267,7 +267,7 @@ export const TEAK_V1_TOOLS = [
     annotations: { title: "Delete tag", ...DESTRUCTIVE },
     inputSchema: inputSchema(
       {
-        tag: { type: "string", minLength: 1, maxLength: MAX_TAG_NAME_LENGTH },
+        tag: { type: "string", minLength: 1, maxLength: MAX_TAG_KEY_LENGTH },
         confirm: { const: true },
       },
       ["tag", "confirm"]

@@ -23,7 +23,10 @@ import {
 } from "../../test/cardProcessingKit";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
-import { fetchLinkMetadata } from "./linkMetadata";
+import {
+  fetchLinkMetadata,
+  parseLinkMetadataRetryableError,
+} from "./linkMetadata";
 import { rawMetadataKey } from "./rawMetadata";
 
 const PUBLIC = "93.184.216.34";
@@ -90,6 +93,7 @@ const setup = (
     addresses?: string[];
     bucket?: R2Bucket;
     handlers?: Parameters<typeof createCardConvex>[1];
+    resolveDns?: (hostname: string) => Promise<string[]>;
     route?: (url: string) => Response | undefined;
   } = {}
 ) => {
@@ -105,7 +109,9 @@ const setup = (
     env,
     testDeps(env, convex.fetcher, fakes.ops, {
       pinnedFetch: createContainerPinnedFetch(env),
-      resolveDns: () => Promise.resolve(options.addresses ?? [PUBLIC]),
+      resolveDns:
+        options.resolveDns ??
+        (() => Promise.resolve(options.addresses ?? [PUBLIC])),
     })
   );
   const saved = () =>
@@ -349,6 +355,29 @@ describe("link metadata", () => {
       expect(fakes.calls).toEqual([]);
       expect(saved()?.linkPreview.error.type).toBe("blocked_url");
     });
+
+    test.each([
+      [
+        "the resolver is down",
+        () => Promise.reject(new Error("doh_unavailable")),
+      ],
+      ["the name has no addresses", () => Promise.resolve([] as string[])],
+    ])(
+      "retries rather than blocks a link when %s",
+      async (_label, resolveDns) => {
+        const { fakes, fetch, saved } = setup(linkCard(), {}, { resolveDns });
+        const error = await fetch().then(
+          () => null,
+          (reason: unknown) => reason
+        );
+        expect(parseLinkMetadataRetryableError(error)).toMatchObject({
+          normalizedUrl: URL_,
+          type: "network_error",
+        });
+        expect(fakes.calls).toEqual([]);
+        expect(saved()).toBeUndefined();
+      }
+    );
 
     test("refuses a page whose redirect reached a disallowed destination", async () => {
       const { fetch } = setup(linkCard(), {

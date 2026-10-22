@@ -54,6 +54,7 @@ import {
 } from "../components/lazyDialogs";
 import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
 import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
+import type { CloseCardOptions } from "../hooks/useCardQueryParamState";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
 import { useRelevanceRanking } from "../hooks/useRelevanceRanking";
@@ -116,7 +117,7 @@ interface CardsScreenProps {
   initialVisualFilters?: CardsVisualFilters;
   onAddCardsToFolder?: (folderId: string) => void;
   onAddToFolderDone?: (folderId: string, added: boolean) => void;
-  onCloseCard: () => void;
+  onCloseCard: (options?: CloseCardOptions) => void;
   onFocusComposerHandled?: () => void;
   onNavigateView?: (view: LibraryView) => void;
   onOpenCard: (cardId: string) => void;
@@ -595,15 +596,21 @@ export function CardsScreen({
     [onOpenCard]
   );
 
+  // These close the card and change the search, so they replace the card's
+  // URL: going Back would land after the search's own URL write.
+  const closeCardForSearch = useCallback(
+    () => onCloseCard({ replace: true }),
+    [onCloseCard]
+  );
   const { handleCardTypeClick, handleTagClick } = useCardModalFilterActions({
     addFilter,
     addKeywordTag,
-    onCloseModal: onCloseCard,
+    onCloseModal: closeCardForSearch,
   });
 
   const handleMoreLikeThis = useCallback(
     (cardId: string) => {
-      onCloseCard();
+      onCloseCard({ replace: true });
       applyUrlState({ ...urlState, q: `like:${cardId}`, tag: "", types: [] });
       captureEvent("similar_search_opened", { source: "panel" });
     },

@@ -624,12 +624,31 @@ export const buildCardsSearchParams = (input: {
   return search.toString();
 };
 
-const parseJson = async (response: Response): Promise<unknown> => {
-  if (response.status === 204) {
-    return null;
-  }
-  const text = await response.text();
-  if (!text.trim()) {
+/**
+ * Reads the body before the request's timeout fires. A fetch that ignores the
+ * abort could leave a stalled body pending forever, so the read races it.
+ */
+const readBody = (response: Response, signal: AbortSignal): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const onAbort = () => {
+      reject(new TeakApiError("TIMEOUT"));
+      response.body?.cancel().catch(() => undefined);
+    };
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    response
+      .text()
+      .then(resolve, () =>
+        reject(new TeakApiError(signal.aborted ? "TIMEOUT" : "NETWORK_ERROR"))
+      )
+      .finally(() => signal.removeEventListener("abort", onAbort));
+  });
+
+const parseJson = (response: Response, text: string): unknown => {
+  if (response.status === 204 || !text.trim()) {
     return null;
   }
   try {
@@ -836,18 +855,26 @@ export const createTeakClient = (options: {
       headers.set("Content-Type", "application/json");
     }
     let response: Response;
+    let text: string;
+    // The timeout covers the whole exchange: the headers and then the body.
     try {
-      response = await fetchImpl(`${baseUrl}${path}`, {
-        ...init,
-        headers,
-        signal: controller.signal,
-      });
-    } catch (error) {
-      throw new TeakApiError(
-        error instanceof DOMException && error.name === "AbortError"
-          ? "TIMEOUT"
-          : "NETWORK_ERROR"
-      );
+      try {
+        response = await fetchImpl(`${baseUrl}${path}`, {
+          ...init,
+          headers,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        throw new TeakApiError(
+          error instanceof DOMException && error.name === "AbortError"
+            ? "TIMEOUT"
+            : "NETWORK_ERROR"
+        );
+      }
+      text =
+        response.status === 204
+          ? ""
+          : await readBody(response, controller.signal);
     } finally {
       clearTimeout(timeout);
     }
@@ -861,7 +888,7 @@ export const createTeakClient = (options: {
         return request(path, init, parser, false, next);
       }
     }
-    const payload = await parseJson(response);
+    const payload = parseJson(response, text);
     if (!response.ok) {
       const object = isObject(payload) ? payload : {};
       throw new TeakApiError(

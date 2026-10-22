@@ -2,7 +2,7 @@
 title: "October 2026"
 description: Folders, archive, Revisit, done states and similar cards on iPhone, iPad, Mac and Raycast, link cards together with [[ and see which cards link to a card, save to Teak by email, with attachments as cards, search what's said in Vimeo videos and podcast episodes, YouTube channel, length and upload date, richer details for Wikipedia, arXiv, music and books, and Save PDF for papers, mark links as read, watched or bought, find screenshots and scanned PDFs by the words in them, Teak for Firefox, search Teak from your browser's address bar, tags and a note right after saving, saved text that remembers its page, Revisit 20 random cards, keep or archive, jump anywhere with ⌘K, Focus mode for every note, done items sink to the bottom of checklists, hide cards with a secret or hidden tag, find similar cards and search images by mood, choose your own image for any link, search that understands what you mean, Best match and new visual styles, prices on product cards and price search, save posts from Bluesky, Mastodon, Reddit, TikTok, and more, links recognized as places, fonts, apps, games, code repositories, and social posts, the API, MCP, SDK, and CLI in step, search inside documents and videos, a calmer card grid and card view, shuffle your library, import from more apps, richer exports, keyboard shortcuts on the web, smart folders that fill themselves, search with qualifiers, manage tags across your library, organize cards into folders, a sidebar for your library, archive cards and act on many at once, sort your library oldest first, refresh any card's details, a hands-on start for new accounts, link bylines and photo details on the web, a native Teak for iPhone, iPad, and Mac, a new sign-in system, simpler web note editing, video and audio previews on the web, the web app's tools on Mac, iPhone, Raycast, and the command line, and a cleaner Chrome popup.
 type: changelog
-date: "2026-10-20"
+date: "2026-10-22"
 changelog:
   category: Product updates
 ---
@@ -344,6 +344,12 @@ These apply to videos, recordings, images, and links you save from now on.
 - Downloading a file starts right away and saves it under its original name.
 - Imported bookmarks and Raindrop links keep the names you gave them.
 - Adding or removing tags quickly no longer drops one of the changes, and the save shortcut (⌘↩ or Ctrl+Enter) saves a new note even while the previous one is still saving.
+- Scrolling a search or a filtered view keeps loading older matches, instead of stopping when a page brought only cards already on screen.
+- Opening and closing cards no longer fills your browser history: one Back after closing a card leaves the page.
+- A search sorted by **Newest first** stays that way when you reload the page or share its link.
+- In **Revisit**, pressing Space on a focused button presses that button instead of opening the card's details.
+- Copying an SVG image copies the image, not its link.
+- "Added yesterday" is right on the days the clocks change.
 
 **Summaries and tags**
 
@@ -351,6 +357,9 @@ These apply to videos, recordings, images, and links you save from now on.
 - A card no longer shows the same AI tag twice.
 - PDF summaries are written from the document's text instead of only its file name.
 - Links that no longer exist fail quickly instead of retrying.
+- A link saved while its site's address briefly couldn't be looked up is tried again, instead of being marked as a blocked address.
+- A photo whose time zone is stored wrongly shows the time the camera recorded, instead of a shifted time or none.
+- A podcast episode whose transcript has to be retried uses one of your hourly transcripts, not one per try.
 
 **API**
 
@@ -359,12 +368,17 @@ These apply to videos, recordings, images, and links you save from now on.
 - Paging through cards and search results no longer repeats or skips cards when new ones are saved in between.
 - `GET /v1/tags` lists every tag you can filter by, including tags Teak added, in lowercase, with an `isComplete` flag for very large libraries.
 - Deleting a card forever needs it to be in Trash first; otherwise the API answers `409 NOT_IN_TRASH`. Busy moments return `503` with `Retry-After` instead of an error, and `RateLimit-Reset` is now in seconds. See the [API guide](/docs/api).
+- Bulk requests to `/v1/cards/bulk` follow the same rules as single-card requests: an empty `url` or empty content no longer wipes a card, cards in Trash can't be edited until they're restored, and an image, video, audio or document card still needs an uploaded file when it has a `url`.
+- Renaming, merging or deleting a tag works for older tags longer than 64 characters, through the API and MCP.
+- A request body over 20 MB is refused with `413` even when it's sent without a `Content-Length`.
 
 **CLI**
 
 - `teak add "text" --url …` keeps your text alongside the link.
 - `teak rm` and `teak restore` with several cards keep going past a card that fails, and say which ones did. `teak rm --permanent` works on cards that aren't in Trash yet.
 - `teak export download -o` saves where you asked, and `teak open` prints the link instead of crashing on machines without a browser. See the [CLI guide](/docs/cli).
+- `teak cards changes` lists the cards deleted since then and prints the next page's cursor, without needing `--json`.
+- The CLI and SDK give up with a timeout error when a response stops partway, instead of waiting forever.
 
 **MCP**
 

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { sizeSvgRoot } from "@/lib/svgSize";
 
 export interface CopyCardContentOptions {
   copyImageToastId?: string;
@@ -102,10 +103,7 @@ export async function copyCardContentToClipboard(
           if (blob.type === "image/svg+xml") {
             const svgText = await blob.text();
             const { width, height } = getSvgDimensions(svgText);
-            const svgWithDimensions = svgText.replace(
-              /<svg/,
-              `<svg width="${width}" height="${height}"`
-            );
+            const svgWithDimensions = sizeSvgRoot(svgText, width, height);
             const sizedBlob = new Blob([svgWithDimensions], {
               type: "image/svg+xml",
             });

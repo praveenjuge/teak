@@ -26,6 +26,7 @@ interface CardsScreenAdapterProps {
     change: SearchUrlChange
   ) => void;
   onUpgrade?: AddCardFormProps["onUpgrade"];
+  popCardEntry?: () => boolean;
   pushCardId: (cardId: string | null) => void;
   replaceCardId: (cardId: string | null) => void;
   searchUrlState?: SearchUrlState;
@@ -45,6 +46,7 @@ export function CardsScreenAdapter({
   onFocusComposerHandled,
   contentContainerClassName,
   onUpgrade,
+  popCardEntry,
   pushCardId,
   replaceCardId,
   headerLeading,
@@ -60,6 +62,7 @@ export function CardsScreenAdapter({
   const { selectedCardId, openCard, closeCard, switchCard } =
     useCardQueryParamState({
       cardIdFromUrl,
+      popCardEntry,
       pushCardId,
       replaceCardId,
     });

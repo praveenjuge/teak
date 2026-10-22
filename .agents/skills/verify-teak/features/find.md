@@ -9,7 +9,7 @@ A user finds cards again by typing in the search box, narrowing with qualifiers 
 - `find-qualifiers` turns `tag:`, `type:`, `is:`, `site:`, `folder:` and quoted phrases into chips, through the "Search suggestions" list or Enter.
 - `find-enter` turns a plain word into a keyword chip on Enter; color, style and time words become their own filters; `fav`, `trash` and `archive` navigate.
 - `find-clear` clears with "Clear all", a chip's remove button, Backspace, or "Clear filters".
-- `find-view` uses the View menu: card types, sort (Newest, Oldest, Shuffle, Revisit) and "Save as smart folder…".
+- `find-view` uses the View menu: card types, sort (Newest, Oldest, Shuffle, Revisit) and "Save as smart folder…". A search keeps "Newest first" picked over "Best match" through a reload (`&sort=newest`). In Revisit, Space on a focused button presses that button; on the deck it opens details.
 - `find-nav` covers the sidebar views (Favorites, Archive, Trash), Tags, folders and smart folders.
 - `find-palette` covers the command palette.
 - `find-empty` shows "Nothing found matching your filters" and each view's empty state.
@@ -37,6 +37,8 @@ Steps:
 - **Qualifier.** `type` "type:quote" and `press` "Enter". The chip "Remove type Quote" appears and only "Quote:" cards remain. `tap` the chip to remove it.
 - **Suggestions.** `type` "ty". Listbox "Search suggestions" opens with options such as "type:". `press` "Escape" to close only the list.
 - **View menu.** `tap` the button whose name starts "View". The menu has checkboxes "Text" … "Quote", "Show all types", radios "Newest first", "Oldest first", "Shuffle", "Revisit", and "Save as smart folder…". `tap` "Image": the URL gains `?type=image`, the chip "Remove type Image" appears and the button becomes "View: Image". `press` "Escape", then remove the chip.
+- **Search sort survives a reload.** `navigate` to `/?q=design`; the View menu has "Best match" checked. Pick "Newest first": the URL becomes `/?q=design&sort=newest`. `navigate` to that URL again and open the View menu: "Newest first" is still checked.
+- **Revisit keys.** From the View menu pick "Revisit": dialog "Revisit" with "1 of N". `press` "Space" on button "Keep": the counter reads "2 of N", "Keep" keeps focus and no card dialog opens. Keep, not Archive, so the run changes no card.
 - **Views.** `tap` link "Favorites". Heading "Favorites", combobox "Search favorites", and the seeded favorites (including the "Welcome to Teak…" card) are listed. Do the same for "Archive" (empty state "Nothing archived. Archive a card to keep it out of your library.") and "Trash", which the seeded vault starts with one card in: "Text: Old draft I meant to throw away."
 - **Tags.** `tap` link "Tags". Searchbox "Find a tag" and links named "<tag>, N cards" are listed. `tap` one: the URL becomes `/?tag=<tag>` with the chip "Remove tag filter <tag>".
 - **Folder.** `tap` link "Start here". The URL becomes `/f/<id>` and the combobox reads "Search Start here".

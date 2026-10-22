@@ -252,6 +252,17 @@ export const MasonryGrid = memo(function MasonryGrid({
     });
   }, [resolvedResetKey, filteredCards.length, normalizedInitialBatchSize]);
 
+  // A finished page clears the request even when it showed no new cards: a
+  // search merges cached cards with the server's pages, so a page of cards
+  // already on screen leaves the count unchanged.
+  const wasLoadingMoreRef = useRef(isLoadingMore);
+  useEffect(() => {
+    if (wasLoadingMoreRef.current && !isLoadingMore) {
+      loadMoreRequestedRef.current = false;
+    }
+    wasLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
   useEffect(() => {
     const canGrow = visibleCount < filteredCards.length || hasMore !== false;
     const sentinel = loadMoreRef.current;
@@ -282,7 +293,11 @@ export const MasonryGrid = memo(function MasonryGrid({
         const canLoadMoreRemote = Boolean(
           onLoadMoreRef.current && hasMoreRef.current !== false
         );
-        if (canLoadMoreRemote && !loadMoreRequestedRef.current) {
+        if (
+          canLoadMoreRemote &&
+          !isLoadingMore &&
+          !loadMoreRequestedRef.current
+        ) {
           loadMoreRequestedRef.current = true;
           onLoadMoreRef.current?.();
         }
@@ -292,7 +307,9 @@ export const MasonryGrid = memo(function MasonryGrid({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [visibleCount, filteredCards.length, hasMore]);
+    // A settled page re-observes, so a sentinel still in view reports again
+    // and asks for the next page.
+  }, [visibleCount, filteredCards.length, hasMore, isLoadingMore]);
 
   const visibleCards = useMemo(
     () => filteredCards.slice(0, visibleCount),

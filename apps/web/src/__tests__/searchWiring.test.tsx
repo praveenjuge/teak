@@ -12,7 +12,7 @@ mock.module("@/screens", () => ({
 }));
 
 let currentSearch = "";
-const router = { push: mock(), replace: mock() };
+const router = { back: mock(), push: mock(), replace: mock() };
 // Bun module mocks outlive this file, so keep the real exports (`redirect`
 // and friends) that the auth tests import after it.
 const realNavigation = await import("next/navigation");
@@ -42,6 +42,7 @@ afterEach(() => {
   });
   screenProps = {};
   currentSearch = "";
+  router.back.mockReset();
   router.push.mockReset();
   router.replace.mockReset();
 });
@@ -187,6 +188,38 @@ describe("library URL", () => {
       "/?q=design&sort=oldest&card=card_9",
       { scroll: false }
     );
+  });
+
+  test("closing a card the page opened goes Back to the list entry", () => {
+    render("q=design");
+    screenProps.pushCardId("card_9");
+    installWindow("?q=design&card=card_9");
+    expect(screenProps.popCardEntry()).toBe(true);
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  test("after Previous or Next the card still goes Back to the list entry", () => {
+    render("q=design");
+    screenProps.pushCardId("card_9");
+    screenProps.replaceCardId("card_10");
+    installWindow("?q=design&card=card_10");
+    expect(screenProps.popCardEntry()).toBe(true);
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  test("doesn't go Back once the URL moved on from the card it opened", () => {
+    render("q=design");
+    screenProps.pushCardId("card_9");
+    installWindow("?q=design&card=card_9&sort=oldest");
+    expect(screenProps.popCardEntry()).toBe(false);
+    expect(router.back).not.toHaveBeenCalled();
+  });
+
+  test("doesn't go Back from a card it didn't open", () => {
+    render("card=card_1");
+    installWindow("?card=card_1");
+    expect(screenProps.popCardEntry()).toBe(false);
+    expect(router.back).not.toHaveBeenCalled();
   });
 
   test("a new-note request in the URL asks the library to focus the composer", () => {

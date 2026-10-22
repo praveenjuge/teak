@@ -122,6 +122,29 @@ describe("teak cards", () => {
     expect(requests[0]?.auth).toBe(`Bearer ${API_KEY}`);
   });
 
+  test("changes lists changed cards, deleted card IDs and the next cursor", async () => {
+    routes.set("GET /v1/cards/changes", () =>
+      json({
+        deletedIds: ["card_gone", "card_trashed"],
+        items: [card("card_a")],
+        pageInfo: { hasMore: true, nextCursor: "cursor_2" },
+      })
+    );
+
+    const result = await teak("cards", "changes", "--since", "1767225600000");
+
+    expect(result.code).toBe(0);
+    const lines = result.stdout.trim().split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toStartWith("card_a");
+    expect(lines.slice(1)).toEqual([
+      "deleted card_gone",
+      "deleted card_trashed",
+    ]);
+    expect(result.stderr).toContain("nextCursor: cursor_2");
+    expect(requests[0]?.path).toContain("since=1767225600000");
+  });
+
   test("--all follows cursors until the last page", async () => {
     routes.set("GET /v1/cards", (_request, url) =>
       url.searchParams.get("cursor") === "cursor_2"

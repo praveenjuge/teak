@@ -107,19 +107,16 @@ const textOf = (value: IfdValue | undefined): string | undefined =>
 
 const OFFSET = /^([+-])(\d{2}):(\d{2})$/u;
 
-const takenAt = (
-  original: string | undefined,
-  offset: string | undefined
-): number | undefined => {
+/** The camera's clock time, read as if that clock were UTC. */
+const clockTime = (original: string | undefined): number | undefined => {
   const match = original?.match(
     /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/u
   );
   if (!match) {
     return;
   }
-  const zone = offset && OFFSET.test(offset) ? offset : "Z";
   const parsed = Date.parse(
-    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${zone}`
+    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z`
   );
   return Number.isFinite(parsed) ? parsed : undefined;
 };
@@ -152,7 +149,9 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
   const exifIfd = readIfd(tiff, numberOf(ifd0.get(0x87_69)) ?? 0);
   const original = textOf(exifIfd.get(0x90_03));
   const offset = textOf(exifIfd.get(0x90_11));
-  const clock = takenAt(original, undefined);
+  const clock = clockTime(original);
+  // Only an offset that is a real zone moves the time; any other reads as UTC.
+  const zone = clock === undefined ? undefined : offsetMinutes(offset);
   const facts: ExifFacts = {
     exposureTime: numberOf(exifIfd.get(0x82_9a)),
     fNumber: numberOf(exifIfd.get(0x82_9d)),
@@ -160,9 +159,9 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
     iso: numberOf(exifIfd.get(0x88_27)),
     make: textOf(ifd0.get(0x01_0f)),
     model: textOf(ifd0.get(0x01_10)),
-    takenAt: takenAt(original, offset),
+    takenAt: clock === undefined ? undefined : clock - (zone ?? 0) * 60_000,
     takenAtClock: clock,
-    takenAtOffset: clock === undefined ? undefined : offsetMinutes(offset),
+    takenAtOffset: zone,
   };
   const present = Object.fromEntries(
     Object.entries(facts).filter(([, value]) => value !== undefined)

@@ -155,7 +155,9 @@ export function useCardsSearchController(
   const [order, setOrder] = useState<CardsOrder>(() =>
     orderFromUrl(initialUrlState)
   );
-  const [sortPicked, setSortPicked] = useState(false);
+  const [sortPicked, setSortPicked] = useState(
+    () => initialUrlState?.sortPicked === true
+  );
   const setSort = useCallback((next: LibrarySort) => {
     setSortPicked(true);
     setOrder((prev) => {
@@ -290,16 +292,21 @@ export function useCardsSearchController(
   );
 
   const remoteSearchTerms = queryArgs.searchQuery ?? "";
+  // Newest over a search's Best match is a choice the URL has to name.
+  const newestPicked =
+    librarySort === "newest" && sortPicked && canSortByRelevance;
   const urlState = useMemo<SearchUrlState>(
     () => ({
       q: remoteSearchTerms,
       ...(shuffleSeed === undefined ? {} : { seed: shuffleSeed }),
       sort: librarySort,
+      ...(newestPicked ? { sortPicked: true } : {}),
       tag: searchState.tagFilter,
       types: searchState.filterTags,
     }),
     [
       librarySort,
+      newestPicked,
       remoteSearchTerms,
       searchState.filterTags,
       searchState.tagFilter,
@@ -535,6 +542,7 @@ export function useCardsSearchController(
         const next = orderFromUrl(state, prev);
         return next.sort === prev.sort && next.seed === prev.seed ? prev : next;
       });
+      setSortPicked(state.sortPicked === true);
     },
     []
   );

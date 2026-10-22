@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { SidebarToggle } from "@/components/sidebar";
 import { folderPath } from "@/lib/folders";
 import { rememberHomeScroll } from "@/lib/homeScroll";
@@ -85,6 +85,10 @@ export function HomePageClient({
     [router]
   );
 
+  // The URL of the card entry this page pushed over the list, while the
+  // card is still open in it.
+  const cardEntryUrlRef = useRef<string | null>(null);
+
   const setCardUrlParam = (cardId: string | null, replace = false) => {
     const params = new URLSearchParams(searchParams.toString());
 
@@ -96,6 +100,7 @@ export function HomePageClient({
 
     const nextQuery = params.toString();
     const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    cardEntryUrlRef.current = cardId ? nextUrl : null;
 
     if (replace) {
       router.replace(nextUrl, { scroll: false });
@@ -103,6 +108,21 @@ export function HomePageClient({
     }
 
     router.push(nextUrl, { scroll: false });
+  };
+
+  // Back only while the URL is still the card entry this page pushed: any
+  // other write since (a search, a sort) means Back would land elsewhere.
+  const popCardEntry = () => {
+    const entryUrl = cardEntryUrlRef.current;
+    cardEntryUrlRef.current = null;
+    if (
+      entryUrl === null ||
+      entryUrl !== `${window.location.pathname}${window.location.search}`
+    ) {
+      return false;
+    }
+    router.back();
+    return true;
   };
 
   const handleAddCardsToFolder = useCallback(
@@ -163,6 +183,7 @@ export function HomePageClient({
       onOpenFolder={handleOpenFolder}
       onSearchUrlStateChange={handleSearchUrlStateChange}
       onUpgrade={handleUpgrade}
+      popCardEntry={popCardEntry}
       pushCardId={(cardId) => {
         setCardUrlParam(cardId);
       }}
