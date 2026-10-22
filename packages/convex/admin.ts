@@ -117,7 +117,7 @@ const getActiveCardCountForUser = async (
 ): Promise<number> => {
   const cards = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (q) =>
+    .withIndex("by_user_deleted_created", (q) =>
       q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .collect();

@@ -28,7 +28,7 @@ const cardsOf = (t: Backend) =>
   t.run((ctx) =>
     ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (q) => q.eq("userId", USER_ID))
+      .withIndex("by_user_deleted_created", (q) => q.eq("userId", USER_ID))
       .take(50)
   );
 

@@ -137,7 +137,7 @@ const reconcileInexactShards = async (
 ) => {
   const remaining = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (query) =>
+    .withIndex("by_user_deleted_created", (query) =>
       query.eq("userId", usage.userId).eq("isDeleted", undefined)
     )
     .take(FREE_TIER_LIMIT);
@@ -206,10 +206,19 @@ export const getActiveCardCount = async (
   if (usage?.isCountExact) {
     return usage.activeCardCount;
   }
+  // An inexact count started from a bounded scan that hit its cap, so it
+  // never exceeds the real count: once it reaches the cap, the scan below
+  // would too.
+  if (
+    usage?.isCountExact === false &&
+    usage.activeCardCount >= CARD_USAGE_SCAN_LIMIT
+  ) {
+    return CARD_USAGE_SCAN_LIMIT;
+  }
   return (
     await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (query) =>
+      .withIndex("by_user_deleted_created", (query) =>
         query.eq("userId", userId).eq("isDeleted", undefined)
       )
       .take(CARD_USAGE_SCAN_LIMIT)
@@ -235,18 +244,21 @@ const incrementShardedUsage = async (
   hasPremium: boolean
 ) => {
   if (!hasPremium) {
-    let overflowActiveCardCount = 0;
-    for (let offset = 0; offset < CARD_USAGE_OVERFLOW_SHARDS; offset += 1) {
-      const shard = CARD_USAGE_BASE_SHARDS + offset;
-      const overflow = await getRequiredCardUsageShard(ctx, userId, shard);
-      overflowActiveCardCount += overflow.activeCardCount;
-    }
+    const sumShards = async (first: number, count: number) =>
+      (
+        await Promise.all(
+          Array.from({ length: count }, (_, offset) =>
+            getRequiredCardUsageShard(ctx, userId, first + offset)
+          )
+        )
+      ).reduce((sum, shard) => sum + shard.activeCardCount, 0);
+    const overflowActiveCardCount = await sumShards(
+      CARD_USAGE_BASE_SHARDS,
+      CARD_USAGE_OVERFLOW_SHARDS
+    );
     if (overflowActiveCardCount > 0) {
-      let activeCardCount = overflowActiveCardCount;
-      for (let shard = 0; shard < CARD_USAGE_BASE_SHARDS; shard += 1) {
-        const usage = await getRequiredCardUsageShard(ctx, userId, shard);
-        activeCardCount += usage.activeCardCount;
-      }
+      const activeCardCount =
+        overflowActiveCardCount + (await sumShards(0, CARD_USAGE_BASE_SHARDS));
       if (activeCardCount >= FREE_TIER_LIMIT) {
         throw new ConvexError({
           code: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
@@ -327,7 +339,7 @@ export const getOrInitializeCardUsage = async (
 
   const activeCards = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (query) =>
+    .withIndex("by_user_deleted_created", (query) =>
       query.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(CARD_USAGE_SCAN_LIMIT);
@@ -456,7 +468,7 @@ export const recordActiveCardRemoved = async (
 
   const remaining = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (query) =>
+    .withIndex("by_user_deleted_created", (query) =>
       query.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(CARD_USAGE_SCAN_LIMIT);

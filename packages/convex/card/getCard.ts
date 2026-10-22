@@ -87,7 +87,7 @@ export const getDeletedCards = query({
     const cards = await excludeHiddenRows(
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) =>
+        .withIndex("by_user_deleted_created", (q) =>
           q.eq("userId", user.teakUserId).eq("isDeleted", true)
         )
     )
