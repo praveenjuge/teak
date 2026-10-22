@@ -1,10 +1,11 @@
 const SVG_ROOT_TAG = /<svg\b[^>]*>/i;
 const PIXEL_LENGTH = /^\s*\d+(?:\.\d+)?(?:px)?\s*$/i;
 
-function rootAttributePattern(name: string): RegExp {
-  // Leading whitespace keeps `stroke-width` from matching `width`.
-  return new RegExp(`(\\s${name}\\s*=\\s*)(["'])(.*?)\\2`, "i");
-}
+// Leading whitespace keeps `stroke-width` from matching `width`.
+const ROOT_ATTRIBUTE = {
+  width: /(\swidth\s*=\s*)(["'])(.*?)\2/i,
+  height: /(\sheight\s*=\s*)(["'])(.*?)\2/i,
+} as const;
 
 /**
  * Gives an SVG's root element the width and height it needs to rasterize at
@@ -23,7 +24,7 @@ export function sizeSvgRoot(
       ["width", width],
       ["height", height],
     ] as const) {
-      const pattern = rootAttributePattern(name);
+      const pattern = ROOT_ATTRIBUTE[name];
       const existing = sized.match(pattern);
       if (!existing) {
         sized = sized.replace(/^<svg\b/i, `$& ${name}="${value}"`);

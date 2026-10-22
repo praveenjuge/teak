@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { sizeSvgRoot } from "../svgSize";
 
 const rootTag = (svg: string) => svg.match(/<svg\b[^>]*>/)?.[0] ?? "";
-const attributeValues = (tag: string, name: string) =>
-  [...tag.matchAll(new RegExp(`\\s${name}="([^"]*)"`, "g"))].map(
-    (match) => match[1]
-  );
+const ATTRIBUTE_VALUES = {
+  width: /\swidth="([^"]*)"/g,
+  height: /\sheight="([^"]*)"/g,
+} as const;
+const attributeValues = (tag: string, name: keyof typeof ATTRIBUTE_VALUES) =>
+  [...tag.matchAll(ATTRIBUTE_VALUES[name])].map((match) => match[1]);
 
 describe("sizeSvgRoot", () => {
   test("adds width and height to an SVG that has neither", () => {

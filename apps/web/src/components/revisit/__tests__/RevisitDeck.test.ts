@@ -50,8 +50,7 @@ describe("revisitKeyAction", () => {
 
 describe("revisitKeyAction on a focused control", () => {
   const element = (html: string) => {
-    const host = document.createElement("div");
-    host.innerHTML = html;
+    const host = new DOMParser().parseFromString(html, "text/html").body;
     return host.querySelector("[data-target]") ?? host;
   };
 
