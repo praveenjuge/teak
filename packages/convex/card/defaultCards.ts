@@ -659,7 +659,7 @@ export const createDefaultCardsForUser = internalMutation({
     await initializeCardUsageShards(ctx, usage);
     const existingCard = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (q) =>
+      .withIndex("by_user_deleted_created", (q) =>
         q.eq("userId", userId).eq("isDeleted", undefined)
       )
       .first();

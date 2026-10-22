@@ -516,6 +516,132 @@ describe("tag summary snapshot", () => {
     expect(await refreshes()).toHaveLength(1);
   });
 
+  test("counts kept as cards change match a full recount", async () => {
+    const { t, insert, summary, runScheduled } = await setup();
+    await t.run((ctx) =>
+      ctx.db.insert("tagCountStates", { key: "global", readyAt: 1 })
+    );
+    const patch = (cardId: Id<"cards">, value: Partial<Doc<"cards">>) =>
+      t.run((ctx) =>
+        patchCardWithSearchSync(ctx, cardId, {
+          ...value,
+          updatedAt: Date.now(),
+        })
+      );
+    const a = await insert({ tags: ["Design", "web"] });
+    const b = await insert({ tags: ["design"], aiTags: ["UI", "web"] });
+    const c = await insert({ tags: ["design", "ideas"], isArchived: true });
+    const d = await insert({ tags: ["ideas"], isDeleted: true, deletedAt: 1 });
+    const e = await insert({ tags: ["gone", "web"] });
+    await runScheduled();
+
+    await patch(a, { isFavorited: true });
+    await patch(a, { isArchived: true });
+    await patch(c, { isArchived: undefined });
+    await patch(b, { isDeleted: true, deletedAt: 2 });
+    await patch(d, { isDeleted: undefined, deletedAt: undefined });
+    await patch(c, { tags: ["IDEAS", "reading"] });
+    await patch(b, { aiTags: ["ui"] });
+    await patch(a, { isArchived: undefined, tags: ["design"] });
+    await t.run(async (ctx) => {
+      const card = await ctx.db.get("cards", e);
+      await ctx.db.delete("cards", e);
+      await syncCardSearchDocumentHandler(ctx, e, "owner", card ?? undefined);
+    });
+    await runScheduled();
+
+    const expected = [
+      { name: "ideas", count: 2 },
+      { name: "design", count: 1 },
+      { name: "reading", count: 1 },
+    ];
+    expect(await summary()).toMatchObject({
+      items: expected,
+      isComplete: true,
+    });
+    expect(
+      await t.run(async (ctx) =>
+        (await ctx.db.query("userTagCounts").collect())
+          .filter((row) => row.count !== 0)
+          .map(({ tag, count }) => ({ name: tag, count }))
+          .sort((left, right) => left.name.localeCompare(right.name))
+      )
+    ).toEqual([...expected].sort((l, r) => l.name.localeCompare(r.name)));
+
+    await t.run(async (ctx) => {
+      for (const row of await ctx.db.query("tagCountStates").collect()) {
+        await ctx.db.delete("tagCountStates", row._id);
+      }
+      await markTagSummaryDirty(ctx, "owner", 0);
+    });
+    await runScheduled();
+    expect((await summary())?.items).toEqual(expected);
+  });
+
+  test("the backfill counts tag rows written before counting, then serves summaries", async () => {
+    const { t, summary } = await setup();
+    await t.run(async (ctx) => {
+      const rows = [
+        { tag: "alpha" },
+        { tag: "alpha" },
+        { tag: "beta" },
+        { tag: "beta", isArchived: true as const },
+        { tag: "gamma", isDeleted: true },
+      ];
+      for (const [index, row] of rows.entries()) {
+        const cardId = await ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `card ${index}`,
+          createdAt: 1000,
+          updatedAt: 1000,
+          tags: [row.tag],
+        });
+        await ctx.db.insert("cardSearchTags", {
+          cardId,
+          userId: "owner",
+          type: "text",
+          cardCreatedAt: 1000,
+          sourceUpdatedAt: 1000,
+          syncGeneration: 1,
+          ...row,
+        });
+      }
+    });
+    const run = (dryRun: boolean) =>
+      t.mutation(internal["migration/backfillTagCounts"].backfillTagCounts, {
+        dryRun,
+        once: true,
+      });
+    expect((await run(true)).totals.rowsToUpdate).toBe(3);
+    expect(
+      await t.run((ctx) => ctx.db.query("tagCountStates").collect())
+    ).toEqual([]);
+    expect((await run(false)).totals.rowsToUpdate).toBe(3);
+    expect((await run(false)).totals.rowsToUpdate).toBe(0);
+    expect(
+      await t.run(async (ctx) => {
+        await ctx.db.insert("tagSummaryRefreshes", {
+          userId: "owner",
+          dueAt: 0,
+        });
+        return (await ctx.db.query("userTagCounts").collect()).map(
+          ({ tag, count }) => [tag, count]
+        );
+      })
+    ).toEqual([
+      ["alpha", 2],
+      ["beta", 1],
+    ]);
+    await t.action(internal.tag.tagSummary.recomputeTagSummary, {
+      userId: "owner",
+    });
+    expect((await summary())?.items).toEqual([
+      { name: "alpha", count: 2 },
+      { name: "beta", count: 1 },
+    ]);
+  });
+
   test("pages through more rows than one page reads, including a tag split across pages", async () => {
     const { t, owner, summary } = await setup();
     const big = TAG_SUMMARY_PAGE_ROWS + 50;

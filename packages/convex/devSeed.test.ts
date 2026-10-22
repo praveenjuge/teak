@@ -34,6 +34,7 @@ import {
   tags2000ScenarioCard,
   UGLY_FOLDER_NAMES,
 } from "./devSeed";
+import { readFolderCardCount } from "./folder/folderRows";
 import schema from "./schema";
 import {
   MAX_FOLDERS_PER_CARD,
@@ -67,7 +68,7 @@ const cardsOf = (t: Awaited<ReturnType<typeof setup>>) =>
   t.run(async (ctx) => {
     const cards = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+      .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
       .take(100);
     return await Promise.all(
       cards.map(async (card) => ({
@@ -424,7 +425,7 @@ describe("devSeed ordering pack", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(seeded).toHaveLength(ORDERING_SCENARIO_PAGE_SIZE);
@@ -468,7 +469,7 @@ describe("devSeed archive-mix pack", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     const archived = seeded.filter((card) => card.isArchived);
@@ -493,7 +494,7 @@ describe("devSeed keyboard-mixed pack", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     const pack = seeded.filter((card) =>
@@ -532,7 +533,9 @@ describe("devSeed shuffle-partial pack", () => {
       await t.run((ctx) =>
         ctx.db
           .query("cards")
-          .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+          .withIndex("by_user_deleted_created", (q) =>
+            q.eq("userId", "teak_dev")
+          )
           .collect()
       )
     ).filter((card) => card.tags?.includes("scenario-shuffle-partial"));
@@ -573,7 +576,7 @@ describe("devSeed tag packs", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     const variants = new Set(
@@ -616,12 +619,18 @@ describe("devSeed folder packs", () => {
       scenario,
     });
   const foldersOf = (t: Awaited<ReturnType<typeof setup>>) =>
-    t.run((ctx) =>
-      ctx.db
+    t.run(async (ctx) => {
+      const folders = await ctx.db
         .query("folders")
         .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", "teak_dev"))
-        .collect()
-    );
+        .collect();
+      return await Promise.all(
+        folders.map(async (folder) => ({
+          ...folder,
+          activeCardCount: await readFolderCardCount(ctx, folder),
+        }))
+      );
+    });
 
   test("folders-one counts only the folder's active cards, once", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
@@ -714,7 +723,7 @@ describe("devSeed folder packs", () => {
       const counts = new Map<string, number>();
       for (const card of await ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()) {
         if (card.urlHost) {
           counts.set(card.urlHost, (counts.get(card.urlHost) ?? 0) + 1);
@@ -1160,7 +1169,7 @@ describe("devSeed folder packs", () => {
     const cards = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(cards.filter((card) => card.type === "image")).toHaveLength(1000);
@@ -1209,7 +1218,7 @@ describe("devSeed folder packs", () => {
       t.run((ctx) =>
         ctx.db
           .query("cards")
-          .withIndex("by_user_deleted", (q) =>
+          .withIndex("by_user_deleted_created", (q) =>
             q.eq("userId", "teak_dev").eq("isDeleted", undefined)
           )
           .take(300)
@@ -1298,7 +1307,7 @@ describe("devSeed folder packs", () => {
     const cards = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(

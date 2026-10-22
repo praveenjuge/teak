@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { createCardForUserHandler } from "../card/createCard";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
 import {
   getOrCreateImportFolderIds,
   type ImportFolderCache,
@@ -143,20 +142,18 @@ export async function createImportedCard(
           isArchived: item.isArchived === true,
           metadataTitle: importedBookmarkTitle(job.mode, item),
         },
+        resolveFolderIds: item.folders?.length
+          ? () =>
+              getOrCreateImportFolderIds(
+                ctx,
+                job.userId,
+                item.folders ?? [],
+                folderCache
+              )
+          : undefined,
         source: "import",
       }
     );
-    if (item.folders?.length) {
-      const folderIds = await getOrCreateImportFolderIds(
-        ctx,
-        job.userId,
-        item.folders,
-        folderCache
-      );
-      if (folderIds.length) {
-        await patchCardWithSearchSync(ctx, cardId, { folderIds });
-      }
-    }
     return { kind: "created", cardId };
   } catch (error) {
     return { kind: "error", ...errorData(error) };

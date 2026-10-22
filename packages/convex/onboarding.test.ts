@@ -30,7 +30,7 @@ const cardsOf = (t: Backend) =>
   t.run(async (ctx) => {
     const cards = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (q) => q.eq("userId", USER_ID))
+      .withIndex("by_user_deleted_created", (q) => q.eq("userId", USER_ID))
       .take(50);
     return await Promise.all(
       cards.map(async (card) => ({

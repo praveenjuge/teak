@@ -735,7 +735,6 @@ export default defineSchema({
     ])
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
-    .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
     .index("by_user_deleted_archived_created", [
@@ -902,6 +901,8 @@ export default defineSchema({
     color: v.optional(folderColorValidator),
     kind: v.union(v.literal("manual"), v.literal("smart")),
     query: v.optional(v.string()),
+    // Read only until `migration/backfillFolderCardCounts` copies it into
+    // `folderCardCounts` (folder/folderRows.ts), which holds the live count.
     activeCardCount: v.number(),
     deletingAt: v.optional(v.number()),
     createdAt: v.number(),
@@ -909,6 +910,12 @@ export default defineSchema({
   })
     .index("by_userId_and_nameKey", ["userId", "nameKey"])
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
+  folderCardCounts: defineTable({
+    folderId: v.id("folders"),
+    userId: v.string(),
+    shard: v.number(),
+    count: v.number(),
+  }).index("by_folderId_and_shard", ["folderId", "shard"]),
   folderCards: defineTable({
     folderId: v.id("folders"),
     cardId: v.id("cards"),
@@ -938,6 +945,24 @@ export default defineSchema({
     isComplete: v.boolean(),
     computedAt: v.number(),
   }).index("by_userId", ["userId"]),
+  userTagCounts: defineTable({
+    userId: v.string(),
+    tag: v.string(),
+    count: v.number(),
+  }).index("by_userId_and_tag", ["userId", "tag"]),
+  // Count changes the tag sync records without touching the shared
+  // `userTagCounts` rows; the tag summary refresh folds them in.
+  tagCountDeltas: defineTable({
+    userId: v.string(),
+    tag: v.string(),
+    delta: v.number(),
+  }).index("by_userId", ["userId"]),
+  // One row, written when `migration/backfillTagCounts` has counted every
+  // tag row. Until then tag summaries recount `cardSearchTags`.
+  tagCountStates: defineTable({
+    key: v.literal("global"),
+    readyAt: v.number(),
+  }).index("by_key", ["key"]),
   tagSummaryRefreshes: defineTable({
     userId: v.string(),
     dueAt: v.number(),
@@ -1184,6 +1209,10 @@ export default defineSchema({
     cardCreatedAt: v.number(),
     sourceUpdatedAt: v.number(),
     syncGeneration: v.number(),
+    // Set while the row is counted in `userTagCounts` (outside Trash and
+    // Archive). Rows written before counting existed lack it until
+    // `migration/backfillTagCounts` runs.
+    isCounted: v.optional(v.literal(true)),
   })
     .index("by_cardId", ["cardId"])
     .index("by_cardId_and_tag", ["cardId", "tag"])
@@ -1252,6 +1281,10 @@ export default defineSchema({
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
     tagCountsChanged: v.optional(v.boolean()),
+    // The `syncGeneration` this chain writes. It moves only when the tag set
+    // changes, so flag changes patch rows in place. Missing on older rows,
+    // whose chains wrote `generation`.
+    tagGeneration: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId_and_pending", ["userId", "pending"]),

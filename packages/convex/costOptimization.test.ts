@@ -45,7 +45,7 @@ async function searchState(ctx: MutationCtx, cardId: Id<"cards">) {
       .unique(),
     tags: await ctx.db
       .query("cardSearchTags")
-      .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
+      .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", cardId))
       .collect(),
     sync: await ctx.db
       .query("cardSearchTagSyncStates")

@@ -6,6 +6,7 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { insertCompletedCards } from "./card/defaultCards";
+import { readFolderCardCount } from "./folder/folderRows";
 import { insertFolder } from "./folder/folders";
 import schema from "./schema";
 
@@ -81,16 +82,22 @@ const setup = async (mode: "archive" | "bookmarks" | "pocket" = "archive") => {
     t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "owner"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
         .collect()
     );
   const folders = () =>
-    t.run((ctx) =>
-      ctx.db
+    t.run(async (ctx) => {
+      const rows = await ctx.db
         .query("folders")
         .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", "owner"))
-        .collect()
-    );
+        .collect();
+      return await Promise.all(
+        rows.map(async (folder) => ({
+          ...folder,
+          activeCardCount: await readFolderCardCount(ctx, folder),
+        }))
+      );
+    });
   const cardByContent = async (content: string) =>
     (await cards()).find((card) => card.content === content);
   return { t, run, cards, folders, cardByContent };

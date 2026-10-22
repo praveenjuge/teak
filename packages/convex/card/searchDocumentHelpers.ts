@@ -17,7 +17,13 @@ import {
 import { cardLinkTokensToText } from "../shared/cardLinks";
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
-import { markTagSummaryDirty } from "../tag/tagSummary";
+import {
+  addTagCountDelta,
+  isCountedTagRow,
+  markTagSummaryDirty,
+  recordTagCountDeltas,
+  type TagCountDeltas,
+} from "../tag/tagSummary";
 import {
   cardLinksMayChange,
   scheduleCardLinkSync,
@@ -186,6 +192,14 @@ export const restartCardSearchTagSync = async (
     .unique();
   if (existingState) {
     const generation = existingState.generation + 1;
+    // The rows of an unchanged tag set stay in their generation, so a flag
+    // change patches them in place and leaves nothing to prune.
+    const keepsTagRows =
+      snapshotUpdate.kind === "record" &&
+      existingState.userId !== undefined &&
+      existingState.userId === snapshotUpdate.card.userId &&
+      JSON.stringify(buildCardSearchTags(existingState)) ===
+        JSON.stringify(buildCardSearchTags(snapshotUpdate.card));
     await ctx.db.patch("cardSearchTagSyncStates", existingState._id, {
       generation,
       offset: 0,
@@ -194,6 +208,9 @@ export const restartCardSearchTagSync = async (
       sourceUpdatedAt,
       ...snapshot,
       tagCountsChanged: mayChangeTagCounts(existingState, snapshotUpdate),
+      tagGeneration: keepsTagRows
+        ? (existingState.tagGeneration ?? existingState.generation)
+        : generation,
     });
     await scheduleCardSearchTagSync(ctx, cardId, userId, generation);
   } else {
@@ -205,6 +222,7 @@ export const restartCardSearchTagSync = async (
       phase: "tags",
       sourceUpdatedAt,
       ...snapshot,
+      tagGeneration: 1,
     });
     await scheduleCardSearchTagSync(ctx, cardId, userId, 1);
   }
@@ -491,7 +509,7 @@ export const syncCardSearchTagsBatchHandler = async (
     const leftoverTag = (
       await ctx.db
         .query("cardSearchTags")
-        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .withIndex("by_cardId_and_tag", (query) => query.eq("cardId", cardId))
         .take(1)
     )[0];
     ownerId = leftoverTag?.userId;
@@ -533,120 +551,163 @@ export const syncCardSearchTagsBatchHandler = async (
   }
 
   const chainGeneration = generation ?? state.generation;
-
+  const tagGeneration = state.tagGeneration ?? state.generation;
+  const chainState = state;
+  const stateId = state._id;
+  const countDeltas: TagCountDeltas = new Map();
+  let budget = CARD_SEARCH_TAG_SYNC_BATCH_SIZE;
+  let processed = 0;
   let writes = 0;
-  if (state.phase === "pruneOld") {
-    const oldTags = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId_and_generation", (query) => {
-        const cardRange = query.eq("cardId", cardId);
-        return card
-          ? cardRange.lt("syncGeneration", state.generation)
-          : cardRange.lte("syncGeneration", state.generation);
-      })
-      .take(CARD_SEARCH_TAG_SYNC_BATCH_SIZE);
-    for (const tagDocument of oldTags) {
-      await ctx.db.delete("cardSearchTags", tagDocument._id);
-      writes += 1;
+  let { offset, phase } = state;
+
+  const continueLater = async () => {
+    await ctx.db.patch("cardSearchTagSyncStates", stateId, { offset, phase });
+    await recordTagCountDeltas(ctx, countDeltas);
+    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
+    return { complete: false, processed, writes };
+  };
+
+  // One invocation runs the phases in order until it has handled a batch of
+  // rows, so a card with few tags syncs in a single transaction.
+  while (phase === "tags" || phase === "aiTags") {
+    if (!card) {
+      phase = "pruneOld";
+      offset = 0;
+      break;
     }
-    if (oldTags.length === CARD_SEARCH_TAG_SYNC_BATCH_SIZE) {
-      await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
-      return { complete: false, processed: oldTags.length, writes };
+    if (budget === 0) {
+      return await continueLater();
     }
-    if (card) {
-      await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-        offset: 0,
-        pending: false,
-        phase: "complete",
-      });
-    } else {
-      await ctx.db.delete("cardSearchTagSyncStates", state._id);
+    const source = phase === "tags" ? (card.tags ?? []) : (card.aiTags ?? []);
+    const sourceSlice = source.slice(offset, offset + budget);
+    const tags = Array.from(
+      new Set(sourceSlice.map(normalizeCardSearchTag).filter(Boolean))
+    );
+    for (const tag of tags) {
+      writes += await writeCardSearchTag(
+        ctx,
+        cardId,
+        card,
+        tag,
+        tagGeneration,
+        countDeltas
+      );
     }
-    if (ownerId && state.tagCountsChanged !== false) {
-      await markTagSummaryDirty(ctx, ownerId);
+    processed += sourceSlice.length;
+    budget -= sourceSlice.length;
+    offset += sourceSlice.length;
+    if (offset >= source.length) {
+      phase = phase === "tags" ? "aiTags" : "pruneOld";
+      offset = 0;
     }
-    return { complete: true, processed: oldTags.length, writes };
   }
 
-  if (!card) {
-    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-      offset: 0,
-      phase: "pruneOld",
-    });
-    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
-    return { complete: false, processed: 0, writes };
+  if (budget === 0) {
+    return await continueLater();
   }
+  const oldTags = await ctx.db
+    .query("cardSearchTags")
+    .withIndex("by_cardId_and_generation", (query) => {
+      const cardRange = query.eq("cardId", cardId);
+      return card
+        ? cardRange.lt("syncGeneration", tagGeneration)
+        : cardRange.lte("syncGeneration", chainState.generation);
+    })
+    .take(budget);
+  for (const tagDocument of oldTags) {
+    await ctx.db.delete("cardSearchTags", tagDocument._id);
+    if (tagDocument.isCounted) {
+      addTagCountDelta(countDeltas, tagDocument.userId, tagDocument.tag, -1);
+    }
+    writes += 1;
+  }
+  processed += oldTags.length;
+  if (oldTags.length === budget) {
+    return await continueLater();
+  }
+  if (card) {
+    await ctx.db.patch("cardSearchTagSyncStates", stateId, {
+      offset: 0,
+      pending: false,
+      phase: "complete",
+    });
+  } else {
+    await ctx.db.delete("cardSearchTagSyncStates", stateId);
+  }
+  await recordTagCountDeltas(ctx, countDeltas);
+  if (ownerId && state.tagCountsChanged !== false) {
+    await markTagSummaryDirty(ctx, ownerId);
+  }
+  return { complete: true, processed, writes };
+};
 
-  const source =
-    state.phase === "tags" ? (card.tags ?? []) : (card.aiTags ?? []);
-  const sourceSlice = source.slice(
-    state.offset,
-    state.offset + CARD_SEARCH_TAG_SYNC_BATCH_SIZE
-  );
-  const tags = Array.from(
-    new Set(sourceSlice.map(normalizeCardSearchTag).filter(Boolean))
-  );
-  for (const tag of tags) {
-    const existingTag = await ctx.db
-      .query("cardSearchTags")
-      .withIndex("by_cardId_and_tag", (query) =>
-        query.eq("cardId", cardId).eq("tag", tag)
-      )
-      .take(1)
-      .then((documents) => documents[0]);
-    const tagValue = {
-      cardId,
-      userId: card.userId,
-      tag,
-      isDeleted: card.isDeleted === true ? true : undefined,
-      type: card.type,
-      isFavorited: card.isFavorited === true ? true : undefined,
-      isArchived: card.isArchived === true ? (true as const) : undefined,
-      cardCreatedAt: card.createdAt,
-      sourceUpdatedAt: card.updatedAt,
-      syncGeneration: state.generation,
-    };
-    if (existingTag) {
-      if (
-        existingTag.userId !== tagValue.userId ||
-        existingTag.isDeleted !== tagValue.isDeleted ||
-        existingTag.type !== tagValue.type ||
-        existingTag.isFavorited !== tagValue.isFavorited ||
-        existingTag.isArchived !== tagValue.isArchived ||
-        existingTag.cardCreatedAt !== tagValue.cardCreatedAt ||
-        existingTag.sourceUpdatedAt !== tagValue.sourceUpdatedAt ||
-        existingTag.syncGeneration !== tagValue.syncGeneration
-      ) {
-        await ctx.db.replace("cardSearchTags", existingTag._id, tagValue);
-        writes += 1;
-      }
-    } else {
-      await ctx.db.insert("cardSearchTags", tagValue);
-      writes += 1;
+const TAG_ROW_SYNCED_FIELDS = [
+  "userId",
+  "isDeleted",
+  "type",
+  "isFavorited",
+  "isArchived",
+  "cardCreatedAt",
+  "sourceUpdatedAt",
+  "syncGeneration",
+] as const;
+
+/** Writes one exact-tag row, patching only the fields that changed. */
+const writeCardSearchTag = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">,
+  card: CardSyncSource,
+  tag: string,
+  tagGeneration: number,
+  countDeltas: TagCountDeltas
+): Promise<number> => {
+  const existingTag = await ctx.db
+    .query("cardSearchTags")
+    .withIndex("by_cardId_and_tag", (query) =>
+      query.eq("cardId", cardId).eq("tag", tag)
+    )
+    .take(1)
+    .then((documents) => documents[0]);
+  const tagValue = {
+    cardId,
+    userId: card.userId,
+    tag,
+    isDeleted: card.isDeleted === true ? (true as const) : undefined,
+    type: card.type,
+    isFavorited: card.isFavorited === true ? (true as const) : undefined,
+    isArchived: card.isArchived === true ? (true as const) : undefined,
+    cardCreatedAt: card.createdAt,
+    sourceUpdatedAt: card.updatedAt,
+    syncGeneration: tagGeneration,
+  };
+  const isCounted = isCountedTagRow(tagValue) ? (true as const) : undefined;
+  if (!existingTag) {
+    await ctx.db.insert("cardSearchTags", { ...tagValue, isCounted });
+    if (isCounted) {
+      addTagCountDelta(countDeltas, tagValue.userId, tag, 1);
+    }
+    return 1;
+  }
+  const changes: Partial<Doc<"cardSearchTags">> = {};
+  for (const field of TAG_ROW_SYNCED_FIELDS) {
+    if (existingTag[field] !== tagValue[field]) {
+      Object.assign(changes, { [field]: tagValue[field] });
     }
   }
-  const nextOffset = state.offset + sourceSlice.length;
-  if (nextOffset < source.length) {
-    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-      offset: nextOffset,
-    });
-    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
-    return { complete: false, processed: sourceSlice.length, writes };
+  if (existingTag.isCounted !== isCounted) {
+    changes.isCounted = isCounted;
   }
-  if (state.phase === "tags") {
-    await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-      offset: 0,
-      phase: "aiTags",
-    });
-    await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
-    return { complete: false, processed: sourceSlice.length, writes };
+  if (Object.keys(changes).length === 0) {
+    return 0;
   }
-  await ctx.db.patch("cardSearchTagSyncStates", state._id, {
-    offset: 0,
-    phase: "pruneOld",
-  });
-  await scheduleCardSearchTagSync(ctx, cardId, ownerId, chainGeneration);
-  return { complete: false, processed: sourceSlice.length, writes };
+  await ctx.db.patch("cardSearchTags", existingTag._id, changes);
+  if (existingTag.isCounted) {
+    addTagCountDelta(countDeltas, existingTag.userId, tag, -1);
+  }
+  if (isCounted) {
+    addTagCountDelta(countDeltas, tagValue.userId, tag, 1);
+  }
+  return 1;
 };
 
 interface CreatedAtRange {

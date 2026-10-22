@@ -171,6 +171,8 @@ export const createCardForUserHandler = async (
   args: CreateCardArgs,
   options: {
     importedVisibleFields?: ImportedVisibleFields;
+    /** Runs once the card is counted, so a refused card makes no folders. */
+    resolveFolderIds?: () => Promise<Id<"folders">[]>;
     source?: CardCreationSource;
   } = {}
 ): Promise<Id<"cards">> => {
@@ -289,6 +291,10 @@ export const createCardForUserHandler = async (
   };
 
   const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
+  const folderIds = await options.resolveFolderIds?.();
+  if (folderIds?.length) {
+    await ctx.db.patch("cards", cardId, { folderIds });
+  }
   await syncCardSearch(ctx, cardId, userId);
 
   await queueCardProcessing(ctx, cardId);

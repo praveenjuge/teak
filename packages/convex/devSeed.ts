@@ -221,7 +221,9 @@ export const seed = internalMutation({
     }
     const cards = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted", (q) => q.eq("userId", owner.teakUserId))
+      .withIndex("by_user_deleted_created", (q) =>
+        q.eq("userId", owner.teakUserId)
+      )
       .take(ONBOARDING_CARDS.length + 1);
     if (cards.some((card) => !isOnboardingCard(card))) {
       return { status: "already_seeded" as const, cards: 0 };
@@ -2764,7 +2766,7 @@ const fillScenarioCards = async (
 ) => {
   const active = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (q) =>
+    .withIndex("by_user_deleted_created", (q) =>
       q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(target);

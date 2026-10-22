@@ -174,7 +174,7 @@ const setup = async () => {
     t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) => q.eq("userId", "owner"))
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
         .collect()
     );
   const receipts = () =>

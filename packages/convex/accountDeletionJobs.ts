@@ -1,7 +1,11 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
-import { internalMutation, internalQuery } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+} from "./_generated/server";
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   ACCOUNT_DELETION_STAGES_DONE,
@@ -16,22 +20,29 @@ const bindingArgs = {
   stateId: v.id("accountDeletionStates"),
   generation: v.number(),
 };
+export const readDeletionState = async (
+  ctx: Pick<QueryCtx, "db">,
+  {
+    stateId,
+    generation,
+  }: { stateId: Id<"accountDeletionStates">; generation: number }
+): Promise<Doc<"accountDeletionStates">> => {
+  const state = await ctx.db.get("accountDeletionStates", stateId);
+  if (!state || state.generation !== generation) {
+    throw new Error("stale_deletion_generation");
+  }
+  const owners = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", state.userId))
+    .take(2);
+  if (owners.length !== 1 || owners[0].workosUserId !== state.workosUserId) {
+    throw new Error("deletion_binding_changed");
+  }
+  return state;
+};
 export const getState = internalQuery({
   args: bindingArgs,
-  handler: async (ctx, { stateId, generation }) => {
-    const state = await ctx.db.get("accountDeletionStates", stateId);
-    if (!state || state.generation !== generation) {
-      throw new Error("stale_deletion_generation");
-    }
-    const owners = await ctx.db
-      .query("users")
-      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", state.userId))
-      .take(2);
-    if (owners.length !== 1 || owners[0].workosUserId !== state.workosUserId) {
-      throw new Error("deletion_binding_changed");
-    }
-    return state;
-  },
+  handler: (ctx, binding) => readDeletionState(ctx, binding),
 });
 export const advance = internalMutation({
   args: { ...bindingArgs, stage: v.number() },
