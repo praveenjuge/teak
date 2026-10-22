@@ -256,26 +256,44 @@ export const completeImportUpload = action({
         message: "Uploaded part sizes do not match the selected file",
       });
     }
-    const completion = await callFilesWorkerJson<{ size: number }>({
-      op: "complete-multipart",
-      params: {
-        key: job.sourceKey,
-        uploadId: job.uploadId,
-        expectedSize: job.fileSize,
-        parts: parts.map(({ partNumber, etag }) => ({ partNumber, etag })),
-      },
-    });
-    if (completion.kind !== "ok" || completion.data.size !== job.fileSize) {
-      await callFilesWorkerJson({
-        op: "delete-objects",
-        params: { keys: [job.sourceKey] },
+    const claim: string = await ctx.runMutation(
+      internal.dataImport.claimCompletion,
+      { jobId, userId, uploadId: job.uploadId }
+    );
+    try {
+      const completion = await callFilesWorkerJson<{ size: number }>({
+        op: "complete-multipart",
+        params: {
+          key: job.sourceKey,
+          uploadId: job.uploadId,
+          expectedSize: job.fileSize,
+          parts: parts.map(({ partNumber, etag }) => ({ partNumber, etag })),
+        },
       });
-      throw new ConvexError({
-        code: "INVALID_UPLOAD",
-        message: "Completed upload size is invalid",
+      if (completion.kind !== "ok" || completion.data.size !== job.fileSize) {
+        if (
+          await ctx.runQuery(internal.dataImport.holdsCompletionClaim, {
+            jobId,
+            token: claim,
+          })
+        ) {
+          await callFilesWorkerJson({
+            op: "delete-objects",
+            params: { keys: [job.sourceKey] },
+          });
+        }
+        throw new ConvexError({
+          code: "INVALID_UPLOAD",
+          message: "Completed upload size is invalid",
+        });
+      }
+      await ctx.runMutation(internal.dataImport.markQueued, { jobId, claim });
+    } finally {
+      await ctx.runMutation(internal.dataImport.releaseCompletionClaim, {
+        jobId,
+        token: claim,
       });
     }
-    await ctx.runMutation(internal.dataImport.markQueued, { jobId });
     return null;
   },
 });

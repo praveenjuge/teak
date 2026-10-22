@@ -453,6 +453,14 @@ export const importJobValidator = v.object({
       v.object({ partNumber: v.number(), etag: v.string(), size: v.number() })
     )
   ),
+  /**
+   * Held by the `completeImportUpload` call that is finishing the multipart
+   * upload, so a concurrent call cannot queue the job twice or delete the
+   * source under it. Lapses at `expiresAt` if that call dies.
+   */
+  completionClaim: v.optional(
+    v.object({ token: v.string(), expiresAt: v.number() })
+  ),
   workflowId: v.optional(v.string()),
   cancelRequested: v.optional(v.boolean()),
   parsedCount: v.number(),
