@@ -7,6 +7,7 @@ A user opens a card into a dialog to edit its notes, tags and folders, favorites
 - `card-open` opens a card dialog from the grid, a deep link or the palette.
 - `card-dialog-layout` keeps the dialog's header to the title, "Favorite", "More actions" and one main action ("Open" for a link, "Download" for a file). "Previous card", "Next card" and "Close" sit outside the card on wide screens and in a bottom bar ("Card actions") on phones. Image and video cards float the header over the media until hovered. "Previous card", "Next card" and "Close" stay at one spot on screen whatever the card's size, and every quick click moves exactly one card.
 - `card-details-toggle` hides or shows the "Card details" panel ("Hide details" in the menu, or `i`); the choice is remembered.
+- `card-photo-details` lists a photo's camera facts under "More details" in "Card details": Camera, Taken, Exposure, Aperture, Focal length and ISO, never its location. "Taken" is the time the camera's clock showed, the same in every viewer's time zone, followed by the offset ("UTC+5:30") when the photo recorded one.
 - `card-notes` adds notes, which save on blur.
 - `card-tags` adds and removes tags; "secret" and "hidden" hide the card. Tags Teak added fold under "N suggested tags", where "Keep tag …" keeps one and "Remove Teak tag …" drops it.
 - `card-folders` adds the card to a folder.
@@ -38,6 +39,7 @@ Steps:
 - **Open.** `tap` "Text: verify-<run-id> …". Dialog "Note" opens and the URL gains `?card=<id>`. The dialog has "Previous card", "Next card", "Favorite", "More actions" and "Close"; a note shows no visible title, only its content. The aside is "Card details".
 - **Rapid next.** Note the "Next card" button's center, then click that one point 25 times quickly (`press` "ArrowRight" works too). The dialog stays open, the button never moves, and the URL's `?card=` lands 25 cards on (or on the last card, where "Next card" is disabled). Press `?`: "Keyboard shortcuts" opens over the card, and Escape returns to the card with its keys working.
 - **Details toggle.** In "More actions" choose "Hide details" (or press `i`). The aside is hidden; open another card and it stays hidden. Press `n`: the details come back and textbox "Notes" is focused. Undo with `i` if it is hidden.
+- **Photo details.** Upload a JPEG named `verify-<run-id>-photo.jpg` whose EXIF has a capture time ([capture](./capture.md)); Pillow can make one: `Image.new("RGB", (640, 480))`, then set `exif.get_ifd(0x8769)[0x9003] = "2026:05:17 14:30:05"` and save with `exif=exif.tobytes()`. Once processing finishes, open "Image: verify-<run-id>-photo.jpg" and `tap` "More details". Rows "Camera", "Taken" and "ISO" appear; "Taken" reads "May 17, 2026, 02:30 PM". Proof: open the card again from a browser in another zone (Playwright `timezoneId: "America/Los_Angeles"` or `"Pacific/Auckland"`, `.agents/cloud.md`): "Taken" stays 02:30 PM while "Added" moves with the zone. Delete the card forever in cleanup.
 - **Notes.** `type` "verify-<run-id> note" into textbox "Notes", then `press` "Tab" to blur. The header shows "Saved" for about two seconds, then nothing (a slow save shows "Saving…", a failed one "Couldn't save"). Proof: `navigate` to `/?card=<id>`; the Notes textbox shows the text.
 - **Tags.** `type` "verify-<run-id>-tag" into textbox "Add a tag" and `press` "Enter". The button "Remove tag verify-<run-id>-tag" appears. Proof: reload and it's still there; searching `tag:verify-<run-id>-tag` finds the card.
 - **Favorite.** In the dialog, `tap` "Favorite". It becomes "Unfavorite" (pressed). Close with "Close" or Escape. Proof: link "Favorites" lists the card. Tap "Unfavorite" to undo.
@@ -60,4 +62,6 @@ Steps:
 - Trash starts with one seeded card, "Old draft I meant to throw away." Leave it there.
 - Adding the tag "secret" or "hidden" hides the card ("Hidden. Search #secret to see it.", with "Undo").
 - On the dev deployment, real AI adds its own "Remove Teak tag …" chips. Don't confuse them with yours.
+- The e2e MCP browser runs in UTC, where a time-zone bug in "Taken" can't show. Drive photo details from a Playwright context with `timezoneId` set instead.
+- The Files Worker fixture `fixture-exif.jpg` isn't a decodable image ("Uploaded file is not a decodable image"); upload a real JPEG.
 - Escape closes the dialog and returns focus to the card. In selection mode it clears the selection first.

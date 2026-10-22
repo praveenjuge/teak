@@ -169,7 +169,10 @@ export const imageExifValidator = v.object({
   longitude: v.optional(v.number()),
   make: v.optional(v.string()),
   model: v.optional(v.string()),
+  // The camera's clock time as epoch ms, read as if that clock were UTC.
   takenAt: v.optional(v.number()),
+  // Minutes east of UTC from the EXIF offset, when the camera recorded one.
+  takenAtOffset: v.optional(v.number()),
 });
 
 export const fileMetadataValidator = v.optional(

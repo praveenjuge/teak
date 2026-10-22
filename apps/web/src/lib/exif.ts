@@ -7,7 +7,10 @@ export interface ImageExif {
   longitude?: number;
   make?: string;
   model?: string;
+  /** The camera's clock time as epoch ms, read as if that clock were UTC. */
   takenAt?: number;
+  /** Minutes east of UTC the camera recorded, when the EXIF has an offset. */
+  takenAtOffset?: number;
 }
 
 export interface ExifField {
@@ -53,7 +56,28 @@ export function formatExposureTime(seconds?: number): string | null {
   return `1/${Math.round(1 / seconds)} s`;
 }
 
-const formatTakenAt = (takenAt?: number): string | null => {
+const MAX_OFFSET_MINUTES = 14 * 60;
+
+/** "UTC+5:30", "UTC-8" or "UTC", or null without a believable offset. */
+const formatUtcOffset = (minutes?: number): string | null => {
+  if (
+    typeof minutes !== "number" ||
+    !Number.isInteger(minutes) ||
+    Math.abs(minutes) > MAX_OFFSET_MINUTES
+  ) {
+    return null;
+  }
+  if (minutes === 0) {
+    return "UTC";
+  }
+  const hours = Math.floor(Math.abs(minutes) / 60);
+  const rest = Math.abs(minutes) % 60;
+  return `UTC${minutes < 0 ? "-" : "+"}${hours}${rest ? `:${String(rest).padStart(2, "0")}` : ""}`;
+};
+
+// takenAt holds the camera's clock time encoded as UTC, so it's formatted in
+// UTC: a photo taken at 09:00 reads 09:00 wherever it's viewed.
+const formatTakenAt = (takenAt?: number, offset?: number): string | null => {
   if (!isPositive(takenAt)) {
     return null;
   }
@@ -61,13 +85,16 @@ const formatTakenAt = (takenAt?: number): string | null => {
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-  return date.toLocaleDateString("en-US", {
+  const clock = date.toLocaleDateString("en-US", {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
     month: "short",
+    timeZone: "UTC",
     year: "numeric",
   });
+  const zone = formatUtcOffset(offset);
+  return zone ? `${clock} ${zone}` : clock;
 };
 
 export function formatExifFields(exif?: ImageExif | null): ExifField[] {
@@ -76,7 +103,7 @@ export function formatExifFields(exif?: ImageExif | null): ExifField[] {
   }
   const fields: [string, string | null][] = [
     ["Camera", formatCamera(exif.make, exif.model)],
-    ["Taken", formatTakenAt(exif.takenAt)],
+    ["Taken", formatTakenAt(exif.takenAt, exif.takenAtOffset)],
     ["Exposure", formatExposureTime(exif.exposureTime)],
     [
       "Aperture",

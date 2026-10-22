@@ -2,9 +2,10 @@ package com.praveenjuge.teak.core.model
 
 import kotlinx.serialization.Serializable
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToLong
 
 @Serializable
@@ -17,13 +18,18 @@ data class ImageExif(
     val longitude: Double? = null,
     val make: String? = null,
     val model: String? = null,
+    /** The camera's clock time as epoch ms, read as if that clock were UTC. */
     val takenAt: Double? = null,
+    /** Minutes east of UTC the camera recorded, when the EXIF has an offset. */
+    val takenAtOffset: Double? = null,
 )
 
 /** A port of `apps/web/src/lib/exif.ts`. GPS is stored but never shown. */
 object Exif {
     // Cameras write exposures of 0.3 s and longer as decimals; as fractions they'd round to the wrong speed.
     private const val DECIMAL_EXPOSURE_FROM_SECONDS = 0.3
+    private const val MAX_OFFSET_MINUTES = 14 * 60
+    private val TAKEN_AT = DateTimeFormatter.ofPattern("MMM d, yyyy, hh:mm a", Locale.US).withZone(ZoneOffset.UTC)
     private val WHITESPACE = Regex("\\s+")
 
     private fun positive(value: Double?): Double? = value?.takeIf { it.isFinite() && it > 0 }
@@ -49,18 +55,30 @@ object Exif {
         return "1/${(1 / value).roundToLong()} s"
     }
 
-    private fun formatTakenAt(takenAt: Double?, zone: ZoneId): String? {
-        val millis = positive(takenAt) ?: return null
-        return DateTimeFormatter.ofPattern("MMM d, yyyy, hh:mm a", Locale.US)
-            .withZone(zone)
-            .format(Instant.ofEpochMilli(millis.toLong()))
+    /** "UTC+5:30", "UTC-8" or "UTC", or null without a believable offset. */
+    private fun formatUtcOffset(minutes: Double?): String? {
+        if (minutes == null || !minutes.isFinite() || minutes % 1.0 != 0.0 || abs(minutes) > MAX_OFFSET_MINUTES) return null
+        val total = minutes.toInt()
+        if (total == 0) return "UTC"
+        val hours = abs(total) / 60
+        val rest = abs(total) % 60
+        val sign = if (total < 0) "-" else "+"
+        return if (rest == 0) "UTC$sign$hours" else "UTC$sign$hours:${rest.toString().padStart(2, '0')}"
     }
 
-    fun rows(exif: ImageExif?, zone: ZoneId = ZoneId.systemDefault()): List<DetailRow> {
+    // takenAt holds the camera's clock time encoded as UTC, so it's formatted in UTC:
+    // a photo taken at 09:00 reads 09:00 wherever it's viewed.
+    private fun formatTakenAt(takenAt: Double?, offset: Double?): String? {
+        val millis = positive(takenAt) ?: return null
+        val clock = TAKEN_AT.format(Instant.ofEpochMilli(millis.toLong()))
+        return formatUtcOffset(offset)?.let { "$clock $it" } ?: clock
+    }
+
+    fun rows(exif: ImageExif?): List<DetailRow> {
         if (exif == null) return emptyList()
         return listOf(
             "Camera" to formatCamera(exif.make, exif.model),
-            "Taken" to formatTakenAt(exif.takenAt, zone),
+            "Taken" to formatTakenAt(exif.takenAt, exif.takenAtOffset),
             "Exposure" to formatExposureTime(exif.exposureTime),
             "Aperture" to positive(exif.fNumber)?.let { "f/${trimDecimal(it)}" },
             "Focal length" to positive(exif.focalLength)?.let { "${trimDecimal(it)} mm" },

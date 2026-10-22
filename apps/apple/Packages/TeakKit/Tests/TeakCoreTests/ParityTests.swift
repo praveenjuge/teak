@@ -294,10 +294,28 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 
     @Test func listsAFullPhotosFactsInReadingOrder() throws {
         let rows = ExifFacts.rows(ImageExif(exposureTime: 1 / 250, fNumber: 1.8, focalLength: 50, iso: 400, make: "Canon",
-                                            model: "Canon EOS R5", takenAt: 1_779_008_405_000),
-                                  timeZone: TimeZone(identifier: "UTC")!)
+                                            model: "Canon EOS R5", takenAt: 1_779_008_405_000))
         #expect(rows.map(\.label) == ["Camera", "Taken", "Exposure", "Aperture", "Focal length", "ISO"])
         #expect(rows.map(\.value) == ["Canon EOS R5", "May 17, 2026, 09:00 AM", "1/250 s", "f/1.8", "50 mm", "400"])
+    }
+
+    /// `takenAt` is the camera's clock time encoded as UTC, so the device's zone never moves it. (The zone isn't
+    /// changed here: suites run in parallel and others read `TimeZone.current`. The web and Android tests run
+    /// these cases in Los Angeles and Auckland.)
+    @Test func showsTheCamerasClockTimeAndItsOffset() {
+        func taken(_ takenAt: Double, _ offset: Double? = nil) -> String? {
+            ExifFacts.rows(ImageExif(takenAt: takenAt, takenAtOffset: offset)).first?.value
+        }
+        let nine = 1_779_008_400_000.0 // 2026-05-17T09:00:00Z
+        #expect(taken(1_778_977_800_000) == "May 17, 2026, 12:30 AM")
+        #expect(taken(1_779_061_500_000) == "May 17, 2026, 11:45 PM")
+        #expect(taken(nine, 330) == "May 17, 2026, 09:00 AM UTC+5:30")
+        #expect(taken(nine, -480) == "May 17, 2026, 09:00 AM UTC-8")
+        #expect(taken(nine, -570) == "May 17, 2026, 09:00 AM UTC-9:30")
+        #expect(taken(nine, 0) == "May 17, 2026, 09:00 AM UTC")
+        for bad in [Double.nan, 5.5, 900, -900] {
+            #expect(taken(nine, bad) == "May 17, 2026, 09:00 AM")
+        }
     }
 
     @Test func neverShowsGPSAndDropsBadNumbers() {
