@@ -316,7 +316,8 @@ export const searchCardsByQuery = async (
       userId,
       similarity,
       ranking,
-      keep: (card) => matchesStructuredFilters(card, options),
+      keep: (card, searchableText) =>
+        matchesStructuredFilters(card, options, searchableText),
       text: options.searchQuery ?? "",
     });
     return {
@@ -403,7 +404,9 @@ export const searchCardsByQuery = async (
     cardsById,
     {
       minScore: SEMANTIC_MIN_SCORE,
-      keep: (card) => matchesStructuredFilters(card, options),
+      keep: (card, searchableText) =>
+        matchesStructuredFilters(card, options, searchableText),
+      withText: Boolean(options.phrases?.length),
     }
   );
   const fused = fuseRankings(keywordOrder, matches, {

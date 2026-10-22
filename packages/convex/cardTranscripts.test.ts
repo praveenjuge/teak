@@ -12,6 +12,7 @@ import type { CardWithUrls } from "./card/queryUtils";
 import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import { withTranscripts } from "./card/textContents";
 import schema from "./schema";
+import { semanticSearchKey } from "./search/semanticCache";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -201,6 +202,68 @@ describe("a transcript lives in cardTextContents, not on the card", () => {
     expect(
       (await grid({ searchQuery: "invoice" })).map((item) => item._id)
     ).toEqual([image]);
+  });
+
+  test("phrases and words found only in a moved transcript still match meaning and similar searches", async () => {
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "transcripts-test-secret");
+    try {
+      const { t, save, saveTranscript, grid } = await setup();
+      await t.run((ctx) =>
+        ctx.db.insert("vectorShards", { userId: "owner", shard: 0 })
+      );
+      const anchor = await save({ type: "text", content: "Tide pools" });
+      const audio = await save();
+      await saveTranscript(audio, LONG_TRANSCRIPT);
+      const other = await save({ type: "text", content: "Rock pools" });
+      const cache = async (text: string, ids: Id<"cards">[]) =>
+        t.mutation(internal.search.semanticCache.storeRanking, {
+          userId: "owner",
+          key: await semanticSearchKey(text),
+          matches: ids.map((id) => ({ id, score: 0.9 })),
+        });
+      await cache("hermit crab", [audio, other]);
+      await cache(`like\n${anchor}`, [anchor, audio, other]);
+      const ids = async (args: Record<string, unknown>) =>
+        (await grid(args)).map((item) => item._id);
+
+      expect(
+        await ids({ searchQuery: '"hermit crab"', mode: "semantic" })
+      ).toEqual([audio]);
+      expect(await ids({ searchQuery: `like:${anchor} hermit` })).toEqual([
+        audio,
+      ]);
+      expect(
+        await ids({ searchQuery: `like:${anchor} "hermit crab"` })
+      ).toEqual([audio]);
+
+      const ranking = [audio, other].map((cardId) => ({ cardId, score: 0.9 }));
+      const api = (args: Record<string, unknown>) =>
+        t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          limit: 10,
+          ...args,
+        });
+      const viaApi = await api({
+        searchQuery: "hermit crab",
+        phrases: ["hermit crab"],
+        semanticRanking: ranking,
+        mode: "semantic",
+      });
+      expect(viaApi.items.map((card: { _id: string }) => card._id)).toEqual([
+        audio,
+      ]);
+      const similarViaApi = await api({
+        searchQuery: "hermit",
+        similarity: { kind: "like", cardId: anchor },
+        semanticRanking: [{ cardId: anchor, score: 1 }, ...ranking],
+      });
+      expect(
+        similarViaApi.items.map((card: { _id: string }) => card._id)
+      ).toEqual([audio]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   test("public API lists put transcripts back when asked", async () => {

@@ -12,6 +12,7 @@ import {
 } from "./listQuery";
 import { scanInBatches } from "./scanInBatches";
 import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
+import { readCardTranscript } from "./textContents";
 
 interface CreatedAtRange {
   gte: (
@@ -427,6 +428,31 @@ export const searchCardsByOcrText = async (
   return Array.from(found.cardsById.values());
 };
 
+// Transcript text one search may read back to match a card's own text.
+const TRANSCRIPT_SEARCH_READ_BUDGET_CHARS = 2 * 1024 * 1024;
+
+/**
+ * Reads the search text of cards whose transcript moved to
+ * `cardTextContents`, which `buildCardSearchText(card)` alone misses. Returns
+ * undefined for other cards, and once the search's budget is spent, so the
+ * caller falls back to the card's own fields.
+ */
+export const movedTranscriptSearchText = (ctx: Pick<QueryCtx, "db">) => {
+  let remaining = TRANSCRIPT_SEARCH_READ_BUDGET_CHARS;
+  return async (card: Doc<"cards">): Promise<string | undefined> => {
+    const chars = card.aiTranscriptCharCount;
+    if (chars === undefined || chars > remaining) {
+      return undefined;
+    }
+    remaining -= chars;
+    return buildCardSearchText(
+      card,
+      undefined,
+      await readCardTranscript(ctx, card)
+    );
+  };
+};
+
 export const loadSemanticMatches = async (
   ctx: QueryCtx,
   args: Pick<
@@ -441,18 +467,33 @@ export const loadSemanticMatches = async (
   >,
   ranking: readonly { cardId: Id<"cards">; score: number }[],
   cardsById: Pick<Map<Id<"cards">, Doc<"cards">>, "has" | "set">,
-  options: { minScore: number; keep: (card: Doc<"cards">) => boolean }
+  options: {
+    minScore: number;
+    keep: (card: Doc<"cards">, searchableText?: string) => boolean;
+    /** Read moved transcripts back, for a `keep` that matches text. */
+    withText?: boolean;
+  }
 ): Promise<{ cardId: Id<"cards">; score: number }[]> => {
   const archived = scopeArchivedMatch(
     cardListScope(args.archived, args.isDeleted === true)
   );
   const loaded = await Promise.all(
-    ranking.map((match) =>
-      cardsById.has(match.cardId) || match.score < options.minScore
-        ? null
-        : ctx.db.get("cards", match.cardId)
-    )
+    ranking.map(async (match) => {
+      if (cardsById.has(match.cardId) || match.score < options.minScore) {
+        return null;
+      }
+      const card = await ctx.db.get("cards", match.cardId);
+      return card &&
+        card.userId === args.userId &&
+        matchesSearchIndexFilters(card, args, archived)
+        ? card
+        : null;
+    })
   );
+  const readText = movedTranscriptSearchText(ctx);
+  const texts = options.withText
+    ? await Promise.all(loaded.map((card) => card && readText(card)))
+    : [];
   const kept: { cardId: Id<"cards">; score: number }[] = [];
   for (const [index, match] of ranking.entries()) {
     if (cardsById.has(match.cardId)) {
@@ -460,12 +501,7 @@ export const loadSemanticMatches = async (
       continue;
     }
     const card = loaded[index];
-    if (
-      card &&
-      card.userId === args.userId &&
-      matchesSearchIndexFilters(card, args, archived) &&
-      options.keep(card)
-    ) {
+    if (card && options.keep(card, texts[index] ?? undefined)) {
       cardsById.set(card._id, card);
       kept.push(match);
     }

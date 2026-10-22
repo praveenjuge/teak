@@ -10,6 +10,7 @@ import {
 } from "../shared/search/semantic";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { scanInBatches } from "./scanInBatches";
+import { movedTranscriptSearchText } from "./searchReads";
 import { buildCardSearchText } from "./searchSync";
 
 export const isSimilarAnchorAvailable = async (
@@ -34,11 +35,12 @@ export const loadSimilarCards = async (
     userId: string;
     similarity: SearchSimilarity;
     ranking: SemanticRanking;
-    keep: (card: Doc<"cards">) => boolean;
+    keep: (card: Doc<"cards">, searchableText?: string) => boolean;
     text: string;
   }
 ): Promise<Doc<"cards">[]> => {
   const words = tokenizeSearchInput(text).map((word) => word.toLowerCase());
+  const readText = movedTranscriptSearchText(ctx);
   const minScore = similarity.kind === "mood" ? SEMANTIC_MIN_SCORE : 0;
   const anchorId = similarity.kind === "like" ? similarity.cardId : null;
   const seen = new Set<Id<"cards">>();
@@ -57,13 +59,25 @@ export const loadSimilarCards = async (
   await scanInBatches(
     candidates,
     () => SIMILAR_CARDS_LIMIT - cards.length,
-    (match) => ctx.db.get("cards", match.cardId),
-    (_match, card) => {
-      if (!(card && card.userId === userId && keep(card))) {
+    async (match) => {
+      const card = await ctx.db.get("cards", match.cardId);
+      if (!card || card.userId !== userId) {
+        return null;
+      }
+      // Words and phrases also match a transcript that moved off the card.
+      const searchableText =
+        words.length > 0 ? await readText(card) : undefined;
+      return { card, searchableText };
+    },
+    (_match, loaded) => {
+      if (!(loaded && keep(loaded.card, loaded.searchableText))) {
         return;
       }
+      const { card } = loaded;
       if (words.length > 0) {
-        const text = buildCardSearchText(card).toLowerCase();
+        const text = (
+          loaded.searchableText ?? buildCardSearchText(card)
+        ).toLowerCase();
         if (!words.every((word) => text.includes(word))) {
           return;
         }

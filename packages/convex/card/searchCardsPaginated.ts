@@ -290,9 +290,9 @@ export const searchCardsPaginatedHandler = async (
       userId: user.teakUserId,
       similarity,
       ranking,
-      keep: (card) =>
+      keep: (card, searchableText) =>
         inView(card) &&
-        matchesQualifiers(card) &&
+        resolved.matches(card, searchableText) &&
         isCreatedAtInRange(card.createdAt, createdAtRange) &&
         doesCardMatchVisualFilters(card, visualFilters),
       text: parsed.text,
@@ -501,7 +501,11 @@ export const searchCardsPaginatedHandler = async (
               keywordMatches.has(cardId) || meaningMatches.has(cardId),
             set: (cardId, card) => meaningMatches.set(cardId, card),
           },
-          { minScore: SEMANTIC_MIN_SCORE, keep: (card) => matchesFilters(card) }
+          {
+            minScore: SEMANTIC_MIN_SCORE,
+            keep: matchesFilters,
+            withText: resolved.phrases.length > 0,
+          }
         );
         for (const match of semantic) {
           if (match.score >= SEMANTIC_MIN_SCORE) {
@@ -587,7 +591,11 @@ export const searchCardsPaginatedHandler = async (
         searchArgs,
         ranking,
         cardsById,
-        { minScore: SEMANTIC_MIN_SCORE, keep: (card) => matchesFilters(card) }
+        {
+          minScore: SEMANTIC_MIN_SCORE,
+          keep: matchesFilters,
+          withText: resolved.phrases.length > 0,
+        }
       );
       for (const match of semantic) {
         if (match.score >= SEMANTIC_MIN_SCORE) {
