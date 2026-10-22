@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { testId } from "./helpers/convex.test-utils";
 import { r2MockModuleFactory, r2Mocks } from "./helpers/r2Mock.test-utils";
 import { withSearchSyncDb } from "./helpers/session.test-utils";
@@ -103,70 +103,6 @@ describe("linkMetadata", () => {
       );
     });
 
-    test("deletes previous screenshot if replaced", async () => {
-      const ctx = createMockCtx();
-      const card = {
-        _id: "card_123",
-        type: "link",
-        metadata: {
-          linkPreview: {
-            screenshotStorageKey: "old_id",
-            screenshotUpdatedAt: 100,
-          },
-        },
-      };
-      ctx.db.get.mockResolvedValue(card);
-
-      const linkPreview = {
-        screenshotStorageKey: "new_id",
-        screenshotUpdatedAt: 200,
-      };
-      await updateCardMetadataHandler(ctx, {
-        cardId: testId("cards", "card_123"),
-        linkPreview,
-        status: "completed",
-      });
-
-      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "old_id");
-      expect(ctx.db.patch).toHaveBeenCalled();
-    });
-
-    test("preserves previous screenshot if new one missing", async () => {
-      const ctx = createMockCtx();
-      const card = {
-        _id: "card_123",
-        type: "link",
-        metadata: {
-          linkPreview: {
-            screenshotStorageKey: "old_id",
-            screenshotUpdatedAt: 100,
-          },
-        },
-      };
-      ctx.db.get.mockResolvedValue(card);
-
-      const linkPreview = { title: "Title" };
-      await updateCardMetadataHandler(ctx, {
-        cardId: testId("cards", "card_123"),
-        linkPreview,
-        status: "completed",
-      });
-
-      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
-      expect(ctx.db.patch).toHaveBeenCalledWith(
-        "cards",
-        "card_123",
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            linkPreview: expect.objectContaining({
-              screenshotStorageKey: "old_id",
-              screenshotUpdatedAt: 100,
-            }),
-          }),
-        })
-      );
-    });
-
     test("handles delete error gracefully", async () => {
       const ctx = createMockCtx();
       const card = {
@@ -218,33 +154,6 @@ describe("linkMetadata", () => {
       );
     });
 
-    test("preserves existing category", async () => {
-      const ctx = createMockCtx();
-      const card = {
-        _id: "card_123",
-        type: "link",
-        metadata: { linkCategory: "news" },
-      };
-      ctx.db.get.mockResolvedValue(card);
-
-      const linkPreview = { title: "New Title" };
-      await updateCardMetadataHandler(ctx, {
-        cardId: testId("cards", "card_123"),
-        linkPreview,
-        status: "completed",
-      });
-
-      expect(ctx.db.patch).toHaveBeenCalledWith(
-        "cards",
-        "card_123",
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            linkCategory: "news",
-          }),
-        })
-      );
-    });
-
     test("handles empty linkPreview arg", async () => {
       const ctx = createMockCtx();
       const card = { _id: "card_123", type: "link", metadata: {} };
@@ -264,27 +173,6 @@ describe("linkMetadata", () => {
         })
       );
     });
-    test("updates description if provided", async () => {
-      const ctx = createMockCtx();
-      const card = { _id: "card_123", type: "link", metadata: {} };
-      ctx.db.get.mockResolvedValue(card);
-
-      const linkPreview = { description: "New Desc" };
-      await updateCardMetadataHandler(ctx, {
-        cardId: testId("cards", "card_123"),
-        linkPreview,
-        status: "completed",
-      });
-
-      expect(ctx.db.patch).toHaveBeenCalledWith(
-        "cards",
-        "card_123",
-        expect.objectContaining({
-          metadataDescription: "New Desc",
-        })
-      );
-    });
-
     test("replaces stored media attachments and deletes stale assets", async () => {
       const ctx = createMockCtx();
       ctx.db.get.mockResolvedValue({
@@ -608,4 +496,537 @@ test("screenshot reader retains existing screenshot guard without preview raw da
   expect(
     await getCardForScreenshotHandler(ctx, { cardId: testId("cards", "c1") })
   ).toBeNull();
+});
+
+describe("linkMetadata storage cleanup", () => {
+  const withScheduler = (handler: any) => (ctx: any, args: any) => {
+    ctx.scheduler ??= { runAfter: mock().mockResolvedValue(null) };
+    return handler(ctx, args);
+  };
+  const updateMetadata = withScheduler(updateCardMetadataHandler);
+  const updateScreenshot = withScheduler(updateCardScreenshotHandler);
+
+  beforeEach(() => {
+    r2Mocks.queueObjectDeletion.mockReset();
+    r2Mocks.queueObjectDeletion.mockResolvedValue(null);
+  });
+
+  describe("getFullCardForMetadata", () => {
+    test("returns null for missing card", async () => {
+      const ctx = { db: { get: mock().mockResolvedValue(null) } } as any;
+      const result = await getFullCardForMetadataHandler(ctx, {
+        cardId: "c1",
+      } as any);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("updateCardMetadata storage and dimensions", () => {
+    test("deletes previous image when new image provided", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: { imageStorageKey: "old_image" },
+        },
+      };
+      const newLinkPreview = { imageStorageKey: "new_image" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_image"
+      );
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              imageStorageKey: "new_image",
+            }),
+          }),
+        })
+      );
+    });
+
+    test("skips storage cleanup when the patch is fenced by account deletion", async () => {
+      const existingCard = {
+        _id: "c1",
+        userId: "u1",
+        type: "link",
+        metadata: {
+          linkPreview: { screenshotStorageKey: "old_shot" },
+        },
+      };
+      const newLinkPreview = { screenshotStorageKey: "new_shot" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          query: mock().mockImplementation((table: string) => ({
+            withIndex: mock().mockReturnValue({
+              unique: mock().mockResolvedValue(
+                table === "accountDeletionStates"
+                  ? { _id: "del1", userId: "u1", startedAt: 1 }
+                  : null
+              ),
+            }),
+          })),
+        }),
+      } as any;
+
+      const result = await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(result).toBe(false);
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledTimes(1);
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(ctx, "new_shot");
+    });
+
+    test("fenced patch deletes new image and media objects but keeps carried-over references", async () => {
+      const existingCard = {
+        _id: "c1",
+        userId: "u1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            imageStorageKey: "old_image",
+            screenshotStorageKey: "keep_shot",
+            media: [
+              { storageKey: "keep_media", posterStorageKey: "keep_poster" },
+            ],
+          },
+        },
+      };
+      const newLinkPreview = {
+        imageStorageKey: "new_image",
+        screenshotStorageKey: "keep_shot",
+        media: [
+          { storageKey: "keep_media", posterStorageKey: "keep_poster" },
+          { storageKey: "new_media", posterStorageKey: "new_poster" },
+        ],
+      };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          query: mock().mockImplementation((table: string) => ({
+            withIndex: mock().mockReturnValue({
+              unique: mock().mockResolvedValue(
+                table === "accountDeletionStates"
+                  ? { _id: "del1", userId: "u1", startedAt: 1 }
+                  : null
+              ),
+            }),
+          })),
+        }),
+      } as any;
+
+      const result = await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(result).toBe(false);
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+      const deleted = r2Mocks.queueObjectDeletion.mock.calls
+        .map((call: any[]) => call[1])
+        .sort();
+      expect(deleted).toEqual(["new_image", "new_media", "new_poster"]);
+    });
+
+    test("preserves existing image when new image not provided", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            imageStorageKey: "old_image",
+            imageUpdatedAt: 1000,
+            imageWidth: 800,
+            imageHeight: 600,
+          },
+        },
+      };
+      const newLinkPreview = { title: "New Title" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              imageStorageKey: "old_image",
+              imageUpdatedAt: 1000,
+              imageWidth: 800,
+              imageHeight: 600,
+              title: "New Title",
+            }),
+          }),
+        })
+      );
+    });
+
+    test("preserves image dimensions when same image", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            imageStorageKey: "same_image",
+            imageWidth: 800,
+            imageHeight: 600,
+          },
+        },
+      };
+      const newLinkPreview = { imageStorageKey: "same_image" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              imageStorageKey: "same_image",
+              imageWidth: 800,
+              imageHeight: 600,
+            }),
+          }),
+        })
+      );
+    });
+
+    test("deletes previous screenshot when new screenshot provided", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: { screenshotStorageKey: "old_screenshot" },
+        },
+      };
+      const newLinkPreview = { screenshotStorageKey: "new_screenshot" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(r2Mocks.queueObjectDeletion).toHaveBeenCalledWith(
+        ctx,
+        "old_screenshot"
+      );
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              screenshotStorageKey: "new_screenshot",
+            }),
+          }),
+        })
+      );
+    });
+
+    test("preserves existing screenshot when new screenshot not provided", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            screenshotStorageKey: "old_screenshot",
+            screenshotUpdatedAt: 1000,
+            screenshotWidth: 1200,
+            screenshotHeight: 800,
+          },
+        },
+      };
+      const newLinkPreview = { title: "New Title" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(r2Mocks.queueObjectDeletion).not.toHaveBeenCalled();
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              screenshotStorageKey: "old_screenshot",
+              screenshotUpdatedAt: 1000,
+              screenshotWidth: 1200,
+              screenshotHeight: 800,
+            }),
+          }),
+        })
+      );
+    });
+
+    test("preserves screenshot dimensions when same screenshot", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            screenshotStorageKey: "same_screenshot",
+            screenshotWidth: 1200,
+            screenshotHeight: 800,
+          },
+        },
+      };
+      const newLinkPreview = { screenshotStorageKey: "same_screenshot" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              screenshotStorageKey: "same_screenshot",
+              screenshotWidth: 1200,
+              screenshotHeight: 800,
+            }),
+          }),
+        })
+      );
+    });
+
+    test("preserves linkCategory for link type", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkCategory: { category: "news" },
+        },
+      };
+      const newLinkPreview = { title: "New Title" };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkCategory: { category: "news" },
+          }),
+        })
+      );
+    });
+
+    test("sets metadataTitle and metadataDescription", async () => {
+      const existingCard = { _id: "c1", type: "link" };
+      const newLinkPreview = {
+        title: "Test Title",
+        description: "Test Description",
+      };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadataTitle: "Test Title",
+          metadataDescription: "Test Description",
+        })
+      );
+    });
+
+    test("handles image delete error gracefully", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: { imageStorageKey: "old_image" },
+        },
+      };
+      const newLinkPreview = { imageStorageKey: "new_image" };
+      r2Mocks.queueObjectDeletion.mockRejectedValueOnce(
+        new Error("Storage error")
+      );
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateMetadata(ctx, {
+        cardId: "c1",
+        linkPreview: newLinkPreview,
+        status: "completed",
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalled();
+    });
+  });
+
+  describe("updateCardScreenshot dimensions", () => {
+    test("updates screenshot for link card", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: { linkPreview: {} },
+      };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateScreenshot(ctx, {
+        cardId: "c1",
+        screenshotStorageKey: "s1",
+        screenshotUpdatedAt: 1000,
+        screenshotWidth: 1200,
+        screenshotHeight: 800,
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              screenshotStorageKey: "s1",
+              screenshotUpdatedAt: 1000,
+              screenshotWidth: 1200,
+              screenshotHeight: 800,
+            }),
+          }),
+        })
+      );
+    });
+
+    test("preserves existing screenshot dimensions when not provided", async () => {
+      const existingCard = {
+        _id: "c1",
+        type: "link",
+        metadata: {
+          linkPreview: {
+            screenshotStorageKey: "existing_screenshot",
+            screenshotUpdatedAt: 500,
+            screenshotWidth: 1000,
+            screenshotHeight: 750,
+          },
+        },
+      };
+      const ctx = {
+        db: withSearchSyncDb({
+          get: mock().mockResolvedValue(existingCard),
+          patch: mock().mockResolvedValue(null),
+        }),
+      } as any;
+
+      await updateScreenshot(ctx, {
+        cardId: "c1",
+        screenshotStorageKey: "new_screenshot",
+        screenshotUpdatedAt: 1000,
+      });
+
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "cards",
+        "c1",
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            linkPreview: expect.objectContaining({
+              screenshotStorageKey: "new_screenshot",
+              screenshotUpdatedAt: 1000,
+            }),
+          }),
+        })
+      );
+    });
+  });
 });

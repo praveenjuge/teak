@@ -4,7 +4,7 @@ import {
   isApprovedActiveSubscription,
   isApprovedPolarProductId,
   POLAR_PLAN_IDS,
-} from "../shared/polarPlans";
+} from "../../shared/polarPlans";
 
 describe("polarPlans", () => {
   test("checkout allowlist includes monthly and yearly products", () => {
