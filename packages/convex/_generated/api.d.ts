@@ -167,7 +167,6 @@ import type * as mcp_protocol from "../mcp/protocol.js";
 import type * as mcp_tools from "../mcp/tools.js";
 import type * as migration_backfillAiPending from "../migration/backfillAiPending.js";
 import type * as migration_backfillEmbeddings from "../migration/backfillEmbeddings.js";
-import type * as migration_backfillExifClock from "../migration/backfillExifClock.js";
 import type * as migration_backfillFolderCardCounts from "../migration/backfillFolderCardCounts.js";
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
@@ -504,7 +503,6 @@ declare const fullApi: ApiFromModules<{
   "mcp/tools": typeof mcp_tools;
   "migration/backfillAiPending": typeof migration_backfillAiPending;
   "migration/backfillEmbeddings": typeof migration_backfillEmbeddings;
-  "migration/backfillExifClock": typeof migration_backfillExifClock;
   "migration/backfillFolderCardCounts": typeof migration_backfillFolderCardCounts;
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
