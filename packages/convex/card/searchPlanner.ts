@@ -14,10 +14,7 @@ import { isCardHidden } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
-import {
-  buildCardSearchText,
-  normalizeCardSearchTag,
-} from "./searchDocumentHelpers";
+import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
 
 export interface SearchViewFilters {
   archived: ArchivedFilter;

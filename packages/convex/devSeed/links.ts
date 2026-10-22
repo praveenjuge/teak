@@ -7,7 +7,7 @@ import {
   type DevScenarioCardDef,
   insertCompletedCards,
 } from "../card/defaultCards";
-import { syncCardSearch } from "../card/searchDocumentHelpers";
+import { syncCardSearch } from "../card/searchSync";
 import { formatCardLinkToken } from "../shared/cardLinks";
 
 export const CARD_LINK_SCENARIOS = ["card-links", "backlinks"] as const;

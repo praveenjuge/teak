@@ -2,18 +2,15 @@ import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import type { WorkosResource } from "../../workos/tokens";
 import { withAuthorizedUser } from "./auth";
+import { parseFolderCardsPayload, parseFolderPayload } from "./payloads";
+import { parseFolderRoute } from "./routeParsing";
+import { serializeFolder } from "./serializers";
 import {
   errorResponse,
   json,
   mapConvexErrorToResponse,
   parseJsonBody,
 } from "./shared";
-import {
-  parseFolderCardsPayload,
-  parseFolderPayload,
-  parseFolderRoute,
-  serializeFolder,
-} from "./validation";
 
 const readJson = async (
   request: Request

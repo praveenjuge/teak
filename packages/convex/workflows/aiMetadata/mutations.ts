@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
 import { accountDeletionOwnsRows } from "../../accountDeletion";
 import { mergeProcessingStages } from "../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../../card/searchSync";
 import { storeCardTranscript } from "../../card/textContents";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";

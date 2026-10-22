@@ -25,7 +25,7 @@ import {
   type ProcessingStatus,
   stageCompleted,
 } from "./processingStatus";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 import { newShuffleKey } from "./shuffle";
 import { storeCardTranscript } from "./textContents";
 

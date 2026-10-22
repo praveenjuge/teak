@@ -38,7 +38,7 @@ import { readHasPremium } from "./auth";
 import { getActiveCardCount, getCardUsageSnapshot } from "./card/cardUsage";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { stagePending } from "./card/processingStatus";
-import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./card/searchSync";
 import { clearCardTranscript } from "./card/textContents";
 import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
 import { adminOverviewFields } from "./schema";

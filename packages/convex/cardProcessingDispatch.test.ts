@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "./ai/backfill";
-import { syncCardSearch } from "./card/searchDocumentHelpers";
+import { syncCardSearch } from "./card/searchSync";
 import schema from "./schema";
 import { queueCardProcessing } from "./workflowDispatch";
 

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { recordCardTombstone } from "../publicApiTombstones";
 import { cardStorageObjectKeys, queueObjectDeletion } from "../storage/r2";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 
 const LOG_PREFIX = "[card/trashCleanup]";
 

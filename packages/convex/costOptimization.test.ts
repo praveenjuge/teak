@@ -2,12 +2,12 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { searchCardsByExactTag } from "./card/searchReads";
 import {
   patchCardWithSearchSync,
-  searchCardsByExactTag,
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
-} from "./card/searchDocumentHelpers";
+} from "./card/searchSync";
 import { updateCardFieldForUserHandler } from "./card/updateCard";
 import schema from "./schema";
 import type { TeakUserId } from "./securitySessions";

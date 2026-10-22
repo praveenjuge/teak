@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { createAccountDeletionGate } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { CLEARED_TRANSCRIPT, storeCardTranscript } from "../card/textContents";
 
 const DEFAULT_BATCH_SIZE = 25;

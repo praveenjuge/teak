@@ -29,16 +29,18 @@ import {
 import { getSearchResultLimit } from "./card/getCards";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./card/quota";
 import {
+  searchCardsByDocument,
+  searchCardsByExactTag,
+} from "./card/searchReads";
+import {
   buildCardSearchTags,
   buildCardSearchText,
   patchCardWithSearchSync,
   restartCardSearchTagSync,
-  searchCardsByDocument,
-  searchCardsByExactTag,
   syncCardSearch,
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
-} from "./card/searchDocumentHelpers";
+} from "./card/searchSync";
 import { readFolderCardCount } from "./folder/folderRows";
 import { applyFolderMembership } from "./folder/membership";
 import {

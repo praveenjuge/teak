@@ -10,7 +10,7 @@ import { insertCompletedCards } from "./card/defaultCards";
 import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
-} from "./card/searchDocumentHelpers";
+} from "./card/searchSync";
 import schema from "./schema";
 import { MAX_CARD_TAGS } from "./shared/tags";
 

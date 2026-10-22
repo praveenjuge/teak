@@ -13,14 +13,14 @@ import {
 } from "../card/listQuery";
 import { attachFileUrls } from "../card/queryUtils";
 import { applyQuoteFormattingToList } from "../card/quoteFormatting";
+import { cardUrlHost } from "../card/searchPlanner";
 import {
-  buildCardSearchText,
   loadSemanticMatches,
   searchCardsByDocument,
   searchCardsByExactTag,
   searchCardsByOcrText,
-} from "../card/searchDocumentHelpers";
-import { cardUrlHost } from "../card/searchPlanner";
+} from "../card/searchReads";
+import { buildCardSearchText } from "../card/searchSync";
 import {
   isSimilarAnchorAvailable,
   loadSimilarCards,

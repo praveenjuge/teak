@@ -21,7 +21,7 @@ import {
   isExtractedTextTruncated,
   searchPrefix,
 } from "./documentTextFormat";
-import { patchCardWithSearchSync } from "./searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./searchSync";
 import { getDocumentTextRow, readCardTranscript } from "./textContents";
 
 export {

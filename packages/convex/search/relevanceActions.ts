@@ -7,7 +7,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { type ActionCtx, action } from "../_generated/server";
 import { aiUsageParams } from "../ai/usage";
-import { searchCardsPaginatedArgsValidator } from "../card/getCards";
+import { searchCardsPaginatedArgsValidator } from "../card/searchCardsPaginated";
 import { rateLimiter } from "../shared/rateLimits";
 import {
   buildRelevanceCardText,

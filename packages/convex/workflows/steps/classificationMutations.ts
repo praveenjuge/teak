@@ -6,7 +6,7 @@ import {
   stagePending,
 } from "../../card/processingStatus";
 import { normalizeQuoteContent } from "../../card/quoteFormatting";
-import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../../card/searchSync";
 import type { CardType } from "../../schema";
 
 export const recordClassification = internalMutation({

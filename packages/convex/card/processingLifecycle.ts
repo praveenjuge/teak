@@ -9,7 +9,7 @@ import {
   stageFailed,
   stagePending,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./searchSync";
 import { clearCardTranscript } from "./textContents";
 
 export const CARD_PROCESSING_STAGES: ProcessingStageKey[] = [

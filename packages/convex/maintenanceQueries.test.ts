@@ -4,7 +4,7 @@ import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { syncCardSearch } from "./card/searchDocumentHelpers";
+import { syncCardSearch } from "./card/searchSync";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");

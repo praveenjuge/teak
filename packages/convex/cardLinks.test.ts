@@ -6,7 +6,7 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { TITLE_LOOKUP_LIMIT } from "./card/cardLinks";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,

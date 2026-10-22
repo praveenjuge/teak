@@ -6,10 +6,8 @@ import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { deleteAccountDataHandler, type OwnedCardIds } from "./accountDeletion";
-import {
-  searchCardsByDocument,
-  syncCardSearchDocumentHandler,
-} from "./card/searchDocumentHelpers";
+import { searchCardsByDocument } from "./card/searchReads";
+import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import { readFolderCardCount } from "./folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,

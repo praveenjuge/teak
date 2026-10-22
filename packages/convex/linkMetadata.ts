@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internalMutation, internalQuery } from "./_generated/server";
-import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./card/searchSync";
 import { queueObjectDeletion } from "./storage/r2";
 import { getR2KeyPrefix } from "./storage/r2Keys";
 import {

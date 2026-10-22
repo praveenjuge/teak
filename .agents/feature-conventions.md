@@ -33,7 +33,7 @@ Update the API, MCP and CLI docs in `apps/docs` with it (`apps/docs/AGENTS.md`).
 ## Convex data
 
 - Writes that change what search sees go through `patchCardWithSearchSync` or
-  `scheduleCardSearchSync` (`card/searchDocumentHelpers.ts`).
+  `scheduleCardSearchSync` (`card/searchSync.ts`).
 - A new boolean flag is `v.optional(v.literal(true))`, never `true | false`, so
   `false` and missing can't disagree in an index.
 - Stay backward compatible: new arguments are optional, and every client

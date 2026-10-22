@@ -12,7 +12,7 @@ import {
   accountDeletionOwnsRows,
   getAccountDeletionState,
 } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { getSessionUser, requireSessionUserId } from "../securitySessions";
 import {
   explainInvalidTagName,

@@ -16,9 +16,11 @@ import type { Id } from "./_generated/dataModel";
 import {
   searchCardsByDocument,
   searchCardsByExactTag,
+} from "./card/searchReads";
+import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
-} from "./card/searchDocumentHelpers";
+} from "./card/searchSync";
 import { mapConvexErrorToResponse } from "./publicApi/http/shared";
 import schema from "./schema";
 import { MAX_CARD_TAGS } from "./shared/tags";

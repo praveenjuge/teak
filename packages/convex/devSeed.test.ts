@@ -3,37 +3,43 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import { readCardTranscript } from "./card/textContents";
+import { DEV_SEED_CARDS } from "./devSeed";
+import {
+  CARD_DETAILS_SCENARIO_CARDS,
+  TAGS_CASE_SCENARIO_CARDS,
+} from "./devSeed/cardScenarios";
+import {
+  CHECKLIST_LONG_ITEMS,
+  OCR_LEASE_PHRASE,
+  OCR_SHARED_KEYWORD,
+  OMNIBOX_HIDDEN_TITLE,
+  REVISIT_SIZE_GROUPS,
+  SAVE_DETAILS_SAVED_URL,
+} from "./devSeed/contentPacks";
+import {
+  EXPORT_UGLY_FOLDER_NAMES,
+  type FolderScenario,
+  PALETTE_MIXED_SMART_FOLDERS,
+  SEARCH_QUALIFIER_HOSTS,
+  UGLY_FOLDER_NAMES,
+} from "./devSeed/folderPacks";
 import {
   ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
   ARCHIVE_MIX_SCENARIO_SIZE,
   archiveMixScenarioCard,
-  CARD_DETAILS_SCENARIO_CARDS,
-  CHECKLIST_LONG_ITEMS,
-  DEV_SEED_CARDS,
-  EXPORT_UGLY_FOLDER_NAMES,
-  type FolderScenario,
   HIDDEN_MIX_VOLUME_SIZE,
   hiddenMixVolumeCard,
-  OCR_LEASE_PHRASE,
-  OCR_SHARED_KEYWORD,
-  OMNIBOX_HIDDEN_TITLE,
   ORDERING_SCENARIO_PAGE_SIZE,
   ORDERING_SCENARIO_SIZE,
   orderingScenarioCard,
-  PALETTE_MIXED_SMART_FOLDERS,
-  REVISIT_SIZE_GROUPS,
-  SAVE_DETAILS_SAVED_URL,
-  SEARCH_QUALIFIER_HOSTS,
   SEARCH_QUALIFIERS_VOLUME_PAGE_SIZE,
   SEARCH_QUALIFIERS_VOLUME_SIZE,
   SHUFFLE_PARTIAL_SCENARIO_SIZE,
   searchQualifiersVolumeCard,
   TAGS_2000_SCENARIO_PAGE_SIZE,
   TAGS_2000_SCENARIO_SIZE,
-  TAGS_CASE_SCENARIO_CARDS,
   tags2000ScenarioCard,
-  UGLY_FOLDER_NAMES,
-} from "./devSeed";
+} from "./devSeed/volumeScenarios";
 import { readFolderCardCount } from "./folder/folderRows";
 import schema from "./schema";
 import {

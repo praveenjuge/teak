@@ -12,7 +12,7 @@ import {
   internalQuery,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { inferFileFormat } from "../shared/fileFormats";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import { queueCardProcessing } from "../workflowDispatch";

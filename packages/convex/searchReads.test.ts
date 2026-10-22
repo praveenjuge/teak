@@ -7,7 +7,7 @@ import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { CARD_LIST_PAGE_ROW_LIMIT } from "./card/listQuery";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");

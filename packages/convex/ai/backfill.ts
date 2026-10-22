@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { stageFailed } from "../card/processingStatus";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { queueCardProcessing } from "../workflowDispatch";
 import { cardNeedsAiMetadata, findCardsMissingAiCandidates } from "./queries";
 

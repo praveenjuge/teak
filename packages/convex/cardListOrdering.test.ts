@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");

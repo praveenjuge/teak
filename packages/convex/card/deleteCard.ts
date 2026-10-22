@@ -16,7 +16,7 @@ import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,
 } from "./cardUsage";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 import { updateCardFieldForUserHandler } from "./updateCard";
 
 export const permanentDeleteCard = mutation({

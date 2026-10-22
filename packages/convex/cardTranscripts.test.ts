@@ -9,7 +9,7 @@ import type { ActionCtx } from "./_generated/server";
 import { deleteAccountDataHandler, type OwnedCardIds } from "./accountDeletion";
 import { initializeCardProcessingState } from "./card/processingLifecycle";
 import type { CardWithUrls } from "./card/queryUtils";
-import { syncCardSearchDocumentHandler } from "./card/searchDocumentHelpers";
+import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import { withTranscripts } from "./card/textContents";
 import schema from "./schema";
 

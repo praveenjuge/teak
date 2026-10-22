@@ -33,7 +33,7 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch, withUrlHost } from "./searchDocumentHelpers";
+import { syncCardSearch, withUrlHost } from "./searchSync";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),

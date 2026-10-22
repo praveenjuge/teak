@@ -8,7 +8,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   patchCardWithSearchSync,
   syncCardSearchDocumentHandler,
-} from "./card/searchDocumentHelpers";
+} from "./card/searchSync";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");

@@ -26,7 +26,7 @@ import {
 } from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 import { newShuffleKey } from "./shuffle";
 import { normalizeCardTags } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";

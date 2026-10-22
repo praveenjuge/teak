@@ -19,7 +19,7 @@ import {
   updateComponentUser,
 } from "./__tests__/helpers/workosOwner.test-utils";
 import { api as backendApi, components } from "./_generated/api";
-import { syncCardSearchTagsBatchHandler } from "./card/searchDocumentHelpers";
+import { syncCardSearchTagsBatchHandler } from "./card/searchSync";
 import schema from "./schema";
 import { API_KEY_TOKEN_PREFIX } from "./shared/apiKeyFormat";
 

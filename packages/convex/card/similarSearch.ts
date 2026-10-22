@@ -10,7 +10,7 @@ import {
 } from "../shared/search/semantic";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
 import { scanInBatches } from "./scanInBatches";
-import { buildCardSearchText } from "./searchDocumentHelpers";
+import { buildCardSearchText } from "./searchSync";
 
 export const isSimilarAnchorAvailable = async (
   ctx: QueryCtx,

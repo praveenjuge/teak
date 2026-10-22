@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { CardWithUrls } from "../../../card/queryUtils";
-import { serializeListCard } from "../../../publicApi/http/validation";
+import { serializeListCard } from "../../../publicApi/http/serializers";
 import { testId } from "../../helpers/convex.test-utils";
 
 const listCard = (

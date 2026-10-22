@@ -9,7 +9,7 @@ import {
   query,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { folderColorValidator } from "../schema";
 import {
   getSessionUser,

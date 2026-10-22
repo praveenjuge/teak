@@ -82,7 +82,7 @@ or is due for, a vector (`packages/convex/embedding/`).
 - **What is embedded.** `buildEmbeddingText` joins the title, description, AI
   summary, user and AI tags, notes, visual styles, and the first 2,000
   characters of the body (content, extracted document text, or transcript).
-- **When.** The search sync (`card/searchDocumentHelpers.ts`) marks a card
+- **When.** The search sync (`card/searchSync.ts`) marks a card
   whenever its searchable text changes, including AI metadata writes, so card
   processing has no embedding step and an embedding failure never fails a
   card. A mark sets `dueAt` 30 seconds out and schedules `embedDue`; later

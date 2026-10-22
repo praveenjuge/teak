@@ -10,7 +10,7 @@ import {
   internalMutation,
   internalQuery,
 } from "../_generated/server";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { callFilesWorkerJson } from "../storage/filesWorkerClient";
 import {
   ocrBackfillArgs,

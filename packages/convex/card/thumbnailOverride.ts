@@ -38,7 +38,7 @@ import {
   PENDING_UPLOAD_CARD_ID,
   queueObjectDeletion,
 } from "../storage/r2";
-import { patchCardWithSearchSync } from "./searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./searchSync";
 
 export const THUMBNAIL_ROLE = "thumbnail-override";
 export const THUMBNAIL_PENDING_ROLE = "thumbnail-override-pending";

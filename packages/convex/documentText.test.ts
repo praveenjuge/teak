@@ -12,8 +12,8 @@ import { documentTextKey } from "./card/documentText";
 import {
   FILE_TEXT_SEARCH_LIMIT,
   searchCardsByDocument,
-  syncCardSearchDocumentHandler,
-} from "./card/searchDocumentHelpers";
+} from "./card/searchReads";
+import { syncCardSearchDocumentHandler } from "./card/searchSync";
 import schema from "./schema";
 import { cardStorageObjectKeys } from "./storage/r2";
 

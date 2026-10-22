@@ -3,7 +3,7 @@ import type { Doc } from "../../_generated/dataModel";
 import {
   buildCardSearchText,
   isStaleTagSyncInvocation,
-} from "../../card/searchDocumentHelpers";
+} from "../../card/searchSync";
 
 describe("isStaleTagSyncInvocation", () => {
   test("runs an invocation scheduled for the current generation", () => {

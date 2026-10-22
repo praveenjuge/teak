@@ -2,7 +2,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { syncCardSearch } from "./card/searchDocumentHelpers";
+import { syncCardSearch } from "./card/searchSync";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
