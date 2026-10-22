@@ -151,6 +151,8 @@ describe("image analysis", () => {
       make: "Teak Camera Co",
       model: "Fixture One",
       takenAt: Date.parse("2026-05-17T09:00:05Z"),
+      takenAtClock: Date.parse("2026-05-17T14:30:05Z"),
+      takenAtOffset: 330,
     });
     expect(result).toMatchObject({ height: 30, width: 40 });
   });

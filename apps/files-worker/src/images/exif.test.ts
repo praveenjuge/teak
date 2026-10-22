@@ -19,6 +19,8 @@ const FIXTURE_FACTS = {
   make: "Teak Camera Co",
   model: "Fixture One",
   takenAt: Date.parse("2026-05-17T09:00:05Z"),
+  takenAtClock: Date.parse("2026-05-17T14:30:05Z"),
+  takenAtOffset: 330,
 };
 
 const tiffFromJpeg = (jpeg: Uint8Array): Uint8Array => {
@@ -26,6 +28,14 @@ const tiffFromJpeg = (jpeg: Uint8Array): Uint8Array => {
   const length =
     (jpeg[marker - 2] as number) * 256 + (jpeg[marker - 1] as number);
   return jpeg.slice(marker + 6, marker - 2 + length);
+};
+
+// Same length as "+05:30", so every later TIFF offset stays valid.
+const withOffset = (offset: string): Uint8Array => {
+  expect(offset).toHaveLength(6);
+  const tiff = tiffFromJpeg(fixture("fixture-exif.jpg"));
+  const text = Buffer.from(tiff).toString("latin1").replace("+05:30", offset);
+  return new Uint8Array(Buffer.from(text, "latin1"));
 };
 
 const box = (type: string, ...parts: Uint8Array[]): Uint8Array => {
@@ -131,6 +141,8 @@ describe("readExifFacts", () => {
     const facts = await readExifFacts(read, size);
     expect(facts?.make).toBe("Teak Camera Co");
     expect(facts?.takenAt).toBe(FIXTURE_FACTS.takenAt);
+    expect(facts?.takenAtClock).toBe(FIXTURE_FACTS.takenAtClock);
+    expect(facts?.takenAtOffset).toBe(330);
     expect(facts).not.toHaveProperty("latitude");
   });
 
@@ -150,12 +162,37 @@ describe("readExifFacts", () => {
   });
 
   test("reads a capture time without an offset as UTC", () => {
+    for (const offset of ["\0".repeat(6), "xx:xx "]) {
+      const facts = parseTiffExif(withOffset(offset));
+      expect(facts?.takenAt).toBe(Date.parse("2026-05-17T14:30:05Z"));
+      expect(facts?.takenAtClock).toBe(FIXTURE_FACTS.takenAtClock);
+      expect(facts).not.toHaveProperty("takenAtOffset");
+    }
+  });
+
+  test("keeps the camera's clock time and stores a west-of-UTC offset as negative minutes", () => {
+    const facts = parseTiffExif(withOffset("-08:00"));
+    expect(facts?.takenAt).toBe(Date.parse("2026-05-17T22:30:05Z"));
+    expect(facts?.takenAtClock).toBe(FIXTURE_FACTS.takenAtClock);
+    expect(facts?.takenAtOffset).toBe(-480);
+  });
+
+  test("leaves out an offset that is not a real zone", () => {
+    for (const offset of ["+25:00", "+05:75", "+5:30 "]) {
+      const facts = parseTiffExif(withOffset(offset));
+      expect(facts?.takenAtClock).toBe(FIXTURE_FACTS.takenAtClock);
+      expect(facts).not.toHaveProperty("takenAtOffset");
+    }
+  });
+
+  test("leaves out both clock fields when the EXIF has no capture time", () => {
     const tiff = tiffFromJpeg(fixture("fixture-exif.jpg"));
     const text = Buffer.from(tiff)
       .toString("latin1")
-      .replace("+05:30", "xx:xx");
-    expect(
-      parseTiffExif(new Uint8Array(Buffer.from(text, "latin1")))?.takenAt
-    ).toBe(Date.parse("2026-05-17T14:30:05Z"));
+      .replace("2026:05:17 14:30:05", "0000:00:00 00:00:0x");
+    const facts = parseTiffExif(new Uint8Array(Buffer.from(text, "latin1")));
+    expect(facts?.make).toBe("Teak Camera Co");
+    expect(facts).not.toHaveProperty("takenAtClock");
+    expect(facts).not.toHaveProperty("takenAtOffset");
   });
 });
