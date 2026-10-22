@@ -50,7 +50,6 @@ import {
   MAX_QUERY_SCAN,
   matchesStructuredFilters,
   normalizeCardsQueryOptions,
-  normalizeLimit,
   normalizeSort,
   normalizeTag,
   priceBoundValidator,
@@ -74,6 +73,10 @@ import {
   normalizeCardSource,
 } from "./shared/cardSource";
 import { type CardType, cardTypes } from "./shared/constants";
+import {
+  clampPublicApiLimit,
+  PUBLIC_API_MAX_BULK_ITEMS as MAX_BULK_ITEMS,
+} from "./shared/publicApiLimits";
 import { rateLimiter } from "./shared/rateLimits";
 import {
   isShuffleSeed,
@@ -82,8 +85,6 @@ import {
 } from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
 import { queueCardProcessing } from "./workflowDispatch";
-
-const MAX_BULK_ITEMS = 100;
 
 const pageInfoValidator = v.object({
   nextCursor: v.union(v.string(), v.null()),
@@ -184,7 +185,7 @@ export const searchCardsPageForUser = internalQuery({
       semantic: semanticOption(args),
       similarity: similarityOption(args),
     };
-    const limit = normalizeLimit(options.limit);
+    const limit = clampPublicApiLimit(options.limit);
     const sort = normalizeSort(options.sort);
     const decodedCursor = decodeCursor(args.cursor);
     if (
@@ -306,7 +307,7 @@ export const shuffleCardsPageForUser = internalQuery({
       semantic: semanticOption(args),
       similarity: similarityOption(args),
     };
-    const limit = normalizeLimit(options.limit);
+    const limit = clampPublicApiLimit(options.limit);
     const cursor = decodeShuffleCursor(seed, args.cursor);
     const respond = async (
       items: Doc<"cards">[],
@@ -490,7 +491,7 @@ export const scanCardsPageForUser = internalQuery({
       folderId: args.folderId ?? firstFolder,
       folderIds: args.folderId ? folderIds : otherFolders,
     });
-    const scanLimit = normalizeLimit(args.scanLimit);
+    const scanLimit = clampPublicApiLimit(args.scanLimit);
     const page = await scanCardsWithBaseQuery(
       ctx,
       userId,
@@ -632,7 +633,7 @@ export const listCardChangesForUser = internalQuery({
   returns: changesResultValidator,
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    const limit = normalizeLimit(args.limit);
+    const limit = clampPublicApiLimit(args.limit);
     const decoded = decodeChangesCursor(args.cursor);
     let activeCards: Doc<"cards">[] = [];
     const deletedIds: Id<"cards">[] = [];
