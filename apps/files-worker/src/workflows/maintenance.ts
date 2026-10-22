@@ -225,37 +225,24 @@ const collectNonCardReferences = async (
   convex: ConvexRpc,
   referenced: Set<string>
 ) => {
-  try {
-    for (const source of REFERENCE_SOURCES) {
-      let cursor: string | null = null;
-      for (let page = 0; page < MAX_SWEEP_REFERENCE_PAGES; page += 1) {
-        const result: {
-          continueCursor: string;
-          isDone: boolean;
-          keys: string[];
-        } = await convex.query(
-          internal.storage.orphanSweep.pageNonCardReferencedKeys,
-          { cursor, numItems: SWEEP_REFERENCE_PAGE_SIZE, source }
-        );
-        for (const key of result.keys) {
-          referenced.add(key);
-        }
-        if (result.isDone) {
-          break;
-        }
-        cursor = result.continueCursor;
+  for (const source of REFERENCE_SOURCES) {
+    let cursor: string | null = null;
+    for (let page = 0; page < MAX_SWEEP_REFERENCE_PAGES; page += 1) {
+      const result: {
+        continueCursor: string;
+        isDone: boolean;
+        keys: string[];
+      } = await convex.query(
+        internal.storage.orphanSweep.pageNonCardReferencedKeys,
+        { cursor, numItems: SWEEP_REFERENCE_PAGE_SIZE, source }
+      );
+      for (const key of result.keys) {
+        referenced.add(key);
       }
-    }
-  } catch (error) {
-    // A Convex deployment older than this Worker only has the one-call read.
-    if (!errorMessage(error).startsWith("convex_rpc_refused:")) {
-      throw error;
-    }
-    for (const key of await convex.query(
-      internal.storage.orphanSweep.collectNonCardReferencedKeys,
-      {}
-    )) {
-      referenced.add(key);
+      if (result.isDone) {
+        break;
+      }
+      cursor = result.continueCursor;
     }
   }
 };

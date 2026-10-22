@@ -311,8 +311,9 @@ describe("getCardTextSource", () => {
     const { t, insert, save, keyFor } = await setup();
     const pdf = await insert();
     await save(pdf, PDF_TEXT);
-    const video = await insert({
-      type: "video",
+    const video = await insert({ type: "video" });
+    await t.mutation(internal.workflows.aiMetadata.mutations.updateCardAI, {
+      cardId: video,
       aiTranscript: "Hello from the clip",
     });
     const note = await insert({

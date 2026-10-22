@@ -4,9 +4,8 @@ import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
-import { codePointLength } from "../shared/utils/codePoints";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
-import { readCardTranscript, transcriptPreview } from "./textContents";
+import { readCardTranscript } from "./textContents";
 
 export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -42,15 +41,9 @@ export const omitCardText = <T extends Doc<"cards">>(
 ): Omit<T, "aiOcrText" | "aiTranscript"> & {
   hasOcrText?: true;
 } => {
-  const { aiOcrText, aiTranscript, ...rest } = card;
+  const { aiOcrText, aiTranscript: _aiTranscript, ...rest } = card;
   return {
     ...rest,
-    ...(aiTranscript && rest.aiTranscriptCharCount === undefined
-      ? {
-          aiTranscriptCharCount: codePointLength(aiTranscript),
-          aiTranscriptPreview: transcriptPreview(aiTranscript),
-        }
-      : {}),
     ...(aiOcrText?.trim() ? { hasOcrText: true as const } : {}),
   };
 };

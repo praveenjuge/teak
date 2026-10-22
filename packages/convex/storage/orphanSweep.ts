@@ -175,53 +175,6 @@ export const pageNonCardReferencedKeys = internalQuery({
   },
 });
 
-// The Files Worker before `pageNonCardReferencedKeys` reads this in one call
-// (`.agents/sunset.md`).
-export const collectNonCardReferencedKeys = internalQuery({
-  args: {},
-  returns: v.array(v.string()),
-  handler: async (ctx) => {
-    const keys: string[] = [];
-    for await (const session of ctx.db.query("fileUploadSessions")) {
-      keys.push(session.sourceKey);
-    }
-    for await (const job of ctx.db.query("importJobs")) {
-      keys.push(job.sourceKey);
-      if (job.reportKey) {
-        keys.push(job.reportKey);
-      }
-      keys.push(
-        ...importStagedPartKeys(
-          buildR2UserPrefix(job.userId),
-          job._id,
-          job.stagedItems
-        )
-      );
-    }
-    const liveSince = Date.now() - LINKED_PDF_CLAIM_LIVE_MS;
-    for (const status of ["pending", "failed"] as const) {
-      for await (const row of ctx.db
-        .query("linkedPdfs")
-        .withIndex("by_status", (q) => q.eq("status", status))) {
-        if (row.updatedAt >= liveSince) {
-          keys.push(row.fileKey);
-        }
-      }
-    }
-    for await (const job of ctx.db.query("exportJobs")) {
-      if (!job.artifactKey) {
-        continue;
-      }
-      keys.push(
-        job.artifactKey,
-        `${job.artifactKey}.checkpoint.json`,
-        `${job.artifactKey}.result.json`
-      );
-    }
-    return keys;
-  },
-});
-
 export const logOrphanReport = internalMutation({
   args: {
     orphanCount: v.number(),

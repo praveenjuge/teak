@@ -256,8 +256,7 @@ export const redactCard = (card: Doc<"cards">) => ({
   hasUrl: card.url !== undefined,
   aiTagCount: card.aiTags?.length ?? 0,
   hasAiSummary: Boolean(card.aiSummary),
-  hasAiTranscript:
-    Boolean(card.aiTranscript) || card.aiTranscriptCharCount !== undefined,
+  hasAiTranscript: card.aiTranscriptCharCount !== undefined,
   isRedacted: true as const,
 });
 

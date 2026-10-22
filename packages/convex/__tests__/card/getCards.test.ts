@@ -83,7 +83,16 @@ const buildSearchDb = (cards: any[], cardQuery = buildQuery(cards)) => ({
   ),
   query: mock((table: string) => {
     if (table === "cardSearchDocuments") {
-      return buildQuery(cards.map((card) => ({ cardId: card._id })));
+      return buildQuery(
+        cards.map((card) => ({
+          cardId: card._id,
+          cardCreatedAt: card.createdAt,
+          cardCreationTime: card._creationTime,
+          type: card.type,
+          userId: card.userId,
+          searchableText: card.content ?? "",
+        }))
+      );
     }
     return table === "semanticSearchResults" ? buildQuery([]) : cardQuery;
   }),

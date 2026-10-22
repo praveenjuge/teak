@@ -76,7 +76,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "dataExport:findExpiredReadyJobs",
   "embedding/sweep:sweepVectorLedger",
   "publicApiTombstones:pruneExpiredCardTombstones",
-  "storage/orphanSweep:collectNonCardReferencedKeys",
   "storage/orphanSweep:listPrefix",
   "storage/orphanSweep:logOrphanReport",
   "storage/orphanSweep:pageNonCardReferencedKeys",

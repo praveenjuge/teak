@@ -299,8 +299,8 @@ export const cardValidator = v.object({
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   /**
-   * Transcripts saved before they moved to `cardTextContents`. New ones are
-   * never written here; `migration/moveCardTranscripts` moves the rest.
+   * Unused: transcripts live in `cardTextContents`, and no card holds one
+   * here. Dropped in a later deploy (.agents/sunset.md).
    */
   aiTranscript: v.optional(v.string()),
   /** Set when the transcript is in `cardTextContents`: its length. */

@@ -7,7 +7,6 @@ const LINE_BREAK = /\r?\n/;
 
 type TitledCard = Pick<
   Doc<"cards">,
-  | "aiTranscript"
   | "aiTranscriptPreview"
   | "content"
   | "fileMetadata"
@@ -46,7 +45,7 @@ export const cardPreviewText = (
 ): string | undefined =>
   compactText(
     card.type === "audio"
-      ? (card.aiTranscriptPreview ?? card.aiTranscript)
+      ? card.aiTranscriptPreview
       : replaceCardLinkTokens(card.content ?? "", linkTitle)
   );
 

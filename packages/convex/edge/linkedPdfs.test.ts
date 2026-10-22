@@ -138,6 +138,18 @@ const setup = async () => {
 
 const refusal = (code: string) => ({ data: expect.objectContaining({ code }) });
 
+/** The keys of pending claims the orphan sweep keeps. */
+const pendingClaimKeys = async (
+  t: Awaited<ReturnType<typeof setup>>["t"]
+): Promise<string[]> =>
+  (
+    await t.query(internal.storage.orphanSweep.pageNonCardReferencedKeys, {
+      cursor: null,
+      numItems: 100,
+      source: "pendingLinkedPdfs",
+    })
+  ).keys;
+
 describe("Save PDF", () => {
   test("stores the paper's PDF as a new document card", async () => {
     const calls = stubWorker();
@@ -584,9 +596,7 @@ describe("Save PDF", () => {
       userId: "owner",
     });
 
-    expect(
-      await t.query(internal.storage.orphanSweep.collectNonCardReferencedKeys)
-    ).toContain(claim.fileKey);
+    expect(await pendingClaimKeys(t)).toContain(claim.fileKey);
   });
 
   test("an abandoned claim's PDF is reported as orphaned", async () => {
@@ -607,9 +617,7 @@ describe("Save PDF", () => {
       }
     });
 
-    expect(
-      await t.query(internal.storage.orphanSweep.collectNonCardReferencedKeys)
-    ).not.toContain(claim.fileKey);
+    expect(await pendingClaimKeys(t)).not.toContain(claim.fileKey);
   });
 
   test("deleting the link keeps the document it made", async () => {

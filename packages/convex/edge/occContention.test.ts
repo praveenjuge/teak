@@ -415,7 +415,6 @@ describe("OCC contention behavior", () => {
       const firstId = await insertCard(ctx, "user-4", {
         aiSummary: "summary",
         aiTags: ["ai-tag"],
-        aiTranscript: "transcript",
         content: "content",
         metadataDescription: "description",
         metadataTitle: "title",
@@ -424,7 +423,13 @@ describe("OCC contention behavior", () => {
       });
       const first = await ctx.db.get("cards", firstId);
       expect(first).not.toBeNull();
-      expect(buildCardSearchText(first as Doc<"cards">).split("\n")).toEqual([
+      expect(
+        buildCardSearchText(
+          first as Doc<"cards">,
+          undefined,
+          "transcript"
+        ).split("\n")
+      ).toEqual([
         "content",
         "notes",
         "summary",

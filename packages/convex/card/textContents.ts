@@ -19,10 +19,7 @@ const MAX_TRANSCRIPT_PARTS = 32;
 const MAX_TEXT_ROWS_PER_CARD = MAX_TRANSCRIPT_PARTS + 1;
 const TRANSCRIPT_PREVIEW_CHARS = 280;
 
-type TranscriptCard = Pick<
-  Doc<"cards">,
-  "_id" | "aiTranscript" | "aiTranscriptCharCount"
->;
+type TranscriptCard = Pick<Doc<"cards">, "_id" | "aiTranscriptCharCount">;
 
 const utf8Length = (codePoint: number): number => {
   if (codePoint < 0x80) {
@@ -84,9 +81,8 @@ const transcriptRows = async (
     .sort((left, right) => (left.part ?? 0) - (right.part ?? 0));
 
 /**
- * The card's transcript: from `cardTextContents`, or from the card while
- * `migration/moveCardTranscripts` hasn't reached it. `maxParts` reads only
- * the start, for callers that need a few thousand characters.
+ * The card's transcript, from `cardTextContents`. `maxParts` reads only the
+ * start, for callers that need a few thousand characters.
  */
 export const readCardTranscript = async (
   ctx: Pick<QueryCtx, "db">,
@@ -94,11 +90,11 @@ export const readCardTranscript = async (
   options: { maxParts?: number } = {}
 ): Promise<string | undefined> => {
   if (card.aiTranscriptCharCount === undefined) {
-    return card.aiTranscript;
+    return;
   }
   const rows = await transcriptRows(ctx, card._id);
   if (rows.length === 0) {
-    return card.aiTranscript;
+    return;
   }
   return rows
     .slice(0, options.maxParts ?? rows.length)
@@ -229,10 +225,7 @@ export const withTranscripts = async <
   let batch: Id<"cards">[] = [];
   let batchBytes = 0;
   for (const card of cards) {
-    if (
-      card.aiTranscript !== undefined ||
-      card.aiTranscriptCharCount === undefined
-    ) {
+    if (card.aiTranscriptCharCount === undefined) {
       continue;
     }
     const bytes = card.aiTranscriptCharCount * 4;
