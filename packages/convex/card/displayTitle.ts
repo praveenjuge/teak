@@ -3,6 +3,7 @@ import { replaceCardLinkTokens } from "../shared/cardLinks";
 
 const CONTENT_PREVIEW_LENGTH = 280;
 const WWW_PREFIX = /^www\./;
+const LINE_BREAK = /\r?\n/;
 
 type TitledCard = Pick<
   Doc<"cards">,
@@ -65,7 +66,7 @@ export const cardDisplayTitle = (
     card.metadataTitle ||
     card.fileMetadata?.fileName ||
     (card.type === "link" ? linkHostname(card.url) : undefined) ||
-    previewText?.split("\n", 1)[0] ||
+    previewText?.split(LINE_BREAK, 1)[0] ||
     (card.type === "palette" ? "Color palette" : "Saved card")
   );
 };
