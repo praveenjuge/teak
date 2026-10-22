@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isImeComposing } from "@/lib/keyboardShortcuts";
 
 interface TagManagementModalProps {
   aiTags: string[];
@@ -42,6 +43,9 @@ export function TagManagementModal({
   }, [open]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isImeComposing(e)) {
+      return;
+    }
     if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
       onAddTag();

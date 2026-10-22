@@ -75,14 +75,69 @@ const isAllowedTrailingText = (text: string): boolean => {
   return false;
 };
 
-const findClosingIndex = (value: string, closing: string): number => {
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
+const SPACE_CHAR = /\s/;
+
+/**
+ * Whether `inner` closes the quote and opens another, as in `"Yes" and "No"`,
+ * so the outer marks belong to two quotes. A quote between letters, as in
+ * "it's", or escaped with a backslash is not a quote mark.
+ */
+const closesAndReopens = (
+  inner: string,
+  opening: string,
+  closing: string
+): boolean => {
+  let closed = false;
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    const previous = inner[i - 1];
+    const next = inner[i + 1];
+    if (previous === "\\" || (char !== opening && char !== closing)) {
+      continue;
+    }
+    if (opening !== closing) {
+      if (char === closing) {
+        closed = true;
+      } else if (closed) {
+        return true;
+      }
+      continue;
+    }
+    if (closed) {
+      if (
+        !(previous && WORD_CHAR.test(previous)) &&
+        next &&
+        !SPACE_CHAR.test(next)
+      ) {
+        return true;
+      }
+    } else if (
+      previous &&
+      !SPACE_CHAR.test(previous) &&
+      !(next && WORD_CHAR.test(next))
+    ) {
+      closed = true;
+    }
+  }
+  return false;
+};
+
+const findClosingIndex = (
+  value: string,
+  opening: string,
+  closing: string
+): number => {
   for (let i = value.length - 1; i > 0; i--) {
     if (value[i] !== closing) {
       continue;
     }
 
     const trailing = value.slice(i + 1);
-    if (isAllowedTrailingText(trailing)) {
+    if (
+      isAllowedTrailingText(trailing) &&
+      !closesAndReopens(value.slice(1, i), opening, closing)
+    ) {
       return i;
     }
   }
@@ -109,7 +164,7 @@ export const normalizeQuoteContent = (
       break;
     }
 
-    const closingIndex = findClosingIndex(working, closing);
+    const closingIndex = findClosingIndex(working, first, closing);
     if (closingIndex === -1) {
       break;
     }

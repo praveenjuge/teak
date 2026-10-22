@@ -777,6 +777,32 @@ describe("card/updateCard.ts", () => {
     expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
   });
 
+  test("deleting a card already in Trash keeps its deletion time", async () => {
+    const ctx = withTestSession({
+      auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
+      db: {
+        get: mock().mockResolvedValue({
+          _id: "c1",
+          userId: "u1",
+          type: "text",
+          isDeleted: true,
+          deletedAt: 123_456,
+        }),
+        patch: mock().mockResolvedValue(null),
+      },
+      scheduler: { runAfter: mock() },
+    } as any);
+
+    const handler = (updateCardField as any).handler ?? updateCardField;
+    await handler(ctx, { cardId: "c1", field: "delete" });
+
+    expect(ctx.db.patch).not.toHaveBeenCalledWith(
+      "cards",
+      "c1",
+      expect.objectContaining({ deletedAt: expect.any(Number) })
+    );
+  });
+
   test("updateCardField restores deleted card", async () => {
     const ctx = withTestSession({
       auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },

@@ -197,3 +197,13 @@ export function registerUploadFiles(handler: () => boolean): () => void {
 export function pressUploadFiles(): boolean {
   return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
 }
+
+/**
+ * Whether a key press belongs to IME composition (Japanese, Chinese,
+ * Korean): its Enter confirms the text and is not a submit. Safari sends that
+ * Enter with `isComposing` false but `keyCode` 229.
+ */
+export const isImeComposing = (event: {
+  keyCode?: number;
+  nativeEvent?: { isComposing?: boolean };
+}): boolean => event.nativeEvent?.isComposing === true || event.keyCode === 229;

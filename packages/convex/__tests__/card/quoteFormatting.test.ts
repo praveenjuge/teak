@@ -321,6 +321,25 @@ describe("normalizeQuoteContent", () => {
       expect(result.text).toBe("Hello (2024)");
     });
 
+    it.each([
+      '"Yes" and "No"',
+      "`npm i` then `bun dev`",
+      "'a' vs 'b'",
+      '"key": "value"',
+      "\u201CYes\u201D and \u201CNo\u201D",
+    ])("keeps %s whole: its outer marks belong to two quotes", (text) => {
+      expect(normalizeQuoteContent(text)).toEqual({
+        text,
+        removedQuotes: false,
+      });
+    });
+
+    it("strips quotes around text with an apostrophe", () => {
+      expect(normalizeQuoteContent("'It's fine' — Ada").text).toBe(
+        "It's fine — Ada"
+      );
+    });
+
     it("should handle quote followed by comma and space", () => {
       const result = normalizeQuoteContent('"Hello", world');
       expect(result.text).toBe('"Hello", world');

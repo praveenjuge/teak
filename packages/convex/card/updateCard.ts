@@ -550,6 +550,10 @@ export const updateCardFieldForUserHandler = async (
       break;
 
     case "delete":
+      // A repeat delete must not restart the card's 30 days in Trash.
+      if (card.isDeleted) {
+        return { pipelineDelayMs: null };
+      }
       updateData.isDeleted = true;
       updateData.deletedAt = now;
       break;

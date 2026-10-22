@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { isImeComposing } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { PageHeader } from "../../screens/PageHeader";
@@ -306,6 +307,9 @@ export function SearchBar({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) {
+      return;
+    }
     if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
       const next = active + (e.key === "ArrowDown" ? 1 : -1);

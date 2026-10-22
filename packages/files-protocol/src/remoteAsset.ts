@@ -91,12 +91,23 @@ export const guessVideoContentType = (url: string): string | null => {
   return extension ? (VIDEO_TYPES[extension] ?? null) : null;
 };
 
+/** Types that say only "some bytes", so the URL decides instead. */
+const GENERIC_CONTENT_TYPES = new Set([
+  "application/octet-stream",
+  "binary/octet-stream",
+]);
+
+const specificContentType = (headerValue: string | null) => {
+  const type = headerValue?.split(";")[0]?.trim().toLowerCase();
+  return type && !GENERIC_CONTENT_TYPES.has(type) ? type : undefined;
+};
+
 export const resolveRemoteAssetContentType = (
   headerValue: string | null,
   url: string,
   fallbackContentType?: string
 ): string | null =>
-  headerValue?.split(";")[0]?.trim().toLowerCase() ||
+  specificContentType(headerValue) ||
   fallbackContentType ||
   guessImageContentType(url) ||
   guessVideoContentType(url);
