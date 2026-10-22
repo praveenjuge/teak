@@ -73,14 +73,20 @@ export const drainStorageBatch = async (
   }
   const keys = [...new Set(page.keys)];
   if (keys.length > 0) {
+    // Freeze every key before giving up on one, so each pending write's
+    // lease starts expiring in the same attempt.
+    let pending = false;
     for (const key of keys) {
       const frozen = await ops<{ frozen: boolean }>({
         op: "freeze-object",
         params: { key },
       });
       if (frozen.kind !== "ok" || !frozen.data.frozen) {
-        throw new Error("deletion_object_write_pending");
+        pending = true;
       }
+    }
+    if (pending) {
+      throw new Error("deletion_object_write_pending");
     }
     const deleted = await ops({ op: "delete-objects", params: { keys } });
     if (deleted.kind !== "ok") {

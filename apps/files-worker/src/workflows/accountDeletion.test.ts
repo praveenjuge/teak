@@ -267,15 +267,25 @@ describe("runAccountDeletion", () => {
       writersPrepared: true,
     });
     const test = setup(backend);
-    const ops: FilesOpCaller = (spec) =>
-      spec.op === "freeze-object"
-        ? Promise.resolve({ data: { frozen: false } as never, kind: "ok" })
-        : test.ops(spec);
+    const frozenKeys = new Set<string>();
+    const ops: FilesOpCaller = (spec) => {
+      if (spec.op !== "freeze-object") {
+        return test.ops(spec);
+      }
+      const key = String(spec.params.key);
+      frozenKeys.add(key);
+      return Promise.resolve({
+        data: { frozen: key !== keys(2)[0] } as never,
+        kind: "ok",
+      });
+    };
 
     await expect(
       runAccountDeletion(test.run, { convex: test.convex, ops })
     ).rejects.toThrow("deletion_object_write_pending");
 
+    // The busy first key doesn't stop the rest being frozen.
+    expect([...frozenKeys]).toEqual(keys(2));
     expect(backend.failures).toEqual([
       {
         generation: 1,

@@ -151,12 +151,20 @@ const restoreObject = (value: unknown): R2Object | null => {
 };
 
 /**
+ * How long a write's lease blocks a freeze. A write that throws leaves its
+ * lease set, because R2 may still commit it; a day later R2 has settled it
+ * either way, so the key can be frozen and deleted.
+ */
+export const WRITE_LEASE_MS = 24 * 60 * 60 * 1000;
+
+/**
  * Durable state of one object key's gate. `active` holds the token of the
- * admitted write; a write that throws leaves it set, because R2 may still
- * commit it, so the key can never be certified as deleted.
+ * admitted write and `activeSince` when it was admitted. Leases written
+ * before `activeSince` existed get it from the first freeze that sees them.
  */
 interface GateState {
   active: string;
+  activeSince: number;
   frozen: true;
   uploadId: string;
   uploadKey: string;
@@ -200,7 +208,19 @@ export class ObjectDeletionGate {
     const storage = this.state.storage;
     const busy = await storage.transaction(async (txn) => {
       await txn.put("frozen", true);
-      return Boolean(await readGate(txn, "active"));
+      if (!(await readGate(txn, "active"))) {
+        return false;
+      }
+      const since = await readGate(txn, "activeSince");
+      if (since === undefined) {
+        await txn.put("activeSince", Date.now());
+        return true;
+      }
+      if (Date.now() - since < WRITE_LEASE_MS) {
+        return true;
+      }
+      await txn.delete(["active", "activeSince"]);
+      return false;
     });
     if (!busy) {
       const uploadId = await readGate(storage, "uploadId");
@@ -293,7 +313,7 @@ export class ObjectDeletionGate {
       ) {
         return false;
       }
-      await txn.put("active", token);
+      await txn.put({ active: token, activeSince: Date.now() });
       return true;
     });
     if (!admitted) {
@@ -303,7 +323,7 @@ export class ObjectDeletionGate {
     const response = await this.writes[op](key, request);
     await this.state.storage.transaction(async (txn) => {
       if ((await readGate(txn, "active")) === token) {
-        await txn.delete("active");
+        await txn.delete(["active", "activeSince"]);
       }
     });
     return response;

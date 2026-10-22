@@ -1,5 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import { freezeObject, gatedBucket, ObjectDeletionGate } from "./deletionGate";
+import { describe, expect, setSystemTime, test } from "bun:test";
+import {
+  freezeObject,
+  gatedBucket,
+  ObjectDeletionGate,
+  WRITE_LEASE_MS,
+} from "./deletionGate";
 import { FakeBucket, withObjectGates } from "./test/testsupport";
 
 const fixture = (put: () => Promise<unknown> = () => Promise.resolve(null)) => {
@@ -142,6 +147,46 @@ describe("exact object deletion fence", () => {
     t.values.set("active", "crashed-operation");
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
     expect((await t.request("put", "data")).status).toBe(409);
+  });
+  test("a failed write blocks freezing for a day, then the key can be deleted", async () => {
+    const start = Date.now();
+    try {
+      const t = fixture(() => Promise.reject(new Error("R2 unavailable")));
+      await expect(t.request("put", "data")).rejects.toThrow("R2 unavailable");
+
+      setSystemTime(new Date(start + WRITE_LEASE_MS - 1));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: false,
+      });
+      setSystemTime(new Date(start + WRITE_LEASE_MS));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: true,
+      });
+      expect(t.values.has("active")).toBe(false);
+      expect((await t.request("put", "late")).status).toBe(409);
+    } finally {
+      setSystemTime();
+    }
+  });
+  test("a lease from before leases kept their start expires a day after a freeze first sees it", async () => {
+    const start = Date.now();
+    try {
+      const t = fixture();
+      t.values.set("active", "crashed-operation");
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: false,
+      });
+      setSystemTime(new Date(start + WRITE_LEASE_MS - 1));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: false,
+      });
+      setSystemTime(new Date(start + WRITE_LEASE_MS));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: true,
+      });
+    } finally {
+      setSystemTime();
+    }
   });
   test("aborting through the gate clears the captured upload before freeze", async () => {
     const t = fixture();
