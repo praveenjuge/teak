@@ -147,21 +147,18 @@ const assertNameAvailable = async (
   exceptId?: Id<"folders">
 ) => {
   const nameKey = folderNameKey(name);
-  const sameName = await ctx.db
+  // Folders being deleted don't count toward the limit, so read past them.
+  for await (const folder of ctx.db
     .query("folders")
     .withIndex("by_userId_and_nameKey", (q) =>
       q.eq("userId", userId).eq("nameKey", nameKey)
-    )
-    .take(MAX_FOLDERS_PER_USER);
-  if (
-    sameName.some(
-      (folder) => folder._id !== exceptId && folder.deletingAt === undefined
-    )
-  ) {
-    throw new ConvexError({
-      code: "CONFLICT",
-      message: FOLDER_ERROR_MESSAGES.DUPLICATE_NAME,
-    });
+    )) {
+    if (folder._id !== exceptId && folder.deletingAt === undefined) {
+      throw new ConvexError({
+        code: "CONFLICT",
+        message: FOLDER_ERROR_MESSAGES.DUPLICATE_NAME,
+      });
+    }
   }
 };
 

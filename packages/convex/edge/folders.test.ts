@@ -177,6 +177,28 @@ describe("folders", () => {
     );
   });
 
+  test(`a name is still taken behind more than ${MAX_FOLDERS_PER_USER} folders being deleted`, async () => {
+    const { t, create } = await setup();
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= MAX_FOLDERS_PER_USER; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: "Y",
+          nameKey: "y",
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          deletingAt: index,
+        });
+      }
+    });
+    await create("Y");
+    await expect(create("y")).rejects.toThrow(
+      "A folder with this name already exists"
+    );
+  });
+
   test("names must be present and at most 300 characters", async () => {
     const { create } = await setup();
     await expect(create("   ")).rejects.toThrow("Name the folder");
