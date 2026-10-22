@@ -99,6 +99,7 @@ export const PLATFORM_EXACT = [
   "TEMP",
   "TMP",
   "TMPDIR",
+  "TZ",
   "USER",
   "VERCEL",
   "VERCEL_ENV",

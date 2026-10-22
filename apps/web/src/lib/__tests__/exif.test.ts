@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { formatCamera, formatExifFields, formatExposureTime } from "../exif";
 
 describe("formatExifFields", () => {
@@ -10,7 +10,7 @@ describe("formatExifFields", () => {
       iso: 400,
       make: "Canon",
       model: "Canon EOS R5",
-      takenAt: Date.UTC(2026, 4, 17, 9, 0, 5),
+      takenAtClock: Date.UTC(2026, 4, 17, 9, 0, 5),
     });
     expect(fields.map((field) => field.label)).toEqual([
       "Camera",
@@ -25,9 +25,10 @@ describe("formatExifFields", () => {
     expect(fields).toContainEqual({ label: "Aperture", value: "f/1.8" });
     expect(fields).toContainEqual({ label: "Focal length", value: "50 mm" });
     expect(fields).toContainEqual({ label: "ISO", value: "400" });
-    expect(fields.find((field) => field.label === "Taken")?.value).toContain(
-      "2026"
-    );
+    expect(fields).toContainEqual({
+      label: "Taken",
+      value: "May 17, 2026, 09:00 AM",
+    });
   });
 
   test("never shows GPS coordinates, even when they are the only facts", () => {
@@ -67,6 +68,82 @@ describe("formatExifFields", () => {
       { label: "Aperture", value: "f/8" },
       { label: "Focal length", value: "24 mm" },
     ]);
+  });
+});
+
+// takenAtClock is the camera's clock time encoded as UTC. Run these in zones
+// far from UTC, where reading it as an instant moves the hour and the date.
+const VIEWER_ZONES = ["America/Los_Angeles", "Pacific/Auckland"];
+// What 2026-05-17T09:00Z read in each zone before takenAtClock existed.
+const LEGACY_READING: Record<string, string> = {
+  "America/Los_Angeles": "May 17, 2026, 02:00 AM",
+  "Pacific/Auckland": "May 17, 2026, 09:00 PM",
+};
+const originalTz = process.env.TZ;
+
+const takenValue = (exif: Parameters<typeof formatExifFields>[0]) =>
+  formatExifFields(exif).find((field) => field.label === "Taken")?.value;
+
+describe.each(VIEWER_ZONES)("Taken, viewed in %s", (zone) => {
+  beforeAll(() => {
+    process.env.TZ = zone;
+  });
+
+  afterAll(() => {
+    if (originalTz === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTz;
+    }
+  });
+
+  test("runs in that zone", () => {
+    expect(new Date(Date.UTC(2026, 4, 17, 9)).getTimezoneOffset()).not.toBe(0);
+  });
+
+  test.each([
+    [Date.UTC(2026, 4, 17, 9, 0, 5), "May 17, 2026, 09:00 AM"],
+    [Date.UTC(2026, 4, 17, 0, 30), "May 17, 2026, 12:30 AM"],
+    [Date.UTC(2026, 4, 17, 23, 45), "May 17, 2026, 11:45 PM"],
+    [Date.UTC(2026, 11, 31, 23, 59), "Dec 31, 2026, 11:59 PM"],
+  ])("shows the camera's clock time %p as %p", (takenAtClock, expected) => {
+    expect(takenValue({ takenAtClock })).toBe(expected);
+  });
+
+  test.each([
+    [330, "May 17, 2026, 09:00 AM UTC+5:30"],
+    [-480, "May 17, 2026, 09:00 AM UTC-8"],
+    [-570, "May 17, 2026, 09:00 AM UTC-9:30"],
+    [0, "May 17, 2026, 09:00 AM UTC"],
+  ])("names the recorded offset %p", (takenAtOffset, expected) => {
+    expect(
+      takenValue({ takenAtClock: Date.UTC(2026, 4, 17, 9), takenAtOffset })
+    ).toBe(expected);
+  });
+
+  test.each([Number.NaN, 5.5, 15 * 60, -15 * 60])(
+    "leaves out an unbelievable offset %p",
+    (takenAtOffset) => {
+      expect(
+        takenValue({ takenAtClock: Date.UTC(2026, 4, 17, 9), takenAtOffset })
+      ).toBe("May 17, 2026, 09:00 AM");
+    }
+  );
+
+  test("prefers the clock time over the instant released apps read", () => {
+    expect(
+      takenValue({
+        takenAt: Date.UTC(2026, 4, 17, 3, 30),
+        takenAtClock: Date.UTC(2026, 4, 17, 9),
+        takenAtOffset: 330,
+      })
+    ).toBe("May 17, 2026, 09:00 AM UTC+5:30");
+  });
+
+  test("reads a photo processed before takenAtClock in the viewer's zone, as before", () => {
+    expect(takenValue({ takenAt: Date.UTC(2026, 4, 17, 9) })).toBe(
+      LEGACY_READING[zone]
+    );
   });
 });
 

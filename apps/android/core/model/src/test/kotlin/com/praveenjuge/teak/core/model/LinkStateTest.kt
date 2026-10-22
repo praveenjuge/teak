@@ -1,8 +1,10 @@
 package com.praveenjuge.teak.core.model
 
 import org.junit.Test
-import java.time.ZoneOffset
+import java.time.Instant
+import java.time.ZoneId
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -91,15 +93,52 @@ class LinkStateTest {
                 iso = 400.0,
                 make = "Canon",
                 model = "Canon EOS R5",
-                takenAt = java.time.Instant.parse("2026-05-17T09:00:05Z").toEpochMilli().toDouble(),
+                takenAtClock = java.time.Instant.parse("2026-05-17T09:00:05Z").toEpochMilli().toDouble(),
             ),
-            ZoneOffset.UTC,
         )
         assertEquals(listOf("Camera", "Taken", "Exposure", "Aperture", "Focal length", "ISO"), rows.map { it.label })
         assertEquals(
             listOf("Canon EOS R5", "May 17, 2026, 09:00 AM", "1/250 s", "f/1.8", "50 mm", "400"),
             rows.map { it.value },
         )
+    }
+
+    // takenAtClock is the camera's clock time encoded as UTC. Read as an instant in a zone far from UTC,
+    // it would move the hour and the date.
+    @Test
+    fun `shows the camera's clock time wherever it's viewed`() {
+        val original = TimeZone.getDefault()
+        fun taken(at: String, offset: Double? = null) =
+            Exif.rows(ImageExif(takenAtClock = Instant.parse(at).toEpochMilli().toDouble(), takenAtOffset = offset)).single().value
+        try {
+            for (zone in listOf("America/Los_Angeles", "Pacific/Auckland")) {
+                TimeZone.setDefault(TimeZone.getTimeZone(zone))
+                assertEquals("May 17, 2026, 09:00 AM", taken("2026-05-17T09:00:05Z"), zone)
+                assertEquals("May 17, 2026, 12:30 AM", taken("2026-05-17T00:30:00Z"), zone)
+                assertEquals("May 17, 2026, 11:45 PM", taken("2026-05-17T23:45:00Z"), zone)
+                assertEquals("May 17, 2026, 09:00 AM UTC+5:30", taken("2026-05-17T09:00:00Z", 330.0), zone)
+                assertEquals("May 17, 2026, 09:00 AM UTC-8", taken("2026-05-17T09:00:00Z", -480.0), zone)
+                assertEquals("May 17, 2026, 09:00 AM UTC-9:30", taken("2026-05-17T09:00:00Z", -570.0), zone)
+                assertEquals("May 17, 2026, 09:00 AM UTC", taken("2026-05-17T09:00:00Z", 0.0), zone)
+                for (bad in listOf(Double.NaN, 5.5, 900.0, -900.0)) {
+                    assertEquals("May 17, 2026, 09:00 AM", taken("2026-05-17T09:00:00Z", bad), "$zone $bad")
+                }
+            }
+        } finally {
+            TimeZone.setDefault(original)
+        }
+    }
+
+    @Test
+    fun `prefers the clock time and reads older photos in the viewer's zone as before`() {
+        val nine = Instant.parse("2026-05-17T09:00:00Z").toEpochMilli().toDouble()
+        val earlier = Instant.parse("2026-05-17T03:30:00Z").toEpochMilli().toDouble()
+        val la = ZoneId.of("America/Los_Angeles")
+        assertEquals(
+            "May 17, 2026, 09:00 AM UTC+5:30",
+            Exif.rows(ImageExif(takenAt = earlier, takenAtClock = nine, takenAtOffset = 330.0), la).single().value,
+        )
+        assertEquals("May 17, 2026, 02:00 AM", Exif.rows(ImageExif(takenAt = nine), la).single().value)
     }
 
     @Test
