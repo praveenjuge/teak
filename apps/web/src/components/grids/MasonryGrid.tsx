@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -350,12 +351,15 @@ export const MasonryGrid = memo(function MasonryGrid({
     current: [],
     previous: [],
   });
-  if (!sameOrder(cardOrderRef.current.current, navigableIds)) {
-    cardOrderRef.current = {
-      current: navigableIds,
-      previous: cardOrderRef.current.current,
-    };
-  }
+  // Recorded after commit, so a render React throws away never counts.
+  useLayoutEffect(() => {
+    if (!sameOrder(cardOrderRef.current.current, navigableIds)) {
+      cardOrderRef.current = {
+        current: navigableIds,
+        previous: cardOrderRef.current.current,
+      };
+    }
+  }, [navigableIds]);
   const tabStopId =
     activeCardId !== null && navigableIds.includes(activeCardId)
       ? activeCardId
