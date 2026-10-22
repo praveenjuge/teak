@@ -4,6 +4,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedComponentUser } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
+import { ensureCardUsageShards, insertCountedCard } from "./card/cardUsage";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -157,6 +158,37 @@ describe("card privacy", () => {
       })
     ).rejects.toThrow("Unauthorized");
     expect(await auditRows(t)).toHaveLength(0);
+  });
+});
+
+describe("account list", () => {
+  test("counts each account's active cards from its card usage", async () => {
+    const t = setup();
+    await seedAdmin(t);
+    await seedCustomer(t);
+    await t.run(async (ctx) => {
+      await ensureCardUsageShards(ctx, "teak_customer", false);
+      for (const content of ["one", "two", "three"]) {
+        await insertCountedCard(ctx, {
+          userId: "teak_customer",
+          type: "text",
+          content,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      }
+    });
+
+    const result = await asAdmin(t).query(api.admin.listAllUsers, {
+      paginationOpts: { cursor: null, numItems: 10 },
+    });
+    const counts = Object.fromEntries(
+      result.page.map((user: { id: string; cardsCount: number }) => [
+        user.id,
+        user.cardsCount,
+      ])
+    );
+    expect(counts).toEqual({ teak_admin: 0, teak_customer: 3 });
   });
 });
 
