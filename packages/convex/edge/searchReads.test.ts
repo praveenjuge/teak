@@ -3,9 +3,8 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
-import { api, internal } from "../_generated/api";
+import { api } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
 import { CARD_LIST_PAGE_ROW_LIMIT } from "../card/listQuery";
 import { syncCardSearchDocumentHandler } from "../card/searchSync";
 import schema from "../schema";
@@ -119,17 +118,6 @@ const setup = async (documentsRead?: number) => {
 
   const searchDocuments = () =>
     t.run((ctx) => ctx.db.query("cardSearchDocuments").collect());
-  const forgetStoredDates = () =>
-    t.run(async (ctx: MutationCtx) => {
-      for (const document of await ctx.db
-        .query("cardSearchDocuments")
-        .collect()) {
-        await ctx.db.patch("cardSearchDocuments", document._id, {
-          cardCreatedAt: undefined,
-          cardCreationTime: undefined,
-        });
-      }
-    });
 
   return {
     t,
@@ -139,7 +127,6 @@ const setup = async (documentsRead?: number) => {
     readPages,
     readAll,
     searchDocuments,
-    forgetStoredDates,
   };
 };
 
@@ -191,15 +178,8 @@ describe("text search pages", () => {
     expect(await readAll({ searchQuery: "kestrel" })).toHaveLength(13);
   });
 
-  test("give the same pages before and after search documents store card dates", async () => {
-    const {
-      t,
-      insert,
-      insertAll,
-      readAll,
-      searchDocuments,
-      forgetStoredDates,
-    } = await setup();
+  test("search documents store their card's dates, and file text still matches", async () => {
+    const { t, insert, insertAll, readAll, searchDocuments } = await setup();
     await insertAll([
       { content: "kestrel note" },
       { content: "kestrel tie a", createdAt: 1001 },
@@ -231,55 +211,6 @@ describe("text search pages", () => {
         truncated: false,
       })
     );
-    const all: [string, Record<string, unknown>][] = [
-      ...searches,
-      ["two types", { searchQuery: "kestrel", types: ["link", "document"] }],
-      ["a site", { searchQuery: "kestrel site:example.com" }],
-      [
-        "two sites",
-        { searchQuery: "kestrel site:example.com site:other.test" },
-      ],
-      ["hidden", { searchQuery: "kestrel tag:hidden" }],
-    ];
-
-    expect(
-      (await searchDocuments()).every(
-        (document) =>
-          document.cardCreatedAt !== undefined &&
-          document.cardCreationTime !== undefined
-      )
-    ).toBe(true);
-    const withDates = new Map<string, string[]>();
-    for (const [name, args] of all) {
-      withDates.set(name, await readAll(args));
-    }
-    expect(withDates.get("newest")).toContain(pdf);
-    expect(withDates.get("two types")).toContain(pdf);
-
-    await forgetStoredDates();
-    for (const [name, args] of all) {
-      expect(await readAll(args), name).toEqual(withDates.get(name));
-    }
-
-    const dryRun = await t.mutation(
-      internal["migration/backfillSearchDocumentDates"]
-        .backfillSearchDocumentDates,
-      { once: true }
-    );
-    expect(dryRun.batch.searchDocumentsToUpdate).toBe(
-      (await searchDocuments()).length
-    );
-    expect(
-      (await searchDocuments()).every(
-        (document) => document.cardCreatedAt === undefined
-      )
-    ).toBe(true);
-
-    await t.mutation(
-      internal["migration/backfillSearchDocumentDates"]
-        .backfillSearchDocumentDates,
-      { dryRun: false, once: true }
-    );
     const cards = await t.run((ctx) => ctx.db.query("cards").collect());
     const documents = await searchDocuments();
     expect(documents).toHaveLength(cards.length);
@@ -288,9 +219,10 @@ describe("text search pages", () => {
       expect(document.cardCreatedAt).toBe(card?.createdAt);
       expect(document.cardCreationTime).toBe(card?._creationTime);
     }
-    for (const [name, args] of all) {
-      expect(await readAll(args), name).toEqual(withDates.get(name));
-    }
+    expect(await readAll({ searchQuery: "kestrel" })).toContain(pdf);
+    expect(
+      await readAll({ searchQuery: "kestrel", types: ["link", "document"] })
+    ).toContain(pdf);
   });
 
   test("a page loads its own cards, not every match", async () => {

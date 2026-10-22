@@ -320,9 +320,9 @@ export const searchCandidateOf = (
 /**
  * `searchCardsByDocument` without loading cards: `keepDocument` decides a
  * match from its search document and the card's dates stored there, so a
- * page loads only its own cards. A document written before those dates were
- * stored, and a match found in file text, load the card and go through
- * `resultFilter` as `searchCardsByDocument` would. With neither filter every
+ * page loads only its own cards. A match found in file text loads the card
+ * and goes through `resultFilter` as `searchCardsByDocument` would. With
+ * neither filter every
  * match is kept, as `searchCardsByDocument` keeps every visible card.
  */
 export const searchCandidatesByDocument = async (
@@ -358,37 +358,23 @@ export const searchCandidatesByDocument = async (
     scanBudget.hitSearchLimit = true;
   }
   const found = new Map<Id<"cards">, SearchCandidate>();
-  await scanInBatches(
-    documents,
-    () => matchLimit - found.size,
-    (document) =>
-      document.cardCreatedAt === undefined ||
-      document.cardCreationTime === undefined
-        ? ctx.db.get("cards", document.cardId)
-        : Promise.resolve(undefined),
-    (document, card) => {
-      if (card === undefined) {
-        const createdAt = document.cardCreatedAt as number;
-        if (!args.keepDocument || args.keepDocument(document, createdAt)) {
-          found.set(document.cardId, {
-            cardId: document.cardId,
-            createdAt,
-            creationTime: document.cardCreationTime as number,
-            document,
-            searchableText: document.searchableText,
-          });
-        }
-        return;
-      }
-      if (
-        card &&
-        (args.includeHidden || !isCardHidden(card)) &&
-        (!args.resultFilter || args.resultFilter(card, document.searchableText))
-      ) {
-        found.set(card._id, searchCandidateOf(card, document.searchableText));
-      }
+  for (const document of documents) {
+    if (found.size >= matchLimit) {
+      break;
     }
-  );
+    if (
+      !args.keepDocument ||
+      args.keepDocument(document, document.cardCreatedAt)
+    ) {
+      found.set(document.cardId, {
+        cardId: document.cardId,
+        createdAt: document.cardCreatedAt,
+        creationTime: document.cardCreationTime,
+        document,
+        searchableText: document.searchableText,
+      });
+    }
+  }
   if (documents.length === sourceLimit && found.size < matchLimit) {
     throw searchTooBroad();
   }

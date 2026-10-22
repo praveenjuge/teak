@@ -624,7 +624,7 @@ describe("admin overview", () => {
         },
       }),
       card("failed", {
-        aiTranscript: "words",
+        aiTranscriptCharCount: 5,
         aiSummary: undefined,
         aiTags: undefined,
         processingStatus: { categorize: { status: "failed" } },

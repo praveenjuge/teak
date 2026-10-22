@@ -62,9 +62,6 @@ describe("card display title", () => {
 
   test("an audio card previews its transcript", () => {
     expect(
-      cardPreviewText({ aiTranscript: "Hello", content: "", type: "audio" })
-    ).toBe("Hello");
-    expect(
       cardPreviewText({
         aiTranscriptPreview: "Hello from the stored transcript",
         content: "",

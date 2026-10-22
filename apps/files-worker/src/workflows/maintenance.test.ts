@@ -270,49 +270,6 @@ describe("orphan sweep", () => {
   });
 });
 
-describe("orphan sweep against an older Convex", () => {
-  test("reads references in one call when Convex can't page them yet", async () => {
-    const old = Date.now() - 8 * DAY_MS;
-    const test = createTestRun(
-      { task: "orphan-sweep" as const },
-      {
-        handlers: {
-          "adminHealth:recordCronRun": () => null,
-          "embedding/sweep:sweepVectorLedger": () => ({ complete: true }),
-          "storage/orphanSweep:collectNonCardReferencedKeys": () => [
-            "users/u1/imports/source.zip",
-          ],
-          "storage/orphanSweep:listPrefix": () => "users/",
-          "storage/orphanSweep:logOrphanReport": () => null,
-          "storage/orphanSweep:pageSweepCards": () => ({
-            cards: [],
-            continueCursor: "",
-            isDone: true,
-          }),
-        },
-        wrapFetch:
-          (fetcher) => async (input: RequestInfo | URL, init?: RequestInit) =>
-            String(init?.body).includes("pageNonCardReferencedKeys")
-              ? Response.json(
-                  { error: "function_not_allowed" },
-                  { status: 403 }
-                )
-              : await fetcher(input, init),
-      }
-    );
-    test.bucket.objects.set("users/u1/imports/source.zip", {
-      bytes: new Uint8Array(10),
-      uploadedAt: old,
-    });
-
-    await runMaintenance(test.run, { convex: test.convex });
-
-    expect(
-      test.callsTo("storage/orphanSweep:logOrphanReport")[0]?.args
-    ).toEqual({ orphanBytes: 0, orphanCount: 0, scannedObjects: 1 });
-  });
-});
-
 const pages =
   <T>(...contents: T[][]) =>
   ({ cursor }: Record<string, unknown>) => {

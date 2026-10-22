@@ -143,7 +143,6 @@ export default defineSchema({
     ])
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
-    .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
     .index("by_user_deleted_archived_created", [
       "userId",
@@ -194,15 +193,6 @@ export default defineSchema({
     ])
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
-    // Replaced by `by_aiPending_and_isDeleted_and_createdAt`; only
-    // `migration/backfillAiPending` reads it (.agents/sunset.md).
-    .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
-      "aiSummary",
-      "aiTags",
-      "aiTranscript",
-      "isDeleted",
-      "createdAt",
-    ])
     .index("by_aiPending_and_isDeleted_and_createdAt", [
       "aiPending",
       "isDeleted",
@@ -488,10 +478,9 @@ export default defineSchema({
     urlHost: v.optional(v.string()),
     sourceUpdatedAt: v.number(),
     // The card's `createdAt` and `_creationTime`, so a text search orders its
-    // matches without loading them. Missing on documents the
-    // `backfillSearchDocumentDates` migration hasn't reached.
-    cardCreatedAt: v.optional(v.number()),
-    cardCreationTime: v.optional(v.number()),
+    // matches without loading them.
+    cardCreatedAt: v.number(),
+    cardCreationTime: v.number(),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
@@ -633,7 +622,6 @@ export default defineSchema({
     // `migration/backfillTagCounts` runs.
     isCounted: v.optional(v.literal(true)),
   })
-    .index("by_cardId", ["cardId"])
     .index("by_cardId_and_tag", ["cardId", "tag"])
     .index("by_cardId_and_generation", ["cardId", "syncGeneration"])
     .index("by_user_tag_deleted_created", [

@@ -57,19 +57,6 @@ const setup = async () => {
       await syncCardSearchDocumentHandler(ctx, id);
       return id;
     });
-  // A card saved before this change, which the search sync never saw again.
-  const insertLegacy = (seed: CardSeed = {}) =>
-    t.run((ctx) =>
-      ctx.db.insert("cards", {
-        userId: "owner",
-        type: "audio",
-        content: "",
-        createdAt: 1000,
-        updatedAt: 1000,
-        ...seed,
-      })
-    );
-
   const card = (cardId: Id<"cards">) =>
     t.run((ctx) => ctx.db.get("cards", cardId));
   const transcriptRows = (cardId: Id<"cards">) =>
@@ -105,16 +92,6 @@ const setup = async () => {
         ...args,
       })
     ).page;
-  const moveTranscripts = (args: { dryRun?: boolean } = {}) =>
-    t.mutation(internal.migration.moveCardTranscripts.moveCardTranscripts, {
-      once: true,
-      ...args,
-    });
-  const flagPending = (args: { dryRun?: boolean } = {}) =>
-    t.mutation(internal.migration.backfillAiPending.backfillAiPending, {
-      once: true,
-      ...args,
-    });
   const cardsMissingAi = async () =>
     (await t.query(internal.ai.queries.findCardsMissingAi, {})).map(
       ({ cardId }: { cardId: Id<"cards"> }) => cardId
@@ -124,15 +101,12 @@ const setup = async () => {
     t,
     owner,
     save,
-    insertLegacy,
     card,
     transcriptRows,
     searchText,
     saveTranscript,
     detail,
     grid,
-    moveTranscripts,
-    flagPending,
     cardsMissingAi,
   };
 };
@@ -329,35 +303,6 @@ describe("a transcript lives in cardTextContents, not on the card", () => {
   });
 });
 
-describe("moveCardTranscripts", () => {
-  test("moves a transcript off the card, dry run by default, once", async () => {
-    const { save, card, detail, grid, searchText, moveTranscripts } =
-      await setup();
-    const cardId = await save({ aiTranscript: LONG_TRANSCRIPT });
-    const searchableBefore = await searchText(cardId);
-    const listedBefore = (await grid()).find((item) => item._id === cardId);
-    expect(listedBefore).not.toHaveProperty("aiTranscript");
-    expect(listedBefore?.aiTranscriptCharCount).toBe(LONG_TRANSCRIPT.length);
-    expect((await detail(cardId))?.aiTranscript).toBe(LONG_TRANSCRIPT);
-
-    expect((await moveTranscripts()).batch).toMatchObject({
-      transcriptsToMove: 1,
-    });
-    expect((await card(cardId))?.aiTranscript).toBe(LONG_TRANSCRIPT);
-
-    expect(
-      (await moveTranscripts({ dryRun: false })).batch.transcriptsToMove
-    ).toBe(1);
-    expect((await card(cardId))?.aiTranscript).toBeUndefined();
-    expect((await detail(cardId))?.aiTranscript).toBe(LONG_TRANSCRIPT);
-    expect(await searchText(cardId)).toBe(searchableBefore);
-
-    expect(
-      (await moveTranscripts({ dryRun: false })).batch.transcriptsToMove
-    ).toBe(0);
-  });
-});
-
 describe("the AI backfill reads aiPending", () => {
   test("a card saved without AI is pending until its AI is saved", async () => {
     const { save, saveTranscript, card, cardsMissingAi } = await setup();
@@ -374,14 +319,14 @@ describe("the AI backfill reads aiPending", () => {
   });
 
   test("the AI backfill takes at most 50 cards, deleted flag unset or false", async () => {
-    const { save, insertLegacy, cardsMissingAi } = await setup();
+    const { save, cardsMissingAi } = await setup();
     const unset = await save({ type: "text", content: "Unset" });
-    const notDeleted = await insertLegacy({
+    const notDeleted = await save({
       type: "text",
       content: "False",
       isDeleted: false,
     });
-    await insertLegacy({ type: "text", content: "Trashed", isDeleted: true });
+    await save({ type: "text", content: "Trashed", isDeleted: true });
     expect(new Set(await cardsMissingAi())).toEqual(
       new Set([unset, notDeleted])
     );
@@ -390,32 +335,5 @@ describe("the AI backfill reads aiPending", () => {
       await save({ type: "text", content: `Note ${index}` });
     }
     expect(await cardsMissingAi()).toHaveLength(50);
-  });
-
-  test("the fallback reads past older cards that only lost their transcript", async () => {
-    const { insertLegacy, cardsMissingAi } = await setup();
-    for (let index = 0; index < 60; index++) {
-      await insertLegacy({ aiTranscriptCharCount: 20, createdAt: 500 });
-    }
-    const waiting = await insertLegacy({ type: "text", content: "Old note" });
-    expect(await cardsMissingAi()).toEqual([waiting]);
-  });
-
-  test("backfillAiPending flags older cards still waiting for AI, dry run by default, once", async () => {
-    const { insertLegacy, card, cardsMissingAi, flagPending } = await setup();
-    const waiting = await insertLegacy({ type: "text", content: "Old note" });
-    await insertLegacy({ aiSummary: "Has a summary" });
-    await insertLegacy({ aiTranscript: "Has a transcript" });
-    await insertLegacy({ aiTranscriptCharCount: 12 });
-    await insertLegacy({ isDeleted: true });
-    // The AI backfill keeps finding them before the flags are written.
-    expect(await cardsMissingAi()).toEqual([waiting]);
-
-    expect((await flagPending()).batch.cardsToFlag).toBe(2);
-    expect((await card(waiting))?.aiPending).toBeUndefined();
-
-    expect((await flagPending({ dryRun: false })).batch.cardsToFlag).toBe(2);
-    expect(await cardsMissingAi()).toEqual([waiting]);
-    expect((await flagPending({ dryRun: false })).batch.cardsToFlag).toBe(0);
   });
 });

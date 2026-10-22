@@ -49,7 +49,7 @@ const SEARCH_FIELDS = [
 export const buildCardSearchText = (
   card: Doc<"cards">,
   extractedText?: string,
-  transcript = card.aiTranscript
+  transcript?: string
 ): string =>
   [
     ...SEARCH_FIELDS.map((field) => {

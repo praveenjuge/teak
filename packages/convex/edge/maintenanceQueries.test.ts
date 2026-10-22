@@ -55,7 +55,7 @@ describe("maintenance queries", () => {
         createdAt: old,
       }),
       hasTranscript: await saveCard(ctx, {
-        aiTranscript: "done",
+        aiTranscriptCharCount: 4,
         createdAt: old,
       }),
       recent: await saveCard(ctx),
@@ -114,7 +114,7 @@ describe("orphan sweep references", () => {
     "exports",
   ] as const;
 
-  test("pages every source one row at a time to the keys the one-call read finds", async () => {
+  test("pages every source one row at a time to every key rows still hold", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
       const now = Date.now();
@@ -175,12 +175,20 @@ describe("orphan sweep references", () => {
       }
     }
 
-    const all = await t.query(
-      internal.storage.orphanSweep.collectNonCardReferencedKeys,
-      {}
+    // Three import sources, a report, two staged parts and an export's three.
+    expect(new Set(paged).size).toBe(9);
+    expect(paged).toHaveLength(9);
+    expect(paged).toEqual(
+      expect.arrayContaining([
+        "users/u1/cards/pending/import-source/0.zip",
+        "users/u1/cards/pending/import-source/1.zip",
+        "users/u1/cards/pending/import-source/2.zip",
+        "users/u1/imports/report.csv",
+        "users/u1/exports/a.zip",
+        "users/u1/exports/a.zip.checkpoint.json",
+        "users/u1/exports/a.zip.result.json",
+      ])
     );
-    expect(all).toHaveLength(9);
-    expect(paged.sort()).toEqual([...all].sort());
   });
 });
 

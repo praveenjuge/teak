@@ -804,6 +804,8 @@ describe("durable deletion admission and tombstones", () => {
         searchableText: "private",
         type: "text",
         sourceUpdatedAt: 1,
+        cardCreatedAt: 1,
+        cardCreationTime: 1,
       });
       await ctx.db.insert("cardSearchTags", {
         cardId: card,
