@@ -18,6 +18,7 @@ import {
   CARD_USAGE_BASE_SHARDS,
   CARD_USAGE_SCAN_LIMIT,
   CARD_USAGE_TOTAL_SHARDS,
+  getActiveCardCount,
   getCardUsageSnapshot,
   getOrInitializeCardUsage,
   initializeCardUsageShards,
@@ -38,6 +39,7 @@ import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
+import { readFolderCardCount } from "./folder/folderRows";
 import { applyFolderMembership } from "./folder/membership";
 import {
   analyticsShardForRequest,
@@ -63,6 +65,11 @@ const insertCard = async (
     updatedAt: Date.now(),
     ...overrides,
   });
+
+const folderCount = async (ctx: MutationCtx, folderId: Id<"folders">) => {
+  const folder = await ctx.db.get("folders", folderId);
+  return folder ? await readFolderCardCount(ctx, folder) : null;
+};
 
 const endAccountDeletion = async (ctx: MutationCtx, userId: string) => {
   const states = await ctx.db
@@ -118,6 +125,30 @@ describe("OCC contention behavior", () => {
       expect(usage.isCountExact).toBe(false);
       expect(usage.isSaturated).toBe(true);
       expect(CARD_USAGE_SCAN_LIMIT).toBe(FREE_TIER_LIMIT + 1);
+    });
+  });
+
+  test("reports the capped active count from an inexact usage count", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const seed = async (userId: string, cards: number, counted: number) => {
+        for (let index = 0; index < cards; index += 1) {
+          await insertCard(ctx, userId, { content: `Card ${index}` });
+        }
+        await ctx.db.insert("userCardUsage", {
+          userId,
+          activeCardCount: counted,
+          isCountExact: false,
+          isSaturated: counted >= FREE_TIER_LIMIT,
+          updatedAt: 1,
+        });
+      };
+      await seed("user-past-cap", CARD_USAGE_SCAN_LIMIT + 40, 230);
+      await seed("user-below-cap", 180, 150);
+      expect(await getActiveCardCount(ctx, "user-past-cap")).toBe(
+        CARD_USAGE_SCAN_LIMIT
+      );
+      expect(await getActiveCardCount(ctx, "user-below-cap")).toBe(180);
     });
   });
 
@@ -482,7 +513,8 @@ describe("OCC contention behavior", () => {
         }
       }
       expect(processedCounts.every((processed) => processed <= 32)).toBe(true);
-      expect(processedCounts[processedCounts.length - 1]).toBe(0);
+      expect(processedCounts).toHaveLength(Math.ceil(1000 / 32));
+      expect(processedCounts.reduce((sum, count) => sum + count, 0)).toBe(1000);
       expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1000);
       expect(
         await ctx.db.query("cardSearchTagSyncStates").collect()
@@ -552,6 +584,7 @@ describe("OCC contention behavior", () => {
   test("keeps the previous tag generation visible until pruning", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
+      const added = Array.from({ length: 40 }, (_, i) => `new-${i}`);
       const cardId = await insertCard(ctx, "user-tag-generation", {
         tags: ["keep", "old"],
         updatedAt: 1,
@@ -560,19 +593,90 @@ describe("OCC contention behavior", () => {
       await drainCardSearchTagSync(ctx, cardId);
 
       await ctx.db.patch("cards", cardId, {
-        tags: ["keep", "new"],
+        tags: ["keep", ...added],
         updatedAt: 2,
       });
       await syncCardSearchDocumentHandler(ctx, cardId);
       await syncCardSearchTagsBatchHandler(ctx, cardId);
-      expect(
-        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
-      ).toEqual(["keep", "old", "new"]);
+      const midway = (await ctx.db.query("cardSearchTags").collect()).map(
+        ({ tag }) => tag
+      );
+      expect(midway).toContain("old");
+      expect(midway).toContain("keep");
 
       await drainCardSearchTagSync(ctx, cardId);
       expect(
+        (await ctx.db.query("cardSearchTags").collect())
+          .map(({ tag }) => tag)
+          .sort()
+      ).toEqual(["keep", ...added].sort());
+    });
+  });
+
+  test("a card with few tags syncs and prunes in one batch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-one-batch", {
+        tags: ["keep", "old"],
+        updatedAt: 1,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.patch("cards", cardId, {
+        tags: ["keep", "new"],
+        updatedAt: 2,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      expect(await syncCardSearchTagsBatchHandler(ctx, cardId)).toMatchObject({
+        complete: true,
+      });
+      expect(
         (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
       ).toEqual(["keep", "new"]);
+    });
+  });
+
+  test("flag changes patch tag rows in place without a new tag generation", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-flag-patch", {
+        tags: ["alpha", "beta"],
+        updatedAt: 1,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      const before = await ctx.db.query("cardSearchTags").collect();
+
+      for (const change of [
+        { isFavorited: true },
+        { isArchived: true as const },
+        { isDeleted: true, deletedAt: 3 },
+      ]) {
+        await patchCardWithSearchSync(ctx, cardId, { ...change, updatedAt: 3 });
+        await drainCardSearchTagSync(ctx, cardId);
+      }
+      const after = await ctx.db.query("cardSearchTags").collect();
+      expect(after.map((row) => [row._id, row.syncGeneration])).toEqual(
+        before.map((row) => [row._id, row.syncGeneration])
+      );
+      expect(after).toMatchObject([
+        { tag: "alpha", isFavorited: true, isArchived: true, isDeleted: true },
+        { tag: "beta", isFavorited: true, isArchived: true, isDeleted: true },
+      ]);
+      for (const row of after) {
+        expect(row.isCounted).toBeUndefined();
+      }
+
+      await patchCardWithSearchSync(ctx, cardId, {
+        tags: ["alpha"],
+        updatedAt: 4,
+      });
+      await drainCardSearchTagSync(ctx, cardId);
+      const retagged = await ctx.db.query("cardSearchTags").collect();
+      expect(retagged.map(({ tag }) => tag)).toEqual(["alpha"]);
+      expect(retagged[0]?.syncGeneration).toBeGreaterThan(
+        before[0]?.syncGeneration ?? 0
+      );
     });
   });
 
@@ -763,8 +867,8 @@ describe("OCC contention behavior", () => {
         .withIndex("by_cardId_and_folderId", (q) => q.eq("cardId", cardId))
         .collect();
       expect(rows.map((row) => row.folderId)).toEqual([b]);
-      expect((await ctx.db.get("folders", a))?.activeCardCount).toBe(0);
-      expect((await ctx.db.get("folders", b))?.activeCardCount).toBe(1);
+      expect(await folderCount(ctx, a)).toBe(0);
+      expect(await folderCount(ctx, b)).toBe(1);
     });
   });
 
@@ -788,7 +892,7 @@ describe("OCC contention behavior", () => {
       await patchCardWithSearchSync(ctx, cardId, { content: "edited" });
       const [after] = await ctx.db.query("folderCards").collect();
       expect(after).toEqual(row);
-      expect((await ctx.db.get("folders", folderId))?.activeCardCount).toBe(1);
+      expect(await folderCount(ctx, folderId)).toBe(1);
     });
   });
 
@@ -809,7 +913,7 @@ describe("OCC contention behavior", () => {
       expect(
         await ctx.db
           .query("cards")
-          .withIndex("by_user_deleted", (query) =>
+          .withIndex("by_user_deleted_created", (query) =>
             query.eq("userId", "user-delete")
           )
           .collect()
@@ -1070,8 +1174,9 @@ describe("OCC contention behavior", () => {
       expect(finished?.phase).toBe("complete");
       const tags = await ctx.db.query("cardSearchTags").collect();
       expect(tags).toHaveLength(40);
+      // The restart kept the same tags, so the rows keep their generation.
       expect(new Set(tags.map((tag) => tag.syncGeneration))).toEqual(
-        new Set([2])
+        new Set([1])
       );
     });
   });
