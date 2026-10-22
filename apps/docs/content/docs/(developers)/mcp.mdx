@@ -176,9 +176,10 @@ type CardFilters = {
 - `teak_v1_rename_tag` / `teak_v1_merge_tags`
   - Input: `{ from: string, to: string }` to rename, or `{ from: string, into: string }` to merge
   - Changes the tag on every card, in the card's own tags and tags Teak added, including Trash and Archive. Tags match ignoring case. Renaming onto a tag that already exists fails with `TAG_EXISTS`; merge instead.
+  - `to` and `into` are 1 to 64 characters; `from` can be up to 256, so older, longer tags can still be changed.
   - Output: the started operation, `{ operationId, status: "running", total, ... }`. It finishes in the background.
 - `teak_v1_delete_tag` <Badge variant="danger">Needs confirm</Badge>
-  - Input: `{ tag: string, confirm: true }`
+  - Input: `{ tag: string, confirm: true }`, with `tag` up to 256 characters
   - Removes the tag from every card. The cards are kept.
 - `teak_v1_get_tag_operation`
   - Input: `{ operationId: string }`

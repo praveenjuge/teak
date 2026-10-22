@@ -600,7 +600,10 @@ background.
 - `POST /v1/tags/delete` with `{ "tag": "old" }` removes a tag. The cards are
   kept.
 
-Tags are 1 to 64 characters. A tag no card has returns `404 NOT_FOUND`, and one
+A new name (`to`, `into`) is 1 to 64 characters. The tag you change (`from`,
+`tag`) can be up to 256 characters, so older tags saved before the 64-character
+limit can still be renamed, merged, or deleted. A tag no card has returns
+`404 NOT_FOUND`, and one
 change runs at a time per account: starting another while one runs returns
 `409 TAG_OPERATION_RUNNING`.
 

@@ -207,6 +207,19 @@ export const handleApiProxyRequest = async (
   if (declaredBodyTooLarge(incoming)) {
     return tooLarge();
   }
+
+  // Rate-limit first, so a refused caller never makes the Worker buffer a body.
+  let attestation: string | null = null;
+  let identity: Parameters<typeof answerMcpAtEdge>[1];
+  if (options.rateLimit) {
+    const outcome = await options.rateLimit(incoming);
+    if ("response" in outcome) {
+      return withSecurityHeaders(outcome.response);
+    }
+    attestation = outcome.attestation;
+    identity = outcome.identity;
+  }
+
   // A declared length is enforced by the runtime; a chunked body is not.
   let request = incoming;
   if (incoming.body && !incoming.headers.has("content-length")) {
@@ -217,18 +230,10 @@ export const handleApiProxyRequest = async (
     request = new Request(incoming, { body });
   }
 
-  let attestation: string | null = null;
-  if (options.rateLimit) {
-    const outcome = await options.rateLimit(request);
-    if ("response" in outcome) {
-      return withSecurityHeaders(outcome.response);
-    }
-    attestation = outcome.attestation;
-    if (upstreamPath === "/mcp") {
-      const answered = await answerMcpAtEdge(request, outcome.identity);
-      if (answered) {
-        return withSecurityHeaders(answered);
-      }
+  if (options.rateLimit && upstreamPath === "/mcp") {
+    const answered = await answerMcpAtEdge(request, identity);
+    if (answered) {
+      return withSecurityHeaders(answered);
     }
   }
 

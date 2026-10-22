@@ -393,6 +393,41 @@ describe("edge rate limits", () => {
     expect(response?.headers.get("x-frame-options")).toBe("DENY");
     expect(calls).toHaveLength(0);
   });
+
+  test("refuses a streamed body before reading it", async () => {
+    const { calls, fetcher } = upstream();
+    let pulls = 0;
+    // A body that never ends, sent without a Content-Length.
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls === 1) {
+          controller.enqueue(new Uint8Array(1024));
+        }
+      },
+    });
+    const response = await Promise.race([
+      handleApiProxyRequest(
+        new Request("https://teakvault.com/api/v1/cards", {
+          method: "POST",
+          body,
+        }),
+        ENV,
+        ctx,
+        {
+          fetcher,
+          rateLimit: () =>
+            Promise.resolve({ response: new Response("{}", { status: 429 }) }),
+        }
+      ),
+      new Promise<"still reading">((resolve) =>
+        setTimeout(() => resolve("still reading"), 500)
+      ),
+    ]);
+    expect(response).not.toBe("still reading");
+    expect((response as Response | null)?.status).toBe(429);
+    expect(calls).toHaveLength(0);
+  });
 });
 
 describe("upstream origin pinning", () => {
