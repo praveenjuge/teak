@@ -155,7 +155,6 @@ import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_protocol from "../mcp/protocol.js";
 import type * as mcp_tools from "../mcp/tools.js";
 import type * as migration_backfillEmbeddings from "../migration/backfillEmbeddings.js";
-import type * as migration_backfillExifClock from "../migration/backfillExifClock.js";
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
@@ -461,7 +460,6 @@ declare const fullApi: ApiFromModules<{
   "mcp/protocol": typeof mcp_protocol;
   "mcp/tools": typeof mcp_tools;
   "migration/backfillEmbeddings": typeof migration_backfillEmbeddings;
-  "migration/backfillExifClock": typeof migration_backfillExifClock;
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;

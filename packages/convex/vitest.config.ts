@@ -77,7 +77,6 @@ export default defineConfig({
       "./tagOperations.test.ts",
       "./searchQualifiers.test.ts",
       "./ocrBackfills.test.ts",
-      "./exifClockBackfill.test.ts",
       "./hiddenCards.test.ts",
       "./adminConsole.test.ts",
       "./onboarding.test.ts",
