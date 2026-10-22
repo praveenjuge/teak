@@ -14,6 +14,7 @@ import {
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
@@ -180,6 +181,28 @@ const spendCardReprocessLimits = async (
   );
 };
 
+/**
+ * Normalizes the tags a card write sets and refuses ones the card can't hold.
+ * `previousCount` is how many tags the card had before the write.
+ */
+export const normalizeCardTags = (
+  tags: readonly unknown[],
+  previousCount = 0
+): string[] | undefined => {
+  if (tags.some((tag) => typeof tag !== "string")) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Tags must be strings",
+    });
+  }
+  const normalized = normalizeTagList(tags as string[]);
+  const problem = explainInvalidCardTags(normalized, previousCount);
+  if (problem) {
+    throw new ConvexError({ code: "INVALID_INPUT", message: problem });
+  }
+  return normalized.length > 0 ? normalized : undefined;
+};
+
 export const updateCard = mutation({
   args: {
     id: v.id("cards"),
@@ -208,6 +231,9 @@ export const updateCard = mutation({
 
     if (updates.url !== undefined) {
       updates.url = assertSafeExternalUrl(updates.url);
+    }
+    if (updates.tags !== undefined) {
+      updates.tags = normalizeCardTags(updates.tags, card.tags?.length);
     }
 
     const now = Date.now();
@@ -398,8 +424,9 @@ const applyCardFieldEdit = (
       return true;
 
     case "tags":
-      state.updateData.tags =
-        Array.isArray(value) && value.length > 0 ? value : undefined;
+      state.updateData.tags = Array.isArray(value)
+        ? normalizeCardTags(value, card.tags?.length)
+        : undefined;
       return true;
 
     case "removeAiTag": {
@@ -601,7 +628,18 @@ export const updateCardFieldForUserHandler = async (
     }
     await ctx.db.patch("cards", cardId, updateData);
     if (field === "delete" && !card.isDeleted) {
-      await recordActiveCardRemoved(ctx, userId, cardId);
+      try {
+        await recordActiveCardRemoved(ctx, userId, cardId);
+      } catch (error) {
+        // Bulk deletes catch each card's error and commit the rest, and Convex
+        // has no savepoints, so the card is put back before the error leaves.
+        await ctx.db.patch("cards", cardId, {
+          isDeleted: card.isDeleted,
+          deletedAt: card.deletedAt,
+          updatedAt: card.updatedAt,
+        });
+        throw error;
+      }
     }
   }
   if (!options.deferSearchSync) {
