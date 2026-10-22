@@ -58,14 +58,16 @@ public struct ImageExif: Codable, Sendable, Hashable {
     public var longitude: Double?
     public var make: String?
     public var model: String?
-    /// The camera's clock time as epoch ms, read as if that clock were UTC.
+    /// Epoch ms, kept for released apps: an instant when the EXIF has an offset, else the camera's clock read as UTC.
     public var takenAt: Double?
+    /// The camera's clock time as epoch ms, read as if that clock were UTC.
+    public var takenAtClock: Double?
     /// Minutes east of UTC the camera recorded, when the EXIF has an offset.
     public var takenAtOffset: Double?
 
     public init(exposureTime: Double? = nil, fNumber: Double? = nil, focalLength: Double? = nil, iso: Double? = nil,
                 latitude: Double? = nil, longitude: Double? = nil, make: String? = nil, model: String? = nil,
-                takenAt: Double? = nil, takenAtOffset: Double? = nil) {
+                takenAt: Double? = nil, takenAtClock: Double? = nil, takenAtOffset: Double? = nil) {
         self.exposureTime = exposureTime
         self.fNumber = fNumber
         self.focalLength = focalLength
@@ -75,6 +77,7 @@ public struct ImageExif: Codable, Sendable, Hashable {
         self.make = make
         self.model = model
         self.takenAt = takenAt
+        self.takenAtClock = takenAtClock
         self.takenAtOffset = takenAtOffset
     }
 }
@@ -122,23 +125,30 @@ public enum ExifFacts {
         return "UTC\(sign)\(abs(total) / 60)" + (rest == 0 ? "" : String(format: ":%02d", rest))
     }
 
-    /// `takenAt` holds the camera's clock time encoded as UTC, so it's formatted in UTC:
-    /// a photo taken at 09:00 reads 09:00 wherever it's viewed.
-    private static func takenAt(_ exif: ImageExif) -> String? {
-        guard let milliseconds = positive(exif.takenAt) else { return nil }
+    private static func format(_ milliseconds: Double, in timeZone: TimeZone) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US")
-        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.timeZone = timeZone
         formatter.dateFormat = "MMM d, yyyy, hh:mm a"
-        let clock = formatter.string(from: Date(timeIntervalSince1970: milliseconds / 1000))
-        return utcOffset(exif.takenAtOffset).map { "\(clock) \($0)" } ?? clock
+        return formatter.string(from: Date(timeIntervalSince1970: milliseconds / 1000))
     }
 
-    public static func rows(_ exif: ImageExif?) -> [DetailRow] {
+    /// `takenAtClock` holds the camera's clock time encoded as UTC, so it's formatted in UTC: a photo taken at
+    /// 09:00 reads 09:00 wherever it's viewed. Photos processed before it existed keep their old reading of
+    /// `takenAt` in the viewer's zone.
+    private static func takenAt(_ exif: ImageExif, timeZone: TimeZone) -> String? {
+        if let milliseconds = positive(exif.takenAtClock) {
+            let clock = format(milliseconds, in: TimeZone(identifier: "UTC")!)
+            return utcOffset(exif.takenAtOffset).map { "\(clock) \($0)" } ?? clock
+        }
+        return positive(exif.takenAt).map { format($0, in: timeZone) }
+    }
+
+    public static func rows(_ exif: ImageExif?, timeZone: TimeZone = .current) -> [DetailRow] {
         guard let exif else { return [] }
         let fields: [(String, String?)] = [
             ("Camera", camera(make: exif.make, model: exif.model)),
-            ("Taken", takenAt(exif)),
+            ("Taken", takenAt(exif, timeZone: timeZone)),
             ("Exposure", exposure(exif.exposureTime)),
             ("Aperture", positive(exif.fNumber).map { "f/\(trimDecimal($0))" }),
             ("Focal length", positive(exif.focalLength).map { "\(trimDecimal($0)) mm" }),

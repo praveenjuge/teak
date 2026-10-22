@@ -2,6 +2,7 @@ package com.praveenjuge.teak.core.model
 
 import org.junit.Test
 import java.time.Instant
+import java.time.ZoneId
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.test.assertEquals
@@ -92,7 +93,7 @@ class LinkStateTest {
                 iso = 400.0,
                 make = "Canon",
                 model = "Canon EOS R5",
-                takenAt = java.time.Instant.parse("2026-05-17T09:00:05Z").toEpochMilli().toDouble(),
+                takenAtClock = java.time.Instant.parse("2026-05-17T09:00:05Z").toEpochMilli().toDouble(),
             ),
         )
         assertEquals(listOf("Camera", "Taken", "Exposure", "Aperture", "Focal length", "ISO"), rows.map { it.label })
@@ -102,13 +103,13 @@ class LinkStateTest {
         )
     }
 
-    // takenAt is the camera's clock time encoded as UTC. Read as an instant in a zone far from UTC,
+    // takenAtClock is the camera's clock time encoded as UTC. Read as an instant in a zone far from UTC,
     // it would move the hour and the date.
     @Test
     fun `shows the camera's clock time wherever it's viewed`() {
         val original = TimeZone.getDefault()
         fun taken(at: String, offset: Double? = null) =
-            Exif.rows(ImageExif(takenAt = Instant.parse(at).toEpochMilli().toDouble(), takenAtOffset = offset)).single().value
+            Exif.rows(ImageExif(takenAtClock = Instant.parse(at).toEpochMilli().toDouble(), takenAtOffset = offset)).single().value
         try {
             for (zone in listOf("America/Los_Angeles", "Pacific/Auckland")) {
                 TimeZone.setDefault(TimeZone.getTimeZone(zone))
@@ -126,6 +127,18 @@ class LinkStateTest {
         } finally {
             TimeZone.setDefault(original)
         }
+    }
+
+    @Test
+    fun `prefers the clock time and reads older photos in the viewer's zone as before`() {
+        val nine = Instant.parse("2026-05-17T09:00:00Z").toEpochMilli().toDouble()
+        val earlier = Instant.parse("2026-05-17T03:30:00Z").toEpochMilli().toDouble()
+        val la = ZoneId.of("America/Los_Angeles")
+        assertEquals(
+            "May 17, 2026, 09:00 AM UTC+5:30",
+            Exif.rows(ImageExif(takenAt = earlier, takenAtClock = nine, takenAtOffset = 330.0), la).single().value,
+        )
+        assertEquals("May 17, 2026, 02:00 AM", Exif.rows(ImageExif(takenAt = nine), la).single().value)
     }
 
     @Test

@@ -69,7 +69,8 @@ test("image analysis stores EXIF camera facts beside the dimensions", async () =
       exif: {
         fNumber: 2.8,
         make: "Teak Camera Co",
-        takenAt: Date.parse("2026-05-17T14:30:05Z"),
+        takenAt: Date.parse("2026-05-17T09:00:05Z"),
+        takenAtClock: Date.parse("2026-05-17T14:30:05Z"),
         takenAtOffset: 330,
       },
       height: 30,
@@ -82,7 +83,8 @@ test("image analysis stores EXIF camera facts beside the dimensions", async () =
     exif: {
       fNumber: 2.8,
       make: "Teak Camera Co",
-      takenAt: Date.parse("2026-05-17T14:30:05Z"),
+      takenAt: Date.parse("2026-05-17T09:00:05Z"),
+      takenAtClock: Date.parse("2026-05-17T14:30:05Z"),
       takenAtOffset: 330,
     },
     fileName: "photo.jpg",

@@ -2,6 +2,7 @@ package com.praveenjuge.teak.core.model
 
 import kotlinx.serialization.Serializable
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -18,8 +19,10 @@ data class ImageExif(
     val longitude: Double? = null,
     val make: String? = null,
     val model: String? = null,
-    /** The camera's clock time as epoch ms, read as if that clock were UTC. */
+    /** Epoch ms, kept for released apps: an instant when the EXIF has an offset, else the camera's clock read as UTC. */
     val takenAt: Double? = null,
+    /** The camera's clock time as epoch ms, read as if that clock were UTC. */
+    val takenAtClock: Double? = null,
     /** Minutes east of UTC the camera recorded, when the EXIF has an offset. */
     val takenAtOffset: Double? = null,
 )
@@ -29,7 +32,7 @@ object Exif {
     // Cameras write exposures of 0.3 s and longer as decimals; as fractions they'd round to the wrong speed.
     private const val DECIMAL_EXPOSURE_FROM_SECONDS = 0.3
     private const val MAX_OFFSET_MINUTES = 14 * 60
-    private val TAKEN_AT = DateTimeFormatter.ofPattern("MMM d, yyyy, hh:mm a", Locale.US).withZone(ZoneOffset.UTC)
+    private val TAKEN_AT = DateTimeFormatter.ofPattern("MMM d, yyyy, hh:mm a", Locale.US)
     private val WHITESPACE = Regex("\\s+")
 
     private fun positive(value: Double?): Double? = value?.takeIf { it.isFinite() && it > 0 }
@@ -66,19 +69,23 @@ object Exif {
         return if (rest == 0) "UTC$sign$hours" else "UTC$sign$hours:${rest.toString().padStart(2, '0')}"
     }
 
-    // takenAt holds the camera's clock time encoded as UTC, so it's formatted in UTC:
-    // a photo taken at 09:00 reads 09:00 wherever it's viewed.
-    private fun formatTakenAt(takenAt: Double?, offset: Double?): String? {
-        val millis = positive(takenAt) ?: return null
-        val clock = TAKEN_AT.format(Instant.ofEpochMilli(millis.toLong()))
-        return formatUtcOffset(offset)?.let { "$clock $it" } ?: clock
+    // takenAtClock is the camera's clock time encoded as UTC, so it's formatted in UTC:
+    // a photo taken at 09:00 reads 09:00 wherever it's viewed. Photos processed before
+    // takenAtClock existed keep their old reading of takenAt in the viewer's zone.
+    private fun formatTakenAt(exif: ImageExif, zone: ZoneId): String? {
+        positive(exif.takenAtClock)?.let { millis ->
+            val clock = TAKEN_AT.withZone(ZoneOffset.UTC).format(Instant.ofEpochMilli(millis.toLong()))
+            return formatUtcOffset(exif.takenAtOffset)?.let { "$clock $it" } ?: clock
+        }
+        val millis = positive(exif.takenAt) ?: return null
+        return TAKEN_AT.withZone(zone).format(Instant.ofEpochMilli(millis.toLong()))
     }
 
-    fun rows(exif: ImageExif?): List<DetailRow> {
+    fun rows(exif: ImageExif?, zone: ZoneId = ZoneId.systemDefault()): List<DetailRow> {
         if (exif == null) return emptyList()
         return listOf(
             "Camera" to formatCamera(exif.make, exif.model),
-            "Taken" to formatTakenAt(exif.takenAt, exif.takenAtOffset),
+            "Taken" to formatTakenAt(exif, zone),
             "Exposure" to formatExposureTime(exif.exposureTime),
             "Aperture" to positive(exif.fNumber)?.let { "f/${trimDecimal(it)}" },
             "Focal length" to positive(exif.focalLength)?.let { "${trimDecimal(it)} mm" },

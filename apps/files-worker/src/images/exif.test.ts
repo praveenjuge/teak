@@ -18,8 +18,7 @@ const FIXTURE_FACTS = {
   iso: 400,
   make: "Teak Camera Co",
   model: "Fixture One",
-  // The fixture was taken at 14:30:05 on a camera set to +05:30.
-  takenAt: Date.parse("2026-05-17T14:30:05Z"),
+  takenAt: Date.parse("2026-05-17T09:00:05Z"),
 };
 
 const tiffFromJpeg = (jpeg: Uint8Array): Uint8Array => {
@@ -150,16 +149,13 @@ describe("readExifFacts", () => {
     expect(parseTiffExif(tiff.slice(0, 20))).toBeNull();
   });
 
-  test.each(["+05:30", "-08:00", "xx:xx"])(
-    "keeps the camera's clock time as UTC whatever its offset (%p)",
-    (offset) => {
-      const tiff = tiffFromJpeg(fixture("fixture-exif.jpg"));
-      const text = Buffer.from(tiff)
-        .toString("latin1")
-        .replace("+05:30", offset);
-      expect(
-        parseTiffExif(new Uint8Array(Buffer.from(text, "latin1")))?.takenAt
-      ).toBe(Date.parse("2026-05-17T14:30:05Z"));
-    }
-  );
+  test("reads a capture time without an offset as UTC", () => {
+    const tiff = tiffFromJpeg(fixture("fixture-exif.jpg"));
+    const text = Buffer.from(tiff)
+      .toString("latin1")
+      .replace("+05:30", "xx:xx");
+    expect(
+      parseTiffExif(new Uint8Array(Buffer.from(text, "latin1")))?.takenAt
+    ).toBe(Date.parse("2026-05-17T14:30:05Z"));
+  });
 });

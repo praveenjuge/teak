@@ -5,11 +5,7 @@ export interface ExifFacts {
   iso?: number;
   make?: string;
   model?: string;
-  /**
-   * The camera's clock time as epoch ms, read as if that clock were UTC, so
-   * clients format it in UTC and show the time the camera showed. Any EXIF
-   * offset is left out of it.
-   */
+  /** Epoch ms. Without an EXIF offset the camera's local time is read as UTC. */
   takenAt?: number;
 }
 
@@ -105,15 +101,19 @@ const numberOf = (value: IfdValue | undefined): number | undefined => {
 const textOf = (value: IfdValue | undefined): string | undefined =>
   typeof value === "string" && value ? value : undefined;
 
-const takenAt = (original: string | undefined): number | undefined => {
+const takenAt = (
+  original: string | undefined,
+  offset: string | undefined
+): number | undefined => {
   const match = original?.match(
     /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/u
   );
   if (!match) {
     return;
   }
+  const zone = offset?.match(/^[+-]\d{2}:\d{2}$/u) ? offset : "Z";
   const parsed = Date.parse(
-    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z`
+    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${zone}`
   );
   return Number.isFinite(parsed) ? parsed : undefined;
 };
@@ -141,7 +141,10 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
     iso: numberOf(exifIfd.get(0x88_27)),
     make: textOf(ifd0.get(0x01_0f)),
     model: textOf(ifd0.get(0x01_10)),
-    takenAt: takenAt(textOf(exifIfd.get(0x90_03))),
+    takenAt: takenAt(
+      textOf(exifIfd.get(0x90_03)),
+      textOf(exifIfd.get(0x90_11))
+    ),
   };
   const present = Object.fromEntries(
     Object.entries(facts).filter(([, value]) => value !== undefined)

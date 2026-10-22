@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -45,12 +46,12 @@ object CardDetails {
         return CardSource(UrlHost.forDisplay(host), url, card.sourceTitle?.trim()?.takeIf(String::isNotEmpty))
     }
 
-    fun extraRows(card: Card, now: Long = System.currentTimeMillis()): List<DetailRow> = buildList {
+    fun extraRows(card: Card, now: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): List<DetailRow> = buildList {
         val category = card.metadata?.linkCategory
         if (card.type == CardType.Link) {
             category?.price?.let { add(DetailRow("Price", LinkState.formatPrice(it))) }
             publishedDate(card.metadata?.linkPreview?.publishedAt, now)?.let { add(DetailRow("Published", it)) }
         }
-        if (card.type == CardType.Image) addAll(Exif.rows(card.fileMetadata?.exif))
+        if (card.type == CardType.Image) addAll(Exif.rows(card.fileMetadata?.exif, zone))
     }
 }

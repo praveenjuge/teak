@@ -150,7 +150,7 @@ describe("image analysis", () => {
       iso: 400,
       make: "Teak Camera Co",
       model: "Fixture One",
-      takenAt: Date.parse("2026-05-17T14:30:05Z"),
+      takenAt: Date.parse("2026-05-17T09:00:05Z"),
     });
     expect(result).toMatchObject({ height: 30, width: 40 });
   });

@@ -35,7 +35,7 @@ since they were true when it was written.
 - `2026-10-16-workos-lean.md`: trimming the WorkOS integration to what WorkOS
   and its SDKs now provide.
 - `2026-10-22-exif-taken-at-offset.md`: the Files Worker storing a photo's
-  EXIF offset, once Convex accepts `takenAtOffset`.
+  camera clock time and EXIF offset, once Convex accepts them.
 
 ## Skills
 

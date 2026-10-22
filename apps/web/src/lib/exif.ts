@@ -7,8 +7,13 @@ export interface ImageExif {
   longitude?: number;
   make?: string;
   model?: string;
-  /** The camera's clock time as epoch ms, read as if that clock were UTC. */
+  /**
+   * Epoch ms, kept for released apps: an instant when the EXIF has an offset,
+   * else the camera's clock time read as UTC. Shown only without takenAtClock.
+   */
   takenAt?: number;
+  /** The camera's clock time as epoch ms, read as if that clock were UTC. */
+  takenAtClock?: number;
   /** Minutes east of UTC the camera recorded, when the EXIF has an offset. */
   takenAtOffset?: number;
 }
@@ -75,26 +80,40 @@ const formatUtcOffset = (minutes?: number): string | null => {
   return `UTC${minutes < 0 ? "-" : "+"}${hours}${rest ? `:${String(rest).padStart(2, "0")}` : ""}`;
 };
 
-// takenAt holds the camera's clock time encoded as UTC, so it's formatted in
-// UTC: a photo taken at 09:00 reads 09:00 wherever it's viewed.
-const formatTakenAt = (takenAt?: number, offset?: number): string | null => {
-  if (!isPositive(takenAt)) {
+const TAKEN_AT_FORMAT: Intl.DateTimeFormatOptions = {
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  month: "short",
+  year: "numeric",
+};
+
+const formatDate = (
+  epochMs: unknown,
+  options: Intl.DateTimeFormatOptions
+): string | null => {
+  if (!isPositive(epochMs)) {
     return null;
   }
-  const date = new Date(takenAt);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  const clock = date.toLocaleDateString("en-US", {
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
+  const date = new Date(epochMs);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleDateString("en-US", options);
+};
+
+const formatTakenAt = (exif: ImageExif): string | null => {
+  // takenAtClock is the camera's clock time encoded as UTC, so it's formatted
+  // in UTC: a photo taken at 09:00 reads 09:00 wherever it's viewed.
+  const clock = formatDate(exif.takenAtClock, {
+    ...TAKEN_AT_FORMAT,
     timeZone: "UTC",
-    year: "numeric",
   });
-  const zone = formatUtcOffset(offset);
-  return zone ? `${clock} ${zone}` : clock;
+  if (clock) {
+    const zone = formatUtcOffset(exif.takenAtOffset);
+    return zone ? `${clock} ${zone}` : clock;
+  }
+  // Photos processed before takenAtClock existed keep their old reading.
+  return formatDate(exif.takenAt, TAKEN_AT_FORMAT);
 };
 
 export function formatExifFields(exif?: ImageExif | null): ExifField[] {
@@ -103,7 +122,7 @@ export function formatExifFields(exif?: ImageExif | null): ExifField[] {
   }
   const fields: [string, string | null][] = [
     ["Camera", formatCamera(exif.make, exif.model)],
-    ["Taken", formatTakenAt(exif.takenAt, exif.takenAtOffset)],
+    ["Taken", formatTakenAt(exif)],
     ["Exposure", formatExposureTime(exif.exposureTime)],
     [
       "Aperture",
