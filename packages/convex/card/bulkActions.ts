@@ -8,7 +8,7 @@ import {
   onlyAddsToTarget,
   smartFolderMembership,
 } from "../folder/membership";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
 import {
   type CardFieldEdit,
@@ -268,13 +268,7 @@ export const bulkUpdateCards = mutation({
     failedIds: v.array(v.id("cards")),
   }),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Sign in to change cards",
-      });
-    }
+    const user = await requireSessionUser(ctx);
     return applyBulkCardAction(ctx, { ...args, userId: user.teakUserId });
   },
 });

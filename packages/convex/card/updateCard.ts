@@ -7,7 +7,7 @@ import {
 } from "../_generated/server";
 import { truncateCardTitle } from "../publicApiHttpShared";
 import {
-  getSessionUser,
+  requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
@@ -213,10 +213,7 @@ export const updateCard = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
 
     const { id, ...updates } = args;
     const card = await ctx.db.get("cards", id);
@@ -662,10 +659,7 @@ export const updateCardField = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, field, value, tagToRemove }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
 
     await updateCardFieldForUserHandler(ctx, {
       userId: user.teakUserId,
@@ -725,10 +719,7 @@ export const reprocessCard = mutation({
     })
   ),
   handler: async (ctx, { cardId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     try {
       const result = await reprocessCardForUserHandler(ctx, {
         userId: user.teakUserId,

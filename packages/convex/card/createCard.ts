@@ -6,7 +6,7 @@ import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator, colorValidator } from "../schema";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
 import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
@@ -314,10 +314,7 @@ export const createCard = mutation({
   args: sessionCreateCardArgs,
   returns: v.id("cards"),
   handler: async (ctx, { source: clientSource, ...args }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     const source: CardCreationSource = clientSource ?? "unknown";
 
     try {

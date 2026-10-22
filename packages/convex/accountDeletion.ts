@@ -13,7 +13,11 @@ import {
 import { removeCardUsage } from "./card/cardUsage";
 import { deleteCardTextRows } from "./card/textContents";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
-import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
+import {
+  getDeletionRetryPrincipal,
+  getSessionUser,
+  UNAUTHENTICATED_ERROR,
+} from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { queueAccountDeletionWorkflow } from "./workflowDispatch";
 import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
@@ -257,7 +261,7 @@ export const deleteMyAccount = mutation({
           }
         }
       }
-      throw new ConvexError("User must be authenticated");
+      throw new ConvexError(UNAUTHENTICATED_ERROR);
     }
     const rows = await ctx.db
       .query("users")
