@@ -26,6 +26,7 @@ const polarSdk = vi.hoisted(() => {
         return Promise.resolve({ id: "cust_sandbox", ...body });
       }
     ),
+    customersDelete: vi.fn(() => Promise.resolve()),
     checkoutsCreate: vi.fn(() =>
       Promise.resolve({ url: "https://sandbox.polar.sh/checkout/session" })
     ),
@@ -34,7 +35,10 @@ const polarSdk = vi.hoisted(() => {
 
 vi.mock("@polar-sh/sdk", () => ({
   Polar: class {
-    customers = { create: polarSdk.customersCreate };
+    customers = {
+      create: polarSdk.customersCreate,
+      delete: polarSdk.customersDelete,
+    };
     checkouts = { create: polarSdk.checkoutsCreate };
   },
 }));
@@ -109,6 +113,7 @@ const syncSubscription = (
 
 beforeEach(() => {
   polarSdk.customersCreate.mockClear();
+  polarSdk.customersDelete.mockClear();
   polarSdk.checkoutsCreate.mockClear();
 });
 
@@ -166,4 +171,44 @@ test("outside the dev deployment, checkout sends the account's own email to Pola
     metadata: { userId: OWNER },
   });
   expect(polarSdk.checkoutsCreate).not.toHaveBeenCalled();
+});
+
+test("two checkouts at once both use the one Polar customer Teak keeps", async () => {
+  const { client, t } = await setup("owner@teakvault.com");
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started!: () => void;
+  const creating = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  polarSdk.customersCreate
+    .mockImplementationOnce(async (body) => {
+      started();
+      await held;
+      return { id: "cust_first", ...body };
+    })
+    .mockImplementationOnce((body) =>
+      Promise.resolve({ id: "cust_second", ...body })
+    );
+
+  const first = checkout(client);
+  await creating;
+  await checkout(client);
+  release();
+  await first;
+
+  const stored = await t.query(components.polar.lib.getCustomerByUserId, {
+    userId: OWNER,
+  });
+  expect(stored?.id).toBe("cust_second");
+  expect(
+    polarSdk.checkoutsCreate.mock.calls.map(
+      (call) => (call as unknown as [{ customerId: string }])[0].customerId
+    )
+  ).toEqual(["cust_second", "cust_second"]);
+  expect(polarSdk.customersDelete).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "cust_first" })
+  );
 });

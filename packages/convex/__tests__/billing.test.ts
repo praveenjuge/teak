@@ -26,7 +26,8 @@ describe("billing.ts", () => {
           teakUserId: "user_1",
           email: "user@example.com",
         })
-        .mockResolvedValueOnce(null),
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "cust_1", userId: "user_1" }),
       runMutation: mock().mockResolvedValue(null),
     } as any;
 
