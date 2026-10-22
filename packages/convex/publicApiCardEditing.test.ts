@@ -1051,42 +1051,74 @@ describe("Stable pagination", () => {
     }
   );
 
-  test("cards created in the same millisecond page by id across a tag page boundary", async () => {
-    const { t } = await setup();
-    const ids = await t.run(async (ctx) => {
-      const created: Id<"cards">[] = [];
-      for (let index = 0; index < 40; index += 1) {
-        const id = await ctx.db.insert("cards", {
-          userId: "owner",
-          type: "text",
-          content: `tie ${index}`,
-          tags: ["tie"],
-          createdAt: index < 30 ? 50 : 40,
-          updatedAt: 1,
-        });
-        await syncCardSearchTagsBatchHandler(ctx, id);
-        created.push(id);
-      }
-      return created;
-    });
-    const seen: string[] = [];
-    let cursor: string | undefined;
-    for (let page = 0; page < 10; page += 1) {
-      const result = await t.query(internal.publicApi.searchCardsPageForUser, {
-        userId: "owner",
-        tag: "tie",
-        limit: 7,
-        cursor,
+  // Tag rows are synced in descending id order, so their _creationTime order
+  // disagrees with the (createdAt, id) cursor. Each filter reads a different
+  // cardSearchTags index, and every one must order ties by cardId.
+  test.each([
+    ["no filter", {}],
+    ["oldest first", { sort: "oldest" as const }],
+    ["a type", { type: "text" as const }],
+    ["favorites", { favorited: true }],
+    ["a type and favorites", { type: "text" as const, favorited: true }],
+    ["any archive state", { archived: "include" as const }],
+  ])(
+    "cards created in the same millisecond page by id one at a time with %s",
+    async (_filter, filters) => {
+      const { t } = await setup();
+      const cards = await t.run(async (ctx) => {
+        const created: { _id: string; createdAt: number }[] = [];
+        for (let index = 0; index < 8; index += 1) {
+          const createdAt = index < 6 ? 50 : 40;
+          const id = await ctx.db.insert("cards", {
+            userId: "owner",
+            type: "text",
+            content: `tie ${index}`,
+            tags: ["tie"],
+            isFavorited: true,
+            createdAt,
+            updatedAt: 1,
+          });
+          created.push({ _id: String(id), createdAt });
+        }
+        const byIdDescending = created
+          .map((card) => card._id)
+          .sort()
+          .reverse();
+        for (const id of byIdDescending) {
+          await syncCardSearchTagsBatchHandler(ctx, id as Id<"cards">);
+        }
+        return created;
       });
-      seen.push(...result.items.map((card: { _id: string }) => card._id));
-      if (!result.pageInfo.hasMore) {
-        break;
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 10; page += 1) {
+        const result = await t.query(
+          internal.publicApi.searchCardsPageForUser,
+          {
+            userId: "owner",
+            tag: "tie",
+            limit: 1,
+            cursor,
+            ...filters,
+          }
+        );
+        seen.push(...result.items.map((card: { _id: string }) => card._id));
+        if (!result.pageInfo.hasMore) {
+          break;
+        }
+        cursor = result.pageInfo.nextCursor ?? undefined;
       }
-      cursor = result.pageInfo.nextCursor ?? undefined;
+      const oldestFirst = [...cards]
+        .sort(
+          (left, right) =>
+            left.createdAt - right.createdAt || (left._id < right._id ? -1 : 1)
+        )
+        .map((card) => card._id);
+      expect(seen).toEqual(
+        "sort" in filters ? oldestFirst : [...oldestFirst].reverse()
+      );
     }
-    expect(new Set(seen).size).toBe(seen.length);
-    expect([...seen].sort()).toEqual([...ids].map(String).sort());
-  });
+  );
 
   test.each([
     ["scan", "not-base64!"],
