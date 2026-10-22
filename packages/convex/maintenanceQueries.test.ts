@@ -94,6 +94,85 @@ describe("maintenance queries", () => {
   });
 });
 
+describe("orphan sweep references", () => {
+  const SOURCES = [
+    "uploads",
+    "imports",
+    "pendingLinkedPdfs",
+    "failedLinkedPdfs",
+    "exports",
+  ] as const;
+
+  test("pages every source one row at a time to the keys the one-call read finds", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const now = Date.now();
+      for (const [index, extra] of [
+        {},
+        { reportKey: "users/u1/imports/report.csv" },
+        {
+          stagedItems: { cursor: null, offset: 0, pages: 1, part: 2, parts: 2 },
+        },
+      ].entries()) {
+        await ctx.db.insert("importJobs", {
+          createdAt: now,
+          createdCount: 0,
+          failedCount: 0,
+          fileLastModified: now,
+          fileName: "export.zip",
+          fileSize: 10,
+          mode: "archive",
+          parsedCount: 0,
+          phase: "Importing cards",
+          processedCount: 0,
+          skippedCount: 0,
+          sourceKey: `users/u1/cards/pending/import-source/${index}.zip`,
+          status: "importing",
+          updatedAt: now,
+          userId: "u1",
+          ...extra,
+        });
+      }
+      for (const artifactKey of [undefined, "users/u1/exports/a.zip"]) {
+        await ctx.db.insert("exportJobs", {
+          createdAt: now,
+          status: "ready",
+          updatedAt: now,
+          userId: "u1",
+          ...(artifactKey ? { artifactKey } : {}),
+        });
+      }
+    });
+
+    const paged: string[] = [];
+    for (const source of SOURCES) {
+      let cursor: string | null = null;
+      for (let page = 0; page < 20; page += 1) {
+        const result: {
+          continueCursor: string;
+          isDone: boolean;
+          keys: string[];
+        } = await t.query(
+          internal.storage.orphanSweep.pageNonCardReferencedKeys,
+          { cursor, numItems: 1, source }
+        );
+        paged.push(...result.keys);
+        if (result.isDone) {
+          break;
+        }
+        cursor = result.continueCursor;
+      }
+    }
+
+    const all = await t.query(
+      internal.storage.orphanSweep.collectNonCardReferencedKeys,
+      {}
+    );
+    expect(all).toHaveLength(9);
+    expect(paged.sort()).toEqual([...all].sort());
+  });
+});
+
 describe("trash cleanup", () => {
   test("hard-deletes a card past retention, keeps a tombstone and queues its objects", async () => {
     const t = convexTest(schema, modules);

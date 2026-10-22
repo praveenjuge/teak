@@ -79,6 +79,7 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "storage/orphanSweep:collectNonCardReferencedKeys",
   "storage/orphanSweep:listPrefix",
   "storage/orphanSweep:logOrphanReport",
+  "storage/orphanSweep:pageNonCardReferencedKeys",
   "storage/orphanSweep:pageSweepCards",
   "dataImport:expireAbandonedUpload",
   "dataImport:findExpiredUploads",
