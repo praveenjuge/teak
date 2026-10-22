@@ -21,7 +21,7 @@ const cleanupReport = v.object({
   examined: v.number(),
   eligible: v.number(),
   deleted: v.number(),
-  preservedPending: v.number(),
+  expiredPending: v.number(),
   isDone: v.boolean(),
   continueCursor: v.union(v.string(), v.null()),
   continuationScheduled: v.boolean(),
@@ -87,7 +87,7 @@ const cleanUpExpiredRecords = async (
         examined: 0,
         eligible: 0,
         deleted: 0,
-        preservedPending: 0,
+        expiredPending: 0,
         isDone: false,
         continueCursor: state?.cursor ?? null,
         continuationScheduled: false,
@@ -115,16 +115,16 @@ const cleanUpExpiredRecords = async (
     maximumBytesRead: 2 * 1024 * 1024,
   };
   let eligible = 0;
-  let preservedPending = 0;
+  let expiredPending = 0;
   const result = await ctx.db
     .query("apiIdempotencyKeys")
     .withIndex("by_expires_at", (q) => q.lt("expiresAt", cutoff))
     .paginate(options);
   const examined = result.page.length;
+  // A pending row past `expiresAt` outlived its lease, so its handler is gone.
   for (const row of result.page) {
     if (row.state !== "completed") {
-      preservedPending++;
-      continue;
+      expiredPending++;
     }
     eligible++;
     if (!dryRun) {
@@ -164,7 +164,7 @@ const cleanUpExpiredRecords = async (
     examined,
     eligible,
     deleted: dryRun ? 0 : eligible,
-    preservedPending,
+    expiredPending,
     isDone,
     continueCursor: isDone ? null : continueCursor,
     continuationScheduled,

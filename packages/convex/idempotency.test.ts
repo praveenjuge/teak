@@ -1,6 +1,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
+import { IDEMPOTENCY_PENDING_LEASE_MS } from "./idempotency";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -102,6 +103,21 @@ describe("idempotency keys", () => {
       ctx.db.query("apiIdempotencyKeys").collect()
     );
     expect(rows).toHaveLength(1);
+  });
+
+  test("a retry takes over a request whose handler died once its lease lapses", async () => {
+    const t = convexTest(schema, modules);
+
+    await begin(t, { ttlMs: undefined });
+    vi.advanceTimersByTime(IDEMPOTENCY_PENDING_LEASE_MS - 1);
+    expect((await begin(t, { ttlMs: undefined })).status).toBe("in_progress");
+    vi.advanceTimersByTime(2);
+    const retry = await begin(t, { ttlMs: undefined });
+
+    expect(retry.status).toBe("started");
+    await complete(t, { ttlMs: undefined });
+    vi.advanceTimersByTime(IDEMPOTENCY_PENDING_LEASE_MS * 2);
+    expect((await begin(t, { ttlMs: undefined })).status).toBe("replay");
   });
 
   test("releasing a pending request lets the client retry from scratch", async () => {

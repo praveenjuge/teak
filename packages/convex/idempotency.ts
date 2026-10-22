@@ -40,6 +40,15 @@ const ttlArg = {
 const getTtlMs = (ttlMs?: number): number =>
   typeof ttlMs === "number" && ttlMs > 0 ? ttlMs : API_IDEMPOTENCY_KEY_TTL_MS;
 
+/**
+ * How long a pending reservation holds its key: Convex's ten-minute action
+ * limit, which bounds the slowest idempotent request (an upload finalize,
+ * whose Files Worker copy has no shorter timeout). A lapsed reservation
+ * belongs to a handler that died before it could complete or release it, so
+ * a retry takes the key over.
+ */
+export const IDEMPOTENCY_PENDING_LEASE_MS = 10 * 60 * 1000;
+
 const getRecordForUser = (ctx: MutationCtx, args: IdempotencyReference) =>
   ctx.db
     .query("apiIdempotencyKeys")
@@ -76,8 +85,8 @@ export const beginIdempotencyRequestForUser = internalMutation({
   ),
   handler: async (ctx, args) => {
     const now = Date.now();
-    const ttlMs = getTtlMs(args.ttlMs);
-    const expiresAt = now + ttlMs;
+    const expiresAt =
+      now + Math.min(getTtlMs(args.ttlMs), IDEMPOTENCY_PENDING_LEASE_MS);
     const existing = await getRecordForUser(ctx, args);
 
     const pendingRecord = {
