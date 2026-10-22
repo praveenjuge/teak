@@ -88,6 +88,7 @@ export default defineConfig({
       "./refreshDetails.test.ts",
       "./cancelOrphanedWorkflowCleanupJobs.test.ts",
       "./cardTranscripts.test.ts",
+      "./searchReads.test.ts",
     ],
   },
 });

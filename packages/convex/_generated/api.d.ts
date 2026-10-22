@@ -60,6 +60,7 @@ import type * as card_queryUtils from "../card/queryUtils.js";
 import type * as card_quota from "../card/quota.js";
 import type * as card_quoteFormatting from "../card/quoteFormatting.js";
 import type * as card_saveLinkedPdf from "../card/saveLinkedPdf.js";
+import type * as card_scanInBatches from "../card/scanInBatches.js";
 import type * as card_searchDocumentHelpers from "../card/searchDocumentHelpers.js";
 import type * as card_searchDocuments from "../card/searchDocuments.js";
 import type * as card_searchPlanner from "../card/searchPlanner.js";
@@ -159,6 +160,7 @@ import type * as migration_backfillEmbeddings from "../migration/backfillEmbeddi
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
+import type * as migration_backfillSearchDocumentDates from "../migration/backfillSearchDocumentDates.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
@@ -367,6 +369,7 @@ declare const fullApi: ApiFromModules<{
   "card/quota": typeof card_quota;
   "card/quoteFormatting": typeof card_quoteFormatting;
   "card/saveLinkedPdf": typeof card_saveLinkedPdf;
+  "card/scanInBatches": typeof card_scanInBatches;
   "card/searchDocumentHelpers": typeof card_searchDocumentHelpers;
   "card/searchDocuments": typeof card_searchDocuments;
   "card/searchPlanner": typeof card_searchPlanner;
@@ -466,6 +469,7 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;
+  "migration/backfillSearchDocumentDates": typeof migration_backfillSearchDocumentDates;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;

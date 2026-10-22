@@ -9,6 +9,7 @@ import {
   SIMILAR_CARDS_LIMIT,
 } from "../shared/search/semantic";
 import { tokenizeSearchInput } from "../shared/search/tokenization";
+import { scanInBatches } from "./scanInBatches";
 import { buildCardSearchText } from "./searchDocumentHelpers";
 
 export const isSimilarAnchorAvailable = async (
@@ -40,32 +41,36 @@ export const loadSimilarCards = async (
   const words = tokenizeSearchInput(text).map((word) => word.toLowerCase());
   const minScore = similarity.kind === "mood" ? SEMANTIC_MIN_SCORE : 0;
   const anchorId = similarity.kind === "like" ? similarity.cardId : null;
-  const cards: Doc<"cards">[] = [];
   const seen = new Set<Id<"cards">>();
-  for (const match of ranking) {
-    if (cards.length >= SIMILAR_CARDS_LIMIT) {
-      break;
-    }
+  const candidates = ranking.filter((match) => {
     if (
       match.score < minScore ||
       match.cardId === anchorId ||
       seen.has(match.cardId)
     ) {
-      continue;
+      return false;
     }
     seen.add(match.cardId);
-    const card = await ctx.db.get("cards", match.cardId);
-    if (!(card && card.userId === userId && keep(card))) {
-      continue;
-    }
-    if (words.length > 0) {
-      const text = buildCardSearchText(card).toLowerCase();
-      if (!words.every((word) => text.includes(word))) {
-        continue;
+    return true;
+  });
+  const cards: Doc<"cards">[] = [];
+  await scanInBatches(
+    candidates,
+    () => SIMILAR_CARDS_LIMIT - cards.length,
+    (match) => ctx.db.get("cards", match.cardId),
+    (_match, card) => {
+      if (!(card && card.userId === userId && keep(card))) {
+        return;
       }
+      if (words.length > 0) {
+        const text = buildCardSearchText(card).toLowerCase();
+        if (!words.every((word) => text.includes(word))) {
+          return;
+        }
+      }
+      cards.push(card);
     }
-    cards.push(card);
-  }
+  );
   return cards;
 };
 

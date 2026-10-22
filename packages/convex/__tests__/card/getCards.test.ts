@@ -25,9 +25,6 @@ afterEach(() => {
   }
 });
 
-const filterable = <Q extends object>(query: Q): Q =>
-  Object.assign(query, { filter: () => query });
-
 const buildQuery = (cards: any[] = []) =>
   ({
     async *[Symbol.asyncIterator]() {
@@ -45,6 +42,40 @@ const buildQuery = (cards: any[] = []) =>
       continueCursor: null,
     }),
   }) as any;
+
+// Applies a read's equality conditions, so reads of different index ranges
+// see different cards.
+const indexedQuery = (cards: any[]) => ({
+  withIndex: (_index: string, range?: (q: any) => unknown) => {
+    const conditions: [string, unknown][] = [];
+    const builder: any = {
+      eq: (field: string, value: unknown) => {
+        conditions.push([field, value]);
+        return builder;
+      },
+      gt: () => builder,
+      gte: () => builder,
+      lt: () => builder,
+      lte: () => builder,
+    };
+    range?.(builder);
+    return buildQuery(
+      cards.filter((card) =>
+        conditions.every(([field, value]) => card[field] === value)
+      )
+    );
+  },
+});
+
+const libraryCards = (count: number) =>
+  Array.from({ length: count }, (_, index) => ({
+    _id: `c${index}`,
+    _creationTime: count - index,
+    createdAt: count - index,
+    userId: "u1",
+    content: `Card ${index}`,
+    type: "text",
+  }));
 
 const buildSearchDb = (cards: any[], cardQuery = buildQuery(cards)) => ({
   get: mock((_table: string, id: string) =>
@@ -128,65 +159,42 @@ describe("card/getCards.ts", () => {
       expect(query.withIndex).toHaveBeenCalled();
     });
 
-    test("uses default limit when not specified", async () => {
-      const cards: any[] = [];
-      const takeMock = mock().mockResolvedValue(cards);
-      const orderMock = mock().mockReturnValue({ take: takeMock });
-
-      const query = {
-        withIndex: mock().mockReturnValue(filterable({ order: orderMock })),
-      } as any;
-
+    test("returns the default number of cards when no limit is given", async () => {
       const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: { query: mock().mockReturnValue(indexedQuery(libraryCards(60))) },
         storage: { getUrl: mock() },
       } as any);
 
       const handler = (getCards as any).handler ?? getCards;
-      await handler(ctx, {});
-      expect(orderMock).toHaveBeenCalledWith("desc");
-      expect(takeMock).toHaveBeenCalledWith(50);
+      const result = await handler(ctx, {});
+      expect(result.map((card: { _id: string }) => card._id)).toEqual(
+        libraryCards(50).map((card) => card._id)
+      );
     });
 
     test("clamps an oversized limit to the max card limit", async () => {
-      const cards: any[] = [];
-      const takeMock = mock().mockResolvedValue(cards);
-      const orderMock = mock().mockReturnValue({ take: takeMock });
-
-      const query = {
-        withIndex: mock().mockReturnValue(filterable({ order: orderMock })),
-      } as any;
-
       const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: { query: mock().mockReturnValue(indexedQuery(libraryCards(250))) },
         storage: { getUrl: mock() },
       } as any);
 
       const handler = (getCards as any).handler ?? getCards;
-      await handler(ctx, { limit: 100_000 });
-      expect(takeMock).toHaveBeenCalledWith(200);
+      const result = await handler(ctx, { limit: 100_000 });
+      expect(result).toHaveLength(200);
     });
 
     test("clamps a non-positive limit up to 1", async () => {
-      const cards: any[] = [];
-      const takeMock = mock().mockResolvedValue(cards);
-      const orderMock = mock().mockReturnValue({ take: takeMock });
-
-      const query = {
-        withIndex: mock().mockReturnValue(filterable({ order: orderMock })),
-      } as any;
-
       const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: { query: mock().mockReturnValue(indexedQuery(libraryCards(5))) },
         storage: { getUrl: mock() },
       } as any);
 
       const handler = (getCards as any).handler ?? getCards;
-      await handler(ctx, { limit: -10 });
-      expect(takeMock).toHaveBeenCalledWith(1);
+      const result = await handler(ctx, { limit: -10 });
+      expect(result.map((card: { _id: string }) => card._id)).toEqual(["c0"]);
     });
 
     test("attaches linkPreviewImageUrl from metadata", async () => {
@@ -325,19 +333,25 @@ describe("card/getCards.ts", () => {
 
     test("handles trash keyword search", async () => {
       const cards = [
-        { _id: "c1", _creationTime: 1, userId: "u1", content: "Deleted" },
+        {
+          _id: "c1",
+          _creationTime: 1,
+          userId: "u1",
+          content: "Deleted",
+          isDeleted: true,
+        },
+        { _id: "c2", _creationTime: 2, userId: "u1", content: "Kept" },
       ];
-      const query = buildQuery(cards);
 
       const ctx = withTestSession({
         auth: { getUserIdentity: mock().mockResolvedValue({ subject: "u1" }) },
-        db: { query: mock().mockReturnValue(query) },
+        db: { query: mock().mockReturnValue(indexedQuery(cards)) },
         storage: { getUrl: mock() },
       } as any);
 
       const handler = (searchCards as any).handler ?? searchCards;
       const result = await handler(ctx, { searchQuery: "trash" });
-      expect(result).toHaveLength(1);
+      expect(result.map((card: { _id: string }) => card._id)).toEqual(["c1"]);
     });
 
     test("deduplicates search results", async () => {

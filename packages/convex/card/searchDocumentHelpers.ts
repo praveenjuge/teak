@@ -35,6 +35,7 @@ import {
   scopeArchivedMatch,
 } from "./listQuery";
 import { deleteCardTextRows, readCardTranscript } from "./textContents";
+import { scanInBatches } from "./scanInBatches";
 
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
 
@@ -343,9 +344,13 @@ export const syncCardSearchDocumentHandler = async (
     isHidden,
     urlHost,
     sourceUpdatedAt: card.updatedAt,
+    cardCreatedAt: card.createdAt,
+    cardCreationTime: card._creationTime,
   };
   if (existing) {
     if (
+      existing.cardCreatedAt !== value.cardCreatedAt ||
+      existing.cardCreationTime !== value.cardCreationTime ||
       existing.userId !== value.userId ||
       existing.searchableText !== value.searchableText ||
       existing.ocrText !== value.ocrText ||
@@ -867,20 +872,21 @@ const keepSearchDocuments = async (
   if (documents.length === sourceLimit) {
     scanBudget.hitSearchLimit = true;
   }
-  for (const document of documents) {
-    const card = await ctx.db.get("cards", document.cardId);
-    if (
-      card &&
-      (args.includeHidden || !isCardHidden(card)) &&
-      (!args.resultFilter || args.resultFilter(card, document.searchableText))
-    ) {
-      cardsById.set(card._id, card);
-      args.searchTexts?.set(card._id, document.searchableText);
-      if (cardsById.size >= matchLimit) {
-        break;
+  await scanInBatches(
+    documents,
+    () => matchLimit - cardsById.size,
+    (document) => ctx.db.get("cards", document.cardId),
+    (document, card) => {
+      if (
+        card &&
+        (args.includeHidden || !isCardHidden(card)) &&
+        (!args.resultFilter || args.resultFilter(card, document.searchableText))
+      ) {
+        cardsById.set(card._id, card);
+        args.searchTexts?.set(card._id, document.searchableText);
       }
     }
-  }
+  );
   // Convex checks its 1,024-result cap before probing exhaustion, so a
   // saturated search cannot prove that all post-filter matches were examined.
   if (documents.length === sourceLimit && cardsById.size < matchLimit) {
@@ -910,9 +916,126 @@ export const searchCardsByDocument = async (
       .take(limit)
   );
   if (found.cardsById.size < found.matchLimit) {
-    await addCardsFoundByFileText(ctx, args, archived, scanBudget, found);
+    await addCardsFoundByFileText(ctx, args, archived, scanBudget, {
+      has: (cardId) => found.cardsById.has(cardId),
+      wanted: () => found.matchLimit - found.cardsById.size,
+      add: (card, searchableText) => {
+        found.cardsById.set(card._id, card);
+        args.searchTexts?.set(card._id, searchableText);
+      },
+    });
   }
   return Array.from(found.cardsById.values());
+};
+
+/**
+ * A card a text search matched, with the fields its order needs. `card` is
+ * loaded when the match needed it; otherwise `document` holds the match.
+ */
+export interface SearchCandidate {
+  card?: Doc<"cards">;
+  cardId: Id<"cards">;
+  createdAt: number;
+  creationTime: number;
+  document?: Doc<"cardSearchDocuments">;
+  searchableText: string;
+}
+
+export const searchCandidateOf = (
+  card: Doc<"cards">,
+  searchableText = ""
+): SearchCandidate => ({
+  card,
+  cardId: card._id,
+  createdAt: card.createdAt,
+  creationTime: card._creationTime,
+  searchableText,
+});
+
+/**
+ * `searchCardsByDocument` without loading cards: `keepDocument` decides a
+ * match from its search document and the card's dates stored there, so a
+ * page loads only its own cards. A document written before those dates were
+ * stored, and a match found in file text, load the card and go through
+ * `resultFilter` as `searchCardsByDocument` would. With neither filter every
+ * match is kept, as `searchCardsByDocument` keeps every visible card.
+ */
+export const searchCandidatesByDocument = async (
+  ctx: QueryCtx,
+  args: Omit<DocumentSearchArgs, "searchTexts"> & {
+    keepDocument?: (
+      document: Doc<"cardSearchDocuments">,
+      createdAt: number
+    ) => boolean;
+  }
+): Promise<SearchCandidate[]> => {
+  const archived = scopeArchivedMatch(
+    cardListScope(args.archived, args.isDeleted === true)
+  );
+  const scanBudget = args.scanBudget ?? { remaining: 4096 };
+  const matchLimit = Math.min(1024, Math.max(1, args.limit));
+  const sourceLimit = Math.min(1024, scanBudget.remaining);
+  if (sourceLimit <= 0) {
+    throw searchTooBroad();
+  }
+  const documents = await ctx.db
+    .query("cardSearchDocuments")
+    .withSearchIndex("search_searchableText", (query) =>
+      filterSearchIndex(
+        query.search("searchableText", args.searchQuery),
+        args,
+        archived
+      )
+    )
+    .take(sourceLimit);
+  scanBudget.remaining -= documents.length;
+  if (documents.length === sourceLimit) {
+    scanBudget.hitSearchLimit = true;
+  }
+  const found = new Map<Id<"cards">, SearchCandidate>();
+  await scanInBatches(
+    documents,
+    () => matchLimit - found.size,
+    (document) =>
+      document.cardCreatedAt === undefined ||
+      document.cardCreationTime === undefined
+        ? ctx.db.get("cards", document.cardId)
+        : Promise.resolve(undefined),
+    (document, card) => {
+      if (card === undefined) {
+        const createdAt = document.cardCreatedAt as number;
+        if (!args.keepDocument || args.keepDocument(document, createdAt)) {
+          found.set(document.cardId, {
+            cardId: document.cardId,
+            createdAt,
+            creationTime: document.cardCreationTime as number,
+            document,
+            searchableText: document.searchableText,
+          });
+        }
+        return;
+      }
+      if (
+        card &&
+        (args.includeHidden || !isCardHidden(card)) &&
+        (!args.resultFilter || args.resultFilter(card, document.searchableText))
+      ) {
+        found.set(card._id, searchCandidateOf(card, document.searchableText));
+      }
+    }
+  );
+  if (documents.length === sourceLimit && found.size < matchLimit) {
+    throw searchTooBroad();
+  }
+  if (found.size < matchLimit) {
+    await addCardsFoundByFileText(ctx, args, archived, scanBudget, {
+      has: (cardId) => found.has(cardId),
+      wanted: () => matchLimit - found.size,
+      add: (card, searchableText) =>
+        found.set(card._id, searchCandidateOf(card, searchableText)),
+    });
+  }
+  return Array.from(found.values());
 };
 
 export const searchCardsByOcrText = async (
@@ -953,22 +1076,26 @@ export const loadSemanticMatches = async (
     | "includeHidden"
   >,
   ranking: readonly { cardId: Id<"cards">; score: number }[],
-  cardsById: Map<Id<"cards">, Doc<"cards">>,
+  cardsById: Pick<Map<Id<"cards">, Doc<"cards">>, "has" | "set">,
   options: { minScore: number; keep: (card: Doc<"cards">) => boolean }
 ): Promise<{ cardId: Id<"cards">; score: number }[]> => {
   const archived = scopeArchivedMatch(
     cardListScope(args.archived, args.isDeleted === true)
   );
+  const loaded = await Promise.all(
+    ranking.map((match) =>
+      cardsById.has(match.cardId) || match.score < options.minScore
+        ? null
+        : ctx.db.get("cards", match.cardId)
+    )
+  );
   const kept: { cardId: Id<"cards">; score: number }[] = [];
-  for (const match of ranking) {
+  for (const [index, match] of ranking.entries()) {
     if (cardsById.has(match.cardId)) {
       kept.push(match);
       continue;
     }
-    if (match.score < options.minScore) {
-      continue;
-    }
-    const card = await ctx.db.get("cards", match.cardId);
+    const card = loaded[index];
     if (
       card &&
       card.userId === args.userId &&
@@ -988,10 +1115,24 @@ export const FILE_TEXT_SEARCH_LIMIT =
 
 const addCardsFoundByFileText = async (
   ctx: QueryCtx,
-  args: Parameters<typeof searchCardsByDocument>[1],
+  args: Pick<
+    DocumentSearchArgs,
+    | "includeHidden"
+    | "isDeleted"
+    | "isFavorited"
+    | "resultFilter"
+    | "searchQuery"
+    | "type"
+    | "urlHost"
+    | "userId"
+  >,
   archived: true | undefined | "any",
   scanBudget: { textRemaining?: number },
-  found: { cardsById: Map<Id<"cards">, Doc<"cards">>; matchLimit: number }
+  found: {
+    add: (card: Doc<"cards">, searchableText: string) => void;
+    has: (cardId: Id<"cards">) => boolean;
+    wanted: () => number;
+  }
 ) => {
   if (args.type !== undefined && args.type !== "document") {
     return;
@@ -1007,26 +1148,23 @@ const addCardsFoundByFileText = async (
     )
     .take(textLimit);
   scanBudget.textRemaining = textLimit - rows.length;
-  for (const row of rows) {
-    if (found.cardsById.has(row.cardId)) {
-      continue;
-    }
-    const card = await ctx.db.get("cards", row.cardId);
-    if (!(card && card.userId === args.userId)) {
-      continue;
-    }
-    const searchableText = buildCardSearchText(card, row.text);
-    if (
-      matchesSearchIndexFilters(card, args, archived) &&
-      (!args.resultFilter || args.resultFilter(card, searchableText))
-    ) {
-      found.cardsById.set(card._id, card);
-      args.searchTexts?.set(card._id, searchableText);
-      if (found.cardsById.size >= found.matchLimit) {
-        break;
+  await scanInBatches(
+    rows.filter((row) => !found.has(row.cardId)),
+    found.wanted,
+    (row) => ctx.db.get("cards", row.cardId),
+    (row, card) => {
+      if (!card || card.userId !== args.userId || found.has(card._id)) {
+        return;
+      }
+      const searchableText = buildCardSearchText(card, row.text);
+      if (
+        matchesSearchIndexFilters(card, args, archived) &&
+        (!args.resultFilter || args.resultFilter(card, searchableText))
+      ) {
+        found.add(card, searchableText);
       }
     }
-  }
+  );
 };
 
 const matchesSearchIndexFilters = (

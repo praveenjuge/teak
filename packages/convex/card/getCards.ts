@@ -38,6 +38,7 @@ import {
   buildFolderCardListQuery,
   buildHostCardListQuery,
   buildTagCardListQuery,
+  CARD_LIST_PAGE_ROW_LIMIT,
   type CardListScope,
   type CardListSort,
   cardListScope,
@@ -45,6 +46,7 @@ import {
   cardListSortWithShuffleValidator,
   compareCardsByCreatedAt,
   normalizeCardListSort,
+  takeCardList,
 } from "./listQuery";
 import {
   attachCardSummaryUrls,
@@ -57,6 +59,9 @@ import {
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import {
   loadSemanticMatches,
+  type SearchCandidate,
+  searchCandidateOf,
+  searchCandidatesByDocument,
   searchCardsByDocument,
   searchCardsByOcrText,
 } from "./searchDocumentHelpers";
@@ -137,16 +142,10 @@ const SHUFFLE_WALK_SCAN_LIMIT = 400;
 const loadCards = async (
   ctx: QueryCtx,
   cardIds: readonly Doc<"cards">["_id"][]
-): Promise<Doc<"cards">[]> => {
-  const cards: Doc<"cards">[] = [];
-  for (const cardId of cardIds) {
-    const card = await ctx.db.get("cards", cardId);
-    if (card) {
-      cards.push(card);
-    }
-  }
-  return cards;
-};
+): Promise<Doc<"cards">[]> =>
+  (
+    await Promise.all(cardIds.map((cardId) => ctx.db.get("cards", cardId)))
+  ).filter((card): card is Doc<"cards"> => card !== null);
 
 export const getCards = query({
   args: {
@@ -161,14 +160,17 @@ export const getCards = query({
       return [];
     }
 
-    const query = buildCardListQuery(ctx, {
-      userId: user.teakUserId,
-      favoritesOnly: args.favoritesOnly,
-      types: args.type ? [args.type] : undefined,
-    });
-
     const cards = keepVisible(
-      await query.order("desc").take(clampSearchLimit(args.limit))
+      await takeCardList(
+        ctx,
+        {
+          userId: user.teakUserId,
+          favoritesOnly: args.favoritesOnly,
+          types: args.type ? [args.type] : undefined,
+        },
+        "desc",
+        clampSearchLimit(args.limit)
+      )
     );
 
     const cardsWithUrls = await attachFileUrls(ctx, cards);
@@ -225,12 +227,12 @@ export const searchCards = query({
       if (
         ["fav", "favs", "favorites", "favourite", "favourites"].includes(query)
       ) {
-        const favorites = await buildCardListQuery(ctx, {
-          userId: user.teakUserId,
-          favoritesOnly: true,
-        })
-          .order(order)
-          .take(limit);
+        const favorites = await takeCardList(
+          ctx,
+          { userId: user.teakUserId, favoritesOnly: true },
+          order,
+          limit
+        );
         const filteredFavorites = applyCardLevelFilters(
           keepVisible(favorites),
           {
@@ -245,12 +247,12 @@ export const searchCards = query({
       }
 
       if (["trash", "deleted", "bin", "recycle", "trashed"].includes(query)) {
-        const trashed = await buildCardListQuery(ctx, {
-          userId: user.teakUserId,
-          scope: "trash",
-        })
-          .order(order)
-          .take(limit);
+        const trashed = await takeCardList(
+          ctx,
+          { userId: user.teakUserId, scope: "trash" },
+          order,
+          limit
+        );
         const filteredTrashed = applyCardLevelFilters(keepVisible(trashed), {
           types,
           favoritesOnly,
@@ -313,17 +315,20 @@ export const searchCards = query({
     }
 
     const cards = keepVisible(
-      await buildCardListQuery(ctx, {
-        userId: user.teakUserId,
-        scope,
-        favoritesOnly,
-        types,
-        createdAt: createdAtRange
-          ? { gte: createdAtRange.start, lt: createdAtRange.end }
-          : undefined,
-      })
-        .order(order)
-        .take(limit)
+      await takeCardList(
+        ctx,
+        {
+          userId: user.teakUserId,
+          scope,
+          favoritesOnly,
+          types,
+          createdAt: createdAtRange
+            ? { gte: createdAtRange.start, lt: createdAtRange.end }
+            : undefined,
+        },
+        order,
+        limit
+      )
     );
     const cardsWithUrls = await attachFileUrls(ctx, cards);
     return applyQuoteFormattingToList(cardsWithUrls);
@@ -420,6 +425,10 @@ export const searchCardsPaginatedHandler = async (
   const paginationOpts = {
     ...rawPaginationOpts,
     numItems: clampPageSize(rawPaginationOpts.numItems),
+    maximumRowsRead: Math.min(
+      rawPaginationOpts.maximumRowsRead ?? CARD_LIST_PAGE_ROW_LIMIT,
+      CARD_LIST_PAGE_ROW_LIMIT
+    ),
   };
   ensureValidRange(createdAtRange);
   const visualFilters = normalizeVisualFilterArgs({
@@ -651,6 +660,127 @@ export const searchCardsPaginatedHandler = async (
       ? await readSemanticRanking(ctx, user.teakUserId, semanticText)
       : null;
     const keywordSearch = !(mode === "semantic" && ranking);
+    const relevanceText = sort === "relevance" ? semanticQueryText(parsed) : "";
+    const pageOf = async (
+      ordered: SearchCandidate[],
+      matchedByMeaning: ReadonlySet<Id<"cards">>
+    ) => {
+      const cards = await Promise.all(
+        ordered
+          .slice(offset, offset + pageSize)
+          .map(
+            (candidate) =>
+              candidate.card ?? ctx.db.get("cards", candidate.cardId)
+          )
+      );
+      const page = cards.flatMap((card) => {
+        if (!card) {
+          return [];
+        }
+        return matchedByMeaning.has(card._id)
+          ? [{ ...card, matchedByMeaning: true as const }]
+          : [card];
+      });
+      const isDone = ordered.length <= offset + pageSize;
+      const pageWithUrls = await attachListUrls(ctx, page);
+      return {
+        page: applyQuoteFormattingToList(pageWithUrls),
+        isDone,
+        continueCursor: isDone ? null : String(offset + pageSize),
+      };
+    };
+    const { matchesDocument } = resolved;
+    // When every filter reads search document fields, the matches are ranked
+    // from their documents and only the page's cards are loaded. Visual
+    // filters, image text and stored relevance scores need every card.
+    if (
+      matchesDocument &&
+      !resolved.ocrText &&
+      !visualFilters.hasVisualFilters &&
+      !(relevanceText && args.useRelevanceScores)
+    ) {
+      const keepDocument = (
+        document: Doc<"cardSearchDocuments">,
+        createdAt: number
+      ) =>
+        matchesDocument(document) &&
+        isCreatedAtInRange(createdAt, createdAtRange) &&
+        (!hasMultiTypeFilter || typesSet.has(document.type));
+      const keeps = (candidate: SearchCandidate) =>
+        candidate.document
+          ? keepDocument(candidate.document, candidate.createdAt)
+          : candidate.card !== undefined &&
+            matchesFilters(candidate.card, candidate.searchableText);
+      let candidates: SearchCandidate[] = [];
+      try {
+        if (keywordSearch) {
+          candidates = await searchCandidatesByDocument(ctx, {
+            ...searchArgs,
+            keepDocument,
+            resultFilter: matchesFilters,
+          });
+        }
+      } catch (error) {
+        if (!isSearchTooBroadError(error)) {
+          throw error;
+        }
+        candidates = await searchCandidatesByDocument(ctx, {
+          ...searchArgs,
+          limit: SEARCH_INDEX_RESULT_LIMIT,
+        });
+      }
+      const matched = candidates
+        .filter(keeps)
+        .slice(0, SEARCH_PAGE_CANDIDATE_LIMIT);
+      let ordered = matched;
+      const matchedByMeaning = new Set<Id<"cards">>();
+      if (ranking) {
+        const keywordMatches = new Map(
+          matched.map((candidate) => [candidate.cardId, candidate] as const)
+        );
+        const meaningMatches = new Map<Id<"cards">, Doc<"cards">>();
+        const semantic = await loadSemanticMatches(
+          ctx,
+          searchArgs,
+          ranking,
+          {
+            has: (cardId) =>
+              keywordMatches.has(cardId) || meaningMatches.has(cardId),
+            set: (cardId, card) => meaningMatches.set(cardId, card),
+          },
+          { minScore: SEMANTIC_MIN_SCORE, keep: (card) => matchesFilters(card) }
+        );
+        for (const match of semantic) {
+          if (match.score >= SEMANTIC_MIN_SCORE) {
+            matchedByMeaning.add(match.cardId);
+          }
+        }
+        ordered = fuseRankings(
+          matched.map((candidate) => candidate.cardId),
+          semantic,
+          { mode, limit: SEARCH_PAGE_CANDIDATE_LIMIT }
+        ).flatMap((cardId) => {
+          const candidate = keywordMatches.get(cardId);
+          if (candidate) {
+            return [candidate];
+          }
+          const card = meaningMatches.get(cardId);
+          return card ? [searchCandidateOf(card)] : [];
+        });
+      }
+      if (shuffle) {
+        ordered = shuffleBySeed(ordered, seed, (candidate) => candidate.cardId);
+      } else if (!relevanceText) {
+        ordered.sort((left, right) =>
+          compareCardsByCreatedAt(
+            { createdAt: left.createdAt, _creationTime: left.creationTime },
+            { createdAt: right.createdAt, _creationTime: right.creationTime },
+            sort
+          )
+        );
+      }
+      return pageOf(ordered, matchedByMeaning);
+    }
     let searchResults: Doc<"cards">[] = [];
     const searchTexts = new Map<Id<"cards">, string>();
     const readKeywordMatches = async (
@@ -718,7 +848,6 @@ export const searchCardsPaginatedHandler = async (
       ).flatMap((cardId) => cardsById.get(cardId) ?? []);
     }
 
-    const relevanceText = sort === "relevance" ? semanticQueryText(parsed) : "";
     let sortedResults: Doc<"cards">[];
     if (shuffle) {
       sortedResults = shuffleBySeed(filteredResults, seed, (card) => card._id);
@@ -804,6 +933,7 @@ export const searchCardsPaginatedHandler = async (
       .order(order)
       .paginate({
         cursor: paginationOpts.cursor,
+        maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: filtersCards
           ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
           : paginationOpts.numItems,
@@ -857,15 +987,15 @@ export const searchCardsPaginatedHandler = async (
       .order(order)
       .paginate({
         cursor: paginationOpts.cursor,
+        maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
       });
-    const cards: Doc<"cards">[] = [];
-    for (const row of rows.page) {
-      const card = await ctx.db.get("cards", row.cardId);
-      if (card && matchesQualifiers(card)) {
-        cards.push(card);
-      }
-    }
+    const cards = (
+      await loadCards(
+        ctx,
+        rows.page.map((row) => row.cardId)
+      )
+    ).filter(matchesQualifiers);
     const matches = applyCardLevelFilters(cards, {
       types,
       favoritesOnly,
@@ -929,6 +1059,7 @@ export const searchCardsPaginatedHandler = async (
       !visualFilters.hasVisualFilters;
     const rows = await driver.order(order).paginate({
       cursor: paginationOpts.cursor,
+      maximumRowsRead: paginationOpts.maximumRowsRead,
       numItems: exact
         ? paginationOpts.numItems
         : Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
@@ -955,13 +1086,10 @@ export const searchCardsPaginatedHandler = async (
     })
       .order(order)
       .paginate(paginationOpts);
-    const folderCards: Doc<"cards">[] = [];
-    for (const row of rows.page) {
-      const card = await ctx.db.get("cards", row.cardId);
-      if (card) {
-        folderCards.push(card);
-      }
-    }
+    const folderCards = await loadCards(
+      ctx,
+      rows.page.map((row) => row.cardId)
+    );
     const folderCardsWithUrls = await attachListUrls(ctx, folderCards);
     return {
       ...rows,

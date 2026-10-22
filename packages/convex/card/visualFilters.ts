@@ -19,7 +19,7 @@ import {
 } from "../shared/search/sort";
 import { isCardHidden } from "../shared/tags";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
-import { buildCardListQuery, type CardListScope } from "./listQuery";
+import { type CardListScope, cardListStream } from "./listQuery";
 
 export interface VisualFilterState {
   hasVisualFilters: boolean;
@@ -189,24 +189,28 @@ export const findVisualMatches = async (
   const types = visualTypesWithin(options.types, options.visualFilters);
   const perType = await Promise.all(
     types.map(async (type) => {
-      const cards = buildCardListQuery(ctx, {
-        userId: options.userId,
-        scope: options.scope,
-        favoritesOnly: options.favoritesOnly,
-        scanHiddenRows: true,
-        types: [type],
-        createdAt: options.createdAtRange
-          ? {
-              gte: options.createdAtRange.start,
-              lt: options.createdAtRange.end,
-            }
-          : undefined,
-      }).order(sort === "oldest" ? "asc" : "desc");
+      const { rows, residual } = cardListStream(
+        ctx,
+        {
+          userId: options.userId,
+          scope: options.scope,
+          favoritesOnly: options.favoritesOnly,
+          types: [type],
+          createdAt: options.createdAtRange
+            ? {
+                gte: options.createdAtRange.start,
+                lt: options.createdAtRange.end,
+              }
+            : undefined,
+        },
+        sort === "oldest" ? "asc" : "desc"
+      );
       const matches: Doc<"cards">[] = [];
       let read = 0;
-      for await (const card of cards) {
+      for await (const card of rows) {
         read += 1;
         if (
+          (!residual || residual(card)) &&
           (options.includeHidden || !isCardHidden(card)) &&
           doesCardMatchVisualFilters(card, options.visualFilters)
         ) {
