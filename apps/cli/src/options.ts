@@ -12,17 +12,22 @@ import {
   type SearchMode,
 } from "teak-sdk";
 
+const WHOLE_NUMBER_REGEX = /^\d+$/;
+
+const wholeNumber = (value: string) =>
+  WHOLE_NUMBER_REGEX.test(value.trim()) ? Number(value) : Number.NaN;
+
 export const parseLimit = (value: string) => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed < 1) {
+  const parsed = wholeNumber(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
     throw new InvalidArgumentError("limit must be a positive number");
   }
   return parsed;
 };
 
 export const parseSince = (value: string) => {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) {
+  const parsed = wholeNumber(value);
+  if (!Number.isSafeInteger(parsed)) {
     throw new InvalidArgumentError("since must be a millisecond timestamp");
   }
   return parsed;

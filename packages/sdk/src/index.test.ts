@@ -20,6 +20,15 @@ describe("teak-sdk", () => {
     ).toBe("q=hi&tag=ux&sort=oldest&limit=100");
   });
 
+  test("asks for best-match order", () => {
+    expect(buildCardsSearchParams({ query: "x", sort: "relevance" })).toBe(
+      "q=x&sort=relevance&limit=50"
+    );
+    expect(buildCardsSearchParams({ query: "x", sort: "newest" })).toBe(
+      "q=x&limit=50"
+    );
+  });
+
   test("asks for a card's similar cards", async () => {
     const urls: string[] = [];
     const client = createTeakClient({

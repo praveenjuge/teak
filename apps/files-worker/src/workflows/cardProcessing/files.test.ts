@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { documentTextObjectKey } from "@teak/convex/card/documentTextFormat";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import type { FilesOp } from "@teak/files-protocol";
+import { type FilesOp, filesCardKeyPrefix } from "@teak/files-protocol";
+import { freezeObject } from "../../deletionGate";
+import { sha256Hex } from "../../lib";
 import {
   CARD_ID,
   createCardConvex,
@@ -12,6 +15,7 @@ import {
   testEnv,
   testJob,
 } from "../../test/cardProcessingKit";
+import { FakeBucket, withObjectGates } from "../../test/testsupport";
 import { createWorkflowTelemetry } from "../telemetry";
 import type { CardDoc } from "./context";
 import {
@@ -19,6 +23,7 @@ import {
   extractFileTextForKey,
   processAudioCard,
   recordMediaFacts,
+  storeDocumentText,
   transcribeStoredAudio,
 } from "./files";
 import {
@@ -250,6 +255,33 @@ describe("document text", () => {
       await extractFileTextForKey(job, "k", png as NonNullable<typeof png>, {})
     ).toEqual({ text: "" });
     expect(fakes.calls).toEqual([]);
+  });
+
+  test("a document's text is not written once account deletion has locked its key", async () => {
+    const bucket = new FakeBucket();
+    const env = withObjectGates(testEnv({ BUCKET: bucket as never }));
+    const card = makeCard({});
+    const convex = createCardConvex(card);
+    const job = testJob(
+      env,
+      testDeps(env, convex.fetcher, createFakeOps({}).ops)
+    );
+    const text = "Quarterly plan";
+    const key = documentTextObjectKey(
+      filesCardKeyPrefix("", card.userId),
+      card._id,
+      await sha256Hex(text)
+    );
+    expect(await freezeObject(env, key)).toBe(true);
+
+    await expect(
+      storeDocumentText(
+        job,
+        { card: card as unknown as CardDoc, keyPrefix: "" },
+        { text }
+      )
+    ).rejects.toThrow("Object writes are blocked");
+    expect(bucket.objects.has(key)).toBe(false);
   });
 
   test("an archive's preview facts come from a zip inspection", async () => {

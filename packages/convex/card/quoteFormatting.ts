@@ -75,14 +75,70 @@ const isAllowedTrailingText = (text: string): boolean => {
   return false;
 };
 
-const findClosingIndex = (value: string, closing: string): number => {
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
+const SPACE_CHAR = /\s/;
+
+/**
+ * Whether `inner` closes the quote and opens another, as in `"Yes" and "No"`,
+ * so the outer marks belong to two quotes. Balanced quotes inside, as in
+ * `"He called it "fast" and "safe"."`, are nested. A quote between letters,
+ * as in "it's", or escaped with a backslash is not a quote mark.
+ */
+const closesAndReopens = (
+  inner: string,
+  opening: string,
+  closing: string
+): boolean => {
+  let depth = 0;
+  let closed = false;
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    const previous = inner[i - 1];
+    const next = inner[i + 1];
+    if (previous === "\\" || (char !== opening && char !== closing)) {
+      continue;
+    }
+    const opens =
+      opening === closing
+        ? !(previous && WORD_CHAR.test(previous)) &&
+          next !== undefined &&
+          !SPACE_CHAR.test(next)
+        : char === opening;
+    const closes =
+      opening === closing
+        ? previous !== undefined &&
+          !SPACE_CHAR.test(previous) &&
+          !(next && WORD_CHAR.test(next))
+        : char === closing;
+    if (closes && depth > 0) {
+      depth--;
+    } else if (opens) {
+      if (closed) {
+        return true;
+      }
+      depth++;
+    } else if (closes) {
+      closed = true;
+    }
+  }
+  return false;
+};
+
+const findClosingIndex = (
+  value: string,
+  opening: string,
+  closing: string
+): number => {
   for (let i = value.length - 1; i > 0; i--) {
     if (value[i] !== closing) {
       continue;
     }
 
     const trailing = value.slice(i + 1);
-    if (isAllowedTrailingText(trailing)) {
+    if (
+      isAllowedTrailingText(trailing) &&
+      !closesAndReopens(value.slice(1, i), opening, closing)
+    ) {
       return i;
     }
   }
@@ -109,7 +165,7 @@ export const normalizeQuoteContent = (
       break;
     }
 
-    const closingIndex = findClosingIndex(working, closing);
+    const closingIndex = findClosingIndex(working, first, closing);
     if (closingIndex === -1) {
       break;
     }

@@ -38,6 +38,11 @@ describe("card display title", () => {
       { content: "  First line\nSecond", type: "text" },
       "First line",
     ],
+    [
+      "the first line of CRLF text, without its carriage return",
+      { content: "First line\r\nSecond", type: "text" },
+      "First line",
+    ],
     ["a palette", { content: "", type: "palette" }, "Color palette"],
     ["anything else", { content: "", type: "image" }, "Saved card"],
   ] as const)("%s", (_, card, title) => {

@@ -91,7 +91,7 @@ const linkedCard = async (
   card: Doc<"cards">,
   lookup: TitleLookup
 ): Promise<LinkedCard> => {
-  const firstLine = (card.content ?? "").trimStart().split("\n", 1)[0];
+  const firstLine = (card.content ?? "").trimStart().split(/\r?\n/, 1)[0];
   const titles = new Map<string, string>();
   await Promise.all(
     parseCardLinkIds(firstLine).map(async (id) => {

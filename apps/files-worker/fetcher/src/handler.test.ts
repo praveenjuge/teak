@@ -71,6 +71,27 @@ describe("link fetcher", () => {
     ]);
   });
 
+  test.each(["application/octet-stream", "binary/octet-stream"])(
+    "types an image served as %s from its URL",
+    async (contentType) => {
+      const { fetchAsset } = setup(
+        { "bucket.example": [PUBLIC] },
+        () =>
+          new Response(ONE_PIXEL_PNG, {
+            headers: { "content-type": contentType },
+          })
+      );
+      const response = await fetchAsset({
+        kind: "image",
+        url: "https://bucket.example/cover.png",
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers.get(FETCHER_HEADERS.contentType)).toBe(
+        "image/png"
+      );
+    }
+  );
+
   test("returns a video without dimensions, typed from the caller's fallback", async () => {
     const { fetchAsset } = setup(
       { "video.example": [PUBLIC] },

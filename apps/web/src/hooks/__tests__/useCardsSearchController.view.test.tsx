@@ -44,6 +44,21 @@ const press = (key: "Enter" | "Backspace", value: string) =>
     } as unknown as KeyboardEvent<HTMLInputElement>)
   );
 
+const typeAndPressWithIme = async (
+  value: string,
+  ime: { isComposing: boolean; keyCode: number }
+) => {
+  await act(() => controller.searchBarProps.onSearchChange(value));
+  await act(() =>
+    controller.searchBarProps.onKeyDown({
+      key: "Enter",
+      keyCode: ime.keyCode,
+      nativeEvent: { isComposing: ime.isComposing },
+      currentTarget: { value },
+    } as unknown as KeyboardEvent<HTMLInputElement>)
+  );
+};
+
 const typeAndPress = async (value: string) => {
   await act(() => controller.searchBarProps.onSearchChange(value));
   await press("Enter", value);
@@ -133,3 +148,19 @@ test("a type picked mid-typing keeps the text being typed", async () => {
   expect(controller.filterTags).toEqual(["image"]);
   expect(controller.queryArgs.types).toEqual(["image"]);
 });
+
+test.each([
+  ["while composing", { isComposing: true, keyCode: 229 }],
+  [
+    "in Safari, which ends composition first",
+    { isComposing: false, keyCode: 229 },
+  ],
+])(
+  "an Enter that confirms IME text %s leaves the text in the box",
+  async (_name, ime) => {
+    await render({ view: "all" });
+    await typeAndPressWithIme("でざいん", ime);
+    expect(controller.searchQuery).toBe("でざいん");
+    expect(controller.keywordTags).toEqual([]);
+  }
+);

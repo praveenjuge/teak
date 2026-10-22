@@ -154,6 +154,7 @@ describe("shared search helpers", () => {
 
   it("resolves quick commands", () => {
     expect(resolveQuickSearchCommand("favorites")).toBe("favorites");
+    expect(resolveQuickSearchCommand("favorite")).toBe("favorites");
     expect(resolveQuickSearchCommand("trash")).toBe("trash");
     expect(resolveQuickSearchCommand("other")).toBeNull();
   });

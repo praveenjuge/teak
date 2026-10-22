@@ -23,6 +23,7 @@ import { useMemo, useState } from "react";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
+import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -357,6 +358,9 @@ export function CardMetadataPanel({
     !isDeleted || userTags.length + aiTags.length + cardFolders.length > 0;
 
   const handleTagKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(event)) {
+      return;
+    }
     if ((event.key === "Enter" || event.key === ",") && tags.tagInput.trim()) {
       event.preventDefault();
       tags.addTag();

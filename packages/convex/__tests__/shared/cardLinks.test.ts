@@ -30,6 +30,11 @@ describe("parseCardLinkIds", () => {
     ],
     ["a tilde fence", `~~~md\n[[Plan|teak:${ID_A}]]\n~~~`, []],
     [
+      "a fenced block with CRLF line endings",
+      `\`\`\`\r\n[[Plan|teak:${ID_A}]]\r\n\`\`\`\r\n[[B|teak:${ID_B}]]`,
+      [ID_B],
+    ],
+    [
       "a fence line with an info string inside a block",
       `\`\`\`\n\`\`\`js\n[[Plan|teak:${ID_A}]]\n\`\`\``,
       [],

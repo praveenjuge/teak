@@ -28,6 +28,7 @@ import {
   hasFolderNamed,
   manualFolders,
 } from "../../lib/folders";
+import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "./FolderDot";
 
@@ -150,6 +151,9 @@ export function FolderPickerDialog({
               setError(null);
             }}
             onKeyDown={(event) => {
+              if (isImeComposing(event)) {
+                return;
+              }
               if (event.key === "ArrowDown" && optionCount > 0) {
                 event.preventDefault();
                 setActiveIndex((index) => (index + 1) % optionCount);

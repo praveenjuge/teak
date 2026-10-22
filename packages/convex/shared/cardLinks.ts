@@ -13,7 +13,7 @@ const TITLE_UNSAFE_REGEX = /[|\]\r\n]+/g;
 const SPACES_REGEX = /\s+/g;
 const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/;
 /** A closing fence has nothing after it: "```js" inside a block is code. */
-const CLOSING_FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
+const CLOSING_FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})[ \t\r]*$/;
 const BACKTICK_RUN_REGEX = /`+/g;
 const LEADING_SPACE_REGEX = /^[ \t]+/;
 const LIST_ITEM_REGEX = /^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)/;

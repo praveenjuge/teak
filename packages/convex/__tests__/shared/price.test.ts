@@ -31,6 +31,8 @@ describe("parsePrice", () => {
     ["1.299.999,00 kr", "SEK", { amount: 1_299_999, currency: "SEK" }],
     ["0.999", undefined, { amount: 0.999 }],
     ["$.99", undefined, { amount: 0.99, currency: "USD" }],
+    ["Rs.499", "INR", { amount: 499, currency: "INR" }],
+    ["kr.199", undefined, { amount: 199 }],
     ["24.99", undefined, { amount: 24.99 }],
     ["24.99", "eur", { amount: 24.99, currency: "EUR" }],
     ["$24.99", "AUD", { amount: 24.99, currency: "AUD" }],

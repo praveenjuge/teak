@@ -313,6 +313,22 @@ describe("teak parity commands", () => {
     expect(requests).toHaveLength(0);
   });
 
+  test.each([
+    ["--limit", "10abc"],
+    ["--limit", "2.5"],
+    ["--limit", "1e3"],
+  ])("rejects %s %s before sending a request", async (flag, value) => {
+    const result = await teak("ls", flag, value);
+    expect(result.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("rejects a date passed as --since", async () => {
+    const result = await teak("cards", "changes", "--since", "2026-01-01");
+    expect(result.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+
   test("search --all follows every page", async () => {
     routes.set("GET /v1/cards", (_request, url) =>
       url.searchParams.get("cursor")

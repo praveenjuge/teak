@@ -44,6 +44,7 @@ import {
   orderQueryArgs,
   qualifierChipsFromText,
 } from "../lib/cardsSearchState";
+import { isImeComposing } from "../lib/keyboardShortcuts";
 import {
   type LibraryView,
   libraryViewFlags,
@@ -440,6 +441,9 @@ export function useCardsSearchController(
 
   const onKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (isImeComposing(e)) {
+        return;
+      }
       if (e.key === "Enter") {
         const command = resolveQuickSearchCommand(e.currentTarget.value);
         if (command && view !== undefined && onNavigateView) {

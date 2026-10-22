@@ -22,6 +22,7 @@ import {
   normalizeImageOcrText,
 } from "@teak/files-protocol";
 import { sha256Hex } from "../../lib";
+import { gatedEnv } from "../filesOps";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
 import { sanitizeTranscript } from "./aiMetadata";
 import {
@@ -296,7 +297,7 @@ export const storeDocumentText = async (
   const charCount = Array.from(text).length;
   if (card.documentTextKey !== key) {
     await ensureObjectOwnership(job, card.userId, key);
-    await job.env.BUCKET.put(key, text, {
+    await gatedEnv(job.env).BUCKET.put(key, text, {
       httpMetadata: { contentType: "text/plain; charset=utf-8" },
     });
   }
