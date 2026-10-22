@@ -84,6 +84,7 @@ import {
   type SearchFromUrl,
   type SearchUrlChange,
 } from "../lib/searchUrlSync";
+import { tagsAfterAdding, tagsAfterRemoving } from "../lib/tagManagement";
 import { PageTitle } from "./PageHeader";
 
 const EMPTY_VIEW_COPY: Record<
@@ -556,33 +557,32 @@ export function CardsScreen({
 
   const { handleCopyImage } = useCardClipboard();
 
+  // Both write the whole list, so neither writes for a card this screen
+  // can't see yet (see tagsAfterAdding).
   const handleAddTag = useCallback(() => {
-    const tag = tagInput.trim().toLowerCase();
-    const currentTags = tagManagementCard?.tags || [];
-
-    if (tag && !currentTags.includes(tag) && tagManagementCardId) {
-      void cardActions.updateField(tagManagementCardId as Id<"cards">, "tags", [
-        ...currentTags,
-        tag,
-      ]);
+    const tags = tagsAfterAdding(tagManagementCard, tagInput);
+    if (tags && tagManagementCardId) {
+      void cardActions.updateField(
+        tagManagementCardId as Id<"cards">,
+        "tags",
+        tags
+      );
       setTagInput("");
     }
-  }, [cardActions, tagInput, tagManagementCard?.tags, tagManagementCardId]);
+  }, [cardActions, tagInput, tagManagementCard, tagManagementCardId]);
 
   const handleRemoveTag = useCallback(
     (tagToRemove: string) => {
-      const currentTags = tagManagementCard?.tags || [];
-      const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
-
-      if (tagManagementCardId) {
+      const next = tagsAfterRemoving(tagManagementCard, tagToRemove);
+      if (next && tagManagementCardId) {
         void cardActions.updateField(
           tagManagementCardId as Id<"cards">,
           "tags",
-          newTags.length > 0 ? newTags : undefined
+          next.tags
         );
       }
     },
-    [cardActions, tagManagementCard?.tags, tagManagementCardId]
+    [cardActions, tagManagementCard, tagManagementCardId]
   );
 
   const handleRemoveAiTag = useCallback(
