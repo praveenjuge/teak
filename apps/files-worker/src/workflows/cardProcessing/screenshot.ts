@@ -58,6 +58,9 @@ export const parseScreenshotRetryableError = (
 
 export const SCREENSHOT_STEP: StepConfig = {
   retries: {
+    // The function computes the whole wait; Workflows' default exponential
+    // backoff would otherwise scale it again.
+    backoff: "constant",
     delay: ({ error }) =>
       SCREENSHOT_RETRY_POLICY[
         parseScreenshotRetryableError(error)?.type ?? "renderer_unavailable"

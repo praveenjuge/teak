@@ -1,5 +1,39 @@
-import type { WorkflowStepConfig } from "cloudflare:workers";
+import type { WorkflowBackoff, WorkflowStepConfig } from "cloudflare:workers";
 import type { StepConfig, StepContext, Steps } from "../workflows/runtime";
+
+const UNIT_MS: Record<string, number> = {
+  second: 1000,
+  minute: 60_000,
+  hour: 3_600_000,
+};
+const DURATION = /^(\d+) (second|minute|hour)s?$/u;
+
+/**
+ * The wait Workflows applies after a failed attempt: the step's delay, or
+ * what its delay function returned, scaled by `backoff` (exponential when
+ * unset). Durations come back as they were given when nothing scales them.
+ */
+const withBackoff = (
+  delay: unknown,
+  backoff: WorkflowBackoff | undefined,
+  attempt: number
+): unknown => {
+  const factor = {
+    constant: 1,
+    linear: attempt,
+    exponential: 2 ** (attempt - 1),
+  }[backoff ?? "exponential"];
+  if (factor === 1) {
+    return delay;
+  }
+  if (typeof delay === "number") {
+    return delay * factor;
+  }
+  const match = typeof delay === "string" ? DURATION.exec(delay) : null;
+  return match
+    ? Number(match[1]) * (UNIT_MS[match[2] ?? ""] ?? 0) * factor
+    : delay;
+};
 
 export interface StepRecord {
   attempts: number;
@@ -53,19 +87,20 @@ export const createFakeStep = (
           throw error;
         }
         const delay = config?.retries?.delay;
+        const base =
+          typeof delay === "function"
+            ? await delay({
+                ctx: {
+                  attempt,
+                  config: config as WorkflowStepConfig,
+                  step: { count: 1, name },
+                },
+                error: error as Error,
+              })
+            : delay;
         delays.push({
           attempt,
-          delay:
-            typeof delay === "function"
-              ? await delay({
-                  ctx: {
-                    attempt,
-                    config: config as WorkflowStepConfig,
-                    step: { count: 1, name },
-                  },
-                  error: error as Error,
-                })
-              : delay,
+          delay: withBackoff(base, config?.retries?.backoff, attempt),
           name,
         });
       }
