@@ -43,6 +43,7 @@ import {
   explainCardTypeMismatch,
   explainInvalidTags,
   isRateLimitContentionError,
+  parseStringArray,
 } from "./publicApiHttpShared";
 import {
   apiCardSortValidator,
@@ -733,6 +734,17 @@ const performBulkUpdate = async (
   return result.pipelineDelayMs;
 };
 
+// Bulk create and update clean tags the way POST /v1/cards and PATCH do:
+// trimmed, blank ones dropped, repeats collapsed.
+const bulkItemTags = (payload: Record<string, unknown>) =>
+  Array.isArray(payload.tags)
+    ? parseStringArray(
+        payload.tags.filter(
+          (value): value is string => typeof value === "string"
+        )
+      )
+    : undefined;
+
 const bulkCardSource = (payload: Record<string, unknown>) => ({
   sourceTitle: payload.sourceTitle as string | undefined,
   sourceUrl: payload.sourceUrl as string | undefined,
@@ -781,9 +793,7 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
     }
   }
 
-  const tags = Array.isArray(payload.tags)
-    ? payload.tags.filter((value): value is string => typeof value === "string")
-    : undefined;
+  const tags = bulkItemTags(payload);
   const createError =
     explainInvalidTags(tags) ??
     explainInvalidCardSource(bulkCardSource(payload)) ??
@@ -869,11 +879,7 @@ export const executeBulkCardsForUser = internalMutation({
                 notes:
                   typeof payload.notes === "string" ? payload.notes : undefined,
                 ...normalizeCardSource(bulkCardSource(payload)),
-                tags: Array.isArray(payload.tags)
-                  ? payload.tags.filter(
-                      (value): value is string => typeof value === "string"
-                    )
-                  : undefined,
+                tags: bulkItemTags(payload),
                 type: requestedType,
               },
               { source: "api" }
@@ -897,13 +903,8 @@ export const executeBulkCardsForUser = internalMutation({
                 message: "Each update item must include a valid `cardId`",
               });
             }
-            const tagError = explainInvalidTags(
-              Array.isArray(payload.tags)
-                ? payload.tags.filter(
-                    (value): value is string => typeof value === "string"
-                  )
-                : undefined
-            );
+            const tags = bulkItemTags(payload);
+            const tagError = explainInvalidTags(tags);
             if (tagError) {
               throw new ConvexError({
                 code: "INVALID_INPUT",
@@ -923,11 +924,7 @@ export const executeBulkCardsForUser = internalMutation({
                 payload.notes === null || typeof payload.notes === "string"
                   ? (payload.notes as string | null | undefined)
                   : undefined,
-              tags: Array.isArray(payload.tags)
-                ? payload.tags.filter(
-                    (value): value is string => typeof value === "string"
-                  )
-                : undefined,
+              tags,
             });
             if (pipelineDelayMs !== null) {
               await queueCardProcessing(ctx, cardId, {
