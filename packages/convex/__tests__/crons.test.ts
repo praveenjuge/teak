@@ -9,6 +9,10 @@ const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
     cron: "15 * * * *",
     handler: "workosEventCatchUp",
   },
+  "workflow-dispatch-watchdog": {
+    cron: "35 * * * *",
+    handler: "workflowDispatchWatchdog",
+  },
 };
 
 const WORKER_DIR = join(import.meta.dir, "../../../apps/files-worker");

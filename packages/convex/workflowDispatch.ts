@@ -23,6 +23,7 @@ import {
   internalMutation,
   internalQuery,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import {
   CARD_PROCESSING_STAGES,
@@ -907,6 +908,84 @@ export const markReconciled = internalMutation({
     }
     return null;
   },
+});
+
+const HEALTH_SCAN_LIMIT = 500;
+const HEALTH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// A due row this old means no flush is taking rows.
+const PENDING_STALL_MS = 15 * 60 * 1000;
+// The reconcile runs hourly, so a stale run it hasn't looked at for this
+// long means the Files Worker stopped reconciling.
+const RECONCILE_GRACE_MS = 2 * 60 * 60 * 1000;
+
+export const dispatchHealthValidator = v.object({
+  pending: v.number(),
+  oldestDueAt: v.union(v.number(), v.null()),
+  stalledPending: v.number(),
+  sent: v.number(),
+  oldestSentAt: v.union(v.number(), v.null()),
+  unreconciledSent: v.number(),
+  failedLastWeek: v.number(),
+  latestFailures: v.array(
+    v.object({
+      error: v.union(v.string(), v.null()),
+      finishedAt: v.number(),
+      kind: v.string(),
+    })
+  ),
+  isApproximate: v.boolean(),
+});
+
+/** Outbox counts by state and the oldest waiting row of each, bounded. */
+export const readDispatchHealth = async (
+  ctx: QueryCtx,
+  now: number
+): Promise<typeof dispatchHealthValidator.type> => {
+  const pending = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
+    .take(HEALTH_SCAN_LIMIT);
+  const sent = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_sentAt", (q) => q.eq("state", "sent"))
+    .take(HEALTH_SCAN_LIMIT);
+  const failed = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_finishedAt", (q) =>
+      q.eq("state", "failed").gte("finishedAt", now - HEALTH_WINDOW_MS)
+    )
+    .order("desc")
+    .take(HEALTH_SCAN_LIMIT);
+  const firstDue = pending[0]?.notBefore;
+  return {
+    pending: pending.length,
+    oldestDueAt: firstDue !== undefined && firstDue <= now ? firstDue : null,
+    stalledPending: pending.filter(
+      (row) => row.notBefore < now - PENDING_STALL_MS
+    ).length,
+    sent: sent.length,
+    oldestSentAt: sent[0]?.sentAt ?? null,
+    unreconciledSent: sent.filter(
+      (row) =>
+        isStale(row, now - RECONCILE_GRACE_MS) &&
+        !((row.lastReconciledAt ?? 0) >= now - RECONCILE_GRACE_MS)
+    ).length,
+    failedLastWeek: failed.length,
+    latestFailures: failed.slice(0, 5).map((row) => ({
+      error: row.error ?? null,
+      finishedAt: row.finishedAt ?? 0,
+      kind: row.kind,
+    })),
+    isApproximate: [pending, sent, failed].some(
+      (rows) => rows.length === HEALTH_SCAN_LIMIT
+    ),
+  };
+};
+
+export const dispatchHealth = internalQuery({
+  args: {},
+  returns: dispatchHealthValidator,
+  handler: (ctx) => readDispatchHealth(ctx, Date.now()),
 });
 
 export const pruneFinished = internalMutation({

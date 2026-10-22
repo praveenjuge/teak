@@ -763,6 +763,95 @@ describe("flush scheduling", () => {
   });
 });
 
+describe("dispatch health", () => {
+  const seed = (t: ReturnType<typeof convexTest>) =>
+    t.run(async (ctx) => {
+      const base = { key: "k", kind: "export" as const };
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - 20 * 60_000,
+        instanceId: "export-stuck",
+        notBefore: NOW - 20 * 60_000,
+        state: "pending",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW,
+        instanceId: "export-later",
+        notBefore: NOW + HOUR_MS,
+        state: "pending",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - 6 * HOUR_MS,
+        instanceId: "export-unchecked",
+        notBefore: NOW - 6 * HOUR_MS,
+        sentAt: NOW - 6 * HOUR_MS,
+        state: "sent",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - 6 * HOUR_MS,
+        instanceId: "export-checked",
+        lastReconciledAt: NOW - 30 * 60_000,
+        notBefore: NOW - 6 * HOUR_MS,
+        sentAt: NOW - 5 * HOUR_MS,
+        state: "sent",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - HOUR_MS,
+        error: "dispatch_failed:worker_down",
+        finishedAt: NOW - HOUR_MS,
+        notBefore: NOW - HOUR_MS,
+        state: "failed",
+      });
+    });
+
+  test("counts rows by state with the oldest of each", async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    expect(await t.query(internal.workflowDispatch.dispatchHealth, {})).toEqual(
+      {
+        failedLastWeek: 1,
+        isApproximate: false,
+        latestFailures: [
+          {
+            error: "dispatch_failed:worker_down",
+            finishedAt: NOW - HOUR_MS,
+            kind: "export",
+          },
+        ],
+        oldestDueAt: NOW - 20 * 60_000,
+        oldestSentAt: NOW - 6 * HOUR_MS,
+        pending: 2,
+        sent: 2,
+        stalledPending: 1,
+        unreconciledSent: 1,
+      }
+    );
+  });
+
+  test("the watchdog reports rows the Worker stopped taking or checking", async () => {
+    const sentEvents = capturePostHog();
+    const t = convexTest(schema, modules);
+    await t.action(internal.telemetry.crons.workflowDispatchWatchdog, {});
+    expect(sentEvents()).toEqual([]);
+    await seed(t);
+    await t.action(internal.telemetry.crons.workflowDispatchWatchdog, {});
+    expect(sentEvents()).toMatchObject([
+      {
+        event: "$exception",
+        properties: {
+          $exception_list: [{ value: "workflow_dispatch_stalled" }],
+          stalled_pending: 1,
+          unreconciled_sent: 1,
+        },
+      },
+    ]);
+  });
+});
+
 describe("analytics events", () => {
   const UUID =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;

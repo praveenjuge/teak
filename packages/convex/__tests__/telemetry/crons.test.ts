@@ -24,7 +24,7 @@ const heartbeatsOf = (runMutation: RecordedMutations) =>
 describe("cron monitoring", () => {
   test("names every scheduled job once", () => {
     const slugs = Object.values(CRONS).map(({ name }) => name);
-    expect(slugs).toHaveLength(14);
+    expect(slugs).toHaveLength(15);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
