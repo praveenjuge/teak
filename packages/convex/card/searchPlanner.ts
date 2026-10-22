@@ -35,6 +35,11 @@ export interface ResolvedSearch {
   hasCardFilters: boolean;
   includeHidden: boolean;
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
+  /**
+   * `matches` decided from a card's search document, when every check reads
+   * a field the document keeps in step with the card; otherwise undefined.
+   */
+  matchesDocument?: (document: Doc<"cardSearchDocuments">) => boolean;
   ocrText: string;
   phrases: string[];
   prices: PriceBound[];
@@ -217,10 +222,27 @@ export const resolveSearch = async (
       phrases
     );
   };
+  const favoritesOnly = Boolean(view.favoritesOnly || parsed.favorite);
+  const readsOnlyDocumentFields =
+    folderIds.length === 0 &&
+    tags.length === 0 &&
+    prices.length === 0 &&
+    ocrTexts.length === 0 &&
+    !parsed.done &&
+    !parsed.todo;
+  const matchesDocument = (document: Doc<"cardSearchDocuments">) =>
+    document.userId === userId &&
+    (includeHidden || document.isHidden !== true) &&
+    (!archivedInTrash || document.isArchived === true) &&
+    (!types || types.includes(document.type)) &&
+    (!favoritesOnly || document.isFavorited === true) &&
+    (sites.length === 0 ||
+      (document.urlHost !== undefined && sites.includes(document.urlHost))) &&
+    matchesSearchPhrases(document.searchableText, phrases);
 
   return {
     archived,
-    favoritesOnly: Boolean(view.favoritesOnly || parsed.favorite),
+    favoritesOnly,
     folderIds,
     hasCardFilters:
       archivedInTrash ||
@@ -234,6 +256,7 @@ export const resolveSearch = async (
       parsed.todo,
     includeHidden,
     matches,
+    matchesDocument: readsOnlyDocumentFields ? matchesDocument : undefined,
     ocrText: ocrTexts.join(" "),
     phrases,
     similarity: parsed.similarity ?? null,

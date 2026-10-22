@@ -743,6 +743,20 @@ export default defineSchema({
       "isArchived",
       "shuffleKey",
     ])
+    .index("by_user_deleted_archived_type_shuffle", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "shuffleKey",
+    ])
+    .index("by_user_deleted_archived_favorited_shuffle", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "isFavorited",
+      "shuffleKey",
+    ])
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
     .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
@@ -994,6 +1008,11 @@ export default defineSchema({
     isHidden: v.optional(v.literal(true)),
     urlHost: v.optional(v.string()),
     sourceUpdatedAt: v.number(),
+    // The card's `createdAt` and `_creationTime`, so a text search orders its
+    // matches without loading them. Missing on documents the
+    // `backfillSearchDocumentDates` migration hasn't reached.
+    cardCreatedAt: v.optional(v.number()),
+    cardCreationTime: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
