@@ -15,6 +15,7 @@ import { readFolderCardCount } from "../folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,
   FOLDER_DELETE_UNDO_MS,
+  readLiveFolders,
 } from "../folder/folders";
 import schema from "../schema";
 import {
@@ -233,6 +234,46 @@ describe("folders", () => {
     await expect(
       owner.mutation(api.folders.restoreFolder, { folderId: deleting })
     ).rejects.toThrow(`You can have up to ${MAX_FOLDERS_PER_USER} folders`);
+  });
+
+  test("folders past ones still being deleted are listed and exported", async () => {
+    const { t, owner, create } = await setup();
+    vi.setSystemTime(10_000);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 2; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Old ${index}`,
+          nameKey: `old ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          deletingAt: 10_000,
+        });
+      }
+      for (let index = 2; index < MAX_FOLDERS_PER_USER; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Folder ${index}`,
+          nameKey: `folder ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+        });
+      }
+    });
+    await create("Newest");
+    await create("Newer still");
+
+    const listed = await owner.query(api.folders.listFolders, {});
+    expect(listed).toHaveLength(MAX_FOLDERS_PER_USER);
+    expect(listed.map((folder: { name: string }) => folder.name)).toContain(
+      "Newer still"
+    );
+    const exported = await t.run((ctx) => readLiveFolders(ctx, "owner"));
+    expect(exported.map((folder) => folder.name)).toContain("Newer still");
   });
 
   test("another account's folder cannot be read, changed or used", async () => {
