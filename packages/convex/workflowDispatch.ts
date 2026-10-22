@@ -242,6 +242,37 @@ export const queueMaintenanceWorkflow = async (
   return instanceId;
 };
 
+const ACCOUNT_DELETION_RETRY_BASE_MS = 5 * 60 * 1000;
+const ACCOUNT_DELETION_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
+
+/** The wait before the next account deletion attempt after `failures` in a row. */
+export const accountDeletionRetryDelayMs = (failures: number): number =>
+  Math.min(
+    ACCOUNT_DELETION_RETRY_MAX_MS,
+    ACCOUNT_DELETION_RETRY_BASE_MS * 2 ** Math.max(0, failures - 1)
+  );
+
+/**
+ * Failures another attempt can't fix: the storage being deleted changed
+ * under the run. An operator resolves it, then runs
+ * `accountDeletionJobs:retry`.
+ */
+export const accountDeletionNeedsOperator = (failureCode?: string): boolean =>
+  failureCode?.endsWith("_storage_source_changed") === true;
+
+const consecutiveFailures = async (
+  ctx: MutationCtx,
+  key: string
+): Promise<number> => {
+  const recent = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_key_and_createdAt", (q) => q.eq("key", key))
+    .order("desc")
+    .take(20);
+  const firstOther = recent.findIndex((row) => row.state !== "failed");
+  return firstOther === -1 ? recent.length : firstOther;
+};
+
 /**
  * Each failed run is started again as a new attempt. Attempts are numbered
  * by when they were queued, not by counting earlier rows: those are pruned
@@ -673,17 +704,33 @@ const handleRunFailure = async (
         ? await ctx.db.get("accountDeletionStates", stateId)
         : null;
       if (
-        stateId &&
-        state &&
-        typeof state.generation === "number" &&
-        state.generation === params.generation
+        !(
+          stateId &&
+          state &&
+          typeof state.generation === "number" &&
+          state.generation === params.generation
+        )
       ) {
-        await queueAccountDeletionWorkflow(
-          ctx,
-          { generation: state.generation, stateId },
-          { delayMs: 5 * 60 * 1000 }
-        );
+        return;
       }
+      if (accountDeletionNeedsOperator(state.failureCode)) {
+        await reportFromMutation(ctx, "account_deletion_needs_operator", {
+          failure_code: state.failureCode ?? "",
+          state_id: stateId,
+        });
+        return;
+      }
+      const delayMs = accountDeletionRetryDelayMs(
+        await consecutiveFailures(ctx, row.key)
+      );
+      await ctx.db.patch("accountDeletionStates", stateId, {
+        nextAttemptAt: Date.now() + delayMs,
+      });
+      await queueAccountDeletionWorkflow(
+        ctx,
+        { generation: state.generation, stateId },
+        { delayMs }
+      );
       return;
     }
     case "deleteObjects": {

@@ -353,6 +353,89 @@ describe("complete", () => {
     expect(next?.notBefore).toBe(NOW + 5 * 60 * 1000);
   });
 
+  const insertDeletionState = (
+    t: ReturnType<typeof convexTest>,
+    fields: { failureCode?: string } = {}
+  ) =>
+    t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        generation: 1,
+        stage: 3,
+        startedAt: NOW,
+        userId: "user-1",
+        ...fields,
+      })
+    );
+
+  const failNextDeletionRun = async (t: ReturnType<typeof convexTest>) => {
+    const next = (await rows(t)).find((row) => row.state === "pending");
+    vi.setSystemTime(next!.notBefore);
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: next!.instanceId!,
+      status: "errored",
+    });
+  };
+
+  test("waits longer after each failed account deletion attempt, up to a cap", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t);
+    await t.run((ctx) =>
+      queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
+    );
+    const waits: number[] = [];
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await failNextDeletionRun(t);
+      const next = (await rows(t)).find((row) => row.state === "pending");
+      waits.push(next!.notBefore - Date.now());
+      const state = await t.run((ctx) =>
+        ctx.db.get("accountDeletionStates", stateId)
+      );
+      expect(state?.nextAttemptAt).toBe(next!.notBefore);
+    }
+    const MINUTE = 60_000;
+    expect(waits).toEqual([
+      5 * MINUTE,
+      10 * MINUTE,
+      20 * MINUTE,
+      40 * MINUTE,
+      80 * MINUTE,
+      160 * MINUTE,
+      320 * MINUTE,
+      6 * HOUR_MS,
+    ]);
+  });
+
+  test("stops and reports an account deletion only an operator can unblock", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t, {
+      failureCode: "account_deletion_stage_3_storage_source_changed",
+    });
+    await t.run((ctx) =>
+      queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
+    );
+    await failNextDeletionRun(t);
+    expect((await rows(t)).map((row) => row.state)).toEqual(["failed"]);
+    expect(await reportedFailures(t)).toEqual([
+      expect.objectContaining({ message: "account_deletion_needs_operator" }),
+    ]);
+  });
+
+  test("an operator's retry starts the stopped account deletion again", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t, {
+      failureCode: "account_deletion_stage_3_storage_source_changed",
+    });
+    await t.mutation(internal.accountDeletionJobs.retry, { stateId });
+    const state = await t.run((ctx) =>
+      ctx.db.get("accountDeletionStates", stateId)
+    );
+    expect(state?.failureCode).toBeUndefined();
+    expect(
+      (await rows(t)).filter((row) => row.state === "pending")
+    ).toMatchObject([{ key: `accountDeletion:${stateId}:1`, notBefore: NOW }]);
+  });
+
   test("sends a run again when its hand-over was lost", async () => {
     const t = convexTest(schema, modules);
     const jobId = await insertExportJob(t, "pending");
