@@ -1,5 +1,10 @@
 import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
+import {
+  PRO_MONTHLY_PRICE_CENTS,
+  PRO_YEARLY_PRICE_CENTS,
+  yearlySavingsPercent,
+} from "../../constants/billing";
 import { PRO_FEATURES } from "../../constants/settings";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -23,15 +28,15 @@ function planOptions(monthlyPlanId: string, yearlyPlanId: string) {
     {
       planId: monthlyPlanId,
       title: "Monthly",
-      priceAmount: 1900,
+      priceAmount: PRO_MONTHLY_PRICE_CENTS,
       intervalLabel: "/ month",
     },
     {
       planId: yearlyPlanId,
       title: "Yearly",
-      priceAmount: 9900,
+      priceAmount: PRO_YEARLY_PRICE_CENTS,
       intervalLabel: "/ year",
-      badge: "Best Value • 20% off",
+      badge: `Best Value • Save ${yearlySavingsPercent()}%`,
     },
   ];
 }

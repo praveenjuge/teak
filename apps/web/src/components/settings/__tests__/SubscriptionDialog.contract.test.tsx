@@ -70,3 +70,11 @@ test("locks the plan choice while checkout is opening", async () => {
   expect(radios).toHaveLength(2);
   expect(radios.every((radio) => radio.disabled)).toBe(true);
 });
+
+test("the yearly plan's badge states the real saving over monthly", async () => {
+  await renderDialog(() => undefined);
+
+  // $99 a year against 12 × $19 saves 57%.
+  expect(document.body.textContent).toContain("Save 57%");
+  expect(document.body.textContent).not.toContain("20% off");
+});

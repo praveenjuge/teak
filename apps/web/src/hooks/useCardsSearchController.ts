@@ -43,6 +43,8 @@ import {
   orderFromUrl,
   orderQueryArgs,
   qualifierChipsFromText,
+  visualFiltersFromUrl,
+  withTypeQualifiersAsFilters,
 } from "../lib/cardsSearchState";
 import { isImeComposing } from "../lib/keyboardShortcuts";
 import {
@@ -51,10 +53,12 @@ import {
   quickCommandTarget,
 } from "../lib/libraryViews";
 import {
+  comparableSearch,
   isSeededSort,
   type LibrarySort,
   queryOrder,
   type SearchUrlState,
+  sameMembers,
 } from "../lib/searchUrlState";
 import { semanticSearchText } from "./useSemanticSearch";
 
@@ -139,11 +143,19 @@ export function useCardsSearchController(
     folderId,
     folderQuery,
   } = options;
-  const [storedSearchState, setSearchState] = useState<CardsSearchState>(
+  const [storedSearchState, setStoredSearchState] = useState<CardsSearchState>(
     () => ({
-      ...initialCardsSearchState(initialUrlState),
+      ...initialCardsSearchState(initialUrlState, { weekStart }),
       ...initialVisualFilters,
     })
+  );
+  // Every change goes through here, so a `type:` qualifier, however it was
+  // added, lands in the type filter the View menu shows.
+  const setSearchState = useCallback(
+    (update: (prev: CardsSearchState) => CardsSearchState) => {
+      setStoredSearchState((prev) => withTypeQualifiersAsFilters(update(prev)));
+    },
+    []
   );
   const searchState = useMemo<CardsSearchState>(
     () =>
@@ -303,13 +315,27 @@ export function useCardsSearchController(
       ...(newestPicked ? { sortPicked: true } : {}),
       tag: searchState.tagFilter,
       types: searchState.filterTags,
+      ...(searchState.styleFilters.length > 0
+        ? { styles: searchState.styleFilters }
+        : {}),
+      ...(searchState.hueFilters.length > 0
+        ? { hues: searchState.hueFilters }
+        : {}),
+      ...(searchState.hexFilters.length > 0
+        ? { hexes: searchState.hexFilters }
+        : {}),
+      ...(searchState.timeFilter ? { date: searchState.timeFilter.label } : {}),
     }),
     [
       librarySort,
       newestPicked,
       remoteSearchTerms,
       searchState.filterTags,
+      searchState.hexFilters,
+      searchState.hueFilters,
+      searchState.styleFilters,
       searchState.tagFilter,
+      searchState.timeFilter,
       shuffleSeed,
     ]
   );
@@ -439,12 +465,15 @@ export function useCardsSearchController(
     [searchState]
   );
 
-  const onSearchChange = useCallback((value: string) => {
-    setSearchState((prev) => ({
-      ...prev,
-      searchQuery: value,
-    }));
-  }, []);
+  const onSearchChange = useCallback(
+    (value: string) => {
+      setSearchState((prev) => ({
+        ...prev,
+        searchQuery: value,
+      }));
+    },
+    [setSearchState]
+  );
 
   const onKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -468,74 +497,101 @@ export function useCardsSearchController(
         setSearchState((prev) => applyBackspaceToCardsSearchState(prev));
       }
     },
-    [onNavigateView, view, weekStart]
+    [onNavigateView, setSearchState, view, weekStart]
   );
 
-  const addFilter = useCallback((filter: CardType) => {
-    setSearchState((prev) => {
-      if (prev.filterTags.includes(filter)) {
-        return prev;
-      }
-      return {
-        ...prev,
-        filterTags: [...prev.filterTags, filter],
-      };
-    });
-  }, []);
-
-  const addQualifier = useCallback((qualifier: string) => {
-    const chips = qualifierChipsFromText(qualifier);
-    if (chips.length === 0) {
-      return;
-    }
-    setSearchState((prev) => ({
-      ...prev,
-      qualifierChips: addChips(prev.qualifierChips, chips),
-    }));
-  }, []);
-
-  const addKeywordTag = useCallback((keyword: string) => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-    if (!normalizedKeyword) {
-      return;
-    }
-
-    setSearchState((prev) => {
-      if (prev.keywordTags.includes(normalizedKeyword)) {
-        return prev;
-      }
-      return {
-        ...prev,
-        keywordTags: [...prev.keywordTags, normalizedKeyword],
-      };
-    });
-  }, []);
-
-  const clearAllFilters = useCallback(() => {
-    setSearchState(createInitialCardsSearchState());
-  }, []);
-
-  const applyUrlState = useCallback(
-    (state: SearchUrlState, options?: { keepSearch?: boolean }) => {
-      const keepSearch = options?.keepSearch ?? false;
-      if (!keepSearch) {
-        setDebouncedSearchQuery(state.q);
-      }
+  const addFilter = useCallback(
+    (filter: CardType) => {
       setSearchState((prev) => {
-        const sameTerms =
-          keepSearch || isSameSearch(buildCardsSearchTerms(prev), state.q);
-        const sameTypes =
-          prev.filterTags.length === state.types.length &&
-          prev.filterTags.every((type) => state.types.includes(type));
-        const tag = state.tag ?? "";
-        if (sameTerms && sameTypes && prev.tagFilter === tag) {
+        if (prev.filterTags.includes(filter)) {
           return prev;
         }
         return {
           ...prev,
-          ...(sameTerms ? {} : cardsSearchStateFromQuery(state.q)),
-          filterTags: sameTypes ? prev.filterTags : state.types,
+          filterTags: [...prev.filterTags, filter],
+        };
+      });
+    },
+    [setSearchState]
+  );
+
+  const addQualifier = useCallback(
+    (qualifier: string) => {
+      const chips = qualifierChipsFromText(qualifier);
+      if (chips.length === 0) {
+        return;
+      }
+      setSearchState((prev) => ({
+        ...prev,
+        qualifierChips: addChips(prev.qualifierChips, chips),
+      }));
+    },
+    [setSearchState]
+  );
+
+  const addKeywordTag = useCallback(
+    (keyword: string) => {
+      const normalizedKeyword = keyword.trim().toLowerCase();
+      if (!normalizedKeyword) {
+        return;
+      }
+
+      setSearchState((prev) => {
+        if (prev.keywordTags.includes(normalizedKeyword)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          keywordTags: [...prev.keywordTags, normalizedKeyword],
+        };
+      });
+    },
+    [setSearchState]
+  );
+
+  const clearAllFilters = useCallback(() => {
+    setSearchState(() => createInitialCardsSearchState());
+  }, [setSearchState]);
+
+  const applyUrlState = useCallback(
+    (state: SearchUrlState, options?: { keepSearch?: boolean }) => {
+      const keepSearch = options?.keepSearch ?? false;
+      const search = comparableSearch(state);
+      if (!keepSearch) {
+        setDebouncedSearchQuery(search.q);
+      }
+      const visual = visualFiltersFromUrl(state, { weekStart });
+      setSearchState((prev) => {
+        const sameTerms =
+          keepSearch || isSameSearch(buildCardsSearchTerms(prev), search.q);
+        const sameTypes = sameMembers(prev.filterTags, search.types);
+        const sameStyles = sameMembers(prev.styleFilters, visual.styleFilters);
+        const sameHues = sameMembers(prev.hueFilters, visual.hueFilters);
+        const sameHexes = sameMembers(prev.hexFilters, visual.hexFilters);
+        const sameTime =
+          (prev.timeFilter?.label ?? "").toLowerCase() ===
+          (visual.timeFilter?.label ?? "").toLowerCase();
+        const tag = state.tag ?? "";
+        if (
+          sameTerms &&
+          sameTypes &&
+          sameStyles &&
+          sameHues &&
+          sameHexes &&
+          sameTime &&
+          prev.tagFilter === tag
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          ...(sameTerms ? {} : cardsSearchStateFromQuery(search.q)),
+          filterTags: sameTypes ? prev.filterTags : search.types,
+          hexFilters: sameHexes ? prev.hexFilters : visual.hexFilters,
+          hueFilters: sameHues ? prev.hueFilters : visual.hueFilters,
+          styleFilters: sameStyles ? prev.styleFilters : visual.styleFilters,
           tagFilter: tag,
+          timeFilter: sameTime ? prev.timeFilter : visual.timeFilter,
         };
       });
       setOrder((prev) => {
@@ -544,15 +600,18 @@ export function useCardsSearchController(
       });
       setSortPicked(state.sortPicked === true);
     },
-    []
+    [setSearchState, weekStart]
   );
 
-  const setTimeFilter = useCallback((timeFilter: TimeFilter | null) => {
-    setSearchState((prev) => ({
-      ...prev,
-      timeFilter,
-    }));
-  }, []);
+  const setTimeFilter = useCallback(
+    (timeFilter: TimeFilter | null) => {
+      setSearchState((prev) => ({
+        ...prev,
+        timeFilter,
+      }));
+    },
+    [setSearchState]
+  );
 
   const searchBarProps = useMemo<SearchBarProps>(
     () => ({
@@ -634,6 +693,7 @@ export function useCardsSearchController(
       onSearchChange,
       reshuffle,
       searchState,
+      setSearchState,
       setSort,
     ]
   );

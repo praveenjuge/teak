@@ -1,6 +1,7 @@
 import { Copy, KeyRound, RotateCw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "../ui/button";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
@@ -23,6 +24,58 @@ export interface ApiKeyListItem {
 export interface CreatedApiKey {
   id?: string;
   key: string;
+}
+
+type PendingConfirm =
+  | { kind: "revoke" | "rotate"; item: ApiKeyListItem }
+  | { kind: "revokeAll" };
+
+/** The confirmation each destructive key action asks for. */
+export function apiKeyConfirmCopy(pending: PendingConfirm) {
+  if (pending.kind === "revokeAll") {
+    return {
+      title: "Revoke all API keys?",
+      description:
+        "Every API key stops working right away, including keys used by the CLI, Raycast and MCP clients. This can’t be undone.",
+      confirmLabel: "Revoke all keys",
+    };
+  }
+  const label = visibleKeyName(pending.item.name) ?? pending.item.maskedKey;
+  return pending.kind === "revoke"
+    ? {
+        title: "Revoke this API key?",
+        description: `${label} stops working right away. Anything that uses it loses access to your library. This can’t be undone.`,
+        confirmLabel: "Revoke key",
+      }
+    : {
+        title: "Regenerate this API key?",
+        description: `${label} stops working right away and is replaced by a new key. Update anything that uses it with the new key.`,
+        confirmLabel: "Regenerate key",
+      };
+}
+
+/**
+ * The one-time reveals after an action: a revoked or regenerated key's reveal
+ * goes away, and every other new key stays on screen until the dialog closes.
+ */
+export function nextRevealedKeys(
+  revealed: CreatedApiKey[],
+  action:
+    | { kind: "created"; key: CreatedApiKey }
+    | { kind: "rotated"; keyId: string; key: CreatedApiKey }
+    | { kind: "revoked"; keyId: string }
+    | { kind: "revokedAll" }
+): CreatedApiKey[] {
+  switch (action.kind) {
+    case "created":
+      return [action.key, ...revealed];
+    case "rotated":
+      return [action.key, ...revealed.filter((key) => key.id !== action.keyId)];
+    case "revoked":
+      return revealed.filter((key) => key.id !== action.keyId);
+    default:
+      return [];
+  }
 }
 
 interface ApiKeysPanelProps {
@@ -144,7 +197,11 @@ export function ApiKeysPanel({
   onRevokeKey,
   onRotateKey,
 }: ApiKeysPanelProps) {
-  const [revealedKey, setRevealedKey] = useState<CreatedApiKey | null>(null);
+  const [revealedKeys, setRevealedKeys] = useState<CreatedApiKey[]>([]);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
+    null
+  );
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -174,12 +231,13 @@ export function ApiKeysPanel({
 
   const create = () =>
     perform("create", async () => {
-      setRevealedKey(null);
       const key = await onCreateKey();
       if (!key) {
         throw new Error("No API key returned");
       }
-      setRevealedKey(key);
+      setRevealedKeys((current) =>
+        nextRevealedKeys(current, { kind: "created", key })
+      );
       return "API key created. Copy it now; it is only shown once.";
     });
   const revokeAll = () =>
@@ -188,15 +246,49 @@ export function ApiKeysPanel({
         return "";
       }
       const result = await onRevokeAllKeys();
-      setRevealedKey(null);
+      setRevealedKeys((current) =>
+        nextRevealedKeys(current, { kind: "revokedAll" })
+      );
       return result.hasMore
         ? "Revoking remaining keys in the background."
         : "All API keys revoked.";
     });
-  const copy = async () => {
-    if (!revealedKey) {
+  const revoke = (item: ApiKeyListItem) =>
+    perform(item.id, async () => {
+      await onRevokeKey(item.id);
+      setRevealedKeys((current) =>
+        nextRevealedKeys(current, { kind: "revoked", keyId: item.id })
+      );
+      return "API key revoked.";
+    });
+  const rotate = (item: ApiKeyListItem) =>
+    perform(item.id, async () => {
+      const key = await onRotateKey(item.id);
+      if (!key) {
+        throw new Error("No API key returned");
+      }
+      setRevealedKeys((current) =>
+        nextRevealedKeys(current, { kind: "rotated", keyId: item.id, key })
+      );
+      return "API key regenerated. Copy the new key now.";
+    });
+  const confirm = (pending: PendingConfirm) => {
+    setPendingConfirm(pending);
+    setConfirmOpen(true);
+  };
+  const runConfirmed = () => {
+    if (!pendingConfirm) {
       return;
     }
+    if (pendingConfirm.kind === "revokeAll") {
+      void revokeAll();
+    } else if (pendingConfirm.kind === "revoke") {
+      void revoke(pendingConfirm.item);
+    } else {
+      void rotate(pendingConfirm.item);
+    }
+  };
+  const copy = async (revealedKey: CreatedApiKey) => {
     try {
       await navigator.clipboard.writeText(revealedKey.key);
       setFeedback({ message: "API key copied.", error: false });
@@ -236,9 +328,13 @@ export function ApiKeysPanel({
           {feedback.message}
         </p>
       ) : null}
-      {revealedKey ? (
-        <RevealedKey onCopy={() => void copy()} value={revealedKey.key} />
-      ) : null}
+      {revealedKeys.map((revealedKey) => (
+        <RevealedKey
+          key={revealedKey.id ?? revealedKey.key}
+          onCopy={() => void copy(revealedKey)}
+          value={revealedKey.key}
+        />
+      ))}
       {isLoading ? (
         <SettingsListSkeleton label="Loading API keys…" rows={2} />
       ) : null}
@@ -255,23 +351,8 @@ export function ApiKeysPanel({
               disabled={busy !== null}
               item={item}
               key={item.id}
-              onRevoke={() =>
-                void perform(item.id, async () => {
-                  await onRevokeKey(item.id);
-                  setRevealedKey(null);
-                  return "API key revoked.";
-                })
-              }
-              onRotate={() =>
-                void perform(item.id, async () => {
-                  const key = await onRotateKey(item.id);
-                  if (!key) {
-                    throw new Error("No API key returned");
-                  }
-                  setRevealedKey(key);
-                  return "API key regenerated. Copy the new key now.";
-                })
-              }
+              onRevoke={() => confirm({ kind: "revoke", item })}
+              onRotate={() => confirm({ kind: "rotate", item })}
             />
           ))}
         </SettingsList>
@@ -281,13 +362,21 @@ export function ApiKeysPanel({
           <Button
             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             disabled={busy !== null}
-            onClick={() => void revokeAll()}
+            onClick={() => confirm({ kind: "revokeAll" })}
             size="sm"
             variant="ghost"
           >
             {busy === "all" ? <Spinner /> : null}Revoke all keys
           </Button>
         </div>
+      ) : null}
+      {pendingConfirm ? (
+        <ConfirmDialog
+          {...apiKeyConfirmCopy(pendingConfirm)}
+          onConfirm={runConfirmed}
+          onOpenChange={setConfirmOpen}
+          open={confirmOpen}
+        />
       ) : null}
     </div>
   );

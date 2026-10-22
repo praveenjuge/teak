@@ -146,7 +146,7 @@ describe("Cards/Card", () => {
       <Card card={createLinkCard() as any} onToggleArchive={() => undefined} />
     );
     for (const [label, key] of [
-      ["Add Tags", "T"],
+      ["Add tags…", "T"],
       ["Archive", "E"],
       ["Favorite", "F"],
       ["Select", "X"],
@@ -154,9 +154,9 @@ describe("Cards/Card", () => {
       expect(markup).toContain(`${label}<kbd>${key}</kbd>`);
       expect(markup).toContain(`aria-keyshortcuts="${key}"`);
     }
-    expect(markup).toMatch(/Copy Link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
+    expect(markup).toMatch(/Copy link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
     expect(markup).toMatch(/Delete<kbd>(⌫|Del)<\/kbd>/);
-    expect(markup).toContain("Open Link</div>");
+    expect(markup).toContain("Open link</div>");
     expect(markup).toContain("Refresh details</div>");
   });
 
@@ -170,8 +170,8 @@ describe("Cards/Card", () => {
       />
     );
     expect(markup).toContain("Deselect<kbd>X</kbd>");
-    expect(markup).toMatch(/Copy Link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
-    for (const label of ["Add Tags", "Favorite", "Archive", "Delete"]) {
+    expect(markup).toMatch(/Copy link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
+    for (const label of ["Add tags…", "Favorite", "Archive", "Delete"]) {
       expect(markup).toContain(`${label}</div>`);
     }
     expect(markup).not.toContain('aria-keyshortcuts="F"');
@@ -345,7 +345,7 @@ describe("Cards/Card", () => {
     expect(markup).toContain('src="https://example.com/screenshot.jpg"');
   });
 
-  test("offers Copy Text for a note", () => {
+  test("offers Copy text for a note", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -357,7 +357,7 @@ describe("Cards/Card", () => {
         }
       />
     );
-    expect(markup).toMatch(/Copy Text<kbd>/);
+    expect(markup).toMatch(/Copy text<kbd>/);
   });
 
   test("offers no copy for an SVG image, which the clipboard cannot hold", () => {
@@ -373,8 +373,88 @@ describe("Cards/Card", () => {
           }
         />
       );
-    expect(image("image/png")).toContain("Copy Image");
-    expect(image("image/svg+xml")).not.toContain("Copy Image");
+    expect(image("image/png")).toContain("Copy image");
+    expect(image("image/svg+xml")).not.toContain("Copy image");
+  });
+
+  // Bug 30: Trash offers only Restore and Delete Forever.
+  test("offers no Open link for a link in Trash", () => {
+    const trashed = renderToStaticMarkup(
+      <Card card={createLinkCard({ isDeleted: true }) as any} />
+    );
+    const items = [
+      ...trashed.matchAll(/role="menuitem">(?:<svg.*?<\/svg>)?([^<]*)/g),
+    ].map((match) => match[1]);
+    expect(items).toEqual(["Restore", "Delete Forever"]);
+  });
+
+  // Bug 02: an emptied note was a blank strip the quick actions covered.
+  test("shows an empty note as Empty note", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({ type: "text", url: undefined, content: "" }) as any
+        }
+      />
+    );
+    expect(markup).toContain("Empty note");
+  });
+
+  // Bug 01: the editor saves `<`, `>` and `&` as entities.
+  test("shows a note's angle brackets and ampersands as typed", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "text",
+            url: undefined,
+            content: "3 &lt; 5 &amp;&amp; &lt;b&gt;",
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">3 &lt; 5 &amp;&amp; &lt;b&gt;</p>");
+    expect(markup).not.toContain("&amp;lt;");
+  });
+
+  // Bug 17: the words typed around a URL were saved but never shown.
+  test("shows the words saved with a link, without the URL", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            content: "Read this https://example.com/a later",
+            url: "https://example.com/a",
+            metadata: {
+              linkPreview: { status: "success", title: "Example" },
+            },
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">Read this later</p>");
+  });
+
+  test("shows nothing extra for a link saved on its own", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            content: "https://example.com/a",
+            url: "https://example.com/a",
+            metadata: {
+              linkPreview: {
+                status: "success",
+                title: "Example",
+                description: "A site",
+              },
+            },
+          }) as any
+        }
+      />
+    );
+    expect(markup).not.toContain("https://example.com/a</p>");
+    expect(markup).toContain(">A site</p>");
   });
 
   test("offers Delete Forever only for a card in Trash", () => {

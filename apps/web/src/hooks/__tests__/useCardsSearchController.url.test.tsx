@@ -348,3 +348,60 @@ test("clearing filters keeps the chosen sort", async () => {
     types: [],
   });
 });
+
+const pressEnter = async (value: string) => {
+  await act(() => controller.searchBarProps.onSearchChange(value));
+  await act(() =>
+    controller.searchBarProps.onKeyDown({
+      currentTarget: { value },
+      key: "Enter",
+    } as never)
+  );
+};
+
+test("colors, styles and dates survive a reload through the URL", async () => {
+  const { parseSearchUrlState, serializeSearchUrlState } = await import(
+    "../../lib/searchUrlState"
+  );
+  await mount({ q: "", sort: "newest", types: [] });
+  await pressEnter("red minimal #ff5733");
+  await pressEnter("today");
+  const query = serializeSearchUrlState(controller.urlState);
+  expect(query).toBe("style=minimal&color=red,ff5733&date=Today");
+  const before = controller.queryArgs;
+  await act(() => root?.unmount());
+
+  await mount(parseSearchUrlState(new URLSearchParams(query)));
+  expect(controller.hueFilters).toEqual(["red"]);
+  expect(controller.hexFilters).toEqual(["#FF5733"]);
+  expect(controller.styleFilters).toEqual(["minimal"]);
+  expect(controller.timeFilter?.label).toBe("Today");
+  expect(controller.queryArgs).toEqual(before);
+});
+
+test("Back to a URL without colors clears them", async () => {
+  await mount({ hues: ["red"], q: "", sort: "newest", types: [] });
+  expect(controller.hueFilters).toEqual(["red"]);
+  await act(() =>
+    controller.applyUrlState({ q: "", sort: "newest", types: [] })
+  );
+  expect(controller.hueFilters).toEqual([]);
+  expect(controller.queryArgs.hueFilters).toBeUndefined();
+});
+
+test("a type: qualifier becomes a View type, and another type adds to it", async () => {
+  await mount({ q: "", sort: "newest", types: [] });
+  await pressEnter("type:image");
+  expect(controller.filterTags).toEqual(["image"]);
+  expect(controller.qualifierChips).toEqual([]);
+
+  await act(() => controller.searchBarProps.onToggleFilter?.("link"));
+  expect(controller.queryArgs.types).toEqual(["image", "link"]);
+  expect(controller.queryArgs.searchQuery).toBeUndefined();
+});
+
+test("a type: qualifier in the URL joins the URL's types", async () => {
+  await mount({ q: "type:image poster", sort: "newest", types: ["link"] });
+  expect(controller.filterTags).toEqual(["link", "image"]);
+  expect(controller.queryArgs.searchQuery).toBe("poster");
+});

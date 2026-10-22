@@ -253,6 +253,10 @@ export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   const row = dialog.getByRole("listitem").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
   await row.getByRole("button", /^Revoke /).click();
+  await surface.screen
+    .getByRole("alertdialog")
+    .getByRole("button", "Revoke key")
+    .click();
   await expect(row).toHaveCount(0);
   await expect.poll(() => apiStatus(rawKey), { timeout: 15_000 }).toBe(401);
 };

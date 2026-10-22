@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatLinkByline } from "../../lib/linkByline";
 import { firstFile } from "../../lib/linkThumbnail";
 import { resolveLinkTitle } from "../../lib/linkTitle";
+import { linkNoteText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 import { SiteFavicon } from "../cards/SiteFavicon";
@@ -127,6 +128,9 @@ function ThumbnailDropZone({
   );
 }
 
+/** A link's note shows in full here, unlike the grid's three lines. */
+const NOTE_MAX_LENGTH = 4000;
+
 interface LinkPreviewProps {
   card: CardWithUrls;
   LinkComponent?: React.ComponentType<{
@@ -158,6 +162,10 @@ export function LinkPreview({
     url: card.url,
   });
   const linkDescription = linkPreview?.description || card.metadataDescription;
+  const note = linkNoteText(card.content, {
+    maxLength: NOTE_MAX_LENGTH,
+    title: linkTitle,
+  });
   const linkImage = card.linkPreviewImageUrl;
   const [failedImageUrls, setFailedImageUrls] = useState<string[]>([]);
   const linkMedia = card.linkPreviewMedia ?? [];
@@ -254,6 +262,12 @@ export function LinkPreview({
       image
     );
 
+  const noteText = note ? (
+    <p className="break-words px-1 text-sm leading-relaxed" dir="auto">
+      {note}
+    </p>
+  ) : null;
+
   const linkContent = (
     <>
       <div className="flex flex-col gap-4">
@@ -334,6 +348,7 @@ export function LinkPreview({
         ) : (
           <div className="block">{linkContent}</div>
         )}
+        {noteText}
         {linkMedia.length ? (
           <div className="flex flex-col gap-4">
             {linkMedia.map((media, index) =>
@@ -382,6 +397,7 @@ export function LinkPreview({
       ) : (
         <div className="block">{linkContent}</div>
       )}
+      {noteText}
       {linkMedia.length ? (
         <div className="flex flex-col gap-4">
           {linkMedia.map((media, index) =>

@@ -44,6 +44,7 @@ export function ImportExportSection({
     <>
       <SettingRow title="Import/Export Data">
         <Button
+          aria-label="Manage import and export"
           onClick={() => {
             setTab("import");
             setOpen(true);

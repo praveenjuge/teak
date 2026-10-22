@@ -183,4 +183,8 @@ export function isWithinMarkdownLimit(value: string): boolean {
   return markdownContentByteLength(value) <= MARKDOWN_CONTENT_MAX_BYTES;
 }
 
-export { type NoteCapture, prepareNoteCapture } from "./noteCapture";
+export {
+  type NoteCapture,
+  noteCaptureSavedMessage,
+  prepareNoteCapture,
+} from "./noteCapture";

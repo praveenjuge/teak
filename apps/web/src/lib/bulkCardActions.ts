@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { clipFolderName } from "./clipFolderName";
 
 export type BulkCardAction =
   | "favorite"
@@ -159,14 +160,14 @@ export const bulkActionCopy = {
   progress: (action: BulkCardAction, done: number, total: number) =>
     `${COPY[action].running} ${done} of ${total}…`,
   done: (action: BulkCardAction, count: number, folder = "the folder") =>
-    COPY[action].done(cardCountLabel(count), folder),
+    COPY[action].done(cardCountLabel(count), clipFolderName(folder)),
   partial: (
     action: BulkCardAction,
     updated: number,
     failed: number,
     folder = "the folder"
   ) =>
-    `${COPY[action].done(cardCountLabel(updated), folder)}. ${failed} couldn't be changed.`,
+    `${COPY[action].done(cardCountLabel(updated), clipFolderName(folder))}. ${failed} couldn't be changed.`,
   failed: (action: BulkCardAction) => `Couldn't ${COPY[action].failed}`,
 };
 

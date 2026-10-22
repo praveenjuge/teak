@@ -3,6 +3,7 @@ import type { Id } from "@teak/convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
+import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import {
   applyBulkActionToCard,
   type BulkCardAction,
@@ -117,14 +118,17 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
           bulkActionCopy.done(action, updatedIds.length, folderName),
           {
             id: toastId,
-            action: undoSteps?.length
+            ...(undoSteps?.length
               ? {
-                  label: "Undo",
-                  onClick: () => {
-                    runUndo(undoSteps).catch(() => undefined);
+                  action: {
+                    label: "Undo",
+                    onClick: () => {
+                      runUndo(undoSteps).catch(() => undefined);
+                    },
                   },
+                  duration: UNDO_TOAST_DURATION_MS,
                 }
-              : undefined,
+              : {}),
           }
         );
       } else {

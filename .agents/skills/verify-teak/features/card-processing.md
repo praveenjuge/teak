@@ -35,6 +35,7 @@ Steps (with `X=http://127.0.0.1:4102/cdn-cgi/local/explorer/api` and `API=http:/
 
 ## Gotchas
 
+- A text or quote card with no text skips the AI: its metadata stage completes with no tags and no summary, rather than a made-up description of an empty note. Prove it with `bun test apps/files-worker/src/workflows/cardProcessing/metadata.test.ts`, or on the E2E stack by saving a note, emptying its `content` through the API, and reading the card once its run is `complete`.
 - The E2E stack's AI is a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`): tags are the first words of the content and the summary starts "Saved note about". It doesn't answer the card-type decision, so a text card logs `malformed_clef_response` (op `decide-card-type`) and keeps the rules' type. That is expected here, not a bug.
 - Browser Run, Vectorize and the two Containers aren't on the E2E stack, so link fetching, screenshots, media rendering and embeddings fail there the way they do when those services are down. Prove those on the dev deployment through the app.
 - "Refresh details" on a link fetches its page again instead of reusing the copy kept for a day in `LINK_PAGE_CACHE`, so a page that changed since it was saved gets a new preview. Link fetching isn't on the E2E stack; prove it on the dev deployment by refreshing a link whose page changed, or with `bun test apps/files-worker/src/workflows/cardProcessing/linkMetadata.test.ts`.

@@ -76,6 +76,16 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
   const { heading, body } = splitNotePreview(card.content);
   const headingText = markdownToPlainText(heading);
   const bodyText = markdownToPlainText(body) || card.fileMetadata?.fileName;
+  if (!(headingText || bodyText)) {
+    return (
+      <div className={cn(CARD_SURFACE, "p-4", textInsets)}>
+        <p className="text-muted-foreground italic leading-relaxed">
+          Empty note
+        </p>
+        <SourceFooter sourceUrl={card.sourceUrl} />
+      </div>
+    );
+  }
   return (
     <div className={cn(CARD_SURFACE, "space-y-1.5 p-4", textInsets)}>
       {headingText ? (

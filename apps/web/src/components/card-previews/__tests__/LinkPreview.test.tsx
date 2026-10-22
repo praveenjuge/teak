@@ -52,6 +52,34 @@ describe("LinkPreview", () => {
     );
   });
 
+  // Bug 17: the words typed around a URL were saved but never shown.
+  test("shows the words saved with the link, outside the link itself", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={
+          createLinkCard({
+            content:
+              "Ask Sam about (https://x.com/teak/status/123) &amp; reply",
+          }) as any
+        }
+      />
+    );
+    expect(markup).toContain(">Ask Sam about &amp; reply</p>");
+    expect(markup.indexOf("Ask Sam")).toBeGreaterThan(markup.indexOf("</a>"));
+  });
+
+  test("shows no note for a link saved on its own", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={
+          createLinkCard({ content: "https://x.com/teak/status/123" }) as any
+        }
+      />
+    );
+    expect(markup).not.toContain("https://x.com/teak/status/123</p>");
+    expect(markup.match(/<p /g)).toHaveLength(1);
+  });
+
   test("shows who wrote the page and when beside the site", () => {
     const markup = renderToStaticMarkup(
       <LinkPreview

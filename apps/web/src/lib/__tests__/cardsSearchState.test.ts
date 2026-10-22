@@ -91,7 +91,7 @@ describe("cardsSearchState", () => {
     expect(next.searchQuery).toBe("");
   });
 
-  it("removes chips in web-priority order on Backspace", () => {
+  it("removes chips right to left on Backspace, then leaves Favorites and Trash", () => {
     let state: CardsSearchState = {
       ...baseState(),
       keywordTags: ["keyword"],
@@ -114,15 +114,16 @@ describe("cardsSearchState", () => {
     state = applyBackspaceToCardsSearchState(state);
     expect(state.styleFilters).toEqual([]);
     state = applyBackspaceToCardsSearchState(state);
-    expect(state.showTrashOnly).toBe(false);
-    state = applyBackspaceToCardsSearchState(state);
-    expect(state.showFavoritesOnly).toBe(false);
-    state = applyBackspaceToCardsSearchState(state);
     expect(state.filterTags).toEqual([]);
     state = applyBackspaceToCardsSearchState(state);
     expect(state.timeFilter).toBeNull();
     state = applyBackspaceToCardsSearchState(state);
     expect(state.keywordTags).toEqual([]);
+    expect(state.showTrashOnly).toBe(true);
+    state = applyBackspaceToCardsSearchState(state);
+    expect(state.showTrashOnly).toBe(false);
+    state = applyBackspaceToCardsSearchState(state);
+    expect(state.showFavoritesOnly).toBe(false);
   });
 
   it("builds query args and reset key from state", () => {

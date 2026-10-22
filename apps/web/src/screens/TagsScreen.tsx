@@ -304,10 +304,12 @@ export function TagsScreen({
               className="size-4 shrink-0 text-muted-foreground group-focus-within/search:text-foreground"
             />
             <Input
+              aria-keyshortcuts="/"
               aria-label="Find a tag"
               autoCapitalize="off"
               autoCorrect="off"
-              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent"
+              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
+              data-library-search=""
               onChange={(event) => {
                 setQuery(event.target.value);
                 setLimit(TAG_PAGE_SIZE);

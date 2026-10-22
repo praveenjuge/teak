@@ -18,9 +18,6 @@ export function SettingsContentSkeleton() {
       <span className="sr-only" role="status">
         Loading settings…
       </span>
-      <p aria-hidden className="font-semibold text-xl tracking-tight">
-        Settings
-      </p>
       {SKELETON_ROWS.map(([title, width]) => (
         <SettingRow key={title} title={title}>
           <SettingValueSkeleton className={width} />

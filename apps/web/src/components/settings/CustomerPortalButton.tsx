@@ -5,12 +5,14 @@ import { buttonVariants } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 
 interface CustomerPortalButtonProps {
+  "aria-label"?: string;
   children: ReactNode;
   className?: string;
   onCreatePortal: () => Promise<void>;
 }
 
 export function CustomerPortalButton({
+  "aria-label": ariaLabel,
   className,
   children,
   onCreatePortal,
@@ -30,6 +32,7 @@ export function CustomerPortalButton({
 
   return (
     <button
+      aria-label={ariaLabel}
       className={cn(
         buttonVariants({
           variant: "link",

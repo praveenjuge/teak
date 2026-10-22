@@ -141,3 +141,20 @@ test("asks for the first snapshot when there is none", async () => {
   expect(requestSummary).toHaveBeenCalledTimes(1);
   expect(document.querySelector('[aria-label="Loading tags"]')).not.toBeNull();
 });
+
+test("/ focuses the Find a tag box, like the library's search", async () => {
+  summary = { isComplete: true, items: [{ name: "design", count: 4 }] };
+  await render();
+  const { focusLibrarySearch } = await import("../../lib/keyboardShortcuts");
+  const find = document.querySelector<HTMLInputElement>(
+    'input[aria-label="Find a tag"]'
+  );
+  if (!find) {
+    throw new Error("No find box");
+  }
+  // happy-dom lays nothing out; the shortcut skips boxes with no layout box.
+  find.getClientRects = () => [new DOMRect(0, 0, 100, 20)] as never;
+
+  expect(focusLibrarySearch()).toBe(true);
+  expect(document.activeElement).toBe(find);
+});

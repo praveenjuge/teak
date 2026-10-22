@@ -6,7 +6,7 @@ export const PRO_FEATURES = [
   "Automatic Summary and Tags",
   "Automatic Audio Transcription",
   "Browser Extensions",
-  "iOS Mobile App",
+  "iOS, Mac & Android Apps",
   "API & MCP Access",
 ];
 

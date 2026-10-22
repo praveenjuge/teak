@@ -20,6 +20,12 @@ export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {
   dismissible: true,
 };
 
+/**
+ * How long a toast that offers Undo stays up: long enough to read it and
+ * reach the button, where most toasts leave after 4 seconds.
+ */
+export const UNDO_TOAST_DURATION_MS = 10_000;
+
 export const AUTH_STICKY_TOAST_OPTIONS: ExternalToast =
   MANUAL_CLOSE_TOAST_OPTIONS;
 

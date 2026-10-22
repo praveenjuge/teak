@@ -1,3 +1,4 @@
+import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
 import { Marked, type Token, type Tokens } from "marked";
 
 const lexer = new Marked({ gfm: true });
@@ -78,4 +79,15 @@ export function prepareNoteCapture(source: string): NoteCapture {
       )
   );
   return authored ? { content: source, type: "text" } : { content: source };
+}
+
+/**
+ * The composer's toast once a capture is saved. Only a link is known for sure
+ * at save time; whether a note becomes a quote or a palette is decided later,
+ * so anything else is just "Saved".
+ */
+export function noteCaptureSavedMessage(capture: NoteCapture): string {
+  return capture.type !== "text" && extractUrlFromContent(capture.content).url
+    ? "Link saved"
+    : "Saved";
 }

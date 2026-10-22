@@ -17,10 +17,12 @@ import type {
 import { semanticSearchText } from "../hooks/useSemanticSearch";
 import { type LibraryView, libraryViewFlags } from "./libraryViews";
 import {
+  comparableSearch,
   isSeededSort,
   type LibrarySort,
   queryOrder,
   type SearchUrlState,
+  timeFilterFromUrl,
 } from "./searchUrlState";
 
 export interface CardsSearchState {
@@ -159,6 +161,48 @@ export const addChips = (current: string[], additions: string[]) => {
   }
   return next.length === current.length ? current : next;
 };
+
+/**
+ * A `type:` qualifier becomes the View menu's type filter instead of a chip of
+ * its own, so the menu shows it checked and every type picked either way
+ * matches any of them.
+ */
+export function withTypeQualifiersAsFilters(
+  state: CardsSearchState
+): CardsSearchState {
+  const types: CardType[] = [];
+  const qualifierChips = state.qualifierChips.filter((chip) => {
+    const [qualifier] = parseSearchQuery(chip).qualifiers;
+    if (qualifier?.key !== "type") {
+      return true;
+    }
+    types.push(qualifier.value);
+    return false;
+  });
+  if (types.length === 0) {
+    return state;
+  }
+  const filterTags = [...state.filterTags];
+  for (const type of types) {
+    if (!filterTags.includes(type)) {
+      filterTags.push(type);
+    }
+  }
+  return { ...state, filterTags, qualifierChips };
+}
+
+/** The colors, styles and date a URL names, as search state. */
+export function visualFiltersFromUrl(
+  urlState: SearchUrlState | undefined,
+  options: { now?: Date; weekStart?: 0 | 1 } = {}
+): CardsVisualFilters {
+  return {
+    hexFilters: urlState?.hexes ?? [],
+    hueFilters: urlState?.hues ?? [],
+    styleFilters: urlState?.styles ?? [],
+    timeFilter: timeFilterFromUrl(urlState?.date, options),
+  };
+}
 
 export function cardsSearchStateFromQuery(
   query: string
@@ -313,90 +357,60 @@ export function applyEnterToCardsSearchState(
   };
 }
 
+/**
+ * Backspace in an empty search box removes the chip just left of the cursor:
+ * the last one the search bar shows. The search bar lays its chips out in
+ * this order, read backwards here. Favorites, Archive and Trash show no chip,
+ * so they go only after every chip.
+ */
+const BACKSPACE_ORDER: ((
+  state: CardsSearchState
+) => CardsSearchState | null)[] = [
+  (state) =>
+    state.hexFilters.length > 0
+      ? { ...state, hexFilters: state.hexFilters.slice(0, -1) }
+      : null,
+  (state) =>
+    state.hueFilters.length > 0
+      ? { ...state, hueFilters: state.hueFilters.slice(0, -1) }
+      : null,
+  (state) =>
+    state.styleFilters.length > 0
+      ? { ...state, styleFilters: state.styleFilters.slice(0, -1) }
+      : null,
+  (state) =>
+    state.filterTags.length > 0
+      ? { ...state, filterTags: state.filterTags.slice(0, -1) }
+      : null,
+  (state) => (state.timeFilter ? { ...state, timeFilter: null } : null),
+  (state) =>
+    state.keywordTags.length > 0
+      ? { ...state, keywordTags: state.keywordTags.slice(0, -1) }
+      : null,
+  (state) =>
+    state.qualifierChips.length > 0
+      ? { ...state, qualifierChips: state.qualifierChips.slice(0, -1) }
+      : null,
+  (state) => (state.tagFilter ? { ...state, tagFilter: "" } : null),
+  (state) => (state.showTrashOnly ? { ...state, showTrashOnly: false } : null),
+  (state) =>
+    state.showArchivedOnly ? { ...state, showArchivedOnly: false } : null,
+  (state) =>
+    state.showFavoritesOnly ? { ...state, showFavoritesOnly: false } : null,
+];
+
 export function applyBackspaceToCardsSearchState(
   state: CardsSearchState
 ): CardsSearchState {
   if (state.searchQuery !== "" || getHasNoFilters(state)) {
     return state;
   }
-
-  if (state.hexFilters.length > 0) {
-    return {
-      ...state,
-      hexFilters: state.hexFilters.slice(0, -1),
-    };
+  for (const remove of BACKSPACE_ORDER) {
+    const next = remove(state);
+    if (next) {
+      return next;
+    }
   }
-
-  if (state.hueFilters.length > 0) {
-    return {
-      ...state,
-      hueFilters: state.hueFilters.slice(0, -1),
-    };
-  }
-
-  if (state.styleFilters.length > 0) {
-    return {
-      ...state,
-      styleFilters: state.styleFilters.slice(0, -1),
-    };
-  }
-
-  if (state.showTrashOnly) {
-    return {
-      ...state,
-      showTrashOnly: false,
-    };
-  }
-
-  if (state.showArchivedOnly) {
-    return {
-      ...state,
-      showArchivedOnly: false,
-    };
-  }
-
-  if (state.showFavoritesOnly) {
-    return {
-      ...state,
-      showFavoritesOnly: false,
-    };
-  }
-
-  if (state.filterTags.length > 0) {
-    return {
-      ...state,
-      filterTags: state.filterTags.slice(0, -1),
-    };
-  }
-
-  if (state.tagFilter) {
-    return {
-      ...state,
-      tagFilter: "",
-    };
-  }
-
-  if (state.timeFilter) {
-    return {
-      ...state,
-      timeFilter: null,
-    };
-  }
-
-  if (state.keywordTags.length > 0) {
-    return {
-      ...state,
-      keywordTags: state.keywordTags.slice(0, -1),
-    };
-  }
-
-  if (state.qualifierChips.length > 0) {
-    return {
-      ...state,
-      qualifierChips: state.qualifierChips.slice(0, -1),
-    };
-  }
-
   return state;
 }
 
@@ -453,13 +467,18 @@ export const effectiveCardsOrder = (
 };
 
 export const initialCardsSearchState = (
-  urlState: SearchUrlState | undefined
-): CardsSearchState => ({
-  ...createInitialCardsSearchState(),
-  ...cardsSearchStateFromQuery(urlState?.q ?? ""),
-  filterTags: urlState?.types ?? [],
-  tagFilter: urlState?.tag ?? "",
-});
+  urlState: SearchUrlState | undefined,
+  options: { now?: Date; weekStart?: 0 | 1 } = {}
+): CardsSearchState => {
+  const search = urlState ? comparableSearch(urlState) : undefined;
+  return {
+    ...createInitialCardsSearchState(),
+    ...cardsSearchStateFromQuery(search?.q ?? ""),
+    ...visualFiltersFromUrl(urlState, options),
+    filterTags: search?.types ?? [],
+    tagFilter: urlState?.tag ?? "",
+  };
+};
 
 export function initialCardsSearchQueryArgs(
   view: LibraryView,

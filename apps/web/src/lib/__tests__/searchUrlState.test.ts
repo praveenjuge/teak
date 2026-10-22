@@ -6,6 +6,7 @@ import {
   parseSearchUrlState,
   queryOrder,
   serializeSearchUrlState,
+  timeFilterFromUrl,
 } from "../searchUrlState";
 
 const parse = (query: string) =>
@@ -299,4 +300,80 @@ describe("tag in the URL", () => {
       })
     ).toBe(false);
   });
+});
+
+describe("colors, styles and dates in the URL", () => {
+  test("round-trip, so a reload or a shared link keeps them", () => {
+    const state = {
+      ...EMPTY_SEARCH_URL_STATE,
+      date: "This Week",
+      hexes: ["#FF5733"],
+      hues: ["red" as const, "blue" as const],
+      styles: ["minimal" as const, "dark" as const],
+    };
+    const query = serializeSearchUrlState(state);
+    expect(query).toBe(
+      "style=minimal,dark&color=red,blue,ff5733&date=This+Week"
+    );
+    const read = parse(query);
+    expect(read).toMatchObject({
+      date: "This Week",
+      hexes: ["#FF5733"],
+      hues: ["red", "blue"],
+      styles: ["minimal", "dark"],
+    });
+    expect(isSameSearchUrlState(read, state)).toBe(true);
+  });
+
+  test("read a date range's label back as a range", () => {
+    expect(
+      timeFilterFromUrl("Jan 1, 2026 – Mar 1, 2026", {
+        now: new Date(2026, 5, 1),
+      })?.range
+    ).toEqual({
+      end: new Date(2026, 2, 2).getTime(),
+      start: new Date(2026, 0, 1).getTime(),
+    });
+  });
+
+  test("drop unknown, repeated and malformed values", () => {
+    expect(
+      parse(
+        "style=Minimal,shiny,minimal&color=Red,mauve,%23ff5733,FF5733,zzz&date=someday"
+      )
+    ).toEqual({
+      hexes: ["#FF5733"],
+      hues: ["red"],
+      q: "",
+      sort: "newest",
+      styles: ["minimal"],
+      tag: "",
+      types: [],
+    });
+  });
+
+  test("read at most a bounded length of each", () => {
+    const read = parse(`color=${"ff5733,".repeat(200)}red`);
+    expect(read.hues).toBeUndefined();
+    expect(read.hexes).toEqual(["#FF5733"]);
+    expect(parse(`date=${"today ".repeat(100)}`).date).toBeUndefined();
+  });
+
+  test("a different color is a different search", () => {
+    expect(
+      isSameSearchUrlState(
+        { ...EMPTY_SEARCH_URL_STATE, hues: ["red"] },
+        { ...EMPTY_SEARCH_URL_STATE, hues: ["blue"] }
+      )
+    ).toBe(false);
+  });
+});
+
+test("a type: qualifier is the same search as that type picked", () => {
+  expect(
+    isSameSearchUrlState(
+      { ...EMPTY_SEARCH_URL_STATE, q: "poster type:image" },
+      { ...EMPTY_SEARCH_URL_STATE, q: "poster", types: ["image"] }
+    )
+  ).toBe(true);
 });

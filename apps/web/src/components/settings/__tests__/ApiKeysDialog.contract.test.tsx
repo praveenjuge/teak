@@ -31,6 +31,8 @@ mock.module("../../ui/dialog", () => ({
     React.createElement("div", { "data-dialog-content": "" }, children),
   DialogDescription: ({ children }: any) =>
     React.createElement("p", { "data-dialog-description": "" }, children),
+  DialogFooter: ({ children }: any) =>
+    React.createElement("div", { "data-dialog-footer": "" }, children),
   DialogHeader: ({ children }: any) =>
     React.createElement("div", { "data-dialog-header": "" }, children),
   DialogTitle: ({ children }: any) =>

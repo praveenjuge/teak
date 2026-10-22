@@ -132,4 +132,51 @@ describe("SettingsContent", () => {
     expect(skeleton).not.toContain("<h1");
     expect(skeleton).toContain("Loading settings");
   });
+
+  test("the skeleton adds no title of its own above the rows", () => {
+    // The page header already says "Settings"; a second one made the page
+    // jump when the real rows replaced the skeleton.
+    const skeleton = renderToStaticMarkup(<SettingsContentSkeleton />);
+
+    expect(skeleton).not.toContain(">Settings<");
+  });
+
+  test("shows the email and usage as text, not as disabled buttons", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsContent {...baseProps} accountLoading={false} />
+    );
+    const buttonTexts = [
+      ...markup.matchAll(/<button[^>]*>(.*?)<\/button>/g),
+    ].map(([, inner]) => inner);
+
+    expect(markup).toContain("hello@example.com");
+    expect(markup).toContain("3 Cards");
+    expect(buttonTexts.some((text) => text.includes("hello@example.com"))).toBe(
+      false
+    );
+    expect(buttonTexts.some((text) => text.includes("3 Cards"))).toBe(false);
+  });
+
+  test("each Manage button names what it manages", () => {
+    const free = renderToStaticMarkup(
+      <SettingsContent {...baseProps} accountLoading={false} />
+    );
+    const pro = renderToStaticMarkup(
+      <SettingsContent {...baseProps} accountLoading={false} hasPremium />
+    );
+    const manageLabels = (markup: string) =>
+      [...markup.matchAll(/<button[^>]*aria-label="(Manage[^"]*)"/g)].map(
+        ([, label]) => label
+      );
+
+    expect(manageLabels(free)).toEqual([
+      "Manage security",
+      "Manage import and export",
+    ]);
+    expect(manageLabels(pro)).toEqual([
+      "Manage subscription",
+      "Manage security",
+      "Manage import and export",
+    ]);
+  });
 });

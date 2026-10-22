@@ -74,6 +74,28 @@ const PRIORITY_CARD_COUNT = 10;
 // included. Without motion the items stay mounted.
 const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };
 
+/**
+ * The cards still in the grid next to one that left it, nearest first: the
+ * ones after it, then the ones before it.
+ */
+export function neighborOf(
+  cardId: string,
+  order: { current: readonly string[]; previous: readonly string[] }
+): string[] {
+  const index = order.previous.indexOf(cardId);
+  if (index < 0) {
+    return [];
+  }
+  const remaining = new Set(order.current);
+  return [
+    ...order.previous.slice(index + 1),
+    ...order.previous.slice(0, index).reverse(),
+  ].filter((id) => remaining.has(id));
+}
+
+const sameOrder = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((id, index) => id === b[index]);
+
 export interface MasonryGridHandle {
   returnFocusTo: (cardId: string) => boolean;
 }
@@ -322,6 +344,18 @@ export const MasonryGrid = memo(function MasonryGrid({
         .filter((cardId) => !isOptimisticCard(cardId)),
     [visibleCards]
   );
+  // The order before the last change too, so focus can find where a card
+  // that just left (deleted from its dialog) used to be.
+  const cardOrderRef = useRef<{ current: string[]; previous: string[] }>({
+    current: [],
+    previous: [],
+  });
+  if (!sameOrder(cardOrderRef.current.current, navigableIds)) {
+    cardOrderRef.current = {
+      current: navigableIds,
+      previous: cardOrderRef.current.current,
+    };
+  }
   const tabStopId =
     activeCardId !== null && navigableIds.includes(activeCardId)
       ? activeCardId
@@ -435,9 +469,15 @@ export const MasonryGrid = memo(function MasonryGrid({
           return false;
         }
         openedFromGridRef.current = false;
-        const element = gridRef.current?.querySelector<HTMLElement>(
-          `[data-card-id="${CSS.escape(cardId)}"]`
-        );
+        const findCard = (id: string) =>
+          gridRef.current?.querySelector<HTMLElement>(
+            `[data-card-id="${CSS.escape(id)}"]`
+          ) ?? null;
+        const element =
+          findCard(cardId) ??
+          neighborOf(cardId, cardOrderRef.current)
+            .map(findCard)
+            .find((found) => found !== null);
         if (!element) {
           return false;
         }

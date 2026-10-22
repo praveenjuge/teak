@@ -38,17 +38,32 @@ export function HomePageClient({
   const seedParam = searchParams.get("seed");
   const typeParam = searchParams.get("type");
   const tagParam = searchParams.get("tag");
+  const styleParam = searchParams.get("style");
+  const colorParam = searchParams.get("color");
+  const dateParam = searchParams.get("date");
   const focusComposer = searchParams.get(FOCUS_COMPOSER_PARAM) === "1";
   const searchUrlState = useMemo(() => {
     const params: Record<string, string | null> = {
+      color: colorParam,
+      date: dateParam,
       q: searchQueryParam,
       seed: seedParam,
       sort: sortParam,
+      style: styleParam,
       tag: tagParam,
       type: typeParam,
     };
     return parseSearchUrlState({ get: (name) => params[name] ?? null });
-  }, [searchQueryParam, seedParam, sortParam, tagParam, typeParam]);
+  }, [
+    colorParam,
+    dateParam,
+    searchQueryParam,
+    seedParam,
+    sortParam,
+    styleParam,
+    tagParam,
+    typeParam,
+  ]);
 
   // Native history updates the URL synchronously, unlike the router, so an
   // older search can never land after a newer one.
@@ -59,7 +74,12 @@ export function HomePageClient({
       if (nextUrl === `${window.location.pathname}${window.location.search}`) {
         return;
       }
-      if (change.sortChanged || change.typesChanged || change.tagChanged) {
+      if (
+        change.sortChanged ||
+        change.typesChanged ||
+        change.tagChanged ||
+        change.filtersChanged
+      ) {
         window.history.pushState(null, "", nextUrl);
       } else {
         window.history.replaceState(null, "", nextUrl);

@@ -1,6 +1,14 @@
-import { isSameSearchUrlState, type SearchUrlState } from "./searchUrlState";
+import {
+  comparableSearch,
+  isSameSearchUrlState,
+  type SearchUrlState,
+  sameMembers,
+  sameVisualFilters,
+} from "./searchUrlState";
 
 export interface SearchUrlChange {
+  /** Colors, styles or the date changed. */
+  filtersChanged: boolean;
   sortChanged: boolean;
   tagChanged: boolean;
   typesChanged: boolean;
@@ -16,16 +24,23 @@ export function searchUrlChange(
   next: SearchUrlState
 ): SearchUrlChange {
   if (previous === null) {
-    return { sortChanged: false, tagChanged: false, typesChanged: false };
+    return {
+      filtersChanged: false,
+      sortChanged: false,
+      tagChanged: false,
+      typesChanged: false,
+    };
   }
   return {
+    filtersChanged: !sameVisualFilters(previous, next),
     sortChanged:
       previous.sort !== next.sort ||
       (previous.seed !== undefined && previous.seed !== next.seed),
     tagChanged: (previous.tag ?? "") !== (next.tag ?? ""),
-    typesChanged:
-      previous.types.length !== next.types.length ||
-      previous.types.some((type) => !next.types.includes(type)),
+    typesChanged: !sameMembers(
+      comparableSearch(previous).types,
+      comparableSearch(next).types
+    ),
   };
 }
 
@@ -33,13 +48,16 @@ const fromUrl = (
   previous: SearchUrlState | null,
   state: SearchUrlState
 ): SearchFromUrl => ({
-  keepSearch: previous !== null && previous.q.trim() === state.q.trim(),
+  keepSearch:
+    previous !== null &&
+    comparableSearch(previous).q === comparableSearch(state).q,
   state,
 });
 
 export function createSearchUrlSync(initial?: SearchUrlState) {
   let read: SearchUrlState | null = initial ?? null;
   let synced: SearchUrlState | null = initial ?? null;
+  let settled: SearchUrlState | null = null;
   let replaceNext = false;
   return {
     /**
@@ -72,7 +90,18 @@ export function createSearchUrlSync(initial?: SearchUrlState) {
       synced = state;
       return fromUrl(previous, state);
     },
+    /**
+     * Only a search the page has not reported yet is a change. A page Next.js
+     * kept hidden reports the search it showed before, again, when it is
+     * revealed on a new URL: that is the URL's search still to apply, not
+     * the person's.
+     */
     searchSettled(state: SearchUrlState): SearchUrlChange | null {
+      const lastSettled = settled;
+      settled = state;
+      if (lastSettled && isSameSearchUrlState(lastSettled, state)) {
+        return null;
+      }
       const previous = synced;
       if (previous && isSameSearchUrlState(previous, state)) {
         return null;

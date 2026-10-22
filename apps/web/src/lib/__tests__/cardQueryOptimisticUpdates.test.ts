@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
+import { getFunctionName } from "convex/server";
 import {
   addCardToSearchQueries,
   cardMatchesSearchQuery,
@@ -19,6 +21,10 @@ const card = (overrides: Partial<Doc<"cards">> = {}): Doc<"cards"> =>
     userId: "user-1",
     ...overrides,
   }) as Doc<"cards">;
+
+const isCardDetailQuery = (query: unknown) =>
+  getFunctionName(query as typeof api.cards.getCardByUrlId) ===
+  getFunctionName(api.cards.getCardByUrlId);
 
 describe("card query optimistic updates", () => {
   it("matches the same favorite and search filters as the rendered list", () => {
@@ -217,5 +223,53 @@ describe("card query optimistic updates", () => {
         page: [],
       },
     ]);
+  });
+
+  it("updates the open card's own query, so its dialog shows the edit at once", () => {
+    const written: Array<{ args: unknown; value: unknown }> = [];
+    const detail = (id: string) => ({
+      args: { id },
+      value: { ...card({ _id: id as Id<"cards"> }), fileUrl: "https://f" },
+    });
+    const localStore = {
+      getAllQueries: (query: unknown) =>
+        isCardDetailQuery(query)
+          ? [
+              detail("card-1"),
+              detail("card-2"),
+              { args: { id: "x" }, value: null },
+            ]
+          : [],
+      setQuery: (_query: unknown, args: unknown, value: unknown) =>
+        written.push({ args, value }),
+    } as unknown as OptimisticLocalStore;
+
+    updateCardInSearchQueries(
+      localStore,
+      "card-1" as Id<"cards">,
+      (current) => ({ ...current, tags: ["kept"] })
+    );
+
+    expect(written).toEqual([
+      {
+        args: { id: "card-1" },
+        value: { ...detail("card-1").value, tags: ["kept"] },
+      },
+    ]);
+  });
+
+  it("leaves the open card's query alone when an update removes the card", () => {
+    const written: unknown[] = [];
+    const localStore = {
+      getAllQueries: (query: unknown) =>
+        isCardDetailQuery(query)
+          ? [{ args: { id: "card-1" }, value: card() }]
+          : [],
+      setQuery: (_query: unknown, args: unknown) => written.push(args),
+    } as unknown as OptimisticLocalStore;
+
+    updateCardInSearchQueries(localStore, "card-1" as Id<"cards">, () => null);
+
+    expect(written).toEqual([]);
   });
 });

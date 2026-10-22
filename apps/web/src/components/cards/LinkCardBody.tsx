@@ -2,6 +2,7 @@ import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { CircleCheck } from "lucide-react";
 import type { SyntheticEvent } from "react";
+import { linkNoteText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
 import { CARD_SURFACE, getDisplayHostname } from "./cardDisplay";
 import { type LinkCardImage, successfulLinkPreview } from "./linkCardImage";
@@ -40,6 +41,12 @@ export function LinkCardBody({
   const favicon = hostname && (
     <SiteFavicon className="size-4" hostname={hostname} />
   );
+  const note = linkNoteText(card.content, { title });
+  const noteText = note ? (
+    <p className="line-clamp-3 break-words text-sm leading-relaxed" dir="auto">
+      {note}
+    </p>
+  ) : null;
   const doneMark = card.completedAt !== undefined && (
     <CircleCheck
       aria-label={`Marked as ${doneActionLabel(card.metadata?.linkCategory?.category)}`}
@@ -76,7 +83,7 @@ export function LinkCardBody({
             </span>
           ) : null}
         </div>
-        <div className="px-4 py-3">
+        <div className="space-y-1.5 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             {favicon}
             <p className="min-w-0 truncate font-medium leading-snug" dir="auto">
@@ -84,6 +91,7 @@ export function LinkCardBody({
             </p>
             {doneMark}
           </div>
+          {noteText}
         </div>
       </div>
     );
@@ -109,6 +117,7 @@ export function LinkCardBody({
           </span>
         ) : null}
       </div>
+      {noteText}
       {description && !titleIsUrl && (
         <p
           className="line-clamp-2 break-words text-muted-foreground text-sm leading-relaxed"
