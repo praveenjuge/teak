@@ -7,8 +7,8 @@ import {
   folderReturnValidator,
   getFolderForUser,
   listFoldersForUser,
+  loadFolderSummary,
   requireFolderForUser,
-  toFolderSummary,
   updateFolderForUser,
 } from "./folder/folders";
 import {
@@ -34,7 +34,7 @@ export const getFolderForApi = internalQuery({
       await requireTeakUserId(ctx, args.userId),
       args.folderId
     );
-    return folder ? toFolderSummary(folder) : null;
+    return folder ? await loadFolderSummary(ctx, folder) : null;
   },
 });
 

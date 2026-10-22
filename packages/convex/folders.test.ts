@@ -10,6 +10,7 @@ import {
   searchCardsByDocument,
   syncCardSearchDocumentHandler,
 } from "./card/searchDocumentHelpers";
+import { readFolderCardCount } from "./folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,
   FOLDER_DELETE_UNDO_MS,
@@ -76,7 +77,12 @@ const setup = async () => {
     );
 
   const folder = (folderId: Id<"folders">) =>
-    t.run((ctx) => ctx.db.get("folders", folderId));
+    t.run(async (ctx) => {
+      const doc = await ctx.db.get("folders", folderId);
+      return (
+        doc && { ...doc, activeCardCount: await readFolderCardCount(ctx, doc) }
+      );
+    });
 
   const card = (cardId: Id<"cards">) =>
     t.run((ctx) => ctx.db.get("cards", cardId));
@@ -299,6 +305,59 @@ describe("membership", () => {
         folderIds: [],
       })
     ).rejects.toThrow("Card not found");
+  });
+
+  test("card writes count outside the folder; an older folder's stored count holds until the backfill copies it", async () => {
+    const { t, owner, insert, runScheduled } = await setup();
+    const legacy = await t.run((ctx) =>
+      ctx.db.insert("folders", {
+        userId: "owner",
+        name: "Legacy",
+        nameKey: "legacy",
+        kind: "manual",
+        activeCardCount: 2,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    const doc = () => t.run((ctx) => ctx.db.get("folders", legacy));
+    const before = await doc();
+    const listed = async () =>
+      (await owner.query(api.folders.listFolders, {})).find(
+        (entry: { _id: string }) => entry._id === legacy
+      )?.activeCardCount;
+    const counts = () =>
+      t.run((ctx) => ctx.db.query("folderCardCounts").collect());
+    const backfill = (dryRun: boolean) =>
+      t.mutation(
+        internal["migration/backfillFolderCardCounts"].backfillFolderCardCounts,
+        { dryRun, once: true }
+      );
+
+    const first = await insert({ content: "First", type: "text" });
+    const second = await insert({ content: "Second", type: "text" });
+    await owner.mutation(api.folders.addCardsToFolder, {
+      folderId: legacy,
+      cardIds: [first, second],
+    });
+    expect(await doc()).toEqual(before);
+    expect(await listed()).toBe(4);
+
+    expect((await backfill(true)).totals.foldersToUpdate).toBe(1);
+    expect((await counts()).some((row) => row.shard === 0)).toBe(false);
+    expect((await backfill(false)).totals.foldersToUpdate).toBe(1);
+    expect((await backfill(false)).totals.foldersToUpdate).toBe(0);
+    expect(await listed()).toBe(4);
+
+    await owner.mutation(api.folders.removeCardsFromFolder, {
+      folderId: legacy,
+      cardIds: [first],
+    });
+    expect(await listed()).toBe(3);
+
+    await owner.mutation(api.folders.deleteFolder, { folderId: legacy });
+    await runScheduled();
+    expect(await counts()).toEqual([]);
   });
 
   test("a move without a source folder leaves every other folder", async () => {
