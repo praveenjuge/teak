@@ -88,7 +88,7 @@ Tests sign in fresh instead of reusing saved cookies, which go stale once the cl
 ## What the local stack doesn't cover
 
 - **Workers AI, Browser Run, Vectorize and the two Containers.** They need a Cloudflare account or Docker. The Worker's `AI` binding is a service binding to a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`), so text and image cards get tags and summaries; link fetching, link screenshots, video and PDF rendering, audio transcripts and embeddings fail the way they do when those services are down, and their stages end `failed`. Uploads, image analysis (Images is emulated), exports, imports and account deletion run for real.
-- **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/workosAuthKit.test.ts` covers it.
+- **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/edge/workosAuthKit.test.ts` covers it.
 - **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `extension-oauth-runtime.yml` workflow.
 - **Billing.** Polar checkout needs Polar credentials.
 - **The browser extension.** It signs in with WorkOS Connect, and e2e can't load a browser extension.

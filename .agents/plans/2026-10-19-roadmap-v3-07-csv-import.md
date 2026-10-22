@@ -38,7 +38,7 @@ Import links from any CSV file whose header names the columns: url, title, tags,
 - **Sources:**
   - `packages/convex/shared/importSources.ts` `IMPORT_SOURCES` (lines 18–90) has 10 entries keyed by `ImportMode`. `onetab`: title "OneTab", `.txt`, 20 MB (lines 75–81).
   - The modes come from `FILES_IMPORT_MODES` (`packages/files-protocol/src/index.ts:274–285`).
-  - The Convex validator is `importModeValidator` (`schema.ts:293–304`).
+  - The Convex validator is `importModeValidator` (`schema/validators/jobs.ts`).
 - **Parsing:**
   - `import/sources.ts` `parseImportSource` switches on mode (lines 14–40).
   - The Files Worker calls it in `apps/files-worker/src/archives/importSource.ts` (around line 131) and maps `ImportLimitExceeded` to `invalid_bookmark_count`, everything else to `invalid_import_source`.

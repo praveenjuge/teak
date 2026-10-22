@@ -29,14 +29,14 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
   - `TAG_OPERATION_COUNT_LIMIT = 10_000`.
   - `TagOperationKind` is `"rename" | "merge" | "delete"`.
 - **Tag summaries** (`packages/convex/tag/tagSummary.ts`): `{ items: { name, count }[], isComplete, computedAt }`, capped at `MAX_TAG_SUMMARY_ITEMS = 3000`.
-  - They are computed from `cardSearchTags` (92), which merges user and AI tags (`searchDocumentHelpers.ts:75-79`), and refreshed after a debounce (`TAG_SUMMARY_DEBOUNCE_MS = 15_000`).
+  - They are computed from `cardSearchTags` (92), which merges user and AI tags (`card/searchSync.ts`), and refreshed after a debounce (`TAG_SUMMARY_DEBOUNCE_MS = 15_000`).
 - **Tag operations** (`packages/convex/tag/tagOperations.ts`):
   - `startTagOperationForUser` (130) checks `from` and `to`, and refuses merging a tag into itself (`SAME_TAG`).
   - **Only one running operation per user** (`runningOperation`, 122; `TAG_OPERATION_RUNNING` unless the running one has stalled for `TAG_OPERATION_STALL_MS`).
   - Batches rewrite `tags` and `aiTags` (around 290–300).
   - The public mutation `startTagOperation` (389) takes `{ kind, from, to? }`. The queries are `getTagOperation` (401) and `getLatestTagOperation` (413).
 - **Public API:**
-  - `POST /v1/tags/rename|merge|delete` and `GET /v1/tags/operations/{id}` (`http.ts:94-97,122,189-194`, `publicApiHttpTags.ts`).
+  - `POST /v1/tags/rename|merge|delete` and `GET /v1/tags/operations/{id}` (`http.ts:94-97,122,189-194`, `publicApi/http/tags.ts`).
   - MCP: `teak_v1_list_tags`, `teak_v1_merge_tags`, `teak_v1_get_tag_operation` (`mcp/tools.ts:838-871`).
 - **Tags page** (`apps/web/src/screens/TagsScreen.tsx`, 416 lines):
   - It reads `api.tags.listTagSummary` and requests a refresh with `requestTagSummary` (207–227).
@@ -122,10 +122,10 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 
 ## API / MCP / SDK / CLI
 
-- `GET /v1/tags/duplicates` is a new route: add `"/v1/tags/duplicates"` to the GET paths in `http.ts` (beside `/v1/tags`, line 184) and a branch in `publicApiHttp.ts` (beside line 100). It returns `{ status, groups: [{ tags: [{ name, count }], reason }] }`, read-only, in the same shape as the web.
+- `GET /v1/tags/duplicates` is a new route: add `"/v1/tags/duplicates"` to the GET paths in `http.ts` (beside `/v1/tags`, line 184) and a branch in `publicApi/http/routes.ts` (beside line 100). It returns `{ status, groups: [{ tags: [{ name, count }], reason }] }`, read-only, in the same shape as the web.
   - It never calls Clef: it serves the cache, or the sure groups computed on the fly when the cache is missing, so the API doesn't get slower.
   - The tag summary stops at 3,000 tags (`MAX_TAG_SUMMARY_ITEMS`, `isComplete` at `tag/tagSummary.ts:191`). With an incomplete summary, groups are computed from the 3,000 tags it holds and the result says so: `status: "partial"`, and the web banner reads "Likely duplicates among 3,000 of your tags". Nothing claims to cover tags it didn't see.
-- `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`into` unchanged; that is the merge endpoint's existing field, `publicApiHttpTags.ts:21`). An array is sent as `from[0]` plus `alsoFrom`.
+- `POST /v1/tags/merge` accepts `from` as a string or an array of up to 6 strings (`into` unchanged; that is the merge endpoint's existing field, `publicApi/http/tags.ts`). An array is sent as `from[0]` plus `alsoFrom`.
 - Add to OpenAPI, and the row in `scripts/public-parity.ts`.
 - MCP: `teak_v1_find_duplicate_tags`, and `teak_v1_merge_tags` accepts an array `from`.
 - SDK: `tags.duplicates()`, and `tags.merge(from: string | string[], into: string)`, keeping today's positional signature (`packages/sdk/src/index.ts:1170`) so existing callers still work.
@@ -196,7 +196,7 @@ Find tags that look alike, such as `design` / `designs`, `ux-writing` / `ux writ
 - `packages/convex/tagCleanup.test.ts` (convex-test, add to `vitest.config.ts`): the cache rules, dismissals filtering, and "a new tag reopens a dismissed group".
 - `packages/convex/__tests__/tag/tagOperations.test.ts`: `alsoFrom` merges every source, its limits, and its count across sources.
 - `apps/files-worker/src/ai/decisions.test.ts`: `buildTagPairsRequest` and reading the scores.
-- `packages/convex/__tests__/publicApiHttpTags.test.ts`: `GET /v1/tags/duplicates` and an array `from`. Plus MCP, SDK and CLI tests.
+- `packages/convex/__tests__/publicApi/http/tags.test.ts`: `GET /v1/tags/duplicates` and an array `from`. Plus MCP, SDK and CLI tests.
 - `apps/web/src/components/tags/__tests__/TagCleanupSheet.test.tsx`: the default kept tag, reason labels and disabled states.
 - e2e: extend `packages/tests/src/web/tags.e2e.ts` to seed a plural pair, merge it from the sheet, and check the Tags list.
 

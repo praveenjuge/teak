@@ -17,11 +17,11 @@ installed packages. Check them again before starting a phase.
   - `@convex-dev/workos-authkit` 0.2.10 (latest).
   - `@workos/emulate` 0.14.0 (0.15.0 shipped 15 October 2026).
 - The Node SDK still has no method for a user's authorized applications.
-  `workosAuthorizedApps.ts` calls the API by hand on purpose: redirects are
+  `workos/authorizedApps.ts` calls the API by hand on purpose: redirects are
   rejected, bodies are capped and IDs are validated. The SDK's generic
   `workos.get`/`workos.delete` would drop those guards, so keep it.
 - The SDK has no verifier for Connect access tokens (AuthKit-domain issuer,
-  `/oauth2/jwks`), so `workosTokens.ts` stays on `jose`.
+  `/oauth2/jwks`), so `workos/tokens.ts` stays on `jose`.
 - WorkOS has no "get session by ID" endpoint. `revokeAuthkitSession` pages
   `listSessions` to prove ownership before revoking, which is the only way.
 - WorkOS does not document whether `deleteUser` also revokes sessions and
@@ -30,7 +30,7 @@ installed packages. Check them again before starting a phase.
 - The native apps already treat only `invalid_grant`, `invalid_refresh_token`
   or a 401 as terminal on refresh, as WorkOS's session-resilience guide asks.
 - The `safari` key in `/.well-known/teak-oauth-clients.json` is still read by
-  published `teak-sdk` versions (see `publicApiMeta.ts`). The native Apple
+  published `teak-sdk` versions (see `publicApi/http/meta.ts`). The native Apple
   plan decides when it goes.
 
 ## Phases

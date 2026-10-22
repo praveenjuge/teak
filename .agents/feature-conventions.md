@@ -45,7 +45,7 @@ Update the API, MCP and CLI docs in `apps/docs` with it (`apps/docs/AGENTS.md`).
   `accountDeletion.ts` `deleteAccountDataHandler`), by card hard delete
   (`card/deleteCard.ts`, `card/trashCleanup.ts`) and by
   `cardStorageObjectKeys` (`storage/cardObjectKeys.ts`). Seed it in the
-  "complete stages" test in `accountDeletionWorkflow.test.ts`, which runs the
+  "complete stages" test in `edge/accountDeletionWorkflow.test.ts`, which runs the
   Files Worker's account deletion workflow against the test database.
 - Card processing runs in the Files Worker
   (`apps/files-worker/src/workflows/cardProcessing/run.ts`). Step names are

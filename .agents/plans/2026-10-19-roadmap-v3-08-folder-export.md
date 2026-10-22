@@ -28,7 +28,7 @@ Export one folder from its sidebar menu as the same ZIP a full export makes. It 
   - `getExportDownloadUrl` (line 318) is a session action that returns a 15-minute URL.
   - `recordSnapshotPage` (lines 391–444) pages every card of the user with `by_created` and keeps `isActiveCard` cards as `exportJobItems`. This is the filter point.
   - `completeExport` (line 520) and `getExportFolderNames` (line 502).
-- **Job shape:** `exportJobValidator` (`schema.ts:344–363`) has userId, status, workflow, artifact, counts, stage, failureClass, timestamps and `quotaCountedAt`. There are no scope fields.
+- **Job shape:** `exportJobValidator` (`schema/validators/jobs.ts`) has userId, status, workflow, artifact, counts, stage, failureClass, timestamps and `quotaCountedAt`. There are no scope fields.
 - **Constants** (`export/constants.ts`):
   - `MAX_EXPORT_CARDS = 10_000`, `MAX_EXPORT_BYTES = 5 GiB`;
   - 7-day retention and quota window;
@@ -93,7 +93,7 @@ Export one folder from its sidebar menu as the same ZIP a full export makes. It 
 ## API / MCP / SDK / CLI
 
 - **None in this phase.** `scripts/public-parity.ts` is unchanged.
-- **API side effect:** `GET /v1/exports/latest` (`publicApiExports.ts`) uses `readLatestExport`, so it also keeps returning full exports only. Add a test for that.
+- **API side effect:** `GET /v1/exports/latest` (`publicApi/http/exports.ts`) uses `readLatestExport`, so it also keeps returning full exports only. Add a test for that.
 
 ## Docs
 

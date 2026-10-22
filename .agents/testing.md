@@ -12,7 +12,7 @@ A test earns its place only if it fails when the behavior it names is broken. Be
 | --- | --- | --- | --- |
 | Pure function (parsers, formatters, URL rules) | `bun test` | the workspace's test directory (table below) | `bun test <path>` |
 | Convex query, mutation, action, or workflow step logic | `bun test` with the helpers in `packages/convex/__tests__/helpers/` | `packages/convex/__tests__/<mirrors source path>` | `bun run --cwd packages/convex test:unit` |
-| Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/*.test.ts`, listed in `packages/convex/vitest.config.ts` | `bun run --cwd packages/convex test:edge` |
+| Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/edge/*.test.ts` (`packages/convex/vitest.config.ts` runs every file there) | `bun run --cwd packages/convex test:edge` |
 | Files Worker Workflow behavior only the real engine decides (retries, a `NonRetryableError` ending a step, what reaches `run()` after a step fails) | `bun test` with Wrangler's `createTestHarness` (Miniflare's Workflows engine) and a local server standing in for Convex | `apps/files-worker/src/**`, like `src/workflows/cardProcessing/engine.test.ts` | `bun test <path>` in `apps/files-worker` |
 | Web React UI (components, hooks, screens, lib) | `bun test` + `renderToStaticMarkup` | a `__tests__` folder beside the code, e.g. `apps/web/src/components/cards/__tests__/` | `bun run --cwd apps/web test` |
 | A real browser flow or a cross-surface journey (web, API, CLI, MCP) | [e2e](https://e2e.tester.army/docs) against the local E2E stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys (read `packages/tests/README.md` first) | `bun run --cwd packages/tests e2e`; the `E2E` workflow runs it daily and on demand |
@@ -25,7 +25,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 
 | Workspace | Test files |
 | --- | --- |
-| `packages/convex` | `__tests__/**/*.test.ts` (Bun). Root `*.test.ts` files listed in `vitest.config.ts` (Vitest). Do not colocate Bun tests next to source files. |
+| `packages/convex` | `__tests__/**/*.test.ts` (Bun). `edge/**/*.test.ts` (Vitest, `convex-test`), whose module map is `import.meta.glob("../**/*.ts")` so function paths stay rooted at `packages/convex`. Do not colocate Bun tests next to source files. |
 | `apps/web` | `src/**/*.test.{ts,tsx}` (Bun, one process per file). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. |
 | `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
 | `apps/cli`, `apps/files-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
@@ -82,8 +82,8 @@ Each workspace script runs only the files it matches. A test file outside these 
 
 - Convex:
   - `packages/convex/__tests__/helpers/` provides `withTestSession`, R2 mocks and public API HTTP helpers.
-  - `packages/convex/occContention.test.ts` has `insertCard` and search sync fixtures.
-  - `packages/convex/workosSessions.test.ts` shows WorkOS-backed sessions with `t.withIdentity`.
+  - `packages/convex/edge/occContention.test.ts` has `insertCard` and search sync fixtures.
+  - `packages/convex/edge/workosSessions.test.ts` shows WorkOS-backed sessions with `t.withIdentity`.
 - E2E: `packages/tests/src/helpers/app.ts` (sign-up, hosted sign-in, API keys, deletion), `emulator.ts` (WorkOS users, emailed codes, session tokens), `page-hooks.ts` (page errors, blocked requests, Convex socket routing), `test.ts` (`retry`, `firstVisible`), `api.ts`, `cli.ts` and `mcp.ts`. Headless WorkOS sessions against staging: `scripts/lib/workos-test-session.ts`.
 - Raycast: `createRaycastApiMock` in `apps/raycast/src/__tests__/raycastApiMock.ts`.
 

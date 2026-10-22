@@ -54,7 +54,7 @@ Give every archived link a clean reading view, and make what it says findable. A
 - **`getCardTextSource`** (`card/documentText.ts:161-205`):
   - returns kind `"document"` for any extracted row, then `aiTranscript`, then text/quote `content`;
   - a link with an article and a podcast transcript would hide the transcript, which is why `?kind=` is added.
-- **Keyword search over file text:** `addCardsFoundByFileText` (`card/searchDocumentHelpers.ts:971-1011`) returns early unless `args.type` is undefined or `"document"`, and reads at most `FILE_TEXT_SEARCH_LIMIT` rows (a 4 MiB budget / 32 KiB).
+- **Keyword search over file text:** `addCardsFoundByFileText` (`card/searchReads.ts`) returns early unless `args.type` is undefined or `"document"`, and reads at most `FILE_TEXT_SEARCH_LIMIT` rows (a 4 MiB budget / 32 KiB).
 - **Embeddings** (`packages/convex/embedding/text.ts:28-58`):
   - The text is title, description, AI summary, tags, notes, styles, OCR (2,000 characters) and then the body (2,000 characters), cut to 8,000 characters.
   - The body is `content` (if it is not the URL), then the extracted text, then the transcript.
@@ -62,7 +62,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - `embedding/state.ts:265-284` loads the extracted text from `cardTextContents` when `hasExtractedText` is set.
 - **Link AI input:** `buildLinkContentParts` (`apps/files-worker/src/workflows/cardProcessing/metadata.ts:56`) takes the title, description, author and so on, plus an optional `transcript` (YouTube captions, 354–358). The model input is capped at 6,000 characters.
 - **The content API:**
-  - `GET /v1/cards/{cardId}/content` (`publicApiOpenApi.ts:1407-1462`), `cardContentResponse` (`publicApiHttpCards.ts:611-640`);
+  - `GET /v1/cards/{cardId}/content` (`publicApi/openApi/`), `cardContentResponse` (`publicApi/http/cards.ts`);
   - SDK `kind: "document" | "transcript" | "content"` (`packages/sdk/src/index.ts:418-427`, validated at 761);
   - CLI `cards content <id>` (`apps/cli/src/index.ts:440`).
 - **The workflow** ends, after phase 9, with "transcribe podcast" and then "archive page".
@@ -100,7 +100,7 @@ Give every archived link a clean reading view, and make what it says findable. A
     ```
   - `processingStatus.article` is the new stage.
 - **`card/articleText.ts`** (new): `saveArticleText({ cardId, textKey, searchText, charCount, truncated, article })`.
-  - It is guarded, and listed in `workflowRpcAllowlist.ts`.
+  - It is guarded, and listed in `workflows/rpcAllowlist.ts`.
   - It writes the `kind: "article"` row, with the plain text from Markdown and `searchPrefix`.
   - It sets `hasExtractedText`, `documentTextKey = textKey` and `extractedTextCharCount`, plus `cards.article`, through `patchCardWithSearchSync`.
   - It queues for deletion only the old text and image keys that the new article doesn't use. They are content-addressed, so an unchanged re-extraction produces the same keys, and deleting them would delete the new article.
@@ -113,7 +113,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - for `kind: "article"`, the HTTP handler reads the Markdown from `card.article.textKey` in R2, because the row holds plain text only, then rewrites each `teak-image:<n>` to a signed URL before responding;
   - without `kind`, the order is document, then transcript, then content, exactly as today (an article row is skipped, for the compatibility reason above);
   - with `kind`, it returns that kind or null.
-- **`addCardsFoundByFileText`** (`card/searchDocumentHelpers.ts:972`): run when `args.type` is undefined, `"document"` or `"link"`. Its `search_text` index filters on `userId` only, so with a type filter, document rows could fill the bounded `take(textLimit)` before any link was seen. Add a new search index beside it, `search_text_by_kind` with `filterFields: ["userId", "kind"]`, and query it with `kind: "article"` for `type: "link"` and `kind: "document"` for `type: "document"`; an unfiltered search keeps the old index.
+- **`addCardsFoundByFileText`** (`card/searchReads.ts`): run when `args.type` is undefined, `"document"` or `"link"`. Its `search_text` index filters on `userId` only, so with a type filter, document rows could fill the bounded `take(textLimit)` before any link was seen. Add a new search index beside it, `search_text_by_kind` with `filterFields: ["userId", "kind"]`, and query it with `kind: "article"` for `type: "link"` and `kind: "document"` for `type: "document"`; an unfiltered search keeps the old index.
 - **`embedding/text.ts`:**
   - when the card is a link and `extractedText` is an article, use the article's opening (1,500 characters) as `body`;
   - `content` is used only if it isn't the URL or the preview title;
@@ -234,8 +234,8 @@ Give every archived link a clean reading view, and make what it says findable. A
 - `packages/convex/documentText.test.ts` (convex-test): `getCardTextSource` with and without `kind`, and the article row.
 - `packages/convex/__tests__/embedding/text.test.ts`: the link body comes from the article opening, and a URL in `content` is ignored.
 - `packages/convex/searchQualifiers.test.ts` or a new `articleSearch.test.ts` (convex-test): body phrase search for links.
-- `packages/convex/__tests__/publicApiHttpCards.test.ts`: content `kind` param, enum, errors.
-- `packages/convex/__tests__/sdk.test.ts`, `__tests__/mcp.test.ts`, `apps/cli/src/commands.test.ts`.
+- `packages/convex/__tests__/publicApi/http/cards.test.ts`: content `kind` param, enum, errors.
+- `packages/convex/__tests__/sdk.test.ts`, `__tests__/mcp/tools.test.ts`, `apps/cli/src/commands.test.ts`.
 - `apps/web/src/components/card-previews/__tests__/ArticleReader.test.tsx`: renders the title, byline and "N min read"; removes a duplicate h1; maps `teak-image:`; strips scripts; renders the footer link.
 - `apps/web/src/components/card-modal/__tests__/CardModal.test.tsx`: the toggle appears only with an article, and the initial view follows the category rule.
 - e2e: `packages/tests/src/web/reader.e2e.ts` opens an article card, switches to Read with `R` and sees the title heading. `journey/03-api.e2e.ts` reads `kind: "article"`.

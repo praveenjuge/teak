@@ -43,9 +43,9 @@ This works everywhere a search runs: the search box, smart folders, the command 
 - **Planner:** `card/searchPlanner.ts` `resolveSearch` (line 109).
   - It builds index filters from the flat arrays, plus a card-level `matches(card, searchableText?)` (lines 175–219).
   - `hasCardFilters` (lines 225–235) switches to batch scans.
-- **Keyword search:** free words go to the Convex full-text index `cardSearchDocuments.search_searchableText` (`searchDocumentHelpers.ts`).
+- **Keyword search:** free words go to the Convex full-text index `cardSearchDocuments.search_searchableText` (`card/searchReads.ts`).
   - Convex ranks by relevance and doesn't require every word.
-  - It is capped by a 4,096-row scan budget, then "Search is too broad. Add a type or date filter." (`searchDocumentHelpers.ts:738–743,792`).
+  - It is capped by a 4,096-row scan budget, then "Search is too broad. Add a type or date filter." (`card/searchReads.ts`).
 - **Meaning search:** `shared/search/semantic.ts` `semanticQueryText` (lines 22–34) embeds terms and phrases only, and `fuseRankings` fuses the results.
 - **Local cache filter:** `shared/search/localSearch.ts` `filterLocalCards` (line 114) requires every term as a substring of `buildSearchableText(card)` (line 240).
 - **UI:**
@@ -119,7 +119,7 @@ This works everywhere a search runs: the search box, smart folders, the command 
 ## API / MCP / SDK / CLI
 
 - **No new operation.** `q` on `GET /v1/cards` and `POST /v1/cards/search` (whichever lists it today) accepts the operators.
-- **`publicApiOpenApi.ts`:** the `q` description documents the operators.
+- **`publicApi/openApi/`:** the `q` description documents the operators.
 - **MCP:** the `search_cards` / `teak_v1_search_cards` description lists them.
 - **CLI:** the search help string (`apps/cli/src/index.ts`, the qualifiers list around line 185) adds them. In shells, `-tag:x` must follow `--` or sit inside the quoted query; the help shows `teak cards search "design -tag:old"`.
 - **SDK:** no change (`q` is a string).
