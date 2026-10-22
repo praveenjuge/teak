@@ -38,6 +38,7 @@ const buildIdempotentResponse = (record: {
 
 interface IdempotencyState {
   keyHash: string;
+  leaseToken?: string;
   replayed?: Response;
   requestHash: string;
   reserved: boolean;
@@ -102,7 +103,12 @@ const maybeHandleIdempotency = async (
   switch (reservation.status) {
     case "started":
       await trackIdempotency(ctx, args.path, "started", keyHash);
-      return { keyHash, requestHash, reserved: true };
+      return {
+        keyHash,
+        leaseToken: reservation.record.leaseToken,
+        requestHash,
+        reserved: true,
+      };
     case "replay":
       await trackIdempotency(ctx, args.path, "replayed", keyHash);
       return {
@@ -143,6 +149,7 @@ const completeIdempotencyResponse = async (
   args: {
     userId: string;
     keyHash: string;
+    leaseToken?: string;
     requestHash: string;
     responseBody: unknown;
     responseStatus: number;
@@ -154,6 +161,7 @@ const completeIdempotencyResponse = async (
 
   const completion = {
     keyHash: args.keyHash,
+    leaseToken: args.leaseToken,
     requestHash: args.requestHash,
     responseBody: args.responseBody,
     responseStatus: args.responseStatus,
@@ -197,6 +205,7 @@ const releaseReservationKeepingOriginalError = async (
   args: {
     userId: string;
     keyHash: string;
+    leaseToken?: string;
     requestHash: string;
   }
 ): Promise<void> => {

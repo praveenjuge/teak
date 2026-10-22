@@ -156,6 +156,7 @@ const handleCreateCardRequest = async (
     );
     await completeIdempotencyResponse(ctx, {
       keyHash: idempotencyState.keyHash,
+      leaseToken: idempotencyState.leaseToken,
       requestHash: idempotencyState.requestHash,
       responseBody,
       responseStatus: 200,
@@ -167,6 +168,7 @@ const handleCreateCardRequest = async (
     if (idempotencyState?.reserved && !operationCommitted) {
       await releaseReservationKeepingOriginalError(ctx, {
         keyHash: idempotencyState.keyHash,
+        leaseToken: idempotencyState.leaseToken,
         requestHash: idempotencyState.requestHash,
         userId: auth.validated.userId,
       });
@@ -1234,6 +1236,7 @@ const handleBulkCardsRequest = async (
     operationCommitted = true;
     await completeIdempotencyResponse(ctx, {
       keyHash: idempotencyState.keyHash,
+      leaseToken: idempotencyState.leaseToken,
       requestHash: idempotencyState.requestHash,
       responseBody: result,
       responseStatus: 200,
@@ -1245,6 +1248,7 @@ const handleBulkCardsRequest = async (
     if (idempotencyState?.reserved && !operationCommitted) {
       await releaseReservationKeepingOriginalError(ctx, {
         keyHash: idempotencyState.keyHash,
+        leaseToken: idempotencyState.leaseToken,
         requestHash: idempotencyState.requestHash,
         userId: auth.validated.userId,
       });

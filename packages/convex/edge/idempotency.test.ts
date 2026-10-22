@@ -120,6 +120,34 @@ describe("idempotency keys", () => {
     expect((await begin(t, { ttlMs: undefined })).status).toBe("replay");
   });
 
+  test("a handler whose lease was taken over can't complete or release the new reservation", async () => {
+    const t = convexTest(schema, modules);
+    const stale = await begin(t);
+    vi.advanceTimersByTime(IDEMPOTENCY_PENDING_LEASE_MS + 1);
+    const current = await begin(t);
+    expect(current.status).toBe("started");
+
+    await complete(t, {
+      leaseToken: stale.record.leaseToken,
+      responseBody: { cardId: "stale" },
+    });
+    await t.mutation(internal.idempotency.releaseIdempotencyRequestForUser, {
+      keyHash: request.keyHash,
+      leaseToken: stale.record.leaseToken,
+      requestHash: request.requestHash,
+      userId: request.userId,
+    });
+    expect((await begin(t)).status).toBe("in_progress");
+
+    await complete(t, { leaseToken: current.record.leaseToken });
+    const replay = await begin(t);
+    expect(replay.status).toBe("replay");
+    expect(replay.record.responseBody).toEqual({
+      cardId: "card_1",
+      status: "created",
+    });
+  });
+
   test("releasing a pending request lets the client retry from scratch", async () => {
     const t = convexTest(schema, modules);
 

@@ -7,6 +7,7 @@ export const apiIdempotencyKeyValidator = v.object({
   path: v.string(),
   requestHash: v.string(),
   state: v.union(v.literal("pending"), v.literal("completed")),
+  leaseToken: v.optional(v.string()),
   responseStatus: v.number(),
   responseBody: v.any(),
   expiresAt: v.number(),
