@@ -373,6 +373,34 @@ describe("the AI backfill reads aiPending", () => {
     expect(await cardsMissingAi()).toEqual([]);
   });
 
+  test("the AI backfill takes at most 50 cards, deleted flag unset or false", async () => {
+    const { save, insertLegacy, cardsMissingAi } = await setup();
+    const unset = await save({ type: "text", content: "Unset" });
+    const notDeleted = await insertLegacy({
+      type: "text",
+      content: "False",
+      isDeleted: false,
+    });
+    await insertLegacy({ type: "text", content: "Trashed", isDeleted: true });
+    expect(new Set(await cardsMissingAi())).toEqual(
+      new Set([unset, notDeleted])
+    );
+
+    for (let index = 0; index < 60; index++) {
+      await save({ type: "text", content: `Note ${index}` });
+    }
+    expect(await cardsMissingAi()).toHaveLength(50);
+  });
+
+  test("the fallback reads past older cards that only lost their transcript", async () => {
+    const { insertLegacy, cardsMissingAi } = await setup();
+    for (let index = 0; index < 60; index++) {
+      await insertLegacy({ aiTranscriptCharCount: 20, createdAt: 500 });
+    }
+    const waiting = await insertLegacy({ type: "text", content: "Old note" });
+    expect(await cardsMissingAi()).toEqual([waiting]);
+  });
+
   test("backfillAiPending flags older cards still waiting for AI, dry run by default, once", async () => {
     const { insertLegacy, card, cardsMissingAi, flagPending } = await setup();
     const waiting = await insertLegacy({ type: "text", content: "Old note" });

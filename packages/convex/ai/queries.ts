@@ -4,6 +4,7 @@ import { internalQuery, type QueryCtx } from "../_generated/server";
 
 const AI_BACKFILL_BATCH_SIZE = 50;
 const AI_BACKFILL_GRACE_MS = 5 * 60 * 1000;
+const AI_BACKFILL_LEGACY_SCAN = 500;
 
 /** No AI summary, tags or transcript yet: what `aiPending` marks. */
 export const cardNeedsAiMetadata = (
@@ -28,25 +29,12 @@ export const findCardsMissingAiCandidates = async (
   const createdBefore = Date.now() - AI_BACKFILL_GRACE_MS;
   const found = new Map<Id<"cards">, Doc<"cards">>();
 
-  const take = async (
-    read: (
-      isDeleted: boolean | undefined,
-      limit: number
-    ) => Promise<Doc<"cards">[]>
-  ) => {
-    for (const isDeleted of [undefined, false]) {
-      const limit = AI_BACKFILL_BATCH_SIZE - found.size;
-      if (limit <= 0) {
-        return;
-      }
-      for (const card of await read(isDeleted, limit)) {
-        found.set(card._id, card);
-      }
+  for (const isDeleted of [undefined, false]) {
+    const limit = AI_BACKFILL_BATCH_SIZE - found.size;
+    if (limit <= 0) {
+      break;
     }
-  };
-
-  await take((isDeleted, limit) =>
-    ctx.db
+    const cards = await ctx.db
       .query("cards")
       .withIndex("by_aiPending_and_isDeleted_and_createdAt", (q) =>
         q
@@ -54,27 +42,41 @@ export const findCardsMissingAiCandidates = async (
           .eq("isDeleted", isDeleted)
           .lt("createdAt", createdBefore)
       )
-      .take(limit)
-  );
+      .take(limit);
+    for (const card of cards) {
+      found.set(card._id, card);
+    }
+  }
+
   // Cards saved before `aiPending` existed have no flag until
-  // `backfillAiPending` runs, so the old index still finds them.
-  await take(async (isDeleted, limit) =>
-    (
-      await ctx.db
-        .query("cards")
-        .withIndex(
-          "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt",
-          (q) =>
-            q
-              .eq("aiSummary", undefined)
-              .eq("aiTags", undefined)
-              .eq("aiTranscript", undefined)
-              .eq("isDeleted", isDeleted)
-              .lt("createdAt", createdBefore)
-        )
-        .take(limit)
-    ).filter(cardNeedsAiMetadata)
-  );
+  // `backfillAiPending` runs, so the old index still finds them. Its range
+  // also holds cards whose transcript moved off the card, so read past those
+  // within a budget instead of letting them fill the batch.
+  let legacyRowsRead = 0;
+  for (const isDeleted of [undefined, false]) {
+    const legacy = ctx.db
+      .query("cards")
+      .withIndex("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", (q) =>
+        q
+          .eq("aiSummary", undefined)
+          .eq("aiTags", undefined)
+          .eq("aiTranscript", undefined)
+          .eq("isDeleted", isDeleted)
+          .lt("createdAt", createdBefore)
+      );
+    for await (const card of legacy) {
+      if (
+        found.size >= AI_BACKFILL_BATCH_SIZE ||
+        legacyRowsRead >= AI_BACKFILL_LEGACY_SCAN
+      ) {
+        break;
+      }
+      legacyRowsRead += 1;
+      if (cardNeedsAiMetadata(card)) {
+        found.set(card._id, card);
+      }
+    }
+  }
 
   return [...found.keys()].map((cardId) => ({ cardId }));
 };
