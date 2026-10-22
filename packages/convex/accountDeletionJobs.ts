@@ -12,6 +12,10 @@ import {
   accountDeletionStage,
 } from "./accountDeletionStages";
 import {
+  accountDeletionNeedsOperator,
+  queueAccountDeletionWorkflow,
+} from "./workflowDispatch";
+import {
   expectedWorkosDeletionResolution,
   sameWorkosDeletionTarget,
 } from "./workosDeletionCompletion";
@@ -265,10 +269,32 @@ export const recordFailure = internalMutation({
       stateId,
       stage,
       failureCode,
-      requiresOperatorResolution: reason === "storage_source_changed",
+      requiresOperatorResolution: accountDeletionNeedsOperator(failureCode),
       storageKind: state.storageProgress?.kind,
       completedKeyCount: state.storageProgress?.offset,
     });
     return null;
+  },
+});
+/**
+ * Starts a deletion the retries stopped on again, once an operator has
+ * resolved what blocked it. Run it from the Convex dashboard.
+ */
+export const retry = internalMutation({
+  args: { stateId: v.id("accountDeletionStates") },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, { stateId }) => {
+    const state = await ctx.db.get("accountDeletionStates", stateId);
+    if (!state || typeof state.generation !== "number") {
+      return null;
+    }
+    await ctx.db.patch("accountDeletionStates", stateId, {
+      failureCode: undefined,
+      nextAttemptAt: Date.now() + ACCOUNT_DELETION_PROGRESS_GRACE_MS,
+    });
+    return await queueAccountDeletionWorkflow(ctx, {
+      generation: state.generation,
+      stateId,
+    });
   },
 });

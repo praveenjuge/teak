@@ -24,7 +24,10 @@ import {
   internalMutation,
 } from "./_generated/server";
 import { hmacSha256Hex, sha256Hex } from "./storage/r2Keys";
-import { isWorkflowRpcFunction } from "./workflowRpcAllowlist";
+import {
+  isWorkflowRpcFunction,
+  requiresWorkflowRpcGuard,
+} from "./workflowRpcAllowlist";
 
 const json = (status: number, body: unknown): Response =>
   new Response(JSON.stringify(body), {
@@ -201,6 +204,9 @@ export const workflowRpcV1 = httpAction(async (ctx, request) => {
   }
   if (!isWorkflowRpcFunction(rpc.name)) {
     return json(403, { error: "function_not_allowed" });
+  }
+  if (!rpc.guard && requiresWorkflowRpcGuard(rpc.name, rpc.args)) {
+    return json(403, { error: "guard_required" });
   }
   return json(200, await runWorkflowRpc(ctx, rpc));
 });

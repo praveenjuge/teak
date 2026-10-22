@@ -23,6 +23,7 @@ import {
   internalMutation,
   internalQuery,
   type MutationCtx,
+  type QueryCtx,
 } from "./_generated/server";
 import {
   CARD_PROCESSING_STAGES,
@@ -45,6 +46,8 @@ import {
   isR2KeyInNamespace,
   sha256Hex,
 } from "./storage/r2Keys";
+import { reportFromMutation } from "./telemetry/alerts";
+import { captureBackendException } from "./telemetry/posthog";
 
 type DispatchKind = Doc<"workflowDispatches">["kind"];
 // Analytics rows are removed when claimed, so they are never sent or stale.
@@ -72,7 +75,14 @@ export const STALE_AFTER_MS: Record<TrackedKind, number> = {
 
 export const DISPATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_DISPATCH_ATTEMPTS = 20;
+// Keys a deletion gave up on are queued again this much later, so a Worker
+// outage longer than the retries delays a deletion instead of leaking it.
+export const DEAD_LETTER_RETRY_MS = 24 * 60 * 60 * 1000;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
+
+// A due row nobody has claimed yet means a flush is on its way, and it will
+// claim a new row too. A row that has waited longer than this means it isn't.
+const FLUSH_STALL_MS = 30_000;
 
 const flushScheduled = new WeakSet<object>();
 
@@ -86,6 +96,25 @@ const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   await ctx.scheduler.runAfter(delayMs, internal.workflowDispatch.flush, {});
 };
 
+/**
+ * True when a flush already scheduled will claim a row queued now. Reading
+ * the due range also makes two saves racing to be first conflict, so exactly
+ * one of them schedules the flush.
+ */
+const flushIsComing = async (ctx: MutationCtx, now: number) =>
+  flushScheduled.has(ctx.db) ||
+  (
+    await ctx.db
+      .query("workflowDispatches")
+      .withIndex("by_state_and_notBefore", (q) =>
+        q
+          .eq("state", "pending")
+          .gte("notBefore", now - FLUSH_STALL_MS)
+          .lte("notBefore", now)
+      )
+      .take(1)
+  ).length > 0;
+
 const insertDispatch = async (
   ctx: MutationCtx,
   row: Omit<
@@ -95,13 +124,18 @@ const insertDispatch = async (
 ): Promise<Id<"workflowDispatches">> => {
   const { delayMs = 0, ...fields } = row;
   const now = Date.now();
+  const coalesced = delayMs === 0 && (await flushIsComing(ctx, now));
   const id = await ctx.db.insert("workflowDispatches", {
     ...fields,
     createdAt: now,
     notBefore: now + delayMs,
     state: "pending",
   });
-  await scheduleFlush(ctx, delayMs);
+  if (coalesced) {
+    flushScheduled.add(ctx.db);
+  } else {
+    await scheduleFlush(ctx, delayMs);
+  }
   return id;
 };
 
@@ -209,6 +243,37 @@ export const queueMaintenanceWorkflow = async (
   return instanceId;
 };
 
+const ACCOUNT_DELETION_RETRY_BASE_MS = 5 * 60 * 1000;
+const ACCOUNT_DELETION_RETRY_MAX_MS = 6 * 60 * 60 * 1000;
+
+/** The wait before the next account deletion attempt after `failures` in a row. */
+export const accountDeletionRetryDelayMs = (failures: number): number =>
+  Math.min(
+    ACCOUNT_DELETION_RETRY_MAX_MS,
+    ACCOUNT_DELETION_RETRY_BASE_MS * 2 ** Math.max(0, failures - 1)
+  );
+
+/**
+ * Failures another attempt can't fix: the storage being deleted changed
+ * under the run. An operator resolves it, then runs
+ * `accountDeletionJobs:retry`.
+ */
+export const accountDeletionNeedsOperator = (failureCode?: string): boolean =>
+  failureCode?.endsWith("_storage_source_changed") === true;
+
+const consecutiveFailures = async (
+  ctx: MutationCtx,
+  key: string
+): Promise<number> => {
+  const recent = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_key_and_createdAt", (q) => q.eq("key", key))
+    .order("desc")
+    .take(20);
+  const firstOther = recent.findIndex((row) => row.state !== "failed");
+  return firstOther === -1 ? recent.length : firstOther;
+};
+
 /**
  * Each failed run is started again as a new attempt. Attempts are numbered
  * by when they were queued, not by counting earlier rows: those are pruned
@@ -305,12 +370,13 @@ export const claim = internalMutation({
   returns: v.array(v.object({ id: v.id("workflowDispatches"), item: v.any() })),
   handler: async (ctx, { limit }): Promise<ClaimedItem[]> => {
     const now = Date.now();
+    const pageSize = Math.min(limit ?? FLUSH_BATCH, FLUSH_BATCH);
     const rows = await ctx.db
       .query("workflowDispatches")
       .withIndex("by_state_and_notBefore", (q) =>
         q.eq("state", "pending").lte("notBefore", now)
       )
-      .take(Math.min(limit ?? FLUSH_BATCH, FLUSH_BATCH));
+      .take(pageSize);
     const claimed: ClaimedItem[] = [];
     for (const row of rows) {
       if (row.kind === "analyticsEvent") {
@@ -360,6 +426,7 @@ export const claim = internalMutation({
           : [];
       await ctx.db.patch("workflowDispatches", row._id, {
         attempts: (row.attempts ?? 0) + 1,
+        lastReconciledAt: undefined,
         ...(row.reset ? { reset: undefined } : {}),
         sentAt: now,
         state: "sent",
@@ -374,6 +441,11 @@ export const claim = internalMutation({
           workflow: WORKFLOW_BY_KIND[row.kind],
         },
       });
+    }
+    // A full page of superseded runs hands nothing over, which ends the
+    // flush, so the rows behind it need one of their own.
+    if (claimed.length === 0 && rows.length === pageSize) {
+      await ctx.scheduler.runAfter(0, internal.workflowDispatch.flush, {});
     }
     return claimed;
   },
@@ -402,6 +474,11 @@ export const release = internalMutation({
           error: `dispatch_failed:${error}`.slice(0, 300),
           finishedAt: now,
           state: "failed",
+        });
+        await reportFromMutation(ctx, "workflow_dispatch_dead_lettered", {
+          attempts,
+          error: error.slice(0, 200),
+          kind: row.kind,
         });
         await handleRunFailure(ctx, row, "dispatch_failed");
         continue;
@@ -449,6 +526,22 @@ export const flush = internalAction({
     const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
     const secret = env.WORKFLOW_RPC_SECRET;
     if (!(isFilesWorkerConfigured() && convexSiteUrl && secret)) {
+      const waiting: boolean = await ctx.runQuery(
+        internal.workflowDispatch.hasPending,
+        {}
+      );
+      if (waiting) {
+        await captureBackendException(
+          new Error("workflow_dispatch_not_configured"),
+          {
+            properties: {
+              convex_site_url: Boolean(convexSiteUrl),
+              files_worker: isFilesWorkerConfigured(),
+              rpc_secret: Boolean(secret),
+            },
+          }
+        );
+      }
       return null;
     }
     for (let round = 0; round < 10; round += 1) {
@@ -516,13 +609,20 @@ export const flush = internalAction({
           ids: failedIds,
         });
       }
-      if (claimed.length < FLUSH_BATCH) {
-        return null;
-      }
     }
     await ctx.scheduler.runAfter(0, internal.workflowDispatch.flush, {});
     return null;
   },
+});
+
+export const hasPending = internalQuery({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) =>
+    (await ctx.db
+      .query("workflowDispatches")
+      .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
+      .first()) !== null,
 });
 
 const handleRunFailure = async (
@@ -605,17 +705,42 @@ const handleRunFailure = async (
         ? await ctx.db.get("accountDeletionStates", stateId)
         : null;
       if (
-        stateId &&
-        state &&
-        typeof state.generation === "number" &&
-        state.generation === params.generation
+        !(
+          stateId &&
+          state &&
+          typeof state.generation === "number" &&
+          state.generation === params.generation
+        )
       ) {
-        await queueAccountDeletionWorkflow(
-          ctx,
-          { generation: state.generation, stateId },
-          { delayMs: 5 * 60 * 1000 }
-        );
+        return;
       }
+      if (accountDeletionNeedsOperator(state.failureCode)) {
+        await reportFromMutation(ctx, "account_deletion_needs_operator", {
+          failure_code: state.failureCode ?? "",
+          state_id: stateId,
+        });
+        return;
+      }
+      const delayMs = accountDeletionRetryDelayMs(
+        await consecutiveFailures(ctx, row.key)
+      );
+      await ctx.db.patch("accountDeletionStates", stateId, {
+        nextAttemptAt: Date.now() + delayMs,
+      });
+      await queueAccountDeletionWorkflow(
+        ctx,
+        { generation: state.generation, stateId },
+        { delayMs }
+      );
+      return;
+    }
+    case "deleteObjects": {
+      await insertDispatch(ctx, {
+        delayMs: DEAD_LETTER_RETRY_MS,
+        key: "deleteObjects",
+        keys: row.keys ?? [],
+        kind: "deleteObjects",
+      });
       return;
     }
     default:
@@ -687,6 +812,20 @@ export const markDelivered = internalMutation({
   },
 });
 
+const STALE_SCAN_BUDGET = 1000;
+
+const isStale = (row: Doc<"workflowDispatches">, now: number) =>
+  row.kind !== "deleteObjects" &&
+  row.kind !== "analyticsEvent" &&
+  row.instanceId !== undefined &&
+  (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind];
+
+/**
+ * Sent runs past their kind's silence limit, for the Files Worker's reconcile
+ * to look up: first the ones it never checked, oldest send first, then the
+ * ones it checked longest ago (`markReconciled`). Runs still going in
+ * Cloudflare so move to the back instead of hiding newer stale ones.
+ */
 export const listStale = internalQuery({
   args: { limit: v.optional(v.number()) },
   returns: v.array(
@@ -699,17 +838,43 @@ export const listStale = internalQuery({
   handler: async (ctx, { limit }) => {
     const now = Date.now();
     const shortest = Math.min(...Object.values(STALE_AFTER_MS));
-    const rows = await ctx.db
-      .query("workflowDispatches")
-      .withIndex("by_state_and_sentAt", (q) =>
-        q.eq("state", "sent").lt("sentAt", now - shortest)
-      )
-      .take(Math.min(limit ?? 100, 200));
-    return rows.flatMap((row) =>
+    const pageSize = Math.min(limit ?? 100, 200);
+    const stale: Doc<"workflowDispatches">[] = [];
+    let scanned = 0;
+    const collect = async (
+      rows: AsyncIterable<Doc<"workflowDispatches">>
+    ): Promise<void> => {
+      for await (const row of rows) {
+        if (stale.length >= pageSize || scanned >= STALE_SCAN_BUDGET) {
+          return;
+        }
+        scanned += 1;
+        if (isStale(row, now)) {
+          stale.push(row);
+        }
+      }
+    };
+    await collect(
+      ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_state_and_lastReconciledAt_and_sentAt", (q) =>
+          q
+            .eq("state", "sent")
+            .eq("lastReconciledAt", undefined)
+            .lt("sentAt", now - shortest)
+        )
+    );
+    await collect(
+      ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_state_and_lastReconciledAt_and_sentAt", (q) =>
+          q.eq("state", "sent").gte("lastReconciledAt", 0)
+        )
+    );
+    return stale.flatMap((row) =>
       row.kind !== "deleteObjects" &&
       row.kind !== "analyticsEvent" &&
-      row.instanceId &&
-      (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind]
+      row.instanceId
         ? [
             {
               instanceId: row.instanceId,
@@ -720,6 +885,107 @@ export const listStale = internalQuery({
         : []
     );
   },
+});
+
+/** Records the runs the reconcile looked up and found still going. */
+export const markReconciled = internalMutation({
+  args: { instanceIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { instanceIds }) => {
+    const now = Date.now();
+    for (const instanceId of instanceIds.slice(0, 200)) {
+      const rows = await ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_instanceId", (q) => q.eq("instanceId", instanceId))
+        .take(10);
+      for (const row of rows) {
+        if (row.state === "sent") {
+          await ctx.db.patch("workflowDispatches", row._id, {
+            lastReconciledAt: now,
+          });
+        }
+      }
+    }
+    return null;
+  },
+});
+
+const HEALTH_SCAN_LIMIT = 500;
+const HEALTH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+// A due row this old means no flush is taking rows.
+const PENDING_STALL_MS = 15 * 60 * 1000;
+// The reconcile runs hourly, so a stale run it hasn't looked at for this
+// long means the Files Worker stopped reconciling.
+const RECONCILE_GRACE_MS = 2 * 60 * 60 * 1000;
+
+export const dispatchHealthValidator = v.object({
+  pending: v.number(),
+  oldestDueAt: v.union(v.number(), v.null()),
+  stalledPending: v.number(),
+  sent: v.number(),
+  oldestSentAt: v.union(v.number(), v.null()),
+  unreconciledSent: v.number(),
+  failedLastWeek: v.number(),
+  latestFailures: v.array(
+    v.object({
+      error: v.union(v.string(), v.null()),
+      finishedAt: v.number(),
+      kind: v.string(),
+    })
+  ),
+  isApproximate: v.boolean(),
+});
+
+/** Outbox counts by state and the oldest waiting row of each, bounded. */
+export const readDispatchHealth = async (
+  ctx: QueryCtx,
+  now: number
+): Promise<typeof dispatchHealthValidator.type> => {
+  const pending = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
+    .take(HEALTH_SCAN_LIMIT);
+  const sent = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_sentAt", (q) => q.eq("state", "sent"))
+    .take(HEALTH_SCAN_LIMIT);
+  const failed = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_finishedAt", (q) =>
+      q.eq("state", "failed").gte("finishedAt", now - HEALTH_WINDOW_MS)
+    )
+    .order("desc")
+    .take(HEALTH_SCAN_LIMIT);
+  const firstDue = pending[0]?.notBefore;
+  return {
+    pending: pending.length,
+    oldestDueAt: firstDue !== undefined && firstDue <= now ? firstDue : null,
+    stalledPending: pending.filter(
+      (row) => row.notBefore < now - PENDING_STALL_MS
+    ).length,
+    sent: sent.length,
+    oldestSentAt: sent[0]?.sentAt ?? null,
+    unreconciledSent: sent.filter(
+      (row) =>
+        isStale(row, now - RECONCILE_GRACE_MS) &&
+        !((row.lastReconciledAt ?? 0) >= now - RECONCILE_GRACE_MS)
+    ).length,
+    failedLastWeek: failed.length,
+    latestFailures: failed.slice(0, 5).map((row) => ({
+      error: row.error ?? null,
+      finishedAt: row.finishedAt ?? 0,
+      kind: row.kind,
+    })),
+    isApproximate: [pending, sent, failed].some(
+      (rows) => rows.length === HEALTH_SCAN_LIMIT
+    ),
+  };
+};
+
+export const dispatchHealth = internalQuery({
+  args: {},
+  returns: dispatchHealthValidator,
+  handler: (ctx) => readDispatchHealth(ctx, Date.now()),
 });
 
 export const pruneFinished = internalMutation({

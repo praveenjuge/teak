@@ -259,6 +259,7 @@ import type * as storage_rawMetadataMaintenance from "../storage/rawMetadataMain
 import type * as tag_tagOperations from "../tag/tagOperations.js";
 import type * as tag_tagSummary from "../tag/tagSummary.js";
 import type * as tags from "../tags.js";
+import type * as telemetry_alerts from "../telemetry/alerts.js";
 import type * as telemetry_crons from "../telemetry/crons.js";
 import type * as telemetry_events from "../telemetry/events.js";
 import type * as telemetry_posthog from "../telemetry/posthog.js";
@@ -568,6 +569,7 @@ declare const fullApi: ApiFromModules<{
   "tag/tagOperations": typeof tag_tagOperations;
   "tag/tagSummary": typeof tag_tagSummary;
   tags: typeof tags;
+  "telemetry/alerts": typeof telemetry_alerts;
   "telemetry/crons": typeof telemetry_crons;
   "telemetry/events": typeof telemetry_events;
   "telemetry/posthog": typeof telemetry_posthog;

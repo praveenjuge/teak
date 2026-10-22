@@ -15,6 +15,7 @@ import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { TRASH_RETENTION_MS } from "@teak/convex/shared/constants";
 import { cardStorageObjectKeys } from "@teak/convex/storage/cardObjectKeys";
 import type { MaintenanceParams, MaintenanceTask } from "@teak/files-protocol";
+import type { FunctionArgs } from "convex/server";
 import type { ConvexRpc } from "../convexRpc";
 import { sha256Hex } from "../lib";
 import { reportBackgroundError } from "../telemetry";
@@ -52,6 +53,8 @@ const SWEEP_CARDS_PAGE_SIZE = 500;
 const SWEEP_LIST_LIMIT = 1000;
 const MAX_SWEEP_CARD_PAGES = 4000;
 const MAX_SWEEP_LIST_PAGES = 2000;
+const SWEEP_REFERENCE_PAGE_SIZE = 100;
+const MAX_SWEEP_REFERENCE_PAGES = 4000;
 const SWEEP_STEP = retryConfig(3, 60_000, "30 minutes");
 // The admin metrics scans read at most 400 pages of 500 cards, as the Convex
 // action they replaced did; a longer scan marks its result approximate.
@@ -208,6 +211,55 @@ const cleanUpExports = async ({ convex, ops, run }: TaskContext) => {
   return { expired };
 };
 
+const REFERENCE_SOURCES: FunctionArgs<
+  typeof internal.storage.orphanSweep.pageNonCardReferencedKeys
+>["source"][] = [
+  "uploads",
+  "imports",
+  "pendingLinkedPdfs",
+  "failedLinkedPdfs",
+  "exports",
+];
+
+const collectNonCardReferences = async (
+  convex: ConvexRpc,
+  referenced: Set<string>
+) => {
+  try {
+    for (const source of REFERENCE_SOURCES) {
+      let cursor: string | null = null;
+      for (let page = 0; page < MAX_SWEEP_REFERENCE_PAGES; page += 1) {
+        const result: {
+          continueCursor: string;
+          isDone: boolean;
+          keys: string[];
+        } = await convex.query(
+          internal.storage.orphanSweep.pageNonCardReferencedKeys,
+          { cursor, numItems: SWEEP_REFERENCE_PAGE_SIZE, source }
+        );
+        for (const key of result.keys) {
+          referenced.add(key);
+        }
+        if (result.isDone) {
+          break;
+        }
+        cursor = result.continueCursor;
+      }
+    }
+  } catch (error) {
+    // A Convex deployment older than this Worker only has the one-call read.
+    if (!errorMessage(error).startsWith("convex_rpc_refused:")) {
+      throw error;
+    }
+    for (const key of await convex.query(
+      internal.storage.orphanSweep.collectNonCardReferencedKeys,
+      {}
+    )) {
+      referenced.add(key);
+    }
+  }
+};
+
 const sweepOrphans = async ({ convex, ops }: TaskContext) => {
   const referenced = new Set<string>();
   let cursor: string | undefined;
@@ -226,12 +278,7 @@ const sweepOrphans = async ({ convex, ops }: TaskContext) => {
     }
     cursor = cards.continueCursor;
   }
-  for (const key of await convex.query(
-    internal.storage.orphanSweep.collectNonCardReferencedKeys,
-    {}
-  )) {
-    referenced.add(key);
-  }
+  await collectNonCardReferences(convex, referenced);
   const prefix = await convex.query(
     internal.storage.orphanSweep.listPrefix,
     {}

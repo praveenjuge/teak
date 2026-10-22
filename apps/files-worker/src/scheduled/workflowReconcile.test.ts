@@ -46,6 +46,7 @@ const run = async (
     "workflowDispatch:complete": () => null,
     "workflowDispatch:listStale": () =>
       stale.map((row) => ({ ...row, kind: "export" })),
+    "workflowDispatch:markReconciled": () => null,
     "workflowDispatch:pruneFinished": () => ({
       stuckPending: 0,
       ...(prunePages.shift() ?? { deleted: 0, hasMore: false }),
@@ -111,6 +112,55 @@ describe("workflow reconcile", () => {
       { IMPORTS: fakeWorkflow({ "import-1": "lookup-fails" }) }
     );
     expect(completions).toEqual([]);
+  });
+
+  test("records the runs it found still going so newer ones get checked next", async () => {
+    const { convex } = await run(
+      [
+        { instanceId: "export-busy", workflow: "export" },
+        { instanceId: "export-done", workflow: "export" },
+        { instanceId: "import-1", workflow: "import" },
+      ],
+      {
+        EXPORTS: fakeWorkflow({
+          "export-busy": "running",
+          "export-done": "complete",
+        }),
+        IMPORTS: fakeWorkflow({ "import-1": "lookup-fails" }),
+      }
+    );
+    expect(
+      convex.callsTo("workflowDispatch:markReconciled").map((call) => call.args)
+    ).toEqual([{ instanceIds: ["export-busy", "import-1"] }]);
+  });
+
+  test("still finishes against a Convex deployment that can't record checks", async () => {
+    const convex = createFakeConvex({
+      "workflowDispatch:complete": () => null,
+      "workflowDispatch:listStale": () => [
+        { instanceId: "export-busy", kind: "export", workflow: "export" },
+      ],
+      "workflowDispatch:pruneFinished": () => ({
+        deleted: 3,
+        hasMore: false,
+        stuckPending: 0,
+      }),
+    });
+    const olderConvex = (async (
+      input: RequestInfo | URL,
+      init?: RequestInit
+    ) =>
+      String(init?.body).includes("workflowDispatch:markReconciled")
+        ? Response.json({ error: "function_not_allowed" }, { status: 403 })
+        : await convex.fetcher(input, init)) as typeof fetch;
+    const summary = await reconcileWorkflows(
+      {
+        ...fakeConvexEnv,
+        EXPORTS: fakeWorkflow({ "export-busy": "running" }),
+      },
+      createConvexRpc(fakeConvexEnv, TEST_CONVEX_SITE_URL, olderConvex)
+    );
+    expect(summary).toMatchObject({ checked: 1, pruned: 3, running: 1 });
   });
 
   test("prunes finished rows page by page", async () => {

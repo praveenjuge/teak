@@ -55,6 +55,34 @@ export const workosEventCatchUp = internalAction({
     }),
 });
 
+// Reports outbox rows no flush takes and stale runs the Files Worker's
+// reconcile stopped checking, and starts a flush for the first.
+export const workflowDispatchWatchdog = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(ctx, CRONS.workflowDispatchWatchdog.name, async () => {
+      const health = await ctx.runQuery(
+        internal.workflowDispatch.dispatchHealth,
+        {}
+      );
+      if (health.stalledPending > 0) {
+        await ctx.scheduler.runAfter(0, internal.workflowDispatch.flush, {});
+      }
+      if (health.stalledPending > 0 || health.unreconciledSent > 0) {
+        await captureBackendException(new Error("workflow_dispatch_stalled"), {
+          properties: {
+            cron: CRONS.workflowDispatchWatchdog.name,
+            oldest_due_at: health.oldestDueAt,
+            oldest_sent_at: health.oldestSentAt,
+            stalled_pending: health.stalledPending,
+            unreconciled_sent: health.unreconciledSent,
+          },
+        });
+      }
+    }),
+});
+
 // The Files Worker runs the snapshot now; this only catches a Convex cron
 // firing queued before that deploy (.agents/sunset.md).
 export const adminDailySnapshot = internalAction({

@@ -11,6 +11,7 @@ import {
   queueUserCreated,
 } from "./telemetry/schedule";
 import {
+  DEAD_LETTER_RETRY_MS,
   DISPATCH_RETENTION_MS,
   enqueueObjectDeletion,
   MAX_DISPATCH_ATTEMPTS,
@@ -38,6 +39,40 @@ const fileKey = (index: number) => `users/u1/cards/c1/file/${index}.png`;
 
 const rows = (t: ReturnType<typeof convexTest>) =>
   t.run((ctx) => ctx.db.query("workflowDispatches").collect());
+
+const scheduledJobs = (t: ReturnType<typeof convexTest>) =>
+  t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+
+const reportedFailures = async (t: ReturnType<typeof convexTest>) =>
+  (await scheduledJobs(t))
+    .filter((job) => job.name === "telemetry/alerts:reportBackgroundFailure")
+    .map((job) => job.args[0] as { message: string });
+
+const capturePostHog = () => {
+  vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+  const batches: Array<Array<{ event: string; properties: unknown }>> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init: RequestInit) => {
+      if (String(url).endsWith("/batch/")) {
+        batches.push(JSON.parse(String(init.body)).batch);
+      }
+      return Promise.resolve(Response.json({ status: 1 }));
+    })
+  );
+  return () => batches.flat();
+};
+
+const sentAtMaxAttempts = (t: ReturnType<typeof convexTest>) =>
+  t.run(async (ctx) => {
+    const [row] = await ctx.db.query("workflowDispatches").collect();
+    await ctx.db.patch("workflowDispatches", row!._id, {
+      attempts: MAX_DISPATCH_ATTEMPTS,
+      sentAt: NOW,
+      state: "sent",
+    });
+    return row!._id;
+  });
 
 const insertExportJob = (t: ReturnType<typeof convexTest>, status: string) =>
   t.run((ctx) =>
@@ -165,6 +200,43 @@ describe("release", () => {
     const job = await t.run((ctx) => ctx.db.get("exportJobs", jobId));
     expect(job?.status).toBe("failed");
   });
+
+  test("reports a row it gives up on", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
+    const dispatchId = await sentAtMaxAttempts(t);
+    await t.mutation(internal.workflowDispatch.release, {
+      error: "worker_down",
+      ids: [dispatchId],
+    });
+    expect(await reportedFailures(t)).toEqual([
+      expect.objectContaining({ message: "workflow_dispatch_dead_lettered" }),
+    ]);
+  });
+
+  test("queues the keys of a deletion it gives up on again after a long wait", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1), fileKey(2)]));
+    const dispatchId = await sentAtMaxAttempts(t);
+    await t.mutation(internal.workflowDispatch.release, {
+      error: "worker_down",
+      ids: [dispatchId],
+    });
+    const all = await rows(t);
+    expect(
+      all.filter((row) => row.state === "failed").map((row) => row._id)
+    ).toEqual([dispatchId]);
+    const pending = all.filter((row) => row.state === "pending");
+    expect(pending).toMatchObject([
+      {
+        keys: [fileKey(1), fileKey(2)],
+        kind: "deleteObjects",
+        notBefore: NOW + DEAD_LETTER_RETRY_MS,
+      },
+    ]);
+    expect(pending[0]?.attempts).toBeUndefined();
+  });
 });
 
 describe("complete", () => {
@@ -281,6 +353,89 @@ describe("complete", () => {
     expect(next?.notBefore).toBe(NOW + 5 * 60 * 1000);
   });
 
+  const insertDeletionState = (
+    t: ReturnType<typeof convexTest>,
+    fields: { failureCode?: string } = {}
+  ) =>
+    t.run((ctx) =>
+      ctx.db.insert("accountDeletionStates", {
+        generation: 1,
+        stage: 3,
+        startedAt: NOW,
+        userId: "user-1",
+        ...fields,
+      })
+    );
+
+  const failNextDeletionRun = async (t: ReturnType<typeof convexTest>) => {
+    const next = (await rows(t)).find((row) => row.state === "pending");
+    vi.setSystemTime(next!.notBefore);
+    await sendAll(t);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: next!.instanceId!,
+      status: "errored",
+    });
+  };
+
+  test("waits longer after each failed account deletion attempt, up to a cap", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t);
+    await t.run((ctx) =>
+      queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
+    );
+    const waits: number[] = [];
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      await failNextDeletionRun(t);
+      const next = (await rows(t)).find((row) => row.state === "pending");
+      waits.push(next!.notBefore - Date.now());
+      const state = await t.run((ctx) =>
+        ctx.db.get("accountDeletionStates", stateId)
+      );
+      expect(state?.nextAttemptAt).toBe(next!.notBefore);
+    }
+    const MINUTE = 60_000;
+    expect(waits).toEqual([
+      5 * MINUTE,
+      10 * MINUTE,
+      20 * MINUTE,
+      40 * MINUTE,
+      80 * MINUTE,
+      160 * MINUTE,
+      320 * MINUTE,
+      6 * HOUR_MS,
+    ]);
+  });
+
+  test("stops and reports an account deletion only an operator can unblock", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t, {
+      failureCode: "account_deletion_stage_3_storage_source_changed",
+    });
+    await t.run((ctx) =>
+      queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
+    );
+    await failNextDeletionRun(t);
+    expect((await rows(t)).map((row) => row.state)).toEqual(["failed"]);
+    expect(await reportedFailures(t)).toEqual([
+      expect.objectContaining({ message: "account_deletion_needs_operator" }),
+    ]);
+  });
+
+  test("an operator's retry starts the stopped account deletion again", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t, {
+      failureCode: "account_deletion_stage_3_storage_source_changed",
+    });
+    await t.mutation(internal.accountDeletionJobs.retry, { stateId });
+    const state = await t.run((ctx) =>
+      ctx.db.get("accountDeletionStates", stateId)
+    );
+    expect(state?.failureCode).toBeUndefined();
+    expect(
+      (await rows(t)).filter((row) => row.state === "pending")
+    ).toMatchObject([{ key: `accountDeletion:${stateId}:1`, notBefore: NOW }]);
+  });
+
   test("sends a run again when its hand-over was lost", async () => {
     const t = convexTest(schema, modules);
     const jobId = await insertExportJob(t, "pending");
@@ -331,6 +486,78 @@ describe("reconcile helpers", () => {
     ]);
   });
 
+  const insertSent = (
+    t: ReturnType<typeof convexTest>,
+    rowsToInsert: ReadonlyArray<readonly ["export" | "import", string, number]>
+  ) =>
+    t.run(async (ctx) => {
+      for (const [kind, instanceId, sentAgo] of rowsToInsert) {
+        await ctx.db.insert("workflowDispatches", {
+          createdAt: NOW - sentAgo,
+          instanceId,
+          key: instanceId,
+          kind,
+          notBefore: NOW - sentAgo,
+          sentAt: NOW - sentAgo,
+          state: "sent",
+        });
+      }
+    });
+
+  const staleIds = async (t: ReturnType<typeof convexTest>, limit: number) =>
+    (await t.query(internal.workflowDispatch.listStale, { limit })).map(
+      (row: { instanceId: string }) => row.instanceId
+    );
+
+  test("runs too young for their kind do not crowd out stale ones", async () => {
+    const t = convexTest(schema, modules);
+    await insertSent(t, [
+      ["import", "import-1", 5 * HOUR_MS],
+      ["import", "import-2", 5 * HOUR_MS],
+      ["export", "export-old", 3 * HOUR_MS],
+    ]);
+    expect(await staleIds(t, 2)).toEqual(["export-old"]);
+  });
+
+  test("runs the reconcile found still running wait behind unchecked ones", async () => {
+    const t = convexTest(schema, modules);
+    await insertSent(t, [
+      ["export", "export-a", 5 * HOUR_MS],
+      ["export", "export-b", 4 * HOUR_MS],
+      ["export", "export-c", 3 * HOUR_MS],
+    ]);
+    expect(await staleIds(t, 2)).toEqual(["export-a", "export-b"]);
+    await t.mutation(internal.workflowDispatch.markReconciled, {
+      instanceIds: ["export-a", "export-b"],
+    });
+    expect(await staleIds(t, 2)).toEqual(["export-c", "export-a"]);
+    vi.setSystemTime(NOW + 60_000);
+    await t.mutation(internal.workflowDispatch.markReconciled, {
+      instanceIds: ["export-c", "export-a"],
+    });
+    expect(await staleIds(t, 3)).toEqual(["export-b", "export-a", "export-c"]);
+  });
+
+  test("a run sent again is unchecked again", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
+    await t.mutation(internal.workflowDispatch.claim, {});
+    await t.mutation(internal.workflowDispatch.markReconciled, {
+      instanceIds: [`export-${jobId}`],
+    });
+    expect((await rows(t))[0]?.lastReconciledAt).toBe(NOW);
+    await t.mutation(internal.workflowDispatch.complete, {
+      error: "instance_missing",
+      instanceId: `export-${jobId}`,
+      status: "errored",
+    });
+    await t.mutation(internal.workflowDispatch.claim, {});
+    const [row] = await rows(t);
+    expect(row?.state).toBe("sent");
+    expect(row?.lastReconciledAt).toBeUndefined();
+  });
+
   test("deletes finished rows past retention and settles old deletions", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -374,6 +601,23 @@ describe("flush", () => {
     await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect((await rows(t)).map((row) => row.state)).toEqual(["pending"]);
+  });
+
+  test("reports rows it cannot send while no Files Worker is configured", async () => {
+    const sentEvents = capturePostHog();
+    const t = convexTest(schema, modules);
+    await t.action(internal.workflowDispatch.flush, {});
+    expect(sentEvents()).toEqual([]);
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.action(internal.workflowDispatch.flush, {});
+    expect(sentEvents()).toMatchObject([
+      {
+        event: "$exception",
+        properties: {
+          $exception_list: [{ value: "workflow_dispatch_not_configured" }],
+        },
+      },
+    ]);
   });
 
   test("sends due rows and retries the items the Worker refused", async () => {
@@ -440,6 +684,171 @@ describe("flush", () => {
       (await rows(t)).map((row) => [row.kind, row.state])
     );
     expect(states).toEqual({ deleteObjects: "done", export: "pending" });
+  });
+});
+
+describe("flush scheduling", () => {
+  const flushes = async (t: ReturnType<typeof convexTest>) =>
+    (await scheduledJobs(t)).filter(
+      (job) => job.name === "workflowDispatch:flush"
+    ).length;
+
+  test("saves made before the flush runs share one flush", async () => {
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    expect(await flushes(t)).toBe(1);
+  });
+
+  test("a save after the last flush claimed everything gets its own flush", async () => {
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    await t.mutation(internal.workflowDispatch.claim, {});
+    await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
+    expect(await flushes(t)).toBe(2);
+  });
+
+  test("a row left waiting does not hold back the next save", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert("workflowDispatches", {
+        createdAt: NOW - HOUR_MS,
+        key: "deleteObjects",
+        keys: [fileKey(1)],
+        kind: "deleteObjects",
+        notBefore: NOW - 10 * 60_000,
+        state: "pending",
+      })
+    );
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(2)]));
+    expect(await flushes(t)).toBe(1);
+  });
+
+  test("a flush also sends rows queued while it was handing over", async () => {
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
+    vi.stubEnv("WORKFLOW_RPC_SECRET", "deployment-rpc-secret");
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        calls += 1;
+        if (calls === 1) {
+          await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
+        }
+        const { params } = JSON.parse(String(init.body)) as {
+          params: { items: DispatchItem[] };
+        };
+        return Response.json({
+          data: {
+            results: params.items.map((_item, index) => ({ index, ok: true })),
+          },
+          ok: true,
+          requestId: "r",
+          version: 1,
+        });
+      })
+    );
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    await t.action(internal.workflowDispatch.flush, {});
+    expect((await rows(t)).map((row) => row.state)).toEqual(["sent", "sent"]);
+  });
+});
+
+describe("dispatch health", () => {
+  const seed = (t: ReturnType<typeof convexTest>) =>
+    t.run(async (ctx) => {
+      const base = { key: "k", kind: "export" as const };
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - 20 * 60_000,
+        instanceId: "export-stuck",
+        notBefore: NOW - 20 * 60_000,
+        state: "pending",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW,
+        instanceId: "export-later",
+        notBefore: NOW + HOUR_MS,
+        state: "pending",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - 6 * HOUR_MS,
+        instanceId: "export-unchecked",
+        notBefore: NOW - 6 * HOUR_MS,
+        sentAt: NOW - 6 * HOUR_MS,
+        state: "sent",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - 6 * HOUR_MS,
+        instanceId: "export-checked",
+        lastReconciledAt: NOW - 30 * 60_000,
+        notBefore: NOW - 6 * HOUR_MS,
+        sentAt: NOW - 5 * HOUR_MS,
+        state: "sent",
+      });
+      await ctx.db.insert("workflowDispatches", {
+        ...base,
+        createdAt: NOW - HOUR_MS,
+        error: "dispatch_failed:worker_down",
+        finishedAt: NOW - HOUR_MS,
+        notBefore: NOW - HOUR_MS,
+        state: "failed",
+      });
+    });
+
+  test("counts rows by state with the oldest of each", async () => {
+    const t = convexTest(schema, modules);
+    await seed(t);
+    expect(await t.query(internal.workflowDispatch.dispatchHealth, {})).toEqual(
+      {
+        failedLastWeek: 1,
+        isApproximate: false,
+        latestFailures: [
+          {
+            error: "dispatch_failed:worker_down",
+            finishedAt: NOW - HOUR_MS,
+            kind: "export",
+          },
+        ],
+        oldestDueAt: NOW - 20 * 60_000,
+        oldestSentAt: NOW - 6 * HOUR_MS,
+        pending: 2,
+        sent: 2,
+        stalledPending: 1,
+        unreconciledSent: 1,
+      }
+    );
+  });
+
+  test("the watchdog reports rows the Worker stopped taking or checking", async () => {
+    const sentEvents = capturePostHog();
+    const t = convexTest(schema, modules);
+    await t.action(internal.telemetry.crons.workflowDispatchWatchdog, {});
+    expect(sentEvents()).toEqual([]);
+    await seed(t);
+    await t.action(internal.telemetry.crons.workflowDispatchWatchdog, {});
+    expect(sentEvents()).toMatchObject([
+      {
+        event: "$exception",
+        properties: {
+          $exception_list: [{ value: "workflow_dispatch_stalled" }],
+          stalled_pending: 1,
+          unreconciled_sent: 1,
+        },
+      },
+    ]);
   });
 });
 

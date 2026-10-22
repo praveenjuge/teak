@@ -1,6 +1,7 @@
 export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "workflowDispatch:complete",
   "workflowDispatch:listStale",
+  "workflowDispatch:markReconciled",
   "workflowDispatch:pruneFinished",
   "adminHealth:recordCronRun",
   "adminUsage:replaceDailyUsage",
@@ -78,6 +79,7 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "storage/orphanSweep:collectNonCardReferencedKeys",
   "storage/orphanSweep:listPrefix",
   "storage/orphanSweep:logOrphanReport",
+  "storage/orphanSweep:pageNonCardReferencedKeys",
   "storage/orphanSweep:pageSweepCards",
   "dataImport:expireAbandonedUpload",
   "dataImport:findExpiredUploads",
@@ -99,3 +101,34 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
 
 export const isWorkflowRpcFunction = (name: string): boolean =>
   WORKFLOW_RPC_FUNCTIONS.has(name);
+
+// Card processing writes. The gateway refuses one without the run's
+// `guard: { cardId, rev }`, so a run a newer revision replaced never writes.
+const GUARDED_WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
+  "ai/mutations:updateCardProcessing",
+  "card/documentText:saveDocumentText",
+  "card/processingRpc:markStagesInProgress",
+  "linkMetadata:updateCardMetadata",
+  "linkMetadata:updateCardScreenshot",
+  "workflows/aiMetadata/mutations:updateCardAI",
+  "workflows/aiMetadata/mutations:updateCardColors",
+  "workflows/steps/categorization/mutations:updateCategorization",
+  "workflows/steps/classificationMutations:recordClassification",
+  "workflows/steps/podcast/mutations:trackPodcastAudio",
+  "workflows/steps/renderables/mutations:markCardRenderablesFailed",
+  "workflows/steps/renderables/mutations:updateCardFileMetadata",
+  "workflows/steps/renderables/mutations:updateCardFilePreview",
+  "workflows/steps/renderables/mutations:updateCardMediaFacts",
+  "workflows/steps/renderables/mutations:updateCardThumbnail",
+]);
+
+export const requiresWorkflowRpcGuard = (
+  name: string,
+  args: unknown
+): boolean =>
+  GUARDED_WORKFLOW_RPC_FUNCTIONS.has(name) &&
+  // Forgetting a deleted podcast file is right whichever run owns the card.
+  !(
+    name === "workflows/steps/podcast/mutations:trackPodcastAudio" &&
+    (args as { stored?: unknown } | null)?.stored === false
+  );

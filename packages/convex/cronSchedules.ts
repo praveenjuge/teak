@@ -11,6 +11,13 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "convex",
   },
+  // Runs on Convex so a broken link to the Files Worker is still noticed.
+  workflowDispatchWatchdog: {
+    name: "workflow-dispatch-watchdog",
+    schedule: "35 * * * *",
+    everyMs: HOUR_MS,
+    runsOn: "convex",
+  },
   // The Files Worker runs the hourly cleanups with the workflow reconcile.
   cleanupExpiredIdempotency: {
     name: "cleanup-expired-idempotency",

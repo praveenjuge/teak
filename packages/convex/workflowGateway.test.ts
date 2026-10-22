@@ -234,4 +234,52 @@ describe("workflow RPC gateway", () => {
     const body = (await response.json()) as WorkflowRpcResponse;
     expect(!body.ok && body.error.code).toBe("card_missing");
   });
+
+  test("refuses a card processing write sent without its run's guard", async () => {
+    const { cardId, t } = await setup();
+    const response = await t.fetch(
+      WORKFLOW_RPC_PATH,
+      await signedRequest({
+        args: { cardId, stages: ["metadata"] },
+        kind: "mutation",
+        name: "card/processingRpc:markStagesInProgress",
+      })
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "guard_required" });
+  });
+
+  test("runs the same write when it carries the guard", async () => {
+    const { cardId, t } = await setup();
+    const response = await t.fetch(
+      WORKFLOW_RPC_PATH,
+      await signedRequest({
+        args: { cardId, stages: ["metadata"] },
+        guard: { cardId, rev: 2 },
+        kind: "mutation",
+        name: "card/processingRpc:markStagesInProgress",
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as WorkflowRpcResponse).ok).toBe(true);
+  });
+
+  test("lets a run forget a podcast file it deleted without a guard, but not record one", async () => {
+    const { cardId, t } = await setup();
+    const call = (stored: boolean) => ({
+      args: { cardId, key: "users/user-1/cards/c/audio/a.mp3", stored },
+      kind: "mutation",
+      name: "workflows/steps/podcast/mutations:trackPodcastAudio",
+    });
+    const forget = await t.fetch(
+      WORKFLOW_RPC_PATH,
+      await signedRequest(call(false))
+    );
+    expect(forget.status).toBe(200);
+    const record = await t.fetch(
+      WORKFLOW_RPC_PATH,
+      await signedRequest(call(true))
+    );
+    expect(record.status).toBe(403);
+  });
 });
