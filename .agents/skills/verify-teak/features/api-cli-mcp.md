@@ -5,7 +5,7 @@ People and agents use Teak without the web app through the public REST API, the 
 ## Sub-features
 
 - `api-auth` rejects a missing or revoked key with 401, and `GET /v1/me` answers with a valid one.
-- `api-cards` creates, gets, lists, searches, trashes, restores and permanently deletes cards (`/v1/cards`).
+- `api-cards` creates, gets, lists, searches, trashes, restores and permanently deletes cards (`/v1/cards`), and runs bulk operations (`/v1/cards/bulk`) that clean tags the same way a single create does.
 - `cli-cards` runs `auth status`, `cards create`, `cards search`, `cards list` and `cards delete` from this checkout.
 - `mcp-tools` handles `initialize`, `tools/list` (36 tools) and `tools/call` for `teak_v1_create_card`, `teak_v1_search_cards` and `teak_v1_delete_card`.
 
@@ -34,6 +34,7 @@ Steps:
 
 - **REST create.** `curl -sS -H "Authorization: Bearer $TEAK_API_KEY" -H "Content-Type: application/json" $SITE/v1/cards -d '{"content":"verify-<run-id> api note","cardType":"text"}' | tee $E/api-create.json` returns 200 with `{"status":"created","cardId":…}`.
 - **REST search.** `curl -sS -H "Authorization: Bearer $TEAK_API_KEY" "$SITE/v1/cards?q=verify-<run-id>&mode=keyword&include=content"` lists the card with its content. Without `include=content`, items carry no content.
+- **REST bulk.** `curl -sS -H "Authorization: Bearer $TEAK_API_KEY" -H "Content-Type: application/json" $SITE/v1/cards/bulk -d '{"operation":"create","items":[{"content":"verify-<run-id> bulk note","cardType":"text","tags":["  ux ","ux",""]}]}' | tee $E/api-bulk.json` returns `summary.succeeded` 1 and the new `results[0].cardId`. `GET $SITE/v1/cards/<id>` shows `"tags":["ux"]`, the same as `POST /v1/cards` with that body. An `"operation":"update"` item `{"cardId":…,"tags":["  design ","design",""]}` leaves `"tags":["design"]`. The CLI's `cards bulk create` (JSON items on stdin) and MCP's `teak_v1_bulk_cards` go through the same route.
 - **REST delete.** `DELETE $SITE/v1/cards/<id>` returns 204 with no body and moves the card to Trash (a `GET` still answers 200). Then `DELETE $SITE/v1/cards/<id>?permanent=true` returns 204, and the `GET` answers 404.
 - **CLI.** `bun apps/cli/src/index.ts --json auth status` prints `{"status":"ok",…}`, exit 0. `… --json cards create "verify-<run-id> cli note"` prints a `cardId`. `… --json cards search "verify-<run-id>" --mode keyword` lists it. `… --json cards delete <id>` prints `"permanent": false`, and `… --json cards delete <id> --permanent --yes` prints `"permanent": true`. Save each command, its output and its exit code to `$E/cli.txt`.
 - **MCP.** With `H=(-H "Authorization: Bearer $TEAK_API_KEY" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream")`:
