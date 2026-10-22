@@ -61,6 +61,7 @@ Steps:
 - Restore toasts "Card restored" and Delete Forever toasts "Card permanently deleted", from the Trash grid and the dialog alike. Both can arrive just after the card leaves the grid.
 - Trash starts with one seeded card, "Old draft I meant to throw away." Leave it there.
 - Adding the tag "secret" or "hidden" hides the card ("Hidden. Search #secret to see it.", with "Undo").
+- A card holds at most 100 tags of at most 64 characters each. Pressing Enter in "Add a tag" with a longer tag shows the toast "Each tag must be at most 64 characters", keeps the text in the box and adds nothing; on a card with 100 tags it says "A card can have at most 100 tags". A long tag a card saved before the limit stays and doesn't block other tag edits. Tags → "Rename…" says "Tags can be at most 64 characters" before you save.
 - On the dev deployment, real AI adds its own "Remove Teak tag …" chips. Don't confuse them with yours.
 - The e2e MCP browser runs in UTC, where a time-zone bug in "Taken" can't show. Drive photo details from a Playwright context with `timezoneId` set instead.
 - The Files Worker fixture `fixture-exif.jpg` isn't a decodable image ("Uploaded file is not a decodable image"); upload a real JPEG.

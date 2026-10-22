@@ -41,6 +41,7 @@ Steps:
 - **Tags.** `tap` link "Tags". Searchbox "Find a tag" and links named "<tag>, N cards" are listed. `tap` one: the URL becomes `/?tag=<tag>` with the chip "Remove tag filter <tag>".
 - **Folder.** `tap` link "Start here". The URL becomes `/f/<id>` and the combobox reads "Search Start here".
 - **Smart folder.** `tap` link "Moodboard", a sibling of "Start here" in the sidebar. The URL becomes `/f/<id>`, its saved query (`type:image type:palette`) shows as locked chips with an "Edit search" button, and only image and palette cards are listed.
+- **Transcript.** `type` "crowded", a word only the seeded voice memo's transcript holds. Only "Audio: Brand refresh voice memo.m4a" is listed. `tap` it: dialog "Brand refresh voice memo.m4a" shows "Transcript" with "Quick note for the studio brand refresh…". Proof: `navigate` to `/?card=<id>`; the transcript is still there.
 - **Palette.** `press` "Control+k". Dialog "Command palette" with combobox "Search commands, folders and cards". `type` the marker: a "Cards" group lists the card. `press` "Enter": the card's dialog opens and the URL gains `?card=<id>`.
 
 ## Gotchas

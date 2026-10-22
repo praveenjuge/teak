@@ -6,8 +6,11 @@ People and agents use Teak without the web app through the public REST API, the 
 
 - `api-auth` rejects a missing or revoked key with 401, and `GET /v1/me` answers with a valid one.
 - `api-cards` creates, gets, lists, searches, trashes, restores and permanently deletes cards (`/v1/cards`), and runs bulk operations (`/v1/cards/bulk`) that clean tags the same way a single create does.
+- `api-tag-limits` trims a card's tags and keeps one of each case variant, and answers 400 `INVALID_INPUT` to more than 100 tags or a tag over 64 characters, on create, update and bulk alike.
+- `api-transcripts` returns an audio card's `aiTranscript` from `GET /v1/cards/<id>`; list and search responses leave it out unless they ask for `include=processing`.
+- `api-limits` clamps `limit` on `GET /v1/cards` to 1–100, the `maximum` the OpenAPI document declares.
 - `cli-cards` runs `auth status`, `cards create`, `cards search`, `cards list` and `cards delete` from this checkout.
-- `mcp-tools` handles `initialize`, `tools/list` (36 tools) and `tools/call` for `teak_v1_create_card`, `teak_v1_search_cards` and `teak_v1_delete_card`.
+- `mcp-tools` handles `initialize`, `tools/list` (38 tools: 36 `teak_v1_*` plus `search` and `fetch`) and `tools/call` for `teak_v1_create_card`, `teak_v1_search_cards` and `teak_v1_delete_card`.
 
 ## How to get to it (user POV)
 
@@ -35,11 +38,15 @@ Steps:
 - **REST create.** `curl -sS -H "Authorization: Bearer $TEAK_API_KEY" -H "Content-Type: application/json" $SITE/v1/cards -d '{"content":"verify-<run-id> api note","cardType":"text"}' | tee $E/api-create.json` returns 200 with `{"status":"created","cardId":…}`.
 - **REST search.** `curl -sS -H "Authorization: Bearer $TEAK_API_KEY" "$SITE/v1/cards?q=verify-<run-id>&mode=keyword&include=content"` lists the card with its content. Without `include=content`, items carry no content.
 - **REST bulk.** `curl -sS -H "Authorization: Bearer $TEAK_API_KEY" -H "Content-Type: application/json" $SITE/v1/cards/bulk -d '{"operation":"create","items":[{"content":"verify-<run-id> bulk note","cardType":"text","tags":["  ux ","ux",""]}]}' | tee $E/api-bulk.json` returns `summary.succeeded` 1 and the new `results[0].cardId`. `GET $SITE/v1/cards/<id>` shows `"tags":["ux"]`, the same as `POST /v1/cards` with that body. An `"operation":"update"` item `{"cardId":…,"tags":["  design ","design",""]}` leaves `"tags":["design"]`. The CLI's `cards bulk create` (JSON items on stdin) and MCP's `teak_v1_bulk_cards` go through the same route.
+- **REST tag limits.** With the headers of REST create, `POST $SITE/v1/cards` with `{"content":"verify-<run-id> tags101","cardType":"text","tags":<101 tags>}` (make them with `jq -nc '[range(101)|"t\(.)"]'`) returns 400 `{"code":"INVALID_INPUT","error":"A card can have at most 100 tags"}`, and one tag of 65 characters returns 400 `"Each tag must be at most 64 characters"`. Exactly 100 tags, one of them 64 characters long, return 200. `"tags":["  Design ","design","DESIGN","","  ","ux"]` creates the card with `"tags":["Design","ux"]`; `GET $SITE/v1/cards/<id>` reads the same. `PATCH $SITE/v1/cards/<id>` with 101 tags returns the same 400, and so does a 65-character tag (its message lists the fields it accepts); a bulk `create` item with 101 tags fails alone with `results[0].code` `INVALID_INPUT`. Save each status and body to `$E/api-tag-limits.txt`.
+- **REST transcript.** The seeded "Brand refresh voice memo.m4a" is an audio card with a transcript; find its id with `GET $SITE/v1/cards?type=audio`. `GET $SITE/v1/cards/<id>` has `aiTranscript` ("Quick note for the studio brand refresh…"). `GET $SITE/v1/cards?type=audio` items have no `aiTranscript` key, also with `include=content`; with `include=processing` they have it. `GET $SITE/v1/cards?q=crowded&mode=keyword` (a word only its transcript holds) lists exactly that card.
+- **REST limit.** `curl -sS $SITE/openapi.json | jq '.paths["/v1/cards"].get.parameters[] | select(.name=="limit")'` shows `"maximum":100,"minimum":1`. On a vault with more than 100 cards, `GET $SITE/v1/cards?limit=1000` answers 200 with 100 items and `pageInfo.hasMore` true; `limit=0` gives 1 item and `limit=abc` the default 50.
 - **REST delete.** `DELETE $SITE/v1/cards/<id>` returns 204 with no body and moves the card to Trash (a `GET` still answers 200). Then `DELETE $SITE/v1/cards/<id>?permanent=true` returns 204, and the `GET` answers 404.
 - **CLI.** `bun apps/cli/src/index.ts --json auth status` prints `{"status":"ok",…}`, exit 0. `… --json cards create "verify-<run-id> cli note"` prints a `cardId`. `… --json cards search "verify-<run-id>" --mode keyword` lists it. `… --json cards delete <id>` prints `"permanent": false`, and `… --json cards delete <id> --permanent --yes` prints `"permanent": true`. Save each command, its output and its exit code to `$E/cli.txt`.
 - **MCP.** With `H=(-H "Authorization: Bearer $TEAK_API_KEY" -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream")`:
   - `curl -sS "${H[@]}" $SITE/mcp -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verify-teak","version":"1"}}}'` returns `result.serverInfo.name` "teak-api".
-  - `… -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'` returns 36 tools.
+  - `… -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'` returns 38 tools: 36 named `teak_v1_*`, plus `search` and `fetch`. `teak_v1_search_cards` declares `limit` with `"maximum":100`.
+  - `… -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"teak_v1_search_cards","arguments":{"q":"crowded","mode":"keyword"}}}'` returns one item, the audio card, with no `aiTranscript` key. `{"limit":1000}` returns `isError` true with "INVALID_INPUT: Too big: expected number to be <=100".
   - `… -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"teak_v1_create_card","arguments":{"content":"verify-<run-id> mcp note"}}}'` returns `result.structuredContent.cardId`, with no `isError`.
   - `teak_v1_delete_card` with `{"cardId":…,"confirm":true}` returns `{"status":"trashed"}`. Finish with the REST permanent delete.
 - **Unauthenticated.** `POST $SITE/mcp` and `GET $SITE/v1/me` without a key both return 401.
@@ -56,5 +63,7 @@ Steps:
 - A hex color or quoted text is reclassified after creation; poll for the type to change. `"cardType":"text"` pins it.
 - `--permanent` without `--yes` fails with exit 2 outside a terminal. CLI exit codes: 0 ok, 1 API error, 2 usage, 3 auth, 4 not found, 5 rate limited.
 - The live backend may be another branch's push. The doctor says which; backend changes need `bun run dev --detach --push`.
+- A free account holds a limited number of cards. Past it (for example after seeding `shuffle-partial`), every create answers 400 `CARD_LIMIT_REACHED` before tags are checked, so run the create steps on an account with room.
+- MCP tools ignore arguments they don't declare: `teak_v1_search_cards` takes `q`, and `{"query":…}` silently lists everything.
 - MCP is stateless JSON-RPC: no session id, and plain JSON responses. It needs `Content-Type: application/json` (415 otherwise) and an `Accept` that includes JSON (406 otherwise).
 - Never paste the key into notes, PRs or chat. Write `<redacted>`.
