@@ -1,13 +1,20 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
-import { internalAction, internalQuery } from "../_generated/server";
+import type { Doc, Id } from "../_generated/dataModel";
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "../_generated/server";
 import { classifyEmbeddingRow } from "./state";
 
 const PAGE_SIZE = 100;
-const MAX_PAGES = 5000;
+// One run reads at most this many pages, well inside an action's time
+// limit; a longer ledger carries on in the next run from the saved cursor.
+const PAGES_PER_RUN = 200;
 const STALE_TOMBSTONE_MS = 24 * 60 * 60 * 1000;
 const SAMPLE_SIZE = 10;
+const CURSOR_NAME = "vectorLedger";
 
 const countsValidator = v.object({
   rows: v.number(),
@@ -19,6 +26,14 @@ const countsValidator = v.object({
 
 type Counts = typeof countsValidator.type;
 
+// An `embedDue` job that died, either before its claim (its due time is long
+// past) or after it (its lease ran out), leaves a row nothing will pick up.
+const isStranded = (row: Doc<"cardEmbeddings">, now: number) =>
+  row.dueAt !== undefined &&
+  !(row.leaseUntil !== undefined && row.leaseUntil > now) &&
+  (row.leaseUntil !== undefined ||
+    classifyEmbeddingRow(row, now) === "lost_job");
+
 export const sweepPage = internalQuery({
   args: {
     cursor: v.union(v.string(), v.null()),
@@ -27,6 +42,8 @@ export const sweepPage = internalQuery({
   returns: v.object({
     counts: countsValidator,
     samples: v.array(v.id("cards")),
+    lostJobs: v.array(v.id("cards")),
+    staleTombstones: v.array(v.id("cards")),
     continueCursor: v.string(),
     isDone: v.boolean(),
   }),
@@ -42,15 +59,23 @@ export const sweepPage = internalQuery({
       lostJobs: 0,
     };
     const samples: Id<"cards">[] = [];
+    const lostJobs: Id<"cards">[] = [];
+    const staleTombstones: Id<"cards">[] = [];
     for (const row of page.page) {
       counts.rows += 1;
       const state = classifyEmbeddingRow(row, now);
       let problem = true;
       if (row.pendingVectorDeleteAt !== undefined) {
         problem = row.pendingVectorDeleteAt < now - STALE_TOMBSTONE_MS;
-        counts.staleTombstones += problem ? 1 : 0;
+        if (problem) {
+          counts.staleTombstones += 1;
+          staleTombstones.push(row.cardId);
+        }
       } else if (!(await ctx.db.get("cards", row.cardId))) {
         counts.cardMissing += 1;
+      } else if (isStranded(row, now)) {
+        counts.lostJobs += 1;
+        lostJobs.push(row.cardId);
       } else if (state === "lost_job") {
         counts.lostJobs += 1;
       } else if (state === "failed") {
@@ -65,16 +90,70 @@ export const sweepPage = internalQuery({
     return {
       counts,
       samples,
+      lostJobs,
+      staleTombstones,
       continueCursor: page.continueCursor,
       isDone: page.isDone,
     };
   },
 });
 
-export const sweepVectorLedger = internalAction({
+export const readCursor = internalQuery({
   args: {},
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx) =>
+    (
+      await ctx.db
+        .query("sweepCursors")
+        .withIndex("by_name", (q) => q.eq("name", CURSOR_NAME))
+        .unique()
+    )?.cursor ?? null,
+});
+
+/**
+ * Moves the saved cursor from `previous` to `next`. False when another run
+ * moved it first, so two runs never sweep the same pages.
+ */
+export const saveCursor = internalMutation({
+  args: {
+    previous: v.union(v.string(), v.null()),
+    next: v.union(v.string(), v.null()),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, { previous, next }) => {
+    const row = await ctx.db
+      .query("sweepCursors")
+      .withIndex("by_name", (q) => q.eq("name", CURSOR_NAME))
+      .unique();
+    if ((row?.cursor ?? null) !== previous) {
+      return false;
+    }
+    if (row) {
+      await ctx.db.patch("sweepCursors", row._id, {
+        cursor: next,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("sweepCursors", {
+        cursor: next,
+        name: CURSOR_NAME,
+        updatedAt: Date.now(),
+      });
+    }
+    return true;
+  },
+});
+
+/**
+ * Checks the vector ledger and repairs what it can: it starts embed jobs that
+ * died again and retries vector deletes that gave up. It resumes from where
+ * the last run stopped and, when it stops short of the end, schedules the
+ * next run.
+ */
+export const sweepVectorLedger = internalAction({
+  args: { pagesPerRun: v.optional(v.number()) },
   returns: v.object({ ...countsValidator.fields, complete: v.boolean() }),
-  handler: async (ctx) => {
+  handler: async (ctx, { pagesPerRun }) => {
     const now = Date.now();
     const totals: Counts = {
       rows: 0,
@@ -84,12 +163,19 @@ export const sweepVectorLedger = internalAction({
       lostJobs: 0,
     };
     const samples: string[] = [];
-    let cursor: string | null = null;
+    const start: string | null = await ctx.runQuery(
+      internal.embedding.sweep.readCursor,
+      {}
+    );
+    let cursor = start;
     let complete = false;
-    for (let pages = 0; pages < MAX_PAGES; pages += 1) {
+    const maxPages = Math.min(pagesPerRun ?? PAGES_PER_RUN, PAGES_PER_RUN);
+    for (let pages = 0; pages < maxPages; pages += 1) {
       const page: {
         counts: Counts;
         samples: string[];
+        lostJobs: Id<"cards">[];
+        staleTombstones: Id<"cards">[];
         continueCursor: string;
         isDone: boolean;
       } = await ctx.runQuery(internal.embedding.sweep.sweepPage, {
@@ -100,11 +186,34 @@ export const sweepVectorLedger = internalAction({
         totals[key] += page.counts[key];
       }
       samples.push(...page.samples.slice(0, SAMPLE_SIZE - samples.length));
+      if (page.lostJobs.length > 0) {
+        await ctx.scheduler.runAfter(0, internal.embedding.embedCard.embedDue, {
+          cardIds: page.lostJobs,
+        });
+      }
+      if (page.staleTombstones.length > 0) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.embedding.embedCard.deleteVectors,
+          { attempt: 1, cardIds: page.staleTombstones }
+        );
+      }
       if (page.isDone) {
         complete = true;
         break;
       }
       cursor = page.continueCursor;
+    }
+    const saved: boolean = await ctx.runMutation(
+      internal.embedding.sweep.saveCursor,
+      { next: complete ? null : cursor, previous: start }
+    );
+    if (saved && !complete) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.embedding.sweep.sweepVectorLedger,
+        pagesPerRun === undefined ? {} : { pagesPerRun }
+      );
     }
     const problems = sumProblems(totals);
     let message = "vectors.ledger_clean";

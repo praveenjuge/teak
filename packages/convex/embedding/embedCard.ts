@@ -15,6 +15,7 @@ import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
 } from "../storage/filesWorkerClient";
+import { captureBackendException } from "../telemetry/posthog";
 import { MAX_VECTOR_DELETE_ATTEMPTS } from "./state";
 import { embeddingHash } from "./text";
 
@@ -192,6 +193,7 @@ const embedBatch = async (
         hash,
         namespace,
         shard,
+        userId: row.userId,
       });
     }
   } catch (error) {
@@ -242,16 +244,30 @@ export const deleteVectors = internalAction({
             cardIds,
           }
         );
+      } else {
+        // The tombstones stay; the weekly ledger sweep retries them.
+        await reportGaveUp(error, rows.length);
       }
     }
     return null;
   },
 });
 
+const reportGaveUp = (error: unknown, count: number) =>
+  captureBackendException(
+    new Error(`vector_delete_gave_up:${errorMessage(error)}`),
+    { properties: { "vector.count": count } }
+  );
+
 export const deleteVectorIds = internalAction({
-  args: { attempt: v.number(), ids: v.array(v.string()), shard: v.number() },
+  args: {
+    attempt: v.number(),
+    ids: v.array(v.string()),
+    shard: v.number(),
+    userId: v.optional(v.string()),
+  },
   returns: v.null(),
-  handler: async (ctx, { attempt, ids, shard }) => {
+  handler: async (ctx, { attempt, ids, shard, userId }) => {
     if (!isFilesWorkerConfigured()) {
       return null;
     }
@@ -266,9 +282,19 @@ export const deleteVectorIds = internalAction({
         await ctx.scheduler.runAfter(
           retryDelayMs(attempt),
           self().deleteVectorIds,
-          { attempt: attempt + 1, ids, shard }
+          { attempt: attempt + 1, ids, shard, ...(userId ? { userId } : {}) }
         );
+        return null;
       }
+      // A tombstone row hands the vectors to the weekly ledger sweep.
+      if (userId) {
+        await ctx.runMutation(state().parkVectorDeletes, {
+          ids,
+          shard,
+          userId,
+        });
+      }
+      await reportGaveUp(error, ids.length);
     }
     return null;
   },

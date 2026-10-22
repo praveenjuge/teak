@@ -819,6 +819,11 @@ export default defineSchema({
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .index("by_userId_and_dueAt", ["userId", "dueAt"]),
+  sweepCursors: defineTable({
+    name: v.literal("vectorLedger"),
+    cursor: v.union(v.string(), v.null()),
+    updatedAt: v.number(),
+  }).index("by_name", ["name"]),
   vectorShards: defineTable({
     userId: v.string(),
     shard: v.number(),

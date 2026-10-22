@@ -900,6 +900,109 @@ describe("ledger sweep", () => {
   });
 });
 
+describe("ledger repair", () => {
+  const HOUR = 60 * 60 * 1000;
+  const sweep = (t: T, args: { pagesPerRun?: number } = {}) =>
+    t.action(internal.embedding.sweep.sweepVectorLedger, args);
+
+  test("the sweep starts embed jobs that died again", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const now = Date.now();
+    const lost = await insertOldCard(t, "job lost long ago", {
+      dueAt: now - 2 * HOUR,
+    });
+    const dropped = await insertOldCard(t, "job died after its claim", {
+      dueAt: now - 15 * 60_000,
+      leaseUntil: now - 60_000,
+    });
+    expect(await sweep(t)).toMatchObject({ lostJobs: 2 });
+    await runScheduled(t);
+
+    expect(upserts(calls)).toHaveLength(1);
+    for (const cardId of [lost, dropped]) {
+      const row = await rowOf(t, cardId);
+      expect(row?.hash).toEqual(expect.any(String));
+      expect(row?.dueAt).toBeUndefined();
+    }
+  });
+
+  test("the sweep retries a vector delete that gave up a day ago", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const cardId = await insertOldCard(t, "deleted", {
+      hash: "h",
+      pendingVectorDeleteAt: Date.now() - 2 * 24 * HOUR,
+      shard: 0,
+    });
+    await t.run((ctx) => ctx.db.delete("cards", cardId));
+    expect(await sweep(t)).toMatchObject({ staleTombstones: 1 });
+    await runScheduled(t);
+
+    expect(calls.filter((call) => call.op === "vector-delete")).toEqual([
+      { op: "vector-delete", params: { ids: [cardId], shard: 0 } },
+    ]);
+    expect(await rowOf(t, cardId)).toBeNull();
+  });
+
+  test("a vector delete that gives up parks a tombstone for the sweep", async () => {
+    const calls = stubWorker({ fail: ["vector-delete"] });
+    const t = setup();
+    const cardId = await insertOldCard(t, "deleted mid-embed");
+    await t.run((ctx) => ctx.db.delete("cards", cardId));
+    await t.action(internal.embedding.embedCard.deleteVectorIds, {
+      attempt: 5,
+      ids: [cardId],
+      shard: 3,
+      userId: USER,
+    });
+    expect(calls.filter((call) => call.op === "vector-delete")).toHaveLength(1);
+    expect(await rowOf(t, cardId)).toMatchObject({
+      pendingVectorDeleteAt: expect.any(Number),
+      shard: 3,
+      userId: USER,
+    });
+  });
+
+  test("the sweep works through a big ledger in bounded runs", async () => {
+    const calls = stubWorker();
+    const t = setup();
+    const now = Date.now();
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 120; index += 1) {
+        const cardId = await ctx.db.insert("cards", {
+          content: `card ${index}`,
+          createdAt: now,
+          type: "text",
+          updatedAt: now,
+          userId: USER,
+        });
+        await ctx.db.insert("cardEmbeddings", {
+          cardId,
+          embeddedAt: now,
+          hash: "h",
+          shard: 0,
+          userId: USER,
+        });
+      }
+    });
+    const last = await insertOldCard(t, "lost at the end", {
+      dueAt: now - 2 * HOUR,
+    });
+
+    expect(await sweep(t, { pagesPerRun: 1 })).toMatchObject({
+      complete: false,
+      lostJobs: 0,
+      rows: 100,
+    });
+    expect(upserts(calls)).toHaveLength(0);
+    await runScheduled(t);
+
+    expect(await rowOf(t, last)).toMatchObject({ hash: expect.any(String) });
+    expect(await sweep(t)).toMatchObject({ complete: true, rows: 121 });
+  });
+});
+
 describe("searchByMeaning", () => {
   test("queries only the user's namespace and describes only their cards", async () => {
     const t = setup();
