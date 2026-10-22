@@ -532,12 +532,22 @@ export function CardsScreen({
     [displayCards, runBulkAction]
   );
 
+  // Adding or removing a tag can take the card out of this list (a hidden
+  // tag, a tag filter); read it by id so the dialog never edits a stale list.
+  const liveTagManagementCard: Doc<"cards"> | null | undefined = useQuery(
+    api.cards.getCard,
+    tagManagementCardId ? { id: tagManagementCardId as Id<"cards"> } : "skip"
+  );
   const tagManagementCard = useMemo(
     () =>
+      (liveTagManagementCard?._id === tagManagementCardId
+        ? liveTagManagementCard
+        : null) ??
       displayCards.find(
         (card: Doc<"cards">) => card._id === tagManagementCardId
-      ) ?? null,
-    [displayCards, tagManagementCardId]
+      ) ??
+      null,
+    [displayCards, liveTagManagementCard, tagManagementCardId]
   );
 
   const handleAddTags = useCallback((cardId: string) => {

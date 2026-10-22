@@ -940,7 +940,9 @@ export const executeBulkCardsForUser = internalMutation({
                   typeof payload.content === "string" ? payload.content : "",
                 url: typeof payload.url === "string" ? payload.url : undefined,
                 notes:
-                  typeof payload.notes === "string" ? payload.notes : undefined,
+                  typeof payload.notes === "string"
+                    ? payload.notes.trim() || undefined
+                    : undefined,
                 ...normalizeCardSource(bulkCardSource(payload)),
                 tags: bulkItemTags(payload),
                 type: requestedType,

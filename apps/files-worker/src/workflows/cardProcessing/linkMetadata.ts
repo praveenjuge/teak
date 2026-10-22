@@ -35,6 +35,7 @@ import {
   guessImageContentType,
   isRemoteAssetPageUrl,
 } from "@teak/files-protocol";
+import { isTransientError } from "../deps";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -629,7 +630,9 @@ export const fetchLinkMetadata = async (
     return { status: "success" };
   } catch (error) {
     const { message, name } = errorFields(error);
+    // A Convex call that didn't reach Convex says nothing about the link.
     if (
+      isTransientError(error) ||
       message?.startsWith(LINK_METADATA_RETRYABLE_PREFIX) ||
       name === "NonRetryableError"
     ) {

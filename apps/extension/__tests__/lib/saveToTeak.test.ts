@@ -105,6 +105,25 @@ describe("OAuth content saving", () => {
       content: "Quote",
     });
   });
+  test("a selection that only starts with a URL saves as text", async () => {
+    const request = mock(async (_path: string, _init?: RequestInit) =>
+      Response.json({ cardId: "text-card" })
+    );
+    await saveToTeak(
+      {
+        content: "https://github.com/teak/app is the repo\nwith notes",
+        source: "context-menu",
+        sourceUrl: "https://example.com/essay",
+      },
+      { request }
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      cardType: "text",
+      content: "https://github.com/teak/app is the repo\nwith notes",
+      sourceUrl: "https://example.com/essay",
+    });
+  });
   test("returns the existing card without creating a duplicate", async () => {
     const request = mock(async () =>
       Response.json({ cardId: "existing-card" })

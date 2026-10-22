@@ -93,6 +93,7 @@ const setup = (
     addresses?: string[];
     bucket?: R2Bucket;
     handlers?: Parameters<typeof createCardConvex>[1];
+    wrapConvexFetch?: (fetcher: typeof fetch) => typeof fetch;
     resolveDns?: (hostname: string) => Promise<string[]>;
     route?: (url: string) => Response | undefined;
   } = {}
@@ -107,12 +108,17 @@ const setup = (
   });
   const job = testJob(
     env,
-    testDeps(env, convex.fetcher, fakes.ops, {
-      pinnedFetch: createContainerPinnedFetch(env),
-      resolveDns:
-        options.resolveDns ??
-        (() => Promise.resolve(options.addresses ?? [PUBLIC])),
-    })
+    testDeps(
+      env,
+      options.wrapConvexFetch?.(convex.fetcher) ?? convex.fetcher,
+      fakes.ops,
+      {
+        pinnedFetch: createContainerPinnedFetch(env),
+        resolveDns:
+          options.resolveDns ??
+          (() => Promise.resolve(options.addresses ?? [PUBLIC])),
+      }
+    )
   );
   const saved = () =>
     convex.callsTo("linkMetadata:updateCardMetadata").at(-1)?.args as
@@ -185,6 +191,30 @@ describe("link metadata", () => {
       { key, userId: USER_ID }
     );
     expect(saved()?.linkPreview.imageStorageKey).toBe(key);
+  });
+
+  test("a Convex outage while saving retries instead of saving a failed preview", async () => {
+    let refusals = 1;
+    const { convex, fetch } = setup(
+      linkCard(),
+      {
+        "fetch-link-page": await page(ARTICLE),
+        "store-remote-asset": { data: { reason: "too_large", stored: false } },
+      },
+      {
+        wrapConvexFetch: (fetcher) => async (input, init) => {
+          const { name } = JSON.parse(String(init?.body)) as { name: string };
+          if (name === "linkMetadata:updateCardMetadata" && refusals > 0) {
+            refusals -= 1;
+            return new Response("Bad Gateway", { status: 502 });
+          }
+          return await fetcher(input, init);
+        },
+      }
+    );
+
+    await expect(fetch()).rejects.toThrow("convex_rpc_unavailable");
+    expect(convex.callsTo("linkMetadata:updateCardMetadata")).toHaveLength(0);
   });
 
   test("keeps the preview without its image when the fetcher skips it", async () => {

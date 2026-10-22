@@ -24,7 +24,9 @@ export interface SaveToTeakDependencies {
 const isHttpUrl = (value: string) =>
   value.startsWith("http://") || value.startsWith("https://");
 const parseContentAsUrl = (content: string): URL | null => {
-  if (!isHttpUrl(content)) {
+  // `new URL` encodes spaces and drops newlines, so text that only starts
+  // with a link would otherwise save as a broken link.
+  if (!isHttpUrl(content) || /\s/.test(content)) {
     return null;
   }
 

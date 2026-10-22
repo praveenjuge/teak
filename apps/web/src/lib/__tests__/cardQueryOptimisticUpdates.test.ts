@@ -76,6 +76,56 @@ describe("card query optimistic updates", () => {
     expect(cardMatchesSearchQuery(hidden, { tag: "Secret" })).toBe(true);
   });
 
+  it("keeps a card the server matched on text the client lacks when another card changes", () => {
+    const values: Array<{ page: Doc<"cards">[] }> = [];
+    const pdf = card({
+      _id: "card-2" as Id<"cards">,
+      content: "scan.pdf",
+      hasExtractedText: true,
+      type: "document",
+    });
+    const related = {
+      ...card({ _id: "card-3" as Id<"cards">, content: "billing" }),
+      matchedByMeaning: true,
+    };
+    let getAllQueriesCall = 0;
+    const localStore = {
+      getAllQueries: () =>
+        getAllQueriesCall++ === 0
+          ? []
+          : [
+              {
+                args: {
+                  paginationOpts: { cursor: null, numItems: 20 },
+                  searchQuery: "invoice",
+                },
+                value: {
+                  continueCursor: null,
+                  isDone: true,
+                  page: [card({ content: "invoice" }), pdf, related],
+                },
+              },
+            ],
+      setQuery: (
+        _query: unknown,
+        _args: unknown,
+        value: { page: Doc<"cards">[] }
+      ) => values.push(value),
+    } as unknown as OptimisticLocalStore;
+
+    updateCardInSearchQueries(
+      localStore,
+      "card-1" as Id<"cards">,
+      (current) => ({ ...current, isFavorited: false })
+    );
+
+    expect(values[0]?.page.map((entry) => entry._id)).toEqual([
+      "card-1",
+      "card-2",
+      "card-3",
+    ]);
+  });
+
   it("removes an unfavorited card from every active Favorites query", () => {
     const values: Doc<"cards">[][] = [];
     let getAllQueriesCall = 0;

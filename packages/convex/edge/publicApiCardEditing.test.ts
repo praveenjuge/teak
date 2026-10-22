@@ -556,6 +556,18 @@ describe("Public API AI tag removal", () => {
     });
   });
 
+  test("matches AI tags ignoring case, as the tag list shows them", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, { aiTags: ["UX Research", "web"] })
+    );
+    const updated = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      { cardId, userId: "owner", removeAiTags: ["ux research"] }
+    );
+    expect(updated?.aiTags).toEqual(["web"]);
+  });
+
   test("refuses to touch another user's card", async () => {
     const { t, cardId } = await setup();
     await t.run((ctx) => ctx.db.patch("cards", cardId, { aiTags: ["design"] }));
@@ -750,6 +762,24 @@ describe("Bulk items follow the single-card rules", () => {
       operation,
       items,
     });
+
+  test("a create trims its note and drops a blank one", async () => {
+    const { t } = await setup();
+    const result = await bulk(t, "create", [
+      { content: "Trimmed", notes: "  a note  " },
+      { content: "Blank", notes: "   " },
+    ]);
+    const notes = await t.run((ctx) =>
+      Promise.all(
+        result.results.map(
+          async (item: { cardId?: string }) =>
+            (await ctx.db.get("cards", item.cardId as Id<"cards">))?.notes ??
+            null
+        )
+      )
+    );
+    expect(notes).toEqual(["a note", null]);
+  });
 
   test("an update with a blank url fails and keeps the card's link", async () => {
     const { t, cardId } = await setup();

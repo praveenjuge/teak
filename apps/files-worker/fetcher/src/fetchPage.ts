@@ -100,6 +100,9 @@ export type FetchPageOutcome =
       status?: number;
     };
 
+// The two types the request's accept header names.
+const HTML_TYPE_REGEX = /text\/html|application\/xhtml\+xml/i;
+
 const fail = (
   reason: FetcherPageFailureReason,
   extra: { contentType?: string; status?: number } = {}
@@ -139,7 +142,7 @@ export const fetchLinkPage = async (
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("text/html")) {
+  if (!HTML_TYPE_REGEX.test(contentType)) {
     await response.body?.cancel().catch(() => undefined);
     return fail("unsupported_type", {
       contentType: contentType.slice(0, MAX_CONTENT_TYPE_LENGTH),

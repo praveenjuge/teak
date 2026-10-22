@@ -243,15 +243,12 @@ const handleMcpPost = async (
     }
   }
 
-  if (Array.isArray(body)) {
-    return json(200, responses);
-  }
-
+  // Only notifications or responses, single or batched, get no body.
   if (responses.length === 0) {
     return new Response(null, { status: 202 });
   }
 
-  return json(200, responses[0]);
+  return json(200, Array.isArray(body) ? responses : responses[0]);
 };
 
 const validateMcpBearer = async (

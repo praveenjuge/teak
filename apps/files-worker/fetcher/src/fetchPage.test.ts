@@ -119,6 +119,19 @@ describe("fetching", () => {
     expect(calls[0]?.headers.get("referer")).toBeNull();
   });
 
+  test("reads a page served as XHTML, which it asked for", async () => {
+    const { fetchPage } = setup(
+      () =>
+        new Response("<title>An XHTML page</title>", {
+          headers: { "content-type": "application/xhtml+xml; charset=utf-8" },
+        })
+    );
+    const body = (await (
+      await fetchPage({ selectors: ["head > title"], url: PAGE })
+    ).json()) as FetcherPageResponse;
+    expect(body.selectors[0]?.results).toEqual([{ text: "An XHTML page" }]);
+  });
+
   test("reports the URL after redirects", async () => {
     const { calls, fetchPage } = setup((url) => {
       if (url === PAGE) {

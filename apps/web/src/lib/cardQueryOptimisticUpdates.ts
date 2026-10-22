@@ -38,6 +38,9 @@ export function cardMatchesSearchQuery(
       showTrashOnly: args.showTrashOnly,
       styleFilters: args.styleFilters,
       tag: args.tag,
+      // Every card here came back from the server for these args, so a match
+      // on text the client lacks (a PDF's text, a meaning match) still holds.
+      textMatchedByServer: true,
       types: args.types,
     }).length === 1
   );
