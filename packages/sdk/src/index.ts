@@ -608,7 +608,7 @@ export const buildCardsSearchParams = (input: {
   if (input.mode === "keyword" || input.mode === "semantic") {
     search.set("mode", input.mode);
   }
-  if (input.sort === "oldest" || input.sort === "shuffle") {
+  if (input.sort && input.sort !== "newest") {
     search.set("sort", input.sort);
   }
   if (input.sort === "shuffle" && typeof input.shuffleSeed === "number") {

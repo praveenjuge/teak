@@ -187,7 +187,7 @@ export const parsePrice = (
     return null;
   }
   let amount =
-    /[.,]$/.test(before) && /^\d+$/.test(match[0])
+    /(?:^|[^\p{L}])[.,]$/u.test(before) && /^\d+$/.test(match[0])
       ? Number(`0.${match[0]}`)
       : readNumber(match[0]);
   if (!validAmount(amount)) {

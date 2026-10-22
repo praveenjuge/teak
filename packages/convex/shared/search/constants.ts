@@ -45,6 +45,7 @@ export const SEARCH_TOKEN_TRIM_CHARACTERS = `,.;:!?()[]{}"'`;
 const FAVORITES_SEARCH_COMMANDS = new Set([
   "fav",
   "favs",
+  "favorite",
   "favorites",
   "favourite",
   "favourites",

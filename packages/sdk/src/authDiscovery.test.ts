@@ -148,6 +148,14 @@ describe("OAuth discovery", () => {
     ["unsafe token URL", { token_endpoint: "http://localhost:9999/token" }],
     ["shared address URL", { token_endpoint: "https://100.64.0.1/token" }],
     [
+      "loopback URL with a root dot",
+      { token_endpoint: "https://localhost./t" },
+    ],
+    [
+      "local network URL with a root dot",
+      { authorization_endpoint: "https://printer.local./login" },
+    ],
+    [
       "credential URL",
       { authorization_endpoint: "https://user:secret@auth.example/login" },
     ],

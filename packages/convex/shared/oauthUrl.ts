@@ -26,18 +26,16 @@ export const validateOAuthUrl = (raw: unknown, local = false): URL => {
     throw new Error("Missing OAuth discovery URL");
   }
   const url = new URL(raw);
+  // "localhost." is the same host as "localhost".
+  const hostname = url.hostname.replace(/\.+$/, "");
   if (
     url.username ||
     url.password ||
     url.hash ||
     (url.protocol !== "https:" &&
-      !(
-        local &&
-        url.protocol === "http:" &&
-        isLoopbackHostname(url.hostname)
-      )) ||
-    (!local && isLoopbackHostname(url.hostname)) ||
-    (privateHost(url.hostname) && !(local && isLoopbackHostname(url.hostname)))
+      !(local && url.protocol === "http:" && isLoopbackHostname(hostname))) ||
+    (!local && isLoopbackHostname(hostname)) ||
+    (privateHost(hostname) && !(local && isLoopbackHostname(hostname)))
   ) {
     throw new Error("Unsafe OAuth discovery URL");
   }
