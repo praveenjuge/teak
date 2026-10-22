@@ -80,14 +80,16 @@ const SPACE_CHAR = /\s/;
 
 /**
  * Whether `inner` closes the quote and opens another, as in `"Yes" and "No"`,
- * so the outer marks belong to two quotes. A quote between letters, as in
- * "it's", or escaped with a backslash is not a quote mark.
+ * so the outer marks belong to two quotes. Balanced quotes inside, as in
+ * `"He called it "fast" and "safe"."`, are nested. A quote between letters,
+ * as in "it's", or escaped with a backslash is not a quote mark.
  */
 const closesAndReopens = (
   inner: string,
   opening: string,
   closing: string
 ): boolean => {
+  let depth = 0;
   let closed = false;
   for (let i = 0; i < inner.length; i++) {
     const char = inner[i];
@@ -96,27 +98,26 @@ const closesAndReopens = (
     if (previous === "\\" || (char !== opening && char !== closing)) {
       continue;
     }
-    if (opening !== closing) {
-      if (char === closing) {
-        closed = true;
-      } else if (closed) {
+    const opens =
+      opening === closing
+        ? !(previous && WORD_CHAR.test(previous)) &&
+          next !== undefined &&
+          !SPACE_CHAR.test(next)
+        : char === opening;
+    const closes =
+      opening === closing
+        ? previous !== undefined &&
+          !SPACE_CHAR.test(previous) &&
+          !(next && WORD_CHAR.test(next))
+        : char === closing;
+    if (closes && depth > 0) {
+      depth--;
+    } else if (opens) {
+      if (closed) {
         return true;
       }
-      continue;
-    }
-    if (closed) {
-      if (
-        !(previous && WORD_CHAR.test(previous)) &&
-        next &&
-        !SPACE_CHAR.test(next)
-      ) {
-        return true;
-      }
-    } else if (
-      previous &&
-      !SPACE_CHAR.test(previous) &&
-      !(next && WORD_CHAR.test(next))
-    ) {
+      depth++;
+    } else if (closes) {
       closed = true;
     }
   }

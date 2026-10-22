@@ -334,6 +334,19 @@ describe("normalizeQuoteContent", () => {
       });
     });
 
+    it.each([
+      ['"He called it "fast" and "safe"."', 'He called it "fast" and "safe".'],
+      [
+        "\u201CHe said \u201Cyes\u201D and \u201Cno\u201D\u201D",
+        "He said \u201Cyes\u201D and \u201Cno\u201D",
+      ],
+    ])("strips the wrapper around nested quotes in %s", (text, expected) => {
+      expect(normalizeQuoteContent(text)).toEqual({
+        text: expected,
+        removedQuotes: true,
+      });
+    });
+
     it("strips quotes around text with an apostrophe", () => {
       expect(normalizeQuoteContent("'It's fine' — Ada").text).toBe(
         "It's fine — Ada"
