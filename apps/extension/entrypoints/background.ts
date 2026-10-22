@@ -8,6 +8,11 @@ import {
 } from "../lib/cardDetails";
 import { isCardId, isPatchCardPayload } from "../lib/cardPatch";
 import {
+  assetSaveFor,
+  pickSelectedText,
+  savesLinkInstead,
+} from "../lib/contextMenuContent";
+import {
   beginOAuthSignIn,
   getOAuthState,
   initializeAuth,
@@ -130,6 +135,17 @@ function runPendingSave(
       const keepsFile = pendingSaveStore().retainsFiles;
       if (save.kind === "asset") {
         const file = await downloadAssetFile(save.assetUrl);
+        // A plain link to a page (or one that redirects) saves as a link.
+        if (save.link && savesLinkInstead(file)) {
+          return saveToTeak(
+            {
+              content: save.assetUrl,
+              idempotencyKey: save.id,
+              source: "context-menu",
+            },
+            { request }
+          );
+        }
         if ("status" in file) {
           return file;
         }
@@ -195,7 +211,7 @@ function runPendingSave(
 async function queueSave(
   input:
     | { kind: "content"; input: Parameters<typeof saveToTeak>[0] }
-    | { kind: "asset"; assetUrl: string }
+    | { kind: "asset"; assetUrl: string; link?: true }
 ) {
   const save: PendingSave = {
     ...input,
@@ -280,22 +296,17 @@ async function extractContextMenuContent(
         throw new Error("Could not access page content");
       }
 
-      if (typeof info.selectionText === "string" && info.selectionText.trim()) {
-        return info.selectionText;
-      }
-
       const results = await chrome.scripting
         .executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            const selection = window.getSelection();
-            const selectedText = selection?.toString() ?? "";
-            return selectedText.trim() ? selectedText : document.title || "";
-          },
+          target:
+            info.frameId === undefined
+              ? { tabId: tab.id }
+              : { tabId: tab.id, frameIds: [info.frameId] },
+          func: () => window.getSelection()?.toString() ?? "",
         })
         .catch(() => []);
-      const content = results[0]?.result;
-      if (typeof content === "string" && content.trim()) {
+      const content = pickSelectedText(results[0]?.result, info.selectionText);
+      if (content) {
         return content;
       }
 
@@ -518,27 +529,27 @@ export default defineBackground(() => {
         throw new Error(restrictedUrlMessage(tab.url));
       }
 
-      const content =
-        action === "save-asset"
-          ? info.srcUrl || info.linkUrl || ""
-          : await extractContextMenuContent(action, info, tab);
+      const asset = action === "save-asset" ? assetSaveFor(info) : null;
+      let content = asset?.assetUrl ?? "";
+      if (action !== "save-asset") {
+        content = await extractContextMenuContent(action, info, tab);
+      }
       if (!content) {
         throw new Error("Could not access the selected asset URL");
       }
 
-      const saveResult =
-        action === "save-asset"
-          ? await queueSave({ kind: "asset", assetUrl: content })
-          : await queueSave({
-              kind: "content",
-              input: {
-                content,
-                source: "context-menu",
-                ...(action === "save-text"
-                  ? { sourceTitle: tab.title, sourceUrl: tab.url }
-                  : {}),
-              },
-            });
+      const saveResult = asset
+        ? await queueSave({ kind: "asset", ...asset })
+        : await queueSave({
+            kind: "content",
+            input: {
+              content,
+              source: "context-menu",
+              ...(action === "save-text"
+                ? { sourceTitle: tab.title, sourceUrl: tab.url }
+                : {}),
+            },
+          });
       if (saveResult.status === "unauthenticated") {
         await chrome.storage.local.remove("contextMenuSave");
         return;

@@ -281,7 +281,10 @@ export const runExport = (
     }
   };
 
-  const buildArchive = async (artifactKey: string): Promise<ArchiveResult> => {
+  const buildArchive = async (
+    artifactKey: string,
+    createdAtMs: number
+  ): Promise<ArchiveResult> => {
     await convex.mutation(internal.dataExport.recordExportProgress, {
       jobId,
       stage: "archiving",
@@ -306,7 +309,6 @@ export const runExport = (
     ]) {
       await ensureOwned(key);
     }
-    const createdAtMs = Date.now();
     const expiresAtMs = computeExpiry(createdAtMs);
     const fileName = `teak-export-${new Date(createdAtMs).toISOString().slice(0, 10)}.zip`;
     const cardIdByPath = new Map(
@@ -443,10 +445,15 @@ export const runExport = (
       cursor = recorded.cursor;
     }
 
+    // A retried build must write the same manifest, or its checkpoint (keyed
+    // by the manifest's ETag) never matches and every attempt starts over.
+    const createdAtMs = await step.do("archive clock", CONVEX_STEP, () =>
+      Promise.resolve(Date.now())
+    );
     let archive: ArchiveResult;
     try {
       archive = await step.do("build archive", ARCHIVE_STEP, () =>
-        buildArchive(artifactKey)
+        buildArchive(artifactKey, createdAtMs)
       );
     } catch (error) {
       console.error("[workflows/export] archive failed", {

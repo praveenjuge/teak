@@ -516,6 +516,11 @@ export const startExport = async (
     return;
   }
   write(options.json ? latest : describeExport(latest), options);
+  // A wait that ends without an archive (failed, canceled, or ready with no
+  // download for -o) isn't a backup.
+  if (options.output || (options.wait && latest.job?.status !== "ready")) {
+    process.exitCode = EXIT.api;
+  }
 };
 
 export const resolveFolder = async (

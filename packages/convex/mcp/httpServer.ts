@@ -223,6 +223,11 @@ const handleMcpPost = async (
     );
   }
 
+  // JSON-RPC answers an empty batch with one Invalid Request error.
+  if (Array.isArray(body) && body.length === 0) {
+    return json(400, jsonRpcError(null, -32_600, "Invalid Request"));
+  }
+
   const messages = Array.isArray(body) ? body : [body];
   const responses: JsonObject[] = [];
   let rateLimited = false;
@@ -243,15 +248,12 @@ const handleMcpPost = async (
     }
   }
 
-  if (Array.isArray(body)) {
-    return json(200, responses);
-  }
-
+  // Only notifications or responses, single or batched, get no body.
   if (responses.length === 0) {
     return new Response(null, { status: 202 });
   }
 
-  return json(200, responses[0]);
+  return json(200, Array.isArray(body) ? responses : responses[0]);
 };
 
 const validateMcpBearer = async (

@@ -50,6 +50,8 @@ export const parseFetcherPageRequest = (
 
 const CHARSET_IN_CONTENT_TYPE = /charset\s*=\s*["']?([^\s"';]+)/i;
 const CHARSET_IN_META = /<meta\b[^>]*?charset\s*=\s*["']?\s*([\w.:-]+)/i;
+const ENCODING_IN_XML_DECLARATION =
+  /^<\?xml\b[^>]*?\bencoding\s*=\s*["']([\w.:-]+)["']/;
 // Browsers look for a <meta> charset in the first 1024 bytes only.
 const META_PRESCAN_BYTES = 1024;
 
@@ -82,11 +84,12 @@ export const decodeHtml = (
     decoder = new TextDecoder("utf-16le");
   }
   decoder ??= decoderFor(contentType?.match(CHARSET_IN_CONTENT_TYPE)?.[1]);
-  decoder ??= decoderFor(
-    new TextDecoder("latin1")
-      .decode(bytes.subarray(0, META_PRESCAN_BYTES))
-      .match(CHARSET_IN_META)?.[1]
+  const prescan = new TextDecoder("latin1").decode(
+    bytes.subarray(0, META_PRESCAN_BYTES)
   );
+  // An XHTML page may name its encoding in its XML declaration instead.
+  decoder ??= decoderFor(prescan.match(ENCODING_IN_XML_DECLARATION)?.[1]);
+  decoder ??= decoderFor(prescan.match(CHARSET_IN_META)?.[1]);
   decoder ??= new TextDecoder("utf-8");
   return { charset: decoder.encoding, html: decoder.decode(bytes) };
 };
@@ -99,6 +102,9 @@ export type FetchPageOutcome =
       reason: FetcherPageFailureReason;
       status?: number;
     };
+
+// The two types the request's accept header names.
+const HTML_TYPE_REGEX = /text\/html|application\/xhtml\+xml/i;
 
 const fail = (
   reason: FetcherPageFailureReason,
@@ -139,7 +145,7 @@ export const fetchLinkPage = async (
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes("text/html")) {
+  if (!HTML_TYPE_REGEX.test(contentType)) {
     await response.body?.cancel().catch(() => undefined);
     return fail("unsupported_type", {
       contentType: contentType.slice(0, MAX_CONTENT_TYPE_LENGTH),

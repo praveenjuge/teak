@@ -143,6 +143,9 @@ export function AddCardActions({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Counts recording starts; closing the dialog while the microphone prompt
+  // is open moves it on, so the start that was waiting is dropped.
+  const startAttemptRef = useRef(0);
 
   const uploadAndCreateCardMutation = useMutation(
     api.cards.uploadAndCreateCard
@@ -274,6 +277,8 @@ export function AddCardActions({
       return;
     }
 
+    startAttemptRef.current += 1;
+    const attempt = startAttemptRef.current;
     setIsRecordingDialogOpen(true);
 
     try {
@@ -284,6 +289,12 @@ export function AddCardActions({
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (attempt !== startAttemptRef.current) {
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
+        return;
+      }
       streamRef.current = stream;
       const recordingFormat = selectAudioRecordingFormat();
       const mediaRecorder = new MediaRecorder(stream, {
@@ -312,6 +323,10 @@ export function AddCardActions({
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
+      // A start that was closed or replaced owns nothing to clean up.
+      if (attempt !== startAttemptRef.current) {
+        return;
+      }
       clearRecordingResources();
       setIsRecording(false);
       setIsRecordingDialogOpen(false);
@@ -354,6 +369,7 @@ export function AddCardActions({
       stopRecording();
       return;
     }
+    startAttemptRef.current += 1;
     setIsRecordingDialogOpen(false);
   };
 

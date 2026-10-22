@@ -71,7 +71,11 @@ export const answerMcpAtEdge = async (
   } catch {
     return null;
   }
-  if (Array.isArray(body) && body.length > MAX_MCP_JSON_RPC_BATCH) {
+  // Convex answers an empty or oversized batch with its error.
+  if (
+    Array.isArray(body) &&
+    (body.length === 0 || body.length > MAX_MCP_JSON_RPC_BATCH)
+  ) {
     return null;
   }
   const messages = Array.isArray(body) ? body : [body];
@@ -85,10 +89,9 @@ export const answerMcpAtEdge = async (
       replies.push(answer.reply);
     }
   }
-  if (Array.isArray(body)) {
-    return mcpResponse(200, replies);
+  // Only notifications, single or batched, get no body.
+  if (replies.length === 0) {
+    return mcpResponse(202, undefined);
   }
-  return replies.length === 0
-    ? mcpResponse(202, undefined)
-    : mcpResponse(200, replies[0]);
+  return mcpResponse(200, Array.isArray(body) ? replies : replies[0]);
 };

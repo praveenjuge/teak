@@ -33,6 +33,11 @@ export interface FileUploadInput {
   uploaded?: UploadedFile;
 }
 
+export const ASSET_REDIRECTED = "ASSET_REDIRECTED";
+export const ASSET_IS_PAGE = "ASSET_IS_PAGE";
+
+export const WEB_PAGE_TYPE = /^\s*(?:text\/html|application\/xhtml\+xml)\b/iu;
+
 const errorResponse = (message: string, code?: string): TeakSaveResponse => ({
   code,
   message,
@@ -198,10 +203,34 @@ export async function downloadAssetFile(
 
   try {
     const fetchImpl = dependencies.fetchImpl ?? fetch;
+    // A redirect is never followed; it gets its own code so a plain link
+    // that redirects can be saved as a link instead.
     const response = await fetchImpl(assetUrl, {
       credentials: "omit",
-      redirect: "error",
+      redirect: "manual",
     });
+    if (
+      response.type === "opaqueredirect" ||
+      (response.status >= 300 && response.status < 400)
+    ) {
+      await response.body?.cancel().catch(() => undefined);
+      return errorResponse(
+        "The asset could not be downloaded safely.",
+        ASSET_REDIRECTED
+      );
+    }
+    // A page that refuses an anonymous fetch (a login wall, a bot check)
+    // answers with HTML, which says the link is a page, not a file.
+    if (
+      !response.ok &&
+      WEB_PAGE_TYPE.test(response.headers.get("content-type") ?? "")
+    ) {
+      await response.body?.cancel().catch(() => undefined);
+      return errorResponse(
+        "The asset could not be downloaded safely.",
+        ASSET_IS_PAGE
+      );
+    }
     const contentLength = Number(response.headers.get("content-length"));
     if (
       !response.ok ||

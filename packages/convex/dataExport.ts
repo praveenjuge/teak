@@ -28,8 +28,8 @@ import {
   isWithinQuota,
   quotaResetInMs,
 } from "./export/serialize";
+import { readLiveFolders } from "./folder/folders";
 import { requireSessionUserId } from "./securitySessions";
-import { MAX_FOLDERS_PER_USER } from "./shared/folders";
 import { getR2Url } from "./storage/fileUrls";
 import { enqueueObjectDeletion, queueExportWorkflow } from "./workflowDispatch";
 
@@ -599,13 +599,10 @@ export const getExportFolderNames = internalQuery({
     if (!job) {
       return [];
     }
-    const folders = await ctx.db
-      .query("folders")
-      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", job.userId))
-      .take(MAX_FOLDERS_PER_USER);
-    return folders
-      .filter((folder) => folder.deletingAt === undefined)
-      .map((folder) => ({ id: folder._id, name: folder.name }));
+    return (await readLiveFolders(ctx, job.userId)).map((folder) => ({
+      id: folder._id,
+      name: folder.name,
+    }));
   },
 });
 

@@ -89,7 +89,8 @@ export const extractFirstHttpUrl = (value: string): string | null => {
     return null;
   }
 
-  if (isHttpUrl(trimmed)) {
+  // `new URL` encodes spaces, so a whole sentence would pass as one link.
+  if (!/\s/.test(trimmed) && isHttpUrl(trimmed)) {
     return trimmed;
   }
 

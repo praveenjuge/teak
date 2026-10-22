@@ -2,7 +2,6 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
-import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,6 +16,7 @@ import {
 } from "@/constants/toast";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
+import { addCardToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import { useQuery } from "../../lib/convexQueryHooks";
 import {
   ariaKeyShortcut,
@@ -31,35 +31,6 @@ import {
 } from "../shortcuts/ShortcutTooltip";
 import { prepareNoteCapture } from "../text-editor/noteCapture";
 import { useFocusMode } from "../text-editor/useFocusMode";
-
-function addCardToSearchQueries(
-  localStore: OptimisticLocalStore,
-  newCard: Doc<"cards">
-) {
-  const allQueries = localStore.getAllQueries(api.cards.searchCards);
-  for (const { args, value } of allQueries) {
-    if (value !== undefined && !args.showTrashOnly) {
-      const hasVisualFilters =
-        (args.styleFilters?.length ?? 0) > 0 ||
-        (args.hueFilters?.length ?? 0) > 0 ||
-        (args.hexFilters?.length ?? 0) > 0;
-      if (hasVisualFilters) {
-        continue;
-      }
-
-      const matchesType =
-        !args.types ||
-        args.types.length === 0 ||
-        // react-doctor-disable-next-line react-doctor/js-set-map-lookups
-        args.types.includes(newCard.type);
-      const matchesFavorites = !args.favoritesOnly || newCard.isFavorited;
-
-      if (matchesType && matchesFavorites) {
-        localStore.setQuery(api.cards.searchCards, args, [newCard, ...value]);
-      }
-    }
-  }
-}
 
 function getCardErrorCode(err: unknown): string | null {
   if (!err || typeof err !== "object") {

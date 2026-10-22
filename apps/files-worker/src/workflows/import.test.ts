@@ -10,6 +10,7 @@ import type { FakeHandler } from "../test/fakeConvex";
 import { createFakeQueue } from "../test/fakeQueue";
 import { completionReports, createTestRun } from "../test/fakeRun";
 import { fakeHttpEtag } from "../test/testsupport";
+import { callFilesOp } from "./filesOps";
 import { runImport } from "./import";
 
 const USER_PREFIX = "users/0000abcd/cards";
@@ -842,6 +843,72 @@ describe("runImport with items staged in R2", () => {
         failureReason: "account_storage_write_denied",
         sourceIndex: 1,
       },
+    ]);
+  });
+
+  test("a file extraction the Files Worker says to retry is retried, then imported", async () => {
+    const backend = stagedBackend();
+    const pdf = strToU8("%PDF-1.4 fake");
+    const test = setup(
+      backend,
+      archive([{ content: "A note", type: "text" }, pdfCard], {
+        "files/paper.pdf": pdf,
+      })
+    );
+    let refusals = 1;
+
+    expect(
+      await runImport(test.run, {
+        convex: test.convex,
+        ops: (spec) => {
+          if (spec.op === "extract-import-files" && refusals > 0) {
+            refusals -= 1;
+            return Promise.reject(
+              Object.assign(new Error("files_worker_error:INTERNAL:500:r"), {
+                retryable: true,
+              })
+            );
+          }
+          return callFilesOp(test.env, spec);
+        },
+      })
+    ).toEqual({ status: "completed" });
+
+    expect(backend.created).toEqual(["A note", ""]);
+    expect(backend.items).toEqual([]);
+    expect(
+      test.bucket.storedBytes(
+        importFileKey(USER_PREFIX, "job-1", "item-1", "paper.pdf")
+      )
+    ).toEqual(pdf);
+  });
+
+  test("a file extraction that keeps failing fails only its items", async () => {
+    const backend = stagedBackend();
+    const test = setup(
+      backend,
+      archive([{ content: "A note", type: "text" }, pdfCard], {
+        "files/paper.pdf": strToU8("%PDF-1.4 fake"),
+      })
+    );
+
+    expect(
+      await runImport(test.run, {
+        convex: test.convex,
+        ops: (spec) =>
+          spec.op === "extract-import-files"
+            ? Promise.reject(
+                Object.assign(new Error("files_worker_error:INTERNAL:500:r"), {
+                  retryable: true,
+                })
+              )
+            : callFilesOp(test.env, spec),
+      })
+    ).toEqual({ status: "completed" });
+
+    expect(backend.created).toEqual(["A note"]);
+    expect(backend.items).toMatchObject([
+      { failureCode: "FILE_EXTRACT_FAILED", sourceIndex: 1 },
     ]);
   });
 

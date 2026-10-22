@@ -121,13 +121,9 @@ export const listFoldersForUser = async (
   ctx: QueryCtx,
   userId: string
 ): Promise<FolderSummary[]> => {
-  const folders = await ctx.db
-    .query("folders")
-    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-    .take(MAX_FOLDERS_PER_USER + 1);
+  const folders = await readLiveFolders(ctx, userId);
   return await Promise.all(
     folders
-      .filter((folder) => folder.deletingAt === undefined)
       .sort(
         (a, b) =>
           a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
@@ -151,20 +147,49 @@ const assertNameAvailable = async (
   exceptId?: Id<"folders">
 ) => {
   const nameKey = folderNameKey(name);
-  const sameName = await ctx.db
+  // Folders being deleted don't count toward the limit, so read past them.
+  for await (const folder of ctx.db
     .query("folders")
     .withIndex("by_userId_and_nameKey", (q) =>
       q.eq("userId", userId).eq("nameKey", nameKey)
-    )
-    .take(MAX_FOLDERS_PER_USER);
-  if (
-    sameName.some(
-      (folder) => folder._id !== exceptId && folder.deletingAt === undefined
-    )
-  ) {
+    )) {
+    if (folder._id !== exceptId && folder.deletingAt === undefined) {
+      throw new ConvexError({
+        code: "CONFLICT",
+        message: FOLDER_ERROR_MESSAGES.DUPLICATE_NAME,
+      });
+    }
+  }
+};
+
+/**
+ * The user's folders that aren't being deleted, oldest first. Those don't
+ * count toward the limit, so the table can briefly hold more rows than it:
+ * read past them rather than capping the rows read.
+ */
+export const readLiveFolders = async (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string
+): Promise<Doc<"folders">[]> => {
+  const live: Doc<"folders">[] = [];
+  for await (const folder of ctx.db
+    .query("folders")
+    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))) {
+    if (folder.deletingAt === undefined) {
+      live.push(folder);
+      if (live.length > MAX_FOLDERS_PER_USER) {
+        break;
+      }
+    }
+  }
+  return live;
+};
+
+const assertFolderLimit = async (ctx: MutationCtx, userId: string) => {
+  if ((await readLiveFolders(ctx, userId)).length >= MAX_FOLDERS_PER_USER) {
     throw new ConvexError({
-      code: "CONFLICT",
-      message: FOLDER_ERROR_MESSAGES.DUPLICATE_NAME,
+      code: "LIMIT_REACHED",
+      message: FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS,
     });
   }
 };
@@ -236,12 +261,7 @@ export const getOrCreateImportFolderIds = async (
       if (existing) {
         id = existing.kind === "manual" ? existing._id : null;
       } else {
-        cache.count ??= (
-          await ctx.db
-            .query("folders")
-            .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-            .take(MAX_FOLDERS_PER_USER)
-        ).length;
+        cache.count ??= (await readLiveFolders(ctx, userId)).length;
         if (cache.count < MAX_FOLDERS_PER_USER) {
           id = await insertFolder(ctx, userId, name);
           cache.count += 1;
@@ -340,16 +360,7 @@ export const createFolderForUser = async (
       ? await normalizeSmartFolderQuery(ctx, userId, args.query ?? "")
       : undefined;
   await assertNameAvailable(ctx, userId, name);
-  const existing = await ctx.db
-    .query("folders")
-    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-    .take(MAX_FOLDERS_PER_USER);
-  if (existing.length >= MAX_FOLDERS_PER_USER) {
-    throw new ConvexError({
-      code: "LIMIT_REACHED",
-      message: FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS,
-    });
-  }
+  await assertFolderLimit(ctx, userId);
   const folderId = await insertFolder(
     ctx,
     userId,
@@ -412,11 +423,7 @@ export const updateFolderForUser = async (
     patch.nameKey !== undefined &&
     patch.name !== undefined
   ) {
-    const folders = await ctx.db
-      .query("folders")
-      .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-      .take(MAX_FOLDERS_PER_USER);
-    for (const other of folders) {
+    for (const other of await readLiveFolders(ctx, userId)) {
       if (other.kind !== "smart" || other.query === undefined) {
         continue;
       }
@@ -473,6 +480,7 @@ export const restoreFolderForUser = async (
     });
   }
   await assertNameAvailable(ctx, userId, folder.name, folder._id);
+  await assertFolderLimit(ctx, userId);
   await ctx.db.patch("folders", folder._id, { deletingAt: undefined });
   return await loadFolderSummary(ctx, { ...folder, deletingAt: undefined });
 };

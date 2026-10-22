@@ -84,6 +84,7 @@ import {
   type SearchFromUrl,
   type SearchUrlChange,
 } from "../lib/searchUrlSync";
+import { tagsAfterAdding, tagsAfterRemoving } from "../lib/tagManagement";
 import { PageTitle } from "./PageHeader";
 
 const EMPTY_VIEW_COPY: Record<
@@ -532,12 +533,22 @@ export function CardsScreen({
     [displayCards, runBulkAction]
   );
 
+  // Adding or removing a tag can take the card out of this list (a hidden
+  // tag, a tag filter); read it by id so the dialog never edits a stale list.
+  const liveTagManagementCard: Doc<"cards"> | null | undefined = useQuery(
+    api.cards.getCard,
+    tagManagementCardId ? { id: tagManagementCardId as Id<"cards"> } : "skip"
+  );
   const tagManagementCard = useMemo(
     () =>
+      (liveTagManagementCard?._id === tagManagementCardId
+        ? liveTagManagementCard
+        : null) ??
       displayCards.find(
         (card: Doc<"cards">) => card._id === tagManagementCardId
-      ) ?? null,
-    [displayCards, tagManagementCardId]
+      ) ??
+      null,
+    [displayCards, liveTagManagementCard, tagManagementCardId]
   );
 
   const handleAddTags = useCallback((cardId: string) => {
@@ -546,33 +557,32 @@ export function CardsScreen({
 
   const { handleCopyImage } = useCardClipboard();
 
+  // Both write the whole list, so neither writes for a card this screen
+  // can't see yet (see tagsAfterAdding).
   const handleAddTag = useCallback(() => {
-    const tag = tagInput.trim().toLowerCase();
-    const currentTags = tagManagementCard?.tags || [];
-
-    if (tag && !currentTags.includes(tag) && tagManagementCardId) {
-      void cardActions.updateField(tagManagementCardId as Id<"cards">, "tags", [
-        ...currentTags,
-        tag,
-      ]);
+    const tags = tagsAfterAdding(tagManagementCard, tagInput);
+    if (tags && tagManagementCardId) {
+      void cardActions.updateField(
+        tagManagementCardId as Id<"cards">,
+        "tags",
+        tags
+      );
       setTagInput("");
     }
-  }, [cardActions, tagInput, tagManagementCard?.tags, tagManagementCardId]);
+  }, [cardActions, tagInput, tagManagementCard, tagManagementCardId]);
 
   const handleRemoveTag = useCallback(
     (tagToRemove: string) => {
-      const currentTags = tagManagementCard?.tags || [];
-      const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
-
-      if (tagManagementCardId) {
+      const next = tagsAfterRemoving(tagManagementCard, tagToRemove);
+      if (next && tagManagementCardId) {
         void cardActions.updateField(
           tagManagementCardId as Id<"cards">,
           "tags",
-          newTags.length > 0 ? newTags : undefined
+          next.tags
         );
       }
     },
-    [cardActions, tagManagementCard?.tags, tagManagementCardId]
+    [cardActions, tagManagementCard, tagManagementCardId]
   );
 
   const handleRemoveAiTag = useCallback(

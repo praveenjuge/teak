@@ -70,7 +70,7 @@ import {
   tags2000ScenarioPage,
 } from "./devSeed/volumeScenarios";
 import { readIsDevDeployment } from "./env";
-import { insertFolder } from "./folder/folders";
+import { insertFolder, readLiveFolders } from "./folder/folders";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
@@ -250,15 +250,10 @@ const seedFolderScenario = async (
   userId: string,
   pack: FolderScenarioPack
 ) => {
-  const existing = await ctx.db
-    .query("folders")
-    .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
-    .take(MAX_FOLDERS_PER_USER);
+  const existing = await readLiveFolders(ctx, userId);
   const byKey = new Map<string, Id<"folders">>();
   for (const folder of existing) {
-    if (folder.deletingAt === undefined) {
-      byKey.set(folder.nameKey, folder._id);
-    }
+    byKey.set(folder.nameKey, folder._id);
   }
   let total = existing.length;
   let created = 0;

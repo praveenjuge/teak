@@ -699,6 +699,50 @@ describe("teak parity commands", () => {
     );
   });
 
+  test("an export that fails while waiting exits with the API error code", async () => {
+    routes.set("POST /v1/exports", () =>
+      json({ job: { id: "exp_2", status: "pending" } }, 202)
+    );
+    routes.set("GET /v1/exports/latest", () =>
+      json({
+        job: {
+          cardCount: null,
+          createdAt: Date.UTC(2026, 9, 10),
+          downloadUrl: null,
+          id: "exp_2",
+          status: "failed",
+        },
+        canStartNew: true,
+        nextAvailableAt: null,
+      })
+    );
+    const result = await teak("export", "-o", "failed.zip");
+    expect(result.code).toBe(EXIT.api);
+    expect(existsSync(join(workDirectory, "failed.zip"))).toBe(false);
+  });
+
+  test("a ready export with no download exits with the API error code for -o", async () => {
+    routes.set("POST /v1/exports", () =>
+      json({ job: { id: "exp_3", status: "pending" } }, 202)
+    );
+    routes.set("GET /v1/exports/latest", () =>
+      json({
+        job: {
+          cardCount: 3,
+          createdAt: Date.UTC(2026, 9, 10),
+          downloadUrl: null,
+          id: "exp_3",
+          status: "ready",
+        },
+        canStartNew: false,
+        nextAvailableAt: null,
+      })
+    );
+    const result = await teak("export", "-o", "missing.zip");
+    expect(result.code).toBe(EXIT.api);
+    expect(existsSync(join(workDirectory, "missing.zip"))).toBe(false);
+  });
+
   test("a second export in a week says when the next one is possible", async () => {
     routes.set("POST /v1/exports", () =>
       json({ code: "RATE_LIMITED", error: "weekly", retryAt: 1 }, 429)

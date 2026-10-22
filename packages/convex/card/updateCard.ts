@@ -14,7 +14,11 @@ import {
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
-import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
+import {
+  explainInvalidCardTags,
+  normalizeTagList,
+  tagKey,
+} from "../shared/tags";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
@@ -431,7 +435,11 @@ const applyCardFieldEdit = (
       if (!(tagToRemove && aiTags)) {
         return false;
       }
-      const updatedAiTags = aiTags.filter((tag) => tag !== tagToRemove);
+      const removedKey = tagKey(tagToRemove);
+      const updatedAiTags = aiTags.filter((tag) => tagKey(tag) !== removedKey);
+      if (updatedAiTags.length === aiTags.length) {
+        return false;
+      }
       state.updateData.aiTags =
         updatedAiTags.length > 0 ? updatedAiTags : undefined;
       return true;

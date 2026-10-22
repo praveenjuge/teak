@@ -544,6 +544,32 @@ describe("runExport", () => {
     expect(test.bucket.objects.has(MANIFEST_KEY)).toBe(false);
   });
 
+  test("a retried build writes the same manifest, so it can resume its checkpoint", async () => {
+    const backend = exportBackend([card("c1")]);
+    const test = setup(backend);
+    const manifests: string[] = [];
+    setSystemTime(new Date("2026-10-16T10:00:00Z"));
+
+    expect(
+      await runExport(test.run, {
+        convex: test.convex,
+        ops: async (spec) => {
+          if (spec.op === "build-export") {
+            manifests.push(await (await test.bucket.get(MANIFEST_KEY))!.text());
+            if (manifests.length === 1) {
+              setSystemTime(new Date("2026-10-16T10:20:00Z"));
+              throw new Error("files_worker_error:INTERNAL:500:r");
+            }
+          }
+          return await callFilesOp(test.env, spec);
+        },
+      })
+    ).toEqual({ status: "ready" });
+
+    expect(manifests).toHaveLength(2);
+    expect(manifests[1]).toBe(manifests[0]);
+  });
+
   test("an unexpected failure fails the job and reports the run errored", async () => {
     const backend = exportBackend([card("c1")]);
     const test = setup(backend, {

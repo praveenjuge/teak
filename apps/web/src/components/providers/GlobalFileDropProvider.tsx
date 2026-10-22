@@ -253,6 +253,10 @@ export function GlobalFileDropProvider({
       if (!dataTransferHasFiles(event.dataTransfer)) {
         return;
       }
+      // Entering a blocked target never counted, so leaving it can't either.
+      if (isBlockedDropTarget(event.target)) {
+        return;
+      }
       dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
       if (dragDepthRef.current === 0) {
         setIsDragActive(false);

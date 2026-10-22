@@ -321,6 +321,54 @@ describe("Convex MCP endpoint", () => {
     expect(payload[99]?.id).toBe(100);
   });
 
+  test("answers a batch of only notifications with 202 and no body", async () => {
+    const ctx = mockActionCtx(
+      withMappedOwner({
+        runMutation: mock().mockResolvedValue({
+          keyId: "key_1",
+          userId: "user_1",
+          access: "full_access",
+          source: "component",
+          rateLimitKey: "component:key_1",
+        }),
+        runQuery: mock(),
+      })
+    );
+    const response = await handleMcpV1Request(
+      ctx,
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([
+          { jsonrpc: "2.0", method: "notifications/initialized" },
+        ]),
+      })
+    );
+    expect(response.status).toBe(202);
+    expect(await response.text()).toBe("");
+  });
+
+  test("answers an empty batch with one invalid request error", async () => {
+    const response = await handleMcpV1Request(
+      authorizedCtx(),
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: "[]",
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: -32_600 } });
+  });
+
   test("rejects JSON-RPC batches over 100 messages before tool execution", async () => {
     const runMutation = mock().mockResolvedValue({
       keyId: "key_1",

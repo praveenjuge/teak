@@ -119,6 +119,19 @@ describe("fetching", () => {
     expect(calls[0]?.headers.get("referer")).toBeNull();
   });
 
+  test("reads a page served as XHTML, which it asked for", async () => {
+    const { fetchPage } = setup(
+      () =>
+        new Response("<title>An XHTML page</title>", {
+          headers: { "content-type": "application/xhtml+xml; charset=utf-8" },
+        })
+    );
+    const body = (await (
+      await fetchPage({ selectors: ["head > title"], url: PAGE })
+    ).json()) as FetcherPageResponse;
+    expect(body.selectors[0]?.results).toEqual([{ text: "An XHTML page" }]);
+  });
+
   test("reports the URL after redirects", async () => {
     const { calls, fetchPage } = setup((url) => {
       if (url === PAGE) {
@@ -309,6 +322,18 @@ describe("decoding", () => {
       charset: "utf-8",
       html: "<title>Café</title>",
     });
+  });
+
+  test("reads the encoding an XHTML page's XML declaration names", () => {
+    const head = '<?xml version="1.0" encoding="ISO-8859-1"?><title>Caf';
+    const bytes = new Uint8Array([
+      ...new TextEncoder().encode(head),
+      0xe9,
+      ...new TextEncoder().encode("</title>"),
+    ]);
+    expect(decodeHtml(bytes, "application/xhtml+xml").html).toBe(
+      '<?xml version="1.0" encoding="ISO-8859-1"?><title>Café</title>'
+    );
   });
 
   test.each([

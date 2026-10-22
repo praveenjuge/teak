@@ -78,6 +78,19 @@ describe("MCP protocol at the edge", () => {
     expect(response?.headers.get("content-type")).toBeNull();
   });
 
+  test("acknowledges a batch of only notifications with 202 and no body", async () => {
+    const response = await answerMcpAtEdge(
+      mcp([rpc(null, "notifications/initialized")]),
+      USER
+    );
+    expect(response?.status).toBe(202);
+    expect(await response?.text()).toBe("");
+  });
+
+  test("leaves an empty batch to Convex's invalid request error", async () => {
+    expect(await answerMcpAtEdge(mcp([]), USER)).toBeNull();
+  });
+
   test("answers a protocol-only batch in order, skipping notifications", async () => {
     const response = await answerMcpAtEdge(
       mcp([

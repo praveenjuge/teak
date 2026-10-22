@@ -9,7 +9,7 @@ export type PendingSave = {
   ownerId?: string;
 } & (
   | { kind: "content"; input: SaveToTeakInput }
-  | { kind: "asset"; assetUrl: string }
+  | { kind: "asset"; assetUrl: string; link?: true }
   | { kind: "file"; input: FileUploadInput }
 );
 

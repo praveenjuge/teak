@@ -181,3 +181,26 @@ test("a paste the card passes on still uploads", async () => {
 
   expect(globalThis.fetch).toHaveBeenCalled();
 });
+
+function drag(type: "dragenter" | "dragleave", target: Element) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "dataTransfer", {
+    value: { files: [], items: [{ kind: "file" }], types: ["Files"] },
+  });
+  target.dispatchEvent(event);
+}
+
+test("the drop overlay stays up after a drag crosses a text field", async () => {
+  const field = document.createElement("input");
+  const grid = document.createElement("div");
+  document.body.append(field, grid);
+  const overlay = () =>
+    document.querySelector("[data-testid='global-file-drop-overlay']");
+
+  // Browsers fire dragenter on the new element before dragleave on the old.
+  await act(async () => drag("dragenter", field));
+  await act(async () => drag("dragenter", grid));
+  await act(async () => drag("dragleave", field));
+
+  expect(overlay()).not.toBeNull();
+});

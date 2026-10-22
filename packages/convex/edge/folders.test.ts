@@ -15,6 +15,7 @@ import { readFolderCardCount } from "../folder/folderRows";
 import {
   FOLDER_DELETE_BATCH_SIZE,
   FOLDER_DELETE_UNDO_MS,
+  readLiveFolders,
 } from "../folder/folders";
 import schema from "../schema";
 import {
@@ -176,6 +177,28 @@ describe("folders", () => {
     );
   });
 
+  test(`a name is still taken behind more than ${MAX_FOLDERS_PER_USER} folders being deleted`, async () => {
+    const { t, create } = await setup();
+    await t.run(async (ctx) => {
+      for (let index = 0; index <= MAX_FOLDERS_PER_USER; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: "Y",
+          nameKey: "y",
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          deletingAt: index,
+        });
+      }
+    });
+    await create("Y");
+    await expect(create("y")).rejects.toThrow(
+      "A folder with this name already exists"
+    );
+  });
+
   test("names must be present and at most 300 characters", async () => {
     const { create } = await setup();
     await expect(create("   ")).rejects.toThrow("Name the folder");
@@ -206,6 +229,73 @@ describe("folders", () => {
     await expect(create("One too many")).rejects.toThrow(
       `You can have up to ${MAX_FOLDERS_PER_USER} folders`
     );
+  });
+
+  test("a folder being deleted frees its place, and Undo checks the limit", async () => {
+    const { t, owner, create } = await setup();
+    vi.setSystemTime(10_000);
+    const seed = (index: number, deletingAt?: number) =>
+      t.run((ctx) =>
+        ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Folder ${index}`,
+          nameKey: `folder ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          ...(deletingAt === undefined ? {} : { deletingAt }),
+        })
+      );
+    const deleting = await seed(0, 10_000);
+    for (let index = 1; index < MAX_FOLDERS_PER_USER; index += 1) {
+      await seed(index);
+    }
+
+    await expect(create("Takes the freed place")).resolves.toBeTruthy();
+    await expect(
+      owner.mutation(api.folders.restoreFolder, { folderId: deleting })
+    ).rejects.toThrow(`You can have up to ${MAX_FOLDERS_PER_USER} folders`);
+  });
+
+  test("folders past ones still being deleted are listed and exported", async () => {
+    const { t, owner, create } = await setup();
+    vi.setSystemTime(10_000);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 2; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Old ${index}`,
+          nameKey: `old ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          deletingAt: 10_000,
+        });
+      }
+      for (let index = 2; index < MAX_FOLDERS_PER_USER; index += 1) {
+        await ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Folder ${index}`,
+          nameKey: `folder ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+        });
+      }
+    });
+    await create("Newest");
+    await create("Newer still");
+
+    const listed = await owner.query(api.folders.listFolders, {});
+    expect(listed).toHaveLength(MAX_FOLDERS_PER_USER);
+    expect(listed.map((folder: { name: string }) => folder.name)).toContain(
+      "Newer still"
+    );
+    const exported = await t.run((ctx) => readLiveFolders(ctx, "owner"));
+    expect(exported.map((folder) => folder.name)).toContain("Newer still");
   });
 
   test("another account's folder cannot be read, changed or used", async () => {
@@ -359,6 +449,31 @@ describe("membership", () => {
     await owner.mutation(api.folders.deleteFolder, { folderId: legacy });
     await runScheduled();
     expect(await counts()).toEqual([]);
+  });
+
+  test("a card in Trash can't be added to, moved into or taken out of a folder", async () => {
+    const { owner, create, insert, card } = await setup();
+    const inbox = await create("Inbox");
+    const trashed = await insert({
+      content: "Trashed",
+      type: "text",
+      isDeleted: true,
+      deletedAt: 1500,
+    });
+
+    for (const mutation of [
+      api.folders.addCardsToFolder,
+      api.folders.moveCardsToFolder,
+      api.folders.removeCardsFromFolder,
+    ]) {
+      const result = await owner.mutation(mutation, {
+        folderId: inbox._id,
+        cardIds: [trashed],
+      });
+      expect(result).toMatchObject({ failedIds: [trashed], updatedIds: [] });
+    }
+    expect((await card(trashed))?.folderIds).toBeUndefined();
+    expect((await card(trashed))?.updatedAt).toBe(1000);
   });
 
   test("a move without a source folder leaves every other folder", async () => {

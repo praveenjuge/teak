@@ -60,6 +60,7 @@ Steps:
 - "Delete" moves to Trash, and only "Delete Forever" from Trash is permanent. There's no "Empty Trash" button.
 - Restore toasts "Card restored" and Delete Forever toasts "Card permanently deleted", from the Trash grid and the dialog alike. Both can arrive just after the card leaves the grid.
 - Trash starts with one seeded card, "Old draft I meant to throw away." Leave it there.
+- The grid's tag dialog (right-click → "Add Tags", or `t`) reads the card itself, not the list: on `/?tag=<tag>`, removing that tag empties the grid behind the dialog, the dialog keeps the card's other tags, and the next tag added joins them.
 - Adding the tag "secret" or "hidden" hides the card ("Hidden. Search #secret to see it.", with "Undo").
 - A card holds at most 100 tags of at most 64 characters each. Pressing Enter in "Add a tag" with a longer tag shows the toast "Each tag must be at most 64 characters", keeps the text in the box and adds nothing; on a card with 100 tags it says "A card can have at most 100 tags". A long tag a card saved before the limit stays and doesn't block other tag edits. Tags → "Rename…" says "Tags can be at most 64 characters" before you save.
 - On the dev deployment, real AI adds its own "Remove Teak tag …" chips. Don't confuse them with yours.
