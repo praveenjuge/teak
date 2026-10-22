@@ -297,6 +297,33 @@ describe("bulk actions", () => {
     expect(await grid({ showArchivedOnly: true })).toEqual(["One", "Two"]);
   });
 
+  test("bulk remove takes off a long tag a card saved before the limit", async () => {
+    const { owner, insert, t } = await setup();
+    const legacy = "x".repeat(70);
+    const id = await insert({
+      content: "Old",
+      type: "text",
+      tags: [legacy, "keep"],
+    });
+    expect(
+      await owner.mutation(api.cards.bulkUpdateCards, {
+        cardIds: [id],
+        action: "removeTags",
+        tags: [legacy],
+      })
+    ).toEqual({ updatedIds: [id], failedIds: [] });
+    expect((await t.run((ctx) => ctx.db.get("cards", id)))?.tags).toEqual([
+      "keep",
+    ]);
+    await expect(
+      owner.mutation(api.cards.bulkUpdateCards, {
+        cardIds: [id],
+        action: "addTags",
+        tags: [legacy],
+      })
+    ).rejects.toThrow("Each tag must be at most 64 characters");
+  });
+
   test("another user's cards fail without changing them", async () => {
     const { owner, insert, t } = await setup();
     const mine = await insert({ content: "Mine", type: "text" });

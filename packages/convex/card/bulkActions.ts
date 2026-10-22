@@ -35,7 +35,9 @@ export const bulkCardActionValidator = v.union(
 
 export type BulkCardAction = Infer<typeof bulkCardActionValidator>;
 
-const isTagAction = (action: BulkCardAction) =>
+const isTagAction = (
+  action: BulkCardAction
+): action is "addTags" | "removeTags" =>
   action === "addTags" || action === "removeTags";
 
 const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
@@ -45,7 +47,10 @@ const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
     moveToFolder: "move",
   };
 
-export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
+export const normalizeBulkTags = (
+  tags: readonly string[] | undefined,
+  action: "addTags" | "removeTags" = "addTags"
+) => {
   const normalized = normalizeTagList(tags ?? []);
   if (normalized.length === 0) {
     throw new ConvexError({
@@ -59,7 +64,9 @@ export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
       message: `Name at most ${MAX_BULK_TAGS} tags at a time`,
     });
   }
-  const tagError = explainInvalidCardTags(normalized);
+  // Removing names tags a card already has, older long ones included.
+  const tagError =
+    action === "addTags" ? explainInvalidCardTags(normalized) : null;
   if (tagError) {
     throw new ConvexError({ code: "INVALID_INPUT", message: tagError });
   }
@@ -210,7 +217,7 @@ export const applyBulkCardAction = async (
     });
   }
   const tags = isTagAction(args.action)
-    ? normalizeBulkTags(args.tags)
+    ? normalizeBulkTags(args.tags, args.action)
     : undefined;
   const isFolderAction = FOLDER_ACTIONS[args.action] !== undefined;
   if (isFolderAction && !args.folderId) {

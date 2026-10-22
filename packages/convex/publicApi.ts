@@ -995,7 +995,8 @@ export const executeBulkCardsForUser = internalMutation({
                       ? payload.tags.filter(
                           (value): value is string => typeof value === "string"
                         )
-                      : undefined
+                      : undefined,
+                    action
                   )
                 : undefined;
             await applyCardAction(ctx, { userId, cardId, action, tags });
