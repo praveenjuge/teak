@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { FilesOp } from "@teak/files-protocol";
+import { freezeObject } from "../../deletionGate";
 import {
   createCardConvex,
   createFakeOps,
@@ -10,7 +11,7 @@ import {
   testEnv,
   testJob,
 } from "../../test/cardProcessingKit";
-import { FakeBucket } from "../../test/testsupport";
+import { FakeBucket, withObjectGates } from "../../test/testsupport";
 import type { FilesOpCaller } from "../deps";
 import { callFilesOp } from "../filesOps";
 import { createWorkflowTelemetry } from "../telemetry";
@@ -103,11 +104,13 @@ const setup = (
   const convex = createCardConvex(card, handlers);
   const fakes = createFakeOps({ "process-audio": processAudio });
   const bucket = new FakeBucket();
-  const env = testEnv({
-    AI: workersAi as never,
-    AI_USAGE: { writeDataPoint: () => undefined },
-    BUCKET: bucket as never,
-  });
+  const env = withObjectGates(
+    testEnv({
+      AI: workersAi as never,
+      AI_USAGE: { writeDataPoint: () => undefined },
+      BUCKET: bucket as never,
+    })
+  );
   const ops: FilesOpCaller = (spec) =>
     spec.op === ("generate-link-metadata" satisfies FilesOp)
       ? callFilesOp(env, spec)
@@ -383,6 +386,28 @@ describe("transcribePodcastEpisode", () => {
     });
     expect(ctx.siteRequests).toEqual([]);
     expect(ctx.tracked()).toEqual([]);
+  });
+
+  test("an account being deleted fences the episode's key, so no audio is stored", async () => {
+    let env: ReturnType<typeof setup>["env"] | undefined;
+    const ctx = setup(podcastCard(), {
+      handlers: {
+        // Account deletion freezes each registered key it finds.
+        "storage/ownership:registerObject": async (args) => {
+          if (env) {
+            await freezeObject(env, String(args.key));
+          }
+          return true;
+        },
+      },
+    });
+    env = ctx.env;
+
+    expect(await ctx.run()).toEqual({ reason: "blocked", transcribed: false });
+    expect(ctx.bucket.multipartUploads.size).toBe(0);
+    expect(ctx.bucket.multipartCompletions).toEqual([]);
+    expect(ctx.fakes.calls).toEqual([]);
+    expect(ctx.convex.callsTo(UPDATE_AI)).toEqual([]);
   });
 
   test("an edit during transcription refuses the write and still deletes the audio", async () => {

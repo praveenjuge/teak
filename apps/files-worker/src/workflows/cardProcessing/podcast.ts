@@ -2,6 +2,7 @@ import { internal } from "@teak/convex/_generated/api";
 import { buildRawSelectorMap } from "@teak/convex/workflows/steps/categorization/enrichment";
 import { resolveEnclosure } from "@teak/convex/workflows/steps/podcast/resolveEnclosure";
 import { runWithAiUsage } from "../../ai/aiUsage";
+import { gatedEnv } from "../filesOps";
 import type { WorkflowTelemetry } from "../telemetry";
 import { generateLinkMetadata, sanitizeTranscript } from "./aiMetadata";
 import {
@@ -147,8 +148,10 @@ export const transcribePodcastEpisode = async (
     guardOf(job)
   );
   try {
+    // Through the deletion gate, so account deletion can fence the key and
+    // abort an upload in flight.
     const download = await downloadEpisodeToR2(
-      job.env.BUCKET,
+      gatedEnv(job.env).BUCKET,
       key,
       enclosure.url,
       {

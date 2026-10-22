@@ -122,10 +122,12 @@ export const gunzipBase64 = async (value: string): Promise<string> => {
   ).text();
 };
 
+/** A refresh fetches the page again rather than reuse the day's copy. */
 export const fetchLinkPageForCard = (job: CardJob, url: string) =>
   job.deps.filesOp<FilesLinkPageResult>({
     op: "fetch-link-page",
     params: {
+      ...(job.refresh ? { fresh: true } : {}),
       selectors: SCRAPE_ELEMENTS.map(({ selector }) => selector),
       url,
     },

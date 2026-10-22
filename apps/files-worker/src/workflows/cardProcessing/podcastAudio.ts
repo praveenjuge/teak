@@ -4,6 +4,7 @@ import {
   safeFetch,
 } from "@teak/convex/linkMetadata/ssrf";
 import { FILES_UPLOAD_MAX_BYTES } from "@teak/files-protocol";
+import { ObjectWriteBlockedError } from "../../deletionGate";
 
 // A podcast episode's audio, streamed from its host into a temporary R2
 // object for transcription. Every hop goes through `safeFetch` (each one
@@ -84,9 +85,19 @@ export const downloadEpisodeToR2 = async (
     return { reason: "too_large", stored: false };
   }
 
-  const upload = await bucket.createMultipartUpload(key, {
-    httpMetadata: { contentType },
-  });
+  let upload: R2MultipartUpload;
+  try {
+    upload = await bucket.createMultipartUpload(key, {
+      httpMetadata: { contentType },
+    });
+  } catch (error) {
+    await cancel(response);
+    // The key is fenced: its account or card is being deleted.
+    if (error instanceof ObjectWriteBlockedError) {
+      return { reason: "blocked", stored: false };
+    }
+    throw error;
+  }
   const parts: R2UploadedPart[] = [];
   const reader = response.body.getReader();
   // R2 completes an upload only when every part but the last is one size,

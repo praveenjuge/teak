@@ -4,6 +4,7 @@ import { buildDebugRaw } from "@teak/convex/linkMetadata/parsing";
 import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
 import type { FilesOp } from "@teak/files-protocol";
+import { createFetcherHandler } from "../../../fetcher/src/handler";
 import { sha256Hex } from "../../lib";
 import { createContainerPinnedFetch } from "../../media/pinnedHop";
 import {
@@ -20,6 +21,8 @@ import {
   testJob,
   USER_ID,
 } from "../../test/cardProcessingKit";
+import type { FilesOpCaller } from "../deps";
+import { callFilesOp } from "../filesOps";
 import { fetchLinkMetadata } from "./linkMetadata";
 import { rawMetadataKey } from "./rawMetadata";
 
@@ -665,5 +668,94 @@ describe("link metadata", () => {
         )
       ).toBe(true);
     });
+  });
+});
+
+describe("link page cache on refresh", () => {
+  const titled = (title: string) =>
+    `<html><head><meta property="og:title" content="${title}"></head></html>`;
+
+  // The real fetch-link-page op, its Container and a KV cache; the site's
+  // page changes between saves.
+  const setupCached = () => {
+    const site = { html: titled("Before the edit") };
+    const requests: string[] = [];
+    const handle = createFetcherHandler({
+      pinnedFetch: (url) => {
+        requests.push(url);
+        return Promise.resolve(
+          url === URL_
+            ? new Response(site.html, {
+                headers: { "content-type": "text/html; charset=utf-8" },
+              })
+            : new Response("Not found", { status: 404 })
+        );
+      },
+      resolveDns: () => Promise.resolve([PUBLIC]),
+    });
+    const network = {
+      env: {
+        LINK_FETCHER: {
+          get: () => ({ fetch: (request: Request) => handle(request) }),
+          idFromName: (name: string) => name,
+        } as unknown as DurableObjectNamespace,
+        LINK_FETCHER_INSTANCES: "1",
+      },
+      requests,
+    };
+    const kv = new Map<string, string>();
+    const env = testEnv({
+      ...network.env,
+      LINK_PAGE_CACHE: {
+        get: (key: string, type?: "json") => {
+          const value = kv.get(key) ?? null;
+          return Promise.resolve(
+            value !== null && type === "json" ? JSON.parse(value) : value
+          );
+        },
+        put: (key: string, value: string) => {
+          kv.set(key, value);
+          return Promise.resolve();
+        },
+      } as unknown as KVNamespace,
+    });
+    const fakes = createFakeOps({});
+    const ops: FilesOpCaller = (spec) =>
+      spec.op === ("fetch-link-page" satisfies FilesOp)
+        ? callFilesOp(env, spec)
+        : fakes.ops(spec);
+    const process = async (refresh: boolean) => {
+      const card = linkCard();
+      const convex = createCardConvex(card);
+      const deps = testDeps(env, convex.fetcher, ops, {
+        pinnedFetch: createContainerPinnedFetch(env),
+        resolveDns: () => Promise.resolve([PUBLIC]),
+      });
+      const job = {
+        ...testJob(env, deps),
+        ...(refresh ? { refresh: true } : {}),
+      };
+      expect(await fetchLinkMetadata(job)).toEqual({ status: "success" });
+      const saved = convex.callsTo("linkMetadata:updateCardMetadata").at(-1)
+        ?.args as { linkPreview: { title?: string } };
+      return saved.linkPreview.title;
+    };
+    return { network, process, site };
+  };
+
+  test("a refresh reads the page as it is now and keeps that copy", async () => {
+    const { network, process, site } = setupCached();
+    expect(await process(false)).toBe("Before the edit");
+
+    site.html = titled("After the edit");
+    // An ordinary save within the day still reuses the kept page.
+    expect(await process(false)).toBe("Before the edit");
+    expect(network.requests).toHaveLength(1);
+
+    expect(await process(true)).toBe("After the edit");
+    expect(network.requests).toHaveLength(2);
+    // The fresh page replaced the kept one.
+    expect(await process(false)).toBe("After the edit");
+    expect(network.requests).toHaveLength(2);
   });
 });

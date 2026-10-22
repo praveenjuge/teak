@@ -422,10 +422,14 @@ const handler = {
       const isHead = requestMethod === "HEAD";
       const cacheKey = buildCacheKey(request);
 
-      if (!isHead) {
-        const cached = await caches.default.match(cacheKey);
-        if (cached) {
-          const cachedEtag = cached.headers.get("ETag");
+      // The edge copy is keyed by path, so it outlives a deleted or replaced
+      // object while a signed link is still valid. A head (one class B read,
+      // no body) checks it still holds the stored object.
+      const cached = isHead ? undefined : await caches.default.match(cacheKey);
+      if (cached) {
+        const cachedEtag = cached.headers.get("ETag");
+        const current = await env.BUCKET.head(key);
+        if (current && current.httpEtag === cachedEtag) {
           if (
             etagMatches(request.headers.get("if-none-match"), cachedEtag ?? "")
           ) {
@@ -448,6 +452,12 @@ const handler = {
             headers,
           });
         }
+        await cached.body?.cancel();
+        if (!current) {
+          ctx.waitUntil(caches.default.delete(cacheKey));
+          return new Response(null, { status: 404 });
+        }
+        // Replaced under the same key: the read below caches the new object.
       }
 
       const object = await env.BUCKET.get(key);

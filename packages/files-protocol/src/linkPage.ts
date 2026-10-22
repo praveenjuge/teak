@@ -3,6 +3,8 @@ import type { FilesScrapeResult } from "./rendering";
 export const FILES_LINK_PAGE_MAX_URL_LENGTH = 4096;
 
 export interface FilesLinkPageParams {
+  /** Skip the kept copy and fetch the page again; the new copy is kept. */
+  fresh?: boolean;
   selectors: string[];
   url: string;
 }
