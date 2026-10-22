@@ -71,7 +71,11 @@ export const answerMcpAtEdge = async (
   } catch {
     return null;
   }
-  if (Array.isArray(body) && body.length > MAX_MCP_JSON_RPC_BATCH) {
+  // Convex answers an empty or oversized batch with its error.
+  if (
+    Array.isArray(body) &&
+    (body.length === 0 || body.length > MAX_MCP_JSON_RPC_BATCH)
+  ) {
     return null;
   }
   const messages = Array.isArray(body) ? body : [body];

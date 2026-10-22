@@ -772,6 +772,7 @@ describe("Bulk items follow the single-card rules", () => {
       { cardId, metadataTitle: "New" },
       { cardId, isArchived: true },
       { cardId },
+      { cardId, content: null },
     ]);
     for (const result of [created, updated]) {
       expect(result.summary.succeeded).toBe(0);
@@ -784,6 +785,7 @@ describe("Bulk items follow the single-card rules", () => {
     ).toEqual([
       "Unknown field `metadataTitle`",
       "Unknown field `isArchived`",
+      "Each update item must include content, url, notes or tags",
       "Each update item must include content, url, notes or tags",
     ]);
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));

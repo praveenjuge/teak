@@ -9,8 +9,8 @@ import {
 import { isCardId, isPatchCardPayload } from "../lib/cardPatch";
 import {
   assetSaveFor,
-  isWebPageFile,
   pickSelectedText,
+  savesLinkInstead,
 } from "../lib/contextMenuContent";
 import {
   beginOAuthSignIn,
@@ -136,7 +136,7 @@ function runPendingSave(
       if (save.kind === "asset") {
         const file = await downloadAssetFile(save.assetUrl);
         // A plain link to a page (or one that redirects) saves as a link.
-        if (save.link && ("status" in file || isWebPageFile(file))) {
+        if (save.link && savesLinkInstead(file)) {
           return saveToTeak(
             {
               content: save.assetUrl,

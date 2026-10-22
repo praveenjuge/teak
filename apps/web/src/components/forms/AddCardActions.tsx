@@ -323,6 +323,10 @@ export function AddCardActions({
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
+      // A start that was closed or replaced owns nothing to clean up.
+      if (attempt !== startAttemptRef.current) {
+        return;
+      }
       clearRecordingResources();
       setIsRecording(false);
       setIsRecordingDialogOpen(false);

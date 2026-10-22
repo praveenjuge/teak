@@ -324,6 +324,18 @@ describe("decoding", () => {
     });
   });
 
+  test("reads the encoding an XHTML page's XML declaration names", () => {
+    const head = '<?xml version="1.0" encoding="ISO-8859-1"?><title>Caf';
+    const bytes = new Uint8Array([
+      ...new TextEncoder().encode(head),
+      0xe9,
+      ...new TextEncoder().encode("</title>"),
+    ]);
+    expect(decodeHtml(bytes, "application/xhtml+xml").html).toBe(
+      '<?xml version="1.0" encoding="ISO-8859-1"?><title>Café</title>'
+    );
+  });
+
   test.each([
     ["no declaration", "text/html"],
     ["an unknown charset", "text/html; charset=not-a-charset"],

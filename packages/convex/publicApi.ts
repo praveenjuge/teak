@@ -784,10 +784,12 @@ const BULK_CREATE_FIELDS = new Set([
   "sourceUrl",
   "sourceTitle",
 ]);
-const BULK_UPDATE_EDIT_FIELDS = ["content", "url", "notes", "tags"] as const;
-const BULK_UPDATE_FIELDS = new Set<string>([
+const BULK_UPDATE_FIELDS = new Set([
   "cardId",
-  ...BULK_UPDATE_EDIT_FIELDS,
+  "content",
+  "url",
+  "notes",
+  "tags",
 ]);
 
 /** Fails a field the item's operation doesn't take, as POST and PATCH do. */
@@ -883,7 +885,13 @@ const assertBulkUpdatePayload = (
   card: Doc<"cards">
 ) => {
   assertKnownBulkFields(payload, BULK_UPDATE_FIELDS);
-  if (!BULK_UPDATE_EDIT_FIELDS.some((key) => payload[key] !== undefined)) {
+  const edits =
+    typeof payload.content === "string" ||
+    typeof payload.url === "string" ||
+    typeof payload.notes === "string" ||
+    payload.notes === null ||
+    Array.isArray(payload.tags);
+  if (!edits) {
     throw new ConvexError({
       code: "INVALID_INPUT",
       message: "Each update item must include content, url, notes or tags",

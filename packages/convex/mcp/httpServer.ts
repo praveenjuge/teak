@@ -223,6 +223,11 @@ const handleMcpPost = async (
     );
   }
 
+  // JSON-RPC answers an empty batch with one Invalid Request error.
+  if (Array.isArray(body) && body.length === 0) {
+    return json(400, jsonRpcError(null, -32_600, "Invalid Request"));
+  }
+
   const messages = Array.isArray(body) ? body : [body];
   const responses: JsonObject[] = [];
   let rateLimited = false;

@@ -87,6 +87,10 @@ describe("MCP protocol at the edge", () => {
     expect(await response?.text()).toBe("");
   });
 
+  test("leaves an empty batch to Convex's invalid request error", async () => {
+    expect(await answerMcpAtEdge(mcp([]), USER)).toBeNull();
+  });
+
   test("answers a protocol-only batch in order, skipping notifications", async () => {
     const response = await answerMcpAtEdge(
       mcp([

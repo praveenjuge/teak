@@ -60,6 +60,7 @@ const { AddCardActions } = await import("../AddCardActions");
 
 let root: Root | undefined;
 let grantMicrophone: (() => void) | undefined;
+let denyMicrophone: (() => void) | undefined;
 const stopTrack = mock();
 const recorderStarts = mock();
 
@@ -80,9 +81,11 @@ beforeEach(async () => {
     configurable: true,
     value: {
       getUserMedia: () =>
-        new Promise((resolve) => {
+        new Promise((resolve, reject) => {
           grantMicrophone = () =>
             resolve({ getTracks: () => [{ stop: stopTrack }] });
+          denyMicrophone = () =>
+            reject(new DOMException("Denied", "NotAllowedError"));
         }),
     },
   });
@@ -122,4 +125,17 @@ test("granting the microphone with the dialog open starts recording", async () =
 
   expect(recorderStarts).toHaveBeenCalledTimes(1);
   expect(stopTrack).not.toHaveBeenCalled();
+});
+
+test("a closed start that fails later leaves the next recording running", async () => {
+  await act(async () => button("Record audio").click());
+  const denyFirst = denyMicrophone;
+  await act(async () => button("Dismiss").click());
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => denyFirst?.());
+
+  expect(recorderStarts).toHaveBeenCalledTimes(1);
+  expect(stopTrack).not.toHaveBeenCalled();
+  expect(document.querySelector("[data-dialog]")).not.toBeNull();
 });

@@ -33,6 +33,8 @@ export interface FileUploadInput {
   uploaded?: UploadedFile;
 }
 
+export const ASSET_REDIRECTED = "ASSET_REDIRECTED";
+
 const errorResponse = (message: string, code?: string): TeakSaveResponse => ({
   code,
   message,
@@ -198,10 +200,22 @@ export async function downloadAssetFile(
 
   try {
     const fetchImpl = dependencies.fetchImpl ?? fetch;
+    // A redirect is never followed; it gets its own code so a plain link
+    // that redirects can be saved as a link instead.
     const response = await fetchImpl(assetUrl, {
       credentials: "omit",
-      redirect: "error",
+      redirect: "manual",
     });
+    if (
+      response.type === "opaqueredirect" ||
+      (response.status >= 300 && response.status < 400)
+    ) {
+      await response.body?.cancel().catch(() => undefined);
+      return errorResponse(
+        "The asset could not be downloaded safely.",
+        ASSET_REDIRECTED
+      );
+    }
     const contentLength = Number(response.headers.get("content-length"));
     if (
       !response.ok ||

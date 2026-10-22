@@ -124,7 +124,7 @@ describe("extension file saving", () => {
     const baseFetch = dependencies.fetchImpl;
     dependencies.fetchImpl = mock((url: string | URL | Request, init) => {
       if (String(url) === "https://cdn.example.com/vector.svg") {
-        expect(init).toMatchObject({ credentials: "omit", redirect: "error" });
+        expect(init).toMatchObject({ credentials: "omit", redirect: "manual" });
         return Promise.resolve(
           new Response("<svg />", {
             headers: {

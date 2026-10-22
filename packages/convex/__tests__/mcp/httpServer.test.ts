@@ -352,6 +352,23 @@ describe("Convex MCP endpoint", () => {
     expect(await response.text()).toBe("");
   });
 
+  test("answers an empty batch with one invalid request error", async () => {
+    const response = await handleMcpV1Request(
+      authorizedCtx(),
+      new Request("https://api.teakvault.com/mcp", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: TEST_AUTHORIZATION,
+          "Content-Type": "application/json",
+        },
+        body: "[]",
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: -32_600 } });
+  });
+
   test("rejects JSON-RPC batches over 100 messages before tool execution", async () => {
     const runMutation = mock().mockResolvedValue({
       keyId: "key_1",
