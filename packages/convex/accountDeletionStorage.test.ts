@@ -7,6 +7,7 @@ import {
 } from "./__tests__/helpers/filesWorker.test-utils";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { ACCOUNT_DELETION_KEY_PAGE as PAGE } from "./accountDeletionBatch";
 import schema from "./schema";
 import { ensureObjectOwnership } from "./storage/ownership";
 
@@ -20,7 +21,7 @@ interface OpSpec {
   params: Record<string, unknown>;
 }
 
-const setup = async (keyCount = 7) => {
+const setup = async (keyCount = 2 * PAGE + 1) => {
   const t = convexTest(schema, modules);
   const keys = Array.from(
     { length: keyCount },
@@ -105,13 +106,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("many keys drain at most three per batch before source deletion", async () => {
+test("many keys drain a page per batch before source deletion", async () => {
   const { t, card, keys, drain, freezes, deleted } = await setup();
-  for (const expected of [3, 6, 7]) {
+  for (const expected of [PAGE, 2 * PAGE, 2 * PAGE + 1]) {
     expect(await drain()).toBe(false);
     expect(freezes).toHaveLength(expected);
     const remaining = await t.run((ctx) => ctx.db.get(card));
-    if (expected === 7) {
+    if (expected === keys.length) {
       expect(remaining).toBeNull();
     } else {
       expect(remaining).not.toBeNull();
@@ -122,7 +123,7 @@ test("many keys drain at most three per batch before source deletion", async () 
 });
 
 test("lost delete reply retains source and retries the exact same keys", async () => {
-  const { t, card, drain, deleted, offset, intercept } = await setup();
+  const { t, card, keys, drain, deleted, offset, intercept } = await setup();
   intercept((spec, next) =>
     spec.op === "delete-objects"
       ? Promise.reject(new Error("connection reset"))
@@ -133,11 +134,7 @@ test("lost delete reply retains source and retries the exact same keys", async (
   expect(await offset()).toBe(0);
   intercept();
   expect(await drain()).toBe(false);
-  expect(deleted()).toEqual([
-    "users/owner/object-0",
-    "users/owner/object-1",
-    "users/owner/object-2",
-  ]);
+  expect(deleted()).toEqual(keys.slice(0, PAGE));
 });
 
 test("source changes during freeze cannot delete its row or advance captured progress", async () => {
@@ -258,7 +255,7 @@ test("source disappearance between batches cannot abandon its remaining R2 keys"
   expect(await drain()).toBe(false);
   await t.run((ctx) => ctx.db.delete(card));
   await expect(drain()).rejects.toThrow("deletion_storage_source_changed");
-  expect(await offset()).toBe(3);
+  expect(await offset()).toBe(PAGE);
 });
 
 test("a checkpoint for a different batch than the one captured is refused", async () => {
@@ -272,13 +269,13 @@ test("a checkpoint for a different batch than the one captured is refused", asyn
         kind: "cards",
         fingerprint: (await t.run((ctx) => ctx.db.get(stateId)))
           ?.storageProgress?.fingerprint as string,
-        offset: 3,
-        count: 3,
+        offset: PAGE,
+        count: PAGE,
         ...change,
       })
     ).rejects.toThrow();
   }
-  expect(await offset()).toBe(3);
+  expect(await offset()).toBe(PAGE);
 });
 
 test("each checkpoint moves the state's progress deadline ahead", async () => {
@@ -332,6 +329,93 @@ test("a link's chosen image and the one kept for undo are deleted with the accou
     done = await drain();
   }
   expect(deleted()).toEqual([chosen, kept]);
+  expect(await t.run((ctx) => ctx.db.get(card))).toBeNull();
+});
+
+test("one batch deletes many cards, their rows and their objects together", async () => {
+  const { t, bucket, drain, deleted } = await setup(0);
+  const keys = await t.run(async (ctx) => {
+    const folderId = await ctx.db.insert("folders", {
+      userId: "owner",
+      name: "Box",
+      nameKey: "box",
+      kind: "manual",
+      activeCardCount: 59,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    const all: string[] = [];
+    for (let index = 0; index < 59; index += 1) {
+      const cardKeys = [
+        `users/owner/many-${index}-a`,
+        `users/owner/many-${index}-b`,
+      ];
+      all.push(...cardKeys);
+      const cardId = await ctx.db.insert("cards", {
+        userId: "owner",
+        type: "text",
+        content: `card ${index}`,
+        workflowArtifactKeys: cardKeys,
+        folderIds: [folderId],
+        createdAt: index + 2,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("folderCards", {
+        folderId,
+        cardId,
+        userId: "owner",
+        type: "text",
+        cardCreatedAt: index + 2,
+        addedAt: 1,
+      });
+      for (const tag of ["one", "two", "three"]) {
+        await ctx.db.insert("cardSearchTags", {
+          cardId,
+          userId: "owner",
+          tag,
+          type: "text",
+          cardCreatedAt: index + 2,
+          sourceUpdatedAt: 1,
+          syncGeneration: 1,
+        });
+      }
+    }
+    return all;
+  });
+  for (const key of keys) {
+    bucket.objects.set(key, { bytes: new Uint8Array([1]) });
+  }
+  let calls = 0;
+  for (let done = false; !done && calls < 100; calls += 1) {
+    done = await drain();
+  }
+  // 60 cards in batches of 25: three batches, then the empty check.
+  expect(calls).toBe(4);
+  expect(deleted().sort()).toEqual([...keys].sort());
+  for (const table of ["cards", "cardSearchTags", "folderCards"] as const) {
+    expect(await t.run((ctx) => ctx.db.query(table).take(1))).toEqual([]);
+  }
+});
+
+test("progress a deploy left under the older fingerprint restarts its batch", async () => {
+  const { t, card, stateId, keys, drain, freezes, deleted } = await setup();
+  await t.run((ctx) =>
+    ctx.db.patch(stateId, {
+      storageProgress: {
+        kind: "cards",
+        fingerprint: "0f".repeat(32),
+        offset: 3,
+      },
+    })
+  );
+  expect(await drain()).toBe(false);
+  expect(freezes).toEqual(keys.slice(0, PAGE));
+  let done = false;
+  for (let call = 0; call < 5 && !done; call += 1) {
+    done = await drain();
+  }
+  expect(done).toBe(true);
+  expect(deleted()).toEqual(keys);
   expect(await t.run((ctx) => ctx.db.get(card))).toBeNull();
 });
 

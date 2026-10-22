@@ -90,12 +90,23 @@ export type OwnedCardIds = Id<"cards">[] & {
 export const takeOwnedCards = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
-  limit: number
+  limit: number,
+  maxBytes = Number.POSITIVE_INFINITY
 ) => {
-  const cards = await ctx.db
+  const cards: Doc<"cards">[] = [];
+  let bytes = 0;
+  for await (const card of ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
-    .take(limit);
+    .withIndex("by_user_deleted_created", (q) => q.eq("userId", userId))) {
+    bytes += JSON.stringify(card).length;
+    if (cards.length > 0 && bytes > maxBytes) {
+      break;
+    }
+    cards.push(card);
+    if (cards.length >= limit) {
+      break;
+    }
+  }
   return { cards, cardIds: cards.map((card) => card._id) as OwnedCardIds };
 };
 
@@ -107,7 +118,7 @@ export const deleteAccountDataHandler = async (
   for (const cardId of cardIds) {
     const tagDocuments = await ctx.db
       .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .withIndex("by_cardId_and_tag", (query) => query.eq("cardId", cardId))
       .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
     for (const tagDocument of tagDocuments.slice(
       0,

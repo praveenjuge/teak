@@ -774,6 +774,12 @@ describe("durable deletion admission and tombstones", () => {
         updatedAt: 1,
       });
       await ctx.db.patch(card, { folderIds: [folderId] });
+      await ctx.db.insert("folderCardCounts", {
+        folderId,
+        userId: "permanent-owner",
+        shard: 0,
+        count: 1,
+      });
       await ctx.db.insert("folders", {
         userId: "permanent-owner",
         name: "Smart",
@@ -846,6 +852,16 @@ describe("durable deletion admission and tombstones", () => {
       await ctx.db.insert("tagSummaryRefreshes", {
         userId: "permanent-owner",
         dueAt: 1,
+      });
+      await ctx.db.insert("userTagCounts", {
+        userId: "permanent-owner",
+        tag: "private",
+        count: 1,
+      });
+      await ctx.db.insert("tagCountDeltas", {
+        userId: "permanent-owner",
+        tag: "private",
+        delta: 1,
       });
       await ctx.db.insert("tagOperations", {
         userId: "permanent-owner",
@@ -987,6 +1003,9 @@ describe("durable deletion admission and tombstones", () => {
       "cardLinks",
       "userTagSummaries",
       "tagSummaryRefreshes",
+      "userTagCounts",
+      "tagCountDeltas",
+      "folderCardCounts",
       "tagOperations",
       "vectorShards",
       "cardEmbeddings",

@@ -24,6 +24,18 @@ export type OwnedDeletionRows = DeletionBatchRow[] & {
   readonly [ownerIndexBrand]: true;
 };
 
+/** Cards one deletion batch removes; each brings up to 20 tag rows and 50 folder rows. */
+export const ACCOUNT_DELETION_CARD_BATCH = 25;
+// Card documents can be large; a batch stops early past this many bytes so
+// its transaction stays well under Convex's read limit.
+const ACCOUNT_DELETION_CARD_BYTES = 4 * 1024 * 1024;
+/** R2 keys the Files Worker freezes and deletes per checkpoint. */
+export const ACCOUNT_DELETION_KEY_PAGE = 50;
+const FINGERPRINT_VERSION = "v2:";
+
+export const isCurrentDeletionFingerprint = (fingerprint: string) =>
+  fingerprint.startsWith(FINGERPRINT_VERSION);
+
 export type DeletionBatchKind =
   | "cards"
   | "imports"
@@ -40,13 +52,18 @@ export async function captureDeletionBatch(
   let keys: string[] = [];
   let aborts: { key: string; uploadId: string }[] = [];
   if (kind === "cards") {
-    const owned = await takeOwnedCards(ctx, userId, 1);
+    const owned = await takeOwnedCards(
+      ctx,
+      userId,
+      ACCOUNT_DELETION_CARD_BATCH,
+      ACCOUNT_DELETION_CARD_BYTES
+    );
     rows = owned.cards;
     cardIds = owned.cardIds;
     for (const card of owned.cards) {
       const tags = await ctx.db
         .query("cardSearchTags")
-        .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
+        .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", card._id))
         .take(21);
       if (tags.length <= 20) {
         keys.push(...cardStorageObjectKeys(card));
@@ -118,9 +135,13 @@ export async function captureDeletionBatch(
     keys = objects.map((row) => row.key);
   }
   keys = [...new Set(keys)];
-  const fingerprint = await sha256Hex(
-    JSON.stringify({ kind, rows, keys, aborts })
-  );
+  // The batch is the same batch while its rows and the objects they own are:
+  // a commit deletes exactly the rows whose keys the Worker deleted.
+  const fingerprint =
+    FINGERPRINT_VERSION +
+    (await sha256Hex(
+      JSON.stringify({ kind, ids: rows.map((row) => row._id), keys, aborts })
+    ));
   return {
     rows: rows as OwnedDeletionRows,
     keys,
