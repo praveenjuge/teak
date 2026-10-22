@@ -33,6 +33,9 @@ const RETRY_CAP_MS = 5 * 60 * 1000;
 
 const STAGE_STEP: StepConfig = {
   retries: {
+    // The function computes the whole wait; Workflows' default exponential
+    // backoff would otherwise scale it again.
+    backoff: "constant",
     delay: ({ ctx }) => Math.min(RETRY_CAP_MS, 10_000 * 2 ** (ctx.attempt - 1)),
     limit: 10,
   },

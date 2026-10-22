@@ -64,6 +64,9 @@ export const AI_CAPACITY_RETRIES = 10;
 
 export const METADATA_STEP: StepConfig = {
   retries: {
+    // The function computes the whole wait; Workflows' default exponential
+    // backoff would otherwise scale it again.
+    backoff: "constant",
     delay: ({ ctx, error }) =>
       isAiProviderCapacityError(error)
         ? (`${ctx.attempt * 30} seconds` as const)
