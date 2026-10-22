@@ -133,6 +133,12 @@ const decodeEntities = (text: string) =>
     }
   );
 
+/** Drops a trailing high surrogate a cut split from its pair, such as an emoji. */
+const withoutLoneHighSurrogate = (text: string): string => {
+  const last = text.charCodeAt(text.length - 1);
+  return last >= 0xd8_00 && last <= 0xdb_ff ? text.slice(0, -1) : text;
+};
+
 /**
  * The first `maxLength` characters, stripped, with escaped punctuation and
  * entities kept literal. Both become placeholders before the cut, so it can't
@@ -152,8 +158,10 @@ function withEscapedPunctuation(
         toPlaceholder(character)
       )
   ).slice(0, maxLength);
-  return strip(protectedText).replace(PLACEHOLDER, (placeholder) =>
-    String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
+  return strip(withoutLoneHighSurrogate(protectedText)).replace(
+    PLACEHOLDER,
+    (placeholder) =>
+      String.fromCharCode(placeholder.charCodeAt(0) - PLACEHOLDER_BASE)
   );
 }
 

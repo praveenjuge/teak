@@ -163,6 +163,12 @@ describe("markdownToPlainText", () => {
 });
 
 // Bug 17: the words typed around a URL were saved but never shown.
+test("never ends a preview on half of an emoji", () => {
+  expect(markdownToPlainText("&#128512;", { maxLength: 1 })).toBe("");
+  expect(markdownToPlainText("a&#128512;", { maxLength: 2 })).toBe("a");
+  expect(markdownToPlainText("&#128512;", { maxLength: 2 })).toBe("😀");
+});
+
 describe("linkNoteText", () => {
   test.each([
     ["Read this https://x.com/a later", "Read this later"],
