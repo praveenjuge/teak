@@ -394,6 +394,7 @@ export const claim = internalMutation({
           : [];
       await ctx.db.patch("workflowDispatches", row._id, {
         attempts: (row.attempts ?? 0) + 1,
+        lastReconciledAt: undefined,
         ...(row.reset ? { reset: undefined } : {}),
         sentAt: now,
         state: "sent",
@@ -763,6 +764,20 @@ export const markDelivered = internalMutation({
   },
 });
 
+const STALE_SCAN_BUDGET = 1000;
+
+const isStale = (row: Doc<"workflowDispatches">, now: number) =>
+  row.kind !== "deleteObjects" &&
+  row.kind !== "analyticsEvent" &&
+  row.instanceId !== undefined &&
+  (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind];
+
+/**
+ * Sent runs past their kind's silence limit, for the Files Worker's reconcile
+ * to look up: first the ones it never checked, oldest send first, then the
+ * ones it checked longest ago (`markReconciled`). Runs still going in
+ * Cloudflare so move to the back instead of hiding newer stale ones.
+ */
 export const listStale = internalQuery({
   args: { limit: v.optional(v.number()) },
   returns: v.array(
@@ -775,17 +790,43 @@ export const listStale = internalQuery({
   handler: async (ctx, { limit }) => {
     const now = Date.now();
     const shortest = Math.min(...Object.values(STALE_AFTER_MS));
-    const rows = await ctx.db
-      .query("workflowDispatches")
-      .withIndex("by_state_and_sentAt", (q) =>
-        q.eq("state", "sent").lt("sentAt", now - shortest)
-      )
-      .take(Math.min(limit ?? 100, 200));
-    return rows.flatMap((row) =>
+    const pageSize = Math.min(limit ?? 100, 200);
+    const stale: Doc<"workflowDispatches">[] = [];
+    let scanned = 0;
+    const collect = async (
+      rows: AsyncIterable<Doc<"workflowDispatches">>
+    ): Promise<void> => {
+      for await (const row of rows) {
+        if (stale.length >= pageSize || scanned >= STALE_SCAN_BUDGET) {
+          return;
+        }
+        scanned += 1;
+        if (isStale(row, now)) {
+          stale.push(row);
+        }
+      }
+    };
+    await collect(
+      ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_state_and_lastReconciledAt_and_sentAt", (q) =>
+          q
+            .eq("state", "sent")
+            .eq("lastReconciledAt", undefined)
+            .lt("sentAt", now - shortest)
+        )
+    );
+    await collect(
+      ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_state_and_lastReconciledAt_and_sentAt", (q) =>
+          q.eq("state", "sent").gte("lastReconciledAt", 0)
+        )
+    );
+    return stale.flatMap((row) =>
       row.kind !== "deleteObjects" &&
       row.kind !== "analyticsEvent" &&
-      row.instanceId &&
-      (row.sentAt ?? now) < now - STALE_AFTER_MS[row.kind]
+      row.instanceId
         ? [
             {
               instanceId: row.instanceId,
@@ -795,6 +836,29 @@ export const listStale = internalQuery({
           ]
         : []
     );
+  },
+});
+
+/** Records the runs the reconcile looked up and found still going. */
+export const markReconciled = internalMutation({
+  args: { instanceIds: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { instanceIds }) => {
+    const now = Date.now();
+    for (const instanceId of instanceIds.slice(0, 200)) {
+      const rows = await ctx.db
+        .query("workflowDispatches")
+        .withIndex("by_instanceId", (q) => q.eq("instanceId", instanceId))
+        .take(10);
+      for (const row of rows) {
+        if (row.state === "sent") {
+          await ctx.db.patch("workflowDispatches", row._id, {
+            lastReconciledAt: now,
+          });
+        }
+      }
+    }
+    return null;
   },
 });
 

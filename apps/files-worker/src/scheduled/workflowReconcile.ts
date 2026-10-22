@@ -65,6 +65,7 @@ export const reconcileWorkflows = async (
   const stale = await convex.query(internal.workflowDispatch.listStale, {
     limit: STALE_PAGE,
   });
+  const stillOpen: string[] = [];
   for (const { instanceId, workflow } of stale) {
     const binding = isWorkflowName(workflow)
       ? workflowBinding(env, workflow)
@@ -81,10 +82,12 @@ export const reconcileWorkflows = async (
         error: error instanceof Error ? error.message : String(error),
         instanceId,
       });
+      stillOpen.push(instanceId);
       continue;
     }
     if (ending.status === "running") {
       summary.running += 1;
+      stillOpen.push(instanceId);
       continue;
     }
     await convex.mutation(internal.workflowDispatch.complete, {
@@ -93,6 +96,19 @@ export const reconcileWorkflows = async (
       ...(ending.status === "errored" ? { error: ending.error } : {}),
     });
     summary[ending.status === "complete" ? "completed" : "errored"] += 1;
+  }
+  if (stillOpen.length > 0) {
+    // Moves these runs behind the ones not checked yet. A Convex deployment
+    // older than this Worker refuses the call; the reconcile works without it.
+    await convex
+      .mutation(internal.workflowDispatch.markReconciled, {
+        instanceIds: stillOpen,
+      })
+      .catch((error: unknown) => {
+        console.warn("[reconcile] could not record checked runs", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
   }
   for (let page = 0; page < MAX_PRUNE_PAGES; page += 1) {
     const { deleted, hasMore } = await convex.mutation(

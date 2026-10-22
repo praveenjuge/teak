@@ -787,9 +787,15 @@ export default defineSchema({
     rev: v.optional(v.number()),
     reset: v.optional(v.literal(true)),
     error: v.optional(v.string()),
+    lastReconciledAt: v.optional(v.number()),
   })
     .index("by_state_and_notBefore", ["state", "notBefore"])
     .index("by_state_and_sentAt", ["state", "sentAt"])
+    .index("by_state_and_lastReconciledAt_and_sentAt", [
+      "state",
+      "lastReconciledAt",
+      "sentAt",
+    ])
     .index("by_state_and_finishedAt", ["state", "finishedAt"])
     .index("by_key_and_createdAt", ["key", "createdAt"])
     .index("by_instanceId", ["instanceId"]),

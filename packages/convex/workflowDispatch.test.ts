@@ -403,6 +403,78 @@ describe("reconcile helpers", () => {
     ]);
   });
 
+  const insertSent = (
+    t: ReturnType<typeof convexTest>,
+    rowsToInsert: ReadonlyArray<readonly ["export" | "import", string, number]>
+  ) =>
+    t.run(async (ctx) => {
+      for (const [kind, instanceId, sentAgo] of rowsToInsert) {
+        await ctx.db.insert("workflowDispatches", {
+          createdAt: NOW - sentAgo,
+          instanceId,
+          key: instanceId,
+          kind,
+          notBefore: NOW - sentAgo,
+          sentAt: NOW - sentAgo,
+          state: "sent",
+        });
+      }
+    });
+
+  const staleIds = async (t: ReturnType<typeof convexTest>, limit: number) =>
+    (await t.query(internal.workflowDispatch.listStale, { limit })).map(
+      (row: { instanceId: string }) => row.instanceId
+    );
+
+  test("runs too young for their kind do not crowd out stale ones", async () => {
+    const t = convexTest(schema, modules);
+    await insertSent(t, [
+      ["import", "import-1", 5 * HOUR_MS],
+      ["import", "import-2", 5 * HOUR_MS],
+      ["export", "export-old", 3 * HOUR_MS],
+    ]);
+    expect(await staleIds(t, 2)).toEqual(["export-old"]);
+  });
+
+  test("runs the reconcile found still running wait behind unchecked ones", async () => {
+    const t = convexTest(schema, modules);
+    await insertSent(t, [
+      ["export", "export-a", 5 * HOUR_MS],
+      ["export", "export-b", 4 * HOUR_MS],
+      ["export", "export-c", 3 * HOUR_MS],
+    ]);
+    expect(await staleIds(t, 2)).toEqual(["export-a", "export-b"]);
+    await t.mutation(internal.workflowDispatch.markReconciled, {
+      instanceIds: ["export-a", "export-b"],
+    });
+    expect(await staleIds(t, 2)).toEqual(["export-c", "export-a"]);
+    vi.setSystemTime(NOW + 60_000);
+    await t.mutation(internal.workflowDispatch.markReconciled, {
+      instanceIds: ["export-c", "export-a"],
+    });
+    expect(await staleIds(t, 3)).toEqual(["export-b", "export-a", "export-c"]);
+  });
+
+  test("a run sent again is unchecked again", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
+    await t.mutation(internal.workflowDispatch.claim, {});
+    await t.mutation(internal.workflowDispatch.markReconciled, {
+      instanceIds: [`export-${jobId}`],
+    });
+    expect((await rows(t))[0]?.lastReconciledAt).toBe(NOW);
+    await t.mutation(internal.workflowDispatch.complete, {
+      error: "instance_missing",
+      instanceId: `export-${jobId}`,
+      status: "errored",
+    });
+    await t.mutation(internal.workflowDispatch.claim, {});
+    const [row] = await rows(t);
+    expect(row?.state).toBe("sent");
+    expect(row?.lastReconciledAt).toBeUndefined();
+  });
+
   test("deletes finished rows past retention and settles old deletions", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {

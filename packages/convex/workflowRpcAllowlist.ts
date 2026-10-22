@@ -1,6 +1,7 @@
 export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "workflowDispatch:complete",
   "workflowDispatch:listStale",
+  "workflowDispatch:markReconciled",
   "workflowDispatch:pruneFinished",
   "adminHealth:recordCronRun",
   "adminUsage:replaceDailyUsage",
