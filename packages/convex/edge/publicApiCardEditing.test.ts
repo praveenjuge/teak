@@ -1364,6 +1364,21 @@ describe("Card tags", () => {
     ).toHaveLength(MAX_CARD_TAGS + 19);
   });
 
+  test("a card keeps a long tag it saved before the limit while its other tags change", async () => {
+    const { t, cardId } = await setup();
+    const legacy = "x".repeat(70);
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { tags: [legacy] }));
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      tags: [legacy, "new"],
+    });
+    expect((await t.run((ctx) => ctx.db.get("cards", cardId)))?.tags).toEqual([
+      legacy,
+      "new",
+    ]);
+  });
+
   test("creating a card past the per-card tag limit is refused", async () => {
     const { t } = await setup();
     await expect(

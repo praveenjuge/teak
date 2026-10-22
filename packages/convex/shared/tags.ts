@@ -67,17 +67,19 @@ export const normalizeTagList = (tags: readonly string[]): string[] => {
 };
 
 /**
- * Why a card can't hold these normalized tags, or null. A card already past
- * the limit (saved before it existed) may keep or drop tags, never add.
+ * Why a card can't hold these normalized tags, or null. Tags the card already
+ * has (saved before the limits existed) may stay, and a card already past the
+ * count may keep or drop tags, never add.
  */
 export const explainInvalidCardTags = (
   tags: readonly string[],
-  previousCount = 0
+  previousTags: readonly string[] = []
 ): string | null => {
-  if (tags.some((tag) => tag.length > MAX_TAG_NAME_LENGTH)) {
+  const kept = new Set(previousTags);
+  if (tags.some((tag) => tag.length > MAX_TAG_NAME_LENGTH && !kept.has(tag))) {
     return CARD_TAG_ERROR_MESSAGES.TAG_TOO_LONG;
   }
-  if (tags.length > MAX_CARD_TAGS && tags.length > previousCount) {
+  if (tags.length > MAX_CARD_TAGS && tags.length > previousTags.length) {
     return CARD_TAG_ERROR_MESSAGES.TOO_MANY_TAGS;
   }
   return null;

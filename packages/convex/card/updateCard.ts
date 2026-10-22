@@ -183,11 +183,11 @@ const spendCardReprocessLimits = async (
 
 /**
  * Normalizes the tags a card write sets and refuses ones the card can't hold.
- * `previousCount` is how many tags the card had before the write.
+ * `previousTags` are the tags the card had before the write.
  */
 export const normalizeCardTags = (
   tags: readonly unknown[],
-  previousCount = 0
+  previousTags: readonly string[] = []
 ): string[] | undefined => {
   if (tags.some((tag) => typeof tag !== "string")) {
     throw new ConvexError({
@@ -196,7 +196,7 @@ export const normalizeCardTags = (
     });
   }
   const normalized = normalizeTagList(tags as string[]);
-  const problem = explainInvalidCardTags(normalized, previousCount);
+  const problem = explainInvalidCardTags(normalized, previousTags);
   if (problem) {
     throw new ConvexError({ code: "INVALID_INPUT", message: problem });
   }
@@ -230,7 +230,7 @@ export const updateCard = mutation({
       updates.url = assertSafeExternalUrl(updates.url);
     }
     if (updates.tags !== undefined) {
-      updates.tags = normalizeCardTags(updates.tags, card.tags?.length);
+      updates.tags = normalizeCardTags(updates.tags, card.tags);
     }
 
     const now = Date.now();
@@ -422,7 +422,7 @@ const applyCardFieldEdit = (
 
     case "tags":
       state.updateData.tags = Array.isArray(value)
-        ? normalizeCardTags(value, card.tags?.length)
+        ? normalizeCardTags(value, card.tags)
         : undefined;
       return true;
 

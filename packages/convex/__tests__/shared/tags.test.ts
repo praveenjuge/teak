@@ -157,16 +157,24 @@ describe("card tag lists", () => {
     expect(explainInvalidCardTags(["x".repeat(64)])).toBeNull();
   });
 
+  test("keeps a long tag the card saved before the limit, refusing only new ones", () => {
+    const legacy = "x".repeat(70);
+    expect(explainInvalidCardTags([legacy, "new"], [legacy])).toBeNull();
+    expect(explainInvalidCardTags([legacy, "y".repeat(65)], [legacy])).toBe(
+      "Each tag must be at most 64 characters"
+    );
+  });
+
   test("refuses growing a card past the tag limit but lets one already past it shrink", () => {
     expect(explainInvalidCardTags(tags(MAX_CARD_TAGS))).toBeNull();
     expect(explainInvalidCardTags(tags(MAX_CARD_TAGS + 1))).toBe(
       `A card can have at most ${MAX_CARD_TAGS} tags`
     );
     expect(
-      explainInvalidCardTags(tags(MAX_CARD_TAGS + 5), MAX_CARD_TAGS + 6)
+      explainInvalidCardTags(tags(MAX_CARD_TAGS + 5), tags(MAX_CARD_TAGS + 6))
     ).toBeNull();
     expect(
-      explainInvalidCardTags(tags(MAX_CARD_TAGS + 7), MAX_CARD_TAGS + 6)
+      explainInvalidCardTags(tags(MAX_CARD_TAGS + 7), tags(MAX_CARD_TAGS + 6))
     ).not.toBeNull();
   });
 });
