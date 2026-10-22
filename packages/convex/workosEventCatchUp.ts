@@ -4,8 +4,10 @@ import {
   type ActionCtx,
   internalMutation,
   internalQuery,
+  type MutationCtx,
 } from "./_generated/server";
 import { createWorkosClient } from "./shared/workosClient";
+import { captureBackendException } from "./telemetry/posthog";
 import { authKit } from "./workosAuthKit";
 import { ingestWorkosEvent } from "./workosWebhook";
 
@@ -16,6 +18,15 @@ const CURSOR = "user-events";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 const FIRST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+// Runs an event may fail before it is dead-lettered, so one bad event can't
+// hold every later one back.
+const MAX_EVENT_ATTEMPTS = 5;
+
+const cursorRow = (ctx: MutationCtx) =>
+  ctx.db
+    .query("workosEventCursors")
+    .withIndex("by_name", (q) => q.eq("name", CURSOR))
+    .unique();
 
 export const readCursor = internalQuery({
   args: {},
@@ -33,13 +44,12 @@ export const saveCursor = internalMutation({
   args: { after: v.string() },
   returns: v.null(),
   handler: async (ctx, { after }) => {
-    const existing = await ctx.db
-      .query("workosEventCursors")
-      .withIndex("by_name", (q) => q.eq("name", CURSOR))
-      .unique();
+    const existing = await cursorRow(ctx);
     if (existing) {
       await ctx.db.patch("workosEventCursors", existing._id, {
         after,
+        failingEventId: undefined,
+        failedAttempts: undefined,
         updatedAt: Date.now(),
       });
     } else {
@@ -52,6 +62,65 @@ export const saveCursor = internalMutation({
     return null;
   },
 });
+
+/** Counts a run that failed on `eventId` and returns how many have. */
+export const recordFailedAttempt = internalMutation({
+  args: { eventId: v.string() },
+  returns: v.number(),
+  handler: async (ctx, { eventId }) => {
+    const existing = await cursorRow(ctx);
+    const failedAttempts =
+      existing?.failingEventId === eventId
+        ? (existing.failedAttempts ?? 0) + 1
+        : 1;
+    const fields = { failingEventId: eventId, failedAttempts };
+    if (existing) {
+      await ctx.db.patch("workosEventCursors", existing._id, {
+        ...fields,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("workosEventCursors", {
+        name: CURSOR,
+        ...fields,
+        updatedAt: Date.now(),
+      });
+    }
+    return failedAttempts;
+  },
+});
+
+const ingestOrDeadLetter = async (
+  ctx: Pick<ActionCtx, "runMutation">,
+  event: Parameters<typeof ingestWorkosEvent>[1] & { id: string }
+): Promise<"applied" | "rejected"> => {
+  try {
+    return await ingestWorkosEvent(ctx, event);
+  } catch (error) {
+    const attempts = await ctx.runMutation(
+      internal.workosEventCatchUp.recordFailedAttempt,
+      { eventId: event.id }
+    );
+    if (attempts < MAX_EVENT_ATTEMPTS) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    await ctx.runMutation(internal.workosWebhook.recordDeadLetter, {
+      eventId: event.id.slice(0, 256),
+      event: event.event,
+      reason: `catch_up_failed: ${message}`.slice(0, 128),
+    });
+    await captureBackendException(error, {
+      properties: {
+        attempts,
+        event: event.event,
+        operation: "workos_event_catch_up",
+        stage: "dead_letter",
+      },
+    });
+    return "rejected";
+  }
+};
 
 export const catchUpHandler = async (
   ctx: Pick<ActionCtx, "runMutation" | "runQuery">
@@ -86,7 +155,7 @@ export const catchUpHandler = async (
       ) {
         continue;
       }
-      const outcome = await ingestWorkosEvent(ctx, event);
+      const outcome = await ingestOrDeadLetter(ctx, event);
       if (outcome === "rejected") {
         rejected += 1;
       } else {

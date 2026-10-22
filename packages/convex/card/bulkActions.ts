@@ -8,8 +8,8 @@ import {
   onlyAddsToTarget,
   smartFolderMembership,
 } from "../folder/membership";
-import { explainInvalidTags } from "../publicApiHttpShared";
 import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
@@ -46,15 +46,7 @@ const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
   };
 
 export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
-  const seen = new Set<string>();
-  const normalized: string[] = [];
-  for (const raw of tags ?? []) {
-    const tag = raw.trim();
-    if (tag && !seen.has(tag.toLowerCase())) {
-      seen.add(tag.toLowerCase());
-      normalized.push(tag);
-    }
-  }
+  const normalized = normalizeTagList(tags ?? []);
   if (normalized.length === 0) {
     throw new ConvexError({
       code: "INVALID_INPUT",
@@ -67,7 +59,7 @@ export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
       message: `Name at most ${MAX_BULK_TAGS} tags at a time`,
     });
   }
-  const tagError = explainInvalidTags(normalized);
+  const tagError = explainInvalidCardTags(normalized);
   if (tagError) {
     throw new ConvexError({ code: "INVALID_INPUT", message: tagError });
   }

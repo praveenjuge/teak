@@ -108,6 +108,17 @@ const drainCardBucket = (t: { run: ReturnType<typeof convexTest>["run"] }) =>
     }
   });
 
+/** Spends the owner's card bucket past what the next minute refills. */
+const overdrawCardBucket = (t: { run: ReturnType<typeof convexTest>["run"] }) =>
+  t.run(async (ctx) => {
+    for (let i = 0; i < 30; i++) {
+      await rateLimiter.limit(ctx, "cardCreation", {
+        key: "owner",
+        reserve: true,
+      });
+    }
+  });
+
 const email = (fields: Record<string, unknown> = {}) => ({
   attachments: [],
   date: "Tue, 14 Oct 2026 09:30:00 +0000",
@@ -812,6 +823,57 @@ describe("attachments", () => {
     vi.advanceTimersByTime(60_000);
     await ctx.t.finishAllScheduledFunctions(vi.runAllTimers);
     expect((await ctx.cards()).map((card) => card.type)).toEqual(["document"]);
+  });
+
+  test("a finalize that keeps finding an empty card bucket stops rescheduling", async () => {
+    vi.useFakeTimers();
+    stubWorker();
+    const ctx = await setup();
+    const sent = await sendWithAttachments(ctx, [pdf(0)], {
+      html: null,
+      subject: "",
+      text: null,
+    });
+    await drainCardBucket(ctx.t);
+    expect(
+      (
+        await ctx.finalize({
+          fileKey: sent.uploads[0].fileKey,
+          index: 0,
+          receiptKey: sent.receiptKey,
+        })
+      ).body
+    ).toEqual({ status: "scheduled" });
+
+    const pendingRetries = () =>
+      ctx.t.run(async (db) =>
+        (await db.db.system.query("_scheduled_functions").collect()).filter(
+          (job) =>
+            job.name.includes("retryEmailAttachment") &&
+            job.state.kind === "pending"
+        )
+      );
+    let runs = 0;
+    for (; runs < 60; runs++) {
+      const [job] = await pendingRetries();
+      if (!job) {
+        break;
+      }
+      // Empty the bucket just before each retry runs, so it is refused again.
+      await vi.advanceTimersByTimeAsync(
+        Math.max(0, job.scheduledTime - Date.now() - 1)
+      );
+      await overdrawCardBucket(ctx.t);
+      await vi.advanceTimersByTimeAsync(1);
+      await ctx.t.finishInProgressScheduledFunctions();
+    }
+    expect(runs).toBeLessThan(60);
+    expect(await pendingRetries()).toEqual([]);
+    expect(await ctx.cards()).toEqual([]);
+    // Released, not dropped, so a redelivery of the email can still save it.
+    expect(
+      (await ctx.receipts())[0]?.pendingAttachments?.map((item) => item.state)
+    ).toEqual(["unclaimed"]);
   });
 
   test("a scheduled finalize that hits a Files Worker fault is followed up", async () => {

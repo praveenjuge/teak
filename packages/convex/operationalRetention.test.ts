@@ -40,7 +40,7 @@ const seedRequests = async (t: ReturnType<typeof convexTest>) =>
     }
   });
 
-test("dry run retains every record and identifies only expired completed responses", async () => {
+test("dry run retains every record and identifies only expired requests", async () => {
   const t = convexTest(schema, modules);
   await seedRequests(t);
   const before = await t.run((ctx) =>
@@ -54,16 +54,16 @@ test("dry run retains every record and identifies only expired completed respons
   );
   expect(report).toMatchObject({
     examined: 2,
-    eligible: 1,
+    eligible: 2,
     deleted: 0,
-    preservedPending: 1,
+    expiredPending: 1,
   });
   expect(
     await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())
   ).toEqual(before);
 });
 
-test("cleanup preserves pending and unexpired requests and live response replay", async () => {
+test("cleanup deletes expired requests, including lapsed reservations, and keeps live response replay", async () => {
   const t = convexTest(schema, modules);
   await seedRequests(t);
   const report = await t.mutation(
@@ -73,13 +73,12 @@ test("cleanup preserves pending and unexpired requests and live response replay"
       dryRun: false,
     }
   );
-  expect(report.deleted).toBe(1);
+  expect(report.deleted).toBe(2);
   const rows = await t.run((ctx) =>
     ctx.db.query("apiIdempotencyKeys").collect()
   );
   expect(rows.map((r) => r.keyHash).sort()).toEqual([
     "boundary-completed",
-    "expired-pending",
     "live-completed",
   ]);
   const retry = await t.mutation(
@@ -110,10 +109,12 @@ test("renewing an expired request before cleanup preserves its reservation", asy
     internal.operationalRetention.cleanupExpiredRecords,
     { kind: "idempotency", dryRun: false }
   );
-  expect(report.deleted).toBe(0);
+  expect(report.deleted).toBe(1);
   expect(
-    (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
-  ).toBe(4);
+    (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect()))
+      .map((row) => row.keyHash)
+      .sort()
+  ).toEqual(["boundary-completed", "expired-completed", "live-completed"]);
 });
 
 test("the hourly cron's cleanup does nothing until retention is enabled", async () => {
@@ -135,12 +136,12 @@ test("the hourly cron's cleanup does nothing until retention is enabled", async 
   vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", "true");
   expect(
     await t.mutation(internal.operationalRetention.startIdempotencyCleanup, {})
-  ).toMatchObject({ deleted: 1, isDone: true, skipped: false });
+  ).toMatchObject({ deleted: 2, isDone: true, skipped: false });
   expect(
     (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect()))
       .map((row) => row.keyHash)
       .sort()
-  ).toEqual(["boundary-completed", "expired-pending", "live-completed"]);
+  ).toEqual(["boundary-completed", "live-completed"]);
 });
 
 test("an hourly cron run during a scan joins it instead of starting another", async () => {
@@ -173,7 +174,7 @@ test("an hourly cron run during a scan joins it instead of starting another", as
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(
     (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
-  ).toBe(100);
+  ).toBe(0);
 });
 
 test("activation and cutoff guards reject unsafe cleanup", async () => {
@@ -197,7 +198,7 @@ test("activation and cutoff guards reject unsafe cleanup", async () => {
   ).toBe(4);
 });
 
-test("a pending first page cannot block expired completed records on later pages", async () => {
+test("lapsed reservations on the first page are deleted and the scan continues to later pages", async () => {
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
     for (let i = 0; i < 102; i++) {
@@ -221,18 +222,18 @@ test("a pending first page cannot block expired completed records on later pages
     { kind: "idempotency", dryRun: false, remainingBatches: 1 }
   );
   expect(first).toMatchObject({
-    preservedPending: 100,
-    deleted: 0,
+    expiredPending: 100,
+    deleted: 100,
     isDone: false,
     continuationScheduled: true,
   });
   await t.finishAllScheduledFunctions(() => vi.runAllTimers());
   expect(
     (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
-  ).toBe(100);
+  ).toBe(0);
 });
 
-test("scheduled bursts carry their cursor past more than 2000 pending reservations", async () => {
+test("scheduled bursts carry their cursor past more than 2000 expired reservations", async () => {
   const t = convexTest(schema, modules);
   await t.run(async (ctx) => {
     for (let i = 0; i < 2002; i++) {
@@ -259,8 +260,7 @@ test("scheduled bursts carry their cursor past more than 2000 pending reservatio
   const rows = await t.run((ctx) =>
     ctx.db.query("apiIdempotencyKeys").collect()
   );
-  expect(rows).toHaveLength(2001);
-  expect(rows.every((row) => row.state === "pending")).toBe(true);
+  expect(rows).toHaveLength(0);
 });
 
 test("operational cleanup leaves complete customer cards unchanged", async () => {

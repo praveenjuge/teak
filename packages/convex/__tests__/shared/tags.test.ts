@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  explainInvalidCardTags,
   explainInvalidTagName,
   isCardHidden,
   isHiddenTagList,
+  MAX_CARD_TAGS,
+  normalizeTagList,
   rewriteTagList,
   tagExistsMessage,
   tagKey,
@@ -133,5 +136,37 @@ describe("hidden tags", () => {
         tags: string[];
       })
     ).toBe(false);
+  });
+});
+
+describe("card tag lists", () => {
+  const tags = (count: number) =>
+    Array.from({ length: count }, (_, index) => `tag-${index}`);
+
+  test("trims, drops blanks and keeps the first of each case variant", () => {
+    expect(normalizeTagList([" Design ", "", "design", "web", "  "])).toEqual([
+      "Design",
+      "web",
+    ]);
+  });
+
+  test("refuses a tag over 64 characters", () => {
+    expect(explainInvalidCardTags(["x".repeat(65)])).toBe(
+      "Each tag must be at most 64 characters"
+    );
+    expect(explainInvalidCardTags(["x".repeat(64)])).toBeNull();
+  });
+
+  test("refuses growing a card past the tag limit but lets one already past it shrink", () => {
+    expect(explainInvalidCardTags(tags(MAX_CARD_TAGS))).toBeNull();
+    expect(explainInvalidCardTags(tags(MAX_CARD_TAGS + 1))).toBe(
+      `A card can have at most ${MAX_CARD_TAGS} tags`
+    );
+    expect(
+      explainInvalidCardTags(tags(MAX_CARD_TAGS + 5), MAX_CARD_TAGS + 6)
+    ).toBeNull();
+    expect(
+      explainInvalidCardTags(tags(MAX_CARD_TAGS + 7), MAX_CARD_TAGS + 6)
+    ).not.toBeNull();
   });
 });

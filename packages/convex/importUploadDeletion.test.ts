@@ -749,3 +749,114 @@ test("the hourly cron aborts an abandoned import upload, fails the job and queue
     dispatches.filter((row) => row.kind === "deleteObjects")
   ).toMatchObject([{ keys: [key] }]);
 });
+
+async function uploadOnePart() {
+  const session = await importSession();
+  const worker = stubWorker();
+  const created = await session.signed.action(
+    api.importUpload.createImportUpload,
+    { mode: "archive", fileName: "proof.zip", fileSize: 1, fileLastModified: 0 }
+  );
+  const put = await putPart(
+    worker.call,
+    created.parts[0].url,
+    new Uint8Array([1])
+  );
+  await session.signed.mutation(api.dataImport.recordImportPart, {
+    jobId: created.jobId,
+    partNumber: 1,
+    etag: `"${put.headers.get("etag")}"`,
+    size: 1,
+  });
+  return { ...session, ...worker, jobId: created.jobId as Id<"importJobs"> };
+}
+
+interface CompletedPart {
+  etag: string;
+  partNumber: number;
+}
+
+test("a second completion while the first is finishing leaves the queued import's source in place", async () => {
+  const { t, signed, bucket, jobId } = await uploadOnePart();
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let admit!: () => void;
+  const completedInR2 = new Promise<void>((resolve) => {
+    admit = resolve;
+  });
+  const resume = bucket.resumeMultipartUpload.bind(bucket);
+  bucket.resumeMultipartUpload = (objectKey: string, uploadId: string) => {
+    const upload = resume(objectKey, uploadId);
+    return {
+      ...upload,
+      complete: async (parts: CompletedPart[]) => {
+        const result = await upload.complete(parts);
+        admit();
+        await hold;
+        return result;
+      },
+    };
+  };
+  const first = signed.action(api.importUpload.completeImportUpload, {
+    jobId,
+  });
+  await completedInR2;
+  const sourceKey = bucket.multipartCompletions[0].key;
+  try {
+    await expect(
+      signed.action(api.importUpload.completeImportUpload, { jobId })
+    ).rejects.toThrow("This import is already being completed");
+  } finally {
+    release();
+  }
+  await first;
+  expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+    status: "queued",
+  });
+  expect(bucket.storedBytes(sourceKey)).toEqual(new Uint8Array([1]));
+});
+
+test("a completion that fails releases its claim so a retry can finish the upload", async () => {
+  const { t, signed, call, jobId } = await uploadOnePart();
+  let failNext = true;
+  vi.stubGlobal(
+    "fetch",
+    (input: string | URL | Request, init?: RequestInit) => {
+      if (failNext) {
+        failNext = false;
+        return Promise.reject(new Error("connection reset"));
+      }
+      return call(input instanceof Request ? input : new Request(input, init));
+    }
+  );
+  await expect(
+    signed.action(api.importUpload.completeImportUpload, { jobId })
+  ).rejects.toThrow("files_worker_network_error");
+  await signed.action(api.importUpload.completeImportUpload, { jobId });
+  expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+    status: "queued",
+  });
+});
+
+test("a completion claim left by a call that died lapses so the upload can still complete", async () => {
+  const { t, signed, bucket, jobId } = await uploadOnePart();
+  await t.run((ctx) =>
+    ctx.db.patch(jobId, {
+      completionClaim: { token: "dead-call", expiresAt: Date.now() + 1000 },
+    })
+  );
+  await expect(
+    signed.action(api.importUpload.completeImportUpload, { jobId })
+  ).rejects.toThrow("This import is already being completed");
+  expect(bucket.multipartCompletions).toHaveLength(0);
+  vi.advanceTimersByTime(1001);
+  await signed.action(api.importUpload.completeImportUpload, { jobId });
+  expect(await t.run((ctx) => ctx.db.get(jobId))).toMatchObject({
+    status: "queued",
+  });
+  expect(
+    (await t.run((ctx) => ctx.db.get(jobId)))?.completionClaim
+  ).toBeUndefined();
+});

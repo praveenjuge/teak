@@ -5,13 +5,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "./__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { getActiveCardCount } from "./card/cardUsage";
+import { CARD_USAGE_SHARD_VERSION, getActiveCardCount } from "./card/cardUsage";
 import { insertCompletedCards } from "./card/defaultCards";
 import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
 import schema from "./schema";
+import { MAX_CARD_TAGS } from "./shared/tags";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -308,6 +309,72 @@ describe("bulk actions", () => {
     expect(result).toEqual({ updatedIds: [mine], failedIds: [theirs] });
     const card = await t.run((ctx) => ctx.db.get("cards", theirs));
     expect(card?.isArchived).toBeUndefined();
+  });
+
+  test("adding tags fails only the card it would push past the tag limit", async () => {
+    const { owner, insert, t } = await setup();
+    const full = Array.from(
+      { length: MAX_CARD_TAGS },
+      (_, index) => `tag-${index}`
+    );
+    const roomy = await insert({ content: "Roomy", type: "text" });
+    const crowded = await insert({
+      content: "Crowded",
+      type: "text",
+      tags: full,
+    });
+
+    const result = await owner.mutation(api.cards.bulkUpdateCards, {
+      cardIds: [roomy, crowded],
+      action: "addTags",
+      tags: ["later"],
+    });
+    expect(result).toEqual({ updatedIds: [roomy], failedIds: [crowded] });
+    const [roomyCard, crowdedCard] = await t.run((ctx) =>
+      Promise.all([ctx.db.get("cards", roomy), ctx.db.get("cards", crowded)])
+    );
+    expect(roomyCard?.tags).toEqual(["later"]);
+    expect(crowdedCard?.tags).toEqual(full);
+  });
+
+  test("a delete that fails midway leaves the failed card in place", async () => {
+    const { owner, insert, t } = await setup();
+    const cardId = await insert({ content: "Keep me", type: "text" });
+    // Shards marked current but missing make the usage count fail after the
+    // card was already written.
+    await t.run(async (ctx) => {
+      const usage = await ctx.db
+        .query("userCardUsage")
+        .withIndex("by_userId", (q) => q.eq("userId", "owner"))
+        .unique();
+      const fields = {
+        activeCardCount: 1,
+        isCountExact: true,
+        isSaturated: false,
+        shardVersion: CARD_USAGE_SHARD_VERSION,
+        updatedAt: 1000,
+      };
+      if (usage) {
+        await ctx.db.patch("userCardUsage", usage._id, fields);
+      } else {
+        await ctx.db.insert("userCardUsage", { userId: "owner", ...fields });
+      }
+      for (const shard of await ctx.db
+        .query("userCardUsageShards")
+        .withIndex("by_userId_and_shard", (q) => q.eq("userId", "owner"))
+        .collect()) {
+        await ctx.db.delete("userCardUsageShards", shard._id);
+      }
+    });
+
+    const result = await owner.mutation(api.cards.bulkUpdateCards, {
+      cardIds: [cardId],
+      action: "delete",
+    });
+    expect(result).toEqual({ updatedIds: [], failedIds: [cardId] });
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.isDeleted).toBeUndefined();
+    expect(card?.deletedAt).toBeUndefined();
   });
 
   test("a retry succeeds on cards an earlier attempt already changed", async () => {

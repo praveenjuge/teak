@@ -126,3 +126,42 @@ test("an event Teak can never apply is dead-lettered and does not block the curs
     "event_good"
   );
 });
+
+test("an event that keeps failing is dead-lettered on the fifth run and the cursor moves past it", async () => {
+  const t = setup();
+  const stuck = {
+    ...userEvent("event_stuck", {
+      id: "user_STUCK",
+      email: "stuck@example.com",
+      email_verified: true,
+    }),
+    created_at: "2099-01-01T00:00:00.000Z",
+  };
+  const following = userEvent("event_following", {
+    id: "user_FOLLOWING",
+    email: "following@example.com",
+    email_verified: true,
+  });
+  for (let run = 1; run < 5; run++) {
+    pages = [[stuck, following]];
+    await expect(
+      t.action(internal.telemetry.crons.workosEventCatchUp, {})
+    ).rejects.toThrow("future");
+    expect(await t.query(internal.workosEventCatchUp.readCursor, {})).toBe(
+      null
+    );
+  }
+  pages = [[stuck, following]];
+  await t.action(internal.telemetry.crons.workosEventCatchUp, {});
+  expect(
+    await t.run((ctx) => ctx.db.query("workosWebhookDeadLetters").take(5))
+  ).toMatchObject([{ eventId: "event_stuck", event: "user.created" }]);
+  expect(
+    (await t.run((ctx) => ctx.db.query("users").take(5))).map(
+      (row) => row.workosUserId
+    )
+  ).toEqual(["user_FOLLOWING"]);
+  expect(await t.query(internal.workosEventCatchUp.readCursor, {})).toBe(
+    "event_following"
+  );
+});

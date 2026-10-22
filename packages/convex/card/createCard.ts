@@ -28,6 +28,7 @@ import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
 import { syncCardSearch } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
+import { normalizeCardTags } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";
 
 // Older app versions send no `source`, so their cards report "unknown".
@@ -173,6 +174,7 @@ export const createCardForUserHandler = async (
     source?: CardCreationSource;
   } = {}
 ): Promise<Id<"cards">> => {
+  const tags = args.tags && normalizeCardTags(args.tags);
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
   assertClientKeysInUserNamespace(userId, {
@@ -228,7 +230,7 @@ export const createCardForUserHandler = async (
     const paletteText = [
       finalContent,
       args.notes ?? "",
-      Array.isArray(args.tags) ? args.tags.join(" ") : "",
+      tags ? tags.join(" ") : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -256,7 +258,7 @@ export const createCardForUserHandler = async (
     urlHost: normalizeUrlHost(finalUrl ?? cardSource.sourceUrl) ?? undefined,
     fileKey: args.fileKey,
     thumbnailKey: args.thumbnailKey,
-    tags: args.tags,
+    tags,
     notes: args.notes,
     metadata:
       Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,

@@ -19,7 +19,9 @@ import {
   syncCardSearchDocumentHandler,
   syncCardSearchTagsBatchHandler,
 } from "./card/searchDocumentHelpers";
+import { mapConvexErrorToResponse } from "./publicApiHttpShared";
 import schema from "./schema";
+import { MAX_CARD_TAGS } from "./shared/tags";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -1274,5 +1276,80 @@ describe("Tag listing", () => {
       ],
       isComplete: true,
     });
+  });
+});
+
+describe("Card tags", () => {
+  const manyTags = (count: number) =>
+    Array.from({ length: count }, (_, index) => `tag-${index}`);
+
+  test("a patch past the per-card tag limit is a 400 and leaves the card alone", async () => {
+    const { t, cardId } = await setup();
+    const error = await t
+      .mutation(internal.raycast.patchCardForUser, {
+        cardId,
+        userId: "owner",
+        tags: manyTags(MAX_CARD_TAGS + 1),
+      })
+      .catch((caught: unknown) => caught);
+    const response = mapConvexErrorToResponse(error, "Failed to update card");
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      code: "INVALID_INPUT",
+      error: `A card can have at most ${MAX_CARD_TAGS} tags`,
+    });
+    expect((await t.run((ctx) => ctx.db.get("cards", cardId)))?.tags).toEqual([
+      "original",
+    ]);
+  });
+
+  test("a tag longer than 64 characters is refused on edit", async () => {
+    const { t, cardId } = await setup();
+    await expect(
+      t.mutation(internal.raycast.patchCardForUser, {
+        cardId,
+        userId: "owner",
+        tags: ["x".repeat(65)],
+      })
+    ).rejects.toThrow("Each tag must be at most 64 characters");
+  });
+
+  test("tags are trimmed and case duplicates collapse on edit", async () => {
+    const { t, cardId } = await setup();
+    await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      tags: [" Design ", "design", "", "web"],
+    });
+    expect((await t.run((ctx) => ctx.db.get("cards", cardId)))?.tags).toEqual([
+      "Design",
+      "web",
+    ]);
+  });
+
+  test("a card already over the limit can still drop tags", async () => {
+    const { t, cardId } = await setup();
+    const tags = manyTags(MAX_CARD_TAGS + 20);
+    await t.run((ctx) => ctx.db.patch("cards", cardId, { tags }));
+    await t.mutation(internal.raycast.patchCardForUser, {
+      cardId,
+      userId: "owner",
+      tags: tags.slice(1),
+    });
+    expect(
+      (await t.run((ctx) => ctx.db.get("cards", cardId)))?.tags
+    ).toHaveLength(MAX_CARD_TAGS + 19);
+  });
+
+  test("creating a card past the per-card tag limit is refused", async () => {
+    const { t } = await setup();
+    await expect(
+      t.mutation(internal.raycast.quickSaveForUser, {
+        userId: "owner",
+        content: "Too many tags",
+        cardType: "text",
+        tags: manyTags(MAX_CARD_TAGS + 1),
+      })
+    ).rejects.toThrow(`A card can have at most ${MAX_CARD_TAGS} tags`);
   });
 });

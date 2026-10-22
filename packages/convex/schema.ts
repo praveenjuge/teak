@@ -459,6 +459,14 @@ export const importJobValidator = v.object({
       v.object({ partNumber: v.number(), etag: v.string(), size: v.number() })
     )
   ),
+  /**
+   * Held by the `completeImportUpload` call that is finishing the multipart
+   * upload, so a concurrent call cannot queue the job twice or delete the
+   * source under it. Lapses at `expiresAt` if that call dies.
+   */
+  completionClaim: v.optional(
+    v.object({ token: v.string(), expiresAt: v.number() })
+  ),
   workflowId: v.optional(v.string()),
   cancelRequested: v.optional(v.boolean()),
   parsedCount: v.number(),
@@ -654,7 +662,11 @@ export default defineSchema({
   }).index("by_name", ["name"]),
   workosEventCursors: defineTable({
     name: v.string(),
-    after: v.string(),
+    // Missing until the first event is applied.
+    after: v.optional(v.string()),
+    // The event the catch-up keeps failing on, and how many runs it failed.
+    failingEventId: v.optional(v.string()),
+    failedAttempts: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_name", ["name"]),
   workosEvents: defineTable({
