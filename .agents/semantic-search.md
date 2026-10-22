@@ -121,7 +121,7 @@ or is due for, a vector (`packages/convex/embedding/`).
 
 ## Backfill
 
-`migration/backfillEmbeddings.ts` queues every card that has text and no
+`embedding/backfill.ts` queues every card that has text and no
 current vector:
 - cards saved before embeddings shipped
 - cards whose retries ran out
@@ -134,9 +134,9 @@ with 429 (`VECTOR_UPSERT_ERROR`, code 40041), so batch writes wherever many
 cards change at once. It's a dry run by default:
 
 ```bash
-npx convex run migration/backfillEmbeddings:backfillEmbeddings
-npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"userId":"teak_…"}'
-npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false}'
+npx convex run embedding/backfill:backfillEmbeddings
+npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false,"userId":"teak_…"}'
+npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false}'
 ```
 
 `userId` limits a run to one account, as a canary. Don't run the whole table
@@ -157,9 +157,9 @@ writes types is live and `teak-cards-0` has the `type` metadata index:
 
 ```bash
 npx wrangler vectorize list-metadata-index teak-cards-0
-npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"reembed":true}'
-npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"reembed":true,"userId":"teak_…"}'
-npx convex run migration/backfillEmbeddings:backfillEmbeddings '{"dryRun":false,"reembed":true}'
+npx convex run embedding/backfill:backfillEmbeddings '{"reembed":true}'
+npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false,"reembed":true,"userId":"teak_…"}'
+npx convex run embedding/backfill:backfillEmbeddings '{"dryRun":false,"reembed":true}'
 ```
 
 The dry run's `embedded` count is the number of cards a real run writes

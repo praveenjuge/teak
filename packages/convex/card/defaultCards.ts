@@ -490,7 +490,7 @@ export const insertCompletedCards = async (
     ) {
       await ctx.scheduler.runAfter(
         0,
-        internal["migration/extractDocumentText"].extractDocumentText,
+        internal.card.extractDocumentText.extractDocumentText,
         { cardId }
       );
     }

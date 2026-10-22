@@ -253,9 +253,9 @@ describe("getting-started cards", () => {
     );
     const pdf = cards.find((card) => card.type === "document");
     expect(
-      (
-        await scheduled(t, "migration/extractDocumentText:extractDocumentText")
-      ).map((job) => (job.args[0] as { cardId: string }).cardId)
+      (await scheduled(t, "card/extractDocumentText:extractDocumentText")).map(
+        (job) => (job.args[0] as { cardId: string }).cardId
+      )
     ).toEqual([pdf?._id]);
   });
 

@@ -127,17 +127,21 @@ const handleCreateCardRequest = async (
               status: "created" as const,
             };
           })
-      : await ctx.runMutation(internal.raycast.quickSaveForUser, {
-          cardType: createPayload.cardType,
-          content: createPayload.content,
-          notes: createPayload.notes === null ? undefined : createPayload.notes,
-          source: createPayload.source,
-          sourceTitle: createPayload.sourceTitle,
-          sourceUrl: createPayload.sourceUrl,
-          tags: createPayload.tags,
-          url: createPayload.url,
-          userId: auth.validated.userId,
-        });
+      : await ctx.runMutation(
+          internal.publicApi.cardsForUser.quickSaveForUser,
+          {
+            cardType: createPayload.cardType,
+            content: createPayload.content,
+            notes:
+              createPayload.notes === null ? undefined : createPayload.notes,
+            source: createPayload.source,
+            sourceTitle: createPayload.sourceTitle,
+            sourceUrl: createPayload.sourceUrl,
+            tags: createPayload.tags,
+            url: createPayload.url,
+            userId: auth.validated.userId,
+          }
+        );
     operationCommitted = true;
     const responseBody = buildCreateCardResponse(
       result,
@@ -529,7 +533,7 @@ const resolveCardId = (
   ctx: ActionCtx,
   cardId: string
 ): Promise<string | null> =>
-  ctx.runQuery(internal.raycast.resolveCardIdForUserRequest, {
+  ctx.runQuery(internal.publicApi.cardsForUser.resolveCardIdForUserRequest, {
     cardId,
   });
 
@@ -572,7 +576,7 @@ const ensureCardExistsForUser = (
   includeDeleted = false
 ): Promise<CardWithUrls | null> =>
   ctx
-    .runQuery(internal.raycast.getCardForUser, {
+    .runQuery(internal.publicApi.cardsForUser.getCardForUser, {
       cardId,
       userId,
     })
@@ -859,7 +863,7 @@ const handleCardsByIdV1Request = async (
     const done = route.operation === "done";
     try {
       const result = await ctx.runMutation(
-        internal.raycast.setCardDoneForUser,
+        internal.publicApi.cardsForUser.setCardDoneForUser,
         {
           cardId: normalizedCardId as Id<"cards">,
           done,
@@ -900,7 +904,7 @@ const handleCardsByIdV1Request = async (
 
   if (route.operation === "delete" || route.operation === "restore") {
     try {
-      let mutation = internal.raycast.softDeleteCardForUser;
+      let mutation = internal.publicApi.cardsForUser.softDeleteCardForUser;
       if (route.operation === "restore") {
         mutation = internal["card/deleteCard"].restoreCardForUser;
       } else if (permanent === "true") {
@@ -955,11 +959,14 @@ const handleCardsByIdV1Request = async (
     }
 
     try {
-      const updated = await ctx.runMutation(internal.raycast.patchCardForUser, {
-        ...patchPayload,
-        cardId: normalizedCardId,
-        userId: auth.validated.userId,
-      });
+      const updated = await ctx.runMutation(
+        internal.publicApi.cardsForUser.patchCardForUser,
+        {
+          ...patchPayload,
+          cardId: normalizedCardId,
+          userId: auth.validated.userId,
+        }
+      );
 
       if (!updated) {
         return errorResponse(404, "NOT_FOUND", "Card not found");
@@ -991,7 +998,7 @@ const handleCardsByIdV1Request = async (
 
     try {
       const updated = await ctx.runMutation(
-        internal.raycast.setCardFavoriteForUser,
+        internal.publicApi.cardsForUser.setCardFavoriteForUser,
         {
           cardId: normalizedCardId,
           isFavorited: favoritePayload.isFavorited,

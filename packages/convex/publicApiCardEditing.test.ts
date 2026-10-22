@@ -62,11 +62,14 @@ async function setup() {
 describe("Public API card title editing", () => {
   test("persists a trimmed title while preserving content and other card fields", async () => {
     const { t, cardId } = await setup();
-    const updated = await t.mutation(internal.raycast.patchCardForUser, {
-      cardId,
-      userId: "owner",
-      metadataTitle: "  Edited title  ",
-    });
+    const updated = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        cardId,
+        userId: "owner",
+        metadataTitle: "  Edited title  ",
+      }
+    );
     expect(updated?.metadataTitle).toBe("Edited title");
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card).toMatchObject({
@@ -95,7 +98,7 @@ describe("Public API card title editing", () => {
     "clears a title with %j",
     async (metadataTitle) => {
       const { t, cardId } = await setup();
-      await t.mutation(internal.raycast.patchCardForUser, {
+      await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId,
         userId: "owner",
         metadataTitle,
@@ -111,12 +114,15 @@ describe("Public API card title editing", () => {
     async (type) => {
       const { t, cardId } = await setup();
       await t.run((ctx) => ctx.db.patch("cards", cardId, { type }));
-      const updated = await t.mutation(internal.raycast.patchCardForUser, {
-        cardId,
-        userId: "owner",
-        content: "Updated content",
-        metadataTitle: "Edited title",
-      });
+      const updated = await t.mutation(
+        internal.publicApi.cardsForUser.patchCardForUser,
+        {
+          cardId,
+          userId: "owner",
+          content: "Updated content",
+          metadataTitle: "Edited title",
+        }
+      );
       expect(updated?.metadataTitle).toBe("Edited title");
       expect(updated?.content).toBe("Updated content");
       const card = await t.run((ctx) => ctx.db.get("cards", cardId));
@@ -129,7 +135,7 @@ describe("Public API card title editing", () => {
     "preview refresh preserves explicit title %j",
     async (metadataTitle) => {
       const { t, cardId } = await setup();
-      await t.mutation(internal.raycast.patchCardForUser, {
+      await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId,
         userId: "owner",
         metadataTitle,
@@ -158,18 +164,21 @@ describe("Public API card title editing", () => {
 
   test("old clients can edit notes without changing the title", async () => {
     const { t, cardId } = await setup();
-    const updated = await t.mutation(internal.raycast.patchCardForUser, {
-      cardId,
-      userId: "owner",
-      notes: "Updated notes",
-    });
+    const updated = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        cardId,
+        userId: "owner",
+        notes: "Updated notes",
+      }
+    );
     expect(updated?.notes).toBe("Updated notes");
     expect(updated?.metadataTitle).toBe("Supersededtitle title");
   });
 
   test("cuts an oversized title to 512 characters and keeps the other edits", async () => {
     const { t, cardId } = await setup();
-    await t.mutation(internal.raycast.patchCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
       userId: "owner",
       metadataTitle: "x".repeat(600),
@@ -183,7 +192,7 @@ describe("Public API card title editing", () => {
   test("another user cannot edit a card title", async () => {
     const { t, cardId } = await setup();
     await expect(
-      t.mutation(internal.raycast.patchCardForUser, {
+      t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId,
         userId: "stranger",
         metadataTitle: "Unwanted edit",
@@ -349,7 +358,7 @@ describe("Public API Trash and visual filters", () => {
         cardId,
       })
     ).rejects.toThrow("NOT_IN_TRASH");
-    await t.mutation(internal.raycast.softDeleteCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.softDeleteCardForUser, {
       userId: "owner",
       cardId,
     });
@@ -529,11 +538,14 @@ describe("Public API AI tag removal", () => {
     await t.run((ctx) =>
       ctx.db.patch("cards", cardId, { aiTags: ["design", "color", "web"] })
     );
-    const updated = await t.mutation(internal.raycast.patchCardForUser, {
-      cardId,
-      userId: "owner",
-      removeAiTags: ["color", "missing"],
-    });
+    const updated = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        cardId,
+        userId: "owner",
+        removeAiTags: ["color", "missing"],
+      }
+    );
     expect(updated?.aiTags).toEqual(["design", "web"]);
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card).toMatchObject({
@@ -546,7 +558,7 @@ describe("Public API AI tag removal", () => {
     const { t, cardId } = await setup();
     await t.run((ctx) => ctx.db.patch("cards", cardId, { aiTags: ["design"] }));
     await expect(
-      t.mutation(internal.raycast.patchCardForUser, {
+      t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId,
         userId: "stranger",
         removeAiTags: ["design"],
@@ -568,23 +580,29 @@ describe("Multi-field edits", () => {
   test("rapid edits always save and share one waiting pipeline run", async () => {
     const { t, cardId } = await setup();
     const now = Date.now();
-    await t.mutation(internal.raycast.patchCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
       userId: "owner",
       content: "Fresh content",
       url: "https://example.org/fresh",
     });
-    const second = await t.mutation(internal.raycast.patchCardForUser, {
-      cardId,
-      userId: "owner",
-      content: "Second edit",
-    });
+    const second = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        cardId,
+        userId: "owner",
+        content: "Second edit",
+      }
+    );
     expect(second?.content).toBe("Second edit");
-    const third = await t.mutation(internal.raycast.patchCardForUser, {
-      cardId,
-      userId: "owner",
-      content: "Third edit",
-    });
+    const third = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        cardId,
+        userId: "owner",
+        content: "Third edit",
+      }
+    );
     expect(third?.content).toBe("Third edit");
 
     const jobs = await scheduledWorkflowStarts(t);
@@ -597,7 +615,7 @@ describe("Multi-field edits", () => {
 
   test("a bulk edit refused by the account cap leaves the card's next edit a run", async () => {
     const { t, cardId } = await setup();
-    await t.mutation(internal.raycast.patchCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
       userId: "owner",
       content: "First edit",
@@ -612,7 +630,7 @@ describe("Multi-field edits", () => {
           updatedAt: index,
         })
       );
-      await t.mutation(internal.raycast.patchCardForUser, {
+      await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId: otherId,
         userId: "owner",
         content: `Edited ${index}`,
@@ -629,7 +647,7 @@ describe("Multi-field edits", () => {
     expect(result.summary.failed).toBe(1);
 
     vi.advanceTimersByTime(11_000);
-    await t.mutation(internal.raycast.patchCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
       userId: "owner",
       content: "Later edit",
@@ -674,11 +692,14 @@ describe("Multi-field edits", () => {
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.content).toBe("Original content");
     expect(card?.url).toBe("https://example.com");
-    const updated = await t.mutation(internal.raycast.patchCardForUser, {
-      cardId,
-      userId: "owner",
-      content: "Allowed edit",
-    });
+    const updated = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        cardId,
+        userId: "owner",
+        content: "Allowed edit",
+      }
+    );
     expect(updated?.content).toBe("Allowed edit");
   });
 });
@@ -865,7 +886,7 @@ describe("Refresh details", () => {
 
   test("asks to restore a card in Trash first", async () => {
     const { t, cardId } = await setup();
-    await t.mutation(internal.raycast.softDeleteCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.softDeleteCardForUser, {
       userId: "owner",
       cardId,
     });
@@ -884,7 +905,7 @@ describe("Card changes feed", () => {
     t: Awaited<ReturnType<typeof setup>>["t"],
     cardId: Awaited<ReturnType<typeof setup>>["cardId"]
   ) => {
-    await t.mutation(internal.raycast.softDeleteCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.softDeleteCardForUser, {
       userId: "owner",
       cardId,
     });
@@ -1286,7 +1307,7 @@ describe("Card tags", () => {
   test("a patch past the per-card tag limit is a 400 and leaves the card alone", async () => {
     const { t, cardId } = await setup();
     const error = await t
-      .mutation(internal.raycast.patchCardForUser, {
+      .mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId,
         userId: "owner",
         tags: manyTags(MAX_CARD_TAGS + 1),
@@ -1306,7 +1327,7 @@ describe("Card tags", () => {
   test("a tag longer than 64 characters is refused on edit", async () => {
     const { t, cardId } = await setup();
     await expect(
-      t.mutation(internal.raycast.patchCardForUser, {
+      t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
         cardId,
         userId: "owner",
         tags: ["x".repeat(65)],
@@ -1316,7 +1337,7 @@ describe("Card tags", () => {
 
   test("tags are trimmed and case duplicates collapse on edit", async () => {
     const { t, cardId } = await setup();
-    await t.mutation(internal.raycast.patchCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
       userId: "owner",
       tags: [" Design ", "design", "", "web"],
@@ -1331,7 +1352,7 @@ describe("Card tags", () => {
     const { t, cardId } = await setup();
     const tags = manyTags(MAX_CARD_TAGS + 20);
     await t.run((ctx) => ctx.db.patch("cards", cardId, { tags }));
-    await t.mutation(internal.raycast.patchCardForUser, {
+    await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
       userId: "owner",
       tags: tags.slice(1),
@@ -1344,7 +1365,7 @@ describe("Card tags", () => {
   test("creating a card past the per-card tag limit is refused", async () => {
     const { t } = await setup();
     await expect(
-      t.mutation(internal.raycast.quickSaveForUser, {
+      t.mutation(internal.publicApi.cardsForUser.quickSaveForUser, {
         userId: "owner",
         content: "Too many tags",
         cardType: "text",

@@ -1,24 +1,21 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
-import { createCardForUserHandler } from "./card/createCard";
-import { getCardForUserHandler } from "./card/getCard";
-import { cardReturnValidator } from "./card/getCards";
+import { internalMutation, internalQuery } from "../_generated/server";
+import { createCardForUserHandler } from "../card/createCard";
+import { getCardForUserHandler } from "../card/getCard";
+import { cardReturnValidator } from "../card/getCards";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
   updateCardFieldsForUserHandler,
-} from "./card/updateCard";
-import { setCardFoldersForUser } from "./folder/membership";
-import {
-  explainCardTypeMismatch,
-  explainInvalidTags,
-} from "./publicApi/http/shared";
-import { cardTypeValidator } from "./schema";
-import { requireTeakUserId } from "./securitySessions";
+} from "../card/updateCard";
+import { setCardFoldersForUser } from "../folder/membership";
+import { cardTypeValidator } from "../schema";
+import { requireTeakUserId } from "../securitySessions";
 import {
   explainInvalidCardSource,
   normalizeCardSource,
-} from "./shared/cardSource";
+} from "../shared/cardSource";
+import { explainCardTypeMismatch, explainInvalidTags } from "./http/shared";
 
 const quickSaveResultValidator = v.object({
   status: v.literal("created"),

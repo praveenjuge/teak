@@ -573,7 +573,7 @@ const insertOldCard = (
   });
 
 const backfill = (t: T, args: Parameters<typeof t.mutation>[1] = {}) =>
-  t.mutation(internal.migration.backfillEmbeddings.backfillEmbeddings, args);
+  t.mutation(internal.embedding.backfill.backfillEmbeddings, args);
 
 const seedLedgerStates = async (t: T) => {
   const embedded = await createCard(t, "already embedded");

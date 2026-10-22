@@ -1,16 +1,19 @@
 import { describe, expect, mock, test } from "bun:test";
-import { patchCardForUser, resolveCardIdForUserRequest } from "../raycast";
+import {
+  patchCardForUser,
+  resolveCardIdForUserRequest,
+} from "../../publicApi/cardsForUser";
 import {
   withMappedOwner,
   withSearchSyncDb,
-} from "./helpers/session.test-utils";
+} from "../helpers/session.test-utils";
 
 const runHandler = (fn: any, ctx: any, args: any) => {
   const handler = (fn as any).handler ?? fn;
   return handler(withMappedOwner(ctx), args);
 };
 
-describe("raycast", () => {
+describe("public API cards for user", () => {
   test("patchCardForUser forwards provided fields and returns updated card", async () => {
     const patchCalls: Record<string, unknown>[] = [];
 

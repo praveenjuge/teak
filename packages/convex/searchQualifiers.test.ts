@@ -147,7 +147,7 @@ describe("sourceUrl", () => {
     t: Awaited<ReturnType<typeof setup>>["t"],
     args: Record<string, unknown>
   ) =>
-    t.mutation(internal.raycast.quickSaveForUser, {
+    t.mutation(internal.publicApi.cardsForUser.quickSaveForUser, {
       userId: "owner",
       cardType: "text",
       ...args,
@@ -196,11 +196,14 @@ describe("sourceUrl", () => {
 
   test("a link's own url decides its site", async () => {
     const { t, card } = await setup();
-    const { cardId } = await t.mutation(internal.raycast.quickSaveForUser, {
-      userId: "owner",
-      sourceUrl: "https://found-it-here.example",
-      url: "https://github.com/acme",
-    });
+    const { cardId } = await t.mutation(
+      internal.publicApi.cardsForUser.quickSaveForUser,
+      {
+        userId: "owner",
+        sourceUrl: "https://found-it-here.example",
+        url: "https://github.com/acme",
+      }
+    );
     expect(await card(cardId)).toMatchObject({
       sourceUrl: "https://found-it-here.example",
       urlHost: "github.com",
@@ -871,7 +874,7 @@ describe("marking a link done", () => {
     });
     const setDone = async (done: boolean) =>
       (
-        await t.mutation(internal.raycast.setCardDoneForUser, {
+        await t.mutation(internal.publicApi.cardsForUser.setCardDoneForUser, {
           userId: "owner",
           cardId,
           done,
@@ -884,7 +887,7 @@ describe("marking a link done", () => {
 
     const note = await insert({ content: "A note" });
     await expect(
-      t.mutation(internal.raycast.setCardDoneForUser, {
+      t.mutation(internal.publicApi.cardsForUser.setCardDoneForUser, {
         userId: "owner",
         cardId: note,
         done: true,
@@ -895,7 +898,7 @@ describe("marking a link done", () => {
       "stranger"
     );
     await expect(
-      t.mutation(internal.raycast.setCardDoneForUser, {
+      t.mutation(internal.publicApi.cardsForUser.setCardDoneForUser, {
         userId: "owner",
         cardId: theirs,
         done: true,

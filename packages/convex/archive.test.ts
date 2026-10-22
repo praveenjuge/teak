@@ -479,18 +479,24 @@ describe("public API archive", () => {
   test("PATCH isArchived archives and unarchives", async () => {
     const { t, insert } = await setup();
     const id = await insert({ content: "Patched", type: "text" });
-    const archived = await t.mutation(internal.raycast.patchCardForUser, {
-      userId: "owner",
-      cardId: id,
-      isArchived: true,
-    });
+    const archived = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        userId: "owner",
+        cardId: id,
+        isArchived: true,
+      }
+    );
     expect(archived?.isArchived).toBe(true);
     expect(typeof archived?.archivedAt).toBe("number");
-    const back = await t.mutation(internal.raycast.patchCardForUser, {
-      userId: "owner",
-      cardId: id,
-      isArchived: false,
-    });
+    const back = await t.mutation(
+      internal.publicApi.cardsForUser.patchCardForUser,
+      {
+        userId: "owner",
+        cardId: id,
+        isArchived: false,
+      }
+    );
     expect(back?.isArchived).toBeUndefined();
   });
 
