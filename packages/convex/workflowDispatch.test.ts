@@ -11,6 +11,7 @@ import {
   queueUserCreated,
 } from "./telemetry/schedule";
 import {
+  DEAD_LETTER_RETRY_MS,
   DISPATCH_RETENTION_MS,
   enqueueObjectDeletion,
   MAX_DISPATCH_ATTEMPTS,
@@ -38,6 +39,40 @@ const fileKey = (index: number) => `users/u1/cards/c1/file/${index}.png`;
 
 const rows = (t: ReturnType<typeof convexTest>) =>
   t.run((ctx) => ctx.db.query("workflowDispatches").collect());
+
+const scheduledJobs = (t: ReturnType<typeof convexTest>) =>
+  t.run((ctx) => ctx.db.system.query("_scheduled_functions").collect());
+
+const reportedFailures = async (t: ReturnType<typeof convexTest>) =>
+  (await scheduledJobs(t))
+    .filter((job) => job.name === "telemetry/alerts:reportBackgroundFailure")
+    .map((job) => job.args[0] as { message: string });
+
+const capturePostHog = () => {
+  vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+  const batches: Array<Array<{ event: string; properties: unknown }>> = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string, init: RequestInit) => {
+      if (String(url).endsWith("/batch/")) {
+        batches.push(JSON.parse(String(init.body)).batch);
+      }
+      return Promise.resolve(Response.json({ status: 1 }));
+    })
+  );
+  return () => batches.flat();
+};
+
+const sentAtMaxAttempts = (t: ReturnType<typeof convexTest>) =>
+  t.run(async (ctx) => {
+    const [row] = await ctx.db.query("workflowDispatches").collect();
+    await ctx.db.patch("workflowDispatches", row!._id, {
+      attempts: MAX_DISPATCH_ATTEMPTS,
+      sentAt: NOW,
+      state: "sent",
+    });
+    return row!._id;
+  });
 
 const insertExportJob = (t: ReturnType<typeof convexTest>, status: string) =>
   t.run((ctx) =>
@@ -164,6 +199,43 @@ describe("release", () => {
     expect(row?.state).toBe("failed");
     const job = await t.run((ctx) => ctx.db.get("exportJobs", jobId));
     expect(job?.status).toBe("failed");
+  });
+
+  test("reports a row it gives up on", async () => {
+    const t = convexTest(schema, modules);
+    const jobId = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, jobId, "user-1"));
+    const dispatchId = await sentAtMaxAttempts(t);
+    await t.mutation(internal.workflowDispatch.release, {
+      error: "worker_down",
+      ids: [dispatchId],
+    });
+    expect(await reportedFailures(t)).toEqual([
+      expect.objectContaining({ message: "workflow_dispatch_dead_lettered" }),
+    ]);
+  });
+
+  test("queues the keys of a deletion it gives up on again after a long wait", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1), fileKey(2)]));
+    const dispatchId = await sentAtMaxAttempts(t);
+    await t.mutation(internal.workflowDispatch.release, {
+      error: "worker_down",
+      ids: [dispatchId],
+    });
+    const all = await rows(t);
+    expect(
+      all.filter((row) => row.state === "failed").map((row) => row._id)
+    ).toEqual([dispatchId]);
+    const pending = all.filter((row) => row.state === "pending");
+    expect(pending).toMatchObject([
+      {
+        keys: [fileKey(1), fileKey(2)],
+        kind: "deleteObjects",
+        notBefore: NOW + DEAD_LETTER_RETRY_MS,
+      },
+    ]);
+    expect(pending[0]?.attempts).toBeUndefined();
   });
 });
 
@@ -374,6 +446,23 @@ describe("flush", () => {
     await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
     await t.action(internal.workflowDispatch.flush, {});
     expect((await rows(t)).map((row) => row.state)).toEqual(["pending"]);
+  });
+
+  test("reports rows it cannot send while no Files Worker is configured", async () => {
+    const sentEvents = capturePostHog();
+    const t = convexTest(schema, modules);
+    await t.action(internal.workflowDispatch.flush, {});
+    expect(sentEvents()).toEqual([]);
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    await t.action(internal.workflowDispatch.flush, {});
+    expect(sentEvents()).toMatchObject([
+      {
+        event: "$exception",
+        properties: {
+          $exception_list: [{ value: "workflow_dispatch_not_configured" }],
+        },
+      },
+    ]);
   });
 
   test("sends due rows and retries the items the Worker refused", async () => {

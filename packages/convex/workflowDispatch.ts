@@ -45,6 +45,8 @@ import {
   isR2KeyInNamespace,
   sha256Hex,
 } from "./storage/r2Keys";
+import { reportFromMutation } from "./telemetry/alerts";
+import { captureBackendException } from "./telemetry/posthog";
 
 type DispatchKind = Doc<"workflowDispatches">["kind"];
 // Analytics rows are removed when claimed, so they are never sent or stale.
@@ -72,6 +74,9 @@ export const STALE_AFTER_MS: Record<TrackedKind, number> = {
 
 export const DISPATCH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_DISPATCH_ATTEMPTS = 20;
+// Keys a deletion gave up on are queued again this much later, so a Worker
+// outage longer than the retries delays a deletion instead of leaking it.
+export const DEAD_LETTER_RETRY_MS = 24 * 60 * 60 * 1000;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
 const flushScheduled = new WeakSet<object>();
@@ -403,6 +408,11 @@ export const release = internalMutation({
           finishedAt: now,
           state: "failed",
         });
+        await reportFromMutation(ctx, "workflow_dispatch_dead_lettered", {
+          attempts,
+          error: error.slice(0, 200),
+          kind: row.kind,
+        });
         await handleRunFailure(ctx, row, "dispatch_failed");
         continue;
       }
@@ -449,6 +459,22 @@ export const flush = internalAction({
     const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
     const secret = env.WORKFLOW_RPC_SECRET;
     if (!(isFilesWorkerConfigured() && convexSiteUrl && secret)) {
+      const waiting: boolean = await ctx.runQuery(
+        internal.workflowDispatch.hasPending,
+        {}
+      );
+      if (waiting) {
+        await captureBackendException(
+          new Error("workflow_dispatch_not_configured"),
+          {
+            properties: {
+              convex_site_url: Boolean(convexSiteUrl),
+              files_worker: isFilesWorkerConfigured(),
+              rpc_secret: Boolean(secret),
+            },
+          }
+        );
+      }
       return null;
     }
     for (let round = 0; round < 10; round += 1) {
@@ -523,6 +549,16 @@ export const flush = internalAction({
     await ctx.scheduler.runAfter(0, internal.workflowDispatch.flush, {});
     return null;
   },
+});
+
+export const hasPending = internalQuery({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) =>
+    (await ctx.db
+      .query("workflowDispatches")
+      .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
+      .first()) !== null,
 });
 
 const handleRunFailure = async (
@@ -616,6 +652,15 @@ const handleRunFailure = async (
           { delayMs: 5 * 60 * 1000 }
         );
       }
+      return;
+    }
+    case "deleteObjects": {
+      await insertDispatch(ctx, {
+        delayMs: DEAD_LETTER_RETRY_MS,
+        key: "deleteObjects",
+        keys: row.keys ?? [],
+        kind: "deleteObjects",
+      });
       return;
     }
     default:
