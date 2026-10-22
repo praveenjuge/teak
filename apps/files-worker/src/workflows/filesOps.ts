@@ -84,7 +84,16 @@ export const callFilesOp = async <T>(
         : null;
     throw Object.assign(error, facts ? { aiFacts: facts } : {});
   }
-  throw new Error(
-    `files_worker_error:${code}:${String(response.status)}:${requestId}`
+  // The flag survives only inside the step that called the op.
+  throw Object.assign(
+    new Error(
+      `files_worker_error:${code}:${String(response.status)}:${requestId}`
+    ),
+    { retryable: envelope && !envelope.ok ? envelope.error.retryable : true }
   );
 };
+
+/** A failed op whose own reply says a retry can clear it (an R2 hiccup). */
+export const isRetryableFilesError = (error: unknown): boolean =>
+  error instanceof Error &&
+  (error as Error & { retryable?: boolean }).retryable === true;

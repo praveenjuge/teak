@@ -33,13 +33,14 @@ import {
   type WorkflowDeps,
   withinBudget,
 } from "./deps";
-import { gatedEnv } from "./filesOps";
+import { gatedEnv, isRetryableFilesError } from "./filesOps";
 import {
   CONVEX_STEP,
   errorMessage,
   retryConfig,
   runReported,
   type StepConfig,
+  type StepContext,
   stopRun,
   type WorkflowRun,
 } from "./runtime";
@@ -86,8 +87,13 @@ type BatchOutcome =
   | { kind: "more" }
   | { delayMs: number; kind: "sleep" };
 
+const IMPORT_RETRY_LIMIT = 5;
 const IMPORT_STEP: StepConfig = {
-  retries: { backoff: "exponential", delay: "10 seconds", limit: 5 },
+  retries: {
+    backoff: "exponential",
+    delay: "10 seconds",
+    limit: IMPORT_RETRY_LIMIT,
+  },
   timeout: "10 minutes",
 };
 const FINALIZE_STEP = retryConfig(3, 500);
@@ -156,6 +162,18 @@ export const runImport = (
 
   const loadJob = () =>
     convex.query(internal.dataImport.getWorkflowJob, { jobId });
+
+  // A Files op that says a retry can clear it (an R2 hiccup) retries the
+  // step; on its last attempt it fails the page or batch, as any other error.
+  let lastAttempt = false;
+  const importStep =
+    <T>(run: () => Promise<T>) =>
+    (ctx: StepContext): Promise<T> => {
+      lastAttempt = ctx.attempt > IMPORT_RETRY_LIMIT;
+      return run();
+    };
+  const shouldRetry = (error: unknown) =>
+    isTransientError(error) || (isRetryableFilesError(error) && !lastAttempt);
 
   const ensureOwned = async (userId: string, key: string) => {
     if (
@@ -311,7 +329,7 @@ export const runImport = (
     try {
       return await read();
     } catch (error) {
-      if (isTransientError(error)) {
+      if (shouldRetry(error)) {
         throw error;
       }
       await reportBackgroundError(env, undefined, error, {
@@ -524,7 +542,7 @@ export const runImport = (
         ? { failureClass: "missing_file_entry", ok: false }
         : { ok: true };
     } catch (error) {
-      if (isTransientError(error)) {
+      if (shouldRetry(error)) {
         throw error;
       }
       return {
@@ -873,8 +891,10 @@ export const runImport = (
     if (!staged) {
       let cursor = 0;
       for (let page = 1; ; page += 1) {
-        const indexed = await step.do(`index page ${page}`, IMPORT_STEP, () =>
-          indexPage(cursor)
+        const indexed = await step.do(
+          `index page ${page}`,
+          IMPORT_STEP,
+          importStep(() => indexPage(cursor))
         );
         if (!indexed.ok) {
           return finalize("failed", indexed.failureClass);
@@ -889,8 +909,10 @@ export const runImport = (
     let cursor = staged.cursor ?? 0;
     const seen = new Set<string>();
     if (page > 0) {
-      const resumed = await step.do("resume staged index", IMPORT_STEP, () =>
-        resumeStagedIndex(page)
+      const resumed = await step.do(
+        "resume staged index",
+        IMPORT_STEP,
+        importStep(() => resumeStagedIndex(page))
       );
       if (!resumed.ok) {
         return finalize("failed", resumed.failureClass);
@@ -908,7 +930,7 @@ export const runImport = (
       const indexed = await step.do(
         `index page ${pageNumber}`,
         IMPORT_STEP,
-        () => indexStagedPage(pageNumber, pageCursor, seen)
+        importStep(() => indexStagedPage(pageNumber, pageCursor, seen))
       );
       if (!indexed.ok) {
         return finalize("failed", indexed.failureClass);
@@ -948,7 +970,7 @@ export const runImport = (
       const outcome = await step.do(
         `import cards ${round}`,
         IMPORT_STEP,
-        job.stagedItems ? importStagedBatches : importBatches
+        importStep(job.stagedItems ? importStagedBatches : importBatches)
       );
       switch (outcome.kind) {
         case "canceled":

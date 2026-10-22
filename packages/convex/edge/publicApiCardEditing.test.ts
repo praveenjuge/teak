@@ -763,6 +763,33 @@ describe("Bulk items follow the single-card rules", () => {
       items,
     });
 
+  test("a field the operation doesn't take fails the item instead of being dropped", async () => {
+    const { t, cardId } = await setup();
+    const created = await bulk(t, "create", [
+      { content: "Has a folder", folderIds: ["x"] },
+    ]);
+    const updated = await bulk(t, "update", [
+      { cardId, metadataTitle: "New" },
+      { cardId, isArchived: true },
+      { cardId },
+    ]);
+    for (const result of [created, updated]) {
+      expect(result.summary.succeeded).toBe(0);
+      for (const item of result.results) {
+        expect(item).toMatchObject({ status: "error", code: "INVALID_INPUT" });
+      }
+    }
+    expect(
+      updated.results.map((item: { error?: string }) => item.error)
+    ).toEqual([
+      "Unknown field `metadataTitle`",
+      "Unknown field `isArchived`",
+      "Each update item must include content, url, notes or tags",
+    ]);
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.isArchived).toBeUndefined();
+  });
+
   test("a create trims its note and drops a blank one", async () => {
     const { t } = await setup();
     const result = await bulk(t, "create", [

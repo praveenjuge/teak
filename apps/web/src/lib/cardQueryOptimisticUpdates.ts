@@ -101,3 +101,39 @@ export function updateCardsInSearchQueries(
     });
   }
 }
+
+const listsNewestFirst = (sort: SearchFilterArgs["sort"]) =>
+  sort === undefined || sort === "newest";
+
+/** Puts a card being created at the top of every list it belongs at the top of. */
+export function addCardToSearchQueries(
+  localStore: OptimisticLocalStore,
+  newCard: Doc<"cards">
+) {
+  for (const { args, value } of localStore.getAllQueries(
+    api.cards.searchCards
+  )) {
+    if (value !== undefined && cardMatchesSearchQuery(newCard, args)) {
+      localStore.setQuery(api.cards.searchCards, args, [newCard, ...value]);
+    }
+  }
+
+  // The grid reads pages; a new card belongs on the first page of a list
+  // ordered newest first, not inside a ranked search.
+  for (const { args, value } of localStore.getAllQueries(
+    api.cards.searchCardsPaginated
+  )) {
+    if (
+      value !== undefined &&
+      args.paginationOpts.cursor === null &&
+      listsNewestFirst(args.sort) &&
+      !args.searchQuery?.trim() &&
+      cardMatchesSearchQuery(newCard, args)
+    ) {
+      localStore.setQuery(api.cards.searchCardsPaginated, args, {
+        ...value,
+        page: [newCard, ...(value.page as Doc<"cards">[])],
+      });
+    }
+  }
+}

@@ -208,6 +208,33 @@ describe("folders", () => {
     );
   });
 
+  test("a folder being deleted frees its place, and Undo checks the limit", async () => {
+    const { t, owner, create } = await setup();
+    vi.setSystemTime(10_000);
+    const seed = (index: number, deletingAt?: number) =>
+      t.run((ctx) =>
+        ctx.db.insert("folders", {
+          userId: "owner",
+          name: `Folder ${index}`,
+          nameKey: `folder ${index}`,
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: index,
+          updatedAt: index,
+          ...(deletingAt === undefined ? {} : { deletingAt }),
+        })
+      );
+    const deleting = await seed(0, 10_000);
+    for (let index = 1; index < MAX_FOLDERS_PER_USER; index += 1) {
+      await seed(index);
+    }
+
+    await expect(create("Takes the freed place")).resolves.toBeTruthy();
+    await expect(
+      owner.mutation(api.folders.restoreFolder, { folderId: deleting })
+    ).rejects.toThrow(`You can have up to ${MAX_FOLDERS_PER_USER} folders`);
+  });
+
   test("another account's folder cannot be read, changed or used", async () => {
     const { owner, stranger, create, insert } = await setup();
     const theirs = await create("Theirs", stranger);
@@ -359,6 +386,31 @@ describe("membership", () => {
     await owner.mutation(api.folders.deleteFolder, { folderId: legacy });
     await runScheduled();
     expect(await counts()).toEqual([]);
+  });
+
+  test("a card in Trash can't be added to, moved into or taken out of a folder", async () => {
+    const { owner, create, insert, card } = await setup();
+    const inbox = await create("Inbox");
+    const trashed = await insert({
+      content: "Trashed",
+      type: "text",
+      isDeleted: true,
+      deletedAt: 1500,
+    });
+
+    for (const mutation of [
+      api.folders.addCardsToFolder,
+      api.folders.moveCardsToFolder,
+      api.folders.removeCardsFromFolder,
+    ]) {
+      const result = await owner.mutation(mutation, {
+        folderId: inbox._id,
+        cardIds: [trashed],
+      });
+      expect(result).toMatchObject({ failedIds: [trashed], updatedIds: [] });
+    }
+    expect((await card(trashed))?.folderIds).toBeUndefined();
+    expect((await card(trashed))?.updatedAt).toBe(1000);
   });
 
   test("a move without a source folder leaves every other folder", async () => {

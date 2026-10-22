@@ -156,8 +156,8 @@ in one request counts once. Changes within the minute still save right away,
 and one more processing run follows when the minute is up.
 
 `tags` replaces your own tags; each can be up to 64 characters. To drop tags Teak added, send them in
-`removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. Tags Teak
-didn't add are ignored. The response is the updated card, including its
+`removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. They match
+ignoring case, and tags Teak didn't add are ignored. The response is the updated card, including its
 `processingStatus`.
 
 ## Upload files
@@ -574,12 +574,12 @@ A card whose tags include `secret` or `hidden` (any case) is hidden: `GET /v1/ca
 
 Folders group cards by hand, and a card can be in up to 50 folders. `GET /v1/folders` lists your folders by name, each with `id`, `name`, `color` (one of `gray`, `red`, `orange`, `amber`, `green`, `teal`, `blue`, `violet`, `pink`, or `null`), `kind` (`manual` or `smart`), `query`, and `cardCount`, which counts cards that are not archived or in Trash. A smart folder saves a search: its `query` is that search and its `cardCount` is `null`; a manual folder's `query` is `null`.
 
-- `POST /v1/folders` with `{ "name": "Reading", "color": "blue" }` creates a folder and returns `201`. Names are 1 to 300 characters and unique ignoring case; a taken name returns `409 CONFLICT`, and an account can have up to 500 folders (`409 LIMIT_REACHED`).
+- `POST /v1/folders` with `{ "name": "Reading", "color": "blue" }` creates a folder and returns `201`. Names are 1 to 300 characters and unique ignoring case; a taken name returns `409 CONFLICT`, and an account can have up to 500 folders (`409 LIMIT_REACHED`); a folder you deleted stops counting right away.
 - `POST /v1/folders` with `{ "name": "Design links", "kind": "smart", "query": "tag:design type:link" }` creates a smart folder. The query uses the [search qualifiers](#search-qualifiers), is at most 500 characters, and is stored written the canonical way (`#design` becomes `tag:design`). A `folder:` in it must name one of your manual folders, or the request returns `400`.
 - `GET /v1/folders/:folderId` returns one folder with the same fields; another account's folder, or one that doesn't exist, returns `404`.
 - `PATCH /v1/folders/:folderId` renames or recolors a folder; `"color": null` clears the color. `{ "query": "..." }` changes a smart folder's search.
 - `DELETE /v1/folders/:folderId` deletes a folder and returns `204`. Its cards are kept and leave the folder shortly after.
-- `POST /v1/folders/:folderId/cards` with `{ "cardIds": [...] }` adds up to 100 cards, and `DELETE` with the same body removes them. The response lists `updatedIds`, `failedIds`, and `folderLimitIds` (cards already in 50 folders). Adding a card that is already in the folder succeeds without change. A smart folder holds no cards of its own, so adding to one, or naming one in a card's `folderIds`, returns `409 SMART_FOLDER`.
+- `POST /v1/folders/:folderId/cards` with `{ "cardIds": [...] }` adds up to 100 cards, and `DELETE` with the same body removes them. The response lists `updatedIds`, `failedIds`, and `folderLimitIds` (cards already in 50 folders). A card in Trash is not found here, so it lands in `failedIds`. Adding a card that is already in the folder succeeds without change. A smart folder holds no cards of its own, so adding to one, or naming one in a card's `folderIds`, returns `409 SMART_FOLDER`.
 
 Cards include `folderIds`. `PATCH /v1/cards/:cardId` with `{ "folderIds": [...] }` replaces a card's folders, and an empty list takes it out of every folder. List a folder's cards with `GET /v1/cards?folder=<folderId>`; like the library, the listing leaves out archived cards and cards in Trash unless you ask for them. For a smart folder, the listing runs its search, and `q` narrows it: both must match, so `?folder=<id>&q=type:image` on a `type:link` smart folder lists nothing.
 
@@ -615,7 +615,7 @@ the change finishes.
 
 ## Bulk actions
 
-`POST /v1/cards/bulk` takes an `operation` and up to 100 `items`. Besides `create`, `update`, `favorite` (`{ cardId, isFavorited }`) and `delete`, it accepts `archive`, `unarchive`, and `restore` (each item `{ cardId }`) and `addTags` and `removeTags` (each item `{ cardId, tags }`, up to 20 tags). Tags match ignoring case, and `removeTags` also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it, so retries are safe. The response lists each item's result and a `failedIds` array of the cards to retry.
+`POST /v1/cards/bulk` takes an `operation` and up to 100 `items`. Besides `create`, `update`, `favorite` (`{ cardId, isFavorited }`) and `delete`, it accepts `archive`, `unarchive`, and `restore` (each item `{ cardId }`) and `addTags` and `removeTags` (each item `{ cardId, tags }`, up to 20 tags). Tags match ignoring case, and `removeTags` also clears tags Teak added. `create` items take `content`, `url`, `notes`, `tags`, `cardType`, `sourceUrl` and `sourceTitle`, and `update` items take `cardId` plus at least one of `content`, `url`, `notes` or `tags`; an item with any other field fails with `INVALID_INPUT`. Repeating an operation on a card already in that state succeeds without changing it, so retries are safe. The response lists each item's result and a `failedIds` array of the cards to retry.
 
 ## Delete and restore cards
 

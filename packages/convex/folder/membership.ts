@@ -25,7 +25,8 @@ const requireOwnedCard = async (
   cardId: Id<"cards">
 ): Promise<Doc<"cards">> => {
   const card = await ctx.db.get("cards", cardId);
-  if (!card || card.userId !== userId) {
+  // A card in Trash is not found here, as on PATCH /v1/cards/:id.
+  if (!card || card.userId !== userId || card.isDeleted === true) {
     throw cardNotFound();
   }
   return card;

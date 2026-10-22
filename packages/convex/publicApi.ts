@@ -775,7 +775,37 @@ const bulkCardSource = (payload: Record<string, unknown>) => ({
   sourceUrl: payload.sourceUrl as string | undefined,
 });
 
+const BULK_CREATE_FIELDS = new Set([
+  "content",
+  "url",
+  "notes",
+  "tags",
+  "cardType",
+  "sourceUrl",
+  "sourceTitle",
+]);
+const BULK_UPDATE_EDIT_FIELDS = ["content", "url", "notes", "tags"] as const;
+const BULK_UPDATE_FIELDS = new Set<string>([
+  "cardId",
+  ...BULK_UPDATE_EDIT_FIELDS,
+]);
+
+/** Fails a field the item's operation doesn't take, as POST and PATCH do. */
+const assertKnownBulkFields = (
+  payload: Record<string, unknown>,
+  allowed: ReadonlySet<string>
+) => {
+  const unknownKey = Object.keys(payload).find((key) => !allowed.has(key));
+  if (unknownKey !== undefined) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: `Unknown field \`${unknownKey}\``,
+    });
+  }
+};
+
 const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
+  assertKnownBulkFields(payload, BULK_CREATE_FIELDS);
   const content =
     typeof payload.content === "string" ? payload.content : undefined;
   const url = typeof payload.url === "string" ? payload.url.trim() : undefined;
@@ -852,6 +882,13 @@ const assertBulkUpdatePayload = (
   payload: Record<string, unknown>,
   card: Doc<"cards">
 ) => {
+  assertKnownBulkFields(payload, BULK_UPDATE_FIELDS);
+  if (!BULK_UPDATE_EDIT_FIELDS.some((key) => payload[key] !== undefined)) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Each update item must include content, url, notes or tags",
+    });
+  }
   if (
     payload.url !== undefined &&
     !(typeof payload.url === "string" && isSafeExternalUrl(payload.url.trim()))

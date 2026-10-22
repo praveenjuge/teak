@@ -150,6 +150,9 @@ describe("exact object deletion fence", () => {
   });
   test("a failed write blocks freezing for a day, then the key can be deleted", async () => {
     const start = Date.now();
+    // The lease starts when the write does; a clock tick in between would
+    // leave it a millisecond short of expiring at start + WRITE_LEASE_MS.
+    setSystemTime(new Date(start));
     try {
       const t = fixture(() => Promise.reject(new Error("R2 unavailable")));
       await expect(t.request("put", "data")).rejects.toThrow("R2 unavailable");
@@ -170,6 +173,7 @@ describe("exact object deletion fence", () => {
   });
   test("a lease from before leases kept their start expires a day after a freeze first sees it", async () => {
     const start = Date.now();
+    setSystemTime(new Date(start));
     try {
       const t = fixture();
       t.values.set("active", "crashed-operation");

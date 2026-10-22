@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
 import {
+  addCardToSearchQueries,
   cardMatchesSearchQuery,
   updateCardInSearchQueries,
 } from "../cardQueryOptimisticUpdates";
@@ -124,6 +125,34 @@ describe("card query optimistic updates", () => {
       "card-2",
       "card-3",
     ]);
+  });
+
+  it("puts a new card on the first newest-first page of the grids it belongs in", () => {
+    const page = (args: Record<string, unknown>, cursor: string | null) => ({
+      args: { ...args, paginationOpts: { cursor, numItems: 20 } },
+      value: { continueCursor: null, isDone: false, page: [card()] },
+    });
+    const queries = [
+      page({}, null),
+      page({}, "next-page"),
+      page({ sort: "oldest" }, null),
+      page({ searchQuery: "design" }, null),
+      page({ favoritesOnly: true }, null),
+      page({ types: ["text"] }, null),
+    ];
+    const written: unknown[] = [];
+    let getAllQueriesCall = 0;
+    const localStore = {
+      getAllQueries: () => (getAllQueriesCall++ === 0 ? [] : queries),
+      setQuery: (_query: unknown, args: unknown) => written.push(args),
+    } as unknown as OptimisticLocalStore;
+
+    addCardToSearchQueries(
+      localStore,
+      card({ _id: "new-card" as Id<"cards">, isFavorited: undefined })
+    );
+
+    expect(written).toEqual([queries[0].args, queries[5].args]);
   });
 
   it("removes an unfavorited card from every active Favorites query", () => {
