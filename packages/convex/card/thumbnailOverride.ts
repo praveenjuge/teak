@@ -11,7 +11,7 @@ import {
 } from "../_generated/server";
 import type { thumbnailOverrideValidator } from "../schema";
 import {
-  getSessionUser,
+  requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
@@ -195,10 +195,7 @@ export const createThumbnailUploadUrl = mutation({
   args: uploadArgs,
   returns: uploadUrlResult,
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     return createThumbnailUploadUrlHandler(ctx, user.teakUserId, args);
   },
 });
@@ -378,10 +375,7 @@ export const setLinkThumbnail = action({
   args: setArgs,
   returns: setResult,
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     return setThumbnailForUser(ctx, user.teakUserId, args);
   },
 });
@@ -414,10 +408,7 @@ export const resetLinkThumbnail = mutation({
   args: { cardId: v.id("cards") },
   returns: changeResult,
   handler: async (ctx, { cardId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     return resetThumbnailHandler(ctx, user.teakUserId, cardId);
   },
 });
@@ -480,10 +471,7 @@ export const undoThumbnailChange = mutation({
   args: { cardId: v.id("cards"), changeId: v.string() },
   returns: undoResult,
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     return undoThumbnailChangeHandler(ctx, user.teakUserId, args);
   },
 });

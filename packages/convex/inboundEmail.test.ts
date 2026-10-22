@@ -257,7 +257,7 @@ describe("Settings", () => {
     const { t } = await setup();
     expect(await t.query(api.inbound.settings.getMine, {})).toBeNull();
     await expect(t.mutation(api.inbound.settings.enable, {})).rejects.toThrow(
-      "Sign in"
+      "User must be authenticated"
     );
   });
 

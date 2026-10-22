@@ -13,11 +13,7 @@ import {
   rateLimitResultValidator,
   type ValidatedRateLimitKey,
 } from "./publicApi";
-import {
-  getSessionUser,
-  resolveStoredUserId,
-  type TeakUserId,
-} from "./securitySessions";
+import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
 import { API_KEY_TOKEN_PREFIX, getApiKeyFormat } from "./shared/apiKeyFormat";
 import { rateLimiter } from "./shared/rateLimits";
 import { sha256Hex } from "./storage/r2Keys";
@@ -96,16 +92,6 @@ const validateApiKeyArgsValidator = v.object({
 const revokeKeyArgsValidator = v.object({
   keyId: v.string(),
 });
-
-const getAuthenticatedOwnerId = async (
-  ctx: QueryCtx | MutationCtx
-): Promise<TeakUserId> => {
-  const session = await getSessionUser(ctx);
-  if (!session) {
-    throw new Error("User must be authenticated");
-  }
-  return session.teakUserId;
-};
 
 const listComponentKeysByStatus = async (
   ctx: QueryCtx | MutationCtx,
@@ -224,7 +210,7 @@ export const createUserApiKey = mutation({
   },
   returns: createdApiKeyValidator,
   handler: async (ctx, args) => {
-    const ownerId = await getAuthenticatedOwnerId(ctx);
+    const ownerId = await requireSessionUserId(ctx);
     const rateLimitResult = await rateLimiter.limit(ctx, "apiKeyCreation", {
       key: ownerId,
       throws: false,
@@ -268,7 +254,7 @@ export const listUserApiKeys = query({
   handler: async (ctx) => {
     let ownerId: string;
     try {
-      ownerId = await getAuthenticatedOwnerId(ctx);
+      ownerId = await requireSessionUserId(ctx);
     } catch {
       return [];
     }
@@ -284,7 +270,7 @@ export const revokeUserApiKey = mutation({
   args: revokeKeyArgsValidator,
   returns: v.null(),
   handler: async (ctx, args) => {
-    const ownerId = await getAuthenticatedOwnerId(ctx);
+    const ownerId = await requireSessionUserId(ctx);
     await revokeComponentKey(ctx, {
       keyId: args.keyId,
       ownerId,
@@ -338,7 +324,7 @@ export const revokeAllUserApiKeys = mutation({
     revokedCount: v.number(),
   }),
   handler: async (ctx) => {
-    const ownerId = await getAuthenticatedOwnerId(ctx);
+    const ownerId = await requireSessionUserId(ctx);
     return drainActiveApiKeysPage(ctx, ownerId, 0);
   },
 });
@@ -347,7 +333,7 @@ export const rotateUserApiKey = mutation({
   args: componentKeyActionValidator,
   returns: createdApiKeyValidator,
   handler: async (ctx, args) => {
-    const ownerId = await getAuthenticatedOwnerId(ctx);
+    const ownerId = await requireSessionUserId(ctx);
     const existing = await getComponentKeyForOwner(ctx, ownerId, args.keyId);
     if (!isRotatableComponentKeyStatus(existing.status)) {
       throw new Error("API key cannot be regenerated");

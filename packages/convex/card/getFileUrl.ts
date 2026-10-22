@@ -2,7 +2,7 @@ import type { FilesImageRendition } from "@teak/files-protocol";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalQuery, query } from "../_generated/server";
-import { getSessionUser } from "../securitySessions";
+import { requireSessionUser } from "../securitySessions";
 import {
   isStorageNamespaceError,
   resolveDownloadUrl,
@@ -49,10 +49,7 @@ export const getFileDownloadUrl = query({
   args: { cardId: v.id("cards") },
   returns: v.union(v.string(), v.null()),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("Unauthenticated call to getFileDownloadUrl");
-    }
+    const user = await requireSessionUser(ctx);
     const card = await ctx.db.get("cards", args.cardId);
     if (!card || card.userId !== user.teakUserId) {
       throw new Error("Card not found");
@@ -79,10 +76,7 @@ export const getAuthorizedMedia = internalQuery({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("Unauthenticated media refresh");
-    }
+    const user = await requireSessionUser(ctx);
     const card = await ctx.db.get("cards", args.cardId);
     if (!(card && card.userId === user.teakUserId)) {
       return null;

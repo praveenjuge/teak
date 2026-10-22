@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { requireSessionUserId, type TeakUserId } from "../securitySessions";
 import {
   FOLDER_ERROR_MESSAGES,
   MAX_FOLDER_CARD_IDS,
@@ -216,17 +216,6 @@ const membershipResultValidator = v.object({
   folderLimitIds: v.array(v.id("cards")),
 });
 
-const requireUserId = async (ctx: MutationCtx) => {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "Sign in to change folders",
-    });
-  }
-  return user.teakUserId;
-};
-
 export const addCardsToFolder = mutation({
   args: { folderId: v.id("folders"), cardIds: v.array(v.id("cards")) },
   returns: membershipResultValidator,
@@ -234,7 +223,7 @@ export const addCardsToFolder = mutation({
     applyFolderMembershipToCards(ctx, {
       ...args,
       action: "add",
-      userId: await requireUserId(ctx),
+      userId: await requireSessionUserId(ctx),
     }),
 });
 
@@ -245,7 +234,7 @@ export const removeCardsFromFolder = mutation({
     applyFolderMembershipToCards(ctx, {
       ...args,
       action: "remove",
-      userId: await requireUserId(ctx),
+      userId: await requireSessionUserId(ctx),
     }),
 });
 
@@ -260,7 +249,7 @@ export const moveCardsToFolder = mutation({
     applyFolderMembershipToCards(ctx, {
       ...args,
       action: "move",
-      userId: await requireUserId(ctx),
+      userId: await requireSessionUserId(ctx),
     }),
 });
 
@@ -270,7 +259,7 @@ export const setCardFolders = mutation({
   handler: async (ctx, args) =>
     setCardFoldersForUser(
       ctx,
-      await requireUserId(ctx),
+      await requireSessionUserId(ctx),
       args.cardId,
       args.folderIds
     ),
