@@ -6,7 +6,7 @@ import {
   type TeakUserId,
 } from "../securitySessions";
 import { cardReturnValidator } from "./getCards";
-import { attachFileUrls } from "./queryUtils";
+import { attachCardDetailUrls } from "./queryUtils";
 
 export const findDuplicateCardForUserHandler = async (
   ctx: Pick<QueryCtx, "db">,
@@ -25,7 +25,7 @@ export const findDuplicateCardForUserHandler = async (
     return null;
   }
 
-  return (await attachFileUrls(ctx, [duplicate]))[0] ?? null;
+  return await attachCardDetailUrls(ctx, duplicate);
 };
 
 export const findDuplicateCard = query({

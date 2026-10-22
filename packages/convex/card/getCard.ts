@@ -1,15 +1,11 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { internalQuery, type QueryCtx, query } from "../_generated/server";
-import {
-  getSessionUser,
-  requireTeakUserId,
-  type TeakUserId,
-} from "../securitySessions";
+import { type QueryCtx, query } from "../_generated/server";
+import { getSessionUser, type TeakUserId } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import { cardReturnValidator } from "./getCards";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
-import { attachFileUrls } from "./queryUtils";
+import { attachCardDetailUrls, omitCardText } from "./queryUtils";
 import {
   applyQuoteDisplayFormatting,
   applyQuoteFormattingToList,
@@ -24,8 +20,7 @@ export const getCardForUserHandler = async (
   if (!card || card.userId !== userId) {
     return null;
   }
-  const [hydratedCard] = await attachFileUrls(ctx, [card]);
-  return hydratedCard ? applyQuoteDisplayFormatting(hydratedCard) : null;
+  return applyQuoteDisplayFormatting(await attachCardDetailUrls(ctx, card));
 };
 
 export const getCard = query({
@@ -87,7 +82,7 @@ export const getDeletedCards = query({
     const cards = await excludeHiddenRows(
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted", (q) =>
+        .withIndex("by_user_deleted_created", (q) =>
           q.eq("userId", user.teakUserId).eq("isDeleted", true)
         )
     )
@@ -96,22 +91,8 @@ export const getDeletedCards = query({
 
     return applyQuoteFormattingToList(
       keepVisible(cards).map(
-        ({ workflowArtifactKeys: _internalKeys, ...card }) => card
+        ({ workflowArtifactKeys: _internalKeys, ...card }) => omitCardText(card)
       )
     );
   },
-});
-
-export const getCardForUser = internalQuery({
-  args: {
-    userId: v.string(),
-    cardId: v.id("cards"),
-  },
-  returns: v.union(v.null(), cardReturnValidator),
-  handler: async (ctx, args) =>
-    getCardForUserHandler(
-      ctx,
-      await requireTeakUserId(ctx, args.userId),
-      args.cardId
-    ),
 });

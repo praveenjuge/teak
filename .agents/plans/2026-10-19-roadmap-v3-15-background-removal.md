@@ -39,7 +39,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
   - Rate limit `thumbnailReplace` (`consumeThumbnailChange`, 120) at 20 per minute.
   - `setThumbnailForUser` (309) finalizes through `finalize-image-upload`, then `applyThumbnailOverride` (263).
   - Reset is at 396–430 and undo at 432+.
-  - Schema: `thumbnailOverrideValidator` `{ storageKey, width, height, updatedAt }` (`schema.ts:152-157`), `cards.thumbnailOverride`, and `previousThumbnailOverride` (477–480).
+  - Schema: `thumbnailOverrideValidator` `{ storageKey, width, height, updatedAt }` (`schema/validators/cards.ts`), `cards.thumbnailOverride`, and `previousThumbnailOverride` (477–480).
 - **Display:**
   - `card/queryUtils.ts` reads `card.thumbnailOverride` (115–117, 308), signs the override as `linkPreviewImageUrl`, and sets `hasThumbnailOverride` (235–263).
   - Image cards use `imageRenditions` for `thumbnailUrl`, `compactUrl` and `detailUrl` (240–251), and `fileUrl` for the original.
@@ -47,7 +47,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
   - `FileCardBody.tsx:20-21` shows `thumbnailUrl ?? compactUrl ?? fileUrl` for image tiles.
 - **Modal menu:** `apps/web/src/components/card-modal/CardModal.tsx` 739–756 holds "Replace image" and "Reset to original image", driven by `imageControl` from `hooks/useLinkThumbnail.ts` (wired in `ConnectedCardModal.tsx`).
 - **Public API:**
-  - The routes are `thumbnail-set`, `thumbnail-reset` and `thumbnail-upload` (`publicApiHttpValidation.ts:717-765`).
+  - The routes are `thumbnail-set`, `thumbnail-reset` and `thumbnail-upload` (`publicApi/http/routeParsing.ts`).
   - Serializers expose `thumbnailOverridden` (160, 217).
   - The MCP tools are `teak_v1_create_thumbnail_upload`, `teak_v1_set_card_thumbnail` and `teak_v1_reset_card_thumbnail`. The CLI command is `cards thumbnail` (parity rows `scripts/public-parity.ts:170-186`).
 - **Product detection:** the `product` category is in `shared/linkCategories.ts`. The owner chose a button for every eligible card, not automatic product cut-outs.
@@ -109,7 +109,7 @@ Add a "Remove background" action for a link card's image and for image cards. Cl
 ## API / MCP / SDK / CLI
 
 - `POST /v1/cards/{cardId}/thumbnail/remove-background` returns 200 `{ changeId, undoUntil, card }`.
-  - Errors: 400 `NO_IMAGE` and `UNSUPPORTED_IMAGE`, 404, 409 for Trash, 413 `IMAGE_TOO_LARGE`, 429. Add the codes to `PUBLIC_API_ERROR_CODES` and the SDK's `ERROR_CODES`. Add the new route operation (`thumbnail-remove-background`) to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApiHttpCards.ts:739`), as the other thumbnail operations are, or the pre-handler check answers 404 for a trashed card instead of 409.
+  - Errors: 400 `NO_IMAGE` and `UNSUPPORTED_IMAGE`, 404, 409 for Trash, 413 `IMAGE_TOO_LARGE`, 429. Add the codes to `PUBLIC_API_ERROR_CODES` and the SDK's `ERROR_CODES`. Add the new route operation (`thumbnail-remove-background`) to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApi/http/cards.ts`), as the other thumbnail operations are, or the pre-handler check answers 404 for a trashed card instead of 409.
 - `DELETE /v1/cards/{cardId}/thumbnail` (reset) now also accepts image cards.
 - The serializers add `thumbnailCutout: boolean`.
 - MCP: `teak_v1_remove_card_background { cardId }`.

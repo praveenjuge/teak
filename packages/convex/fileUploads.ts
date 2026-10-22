@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
-  type ActionCtx,
   action,
   internalMutation,
   internalQuery,
@@ -11,7 +10,7 @@ import {
 import { ensureCardQuotaAvailable } from "./card/quota";
 import { validateDirectUploadRequest } from "./card/uploadCard";
 import { fileUploadSessionValidator } from "./schema";
-import { getSessionUser } from "./securitySessions";
+import { requireSessionUser } from "./securitySessions";
 import { MULTIPART_UPLOAD_THRESHOLD } from "./shared/constants";
 import {
   buildSignedMultipartPartUrl,
@@ -45,17 +44,6 @@ interface SessionResponse {
   uploadedParts: number[];
   uploadKey: string;
 }
-
-const requireIdentity = async (ctx: Pick<ActionCtx, "auth" | "runQuery">) => {
-  const identity = await getSessionUser(ctx);
-  if (!identity) {
-    throw new ConvexError({
-      code: "UNAUTHENTICATED",
-      message: "User must be authenticated",
-    });
-  }
-  return identity;
-};
 
 const signMissingParts = async (session: {
   fileSize: number;
@@ -91,7 +79,7 @@ export const insertSession = internalMutation({
   },
   returns: v.id("fileUploadSessions"),
   handler: async (ctx, args): Promise<Id<"fileUploadSessions">> => {
-    const identity = await requireIdentity(ctx);
+    const identity = await requireSessionUser(ctx);
     await ensureCardQuotaAvailable(ctx, identity.teakUserId);
     const now = Date.now();
     return await ctx.db.insert("fileUploadSessions", {
@@ -111,7 +99,7 @@ export const insertSession = internalMutation({
 export const getSessionForUser = internalQuery({
   args: { sessionId: v.id("fileUploadSessions") },
   handler: async (ctx, { sessionId }) => {
-    const identity = await requireIdentity(ctx);
+    const identity = await requireSessionUser(ctx);
     const session = await ctx.db.get(sessionId);
     return session?.teakUserId === identity.teakUserId ? session : null;
   },
@@ -124,7 +112,7 @@ export const findActiveSession = internalQuery({
     fileSize: v.number(),
   },
   handler: async (ctx, args): Promise<Doc<"fileUploadSessions"> | null> => {
-    const identity = await requireIdentity(ctx);
+    const identity = await requireSessionUser(ctx);
     const session = await ctx.db
       .query("fileUploadSessions")
       .withIndex("by_teak_user_file", (query) =>
@@ -153,7 +141,7 @@ export const prepareMultipartUpload = action({
   },
   returns: sessionResult,
   handler: async (ctx, args): Promise<SessionResponse> => {
-    const identity = await requireIdentity(ctx);
+    const identity = await requireSessionUser(ctx);
     validateDirectUploadRequest(args);
     if (args.fileSize < MULTIPART_UPLOAD_THRESHOLD) {
       throw new ConvexError({
@@ -238,7 +226,7 @@ export const recordMultipartPart = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await requireIdentity(ctx);
+    const identity = await requireSessionUser(ctx);
     const session = await ctx.db.get(args.sessionId);
     if (
       !session ||

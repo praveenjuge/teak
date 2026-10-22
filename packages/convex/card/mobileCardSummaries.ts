@@ -2,11 +2,11 @@ import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { cardTypeValidator } from "../schema";
 import { cardDisplayTitle, cardPreviewText } from "./displayTitle";
+import { type CardWithUrls, linkPreviewImageFields } from "./queryUtils";
 import {
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
-} from "./getCards";
-import { type CardWithUrls, linkPreviewImageFields } from "./queryUtils";
+} from "./searchCardsPaginated";
 
 const mobileCardSummaryValidator = v.object({
   _creationTime: v.number(),

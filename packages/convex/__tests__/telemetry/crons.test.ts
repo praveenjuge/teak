@@ -1,7 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
 import { type FunctionReference, getFunctionName } from "convex/server";
-import { CRONS, cronTasksOn } from "../../cronSchedules";
-import crons from "../../crons";
 import { monitored, workosEventCatchUp } from "../../telemetry/crons";
 import { handlerOf, mockActionCtx } from "../helpers/convex.test-utils";
 
@@ -22,27 +20,6 @@ const heartbeatsOf = (runMutation: RecordedMutations) =>
     .map(([, args]) => args);
 
 describe("cron monitoring", () => {
-  test("names every scheduled job once", () => {
-    const slugs = Object.values(CRONS).map(({ name }) => name);
-    expect(slugs).toHaveLength(14);
-    expect(new Set(slugs).size).toBe(slugs.length);
-  });
-
-  test("routes every schedule to its monitored Node action", () => {
-    expect(crons.crons).toEqual(
-      Object.fromEntries(
-        cronTasksOn("convex").map((handler) => [
-          CRONS[handler].name,
-          {
-            name: `telemetry/crons:${handler}`,
-            args: [{}],
-            schedule: { cron: CRONS[handler].schedule, type: "cron" },
-          },
-        ])
-      )
-    );
-  });
-
   test("records a heartbeat when a job starts and when it finishes", async () => {
     const runMutation = recordMutations();
     expect(

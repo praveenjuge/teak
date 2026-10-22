@@ -112,7 +112,11 @@ export const transcribePodcastEpisode = async (
   ) {
     return miss("not_podcast");
   }
-  if (options.keepTranscript && card.aiTranscript) {
+  // Convex keeps a transcript in its text rows, with only its length on the card.
+  if (
+    options.keepTranscript &&
+    (card.aiTranscript || card.aiTranscriptCharCount)
+  ) {
     return miss("already_transcribed");
   }
   if ((await job.deps.aiGate(card.userId)) !== "allowed") {

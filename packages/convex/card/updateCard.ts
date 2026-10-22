@@ -5,15 +5,16 @@ import {
   type MutationCtx,
   mutation,
 } from "../_generated/server";
-import { truncateCardTitle } from "../publicApiHttpShared";
+import { truncateCardTitle } from "../publicApi/http/shared";
 import {
-  getSessionUser,
+  requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueCardProcessing } from "../workflowDispatch";
 import {
@@ -32,7 +33,7 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch, withUrlHost } from "./searchDocumentHelpers";
+import { syncCardSearch, withUrlHost } from "./searchSync";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -180,6 +181,28 @@ const spendCardReprocessLimits = async (
   );
 };
 
+/**
+ * Normalizes the tags a card write sets and refuses ones the card can't hold.
+ * `previousTags` are the tags the card had before the write.
+ */
+export const normalizeCardTags = (
+  tags: readonly unknown[],
+  previousTags: readonly string[] = []
+): string[] | undefined => {
+  if (tags.some((tag) => typeof tag !== "string")) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Tags must be strings",
+    });
+  }
+  const normalized = normalizeTagList(tags as string[]);
+  const problem = explainInvalidCardTags(normalized, previousTags);
+  if (problem) {
+    throw new ConvexError({ code: "INVALID_INPUT", message: problem });
+  }
+  return normalized.length > 0 ? normalized : undefined;
+};
+
 export const updateCard = mutation({
   args: {
     id: v.id("cards"),
@@ -190,10 +213,7 @@ export const updateCard = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
 
     const { id, ...updates } = args;
     const card = await ctx.db.get("cards", id);
@@ -208,6 +228,9 @@ export const updateCard = mutation({
 
     if (updates.url !== undefined) {
       updates.url = assertSafeExternalUrl(updates.url);
+    }
+    if (updates.tags !== undefined) {
+      updates.tags = normalizeCardTags(updates.tags, card.tags);
     }
 
     const now = Date.now();
@@ -398,8 +421,9 @@ const applyCardFieldEdit = (
       return true;
 
     case "tags":
-      state.updateData.tags =
-        Array.isArray(value) && value.length > 0 ? value : undefined;
+      state.updateData.tags = Array.isArray(value)
+        ? normalizeCardTags(value, card.tags)
+        : undefined;
       return true;
 
     case "removeAiTag": {
@@ -605,7 +629,18 @@ export const updateCardFieldForUserHandler = async (
     }
     await ctx.db.patch("cards", cardId, updateData);
     if (field === "delete" && !card.isDeleted) {
-      await recordActiveCardRemoved(ctx, userId, cardId);
+      try {
+        await recordActiveCardRemoved(ctx, userId, cardId);
+      } catch (error) {
+        // Bulk deletes catch each card's error and commit the rest, and Convex
+        // has no savepoints, so the card is put back before the error leaves.
+        await ctx.db.patch("cards", cardId, {
+          isDeleted: card.isDeleted,
+          deletedAt: card.deletedAt,
+          updatedAt: card.updatedAt,
+        });
+        throw error;
+      }
     }
   }
   if (!options.deferSearchSync) {
@@ -624,10 +659,7 @@ export const updateCardField = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { cardId, field, value, tagToRemove }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
 
     await updateCardFieldForUserHandler(ctx, {
       userId: user.teakUserId,
@@ -687,10 +719,7 @@ export const reprocessCard = mutation({
     })
   ),
   handler: async (ctx, { cardId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     try {
       const result = await reprocessCardForUserHandler(ctx, {
         userId: user.teakUserId,

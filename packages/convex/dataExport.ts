@@ -539,8 +539,10 @@ export const getExportCardsByIds = internalQuery({
       return [];
     }
     const cards: ExportCardRow[] = [];
-    for (const cardId of cardIds) {
-      const card = await ctx.db.get(cardId);
+    const fetched = await Promise.all(
+      cardIds.map((cardId) => ctx.db.get(cardId))
+    );
+    for (const card of fetched) {
       if (card && card.userId === job.userId && isActiveCard(card)) {
         cards.push(toExportCardRow(card));
       }
@@ -571,8 +573,10 @@ export const getExportCardsPage = internalQuery({
       .paginate({ cursor, numItems });
 
     const cards: ExportCardRow[] = [];
-    for (const item of page.page) {
-      const card = await ctx.db.get(item.cardId);
+    const fetched = await Promise.all(
+      page.page.map((item) => ctx.db.get(item.cardId))
+    );
+    for (const card of fetched) {
       if (!(card && isActiveCard(card))) {
         continue;
       }

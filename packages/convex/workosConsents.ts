@@ -7,7 +7,7 @@ import {
   rateLimitResultValidator,
   type ValidatedRateLimitKey,
 } from "./publicApi";
-import { readWorkosConnectClients } from "./publicApiMeta";
+import { readWorkosConnectClients } from "./publicApi/http/meta";
 import { getSessionUser } from "./securitySessions";
 import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { disconnectApplication } from "./workosApplicationDisconnect";

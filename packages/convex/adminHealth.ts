@@ -1,14 +1,15 @@
 import { v } from "convex/values";
 import { action, env, internalMutation, query } from "./_generated/server";
-import { ensureAdmin, readInternalUserIds } from "./adminAccess";
 import {
   type CronHealth,
   cronHealth,
   DAY_MS,
   summarizeSignupDomains,
-} from "./adminStats";
+} from "./admin/stats";
+import { ensureAdmin, readInternalUserIds } from "./adminAccess";
 import { CRONS } from "./cronSchedules";
 import { POSTHOG_PROJECT_ID, POSTHOG_UI_HOST } from "./shared/posthog";
+import { readDispatchHealth } from "./workflowDispatch";
 
 const MAX_ERROR_LENGTH = 300;
 
@@ -123,6 +124,8 @@ export const getHealth = query({
     const recentFailures = <T extends { _creationTime: number }>(rows: T[]) =>
       rows.filter((row) => row._creationTime >= since);
 
+    const dispatches = await readDispatchHealth(ctx, now);
+
     const internalIds = await readInternalUserIds(ctx);
     const signups = (
       await ctx.db
@@ -150,6 +153,7 @@ export const getHealth = query({
         failedImports: recentFailures(failedImports).length,
         failedExports: recentFailures(failedExports).length,
       },
+      dispatches,
       signupDomains: summarizeSignupDomains(
         signups.map((user) => ({
           email: user.email,
@@ -163,7 +167,8 @@ export const getHealth = query({
       signupsLastWeek: signups.length,
       isApproximate:
         signups.length === SIGNUP_SCAN_LIMIT ||
-        deadLetters.length === DEAD_LETTER_LIMIT,
+        deadLetters.length === DEAD_LETTER_LIMIT ||
+        dispatches.isApproximate,
     };
   },
 });

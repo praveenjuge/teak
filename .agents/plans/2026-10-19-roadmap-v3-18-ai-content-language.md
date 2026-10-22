@@ -30,7 +30,7 @@ Write AI summaries and AI tags in the language of the saved item. A Japanese art
 - **The worker picks the prompt** in `apps/files-worker/src/ai/textMetadata.ts:112-114`, by op (`generate-text-metadata` or the link op), and retries JSON validation up to `MAX_AI_METADATA_VALIDATION_RETRIES = 2`.
 - **Images:** `apps/files-worker/src/images/imageMetadata.ts:27-38` `IMAGE_ANALYSIS_SYSTEM_PROMPT` (Gemma vision) returns tags, a summary and the image's text. It already says to keep the text in its original language and script (34), but sets no language for the tags and summary. It is used at 298. The separate `IMAGE_TEXT_SYSTEM_PROMPT` (309) only reads text.
 - **AI tags** are cleaned by `normalizeAiTags` (`apps/files-worker/src/workflows/cardProcessing/aiMetadata.ts:38-48`): trimmed, lowercased (a no-op for CJK), with `secret`/`hidden` removed. It is called at 90 (text and link) and 165 (image).
-- **Storage:** `cards.aiTags` and `cards.aiSummary` (`schema.ts:488-489`). Search tag rows merge user and AI tags (`searchDocumentHelpers.ts:75-79`).
+- **Storage:** `cards.aiTags` and `cards.aiSummary` (`schema.ts:488-489`). Search tag rows merge user and AI tags (`card/searchSync.ts`).
 - **Tag matching:**
   - `tagKey = trim().toLowerCase()` (`shared/tags.ts:19`).
   - `#tag` parsing (`shared/search/qualifiers.ts:366`) takes any characters after `#`.

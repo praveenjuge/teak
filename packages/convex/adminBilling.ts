@@ -7,14 +7,14 @@ import {
   env,
   internalQuery,
 } from "./_generated/server";
-import { ensureAdmin } from "./adminAccess";
 import {
   DAY_MS,
   monthlyAmount,
   revenueStatus,
   type SubscriptionLike,
   summarizeSubscriptions,
-} from "./adminStats";
+} from "./admin/stats";
+import { ensureAdmin } from "./adminAccess";
 import { daysAgoDate, type UsageByUser } from "./adminUsage";
 import { readHasPremium } from "./auth";
 

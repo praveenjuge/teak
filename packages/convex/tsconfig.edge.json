@@ -3,6 +3,6 @@
   "compilerOptions": {
     "types": ["vite/client", "node"]
   },
-  "include": ["./*.test.ts"],
+  "include": ["./edge"],
   "exclude": []
 }

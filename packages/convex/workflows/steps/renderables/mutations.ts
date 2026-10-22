@@ -5,7 +5,7 @@ import {
   mergeProcessingStages,
   stageFailed,
 } from "../../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../../../card/searchSync";
 import { filePreviewFactsValidator, imageExifValidator } from "../../../schema";
 import { queueCardProcessingFailed } from "../../../telemetry/schedule";
 

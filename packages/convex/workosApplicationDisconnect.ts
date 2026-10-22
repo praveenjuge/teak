@@ -10,7 +10,7 @@ import { CONNECT_CONSENT_ID } from "./shared/workosIds";
 import {
   deleteAuthorizedApp,
   listAuthorizedAppsPage,
-} from "./workosAuthorizedApps";
+} from "./workos/authorizedApps";
 import { resolveOwner } from "./workosIdentity";
 
 const principalValidator = {

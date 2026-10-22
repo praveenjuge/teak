@@ -1,15 +1,15 @@
 import { type ActionCtx, httpAction } from "../_generated/server";
 import {
-  executePublicApiOperation,
-  type PublicApiOperation,
-  validatePublicApiBearer,
-} from "../publicApiHttp";
-import {
   buildProtectedResourceMetadata,
   getProtectedResourceUrl,
   json,
   withPublicApiGatewayHeaders,
-} from "../publicApiMeta";
+} from "../publicApi/http/meta";
+import {
+  executePublicApiOperation,
+  type PublicApiOperation,
+  validatePublicApiBearer,
+} from "../publicApi/http/routes";
 import {
   answerProtocolMessage,
   jsonRpcError,

@@ -8,8 +8,8 @@ import {
   onlyAddsToTarget,
   smartFolderMembership,
 } from "../folder/membership";
-import { explainInvalidTags } from "../publicApiHttpShared";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { requireSessionUser, type TeakUserId } from "../securitySessions";
+import { explainInvalidCardTags, normalizeTagList } from "../shared/tags";
 import {
   type CardFieldEdit,
   updateCardFieldForUserHandler,
@@ -35,7 +35,9 @@ export const bulkCardActionValidator = v.union(
 
 export type BulkCardAction = Infer<typeof bulkCardActionValidator>;
 
-const isTagAction = (action: BulkCardAction) =>
+const isTagAction = (
+  action: BulkCardAction
+): action is "addTags" | "removeTags" =>
   action === "addTags" || action === "removeTags";
 
 const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
@@ -45,16 +47,11 @@ const FOLDER_ACTIONS: Partial<Record<BulkCardAction, FolderMembershipAction>> =
     moveToFolder: "move",
   };
 
-export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
-  const seen = new Set<string>();
-  const normalized: string[] = [];
-  for (const raw of tags ?? []) {
-    const tag = raw.trim();
-    if (tag && !seen.has(tag.toLowerCase())) {
-      seen.add(tag.toLowerCase());
-      normalized.push(tag);
-    }
-  }
+export const normalizeBulkTags = (
+  tags: readonly string[] | undefined,
+  action: "addTags" | "removeTags" = "addTags"
+) => {
+  const normalized = normalizeTagList(tags ?? []);
   if (normalized.length === 0) {
     throw new ConvexError({
       code: "INVALID_INPUT",
@@ -67,7 +64,9 @@ export const normalizeBulkTags = (tags: readonly string[] | undefined) => {
       message: `Name at most ${MAX_BULK_TAGS} tags at a time`,
     });
   }
-  const tagError = explainInvalidTags(normalized);
+  // Removing names tags a card already has, older long ones included.
+  const tagError =
+    action === "addTags" ? explainInvalidCardTags(normalized) : null;
   if (tagError) {
     throw new ConvexError({ code: "INVALID_INPUT", message: tagError });
   }
@@ -218,7 +217,7 @@ export const applyBulkCardAction = async (
     });
   }
   const tags = isTagAction(args.action)
-    ? normalizeBulkTags(args.tags)
+    ? normalizeBulkTags(args.tags, args.action)
     : undefined;
   const isFolderAction = FOLDER_ACTIONS[args.action] !== undefined;
   if (isFolderAction && !args.folderId) {
@@ -276,13 +275,7 @@ export const bulkUpdateCards = mutation({
     failedIds: v.array(v.id("cards")),
   }),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "Sign in to change cards",
-      });
-    }
+    const user = await requireSessionUser(ctx);
     return applyBulkCardAction(ctx, { ...args, userId: user.teakUserId });
   },
 });

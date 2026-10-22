@@ -14,10 +14,7 @@ import { isCardHidden } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
-import {
-  buildCardSearchText,
-  normalizeCardSearchTag,
-} from "./searchDocumentHelpers";
+import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
 
 export interface SearchViewFilters {
   archived: ArchivedFilter;
@@ -35,6 +32,11 @@ export interface ResolvedSearch {
   hasCardFilters: boolean;
   includeHidden: boolean;
   matches: (card: Doc<"cards">, searchableText?: string) => boolean;
+  /**
+   * `matches` decided from a card's search document, when every check reads
+   * a field the document keeps in step with the card; otherwise undefined.
+   */
+  matchesDocument?: (document: Doc<"cardSearchDocuments">) => boolean;
   ocrText: string;
   phrases: string[];
   prices: PriceBound[];
@@ -106,6 +108,48 @@ export const expandFolderSearch = async (
   return combined === null ? null : { searchQuery: combined };
 };
 
+/**
+ * The card types a parsed query can match within `types` (undefined for any
+ * type): `type:` qualifiers intersect them, `is:done`, `is:todo` and prices
+ * only match links, and a mood search only matches images. Null when the
+ * query can match no type.
+ */
+export const narrowTypesForQuery = (
+  parsed: Pick<
+    ParsedSearchQuery,
+    "done" | "prices" | "similarity" | "todo" | "types"
+  >,
+  types: readonly CardType[] | undefined
+): CardType[] | null | undefined => {
+  let narrowed = types?.length ? [...types] : undefined;
+  if (parsed.types.length > 0) {
+    narrowed = narrowed
+      ? narrowed.filter((type) => parsed.types.includes(type))
+      : [...parsed.types];
+    if (narrowed.length === 0) {
+      return null;
+    }
+  }
+  if (parsed.done && parsed.todo) {
+    return null;
+  }
+  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
+    if (narrowed && !narrowed.includes("link")) {
+      return null;
+    }
+    narrowed = ["link"];
+  }
+  if (parsed.similarity?.kind === "mood") {
+    narrowed = narrowed
+      ? narrowed.filter((type) => type === "image")
+      : ["image"];
+    if (narrowed.length === 0) {
+      return null;
+    }
+  }
+  return narrowed;
+};
+
 export const resolveSearch = async (
   ctx: QueryCtx,
   userId: string,
@@ -114,30 +158,9 @@ export const resolveSearch = async (
 ): Promise<ResolvedSearch | null> => {
   const trash = view.trash === true;
 
-  let types = view.types?.length ? [...view.types] : undefined;
-  if (parsed.types.length > 0) {
-    types = types
-      ? types.filter((type) => parsed.types.includes(type))
-      : [...parsed.types];
-    if (types.length === 0) {
-      return null;
-    }
-  }
-  if (parsed.done && parsed.todo) {
+  const types = narrowTypesForQuery(parsed, view.types);
+  if (types === null) {
     return null;
-  }
-  if (parsed.prices.length > 0 || parsed.done || parsed.todo) {
-    if (types && !types.includes("link")) {
-      return null;
-    }
-    types = ["link"];
-  }
-
-  if (parsed.similarity?.kind === "mood") {
-    types = types ? types.filter((type) => type === "image") : ["image"];
-    if (types.length === 0) {
-      return null;
-    }
   }
 
   const archivedInTrash = trash && parsed.archived;
@@ -217,10 +240,27 @@ export const resolveSearch = async (
       phrases
     );
   };
+  const favoritesOnly = Boolean(view.favoritesOnly || parsed.favorite);
+  const readsOnlyDocumentFields =
+    folderIds.length === 0 &&
+    tags.length === 0 &&
+    prices.length === 0 &&
+    ocrTexts.length === 0 &&
+    !parsed.done &&
+    !parsed.todo;
+  const matchesDocument = (document: Doc<"cardSearchDocuments">) =>
+    document.userId === userId &&
+    (includeHidden || document.isHidden !== true) &&
+    (!archivedInTrash || document.isArchived === true) &&
+    (!types || types.includes(document.type)) &&
+    (!favoritesOnly || document.isFavorited === true) &&
+    (sites.length === 0 ||
+      (document.urlHost !== undefined && sites.includes(document.urlHost))) &&
+    matchesSearchPhrases(document.searchableText, phrases);
 
   return {
     archived,
-    favoritesOnly: Boolean(view.favoritesOnly || parsed.favorite),
+    favoritesOnly,
     folderIds,
     hasCardFilters:
       archivedInTrash ||
@@ -234,6 +274,7 @@ export const resolveSearch = async (
       parsed.todo,
     includeHidden,
     matches,
+    matchesDocument: readsOnlyDocumentFields ? matchesDocument : undefined,
     ocrText: ocrTexts.join(" "),
     phrases,
     similarity: parsed.similarity ?? null,

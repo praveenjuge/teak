@@ -6,7 +6,7 @@ import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { type ActionCtx, action, internalAction } from "../_generated/server";
 import {
-  getSessionUser,
+  requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
@@ -114,13 +114,7 @@ export const saveLinkedPdf = action({
   args: { cardId: v.id("cards") },
   returns: savedPdfValidator,
   handler: async (ctx, { cardId }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new ConvexError({
-        code: "UNAUTHORIZED",
-        message: "User must be authenticated",
-      });
-    }
+    const user = await requireSessionUser(ctx);
     return await saveLinkedPdfFor(ctx, user.teakUserId, cardId, "web");
   },
 });

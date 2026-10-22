@@ -63,7 +63,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
   - `saveToTeak` (`lib/saveToTeak.ts:88-140`) checks `/v1/cards/duplicate` and then calls `POST /v1/cards` with an Idempotency-Key.
   - The `SAVE_CONTENT` validator only allows the `source` values `popup-auto-save` and `context-menu` (`background.ts:351`). Phase 1 adds the shortcut's.
   - Safari is a separate native extension (`apps/apple/SafariExtension`, permissions activeTab, nativeMessaging, storage) that saves through the app's session.
-- **The thumbnail upload** is the pattern to copy for a signed upload followed by an attach: `POST /v1/cards/{cardId}/thumbnail/upload`, then `PUT …/thumbnail` (`publicApiOpenApi.ts:1511-1614`, `card/thumbnailOverride.ts`).
+- **The thumbnail upload** is the pattern to copy for a signed upload followed by an attach: `POST /v1/cards/{cardId}/thumbnail/upload`, then `PUT …/thumbnail` (`publicApi/openApi/`, `card/thumbnailOverride.ts`).
 - **Refresh details** calls `reprocessCardForUserHandler` (`packages/convex/card/updateCard.ts:640-656`): `queueCardProcessing(ctx, cardId, { refresh: true, reset: true })`, rate-limited by `spendCardReprocessLimits`.
 - **Privacy policy** (`apps/docs/content/docs/(legal)/privacy-policy.mdx`):
   - line 23, capture data: "the page URL, title, or text you choose to save";
@@ -90,11 +90,11 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
   - `pendingPageSnapshotKey: v.optional(r2KeyValidator)` and `pendingPageSnapshotAt: v.optional(v.number())`, holding the extension's upload, and when it was taken, until the workflow uses it.
   - `processingStatus.archive` in the stage map, with the same `stageCompleted` and `stageFailed` helpers. `createCardForUserHandler` sets it to `stagePending()` for link cards, alongside the other stages, and the workflow's failure path marks it failed like the others when it is still pending or in progress.
 - `storage/cardObjectKeys.ts`: add `card.pageArchive?.storageKey` and `card.pendingPageSnapshotKey`.
-- `workflows/steps/archive/mutations.ts`, both guarded by `{ cardId, rev }` and listed in `workflowRpcAllowlist.ts`:
+- `workflows/steps/archive/mutations.ts`, both guarded by `{ cardId, rev }` and listed in `workflows/rpcAllowlist.ts`:
   - `recordPageArchive({ cardId, archive })` replaces `pageArchive` through `patchCardWithSearchSync`. The archive is not searchable here (phase 10 adds the text), but a single write path keeps it simple. It queues the old archive object for deletion with `queueObjectDeletion` only when its key differs from the new one (a refresh of an unchanged page produces the same content-hash key, and deleting it would delete the new archive), and clears `pendingPageSnapshotKey` after queuing that object's deletion too.
   - When the guard rejects `recordPageArchive` (a stale run, or a card deleted meanwhile), the step deletes the object it just wrote. The output key is also registered with `ensureObjectOwnership` before the worker writes it, so the orphan sweep can find it if that compensating delete is lost.
   - `markPageArchiveStage({ cardId, status, reason? })`.
-- `card/createCard.ts` / `raycast.quickSaveForUser`:
+- `card/createCard.ts` / `publicApi/cardsForUser.quickSaveForUser`:
   - accept an optional `pageSnapshotKey`;
   - validate that it is one of the caller's pending uploads (see the next item);
   - store it in `pendingPageSnapshotKey`, with `pendingPageSnapshotAt` set to the save time.
@@ -167,7 +167,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 
 - **`POST /v1/page-snapshots/upload`:**
   - request `{ bytes }`, response `{ uploadUrl, fileKey, method: "PUT", expiresIn, maxFileSize }`, shaped like the thumbnail upload;
-  - it goes in `publicApiOpenApi.ts`;
+  - it goes in `publicApi/openApi/`;
   - in `scripts/public-parity.ts`, MCP and the CLI are left out with the reason "browser capture only", and the SDK gets `pageSnapshots.createUpload`.
 - **`POST /v1/cards`** and bulk `create` accept an optional `pageSnapshotKey`.
 - **Card serializers** add `archive: { kind, bytes, capturedAt } | null`. No URL: the HTML stays in the app.
@@ -268,7 +268,7 @@ Keep a private, self-contained copy of every saved link's page, so the page outl
 - `packages/convex/accountDeletionWorkflow.test.ts`: seed `pageArchive` and `pendingPageSnapshotKey`.
 - `packages/convex/__tests__/card/createCard.test.ts`: `pageSnapshotKey` validation (own pending, foreign, wrong role).
 - `packages/convex/__tests__/migration/backfillPageArchives.test.ts`: dry run, paging, skip rules.
-- `packages/convex/__tests__/publicApiHttpCards.test.ts`: the upload op (size cap, rate limit) and the serialized `archive` field.
+- `packages/convex/__tests__/publicApi/http/cards.test.ts`: the upload op (size cap, rate limit) and the serialized `archive` field.
 - `apps/extension/__tests__/pageSnapshot.test.ts`: stripping, the 3 s timeout, the over-cap skip, and a save that succeeds when the upload fails.
 - e2e: `packages/tests/src/journey/03-api.e2e.ts` uploads a snapshot and creates a card, then waits for `archive.kind === "full"`.
 

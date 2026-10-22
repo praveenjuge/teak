@@ -4,7 +4,7 @@
 
 Keep user documentation synchronized in the same change:
 
-- Public API contracts in `packages/convex/http.ts`, `publicApiHttp.ts`, `publicApiMeta.ts`, or `publicApiOpenApi.ts` -> `content/docs/(developers)/api.mdx`
+- Public API contracts in `packages/convex/http.ts`, `publicApi/http/*.ts`, or `publicApi/openApi/*.ts` -> `content/docs/(developers)/api.mdx`
 - MCP behavior under `packages/convex/mcp` -> `content/docs/(developers)/mcp.mdx`
 - Apple app behavior under `apps/apple` -> `content/docs/(apps)/mac.mdx` (Mac) and `content/docs/(apps)/mobile.mdx` (iPhone and iPad)
 - Raycast commands or authentication -> `content/docs/(apps)/raycast.mdx`

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
+import type { Doc } from "../_generated/dataModel";
 import {
   internalAction,
   internalMutation,
@@ -17,6 +18,7 @@ const TAG_SUMMARY_STALE_MS = 5 * 60_000;
 export const TAG_SUMMARY_PAGE_ROWS = 4000;
 export const TAG_SUMMARY_MAX_PAGES = 60;
 export const MAX_TAG_SUMMARY_ITEMS = 3000;
+export const TAG_COUNT_FOLD_ROWS = 1000;
 
 export const tagSummaryItemValidator = v.object({
   name: v.string(),
@@ -74,6 +76,63 @@ export const markTagSummaryDirty = async (
   );
 };
 
+export type TagCountDeltas = Map<string, Map<string, number>>;
+
+/** Whether a tag row counts toward its tag: outside Trash and Archive. */
+export const isCountedTagRow = (
+  row: Pick<Doc<"cardSearchTags">, "isArchived" | "isDeleted">
+) => row.isDeleted === undefined && row.isArchived === undefined;
+
+export const addTagCountDelta = (
+  deltas: TagCountDeltas,
+  userId: string,
+  tag: string,
+  delta: number
+) => {
+  const tags = deltas.get(userId) ?? new Map<string, number>();
+  tags.set(tag, (tags.get(tag) ?? 0) + delta);
+  deltas.set(userId, tags);
+};
+
+export const recordTagCountDeltas = async (
+  ctx: MutationCtx,
+  deltas: TagCountDeltas
+) => {
+  for (const [userId, tags] of deltas) {
+    for (const [tag, delta] of tags) {
+      if (delta !== 0) {
+        await ctx.db.insert("tagCountDeltas", { userId, tag, delta });
+      }
+    }
+  }
+};
+
+export const applyTagCounts = async (
+  ctx: MutationCtx,
+  userId: string,
+  deltas: Map<string, number>
+) => {
+  for (const [tag, delta] of deltas) {
+    if (delta === 0) {
+      continue;
+    }
+    const row = await ctx.db
+      .query("userTagCounts")
+      .withIndex("by_userId_and_tag", (q) =>
+        q.eq("userId", userId).eq("tag", tag)
+      )
+      .unique();
+    const count = (row?.count ?? 0) + delta;
+    if (!row) {
+      await ctx.db.insert("userTagCounts", { userId, tag, count });
+    } else if (count === 0) {
+      await ctx.db.delete("userTagCounts", row._id);
+    } else {
+      await ctx.db.patch("userTagCounts", row._id, { count });
+    }
+  }
+};
+
 const sortTagCounts = (items: TagCount[]): TagCount[] =>
   items.sort((left, right) =>
     left.count === right.count
@@ -104,6 +163,58 @@ export const countTagSummaryPage = internalQuery({
       counts: Array.from(counts, ([name, count]) => ({ name, count })),
       continueCursor: page.isDone ? null : page.continueCursor,
     };
+  },
+});
+
+export const countTagCountsPage = internalQuery({
+  args: { userId: v.string(), cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    counts: v.array(tagSummaryItemValidator),
+    continueCursor: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, { userId, cursor }) => {
+    const page = await ctx.db
+      .query("userTagCounts")
+      .withIndex("by_userId_and_tag", (q) => q.eq("userId", userId))
+      .paginate({ cursor, numItems: TAG_SUMMARY_PAGE_ROWS });
+    return {
+      counts: page.page.flatMap((row) =>
+        row.count > 0 ? [{ name: row.tag, count: row.count }] : []
+      ),
+      continueCursor: page.isDone ? null : page.continueCursor,
+    };
+  },
+});
+
+export const tagCountsReady = internalQuery({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) =>
+    (await ctx.db
+      .query("tagCountStates")
+      .withIndex("by_key", (q) => q.eq("key", "global"))
+      .unique()) !== null,
+});
+
+/** Folds a page of the user's count changes into `userTagCounts`. */
+export const foldTagCountDeltas = internalMutation({
+  args: { userId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { userId }) => {
+    if (await getAccountDeletionState(ctx, userId)) {
+      return true;
+    }
+    const rows = await ctx.db
+      .query("tagCountDeltas")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(TAG_COUNT_FOLD_ROWS);
+    const totals = new Map<string, number>();
+    for (const row of rows) {
+      totals.set(row.tag, (totals.get(row.tag) ?? 0) + row.delta);
+      await ctx.db.delete("tagCountDeltas", row._id);
+    }
+    await applyTagCounts(ctx, userId, totals);
+    return rows.length < TAG_COUNT_FOLD_ROWS;
   },
 });
 
@@ -163,6 +274,19 @@ export const recomputeTagSummary = internalAction({
     if (claimedAt === null) {
       return null;
     }
+    let folded = false;
+    for (let round = 0; !folded && round < TAG_SUMMARY_MAX_PAGES; round += 1) {
+      folded = await ctx.runMutation(
+        internal.tag.tagSummary.foldTagCountDeltas,
+        { userId }
+      );
+    }
+    // The full recount of `cardSearchTags` stays as the repair path for
+    // tag rows that are not counted yet.
+    const pageQuery =
+      folded && (await ctx.runQuery(internal.tag.tagSummary.tagCountsReady, {}))
+        ? internal.tag.tagSummary.countTagCountsPage
+        : internal.tag.tagSummary.countTagSummaryPage;
     const totals = new Map<string, number>();
     let cursor: string | null = null;
     let isDone = false;
@@ -171,10 +295,7 @@ export const recomputeTagSummary = internalAction({
       const page: {
         counts: TagCount[];
         continueCursor: string | null;
-      } = await ctx.runQuery(internal.tag.tagSummary.countTagSummaryPage, {
-        userId,
-        cursor,
-      });
+      } = await ctx.runQuery(pageQuery, { userId, cursor });
       for (const { name, count } of page.counts) {
         totals.set(name, (totals.get(name) ?? 0) + count);
       }

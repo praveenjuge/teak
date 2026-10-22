@@ -2,9 +2,9 @@ import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { stageFailed } from "../card/processingStatus";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { queueCardProcessing } from "../workflowDispatch";
-import { findCardsMissingAiCandidates } from "./queries";
+import { cardNeedsAiMetadata, findCardsMissingAiCandidates } from "./queries";
 
 export const AI_BACKFILL_INTERVAL_HOURS = 6;
 const AI_BACKFILL_RETRY_WINDOW_HOURS = 24;
@@ -20,13 +20,7 @@ export const claimAiBackfillCard = async (
   cardId: Id<"cards">
 ): Promise<AiBackfillClaim> => {
   const card = await ctx.db.get("cards", cardId);
-  if (
-    !card ||
-    card.isDeleted === true ||
-    card.aiSummary !== undefined ||
-    card.aiTags !== undefined ||
-    card.aiTranscript !== undefined
-  ) {
+  if (!card || card.isDeleted === true || !cardNeedsAiMetadata(card)) {
     return { outcome: "skipped" };
   }
   const attempts = card.aiBackfillAttempts ?? 0;

@@ -26,7 +26,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
   - Internal query `findDuplicateCardForUser` (line 47).
   - The index is `schema.ts:686` `by_user_url_deleted` `["userId", "url", "isDeleted"]`.
 - **Callers of the internal query:**
-  - `publicApiDuplicate.ts` (`GET /v1/cards/duplicate`, routed at `http.ts:238`);
+  - `publicApi/http/duplicate.ts` (`GET /v1/cards/duplicate`, routed at `http.ts:238`);
   - MCP `teak_v1_check_duplicate_url` (`mcp/tools.ts:624`);
   - SDK `cards.duplicate` (`packages/sdk/src/index.ts:976`);
   - CLI `cards duplicate` (`apps/cli/src/index.ts:433`).
@@ -38,7 +38,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
   - The Chrome extension sends `new URL(content).toString()` (`apps/extension/lib/saveToTeak.ts:113`).
   - `normalizeUrlHost` (`shared/utils/urlHost.ts:1–28`) already lowercases the host and strips `www.` for `site:`. It is the model for the host part.
 - **Keeping the key in sync:**
-  - `withUrlHost` (`card/searchDocumentHelpers.ts:215–228`) recomputes `urlHost` whenever a patch carries `url` or `sourceUrl`.
+  - `withUrlHost` (`card/searchSync.ts`) recomputes `urlHost` whenever a patch carries `url` or `sourceUrl`.
   - `patchCardWithSearchSync` (line 231) applies it.
   - Search sync also repairs `urlHost` (around line 314).
   - Editing a URL goes through `updateCardField` `"url"` (`card/updateCard.ts:343–349`).
@@ -46,7 +46,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
   - Existing-card skip: `dataImport.ts:554` queries `by_user_url_deleted` and records `DUPLICATE_URL` (line 594).
   - Same-file skip: `importJobItems` `by_jobId_and_url` (lines 439–447, plus `import/indexItems.ts:22`) records `SOURCE_DUPLICATE`.
 - **Backfill template:** `migration/backfillUrlHost.ts` (paged, dry run defaults to true, account-deletion gate).
-- **Dev seed** queries `by_user_url_deleted` in `devSeed.ts:2568,3058` and `devSeedLinks.ts:74`. These keep working, since that index stays.
+- **Dev seed** queries `by_user_url_deleted` in `devSeed/*.ts` and `devSeed/links.ts`. These keep working, since that index stays.
 
 ## Constraints And Non-goals
 
@@ -72,7 +72,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
 - **`schema.ts`:** `urlKey` in `cardValidator`, plus `.index("by_user_urlkey_deleted", ["userId", "urlKey", "isDeleted"])` beside line 686.
 - **Setting the key on insert:** `card/createCard.ts` sets `urlKey: finalUrl ? urlKey(finalUrl) : undefined` next to `urlHost` (`finalUrl` is `string | undefined`), in `createCardForUserHandler`. That covers the web, the API, Raycast, email-in and import.
 - **Keeping it in sync:**
-  - Extend `withUrlHost` in `searchDocumentHelpers.ts` to also set `urlKey` when `url` is in the patch. Rename it `withUrlFields` and update its two callers.
+  - Extend `withUrlHost` in `card/searchSync.ts` to also set `urlKey` when `url` is in the patch. Rename it `withUrlFields` and update its two callers.
   - Have the search-sync repair (around line 314) also fix a stale `urlKey`.
 - **`card/findDuplicateCard.ts`:**
   1. Compute `key = urlKey(url)`.
@@ -103,7 +103,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
 ## API / MCP / SDK / CLI
 
 - **No new operation.** The behaviour change applies to `GET /v1/cards/duplicate`.
-- **`publicApiOpenApi.ts`:** the operation's description says it matches the same link ignoring `http`/`https`, `www.`, a trailing slash, a `#fragment` and `utm_*`/`fbclid`/`gclid` parameters.
+- **`publicApi/openApi/`:** the operation's description says it matches the same link ignoring `http`/`https`, `www.`, a trailing slash, a `#fragment` and `utm_*`/`fbclid`/`gclid` parameters.
 - **MCP:** the same sentence goes in `teak_v1_check_duplicate_url`'s description (`mcp/tools.ts:624`).
 - **CLI:** the `cards duplicate` help text gets the same sentence.
 - `scripts/public-parity.ts`: no change.
@@ -160,7 +160,7 @@ Treat two URLs as the same saved link when they differ only by `http`/`https`, `
 - `packages/convex/__tests__/card/updateCard.test.ts`: editing the URL updates `urlKey`.
 - `packages/convex/__tests__/import/*`: duplicates by key within the file and against the library.
 - `packages/convex/__tests__/migration/backfillUrlKey.test.ts`: dry run, apply, idempotence, deletion gate.
-- `packages/convex/__tests__/publicApiHttpCards.test.ts` and `__tests__/mcp.test.ts`: the variant matches through HTTP and MCP.
+- `packages/convex/__tests__/publicApi/http/cards.test.ts` and `__tests__/mcp/tools.test.ts`: the variant matches through HTTP and MCP.
 
 ## Proof before the PR
 

@@ -39,16 +39,16 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
 - **Card processing** (`apps/files-worker/src/workflows/cardProcessing/run.ts`):
   - The steps end with "read link image text" (382), "emit completion" (393) and "transcribe podcast" (447).
   - "generate metadata" (`runMetadataStep`, 466–503) produces `aiTags` and `aiSummary`.
-  - New steps go after the existing ones. Each passes `guard` and calls only functions listed in `packages/convex/workflowRpcAllowlist.ts`.
+  - New steps go after the existing ones. Each passes `guard` and calls only functions listed in `packages/convex/workflows/rpcAllowlist.ts`.
 - **Folders:**
   - The table is at `schema.ts:774-787`: `kind` manual or smart, `activeCardCount`, `deletingAt`, and the indexes `by_userId_and_nameKey` and `by_userId_and_createdAt`.
   - `folderCards` (788) has the index `by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt`, which gives a folder's newest active cards.
   - Limits (`shared/folders.ts`): 500 folders per user and 50 per card.
 - **Membership writes:** `folder/membership.ts` has `setCardFoldersForUser` (79), `addCardsToFolder` (230) and `setCardFolders` (267).
 - **Folders in the public API:**
-  - `POST /v1/folders/{id}/cards` is `addCardsToFolder` (`publicApiOpenApi.ts:2043`).
-  - `PATCH /v1/cards/{id}` accepts `folderIds` (`publicApiHttpValidation.ts:911`).
-  - `serializeCard` returns `folderIds` (`publicApiHttpValidation.ts:143`).
+  - `POST /v1/folders/{id}/cards` is `addCardsToFolder` (`publicApi/openApi/`).
+  - `PATCH /v1/cards/{id}` accepts `folderIds` (`publicApi/http/payloads.ts`).
+  - `serializeCard` returns `folderIds` (`publicApi/http/serializers.ts`).
 - **Side panel:** `apps/web/src/components/card-modal/CardMetadataPanel.tsx` builds the Folders row at 425–454. It shows "Add…" when the card is in no folder and opens `CardFoldersDialog`. It resolves folders with `useFolders()` (195).
 - **Extension popup** (`apps/extension/entrypoints/popup/SaveDetails.tsx`):
   - It shows tags and a note after a save, and loads them through `LOAD_SAVE_DETAILS`.
@@ -81,7 +81,7 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
     - Count every row read, hidden ones included, against a budget (40 folders × 10 rows); a folder that hits it goes with the samples it has.
   - `recordFolderSuggestion` (internal mutation, `{ guard, folderId, confidence, version }`). It checks the guard. It writes nothing when the card has gained a folder since, when it is dismissed, or when the folder is no longer eligible.
   - `dismissFolderSuggestion` (public mutation, `{ cardId }`) and `dismissFolderSuggestionForUser` (internal, for the API). Both clear `folderSuggestion` and set `folderSuggestionDismissed`, and are idempotent.
-  - Add both internal functions to `workflowRpcAllowlist.ts`.
+  - Add both internal functions to `workflows/rpcAllowlist.ts`.
 - `folder/membership.ts`: any path that adds a card to a folder (`setCardFoldersForUser`, `addCardsToFolder`, and the bulk add in `card/bulkActions.ts`) also clears `folderSuggestion`. Accepting is just "add to folder", so every surface clears it the same way.
 - Deleting a folder needs no sweep. Readers check the folder (see Web), and the field is overwritten or cleared on the card's next folder change.
 
@@ -133,8 +133,8 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
 
 - `serializeCard` and `serializeListCard`: `folderSuggestion: { folderId, folderName, folderColor, confidence } | null`. It is resolved against the folders table, and null when the folder isn't eligible any more.
   - The single-card path (`GET /v1/cards/{id}`, used by the popup's poll) passes the folder it read with `ctx.db.get(folderId)` into `serializeCard`, since the serializer has no database access of its own. The list serializer resolves folders through one per-request folder map, not one read per card.
-- `DELETE /v1/cards/{cardId}/folder-suggestion`: 200 with the card. It is idempotent. Another user's card gets 404 and a trashed card 409. Route it in `parseCardRoute` beside `thumbnail`, and add the operation to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApiHttpCards.ts:739`); otherwise the pre-handler check answers 404 for a trashed card before the handler can return 409.
-- `publicApiOpenApi.ts`: the card schema field and the operation `dismissFolderSuggestion`.
+- `DELETE /v1/cards/{cardId}/folder-suggestion`: 200 with the card. It is idempotent. Another user's card gets 404 and a trashed card 409. Route it in `parseCardRoute` beside `thumbnail`, and add the operation to `OPERATIONS_THAT_SEE_TRASHED_CARDS` (`publicApi/http/cards.ts`); otherwise the pre-handler check answers 404 for a trashed card before the handler can return 409.
+- `publicApi/openApi/`: the card schema field and the operation `dismissFolderSuggestion`.
 - MCP: the field appears in card output. New tool `teak_v1_dismiss_folder_suggestion { cardId }`. Agents accept a suggestion with the existing `teak_v1_add_cards_to_folder`.
 - SDK: `cards.dismissFolderSuggestion(id)` and the `Card` type field.
 - CLI:
@@ -205,8 +205,8 @@ When a new card belongs in one of your folders, Teak suggests that folder, and o
   - hidden, trashed and in-folder cards return null;
   - record and dismiss;
   - adding to a folder clears the suggestion.
-- `packages/convex/__tests__/publicApiHttpCards.test.ts`: the serialized field, including null once the folder is deleted; the DELETE route; 404 and 409.
-- `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
+- `packages/convex/__tests__/publicApi/http/cards.test.ts`: the serialized field, including null once the folder is deleted; the DELETE route; 404 and 409.
+- `__tests__/mcp/tools.test.ts`, `__tests__/sdk.test.ts`, `apps/cli/src/commands.test.ts`.
 - `apps/web/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the chip shows only with no folders and an existing suggested folder.
 - `apps/extension/__tests__/cardDetails.test.ts`: polling stops on a suggestion, on a folder and on abort.
 - e2e: `packages/tests/src/web/folder-suggestions.e2e.ts` (new) checks accepting and dismissing in the panel, against a seeded suggestion.

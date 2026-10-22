@@ -307,6 +307,11 @@ type FinalizeOutcome =
 // Follow-ups for a claim held by another finalize, or for a scheduled finalize
 // that failed; past these, only a redelivery of the email takes it over.
 const MAX_FOLLOW_UPS = 3;
+// Every retry scheduled for one attachment, rate-limit waits included. A full
+// card bucket resets `attempt`, so this is what ends a retry loop that keeps
+// alternating between the bucket and another failure. Fifty attachments drain
+// a 30-a-minute bucket in a few rounds.
+const MAX_SCHEDULED_RETRIES = 30;
 
 interface FinalizeArgs {
   attempt?: number;
@@ -314,6 +319,7 @@ interface FinalizeArgs {
   fileKey: string;
   index: number;
   receiptKey: string;
+  retries?: number;
   size?: number;
 }
 
@@ -327,7 +333,8 @@ const followUp = async (
   args: FinalizeArgs
 ): Promise<FinalizeOutcome> => {
   const attempt = (args.attempt ?? 0) + 1;
-  if (attempt <= MAX_FOLLOW_UPS) {
+  const retries = (args.retries ?? 0) + 1;
+  if (attempt <= MAX_FOLLOW_UPS && retries <= MAX_SCHEDULED_RETRIES) {
     await ctx.scheduler.runAfter(
       ATTACHMENT_CLAIM_TTL_MS + 1000,
       internal.inbound.http.retryEmailAttachment,
@@ -336,6 +343,7 @@ const followUp = async (
         fileKey: args.fileKey,
         index: args.index,
         receiptKey: args.receiptKey,
+        retries,
         ...(args.size === undefined ? {} : { size: args.size }),
       }
     );
@@ -400,11 +408,20 @@ const finalizeAttachment = async (
       return await followUp(ctx, args);
     }
     if (data?.code === CARD_ERROR_CODES.RATE_LIMITED) {
+      const retries = (args.retries ?? 0) + 1;
+      if (retries > MAX_SCHEDULED_RETRIES) {
+        // Out of retries; a redelivery of the email can still take it over.
+        await ctx.runMutation(
+          internal.inbound.ingest.releaseEmailAttachment,
+          held
+        );
+        return { status: "in_progress" };
+      }
       // The card bucket refills within a minute; the object stays pending.
       await ctx.scheduler.runAt(
         data.retryAt ?? Date.now() + 60_000,
         internal.inbound.http.retryEmailAttachment,
-        { ...args, attempt: 0, claimToken: claim.claimToken }
+        { ...args, attempt: 0, claimToken: claim.claimToken, retries }
       );
       return { status: "scheduled" };
     }
@@ -428,6 +445,7 @@ export const retryEmailAttachment = internalAction({
     fileKey: v.string(),
     index: v.number(),
     receiptKey: v.string(),
+    retries: v.optional(v.number()),
     size: v.optional(v.number()),
   },
   returns: v.null(),

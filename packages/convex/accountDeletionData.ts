@@ -1,15 +1,17 @@
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 import {
+  ACCOUNT_DELETION_KEY_PAGE,
   captureDeletionBatch,
   commitDeletionBatch,
-} from "./accountDeletionBatch";
+  isCurrentDeletionFingerprint,
+} from "./accountDeletion/batch";
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   accountDeletionStage,
-} from "./accountDeletionStages";
+} from "./accountDeletion/stages";
+import { readDeletionState } from "./accountDeletionJobs";
+import { deleteFolderCardCounts } from "./folder/folderRows";
 import { deleteCardTombstonesForUserPage } from "./publicApiTombstones";
 
 const bindingArgs = {
@@ -23,10 +25,7 @@ export const cancelJobsPage = internalMutation({
     cursor: v.union(v.string(), v.null()),
   },
   handler: async (ctx, { table, cursor, ...binding }) => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
+    const state = await readDeletionState(ctx, binding);
     const page =
       table === "importJobs"
         ? await ctx.db
@@ -59,10 +58,7 @@ export const checkpointWriters = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { table, previous, next, done, ...binding }) => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
+    const state = await readDeletionState(ctx, binding);
     if (
       state.stage !== accountDeletionStage("accountData") ||
       state.writersPrepared ||
@@ -88,10 +84,7 @@ export const ancillaryPage = internalMutation({
   args: bindingArgs,
   returns: v.boolean(),
   handler: async (ctx, binding) => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
+    const state = await readDeletionState(ctx, binding);
     if (state.stage !== accountDeletionStage("accountData")) {
       throw new Error("stale_deletion_stage");
     }
@@ -120,6 +113,7 @@ export const ancillaryPage = internalMutation({
       .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
       .take(100);
     for (const folder of folders) {
+      await deleteFolderCardCounts(ctx, folder._id);
       await ctx.db.delete(folder._id);
     }
     const tagSummaries = await ctx.db
@@ -134,6 +128,20 @@ export const ancillaryPage = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .take(10);
     for (const row of tagRefreshes) {
+      await ctx.db.delete(row._id);
+    }
+    const tagCounts = await ctx.db
+      .query("userTagCounts")
+      .withIndex("by_userId_and_tag", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of tagCounts) {
+      await ctx.db.delete(row._id);
+    }
+    const tagCountDeltas = await ctx.db
+      .query("tagCountDeltas")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of tagCountDeltas) {
       await ctx.db.delete(row._id);
     }
     const tagOperations = await ctx.db
@@ -214,6 +222,8 @@ export const ancillaryPage = internalMutation({
       folders.length > 0 ||
       tagSummaries.length > 0 ||
       tagRefreshes.length > 0 ||
+      tagCounts.length > 0 ||
+      tagCountDeltas.length > 0 ||
       tagOperations.length > 0
     );
   },
@@ -228,10 +238,7 @@ const batchKind = v.union(
 export const prepareStorageBatch = internalMutation({
   args: { ...bindingArgs, kind: batchKind },
   handler: async (ctx, { kind, ...binding }) => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
+    const state = await readDeletionState(ctx, binding);
     if (
       state.stage !== accountDeletionStage("accountData") ||
       !state.writersPrepared
@@ -239,7 +246,14 @@ export const prepareStorageBatch = internalMutation({
       throw new Error("stale_deletion_stage");
     }
     const batch = await captureDeletionBatch(ctx, state.userId, kind);
-    const progress = state.storageProgress;
+    // Progress a deploy left behind under the older, row-hashing fingerprint
+    // restarts the batch; deleting its keys again is harmless.
+    const progress =
+      batch.rows.length > 0 &&
+      state.storageProgress?.kind === kind &&
+      !isCurrentDeletionFingerprint(state.storageProgress.fingerprint)
+        ? undefined
+        : state.storageProgress;
     if (!batch.rows.length) {
       if (progress?.kind === kind) {
         throw new Error("deletion_storage_source_changed");
@@ -268,7 +282,7 @@ export const prepareStorageBatch = internalMutation({
       empty: false,
       fingerprint: batch.fingerprint,
       offset,
-      keys: batch.keys.slice(offset, offset + 3),
+      keys: batch.keys.slice(offset, offset + ACCOUNT_DELETION_KEY_PAGE),
       aborts: offset === 0 ? batch.aborts : [],
     };
   },
@@ -283,10 +297,7 @@ export const checkpointStorageBatch = internalMutation({
   },
   returns: v.boolean(),
   handler: async (ctx, { kind, fingerprint, offset, count, ...binding }) => {
-    const state: Doc<"accountDeletionStates"> = await ctx.runQuery(
-      internal.accountDeletionJobs.getState,
-      binding
-    );
+    const state = await readDeletionState(ctx, binding);
     const progress = state.storageProgress;
     if (
       state.stage !== accountDeletionStage("accountData") ||
@@ -295,7 +306,7 @@ export const checkpointStorageBatch = internalMutation({
       progress.fingerprint !== fingerprint ||
       progress.offset !== offset ||
       count < 0 ||
-      count > 3 ||
+      count > ACCOUNT_DELETION_KEY_PAGE ||
       !Number.isInteger(count)
     ) {
       throw new Error("stale_deletion_storage_page");
@@ -303,7 +314,7 @@ export const checkpointStorageBatch = internalMutation({
     const batch = await captureDeletionBatch(ctx, state.userId, kind);
     if (
       batch.fingerprint !== fingerprint ||
-      count !== Math.min(3, batch.keys.length - offset)
+      count !== Math.min(ACCOUNT_DELETION_KEY_PAGE, batch.keys.length - offset)
     ) {
       throw new Error("deletion_storage_source_changed");
     }

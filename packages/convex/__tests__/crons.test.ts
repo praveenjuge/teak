@@ -4,11 +4,9 @@ import { join } from "node:path";
 import { CRONS, cronTasksOn } from "../cronSchedules";
 import crons from "../crons";
 
-const EXPECTED_CRONS: Record<string, { cron: string; handler: string }> = {
-  "workos-event-catch-up": {
-    cron: "15 * * * *",
-    handler: "workosEventCatchUp",
-  },
+const EXPECTED_SCHEDULES: Record<string, string> = {
+  "workos-event-catch-up": "15 * * * *",
+  "workflow-dispatch-watchdog": "35 * * * *",
 };
 
 const WORKER_DIR = join(import.meta.dir, "../../../apps/files-worker");
@@ -25,25 +23,36 @@ const triggerCrons = (path: string): string[] =>
   ).triggers?.crons ?? [];
 
 describe("crons.ts", () => {
-  test("registers exactly the expected cron identifiers", () => {
-    expect(Object.keys(crons.crons).sort()).toEqual(
-      Object.keys(EXPECTED_CRONS).sort()
-    );
+  test("names every scheduled job once", () => {
+    const slugs = Object.values(CRONS).map(({ name }) => name);
+    expect(slugs).toHaveLength(15);
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  for (const [identifier, expected] of Object.entries(EXPECTED_CRONS)) {
-    test(`${identifier} runs ${expected.cron} via ${expected.handler} with empty args`, () => {
-      const job = crons.crons[identifier];
-      expect(job.schedule).toEqual({ cron: expected.cron, type: "cron" });
-      expect(job.name).toContain(expected.handler);
-      expect(job.args).toEqual([{}]);
-    });
-  }
+  test("registers exactly the expected jobs on their schedules", () => {
+    expect(
+      Object.fromEntries(
+        Object.entries(crons.crons).map(([identifier, job]) => [
+          identifier,
+          job.schedule.type === "cron" ? job.schedule.cron : job.schedule,
+        ])
+      )
+    ).toEqual(EXPECTED_SCHEDULES);
+  });
 
-  test("never registers a task the Files Worker runs", () => {
-    for (const task of cronTasksOn("cloudflare")) {
-      expect(crons.crons[CRONS[task].name]).toBeUndefined();
-    }
+  test("routes every Convex schedule to its monitored Node action, never a Files Worker task", () => {
+    expect(crons.crons).toEqual(
+      Object.fromEntries(
+        cronTasksOn("convex").map((handler) => [
+          CRONS[handler].name,
+          {
+            name: `telemetry/crons:${handler}`,
+            args: [{}],
+            schedule: { cron: CRONS[handler].schedule, type: "cron" },
+          },
+        ])
+      )
+    );
   });
 
   test.each(WRANGLER_CONFIGS)(

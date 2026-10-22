@@ -1,7 +1,9 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../_generated/server";
+import { accountDeletionOwnsRows } from "../../accountDeletion";
 import { mergeProcessingStages } from "../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../../card/searchSync";
+import { storeCardTranscript } from "../../card/textContents";
 import { colorValidator, processingStatusValidator } from "../../schema";
 import { buildColorFacets } from "../../shared/utils/colorUtils";
 
@@ -18,15 +20,18 @@ export const updateCardAI = internalMutation({
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const { cardId, processingStatus, aiOcrText, ...rest } = args;
+    const { cardId, processingStatus, aiOcrText, aiTranscript, ...rest } = args;
+    const card = await ctx.db.get("cards", cardId);
+    if (!card || (await accountDeletionOwnsRows(ctx, card.userId))) {
+      return false;
+    }
     const updates = {
       ...rest,
       ...(aiOcrText === undefined ? {} : { aiOcrText: aiOcrText || undefined }),
+      ...(aiTranscript === undefined
+        ? {}
+        : await storeCardTranscript(ctx, card, aiTranscript)),
     };
-    const card = await ctx.db.get("cards", cardId);
-    if (!card) {
-      return false;
-    }
     return await patchCardWithSearchSync(ctx, cardId, {
       ...updates,
       ...(processingStatus === undefined

@@ -5,7 +5,7 @@ import {
   mergeProcessingStages,
   stageCompleted,
 } from "../../../card/processingStatus";
-import { patchCardWithSearchSync } from "../../../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../../../card/searchSync";
 import { r2KeyValidator } from "../../../schema";
 import { rateLimiter } from "../../../shared/rateLimits";
 import { queueObjectDeletion } from "../../../storage/r2";

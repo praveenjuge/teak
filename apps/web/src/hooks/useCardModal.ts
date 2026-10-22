@@ -2,7 +2,11 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
-import { isCardHidden, isHiddenTagList } from "@teak/convex/shared/tags";
+import {
+  explainInvalidCardTags,
+  isCardHidden,
+  isHiddenTagList,
+} from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -444,6 +448,11 @@ export function useCardModal(
 
     if (tag && !currentTags.includes(tag)) {
       const newTags = [...currentTags, tag];
+      const invalid = explainInvalidCardTags(newTags, currentTags);
+      if (invalid) {
+        toast.error(invalid);
+        return;
+      }
       const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
       setTagInput("");
       void updateField("tags", newTags).then((didUpdate) => {

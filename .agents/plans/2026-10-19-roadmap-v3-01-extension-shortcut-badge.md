@@ -38,7 +38,7 @@ Save the current page from the Chrome and Firefox extension with a keyboard shor
   - Context-menu saves pass `source: "context-menu"` (line 536). Inline posts use `"inline-post"` (line 801), popup files `"popup-file"` (line 662).
 - **Duplicate check:**
   - `lib/saveToTeak.ts` `saveToTeak` (line 88) calls `GET /v1/cards/duplicate?url=` (lines 114–125) before `POST /v1/cards`. On a match it returns `{status: "duplicate", cardId}`.
-  - `packages/convex/publicApiDuplicate.ts` handles the request: auth through `withAuthorizedUser`, then `findDuplicateCardForUser`. It returns `{cardId|null}`.
+  - `packages/convex/publicApi/http/duplicate.ts` handles the request: auth through `withAuthorizedUser`, then `findDuplicateCardForUser`. It returns `{cardId|null}`.
 - **Request budget:**
   - Every authorized API call spends the per-user `publicApiRequests` token bucket: 120 per minute (`shared/rateLimits.ts:29–35`, used by `publicApi.ts:1075`).
   - The Files Worker edge also has `API_REQUEST_LIMITER` at 120 per 60 seconds (`apps/files-worker/wrangler.jsonc`, `ratelimits`).

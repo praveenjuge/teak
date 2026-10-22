@@ -9,6 +9,7 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
+import { getDocumentTextRow, readCardTranscript } from "../card/textContents";
 import { cardTypeValidator } from "../schema";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildEmbeddingText } from "./text";
@@ -268,11 +269,11 @@ export const loadForEmbedding = internalQuery({
         continue;
       }
       const extracted = card.hasExtractedText
-        ? await ctx.db
-            .query("cardTextContents")
-            .withIndex("by_cardId", (q) => q.eq("cardId", cardId))
-            .unique()
+        ? await getDocumentTextRow(ctx, cardId)
         : null;
+      const aiTranscript = await readCardTranscript(ctx, card, {
+        maxParts: 1,
+      });
       loaded.push({
         attempts: row.attempts,
         cardId,
@@ -281,7 +282,7 @@ export const loadForEmbedding = internalQuery({
         hash: row.hash,
         namespace: row.namespace,
         shard: row.shard,
-        text: buildEmbeddingText(card, extracted?.text),
+        text: buildEmbeddingText({ ...card, aiTranscript }, extracted?.text),
         type: card.type,
         userId: card.userId,
       });
@@ -297,6 +298,7 @@ export const recordEmbedded = internalMutation({
     hash: v.optional(v.string()),
     namespace: v.optional(v.string()),
     shard: v.optional(v.number()),
+    userId: v.optional(v.string()),
   },
   returns: v.union(
     v.literal("recorded"),
@@ -318,10 +320,12 @@ export const recordEmbedded = internalMutation({
         });
         await tombstoneCardEmbedding(ctx, args.cardId);
       } else if (args.shard !== undefined && args.hash !== undefined) {
+        const userId = row?.userId ?? args.userId;
         await ctx.scheduler.runAfter(0, embedRef().deleteVectorIds, {
           attempt: 1,
           ids: [args.cardId],
           shard: args.shard,
+          ...(userId ? { userId } : {}),
         });
       }
       return "card_gone" as const;
@@ -430,6 +434,29 @@ export const forgetDeletedVectors = internalMutation({
       const row = await rowFor(ctx, cardId);
       if (row?.pendingVectorDeleteAt !== undefined) {
         await ctx.db.delete("cardEmbeddings", row._id);
+      }
+    }
+    return null;
+  },
+});
+
+/**
+ * Vectors whose delete ran out of retries, kept as tombstones so the ledger
+ * sweep tries again. A card that already has a row keeps it.
+ */
+export const parkVectorDeletes = internalMutation({
+  args: { ids: v.array(v.string()), shard: v.number(), userId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { ids, shard, userId }) => {
+    for (const id of ids) {
+      const cardId = ctx.db.normalizeId("cards", id);
+      if (cardId && !(await rowFor(ctx, cardId))) {
+        await ctx.db.insert("cardEmbeddings", {
+          cardId,
+          pendingVectorDeleteAt: Date.now(),
+          shard,
+          userId,
+        });
       }
     }
     return null;

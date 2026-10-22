@@ -9,9 +9,13 @@ import {
   query,
 } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { folderColorValidator } from "../schema";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import {
+  getSessionUser,
+  requireSessionUserId,
+  type TeakUserId,
+} from "../securitySessions";
 import {
   explainInvalidFolderName,
   explainInvalidSmartFolderQuery,
@@ -28,6 +32,11 @@ import {
   parseSearchQuery,
   renameFolderInSearchQuery,
 } from "../shared/search/qualifiers";
+import {
+  deleteFolderCardCounts,
+  insertFolderCardCountBase,
+  readFolderCardCount,
+} from "./folderRows";
 
 export const FOLDER_DELETE_BATCH_SIZE = 50;
 export const FOLDER_DELETE_UNDO_MS = 10_000;
@@ -54,33 +63,31 @@ export interface FolderSummary {
   updatedAt: number;
 }
 
-export const toFolderSummary = (folder: Doc<"folders">): FolderSummary => ({
+export const toFolderSummary = (
+  folder: Doc<"folders">,
+  activeCardCount: number
+): FolderSummary => ({
   _id: folder._id,
   name: folder.name,
   ...(folder.color ? { color: folder.color } : {}),
   kind: folder.kind,
   ...(folder.kind === "smart" ? { query: folder.query ?? "" } : {}),
-  activeCardCount: folder.activeCardCount,
+  activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
 });
+
+export const loadFolderSummary = async (
+  ctx: QueryCtx,
+  folder: Doc<"folders">
+): Promise<FolderSummary> =>
+  toFolderSummary(folder, await readFolderCardCount(ctx, folder));
 
 export const folderNotFound = () =>
   new ConvexError({
     code: "NOT_FOUND",
     message: FOLDER_ERROR_MESSAGES.NOT_FOUND,
   });
-
-const requireSignedIn = async (ctx: QueryCtx | MutationCtx) => {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    throw new ConvexError({
-      code: "UNAUTHORIZED",
-      message: "Sign in to manage folders",
-    });
-  }
-  return user.teakUserId;
-};
 
 export const getFolderForUser = async (
   ctx: QueryCtx,
@@ -118,14 +125,16 @@ export const listFoldersForUser = async (
     .query("folders")
     .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", userId))
     .take(MAX_FOLDERS_PER_USER + 1);
-  return folders
-    .filter((folder) => folder.deletingAt === undefined)
-    .sort(
-      (a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
-        a.createdAt - b.createdAt
-    )
-    .map(toFolderSummary);
+  return await Promise.all(
+    folders
+      .filter((folder) => folder.deletingAt === undefined)
+      .sort(
+        (a, b) =>
+          a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) ||
+          a.createdAt - b.createdAt
+      )
+      .map((folder) => loadFolderSummary(ctx, folder))
+  );
 };
 
 const assertValidName = (name: string) => {
@@ -160,15 +169,15 @@ const assertNameAvailable = async (
   }
 };
 
-export const insertFolder = (
+export const insertFolder = async (
   ctx: MutationCtx,
   userId: string,
   name: string,
   color?: FolderColor,
   now = Date.now(),
   query?: string
-): Promise<Id<"folders">> =>
-  ctx.db.insert("folders", {
+): Promise<Id<"folders">> => {
+  const folderId = await ctx.db.insert("folders", {
     userId,
     name,
     nameKey: folderNameKey(name),
@@ -180,6 +189,13 @@ export const insertFolder = (
     createdAt: now,
     updatedAt: now,
   });
+  await insertFolderCardCountBase(ctx, {
+    _id: folderId,
+    userId,
+    activeCardCount: 0,
+  });
+  return folderId;
+};
 
 export interface ImportFolderCache {
   count?: number;
@@ -346,7 +362,7 @@ export const createFolderForUser = async (
   if (!folder) {
     throw new Error("Failed to create folder");
   }
-  return toFolderSummary(folder);
+  return await loadFolderSummary(ctx, folder);
 };
 
 export const updateFolderForUser = async (
@@ -387,7 +403,7 @@ export const updateFolderForUser = async (
     patch.color = args.color ?? undefined;
   }
   if (Object.keys(patch).length === 0) {
-    return toFolderSummary(folder);
+    return await loadFolderSummary(ctx, folder);
   }
   const now = Date.now();
   await ctx.db.patch("folders", folder._id, { ...patch, updatedAt: now });
@@ -418,7 +434,7 @@ export const updateFolderForUser = async (
   if (!updated) {
     throw folderNotFound();
   }
-  return toFolderSummary(updated);
+  return await loadFolderSummary(ctx, updated);
 };
 
 export const deleteFolderForUser = async (
@@ -448,7 +464,7 @@ export const restoreFolderForUser = async (
     throw folderNotFound();
   }
   if (folder.deletingAt === undefined) {
-    return toFolderSummary(folder);
+    return await loadFolderSummary(ctx, folder);
   }
   if (Date.now() >= folder.deletingAt + FOLDER_DELETE_UNDO_MS) {
     throw new ConvexError({
@@ -458,7 +474,7 @@ export const restoreFolderForUser = async (
   }
   await assertNameAvailable(ctx, userId, folder.name, folder._id);
   await ctx.db.patch("folders", folder._id, { deletingAt: undefined });
-  return toFolderSummary({ ...folder, deletingAt: undefined });
+  return await loadFolderSummary(ctx, { ...folder, deletingAt: undefined });
 };
 
 export const deleteFolderBatchHandler = async (
@@ -500,6 +516,7 @@ export const deleteFolderBatchHandler = async (
     });
     return { done: false };
   }
+  await deleteFolderCardCounts(ctx, folderId);
   await ctx.db.delete("folders", folderId);
   return { done: true };
 };
@@ -532,7 +549,7 @@ export const getFolder = query({
       return null;
     }
     const folder = await getFolderForUser(ctx, user.teakUserId, folderId);
-    return folder ? toFolderSummary(folder) : null;
+    return folder ? await loadFolderSummary(ctx, folder) : null;
   },
 });
 
@@ -545,7 +562,7 @@ export const createFolder = mutation({
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>
-    createFolderForUser(ctx, await requireSignedIn(ctx), args),
+    createFolderForUser(ctx, await requireSessionUserId(ctx), args),
 });
 
 export const updateFolder = mutation({
@@ -557,19 +574,19 @@ export const updateFolder = mutation({
   },
   returns: folderReturnValidator,
   handler: async (ctx, args) =>
-    updateFolderForUser(ctx, await requireSignedIn(ctx), args),
+    updateFolderForUser(ctx, await requireSessionUserId(ctx), args),
 });
 
 export const deleteFolder = mutation({
   args: { folderId: v.id("folders") },
   returns: v.id("folders"),
   handler: async (ctx, { folderId }) =>
-    deleteFolderForUser(ctx, await requireSignedIn(ctx), folderId),
+    deleteFolderForUser(ctx, await requireSessionUserId(ctx), folderId),
 });
 
 export const restoreFolder = mutation({
   args: { folderId: v.id("folders") },
   returns: folderReturnValidator,
   handler: async (ctx, { folderId }) =>
-    restoreFolderForUser(ctx, await requireSignedIn(ctx), folderId),
+    restoreFolderForUser(ctx, await requireSessionUserId(ctx), folderId),
 });

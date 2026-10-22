@@ -6,7 +6,7 @@ import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator, colorValidator } from "../schema";
-import { getSessionUser, type TeakUserId } from "../securitySessions";
+import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
 import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
@@ -26,8 +26,9 @@ import {
 } from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 import { newShuffleKey } from "./shuffle";
+import { normalizeCardTags } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";
 
 // Older app versions send no `source`, so their cards report "unknown".
@@ -170,9 +171,12 @@ export const createCardForUserHandler = async (
   args: CreateCardArgs,
   options: {
     importedVisibleFields?: ImportedVisibleFields;
+    /** Runs once the card is counted, so a refused card makes no folders. */
+    resolveFolderIds?: () => Promise<Id<"folders">[]>;
     source?: CardCreationSource;
   } = {}
 ): Promise<Id<"cards">> => {
+  const tags = args.tags && normalizeCardTags(args.tags);
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
   assertClientKeysInUserNamespace(userId, {
@@ -228,7 +232,7 @@ export const createCardForUserHandler = async (
     const paletteText = [
       finalContent,
       args.notes ?? "",
-      Array.isArray(args.tags) ? args.tags.join(" ") : "",
+      tags ? tags.join(" ") : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -256,7 +260,7 @@ export const createCardForUserHandler = async (
     urlHost: normalizeUrlHost(finalUrl ?? cardSource.sourceUrl) ?? undefined,
     fileKey: args.fileKey,
     thumbnailKey: args.thumbnailKey,
-    tags: args.tags,
+    tags,
     notes: args.notes,
     metadata:
       Object.keys(processedMetadata).length > 0 ? processedMetadata : undefined,
@@ -287,6 +291,10 @@ export const createCardForUserHandler = async (
   };
 
   const cardId = await insertCountedCard(ctx, cardData, { hasPremium });
+  const folderIds = await options.resolveFolderIds?.();
+  if (folderIds?.length) {
+    await ctx.db.patch("cards", cardId, { folderIds });
+  }
   await syncCardSearch(ctx, cardId, userId);
 
   await queueCardProcessing(ctx, cardId);
@@ -306,10 +314,7 @@ export const createCard = mutation({
   args: sessionCreateCardArgs,
   returns: v.id("cards"),
   handler: async (ctx, { source: clientSource, ...args }) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
     const source: CardCreationSource = clientSource ?? "unknown";
 
     try {

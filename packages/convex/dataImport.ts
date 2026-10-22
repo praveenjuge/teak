@@ -336,18 +336,97 @@ export const findUploadForUser = internalQuery({
       .first(),
 });
 
-export const markQueued = internalMutation({
-  args: { jobId: v.id("importJobs") },
+// Outlasts the longest action, so a live claim always has a running owner.
+const COMPLETION_CLAIM_MS = 10 * 60 * 1000;
+
+const holdsClaim = (job: Doc<"importJobs">, token: string) =>
+  job.status === "uploading" &&
+  job.completionClaim?.token === token &&
+  job.completionClaim.expiresAt > Date.now();
+
+/**
+ * Claims an upload for one `completeImportUpload` call. A second call while
+ * the claim is live is refused before it reaches R2.
+ */
+export const claimCompletion = internalMutation({
+  args: { jobId: v.id("importJobs"), userId: v.string(), uploadId: v.string() },
+  returns: v.string(),
+  handler: async (ctx, { jobId, userId, uploadId }) => {
+    const job = await ctx.db.get(jobId);
+    if (
+      !job ||
+      job.userId !== userId ||
+      job.status !== "uploading" ||
+      job.uploadId !== uploadId ||
+      job.cancelRequested
+    ) {
+      throw new Error("Import upload not found");
+    }
+    await assertAccountNotDeleting(ctx, userId);
+    const now = Date.now();
+    if (job.uploadExpiresAt !== undefined && job.uploadExpiresAt <= now) {
+      throw new ConvexError({
+        code: "UPLOAD_EXPIRED",
+        message: "This upload has expired",
+      });
+    }
+    if ((job.completionClaim?.expiresAt ?? 0) > now) {
+      throw new ConvexError({
+        code: "UPLOAD_COMPLETING",
+        message: "This import is already being completed",
+      });
+    }
+    const token = crypto.randomUUID();
+    await ctx.db.patch(jobId, {
+      completionClaim: { token, expiresAt: now + COMPLETION_CLAIM_MS },
+      updatedAt: now,
+    });
+    return token;
+  },
+});
+
+export const holdsCompletionClaim = internalQuery({
+  args: { jobId: v.id("importJobs"), token: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { jobId, token }) => {
+    const job = await ctx.db.get(jobId);
+    return job ? holdsClaim(job, token) : false;
+  },
+});
+
+export const releaseCompletionClaim = internalMutation({
+  args: { jobId: v.id("importJobs"), token: v.string() },
   returns: v.null(),
-  handler: async (ctx, { jobId }) => {
+  handler: async (ctx, { jobId, token }) => {
+    const job = await ctx.db.get(jobId);
+    if (job?.completionClaim?.token === token) {
+      await ctx.db.patch(jobId, { completionClaim: undefined });
+    }
+    return null;
+  },
+});
+
+export const markQueued = internalMutation({
+  args: { jobId: v.id("importJobs"), claim: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { jobId, claim }) => {
     const job = await ctx.db.get(jobId);
     if (!job || job.cancelRequested) {
       throw new Error("Import was canceled");
+    }
+    const claimable =
+      claim === undefined
+        ? job.status === "uploading" &&
+          (job.completionClaim?.expiresAt ?? 0) <= Date.now()
+        : holdsClaim(job, claim);
+    if (!claimable) {
+      throw new Error("Import upload is no longer being completed");
     }
     await assertAccountNotDeleting(ctx, job.userId);
     await ctx.db.patch(jobId, {
       status: "queued",
       phase: "Waiting to parse",
+      completionClaim: undefined,
       uploadId: undefined,
       uploadExpiresAt: undefined,
       uploadedParts: undefined,
@@ -681,6 +760,7 @@ export const finishJob = internalMutation({
       phase,
       reportKey,
       failureClass,
+      completionClaim: undefined,
       uploadId: undefined,
       uploadExpiresAt: undefined,
       uploadedParts: undefined,
@@ -724,7 +804,9 @@ export const findExpiredUploads = internalQuery({
           q.eq("status", "uploading").lt("uploadExpiresAt", now)
         )
         .take(limit)
-    ).map(({ _id, sourceKey, uploadId }) => ({ _id, sourceKey, uploadId })),
+    )
+      .filter((job) => (job.completionClaim?.expiresAt ?? 0) <= now)
+      .map(({ _id, sourceKey, uploadId }) => ({ _id, sourceKey, uploadId })),
 });
 
 /**
@@ -738,7 +820,12 @@ export const expireAbandonedUpload = internalMutation({
   handler: async (ctx, { jobId }) => {
     const job = await ctx.db.get(jobId);
     const expiresAt = job?.uploadExpiresAt;
-    if (job?.status !== "uploading" || !expiresAt || expiresAt >= Date.now()) {
+    if (
+      job?.status !== "uploading" ||
+      !expiresAt ||
+      expiresAt >= Date.now() ||
+      (job.completionClaim?.expiresAt ?? 0) > Date.now()
+    ) {
       return false;
     }
     await assertAccountNotDeleting(ctx, job.userId);
@@ -747,6 +834,7 @@ export const expireAbandonedUpload = internalMutation({
       status: "failed",
       phase: "Import failed",
       failureClass: "upload_expired",
+      completionClaim: undefined,
       uploadId: undefined,
       uploadExpiresAt: undefined,
       uploadedParts: undefined,

@@ -43,6 +43,48 @@ export const explainInvalidTagName = (name: string): string | null => {
   return null;
 };
 
+// The extension caps a card's tags at the same number; imports keep 50.
+export const MAX_CARD_TAGS = 100;
+
+export const CARD_TAG_ERROR_MESSAGES = {
+  TAG_TOO_LONG: `Each tag must be at most ${MAX_TAG_NAME_LENGTH} characters`,
+  TOO_MANY_TAGS: `A card can have at most ${MAX_CARD_TAGS} tags`,
+} as const;
+
+/** Trims each tag, drops empty ones and keeps the first of each case variant. */
+export const normalizeTagList = (tags: readonly string[]): string[] => {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const raw of tags) {
+    const tag = raw.trim();
+    const key = tag.toLowerCase();
+    if (tag && !seen.has(key)) {
+      seen.add(key);
+      normalized.push(tag);
+    }
+  }
+  return normalized;
+};
+
+/**
+ * Why a card can't hold these normalized tags, or null. Tags the card already
+ * has (saved before the limits existed) may stay, and a card already past the
+ * count may keep or drop tags, never add.
+ */
+export const explainInvalidCardTags = (
+  tags: readonly string[],
+  previousTags: readonly string[] = []
+): string | null => {
+  const kept = new Set(previousTags);
+  if (tags.some((tag) => tag.length > MAX_TAG_NAME_LENGTH && !kept.has(tag))) {
+    return CARD_TAG_ERROR_MESSAGES.TAG_TOO_LONG;
+  }
+  if (tags.length > MAX_CARD_TAGS && tags.length > previousTags.length) {
+    return CARD_TAG_ERROR_MESSAGES.TOO_MANY_TAGS;
+  }
+  return null;
+};
+
 // Lowercasing can lengthen a tag (64 "İ" become 128 UTF-16 code units), and
 // the app passes lowercase keys.
 export const MAX_TAG_KEY_LENGTH = 256;

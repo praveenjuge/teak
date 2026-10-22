@@ -1,0 +1,1471 @@
+import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
+import { ConvexError } from "convex/values";
+import { convexTest } from "convex-test";
+import { describe, expect, test, vi } from "vitest";
+import { components, internal } from "../_generated/api";
+import type { Doc, Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import {
+  assertAccountNotDeleting,
+  beginAccountDeletion,
+  deleteAccountDataHandler,
+  type OwnedCardIds,
+  takeOwnedCards,
+} from "../accountDeletion";
+import { captureDeletionBatch } from "../accountDeletion/batch";
+import {
+  CARD_USAGE_BASE_SHARDS,
+  CARD_USAGE_SCAN_LIMIT,
+  CARD_USAGE_TOTAL_SHARDS,
+  getActiveCardCount,
+  getCardUsageSnapshot,
+  getOrInitializeCardUsage,
+  initializeCardUsageShards,
+  recordActiveCardCreated,
+  recordActiveCardRemoved,
+  removeCardUsage,
+} from "../card/cardUsage";
+import { getSearchResultLimit } from "../card/getCards";
+import { authorizeCardCreation, ensureCardQuotaAvailable } from "../card/quota";
+import {
+  searchCardsByDocument,
+  searchCardsByExactTag,
+} from "../card/searchReads";
+import {
+  buildCardSearchTags,
+  buildCardSearchText,
+  patchCardWithSearchSync,
+  restartCardSearchTagSync,
+  syncCardSearch,
+  syncCardSearchDocumentHandler,
+  syncCardSearchTagsBatchHandler,
+} from "../card/searchSync";
+import { readFolderCardCount } from "../folder/folderRows";
+import { applyFolderMembership } from "../folder/membership";
+import {
+  analyticsShardForRequest,
+  IDEMPOTENCY_ANALYTICS_SHARDS,
+} from "../idempotencyAnalytics";
+import schema from "../schema";
+import type { TeakUserId } from "../securitySessions";
+import { FREE_TIER_LIMIT } from "../shared/constants";
+import { RATE_LIMIT_CONFIG, rateLimiter } from "../shared/rateLimits";
+
+const modules = import.meta.glob("../**/*.ts");
+
+const insertCard = async (
+  ctx: MutationCtx,
+  userId: string,
+  overrides: Partial<Doc<"cards">> = {}
+): Promise<Id<"cards">> =>
+  await ctx.db.insert("cards", {
+    userId,
+    content: "Card",
+    type: "text",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...overrides,
+  });
+
+const folderCount = async (ctx: MutationCtx, folderId: Id<"folders">) => {
+  const folder = await ctx.db.get("folders", folderId);
+  return folder ? await readFolderCardCount(ctx, folder) : null;
+};
+
+const endAccountDeletion = async (ctx: MutationCtx, userId: string) => {
+  const states = await ctx.db
+    .query("accountDeletionStates")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .take(1);
+  for (const state of states) {
+    await ctx.db.delete("accountDeletionStates", state._id);
+  }
+};
+
+const drainCardSearchTagSync = async (
+  ctx: MutationCtx,
+  cardId: Id<"cards">
+) => {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    const result = await syncCardSearchTagsBatchHandler(ctx, cardId);
+    if (result.complete) {
+      return result;
+    }
+  }
+  throw new Error("Card search tag synchronization did not complete");
+};
+
+const insertExactUsage = async (
+  ctx: MutationCtx,
+  userId: string,
+  activeCardCount: number
+) => {
+  const usageId = await ctx.db.insert("userCardUsage", {
+    userId,
+    activeCardCount,
+    isCountExact: true,
+    isSaturated: activeCardCount >= FREE_TIER_LIMIT,
+    updatedAt: Date.now(),
+  });
+  const usage = await ctx.db.get("userCardUsage", usageId);
+  if (!usage) {
+    throw new Error("Failed to insert card usage test fixture");
+  }
+  return usage;
+};
+
+describe("OCC contention behavior", () => {
+  test("initializes usage with a bounded saturated scan", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < FREE_TIER_LIMIT + 5; index += 1) {
+        await insertCard(ctx, "user-1", { content: `Card ${index}` });
+      }
+      const usage = await getOrInitializeCardUsage(ctx, "user-1");
+      expect(usage.activeCardCount).toBe(CARD_USAGE_SCAN_LIMIT);
+      expect(usage.isCountExact).toBe(false);
+      expect(usage.isSaturated).toBe(true);
+      expect(CARD_USAGE_SCAN_LIMIT).toBe(FREE_TIER_LIMIT + 1);
+    });
+  });
+
+  test("reports the capped active count from an inexact usage count", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const seed = async (userId: string, cards: number, counted: number) => {
+        for (let index = 0; index < cards; index += 1) {
+          await insertCard(ctx, userId, { content: `Card ${index}` });
+        }
+        await ctx.db.insert("userCardUsage", {
+          userId,
+          activeCardCount: counted,
+          isCountExact: false,
+          isSaturated: counted >= FREE_TIER_LIMIT,
+          updatedAt: 1,
+        });
+      };
+      await seed("user-past-cap", CARD_USAGE_SCAN_LIMIT + 40, 230);
+      await seed("user-below-cap", 180, 150);
+      expect(await getActiveCardCount(ctx, "user-past-cap")).toBe(
+        CARD_USAGE_SCAN_LIMIT
+      );
+      expect(await getActiveCardCount(ctx, "user-below-cap")).toBe(180);
+    });
+  });
+
+  test("tracks create, delete, restore, and saturated recount transitions", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const initialUsage = await getOrInitializeCardUsage(ctx, "user-2");
+      await initializeCardUsageShards(ctx, initialUsage);
+      const cardId = await insertCard(ctx, "user-2");
+      await recordActiveCardCreated(ctx, "user-2", cardId);
+      expect((await getCardUsageSnapshot(ctx, "user-2"))?.activeCardCount).toBe(
+        1
+      );
+
+      await ctx.db.patch("cards", cardId, {
+        deletedAt: Date.now(),
+        isDeleted: true,
+      });
+      await recordActiveCardRemoved(ctx, "user-2", cardId);
+      expect((await getCardUsageSnapshot(ctx, "user-2"))?.activeCardCount).toBe(
+        0
+      );
+
+      await ctx.db.patch("cards", cardId, {
+        deletedAt: undefined,
+        isDeleted: undefined,
+      });
+      await recordActiveCardCreated(ctx, "user-2", cardId);
+      expect((await getCardUsageSnapshot(ctx, "user-2"))?.activeCardCount).toBe(
+        1
+      );
+    });
+  });
+
+  test("rejects restore at the free-tier quota", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("userCardUsage", {
+        userId: "user-3",
+        activeCardCount: FREE_TIER_LIMIT,
+        isSaturated: true,
+        updatedAt: Date.now(),
+      });
+      await expect(
+        ensureCardQuotaAvailable(ctx, "user-3", {
+          getSubscription: async () => null,
+        })
+      ).rejects.toBeInstanceOf(ConvexError);
+    });
+  });
+
+  test("enforces the exact free-tier limit across bounded usage shards", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-limit";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT - 1);
+      expect(await initializeCardUsageShards(ctx, usage)).toBe(true);
+      expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
+        CARD_USAGE_TOTAL_SHARDS
+      );
+
+      const finalFreeCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, finalFreeCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+
+      const overLimitCard = await insertCard(ctx, userId);
+      await expect(
+        recordActiveCardCreated(ctx, userId, overLimitCard)
+      ).rejects.toMatchObject({
+        data: expect.objectContaining({ code: "CARD_LIMIT_REACHED" }),
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+    });
+  });
+
+  test("initializes shards before the first canonical card insert", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-first-canonical-create";
+      const authorization = await authorizeCardCreation(ctx, userId, {
+        getSubscription: async () => null,
+        rateLimiter: {
+          limit: async () => ({ ok: true, retryAfter: 0 }),
+        } as any,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        0
+      );
+
+      const cardId = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, cardId, authorization);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        1
+      );
+    });
+  });
+
+  test("preserves premium overflow and drains it before base usage", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-premium";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT);
+      await initializeCardUsageShards(ctx, usage);
+
+      const premiumCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, premiumCard, {
+        hasPremium: true,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT + 1
+      );
+
+      await recordActiveCardRemoved(ctx, userId, premiumCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+      const overflowCount = (
+        await ctx.db.query("userCardUsageShards").collect()
+      )
+        .filter((usage) => usage.shard >= CARD_USAGE_BASE_SHARDS)
+        .reduce((sum, usage) => sum + usage.activeCardCount, 0);
+      expect(overflowCount).toBe(0);
+    });
+  });
+
+  test("allows downgraded users below the limit despite residual overflow", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-downgraded";
+      const usage = await insertExactUsage(ctx, userId, FREE_TIER_LIMIT + 1);
+      await initializeCardUsageShards(ctx, usage);
+
+      const baseShard = await ctx.db
+        .query("userCardUsageShards")
+        .withIndex("by_userId_and_shard", (query) =>
+          query.eq("userId", userId).eq("shard", 0)
+        )
+        .unique();
+      expect(baseShard).not.toBeNull();
+      await ctx.db.patch("userCardUsageShards", baseShard!._id, {
+        activeCardCount: baseShard!.activeCardCount - 2,
+      });
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT - 1
+      );
+
+      const freeCard = await insertCard(ctx, userId);
+      await recordActiveCardCreated(ctx, userId, freeCard);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        FREE_TIER_LIMIT
+      );
+    });
+  });
+
+  test("initializes saturated accounts without losing overflow usage", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-sharded-saturated";
+      const saturatedCount = FREE_TIER_LIMIT + 17;
+      const usage = await insertExactUsage(ctx, userId, saturatedCount);
+      await initializeCardUsageShards(ctx, usage);
+      const snapshot = await getCardUsageSnapshot(ctx, userId);
+      expect(snapshot?.activeCardCount).toBe(saturatedCount);
+      expect(snapshot?.isSaturated).toBe(true);
+
+      const cardId = await insertCard(ctx, userId);
+      await expect(
+        recordActiveCardCreated(ctx, userId, cardId)
+      ).rejects.toMatchObject({
+        data: expect.objectContaining({ code: "CARD_LIMIT_REACHED" }),
+      });
+    });
+  });
+
+  test("initializes, repairs, and removes usage shards", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-shard-migration";
+      const usage = await insertExactUsage(ctx, userId, 37);
+      await ctx.db.insert("userCardUsageShards", {
+        userId,
+        shard: 0,
+        activeCardCount: 999,
+        updatedAt: Date.now(),
+      });
+
+      await initializeCardUsageShards(ctx, usage);
+      expect((await getCardUsageSnapshot(ctx, userId))?.activeCardCount).toBe(
+        37
+      );
+      expect(
+        await ctx.db
+          .query("userCardUsageShards")
+          .withIndex("by_userId_and_shard", (query) =>
+            query.eq("userId", userId)
+          )
+          .collect()
+      ).toHaveLength(CARD_USAGE_TOTAL_SHARDS);
+
+      await removeCardUsage(ctx, userId);
+      expect(await ctx.db.get("userCardUsage", usage._id)).toBeNull();
+      expect(await ctx.db.query("userCardUsageShards").collect()).toHaveLength(
+        0
+      );
+    });
+  });
+
+  test("rejects a versioned but incomplete shard set", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const userId = "user-incomplete-shards";
+      const usage = await insertExactUsage(ctx, userId, 4);
+      await initializeCardUsageShards(ctx, usage);
+      const shard = await ctx.db
+        .query("userCardUsageShards")
+        .withIndex("by_userId_and_shard", (query) =>
+          query.eq("userId", userId).eq("shard", 0)
+        )
+        .unique();
+      expect(shard).not.toBeNull();
+      await ctx.db.delete(
+        "userCardUsageShards",
+        shard?._id as Id<"userCardUsageShards">
+      );
+      const versionedUsage = await ctx.db.get("userCardUsage", usage._id);
+      await expect(
+        initializeCardUsageShards(ctx, versionedUsage as Doc<"userCardUsage">)
+      ).rejects.toThrow("incomplete");
+    });
+  });
+
+  test("blocks canonical writes once account deletion begins", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await beginAccountDeletion(ctx, "user-deleting");
+      await expect(
+        assertAccountNotDeleting(ctx, "user-deleting")
+      ).rejects.toMatchObject({
+        data: expect.objectContaining({
+          code: "ACCOUNT_DELETION_IN_PROGRESS",
+        }),
+      });
+    });
+    await expect(
+      t.mutation(internal["card/defaultCards"].createDefaultCardsForUser, {
+        userId: "user-deleting",
+      })
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({
+        code: "ACCOUNT_DELETION_IN_PROGRESS",
+      }),
+    });
+  });
+
+  test("composes all general fields for canonical search documents", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const firstId = await insertCard(ctx, "user-4", {
+        aiSummary: "summary",
+        aiTags: ["ai-tag"],
+        aiTranscript: "transcript",
+        content: "content",
+        metadataDescription: "description",
+        metadataTitle: "title",
+        notes: "notes",
+        tags: ["tag"],
+      });
+      const first = await ctx.db.get("cards", firstId);
+      expect(first).not.toBeNull();
+      expect(buildCardSearchText(first as Doc<"cards">).split("\n")).toEqual([
+        "content",
+        "notes",
+        "summary",
+        "transcript",
+        "title",
+        "description",
+        "tag",
+        "ai-tag",
+      ]);
+      expect(buildCardSearchTags(first as Doc<"cards">)).toEqual([
+        "ai-tag",
+        "tag",
+      ]);
+      expect(getSearchResultLimit(25)).toBe(25);
+    });
+  });
+
+  test("synchronizes and queries canonical exact tags", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const exactId = await insertCard(ctx, "user-tags", {
+        content: "design systems",
+        isFavorited: true,
+        tags: [" Product Design ", "product design"],
+        aiTags: ["Reference"],
+        type: "link",
+        updatedAt: 10,
+      });
+      const textOnlyId = await insertCard(ctx, "user-tags", {
+        content: "A note about product design",
+        tags: ["other"],
+        updatedAt: 10,
+      });
+      await syncCardSearchDocumentHandler(ctx, exactId);
+      await syncCardSearchDocumentHandler(ctx, textOnlyId);
+      await drainCardSearchTagSync(ctx, exactId);
+      await drainCardSearchTagSync(ctx, textOnlyId);
+
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["product design", "reference", "other"]);
+      expect(
+        await searchCardsByExactTag(ctx, {
+          userId: "user-tags",
+          tag: "PRODUCT DESIGN",
+          isDeleted: undefined,
+          isFavorited: true,
+          limit: 10,
+          sort: "newest",
+          type: "link",
+        })
+      ).toMatchObject([{ _id: exactId }]);
+
+      await ctx.db.patch("cards", exactId, {
+        aiTags: undefined,
+        tags: ["Updated"],
+        updatedAt: 20,
+      });
+      await syncCardSearchDocumentHandler(ctx, exactId);
+      await drainCardSearchTagSync(ctx, exactId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["other", "updated"]);
+      expect(
+        await ctx.db
+          .query("cardSearchTagSyncStates")
+          .withIndex("by_cardId", (query) => query.eq("cardId", exactId))
+          .unique()
+      ).toMatchObject({ cardId: exactId, pending: false, phase: "complete" });
+    });
+  });
+
+  test("synchronizes very large tag sets in bounded resumable batches", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const tags = Array.from(
+        { length: 1000 },
+        (_, index) => `tag-${String(index).padStart(4, "0")}`
+      );
+      const cardId = await insertCard(ctx, "user-many-tags", { tags });
+
+      const processedCounts: number[] = [];
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const result = await syncCardSearchTagsBatchHandler(ctx, cardId);
+        processedCounts.push(result.processed);
+        if (result.complete) {
+          break;
+        }
+      }
+      expect(processedCounts.every((processed) => processed <= 32)).toBe(true);
+      expect(processedCounts).toHaveLength(Math.ceil(1000 / 32));
+      expect(processedCounts.reduce((sum, count) => sum + count, 0)).toBe(1000);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1000);
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toMatchObject([{ cardId, pending: false, phase: "complete" }]);
+    });
+  });
+
+  test("orders and bounds exact-tag candidates before limiting", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardIds: Id<"cards">[] = [];
+      for (const createdAt of [10, 20, 30]) {
+        const cardId = await insertCard(ctx, "user-tag-order", {
+          createdAt,
+          isFavorited: true,
+          tags: ["ordered"],
+          type: "text",
+        });
+        cardIds.push(cardId);
+        await drainCardSearchTagSync(ctx, cardId);
+      }
+
+      expect(
+        await searchCardsByExactTag(ctx, {
+          createdAfter: 15,
+          createdBefore: 25,
+          isDeleted: undefined,
+          isFavorited: true,
+          limit: 1,
+          sort: "newest",
+          tag: "ordered",
+          type: "text",
+          userId: "user-tag-order",
+        })
+      ).toMatchObject([{ _id: cardIds[1], createdAt: 20 }]);
+    });
+  });
+
+  test("normalizes false and missing favorite values for exact tags", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const explicitFalseId = await insertCard(ctx, "user-tag-favorite", {
+        isDeleted: false,
+        isFavorited: false,
+        tags: ["unstarred"],
+      });
+      const missingId = await insertCard(ctx, "user-tag-favorite", {
+        tags: ["unstarred"],
+      });
+      await drainCardSearchTagSync(ctx, explicitFalseId);
+      await drainCardSearchTagSync(ctx, missingId);
+
+      const cards = await searchCardsByExactTag(ctx, {
+        isDeleted: undefined,
+        isFavorited: false,
+        limit: 10,
+        sort: "newest",
+        tag: "unstarred",
+        userId: "user-tag-favorite",
+      });
+      expect(new Set(cards.map((card) => card._id))).toEqual(
+        new Set([explicitFalseId, missingId])
+      );
+    });
+  });
+
+  test("keeps the previous tag generation visible until pruning", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const added = Array.from({ length: 40 }, (_, i) => `new-${i}`);
+      const cardId = await insertCard(ctx, "user-tag-generation", {
+        tags: ["keep", "old"],
+        updatedAt: 1,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+
+      await ctx.db.patch("cards", cardId, {
+        tags: ["keep", ...added],
+        updatedAt: 2,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await syncCardSearchTagsBatchHandler(ctx, cardId);
+      const midway = (await ctx.db.query("cardSearchTags").collect()).map(
+        ({ tag }) => tag
+      );
+      expect(midway).toContain("old");
+      expect(midway).toContain("keep");
+
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect())
+          .map(({ tag }) => tag)
+          .sort()
+      ).toEqual(["keep", ...added].sort());
+    });
+  });
+
+  test("a card with few tags syncs and prunes in one batch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-one-batch", {
+        tags: ["keep", "old"],
+        updatedAt: 1,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.patch("cards", cardId, {
+        tags: ["keep", "new"],
+        updatedAt: 2,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      expect(await syncCardSearchTagsBatchHandler(ctx, cardId)).toMatchObject({
+        complete: true,
+      });
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["keep", "new"]);
+    });
+  });
+
+  test("flag changes patch tag rows in place without a new tag generation", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-flag-patch", {
+        tags: ["alpha", "beta"],
+        updatedAt: 1,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      const before = await ctx.db.query("cardSearchTags").collect();
+
+      for (const change of [
+        { isFavorited: true },
+        { isArchived: true as const },
+        { isDeleted: true, deletedAt: 3 },
+      ]) {
+        await patchCardWithSearchSync(ctx, cardId, { ...change, updatedAt: 3 });
+        await drainCardSearchTagSync(ctx, cardId);
+      }
+      const after = await ctx.db.query("cardSearchTags").collect();
+      expect(after.map((row) => [row._id, row.syncGeneration])).toEqual(
+        before.map((row) => [row._id, row.syncGeneration])
+      );
+      expect(after).toMatchObject([
+        { tag: "alpha", isFavorited: true, isArchived: true, isDeleted: true },
+        { tag: "beta", isFavorited: true, isArchived: true, isDeleted: true },
+      ]);
+      for (const row of after) {
+        expect(row.isCounted).toBeUndefined();
+      }
+
+      await patchCardWithSearchSync(ctx, cardId, {
+        tags: ["alpha"],
+        updatedAt: 4,
+      });
+      await drainCardSearchTagSync(ctx, cardId);
+      const retagged = await ctx.db.query("cardSearchTags").collect();
+      expect(retagged.map(({ tag }) => tag)).toEqual(["alpha"]);
+      expect(retagged[0]?.syncGeneration).toBeGreaterThan(
+        before[0]?.syncGeneration ?? 0
+      );
+    });
+  });
+
+  test("returns a full page from canonical search documents", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 50; index += 1) {
+        const cardId = await insertCard(ctx, "user-overlap", {
+          content: `overlap Card ${index}`,
+          updatedAt: index,
+        });
+        await syncCardSearchDocumentHandler(ctx, cardId);
+        await drainCardSearchTagSync(ctx, cardId);
+      }
+
+      const desiredPageSize = 25;
+      const unique = await searchCardsByDocument(ctx, {
+        userId: "user-overlap",
+        searchQuery: "overlap",
+        isDeleted: undefined,
+        limit: desiredPageSize * 2,
+      });
+      expect(unique.slice(desiredPageSize, desiredPageSize * 2)).toHaveLength(
+        desiredPageSize
+      );
+    });
+  });
+
+  test("stale search work converges on the latest card state", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-5", {
+        content: "old",
+        updatedAt: 10,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await ctx.db.patch("cards", cardId, { content: "latest", updatedAt: 20 });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.searchableText).toBe("latest");
+      expect(document?.sourceUpdatedAt).toBe(20);
+    });
+  });
+
+  test("syncs the search document inline with the card patch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-inline", {
+        content: "before",
+        tags: ["alpha"],
+        updatedAt: 10,
+      });
+      await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 20,
+      });
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.searchableText).toContain("after");
+      expect(document?.searchableText).toContain("alpha");
+      expect(document?.sourceUpdatedAt).toBe(20);
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state?.pending).toBe(true);
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(
+        (await ctx.db.query("cardSearchTags").collect()).map(({ tag }) => tag)
+      ).toEqual(["alpha"]);
+    });
+  });
+
+  test("inline sync leaves the search rows untouched when nothing searchable changed", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-inline-noop", {
+        content: "stable",
+        tags: ["alpha"],
+        updatedAt: 10,
+      });
+      await syncCardSearch(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      const stateBefore = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      await patchCardWithSearchSync(ctx, cardId, {
+        url: "https://example.com/unchanged-search",
+      });
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.sourceUpdatedAt).toBe(10);
+      const stateAfter = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(stateAfter?.generation).toBe(stateBefore?.generation);
+      expect(stateAfter?.phase).toBe("complete");
+    });
+  });
+
+  test("inline sync removes search data atomically with the card delete", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-inline-delete", {
+        content: "doomed",
+        tags: ["alpha"],
+        updatedAt: 10,
+      });
+      await syncCardSearch(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.delete("cards", cardId);
+      await syncCardSearch(ctx, cardId, "user-inline-delete");
+      expect(
+        await ctx.db
+          .query("cardSearchDocuments")
+          .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+          .unique()
+      ).toBeNull();
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+      expect(
+        await ctx.db
+          .query("cardSearchTagSyncStates")
+          .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+          .unique()
+      ).toBeNull();
+    });
+  });
+
+  test("concurrent folder edits on one card converge on consistent rows", async () => {
+    const t = convexTest(schema, modules);
+    const { cardId, a, b } = await t.run(async (ctx) => {
+      const id = await insertCard(ctx, "user-folders");
+      await syncCardSearch(ctx, id);
+      const folder = (name: string) =>
+        ctx.db.insert("folders", {
+          userId: "user-folders",
+          name,
+          nameKey: name.toLowerCase(),
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      return { cardId: id, a: await folder("A"), b: await folder("B") };
+    });
+    const userId = "user-folders" as TeakUserId;
+    await Promise.all([
+      t.run((ctx) =>
+        applyFolderMembership(ctx, {
+          action: "add",
+          cardId,
+          folderId: a,
+          userId,
+        })
+      ),
+      t.run((ctx) =>
+        applyFolderMembership(ctx, {
+          action: "add",
+          cardId,
+          folderId: b,
+          userId,
+        })
+      ),
+    ]);
+    await t.run((ctx) =>
+      applyFolderMembership(ctx, {
+        action: "remove",
+        cardId,
+        folderId: a,
+        userId,
+      })
+    );
+    await t.run(async (ctx) => {
+      const card = await ctx.db.get("cards", cardId);
+      expect(card?.folderIds).toEqual([b]);
+      const rows = await ctx.db
+        .query("folderCards")
+        .withIndex("by_cardId_and_folderId", (q) => q.eq("cardId", cardId))
+        .collect();
+      expect(rows.map((row) => row.folderId)).toEqual([b]);
+      expect(await folderCount(ctx, a)).toBe(0);
+      expect(await folderCount(ctx, b)).toBe(1);
+    });
+  });
+
+  test("a text edit never reads or writes folder rows", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const folderId = await ctx.db.insert("folders", {
+        userId: "user-folder-text",
+        name: "F",
+        nameKey: "f",
+        kind: "manual",
+        activeCardCount: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const cardId = await insertCard(ctx, "user-folder-text", {
+        folderIds: [folderId],
+      });
+      await syncCardSearch(ctx, cardId);
+      const [row] = await ctx.db.query("folderCards").collect();
+      await patchCardWithSearchSync(ctx, cardId, { content: "edited" });
+      const [after] = await ctx.db.query("folderCards").collect();
+      expect(after).toEqual(row);
+      expect(await folderCount(ctx, folderId)).toBe(1);
+    });
+  });
+
+  test("deletes account cards and search documents in bounded batches", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 21; index += 1) {
+        const cardId = await insertCard(ctx, "user-delete", {
+          content: `Card ${index}`,
+          tags: ["cleanup"],
+        });
+        await syncCardSearchDocumentHandler(ctx, cardId);
+        await drainCardSearchTagSync(ctx, cardId);
+      }
+      const firstBatch = await takeOwnedCards(ctx, "user-delete", 20);
+      expect(firstBatch.cardIds).toHaveLength(20);
+      expect(await deleteAccountDataHandler(ctx, firstBatch.cardIds)).toBe(20);
+      expect(
+        await ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted_created", (query) =>
+            query.eq("userId", "user-delete")
+          )
+          .collect()
+      ).toHaveLength(1);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
+        1
+      );
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
+
+      const secondBatch = await takeOwnedCards(ctx, "user-delete", 20);
+      expect(secondBatch.cardIds).toHaveLength(1);
+      expect(await deleteAccountDataHandler(ctx, secondBatch.cardIds)).toBe(1);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
+        0
+      );
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
+  test("resumes account deletion for cards with large tag sets", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const tags = Array.from(
+        { length: 45 },
+        (_, index) => `cleanup-${String(index).padStart(2, "0")}`
+      );
+      const cardId = await insertCard(ctx, "user-delete-many-tags", {
+        fileKey: "object-key",
+        tags,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+
+      expect(
+        (await captureDeletionBatch(ctx, "user-delete-many-tags", "cards")).keys
+      ).toHaveLength(0);
+      expect(
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(25);
+      expect(
+        (await captureDeletionBatch(ctx, "user-delete-many-tags", "cards")).keys
+      ).toHaveLength(0);
+      expect(
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(5);
+      expect(
+        (await captureDeletionBatch(ctx, "user-delete-many-tags", "cards")).keys
+      ).toEqual(["object-key", "object-key.processing.json"]);
+      expect(
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
+      ).toBe(1);
+      expect(await ctx.db.get("cards", cardId)).toBeNull();
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
+  test("deletion batch tolerates a card deleted by a concurrent batch", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-race-delete", {
+        content: "gone",
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await ctx.db.delete("cards", cardId);
+
+      expect(
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
+      ).toBe(0);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
+        0
+      );
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
+  test("stands down card patch writers while account deletion is in progress", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-fence-patch", {
+        content: "before",
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-fence-patch");
+      const fenced = await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+      expect(fenced).toBe(false);
+
+      const card = await ctx.db.get("cards", cardId);
+      expect(card?.content).toBe("before");
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document).not.toBeNull();
+      expect(document?.sourceUpdatedAt).not.toBe(999);
+
+      await endAccountDeletion(ctx, "user-fence-patch");
+      const resumed = await patchCardWithSearchSync(ctx, cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+      expect(resumed).toBe(true);
+      expect((await ctx.db.get("cards", cardId))?.content).toBe("after");
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      const synced = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(synced?.sourceUpdatedAt).toBe(999);
+    });
+  });
+
+  test("stands down search sync writers while account deletion is in progress", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-deleting", {
+        content: "before",
+        tags: ["alpha"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      await restartCardSearchTagSync(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-deleting");
+      await ctx.db.patch("cards", cardId, {
+        content: "after",
+        updatedAt: 999,
+      });
+
+      const tagResult = await syncCardSearchTagsBatchHandler(ctx, cardId);
+      expect(tagResult).toEqual({ complete: true, processed: 0, writes: 0 });
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state?.phase).toBe("tags");
+      expect(state?.pending).toBe(true);
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(document?.sourceUpdatedAt).not.toBe(999);
+
+      await endAccountDeletion(ctx, "user-deleting");
+      expect(await syncCardSearchDocumentHandler(ctx, cardId)).toBeNull();
+      const synced = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(synced?.sourceUpdatedAt).toBe(999);
+    });
+  });
+
+  test("stands down queued search sync after deletion cleanup via the owner hint", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-queued", {
+        tags: ["alpha"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+
+      await beginAccountDeletion(ctx, "user-queued");
+      expect(
+        await deleteAccountDataHandler(ctx, [cardId] as OwnedCardIds)
+      ).toBe(1);
+
+      const tagResult = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        "user-queued"
+      );
+      expect(tagResult).toEqual({ complete: true, processed: 0, writes: 0 });
+      expect(
+        await syncCardSearchDocumentHandler(ctx, cardId, "user-queued")
+      ).toBeNull();
+
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+      expect(await ctx.db.query("cardSearchDocuments").collect()).toHaveLength(
+        0
+      );
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+
+      await endAccountDeletion(ctx, "user-queued");
+    });
+  });
+
+  test("fences out stale-generation tag sync invocations without writing", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const manyTags = Array.from({ length: 40 }, (_, i) => `tag-${i}`);
+      const cardId = await insertCard(ctx, "user-fencing", {
+        tags: manyTags,
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      const first = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        undefined,
+        1
+      );
+      expect(first).toEqual({ complete: false, processed: 32, writes: 32 });
+
+      const card = await ctx.db.get("cards", cardId);
+      await restartCardSearchTagSync(
+        ctx,
+        cardId,
+        card!.updatedAt,
+        "user-fencing",
+        { kind: "record", card: card! }
+      );
+
+      const before = await ctx.db.query("cardSearchTags").collect();
+      const stale = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        undefined,
+        1
+      );
+      expect(stale).toEqual({ complete: true, processed: 0, writes: 0 });
+
+      expect(await ctx.db.query("cardSearchTags").collect()).toEqual(before);
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state?.generation).toBe(2);
+      expect(state?.offset).toBe(0);
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const step = await syncCardSearchTagsBatchHandler(
+          ctx,
+          cardId,
+          undefined,
+          2
+        );
+        if (step.complete) {
+          break;
+        }
+      }
+      const finished = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(finished?.phase).toBe("complete");
+      const tags = await ctx.db.query("cardSearchTags").collect();
+      expect(tags).toHaveLength(40);
+      // The restart kept the same tags, so the rows keep their generation.
+      expect(new Set(tags.map((tag) => tag.syncGeneration))).toEqual(
+        new Set([1])
+      );
+    });
+  });
+
+  test("skips generation-tagged invocations whose state row was pruned", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-pruned-state", {
+        tags: ["one", "two"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      const state = await ctx.db
+        .query("cardSearchTagSyncStates")
+        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+        .unique();
+      expect(state).not.toBeNull();
+      await ctx.db.delete("cardSearchTagSyncStates", state!._id);
+
+      const result = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        "user-pruned-state",
+        1
+      );
+      expect(result).toEqual({ complete: true, processed: 0, writes: 0 });
+
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+    });
+  });
+
+  test("syncs tags from the state-row snapshot without reading the card", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-snapshot", {
+        tags: ["alpha", "beta"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+
+      await ctx.db.patch("cards", cardId, {
+        tags: ["gamma"],
+        updatedAt: 12_345,
+      });
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const step = await syncCardSearchTagsBatchHandler(
+          ctx,
+          cardId,
+          undefined,
+          1
+        );
+        if (step.complete) {
+          break;
+        }
+      }
+      const snapshotTags = (await ctx.db.query("cardSearchTags").collect()).map(
+        (tag) => tag.tag
+      );
+      expect(snapshotTags.sort()).toEqual(["alpha", "beta"]);
+
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const step = await syncCardSearchTagsBatchHandler(
+          ctx,
+          cardId,
+          undefined,
+          2
+        );
+        if (step.complete) {
+          break;
+        }
+      }
+      const resynced = (await ctx.db.query("cardSearchTags").collect()).map(
+        (tag) => tag.tag
+      );
+      expect(resynced).toEqual(["gamma"]);
+    });
+  });
+
+  test("legacy state rows without a snapshot still read the card", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-legacy", {
+        tags: ["delta"],
+      });
+      await ctx.db.insert("cardSearchTagSyncStates", {
+        cardId,
+        generation: 1,
+        offset: 0,
+        pending: true,
+        phase: "tags",
+      });
+      const result = await syncCardSearchTagsBatchHandler(
+        ctx,
+        cardId,
+        undefined,
+        1
+      );
+      expect(result.writes).toBe(1);
+      const tags = (await ctx.db.query("cardSearchTags").collect()).map(
+        (tag) => tag.tag
+      );
+      expect(tags).toEqual(["delta"]);
+    });
+  });
+
+  test("clears the snapshot on card deletion and prunes the tag rows", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      const cardId = await insertCard(ctx, "user-deleted", {
+        tags: ["omega"],
+      });
+      await syncCardSearchDocumentHandler(ctx, cardId);
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(1);
+
+      await ctx.db.delete("cards", cardId);
+      await restartCardSearchTagSync(ctx, cardId, undefined, "user-deleted", {
+        kind: "clear",
+      });
+
+      await drainCardSearchTagSync(ctx, cardId);
+      expect(await ctx.db.query("cardSearchTags").collect()).toHaveLength(0);
+      expect(
+        await ctx.db.query("cardSearchTagSyncStates").collect()
+      ).toHaveLength(0);
+    });
+  });
+
+  test("enforces the configured card-creation threshold", async () => {
+    const t = convexTest(schema, modules);
+    rateLimiterTest.register(t, "rateLimiterV2");
+    await t.run(async (ctx) => {
+      let accepted = 0;
+      let rejected = 0;
+      for (let count = 0; count < 60; count += 1) {
+        const result = await rateLimiter.limit(ctx, "cardCreation", {
+          key: "rate-user",
+          throws: false,
+        });
+        if (result.ok) {
+          accepted += 1;
+        } else {
+          rejected += 1;
+        }
+      }
+      expect(accepted).toBeGreaterThan(0);
+      expect(accepted).toBeLessThanOrEqual(30);
+      expect(rejected).toBeGreaterThan(0);
+      expect(RATE_LIMIT_CONFIG.cardCreation).toMatchObject({
+        capacity: 30,
+        rate: 30,
+        shards: 6,
+      });
+      expect(RATE_LIMIT_CONFIG.publicApiRequests).toMatchObject({
+        capacity: 120,
+        rate: 120,
+        shards: 12,
+      });
+      expect(RATE_LIMIT_CONFIG.invalidApiAuth).toMatchObject({
+        capacity: 60,
+        rate: 60,
+        shards: 6,
+      });
+      expect(RATE_LIMIT_CONFIG.apiKeyCreation).toMatchObject({
+        capacity: 5,
+        rate: 5,
+      });
+      expect("shards" in RATE_LIMIT_CONFIG.apiKeyCreation).toBe(false);
+      for (let count = 0; count < 5; count += 1) {
+        await expect(
+          rateLimiter.limit(ctx, "apiKeyCreation", {
+            key: "api-key-user",
+            throws: false,
+          })
+        ).resolves.toMatchObject({ ok: true });
+      }
+      await expect(
+        rateLimiter.limit(ctx, "apiKeyCreation", {
+          key: "api-key-user",
+          throws: false,
+        })
+      ).resolves.toMatchObject({ ok: false });
+    });
+  });
+
+  test("preserves the threshold after the gated 3-to-6 shard transition", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-08-31T00:00:00.000Z"));
+      const t = convexTest(schema, modules);
+      rateLimiterTest.register(t, "rateLimiterV2");
+      const previousLimiter = new RateLimiter(components.rateLimiterV2, {
+        cardCreation: {
+          capacity: 30,
+          kind: "token bucket",
+          period: MINUTE,
+          rate: 30,
+          shards: 3,
+        },
+      });
+
+      await t.run(async (ctx) => {
+        for (let count = 0; count < 30; count += 1) {
+          await previousLimiter.limit(ctx, "cardCreation", {
+            key: "transition-user",
+          });
+        }
+      });
+
+      vi.advanceTimersByTime(MINUTE);
+      await t.run(async (ctx) => {
+        let accepted = 0;
+        for (let count = 0; count < 60; count += 1) {
+          const result = await rateLimiter.limit(ctx, "cardCreation", {
+            key: "transition-user",
+            throws: false,
+          });
+          if (result.ok) {
+            accepted += 1;
+          }
+        }
+        expect(accepted).toBeGreaterThan(0);
+        expect(accepted).toBeLessThanOrEqual(30);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("aggregates legacy and sharded idempotency analytics", async () => {
+    const t = convexTest(schema, modules);
+    const date = new Date().toISOString().slice(0, 10);
+    await t.run(async (ctx) => {
+      const base = {
+        date,
+        endpoint: "POST /v1/cards",
+        totalRequests: 2,
+        withKey: 1,
+        skipped: 1,
+        started: 1,
+        replayed: 0,
+        conflicts: 0,
+        inProgress: 0,
+        errors: 0,
+      };
+      await ctx.db.insert("apiIdempotencyAnalytics", base);
+      await ctx.db.insert("apiIdempotencyAnalytics", {
+        ...base,
+        shard: 3,
+        totalRequests: 4,
+        withKey: 4,
+        skipped: 0,
+        started: 2,
+        replayed: 2,
+      });
+    });
+    const rows = await t.query(
+      internal.idempotencyAnalytics.getIdempotencyAnalytics,
+      {
+        days: 1,
+      }
+    );
+    expect(rows).toEqual([
+      expect.objectContaining({
+        endpoint: "POST /v1/cards",
+        replayed: 2,
+        totalRequests: 6,
+        withKey: 5,
+      }),
+    ]);
+  });
+
+  test("chooses stable deterministic analytics shards", () => {
+    const first = analyticsShardForRequest("request-123");
+    expect(analyticsShardForRequest("request-123")).toBe(first);
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(first).toBeLessThan(IDEMPOTENCY_ANALYTICS_SHARDS);
+    expect(
+      new Set(
+        Array.from({ length: 64 }, (_, index) =>
+          analyticsShardForRequest(`request-${index}`)
+        )
+      ).size
+    ).toBeGreaterThan(1);
+  });
+});

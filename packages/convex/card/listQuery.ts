@@ -1,8 +1,13 @@
 import type { IndexRange } from "convex/server";
 import { v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import {
+  mergedStream,
+  type QueryStream,
+  stream,
+} from "convex-helpers/server/stream";
+import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import type { CardType } from "../schema";
+import schema, { type CardType } from "../schema";
 import { excludeHiddenRows } from "./hiddenCards";
 
 export {
@@ -210,6 +215,123 @@ const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
           .reduce((acc, condition) => q.or(acc, condition))
       )
     : query;
+};
+
+/**
+ * Rows a paginated card list may read for one page. A list whose index
+ * doesn't cover every filter (several types, favourites across archive
+ * states, hidden cards) stops here and returns a short page.
+ */
+export const CARD_LIST_PAGE_ROW_LIMIT = 400;
+
+/**
+ * The cards `buildCardListQuery` returns, read as one index range per archive
+ * state and type and merged in date order, so several types or favourites
+ * across archive states read only rows that can match. `residual` is the one
+ * check no index covers (types among favourites): apply it to every row read.
+ * Only for reads that don't paginate: a merged stream can't pin a reactive
+ * page's end the way `.paginate()` does.
+ */
+export const cardListStream = (
+  ctx: QueryCtx,
+  options: CardListQueryOptions,
+  order: "asc" | "desc"
+): {
+  residual?: (card: Doc<"cards">) => boolean;
+  rows: QueryStream<Doc<"cards">>;
+} => {
+  const { userId, createdAt } = options;
+  const types = options.types?.length
+    ? Array.from(new Set(options.types))
+    : undefined;
+  const archived = scopeArchivedMatch(options.scope);
+  const states = archived === "any" ? [undefined, true as const] : [archived];
+  const isDeleted = scopeDeletedMatch(options.scope);
+  const cards = () => stream(ctx.db, schema).query("cards");
+  if (options.favoritesOnly) {
+    return {
+      rows: mergedStream(
+        states.map((state) =>
+          cards()
+            .withIndex("by_user_deleted_archived_favorited_created", (q) =>
+              withCreatedAt(
+                q
+                  .eq("userId", userId)
+                  .eq("isDeleted", isDeleted)
+                  .eq("isArchived", state)
+                  .eq("isFavorited", true),
+                createdAt
+              )
+            )
+            .order(order)
+        ),
+        ["createdAt"]
+      ),
+      residual: types ? (card) => types.includes(card.type) : undefined,
+    };
+  }
+  if (types) {
+    return {
+      rows: mergedStream(
+        states.flatMap((state) =>
+          types.map((type) =>
+            cards()
+              .withIndex("by_user_deleted_archived_type_created", (q) =>
+                withCreatedAt(
+                  q
+                    .eq("userId", userId)
+                    .eq("isDeleted", isDeleted)
+                    .eq("isArchived", state)
+                    .eq("type", type),
+                  createdAt
+                )
+              )
+              .order(order)
+          )
+        ),
+        ["createdAt"]
+      ),
+    };
+  }
+  return {
+    rows: mergedStream(
+      states.map((state) =>
+        cards()
+          .withIndex("by_user_deleted_archived_created", (q) =>
+            withCreatedAt(
+              q
+                .eq("userId", userId)
+                .eq("isDeleted", isDeleted)
+                .eq("isArchived", state),
+              createdAt
+            )
+          )
+          .order(order)
+      ),
+      ["createdAt"]
+    ),
+  };
+};
+
+/** The first `limit` cards `buildCardListQuery` returns, in `order`. */
+export const takeCardList = (
+  ctx: QueryCtx,
+  options: CardListQueryOptions,
+  order: "asc" | "desc",
+  limit: number
+): Promise<Doc<"cards">[]> => {
+  const { rows, residual } = cardListStream(ctx, options, order);
+  const skipHidden = !(options.includeHidden || options.scanHiddenRows);
+  if (!(residual || skipHidden)) {
+    return rows.take(limit);
+  }
+  return rows
+    .filterWith((card) =>
+      Promise.resolve(
+        (!residual || residual(card)) && !(skipHidden && card.isHidden === true)
+      )
+    )
+    .take(limit);
 };
 
 export const buildHostCardListQuery = (

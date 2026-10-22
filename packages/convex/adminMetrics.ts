@@ -9,8 +9,6 @@ import {
   internalQuery,
   query,
 } from "./_generated/server";
-import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
-import { createPolarClient, readCustomerSubscriptions } from "./adminBilling";
 import {
   ACTIVATION_CARD_THRESHOLD,
   ACTIVATION_WINDOW_DAYS,
@@ -28,7 +26,9 @@ import {
   startOfUtcWeek,
   summarizeFunnel,
   utcDay,
-} from "./adminStats";
+} from "./admin/stats";
+import { ensureAdmin, readAdminSettings, writeAudit } from "./adminAccess";
+import { createPolarClient, readCustomerSubscriptions } from "./adminBilling";
 import { readHasPremium } from "./auth";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { queueMaintenanceWorkflow } from "./workflowDispatch";

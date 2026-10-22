@@ -6,7 +6,7 @@ import {
   type ProcessingStatus,
   stageInProgress,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./searchSync";
 
 export const getCardForProcessing = internalQuery({
   args: { cardId: v.id("cards") },

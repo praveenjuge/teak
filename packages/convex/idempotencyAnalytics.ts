@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 
 const outcomeValidator = v.union(
   v.literal("skipped"),
@@ -74,7 +74,7 @@ export const trackIdempotencyOutcome = internalMutation({
   },
 });
 
-export const getIdempotencyAnalytics = query({
+export const getIdempotencyAnalytics = internalQuery({
   args: {
     days: v.optional(v.number()),
   },

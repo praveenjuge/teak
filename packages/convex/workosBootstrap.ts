@@ -7,7 +7,7 @@ import {
   readWorkosProfile,
 } from "./securitySessions";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
-import { validWorkosExternalId } from "./workosTokens";
+import { validWorkosExternalId } from "./workos/tokens";
 import { recordQuarantine } from "./workosUsers";
 
 export const ensureUser = mutation({

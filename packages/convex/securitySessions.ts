@@ -1,6 +1,6 @@
 import { NotFoundException, type Session } from "@workos-inc/node";
 import { paginationOptsValidator, type UserIdentity } from "convex/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { components, internal } from "./_generated/api";
 import {
   type ActionCtx,
@@ -15,13 +15,13 @@ import {
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
 } from "./shared/workosIds";
+import { validWorkosExternalId } from "./workos/tokens";
 import {
   type ResolveArgs,
   type ResolvedOwner,
   resolveOwner,
 } from "./workosIdentity";
 import type { ProviderProfile } from "./workosProfileRead";
-import { validWorkosExternalId } from "./workosTokens";
 
 function readWorkosSessionClaims(
   identity: UserIdentity | null,
@@ -234,14 +234,25 @@ export async function getSessionUser(
     : null;
 }
 
+// The one error a signed-out call gets. The Apple app treats the
+// UNAUTHENTICATED code as signed out.
+export const UNAUTHENTICATED_ERROR = {
+  code: "UNAUTHENTICATED",
+  message: "User must be authenticated",
+} as const;
+
+export async function requireSessionUser(ctx: SessionCtx) {
+  const user = await getSessionUser(ctx);
+  if (!user) {
+    throw new ConvexError(UNAUTHENTICATED_ERROR);
+  }
+  return user;
+}
+
 export async function requireSessionUserId(
   ctx: SessionCtx
 ): Promise<TeakUserId> {
-  const user = await getSessionUser(ctx);
-  if (!user) {
-    throw new Error("User must be authenticated");
-  }
-  return user.teakUserId;
+  return (await requireSessionUser(ctx)).teakUserId;
 }
 
 interface SessionProfile {

@@ -1,9 +1,12 @@
 import type { FilesImageRendition } from "@teak/files-protocol";
 import { v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 import type { LinkPreviewMediaItem } from "../linkMetadata";
 import type { CreatedAtRange } from "../shared";
+import { codePointLength } from "../shared/utils/codePoints";
 import { tryResolveImageUrl, tryResolveObjectUrl } from "../storage/fileUrls";
+import { readCardTranscript, transcriptPreview } from "./textContents";
 
 export type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -26,6 +29,47 @@ export type CardWithUrls = Doc<"cards"> & {
   }>;
   linkPreviewImageUrl?: string;
   hasThumbnailOverride?: true;
+  hasOcrText?: true;
+};
+
+/**
+ * A card without its transcript and image text, which only its detail shows.
+ * `aiTranscriptCharCount` and `hasOcrText` say it has them, so a client
+ * checking a server match locally knows the server read text it lacks.
+ */
+export const omitCardText = <T extends Doc<"cards">>(
+  card: T
+): Omit<T, "aiOcrText" | "aiTranscript"> & {
+  hasOcrText?: true;
+} => {
+  const { aiOcrText, aiTranscript, ...rest } = card;
+  return {
+    ...rest,
+    ...(aiTranscript && rest.aiTranscriptCharCount === undefined
+      ? {
+          aiTranscriptCharCount: codePointLength(aiTranscript),
+          aiTranscriptPreview: transcriptPreview(aiTranscript),
+        }
+      : {}),
+    ...(aiOcrText?.trim() ? { hasOcrText: true as const } : {}),
+  };
+};
+
+/** A card as its detail shows it: with its transcript and image text. */
+export const attachCardDetailUrls = async (
+  ctx: Pick<QueryCtx, "db">,
+  card: Doc<"cards">
+): Promise<CardWithUrls> => {
+  const [withUrls] = await attachFileUrls(ctx, [card]);
+  if (!withUrls) {
+    throw new Error("A card's detail is missing");
+  }
+  const aiTranscript = await readCardTranscript(ctx, card);
+  return {
+    ...withUrls,
+    ...(aiTranscript === undefined ? {} : { aiTranscript }),
+    ...(card.aiOcrText === undefined ? {} : { aiOcrText: card.aiOcrText }),
+  };
 };
 
 export const linkPreviewImageFields = {
@@ -239,7 +283,7 @@ export const attachFileUrls = async (
       ? (gridUrlMap.get(ids.linkPreviewImageKey) ?? undefined)
       : fallbackLinkPreviewImageUrl;
     return {
-      ...card,
+      ...omitCardText(card),
       fileUrl:
         ids.fileKey && !(options.gridOnly && card.type === "image")
           ? (urlMap.get(ids.fileKey) ?? undefined)

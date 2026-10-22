@@ -38,15 +38,31 @@ export interface LocalSearchFilters {
   tag?: string;
   /**
    * The server already matched these cards to these words. A card with
-   * text inside its file (`hasExtractedText`) matched text the client
-   * doesn't have, and a card the server marks `matchedByMeaning` matched
-   * the search's meaning rather than its words, so neither has its words
-   * and phrases checked again; every other card, and every other filter,
-   * still is.
+   * text the client doesn't have (text inside its file, or a transcript or
+   * image text a list leaves out) and a card the server marks
+   * `matchedByMeaning`, which matched the search's meaning rather than its
+   * words, don't have their words and phrases checked again, and a card
+   * whose image text was left out keeps its `text:` match; every other card,
+   * and every other filter, still is.
    */
   textMatchedByServer?: boolean;
   types?: CardType[];
 }
+
+type ListedCard = Doc<"cards"> & {
+  hasOcrText?: true;
+  matchedByMeaning?: true;
+};
+
+const lacksOcrText = (card: ListedCard) =>
+  card.hasOcrText === true && card.aiOcrText === undefined;
+
+const lacksMatchedText = (card: ListedCard) =>
+  card.hasExtractedText === true ||
+  card.matchedByMeaning === true ||
+  (card.aiTranscriptCharCount !== undefined &&
+    card.aiTranscript === undefined) ||
+  lacksOcrText(card);
 
 export const tokenizeSearchQuery = (query: string) =>
   tokenizeSearchInput(query).map((term) => term.toLowerCase());
@@ -164,7 +180,12 @@ export const filterLocalCards = (
       if (parsed.types.length > 0 && !parsed.types.includes(card.type)) {
         return false;
       }
-      if (!matchesImageText(card.aiOcrText, parsed.ocrTexts)) {
+      if (
+        !(
+          (textMatchedByServer && lacksOcrText(card)) ||
+          matchesImageText(card.aiOcrText, parsed.ocrTexts)
+        )
+      ) {
         return false;
       }
       if (
@@ -227,9 +248,7 @@ export const filterLocalCards = (
       }
 
       if (
-        (textMatchedByServer &&
-          (card.hasExtractedText === true ||
-            (card as { matchedByMeaning?: true }).matchedByMeaning)) ||
+        (textMatchedByServer && lacksMatchedText(card)) ||
         (terms.length === 0 && parsed.phrases.length === 0)
       ) {
         return true;

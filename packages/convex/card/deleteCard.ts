@@ -7,7 +7,7 @@ import {
 } from "../_generated/server";
 import { recordCardTombstone } from "../publicApiTombstones";
 import {
-  getSessionUser,
+  requireSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
@@ -16,7 +16,7 @@ import {
   ensureCardUsageShardsForRemoval,
   recordActiveCardRemoved,
 } from "./cardUsage";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 import { updateCardFieldForUserHandler } from "./updateCard";
 
 export const permanentDeleteCard = mutation({
@@ -25,10 +25,7 @@ export const permanentDeleteCard = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const user = await getSessionUser(ctx);
-    if (!user) {
-      throw new Error("User must be authenticated");
-    }
+    const user = await requireSessionUser(ctx);
 
     await permanentDeleteCardForUserHandler(ctx, user.teakUserId, args.id);
 

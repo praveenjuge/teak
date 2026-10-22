@@ -9,7 +9,8 @@ import {
   stageFailed,
   stagePending,
 } from "./processingStatus";
-import { patchCardWithSearchSync } from "./searchDocumentHelpers";
+import { patchCardWithSearchSync } from "./searchSync";
+import { clearCardTranscript } from "./textContents";
 
 export const CARD_PROCESSING_STAGES: ProcessingStageKey[] = [
   "classify",
@@ -37,7 +38,7 @@ export const initializeCardProcessingState = async (
   await patchCardWithSearchSync(ctx, cardId, {
     aiTags: undefined,
     aiSummary: undefined,
-    aiTranscript: undefined,
+    ...(await clearCardTranscript(ctx, card)),
     aiOcrText: undefined,
     ocrCheckedAt: undefined,
     aiBackfillAttempts: undefined,

@@ -1,5 +1,10 @@
-import type { ExpressionOrValue } from "convex/server";
-import type { Doc } from "../_generated/dataModel";
+import type {
+  ExpressionOrValue,
+  IndexRange,
+  NamedTableInfo,
+  Query,
+} from "convex/server";
+import type { DataModel, Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import { shuffleDescends, shuffleStart } from "../shared/search/shuffle";
@@ -48,23 +53,64 @@ export const buildShuffleSegmentQuery = (
   const firstHalf = segment % 2 === 0;
   const fromStart = firstHalf;
   const upperRange = descends ? !fromStart : fromStart;
-  const query = excludeHiddenRows(
-    ctx.db.query("cards").withIndex("by_user_deleted_archived_shuffle", (q) => {
-      const base = q
-        .eq("userId", options.userId)
-        .eq("isDeleted", scopeDeletedMatch(options.scope))
-        .eq("isArchived", state);
-      return upperRange
-        ? base.gte("shuffleKey", start)
-        : base.lt("shuffleKey", start);
-    }),
-    options.includeHidden
-  ).order(descends ? "desc" : "asc");
-  const types = options.types?.length ? options.types : undefined;
+  const types = options.types?.length
+    ? Array.from(new Set(options.types))
+    : undefined;
+  const singleType = types?.length === 1 ? types[0] : undefined;
+  const isDeleted = scopeDeletedMatch(options.scope);
+  const cards = ctx.db.query("cards");
+  const segmentOf = <
+    Range extends {
+      gte: (field: "shuffleKey", value: number) => IndexRange;
+      lt: (field: "shuffleKey", value: number) => IndexRange;
+    },
+  >(
+    range: Range
+  ) =>
+    upperRange ? range.gte("shuffleKey", start) : range.lt("shuffleKey", start);
+  // A favourites or single-type walk reads an index of only those cards, so
+  // its pages fill instead of spending the row budget on other cards.
+  let indexed: Query<NamedTableInfo<DataModel, "cards">>;
+  if (options.favoritesOnly) {
+    indexed = cards.withIndex(
+      "by_user_deleted_archived_favorited_shuffle",
+      (q) =>
+        segmentOf(
+          q
+            .eq("userId", options.userId)
+            .eq("isDeleted", isDeleted)
+            .eq("isArchived", state)
+            .eq("isFavorited", true)
+        )
+    );
+  } else if (singleType) {
+    indexed = cards.withIndex("by_user_deleted_archived_type_shuffle", (q) =>
+      segmentOf(
+        q
+          .eq("userId", options.userId)
+          .eq("isDeleted", isDeleted)
+          .eq("isArchived", state)
+          .eq("type", singleType)
+      )
+    );
+  } else {
+    indexed = cards.withIndex("by_user_deleted_archived_shuffle", (q) =>
+      segmentOf(
+        q
+          .eq("userId", options.userId)
+          .eq("isDeleted", isDeleted)
+          .eq("isArchived", state)
+      )
+    );
+  }
+  const query = excludeHiddenRows(indexed, options.includeHidden).order(
+    descends ? "desc" : "asc"
+  );
+  const filteredTypes =
+    options.favoritesOnly || !singleType ? types : undefined;
   const bounds = options.createdAt;
   const filtered =
-    types ||
-    options.favoritesOnly ||
+    filteredTypes ||
     bounds?.gte !== undefined ||
     bounds?.lt !== undefined ||
     bounds?.lte !== undefined;
@@ -73,15 +119,12 @@ export const buildShuffleSegmentQuery = (
   }
   return query.filter((q) => {
     const conditions: ExpressionOrValue<boolean>[] = [];
-    if (types) {
+    if (filteredTypes) {
       conditions.push(
-        types
+        filteredTypes
           .map((type) => q.eq(q.field("type"), type))
           .reduce((acc, condition) => q.or(acc, condition))
       );
-    }
-    if (options.favoritesOnly) {
-      conditions.push(q.eq(q.field("isFavorited"), true));
     }
     if (bounds?.gte !== undefined) {
       conditions.push(q.gte(q.field("createdAt"), bounds.gte));

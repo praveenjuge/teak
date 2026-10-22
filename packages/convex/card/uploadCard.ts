@@ -32,7 +32,7 @@ import {
   stageCompleted,
 } from "./processingStatus";
 import { authorizeCardCreation, ensureCardQuotaAvailable } from "./quota";
-import { syncCardSearch } from "./searchDocumentHelpers";
+import { syncCardSearch } from "./searchSync";
 import { newShuffleKey } from "./shuffle";
 
 const toConvexFileError = (error: FileFormatValidationError) =>

@@ -75,6 +75,62 @@ const polarCustomerIdentity = (
   };
 };
 
+// Polar calls run inside actions; a hung request would otherwise hold the
+// action until Convex kills it.
+const POLAR_TIMEOUT_MS = 15_000;
+
+const polarClient = () =>
+  new PolarBilling({
+    accessToken: env.POLAR_ACCESS_TOKEN ?? "",
+    server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
+    timeoutMs: POLAR_TIMEOUT_MS,
+  });
+
+/**
+ * Returns the Polar customer Teak maps to this user, creating one if there is
+ * none. Two checkouts at once can both create one; the component keeps the
+ * first mapping, so the loser uses that customer and deletes its own, which
+ * nothing else would ever see.
+ */
+const ensurePolarCustomer = async (
+  ctx: ActionCtx,
+  polar: PolarBilling,
+  user: { teakUserId: string; email: string }
+): Promise<string> => {
+  const existing = await ctx.runQuery(
+    components.polar.lib.getCustomerByUserId,
+    { userId: user.teakUserId }
+  );
+  if (existing?.id) {
+    return existing.id;
+  }
+  const created = await polar.customers.create(
+    polarCustomerIdentity(user, readIsDevDeployment())
+  );
+  if (!created.id) {
+    throw new Error("Customer not created");
+  }
+  await ctx.runMutation(components.polar.lib.insertCustomer, {
+    id: created.id,
+    userId: user.teakUserId,
+  });
+  const stored = await ctx.runQuery(components.polar.lib.getCustomerByUserId, {
+    userId: user.teakUserId,
+  });
+  if (!stored?.id) {
+    throw new Error("Customer not stored");
+  }
+  if (stored.id !== created.id) {
+    await polar.customers.delete({ id: created.id }).catch((error: unknown) =>
+      captureBackendException(error, {
+        distinctId: user.teakUserId,
+        properties: { operation: "billing", stage: "duplicate_customer" },
+      })
+    );
+  }
+  return stored.id;
+};
+
 export const createCheckoutLinkHandler = async (
   ctx: ActionCtx,
   args: { productId: string }
@@ -86,34 +142,8 @@ export const createCheckoutLinkHandler = async (
     if (!isApprovedPolarProductId(args.productId)) {
       throw new ConvexError("Invalid product");
     }
-    const polar = new PolarBilling({
-      accessToken: env.POLAR_ACCESS_TOKEN ?? "",
-      server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
-    });
-
-    const dbCustomer = await ctx.runQuery(
-      components.polar.lib.getCustomerByUserId,
-      {
-        userId: user.teakUserId,
-      }
-    );
-    const createCustomer = async () => {
-      const customer = await polar.customers.create(
-        polarCustomerIdentity(user, readIsDevDeployment())
-      );
-      if (!customer.id) {
-        throw new Error("Customer not created");
-      }
-      return customer.id;
-    };
-    const customerId = dbCustomer?.id || (await createCustomer());
-
-    if (!dbCustomer) {
-      await ctx.runMutation(components.polar.lib.insertCustomer, {
-        id: customerId,
-        userId: user.teakUserId,
-      });
-    }
+    const polar = polarClient();
+    const customerId = await ensurePolarCustomer(ctx, polar, user);
 
     const checkout = await polar.checkouts.create({
       products: [args.productId],
@@ -148,12 +178,7 @@ export const createCustomerPortalHandler = async (ctx: ActionCtx) => {
       throw new ConvexError("No active subscription found");
     }
 
-    const polarSdk = new PolarBilling({
-      accessToken: env.POLAR_ACCESS_TOKEN ?? "",
-      server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
-    });
-
-    const result = await polarSdk.customerSessions.create({
+    const result = await polarClient().customerSessions.create({
       customerId: subscription.customerId,
     });
 
@@ -197,12 +222,8 @@ export const closeBillingCustomer = async (
   if (!customer) {
     return;
   }
-  const polarSdk = new PolarBilling({
-    accessToken: env.POLAR_ACCESS_TOKEN ?? "",
-    server: env.POLAR_SERVER === "production" ? "production" : "sandbox",
-  });
   try {
-    await polarSdk.customers.delete({ id: customer.id, anonymize: true });
+    await polarClient().customers.delete({ id: customer.id, anonymize: true });
   } catch (error) {
     if (!isPolarNotFound(error)) {
       throw error;

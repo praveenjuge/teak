@@ -48,7 +48,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
   - `ImportCardInput` (`packages/convex/import/validate.ts:39-53`) has `notes` but no highlights.
   - `linkItem` (`import/sourceItems.ts:80-108`) caps notes at `MAX_NOTES_LENGTH`.
 - **Card writes:**
-  - Per-card derived rows are removed when a card is gone in `searchDocumentHelpers.ts:280-299`, for example `deleteCardTextRow`, the linked-PDF rows and the card-link cleanup.
+  - Per-card derived rows are removed when a card is gone in `card/searchSync.ts`, for example `deleteCardTextRow`, the linked-PDF rows and the card-link cleanup.
   - In account deletion they are removed in `accountDeletion.ts:120-140` and `accountDeletionData.ts` `ancillaryPage` (87).
 - **Refresh details** calls `queueCardProcessing(ctx, cardId, { refresh: true, reset: true })` (`card/updateCard.ts:640-656`).
 - **Export:** `export/serialize.ts serializeCard` lists the exported fields, and `getExportCardsPage` (`dataExport.ts:446`) reads them.
@@ -103,7 +103,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
   - The import insert writes highlight rows with `unanchored: true, source: "import"` beside the card.
   - Teak archive import restores `highlights` from `cards.json`, unanchored, and anchors them after extraction.
 - **Deletion:**
-  - card hard delete removes the highlight rows, in the `searchDocumentHelpers.ts` gone-card cleanup, behind `previousCard?.hasHighlights`;
+  - card hard delete removes the highlight rows, in the `card/searchSync.ts` gone-card cleanup, behind `previousCard?.hasHighlights`;
   - account deletion pages over `highlights.by_userId` in `ancillaryPage` and in `accountDeletion.ts`. Its batch's `length > 0` joins `ancillaryPage`'s continuation return (`accountDeletionData.ts`, the `return (cardLinks.length > 0 || …)` near line 202), so more than one page of rows is deleted; the test seeds more than 100 rows.
   - the "complete stages" test seeds highlight rows.
 - **Export:** `serializeCard` adds `highlights: [{ quote, note, createdAt, anchored }]` to `cards.json`, and `cards.csv` gains a `highlights` column, with the quotes joined by a blank line.
@@ -235,7 +235,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 - `packages/convex/__tests__/export/serialize.test.ts`: `highlights` in JSON and CSV. The archive import round-trip test.
 - `packages/convex/accountDeletionWorkflow.test.ts`: seed highlight rows.
 - `apps/files-worker/src/workflows/cardProcessing/run.test.ts`: the frozen skip on refresh and re-save.
-- `packages/convex/__tests__/publicApiHttpCards.test.ts` (or a new `publicApiHttpHighlights.test.ts`), `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, and `apps/cli/src/commands.test.ts`.
+- `packages/convex/__tests__/publicApi/http/cards.test.ts` (or a new `__tests__/publicApi/http/highlights.test.ts`), `__tests__/mcp/tools.test.ts`, `__tests__/sdk.test.ts`, and `apps/cli/src/commands.test.ts`.
 - `apps/web/src/components/card-previews/__tests__/ArticleReader.test.tsx`: offsets from a selection map to the right plain-text range (pure helper); the selection button renders for a selection inside the body.
 - `apps/web/src/components/card-modal/__tests__/CardMetadataPanel.test.tsx`: the section appears only with highlights; unanchored items aren't buttons.
 - e2e:

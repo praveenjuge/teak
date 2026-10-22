@@ -301,21 +301,27 @@ describe("transcribePodcastEpisode", () => {
     expect(ctx.card.workflowArtifactKeys).toEqual([calls[0]?.key]);
   });
 
-  test("a backfill leaves an episode already transcribed alone", async () => {
-    const ctx = setup(podcastCard({ aiTranscript: "Said before." }));
+  test.each([
+    ["on the card", { aiTranscript: "Said before." }],
+    ["moved to its text rows", { aiTranscriptCharCount: 12 }],
+  ])(
+    "a backfill leaves an episode already transcribed alone, transcript %s",
+    async (_where, saved) => {
+      const ctx = setup(podcastCard(saved));
 
-    expect(
-      await transcribePodcastEpisode(
-        ctx.job,
-        createWorkflowTelemetry(ctx.env),
-        {
-          keepTranscript: true,
-        }
-      )
-    ).toEqual({ reason: "already_transcribed", transcribed: false });
-    expect(ctx.siteRequests).toEqual([]);
-    expect(ctx.tracked()).toEqual([]);
-  });
+      expect(
+        await transcribePodcastEpisode(
+          ctx.job,
+          createWorkflowTelemetry(ctx.env),
+          {
+            keepTranscript: true,
+          }
+        )
+      ).toEqual({ reason: "already_transcribed", transcribed: false });
+      expect(ctx.siteRequests).toEqual([]);
+      expect(ctx.tracked()).toEqual([]);
+    }
+  );
 
   test("a busy renderer throws for the step's retry, after deleting the audio", async () => {
     const ctx = setup(podcastCard(), {

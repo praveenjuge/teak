@@ -1,609 +1,35 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { cardTypes } from "./shared/constants";
-import { FILE_KINDS } from "./shared/fileFormats";
-import { FOLDER_COLORS } from "./shared/folders";
-import { LINK_CATEGORIES } from "./shared/linkCategories";
-import { SEARCH_MODES } from "./shared/search/semantic";
+import { adminOverviewFields } from "./schema/validators/admin";
+import {
+  apiIdempotencyAnalyticsValidator,
+  apiIdempotencyKeyValidator,
+} from "./schema/validators/apiIdempotency";
+import {
+  cardTypeValidator,
+  cardValidator,
+  folderColorValidator,
+  r2KeyValidator,
+} from "./schema/validators/cards";
+import {
+  exportJobItemValidator,
+  exportJobValidator,
+  fileUploadSessionValidator,
+  importJobItemValidator,
+  importJobValidator,
+} from "./schema/validators/jobs";
+import { disconnectRecoveryReceipt } from "./schema/validators/workos";
 import {
   workosDeletionCompletionValidator,
   workosDeletionTargetValidator,
-} from "./workosDeletionCompletion";
+} from "./workos/deletionCompletion";
 
+export * from "./schema/validators/admin";
+export * from "./schema/validators/apiIdempotency";
+export * from "./schema/validators/cards";
+export * from "./schema/validators/jobs";
+export * from "./schema/validators/workos";
 export type { CardType } from "./shared/constants";
-
-export const linkCategoryLiterals = [...LINK_CATEGORIES] as const;
-
-export type LinkCategory = (typeof linkCategoryLiterals)[number];
-
-export const linkCategoryValidator = v.union(
-  ...linkCategoryLiterals.map((category) => v.literal(category))
-);
-
-export const cardTypeValidator = v.union(
-  ...cardTypes.map((type) => v.literal(type))
-);
-
-export const searchModeValidator = v.union(
-  ...SEARCH_MODES.map((mode) => v.literal(mode))
-);
-
-export const folderColorValidator = v.union(
-  ...FOLDER_COLORS.map((color) => v.literal(color))
-);
-
-const stageStatusValidator = v.object({
-  status: v.union(
-    v.literal("pending"),
-    v.literal("in_progress"),
-    v.literal("completed"),
-    v.literal("failed")
-  ),
-  startedAt: v.optional(v.number()),
-  completedAt: v.optional(v.number()),
-  confidence: v.optional(v.number()),
-  error: v.optional(v.string()),
-});
-
-export const processingStatusObjectValidator = v.object({
-  classify: v.optional(stageStatusValidator),
-  categorize: v.optional(stageStatusValidator),
-  metadata: v.optional(stageStatusValidator),
-  renderables: v.optional(stageStatusValidator),
-  screenshot: v.optional(stageStatusValidator),
-});
-
-export const processingStatusValidator = v.optional(
-  processingStatusObjectValidator
-);
-
-const metadataStatusValidator = v.union(
-  v.literal("pending"),
-  v.literal("completed"),
-  v.literal("failed")
-);
-
-const stageSummaryValidator = v.object({
-  pending: v.number(),
-  inProgress: v.number(),
-  failed: v.number(),
-});
-
-/** `admin:getOverview`'s result (`AdminOverview` in adminStats.ts). */
-export const adminOverviewFields = {
-  generatedAt: v.number(),
-  totals: v.object({
-    totalCards: v.number(),
-    activeCards: v.number(),
-    deletedCards: v.number(),
-    uniqueUsers: v.number(),
-  }),
-  growth: v.object({
-    createdLastSevenDays: v.number(),
-    createdLastThirtyDays: v.number(),
-  }),
-  cardsByType: v.record(v.string(), v.number()),
-  metadataStatus: v.object({
-    pending: v.number(),
-    completed: v.number(),
-    failed: v.number(),
-    unset: v.number(),
-  }),
-  aiPipeline: v.object({
-    missingAiMetadata: v.number(),
-    pendingEnrichment: v.number(),
-    failedCards: v.number(),
-    stageSummaries: v.object({
-      classify: stageSummaryValidator,
-      categorize: stageSummaryValidator,
-      metadata: stageSummaryValidator,
-      renderables: stageSummaryValidator,
-    }),
-    missingCards: v.array(
-      v.object({
-        cardId: v.id("cards"),
-        type: v.string(),
-        createdAt: v.number(),
-        metadataStatus: v.optional(metadataStatusValidator),
-        processingStatus: processingStatusValidator,
-        reasons: v.array(v.string()),
-      })
-    ),
-  }),
-  isApproximate: v.boolean(),
-};
-
-const linkCategoryFactValidator = v.object({
-  label: v.string(),
-  value: v.string(),
-  icon: v.optional(v.string()),
-});
-
-export const linkCategoryMetadataValidator = v.object({
-  category: linkCategoryValidator,
-  confidence: v.optional(v.number()),
-  detectedProvider: v.optional(v.string()),
-  fetchedAt: v.number(),
-  sourceUrl: v.string(),
-  imageUrl: v.optional(v.string()),
-  facts: v.optional(v.array(linkCategoryFactValidator)),
-  price: v.optional(
-    v.object({ amount: v.number(), currency: v.optional(v.string()) })
-  ),
-  pdfUrl: v.optional(v.string()),
-  raw: v.optional(v.any()),
-  rawStorageKey: v.optional(v.string()),
-  rawSha256: v.optional(v.string()),
-  rawHasStructured: v.optional(v.boolean()),
-  rawStructuredFetchedAt: v.optional(v.number()),
-});
-
-export const filePreviewFactsValidator = v.object({
-  animated: v.optional(v.boolean()),
-  archiveDirectoryCount: v.optional(v.number()),
-  archiveFileCount: v.optional(v.number()),
-  characterCount: v.optional(v.number()),
-  colorVariableCount: v.optional(v.number()),
-  compressedBytes: v.optional(v.number()),
-  headingCount: v.optional(v.number()),
-  inspectedEntryCount: v.optional(v.number()),
-  lineCount: v.optional(v.number()),
-  slideCount: v.optional(v.number()),
-  uncompressedBytes: v.optional(v.number()),
-  wordCount: v.optional(v.number()),
-});
-
-export const fileProcessingProvenanceValidator = v.object({
-  generatedAt: v.number(),
-  processorVersion: v.string(),
-  sourceEtag: v.string(),
-  transformVersion: v.string(),
-});
-
-export const imageExifValidator = v.object({
-  exposureTime: v.optional(v.number()),
-  fNumber: v.optional(v.number()),
-  focalLength: v.optional(v.number()),
-  iso: v.optional(v.number()),
-  latitude: v.optional(v.number()),
-  longitude: v.optional(v.number()),
-  make: v.optional(v.string()),
-  model: v.optional(v.string()),
-  // Epoch ms read by released apps: an instant when the EXIF has an offset,
-  // else the camera's clock time read as UTC.
-  takenAt: v.optional(v.number()),
-  // The camera's clock time as epoch ms, read as if that clock were UTC.
-  takenAtClock: v.optional(v.number()),
-  // Minutes east of UTC from the EXIF offset, when the camera recorded one.
-  takenAtOffset: v.optional(v.number()),
-});
-
-export const fileMetadataValidator = v.optional(
-  v.object({
-    fileSize: v.optional(v.number()),
-    fileName: v.optional(v.string()),
-    mimeType: v.optional(v.string()),
-    extension: v.optional(v.string()),
-    kind: v.optional(v.union(...FILE_KINDS.map((kind) => v.literal(kind)))),
-    language: v.optional(v.string()),
-    duration: v.optional(v.number()),
-    width: v.optional(v.number()),
-    height: v.optional(v.number()),
-    preview: v.optional(filePreviewFactsValidator),
-    exif: v.optional(imageExifValidator),
-    scrub: v.optional(
-      v.object({
-        frames: v.number(),
-        frameWidth: v.number(),
-        frameHeight: v.number(),
-      })
-    ),
-    waveform: v.optional(
-      v.object({
-        grid: v.array(v.number()),
-        detail: v.array(v.number()),
-      })
-    ),
-    processing: v.optional(fileProcessingProvenanceValidator),
-    recordingTimestamp: v.optional(v.number()),
-  })
-);
-
-export const r2KeyValidator = v.string();
-
-export const thumbnailOverrideValidator = v.object({
-  storageKey: r2KeyValidator,
-  width: v.number(),
-  height: v.number(),
-  updatedAt: v.number(),
-});
-
-export const metadataValidator = v.optional(
-  v.object({
-    source: v.optional(v.string()),
-    linkPreview: v.optional(
-      v.object({
-        source: v.optional(v.string()),
-        status: v.optional(v.union(v.literal("success"), v.literal("error"))),
-        fetchedAt: v.optional(v.number()),
-        url: v.optional(v.string()),
-        finalUrl: v.optional(v.string()),
-        canonicalUrl: v.optional(v.string()),
-        title: v.optional(v.string()),
-        description: v.optional(v.string()),
-        media: v.optional(
-          v.array(
-            v.object({
-              type: v.union(v.literal("image"), v.literal("video")),
-              storageKey: v.optional(r2KeyValidator),
-              updatedAt: v.number(),
-              contentType: v.optional(v.string()),
-              width: v.optional(v.number()),
-              height: v.optional(v.number()),
-              posterStorageKey: v.optional(r2KeyValidator),
-              posterUpdatedAt: v.optional(v.number()),
-              posterContentType: v.optional(v.string()),
-              posterWidth: v.optional(v.number()),
-              posterHeight: v.optional(v.number()),
-            })
-          )
-        ),
-        imageUrl: v.optional(v.string()),
-        imageStorageKey: v.optional(r2KeyValidator),
-        imageUpdatedAt: v.optional(v.number()),
-        imageWidth: v.optional(v.number()),
-        imageHeight: v.optional(v.number()),
-        faviconUrl: v.optional(v.string()),
-        siteName: v.optional(v.string()),
-        author: v.optional(v.string()),
-        publisher: v.optional(v.string()),
-        publishedAt: v.optional(v.string()),
-        screenshotStorageKey: v.optional(r2KeyValidator),
-        screenshotUpdatedAt: v.optional(v.number()),
-        screenshotWidth: v.optional(v.number()),
-        screenshotHeight: v.optional(v.number()),
-        error: v.optional(
-          v.object({
-            type: v.optional(v.string()),
-            message: v.optional(v.string()),
-            details: v.optional(v.any()),
-          })
-        ),
-        raw: v.optional(v.any()),
-        rawStorageKey: v.optional(v.string()),
-        rawSha256: v.optional(v.string()),
-        categoryHint: v.optional(linkCategoryValidator),
-      })
-    ),
-    linkCategory: v.optional(linkCategoryMetadataValidator),
-  })
-);
-
-export const colorValidator = v.object({
-  hex: v.string(),
-  name: v.optional(v.string()),
-  rgb: v.optional(
-    v.object({
-      r: v.number(),
-      g: v.number(),
-      b: v.number(),
-    })
-  ),
-  hsl: v.optional(
-    v.object({
-      h: v.number(),
-      s: v.number(),
-      l: v.number(),
-    })
-  ),
-});
-
-export const apiIdempotencyKeyValidator = v.object({
-  userId: v.string(),
-  keyHash: v.string(),
-  method: v.string(),
-  path: v.string(),
-  requestHash: v.string(),
-  state: v.union(v.literal("pending"), v.literal("completed")),
-  responseStatus: v.number(),
-  responseBody: v.any(),
-  expiresAt: v.number(),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-});
-
-export const apiIdempotencyAnalyticsValidator = v.object({
-  date: v.string(),
-  endpoint: v.string(),
-  shard: v.optional(v.number()),
-  totalRequests: v.number(),
-  withKey: v.number(),
-  skipped: v.number(),
-  started: v.number(),
-  replayed: v.number(),
-  conflicts: v.number(),
-  inProgress: v.number(),
-  errors: v.number(),
-});
-
-export const exportStatusValidator = v.union(
-  v.literal("pending"),
-  v.literal("running"),
-  v.literal("ready"),
-  v.literal("failed"),
-  v.literal("canceled"),
-  v.literal("expired")
-);
-
-export const exportFailureClassValidator = v.union(
-  v.literal("cap_exceeded"),
-  v.literal("archive_failed"),
-  v.literal("storage_failed"),
-  v.literal("canceled"),
-  v.literal("unknown")
-);
-
-export const importStatusValidator = v.union(
-  v.literal("uploading"),
-  v.literal("queued"),
-  v.literal("parsing"),
-  v.literal("importing"),
-  v.literal("completed"),
-  v.literal("failed"),
-  v.literal("canceled")
-);
-
-export const importModeValidator = v.union(
-  v.literal("bookmarks"),
-  v.literal("archive"),
-  v.literal("raindrop"),
-  v.literal("pocket"),
-  v.literal("instapaper"),
-  v.literal("readwise"),
-  v.literal("omnivore"),
-  v.literal("linkwarden"),
-  v.literal("mymind"),
-  v.literal("onetab")
-);
-
-export const importItemStatusValidator = v.union(
-  v.literal("pending"),
-  v.literal("created"),
-  v.literal("skipped"),
-  v.literal("failed")
-);
-
-export const fileUploadSessionValidator = v.object({
-  userId: v.string(),
-  identityKey: v.optional(v.string()),
-  teakUserId: v.optional(v.string()),
-  sourceKey: r2KeyValidator,
-  uploadId: v.string(),
-  fileName: v.string(),
-  fileSize: v.number(),
-  fileType: v.string(),
-  fileLastModified: v.number(),
-  partSize: v.number(),
-  parts: v.array(
-    v.object({
-      etag: v.string(),
-      partNumber: v.number(),
-      size: v.number(),
-    })
-  ),
-  completedEtag: v.optional(v.string()),
-  completedSize: v.optional(v.number()),
-  status: v.union(
-    v.literal("uploading"),
-    v.literal("completed"),
-    v.literal("aborted")
-  ),
-  expiresAt: v.number(),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-});
-
-export const exportJobValidator = v.object({
-  userId: v.string(),
-  status: exportStatusValidator,
-  workflowId: v.optional(v.string()),
-  cancelRequested: v.optional(v.boolean()),
-  artifactKey: v.optional(r2KeyValidator),
-  artifactBytes: v.optional(v.number()),
-  cardCount: v.optional(v.number()),
-  filesIncluded: v.optional(v.number()),
-  filesOmitted: v.optional(v.number()),
-  processedCount: v.optional(v.number()),
-  stage: v.optional(v.union(v.literal("snapshotting"), v.literal("archiving"))),
-  failureClass: v.optional(exportFailureClassValidator),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  startedAt: v.optional(v.number()),
-  completedAt: v.optional(v.number()),
-  quotaCountedAt: v.optional(v.number()),
-  expiresAt: v.optional(v.number()),
-});
-
-// Per-card snapshot of the start-time card set. Stored as individual rows so a
-// large library does not hit Convex array/document size limits.
-export const exportJobItemValidator = v.object({
-  jobId: v.id("exportJobs"),
-  userId: v.string(),
-  cardId: v.id("cards"),
-  fileKey: v.optional(r2KeyValidator),
-  createdAt: v.number(),
-});
-
-export const stagedItemsValidator = v.object({
-  pages: v.number(),
-  parts: v.number(),
-  cursor: v.union(v.number(), v.null()),
-  part: v.number(),
-  offset: v.number(),
-});
-
-export const importJobValidator = v.object({
-  userId: v.string(),
-  mode: importModeValidator,
-  status: importStatusValidator,
-  phase: v.string(),
-  fileName: v.string(),
-  fileSize: v.number(),
-  fileLastModified: v.number(),
-  sourceKey: r2KeyValidator,
-  sourceEtag: v.optional(v.string()),
-  uploadId: v.optional(v.string()),
-  uploadExpiresAt: v.optional(v.number()),
-  uploadedParts: v.optional(
-    v.array(
-      v.object({ partNumber: v.number(), etag: v.string(), size: v.number() })
-    )
-  ),
-  workflowId: v.optional(v.string()),
-  cancelRequested: v.optional(v.boolean()),
-  parsedCount: v.number(),
-  processedCount: v.number(),
-  createdCount: v.number(),
-  skippedCount: v.number(),
-  failedCount: v.number(),
-  reportKey: v.optional(r2KeyValidator),
-  failureClass: v.optional(v.string()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  startedAt: v.optional(v.number()),
-  completedAt: v.optional(v.number()),
-  /**
-   * Set when the job is queued: the import Workflow stages its items in R2
-   * (`importStagedPartKey`) instead of `importJobItems` rows. `pages` source
-   * pages and `parts` staged objects are recorded, and indexing resumes at
-   * `cursor` (null once the source is read). Cards are created from staged
-   * part `part`, item `offset`. Jobs without it use the rows.
-   */
-  stagedItems: v.optional(stagedItemsValidator),
-});
-
-// A job with `stagedItems` keeps only its failed items here, for the failure
-// samples and the report. Older jobs staged every item.
-export const importJobItemValidator = v.object({
-  jobId: v.id("importJobs"),
-  userId: v.string(),
-  sourceIndex: v.number(),
-  status: importItemStatusValidator,
-  type: cardTypeValidator,
-  content: v.string(),
-  url: v.optional(v.string()),
-  tags: v.optional(v.array(v.string())),
-  notes: v.optional(v.string()),
-  isFavorited: v.optional(v.boolean()),
-  isArchived: v.optional(v.boolean()),
-  metadataTitle: v.optional(v.string()),
-  folders: v.optional(v.array(v.string())),
-  colors: v.optional(v.array(colorValidator)),
-  importedCreatedAt: v.optional(v.number()),
-  importedCompletedAt: v.optional(v.number()),
-  filePath: v.optional(v.string()),
-  fileName: v.optional(v.string()),
-  fileSize: v.optional(v.number()),
-  mimeType: v.optional(v.string()),
-  duration: v.optional(v.number()),
-  width: v.optional(v.number()),
-  height: v.optional(v.number()),
-  extractedFileKey: v.optional(r2KeyValidator),
-  cardId: v.optional(v.id("cards")),
-  failureCode: v.optional(v.string()),
-  failureReason: v.optional(v.string()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-});
-
-export const cardValidator = v.object({
-  userId: v.string(),
-  content: v.string(),
-  type: cardTypeValidator,
-  url: v.optional(v.string()),
-  urlHost: v.optional(v.string()),
-  sourceUrl: v.optional(v.string()),
-  sourceTitle: v.optional(v.string()),
-  shuffleKey: v.optional(v.number()),
-  fileKey: v.optional(r2KeyValidator),
-  thumbnailKey: v.optional(r2KeyValidator),
-  scrubKey: v.optional(r2KeyValidator),
-  workflowArtifactKeys: v.optional(v.array(r2KeyValidator)),
-  previewKey: v.optional(r2KeyValidator),
-  placeholderHash: v.optional(v.string()),
-  derivativeVersion: v.optional(v.string()),
-  derivativeCheckedAt: v.optional(v.number()),
-  tags: v.optional(v.array(v.string())),
-  notes: v.optional(v.string()),
-  isFavorited: v.optional(v.boolean()),
-  isDeleted: v.optional(v.boolean()),
-  deletedAt: v.optional(v.number()),
-  isArchived: v.optional(v.literal(true)),
-  archivedAt: v.optional(v.number()),
-  /**
-   * When the person marked this link read, watched, bought or otherwise
-   * done (`is:done`). Not the processing stages' `completedAt`.
-   */
-  completedAt: v.optional(v.number()),
-  isHidden: v.optional(v.literal(true)),
-  folderIds: v.optional(v.array(v.id("folders"))),
-  metadata: metadataValidator,
-  fileMetadata: fileMetadataValidator,
-  metadataStatus: v.optional(
-    v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"))
-  ),
-  metadataTitle: v.optional(v.string()),
-  metadataTitleEdited: v.optional(v.boolean()),
-  thumbnailOverride: v.optional(thumbnailOverrideValidator),
-  previousThumbnailOverride: v.optional(
-    v.object({
-      override: v.union(thumbnailOverrideValidator, v.null()),
-      changeId: v.string(),
-      deleteAfter: v.number(),
-      deletionJobId: v.optional(v.id("_scheduled_functions")),
-    })
-  ),
-  thumbnailChangeId: v.optional(v.string()),
-  metadataDescription: v.optional(v.string()),
-  aiTags: v.optional(v.array(v.string())),
-  aiSummary: v.optional(v.string()),
-  aiTranscript: v.optional(v.string()),
-  aiOcrText: v.optional(v.string()),
-  ocrCheckedAt: v.optional(v.number()),
-  documentTextKey: v.optional(r2KeyValidator),
-  hasExtractedText: v.optional(v.literal(true)),
-  extractedTextCharCount: v.optional(v.number()),
-  visualStyles: v.optional(v.array(v.string())),
-  aiBackfillAttempts: v.optional(v.number()),
-  colors: v.optional(v.array(colorValidator)),
-  colorHexes: v.optional(v.array(v.string())),
-  colorHues: v.optional(v.array(v.string())),
-  processingStatus: processingStatusValidator,
-  processingRev: v.optional(v.number()),
-  onboarding: v.optional(v.string()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-});
-
-const disconnectRecoveryReceipt = v.object({
-  operationId: v.string(),
-  snapshotDigest: v.string(),
-  approvalReference: v.string(),
-  evidenceKind: v.union(
-    v.literal("preserved-204"),
-    v.literal("provider-written-confirmation")
-  ),
-  evidenceReference: v.string(),
-  originalRequestId: v.string(),
-  cloudUrl: v.string(),
-  siteUrl: v.string(),
-  environmentId: v.string(),
-  authKitClientId: v.string(),
-  authKitDomain: v.string(),
-  credentialFingerprint: v.string(),
-  applicationId: v.string(),
-  recordedAt: v.number(),
-});
 
 export default defineSchema({
   users: defineTable({
@@ -654,7 +80,11 @@ export default defineSchema({
   }).index("by_name", ["name"]),
   workosEventCursors: defineTable({
     name: v.string(),
-    after: v.string(),
+    // Missing until the first event is applied.
+    after: v.optional(v.string()),
+    // The event the catch-up keeps failing on, and how many runs it failed.
+    failingEventId: v.optional(v.string()),
+    failedAttempts: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_name", ["name"]),
   workosEvents: defineTable({
@@ -713,7 +143,6 @@ export default defineSchema({
     ])
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
-    .index("by_user_type_deleted", ["userId", "type", "isDeleted"])
     .index("by_user_deleted", ["userId", "isDeleted"])
     .index("by_created", ["userId", "createdAt"])
     .index("by_user_deleted_archived_created", [
@@ -749,12 +178,33 @@ export default defineSchema({
       "isArchived",
       "shuffleKey",
     ])
+    .index("by_user_deleted_archived_type_shuffle", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "shuffleKey",
+    ])
+    .index("by_user_deleted_archived_favorited_shuffle", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "isFavorited",
+      "shuffleKey",
+    ])
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
+    // Replaced by `by_aiPending_and_isDeleted_and_createdAt`; only
+    // `migration/backfillAiPending` reads it (.agents/sunset.md).
     .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
       "aiSummary",
       "aiTags",
       "aiTranscript",
+      "isDeleted",
+      "createdAt",
+    ])
+    .index("by_aiPending_and_isDeleted_and_createdAt", [
+      "aiPending",
       "isDeleted",
       "createdAt",
     ])
@@ -793,9 +243,15 @@ export default defineSchema({
     rev: v.optional(v.number()),
     reset: v.optional(v.literal(true)),
     error: v.optional(v.string()),
+    lastReconciledAt: v.optional(v.number()),
   })
     .index("by_state_and_notBefore", ["state", "notBefore"])
     .index("by_state_and_sentAt", ["state", "sentAt"])
+    .index("by_state_and_lastReconciledAt_and_sentAt", [
+      "state",
+      "lastReconciledAt",
+      "sentAt",
+    ])
     .index("by_state_and_finishedAt", ["state", "finishedAt"])
     .index("by_key_and_createdAt", ["key", "createdAt"])
     .index("by_instanceId", ["instanceId"]),
@@ -819,6 +275,11 @@ export default defineSchema({
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .index("by_userId_and_dueAt", ["userId", "dueAt"]),
+  sweepCursors: defineTable({
+    name: v.literal("vectorLedger"),
+    cursor: v.union(v.string(), v.null()),
+    updatedAt: v.number(),
+  }).index("by_name", ["name"]),
   vectorShards: defineTable({
     userId: v.string(),
     shard: v.number(),
@@ -859,6 +320,8 @@ export default defineSchema({
     color: v.optional(folderColorValidator),
     kind: v.union(v.literal("manual"), v.literal("smart")),
     query: v.optional(v.string()),
+    // Read only until `migration/backfillFolderCardCounts` copies it into
+    // `folderCardCounts` (folder/folderRows.ts), which holds the live count.
     activeCardCount: v.number(),
     deletingAt: v.optional(v.number()),
     createdAt: v.number(),
@@ -866,6 +329,12 @@ export default defineSchema({
   })
     .index("by_userId_and_nameKey", ["userId", "nameKey"])
     .index("by_userId_and_createdAt", ["userId", "createdAt"]),
+  folderCardCounts: defineTable({
+    folderId: v.id("folders"),
+    userId: v.string(),
+    shard: v.number(),
+    count: v.number(),
+  }).index("by_folderId_and_shard", ["folderId", "shard"]),
   folderCards: defineTable({
     folderId: v.id("folders"),
     cardId: v.id("cards"),
@@ -895,6 +364,24 @@ export default defineSchema({
     isComplete: v.boolean(),
     computedAt: v.number(),
   }).index("by_userId", ["userId"]),
+  userTagCounts: defineTable({
+    userId: v.string(),
+    tag: v.string(),
+    count: v.number(),
+  }).index("by_userId_and_tag", ["userId", "tag"]),
+  // Count changes the tag sync records without touching the shared
+  // `userTagCounts` rows; the tag summary refresh folds them in.
+  tagCountDeltas: defineTable({
+    userId: v.string(),
+    tag: v.string(),
+    delta: v.number(),
+  }).index("by_userId", ["userId"]),
+  // One row, written when `migration/backfillTagCounts` has counted every
+  // tag row. Until then tag summaries recount `cardSearchTags`.
+  tagCountStates: defineTable({
+    key: v.literal("global"),
+    readyAt: v.number(),
+  }).index("by_key", ["key"]),
   tagSummaryRefreshes: defineTable({
     userId: v.string(),
     dueAt: v.number(),
@@ -1000,6 +487,11 @@ export default defineSchema({
     isHidden: v.optional(v.literal(true)),
     urlHost: v.optional(v.string()),
     sourceUpdatedAt: v.number(),
+    // The card's `createdAt` and `_creationTime`, so a text search orders its
+    // matches without loading them. Missing on documents the
+    // `backfillSearchDocumentDates` migration hasn't reached.
+    cardCreatedAt: v.optional(v.number()),
+    cardCreationTime: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
@@ -1031,8 +523,15 @@ export default defineSchema({
     cardId: v.id("cards"),
     userId: v.string(),
     kind: v.union(v.literal("document"), v.literal("transcript")),
+    /**
+     * A document's searchable start, or one part of a transcript: a
+     * transcript is split into parts of at most `SEARCH_PREFIX_MAX_BYTES`.
+     */
     text: v.string(),
-    sourceKey: r2KeyValidator,
+    /** The R2 object holding a document's whole text. */
+    sourceKey: v.optional(r2KeyValidator),
+    /** A transcript part's place, from 0. */
+    part: v.optional(v.number()),
     charCount: v.number(),
     truncated: v.boolean(),
   })
@@ -1129,6 +628,10 @@ export default defineSchema({
     cardCreatedAt: v.number(),
     sourceUpdatedAt: v.number(),
     syncGeneration: v.number(),
+    // Set while the row is counted in `userTagCounts` (outside Trash and
+    // Archive). Rows written before counting existed lack it until
+    // `migration/backfillTagCounts` runs.
+    isCounted: v.optional(v.literal(true)),
   })
     .index("by_cardId", ["cardId"])
     .index("by_cardId_and_tag", ["cardId", "tag"])
@@ -1197,6 +700,10 @@ export default defineSchema({
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
     tagCountsChanged: v.optional(v.boolean()),
+    // The `syncGeneration` this chain writes. It moves only when the tag set
+    // changes, so flag changes patch rows in place. Missing on older rows,
+    // whose chains wrote `generation`.
+    tagGeneration: v.optional(v.number()),
   })
     .index("by_cardId", ["cardId"])
     .index("by_userId_and_pending", ["userId", "pending"]),

@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
-  internalQuery,
   type MutationCtx,
   mutation,
   type QueryCtx,
@@ -10,14 +9,18 @@ import {
 import {
   ACCOUNT_DELETION_PROGRESS_GRACE_MS,
   accountDeletionStage,
-} from "./accountDeletionStages";
+} from "./accountDeletion/stages";
 import { removeCardUsage } from "./card/cardUsage";
-import { deleteCardTextRow } from "./card/textContents";
+import { deleteCardTextRows } from "./card/textContents";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
-import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
+import {
+  getDeletionRetryPrincipal,
+  getSessionUser,
+  UNAUTHENTICATED_ERROR,
+} from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
 import { queueAccountDeletionWorkflow } from "./workflowDispatch";
-import { currentWorkosDeletionTarget } from "./workosDeletionCompletion";
+import { currentWorkosDeletionTarget } from "./workos/deletionCompletion";
 
 const ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE = 20;
 
@@ -90,12 +93,23 @@ export type OwnedCardIds = Id<"cards">[] & {
 export const takeOwnedCards = async (
   ctx: Pick<QueryCtx, "db">,
   userId: string,
-  limit: number
+  limit: number,
+  maxBytes = Number.POSITIVE_INFINITY
 ) => {
-  const cards = await ctx.db
+  const cards: Doc<"cards">[] = [];
+  let bytes = 0;
+  for await (const card of ctx.db
     .query("cards")
-    .withIndex("by_user_deleted", (q) => q.eq("userId", userId))
-    .take(limit);
+    .withIndex("by_user_deleted_created", (q) => q.eq("userId", userId))) {
+    bytes += JSON.stringify(card).length;
+    if (cards.length > 0 && bytes > maxBytes) {
+      break;
+    }
+    cards.push(card);
+    if (cards.length >= limit) {
+      break;
+    }
+  }
   return { cards, cardIds: cards.map((card) => card._id) as OwnedCardIds };
 };
 
@@ -107,7 +121,7 @@ export const deleteAccountDataHandler = async (
   for (const cardId of cardIds) {
     const tagDocuments = await ctx.db
       .query("cardSearchTags")
-      .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
+      .withIndex("by_cardId_and_tag", (query) => query.eq("cardId", cardId))
       .take(ACCOUNT_CARD_TAG_DELETE_BATCH_SIZE + 1);
     for (const tagDocument of tagDocuments.slice(
       0,
@@ -132,7 +146,7 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
-    await deleteCardTextRow(ctx, cardId);
+    await deleteCardTextRows(ctx, cardId);
     const folderRows = await ctx.db
       .query("folderCards")
       .withIndex("by_cardId_and_folderId", (query) =>
@@ -183,13 +197,6 @@ export const removeAccountCardUsage = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
   handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
-});
-
-export const isDeleting = internalQuery({
-  args: { userId: v.string() },
-  returns: v.boolean(),
-  handler: async (ctx, { userId }) =>
-    Boolean(await getAccountDeletionState(ctx, userId)),
 });
 
 export const initiateAccountDeletion = async (
@@ -254,7 +261,7 @@ export const deleteMyAccount = mutation({
           }
         }
       }
-      throw new ConvexError("User must be authenticated");
+      throw new ConvexError(UNAUTHENTICATED_ERROR);
     }
     const rows = await ctx.db
       .query("users")

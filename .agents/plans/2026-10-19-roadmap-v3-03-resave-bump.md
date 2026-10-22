@@ -47,9 +47,9 @@ When you save a link you already have, Teak moves that card to the top of "Newes
     - `by_user_tag_deleted_archived_type_v2`;
     - `by_user_tag_deleted_archived_favorited_v2`;
     - `by_user_tag_deleted_archived_type_favorited_v2`.
-- **Date words** ("last week", "january") become `createdAtRange` (`card/getCards.ts:119,188`), bounded on the same indexes (`listQuery.ts:121–123`).
+- **Date words** ("last week", "january") become `createdAtRange` (`card/searchCardsPaginated.ts`), bounded on the same indexes (`listQuery.ts:121–123`).
 - **What each surface does with a duplicate today:**
-  - **Always insert:** `createCardForUserHandler` (`card/createCard.ts:167`), the public `createCard` mutation (line 305, returns `v.id("cards")`), `raycast.quickSaveForUser` (`raycast.ts:349`, behind `POST /v1/cards`, result validator `status: v.literal("created")` at line 63), bulk create (`publicApi.ts:862`) and email-in (`inbound/ingest.ts:151`).
+  - **Always insert:** `createCardForUserHandler` (`card/createCard.ts:167`), the public `createCard` mutation (line 305, returns `v.id("cards")`), `publicApi/cardsForUser.quickSaveForUser` (`raycast.ts:349`, behind `POST /v1/cards`, result validator `status: v.literal("created")` at line 63), bulk create (`publicApi.ts:862`) and email-in (`inbound/ingest.ts:151`).
   - **Check first, then show "already saved" without writing:**
     - the Chrome and Firefox extension: `apps/extension/lib/saveToTeak.ts:114–125`;
     - Raycast: `apps/raycast/src/lib/capture.ts:165` `showIfAlreadySaved`;
@@ -84,7 +84,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
   - `cardSavedAt` on `folderCards` and `cardSearchTags`;
   - the 13 `…_saved` indexes beside their `…_created` twins.
 - **Writes:**
-  - Every production card insert sets `savedAt` to the same value as `createdAt`: `insertCountedCard` (`card/cardUsage.ts:414`) fills it when missing, which covers `createCardForUserHandler` and `card/uploadCard.ts:295`; `card/defaultCards.ts:409` (onboarding) and `devSeedLinks.ts:55` insert directly and set it themselves. A test asserts each path writes it, since a card without `savedAt` would drop out of the `…_saved` indexes.
+  - Every production card insert sets `savedAt` to the same value as `createdAt`: `insertCountedCard` (`card/cardUsage.ts:414`) fills it when missing, which covers `createCardForUserHandler` and `card/uploadCard.ts:295`; `card/defaultCards.ts:409` (onboarding) and `devSeed/links.ts` insert directly and set it themselves. A test asserts each path writes it, since a card without `savedAt` would drop out of the `…_saved` indexes.
   - Folder-row sync (`syncCardFolderRows`) and tag-row sync (`restartCardSearchTagSync`) copy `savedAt ?? createdAt` into `cardSavedAt`. The tag-sync snapshot kept in `cardSearchTagSyncStates` (`schema.ts:1098`) records it too, and its "has anything changed" comparison includes it, so a bump alone re-syncs the tag rows.
 - **New `migration/backfillSavedAt.ts`:**
   - pages `cards` and sets `savedAt = createdAt` where it is missing;
@@ -96,8 +96,8 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 - **Readers:**
   - `card/listQuery.ts` switches every `withIndex` to its `…_saved` twin, with bounds on `savedAt`.
   - `compareCardsByCreatedAt` becomes `compareCardsBySavedAt`, using `savedAt ?? createdAt`, in its four callers.
-  - Date words bound `savedAt`; the `createdAtRange` argument name stays for client compatibility. Every card-level date predicate and post-filter uses `savedAt ?? createdAt` too, not only the index bounds: `card/getCards.ts`, `card/queryUtils.ts`, `card/visualFilters.ts`, `publicApiSearch.ts` and the local cache's `shared/search/localSearch.ts` (both its date filter and its ordering), or a re-saved card would drop out of "last week".
-  - Pagination anchors move with the order: `publicApiCursors.ts` encodes `savedAt ?? createdAt` (as `savedAt`) beside the id, and still decodes an old cursor's `createdAt` as the anchor value, so a cursor issued before the deploy keeps working. The folder and tag page cursors do the same.
+  - Date words bound `savedAt`; the `createdAtRange` argument name stays for client compatibility. Every card-level date predicate and post-filter uses `savedAt ?? createdAt` too, not only the index bounds: `card/getCards.ts`, `card/queryUtils.ts`, `card/visualFilters.ts`, `publicApi/search.ts` and the local cache's `shared/search/localSearch.ts` (both its date filter and its ordering), or a re-saved card would drop out of "last week".
+  - Pagination anchors move with the order: `publicApi/cursors.ts` encodes `savedAt ?? createdAt` (as `savedAt`) beside the id, and still decodes an old cursor's `createdAt` as the anchor value, so a cursor issued before the deploy keeps working. The folder and tag page cursors do the same.
   - `card/cardLinks.ts` moves too.
 - **The rule (`card/createCard.ts`):**
   - Before inserting, when `type` resolves to `link` and the content is only the URL:
@@ -111,7 +111,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
   - Callers that need only the id (`createCard`, `inbound/ingest.ts`) take `.cardId`. The bulk create case in `executeBulkCardsForUser` (`publicApi.ts:853`) keeps the outcome and returns `resaved: true` for that item, and the bulk result validator and its API mapping gain the optional field.
   - The public `createCard` mutation still returns `v.id("cards")`, for the native apps.
   - A new public mutation, `createCardWithOutcome`, returns `{cardId, outcome}` for the web.
-- **Raycast quick save:** `raycast.quickSaveForUser` keeps `status: "created"` and adds `resaved: true` on a re-save.
+- **Raycast quick save:** `publicApi/cardsForUser.quickSaveForUser` keeps `status: "created"` and adds `resaved: true` on a re-save.
 - **Processing:** a bumped card is not reprocessed.
 
 ## Web
@@ -137,10 +137,10 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 ## API / MCP / SDK / CLI
 
 - **`POST /v1/cards`:**
-  - `status` stays `"created"`: the OpenAPI schema is `enum: ["created"]` (`publicApiOpenApi.ts:467`) and the SDK's `asCreate` (`packages/sdk/src/index.ts:724`) throws `PARSE_ERROR` on any other value, so a new status would break every shipped SDK and CLI. A re-save adds `resaved: true` (and `wasArchived: true` when it un-archived the card) beside it. Old clients ignore the extra fields.
+  - `status` stays `"created"`: the OpenAPI schema is `enum: ["created"]` (`publicApi/openApi/`) and the SDK's `asCreate` (`packages/sdk/src/index.ts:724`) throws `PARSE_ERROR` on any other value, so a new status would break every shipped SDK and CLI. A re-save adds `resaved: true` (and `wasArchived: true` when it un-archived the card) beside it. Old clients ignore the extra fields.
   - The response code stays 200, and idempotency replay returns the original response.
 - **Tags and notes on a re-save** are ignored (owner decision). The API, MCP and CLI docs say so, and `resaved: true` in the response tells a caller to `PATCH` the card if it wants them applied.
-- **Card schema:** `savedAt: number` in `serializeCard` and `serializeListCard` (`publicApiHttpValidation.ts`). `createdAt` keeps its meaning.
+- **Card schema:** `savedAt: number` in `serializeCard` and `serializeListCard` (`publicApi/http/serializers.ts`). `createdAt` keeps its meaning.
 - **`GET /v1/cards`:** `sort=newest|oldest` follows `savedAt`. The OpenAPI description says so.
 - **Bulk create:** a resaved item keeps `status: "created"` and adds `resaved: true`, with its `cardId`.
 - **MCP:** `teak_v1_create_card` (or the current save tool name) returns the status, and its description explains re-save.
@@ -201,7 +201,7 @@ When you save a link you already have, Teak moves that card to the top of "Newes
 - `packages/convex/cardListOrdering.test.ts` (Vitest, already listed): every list path orders by `savedAt`, and the fallback to `createdAt` before the backfill.
 - `packages/convex/__tests__/shared/search/sort.test.ts` and `localSearch.test.ts`.
 - `packages/convex/__tests__/migration/backfillSavedAt.test.ts`.
-- `packages/convex/__tests__/publicApiHttpCards.test.ts`, `__tests__/mcp.test.ts`, `__tests__/sdk.test.ts`, `__tests__/export/serialize.test.ts`.
+- `packages/convex/__tests__/publicApi/http/cards.test.ts`, `__tests__/mcp/tools.test.ts`, `__tests__/sdk.test.ts`, `__tests__/export/serialize.test.ts`.
 - `apps/extension/__tests__/lib/saveToTeak.test.ts`: `resaved` maps to duplicate, and no pre-check request is made.
 - `apps/raycast/src/__tests__/capture.test.ts`.
 - `apps/web` `AddCardForm` test: the resaved toast with no optimistic tile left.

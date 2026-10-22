@@ -4,7 +4,7 @@ import {
   mergeProcessingStages,
   type ProcessingStatus,
 } from "../card/processingStatus";
-import { patchCardWithSearchSync } from "../card/searchDocumentHelpers";
+import { patchCardWithSearchSync } from "../card/searchSync";
 import { cardTypeValidator, processingStatusObjectValidator } from "../schema";
 
 export const updateCardProcessing = internalMutation({

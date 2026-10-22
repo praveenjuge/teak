@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Doc } from "../_generated/dataModel";
 import { internalMutation, internalQuery } from "../_generated/server";
 import { importStagedPartKeys } from "../import/indexItems";
 import { buildR2UserPrefix } from "./r2";
@@ -82,6 +83,100 @@ export const pageSweepCards = internalQuery({
   },
 });
 
+const MAX_REFERENCE_PAGE = 100;
+
+const referenceSourceValidator = v.union(
+  v.literal("uploads"),
+  v.literal("imports"),
+  v.literal("pendingLinkedPdfs"),
+  v.literal("failedLinkedPdfs"),
+  v.literal("exports")
+);
+
+const importJobKeys = (job: Doc<"importJobs">): string[] => [
+  job.sourceKey,
+  ...(job.reportKey ? [job.reportKey] : []),
+  ...importStagedPartKeys(
+    buildR2UserPrefix(job.userId),
+    job._id,
+    job.stagedItems
+  ),
+];
+
+const exportJobKeys = (job: Doc<"exportJobs">): string[] =>
+  job.artifactKey
+    ? [
+        job.artifactKey,
+        `${job.artifactKey}.checkpoint.json`,
+        `${job.artifactKey}.result.json`,
+      ]
+    : [];
+
+/**
+ * One page of the R2 keys rows other than cards still hold, from one source.
+ * The orphan sweep reads every source to the end; a page of imports stays
+ * small because each job holds its staged parts too.
+ */
+export const pageNonCardReferencedKeys = internalQuery({
+  args: {
+    cursor: v.union(v.string(), v.null()),
+    numItems: v.number(),
+    source: referenceSourceValidator,
+  },
+  returns: v.object({
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+    keys: v.array(v.string()),
+  }),
+  handler: async (ctx, { cursor, numItems, source }) => {
+    const pageOpts = {
+      cursor,
+      numItems: Math.max(1, Math.min(numItems, MAX_REFERENCE_PAGE)),
+    };
+    const done = <T>(
+      page: { continueCursor: string; isDone: boolean; page: T[] },
+      keysOf: (row: T) => string[]
+    ) => ({
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+      keys: page.page.flatMap(keysOf),
+    });
+    switch (source) {
+      case "uploads":
+        return done(
+          await ctx.db.query("fileUploadSessions").paginate(pageOpts),
+          (session) => [session.sourceKey]
+        );
+      case "imports":
+        return done(
+          await ctx.db.query("importJobs").paginate({
+            ...pageOpts,
+            numItems: Math.min(pageOpts.numItems, 10),
+          }),
+          importJobKeys
+        );
+      case "exports":
+        return done(
+          await ctx.db.query("exportJobs").paginate(pageOpts),
+          exportJobKeys
+        );
+      default: {
+        const liveSince = Date.now() - LINKED_PDF_CLAIM_LIVE_MS;
+        const status = source === "pendingLinkedPdfs" ? "pending" : "failed";
+        return done(
+          await ctx.db
+            .query("linkedPdfs")
+            .withIndex("by_status", (q) => q.eq("status", status))
+            .paginate(pageOpts),
+          (row) => (row.updatedAt >= liveSince ? [row.fileKey] : [])
+        );
+      }
+    }
+  },
+});
+
+// The Files Worker before `pageNonCardReferencedKeys` reads this in one call
+// (`.agents/sunset.md`).
 export const collectNonCardReferencedKeys = internalQuery({
   args: {},
   returns: v.array(v.string()),
