@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, setSystemTime, test } from "bun:test";
 import { FILES_EXPORT_MANIFEST_VERSION } from "@teak/files-protocol";
 import { unzipSync } from "fflate";
 import { FakeBucket, makePng } from "../test/testsupport";
@@ -180,6 +180,99 @@ describe("build-export op", () => {
     expect(bucket.objects.has("resume.zip.result.json")).toBe(true);
     expect(bucket.multipartCompletions).toHaveLength(1);
   });
+
+  test("a resumed archive stays valid when a file goes missing on the retry", async () => {
+    const bucket = new FakeBucket();
+    const large = patternedBytes(33 * 1024 * 1024);
+    bucket.objects.set("small.txt", {
+      bytes: new TextEncoder().encode("small file"),
+    });
+    bucket.objects.set("large.bin", { bytes: large });
+    bucket.objects.set("m.json", {
+      bytes: new TextEncoder().encode(
+        JSON.stringify({
+          v: FILES_EXPORT_MANIFEST_VERSION,
+          maxBytes: 64 * 1024 * 1024,
+          entries: [
+            { path: "small.txt", storageKey: "small.txt" },
+            { path: "large.bin", storageKey: "large.bin" },
+          ],
+        })
+      ),
+    });
+    bucket.failMultipartPartOnce.add(2);
+    await expect(
+      buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip")
+    ).rejects.toThrow("multipart_part_2_failed");
+
+    // A transient read error on the retry drops the small file, which shifts
+    // every byte after it.
+    bucket.failKeys.add("small.txt");
+    const result = await buildExportIntoBucket(
+      bucket,
+      "m.json",
+      "out.zip",
+      "out.zip"
+    );
+
+    expect(result.omittedPaths).toEqual(["small.txt"]);
+    const unzipped = unzipSync(bucket.storedBytes("out.zip")!);
+    expect(Object.keys(unzipped)).toEqual(["large.bin"]);
+    expect(Buffer.compare(unzipped["large.bin"], large)).toBe(0);
+  });
+
+  test("a resumed archive matches one built in a single attempt", async () => {
+    const manifest = {
+      v: FILES_EXPORT_MANIFEST_VERSION,
+      maxBytes: 64 * 1024 * 1024,
+      entries: [
+        { path: "cards.json", contentBase64: encodeBase64('{"cards":[]}') },
+        { path: "large.bin", storageKey: "large.bin" },
+      ],
+    };
+    const seed = (bucket: FakeBucket) => {
+      bucket.objects.set("large.bin", {
+        bytes: patternedBytes(33 * 1024 * 1024),
+      });
+      bucket.objects.set("m.json", {
+        bytes: new TextEncoder().encode(JSON.stringify(manifest)),
+      });
+    };
+    const startedAt = new Date("2026-01-01T10:00:00Z");
+
+    setSystemTime(startedAt);
+    const reference = new FakeBucket();
+    seed(reference);
+    await buildExportIntoBucket(reference, "m.json", "out.zip", "out.zip");
+
+    const bucket = new FakeBucket();
+    seed(bucket);
+    bucket.failMultipartPartOnce.add(2);
+    await expect(
+      buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip")
+    ).rejects.toThrow("multipart_part_2_failed");
+    setSystemTime(new Date("2026-01-01T11:00:00Z"));
+    await buildExportIntoBucket(bucket, "m.json", "out.zip", "out.zip");
+
+    expect(
+      Buffer.compare(
+        bucket.storedBytes("out.zip")!,
+        reference.storedBytes("out.zip")!
+      )
+    ).toBe(0);
+  });
 });
+
+afterEach(() => {
+  setSystemTime();
+});
+
+const patternedBytes = (length: number): Uint8Array => {
+  const bytes = new Uint8Array(length);
+  for (let index = 0; index < length; index += 1) {
+    bytes[index] = index % 251;
+  }
+  return bytes;
+};
 
 const makeZipPng = (): Uint8Array => makePng(1, 1);
