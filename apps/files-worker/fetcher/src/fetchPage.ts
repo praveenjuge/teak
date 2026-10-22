@@ -125,7 +125,9 @@ export const fetchLinkPage = async (
     ));
   } catch (error) {
     return fail(
-      error instanceof SsrfError && !(error instanceof RedirectError)
+      error instanceof SsrfError &&
+        !(error instanceof RedirectError) &&
+        error.reason !== "dns_resolution_failed"
         ? "blocked_url"
         : "fetch_failed"
     );

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { formatAddedDate, getCardHeading } from "../cardHeading";
 
 describe("getCardHeading", () => {
@@ -52,6 +52,41 @@ describe("formatAddedDate", () => {
     );
     expect(formatAddedDate(new Date(2024, 2, 4).getTime(), now)).toBe(
       "Added Mar 4, 2024"
+    );
+  });
+});
+
+describe("formatAddedDate across a daylight saving change", () => {
+  const originalTz = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = "America/Los_Angeles";
+  });
+
+  afterAll(() => {
+    if (originalTz === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTz;
+    }
+  });
+
+  test("calls the whole 25-hour day before yesterday after clocks fall back", () => {
+    // Clocks fell back on Sunday Nov 1 2026 in Los Angeles.
+    const now = new Date(2026, 10, 2, 10, 0).getTime();
+    expect(formatAddedDate(new Date(2026, 10, 1, 0, 30).getTime(), now)).toBe(
+      "Added yesterday"
+    );
+  });
+
+  test("does not call the day before yesterday after clocks spring forward", () => {
+    // Clocks sprang forward on Sunday Mar 8 2026 in Los Angeles.
+    const now = new Date(2026, 2, 9, 10, 0).getTime();
+    expect(formatAddedDate(new Date(2026, 2, 7, 23, 30).getTime(), now)).toBe(
+      "Added Mar 7"
+    );
+    expect(formatAddedDate(new Date(2026, 2, 8, 0, 30).getTime(), now)).toBe(
+      "Added yesterday"
     );
   });
 });

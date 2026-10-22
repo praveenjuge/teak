@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
+import { isTypingTarget } from "@/hooks/useKeyboardShortcuts";
 import type {
   RevisitCard,
   RevisitDeck as RevisitDeckState,
@@ -37,14 +38,32 @@ export const REVISIT_SWIPE_THRESHOLD = 96;
 
 export type RevisitKeyAction = "archive" | "details" | "keep" | "undo";
 
+/** Controls that Space activates on its own. */
+const SPACE_CONTROL_SELECTOR =
+  "button, a[href], summary, select, [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='menuitem'], [role='tab'], [role='radio'], [role='option']";
+
 export function revisitKeyAction(event: {
   altKey: boolean;
   ctrlKey: boolean;
   key: string;
   metaKey: boolean;
   repeat: boolean;
+  target?: EventTarget | null;
 }): RevisitKeyAction | null {
-  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) {
+  if (
+    event.repeat ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey ||
+    isTypingTarget(event.target ?? null)
+  ) {
+    return null;
+  }
+  if (
+    event.key === " " &&
+    event.target instanceof Element &&
+    event.target.closest(SPACE_CONTROL_SELECTOR)
+  ) {
     return null;
   }
   switch (event.key) {

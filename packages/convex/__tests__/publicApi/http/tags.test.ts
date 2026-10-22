@@ -91,12 +91,44 @@ describe("public API tag changes", () => {
     }
   });
 
+  test("changes an older tag longer than today's 64-character limit", async () => {
+    const legacy = "x".repeat(70);
+    const cases = [
+      {
+        path: "/v1/tags/rename",
+        body: { from: legacy, to: "short" },
+        args: { kind: "rename", from: legacy, to: "short" },
+      },
+      {
+        path: "/v1/tags/merge",
+        body: { from: legacy, into: "short" },
+        args: { kind: "merge", from: legacy, to: "short" },
+      },
+      {
+        path: "/v1/tags/delete",
+        body: { tag: legacy },
+        args: { kind: "delete", from: legacy },
+      },
+    ];
+    for (const item of cases) {
+      const mutation = mock().mockResolvedValue(operation);
+      const response = await run(
+        { method: "POST", path: item.path, body: item.body },
+        { mutation }
+      );
+      expect(response.status, item.path).toBe(202);
+      expect(argsOf(mutation)).toMatchObject(item.args);
+    }
+  });
+
   test("refuses bad bodies before starting anything", async () => {
     const bodies: [string, unknown][] = [
       ["/v1/tags/rename", {}],
       ["/v1/tags/rename", { from: "a" }],
       ["/v1/tags/rename", { from: "a", to: "  " }],
       ["/v1/tags/rename", { from: "a", to: "x".repeat(65) }],
+      ["/v1/tags/merge", { from: "a", into: "x".repeat(65) }],
+      ["/v1/tags/delete", { tag: "x".repeat(257) }],
       ["/v1/tags/rename", { from: "a", into: "b" }],
       ["/v1/tags/merge", { from: "a", to: "b" }],
       ["/v1/tags/delete", { tag: 3 }],

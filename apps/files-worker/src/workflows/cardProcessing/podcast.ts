@@ -89,17 +89,21 @@ const pageData = async (job: CardJob, loaded: LoadedCard) => {
   };
 };
 
-/**
- * Transcribes the episode and stores the transcript, summary and tags. A
- * busy renderer throws so the step retries; everything else is a logged
- * miss. The AI backfills pass `keepTranscript`, so an episode transcribed
- * before isn't downloaded and transcribed again.
- */
-export const transcribePodcastEpisode = async (
+/** An episode whose audio was found and whose transcription slot is taken. */
+export interface PodcastEpisode {
+  audioUrl: string;
+}
+
+interface EligibleCard {
+  loaded: LoadedCard;
+  url: string;
+}
+
+/** The card, when its episode can be transcribed now, or why it can't. */
+const loadEligibleCard = async (
   job: CardJob,
-  telemetry: WorkflowTelemetry,
-  options: { keepTranscript?: boolean } = {}
-): Promise<PodcastOutcome> => {
+  options: { keepTranscript?: boolean }
+): Promise<EligibleCard | PodcastOutcome> => {
   const loaded = await loadCard(job);
   const card = loaded?.card;
   if (
@@ -122,9 +126,26 @@ export const transcribePodcastEpisode = async (
   if ((await job.deps.aiGate(card.userId)) !== "allowed") {
     return miss("ai_off");
   }
+  return { loaded, url: card.url };
+};
+
+/**
+ * Finds the episode's public audio and takes one of the owner's hourly
+ * transcription slots. Card processing runs it in a step of its own, so the
+ * transcription step's retries reuse the slot rather than take another.
+ */
+export const findPodcastEpisode = async (
+  job: CardJob,
+  options: { keepTranscript?: boolean } = {}
+): Promise<PodcastEpisode | PodcastOutcome> => {
+  const eligible = await loadEligibleCard(job, options);
+  if ("transcribed" in eligible) {
+    return eligible;
+  }
+  const { loaded, url } = eligible;
   const page = await pageData(job, loaded);
   const enclosure = await resolveEnclosure(
-    { ...page, sourceUrl: card.url },
+    { ...page, sourceUrl: url },
     { pinnedFetch: job.deps.podcastFetch.feed, resolveDns: job.deps.resolveDns }
   );
   if (!enclosure) {
@@ -132,11 +153,31 @@ export const transcribePodcastEpisode = async (
   }
   const allowed = await job.deps.convex.mutation(
     internal.workflows.steps.podcast.mutations.takePodcastTranscriptSlot,
-    { userId: card.userId }
+    { userId: loaded.card.userId }
   );
   if (!allowed) {
     return miss("rate_limited");
   }
+  return { audioUrl: enclosure.url };
+};
+
+/**
+ * Transcribes an episode {@link findPodcastEpisode} found and stores the
+ * transcript, summary and tags. A busy renderer throws so the step retries;
+ * everything else is a logged miss.
+ */
+export const transcribeFoundEpisode = async (
+  job: CardJob,
+  telemetry: WorkflowTelemetry,
+  episode: PodcastEpisode,
+  options: { keepTranscript?: boolean } = {}
+): Promise<PodcastOutcome> => {
+  const eligible = await loadEligibleCard(job, options);
+  if ("transcribed" in eligible) {
+    return eligible;
+  }
+  const { loaded, url } = eligible;
+  const { card } = loaded;
 
   const key = objectKey(loaded, {
     cardId: job.cardId,
@@ -157,7 +198,7 @@ export const transcribePodcastEpisode = async (
     const download = await downloadEpisodeToR2(
       gatedEnv(job.env).BUCKET,
       key,
-      enclosure.url,
+      episode.audioUrl,
       {
         pinnedFetch: job.deps.podcastFetch.episode,
         resolveDns: job.deps.resolveDns,
@@ -192,7 +233,7 @@ export const transcribePodcastEpisode = async (
             job,
             telemetry,
             content.join("\n"),
-            card.url
+            url
           );
           generated = { aiSummary: result.aiSummary, aiTags: result.aiTags };
         } catch (error) {
@@ -239,4 +280,20 @@ export const transcribePodcastEpisode = async (
         .catch(() => undefined);
     }
   }
+};
+
+/**
+ * Finds and transcribes the episode in one pass. The AI backfills pass
+ * `keepTranscript`, so an episode transcribed before isn't downloaded and
+ * transcribed again.
+ */
+export const transcribePodcastEpisode = async (
+  job: CardJob,
+  telemetry: WorkflowTelemetry,
+  options: { keepTranscript?: boolean } = {}
+): Promise<PodcastOutcome> => {
+  const found = await findPodcastEpisode(job, options);
+  return "audioUrl" in found
+    ? await transcribeFoundEpisode(job, telemetry, found, options)
+    : found;
 };

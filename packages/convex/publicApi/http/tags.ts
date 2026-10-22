@@ -2,6 +2,7 @@ import { internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
 import {
   explainInvalidTagName,
+  explainInvalidTagSource,
   type TagOperationKind,
 } from "../../shared/tags";
 import type { TagOperationSummary } from "../../tag/tagOperations";
@@ -68,7 +69,11 @@ export const parseTagOperationPayload = (
     if (typeof value !== "string") {
       return { error: `Body must include \`${field}\` as a string` };
     }
-    const reason = explainInvalidTagName(value);
+    // The tag being changed may be an older one longer than today's limit.
+    const reason =
+      field === route.fromField
+        ? explainInvalidTagSource(value)
+        : explainInvalidTagName(value);
     if (reason) {
       return { error: `\`${field}\`: ${reason}` };
     }

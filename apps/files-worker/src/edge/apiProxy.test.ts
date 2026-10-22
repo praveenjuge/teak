@@ -260,6 +260,47 @@ describe("forwarding", () => {
     expect(calls).toHaveLength(0);
   });
 
+  const streamedBody = (chunk: Uint8Array, count: number) =>
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (let index = 0; index < count; index++) {
+          controller.enqueue(chunk);
+        }
+        controller.close();
+      },
+    });
+
+  test("refuses a streamed body that passes Convex's limit without a declared length", async () => {
+    const { calls, fetcher } = upstream();
+    const megabyte = new Uint8Array(1_000_000);
+    const request = new Request("https://teakvault.com/api/v1/cards", {
+      method: "POST",
+      body: streamedBody(megabyte, API_PROXY_MAX_BODY_BYTES / 1_000_000 + 1),
+    });
+    expect(request.headers.get("content-length")).toBeNull();
+    const response = await proxy(request, { fetcher });
+    expect(response?.status).toBe(413);
+    expect(await response?.json()).toEqual({
+      code: "CONTENT_TOO_LARGE",
+      error: "Request body is too large",
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  test("forwards a streamed body within the limit unchanged", async () => {
+    const { calls, fetcher } = upstream();
+    const text = '{"content":"streamed"}';
+    const response = await proxy(
+      new Request("https://teakvault.com/api/v1/cards", {
+        method: "POST",
+        body: streamedBody(new TextEncoder().encode(text), 2),
+      }),
+      { fetcher }
+    );
+    expect(response?.status).toBe(200);
+    expect(calls.map((call) => call.body)).toEqual([text + text]);
+  });
+
   test("answers 502 in the API's error shape when Convex is unreachable", async () => {
     const fetcher = (() =>
       Promise.reject(new TypeError("network down"))) as unknown as typeof fetch;
@@ -350,6 +391,41 @@ describe("edge rate limits", () => {
     );
     expect(response?.status).toBe(429);
     expect(response?.headers.get("x-frame-options")).toBe("DENY");
+    expect(calls).toHaveLength(0);
+  });
+
+  test("refuses a streamed body before reading it", async () => {
+    const { calls, fetcher } = upstream();
+    let pulls = 0;
+    // A body that never ends, sent without a Content-Length.
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls === 1) {
+          controller.enqueue(new Uint8Array(1024));
+        }
+      },
+    });
+    const response = await Promise.race([
+      handleApiProxyRequest(
+        new Request("https://teakvault.com/api/v1/cards", {
+          method: "POST",
+          body,
+        }),
+        ENV,
+        ctx,
+        {
+          fetcher,
+          rateLimit: () =>
+            Promise.resolve({ response: new Response("{}", { status: 429 }) }),
+        }
+      ),
+      new Promise<"still reading">((resolve) =>
+        setTimeout(() => resolve("still reading"), 500)
+      ),
+    ]);
+    expect(response).not.toBe("still reading");
+    expect((response as Response | null)?.status).toBe(429);
     expect(calls).toHaveLength(0);
   });
 });

@@ -13,7 +13,7 @@ import {
   PUBLIC_API_MAX_LIMIT,
 } from "../shared/publicApiLimits";
 import { SEARCH_MODES } from "../shared/search/semantic";
-import { MAX_TAG_NAME_LENGTH } from "../shared/tags";
+import { MAX_TAG_KEY_LENGTH, MAX_TAG_NAME_LENGTH } from "../shared/tags";
 import {
   THUMBNAIL_MAX_BYTES,
   THUMBNAIL_MIME_TYPES,
@@ -267,16 +267,18 @@ const folderCardsInputSchema = z.object({
 });
 
 const tagNameSchema = nonEmptyString.max(MAX_TAG_NAME_LENGTH);
+// The tag being changed may be an older one longer than today's limit.
+const tagSourceSchema = nonEmptyString.max(MAX_TAG_KEY_LENGTH);
 const renameTagInputSchema = z.object({
-  from: tagNameSchema,
+  from: tagSourceSchema,
   to: tagNameSchema,
 });
 const mergeTagsInputSchema = z.object({
-  from: tagNameSchema,
+  from: tagSourceSchema,
   into: tagNameSchema,
 });
 const deleteTagInputSchema = z.object({
-  tag: tagNameSchema,
+  tag: tagSourceSchema,
   confirm: z.literal(true),
 });
 const tagOperationInputSchema = z.object({ operationId: nonEmptyString });

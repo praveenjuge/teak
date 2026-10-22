@@ -1,4 +1,4 @@
-import { MAX_TAG_NAME_LENGTH } from "../../shared/tags";
+import { MAX_TAG_KEY_LENGTH, MAX_TAG_NAME_LENGTH } from "../../shared/tags";
 import { apiKeySecurity } from "./components";
 
 export const tagPaths = {
@@ -34,7 +34,7 @@ export const tagPaths = {
               properties: {
                 from: {
                   description: "The tag to rename, matched ignoring case.",
-                  maxLength: MAX_TAG_NAME_LENGTH,
+                  maxLength: MAX_TAG_KEY_LENGTH,
                   type: "string",
                 },
                 to: {
@@ -82,7 +82,7 @@ export const tagPaths = {
               properties: {
                 from: {
                   description: "The tag to merge away, matched ignoring case.",
-                  maxLength: MAX_TAG_NAME_LENGTH,
+                  maxLength: MAX_TAG_KEY_LENGTH,
                   type: "string",
                 },
                 into: {
@@ -130,7 +130,7 @@ export const tagPaths = {
               properties: {
                 tag: {
                   description: "The tag to delete, matched ignoring case.",
-                  maxLength: MAX_TAG_NAME_LENGTH,
+                  maxLength: MAX_TAG_KEY_LENGTH,
                   type: "string",
                 },
               },

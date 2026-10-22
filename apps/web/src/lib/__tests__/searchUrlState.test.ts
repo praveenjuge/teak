@@ -170,6 +170,38 @@ describe("serializeSearchUrlState", () => {
   });
 });
 
+describe("Newest picked over Best match", () => {
+  const pickedNewest = {
+    q: "lentil soup",
+    sort: "newest" as const,
+    sortPicked: true,
+    tag: "",
+    types: [],
+  };
+
+  test("writes the picked Newest sort and reads it back as picked", () => {
+    const query = serializeSearchUrlState(pickedNewest);
+    expect(new URLSearchParams(query).get("sort")).toBe("newest");
+    expect(parse(query)).toEqual(pickedNewest);
+  });
+
+  test("a search left on its default sort still writes no sort", () => {
+    expect(
+      serializeSearchUrlState({ q: "lentil soup", sort: "newest", types: [] })
+    ).toBe("q=lentil+soup");
+    expect(parse("q=lentil+soup")).not.toHaveProperty("sortPicked");
+  });
+
+  test("tells a picked Newest apart from the default sort", () => {
+    expect(
+      isSameSearchUrlState(pickedNewest, { ...pickedNewest, sortPicked: false })
+    ).toBe(false);
+    expect(
+      isSameSearchUrlState(pickedNewest, parse("q=lentil+soup&sort=newest"))
+    ).toBe(true);
+  });
+});
+
 test("isSameSearchUrlState ignores surrounding spaces", () => {
   expect(
     isSameSearchUrlState(

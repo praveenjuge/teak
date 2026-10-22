@@ -540,9 +540,17 @@ cards
     const opts = { ...program.opts(), ...options };
     const result = await client(opts).cards.changes(options);
     write(
-      opts.json ? result : result.items.map(formatCardLine).join("\n"),
+      opts.json
+        ? result
+        : [
+            ...result.items.map(formatCardLine),
+            ...result.deletedIds.map((id) => `deleted ${id}`),
+          ].join("\n"),
       opts
     );
+    if (!(opts.json || result.pageInfo.nextCursor === null)) {
+      process.stderr.write(`nextCursor: ${result.pageInfo.nextCursor}\n`);
+    }
   });
 
 const tags = program

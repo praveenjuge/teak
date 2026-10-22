@@ -822,16 +822,54 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
   const createError =
     explainInvalidTags(tags) ??
     explainInvalidCardSource(bulkCardSource(payload)) ??
-    (url
-      ? null
-      : explainCardTypeMismatch({
-          cardType: type,
-          content,
-          notes: typeof payload.notes === "string" ? payload.notes : undefined,
-          tags,
-        }));
+    explainCardTypeMismatch({
+      cardType: type,
+      content,
+      notes: typeof payload.notes === "string" ? payload.notes : undefined,
+      tags,
+    });
   if (createError) {
     throw new ConvexError({ code: "INVALID_INPUT", message: createError });
+  }
+};
+
+// Bulk items reach cards the way PATCH and the single-card actions do: a card
+// in Trash is not found until it is restored.
+const requireActiveBulkCard = async (
+  ctx: MutationCtx,
+  userId: TeakUserId,
+  cardId: Id<"cards">
+): Promise<Doc<"cards">> => {
+  const card = await ctx.db.get("cards", cardId);
+  if (!card || card.userId !== userId || card.isDeleted === true) {
+    throw new ConvexError({ code: "NOT_FOUND", message: "Card not found" });
+  }
+  return card;
+};
+
+// The same rules PATCH /v1/cards/:id applies to `url` and `content`.
+const assertBulkUpdatePayload = (
+  payload: Record<string, unknown>,
+  card: Doc<"cards">
+) => {
+  if (
+    payload.url !== undefined &&
+    !(typeof payload.url === "string" && isSafeExternalUrl(payload.url.trim()))
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Each update item `url` must be an http or https URL",
+    });
+  }
+  if (
+    typeof payload.content === "string" &&
+    card.type !== "text" &&
+    !payload.content.trim()
+  ) {
+    throw new ConvexError({
+      code: "INVALID_INPUT",
+      message: "Text content cannot be empty for this card type",
+    });
   }
 };
 
@@ -937,6 +975,11 @@ export const executeBulkCardsForUser = internalMutation({
               });
             }
 
+            assertBulkUpdatePayload(
+              payload,
+              await requireActiveBulkCard(ctx, userId, cardId)
+            );
+
             const pipelineDelayMs = await performBulkUpdate(ctx, {
               userId,
               cardId,
@@ -944,7 +987,10 @@ export const executeBulkCardsForUser = internalMutation({
                 typeof payload.content === "string"
                   ? payload.content
                   : undefined,
-              url: typeof payload.url === "string" ? payload.url : undefined,
+              url:
+                typeof payload.url === "string"
+                  ? payload.url.trim()
+                  : undefined,
               notes:
                 payload.notes === null || typeof payload.notes === "string"
                   ? (payload.notes as string | null | undefined)
@@ -999,6 +1045,9 @@ export const executeBulkCardsForUser = internalMutation({
                     action
                   )
                 : undefined;
+            if (action !== "delete" && action !== "restore") {
+              await requireActiveBulkCard(ctx, userId, cardId);
+            }
             await applyCardAction(ctx, { userId, cardId, action, tags });
 
             results.push({

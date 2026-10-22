@@ -304,6 +304,30 @@ test("newest picked during a search stays until the words are cleared", async ()
   expect(controller.sort).toBe("relevance");
 });
 
+test("a search reloaded with Newest picked stays on Newest", async () => {
+  const { parseSearchUrlState, serializeSearchUrlState } = await import(
+    "../../lib/searchUrlState"
+  );
+  await mount({ q: "lentil soup", sort: "newest", types: [] });
+  await act(() => controller.searchBarProps.onSortChange?.("newest"));
+  const query = serializeSearchUrlState(controller.urlState);
+  await act(() => root?.unmount());
+
+  await mount(parseSearchUrlState(new URLSearchParams(query)));
+  expect(controller.sort).toBe("newest");
+  expect(controller.queryArgs.sort).toBeUndefined();
+  expect(serializeSearchUrlState(controller.urlState)).toBe(query);
+});
+
+test("Back from a picked Newest to the plain search returns to Best match", async () => {
+  await mount({ q: "lentil soup", sort: "newest", types: [] });
+  await act(() => controller.searchBarProps.onSortChange?.("newest"));
+  await act(() =>
+    controller.applyUrlState({ q: "lentil soup", sort: "newest", types: [] })
+  );
+  expect(controller.sort).toBe("relevance");
+});
+
 test("applying the search already shown keeps its chips", async () => {
   await mount();
   await act(() => controller.addKeywordTag("design"));

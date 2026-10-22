@@ -184,4 +184,81 @@ describe("MasonryGrid infinite scroll", () => {
     expect(visibleCardCount()).toBe(60);
     expect(onLoadMore).toHaveBeenCalledTimes(2);
   });
+
+  test("a page that adds no new cards still lets the bottom ask for the next one", async () => {
+    // A search shows cached cards with the server's pages, so a page of cards
+    // already on screen leaves the count unchanged.
+    const onLoadMore = mock();
+    const shown = cards(30);
+    sentinelInView = true;
+    await renderGrid({ filteredCards: shown, onLoadMore });
+    await deliverIntersections();
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+
+    await rerenderGrid({
+      filteredCards: shown,
+      isLoadingMore: true,
+      onLoadMore,
+    });
+    await deliverIntersections();
+    await rerenderGrid({
+      filteredCards: shown,
+      isLoadingMore: false,
+      onLoadMore,
+    });
+    await deliverIntersections();
+
+    expect(onLoadMore).toHaveBeenCalledTimes(2);
+  });
+
+  test("j past the last card asks for the next page again once a page adds nothing new", async () => {
+    const onLoadMore = mock();
+    const shown = cards(2);
+    await renderGrid({ filteredCards: shown, onLoadMore });
+    const last = container.querySelector<HTMLElement>(
+      '[data-card-id="card_1"]'
+    );
+    const pressJ = () =>
+      act(() => {
+        last?.focus();
+        last?.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, key: "j" })
+        );
+      });
+    await pressJ();
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+
+    await rerenderGrid({
+      filteredCards: shown,
+      isLoadingMore: true,
+      onLoadMore,
+    });
+    await rerenderGrid({
+      filteredCards: shown,
+      isLoadingMore: false,
+      onLoadMore,
+    });
+    await pressJ();
+
+    expect(onLoadMore).toHaveBeenCalledTimes(2);
+  });
+
+  test("the bottom doesn't ask again while a page is still loading", async () => {
+    const onLoadMore = mock();
+    const shown = cards(30);
+    sentinelInView = true;
+    await renderGrid({ filteredCards: shown, onLoadMore });
+    await deliverIntersections();
+    await rerenderGrid({
+      filteredCards: shown,
+      isLoadingMore: true,
+      onLoadMore,
+    });
+    scrollSentinel(false);
+    await deliverIntersections();
+    scrollSentinel(true);
+    await deliverIntersections();
+
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
 });

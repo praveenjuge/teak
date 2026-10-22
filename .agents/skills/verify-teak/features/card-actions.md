@@ -66,3 +66,4 @@ Steps:
 - The e2e MCP browser runs in UTC, where a time-zone bug in "Taken" can't show. Drive photo details from a Playwright context with `timezoneId` set instead.
 - The Files Worker fixture `fixture-exif.jpg` isn't a decodable image ("Uploaded file is not a decodable image"); upload a real JPEG.
 - Escape closes the dialog and returns focus to the card. In selection mode it clears the selection first.
+- Closing a card opened from the grid goes Back to the grid's history entry, so opening and closing cards adds no history: from `/settings`, open Everything, open and close two cards, then Back once lands on `/settings`. A card reached by a link, or a close that changes the search (a tag, a type, "More like this"), replaces the URL instead.

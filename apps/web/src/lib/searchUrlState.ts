@@ -25,6 +25,11 @@ export interface SearchUrlState {
   q: string;
   seed?: number;
   sort: LibrarySort;
+  /**
+   * Newest was picked over a search's default Best match, so the URL names
+   * it (`sort=newest`) and a reload keeps it.
+   */
+  sortPicked?: boolean;
   tag?: string;
   types: CardType[];
 }
@@ -76,6 +81,7 @@ export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
     q: (params.get("q") ?? "").trim().slice(0, MAX_URL_SEARCH_LENGTH),
     ...(seed === undefined ? {} : { seed }),
     sort,
+    ...(params.get("sort") === "newest" ? { sortPicked: true } : {}),
     tag: parseTagParam(params.get("tag")),
     types: parseCardTypesParam(params.get("type")),
   };
@@ -83,6 +89,9 @@ export function parseSearchUrlState(params: ReadableParams): SearchUrlState {
 
 const shuffleSeedOf = (state: SearchUrlState): number | undefined =>
   isSeededSort(parseLibrarySort(state.sort)) ? state.seed : undefined;
+
+const pickedNewest = (state: SearchUrlState): boolean =>
+  state.sortPicked === true && parseLibrarySort(state.sort) === "newest";
 
 export function serializeSearchUrlState(
   state: SearchUrlState,
@@ -101,6 +110,8 @@ export function serializeSearchUrlState(
     state.sort === "revisit"
   ) {
     next.set("sort", state.sort);
+  } else if (pickedNewest(state)) {
+    next.set("sort", "newest");
   } else {
     next.delete("sort");
   }
@@ -133,6 +144,7 @@ export const isSameSearchUrlState = (
 ): boolean =>
   left.q.trim() === right.q.trim() &&
   parseLibrarySort(left.sort) === parseLibrarySort(right.sort) &&
+  pickedNewest(left) === pickedNewest(right) &&
   shuffleSeedOf(left) === shuffleSeedOf(right) &&
   parseTagParam(left.tag ?? null) === parseTagParam(right.tag ?? null) &&
   sameTypes(left.types, right.types);

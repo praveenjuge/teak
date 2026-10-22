@@ -195,6 +195,12 @@ describe("fetching", () => {
       { reason: "too_large" },
     ],
     [
+      "a host that does not resolve",
+      () => new Response("x", { headers: html() }),
+      {},
+      { reason: "fetch_failed" },
+    ],
+    [
       "a redirect loop",
       () => Response.redirect(PAGE, 302),
       undefined,

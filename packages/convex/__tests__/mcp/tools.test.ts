@@ -549,6 +549,19 @@ describe("MCP tools", () => {
       "Tag rename completed: 1 card changed of 1"
     );
     expect(captured).toHaveLength(4);
+
+    const legacy = "x".repeat(70);
+    await call("teak_v1_delete_tag", { tag: legacy, confirm: true });
+    expect(captured[4]).toMatchObject({
+      path: "/v1/tags/delete",
+      body: { tag: legacy },
+    });
+    const tooLongTarget = await call("teak_v1_rename_tag", {
+      from: legacy,
+      to: legacy,
+    });
+    expect(tooLongTarget.isError).toBe(true);
+    expect(captured).toHaveLength(5);
   });
 
   test("folder tools map onto the folder endpoints", async () => {

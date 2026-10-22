@@ -247,7 +247,15 @@ describe("card processing", () => {
         : new Response("missing", { status: 404 })
     );
 
-  const podcastRun = async (step?: Parameters<typeof createFakeStep>[0]) => {
+  const podcastRun = async (
+    step?: Parameters<typeof createFakeStep>[0],
+    processAudio: OpAnswer | (() => OpAnswer) = {
+      data: {
+        facts: { durationSeconds: 1800, hasAudio: true, hasVideo: false },
+        transcript: { status: "completed", text: "Today, leaves." },
+      },
+    }
+  ) => {
     const card = makeCard({
       content: "https://example.com/podcast/episode-42",
       processingStatus: {
@@ -279,12 +287,7 @@ describe("card processing", () => {
           },
         },
         "generate-link-metadata": textMetadataAnswer(["podcast"]),
-        "process-audio": {
-          data: {
-            facts: { durationSeconds: 1800, hasAudio: true, hasVideo: false },
-            transcript: { status: "completed", text: "Today, leaves." },
-          },
-        },
+        "process-audio": processAudio,
       },
       {
         bucket: new FakeBucket(),
@@ -313,6 +316,7 @@ describe("card processing", () => {
       "capture screenshot",
       "read link image text",
       "emit completion",
+      "find podcast episode",
       "transcribe podcast",
       "report complete",
     ]);
@@ -381,6 +385,30 @@ describe("card processing", () => {
     expect(await run()).toMatchObject({ mode: "completed" });
     expect(fakeStep.names()).toContain("transcribe podcast");
     expect(card.aiTranscript).toBe("Today, leaves.");
+  });
+
+  test("a podcast transcript retried after a busy renderer takes one of the owner's hourly slots", async () => {
+    let audioCalls = 0;
+    const { card, convex, run } = await podcastRun(undefined, () => {
+      audioCalls += 1;
+      return audioCalls === 1
+        ? { throws: new Error("files_worker_error:BUSY:503:x") }
+        : {
+            data: {
+              facts: { durationSeconds: 1800, hasAudio: true, hasVideo: false },
+              transcript: { status: "completed", text: "Today, leaves." },
+            },
+          };
+    });
+
+    expect(await run()).toMatchObject({ mode: "completed" });
+    expect(audioCalls).toBe(2);
+    expect(card.aiTranscript).toBe("Today, leaves.");
+    expect(
+      convex.callsTo(
+        "workflows/steps/podcast/mutations:takePodcastTranscriptSlot"
+      )
+    ).toHaveLength(1);
   });
 
   test("a podcast transcript that fails for good leaves the run completed", async () => {
