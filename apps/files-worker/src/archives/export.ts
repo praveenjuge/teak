@@ -104,12 +104,21 @@ const readWithRetry = async (
 
 interface ZipInput {
   input: ReadableStream | Uint8Array;
+  lastModified: Date;
   name: string;
 }
+
+const sha256Hex = async (bytes: Uint8Array): Promise<string> => {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
+};
 
 const collectZipInputs = async function* (
   bucket: R2Bucket,
   manifest: FilesExportManifest,
+  lastModified: Date,
   stats: {
     filesIncluded: number;
     filesOmitted: number;
@@ -124,7 +133,7 @@ const collectZipInputs = async function* (
       if (stats.totalBytes > manifest.maxBytes) {
         throw new ExportTooLarge();
       }
-      yield { name: entry.path, input: bytes };
+      yield { name: entry.path, input: bytes, lastModified };
       continue;
     }
 
@@ -142,7 +151,7 @@ const collectZipInputs = async function* (
       throw new ExportTooLarge();
     }
     stats.filesIncluded += 1;
-    yield { name: entry.path, input: object.body };
+    yield { name: entry.path, input: object.body, lastModified };
   }
 };
 
@@ -173,11 +182,15 @@ export const buildExportIntoBucket = async (
     }
   }
 
+  type CheckpointPart = R2UploadedPart & { sha256?: string; size: number };
   type Checkpoint = BuildExportResult & {
     artifactBytes: number;
     completeReady: boolean;
+    // Every entry carries this time, so a resumed attempt rebuilds the same
+    // bytes instead of stamping entries with the time of the retry.
+    lastModified?: number;
     manifestEtag: string;
-    parts: Array<R2UploadedPart & { size: number }>;
+    parts: CheckpointPart[];
     uploadId: string;
   };
   let checkpoint: Checkpoint | null = null;
@@ -221,7 +234,10 @@ export const buildExportIntoBucket = async (
     totalBytes: 0,
   };
 
-  const zipStream = downloadZip(collectZipInputs(bucket, manifest, stats)).body;
+  const lastModified = checkpoint?.lastModified ?? Date.now();
+  const zipStream = downloadZip(
+    collectZipInputs(bucket, manifest, new Date(lastModified), stats)
+  ).body;
   if (!zipStream) {
     throw new Error("zip_stream_unavailable");
   }
@@ -230,21 +246,24 @@ export const buildExportIntoBucket = async (
   const buffer = new Uint8Array(PART_SIZE);
   let fill = 0;
   let artifactBytes = 0;
-  const uploadedParts: Array<R2UploadedPart & { size: number }> =
-    checkpoint?.parts ?? [];
+  const checkpointParts = checkpoint?.parts ?? [];
+  const uploadedParts: CheckpointPart[] = [];
   let nextPartNumber = 1;
 
   const flushPart = async (bytes: Uint8Array): Promise<void> => {
-    // uploadPart requires a stable copy; slice() detaches from our scratch
-    // buffer so it can be reused immediately afterwards.
-    const existing = uploadedParts[nextPartNumber - 1];
-    if (existing) {
-      if (existing.size !== bytes.byteLength) {
-        throw new Error("export_checkpoint_mismatch");
-      }
+    // A resumed attempt rebuilds the archive from the start, and its bytes can
+    // differ from the first attempt's (a file that read as missing, say). Reuse
+    // a checkpointed part only when its content is identical; otherwise upload
+    // the rebuilt part over it.
+    const sha256 = await sha256Hex(bytes);
+    const existing = checkpointParts[nextPartNumber - 1];
+    if (existing?.sha256 === sha256) {
+      uploadedParts.push(existing);
     } else {
+      // uploadPart requires a stable copy; slice() detaches from our scratch
+      // buffer so it can be reused immediately afterwards.
       const part = await mpu.uploadPart(nextPartNumber, bytes.slice());
-      uploadedParts.push({ ...part, size: bytes.byteLength });
+      uploadedParts.push({ ...part, sha256, size: bytes.byteLength });
       await bucket.put(
         checkpointKey,
         new Blob([
@@ -253,9 +272,10 @@ export const buildExportIntoBucket = async (
             completeReady: false,
             filesIncluded: stats.filesIncluded,
             filesOmitted: stats.filesOmitted,
+            lastModified,
             manifestEtag,
             omittedPaths: stats.omittedPaths,
-            parts: uploadedParts,
+            parts: [...uploadedParts, ...checkpointParts.slice(nextPartNumber)],
             uploadId: mpu.uploadId,
           } satisfies Checkpoint),
         ]),
@@ -301,6 +321,7 @@ export const buildExportIntoBucket = async (
       JSON.stringify({
         ...result,
         completeReady: true,
+        lastModified,
         manifestEtag,
         parts: uploadedParts,
         uploadId: mpu.uploadId,
