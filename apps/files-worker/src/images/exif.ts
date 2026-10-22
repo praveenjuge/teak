@@ -7,6 +7,10 @@ export interface ExifFacts {
   model?: string;
   /** Epoch ms. Without an EXIF offset the camera's local time is read as UTC. */
   takenAt?: number;
+  /** The camera's clock time as epoch ms, read as if that clock were UTC. */
+  takenAtClock?: number;
+  /** Minutes east of UTC from the EXIF offset, when the camera recorded one. */
+  takenAtOffset?: number;
 }
 
 export const EXIF_SCAN_BYTES = 256 * 1024;
@@ -101,6 +105,8 @@ const numberOf = (value: IfdValue | undefined): number | undefined => {
 const textOf = (value: IfdValue | undefined): string | undefined =>
   typeof value === "string" && value ? value : undefined;
 
+const OFFSET = /^([+-])(\d{2}):(\d{2})$/u;
+
 const takenAt = (
   original: string | undefined,
   offset: string | undefined
@@ -111,11 +117,21 @@ const takenAt = (
   if (!match) {
     return;
   }
-  const zone = offset?.match(/^[+-]\d{2}:\d{2}$/u) ? offset : "Z";
+  const zone = offset && OFFSET.test(offset) ? offset : "Z";
   const parsed = Date.parse(
     `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${zone}`
   );
   return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const offsetMinutes = (offset: string | undefined): number | undefined => {
+  const match = offset?.match(OFFSET);
+  const minutes = match ? Number(match[2]) * 60 + Number(match[3]) : Number.NaN;
+  // Real zones run from UTC-12:00 to UTC+14:00.
+  if (!match || Number(match[3]) > 59 || minutes > 14 * 60) {
+    return;
+  }
+  return match[1] === "-" ? -minutes : minutes;
 };
 
 export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
@@ -134,6 +150,9 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
   const tiff = { bytes, little, view };
   const ifd0 = readIfd(tiff, view.getUint32(4, little));
   const exifIfd = readIfd(tiff, numberOf(ifd0.get(0x87_69)) ?? 0);
+  const original = textOf(exifIfd.get(0x90_03));
+  const offset = textOf(exifIfd.get(0x90_11));
+  const clock = takenAt(original, undefined);
   const facts: ExifFacts = {
     exposureTime: numberOf(exifIfd.get(0x82_9a)),
     fNumber: numberOf(exifIfd.get(0x82_9d)),
@@ -141,10 +160,9 @@ export const parseTiffExif = (bytes: Uint8Array): ExifFacts | null => {
     iso: numberOf(exifIfd.get(0x88_27)),
     make: textOf(ifd0.get(0x01_0f)),
     model: textOf(ifd0.get(0x01_10)),
-    takenAt: takenAt(
-      textOf(exifIfd.get(0x90_03)),
-      textOf(exifIfd.get(0x90_11))
-    ),
+    takenAt: takenAt(original, offset),
+    takenAtClock: clock,
+    takenAtOffset: clock === undefined ? undefined : offsetMinutes(offset),
   };
   const present = Object.fromEntries(
     Object.entries(facts).filter(([, value]) => value !== undefined)
