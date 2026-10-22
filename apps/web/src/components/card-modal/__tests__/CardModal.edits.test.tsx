@@ -31,6 +31,15 @@ mock.module("../../folders/CardFoldersDialog", () => ({
   },
 }));
 
+const toasts: string[] = [];
+const realSonner = await import("sonner");
+mock.module("sonner", () => ({
+  ...realSonner,
+  toast: Object.assign((message: string) => {
+    toasts.push(message);
+  }, realSonner.toast),
+}));
+
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { CardModal, emptiedContentNotice } = await import("../CardModal");
@@ -58,7 +67,8 @@ const card = (extra: Partial<CardModalCard> = {}) =>
 
 async function render(
   shown: CardModalCard,
-  updateContent: (value: string) => void = () => undefined
+  updateContent: (value: string) => void = () => undefined,
+  extra: Partial<Parameters<typeof CardModal>[0]> = {}
 ) {
   const container = document.body.appendChild(document.createElement("div"));
   root = createRoot(container);
@@ -90,6 +100,7 @@ async function render(
         updateContent={updateContent}
         updateNotes={() => undefined}
         updateTitle={() => undefined}
+        {...extra}
       />
     )
   );
@@ -167,6 +178,37 @@ test("Add to folder from the menu opens once the menu has closed, with focus on 
   // A menu still closing took focus back from the dialog in a browser.
   expect(menuOpenWithFolders).toBe(false);
   expect(document.activeElement).toBe(dialog());
+});
+
+test("archiving an emptied note says it keeps its last text", async () => {
+  toasts.length = 0;
+  const onCancel = mock();
+  const toggleArchive = mock();
+  await render(card(), () => undefined, {
+    getCurrentValue: (field) => (field === "content" ? "" : undefined),
+    onCancel,
+    toggleArchive,
+  });
+  const trigger = document.querySelector<HTMLButtonElement>(
+    "button[aria-label='More actions']"
+  );
+  await act(() => {
+    trigger?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
+    );
+  });
+  const item = Array.from(document.querySelectorAll("[role='menuitem']")).find(
+    (element) => element.textContent?.trim().startsWith("Archive")
+  ) as HTMLElement | undefined;
+  await act(async () => {
+    item?.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(toggleArchive).toHaveBeenCalledTimes(1);
+  expect(onCancel).toHaveBeenCalledTimes(1);
+  expect(toasts).toContain(
+    "Empty notes aren't saved. The note keeps its last text."
+  );
 });
 
 const contentOf =

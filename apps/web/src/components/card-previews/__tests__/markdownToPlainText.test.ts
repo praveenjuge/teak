@@ -206,6 +206,17 @@ describe("linkNoteText", () => {
     );
   });
 
+  test("keeps a note of only emoji", () => {
+    expect(linkNoteText("🔥 https://example.com")).toBe("🔥");
+  });
+
+  test("keeps a note after a URL longer than the note's limit", () => {
+    const url = `https://example.com/?${"t".repeat(600)}`;
+    expect(linkNoteText(`${url} remember this`, { maxLength: 500 })).toBe(
+      "remember this"
+    );
+  });
+
   test("keeps a short note that only appears inside the title", () => {
     expect(linkNoteText("work", { title: "Network effects" })).toBe("work");
     expect(linkNoteText("Teak", { title: "Teak - Wikipedia" })).toBe("Teak");

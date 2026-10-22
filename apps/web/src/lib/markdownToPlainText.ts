@@ -2,6 +2,7 @@ import {
   mayHaveCardLinks,
   replaceCardLinkTokens,
 } from "@teak/convex/shared/cardLinks";
+import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 import { trimTrailingUrlPunctuation } from "@teak/convex/shared/utils/linkDetection";
 
 const MAX_PREVIEW_LENGTH = 500;
@@ -208,7 +209,11 @@ const EMPTY_BRACKETS = /[([{<]\s*[)\]}>]/g;
 const SPACE_BEFORE_PUNCTUATION = /\s+([.,;:!?…])/g;
 const LEADING_PUNCTUATION = /^[\s.,;:!?\-–—]+/;
 const DANGLING_SEPARATOR = /[\s,;:\-–—]+([.!?…]*)$/;
-const HAS_WORDS = /[\p{L}\p{N}]/u;
+// Letters, digits, emoji and other symbols; punctuation alone is residue.
+const HAS_WORDS = /[\p{L}\p{N}\p{So}\p{Extended_Pictographic}]/u;
+// Read this far past the note's limit, so a long URL the note starts with
+// can't use up the whole preview before it is removed.
+const URL_ALLOWANCE = 4096;
 
 /**
  * The words a person saved with a link, as plain text without its URLs:
@@ -220,7 +225,10 @@ export function linkNoteText(
   content: string | null | undefined,
   { maxLength, title }: { maxLength?: number; title?: string } = {}
 ): string | undefined {
-  const plain = markdownToPlainText(content, { maxLength });
+  const limit = maxLength ?? MAX_PREVIEW_LENGTH;
+  const plain = markdownToPlainText(content, {
+    maxLength: limit + URL_ALLOWANCE,
+  });
   if (!plain) {
     return;
   }
@@ -243,5 +251,5 @@ export function linkNoteText(
   if (title && comparable(title) === comparable(text)) {
     return;
   }
-  return text;
+  return truncateCodePoints(text, limit).trimEnd();
 }

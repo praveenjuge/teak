@@ -103,7 +103,7 @@ import {
 import { cardModalKeyAction } from "./cardModalKeys";
 import type { CardModalCard, GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
-import { useLeaveGuard } from "./useLeaveGuard";
+import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
 import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
@@ -376,9 +376,10 @@ export function CardModal({
     }
   };
 
+  const discardNotice = emptiedContentNotice(card, getCurrentValue);
   const { noteEdit, readyToLeave } = useLeaveGuard({
     cardId,
-    discardNotice: emptiedContentNotice(card, getCurrentValue),
+    discardNotice,
     hasUnsavedChanges,
     saveChanges,
   });
@@ -404,9 +405,13 @@ export function CardModal({
     }
   };
 
-  const closeAfterAction = async () => {
+  /** `keepsCard`: the action leaves the card in place, like Archive. */
+  const closeAfterAction = async ({ keepsCard = false } = {}) => {
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
+    }
+    if (keepsCard && discardNotice) {
+      toast(discardNotice, { id: EMPTY_CONTENT_TOAST_ID });
     }
     onCancel?.();
   };
@@ -469,7 +474,7 @@ export function CardModal({
   const archive = () => {
     if (toggleArchive && !isDeleted) {
       toggleArchive();
-      void closeAfterAction();
+      void closeAfterAction({ keepsCard: true });
     }
   };
 
