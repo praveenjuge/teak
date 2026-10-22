@@ -230,8 +230,9 @@ export function linkNoteText(
   if (!HAS_WORDS.test(text)) {
     return;
   }
-  const comparable = (value: string) => value.trim().toLocaleLowerCase();
-  if (title && comparable(title).includes(comparable(text))) {
+  const comparable = (value: string) =>
+    value.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  if (title && comparable(title) === comparable(text)) {
     return;
   }
   return text;

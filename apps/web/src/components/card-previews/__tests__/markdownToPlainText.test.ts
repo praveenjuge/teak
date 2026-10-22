@@ -192,9 +192,16 @@ describe("linkNoteText", () => {
     expect(
       linkNoteText("Teak - Wikipedia", { title: "Teak - Wikipedia" })
     ).toBeUndefined();
-    expect(linkNoteText("Teak", { title: "Teak - Wikipedia" })).toBeUndefined();
+    expect(
+      linkNoteText("teak  -  wikipedia", { title: "Teak - Wikipedia" })
+    ).toBeUndefined();
     expect(linkNoteText("Teak for decks", { title: "Teak - Wikipedia" })).toBe(
       "Teak for decks"
     );
+  });
+
+  test("keeps a short note that only appears inside the title", () => {
+    expect(linkNoteText("work", { title: "Network effects" })).toBe("work");
+    expect(linkNoteText("Teak", { title: "Teak - Wikipedia" })).toBe("Teak");
   });
 });
