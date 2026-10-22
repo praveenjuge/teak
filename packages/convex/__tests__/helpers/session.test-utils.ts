@@ -131,12 +131,6 @@ export const answerIdentityQuery = (
     return { handled: false };
   }
   if (
-    name === "accountDeletion:isDeleting" &&
-    typeof args?.userId === "string"
-  ) {
-    return { handled: true, value: false };
-  }
-  if (
     name === "securitySessions:identityMapping" &&
     typeof args?.teakUserId === "string"
   ) {

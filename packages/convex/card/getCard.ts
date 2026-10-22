@@ -1,11 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { internalQuery, type QueryCtx, query } from "../_generated/server";
-import {
-  getSessionUser,
-  requireTeakUserId,
-  type TeakUserId,
-} from "../securitySessions";
+import { type QueryCtx, query } from "../_generated/server";
+import { getSessionUser, type TeakUserId } from "../securitySessions";
 import { clampSearchLimit } from "../shared/search/constants";
 import { cardReturnValidator } from "./getCards";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
@@ -100,18 +96,4 @@ export const getDeletedCards = query({
       )
     );
   },
-});
-
-export const getCardForUser = internalQuery({
-  args: {
-    userId: v.string(),
-    cardId: v.id("cards"),
-  },
-  returns: v.union(v.null(), cardReturnValidator),
-  handler: async (ctx, args) =>
-    getCardForUserHandler(
-      ctx,
-      await requireTeakUserId(ctx, args.userId),
-      args.cardId
-    ),
 });

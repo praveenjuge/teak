@@ -2,7 +2,6 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   internalMutation,
-  internalQuery,
   type MutationCtx,
   mutation,
   type QueryCtx,
@@ -183,13 +182,6 @@ export const removeAccountCardUsage = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
   handler: (ctx, { userId }) => removeAccountCardUsageHandler(ctx, userId),
-});
-
-export const isDeleting = internalQuery({
-  args: { userId: v.string() },
-  returns: v.boolean(),
-  handler: async (ctx, { userId }) =>
-    Boolean(await getAccountDeletionState(ctx, userId)),
 });
 
 export const initiateAccountDeletion = async (

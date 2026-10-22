@@ -76,17 +76,17 @@ describe("Public API card title editing", () => {
     });
     expect(card?.updatedAt).toBeGreaterThan(1);
     expect(card?.processingStatus).toBeUndefined();
-    const found = await t.query(internal.raycast.searchCardsForUser, {
+    const found = await t.query(internal.publicApi.searchCardsPageForUser, {
       userId: "owner",
       searchQuery: "Edited",
     });
-    expect(found).toHaveLength(1);
-    expect(found[0]?._id).toBe(cardId);
-    const oldTitle = await t.query(internal.raycast.searchCardsForUser, {
+    expect(found.items).toHaveLength(1);
+    expect(found.items[0]?._id).toBe(cardId);
+    const oldTitle = await t.query(internal.publicApi.searchCardsPageForUser, {
       userId: "owner",
       searchQuery: "Supersededtitle",
     });
-    expect(oldTitle).toHaveLength(0);
+    expect(oldTitle.items).toHaveLength(0);
   });
 
   test.each([null, "", "  "])(

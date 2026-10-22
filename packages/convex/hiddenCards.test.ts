@@ -334,36 +334,6 @@ describe.each([
     ]);
   });
 
-  test("Raycast leaves them out unless its tag is a reserved one", async () => {
-    const { t } = await prepare();
-    const contents = (cards: { content: string }[]) =>
-      cards.map((item) => item.content).sort();
-    const raycast = (args: Record<string, unknown>) =>
-      t
-        .query(internal.raycast.searchCardsForUser, {
-          userId: "owner",
-          ...args,
-        })
-        .then(contents);
-    expect(await raycast({})).toEqual(["beach ai only", "beach shown"]);
-    expect(await raycast({ searchQuery: "beach" })).toEqual([
-      "beach ai only",
-      "beach shown",
-    ]);
-    expect(await raycast({ tag: "trip" })).toEqual(["beach shown"]);
-    expect(await raycast({ tag: "Secret" })).toEqual(["beach hidden"]);
-    expect(await raycast({ searchQuery: "beach", tag: "secret" })).toEqual([
-      "beach hidden",
-    ]);
-    expect(
-      contents(
-        await t.query(internal.raycast.favoriteCardsForUser, {
-          userId: "owner",
-        })
-      )
-    ).toEqual([]);
-  });
-
   test("the public API leaves them out unless the search names a reserved tag", async () => {
     const { t } = await prepare();
     const contents = (page: { items: { content: string }[] }) =>
