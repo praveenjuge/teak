@@ -532,6 +532,82 @@ describe("flush", () => {
   });
 });
 
+describe("flush scheduling", () => {
+  const flushes = async (t: ReturnType<typeof convexTest>) =>
+    (await scheduledJobs(t)).filter(
+      (job) => job.name === "workflowDispatch:flush"
+    ).length;
+
+  test("saves made before the flush runs share one flush", async () => {
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    expect(await flushes(t)).toBe(1);
+  });
+
+  test("a save after the last flush claimed everything gets its own flush", async () => {
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    await t.mutation(internal.workflowDispatch.claim, {});
+    await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
+    expect(await flushes(t)).toBe(2);
+  });
+
+  test("a row left waiting does not hold back the next save", async () => {
+    const t = convexTest(schema, modules);
+    await t.run((ctx) =>
+      ctx.db.insert("workflowDispatches", {
+        createdAt: NOW - HOUR_MS,
+        key: "deleteObjects",
+        keys: [fileKey(1)],
+        kind: "deleteObjects",
+        notBefore: NOW - 10 * 60_000,
+        state: "pending",
+      })
+    );
+    await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(2)]));
+    expect(await flushes(t)).toBe(1);
+  });
+
+  test("a flush also sends rows queued while it was handing over", async () => {
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
+    vi.stubEnv("WORKFLOW_RPC_SECRET", "deployment-rpc-secret");
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        calls += 1;
+        if (calls === 1) {
+          await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
+        }
+        const { params } = JSON.parse(String(init.body)) as {
+          params: { items: DispatchItem[] };
+        };
+        return Response.json({
+          data: {
+            results: params.items.map((_item, index) => ({ index, ok: true })),
+          },
+          ok: true,
+          requestId: "r",
+          version: 1,
+        });
+      })
+    );
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    await t.action(internal.workflowDispatch.flush, {});
+    expect((await rows(t)).map((row) => row.state)).toEqual(["sent", "sent"]);
+  });
+});
+
 describe("analytics events", () => {
   const UUID =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;

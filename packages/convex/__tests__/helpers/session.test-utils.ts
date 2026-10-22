@@ -89,6 +89,8 @@ function identityQuery(table: string, mapping: Mapping, email?: () => string) {
           filters[field] = value;
           return q;
         },
+        gte: () => q,
+        lte: () => q,
       };
       build(q);
       const rows = () => identityRows(table, filters, mapping, email?.());
@@ -243,6 +245,7 @@ export const withSearchSyncDb = <Db extends object>(db: Db) => ({
   get: mock().mockResolvedValue(null),
   query: mock().mockReturnValue({
     withIndex: mock().mockReturnValue({
+      take: mock().mockResolvedValue([]),
       unique: mock().mockResolvedValue(null),
     }),
   }),

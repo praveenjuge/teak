@@ -79,6 +79,10 @@ export const MAX_DISPATCH_ATTEMPTS = 20;
 export const DEAD_LETTER_RETRY_MS = 24 * 60 * 60 * 1000;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
+// A due row nobody has claimed yet means a flush is on its way, and it will
+// claim a new row too. A row that has waited longer than this means it isn't.
+const FLUSH_STALL_MS = 30_000;
+
 const flushScheduled = new WeakSet<object>();
 
 const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
@@ -91,6 +95,25 @@ const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   await ctx.scheduler.runAfter(delayMs, internal.workflowDispatch.flush, {});
 };
 
+/**
+ * True when a flush already scheduled will claim a row queued now. Reading
+ * the due range also makes two saves racing to be first conflict, so exactly
+ * one of them schedules the flush.
+ */
+const flushIsComing = async (ctx: MutationCtx, now: number) =>
+  flushScheduled.has(ctx.db) ||
+  (
+    await ctx.db
+      .query("workflowDispatches")
+      .withIndex("by_state_and_notBefore", (q) =>
+        q
+          .eq("state", "pending")
+          .gte("notBefore", now - FLUSH_STALL_MS)
+          .lte("notBefore", now)
+      )
+      .take(1)
+  ).length > 0;
+
 const insertDispatch = async (
   ctx: MutationCtx,
   row: Omit<
@@ -100,13 +123,18 @@ const insertDispatch = async (
 ): Promise<Id<"workflowDispatches">> => {
   const { delayMs = 0, ...fields } = row;
   const now = Date.now();
+  const coalesced = delayMs === 0 && (await flushIsComing(ctx, now));
   const id = await ctx.db.insert("workflowDispatches", {
     ...fields,
     createdAt: now,
     notBefore: now + delayMs,
     state: "pending",
   });
-  await scheduleFlush(ctx, delayMs);
+  if (coalesced) {
+    flushScheduled.add(ctx.db);
+  } else {
+    await scheduleFlush(ctx, delayMs);
+  }
   return id;
 };
 
@@ -310,12 +338,13 @@ export const claim = internalMutation({
   returns: v.array(v.object({ id: v.id("workflowDispatches"), item: v.any() })),
   handler: async (ctx, { limit }): Promise<ClaimedItem[]> => {
     const now = Date.now();
+    const pageSize = Math.min(limit ?? FLUSH_BATCH, FLUSH_BATCH);
     const rows = await ctx.db
       .query("workflowDispatches")
       .withIndex("by_state_and_notBefore", (q) =>
         q.eq("state", "pending").lte("notBefore", now)
       )
-      .take(Math.min(limit ?? FLUSH_BATCH, FLUSH_BATCH));
+      .take(pageSize);
     const claimed: ClaimedItem[] = [];
     for (const row of rows) {
       if (row.kind === "analyticsEvent") {
@@ -379,6 +408,11 @@ export const claim = internalMutation({
           workflow: WORKFLOW_BY_KIND[row.kind],
         },
       });
+    }
+    // A full page of superseded runs hands nothing over, which ends the
+    // flush, so the rows behind it need one of their own.
+    if (claimed.length === 0 && rows.length === pageSize) {
+      await ctx.scheduler.runAfter(0, internal.workflowDispatch.flush, {});
     }
     return claimed;
   },
@@ -541,9 +575,6 @@ export const flush = internalAction({
           error,
           ids: failedIds,
         });
-      }
-      if (claimed.length < FLUSH_BATCH) {
-        return null;
       }
     }
     await ctx.scheduler.runAfter(0, internal.workflowDispatch.flush, {});

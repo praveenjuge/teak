@@ -162,6 +162,7 @@ describe("finalized upload cleanup", () => {
       db: {
         query: () => ({
           withIndex: () => ({
+            take: async () => [],
             unique: async () => ({ _id: "session-1", sourceKey }),
           }),
         }),
