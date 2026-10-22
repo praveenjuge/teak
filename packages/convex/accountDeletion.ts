@@ -12,7 +12,7 @@ import {
   accountDeletionStage,
 } from "./accountDeletionStages";
 import { removeCardUsage } from "./card/cardUsage";
-import { deleteCardTextRow } from "./card/textContents";
+import { deleteCardTextRows } from "./card/textContents";
 import { findLegacyBetterAuthUser } from "./legacyBetterAuth";
 import { getDeletionRetryPrincipal, getSessionUser } from "./securitySessions";
 import { MAX_FOLDERS_PER_CARD } from "./shared/folders";
@@ -132,7 +132,7 @@ export const deleteAccountDataHandler = async (
     if (searchTagSyncState) {
       await ctx.db.delete("cardSearchTagSyncStates", searchTagSyncState._id);
     }
-    await deleteCardTextRow(ctx, cardId);
+    await deleteCardTextRows(ctx, cardId);
     const folderRows = await ctx.db
       .query("folderCards")
       .withIndex("by_cardId_and_folderId", (query) =>

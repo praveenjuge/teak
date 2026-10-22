@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { MAX_AI_BACKFILL_ATTEMPTS } from "./ai/backfill";
+import { syncCardSearch } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 import { queueCardProcessing } from "./workflowDispatch";
 
@@ -32,6 +33,13 @@ const insertCard = (t: T, fields: Partial<Doc<"cards">> = {}) =>
       ...fields,
     })
   );
+
+// A card saved through the app: its search sync sets `aiPending`.
+const saveCard = async (t: T, fields: Partial<Doc<"cards">> = {}) => {
+  const cardId = await insertCard(t, fields);
+  await t.run((ctx) => syncCardSearch(ctx, cardId));
+  return cardId;
+};
 
 const card = (t: T, cardId: Id<"cards">) =>
   t.run((ctx) => ctx.db.get("cards", cardId));
@@ -348,12 +356,12 @@ describe("markStagesInProgress", () => {
 describe("AI backfill claims", () => {
   test("claims cards missing AI with their revision and counts the attempt", async () => {
     const t = convexTest(schema, modules);
-    const cardId = await insertCard(t, {
+    const cardId = await saveCard(t, {
       aiBackfillAttempts: 1,
       processingRev: 7,
     });
-    await insertCard(t, { aiTags: ["done"] });
-    await insertCard(t, { createdAt: NOW - 1000 });
+    await saveCard(t, { aiTags: ["done"] });
+    await saveCard(t, { createdAt: NOW - 1000 });
 
     const claimed = await t.mutation(
       internal.ai.backfill.claimAiBackfillCards,
@@ -366,7 +374,7 @@ describe("AI backfill claims", () => {
 
   test("gives up on a card after its last attempt", async () => {
     const t = convexTest(schema, modules);
-    const cardId = await insertCard(t, {
+    const cardId = await saveCard(t, {
       aiBackfillAttempts: MAX_AI_BACKFILL_ATTEMPTS,
     });
 
@@ -386,7 +394,7 @@ describe("AI backfill claims", () => {
 
   test("the admin retry claims the batch and queues a metadata-only run for each card", async () => {
     const t = convexTest(schema, modules);
-    const cardId = await insertCard(t);
+    const cardId = await saveCard(t);
 
     expect(
       await t.mutation(internal.ai.backfill.retryAiBackfillNow, {})
@@ -399,7 +407,7 @@ describe("AI backfill claims", () => {
 
   test("releasing a claim the Worker could not queue gives the attempt back", async () => {
     const t = convexTest(schema, modules);
-    const cardId = await insertCard(t, { aiBackfillAttempts: 1 });
+    const cardId = await saveCard(t, { aiBackfillAttempts: 1 });
     await t.mutation(internal.ai.backfill.claimAiBackfillCards, {});
 
     await t.mutation(internal.ai.backfill.releaseAiBackfillCards, {

@@ -104,6 +104,7 @@ export const cardReturnValidator = v.object({
   ),
   ...linkPreviewImageFields,
   matchedByMeaning: v.optional(v.literal(true)),
+  hasOcrText: v.optional(v.literal(true)),
 });
 
 const paginationResultValidator = v.object({

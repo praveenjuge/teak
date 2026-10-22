@@ -4,6 +4,7 @@ import { queuedObjectDeletions } from "./__tests__/helpers/objectDeletions.test-
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { syncCardSearch } from "./card/searchDocumentHelpers";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -21,33 +22,43 @@ const insertCard = async (
     ...overrides,
   });
 
+// A card saved through the app: its search sync sets `aiPending`.
+const saveCard = async (
+  ctx: MutationCtx,
+  overrides: Partial<Doc<"cards">> = {}
+) => {
+  const cardId = await insertCard(ctx, overrides);
+  await syncCardSearch(ctx, cardId);
+  return cardId;
+};
+
 describe("maintenance queries", () => {
   test("AI backfill returns only old active cards missing every AI field", async () => {
     const t = convexTest(schema, modules);
     const old = Date.now() - 10 * 60 * 1000;
     const ids = await t.run(async (ctx) => ({
-      activeFalse: await insertCard(ctx, {
+      activeFalse: await saveCard(ctx, {
         createdAt: old,
         isDeleted: false,
       }),
-      activeUnset: await insertCard(ctx, { createdAt: old }),
-      deleted: await insertCard(ctx, {
+      activeUnset: await saveCard(ctx, { createdAt: old }),
+      deleted: await saveCard(ctx, {
         createdAt: old,
         isDeleted: true,
       }),
-      hasSummary: await insertCard(ctx, {
+      hasSummary: await saveCard(ctx, {
         aiSummary: "done",
         createdAt: old,
       }),
-      hasTags: await insertCard(ctx, {
+      hasTags: await saveCard(ctx, {
         aiTags: ["done"],
         createdAt: old,
       }),
-      hasTranscript: await insertCard(ctx, {
+      hasTranscript: await saveCard(ctx, {
         aiTranscript: "done",
         createdAt: old,
       }),
-      recent: await insertCard(ctx),
+      recent: await saveCard(ctx),
     }));
 
     const result = await t.query(internal["ai/queries"].findCardsMissingAi, {});
@@ -61,7 +72,7 @@ describe("maintenance queries", () => {
     const old = Date.now() - 10 * 60 * 1000;
     await t.run(async (ctx) => {
       for (let index = 0; index < 60; index += 1) {
-        await insertCard(ctx, {
+        await saveCard(ctx, {
           content: `Card ${index}`,
           createdAt: old + index,
           isDeleted: index % 2 === 0 ? undefined : false,

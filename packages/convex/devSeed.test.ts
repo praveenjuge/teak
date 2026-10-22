@@ -2,6 +2,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
+import { readCardTranscript } from "./card/textContents";
 import {
   ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
   ARCHIVE_MIX_SCENARIO_SIZE,
@@ -61,13 +62,20 @@ const setup = async () => {
   return t;
 };
 
+// Each card with its transcript, which lives in `cardTextContents`.
 const cardsOf = (t: Awaited<ReturnType<typeof setup>>) =>
-  t.run((ctx) =>
-    ctx.db
+  t.run(async (ctx) => {
+    const cards = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) => q.eq("userId", "teak_dev"))
-      .take(100)
-  );
+      .take(100);
+    return await Promise.all(
+      cards.map(async (card) => ({
+        ...card,
+        aiTranscript: await readCardTranscript(ctx, card),
+      }))
+    );
+  });
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {

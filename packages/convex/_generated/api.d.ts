@@ -154,6 +154,7 @@ import type * as linkMetadata_x from "../linkMetadata/x.js";
 import type * as mcp_httpServer from "../mcp/httpServer.js";
 import type * as mcp_protocol from "../mcp/protocol.js";
 import type * as mcp_tools from "../mcp/tools.js";
+import type * as migration_backfillAiPending from "../migration/backfillAiPending.js";
 import type * as migration_backfillEmbeddings from "../migration/backfillEmbeddings.js";
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
@@ -162,6 +163,7 @@ import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_extractDocumentText from "../migration/extractDocumentText.js";
+import type * as migration_moveCardTranscripts from "../migration/moveCardTranscripts.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
@@ -459,6 +461,7 @@ declare const fullApi: ApiFromModules<{
   "mcp/httpServer": typeof mcp_httpServer;
   "mcp/protocol": typeof mcp_protocol;
   "mcp/tools": typeof mcp_tools;
+  "migration/backfillAiPending": typeof migration_backfillAiPending;
   "migration/backfillEmbeddings": typeof migration_backfillEmbeddings;
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
@@ -467,6 +470,7 @@ declare const fullApi: ApiFromModules<{
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/extractDocumentText": typeof migration_extractDocumentText;
+  "migration/moveCardTranscripts": typeof migration_moveCardTranscripts;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;

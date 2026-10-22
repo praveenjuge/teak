@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { readDocumentText } from "./card/documentText";
 import type { CardWithUrls } from "./card/queryUtils";
+import { withTranscripts } from "./card/textContents";
 import { relevanceCursorRanked } from "./publicApiCursors";
 import {
   completeIdempotencyResponse,
@@ -463,10 +464,11 @@ const handleCardsListRequest = async (
       };
     }
 
+    const items = include.has("processing")
+      ? await withTranscripts(ctx, auth.validated.userId, cardsPage.items)
+      : cardsPage.items;
     return json(200, {
-      items: cardsPage.items.map((card) =>
-        serializeListCard(card, request.url, include)
-      ),
+      items: items.map((card) => serializeListCard(card, request.url, include)),
       pageInfo: cardsPage.pageInfo,
       ...(similarity ? { searchMode: "semantic", similarity: "ok" } : {}),
       ...(options.hasQuery && !similarity
@@ -1089,11 +1091,14 @@ const handleCardChangesRequest = async (
       }
     );
 
+    const items = await withTranscripts<CardWithUrls>(
+      ctx,
+      auth.validated.userId,
+      changes.items
+    );
     return json(200, {
       deletedIds: changes.deletedIds,
-      items: changes.items.map((card: CardWithUrls) =>
-        serializeCard(card, request.url)
-      ),
+      items: items.map((card) => serializeCard(card, request.url)),
       pageInfo: changes.pageInfo,
     });
   } catch (error) {

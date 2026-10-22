@@ -63,6 +63,7 @@ describe("raycast", () => {
           userId: "user_1",
           type: "text",
           content: "old",
+          aiPending: true,
         }),
         patch: (_table: string, _id: string, payload: unknown) => {
           patchCalls.push(payload as Record<string, unknown>);
@@ -99,6 +100,7 @@ describe("raycast", () => {
         get: async () => ({
           _id: "card_1",
           _creationTime: 1,
+          aiPending: true,
           userId: "user_1",
           type: "text",
           content: "old content",

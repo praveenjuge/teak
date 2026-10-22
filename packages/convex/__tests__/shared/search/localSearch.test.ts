@@ -718,6 +718,36 @@ describe("filterLocalCards textMatchedByServer", () => {
     expect(ids(false)).toEqual([]);
   });
 
+  it("keeps a card whose transcript the list left out", () => {
+    const episode = makeCard({
+      _id: "episode",
+      type: "audio",
+      aiTranscriptCharCount: 4000,
+    });
+    const ids = (textMatchedByServer: boolean) =>
+      filterLocalCards([episode], {
+        searchTerms: "hermit crab",
+        textMatchedByServer,
+      }).map((card): string => card._id);
+    expect(ids(true)).toEqual(["episode"]);
+    expect(ids(false)).toEqual([]);
+  });
+
+  it("keeps a card whose image text the list left out, for words and text:", () => {
+    const receipt = {
+      ...makeCard({ _id: "receipt", type: "image" }),
+      hasOcrText: true as const,
+    };
+    const ids = (searchTerms: string, textMatchedByServer: boolean) =>
+      filterLocalCards([receipt], { searchTerms, textMatchedByServer }).map(
+        (card): string => card._id
+      );
+    expect(ids("invoice", true)).toEqual(["receipt"]);
+    expect(ids('text:"invoice 4411"', true)).toEqual(["receipt"]);
+    expect(ids('text:"invoice 4411"', false)).toEqual([]);
+    expect(ids('text:"invoice 4411" type:video', true)).toEqual([]);
+  });
+
   it("still checks every word on cards without file text", () => {
     const note = makeCard({ _id: "note", content: "matrix-17" });
     expect(

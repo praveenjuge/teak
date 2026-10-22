@@ -18,7 +18,7 @@ describe("AI metadata mutations", () => {
     const patch = mock().mockResolvedValue(undefined);
     const ctx = {
       db: withSearchSyncDb({
-        get: mock().mockResolvedValue({ _id: "card" }),
+        get: mock().mockResolvedValue({ _id: "card", aiPending: true }),
         patch,
       }),
     } as any;

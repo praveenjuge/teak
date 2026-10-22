@@ -11,6 +11,7 @@ import {
   ONBOARDING_TAG,
   startVaultSetup,
 } from "./card/defaultCards";
+import { readCardTranscript } from "./card/textContents";
 import schema from "./schema";
 import { buildR2ObjectKey } from "./storage/r2";
 
@@ -24,13 +25,20 @@ const setup = () => {
 };
 type Backend = ReturnType<typeof setup>;
 
+// Each card with its transcript, which lives in `cardTextContents`.
 const cardsOf = (t: Backend) =>
-  t.run((ctx) =>
-    ctx.db
+  t.run(async (ctx) => {
+    const cards = await ctx.db
       .query("cards")
       .withIndex("by_user_deleted", (q) => q.eq("userId", USER_ID))
-      .take(50)
-  );
+      .take(50);
+    return await Promise.all(
+      cards.map(async (card) => ({
+        ...card,
+        aiTranscript: await readCardTranscript(ctx, card),
+      }))
+    );
+  });
 
 const foldersOf = (t: Backend) =>
   t.run((ctx) =>

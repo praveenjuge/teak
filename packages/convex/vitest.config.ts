@@ -87,6 +87,7 @@ export default defineConfig({
       "./cardProcessingDispatch.test.ts",
       "./refreshDetails.test.ts",
       "./cancelOrphanedWorkflowCleanupJobs.test.ts",
+      "./cardTranscripts.test.ts",
     ],
   },
 });
