@@ -561,7 +561,15 @@ export const cardValidator = v.object({
   metadataDescription: v.optional(v.string()),
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
+  /**
+   * Transcripts saved before they moved to `cardTextContents`. New ones are
+   * never written here; `migration/moveCardTranscripts` moves the rest.
+   */
   aiTranscript: v.optional(v.string()),
+  /** Set when the transcript is in `cardTextContents`: its length. */
+  aiTranscriptCharCount: v.optional(v.number()),
+  /** The transcript's first characters, for titles and previews. */
+  aiTranscriptPreview: v.optional(v.string()),
   aiOcrText: v.optional(v.string()),
   ocrCheckedAt: v.optional(v.number()),
   documentTextKey: v.optional(r2KeyValidator),
@@ -569,6 +577,8 @@ export const cardValidator = v.object({
   extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),
   aiBackfillAttempts: v.optional(v.number()),
+  /** Set while the card has no AI summary, tags or transcript yet. */
+  aiPending: v.optional(v.literal(true)),
   colors: v.optional(v.array(colorValidator)),
   colorHexes: v.optional(v.array(v.string())),
   colorHues: v.optional(v.array(v.string())),
@@ -745,10 +755,17 @@ export default defineSchema({
     ])
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
+    // Replaced by `by_aiPending_and_isDeleted_and_createdAt`; only
+    // `migration/backfillAiPending` reads it (.agents/sunset.md).
     .index("by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt", [
       "aiSummary",
       "aiTags",
       "aiTranscript",
+      "isDeleted",
+      "createdAt",
+    ])
+    .index("by_aiPending_and_isDeleted_and_createdAt", [
+      "aiPending",
       "isDeleted",
       "createdAt",
     ])
@@ -1025,8 +1042,15 @@ export default defineSchema({
     cardId: v.id("cards"),
     userId: v.string(),
     kind: v.union(v.literal("document"), v.literal("transcript")),
+    /**
+     * A document's searchable start, or one part of a transcript: a
+     * transcript is split into parts of at most `SEARCH_PREFIX_MAX_BYTES`.
+     */
     text: v.string(),
-    sourceKey: r2KeyValidator,
+    /** The R2 object holding a document's whole text. */
+    sourceKey: v.optional(r2KeyValidator),
+    /** A transcript part's place, from 0. */
+    part: v.optional(v.number()),
     charCount: v.number(),
     truncated: v.boolean(),
   })

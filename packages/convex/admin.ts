@@ -38,6 +38,7 @@ import { readHasPremium } from "./auth";
 import { isOnboardingCard, ONBOARDING_CARDS } from "./card/defaultCards";
 import { stagePending } from "./card/processingStatus";
 import { patchCardWithSearchSync } from "./card/searchDocumentHelpers";
+import { clearCardTranscript } from "./card/textContents";
 import { countLegacyBetterAuthUsers } from "./legacyBetterAuth";
 import { adminOverviewFields } from "./schema";
 import { readComponentUser } from "./securitySessions";
@@ -251,7 +252,8 @@ export const redactCard = (card: Doc<"cards">) => ({
   hasUrl: card.url !== undefined,
   aiTagCount: card.aiTags?.length ?? 0,
   hasAiSummary: Boolean(card.aiSummary),
-  hasAiTranscript: Boolean(card.aiTranscript),
+  hasAiTranscript:
+    Boolean(card.aiTranscript) || card.aiTranscriptCharCount !== undefined,
   isRedacted: true as const,
 });
 
@@ -627,7 +629,7 @@ export const resetCardProcessingState = internalMutation({
       ...(card.fileMetadata ? { fileMetadata } : {}),
       aiTags: undefined,
       aiSummary: undefined,
-      aiTranscript: undefined,
+      ...(await clearCardTranscript(ctx, card)),
       aiOcrText: undefined,
       ocrCheckedAt: undefined,
       processingStatus: updatedProcessing,

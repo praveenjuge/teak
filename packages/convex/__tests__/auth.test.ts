@@ -336,7 +336,7 @@ describe("auth", () => {
                     }
                   : {}),
                 ...(table === "cardTextContents"
-                  ? { unique: async () => ({ _id: `text_${_cardId}` }) }
+                  ? { take: async () => [{ _id: `text_${_cardId}` }] }
                   : {}),
                 ...(table === "folderCards"
                   ? { take: async () => [{ _id: `folder_row_${_cardId}` }] }
@@ -395,7 +395,7 @@ describe("auth", () => {
                   ? { take: async () => [{ _id: `tag_${_cardId}` }] }
                   : {}),
                 ...(table === "cardTextContents"
-                  ? { unique: async () => null }
+                  ? { take: async () => [] }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
@@ -439,7 +439,7 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardTextContents"
-                  ? { unique: async () => null }
+                  ? { take: async () => [] }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
@@ -485,7 +485,7 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardTextContents"
-                  ? { unique: async () => null }
+                  ? { take: async () => [] }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"
@@ -525,7 +525,7 @@ describe("auth", () => {
                   : {}),
                 ...(table === "cardSearchTags" ? { take: async () => [] } : {}),
                 ...(table === "cardTextContents"
-                  ? { unique: async () => null }
+                  ? { take: async () => [] }
                   : {}),
                 ...(table === "folderCards" ? { take: async () => [] } : {}),
                 ...(table === "cardSearchTagSyncStates"

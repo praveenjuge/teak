@@ -22,6 +22,7 @@ import {
   searchPrefix,
 } from "./documentTextFormat";
 import { patchCardWithSearchSync } from "./searchDocumentHelpers";
+import { getDocumentTextRow, readCardTranscript } from "./textContents";
 
 export {
   isExtractedTextTruncated,
@@ -89,10 +90,7 @@ export const saveDocumentTextHandler = async (
   if (args.key !== documentTextKey(card, digestOfKey(args.key) ?? "")) {
     throw new Error("document_text_invalid_key");
   }
-  const existing = await ctx.db
-    .query("cardTextContents")
-    .withIndex("by_cardId", (query) => query.eq("cardId", card._id))
-    .unique();
+  const existing = await getDocumentTextRow(ctx, card._id);
   const row = {
     cardId: card._id,
     userId: card.userId,
@@ -168,10 +166,7 @@ export const getCardTextSource = internalQuery({
       return null;
     }
     if (card.hasExtractedText) {
-      const row = await ctx.db
-        .query("cardTextContents")
-        .withIndex("by_cardId", (query) => query.eq("cardId", cardId))
-        .unique();
+      const row = await getDocumentTextRow(ctx, cardId);
       if (row) {
         return {
           cardId,
@@ -183,12 +178,13 @@ export const getCardTextSource = internalQuery({
         };
       }
     }
-    if (card.aiTranscript?.trim()) {
+    const transcript = await readCardTranscript(ctx, card);
+    if (transcript?.trim()) {
       return {
         cardId,
         kind: "transcript" as const,
-        text: card.aiTranscript,
-        charCount: codePointLength(card.aiTranscript),
+        text: transcript,
+        charCount: card.aiTranscriptCharCount ?? codePointLength(transcript),
         truncated: false,
       };
     }

@@ -61,29 +61,6 @@ describe("ai/queries.ts", () => {
     expect(limits).toEqual([50, 49]);
   });
 
-  test("findCardsMissingAi applies complete AI, deletion, and age bounds", async () => {
-    const { mockQuery, ranges } = makeIndexedQuery([[], []]);
-    const ctx = { db: { query: mock().mockReturnValue(mockQuery) } } as any;
-    const handler = (findCardsMissingAi as any).handler ?? findCardsMissingAi;
-    await handler(ctx, {});
-    expect(mockQuery.withIndex).toHaveBeenCalledTimes(2);
-    expect(mockQuery.withIndex.mock.calls[0][0]).toBe(
-      "by_aiSummary_aiTags_aiTranscript_isDeleted_createdAt"
-    );
-    for (const [index, isDeleted] of [undefined, false].entries()) {
-      expect(ranges[index].eq.mock.calls).toEqual([
-        ["aiSummary", undefined],
-        ["aiTags", undefined],
-        ["aiTranscript", undefined],
-        ["isDeleted", isDeleted],
-      ]);
-      expect(ranges[index].lt).toHaveBeenCalledWith(
-        "createdAt",
-        expect.any(Number)
-      );
-    }
-  });
-
   test("findCardsMissingAi caps the batch without a second query", async () => {
     const cards = Array.from({ length: 50 }, (_, i) => ({ _id: `c${i}` }));
     const { mockQuery, limits } = makeIndexedQuery([cards]);

@@ -4,6 +4,7 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { accountDeletionOwnsRows } from "../accountDeletion";
+import { cardNeedsAiMetadata } from "../ai/queries";
 import {
   markCardForEmbedding,
   tombstoneCardEmbedding,
@@ -33,7 +34,7 @@ import {
   cardListScope,
   scopeArchivedMatch,
 } from "./listQuery";
-import { deleteCardTextRow } from "./textContents";
+import { deleteCardTextRows, readCardTranscript } from "./textContents";
 
 export const CARD_SEARCH_TAG_SYNC_BATCH_SIZE = 32;
 
@@ -49,15 +50,17 @@ const SEARCH_FIELDS = [
 
 export const buildCardSearchText = (
   card: Doc<"cards">,
-  extractedText?: string
+  extractedText?: string,
+  transcript = card.aiTranscript
 ): string =>
   [
-    // A `[[Title|teak:<id>]]` link is searchable by its title, not its id.
-    ...SEARCH_FIELDS.map((field) =>
-      field === "content" && card.content
-        ? cardLinkTokensToText(card.content)
-        : card[field]
-    ),
+    ...SEARCH_FIELDS.map((field) => {
+      // A `[[Title|teak:<id>]]` link is searchable by its title, not its id.
+      if (field === "content" && card.content) {
+        return cardLinkTokensToText(card.content);
+      }
+      return field === "aiTranscript" ? transcript : card[field];
+    }),
     ...(card.tags ?? []),
     ...(card.aiTags ?? []),
     extractedText,
@@ -251,6 +254,7 @@ export const patchCardWithSearchSync = async (
     "folderIds",
     "url",
     "sourceUrl",
+    "aiTranscriptCharCount",
   ];
   if (searchableFields.some((field) => Object.keys(value).includes(field))) {
     await syncCardSearch(ctx, cardId, undefined, card ?? undefined);
@@ -281,8 +285,12 @@ export const syncCardSearchDocumentHandler = async (
     if (existing) {
       await ctx.db.delete("cardSearchDocuments", existing._id);
     }
-    if (!previousCard || previousCard.hasExtractedText) {
-      await deleteCardTextRow(ctx, cardId);
+    if (
+      !previousCard ||
+      previousCard.hasExtractedText ||
+      previousCard.aiTranscriptCharCount !== undefined
+    ) {
+      await deleteCardTextRows(ctx, cardId);
     }
     if (!previousCard || previousCard.type === "link") {
       await deleteLinkedPdfRowsAsLink(ctx, cardId);
@@ -310,14 +318,23 @@ export const syncCardSearchDocumentHandler = async (
 
   const urlHost = cardSiteHost(card) ?? undefined;
   const isHidden = isHiddenTagList(card.tags) ? (true as const) : undefined;
-  if (card.urlHost !== urlHost || card.isHidden !== isHidden) {
-    await ctx.db.patch("cards", cardId, { urlHost, isHidden });
+  const aiPending = cardNeedsAiMetadata(card) ? (true as const) : undefined;
+  if (
+    card.urlHost !== urlHost ||
+    card.isHidden !== isHidden ||
+    card.aiPending !== aiPending
+  ) {
+    await ctx.db.patch("cards", cardId, { urlHost, isHidden, aiPending });
   }
 
   const value = {
     cardId,
     userId: card.userId,
-    searchableText: buildCardSearchText(card),
+    searchableText: buildCardSearchText(
+      card,
+      undefined,
+      await readCardTranscript(ctx, card)
+    ),
     ocrText: card.aiOcrText,
     isDeleted: card.isDeleted,
     type: card.type,

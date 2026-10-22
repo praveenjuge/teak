@@ -59,5 +59,12 @@ describe("card display title", () => {
     expect(
       cardPreviewText({ aiTranscript: "Hello", content: "", type: "audio" })
     ).toBe("Hello");
+    expect(
+      cardPreviewText({
+        aiTranscriptPreview: "Hello from the stored transcript",
+        content: "",
+        type: "audio",
+      })
+    ).toBe("Hello from the stored transcript");
   });
 });

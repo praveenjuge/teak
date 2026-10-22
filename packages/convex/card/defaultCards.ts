@@ -27,6 +27,7 @@ import {
 } from "./processingStatus";
 import { syncCardSearch } from "./searchDocumentHelpers";
 import { newShuffleKey } from "./shuffle";
+import { storeCardTranscript } from "./textContents";
 
 const buildCompletedProcessingStatus = (now: number): ProcessingStatus => ({
   classify: stageCompleted(now, 1),
@@ -425,7 +426,6 @@ export const insertCompletedCards = async (
       colorHues,
       aiTags: cardDef.aiTags,
       aiSummary: cardDef.aiSummary,
-      aiTranscript: cardDef.aiTranscript,
       ...(cardDef.aiOcrText
         ? { aiOcrText: cardDef.aiOcrText, ocrCheckedAt: timestamp }
         : {}),
@@ -464,6 +464,17 @@ export const insertCompletedCards = async (
     await recordActiveCardCreated(ctx, userId, cardId, {
       hasPremium: options.ignoreCardLimit,
     });
+    if (cardDef.aiTranscript) {
+      await ctx.db.patch(
+        "cards",
+        cardId,
+        await storeCardTranscript(
+          ctx,
+          { _id: cardId, userId },
+          cardDef.aiTranscript
+        )
+      );
+    }
     if (cardDef.isDeleted) {
       await ctx.db.patch("cards", cardId, {
         isDeleted: true,

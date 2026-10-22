@@ -756,6 +756,7 @@ export const toOverviewCardRow = (
     | "aiSummary"
     | "aiTags"
     | "aiTranscript"
+    | "aiTranscriptCharCount"
     | "createdAt"
     | "fileMetadata"
     | "isDeleted"
@@ -776,7 +777,8 @@ export const toOverviewCardRow = (
   onboarding,
   hasAiSummary: Boolean(card.aiSummary),
   hasAiTags: Boolean(card.aiTags && card.aiTags.length > 0),
-  hasAiTranscript: Boolean(card.aiTranscript),
+  hasAiTranscript:
+    Boolean(card.aiTranscript) || card.aiTranscriptCharCount !== undefined,
   ...(card.metadataStatus ? { metadataStatus: card.metadataStatus } : {}),
   ...(card.processingStatus ? { processingStatus: card.processingStatus } : {}),
 });
