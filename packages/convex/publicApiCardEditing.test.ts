@@ -681,6 +681,39 @@ describe("Multi-field edits", () => {
   });
 });
 
+describe("Bulk card tags", () => {
+  test("bulk create trims tags and drops blank and repeated ones", async () => {
+    const { t } = await setup();
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        userId: "owner",
+        operation: "create",
+        items: [{ content: "Tagged in bulk", tags: ["  ux ", "ux", "", 7] }],
+      }
+    );
+    expect(result.summary).toEqual({ total: 1, succeeded: 1, failed: 0 });
+    const cardId = result.results[0]?.cardId as Id<"cards">;
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.tags).toEqual(["ux"]);
+  });
+
+  test("bulk update trims tags and drops blank and repeated ones", async () => {
+    const { t, cardId } = await setup();
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        userId: "owner",
+        operation: "update",
+        items: [{ cardId, tags: ["  ux ", "ux", ""] }],
+      }
+    );
+    expect(result.summary).toEqual({ total: 1, succeeded: 1, failed: 0 });
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.tags).toEqual(["ux"]);
+  });
+});
+
 describe("Refresh details", () => {
   test("queues the processing workflow for the owner's card", async () => {
     const { t, cardId } = await setup();
