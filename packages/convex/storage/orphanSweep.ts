@@ -149,12 +149,10 @@ export const pageNonCardReferencedKeys = internalQuery({
         );
       case "imports":
         return done(
-          await ctx.db
-            .query("importJobs")
-            .paginate({
-              ...pageOpts,
-              numItems: Math.min(pageOpts.numItems, 10),
-            }),
+          await ctx.db.query("importJobs").paginate({
+            ...pageOpts,
+            numItems: Math.min(pageOpts.numItems, 10),
+          }),
           importJobKeys
         );
       case "exports":
