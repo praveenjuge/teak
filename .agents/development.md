@@ -84,8 +84,9 @@ Every linked worktree leases its own block of ports the first time it runs,
 recorded in the repository's git directory (`scripts/worktree-env.ts`), so web
 apps in different worktrees run side by side. The main checkout keeps web 3000,
 docs 3001 and extension 3003. `bun run dev --status` prints the ports.
-`packages/convex/convex.json` registers every one of those web ports as a
-sign-in callback on the dev deployment's WorkOS environment.
+`packages/convex/convex.json` registers `http://localhost:*/callback`, which
+covers every one of those web ports, as a sign-in callback on the dev
+deployment's WorkOS environment, and lists each port as a CORS origin.
 
 A running stack writes `.agents/.state/stack.json` (URLs, ports, sign-in) and
 logs to `.agents/.state/stack.log`.

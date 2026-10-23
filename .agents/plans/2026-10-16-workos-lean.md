@@ -84,7 +84,9 @@ deletion receipt needs the event time (`workosDeletionEventAt` is checked
 against the deletion proof). To drop the table, first make `applyWorkosEvent`
 idempotent without it: dedupe the deletion receipt on `(workosUserId,
 workos_user_deleted)` and accept that replays of `user.created` re-run linking.
-Dropping the table deletes production data and needs the owner's approval.
+`recordUndeliverable` also reads it, so remove that (item 4) or replace its
+lookup first. Dropping the table deletes production data and needs the owner's
+approval.
 
 ### 3. Shrink linking now that the migration is over
 
@@ -121,11 +123,13 @@ approval, `workosWebhookDeadLetters`.
 ### 5. Prove what `deleteUser` cascades
 
 In staging, create a user with an active session and a Connect grant, call
-`deleteUser`, then try to refresh both. If both refresh tokens are refused,
-remove the `providerSessions` and `authorizedApps` stages and
-`providerSessionCursor` from account deletion. Otherwise keep them and record
-the result here. Needs the staging API key, which agent sessions can't use
-directly.
+`deleteUser`, then try to refresh both with tokens that worked just before.
+Count a refresh as refused only on the terminal responses the native apps use
+(`invalid_grant`, `invalid_refresh_token` or a 401); transient errors don't
+count. If both are refused, remove the `providerSessions` and `authorizedApps`
+stages and `providerSessionCursor` from account deletion. Otherwise keep them
+and record each response here. Needs the staging API key, which agent sessions
+can't use directly.
 
 ### 6. Native apps on the official SDKs
 
