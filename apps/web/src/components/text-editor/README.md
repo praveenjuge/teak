@@ -16,13 +16,32 @@ upgrading the beta Markdown extension. References:
 Opening or selecting a note never rewrites its string. Supported documents use
 rich blocks after schema validation and an independent Markdown semantic comparison.
 Actual rich edits may normalize syntax. Frontmatter, reference definitions, image
-references, tables, raw HTML, unsafe links, and unsupported syntax stay editable as literal
+references, raw HTML, unsafe links, and unsupported syntax stay editable as literal
 text in the same block editor. Literal edits serialize verbatim. There is no source
 mode or mode switch. Images are never loaded by the editor.
 
 Pastes use plain text. Supported Markdown becomes blocks; unsupported pasted
 content becomes literal text. Links permit only safe HTTP/HTTPS URLs. Transactions
-reject content over 512 KiB in UTF-8. Table insertion and table controls are excluded.
+reject content over 512 KiB in UTF-8.
+
+## Tables
+
+GFM tables at the top level open as rich tables (`@tiptap/extension-table`,
+pinned with the other Tiptap packages). A table stays literal text when it
+has column alignment (`:---`), rows with a different number of cells, HTML in
+a cell, or sits inside a quote or list. Each cell holds one line of inline
+text; a line break that lands in a cell becomes a space, and the schema keeps
+tables at the top level (`tableEditing.ts`). The `[[` card-link menu stays
+out of cells: a link's `|` would be escaped there, and the parsers outside
+the editor don't read `\|`.
+
+`/table` inserts a 3×3 table with a header row (after the whole block when
+the cursor is in a list or quote). Tab and Shift+Tab move between cells, Tab
+in the last cell and Enter in the last row add a row, and Backspace in an
+empty table removes it. The ⋯ button at the table's top-right (Alt+F10 from a
+cell) adds and deletes rows and columns, and deletes the table. Adding stops
+at 20 columns and 200 rows; the header row and the last column stay. There is
+no merging, alignment or resizing.
 
 Slash commands, standard formatting shortcuts, and Cmd/Ctrl K for links work
 alongside contextual formatting. There are no block movement controls or shortcuts.

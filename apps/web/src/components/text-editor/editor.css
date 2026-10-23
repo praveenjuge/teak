@@ -98,6 +98,52 @@
   border-color: var(--primary);
 }
 
+/* Tables: GFM tables in notes. The wrapper scrolls sideways on narrow
+ * screens, so a wide table never widens the page. */
+.teak-markdown-editor .block-editor-content .ProseMirror .tableWrapper {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror :is(th, td) {
+  position: relative;
+  min-width: 4rem;
+  max-width: 40ch;
+  padding: 6px 10px;
+  vertical-align: top;
+  text-align: left;
+  overflow-wrap: break-word;
+  border: 1px solid var(--border);
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror :is(th, td) > p {
+  margin: 0;
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror th {
+  font-weight: 500;
+  background: var(--muted);
+}
+
+.teak-markdown-editor .block-editor-content .ProseMirror .selectedCell {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.teak-markdown-editor
+  .block-editor-content
+  .ProseMirror
+  :is(th, td):focus-within {
+  outline: 1px solid var(--ring);
+  outline-offset: -1px;
+}
+
 .teak-markdown-editor
   .block-editor-content
   .ProseMirror

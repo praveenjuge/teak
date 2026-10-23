@@ -24,6 +24,7 @@ import {
   doneStatesPack,
   focusNotesPack,
   hiddenMixPack,
+  noteTablesPack,
   OCR_LEASE_PHRASE,
   OCR_SHARED_KEYWORD,
   ocrDocumentsPack,
@@ -415,6 +416,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "Task lists for checklist sorting: 10 and 200 items, 5 levels of nesting, bullets beside tasks, all done, odd spacing and a table (both open as literal Markdown), and a checklist in a blockquote.",
     folders: checklistsPack,
   },
+  "note-tables": {
+    description:
+      "12 notes with GFM tables: 3×3, 20 columns by 200 rows, formatting in cells, escaped pipes, CJK and RTL cells, a table beside a checklist and a link, a 510 KiB note, a note that is only a table and two tables back to back, plus an aligned, a ragged and a quoted table that stay literal Markdown.",
+    folders: noteTablesPack,
+  },
   "hidden-mix": {
     description:
       "Cards hidden by secret and hidden tags in odd case and spacing: a favorite, an archived, a trashed, a foldered and a site: one, smart folders with and without #secret, and a card whose hidden is only an AI tag. Seed it on two accounts to test ownership.",
@@ -464,7 +470,7 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   },
   "focus-notes": {
     description:
-      "Text notes for Focus mode: a 50,000-word draft, tables and code that open as literal Markdown, an empty note, CJK and RTL text, and a 300-character first line.",
+      "Text notes for Focus mode: a 50,000-word draft, an aligned table that opens as literal Markdown beside a code block, an empty note, CJK and RTL text, and a 300-character first line.",
     folders: focusNotesPack,
   },
   "palette-mixed": {

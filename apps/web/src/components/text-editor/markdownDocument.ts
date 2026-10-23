@@ -3,7 +3,19 @@ import {
   markdownContentByteLength,
 } from "@teak/convex/shared/markdown";
 import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
-import { decodeHtmlEntities, getSchema, type JSONContent } from "@tiptap/core";
+import {
+  decodeHtmlEntities,
+  getSchema,
+  type JSONContent,
+  Node,
+} from "@tiptap/core";
+import {
+  renderTableToMarkdown,
+  Table,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from "@tiptap/extension-table";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { MarkdownManager } from "@tiptap/markdown";
@@ -12,6 +24,16 @@ import { Marked, type Token, type Tokens, type TokensList } from "marked";
 import { CardLinkNode } from "./CardLinkNode";
 import { LiteralMarkdown } from "./LiteralMarkdown";
 
+/** The editor only supports top-level tables, so only the document holds
+ * them: an insert or paste anywhere else lands beside the block instead. */
+const TopLevelDocument = Node.create({
+  name: "doc",
+  topNode: true,
+  content: "(block | topLevelBlock)+",
+  renderMarkdown: (node, h) =>
+    node.content ? h.renderChildren(node.content, "\n\n") : "",
+});
+
 export function documentExtensions({
   cardLinkNode = CardLinkNode,
 }: {
@@ -19,6 +41,7 @@ export function documentExtensions({
 } = {}) {
   return [
     StarterKit.configure({
+      document: false,
       underline: false,
       trailingNode: false,
       link: {
@@ -28,10 +51,54 @@ export function documentExtensions({
         isAllowedUri: isSafeExternalUrl,
       },
     }),
+    TopLevelDocument,
     LiteralMarkdown,
     TaskList,
     TaskItem.configure({ nested: true }),
     cardLinkNode,
+    Table.extend({
+      group: "topLevelBlock",
+      // The block join already puts a blank line around the table.
+      renderMarkdown: (node, h) => renderTableToMarkdown(node, h).trim(),
+    }).configure({ resizable: false }),
+    TableRow,
+    // A GFM table row can't hold a line break, so each cell holds one
+    // paragraph of inline content.
+    TableHeader.extend({ content: "paragraph" }),
+    TableCell.extend({ content: "paragraph" }),
+  ];
+}
+
+/** Cells in one row of a GFM table's source, split on unescaped pipes. */
+const tableRowCellCount = (line: string) =>
+  line
+    .trim()
+    .replace(/^\|/u, "")
+    .replace(/(?<!\\)\|$/u, "")
+    .split(/(?<!\\)\|/u).length;
+
+/**
+ * A table the editor can show and write back unchanged: top level, no column
+ * alignment, and the same number of cells in every row. Anything else stays
+ * literal Markdown.
+ */
+function tableMeaning(table: Tokens.Table, nested: boolean): unknown[] {
+  if (nested) {
+    throw new Error("Nested table");
+  }
+  if (table.align.some((align) => align !== null)) {
+    throw new Error("Aligned table");
+  }
+  const lines = table.raw.split("\n").filter((line) => line.trim());
+  if (lines.some((line) => tableRowCellCount(line) !== table.header.length)) {
+    throw new Error("Table that can't round-trip");
+  }
+  return [
+    "table",
+    table.header.map((cell) => markdownMeaning(cell.tokens, true)),
+    table.rows.map((row) =>
+      row.map((cell) => markdownMeaning(cell.tokens, true))
+    ),
   ];
 }
 
@@ -40,7 +107,10 @@ const extensions = documentExtensions();
 const schema = getSchema(extensions);
 export const markdownManager = new MarkdownManager({ extensions });
 
-function markdownMeaning(tokens: Token[] | undefined): unknown[] {
+function markdownMeaning(
+  tokens: Token[] | undefined,
+  nested = false
+): unknown[] {
   if (!tokens) {
     throw new Error("Missing Markdown tokens");
   }
@@ -50,10 +120,10 @@ function markdownMeaning(tokens: Token[] | undefined): unknown[] {
       case "checkbox":
         return [];
       case "paragraph":
-        return [["paragraph", markdownMeaning(token.tokens)]];
+        return [["paragraph", markdownMeaning(token.tokens, nested)]];
       case "text":
         return token.tokens
-          ? markdownMeaning(token.tokens)
+          ? markdownMeaning(token.tokens, nested)
           : [["text", decodeHtmlEntities(token.text)]];
       case "escape":
         return [["text", decodeHtmlEntities(token.text)]];
@@ -62,8 +132,11 @@ function markdownMeaning(tokens: Token[] | undefined): unknown[] {
       case "strong":
       case "em":
       case "del":
+        return [[token.type, markdownMeaning(token.tokens, nested)]];
       case "blockquote":
-        return [[token.type, markdownMeaning(token.tokens)]];
+        return [[token.type, markdownMeaning(token.tokens, true)]];
+      case "table":
+        return [tableMeaning(token as Tokens.Table, nested)];
       case "codespan":
         return [["codespan", token.text]];
       case "code":
@@ -93,7 +166,7 @@ function markdownMeaning(tokens: Token[] | undefined): unknown[] {
             list.items.map((item) => [
               item.task,
               item.checked ?? false,
-              markdownMeaning(item.tokens),
+              markdownMeaning(item.tokens, true),
             ]),
           ],
         ];

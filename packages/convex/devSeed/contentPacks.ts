@@ -40,7 +40,7 @@ export const FOCUS_LITERAL_NOTE = [
   "# Release checklist",
   "",
   "| Step | Owner | Done |",
-  "| --- | --- | --- |",
+  "| :--- | --- | ---: |",
   "| Build | CI | yes |",
   "| Smoke test | Web | no |",
   "",
@@ -601,7 +601,119 @@ export const checklistsPack = (): FolderScenarioPack => {
       ),
       note(
         8,
-        "# Checklist with a table\n\n| Task | Owner |\n| --- | --- |\n| Review | Web |\n\n- [ ] Table note first\n- [ ] Table note second"
+        "# Checklist with a table\n\n| Task | Owner |\n| :--- | --- |\n| Review | Web |\n\n- [ ] Table note first\n- [ ] Table note second"
+      ),
+    ],
+  };
+};
+
+export const NOTE_TABLES_WIDE = { cols: 20, rows: 200 } as const;
+export const NOTE_TABLES_LARGE_BYTES = 510 * 1024;
+
+/** A GFM table from a header row and body rows. */
+const gfmTable = (rows: string[][], delimiter = "---") =>
+  [
+    `| ${rows[0].join(" | ")} |`,
+    `| ${rows[0].map(() => delimiter).join(" | ")} |`,
+    ...rows.slice(1).map((row) => `| ${row.join(" | ")} |`),
+  ].join("\n");
+
+export const noteTablesPack = (): FolderScenarioPack => {
+  const scenario = "note-tables" as const;
+  const note = (index: number, content: string) =>
+    folderScenarioCard(scenario, index, content, []);
+  const small = gfmTable([
+    ["Plan", "Price", "Seats"],
+    ["Free", "$0", "1"],
+    ["Pro", "$8", "5"],
+  ]);
+  const header = Array.from(
+    { length: NOTE_TABLES_WIDE.cols },
+    (_, col) => `Column ${col + 1}`
+  );
+  const wide = gfmTable([
+    header,
+    ...Array.from({ length: NOTE_TABLES_WIDE.rows - 1 }, (_, row) =>
+      header.map((_, col) => `R${row + 1}C${col + 1}`)
+    ),
+  ]);
+  const largeTitle = "# A long note with a table\n\n";
+  const largeTail = `\n\n${small}`;
+  const sentence = "Notes grow long when a project runs for months. ";
+  const filler = sentence
+    .repeat(Math.ceil(NOTE_TABLES_LARGE_BYTES / sentence.length))
+    .slice(0, NOTE_TABLES_LARGE_BYTES - largeTitle.length - largeTail.length)
+    .trimEnd();
+  return {
+    folders: [],
+    cards: [
+      folderScenarioCard(scenario, 0, "Note tables pack", []),
+      note(1, `# A 3×3 table\n\n${small}`),
+      note(2, `# A 20 × 200 table\n\n${wide}`),
+      note(
+        3,
+        `# Formatting in cells\n\n${gfmTable([
+          ["Tool", "Notes", "Link"],
+          [
+            "**Teak**",
+            "*saves* ~~everything~~ `fast`",
+            "[Site](https://teakvault.com)",
+          ],
+          ["Notes", "plain text", "[Docs](https://teakvault.com/docs)"],
+        ])}`
+      ),
+      note(
+        4,
+        `# An aligned table (stays literal)\n\n${gfmTable(
+          [
+            ["Left", "Center", "Right"],
+            ["a", "b", "c"],
+          ],
+          ":---:"
+        )}`
+      ),
+      note(
+        5,
+        "# A ragged table (stays literal)\n\n| A | B | C |\n| --- | --- | --- |\n| 1 | 2 |\n| 1 | 2 | 3 | 4 |"
+      ),
+      note(
+        6,
+        `# Escaped pipes\n\n${gfmTable([
+          ["Expression", "Meaning"],
+          ["a \\| b", "a or b"],
+          ["`x \\| y`", "code with a pipe"],
+        ])}`
+      ),
+      note(
+        7,
+        `# CJK and RTL cells\n\n${gfmTable([
+          ["日本語", "中文", "العربية"],
+          ["東京の朝", "这是笔记", "ملاحظة قصيرة"],
+          ["静かな部屋", "表格单元", "من اليمين إلى اليسار"],
+        ])}`
+      ),
+      note(
+        8,
+        `# A table beside a checklist and a link\n\n- [ ] Book the venue\n- [x] Send invites\n\n${gfmTable(
+          [
+            ["Task", "Owner"],
+            ["Venue", "Sam"],
+            ["Food", "Ana"],
+          ]
+        )}\n\nSee [the plan](https://teakvault.com) for the rest.`
+      ),
+      note(9, `${largeTitle}${filler}${largeTail}`),
+      note(10, small),
+      note(
+        11,
+        `# Two tables back to back\n\n${gfmTable([["First"], ["one"]])}\n\n${gfmTable([["Second"], ["two"]])}`
+      ),
+      note(
+        12,
+        `# A table in a quote (stays literal)\n\n${small
+          .split("\n")
+          .map((line) => `> ${line}`)
+          .join("\n")}`
       ),
     ],
   };

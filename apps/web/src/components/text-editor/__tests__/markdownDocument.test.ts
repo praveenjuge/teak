@@ -24,6 +24,22 @@ const fixtures = [
   ["hard breaks", "First  \nSecond"],
   ["links", "[Teak](https://teakvault.com)"],
   ["divider", "Before\n\n---\n\nAfter"],
+  ["a table", "| Name | State |\n| --- | --- |\n| Alpha | Ready |"],
+  [
+    "a table with escaped pipes",
+    "| Name | State |\n| --- | --- |\n| a \\| b | `x \\| y` |",
+  ],
+  ["a table without outer pipes", "Name | State\n--- | ---\nAlpha | Ready"],
+  [
+    "inline formatting in cells",
+    "| **Bold** | `code` | [Teak](https://teakvault.com) |\n| --- | --- | --- |\n| *em* | ~~gone~~ | 東京 مرحبا |",
+  ],
+  ["empty cells", "| A |  |\n| --- | --- |\n|  | B |"],
+  ["two tables back to back", "| A |\n| --- |\n| 1 |\n\n| B |\n| --- |\n| 2 |"],
+  [
+    "a table between a checklist and text",
+    "- [ ] Pending\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter",
+  ],
 ] as const;
 
 describe("Markdown compatibility", () => {
@@ -48,7 +64,13 @@ describe("Markdown compatibility", () => {
   });
 
   test.each([
-    "| Name | State |\n| --- | --- |\n| Alpha | Ready |",
+    "| Name | State |\n| :--- | ---: |\n| Alpha | Ready |",
+    "| Name | State |\n| --- | :---: |\n| Alpha | Ready |",
+    "| Name | State |\n| --- | --- |\n| Alpha |",
+    "| Name | State |\n| --- | --- |\n| Alpha | Ready | Extra |",
+    "| Name | State |\n| --- | --- |\n| <b>Alpha</b> | Ready |",
+    "> | A |\n> | --- |\n> | 1 |",
+    "- | A |\n  | --- |\n  | 1 |",
     "---\ntitle: Keep me\n---\n\nBody",
     "![Private image](https://private.example/image.png)",
     "[label][ref]\n\n[ref]: https://example.com",
@@ -77,8 +99,22 @@ describe("Markdown compatibility", () => {
     ).toBe(true);
   });
 
+  test("reads a table the same whatever its padding and outer pipes", () => {
+    expect(
+      hasSameMarkdownMeaning(
+        "A|B\n-|-\n1|2",
+        "| A   | B   |\n| --- | --- |\n| 1   | 2   |"
+      )
+    ).toBe(true);
+  });
+
   test.each([
     ["First\n\nSecond", "Second\n\nFirst"],
+    [
+      "| A | B |\n| --- | --- |\n| 1 | 2 |",
+      "| A | B |\n| --- | --- |\n| 2 | 1 |",
+    ],
+    ["| A |\n| --- |\n| 1 |", "| A |\n| --- |\n| 1 |\n| 2 |"],
     ["First\n\nSecond", "First Second"],
     ["**Bold**", "Bold"],
     ["- Parent\n  - Child", "- Parent\n- Child"],

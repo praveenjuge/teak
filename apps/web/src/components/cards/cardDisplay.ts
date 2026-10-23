@@ -1,6 +1,7 @@
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { hexToRgb } from "@teak/convex/shared/utils/colorUtils";
 import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
+import { startsWithTable } from "@/lib/markdownToPlainText";
 
 export const CARD_SURFACE =
   "rounded-2xl border border-border/80 bg-card transition-[border-color,box-shadow] duration-200 group-hover/card:border-foreground/15 group-hover/card:shadow-[0_12px_32px_-16px_rgb(0_0_0/0.3)]";
@@ -54,7 +55,8 @@ export function splitNotePreview(content?: string | null): {
 } {
   const source = (content ?? "").slice(0, MAX_NOTE_PREVIEW_SOURCE).trim();
   const breakAt = source.search(/\n\s*\n|\n/);
-  if (breakAt === -1) {
+  // A table's header row isn't a title; the table reads whole.
+  if (breakAt === -1 || startsWithTable(source)) {
     return { body: source };
   }
   const heading = source.slice(0, breakAt).trim();

@@ -187,6 +187,10 @@ In a note on the web, ticked checklist items move to the bottom of their list, b
 
 To act on many cards at once, click the circle in a card's corner (or right-click it and choose **Select**), then click more cards. The bar across the top of the page archives them in one click, and **More** adds them to favorites or a folder, adds or removes tags, copies their links, or moves them to Trash. In Archive the main action is **Unarchive**, and in Trash it's **Restore**. Archive, Unarchive, and Move to Trash show **Undo** when they finish; if some cards couldn't be changed, they stay selected and **Retry** tries them again.
 
+#### Tables in notes
+
+In a note on the web, type `/table` to add a table with a header row. `Tab` moves to the next cell (and adds a row from the last one), `Shift+Tab` moves back, and `Enter` moves down a column. Point at the table, or press `Alt+F10` in a cell, for the **⋯** menu that adds or deletes rows and columns, or deletes the table. A cell holds one line of text with bold, italic, code and links (but not `[[` card links), and a table can have up to 20 columns and 200 rows. Tables are saved as Markdown, so exports, the API and the apps get the same text; tiles show a table's cells separated by `·`. A pasted Markdown table becomes a table too, unless it aligns its columns or sits in a quote or list, which keeps it as text you can edit.
+
 #### Focus mode
 
 To write without distraction, open **Focus**: press `⌘E` (`Ctrl+E` on Windows and Linux) or click the expand button at the top right of a note, or of a new note you're writing. Focus shows only your note in one centered column. The **Close** and **Save** bar fades out while you type and comes back when you move the pointer, and the word count appears when you pause. Press `Esc` or `⌘E` again to leave (with the slash menu or link editor open, `Esc` closes that first); your edits stay, and an existing note saves on its own as it does in the card.
