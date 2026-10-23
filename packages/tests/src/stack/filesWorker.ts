@@ -49,8 +49,6 @@ const QUEUE_ROLES = [
   "object-deletions",
   "object-deletions-dlq",
   "ai-backfill",
-  "workos-events",
-  "workos-events-dlq",
   "r2-events",
 ] as const;
 
@@ -118,7 +116,6 @@ export const filesWorkerConfigs = (ports: StackPorts) => {
       producers: [
         ["OBJECT_DELETIONS", "object-deletions"],
         ["AI_BACKFILL", "ai-backfill"],
-        ["WORKOS_EVENTS", "workos-events"],
         ["R2_EVENTS", "r2-events"],
       ].map(([binding, role]) => ({ binding, queue: queueName(role) })),
       consumers: QUEUE_ROLES.map((role) => ({
@@ -126,7 +123,7 @@ export const filesWorkerConfigs = (ports: StackPorts) => {
         max_batch_size: 10,
         max_batch_timeout: 1,
         max_retries: 3,
-        ...(role === "object-deletions" || role === "workos-events"
+        ...(role === "object-deletions"
           ? { dead_letter_queue: queueName(`${role}-dlq`) }
           : {}),
       })),

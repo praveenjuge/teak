@@ -5,7 +5,6 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "workflowDispatch:pruneFinished",
   "adminHealth:recordCronRun",
   "adminUsage:replaceDailyUsage",
-  "workosWebhook:recordUndeliverableWebhook",
   "workflows/steps/categorization/mutations:takeArxivSlot",
   "workflows/steps/podcast/mutations:takePodcastTranscriptSlot",
   "adminAccess:getAiGate",

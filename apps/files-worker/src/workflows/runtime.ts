@@ -10,7 +10,6 @@ export interface BackgroundEnv extends FilesOpsEnv, TelemetryEnvVars {
   AI_BACKFILL?: Queue<unknown>;
   AI_USAGE?: AnalyticsEngineDataset;
   R2_EVENTS?: Queue<unknown>;
-  WORKOS_EVENTS?: Queue<unknown>;
 }
 
 export interface StepContext {

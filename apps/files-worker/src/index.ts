@@ -40,10 +40,6 @@ import {
 } from "./lib";
 import { handleInternalOp } from "./ops";
 import { handleQueueBatch } from "./queues";
-import {
-  handleWorkosWebhookIngress,
-  WORKOS_WEBHOOK_PATH_PREFIX,
-} from "./queues/workosEvents";
 import { handleScheduled } from "./scheduled/cron";
 import { retryingReads } from "./storage/r2Retry";
 import { handleSignedUpload } from "./storage/upload";
@@ -334,10 +330,6 @@ const handler = {
         return new Response(null, { status: 405 });
       }
       return json({ ok: true });
-    }
-
-    if (url.pathname.startsWith(WORKOS_WEBHOOK_PATH_PREFIX)) {
-      return await handleWorkosWebhookIngress(request, bindings);
     }
 
     if (!bindings.OBJECT_GATES) {
