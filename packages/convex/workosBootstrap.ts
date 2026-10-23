@@ -106,7 +106,9 @@ const REPLAY_MAX_PAGES = 3;
 /**
  * Replays this user's recent `user.created` and `user.updated` events from the
  * WorkOS Events API through the webhook's own ingestion, so the profile lands
- * now. Returns whether any event was applied.
+ * now. The scan reads newest first, so a busy window of other sign-ups can't
+ * push a fresh account out of reach, and stops at the account's creation.
+ * Returns whether any event was applied.
  */
 const replayRecentProfileEvents = async (
   ctx: Pick<ActionCtx, "runMutation">,
@@ -118,13 +120,13 @@ const replayRecentProfileEvents = async (
   }
   const workos = createWorkosClient(apiKey, process.env.WORKOS_CLIENT_ID);
   const rangeStart = new Date(Date.now() - REPLAY_LOOKBACK_MS).toISOString();
+  const newestFirst: Parameters<typeof ingestWorkosEvent>[1][] = [];
   let after: string | undefined;
-  let applied = false;
   for (let page = 0; page < REPLAY_MAX_PAGES; page++) {
     const result = await workos.events.listEvents({
       events: ["user.created", "user.updated"],
       limit: REPLAY_PAGE_SIZE,
-      order: "asc",
+      order: "desc",
       ...(after ? { after } : { rangeStart }),
     });
     for (const event of result.data) {
@@ -132,14 +134,22 @@ const replayRecentProfileEvents = async (
         (event.event === "user.created" || event.event === "user.updated") &&
         event.data.id === workosUserId
       ) {
-        applied =
-          (await ingestWorkosEvent(ctx, event)) === "applied" || applied;
+        newestFirst.push(event);
       }
     }
     after = result.listMetadata.after ?? undefined;
-    if (!after || result.data.length === 0) {
+    if (
+      newestFirst.some((event) => event.event === "user.created") ||
+      !after ||
+      result.data.length === 0
+    ) {
       break;
     }
+  }
+  let applied = false;
+  // Applied oldest first, as the webhook would have delivered them.
+  for (const event of newestFirst.reverse()) {
+    applied = (await ingestWorkosEvent(ctx, event)) === "applied" || applied;
   }
   return applied;
 };

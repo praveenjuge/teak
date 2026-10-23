@@ -40,7 +40,9 @@ const userEvent = (
   },
 });
 
-let pages: unknown[][] = [];
+// The Events API, as far as these tests need it: one chronological list,
+// served in the requested order and page by page through the `after` cursor.
+let events: { id: string }[] = [];
 const requests: URL[] = [];
 
 beforeEach(() => {
@@ -50,15 +52,29 @@ beforeEach(() => {
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
   vi.stubEnv("SIGNUPS_DISABLED", "false");
   requests.length = 0;
-  pages = [];
+  events = [];
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     requests.push(url);
+    const ordered =
+      url.searchParams.get("order") === "desc" ? [...events].reverse() : events;
+    const after = url.searchParams.get("after");
+    const start = after
+      ? ordered.findIndex((event) => event.id === after) + 1
+      : 0;
+    const limit = Number(url.searchParams.get("limit") ?? 10);
+    const page = ordered.slice(start, start + limit);
     return Promise.resolve(
       Response.json({
         object: "list",
-        data: pages.shift() ?? [],
-        list_metadata: { before: null, after: null },
+        data: page,
+        list_metadata: {
+          before: null,
+          after:
+            start + limit < ordered.length
+              ? (page[page.length - 1]?.id ?? null)
+              : null,
+        },
       })
     );
   });
@@ -80,29 +96,27 @@ describe("bootstrap right after sign-up", () => {
   test("creates the account from WorkOS when the webhook hasn't arrived", async () => {
     const t = setup();
     // Sign-up creates the user unverified, then verifies the email.
-    pages = [
-      [
-        userEvent(
-          "event_created",
-          "user.created",
-          {
-            id: "user_FRESH",
-            email: "fresh@example.com",
-            email_verified: false,
-          },
-          minutesAgo(2)
-        ),
-        userEvent("event_other", "user.created", {
-          id: "user_SOMEONE_ELSE",
-          email: "else@example.com",
-          email_verified: true,
-        }),
-        userEvent("event_verified", "user.updated", {
+    events = [
+      userEvent(
+        "event_created",
+        "user.created",
+        {
           id: "user_FRESH",
           email: "fresh@example.com",
-          email_verified: true,
-        }),
-      ],
+          email_verified: false,
+        },
+        minutesAgo(2)
+      ),
+      userEvent("event_other", "user.created", {
+        id: "user_SOMEONE_ELSE",
+        email: "else@example.com",
+        email_verified: true,
+      }),
+      userEvent("event_verified", "user.updated", {
+        id: "user_FRESH",
+        email: "fresh@example.com",
+        email_verified: true,
+      }),
     ];
     const started = Date.now();
     const result = await t
@@ -123,6 +137,46 @@ describe("bootstrap right after sign-up", () => {
         id: "user_SOMEONE_ELSE",
       })
     ).toBeNull();
+  });
+
+  test("finds a new account behind a busy half hour of other sign-ups", async () => {
+    const t = setup();
+    const others = Array.from({ length: 350 }, (_, index) =>
+      userEvent(
+        `event_other_${index}`,
+        "user.created",
+        {
+          id: `user_OTHER${index}`,
+          email: `other${index}@example.com`,
+          email_verified: true,
+        },
+        minutesAgo(20)
+      )
+    );
+    events = [
+      ...others,
+      userEvent(
+        "event_created",
+        "user.created",
+        {
+          id: "user_FRESH",
+          email: "fresh@example.com",
+          email_verified: false,
+        },
+        minutesAgo(2)
+      ),
+      userEvent("event_verified", "user.updated", {
+        id: "user_FRESH",
+        email: "fresh@example.com",
+        email_verified: true,
+      }),
+    ];
+    const result = await t
+      .withIdentity(claims)
+      .action(api.workosBootstrap.ensureUserNow, {});
+    expect(result).toMatchObject({ status: "ok" });
+    // The newest page holds the whole sign-up, so the scan stops there.
+    expect(requests).toHaveLength(1);
   });
 
   test("asks WorkOS nothing when the profile is already here", async () => {
@@ -153,14 +207,12 @@ describe("bootstrap right after sign-up", () => {
 
   test("an unverified email stays unverified", async () => {
     const t = setup();
-    pages = [
-      [
-        userEvent("event_created", "user.created", {
-          id: "user_FRESH",
-          email: "fresh@example.com",
-          email_verified: false,
-        }),
-      ],
+    events = [
+      userEvent("event_created", "user.created", {
+        id: "user_FRESH",
+        email: "fresh@example.com",
+        email_verified: false,
+      }),
     ];
     const result = await t
       .withIdentity(claims)
