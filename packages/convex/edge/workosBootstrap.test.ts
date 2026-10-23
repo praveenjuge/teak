@@ -270,11 +270,12 @@ describe("signed WorkOS bootstrap", () => {
       }
       await profile(t);
       await t.run((ctx) =>
-        ctx.db.insert("workosEvents", {
+        ctx.db.insert("migrationQuarantine", {
           workosUserId: "user_NEW",
-          type: "user.deleted",
+          email: "",
+          reason: "workos_user_deleted",
+          source: "webhook",
           createdAt: 1,
-          eventId: "terminal",
         })
       );
       const before = await state(t);

@@ -35,7 +35,7 @@ Create one WorkOS environment per deployment: a staging environment for local de
 
 The webhook and Action routes exist only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. Without the webhook, new WorkOS users never get a Teak account.
 
-`convex.json` declares AuthKit redirect URIs, CORS origins, and the app homepage URL under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
+`convex.json` declares AuthKit redirect URIs and CORS origins under `authKit.dev` and `authKit.prod`, and Convex applies them to the deployment's WorkOS environment. Teak's own origins are listed there, so edit `authKit.prod` to your domain before deploying.
 
 The iPhone, iPad, Mac, and Android apps sign in through AuthKit with PKCE and the same `WORKOS_CLIENT_ID` as the web app, which they read from the deployment. Their redirect URI, `teak://auth/callback`, is already in `convex.json`.
 

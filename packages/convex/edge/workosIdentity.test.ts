@@ -77,6 +77,20 @@ describe("read-only canonical WorkOS owner resolution", () => {
     expect(await snapshot(t)).toEqual(before);
   });
 
+  test("a WorkOS user deleted before Teak linked it reads as deleted, not unmapped", async () => {
+    const t = setup();
+    await t.mutation(internal.workosWebhook.syncVerifiedEvent, {
+      id: "evt_unlinked_delete",
+      event: "user.deleted",
+      createdAt: "2026-10-08T00:00:01.000Z",
+      data: { object: "user", id: "user_provider" },
+    });
+    expect(await resolve(t)).toEqual({
+      status: "denied",
+      reason: "workos_deleted_user",
+    });
+  });
+
   test("each denial logs its exact reason with a hashed subject and nothing else", async () => {
     const t = setup();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -291,10 +305,11 @@ describe("read-only canonical WorkOS owner resolution", () => {
     const t = setup();
     await seed(t);
     await t.run((ctx) =>
-      ctx.db.insert("workosEvents", {
-        eventId: "evt_terminal",
+      ctx.db.insert("migrationQuarantine", {
         workosUserId: "user_provider",
-        type: "user.deleted",
+        email: "",
+        reason: "workos_user_deleted",
+        source: "webhook",
         createdAt: 1,
       })
     );

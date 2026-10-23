@@ -620,10 +620,11 @@ describe("trusted new WorkOS owners", () => {
     const t = setup();
     await seedProvider(t);
     await t.run((ctx) =>
-      ctx.db.insert("workosEvents", {
+      ctx.db.insert("migrationQuarantine", {
         workosUserId: create.workosUserId,
-        eventId: "deleted",
-        type: "user.deleted",
+        email: "",
+        reason: "workos_user_deleted",
+        source: "webhook",
         createdAt: 1,
       })
     );

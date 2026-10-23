@@ -165,3 +165,37 @@ test("an event that keeps failing is dead-lettered on the fifth run and the curs
     "event_following"
   );
 });
+
+test("a failing event keeps the progress made before it on the same page", async () => {
+  const t = setup();
+  const applied = userEvent("event_applied", {
+    id: "user_APPLIED",
+    email: "applied@example.com",
+    email_verified: true,
+  });
+  const stuck = {
+    ...userEvent("event_stuck", {
+      id: "user_STUCK",
+      email: "stuck@example.com",
+      email_verified: true,
+    }),
+    created_at: "2099-01-01T00:00:00.000Z",
+  };
+  pages = [[applied, stuck]];
+  await expect(
+    t.action(internal.telemetry.crons.workosEventCatchUp, {})
+  ).rejects.toThrow("future");
+  expect(await t.query(internal.workosEventCatchUp.readCursor, {})).toBe(
+    "event_applied"
+  );
+  expect(
+    await t.run((ctx) => ctx.db.query("workosEventCursors").unique())
+  ).toMatchObject({ failingEventId: "event_stuck", failedAttempts: 1 });
+  pages = [[stuck]];
+  await expect(
+    t.action(internal.telemetry.crons.workosEventCatchUp, {})
+  ).rejects.toThrow("future");
+  expect(requests[requests.length - 1]?.searchParams.get("after")).toBe(
+    "event_applied"
+  );
+});

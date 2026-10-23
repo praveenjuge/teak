@@ -38,6 +38,8 @@ Inspect `package.json` scripts, dependencies, build config, and existing access 
 | Create React App (`react-scripts`, or verified CRACO setup) | `REACT_APP_`        | `process.env.REACT_APP_*`                                       |
 | Other/custom bundler                                        | No universal prefix | Inspect its explicit env injection; ask if unknown              |
 
+**Missing credentials:** If the project has no WorkOS credentials yet, get them with the no-account install in [workos-authkit-setup.md](workos-authkit-setup.md#get-credentials) (`npx workos@latest install`). With an existing WorkOS account, use that environment's credentials instead. Skip this inside the WorkOS installer, which writes them before you start.
+
 Only the public client ID is required by the client SDK. Never put `WORKOS_API_KEY` or `WORKOS_COOKIE_PASSWORD` in a client bundle or public-prefixed env variable. The SDK does not automatically read an env variable named `WORKOS_REDIRECT_URI`.
 
 ### Vite origin default
@@ -75,7 +77,7 @@ createRoot(document.getElementById('root')).render(
 
 For a custom Vite redirect, explicitly pass `redirectUri={import.meta.env.VITE_WORKOS_REDIRECT_URI}`. For other bundlers, pass the value from their verified configuration mechanism. An env prefix alone does not wire any SDK option.
 
-## Verification Checklist (ALL MUST PASS)
+## Verification Checklist
 
 - [ ] Application settings and sign-in/sign-out flows pass the completion checklist in [workos-authkit-setup.md](workos-authkit-setup.md).
 - [ ] Confirm the app's runtime mode and build-tool env consumption, including any explicit redirect prop; inspect the effective non-secret values.
@@ -92,4 +94,4 @@ For a custom Vite redirect, explicitly pass `redirectUri={import.meta.env.VITE_W
 
 ## Source baseline
 
-Verified against React [README](https://github.com/workos/authkit-react/blob/4602e49b13d3677e7cc37602318a8e4833498bae/README.md) and [provider option forwarding](https://github.com/workos/authkit-react/blob/4602e49b13d3677e7cc37602318a8e4833498bae/src/provider.tsx), plus AuthKit JS [origin default and callback initialization](https://github.com/workos/authkit-js/blob/220f46557dd89401036cd0dbed01bded391d1788/src/create-client.ts). Recheck the installed SDK version before applying custom options.
+Recheck the installed SDK version before applying custom options. See the [authkit-react README](https://github.com/workos/authkit-react/blob/main/README.md).

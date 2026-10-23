@@ -1,158 +1,70 @@
 # WorkOS AuthKit for .NET (ASP.NET Core)
 
-## Step 1: Fetch SDK Documentation (BLOCKING)
+## Docs
 
-**STOP. Do not proceed until complete.**
+Fetch the README first — it's the source of truth:
 
-WebFetch: `https://raw.githubusercontent.com/workos/workos-dotnet/main/README.md`
+- SDK README: `https://raw.githubusercontent.com/workos/workos-dotnet/main/README.md`
 
-The README is the source of truth for SDK API usage. If this skill conflicts with README, follow README.
+If this file conflicts with fetched docs, follow the docs.
 
-## Step 2: Pre-Flight Validation
+Where you register the WorkOS client and middleware depends on the project style: Minimal API (`Program.cs` with `WebApplication.CreateBuilder()`, .NET 6+) vs the older Startup pattern (`Startup.cs` with `ConfigureServices()`).
 
-### Project Structure
+## Call shapes
 
-- Confirm a `*.csproj` file exists in the project root
-- Detect project style:
-  - **Minimal API** (modern): `Program.cs` with `WebApplication.CreateBuilder()` — .NET 6+
-  - **Startup pattern** (older): `Startup.cs` with `ConfigureServices()` / `Configure()` — .NET 5 and earlier
-
-This detection determines WHERE to register WorkOS services and middleware.
-
-### Environment Variables
-
-Check `appsettings.Development.json` for:
-
-- `WORKOS_API_KEY` — starts with `sk_`
-- `WORKOS_CLIENT_ID` — starts with `client_`
-
-## Step 3: Install SDK
-
-```bash
-dotnet add package WorkOS.net
-```
-
-**Verify:** Check the `*.csproj` file contains a `<PackageReference Include="WorkOS.net"` entry.
-
-If `dotnet` CLI is not available, stop and inform the user to install the .NET SDK.
-
-## Step 4: Configure WorkOS Client
-
-### Minimal API Pattern (Program.cs)
-
-Add WorkOS configuration to `Program.cs`:
-
-1. Read WorkOS settings from `IConfiguration`
-2. Register the WorkOS client in the DI container
-3. The WorkOS client needs API key for initialization
+Verified against `WorkOS.net@6.6.0` (namespace `WorkOS`).
 
 ```csharp
-// In Program.cs, after builder creation:
-var workosApiKey = builder.Configuration["WorkOS:ApiKey"];
-var workosClientId = builder.Configuration["WorkOS:ClientId"];
+using WorkOS;
+
+// 1. Client (ClientId is required for AuthKit; the SDK fills client_id/secret for you)
+var workos = new WorkOSClient(new WorkOSOptions {
+    ApiKey = Environment.GetEnvironmentVariable("WORKOS_API_KEY"),
+    ClientId = Environment.GetEnvironmentVariable("WORKOS_CLIENT_ID"),
+});
+
+// 2. Login: build the AuthKit URL (local, no network call), then redirect to it
+var url = workos.UserManagement.GetAuthorizationUrl(new UserManagementGetAuthorizationUrlOptions {
+    RedirectUri = redirectUri,
+    Provider = UserManagementAuthenticationProvider.Authkit,
+});
+
+// 3. Callback: exchange ?code= for user + tokens
+var auth = await workos.UserManagement.AuthenticateWithCodeAsync(
+    new AuthenticateWithCodeOptions { Code = code });
+// auth.User, auth.AccessToken, auth.RefreshToken
+
+// 4. Session: seal tokens into a cookie value (static), later validate it
+string sealedSession = SessionService.SealSessionFromAuthResponse(auth.AccessToken, auth.RefreshToken, cookiePassword);
+SessionAuthResult session = await workos.Session.AuthenticateAsync(sealedSession, cookiePassword);
+// session.Authenticated, session.SessionId, session.OrganizationId, session.Reason (no User — store it yourself if needed)
+
+// 5. Logout: delete the cookie, then redirect to the WorkOS logout URL to end the AuthKit session
+var logoutUrl = workos.UserManagement.GetLogoutUrl(new UserManagementGetLogoutUrlOptions {
+    SessionId = session.SessionId!, ReturnTo = "http://localhost:5000/",
+});
 ```
 
-### Startup Pattern (Startup.cs)
+## Setup
 
-Add to `ConfigureServices()`:
+Order matters: install SDK → config → register client → auth endpoints → build.
 
-1. Read WorkOS settings from `IConfiguration`
-2. Register services
+1. **Install:** `dotnet add package WorkOS.net`.
+2. **Config** (env vars, or `appsettings.Development.json` / `dotnet user-secrets` read via `IConfiguration`): `WORKOS_API_KEY` (`sk_...`), `WORKOS_CLIENT_ID` (`client_...`), the redirect URI (e.g. `http://localhost:5000/auth/callback`), and a long random cookie password for sealing sessions. `builder.Configuration["WORKOS_API_KEY"]` reads env vars too.
+3. **Register the client** as a singleton `WorkOSClient` in the DI container (constructor-inject it rather than using `WorkOSConfiguration.WorkOSClient`). The constructor throws if `ApiKey` is empty.
+4. **Auth endpoints** (`app.MapGet()` for Minimal API, or a Controller):
+   - `GET /auth/login` → `GetAuthorizationUrl` with `RedirectUri` and `Provider = UserManagementAuthenticationProvider.Authkit` (client ID comes from `WorkOSOptions`); redirect.
+   - `GET /auth/callback` → `AuthenticateWithCodeAsync` with the `code` query param, seal the tokens with `SessionService.SealSessionFromAuthResponse` into an HttpOnly cookie (or store `auth.User` in the framework session), redirect home.
+   - `GET /auth/logout` → read `SessionId` from `workos.Session.AuthenticateAsync(cookie, password)`, delete the cookie / clear the session, then redirect to `GetLogoutUrl(...)` so the AuthKit session ends too.
+5. **Build:** `dotnet build`.
 
-Choose the pattern that matches the detected project structure.
+## Gotchas
 
-## Step 5: Create Authentication Endpoints
+- Callback path must equal the configured redirect URI exactly.
+- Missing `ClientId` in `WorkOSOptions` makes `GetAuthorizationUrl` / `AuthenticateWithCodeAsync` throw `InvalidOperationException`.
+- `SealSessionFromAuthResponse` is static on `SessionService`; `AuthenticateAsync` is on the `workos.Session` instance.
+- Keep secrets out of `appsettings.json` (committed to git) — use env vars, `appsettings.Development.json` (gitignored), or `dotnet user-secrets`.
 
-Create auth endpoints following the WorkOS AuthKit pattern. Use minimal API `app.MapGet()` for minimal API projects, or a Controller for Startup-pattern projects.
+## Existing auth
 
-### Required Endpoints
-
-**GET /auth/login** — Redirect to WorkOS AuthKit:
-
-- Use the WorkOS SDK to generate an authorization URL
-- Include `clientId`, `redirectUri`, and `provider: "authkit"` parameters
-- Redirect the user to the authorization URL
-
-**GET /auth/callback** — Handle OAuth callback:
-
-- Extract `code` from query parameters
-- Exchange authorization code for user profile using the WorkOS SDK
-- Store user info in session or cookie
-- Redirect to home page
-
-**GET /auth/logout** — Clear session:
-
-- Clear the authentication session/cookie
-- Redirect to home page
-
-### Session Management
-
-Use ASP.NET Core's built-in session or cookie authentication:
-
-```csharp
-// Enable session middleware in Program.cs
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession();
-// ...
-app.UseSession();
-```
-
-## Step 6: Environment Setup
-
-Configure `appsettings.Development.json` with WorkOS credentials:
-
-```json
-{
-  "WorkOS": {
-    "ApiKey": "<WORKOS_API_KEY value>",
-    "ClientId": "<WORKOS_CLIENT_ID value>",
-    "RedirectUri": "http://localhost:5000/auth/callback"
-  }
-}
-```
-
-Use the actual credential values provided in the environment context.
-
-**Important:** Do NOT put secrets in `appsettings.json` (committed to git). Use `appsettings.Development.json` (gitignored) or `dotnet user-secrets`.
-
-## Step 7: Verification
-
-Run these checks — **do not mark complete until all pass:**
-
-```bash
-# 1. Check WorkOS.net is in csproj
-grep -i "WorkOS" *.csproj
-
-# 2. Check auth endpoints exist
-grep -r "auth/login\|auth/callback\|auth/logout" *.cs
-
-# 3. Build succeeds
-dotnet build
-```
-
-**If build fails:** Read the error output carefully. Common issues:
-
-- Missing `using` statements for WorkOS namespaces
-- Incorrect DI registration order
-- Missing session/cookie middleware registration
-
-## Error Recovery
-
-### "dotnet: command not found"
-
-- .NET SDK is not installed. Inform the user to install from https://dotnet.microsoft.com/download
-
-### NuGet restore failures
-
-- Check internet connectivity
-- Try `dotnet restore` explicitly before `dotnet build`
-
-### "No project file found"
-
-- Ensure you're in the correct directory with a `*.csproj` file
-
-### Build errors after integration
-
-- Check that all `using` statements are correct
-- Verify DI registration order (services before middleware)
-- Ensure `app.UseSession()` is called before mapping auth endpoints
+Add WorkOS on separate routes (e.g. `/auth/workos/login` if `/login` is taken) and reuse the existing cookie/session middleware rather than adding a second mechanism.

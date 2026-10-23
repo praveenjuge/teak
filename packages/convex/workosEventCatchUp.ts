@@ -92,11 +92,14 @@ export const recordFailedAttempt = internalMutation({
 
 const ingestOrDeadLetter = async (
   ctx: Pick<ActionCtx, "runMutation">,
-  event: Parameters<typeof ingestWorkosEvent>[1] & { id: string }
+  event: Parameters<typeof ingestWorkosEvent>[1] & { id: string },
+  saveProgress: () => Promise<void>
 ): Promise<"applied" | "rejected"> => {
   try {
     return await ingestWorkosEvent(ctx, event);
   } catch (error) {
+    // Saving the cursor clears the failure count, so it must come first.
+    await saveProgress();
     const attempts = await ctx.runMutation(
       internal.workosEventCatchUp.recordFailedAttempt,
       { eventId: event.id }
@@ -136,6 +139,15 @@ export const catchUpHandler = async (
   );
   let applied = 0;
   let rejected = 0;
+  let saved = after;
+  // One cursor write per page, plus one before a failing event so the
+  // progress made before it is kept.
+  const saveProgress = async () => {
+    if (after !== null && after !== saved) {
+      await ctx.runMutation(internal.workosEventCatchUp.saveCursor, { after });
+      saved = after;
+    }
+  };
   for (let page = 0; page < MAX_PAGES; page++) {
     const result = await workos.events.listEvents({
       events: ["user.created", "user.updated", "user.deleted"],
@@ -155,15 +167,15 @@ export const catchUpHandler = async (
       ) {
         continue;
       }
-      const outcome = await ingestOrDeadLetter(ctx, event);
+      const outcome = await ingestOrDeadLetter(ctx, event, saveProgress);
       if (outcome === "rejected") {
         rejected += 1;
       } else {
         applied += 1;
       }
       after = event.id;
-      await ctx.runMutation(internal.workosEventCatchUp.saveCursor, { after });
     }
+    await saveProgress();
     if (!result.listMetadata.after || result.data.length === 0) {
       break;
     }
