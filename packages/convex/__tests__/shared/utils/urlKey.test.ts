@@ -31,6 +31,8 @@ describe("urlKey", () => {
     ["https://example.com", "example.com/"],
     ["https://example.com/", "example.com/"],
     ["https://example.com:8080/x", "example.com:8080/x"],
+    ["http://example.com:443/x", "example.com:443/x"],
+    ["https://example.com:80/x", "example.com:80/x"],
     ["https://user:pass@example.com/x", "user:pass@example.com/x"],
     ["https://例え.jp/パス", "xn--r8jz45g.jp/%E3%83%91%E3%82%B9"],
     ["https://www/", "www/"],
@@ -47,6 +49,15 @@ describe("urlKey", () => {
   ])("keeps %s and %s apart", (left, right) => {
     expect(urlKey(`https://example.com/x${left}`)).not.toBe(
       urlKey(`https://example.com/x${right}`)
+    );
+  });
+
+  test("keeps a port that is not its scheme's default", () => {
+    expect(urlKey("http://example.com:443/x")).not.toBe(
+      urlKey("https://example.com/x")
+    );
+    expect(urlKey("https://example.com:80/x")).not.toBe(
+      urlKey("http://example.com/x")
     );
   });
 

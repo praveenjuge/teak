@@ -40,10 +40,9 @@ export const urlKey = (url: string): string | undefined => {
   if (!host) {
     return;
   }
-  const port =
-    parsed.port && parsed.port !== "80" && parsed.port !== "443"
-      ? `:${parsed.port}`
-      : "";
+  // URL drops the default port for its own scheme, so `http://a:443` keeps
+  // its port and never matches `https://a`.
+  const port = parsed.port ? `:${parsed.port}` : "";
   const userinfo =
     parsed.username || parsed.password
       ? `${parsed.username}${parsed.password ? `:${parsed.password}` : ""}@`

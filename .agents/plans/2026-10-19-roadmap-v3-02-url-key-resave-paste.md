@@ -161,7 +161,7 @@ Readers can't switch to `savedAt`, and variant matching can't be relied on, unti
 
 - **What `urlKey` does:** parse with `URL`, then:
   - drop the scheme (http and https are equal);
-  - lowercase the host, strip trailing dots and a leading `www.`, and drop default ports (80 and 443);
+  - lowercase the host, strip trailing dots and a leading `www.`, and drop a port only when it is the default for its scheme (80 for http, 443 for https);
   - remove a single trailing `/` from a non-root path;
   - drop the fragment, except hash routes starting `#/` or `#!`, which are kept;
   - remove query parameters whose lowercased name is `fbclid`, `gclid` or starts with `utm_`;

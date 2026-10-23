@@ -7,6 +7,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { patchCardWithSearchSync } from "../card/searchSync";
 import schema from "../schema";
+import { MAX_CARD_TAGS } from "../shared/tags";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -272,22 +273,32 @@ describe("the backfills", () => {
 
   test("backfillSavedAt fills cards, folder rows and tag rows once", async () => {
     const { t, get, filed, folderId } = await oldCards();
-    const dry = await t.mutation(
-      internal.migration.backfillSavedAt.backfillSavedAt,
-      { once: true }
-    );
-    expect(dry.batch).toMatchObject({
+    const backfill = (args: {
+      dryRun?: boolean;
+      phase?: "cards" | "tagRows";
+    }) =>
+      t.mutation(internal.migration.backfillSavedAt.backfillSavedAt, {
+        ...args,
+        once: true,
+      });
+
+    const dryCards = await backfill({});
+    expect(dryCards.batch).toMatchObject({
       examined: 3,
       cardsToUpdate: 3,
       folderRowsToUpdate: 1,
+    });
+    expect(dryCards).toMatchObject({ phase: "tagRows", isDone: false });
+    const dryTags = await backfill({ phase: "tagRows" });
+    expect(dryTags.batch).toMatchObject({
+      tagRowsExamined: 1,
       tagRowsToUpdate: 1,
     });
+    expect(dryTags.isDone).toBe(true);
     expect((await get(filed)).savedAt).toBeUndefined();
 
-    await t.mutation(internal.migration.backfillSavedAt.backfillSavedAt, {
-      dryRun: false,
-      once: true,
-    });
+    await backfill({ dryRun: false });
+    await backfill({ dryRun: false, phase: "tagRows" });
     const card = await get(filed);
     expect(card.savedAt).toBe(card.createdAt);
     const rows = await t.run(async (ctx) => ({
@@ -307,15 +318,45 @@ describe("the backfills", () => {
     expect(rows.folder.map((row) => row.cardSavedAt)).toEqual([card.createdAt]);
     expect(rows.tags.map((row) => row.cardSavedAt)).toEqual([card.createdAt]);
 
-    const again = await t.mutation(
-      internal.migration.backfillSavedAt.backfillSavedAt,
-      { dryRun: false, once: true }
-    );
+    const again = await backfill({ dryRun: false });
+    const againTags = await backfill({ dryRun: false, phase: "tagRows" });
     expect(again.batch).toMatchObject({
       cardsToUpdate: 0,
       folderRowsToUpdate: 0,
-      tagRowsToUpdate: 0,
     });
+    expect(againTags.batch.tagRowsToUpdate).toBe(0);
+  });
+
+  test("backfillSavedAt reaches every tag row of a card with more rows than tags", async () => {
+    const { t, get, filed } = await oldCards();
+    const rowCount = MAX_CARD_TAGS * 2 + 50;
+    await t.run(async (ctx) => {
+      const card = (await ctx.db.get("cards", filed)) as Doc<"cards">;
+      for (let index = 0; index < rowCount; index++) {
+        await ctx.db.insert("cardSearchTags", {
+          cardId: filed,
+          userId: "owner",
+          tag: `stale-${index}`,
+          type: "text",
+          cardCreatedAt: card.createdAt,
+          sourceUpdatedAt: card.updatedAt,
+          syncGeneration: 0,
+        });
+      }
+    });
+    await t.mutation(internal.migration.backfillSavedAt.backfillSavedAt, {
+      dryRun: false,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const card = await get(filed);
+    const rows = await t.run((ctx) =>
+      ctx.db
+        .query("cardSearchTags")
+        .withIndex("by_cardId_and_tag", (q) => q.eq("cardId", filed))
+        .collect()
+    );
+    expect(rows).toHaveLength(rowCount + 1);
+    expect(rows.every((row) => row.cardSavedAt === card.createdAt)).toBe(true);
   });
 
   test("both backfills page through every card and stop", async () => {
