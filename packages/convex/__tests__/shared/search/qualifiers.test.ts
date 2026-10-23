@@ -576,6 +576,10 @@ describe("search operators", () => {
     ["-(figma OR sketch)", ""],
     // The top-level word finds every match.
     ["notes (is:archived OR figma)", "notes"],
+    // A similarity search reads no index, and every word it gets is required.
+    ['mood:"calm" (red OR blue)', ""],
+    ["like:j979t50bv7gjxz2mazwwf5tes18gbvnt (red OR blue)", ""],
+    ["like:j979t50bv7gjxz2mazwwf5tes18gbvnt red", "red"],
   ])("%s searches the index for %j", (input, text) => {
     expect(parseSearchQuery(input).text).toBe(text);
   });

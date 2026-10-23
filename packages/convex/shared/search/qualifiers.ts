@@ -757,8 +757,10 @@ const buildParsedQuery = (root: SearchExpression | null): ParsedSearchQuery => {
   // The search index finds cards with any of the words it gets. Top-level
   // words find every match, as they do without operators, so only a query
   // without them sends the words of its groups, and only when every match
-  // has one: a card can match `is:archived OR notes` with neither.
+  // has one: a card can match `is:archived OR notes` with neither. A
+  // `like:` or `mood:` search reads no index, and its words must all match.
   const indexed =
+    !similarity &&
     terms.length === 0 &&
     phrases.length === 0 &&
     expression !== undefined &&

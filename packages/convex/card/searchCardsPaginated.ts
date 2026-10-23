@@ -306,6 +306,7 @@ export const searchCardsPaginatedHandler = async (
         isCreatedAtInRange(card.createdAt, createdAtRange) &&
         doesCardMatchVisualFilters(card, visualFilters),
       text: parsed.text,
+      readText: readExpressionText,
     });
     const ordered = shuffle
       ? shuffleBySeed(similar, seed, (card) => card._id)

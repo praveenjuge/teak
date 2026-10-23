@@ -397,6 +397,7 @@ export const searchCardsByQuery = async (
       keep: (card, searchableText) =>
         matchesStructuredFilters(card, options, searchableText),
       text: options.searchQuery ?? "",
+      readText: readTextFor(ctx, options),
     });
     return {
       cards: sortCards(cards, normalizeSort(options.sort)),
