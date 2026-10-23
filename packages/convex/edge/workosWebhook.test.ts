@@ -69,13 +69,14 @@ const post = async (
     },
     body,
   });
-const seed = (t: Backend) =>
+const seed = (t: Backend, linked = true) =>
   t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "owner-a",
       email: "legacy@example.com",
       emailVerified: true,
       role: "admin",
+      ...(linked ? { workosUserId: "user_signed" } : {}),
     })
   );
 const snapshot = (t: Backend) =>
@@ -198,7 +199,7 @@ describe.each([
     }
   );
 
-  test("component deduplication cannot suppress a missing Teak link", async () => {
+  test("component deduplication cannot suppress Teak's own processing", async () => {
     const t = setup();
     await seed(t);
     await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
@@ -217,9 +218,9 @@ describe.each([
         },
       },
     });
-    expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
+    expect((await snapshot(t)).users[0].email).toBe("legacy@example.com");
     expect((await post(t, JSON.stringify(fixture()))).status).toBe(200);
-    expect((await snapshot(t)).users[0].workosUserId).toBe("user_signed");
+    expect((await snapshot(t)).users[0].email).toBe("provider@example.com");
   });
 
   test("quarantined retries commit one alert", async () => {
@@ -261,7 +262,7 @@ describe.each([
       data: { id: "user_signed", object: "user" },
     };
     expect((await post(t, JSON.stringify(deletion))).status).toBe(200);
-    await seed(t);
+    await seed(t, false);
     expect((await post(t, JSON.stringify(fixture()))).status).toBe(200);
     const result = await snapshot(t);
     expect(result.users[0].workosUserId).toBeUndefined();

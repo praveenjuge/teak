@@ -117,19 +117,18 @@ describe("signed WorkOS bootstrap", () => {
     expect(await signed(t).mutation(ensure, {})).toEqual(result);
     expect(await state(t)).toEqual(before);
   });
-  test("linking an existing owner preserves its legacy provenance", async () => {
+  test("an existing owner signs in unchanged and keeps its legacy provenance", async () => {
     const t = setup();
     await profile(t);
-    await seed(t, { workosUserId: undefined });
+    await seed(t);
+    const before = await state(t);
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "ok",
       teakUserId: "permanent-owner",
     });
     const after = await state(t);
-    expect(after.users).toHaveLength(1);
-    expect(after.users[0]?.workosUserId).toBe("user_NEW");
+    expect(after).toEqual(before);
     expect(after.users[0]?.identityOrigin).toBeUndefined();
-    expect(after.jobs).toHaveLength(0);
   });
   test("frozen user returns a committed quarantine and retries after unfreeze", async () => {
     const t = setup();

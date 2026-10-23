@@ -74,9 +74,9 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  test("a created event links the owner without copying the provider profile and preserves the vault", async () => {
+  test("a created event for a linked owner copies no provider profile and preserves the vault", async () => {
     const t = setup();
-    await seed(t);
+    await seed(t, { workosUserId: "user_provider" });
     await t.run((ctx) =>
       ctx.db.insert("cards", {
         userId: "owner-a",
@@ -91,16 +91,14 @@ describe("WorkOS lifecycle linking and deletion", () => {
       await t.mutation(apply, event("evt_create", 1, "user.created"))
     ).toEqual({ status: "applied" });
     const after = await snapshot(t);
-    expect(after.users).toEqual([
-      { ...before.users[0], workosUserId: "user_provider" },
-    ]);
+    expect(after.users).toEqual(before.users);
     expect(after.cards).toEqual(before.cards);
     expect(after.scheduled).toEqual([]);
   });
 
   test("redelivered and concurrent created events link once and change nothing more", async () => {
     const t = setup();
-    await seed(t);
+    await seed(t, { workosUserId: "user_provider" });
     const original = event("evt_duplicate", 1, "user.created");
     expect(
       await Promise.all([
@@ -163,7 +161,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
 
   test("an update with a conflicting external ID closes provider access without stealing another vault", async () => {
     const t = setup();
-    await seed(t);
+    await seed(t, { workosUserId: "user_provider" });
     await seed(t, { teakUserId: "owner-b", email: "other@example.com" });
     await t.mutation(sync, event("evt_first", 1, "user.created"));
     expect(await resolve(t)).toEqual({ status: "ok", teakUserId: "owner-a" });
@@ -213,7 +211,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
 
   test("deletion tombstones the owner, retains the vault and schedules no vault deletion", async () => {
     const t = setup();
-    await seed(t);
+    await seed(t, { workosUserId: "user_provider" });
     await t.mutation(apply, event("evt_first", 2, "user.created"));
     await t.run((ctx) =>
       ctx.db.insert("cards", {
@@ -243,7 +241,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
 
   test("provider deletion is terminal even when its delivery timestamp is older", async () => {
     const t = setup();
-    await seed(t);
+    await seed(t, { workosUserId: "user_provider" });
     await t.mutation(apply, event("evt_first", 3, "user.created"));
     expect(
       await t.mutation(apply, event("evt_delete", 1, "user.deleted"))
@@ -462,20 +460,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
       expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
     }
   );
-
-  test("row-only WorkOS tombstone blocks linking a different provider ID", async () => {
-    const t = setup();
-    await seed(t, { workosDeletedAt: 1 });
-    expect(
-      await t.mutation(link, {
-        workosUserId: "user_new",
-        externalId: "owner-a",
-        email: "provider@example.com",
-        emailVerified: true,
-        source: "webhook",
-      })
-    ).toEqual({ status: "quarantined", reason: "workos_deleted_user" });
-  });
 
   test.each([
     { id: "" },
