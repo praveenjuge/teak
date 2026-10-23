@@ -953,6 +953,22 @@ describe("Editing many cards in a minute", () => {
     expect(card?.url).toBe("https://example.com");
     expect(card?.metadataStatus).toBe("completed");
     expect(card?.metadata?.linkPreview).toBeDefined();
+
+    // Clearing the URL resets the preview just the same.
+    const owner = t.withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject: `user_${Buffer.from("owner").toString("hex")}`,
+      sid: "session_edits",
+      email_verified: true,
+      external_id: "owner",
+    });
+    const clearError = await owner
+      .mutation(api.cards.updateCardField, { cardId, field: "url" })
+      .catch((caught: unknown) => caught);
+    expect(String(clearError)).toContain("RATE_LIMITED");
+    const unchanged = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(unchanged?.url).toBe("https://example.com");
+    expect(unchanged?.metadata?.linkPreview).toBeDefined();
   });
 });
 

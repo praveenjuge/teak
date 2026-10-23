@@ -530,7 +530,7 @@ export const updateCardFieldsForUserHandler = async (
 
   const reservation = state.shouldSchedulePipeline
     ? await reserveEditReprocess(ctx, userId, cardId, {
-        refuseWhenSpent: state.updateData.url !== undefined,
+        refuseWhenSpent: "url" in state.updateData,
       })
     : null;
   if (reservation === "skipped") {
