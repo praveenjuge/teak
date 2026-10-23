@@ -1,6 +1,7 @@
 ---
 import AppsGrid from "../components/AppsGrid.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { SIGN_UP_URL } from "../lib/app-entry";
 ---
 
 <MarketingLayout
@@ -20,7 +21,7 @@ import MarketingLayout from "../layouts/MarketingLayout.astro";
         Save on your phone, find it on your Mac, and hand it to your agents.
         One library, in sync on every device.
       </p>
-      <a class="mt-6 inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start free →</a>
+      <a class="mt-6 inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" data-app-entry href={SIGN_UP_URL} rel="noopener noreferrer" target="_blank">Start free →</a>
     </section>
 
     <AppsGrid />

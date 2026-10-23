@@ -2,6 +2,7 @@
 import HomeAppDemo from "../components/HomeAppDemo.astro";
 import HomeFeatureShowcase from "../components/HomeFeatureShowcase.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { SIGN_UP_URL } from "../lib/app-entry";
 import { AUDIENCE_PAGE_LIST } from "../lib/audience-pages";
 import { buildPageSchemas } from "../lib/jsonld";
 import { testimonials } from "../lib/testimonials";
@@ -59,7 +60,7 @@ const jsonLd = buildPageSchemas({
         Save inspiration in one click, find it in seconds, and keep every
         useful idea ready for the moment you need it.
       </p>
-      <a class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" href="https://app.teakvault.com/register" rel="noopener noreferrer" target="_blank">Start Saving →</a>
+      <a class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90" data-app-entry href={SIGN_UP_URL} rel="noopener noreferrer" target="_blank">Start Saving →</a>
     </div>
 
     <div class="mx-auto mt-14 max-w-[78rem] max-md:mt-10">

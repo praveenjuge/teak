@@ -1,5 +1,6 @@
 ---
 import Icon from "blume/components/Icon.astro";
+import { WEB_APP_URL } from "../lib/app-entry";
 
 interface Price {
   amount: string;
@@ -88,6 +89,7 @@ const isFixedPrice = typeof price === "string";
         ? "bg-primary text-primary-foreground hover:bg-primary/90"
         : "border bg-background hover:bg-accent hover:text-accent-foreground",
     ]}
+    data-app-entry={ctaHref.startsWith(WEB_APP_URL) ? "" : undefined}
     href={ctaHref}
     rel="noopener noreferrer"
     target="_blank"

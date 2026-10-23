@@ -2,7 +2,7 @@
 
 import { api } from "@teak/convex";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useAction, useConvexAuth } from "convex/react";
 import {
   type ReactNode,
   useCallback,
@@ -24,17 +24,26 @@ type Bootstrap =
   | { status: "verify_email" | "frozen" }
   | { status: "quarantined"; reason: string };
 
+// A new account's profile can reach Convex a moment after the browser does.
+// The backend fetches it from WorkOS, so a short wait almost always clears it.
+const PENDING_PROFILE_RETRY_MS = [1000, 2000, 3000];
+const isPendingProfile = (result: Bootstrap) =>
+  result.status === "quarantined" && result.reason === "profile_pending";
+
 const blockedMessages = {
   verify_email: "Verify your email to open Teak.",
   frozen: "Signups are paused. Your account hasn't been created.",
   quarantined: "Your account isn't ready yet. Try again or contact support.",
 };
 
+// These screens show while the server may still hold the session the app
+// rejected, so `renew` asks AuthKit for a fresh one instead of going straight
+// back to the same page.
 const signInHere = () =>
   window.location.replace(
-    `/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
+    `/sign-in?renew=1&next=${encodeURIComponent(window.location.pathname + window.location.search)}`
   );
-const signIn = () => window.location.replace("/sign-in");
+const signIn = () => window.location.replace("/sign-in?renew=1");
 
 export function WorkosAuthBoundary({
   children,
@@ -46,7 +55,7 @@ export function WorkosAuthBoundary({
   const { user, sessionId, loading } = useAuth();
   const { error: tokenError, refresh } = useAccessToken();
   const auth = useConvexAuth();
-  const ensure = useMutation(api.workosBootstrap.ensureUser);
+  const ensure = useAction(api.workosBootstrap.ensureUserNow);
   const identity = user ? `${user.id}:${sessionId ?? ""}` : null;
   const established = useRef(identity);
   if (established.current === null && identity) {
@@ -96,19 +105,29 @@ export function WorkosAuthBoundary({
     }
   }, [changed]);
   const runBootstrap = useCallback(
-    (forIdentity: string, isCurrent: () => boolean) => {
+    (forIdentity: string, isCurrent: () => boolean, attempt = 0) => {
       void ensure({})
         .then((result) => {
-          if (isCurrent()) {
-            setBootstrap({ identity: forIdentity, result });
-            if (result.status === "ok") {
-              setOwner({
-                identity: forIdentity,
-                teakUserId: result.teakUserId,
-              });
-            }
-            setFailed(false);
+          if (!isCurrent()) {
+            return;
           }
+          const delay = PENDING_PROFILE_RETRY_MS[attempt];
+          if (isPendingProfile(result) && delay !== undefined) {
+            window.setTimeout(() => {
+              if (isCurrent()) {
+                runBootstrap(forIdentity, isCurrent, attempt + 1);
+              }
+            }, delay);
+            return;
+          }
+          setBootstrap({ identity: forIdentity, result });
+          if (result.status === "ok") {
+            setOwner({
+              identity: forIdentity,
+              teakUserId: result.teakUserId,
+            });
+          }
+          setFailed(false);
         })
         .catch(() => {
           if (isCurrent()) {

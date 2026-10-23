@@ -10,6 +10,10 @@ import {
 import { unsealData } from "iron-session";
 
 mock.module("server-only", () => ({}));
+// `cacheLife` only works inside a compiled "use cache" scope, which Bun
+// doesn't compile, so the sign-up check runs uncached here.
+const nextCache = await import("next/cache");
+mock.module("next/cache", () => ({ ...nextCache, cacheLife: () => undefined }));
 const originalFetch = globalThis.fetch;
 const keys = [
   "NEXT_PUBLIC_CONVEX_URL",

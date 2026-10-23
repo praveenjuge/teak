@@ -51,6 +51,20 @@ describe("web sign-in routing", () => {
     );
     expect(response.headers.get("x-workos-session")).toBeNull();
   });
+  test("clears a signed-in hint the session no longer backs", async () => {
+    globalThis.fetch = offline;
+    const response = await proxy(
+      new NextRequest("http://localhost:3142/", {
+        headers: { cookie: "teak_session_hint=1" },
+      })
+    );
+    expect(response.status).toBe(307);
+    const hint = response.headers
+      .getSetCookie()
+      .find((value) => value.startsWith("teak_session_hint="));
+    expect(hint).toStartWith("teak_session_hint=;");
+    expect(hint).toContain("Max-Age=0");
+  });
   test.each([
     ["/login?next=%2Fsettings", "/sign-in?next=%2Fsettings"],
     ["/login?next=https%3A%2F%2Fevil.example", "/sign-in"],
@@ -303,6 +317,52 @@ describe("signed-in page loads", () => {
       `workos-access-token=${session.accessToken};`
     );
     expect(tokenCookie).toContain("Max-Age=30");
+  });
+  test.each([
+    ["/sign-in?next=%2Fsettings", "http://localhost:3142/settings"],
+    ["/sign-up", "http://localhost:3142/"],
+  ])("send a signed-in visit to %s straight to %s", async (path, target) => {
+    const session = await signedInSession();
+    globalThis.fetch = session.jwks;
+    const response = await proxy(
+      new NextRequest(`http://localhost:3142${path}`, {
+        headers: { accept: "text/html", cookie: session.cookie },
+      })
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(target);
+  });
+  test.each(["/sign-in?renew=1&next=%2Fsettings", "/sign-in?reauth=1"])(
+    "let a signed-in visit to %s start AuthKit",
+    async (path) => {
+      const session = await signedInSession();
+      globalThis.fetch = session.jwks;
+      const response = await proxy(
+        new NextRequest(`http://localhost:3142${path}`, {
+          headers: { accept: "text/html", cookie: session.cookie },
+        })
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+    }
+  );
+  test("tell teakvault.com the browser is signed in, once", async () => {
+    const session = await signedInSession();
+    globalThis.fetch = session.jwks;
+    const hint = (cookie: string) =>
+      proxy(
+        new NextRequest("http://localhost:3142/", {
+          headers: { accept: "text/html", cookie },
+        })
+      ).then((response) =>
+        response.headers
+          .getSetCookie()
+          .find((value) => value.startsWith("teak_session_hint="))
+      );
+    expect(await hint(session.cookie)).toStartWith("teak_session_hint=1;");
+    expect(
+      await hint(`${session.cookie}; teak_session_hint=1`)
+    ).toBeUndefined();
   });
   test("leave in-app navigations without it", async () => {
     const session = await signedInSession();

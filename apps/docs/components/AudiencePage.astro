@@ -2,6 +2,7 @@
 import Accordion from "blume/components/content/Accordion.astro";
 import AccordionItem from "blume/components/content/AccordionItem.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { SIGN_UP_URL } from "../lib/app-entry";
 import {
   type AudiencePage,
   audiencePageUrl,
@@ -19,7 +20,7 @@ interface Props {
 }
 
 const { page } = Astro.props;
-const registerHref = "https://app.teakvault.com/register";
+const registerHref = SIGN_UP_URL;
 const url = audiencePageUrl(page.slug);
 const description = toPlainText(page.description);
 const columns = pickDemoColumns(page.demoCardIds);
@@ -46,6 +47,7 @@ const codeClass =
         </p>
         <a
           class="inline-flex h-10 items-center justify-center rounded-full bg-primary px-7 text-sm font-medium whitespace-nowrap text-primary-foreground no-underline transition-colors hover:bg-primary/90"
+          data-app-entry
           href={registerHref}
           rel="noopener noreferrer"
           target="_blank"
@@ -114,6 +116,7 @@ const codeClass =
           </a>
           <a
             class="inline-flex h-9 flex-1 items-center justify-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm whitespace-nowrap no-underline hover:bg-primary/90 md:flex-none"
+            data-app-entry
             href={registerHref}
             rel="noopener noreferrer"
             target="_blank"
