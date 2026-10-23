@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { startVaultSetup } from "./card/defaultCards";
@@ -13,19 +12,14 @@ import {
 import { queueUserCreated } from "./telemetry/schedule";
 import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
+// `linkWorkosUser` writes only these. Older receipts keep the reasons the
+// WorkOS migration wrote, and the admin views read them as plain strings.
 const reasonValidator = v.union(
-  v.literal("external_id_mismatch"),
-  v.literal("missing_mapping"),
-  v.literal("signups_frozen"),
-  v.literal("equal_timestamp_conflict"),
-  v.literal("duplicate_mapping"),
-  v.literal("link_conflict"),
-  v.literal("deleted_user"),
   v.literal("workos_deleted_user"),
-  v.literal("deleting_user"),
+  v.literal("external_id_mismatch"),
   v.literal("email_unverified"),
-  v.literal("ambiguous_email"),
-  v.literal("profile_pending")
+  v.literal("profile_pending"),
+  v.literal("signups_frozen")
 );
 type LinkReason = typeof reasonValidator.type;
 
@@ -56,6 +50,8 @@ export const recordQuarantine = async (
   }
 };
 
+// A link or a new owner closes these. `missing_mapping` receipts were written
+// before new owners could be created from WorkOS, and close the same way.
 const PENDING_REASONS = [
   "missing_mapping",
   "signups_frozen",
@@ -84,9 +80,10 @@ const resolvePendingReceipts = async (
   }
 };
 
-// Allocates a new permanent owner only when the shared signup policy permits
-// it. All uniqueness reads and the one link write share the mutation
-// transaction.
+// Links a WorkOS user to the Teak owner that already carries its ID, or
+// creates a new owner when sign-ups are open and WorkOS has verified the
+// email. The resolver (`workosIdentity.ts`) still decides whether a linked
+// owner may sign in.
 export const linkWorkosUser = internalMutation({
   args: {
     workosUserId: v.string(),
@@ -132,163 +129,84 @@ export const linkWorkosUser = internalMutation({
       });
       return { status: "quarantined" as const, reason };
     };
-    const providerRows = await ctx.db
+    const linked = await ctx.db
       .query("users")
       .withIndex("by_workosUserId", (q) =>
         q.eq("workosUserId", args.workosUserId)
       )
-      .take(2);
-    const linked = providerRows[0];
+      .first();
+    // A deleted WorkOS user never gets an owner back, even from a late event.
     if (
-      providerRows.some((row) => row.workosDeletedAt !== undefined) ||
+      linked?.workosDeletedAt !== undefined ||
       (await hasWorkosDeletionReceipt(ctx, args.workosUserId))
     ) {
       return quarantine("workos_deleted_user", linked?.teakUserId);
     }
-    if (providerRows.length > 1) {
-      return quarantine("duplicate_mapping");
+    // An external ID names the owner this WorkOS user belongs to. It must be
+    // the linked owner; a new owner would never resolve.
+    if (externalId !== undefined && externalId !== linked?.teakUserId) {
+      return quarantine("external_id_mismatch", externalId);
     }
-    let candidate: Doc<"users"> | undefined;
-    if (externalId !== undefined) {
-      const ownerRows = await ctx.db
-        .query("users")
-        .withIndex("by_teakUserId", (q) => q.eq("teakUserId", externalId))
-        .take(2);
-      if (ownerRows.length > 1) {
-        return quarantine("duplicate_mapping", externalId);
-      }
-      candidate = ownerRows[0];
-      if (!candidate || (linked && linked._id !== candidate._id)) {
-        return quarantine("external_id_mismatch", externalId);
-      }
-    } else if (linked) {
-      candidate = linked;
-    } else {
-      if (!args.emailVerified) {
-        return quarantine("email_unverified");
-      }
-      const emailRows = await ctx.db
-        .query("users")
-        .withIndex("by_email", (q) => q.eq("email", email))
-        .take(2);
-      if (emailRows.length > 1) {
-        return quarantine("ambiguous_email");
-      }
-      candidate = emailRows[0];
-      if (!candidate) {
-        if (await readSignupsPaused(ctx)) {
-          return quarantine("signups_frozen");
-        }
-        if (
-          !(WORKOS_USER_ID.test(args.workosUserId) && isStorableEmail(email))
-        ) {
-          throw new Error("Invalid WorkOS creation input");
-        }
-        const provider = await readComponentUser(ctx, args.workosUserId);
-        const currentVerifiedProfile =
-          provider !== null &&
-          normalizeIdentityEmail(provider.email) === email &&
-          provider.emailVerified === true &&
-          (provider.externalId ?? null) === null;
-        for (const reason of [
-          "equal_timestamp_conflict",
-          "duplicate_mapping",
-          "external_id_mismatch",
-          "link_conflict",
-        ] as const) {
-          const conflict = await ctx.db
-            .query("migrationQuarantine")
-            .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
-              q
-                .eq("workosUserId", args.workosUserId)
-                .eq("reason", reason)
-                .eq("resolvedAt", undefined)
-            )
-            .first();
-          if (conflict) {
-            return quarantine(reason);
-          }
-        }
-        if (!currentVerifiedProfile) {
-          return quarantine(
-            provider?.emailVerified === false
-              ? "email_unverified"
-              : "profile_pending"
-          );
-        }
-        const ownerId = await ctx.db.insert("users", {
-          teakUserId: "",
-          identityOrigin: "workos",
-          email,
-          emailVerified: true,
-          workosUserId: args.workosUserId,
-        });
-        const teakUserId = `teak_${ownerId}`;
-        const collision = await ctx.db
-          .query("users")
-          .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
-          .first();
-        if (collision) {
-          throw new Error("Permanent Teak owner collision");
-        }
-        await ctx.db.patch("users", ownerId, { teakUserId });
-        await startVaultSetup(ctx, teakUserId);
-        await ctx.scheduler.runAfter(
-          0,
-          internal.card.defaultCards.createDefaultCardsForUser,
-          { userId: teakUserId }
-        );
-        await queueUserCreated(ctx, {
-          email,
-          source: "auth",
-          userId: teakUserId,
-        });
-        await resolvePendingReceipts(ctx, args.workosUserId);
-        return { status: "linked" as const, teakUserId, changed: true };
-      }
-      if (!candidate.emailVerified) {
-        return quarantine("email_unverified", candidate.teakUserId);
-      }
+    if (linked) {
+      await resolvePendingReceipts(ctx, args.workosUserId);
+      return {
+        status: "linked" as const,
+        teakUserId: linked.teakUserId,
+        changed: false,
+      };
     }
-    if (candidate.deletedAt !== undefined) {
-      return quarantine("deleted_user", candidate.teakUserId);
+    if (!args.emailVerified) {
+      return quarantine("email_unverified");
     }
-    if (candidate.workosDeletedAt !== undefined) {
-      return quarantine("workos_deleted_user", candidate.teakUserId);
+    if (await readSignupsPaused(ctx)) {
+      return quarantine("signups_frozen");
     }
-    const deleting = await ctx.db
-      .query("accountDeletionStates")
-      .withIndex("by_userId", (q) => q.eq("userId", candidate.teakUserId))
-      .take(1);
-    if (deleting.length) {
-      return quarantine("deleting_user", candidate.teakUserId);
+    if (!(WORKOS_USER_ID.test(args.workosUserId) && isStorableEmail(email))) {
+      throw new Error("Invalid WorkOS creation input");
     }
+    // The AuthKit component's copy of the profile is the evidence a new owner
+    // needs: the same address, verified, and not bound to another owner.
+    const provider = await readComponentUser(ctx, args.workosUserId);
     if (
-      candidate.workosUserId !== undefined &&
-      candidate.workosUserId !== args.workosUserId
+      provider === null ||
+      normalizeIdentityEmail(provider.email) !== email ||
+      provider.emailVerified !== true ||
+      (provider.externalId ?? null) !== null
     ) {
-      return quarantine("link_conflict", candidate.teakUserId);
+      return quarantine(
+        provider?.emailVerified === false
+          ? "email_unverified"
+          : "profile_pending"
+      );
     }
-    const owners = await ctx.db
+    const ownerId = await ctx.db.insert("users", {
+      teakUserId: "",
+      identityOrigin: "workos",
+      email,
+      emailVerified: true,
+      workosUserId: args.workosUserId,
+    });
+    const teakUserId = `teak_${ownerId}`;
+    const collision = await ctx.db
       .query("users")
-      .withIndex("by_teakUserId", (q) =>
-        q.eq("teakUserId", candidate.teakUserId)
-      )
-      .take(2);
-    if (owners.length !== 1) {
-      return quarantine("duplicate_mapping", candidate.teakUserId);
+      .withIndex("by_teakUserId", (q) => q.eq("teakUserId", teakUserId))
+      .first();
+    if (collision) {
+      throw new Error("Permanent Teak owner collision");
     }
-    const changed = candidate.workosUserId !== args.workosUserId;
-    if (changed) {
-      await ctx.db.patch("users", candidate._id, {
-        workosUserId: args.workosUserId,
-      });
-    }
+    await ctx.db.patch("users", ownerId, { teakUserId });
+    await startVaultSetup(ctx, teakUserId);
+    await ctx.scheduler.runAfter(
+      0,
+      internal.card.defaultCards.createDefaultCardsForUser,
+      { userId: teakUserId }
+    );
+    await queueUserCreated(ctx, {
+      email,
+      source: "auth",
+      userId: teakUserId,
+    });
     await resolvePendingReceipts(ctx, args.workosUserId);
-    return {
-      status: "linked" as const,
-      teakUserId: candidate.teakUserId,
-      changed,
-    };
+    return { status: "linked" as const, teakUserId, changed: true };
   },
 });

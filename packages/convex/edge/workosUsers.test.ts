@@ -8,12 +8,6 @@ import schema from "../schema";
 
 const modules = import.meta.glob("../**/*.ts");
 const link = internal.workosUsers.linkWorkosUser;
-interface LinkResult {
-  changed?: boolean;
-  reason?: string;
-  status: "linked" | "quarantined";
-  teakUserId?: string;
-}
 const setup = () => {
   const t = convexTest(schema, modules);
   workosTest.register(t);
@@ -43,10 +37,14 @@ const snapshot = (t: Backend) =>
     cards: await ctx.db.query("cards").take(20),
   }));
 
-describe("transactional WorkOS identity linking", () => {
-  test("external ID links an unverified legacy user without rewriting their vault or profile", async () => {
+describe("WorkOS identity linking", () => {
+  test("a linked owner stays linked without rewriting its vault or profile", async () => {
     const t = setup();
-    const id = await seed(t, { emailVerified: false, role: "admin" });
+    await seed(t, {
+      emailVerified: false,
+      role: "admin",
+      workosUserId: input.workosUserId,
+    });
     await t.run((ctx) =>
       ctx.db.insert("cards", {
         userId: "owner-a",
@@ -64,59 +62,13 @@ describe("transactional WorkOS identity linking", () => {
         email: "changed@example.com",
         emailVerified: false,
       })
-    ).toEqual({
-      status: "linked",
-      teakUserId: "owner-a",
-      changed: true,
-    });
-    const after = await snapshot(t);
-    expect(after.users).toEqual([
-      { ...before.users[0], workosUserId: input.workosUserId },
-    ]);
-    expect(after.users[0]._id).toBe(id);
-    expect(after.cards).toEqual(before.cards);
-    expect(after.quarantine).toEqual([]);
-  });
-
-  test("verified normalized email links exactly one existing owner", async () => {
-    const t = setup();
-    await seed(t);
-    expect(
-      await t.mutation(link, { ...input, email: " OWNER@EXAMPLE.COM " })
-    ).toEqual({ status: "linked", teakUserId: "owner-a", changed: true });
-    expect((await snapshot(t)).users[0].workosUserId).toBe(input.workosUserId);
-  });
-
-  test("null WorkOS external ID uses verified email fallback", async () => {
-    const t = setup();
-    await seed(t);
-    expect(await t.mutation(link, { ...input, externalId: null })).toEqual({
-      status: "linked",
-      teakUserId: "owner-a",
-      changed: true,
-    });
-  });
-
-  test("verified WorkOS email cannot attach to an unverified legacy owner", async () => {
-    const t = setup();
-    await seed(t, { emailVerified: false });
-    const before = await snapshot(t);
-    expect(await t.mutation(link, input)).toEqual({
-      status: "quarantined",
-      reason: "email_unverified",
-    });
-    const after = await snapshot(t);
-    expect(after.users).toEqual(before.users);
-    expect(after.cards).toEqual(before.cards);
-    expect(after.quarantine).toMatchObject([
-      { reason: "email_unverified", teakUserId: "owner-a" },
-    ]);
+    ).toEqual({ status: "linked", teakUserId: "owner-a", changed: false });
+    expect(await snapshot(t)).toEqual(before);
   });
 
   test("idempotent retries from webhook and bootstrap keep the same link", async () => {
     const t = setup();
-    await seed(t);
-    await t.mutation(link, { ...input, externalId: "owner-a" });
+    await seed(t, { workosUserId: input.workosUserId });
     const before = await snapshot(t);
     for (const source of ["webhook", "ensureUser"] as const) {
       expect(
@@ -166,7 +118,7 @@ describe("transactional WorkOS identity linking", () => {
     expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
   });
 
-  test("unverified email cannot link even a unique matching owner", async () => {
+  test("an unverified email creates no owner and leaves a matching owner alone", async () => {
     const t = setup();
     await seed(t);
     expect(await t.mutation(link, { ...input, emailVerified: false })).toEqual({
@@ -176,19 +128,6 @@ describe("transactional WorkOS identity linking", () => {
     const result = await snapshot(t);
     expect(result.users[0].workosUserId).toBeUndefined();
     expect(result.quarantine).toHaveLength(1);
-  });
-
-  test("duplicate emails cannot select the first owner", async () => {
-    const t = setup();
-    await seed(t);
-    await seed(t, { teakUserId: "owner-b" });
-    expect(await t.mutation(link, input)).toEqual({
-      status: "quarantined",
-      reason: "ambiguous_email",
-    });
-    expect(
-      (await snapshot(t)).users.every((row) => row.workosUserId === undefined)
-    ).toBe(true);
   });
 
   test("an unmapped user without a WorkOS profile quarantines instead of creating", async () => {
@@ -204,29 +143,32 @@ describe("transactional WorkOS identity linking", () => {
     });
   });
 
-  test("a later successful link closes earlier pending receipts but not conflicts", async () => {
+  test("a later link closes pending and missing_mapping receipts but not conflicts", async () => {
     const t = setup();
     expect(await t.mutation(link, unmapped)).toMatchObject({
       status: "quarantined",
       reason: "profile_pending",
     });
-    await t.run((ctx) =>
-      ctx.db.insert("migrationQuarantine", {
-        workosUserId: unmapped.workosUserId,
-        email: unmapped.email,
-        reason: "link_conflict",
-        source: "webhook",
-        createdAt: 0,
-      })
-    );
-    await seed(t);
+    // Linking wrote missing_mapping before it could create owners.
+    for (const reason of ["missing_mapping", "external_id_mismatch"]) {
+      await t.run((ctx) =>
+        ctx.db.insert("migrationQuarantine", {
+          workosUserId: unmapped.workosUserId,
+          email: unmapped.email,
+          reason,
+          source: "webhook",
+          createdAt: 0,
+        })
+      );
+    }
+    await seed(t, { workosUserId: unmapped.workosUserId });
     expect(await t.mutation(link, unmapped)).toMatchObject({
       status: "linked",
     });
     const open = (await snapshot(t)).quarantine.filter(
       (row) => row.resolvedAt === undefined
     );
-    expect(open.map((row) => row.reason)).toEqual(["link_conflict"]);
+    expect(open.map((row) => row.reason)).toEqual(["external_id_mismatch"]);
   });
 
   test("repeated denials keep one open receipt until it is resolved", async () => {
@@ -252,172 +194,24 @@ describe("transactional WorkOS identity linking", () => {
     );
   });
 
-  test("email fallback cannot ignore a deleted or already linked duplicate", async () => {
-    for (const fields of [{ deletedAt: 1 }, { workosUserId: "user_other" }]) {
-      const t = setup();
-      await seed(t);
-      await seed(t, { teakUserId: "owner-b", ...fields });
-      const before = (await snapshot(t)).users;
-      expect(await t.mutation(link, input)).toEqual({
-        status: "quarantined",
-        reason: "ambiguous_email",
-      });
-      expect((await snapshot(t)).users).toEqual(before);
-    }
-  });
-
-  test("an unlinked deletion tombstone cannot be revived by verified email", async () => {
-    const t = setup();
-    await seed(t, { deletedAt: 1 });
-    expect(await t.mutation(link, input)).toEqual({
-      status: "quarantined",
-      reason: "deleted_user",
-    });
-    expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
-  });
-
-  test("even a malformed stored provider link cannot be silently overwritten", async () => {
-    const t = setup();
-    await seed(t, { workosUserId: "" });
-    expect(await t.mutation(link, { ...input, externalId: "owner-a" })).toEqual(
-      { status: "quarantined", reason: "link_conflict" }
-    );
-    expect((await snapshot(t)).users[0].workosUserId).toBe("");
-  });
-
-  test.each([undefined, "owner-a"])(
-    "existing provider link cannot be overwritten through externalId=%s",
-    async (externalId) => {
+  test.each([
+    { externalId: undefined, reason: "profile_pending" },
+    { externalId: "owner-a", reason: "external_id_mismatch" },
+  ])(
+    "an owner linked to another WorkOS user is never taken over (externalId=$externalId)",
+    async ({ externalId, reason }) => {
       const t = setup();
       await seed(t, { workosUserId: "user_other" });
       const before = (await snapshot(t)).users;
       expect(
         await t.mutation(link, {
-          ...input,
+          ...unmapped,
           ...(externalId ? { externalId } : {}),
         })
-      ).toEqual({ status: "quarantined", reason: "link_conflict" });
+      ).toEqual({ status: "quarantined", reason });
       expect((await snapshot(t)).users).toEqual(before);
     }
   );
-
-  test.each([undefined, "owner-a"])(
-    "tombstones cannot be relinked through externalId=%s",
-    async (externalId) => {
-      const t = setup();
-      await seed(t, { deletedAt: 1, workosUserId: input.workosUserId });
-      const before = (await snapshot(t)).users;
-      expect(
-        await t.mutation(link, {
-          ...input,
-          ...(externalId ? { externalId } : {}),
-        })
-      ).toEqual({ status: "quarantined", reason: "deleted_user" });
-      expect((await snapshot(t)).users).toEqual(before);
-    }
-  );
-
-  test("an account undergoing deletion cannot acquire a link", async () => {
-    const t = setup();
-    await seed(t);
-    await t.run((ctx) =>
-      ctx.db.insert("accountDeletionStates", {
-        userId: "owner-a",
-        startedAt: 1,
-      })
-    );
-    expect(await t.mutation(link, { ...input, externalId: "owner-a" })).toEqual(
-      { status: "quarantined", reason: "deleting_user" }
-    );
-    expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
-  });
-
-  test.each(["provider", "owner"])(
-    "duplicate %s index entries fail closed and commit quarantine",
-    async (kind) => {
-      const t = setup();
-      await seed(t, { workosUserId: input.workosUserId });
-      await seed(t, {
-        teakUserId: kind === "owner" ? "owner-a" : "owner-b",
-        workosUserId: kind === "provider" ? input.workosUserId : undefined,
-      });
-      const before = (await snapshot(t)).users;
-      expect(
-        await t.mutation(link, { ...input, externalId: "owner-a" })
-      ).toEqual({ status: "quarantined", reason: "duplicate_mapping" });
-      expect((await snapshot(t)).users).toEqual(before);
-      expect((await snapshot(t)).quarantine).toHaveLength(1);
-    }
-  );
-
-  test("concurrent webhook and bootstrap deliveries converge on one provider link", async () => {
-    const t = setup();
-    await seed(t);
-    const results = await Promise.all(
-      (["webhook", "ensureUser", "webhook"] as const).map((source) =>
-        t.mutation(link, { ...input, externalId: "owner-a", source })
-      )
-    );
-    expect(
-      results.filter(
-        (result: LinkResult) => result.status === "linked" && result.changed
-      )
-    ).toHaveLength(1);
-    expect(
-      results.every(
-        (result: LinkResult) =>
-          result.status === "linked" && result.teakUserId === "owner-a"
-      )
-    ).toBe(true);
-    const result = await snapshot(t);
-    expect(result.users).toHaveLength(1);
-    expect(result.users[0].workosUserId).toBe(input.workosUserId);
-    expect(result.quarantine).toEqual([]);
-  });
-
-  test("concurrent competing provider IDs cannot overwrite the winning owner link", async () => {
-    const t = setup();
-    await seed(t);
-    const results = await Promise.all(
-      ["user_workos_a", "user_workos_b"].map((workosUserId) =>
-        t.mutation(link, { ...input, externalId: "owner-a", workosUserId })
-      )
-    );
-    expect(
-      results.filter((result: LinkResult) => result.status === "linked")
-    ).toHaveLength(1);
-    expect(
-      results.filter((result: LinkResult) => result.status === "quarantined")
-    ).toEqual([{ status: "quarantined", reason: "link_conflict" }]);
-    const result = await snapshot(t);
-    expect(result.users).toHaveLength(1);
-    expect(result.quarantine).toHaveLength(1);
-    expect(result.quarantine[0].workosUserId).not.toBe(
-      result.users[0].workosUserId
-    );
-  });
-
-  test("concurrent claims of one provider ID cannot link two permanent owners", async () => {
-    const t = setup();
-    await seed(t);
-    await seed(t, { teakUserId: "owner-b", email: "other@example.com" });
-    const results = await Promise.all(
-      ["owner-a", "owner-b"].map((externalId) =>
-        t.mutation(link, { ...input, externalId })
-      )
-    );
-    expect(
-      results.filter((result: LinkResult) => result.status === "linked")
-    ).toHaveLength(1);
-    expect(
-      results.filter((result: LinkResult) => result.status === "quarantined")
-    ).toEqual([{ status: "quarantined", reason: "external_id_mismatch" }]);
-    expect(
-      (await snapshot(t)).users.filter(
-        (row) => row.workosUserId === input.workosUserId
-      )
-    ).toHaveLength(1);
-  });
 
   test.each([
     { workosUserId: "" },
@@ -500,25 +294,6 @@ describe("trusted new WorkOS owners", () => {
       status: "linked",
       changed: true,
     });
-  });
-  test("an unresolved provider conflict cannot allocate an owner", async () => {
-    const t = setup();
-    await seedProvider(t);
-    await t.run((ctx) =>
-      ctx.db.insert("migrationQuarantine", {
-        workosUserId: create.workosUserId,
-        reason: "equal_timestamp_conflict",
-        email: create.email,
-        source: "webhook",
-        createdAt: 1,
-      })
-    );
-    expect(await t.mutation(link, create)).toEqual({
-      status: "quarantined",
-      reason: "equal_timestamp_conflict",
-    });
-    expect((await snapshot(t)).users).toEqual([]);
-    expect(await jobs(t)).toEqual([]);
   });
   test("an unverified component email cannot be promoted by the caller", async () => {
     const t = setup();
@@ -634,6 +409,18 @@ describe("trusted new WorkOS owners", () => {
     });
     expect((await snapshot(t)).users).toEqual([]);
     expect(await jobs(t)).toEqual([]);
+  });
+  test("a verified email never claims an unlinked owner with the same address", async () => {
+    const t = setup();
+    await seedProvider(t);
+    await seed(t);
+    const [legacy] = (await snapshot(t)).users;
+    const result = await t.mutation(link, create);
+    expect(result).toMatchObject({ status: "linked", changed: true });
+    const owners = (await snapshot(t)).users;
+    expect(owners).toHaveLength(2);
+    expect(owners.find((owner) => owner._id === legacy._id)).toEqual(legacy);
+    expect(result).not.toMatchObject({ teakUserId: legacy.teakUserId });
   });
   test("database allocation preserves every existing owner", async () => {
     const t = setup();
