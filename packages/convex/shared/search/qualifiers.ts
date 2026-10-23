@@ -690,7 +690,10 @@ const buildParsedQuery = (root: SearchExpression | null): ParsedSearchQuery => {
     }
   };
 
-  const items = root ? (root.op === "and" ? root.items : [root]) : [];
+  let items: SearchExpression[] = [];
+  if (root) {
+    items = root.op === "and" ? root.items : [root];
+  }
   for (const item of items) {
     if (item.op === "term") {
       terms.push(item.value);

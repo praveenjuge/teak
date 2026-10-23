@@ -171,7 +171,7 @@ export const searchFieldClassName =
 interface FilterChip {
   ariaLabel: string;
   dashed?: boolean;
-  /** Leaves these cards out: a leading minus and a struck label. */
+  /** Leaves these cards out: a leading minus and a muted label. */
   excluded?: boolean;
   icon: ReactNode;
   key: string;
@@ -207,11 +207,7 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
         </span>
       ) : null}
       <span
-        className={cn(
-          "truncate",
-          chip.excluded &&
-            "text-muted-foreground line-through decoration-muted-foreground/70"
-        )}
+        className={cn("truncate", chip.excluded && "text-muted-foreground")}
         dir="auto"
       >
         {chip.label}

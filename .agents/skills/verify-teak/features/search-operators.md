@@ -1,6 +1,6 @@
 # Search operators
 
-A user types `-` before a word, a phrase or a filter to leave those cards out (`design -figma`, `#inspo -type:image`), uppercase `OR` to match either side (`tag:fonts OR tag:type`), and parentheses to group (`(site:github.com OR site:gitlab.com) -is:archived`). The same text works in the search box, smart folders, the API's `q`, MCP and the CLI. Typing `-` suggests what to leave out, `OR` is suggested after a word, an excluded filter shows as a pill with a "−" and a struck label, and the `?` sheet has a "Search" group.
+A user types `-` before a word, a phrase or a filter to leave those cards out (`design -figma`, `#inspo -type:image`), uppercase `OR` to match either side (`tag:fonts OR tag:type`), and parentheses to group (`(site:github.com OR site:gitlab.com) -is:archived`). The same text works in the search box, smart folders, the API's `q`, MCP and the CLI. Typing `-` suggests what to leave out, `OR` is suggested after a word, an excluded filter shows as a pill with a "−" before its muted label (not struck through), and the `?` sheet has a "Search" group.
 
 ## Sub-features
 
@@ -8,7 +8,7 @@ A user types `-` before a word, a phrase or a filter to leave those cards out (`
 - `ops-or` matches either side of an uppercase `OR`; a lowercase `or` is a word.
 - `ops-groups` groups with parentheses; an unclosed `(` closes at the end, and groups nest at most 4 deep.
 - `ops-suggest` shows the "Exclude" group when the word being typed starts with `-`, completes its values like the plain filters, and offers `OR` ("Either side matches") after a word.
-- `ops-pills` keeps the operators as pills after Enter and in the URL: an excluded filter reads "Tag − ~~design~~" with the accessible name "Remove excluding tag design", an excluded word is struck, and an OR group shows without its outer parentheses.
+- `ops-pills` keeps the operators as pills after Enter and in the URL: an excluded filter reads "Tag −design" with a muted label and the accessible name "Remove excluding tag design", an excluded word reads "−figma", and an OR group shows without its outer parentheses.
 - `ops-hidden` keeps hidden cards out: `-tag:hidden` never shows them, and `tag:hidden OR tag:x` shows them only through the `tag:hidden` side.
 - `ops-smart-folders` saves operators in a smart folder, shows them in its faded pills, and intersects them with a typed search.
 - `ops-shortcuts` lists `-word`, `-tag:x`, `a OR b`, `( … )` and `"phrase"` under "Search" in the `?` sheet.
@@ -44,8 +44,8 @@ Expected counts (the pack's design; `packages/convex/edge/devSeed.test.ts` check
 
 Steps:
 
-- **Exclude.** Search `#scenario-search-operators design -figma`: no tile reads "Design in Figma". The URL's `q` keeps `-figma`. Press Enter: the pills read "design" and a struck "figma", and the URL is unchanged after a reload and Back.
-- **Suggestions.** Clear, type `#scenario-search-operators -`: the listbox "Search suggestions" shows "Exclude" with `-tag:` … `-is:` and "Leave out cards with a tag". ArrowDown, Enter, type `ins`, Enter: the pill "Remove excluding tag inspo" appears with a "−" and a struck "inspo". Type ` O` after a word: the option "OR Either side matches".
+- **Exclude.** Search `#scenario-search-operators design -figma`: no tile reads "Design in Figma". The URL's `q` keeps `-figma`. Press Enter: the pills read "design" and "−figma", and the URL is unchanged after a reload and Back.
+- **Suggestions.** Clear, type `#scenario-search-operators -`: the listbox "Search suggestions" shows "Exclude" with `-tag:` … `-is:` and "Leave out cards with a tag". ArrowDown, Enter, type `ins`, Enter: the pill "Remove excluding tag inspo" appears with a "−" before a muted "inspo". Type ` O` after a word: the option "OR Either side matches".
 - **OR and groups.** Search the table's rows and compare the counts (scroll to the end, or read them through the API with `limit=100` and `nextCursor`).
 - **Hidden.** `tag:hidden OR tag:fonts` shows "Hidden design diary" tiles; `-tag:hidden diary` shows "Nothing found matching your filters".
 - **Smart folders.** Open "Fonts or type": its faded pills show the scenario tag and "tag:fonts OR tag:type". Type `-tag:fonts`: only "Type specimen" tiles remain (20). Open "GitHub or GitLab", type `is:archived OR repo`: the archived repos appear with the rest.

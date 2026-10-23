@@ -389,7 +389,7 @@ export function describeQualifierChip(
 
 /**
  * How a word pill reads: an excluded word or phrase (`-figma`) shows the word
- * struck through, and an OR group shows without its outer parentheses.
+ * after a minus, and an OR group shows without its outer parentheses.
  */
 export function describeKeywordChip(chip: string): {
   excluded?: true;

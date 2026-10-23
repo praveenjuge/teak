@@ -1,4 +1,3 @@
-import { expressionWantsArchived } from "../../shared/search/expression";
 import { narrowTypesForQuery } from "../../card/searchPlanner";
 import { normalizeVisualFilterArgs } from "../../card/visualFilters";
 import type { CardType } from "../../schema";
@@ -7,10 +6,11 @@ import {
   normalizeVisualStyle,
 } from "../../shared/constants";
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../../shared/search/constants";
+import { expressionWantsArchived } from "../../shared/search/expression";
 import {
   combineSearchQueries,
-  hasSearchQualifiers,
   formatSearchExpression,
+  hasSearchQualifiers,
   parseSearchQuery,
 } from "../../shared/search/qualifiers";
 import { isSearchMode, semanticRequestFor } from "../../shared/search/semantic";
@@ -234,7 +234,7 @@ export const parseCardsQueryOptions = (
     matchesNothing ||= archived === "exclude";
     resolvedArchived = "only";
   } else if (
-    resolvedArchived === "exclude" &&
+    (resolvedArchived ?? "exclude") === "exclude" &&
     trashed !== true &&
     expressionWantsArchived(parsed.expression)
   ) {

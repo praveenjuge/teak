@@ -49,7 +49,7 @@ function ExcludedLabel({ label }: { label: string }) {
         −
       </span>
       <span className="sr-only">not</span>
-      <span className="truncate line-through" dir="auto">
+      <span className="truncate text-muted-foreground" dir="auto">
         {label}
       </span>
     </>

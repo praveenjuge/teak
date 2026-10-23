@@ -84,14 +84,14 @@ export type ApiCardSort = "newest" | "oldest";
 
 export interface SearchOptions {
   archived?: ArchivedFilter;
-  /** The search's exclusions and OR groups, checked on every card. */
-  expression?: SearchExpression;
-  /** The folders `expression` names, by name key; null for none. */
-  expressionFolders?: ReadonlyMap<string, Id<"folders"> | null>;
   archivedInTrash?: boolean;
   createdAfter?: number;
   createdBefore?: number;
   done?: boolean;
+  /** The search's exclusions and OR groups, checked on every card. */
+  expression?: SearchExpression;
+  /** The folders `expression` names, by name key; null for none. */
+  expressionFolders?: ReadonlyMap<string, Id<"folders"> | null>;
   favorited?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
@@ -99,15 +99,15 @@ export interface SearchOptions {
   hueFilters?: string[];
   includeHidden?: boolean;
   keepSearchOrder?: boolean;
+  limit?: number;
+  ocrTexts?: string[];
+  phrases?: string[];
+  prices?: PriceBound[];
   /**
    * Hidden tags an OR branch asks for. A hidden card shows only when it has
    * one, unless the search's own tags already reveal hidden cards.
    */
   revealTags?: string[];
-  limit?: number;
-  ocrTexts?: string[];
-  phrases?: string[];
-  prices?: PriceBound[];
   searchQuery?: string;
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;

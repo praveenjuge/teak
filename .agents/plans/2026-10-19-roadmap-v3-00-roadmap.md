@@ -140,7 +140,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 | 1 | Extension save shortcut and saved badge (shipped; its plan is in git history) | Quick wins | — |
 | 2 | [URL key, re-saving and pasting links](2026-10-19-roadmap-v3-02-url-key-resave-paste.md) (two PRs) | Quick wins | — |
 | 3 | Tables in notes (shipped; its plan is in git history) | Quick wins | — |
-| 4 | [Exclude, OR and grouping in search](2026-10-19-roadmap-v3-04-search-operators.md) | Quick wins | — |
+| 4 | Exclude, OR and grouping in search (shipped; its plan is in git history) | Quick wins | — |
 | 5 | [CSV and text-file-of-links import](2026-10-19-roadmap-v3-05-csv-import.md) | Quick wins | 2 |
 | 6 | [Page archive and dead-link fallback](2026-10-19-roadmap-v3-06-page-archive.md) | Archive & reading | 2 |
 | 7 | [Reader view and article search](2026-10-19-roadmap-v3-07-reader-view.md) | Archive & reading | 6 |
