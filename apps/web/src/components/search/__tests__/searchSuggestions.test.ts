@@ -298,7 +298,12 @@ describe("continuesOperator", () => {
     ["-(design ", true],
     ["(a OR b) ", false],
     ['"(quoted" ', false],
-    ["x OR y ", false],
+    // A word after `x OR y` joins the y side of the OR.
+    ["x OR y ", true],
+    ["foo OR bar ", true],
+    ["(a OR b) c ", false],
+    ['"x OR y" ', false],
+    ["xOR y ", false],
   ])("%p", (before: string, expected: boolean) => {
     expect(continuesOperator(before)).toBe(expected);
   });

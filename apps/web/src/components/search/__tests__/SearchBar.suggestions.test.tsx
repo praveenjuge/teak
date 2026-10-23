@@ -180,6 +180,13 @@ test("a filter completed after OR stays in the text, not a pill", async () => {
   expect(input().value).toBe("tag:fonts OR tag:design ");
 });
 
+test("a filter completed later in an OR side stays in the text", async () => {
+  await type("foo OR bar tag:de");
+  await press("Enter");
+  expect(chips).toEqual([]);
+  expect(input().value).toBe("foo OR bar tag:design ");
+});
+
 test("an excluded pill in the +N menu keeps its minus", async () => {
   await act(async () =>
     root?.render(

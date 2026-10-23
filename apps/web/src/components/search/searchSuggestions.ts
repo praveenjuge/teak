@@ -116,27 +116,43 @@ export function currentSearchToken(text: string): {
 }
 
 /**
- * Whether the word after `before` belongs to an operator: it follows `OR`,
- * or an open `(` hasn't closed. A completed filter there stays in the text,
- * since a pill of its own would leave the OR or group.
+ * Whether the word after `before` belongs to an operator: the text has an
+ * `OR` outside parentheses (`a OR b tag:x` is `a OR (b tag:x)`), or an open
+ * `(` hasn't closed. A completed filter there stays in the text, since a pill
+ * of its own would leave the OR or group.
  */
 export function continuesOperator(before: string): boolean {
   let depth = 0;
   let inQuotes = false;
+  let word = "";
+  let topLevelOr = false;
+  const endWord = () => {
+    if (word === "OR" && depth === 0) {
+      topLevelOr = true;
+    }
+    word = "";
+  };
   for (let index = 0; index < before.length; index += 1) {
     const character = before[index] ?? "";
     if (character === "\\" && inQuotes) {
       index += 1;
     } else if (QUOTES.has(character)) {
       inQuotes = !inQuotes;
+      word = "";
     } else if (!inQuotes && character === "(") {
+      endWord();
       depth += 1;
-    } else if (!inQuotes && character === ")" && depth > 0) {
-      depth -= 1;
+    } else if (!inQuotes && character === ")") {
+      endWord();
+      depth = Math.max(0, depth - 1);
+    } else if (!inQuotes && /\s/.test(character)) {
+      endWord();
+    } else if (!inQuotes) {
+      word += character;
     }
   }
-  const words = before.trim().split(/\s+/);
-  return depth > 0 || words.at(-1) === "OR";
+  endWord();
+  return depth > 0 || topLevelOr;
 }
 
 const unquote = (value: string) =>
