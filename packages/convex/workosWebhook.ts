@@ -5,7 +5,6 @@ import {
   type ActionCtx,
   env,
   httpAction,
-  internalAction,
   internalMutation,
   type MutationCtx,
 } from "./_generated/server";
@@ -215,60 +214,6 @@ export const recordDeadLetter = internalMutation({
   handler: async (ctx, args) => {
     await insertDeadLetter(ctx, args);
     return null;
-  },
-});
-
-export const recordUndeliverable = internalMutation({
-  args: { eventId: v.string(), event: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { event, eventId }) => {
-    const id = eventId.slice(0, 256);
-    const applied = await ctx.db
-      .query("workosEvents")
-      .withIndex("by_eventId", (q) => q.eq("eventId", id))
-      .first();
-    if (applied) {
-      return null;
-    }
-    await insertDeadLetter(ctx, {
-      eventId: id,
-      event: event.slice(0, 64) || "unknown",
-      reason: "delivery_failed",
-    });
-    return null;
-  },
-});
-
-const UNDELIVERABLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-
-export const recordUndeliverableWebhook = internalAction({
-  args: { body: v.string(), signature: v.string() },
-  returns: v.object({ recorded: v.boolean() }),
-  handler: async (ctx, { body, signature }) => {
-    const kit = authKit;
-    const secret = env.WORKOS_WEBHOOK_SECRET;
-    if (!(kit && secret)) {
-      throw new Error("webhook_unavailable");
-    }
-    if (body.length > 256 * 1024 || signature.length > 1024) {
-      return { recorded: false };
-    }
-    let event: Awaited<ReturnType<typeof kit.workos.webhooks.constructEvent>>;
-    try {
-      event = await kit.workos.webhooks.constructEvent({
-        payload: body,
-        secret,
-        sigHeader: signature,
-        tolerance: UNDELIVERABLE_MAX_AGE_MS,
-      });
-    } catch {
-      return { recorded: false };
-    }
-    await ctx.runMutation(internal.workosWebhook.recordUndeliverable, {
-      event: String(event.event),
-      eventId: String(event.id),
-    });
-    return { recorded: true };
   },
 });
 

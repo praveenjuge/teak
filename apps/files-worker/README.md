@@ -739,37 +739,6 @@ its dispatch row instead of the cron's heartbeat.
 `capabilities` lists the tasks in `maintenanceTasks`, and Backend Deploy waits
 for all of them.
 
-## WorkOS webhook queue
-
-WorkOS posts webhooks to
-`https://files.teakvault.com/__webhooks/workos/<convex-site-host>`. The host
-must be one of `CONVEX_SITE_URLS`; the production endpoint is
-`https://files.teakvault.com/__webhooks/workos/uncommon-ladybug-882.convex.site`.
-`src/queues/workosEvents.ts` checks the request cheaply (a `workos-signature`
-of at most 1,024 characters whose `t=` timestamp is at most three minutes old,
-the WorkOS SDK's tolerance, and at most five minutes ahead,
-`Content-Type: application/json`, a body of at most 120 KiB so it fits a
-128 KB queue message), charges `UNKNOWN_CREDENTIAL_LIMITER` by address, queues
-`{ convexSiteUrl, body, signature, receivedAt }` on `WORKOS_EVENTS` and answers
-200 at once. The Worker does not hold the webhook secret.
-
-The consumer posts the exact body with the original signature to that
-deployment's `/workos/webhook`, which verifies the signature and dedupes
-events as before (the route still works directly; the E2E stack's emulator
-posts to it). A 2xx acknowledges the message; 400, 401, 403, 413 and 415 mean a
-forged or malformed webhook and drop it; a 5xx or network failure retries
-after 30 s, doubling up to 15 minutes, ten times, and then lands in
-`teak-workos-events-dlq`. The WorkOS SDK refuses a signature older than three
-minutes, so a 401 for a message signed longer ago than that is a webhook that
-may have aged out while it waited, and the dead-letter consumer handles each
-message that exhausted its retries the same way: the Worker hands the body and
-signature to its deployment (`workosWebhook:recordUndeliverableWebhook`), which
-verifies the signature on everything but its age and only then records the
-event as undeliverable (reason `delivery_failed`, once per event ID, skipped
-when the event was applied after all), where the admin health view shows it.
-A forged webhook is never recorded. Either way the hourly WorkOS event catch-up applies the event from
-the Events API.
-
 ## R2 events and pending uploads
 
 A pending upload is an object under `.../cards/upload-pending-v2/` that a client

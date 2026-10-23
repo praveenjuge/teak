@@ -109,7 +109,6 @@
     "producers": [
       { "binding": "OBJECT_DELETIONS", "queue": "teak-object-deletions-dev" },
       { "binding": "AI_BACKFILL", "queue": "teak-ai-backfill-dev" },
-      { "binding": "WORKOS_EVENTS", "queue": "teak-workos-events-dev" },
       { "binding": "R2_EVENTS", "queue": "teak-r2-events-dev" }
     ],
     "consumers": [
@@ -133,19 +132,6 @@
         "max_concurrency": 2,
         "max_retries": 10,
         "retry_delay": 60
-      },
-      {
-        "queue": "teak-workos-events-dev",
-        "max_batch_size": 10,
-        "max_batch_timeout": 2,
-        "max_retries": 10,
-        "retry_delay": 30,
-        "dead_letter_queue": "teak-workos-events-dlq-dev"
-      },
-      {
-        "queue": "teak-workos-events-dlq-dev",
-        "max_batch_size": 10,
-        "max_retries": 5
       },
       {
         "queue": "teak-r2-events-dev",

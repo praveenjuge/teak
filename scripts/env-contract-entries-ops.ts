@@ -280,10 +280,6 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
       "Queue of cards whose AI metadata the 6-hourly backfill regenerates.",
     ],
     [
-      "WORKOS_EVENTS",
-      "Queue of WorkOS webhook deliveries forwarded to Convex.",
-    ],
-    [
       "R2_EVENTS",
       "Queue fed by the bucket's R2 event notification; removes abandoned pending uploads.",
     ],
