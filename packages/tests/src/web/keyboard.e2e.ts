@@ -135,15 +135,28 @@ test("the library works from the keyboard", async ({
   ).toBeFocused({ timeout: 30_000 });
 
   // U opens the file picker, as New > Upload files does. (Last:
-  // the picker takes focus from the page.)
+  // the picker takes focus from the page.) The picker's input removes
+  // itself when the picker is dismissed, so count the click that opens
+  // it instead of the node it briefly adds.
   await browser.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
+    const tracked = window as unknown as { __filePickerClicks: number };
+    tracked.__filePickerClicks = 0;
+    const originalClick = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function (this: HTMLInputElement) {
+      if (this.type === "file") {
+        tracked.__filePickerClicks += 1;
+      }
+      originalClick.call(this);
+    };
     return null;
   });
   await press("u");
   expect(
     await browser.evaluate(
-      () => document.querySelectorAll("body > input[type='file']").length
+      () =>
+        (window as unknown as { __filePickerClicks: number })
+          .__filePickerClicks
     )
   ).toBe(1);
 });
