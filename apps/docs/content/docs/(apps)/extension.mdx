@@ -56,6 +56,26 @@ In Chrome and Firefox, once the page is saved, the popup shows **Add tags** and 
 
 ## Chrome and Firefox Features
 
+### Save with a shortcut
+
+Press **Alt+Shift+S** (**⌥⇧S** on Mac) to save the page in the current tab without opening the popup. The Teak icon in your toolbar shows how it went:
+
+| Icon | Means |
+| ---- | ----- |
+| **…** | Saving |
+| **✓** | Saved, or the page was already in Teak |
+| **!** | Teak couldn't save the page. Hover the icon to see why. It clears after a few seconds |
+
+If you're signed out or have reached your free plan limit, the popup opens instead so you can sign in or upgrade. Pages Teak can't save, such as `chrome://` pages and add-on stores, show **!**.
+
+To use a different shortcut, open `chrome://extensions/shortcuts` in Chrome (or your browser's equivalent), or in Firefox open `about:addons`, click the gear, and choose **Manage Extension Shortcuts**. Change **Save this page to Teak**.
+
+### Already in Teak
+
+While you're signed in, the Teak icon shows **✓** when the page in your current tab is already in your library, and its tooltip reads **Already in Teak**. To show it, the extension asks Teak about the page's address when you switch tabs, a page finishes loading, or you come back to the window. It remembers each answer for five minutes, so a card you delete in Teak can keep its **✓** for up to five minutes. Cards in Trash don't count; archived cards do.
+
+Pages in private and incognito windows are never checked, and neither are browser pages such as `chrome://` and `about:` pages.
+
 ### Context Menu
 
 Right-click anywhere on a page to access quick-save actions:

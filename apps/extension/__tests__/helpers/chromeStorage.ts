@@ -1,9 +1,16 @@
 /// <reference types="bun" />
 
-const memoryArea = (items: Map<string, unknown>) => ({
-  get: async (key: string) => (items.has(key) ? { [key]: items.get(key) } : {}),
-  remove: (key: string) => {
-    items.delete(key);
+export const memoryArea = (items: Map<string, unknown>) => ({
+  get: (key: string | null) => {
+    if (key === null) {
+      return Promise.resolve(Object.fromEntries(items));
+    }
+    return Promise.resolve(items.has(key) ? { [key]: items.get(key) } : {});
+  },
+  remove: (keys: string | string[]) => {
+    for (const key of Array.isArray(keys) ? keys : [keys]) {
+      items.delete(key);
+    }
     return Promise.resolve();
   },
   set: (values: Record<string, unknown>) => {

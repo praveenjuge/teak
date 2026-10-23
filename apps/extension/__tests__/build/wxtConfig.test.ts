@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { SAVE_PAGE_COMMAND } from "../../lib/saveShortcut";
 import config from "../../wxt.config";
 
 const NAME = "VITE_PUBLIC_CONVEX_SITE_URL";
@@ -65,6 +66,10 @@ type Manifest = {
       strict_min_version?: string;
     };
   };
+  commands?: Record<
+    string,
+    { description?: string; suggested_key?: Record<string, string> }
+  >;
   key?: string;
   omnibox?: { keyword?: string };
 };
@@ -82,6 +87,18 @@ describe("manifest", () => {
     "%s claims the `teak` keyword for address-bar search",
     (browser) => {
       expect(manifestFor(browser).omnibox?.keyword).toBe("teak");
+    }
+  );
+
+  test.each(["chrome", "firefox"] as const)(
+    "%s binds Alt+Shift+S to the command the background saves the page on",
+    (browser) => {
+      const command = manifestFor(browser).commands?.[SAVE_PAGE_COMMAND];
+      expect(command?.suggested_key).toEqual({
+        default: "Alt+Shift+S",
+        mac: "Alt+Shift+S",
+      });
+      expect(command?.description).toBe("Save this page to Teak");
     }
   );
 

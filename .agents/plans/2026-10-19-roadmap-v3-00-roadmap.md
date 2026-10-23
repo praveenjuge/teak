@@ -137,7 +137,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 
 | # | Plan | Group | Depends on |
 |---|---|---|---|
-| 1 | [Extension save shortcut and saved badge](2026-10-19-roadmap-v3-01-extension-shortcut-badge.md) | Quick wins | — |
+| 1 | Extension save shortcut and saved badge (shipped; its plan is in git history) | Quick wins | — |
 | 2 | [URL key, re-saving and pasting links](2026-10-19-roadmap-v3-02-url-key-resave-paste.md) (two PRs) | Quick wins | — |
 | 3 | [Tables in notes](2026-10-19-roadmap-v3-03-note-tables.md) | Quick wins | — |
 | 4 | [Exclude, OR and grouping in search](2026-10-19-roadmap-v3-04-search-operators.md) | Quick wins | — |
@@ -173,8 +173,8 @@ Each phase file explains its own open decisions. Until the owner decides, the ph
 
 | Phase | Decision | Default |
 |---|---|---|
-| 1 | Badge text for a saved page | "✓" |
-| 1 | Safari | No shortcut or badge this phase (its extension has no `tabs` or `commands`) |
+| 1 | Badge text for a saved page | "✓" (shipped) |
+| 1 | Safari | No shortcut or badge this phase (its extension has no `tabs` or `commands`) (shipped) |
 | 2 | Which query parameters to strip | Only `utm_*`, `fbclid` and `gclid`. `#/` and `#!` fragments and query order are kept |
 | 2 | A real `savedAt` (13 indexes, 2 PRs) or the cheaper `firstSavedAt` swap | `savedAt`, as decided |
 | 2 | Tags and notes sent with a re-save | Dropped, as decided. Imports never bump |
