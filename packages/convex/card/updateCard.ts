@@ -124,13 +124,15 @@ const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
  * Reserves the AI refresh an edit to a card's content or URL queues: the
  * delay to queue it with, `null` when this card's refresh is already queued
  * and will pick the edit up, or `"skipped"` once the account has used its
- * refresh budget. The edit itself always saves; a skipped refresh leaves the
- * card's processing status as it was.
+ * refresh budget. A skipped refresh leaves the card's processing status as it
+ * was and the edit still saves, unless `refuseWhenSpent`: a new URL clears the
+ * link's preview, which only the refresh fills in again.
  */
 const reserveEditReprocess = async (
   ctx: MutationCtx,
   userId: string,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  { refuseWhenSpent = false }: { refuseWhenSpent?: boolean } = {}
 ): Promise<number | null | "skipped"> => {
   const perCardArgs = { key: String(cardId), reserve: true } as const;
   const accountArgs = { key: userId, reserve: true } as const;
@@ -139,18 +141,22 @@ const reserveEditReprocess = async (
   if (!(await rateLimiter.check(ctx, "cardReprocessPerCard", perCardArgs)).ok) {
     return null;
   }
-  if (!(await rateLimiter.check(ctx, "cardReprocess", accountArgs)).ok) {
+  const account = await rateLimiter.check(ctx, "cardReprocess", accountArgs);
+  if (!account.ok) {
+    if (refuseWhenSpent) {
+      assertReprocessAllowed("cardReprocess", account);
+    }
     return "skipped";
   }
   const perCard = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
     ...perCardArgs,
     throws: false,
   });
-  const account = await rateLimiter.limit(ctx, "cardReprocess", {
+  const reserved = await rateLimiter.limit(ctx, "cardReprocess", {
     ...accountArgs,
     throws: false,
   });
-  return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
+  return Math.max(perCard.retryAfter ?? 0, reserved.retryAfter ?? 0);
 };
 
 const spendCardReprocessLimits = async (
@@ -523,7 +529,9 @@ export const updateCardFieldsForUserHandler = async (
   }
 
   const reservation = state.shouldSchedulePipeline
-    ? await reserveEditReprocess(ctx, userId, cardId)
+    ? await reserveEditReprocess(ctx, userId, cardId, {
+        refuseWhenSpent: state.updateData.url !== undefined,
+      })
     : null;
   if (reservation === "skipped") {
     state.processingStatus = card.processingStatus as

@@ -914,6 +914,46 @@ describe("Editing many cards in a minute", () => {
     expect(card?.processingStatus).toBeUndefined();
     expect(await scheduledWorkflowStarts(t)).toHaveLength(12);
   });
+
+  test("still refuses a new link URL once the budget is spent, keeping its preview", async () => {
+    const { t, cardId } = await setup();
+    await t.run((ctx) =>
+      ctx.db.patch("cards", cardId, {
+        metadata: { linkPreview: { source: "kernel" } } as never,
+        metadataStatus: "completed",
+      })
+    );
+    for (let index = 0; index < 12; index += 1) {
+      const otherId = await t.run((ctx) =>
+        ctx.db.insert("cards", {
+          userId: "owner",
+          type: "text",
+          content: `Note ${index}`,
+          createdAt: index,
+          updatedAt: index,
+        })
+      );
+      await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
+        cardId: otherId,
+        userId: "owner",
+        content: `Edited ${index}`,
+      });
+    }
+
+    const error = await t
+      .mutation(internal.publicApi.cardsForUser.patchCardForUser, {
+        cardId,
+        userId: "owner",
+        url: "https://example.org/moved",
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(String(error)).toContain("RATE_LIMITED");
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.url).toBe("https://example.com");
+    expect(card?.metadataStatus).toBe("completed");
+    expect(card?.metadata?.linkPreview).toBeDefined();
+  });
 });
 
 describe("Refresh details", () => {
