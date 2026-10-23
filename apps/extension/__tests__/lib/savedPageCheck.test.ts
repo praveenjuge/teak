@@ -62,8 +62,12 @@ function setup({
   const badges = new Map<number, boolean>();
   const requested: string[] = [];
   const storage = memoryArea(new Map());
+  const account = { id: signedIn ? "owner" : undefined } as {
+    id: string | undefined;
+  };
   const checker = createSavedPageCheck({
     ...(realTimers ? {} : { clock: time.clock }),
+    owner: () => Promise.resolve(account.id),
     paint: (tabId, saved) => {
       badges.set(tabId, saved);
       return Promise.resolve();
@@ -82,7 +86,7 @@ function setup({
     },
     storage: storage as unknown as chrome.storage.StorageArea,
   });
-  return { ...time, badges, checker, requested, storage };
+  return { ...time, account, badges, checker, requested, storage };
 }
 
 describe("the saved-page badge", () => {
@@ -158,7 +162,7 @@ describe("the saved-page badge", () => {
 
   test("a page saved by the extension shows ✓ without asking Teak", async () => {
     const { advance, badges, checker, requested } = setup({ savedUrls: [] });
-    await checker.markSaved(NEW_URL);
+    await checker.markSaved(NEW_URL, "owner");
     await checker.check({ id: 1, url: NEW_URL });
     await advance(CHECK_DEBOUNCE_MS);
     expect(requested).toEqual([]);
@@ -272,6 +276,19 @@ describe("the saved-page badge", () => {
     await checker.check({ id: 2, url: SAVED_URL });
     await advance(CHECK_DEBOUNCE_MS);
     expect(requested).toEqual([SAVED_URL, SAVED_URL]);
+  });
+
+  test("one account never sees another account's answer", async () => {
+    const { account, advance, badges, checker, requested } = setup();
+    await checker.check({ id: 1, url: SAVED_URL });
+    await advance(CHECK_DEBOUNCE_MS);
+    expect(badges.get(1)).toBe(true);
+    await checker.markSaved(NEW_URL, "owner");
+    account.id = "someone-else";
+    await checker.check({ id: 2, url: SAVED_URL });
+    await checker.check({ id: 3, url: NEW_URL });
+    await advance(CHECK_DEBOUNCE_MS);
+    expect(requested).toEqual([SAVED_URL, SAVED_URL, NEW_URL]);
   });
 
   test("sign-out forgets every answer and clears every badge", async () => {

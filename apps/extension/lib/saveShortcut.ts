@@ -14,7 +14,6 @@ export interface SaveShortcutDependencies {
   currentUrl: (tabId: number) => Promise<string | undefined>;
   /** Stops badge checks painting the tab; returns the release. */
   hold: (tabId: number) => () => void;
-  markSaved: (url: string) => Promise<void>;
   openPopup: () => Promise<void>;
   paint: (tabId: number, state: BadgeState, title?: string) => Promise<void>;
   /** Re-checks the tab once a save's own badge is done. */
@@ -32,7 +31,6 @@ export interface SaveShortcutDependencies {
 export function createSaveShortcut({
   currentUrl,
   hold,
-  markSaved,
   openPopup,
   paint,
   refresh,
@@ -84,8 +82,8 @@ export function createSaveShortcut({
         await flashError(tab, outcome.title);
         return;
       }
+      // The pending-save store has already marked the page as saved.
       if (outcome.saved) {
-        await markSaved(url);
         // A tab that moved on while the page saved gets its new page's badge.
         if (checkableUrl(await currentUrl(tab.id)) !== url) {
           restore = true;

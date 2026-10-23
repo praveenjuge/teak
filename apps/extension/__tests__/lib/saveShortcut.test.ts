@@ -19,7 +19,6 @@ function setup(
 ) {
   const painted: { state: BadgeState; tabId: number; title?: string }[] = [];
   const saved: string[] = [];
-  const marked: string[] = [];
   const waits: number[] = [];
   const refreshed: { tabId: number; url?: string }[] = [];
   let held = 0;
@@ -32,10 +31,6 @@ function setup(
       return () => {
         held -= 1;
       };
-    },
-    markSaved: (url) => {
-      marked.push(url);
-      return Promise.resolve();
     },
     openPopup: () => {
       popups += 1;
@@ -62,7 +57,6 @@ function setup(
   });
   return {
     held: () => held,
-    marked,
     painted,
     popups: () => popups,
     refreshed,
@@ -78,7 +72,7 @@ function setup(
 const tab = (url?: string, id = 7) => ({ id, url }) as chrome.tabs.Tab;
 
 describe("the save shortcut", () => {
-  test("shows … while saving, then ✓ Saved to Teak, and remembers the page", async () => {
+  test("shows … while saving, then ✓ Saved to Teak", async () => {
     const run = setup(async () => ({ status: "saved", cardId: "c1" }));
     await run.shortcut(tab(PAGE));
     expect(run.saved).toEqual([PAGE]);
@@ -86,7 +80,6 @@ describe("the save shortcut", () => {
       { state: "saving", tabId: 7, title: undefined },
       { state: "saved", tabId: 7, title: "Saved to Teak" },
     ]);
-    expect(run.marked).toEqual([PAGE]);
     expect(run.popups()).toBe(0);
     expect(run.held()).toBe(0);
   });
@@ -101,7 +94,6 @@ describe("the save shortcut", () => {
       { showing: () => showing }
     );
     await run.shortcut(tab(PAGE));
-    expect(run.marked).toEqual([PAGE]);
     expect(run.painted.map((paint) => paint.state)).toEqual(["saving"]);
     expect(run.refreshed).toEqual([
       { tabId: 7, url: "https://example.com/next" },
@@ -181,7 +173,6 @@ describe("the save shortcut", () => {
     }));
     await run.shortcut(tab(PAGE));
     expect(run.popups()).toBe(1);
-    expect(run.marked).toEqual([]);
   });
 
   test("when the browser won't open the popup, ! says to sign in", async () => {
@@ -206,7 +197,6 @@ describe("the save shortcut", () => {
       await run.shortcut(tab(PAGE));
       expect(run.painted.at(-1)).toEqual({ state: "error", tabId: 7, title });
       expect(run.waits).toEqual([ERROR_BADGE_MS]);
-      expect(run.marked).toEqual([]);
       expect(run.refreshed.map((entry) => entry.tabId)).toEqual([7]);
       expect(run.held()).toBe(0);
     }

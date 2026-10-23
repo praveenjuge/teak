@@ -212,7 +212,9 @@ function runPendingSave(
       (result.status === "saved" || result.status === "duplicate") &&
       save.kind === "content"
     ) {
-      await savedPages?.markSaved(save.input.content).catch(() => undefined);
+      await savedPages
+        ?.markSaved(save.input.content, save.ownerId)
+        .catch(() => undefined);
       // The shortcut paints its own "Saved to Teak".
       if (save.input.source !== "shortcut") {
         refreshActiveTabs();
@@ -268,14 +270,15 @@ async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
   return failure;
 }
 
-/** Repaints the badge of each window's active tab, after a save or sign-in. */
+/** Repaints the badge of the tab in front, after a save or sign-in. Tabs in
+ * other windows are checked when their window gains focus. */
 function refreshActiveTabs() {
   const check = savedPages?.check;
   if (!check) {
     return;
   }
   void chrome.tabs
-    .query({ active: true })
+    .query({ active: true, lastFocusedWindow: true })
     .then((tabs) => Promise.all(tabs.map((tab) => check(tab))))
     .catch(() => undefined);
 }
@@ -432,6 +435,7 @@ export default defineBackground(() => {
 
   function listenToTabs() {
     const checks = createSavedPageCheck({
+      owner: getCaptureOwner,
       paint: (tabId, saved) => setTabBadge(tabId, saved ? "saved" : "none"),
       recentRequests: () => apiRequestsInLastMinute(),
       request: (path) => oauthRequest(path),
@@ -445,7 +449,6 @@ export default defineBackground(() => {
           () => undefined
         ),
       hold: checks.hold,
-      markSaved: checks.markSaved,
       openPopup: () => chrome.action.openPopup(),
       paint: setTabBadge,
       refresh: checks.check,
@@ -472,12 +475,18 @@ export default defineBackground(() => {
         .then((tab) => checks.check(tab))
         .catch(() => undefined);
     });
-    // Only the tab in front: a page loading in a background tab is checked
-    // when it is activated.
+    // Only the tab in front: a page loading in a background tab, or in a
+    // window behind the focused one, is checked once it comes to the front.
     chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
-      if (tab.active && (change.status === "complete" || change.url)) {
-        void checks.check(tab).catch(() => undefined);
+      if (!(tab.active && (change.status === "complete" || change.url))) {
+        return;
       }
+      void chrome.windows
+        .getLastFocused()
+        .then((window) =>
+          window.id === tab.windowId ? checks.check(tab) : undefined
+        )
+        .catch(() => undefined);
     });
     chrome.tabs.onRemoved.addListener((tabId) => checks.forget(tabId));
     chrome.windows.onFocusChanged.addListener((windowId) => {

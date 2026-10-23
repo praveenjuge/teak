@@ -24,6 +24,8 @@ export interface SavedPageCheckDependencies {
     now: () => number;
     setTimeout: (run: () => void, ms: number) => ReturnType<typeof setTimeout>;
   };
+  /** The signed-in account, whose answers the cache holds apart. */
+  owner: () => Promise<string | undefined>;
   /** Clears or paints "✓" on one tab. */
   paint: (tabId: number, saved: boolean) => Promise<void>;
   /** All of the extension's API requests in the last minute. */
@@ -55,6 +57,7 @@ export function checkableUrl(url?: string): string | null {
  * minutes, and checks back off before they eat into the request budget.
  */
 export function createSavedPageCheck({
+  owner,
   paint,
   recentRequests,
   request,
@@ -80,8 +83,16 @@ export function createSavedPageCheck({
   const isCurrent = (tabId: number, generation: number) =>
     generations.get(tabId) === generation && !holds.get(tabId);
 
-  const readCache = async (url: string): Promise<Lookup | undefined> => {
-    const key = `${CACHE_PREFIX}${url}`;
+  // Each account's answers sit under its own keys, so one account never
+  // sees whether a page is in another's library.
+  const cacheKey = (account: string, url: string) =>
+    `${CACHE_PREFIX}${account}:${url}`;
+
+  const readCache = async (
+    account: string,
+    url: string
+  ): Promise<Lookup | undefined> => {
+    const key = cacheKey(account, url);
     const entry = (await storage.get(key))[key] as
       | { at?: unknown; saved?: unknown }
       | undefined;
@@ -94,8 +105,8 @@ export function createSavedPageCheck({
     return entry.saved === true ? "saved" : "unsaved";
   };
 
-  const writeCache = (url: string, saved: boolean) =>
-    storage.set({ [`${CACHE_PREFIX}${url}`]: { saved, at: clock.now() } });
+  const writeCache = (account: string, url: string, saved: boolean) =>
+    storage.set({ [cacheKey(account, url)]: { saved, at: clock.now() } });
 
   const withinBudget = () => {
     const now = clock.now();
@@ -109,7 +120,7 @@ export function createSavedPageCheck({
     );
   };
 
-  const ask = async (url: string): Promise<Lookup> => {
+  const ask = async (account: string, url: string): Promise<Lookup> => {
     checksAt.push(clock.now());
     const askedIn = epoch;
     try {
@@ -136,7 +147,7 @@ export function createSavedPageCheck({
         return "unknown";
       }
       const saved = typeof body.cardId === "string";
-      await writeCache(url, saved);
+      await writeCache(account, url, saved);
       return saved ? "saved" : "unsaved";
     } catch {
       return "unknown";
@@ -144,19 +155,24 @@ export function createSavedPageCheck({
   };
 
   const lookup = async (url: string): Promise<Lookup> => {
-    const cached = await readCache(url);
+    const account = await owner();
+    if (!account) {
+      return "unknown";
+    }
+    const cached = await readCache(account, url);
     if (cached) {
       return cached;
     }
-    const running = inFlight.get(url);
+    const flightKey = cacheKey(account, url);
+    const running = inFlight.get(flightKey);
     if (running) {
       return running;
     }
     if (!withinBudget()) {
       return "skipped";
     }
-    const pending = ask(url).finally(() => inFlight.delete(url));
-    inFlight.set(url, pending);
+    const pending = ask(account, url).finally(() => inFlight.delete(flightKey));
+    inFlight.set(flightKey, pending);
     return pending;
   };
 
@@ -209,11 +225,11 @@ export function createSavedPageCheck({
 
   return {
     check,
-    /** Remembers an address as saved, after any save the extension made. */
-    markSaved: async (url: string) => {
+    /** Remembers an address as saved for the account that saved it. */
+    markSaved: async (url: string, account: string | undefined) => {
       const key = checkableUrl(url);
-      if (key) {
-        await writeCache(key, true);
+      if (key && account) {
+        await writeCache(account, key, true);
       }
     },
     /** Stops checks painting a tab while a save shows its own state there. */
