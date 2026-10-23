@@ -10,9 +10,11 @@ const PAGE_WITHOUT_CARD_QUERIES = "/settings";
 const paramOf = async (url: Promise<string>, name: string) =>
   new URL(await url).searchParams.get(name);
 
-test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", {
-  timeout: 240_000,
-}, async ({ browser, screen, library }) => {
+test("Revisit deals 20 cards to keep or archive, and 20 more without repeats", async ({
+  browser,
+  screen,
+  library,
+}) => {
   await gotoApp(browser, PAGE_WITHOUT_CARD_QUERIES);
   const idsByText = new Map<string, Id<"cards">>();
   for (let index = 0; index < VISIBLE; index++) {
