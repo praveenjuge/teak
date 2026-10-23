@@ -137,3 +137,55 @@ test("keeping a tag the card already has writes nothing", async () => {
   });
   expect(write).not.toHaveBeenCalled();
 });
+
+test("pressing Delete twice deletes the card once", async () => {
+  let finish = () => undefined as unknown;
+  write = mock(
+    () =>
+      new Promise((resolve) => {
+        finish = () => resolve(null);
+      })
+  );
+  const hook = await renderHook(note());
+  const closed = mock();
+  let first: Promise<void> | undefined;
+  await act(() => {
+    first = hook().handleDelete(closed);
+  });
+  await act(() => hook().handleDelete(closed));
+  await act(async () => {
+    finish();
+    await first;
+  });
+  expect(write).toHaveBeenCalledTimes(1);
+  expect(closed).toHaveBeenCalledTimes(1);
+});
+
+test("a card stepped to while another's delete runs can still be deleted", async () => {
+  const pending: (() => void)[] = [];
+  write = mock(
+    () => new Promise((resolve) => pending.push(() => resolve(null)))
+  );
+  const hook = await renderHook(note());
+  let first: Promise<void> | undefined;
+  await act(() => {
+    first = hook().handleDelete();
+  });
+  await act(() =>
+    root?.render(<Harness card={note({ _id: "card_b" }) as never} />)
+  );
+  let second: Promise<void> | undefined;
+  await act(() => {
+    second = hook().handleDelete();
+  });
+  await act(async () => {
+    for (const resolve of pending) {
+      resolve();
+    }
+    await Promise.all([first, second]);
+  });
+  expect(write.mock.calls.map(([args]) => args)).toEqual([
+    { cardId: "card_a", field: "delete" },
+    { cardId: "card_b", field: "delete" },
+  ]);
+});

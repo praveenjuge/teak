@@ -577,13 +577,15 @@ export function useCardModal(
     [currentTags, writeTags]
   );
 
-  const deletingRef = useRef(false);
+  // The card whose delete is in flight: a second Delete on it is ignored,
+  // while a card stepped to meanwhile can still be deleted.
+  const deletingIdRef = useRef<string | null>(null);
   const handleDelete = useCallback(
     async (onClose?: () => void) => {
-      if (!cardId || deletingRef.current) {
+      if (!cardId || deletingIdRef.current === cardId) {
         return;
       }
-      deletingRef.current = true;
+      deletingIdRef.current = cardId;
       try {
         await updateCardField({
           cardId: cardId as Id<"cards">,
@@ -610,7 +612,9 @@ export function useCardModal(
         console.error("Failed to delete card:", error);
         toast.error("Failed to delete card");
       } finally {
-        deletingRef.current = false;
+        if (deletingIdRef.current === cardId) {
+          deletingIdRef.current = null;
+        }
       }
     },
     [cardId, updateCardField]
