@@ -1,25 +1,57 @@
 import { v } from "convex/values";
+import type { Doc } from "../_generated/dataModel";
 import { internalQuery, type QueryCtx, query } from "../_generated/server";
 import {
   getSessionUser,
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
+import { urlKey } from "../shared/utils/urlKey";
 import { cardReturnValidator } from "./getCards";
 import { attachCardDetailUrls } from "./queryUtils";
+
+/**
+ * The newest card outside Trash saved from the same link as `url`, ignoring
+ * the differences `urlKey` ignores. Archived cards count.
+ */
+export const findLiveCardByUrl = async (
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+  url: string
+): Promise<Doc<"cards"> | null> => {
+  const key = urlKey(url);
+  const [byKey, byExactUrl] = await Promise.all([
+    key
+      ? ctx.db
+          .query("cards")
+          .withIndex("by_user_urlkey_deleted", (q) =>
+            q.eq("userId", userId).eq("urlKey", key).eq("isDeleted", undefined)
+          )
+          .order("desc")
+          .first()
+      : null,
+    // Finds a card saved before `urlKey` existed, by its exact address,
+    // until `migration/backfillUrlKey` has run (`.agents/sunset.md`).
+    ctx.db
+      .query("cards")
+      .withIndex("by_user_url_deleted", (q) =>
+        q.eq("userId", userId).eq("url", url).eq("isDeleted", undefined)
+      )
+      .order("desc")
+      .first(),
+  ]);
+  if (!(byKey && byExactUrl)) {
+    return byKey ?? byExactUrl;
+  }
+  return byKey._creationTime >= byExactUrl._creationTime ? byKey : byExactUrl;
+};
 
 export const findDuplicateCardForUserHandler = async (
   ctx: Pick<QueryCtx, "db">,
   userId: TeakUserId,
   url: string
 ) => {
-  const duplicate = await ctx.db
-    .query("cards")
-    .withIndex("by_user_url_deleted", (q) =>
-      q.eq("userId", userId).eq("url", url).eq("isDeleted", undefined)
-    )
-    .order("desc")
-    .first();
+  const duplicate = await findLiveCardByUrl(ctx, userId, url);
 
   if (!duplicate) {
     return null;

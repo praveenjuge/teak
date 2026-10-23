@@ -50,9 +50,9 @@ Before October 2026, folders in bookmark and Raindrop files were added to each c
 
 ## Duplicate Handling
 
-Before creating a card, Teak checks whether a non-deleted card with the same URL already exists in your library. Matching items are skipped and counted separately from created and failed items — they do not create a duplicate card.
+Before creating a card, Teak checks whether a card outside Trash already saves the same link. Matching items are skipped and counted separately from created and failed items — they do not create a duplicate card.
 
-Bookmark and Raindrop files can also contain duplicate links within the same file; only the first occurrence of a URL is imported, and later occurrences are skipped.
+Links you already have, or that appear twice in the file, are skipped, even when one has `www.`, a trailing slash, a `#fragment` or tracking parameters (`utm_*`, `fbclid`, `gclid`). Only the first occurrence of a link in a file is imported.
 
 ## Limits
 

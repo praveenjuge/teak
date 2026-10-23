@@ -18,6 +18,7 @@ import {
 import { assertImportCardCount } from "@teak/convex/import/validate";
 import { CARD_ERROR_MESSAGES } from "@teak/convex/shared/constants";
 import { isMarkdownFileName } from "@teak/convex/shared/markdown";
+import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import type {
   FilesImportIndexResult,
   FilesImportMarkdownResult,
@@ -143,8 +144,12 @@ const chunkByBytes = <T>(
   return chunks;
 };
 
-/** Cross-page duplicate URLs are tracked by a short hash, not the URL. */
-const urlKey = async (url: string) => (await sha256Hex(url)).slice(0, 32);
+/**
+ * Cross-page duplicate links are tracked by a short hash of their URL key
+ * (`normalizeIndexItem` fills `seen` with keys), not the URL itself.
+ */
+const seenHash = async (key: string) => (await sha256Hex(key)).slice(0, 32);
+const linkSeenHash = (url: string) => seenHash(urlKey(url) ?? url);
 
 const withoutStatus = <T extends { status: string }>({
   status: _status,
@@ -401,7 +406,7 @@ export const runImport = (
           throw new Error("staged_page_out_of_order");
         }
         const read = await readPage(job, sourceEtag, cursor);
-        const urls = await Promise.all([...read.seen].map(urlKey));
+        const urls = await Promise.all([...read.seen].map(seenHash));
         const pending: StagedItem[] = [];
         const failed: ImportIndexItem[] = [];
         let skipped = 0;
@@ -409,7 +414,7 @@ export const runImport = (
           if (
             item.status === "pending" &&
             item.url &&
-            seenBefore.has(await urlKey(item.url))
+            seenBefore.has(await linkSeenHash(item.url))
           ) {
             Object.assign(item, {
               failureCode: "SOURCE_DUPLICATE",
@@ -494,7 +499,7 @@ export const runImport = (
         if (read.nextCursor === null) {
           throw new Error("invalid_import_cursor");
         }
-        urls.push(...(await Promise.all([...read.seen].map(urlKey))));
+        urls.push(...(await Promise.all([...read.seen].map(seenHash))));
         cursor = read.nextCursor;
       }
       return { cursor, ok: true, urls };

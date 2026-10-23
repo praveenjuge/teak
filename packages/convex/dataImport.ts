@@ -18,6 +18,7 @@ import {
 import { createImportedCard, importItemFields } from "./import/items";
 import { importModeValidator, stagedItemsValidator } from "./schema";
 import { requireSessionUserId, resolveStoredUserId } from "./securitySessions";
+import { urlKey } from "./shared/utils/urlKey";
 import { buildR2UserPrefix, queueObjectDeletion } from "./storage/r2";
 import { queueImportWorkflow } from "./workflowDispatch";
 
@@ -488,13 +489,25 @@ export const insertItems = internalMutation({
       if (exists) {
         continue;
       }
+      const itemUrlKey = item.url ? urlKey(item.url) : undefined;
       if (item.status === "pending" && item.url) {
-        const duplicate = await ctx.db
-          .query("importJobItems")
-          .withIndex("by_jobId_and_url", (q) =>
-            q.eq("jobId", jobId).eq("url", item.url)
-          )
-          .first();
+        const duplicate =
+          (itemUrlKey
+            ? await ctx.db
+                .query("importJobItems")
+                .withIndex("by_jobId_and_urlKey", (q) =>
+                  q.eq("jobId", jobId).eq("urlKey", itemUrlKey)
+                )
+                .first()
+            : null) ??
+          // Items written before `urlKey` existed match only by address,
+          // until those jobs expire (`.agents/sunset.md`).
+          (await ctx.db
+            .query("importJobItems")
+            .withIndex("by_jobId_and_url", (q) =>
+              q.eq("jobId", jobId).eq("url", item.url)
+            )
+            .first());
         if (duplicate) {
           item.status = "skipped";
           item.failureCode = "SOURCE_DUPLICATE";
@@ -504,6 +517,7 @@ export const insertItems = internalMutation({
       const now = Date.now();
       await ctx.db.insert("importJobItems", {
         ...item,
+        urlKey: itemUrlKey,
         jobId,
         userId: job.userId,
         createdAt: now,

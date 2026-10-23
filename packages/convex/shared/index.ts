@@ -17,3 +17,4 @@ export * from "./utils/linkDetection";
 export * from "./utils/safeUrl";
 export * from "./utils/timeSearch";
 export * from "./utils/urlHost";
+export * from "./utils/urlKey";

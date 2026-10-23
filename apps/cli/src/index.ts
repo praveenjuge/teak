@@ -433,7 +433,7 @@ cards
   .command("duplicate")
   .argument("<url>")
   .description(
-    "Print the id of the card that saves this URL; exits not found when none does"
+    "Print the id of the card that saves this link (ignoring http/https, www., a trailing slash, a #fragment and utm_*, fbclid and gclid parameters); exits not found when none does"
   )
   .action(async (url) => findDuplicateCard(url, program.opts()));
 cards

@@ -37,7 +37,7 @@ import {
 } from "./processingStatus";
 import { getCardQuotaEntitlement } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch, withUrlHost } from "./searchSync";
+import { syncCardSearch, withUrlFields } from "./searchSync";
 
 const updateCardFieldValidator = v.union(
   v.literal("content"),
@@ -290,7 +290,7 @@ export const updateCard = mutation({
     await ctx.db.patch(
       "cards",
       id,
-      withUrlHost({
+      withUrlFields({
         ...updates,
         ...(processingStatus ? { processingStatus } : {}),
         updatedAt: now,
@@ -544,7 +544,7 @@ export const updateCardFieldsForUserHandler = async (
     "cards",
     cardId,
     withHiddenFlag(
-      withUrlHost({
+      withUrlFields({
         ...state.updateData,
         ...(state.processingStatus
           ? { processingStatus: state.processingStatus }

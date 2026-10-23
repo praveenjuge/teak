@@ -67,6 +67,7 @@ describe("public API cards for user", () => {
           content: "old content",
           url: "https://old.example.com",
           urlHost: "old.example.com",
+          urlKey: "old.example.com/",
           createdAt: 1,
           updatedAt: 1,
         }),

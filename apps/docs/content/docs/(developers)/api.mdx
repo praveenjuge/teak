@@ -456,7 +456,7 @@ Every response carries an `X-Request-Id` header. Include it when contacting [Sup
 
 ## Check for a saved URL
 
-`GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It checks the exact URL against your non-deleted cards and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
+`GET /v1/cards/duplicate?url=<encoded-url>` accepts the same bearer credentials as other card endpoints. It looks for a card outside Trash saved from the same link and returns `{ "cardId": "..." }`, or `{ "cardId": null }` when no match exists. Two addresses are the same link when they differ only by `http` or `https`, a leading `www.`, a trailing slash, a `#fragment`, or `utm_*`, `fbclid` and `gclid` parameters. Other parameters, their order and the path's case still count, and so do `#/` and `#!` routes. Archived cards match, and when several cards do, the newest is returned. Percent-encode a `#` in the URL (`%23`), or your client drops the fragment before sending. The URL must use HTTP or HTTPS and be at most 8,192 characters. Invalid input returns 400; invalid or revoked credentials return 401.
 
 ## Links between cards
 

@@ -660,12 +660,15 @@ describe("runImport with items staged in R2", () => {
     expect(completionReports(test.callsTo)).toEqual(["complete"]);
   });
 
-  test("a URL repeated on a later source page is skipped as a duplicate", async () => {
+  test("a link repeated on a later source page, even under another address, is skipped as a duplicate", async () => {
     const backend = stagedBackend();
     const cards = Array.from({ length: 101 }, (_, index) => ({
       content: `Link ${String(index)}`,
       type: "link",
-      url: `https://example.com/${String(index === 100 ? 0 : index)}`,
+      url:
+        index === 100
+          ? "http://www.example.com/0/?utm_source=x#top"
+          : `https://example.com/${String(index)}`,
     }));
     const test = setup(backend, archive(cards));
 

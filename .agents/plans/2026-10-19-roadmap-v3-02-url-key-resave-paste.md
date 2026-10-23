@@ -6,6 +6,15 @@ Teak recognises a link you already have, and saving it again moves it to the top
 - **Re-saving moves a card to the top.** When you save a link you already have, Teak moves that card to the top of "Newest first" and brings it back from Archive, instead of quietly doing nothing or making a second card. A new `savedAt` time drives the order, and `createdAt` stays the date you first saved it.
 - **Paste many links at once.** Paste a list of links into the web composer, one per line, and get one link card per line. Up to 100 links are saved in the background, past the rate limit, and the save stops cleanly at the free plan's cap. Repeats use the re-save rule.
 
+## Progress
+
+- **2a is built** on its own PR: the URL key, `savedAt` with the 13 `…_saved` indexes, both backfills, and the `url-variants` seed pack. The owner chose the real `savedAt` (2026-10-23). Next: deploy the Files Worker, then Convex, then the owner runs `backfillUrlKey` and `backfillSavedAt` on production (dry runs first). 2b waits for both.
+- What 2a learned, beyond the plan:
+  - `cardSearchDocuments` also copies the card's date to order text search; it gains `cardSavedAt`, read as `cardSavedAt ?? cardCreatedAt`. It has no date index, so it needs no backfill.
+  - The Files Worker's import (`src/workflows/import.ts`) shares `normalizeIndexItem`, whose `seen` set now holds URL keys, so its cross-page check hashes each item's key too. That makes 2a a Worker deploy as well, ahead of Convex.
+  - `insertCountedCard` sets `urlKey` and `savedAt` for every counted insert, so `createCardForUserHandler`, uploads and imports needn't each set them.
+  - The badge cache and duplicate check from phase 1 use the same `GET /v1/cards/duplicate`, so the extension's "Already in Teak" matches variants once 2a's backfill has run.
+
 ## Depends on
 
 - Nothing. Phase 5 (CSV import) and phase 6 (page archive) build on the key, and phase 6 also passes its snapshot through the re-save path.

@@ -175,6 +175,7 @@ export const importJobItemValidator = v.object({
   type: cardTypeValidator,
   content: v.string(),
   url: v.optional(v.string()),
+  urlKey: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
   notes: v.optional(v.string()),
   isFavorited: v.optional(v.boolean()),

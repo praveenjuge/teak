@@ -93,7 +93,7 @@ const addFolderCardCount = async (
 
 type FolderCardFields = Pick<
   Doc<"folderCards">,
-  "isArchived" | "isDeleted" | "type" | "cardCreatedAt"
+  "isArchived" | "isDeleted" | "type" | "cardCreatedAt" | "cardSavedAt"
 >;
 
 const rowFieldsForCard = (card: Doc<"cards">): FolderCardFields => ({
@@ -101,6 +101,7 @@ const rowFieldsForCard = (card: Doc<"cards">): FolderCardFields => ({
   isArchived: card.isArchived === true ? true : undefined,
   type: card.type,
   cardCreatedAt: card.createdAt,
+  cardSavedAt: card.savedAt ?? card.createdAt,
 });
 
 const isActiveRow = (row: Pick<FolderCardFields, "isArchived" | "isDeleted">) =>
@@ -125,7 +126,8 @@ export const cardFolderRowsMayChange = (
     (previous.isDeleted === true) !== (card.isDeleted === true) ||
     (previous.isArchived === true) !== (card.isArchived === true) ||
     previous.type !== card.type ||
-    previous.createdAt !== card.createdAt
+    previous.createdAt !== card.createdAt ||
+    previous.savedAt !== card.savedAt
   );
 };
 
@@ -165,7 +167,8 @@ export const syncCardFolderRows = async (
       row.isDeleted !== fields.isDeleted ||
       row.isArchived !== fields.isArchived ||
       row.type !== fields.type ||
-      row.cardCreatedAt !== fields.cardCreatedAt
+      row.cardCreatedAt !== fields.cardCreatedAt ||
+      row.cardSavedAt !== fields.cardSavedAt
     ) {
       await ctx.db.patch("folderCards", row._id, fields);
       adjust(

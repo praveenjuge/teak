@@ -10,6 +10,7 @@ import { parseSearchQuery } from "../shared/search/qualifiers";
 import { isHiddenTagList } from "../shared/tags";
 import { buildColorFacets } from "../shared/utils/colorUtils";
 import { cardSiteHost } from "../shared/utils/urlHost";
+import { urlKey } from "../shared/utils/urlKey";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildR2UserPrefix } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
@@ -80,6 +81,8 @@ export interface DefaultCardDef {
 export interface DevScenarioCardDef extends DefaultCardDef {
   /** Text read from the image, filled in directly. */
   aiOcrText?: string;
+  /** A card saved before `urlKey` and `savedAt` existed: it has neither. */
+  beforeUrlKey?: true;
   /** When the link was marked done. */
   completedAt?: number;
   folderIds?: Id<"folders">[];
@@ -416,6 +419,7 @@ export const insertCompletedCards = async (
         ? { sourceUrl: cardDef.sourceUrl, sourceTitle: cardDef.sourceTitle }
         : {}),
       urlHost: cardSiteHost(cardDef) ?? undefined,
+      urlKey: cardDef.url ? urlKey(cardDef.url) : undefined,
       ...(cardDef.shuffleKey === null
         ? {}
         : { shuffleKey: cardDef.shuffleKey ?? newShuffleKey() }),
@@ -459,6 +463,7 @@ export const insertCompletedCards = async (
           }
         : { metadataStatus: "completed" as const, processingStatus }),
       createdAt: timestamp,
+      savedAt: timestamp,
       updatedAt: timestamp,
     });
     await recordActiveCardCreated(ctx, userId, cardId, {
@@ -483,6 +488,12 @@ export const insertCompletedCards = async (
       await recordActiveCardRemoved(ctx, userId, cardId);
     }
     await syncCardSearch(ctx, cardId, userId);
+    if (cardDef.beforeUrlKey) {
+      await ctx.db.patch("cards", cardId, {
+        urlKey: undefined,
+        savedAt: undefined,
+      });
+    }
     if (
       cardDef.type === "document" &&
       cardDef.fileKey &&

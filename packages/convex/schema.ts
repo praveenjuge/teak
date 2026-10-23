@@ -133,11 +133,18 @@ export default defineSchema({
     .index("by_userId_and_firstSeenAt", ["userId", "firstSeenAt"]),
   cards: defineTable(cardValidator)
     .index("by_created", ["userId", "createdAt"])
+    .index("by_saved", ["userId", "savedAt"])
     .index("by_user_deleted_archived_created", [
       "userId",
       "isDeleted",
       "isArchived",
       "createdAt",
+    ])
+    .index("by_user_deleted_archived_saved", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "savedAt",
     ])
     .index("by_user_deleted_archived_type_created", [
       "userId",
@@ -146,6 +153,13 @@ export default defineSchema({
       "type",
       "createdAt",
     ])
+    .index("by_user_deleted_archived_type_saved", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "savedAt",
+    ])
     .index("by_user_deleted_archived_favorited_created", [
       "userId",
       "isDeleted",
@@ -153,12 +167,26 @@ export default defineSchema({
       "isFavorited",
       "createdAt",
     ])
+    .index("by_user_deleted_archived_favorited_saved", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "isFavorited",
+      "savedAt",
+    ])
     .index("by_user_deleted_archived_host_created", [
       "userId",
       "isDeleted",
       "isArchived",
       "urlHost",
       "createdAt",
+    ])
+    .index("by_user_deleted_archived_host_saved", [
+      "userId",
+      "isDeleted",
+      "isArchived",
+      "urlHost",
+      "savedAt",
     ])
     .index("by_user_deleted_archived_shuffle", [
       "userId",
@@ -181,6 +209,7 @@ export default defineSchema({
       "shuffleKey",
     ])
     .index("by_user_deleted_created", ["userId", "isDeleted", "createdAt"])
+    .index("by_user_deleted_saved", ["userId", "isDeleted", "savedAt"])
     .index("by_isDeleted_deletedAt", ["isDeleted", "deletedAt"])
     .index("by_aiPending_and_isDeleted_and_createdAt", [
       "aiPending",
@@ -192,7 +221,8 @@ export default defineSchema({
     // search indexes skip, so color and style searches read the library in
     // date order (card/visualFilters.ts). Text search uses
     // cardSearchDocuments.
-    .index("by_user_url_deleted", ["userId", "url", "isDeleted"]),
+    .index("by_user_url_deleted", ["userId", "url", "isDeleted"])
+    .index("by_user_urlkey_deleted", ["userId", "urlKey", "isDeleted"]),
   workflowDispatches: defineTable({
     kind: v.union(
       v.literal("cardProcessing"),
@@ -322,6 +352,9 @@ export default defineSchema({
     isArchived: v.optional(v.literal(true)),
     type: cardTypeValidator,
     cardCreatedAt: v.number(),
+    // The card's `savedAt ?? createdAt`. Missing on rows from before it
+    // existed until `migration/backfillSavedAt` runs.
+    cardSavedAt: v.optional(v.number()),
     addedAt: v.number(),
   })
     .index("by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt", [
@@ -330,10 +363,21 @@ export default defineSchema({
       "isArchived",
       "cardCreatedAt",
     ])
+    .index("by_folderId_and_isDeleted_and_isArchived_and_cardSavedAt", [
+      "folderId",
+      "isDeleted",
+      "isArchived",
+      "cardSavedAt",
+    ])
     .index("by_folderId_and_isDeleted_and_cardCreatedAt", [
       "folderId",
       "isDeleted",
       "cardCreatedAt",
+    ])
+    .index("by_folderId_and_isDeleted_and_cardSavedAt", [
+      "folderId",
+      "isDeleted",
+      "cardSavedAt",
     ])
     .index("by_cardId_and_folderId", ["cardId", "folderId"])
     .index("by_userId", ["userId"]),
@@ -468,6 +512,9 @@ export default defineSchema({
     // The card's `createdAt` and `_creationTime`, so a text search orders its
     // matches without loading them.
     cardCreatedAt: v.number(),
+    // The card's `savedAt ?? createdAt`; read `cardSavedAt ?? cardCreatedAt`
+    // on rows written before it existed.
+    cardSavedAt: v.optional(v.number()),
     cardCreationTime: v.number(),
   })
     .index("by_cardId", ["cardId"])
@@ -603,6 +650,9 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.number(),
+    // The card's `savedAt ?? createdAt`. Missing on rows from before it
+    // existed until `migration/backfillSavedAt` runs.
+    cardSavedAt: v.optional(v.number()),
     sourceUpdatedAt: v.number(),
     syncGeneration: v.number(),
     // Set while the row is counted in `userTagCounts` (outside Trash and
@@ -619,12 +669,27 @@ export default defineSchema({
       "cardCreatedAt",
       "cardId",
     ])
+    .index("by_user_tag_deleted_saved", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "cardSavedAt",
+      "cardId",
+    ])
     .index("by_user_tag_deleted_archived_created_v2", [
       "userId",
       "tag",
       "isDeleted",
       "isArchived",
       "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_archived_saved", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "cardSavedAt",
       "cardId",
     ])
     .index("by_user_tag_deleted_archived_type_v2", [
@@ -636,6 +701,15 @@ export default defineSchema({
       "cardCreatedAt",
       "cardId",
     ])
+    .index("by_user_tag_deleted_archived_type_saved", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "cardSavedAt",
+      "cardId",
+    ])
     .index("by_user_tag_deleted_archived_favorited_v2", [
       "userId",
       "tag",
@@ -643,6 +717,15 @@ export default defineSchema({
       "isArchived",
       "isFavorited",
       "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_archived_favorited_saved", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "isFavorited",
+      "cardSavedAt",
       "cardId",
     ])
     .index("by_user_tag_deleted_archived_type_favorited_v2", [
@@ -653,6 +736,16 @@ export default defineSchema({
       "type",
       "isFavorited",
       "cardCreatedAt",
+      "cardId",
+    ])
+    .index("by_user_tag_deleted_archived_type_favorited_saved", [
+      "userId",
+      "tag",
+      "isDeleted",
+      "isArchived",
+      "type",
+      "isFavorited",
+      "cardSavedAt",
       "cardId",
     ]),
   cardSearchTagSyncStates: defineTable({
@@ -675,6 +768,7 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.optional(v.number()),
+    cardSavedAt: v.optional(v.number()),
     tagCountsChanged: v.optional(v.boolean()),
     // The `syncGeneration` this chain writes. It moves only when the tag set
     // changes, so flag changes patch rows in place. Missing on older rows,
@@ -724,6 +818,7 @@ export default defineSchema({
     .index("by_status_upload_expires", ["status", "uploadExpiresAt"]),
   importJobItems: defineTable(importJobItemValidator)
     .index("by_jobId_and_url", ["jobId", "url"])
+    .index("by_jobId_and_urlKey", ["jobId", "urlKey"])
     .index("by_job_source", ["jobId", "sourceIndex"])
     .index("by_job_status_source", ["jobId", "status", "sourceIndex"])
     .index("by_user", ["userId"]),

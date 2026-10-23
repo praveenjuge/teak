@@ -15,6 +15,7 @@ import {
 import { cardLinkTokensToText } from "../shared/cardLinks";
 import { isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
+import { urlKey } from "../shared/utils/urlKey";
 import {
   addTagCountDelta,
   isCountedTagRow,
@@ -108,6 +109,7 @@ export const scheduleCardSearchTagSync = async (
 interface CardSyncSnapshot {
   aiTags?: string[];
   cardCreatedAt: number;
+  cardSavedAt: number;
   isArchived?: true;
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -125,6 +127,7 @@ const cardSyncSnapshotFromCard = (card: Doc<"cards">): CardSyncSnapshot => ({
   isFavorited: card.isFavorited,
   isArchived: card.isArchived === true ? true : undefined,
   cardCreatedAt: card.createdAt,
+  cardSavedAt: card.savedAt ?? card.createdAt,
 });
 
 export type TagSyncSnapshotUpdate =
@@ -173,6 +176,7 @@ export const restartCardSearchTagSync = async (
       isFavorited: undefined,
       isArchived: undefined,
       cardCreatedAt: undefined,
+      cardSavedAt: undefined,
     };
   } else if (snapshotUpdate.kind === "record") {
     snapshot = cardSyncSnapshotFromCard(snapshotUpdate.card);
@@ -220,12 +224,12 @@ export const restartCardSearchTagSync = async (
 };
 
 /**
- * A card write with `urlHost` kept beside a changed `url` or `sourceUrl`, so
- * the site lands in the same write. A write that clears `url` without
- * naming `sourceUrl` drops the host; the search sync then restores it from
- * the card's `sourceUrl`.
+ * A card write with `urlHost` kept beside a changed `url` or `sourceUrl`, and
+ * `urlKey` beside a changed `url`, so both land in the same write. A write
+ * that clears `url` without naming `sourceUrl` drops the host; the search
+ * sync then restores it from the card's `sourceUrl`.
  */
-export const withUrlHost = <T extends object>(value: T): T => {
+export const withUrlFields = <T extends object>(value: T): T => {
   if (!("url" in value || "sourceUrl" in value)) {
     return value;
   }
@@ -237,6 +241,9 @@ export const withUrlHost = <T extends object>(value: T): T => {
         sourceUrl: typeof sourceUrl === "string" ? sourceUrl : undefined,
         url: typeof url === "string" ? url : undefined,
       }) ?? undefined,
+    ...("url" in value
+      ? { urlKey: typeof url === "string" ? urlKey(url) : undefined }
+      : {}),
   };
 };
 
@@ -250,7 +257,7 @@ export const patchCardWithSearchSync = async (
   if (await accountDeletionOwnsRows(ctx, card?.userId)) {
     return false;
   }
-  await ctx.db.patch("cards", cardId, withHiddenFlag(withUrlHost(value)));
+  await ctx.db.patch("cards", cardId, withHiddenFlag(withUrlFields(value)));
   const searchableFields = [
     ...SEARCH_FIELDS,
     "tags",
@@ -261,6 +268,7 @@ export const patchCardWithSearchSync = async (
     "isFavorited",
     "isArchived",
     "createdAt",
+    "savedAt",
     "folderIds",
     "url",
     "sourceUrl",
@@ -327,15 +335,23 @@ export const syncCardSearchDocumentHandler = async (
   }
 
   const urlHost = cardSiteHost(card) ?? undefined;
+  const cardUrlKey = card.url ? urlKey(card.url) : undefined;
   const isHidden = isHiddenTagList(card.tags) ? (true as const) : undefined;
   const aiPending = cardNeedsAiMetadata(card) ? (true as const) : undefined;
   if (
     card.urlHost !== urlHost ||
+    card.urlKey !== cardUrlKey ||
     card.isHidden !== isHidden ||
     card.aiPending !== aiPending
   ) {
-    await ctx.db.patch("cards", cardId, { urlHost, isHidden, aiPending });
+    await ctx.db.patch("cards", cardId, {
+      urlHost,
+      urlKey: cardUrlKey,
+      isHidden,
+      aiPending,
+    });
   }
+  const cardSavedAt = card.savedAt ?? card.createdAt;
 
   const value = {
     cardId,
@@ -354,11 +370,13 @@ export const syncCardSearchDocumentHandler = async (
     urlHost,
     sourceUpdatedAt: card.updatedAt,
     cardCreatedAt: card.createdAt,
+    cardSavedAt,
     cardCreationTime: card._creationTime,
   };
   if (existing) {
     if (
       existing.cardCreatedAt !== value.cardCreatedAt ||
+      existing.cardSavedAt !== value.cardSavedAt ||
       existing.cardCreationTime !== value.cardCreationTime ||
       existing.userId !== value.userId ||
       existing.searchableText !== value.searchableText ||
@@ -394,6 +412,7 @@ export const syncCardSearchDocumentHandler = async (
     (previousCard.isFavorited === true) === (card.isFavorited === true) &&
     (previousCard.isArchived === true) === (card.isArchived === true) &&
     previousCard.createdAt === card.createdAt &&
+    previousCard.savedAt === card.savedAt &&
     currentTags === JSON.stringify(buildCardSearchTags(previousCard))
   ) {
     return null;
@@ -412,6 +431,9 @@ export const syncCardSearchDocumentHandler = async (
     (tagState.isFavorited === true) !== (card.isFavorited === true) ||
     (tagState.isArchived === true) !== (card.isArchived === true) ||
     tagState.cardCreatedAt !== card.createdAt ||
+    // A state from before `cardSavedAt` existed holds the card's date only
+    // in `cardCreatedAt`, which is right until the card is saved again.
+    (tagState.cardSavedAt ?? tagState.cardCreatedAt) !== cardSavedAt ||
     JSON.stringify(buildCardSearchTags(tagState)) !== currentTags;
   if (tagsChanged) {
     await restartCardSearchTagSync(ctx, cardId, card.updatedAt, card.userId, {
@@ -428,6 +450,7 @@ interface CardSyncSource {
   isArchived?: true;
   isDeleted?: boolean;
   isFavorited?: boolean;
+  savedAt?: number;
   tags?: string[];
   type: Doc<"cards">["type"];
   updatedAt: number;
@@ -454,6 +477,7 @@ const cardSyncSourceFromState = (
     isFavorited: state.isFavorited,
     isArchived: state.isArchived,
     createdAt: state.cardCreatedAt,
+    savedAt: state.cardSavedAt ?? state.cardCreatedAt,
     updatedAt: state.sourceUpdatedAt,
   };
 };
@@ -528,6 +552,7 @@ export const syncCardSearchTagsBatchHandler = async (
             isFavorited: card.isFavorited,
             isArchived: card.isArchived === true ? true : undefined,
             cardCreatedAt: card.createdAt,
+            cardSavedAt: card.savedAt ?? card.createdAt,
           }
         : {}),
     });
@@ -639,6 +664,7 @@ const TAG_ROW_SYNCED_FIELDS = [
   "isFavorited",
   "isArchived",
   "cardCreatedAt",
+  "cardSavedAt",
   "sourceUpdatedAt",
   "syncGeneration",
 ] as const;
@@ -668,6 +694,7 @@ const writeCardSearchTag = async (
     isFavorited: card.isFavorited === true ? (true as const) : undefined,
     isArchived: card.isArchived === true ? (true as const) : undefined,
     cardCreatedAt: card.createdAt,
+    cardSavedAt: card.savedAt ?? card.createdAt,
     sourceUpdatedAt: card.updatedAt,
     syncGeneration: tagGeneration,
   };

@@ -354,6 +354,57 @@ describe("import orchestration through the worker", () => {
     ]);
     expect(items[2]).toMatchObject({ failureCode: "SOURCE_DUPLICATE" });
   });
+  test("one page listed under two addresses in a file is imported once", async () => {
+    const { t, jobId } = await setup();
+    const link = (sourceIndex: number, url: string) => ({
+      sourceIndex,
+      status: "pending" as const,
+      type: "link" as const,
+      content: url,
+      url,
+    });
+    await t.mutation(internal.dataImport.insertItems, {
+      jobId,
+      items: [
+        link(0, "https://www.example.com/post/"),
+        link(1, "http://example.com/post?utm_source=x#top"),
+        link(2, "https://example.com/post?id=2"),
+        link(3, "https://example.com/saved?fbclid=1"),
+      ],
+    });
+    // An item staged before `urlKey` existed matches by its exact address.
+    await t.run((ctx) =>
+      ctx.db.insert("importJobItems", {
+        jobId,
+        userId: "import-test",
+        sourceIndex: 4,
+        status: "pending",
+        type: "link",
+        content: "Old",
+        url: "https://example.com/old",
+        createdAt: 0,
+        updatedAt: 0,
+      })
+    );
+    await t.mutation(internal.dataImport.insertItems, {
+      jobId,
+      items: [link(5, "https://example.com/old")],
+    });
+    const items = await t.run((ctx) =>
+      ctx.db
+        .query("importJobItems")
+        .withIndex("by_job_source", (q) => q.eq("jobId", jobId))
+        .take(10)
+    );
+    expect(items.map((item) => [item.sourceIndex, item.failureCode])).toEqual([
+      [0, undefined],
+      [1, "SOURCE_DUPLICATE"],
+      [2, undefined],
+      [3, undefined],
+      [4, undefined],
+      [5, "SOURCE_DUPLICATE"],
+    ]);
+  });
 });
 
 // One archive with every outcome an item can have: created (text, link,

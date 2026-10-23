@@ -58,6 +58,7 @@ import {
   richSitesPack,
   videoCaptionsPack,
 } from "./devSeed/mediaPacks";
+import { urlVariantsScenarioPage } from "./devSeed/urlVariants";
 import {
   archiveMixScenarioPage,
   doneStatesImagesPage,
@@ -522,6 +523,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "1,000 image cards and no links, so `is:todo` lists nothing. Seed it on an account without links. 200 per page.",
     cards: doneStatesImagesPage,
+  },
+  "url-variants": {
+    description:
+      "50 links that exercise the duplicate check's URL key: http and https, www, a trailing slash, #fragment, #/ and #! routes, utm_*, fbclid and gclid, near misses that must stay apart (?id=1 and ?id=2, parameter order, the path's case, :8080), an IDN host, a percent-encoded path, a 2,000-character address, two cards for one link, an archived and a trashed one. Each is seeded under /k/ with a key and under /l/ as a card from before keys and savedAt, for the fallbacks and the backfills. Search `#scenario-url-variants`.",
+    cards: urlVariantsScenarioPage,
   },
   "shuffle-partial": {
     description:
