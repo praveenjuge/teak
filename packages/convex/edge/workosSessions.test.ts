@@ -182,10 +182,11 @@ describe("WorkOS Convex sessions", () => {
     }
     if (failure === "ledger") {
       await t.run((ctx) =>
-        ctx.db.insert("workosEvents", {
-          eventId: "evt_deleted",
-          type: "user.deleted",
+        ctx.db.insert("migrationQuarantine", {
           workosUserId: "user_PROVIDER",
+          email: "",
+          reason: "workos_user_deleted",
+          source: "webhook",
           createdAt: 1,
         })
       );

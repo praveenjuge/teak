@@ -1,18 +1,15 @@
 import { v } from "convex/values";
 import { internalQuery, type QueryCtx } from "./_generated/server";
 import { readComponentUser } from "./securitySessions";
+import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
+// The AuthKit component deletes its user on `user.deleted` in the same
+// transaction; the deletion receipt keeps a deleted user hidden regardless.
 export async function readCanonicalWorkosProfile(
   ctx: Pick<QueryCtx, "db" | "runQuery">,
   workosUserId: string
 ) {
-  const deleted = await ctx.db
-    .query("workosEvents")
-    .withIndex("by_workosUserId_and_type", (q) =>
-      q.eq("workosUserId", workosUserId).eq("type", "user.deleted")
-    )
-    .first();
-  if (deleted) {
+  if (await hasWorkosDeletionReceipt(ctx, workosUserId)) {
     return null;
   }
   return await readComponentUser(ctx, workosUserId);

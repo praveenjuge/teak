@@ -6,6 +6,7 @@ import {
   type ResolverVerification,
 } from "./authMonitoring";
 import { readComponentUser } from "./securitySessions";
+import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 import { type ProviderProfile, toProviderProfile } from "./workosProfileRead";
 
 export interface ResolveArgs {
@@ -33,7 +34,7 @@ export async function resolveOwner(
   return result;
 }
 
-// The provider deletion ledger is authoritative for every mapped row.
+// A WorkOS deletion receipt is authoritative for every mapped row.
 export const resolveWorkosOwner = internalQuery({
   args: {
     workosUserId: v.string(),
@@ -70,13 +71,7 @@ const resolve = async (
   ctx: Pick<QueryCtx, "db" | "runQuery">,
   args: ResolveArgs
 ): Promise<ResolvedOwner> => {
-  const deleted = await ctx.db
-    .query("workosEvents")
-    .withIndex("by_workosUserId_and_type", (q) =>
-      q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
-    )
-    .first();
-  if (deleted) {
+  if (await hasWorkosDeletionReceipt(ctx, args.workosUserId)) {
     return {
       status: "denied" as const,
       reason: "workos_deleted_user" as const,

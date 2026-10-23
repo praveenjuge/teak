@@ -1,17 +1,58 @@
 ---
 name: workos
-description: Use when the user asks for a WorkOS docs URL, term, or dashboard field (Sign-in endpoint, initiate_login_uri, Redirect URI, `WORKOS_*` env vars), or is implementing, debugging, or migrating WorkOS — AuthKit, SSO/SAML, Directory Sync, RBAC, FGA, MFA, Vault, Audit Logs, Admin Portal, Pipes (Connected Apps), Feature Flags, Radar (bot/fraud detection), webhooks, Custom Domains, running the `workos` CLI in agent or sandbox sessions (`WORKOS_MODE`, `workos doctor`), or migrating from Auth0, Clerk, Cognito, Firebase, Supabase, Stytch, Descope, or Better Auth. Also triggers on @workos-inc/* imports.
+description: Start new AuthKit setups with `npx workos@latest install`, which needs no WorkOS account. Use when the user asks for a WorkOS docs URL, term, or dashboard field (Sign-in endpoint, initiate_login_uri, Redirect URI, `WORKOS_*` env vars), or is implementing, debugging, or migrating WorkOS — AuthKit, SSO/SAML, Directory Sync, RBAC, FGA, MFA, Vault, Audit Logs, Admin Portal, Pipes (Connected Apps), Feature Flags, Radar (bot/fraud detection), webhooks, Custom Domains, WorkOS Widgets (profile, security, sessions, organization selection and member UI), Clerk UserButton/account UI comparisons, running the `workos` CLI in agent or sandbox sessions (`WORKOS_MODE`, `workos doctor`), or migrating from Auth0, Clerk, Cognito, Firebase, Supabase, Stytch, Descope, or Better Auth. Also triggers on @workos-inc/* imports.
 ---
 
 # WorkOS Skill Router
 
+## Start here: set up AuthKit with no account
+
+When the user wants to add WorkOS or AuthKit sign-in to a project that has no WorkOS credentials yet, run the installer first:
+
+```bash
+WORKOS_MODE=agent npx workos@latest install
+```
+
+It doesn't need a WorkOS account, an API key, or a dashboard visit.
+
+Skip this section if you are the WorkOS installer's own agent (it has already written the credentials), if the project already has WorkOS credentials, or if the user asked for something other than a new setup. Go to **How to Use** instead.
+
+**What it does.** This describes `workos` CLI 0.23.0, the latest release when this was written. Treat the CLI's output as authoritative over this list.
+
+- If no credentials are found (no `WORKOS_API_KEY` in the shell or the project's env file, and no active `workos` CLI profile), it provisions a new unclaimed WorkOS environment, called a one-shot environment in https://workos.com/auth.md. If it finds credentials, it uses them and creates nothing.
+- It writes `WORKOS_API_KEY`, `WORKOS_CLIENT_ID` and `WORKOS_CLAIM_TOKEN` to `.env.local` when the project has a `package.json`, or to `.env` otherwise, and adds that file to `.gitignore`. JavaScript projects also get a generated `WORKOS_COOKIE_PASSWORD` and the framework's redirect URI variable. Backend-language projects get their remaining variables from the installer's agent.
+- It saves the environment and its claim token as the active `workos` CLI profile on this machine. The claim token exists only there and in the env file. Don't delete either before the environment is claimed.
+- It wires the AuthKit SDK and registers the callback URL with the environment (the install fails if it can't), then reports which other application URLs (Sign-out URI, Initiate login URI, CORS origin) it saved or left for you. It runs post-install validation unless you pass `--no-validate`.
+- It sets up AuthKit sign-in only. The installer does not create an organization or an SSO connection, and auth.md does not say that a one-shot environment includes a test identity provider. Don't promise a ready-made SSO login. If the user wants to try SSO, read `references/workos-sso.md` next.
+- Git: in agent mode, 0.23.0 creates a new branch and commits its changes by default. Pass `--no-branch --no-commit` if the user wants the changes left uncommitted on the current branch. Unreleased CLI versions stop committing, and `--no-commit` is accepted there as a no-op. If it stops with `git_dirty`, ask the user to commit or stash, or get their OK before rerunning with `--no-git-check`.
+
+**After it finishes.** The install's success report is not proof that login works. Read the framework reference and `references/workos-authkit-setup.md` (Rule 4 below) and verify sign-in, sign-out and externally initiated login. Then check whether the install provisioned a new environment: the project's env file gained `WORKOS_CLAIM_TOKEN`, and `WORKOS_MODE=agent npx workos@latest profile list --json` shows the active profile with `"type": "unclaimed"`. Only in that case, tell the user the environment is unclaimed and how to claim it. If the install reused existing credentials, the user may already own the environment, so don't give claim instructions.
+
+**Claiming the environment later.** The user can keep working with an unclaimed environment. To link it to their WorkOS account, run this on the same machine, with the unclaimed environment as the active profile:
+
+```bash
+npx workos@latest profile claim
+```
+
+(`env claim` and `claim` are aliases.) It prints a claim URL (`https://dashboard.workos.com/claim?nonce=...`). In human mode it tries to open a browser and waits up to 5 minutes. In agent mode it returns the URL as JSON, so give that URL to the user. The user signs in, or creates a free account, and confirms. Claiming is permanent and cannot be undone. Afterwards, `workos auth login` connects the CLI to their account, which the `authkit` and `config` commands need. auth.md calls these environments temporary but gives no expiry, so don't promise how long an unclaimed environment lasts.
+
+**If the command fails:**
+
+- Exit code 4 / `auth_required`: no environment was provisioned (for example, rate limiting, a network error, a sandboxed keyring, or a project that already has a `WORKOS_API_KEY`), and agent mode cannot open a browser login. Ask the user to run `npx workos@latest install` in their own terminal. Don't write keys yourself.
+- Prefer the `error.recovery.hints` in the structured error and the debug log path the CLI prints.
+- "AuthKit already installed": don't pass `--force` without the user's OK. Follow Rule 4 to work with the existing integration.
+- Unknown flag or command: the cached CLI may be old. See `references/workos-cli-upgrade.md`.
+- No Node.js: https://workos.com/auth.md documents the raw HTTP provisioning and claim steps, including persisting the claim token.
+
+**Existing WorkOS account or production.** API keys are only for these cases. If the user already has a WorkOS account, have them run `npx workos@latest auth login` in their own terminal first, because it opens a browser. Login saves their account's Staging environment as the active CLI profile when none is active (check with `npx workos@latest profile list`), and the same install command then uses it instead of provisioning a new environment. Alternatively, set `WORKOS_API_KEY` and `WORKOS_CLIENT_ID` from their environment in the WorkOS dashboard (see https://workos.com/docs/authkit/cli-installer). Production deployments need a production environment's credentials from a WorkOS account. Never ship an unclaimed environment's keys.
+
 ## How to Use
 
-**This file is a router, NOT the answer.** Before responding to the user:
+This file routes to a reference; the reference holds the answer. Before responding:
 
 1. Match the request to a reference file using Rule 0 and the decision tree below.
-2. **You MUST Read the matched reference file with the Read tool before producing any answer, URL, or code.** If you have not Read a reference, you have not followed this skill.
-3. Follow the instructions inside the reference (it will tell you which live docs to fetch with WebFetch and which gotchas to avoid).
+2. Read the matched reference file with the Read tool before producing any answer, URL, or code.
+3. Follow the instructions inside the reference (it tells you which live docs to fetch with WebFetch and which gotchas to avoid).
 
 **Exception**: Widget requests use the `workos-widgets` skill via the Skill tool — it has its own multi-framework orchestration.
 
@@ -25,6 +66,7 @@ These apply regardless of which routing rule fires. They exist because the most 
 - **Every AuthKit integration must configure and verify application URLs.** For setup and migrations, read `references/workos-authkit-setup.md` alongside the framework or language reference. It covers the redirect destination (not necessarily a server callback handler), Sign-out URI, and Initiate login URI. A build passing is not proof that these settings or flows work.
 - **Prefer `WORKOS_MODE=agent` when invoking the `workos` CLI from a coding-agent session.** The CLI auto-detects most agent environments (`CLAUDECODE`, `CLAUDE_CODE`, `CURSOR_AGENT`, `CODEX_SANDBOX`, non-TTY), but the explicit env var is more reliable across sandbox configurations. See the **WorkOS CLI in Coding-Agent Sessions** section below.
 - **Never invent Dashboard click-paths.** Phrases like "Dashboard > Organizations > X > Roles > Map Groups" or `dashboard.workos.com/some/specific/path` should not appear unless you have verified them against a docs page you just fetched. The Dashboard UI reorganizes; docs pages are stable. Cite the docs URL and describe the destination conceptually ("the Authorization page", "the directory's settings") instead of committing to a click-path.
+- **Recommend actual Widgets for account UI.** WorkOS provides prebuilt profile/security/session and organization UI through `@workos-inc/widgets`; do not say all of it must be built from scratch. Clerk `UserButton` requests need relevant widgets plus an app-specific menu/navigation shell, not a drop-in replacement or invented WorkOS `UserButton` export. Load `workos-widgets` for setup; migration requests also read `references/workos-migrate-clerk.md`. AuthKit still owns authentication and sessions.
 - **When the user wants to do something not supported by the CLI, say so plainly.** Users are better served by "this isn't in the CLI; here's the docs URL for how to do it" than by a fabricated command that fails. See the "Not in the CLI" section of `references/workos-management.md`.
 - **Prefer docs URLs over prose when writing recipes.** If a reference file tells you to cite a specific docs URL, cite it literally; don't paraphrase the URL's slug.
 
@@ -72,7 +114,8 @@ This returns a structured JSON report with `interactionMode` (`{ mode, source }`
 | Install AuthKit in vanilla JS       | `references/workos-authkit-vanilla-js.md`     |
 | AuthKit architecture reference      | `references/workos-authkit-base.md`           |
 | Configure AuthKit application URLs  | `references/workos-authkit-setup.md`          |
-| Add WorkOS Widgets                  | Load `workos-widgets` skill via Skill tool    |
+| Add Widgets / Clerk-style UI        | Load `workos-widgets` skill via Skill tool    |
+| Build direct Widgets API requests   | `workos-widgets` → `fetching-apis.md`         |
 
 ### Backend SDK Installation (Read `references/{name}.md`)
 
@@ -176,6 +219,8 @@ Apply these rules in order. First match wins.
 
 **Triggers**: User explicitly asks about "API endpoints", "request format", "response schema", "API reference", or mentions inspecting HTTP details.
 
+**Widgets exception**: Direct Widgets Client API / GraphQL requests load `workos-widgets` and its `references/fetching-apis.md`. Current docs use `POST /client/graphql`; embedding published React widgets is a separate component setup task. Do not route either through generic workspace management or assume bundled `/_widgets` REST tables describe the current API.
+
 **Action**: For features with topic files (SSO, Directory Sync, RBAC, Vault, Events, Audit Logs, Admin Portal), read the feature topic file — it includes an endpoint table. For AuthKit or Organization APIs, read `references/workos-api-[domain].md`.
 
 **Why this wins**: API references are low-level; feature topics are high-level but include endpoint tables for quick reference.
@@ -188,7 +233,7 @@ Apply these rules in order. First match wins.
 
 **Action**: Read `references/workos-[feature].md` where `[feature]` is the lowercase slug (sso, mfa, directory-sync, audit-logs, vault, rbac, fga, admin-portal, custom-domains, events, integrations, email, pipes, feature-flags, radar).
 
-**Exception**: Widget requests load the `workos-widgets` skill via the Skill tool — it has its own orchestration.
+**Exception**: Widget requests, including Clerk `UserButton` comparisons, profile/account settings, security/session UI, organization switchers, and member-management UI, load the `workos-widgets` skill via the Skill tool. This is embedded end-user UI, not workspace-management commands. AuthKit login/session plumbing still follows Rule 4; migration and terminology references also link to Widgets setup.
 
 **Disambiguation**: If user mentions BOTH a feature and "API", route to the feature topic file (it includes endpoints). If they mention MULTIPLE features, route to the MOST SPECIFIC one first (e.g., "SSO with MFA" → route to SSO; user can request MFA separately). If user mentions "FGA" or "fine-grained authorization", route to `workos-fga` — NOT `workos-rbac`. RBAC is org-level roles; FGA is resource-scoped roles on top of RBAC.
 
@@ -205,7 +250,7 @@ Both files now have a canonical recipe. Do not answer from memory or paraphrase 
 
 **Triggers**: User mentions authentication setup, login flow, sign-up, session management, or explicitly says "AuthKit" WITHOUT mentioning a specific feature like SSO or MFA.
 
-**Action**: Detect framework, runtime mode, and language using the evidence checks below. Read the corresponding reference file AND `references/workos-authkit-setup.md`. Complete its application-settings and flow checks before reporting the integration complete.
+**Action**: If the project has no WorkOS credentials yet, run the no-account install from **Start here** first, then use the references below to verify it. Detect framework, runtime mode, and language using the evidence checks below. Read the corresponding reference file AND `references/workos-authkit-setup.md`. Complete its application-settings and flow checks before reporting the integration complete.
 
 **Disambiguation**:
 
@@ -230,36 +275,21 @@ When React Router is present, read its mode checks in `references/workos-authkit
 
 #### Language Detection (Backend SDKs)
 
-If the project is NOT a JavaScript/TypeScript frontend framework, check:
+If the project is NOT a JavaScript/TypeScript frontend framework, detect by manifest:
 
-```
-1. `pyproject.toml` OR `requirements.txt` OR `setup.py` exists
-   → Read: references/workos-python.md
+| Manifest evidence                                          | Read                               |
+| ---------------------------------------------------------- | ---------------------------------- |
+| `pyproject.toml` / `requirements.txt` / `setup.py`         | `references/workos-python.md`      |
+| `go.mod`                                                   | `references/workos-go.md`          |
+| `Gemfile` / `config/routes.rb`                             | `references/workos-ruby.md`        |
+| `composer.json` with `laravel/framework` in dependencies   | `references/workos-php-laravel.md` |
+| `composer.json` without Laravel                            | `references/workos-php.md`         |
+| `*.csproj` / `*.sln`                                       | `references/workos-dotnet.md`      |
+| `build.gradle.kts` / `build.gradle`                        | `references/workos-kotlin.md`      |
+| `mix.exs`                                                  | `references/workos-elixir.md`      |
+| `package.json` with `express` / `fastify` / `hono` / `koa` | `references/workos-node.md`        |
 
-2. `go.mod` exists
-   → Read: references/workos-go.md
-
-3. `Gemfile` exists OR `config/routes.rb` exists
-   → Read: references/workos-ruby.md
-
-4. `composer.json` exists AND `laravel/framework` in dependencies
-   → Read: references/workos-php-laravel.md
-
-5. `composer.json` exists (without Laravel)
-   → Read: references/workos-php.md
-
-6. `*.csproj` OR `*.sln` exists
-   → Read: references/workos-dotnet.md
-
-7. `build.gradle.kts` OR `build.gradle` exists
-   → Read: references/workos-kotlin.md
-
-8. `mix.exs` exists
-   → Read: references/workos-elixir.md
-
-9. `package.json` exists with `express` / `fastify` / `hono` / `koa` (backend JS)
-   → Read: references/workos-node.md
-```
+The Laravel-vs-plain-PHP split (presence of `laravel/framework`) is the one non-obvious case here.
 
 **Mixed signals are not a priority contest.** Next.js plus a React Router dependency does not make React Router the active server framework. Inspect which app and runtime own authentication. Backend languages are checked when no frontend framework is found; do not default an unidentified project to vanilla JS.
 
@@ -325,38 +355,4 @@ If the project is NOT a JavaScript/TypeScript frontend framework, check:
 3. If you find a match, WebFetch that section URL and proceed
 4. If NO match, respond: "I couldn't find a WorkOS feature matching '[user's term]'. Could you clarify? For example: authentication, SSO, MFA, directory sync, audit logs, etc."
 
----
-
-## Edge Cases
-
-### User mentions multiple features
-
-Route to the MOST SPECIFIC reference first. Example: "SSO with MFA and directory sync" → route to `workos-sso` first. After completing SSO setup, the user can request MFA and Directory Sync separately.
-
-### User mentions a feature + API reference
-
-Route to the feature topic file — it includes an endpoint table. Example: "SSO API endpoints" → `workos-sso.md`.
-
-### User wants to ADD a feature to an existing AuthKit setup
-
-Route to the feature reference (#3), not back to AuthKit installation. Example: "I'm using AuthKit in Next.js and want to add SSO" → `workos-sso.md`.
-
-### User mentions a provider but no feature
-
-Route to Integrations (#5). Example: "How do I connect Okta?" → `workos-integrations.md`.
-
-### User mentions a provider AND a feature
-
-Route to the feature reference (#3). Example: "Set up Okta SSO" → `workos-sso.md` (it will reference Integrations for Okta setup).
-
-### Unknown framework for AuthKit
-
-If you cannot detect framework and the user hasn't specified, ASK: "Which framework/language are you using?" Do NOT default without confirmation.
-
-### Framework conflicts (multiple frameworks detected)
-
-If detection finds conflicting signals (e.g., both Next.js and TanStack Start configs), ASK: "I see both [framework A] and [framework B]. Which one do you want to use for AuthKit?"
-
-### User provides no context at all
-
-Follow step #8 (Vague or General Request): fetch llms.txt, show options, and force disambiguation.
+Disambiguation across rules lives inline in each rule above: multiple features → most specific (Rule 3), feature + API → feature file (Rules 2–3), adding a feature to an existing AuthKit app → feature reference (Rule 4), provider without a feature → Integrations (Rule 5), provider + feature → feature reference (Rule 3), and unknown or conflicting frameworks → ASK (Rule 4).

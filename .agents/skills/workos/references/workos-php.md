@@ -1,155 +1,75 @@
 # WorkOS AuthKit for PHP
 
-## Step 1: Fetch SDK Documentation (BLOCKING)
+## Docs
 
-**STOP. Do not proceed until complete.**
+Fetch the README first — it's the source of truth:
 
-WebFetch: `https://raw.githubusercontent.com/workos/workos-php/main/README.md`
+- SDK README: `https://raw.githubusercontent.com/workos/workos-php/main/README.md`
 
-The README is the source of truth. If this skill conflicts with README, follow README.
+If this file conflicts with fetched docs, follow the docs.
 
-## Step 2: Pre-Flight Validation
+## Setup
 
-### Project Structure
+Order matters: install SDK → bootstrap/init client → login/callback/logout files → `.env` → build.
 
-- Confirm `composer.json` exists at project root
-- If `composer.json` doesn't exist, create a minimal one with `composer init --no-interaction`
+1. **Install:** `composer require workos/workos-php` (requires PHP ≥ 8.2; add `vlucas/phpdotenv` if no dotenv loader is present).
+2. **Bootstrap** (`config.php` / `bootstrap.php`): require `vendor/autoload.php`, load `.env` with phpdotenv, then construct `new WorkOS(...)` as below. Don't hardcode credentials.
+3. **Endpoint files** (each includes the bootstrap):
+   - `login.php` — `getAuthorizationUrl(...)`, redirect to it.
+   - `callback.php` — `authenticateWithCode(code: $_GET['code'])`, `session_start()`, store `$auth->user->toArray()` and the session ID, redirect.
+   - `logout.php` — build the AuthKit logout URL with `getLogoutUrl(...)`, destroy the local session, redirect to the logout URL (this ends the AuthKit session too).
+4. **`.env`** (don't overwrite existing values):
+   ```
+   WORKOS_API_KEY=sk_...
+   WORKOS_CLIENT_ID=client_...
+   WORKOS_REDIRECT_URI=http://localhost:8000/callback.php
+   WORKOS_COOKIE_PASSWORD=<base64 of 32 random bytes, e.g. base64_encode(random_bytes(32))>
+   ```
+5. **Build:** `php -l` each file.
 
-### Environment Variables
+## Call shapes
 
-Check for `.env` file with:
+Verified against `workos/workos-php@9.5.0` (`lib/WorkOS.php`, `lib/Service/UserManagement.php`, `lib/SessionManager.php`).
 
-- `WORKOS_API_KEY` - starts with `sk_`
-- `WORKOS_CLIENT_ID` - starts with `client_`
-- `WORKOS_REDIRECT_URI` - valid callback URL (e.g., `http://localhost:8000/callback.php`)
+```php
+use WorkOS\WorkOS;
+use WorkOS\SessionManager;
+use WorkOS\Resource\UserManagementAuthenticationProvider;
 
-If `.env` doesn't exist, create it with the required variables.
+// 1. Init. Constructor falls back to getenv(); phpdotenv fills $_ENV, so pass values explicitly.
+$workos = new WorkOS(apiKey: $_ENV['WORKOS_API_KEY'], clientId: $_ENV['WORKOS_CLIENT_ID']);
 
-## Step 2b: Partial Install Recovery
+// 2. login.php: returns a string URL
+$url = $workos->userManagement()->getAuthorizationUrl(
+    redirectUri: $_ENV['WORKOS_REDIRECT_URI'],
+    provider: UserManagementAuthenticationProvider::Authkit,
+);
 
-Before creating new files, check if a previous AuthKit attempt exists:
+// 3. callback.php: AuthenticateResponse with ->user (User), ->accessToken, ->refreshToken
+$auth = $workos->userManagement()->authenticateWithCode(code: $_GET['code']);
 
-1. Check if `workos/workos-php` is already in `composer.json`
-2. Check for incomplete auth files — `login.php` or `callback.php` that import WorkOS but are non-functional (TODO comments, 501 responses, empty handlers)
-3. If partial install detected:
-   - Do NOT reinstall the SDK (it's already there)
-   - Read existing auth files to understand what's done vs missing
-   - Complete the integration by filling gaps rather than starting fresh
-   - Preserve any working code — only fix what's broken
-   - Check for a missing `callback.php` (most common gap)
+// 4. Sealed session: seal tokens (cookie-safe string), then validate it / read the session ID
+$sealed = SessionManager::sealSessionFromAuthResponse(
+    accessToken: $auth->accessToken, refreshToken: $auth->refreshToken,
+    cookiePassword: $_ENV['WORKOS_COOKIE_PASSWORD'], user: $auth->user->toArray(),
+);
+$session = $workos->sessionManager()->authenticate(
+    sessionData: $sealed, cookiePassword: $_ENV['WORKOS_COOKIE_PASSWORD'], clientId: $_ENV['WORKOS_CLIENT_ID'],
+); // array: 'authenticated' (bool), 'session_id', 'user', or 'reason'; refresh(...) with the same args returns 'sealed_session'
 
-## Step 2c: Existing Auth System Detection
-
-Check for existing authentication before integrating:
-
-```
-*.php files have 'session_start()' + '$_SESSION'?  → Native PHP session auth
-*.php files have 'password_verify'?                 → Password-based auth
-*.php files have form POST to '/login'?             → Form-based auth
-composer.json has auth libraries?                   → Third-party auth
-```
-
-If existing auth detected:
-
-- Do NOT remove or disable it
-- Add WorkOS AuthKit alongside the existing system
-- If `session_start()` is already used, reuse the session for WorkOS (don't create a second session mechanism)
-- Create separate file paths for WorkOS auth (e.g., `workos-login.php` if `login.php` is taken)
-- Ensure existing auth routes continue to work unchanged
-- Document in code comments how to migrate fully to WorkOS later
-
-## Step 3: Install SDK
-
-```bash
-composer require workos/workos-php
+// 5. logout.php: end the AuthKit session, then redirect
+$logoutUrl = $workos->userManagement()->getLogoutUrl(sessionId: $_SESSION['workos_session_id'], returnTo: 'http://localhost:8000/');
 ```
 
-**Verify:** Check `composer.json` contains `workos/workos-php` in require section.
+## Gotchas
 
-Also install a dotenv library if not present:
+- Callback file path must equal `WORKOS_REDIRECT_URI` exactly, including any trailing slash.
+- Generate the authorization URL with the SDK; don't construct OAuth URLs manually.
+- `provider` is an enum (`UserManagementAuthenticationProvider::Authkit`), not the string `'authkit'`.
+- The user from `authenticateWithCode` is a `User` object; store `->toArray()` in `$_SESSION` (keys are snake_case: `email`, `first_name`, ...).
+- `WORKOS_COOKIE_PASSWORD` must decode (base64) to exactly 32 bytes; it's a sodium secretbox key.
+- Store `$session['session_id']` at callback time. `sessionManager()->getLogoutUrl(...)` also exists but throws once the access token in the sealed session has expired, so `userManagement()->getLogoutUrl(sessionId: ...)` with the stored ID is more reliable.
 
-```bash
-composer require vlucas/phpdotenv
-```
+## Existing auth
 
-## Step 4: Create Bootstrap File
-
-Create a bootstrap or config file (e.g., `config.php` or `bootstrap.php`) that:
-
-1. Requires Composer autoloader: `require_once __DIR__ . '/vendor/autoload.php';`
-2. Loads `.env` using phpdotenv
-3. Initializes the WorkOS SDK client with API key
-
-Use SDK initialization from README. Do NOT hardcode credentials.
-
-## Step 5: Create Auth Endpoint Files
-
-### `login.php`
-
-- Initialize WorkOS client (include bootstrap)
-- Generate authorization URL using SDK
-- Redirect user to WorkOS AuthKit
-
-### `callback.php`
-
-- Initialize WorkOS client (include bootstrap)
-- Exchange authorization code from `$_GET['code']` for user profile using SDK
-- Start session, store user data
-- Redirect to home/dashboard
-
-### `logout.php`
-
-- Destroy session
-- Redirect to home page
-
-Use SDK methods from README for all WorkOS API calls. Do NOT construct OAuth URLs manually.
-
-## Step 6: Create Home Page
-
-Create or update `index.php` to show:
-
-- Sign in link (`login.php`) when no session
-- User info and sign out link (`logout.php`) when session exists
-
-## Verification Checklist (ALL MUST PASS)
-
-```bash
-# 1. SDK installed
-composer show workos/workos-php
-
-# 2. Auth files exist
-ls login.php callback.php logout.php
-
-# 3. No syntax errors
-php -l login.php
-php -l callback.php
-php -l logout.php
-php -l index.php
-
-# 4. Autoloader exists
-ls vendor/autoload.php
-```
-
-## Error Recovery
-
-### "Class WorkOS\WorkOS not found"
-
-- Verify `composer require` completed successfully
-- Check `vendor/autoload.php` is required in bootstrap
-- Run `composer dump-autoload`
-
-### Session issues
-
-- Ensure `session_start()` is called before any session access
-- Check PHP session configuration (`session.save_path`)
-
-### Redirect URI mismatch
-
-- Compare callback file path to `WORKOS_REDIRECT_URI` in `.env`
-- URLs must match exactly (including trailing slash)
-
-### Environment variables not loading
-
-- Verify `.env` file exists in project root
-- Verify phpdotenv is installed and loaded in bootstrap
-- Check file permissions on `.env`
+Add WorkOS on separate files (e.g. `workos-login.php` if `login.php` is taken); if `session_start()` is already used, reuse that session rather than adding a second mechanism.

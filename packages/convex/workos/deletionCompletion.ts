@@ -49,6 +49,21 @@ export async function currentWorkosDeletionTarget(): Promise<
   };
 }
 
+// Every applied `user.deleted` leaves this receipt, even for a WorkOS user
+// Teak never linked, and receipts are only ever resolved, never removed.
+export async function hasWorkosDeletionReceipt(
+  ctx: Pick<QueryCtx, "db">,
+  workosUserId: string
+): Promise<boolean> {
+  const receipt = await ctx.db
+    .query("migrationQuarantine")
+    .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+      q.eq("workosUserId", workosUserId).eq("reason", "workos_user_deleted")
+    )
+    .first();
+  return receipt !== null;
+}
+
 export function sameWorkosDeletionTarget(
   left: WorkosDeletionTarget,
   right: WorkosDeletionTarget

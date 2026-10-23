@@ -136,6 +136,15 @@ export const catchUpHandler = async (
   );
   let applied = 0;
   let rejected = 0;
+  let saved = after;
+  // One cursor write per page; a failing event still keeps the progress made
+  // before it, so the next run starts at that event.
+  const saveProgress = async () => {
+    if (after !== null && after !== saved) {
+      await ctx.runMutation(internal.workosEventCatchUp.saveCursor, { after });
+      saved = after;
+    }
+  };
   for (let page = 0; page < MAX_PAGES; page++) {
     const result = await workos.events.listEvents({
       events: ["user.created", "user.updated", "user.deleted"],
@@ -147,22 +156,25 @@ export const catchUpHandler = async (
             rangeStart: new Date(Date.now() - FIRST_LOOKBACK_MS).toISOString(),
           }),
     });
-    for (const event of result.data) {
-      if (
-        event.event !== "user.created" &&
-        event.event !== "user.updated" &&
-        event.event !== "user.deleted"
-      ) {
-        continue;
+    try {
+      for (const event of result.data) {
+        if (
+          event.event !== "user.created" &&
+          event.event !== "user.updated" &&
+          event.event !== "user.deleted"
+        ) {
+          continue;
+        }
+        const outcome = await ingestOrDeadLetter(ctx, event);
+        if (outcome === "rejected") {
+          rejected += 1;
+        } else {
+          applied += 1;
+        }
+        after = event.id;
       }
-      const outcome = await ingestOrDeadLetter(ctx, event);
-      if (outcome === "rejected") {
-        rejected += 1;
-      } else {
-        applied += 1;
-      }
-      after = event.id;
-      await ctx.runMutation(internal.workosEventCatchUp.saveCursor, { after });
+    } finally {
+      await saveProgress();
     }
     if (!result.listMetadata.after || result.data.length === 0) {
       break;

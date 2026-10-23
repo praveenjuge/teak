@@ -82,14 +82,12 @@ test.each(["absent", "unverified", "deleted"])(
       variant === "absent" ? null : { emailVerified: variant === "deleted" }
     );
     if (variant === "deleted") {
-      await t.run((ctx) =>
-        ctx.db.insert("workosEvents", {
-          eventId: "evt_READ_deleted",
-          workosUserId: "user_READ",
-          type: "user.deleted",
-          createdAt: 1,
-        })
-      );
+      await t.mutation(internal.workosWebhook.syncVerifiedEvent, {
+        id: "evt_READ_deleted",
+        event: "user.deleted",
+        createdAt: "2026-10-08T00:00:01.000Z",
+        data: { object: "user", ...currentProfile, emailVerified: true },
+      });
       expect(
         await t.query(getProfile, { workosUserId: "user_READ" })
       ).toBeNull();

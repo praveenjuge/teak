@@ -1,177 +1,75 @@
 # WorkOS AuthKit for Laravel
 
-## Step 1: Fetch SDK Documentation (BLOCKING)
+## Docs
 
-**STOP. Do not proceed until complete.**
+Fetch the README first — it's the source of truth:
 
-WebFetch: `https://raw.githubusercontent.com/workos/workos-php-laravel/main/README.md`
+- SDK README: `https://raw.githubusercontent.com/workos/workos-php-laravel/main/README.md`
 
-The README is the source of truth. If this skill conflicts with README, follow README.
+If this file conflicts with fetched docs, follow the docs.
 
-## Step 2: Pre-Flight Validation
+## Setup
 
-### Project Structure
+Order matters: install SDK → publish config → `.env` → auth controller → routes → build.
 
-- Confirm `artisan` file exists at project root
-- Confirm `composer.json` contains `laravel/framework` dependency
-- Confirm `app/` and `routes/` directories exist
+1. **Install:** `composer require workos/workos-php-laravel`.
+2. **Publish config:** `php artisan vendor:publish --provider="WorkOS\Laravel\WorkOSServiceProvider"` creates `config/workos.php` (tag `workos-config`).
+3. **`.env`** (append if missing; don't overwrite existing values):
+   ```
+   WORKOS_API_KEY=sk_...
+   WORKOS_CLIENT_ID=client_...
+   WORKOS_REDIRECT_URI=http://localhost:8000/auth/callback
+   WORKOS_COOKIE_PASSWORD=<base64 of 32 random bytes>
+   ```
+   The published `config/workos.php` only reads `api_key` and `client_id`. Add `'redirect_uri' => env('WORKOS_REDIRECT_URI')` and `'cookie_password' => env('WORKOS_COOKIE_PASSWORD')` to it so `config()` works after `config:cache`. Generate the cookie password with `base64_encode(random_bytes(32))` (the SDK uses libsodium secretbox, which needs a 32-byte key).
+4. **Auth controller** (`app/Http/Controllers/AuthController.php`): `login()` redirects to the AuthKit authorization URL, `callback()` exchanges the code and stores a sealed session plus its session ID, `logout()` clears the local session and redirects to the WorkOS logout URL so the AuthKit session ends too. The package ships no controllers, routes, or middleware; write them using the call shapes below. Don't construct OAuth URLs manually.
+5. **Routes** (`routes/web.php`):
+   ```php
+   Route::get('/login', [AuthController::class, 'login'])->name('login');
+   Route::get('/auth/callback', [AuthController::class, 'callback']);
+   Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+   ```
+6. **Build:** `php artisan route:list | grep -E "login|callback|logout"`.
 
-### Environment Variables
+## Call shapes
 
-Check `.env` for:
-
-- `WORKOS_API_KEY` - starts with `sk_`
-- `WORKOS_CLIENT_ID` - starts with `client_`
-- `WORKOS_REDIRECT_URI` - valid callback URL (e.g., `http://localhost:8000/auth/callback`)
-
-If `.env` exists but is missing these variables, append them. If `.env` doesn't exist, copy `.env.example` and add them.
-
-## Step 2b: Partial Install Recovery
-
-Before creating new files, check if a previous AuthKit attempt exists:
-
-1. Check if `workos/workos-php-laravel` is already in `composer.json`
-2. Check if `config/workos.php` exists but no auth controller or routes are wired
-3. If partial install detected:
-   - Do NOT reinstall the SDK (it's already there)
-   - Do NOT re-publish config if `config/workos.php` already exists
-   - Read existing files to understand what's done vs missing
-   - Complete the integration by filling gaps (controller, routes, middleware)
-   - Preserve any working code — only fix what's broken
-   - Check for missing auth controller or routes (most common gap)
-
-## Step 2c: Existing Auth System Detection
-
-Check for existing authentication before integrating:
-
-```
-composer.json has 'laravel/breeze'?               → Breeze auth scaffolding
-composer.json has 'laravel/jetstream'?            → Jetstream auth
-composer.json has 'laravel/fortify'?              → Fortify auth backend
-app/Http/Controllers/Auth/ exists?                → Auth controllers present
-routes/auth.php exists?                           → Auth routes file
-```
-
-If existing auth detected:
-
-- Do NOT remove or disable it
-- Add WorkOS AuthKit alongside the existing system
-- If Laravel session is already configured, reuse it for WorkOS
-- Create separate route paths for WorkOS auth (e.g., `/auth/workos/login` if `/login` is taken)
-- Ensure existing auth routes continue to work unchanged
-- Document in code comments how to migrate fully to WorkOS later
-
-## Step 3: Install SDK
-
-```bash
-composer require workos/workos-php-laravel
-```
-
-**Verify:** Check `composer.json` contains `workos/workos-php-laravel` in require section before continuing.
-
-## Step 4: Publish Configuration
-
-```bash
-php artisan vendor:publish --provider="WorkOS\Laravel\WorkOSServiceProvider"
-```
-
-This creates `config/workos.php`. Verify the file exists after publishing.
-
-If the artisan command fails, check README for the correct provider class name — it may differ.
-
-## Step 5: Configure Environment
-
-Ensure `.env` contains:
-
-```
-WORKOS_API_KEY=sk_...
-WORKOS_CLIENT_ID=client_...
-WORKOS_REDIRECT_URI=http://localhost:8000/auth/callback
-```
-
-Also ensure `config/workos.php` reads these env vars correctly. Check README for exact config structure.
-
-## Step 6: Create Auth Controller
-
-Create `app/Http/Controllers/AuthController.php` with methods for:
-
-- `login()` — Redirect to WorkOS AuthKit authorization URL
-- `callback()` — Handle OAuth callback, exchange code for user profile
-- `logout()` — Clear session and redirect
-
-Use SDK methods from README. Do NOT construct OAuth URLs manually.
-
-## Step 7: Add Routes
-
-Add to `routes/web.php`:
+Verified against `workos/workos-php-laravel@8.0.1` (requires `workos/workos-php@^7.0.1`; checked `7.3.0`). The service provider is auto-discovered and binds a configured `\WorkOS\WorkOS` singleton; use the `WorkOS` facade, `workos()` helper, or inject `\WorkOS\WorkOS`.
 
 ```php
-use App\Http\Controllers\AuthController;
+use WorkOS\Laravel\Facades\WorkOS; // client built from WORKOS_API_KEY / WORKOS_CLIENT_ID
+use WorkOS\Resource\UserManagementAuthenticationProvider;
+use WorkOS\SessionManager;
+$pw = config('workos.cookie_password'); $cid = config('workos.client_id');
 
-Route::get('/login', [AuthController::class, 'login'])->name('login');
-Route::get('/auth/callback', [AuthController::class, 'callback']);
-Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
+// login
+return redirect()->away(WorkOS::userManagement()->getAuthorizationUrl(
+    redirectUri: config('workos.redirect_uri'), provider: UserManagementAuthenticationProvider::Authkit));
+
+// callback: $auth->user (WorkOS\Resource\User), ->accessToken, ->refreshToken
+$auth = WorkOS::userManagement()->authenticateWithCode(code: $request->query('code'));
+$sealed = SessionManager::sealSessionFromAuthResponse(accessToken: $auth->accessToken,
+    refreshToken: $auth->refreshToken, cookiePassword: $pw, user: $auth->user->toArray());
+$sid = WorkOS::sessionManager()->authenticate(sessionData: $sealed, cookiePassword: $pw, clientId: $cid)['session_id'];
+session(['wos_session' => $sealed, 'wos_session_id' => $sid]); // store the ID now; logout needs it after the token expires
+
+// load (middleware): ['authenticated' => bool, 'user' => ?array, 'session_id' => ..., 'reason' => ...]
+$r = WorkOS::sessionManager()->authenticate(sessionData: session('wos_session', ''), cookiePassword: $pw, clientId: $cid);
+// on reason 'invalid_jwt' (expired): sessionManager()->refresh(sessionData:, cookiePassword:, clientId:) -> ['authenticated', 'sealed_session', ...]
+
+// logout: clear local session, then end the AuthKit session with the stored ID
+$sid = session()->pull('wos_session_id');
+session()->forget('wos_session');
+return $sid ? redirect()->away(WorkOS::userManagement()->getLogoutUrl(sessionId: $sid, returnTo: url('/'))) : redirect('/');
 ```
 
-Ensure the callback route path matches `WORKOS_REDIRECT_URI`.
+## Gotchas
 
-## Step 8: Add Middleware (if applicable)
+- Callback route path must equal `WORKOS_REDIRECT_URI` exactly.
+- `workos/workos-php-laravel@8` requires PHP >= 8.2 and Laravel 12 or 13.
+- Don't use `sessionManager()->getLogoutUrl(sessionData: ...)` for logout. It throws `\InvalidArgumentException` once the sealed access token expires, so logout breaks. Use `userManagement()->getLogoutUrl(sessionId: ...)` with the ID stored at callback.
+- The `returnTo` URL must be configured as a sign-out redirect in the WorkOS dashboard.
+- Laravel 11+ has no `app/Http/Kernel.php` — register any auth middleware in `bootstrap/app.php`.
 
-Check README for any authentication middleware the SDK provides. If available:
+## Existing auth
 
-1. Register middleware in `app/Http/Kernel.php` or `bootstrap/app.php` (Laravel 11+)
-2. Apply to routes that require authentication
-
-For Laravel 11+, middleware is registered in `bootstrap/app.php` instead of `Kernel.php`.
-
-## Step 9: Add UI Integration
-
-Update the home page or dashboard view to show:
-
-- Sign in link when user is not authenticated
-- User info and sign out link when authenticated
-
-Use Blade directives or SDK helpers from README.
-
-## Verification Checklist (ALL MUST PASS)
-
-```bash
-# 1. Config file exists
-ls config/workos.php
-
-# 2. Controller exists
-ls app/Http/Controllers/AuthController.php
-
-# 3. Routes registered
-php artisan route:list | grep -E "login|callback|logout"
-
-# 4. SDK installed
-composer show workos/workos-php-laravel
-
-# 5. Lint check
-php -l app/Http/Controllers/AuthController.php
-```
-
-## Error Recovery
-
-### "Class WorkOS\Laravel\WorkOSServiceProvider not found"
-
-- Verify `composer require` completed successfully
-- Run `composer dump-autoload`
-- Check `vendor/workos/` directory exists
-
-### "Route not defined"
-
-- Verify routes are in `routes/web.php`
-- Run `php artisan route:clear && php artisan route:cache`
-
-### Config not loading
-
-- Verify `config/workos.php` exists
-- Run `php artisan config:clear`
-- Check `.env` variables match config keys
-
-### Middleware issues (Laravel 11+)
-
-- Laravel 11 removed `Kernel.php` — register middleware in `bootstrap/app.php`
-- Check README for Laravel version-specific instructions
+If Breeze, Jetstream, or Fortify is present, add WorkOS on separate routes (e.g. `/auth/workos/login` if `/login` is taken) and reuse the configured Laravel session.

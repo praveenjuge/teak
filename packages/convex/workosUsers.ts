@@ -11,6 +11,7 @@ import {
   WORKOS_USER_ID,
 } from "./shared/workosIds";
 import { queueUserCreated } from "./telemetry/schedule";
+import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 
 const reasonValidator = v.union(
   v.literal("external_id_mismatch"),
@@ -138,15 +139,9 @@ export const linkWorkosUser = internalMutation({
       )
       .take(2);
     const linked = providerRows[0];
-    const providerDeletion = await ctx.db
-      .query("workosEvents")
-      .withIndex("by_workosUserId_and_type", (q) =>
-        q.eq("workosUserId", args.workosUserId).eq("type", "user.deleted")
-      )
-      .first();
     if (
-      providerDeletion ||
-      providerRows.some((row) => row.workosDeletedAt !== undefined)
+      providerRows.some((row) => row.workosDeletedAt !== undefined) ||
+      (await hasWorkosDeletionReceipt(ctx, args.workosUserId))
     ) {
       return quarantine("workos_deleted_user", linked?.teakUserId);
     }

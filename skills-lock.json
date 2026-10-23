@@ -93,7 +93,7 @@
       "source": "workos/skills",
       "sourceType": "github",
       "skillPath": "plugins/workos/skills/workos/SKILL.md",
-      "computedHash": "38717cb09eff2924866cd4d0ed73bc1889775b85ff22c78e92870245be19392f"
+      "computedHash": "fb3b1ae52aa6299f3c0c45337399d614f11d6a6e8e4a1203f61c9d91717bf8f7"
     },
     "wrangler": {
       "source": "cloudflare/skills",

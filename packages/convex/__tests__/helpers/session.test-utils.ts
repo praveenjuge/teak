@@ -63,7 +63,7 @@ const identityRows = (
 
 const IDENTITY_TABLES = new Set([
   "users",
-  "workosEvents",
+  "migrationQuarantine",
   "accountDeletionStates",
 ]);
 

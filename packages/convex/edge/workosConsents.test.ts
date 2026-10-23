@@ -479,10 +479,11 @@ describe("durable Connect consent authorization", () => {
     await authorize(t);
     const before = await records(t);
     await t.run((ctx) =>
-      ctx.db.insert("workosEvents", {
-        eventId: "event_DELETE",
+      ctx.db.insert("migrationQuarantine", {
         workosUserId: principal.workosUserId,
-        type: "user.deleted",
+        email: "",
+        reason: "workos_user_deleted",
+        source: "webhook",
         createdAt: 1,
       })
     );
