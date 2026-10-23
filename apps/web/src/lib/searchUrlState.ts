@@ -7,6 +7,7 @@ import {
   parseShuffleSeed,
   parseTimeSearchQuery,
   quoteSearchValue,
+  searchExpressionParts,
   type TimeFilter,
 } from "@teak/convex/shared";
 import {
@@ -298,6 +299,7 @@ export function comparableSearch(state: SearchUrlState): {
         .map(formatSearchQualifier),
       ...parsed.phrases.map(quoteSearchValue),
       ...parsed.terms,
+      ...searchExpressionParts(parsed),
     ].join(" "),
     types,
   };

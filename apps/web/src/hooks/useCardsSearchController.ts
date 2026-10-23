@@ -2,6 +2,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
   type CardListSort,
   combineSearchQueries,
+  expressionFolderNames,
   filterLocalCards,
   mergeCardsIntoLocalSearchCache,
   mergeLocalAndRemoteSearchResults,
@@ -358,7 +359,11 @@ export function useCardsSearchController(
       return true;
     }
     const parsed = parseSearchQuery(localSearchTerms);
-    return parsed.folders.length > 0 || Boolean(parsed.similarity);
+    return (
+      parsed.folders.length > 0 ||
+      expressionFolderNames(parsed.expression).length > 0 ||
+      Boolean(parsed.similarity)
+    );
   }, [localSearchTerms]);
 
   const localSearchResults = useMemo(() => {

@@ -46,10 +46,32 @@ const MAX_MOOD_LENGTH = 200;
 const MAX_OCR_TEXT_LENGTH = 200;
 const CONVEX_ID_PATTERN = /^[0-9a-z]{31,37}$/;
 
+/**
+ * A search's boolean structure. `-` is `not`, uppercase `OR` is `or`, a
+ * space is `and`, and parentheses group.
+ */
+export type SearchExpression =
+  | { op: "and" | "or"; items: SearchExpression[] }
+  | { op: "not"; item: SearchExpression }
+  | { op: "term"; value: string }
+  | { op: "phrase"; value: string }
+  | { op: "qualifier"; qualifier: SearchQualifier };
+
+/** Parentheses nest at most this deep; deeper ones are ignored. */
+export const MAX_SEARCH_EXPRESSION_DEPTH = 4;
+/** Past this many words and filters, the rest is searched as plain words. */
+export const MAX_SEARCH_EXPRESSION_LEAVES = 64;
+
 export interface ParsedSearchQuery {
   archived: boolean;
   canonical: string;
   done: boolean;
+  /**
+   * The parts the flat fields can't hold: exclusions, `OR` and groups, all
+   * of which must also match. Undefined when the query has none, so a query
+   * without operators behaves exactly as the flat fields say.
+   */
+  expression?: SearchExpression;
   favorite: boolean;
   folders: string[];
   ocrTexts: string[];
@@ -81,11 +103,35 @@ const DONE_WORDS = new Set(["done", "completed", "finished"]);
 const TODO_WORDS = new Set(["todo", "to-do"]);
 
 interface RawToken {
+  /** `-` before the token, outside quotes: the token is excluded. */
+  negated: boolean;
+  paren?: "(" | ")";
   prefix: string;
   quoted: boolean;
   text: string;
 }
 
+const isParen = (character: string) => character === "(" || character === ")";
+
+/** Whether `input` from `index` to the next space holds only parentheses. */
+const onlyParensUntilSpace = (input: string, index: number) => {
+  for (let at = index; at < input.length; at += 1) {
+    const character = input[at] ?? "";
+    if (/\s/.test(character)) {
+      return true;
+    }
+    if (!isParen(character)) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
+ * Splits a query into words, honouring straight and curly quotes and `\`
+ * escapes inside them. Outside quotes, parentheses at a word's start or end
+ * are their own tokens, and a `-` that starts a word marks it excluded.
+ */
 const tokenize = (input: string): RawToken[] => {
   const tokens: RawToken[] = [];
   let index = 0;
@@ -96,9 +142,37 @@ const tokenize = (input: string): RawToken[] => {
     if (index >= input.length) {
       break;
     }
+    let negated = false;
+    // A word's start: its `-` and any opening or stray closing parentheses.
+    while (index < input.length) {
+      const character = input[index] ?? "";
+      const next = input[index + 1] ?? "";
+      if (!negated && character === "-" && next && !/\s/.test(next)) {
+        negated = true;
+        index += 1;
+        continue;
+      }
+      if (isParen(character)) {
+        tokens.push({
+          negated: negated && character === "(",
+          paren: character,
+          prefix: "",
+          quoted: false,
+          text: character,
+        });
+        negated = false;
+        index += 1;
+        continue;
+      }
+      break;
+    }
+    if (index >= input.length || /\s/.test(input[index] ?? "")) {
+      continue;
+    }
     let text = "";
     let prefix: string | null = null;
     let inQuotes = false;
+    const closing: RawToken[] = [];
     while (index < input.length) {
       const character = input[index] ?? "";
       if (inQuotes) {
@@ -123,6 +197,20 @@ const tokenize = (input: string): RawToken[] => {
       if (/\s/.test(character)) {
         break;
       }
+      if (isParen(character) && onlyParensUntilSpace(input, index)) {
+        while (index < input.length && isParen(input[index] ?? "")) {
+          const paren = input[index] as "(" | ")";
+          closing.push({
+            negated: false,
+            paren,
+            prefix: "",
+            quoted: false,
+            text: paren,
+          });
+          index += 1;
+        }
+        break;
+      }
       if (QUOTE_CHARACTERS.has(character)) {
         if (prefix === null) {
           prefix = text;
@@ -134,7 +222,13 @@ const tokenize = (input: string): RawToken[] => {
       text += character;
       index += 1;
     }
-    tokens.push({ prefix: prefix ?? "", quoted: prefix !== null, text });
+    tokens.push({
+      negated,
+      prefix: prefix ?? "",
+      quoted: prefix !== null,
+      text,
+    });
+    tokens.push(...closing);
   }
   return tokens;
 };
@@ -313,11 +407,272 @@ export const formatSearchQualifier = (qualifier: SearchQualifier): string => {
   return `${qualifier.key}:${needsQuotes(value) ? quoteSearchValue(value) : value}`;
 };
 
-export const parseSearchQuery = (input: string): ParsedSearchQuery => {
+/** One word of a query as a leaf: a filter, a tag, a phrase or a word. */
+const leafOf = (token: RawToken): SearchExpression | null => {
+  const colon = token.quoted
+    ? token.prefix.indexOf(":")
+    : token.text.indexOf(":");
+  const keyCandidate =
+    colon > 0 ? token.text.slice(0, colon).toLowerCase() : "";
+  if (
+    colon > 0 &&
+    (!token.quoted || colon === token.prefix.length - 1) &&
+    (SEARCH_QUALIFIER_KEYS as readonly string[]).includes(keyCandidate)
+  ) {
+    const key = keyCandidate as SearchQualifierKey;
+    const rawValue = token.text.slice(colon + 1);
+    const qualifier = parseQualifier(
+      key,
+      token.quoted
+        ? rawValue
+        : trimEdgePunctuation(rawValue, key === "site" ? "[]" : "")
+    );
+    if (qualifier) {
+      return { op: "qualifier", qualifier };
+    }
+    return rawValue.trim() ? { op: "term", value: token.text } : null;
+  }
+
+  if (token.text.startsWith("#") && (!token.quoted || token.prefix === "#")) {
+    const value = token.quoted
+      ? token.text.slice(1)
+      : trimEdgePunctuation(token.text.slice(1));
+    if (!token.quoted && value && normalizeHexColor(`#${value}`)) {
+      return { op: "term", value: token.text };
+    }
+    const qualifier = parseQualifier("tag", value);
+    return qualifier ? { op: "qualifier", qualifier } : null;
+  }
+
+  if (token.quoted && token.prefix === "") {
+    const phrase = token.text.trim();
+    return phrase ? { op: "phrase", value: phrase } : null;
+  }
+
+  return token.text.trim() ? { op: "term", value: token.text } : null;
+};
+
+/** The words a token stands for when it is read as plain text. */
+const tokenText = (token: RawToken) =>
+  token.paren
+    ? ""
+    : `${token.negated ? "-" : ""}${
+        token.quoted
+          ? `${token.prefix}${quoteSearchValue(token.text.slice(token.prefix.length))}`
+          : token.text
+      }`;
+
+const isOrToken = (token: RawToken | undefined) =>
+  token !== undefined &&
+  !token.quoted &&
+  !token.negated &&
+  !token.paren &&
+  token.text === "OR";
+
+const isSimilarityLeaf = (expression: SearchExpression) =>
+  expression.op === "qualifier" && isSimilarityKey(expression.qualifier.key);
+
+/** Joins items under one operator, flattening same-operator children. */
+const joinExpressions = (
+  op: "and" | "or",
+  items: SearchExpression[]
+): SearchExpression | null => {
+  const flat = items.flatMap((item) => (item.op === op ? item.items : [item]));
+  if (flat.length === 0) {
+    return null;
+  }
+  return flat.length === 1 ? (flat[0] ?? null) : { op, items: flat };
+};
+
+/**
+ * Reads tokens into an expression: `OR` binds loosest, then a space, then
+ * `-`; parentheses group. It never throws: a lone `-` or `OR`, a stray `)`
+ * and an unclosed `(` are forgiven, `like:` and `mood:` count only outside
+ * groups and exclusions, and past the depth and leaf caps the rest is read
+ * as plain words.
+ */
+const parseSearchTree = (input: string): SearchExpression | null => {
+  const tokens = tokenize(input).filter(
+    (token) => token.paren || token.quoted || token.text !== "-"
+  );
+  let position = 0;
+  let leaves = 0;
+  // Opening parentheses past the depth cap, whose `)` closes nothing.
+  let ignoredOpens = 0;
+  const overflow: SearchExpression[] = [];
+
+  const readLeaf = (token: RawToken) => {
+    const leaf = leafOf(token);
+    if (!leaf) {
+      return null;
+    }
+    if (leaves >= MAX_SEARCH_EXPRESSION_LEAVES) {
+      overflow.push({ op: "term", value: tokenText(token) });
+      return null;
+    }
+    leaves += 1;
+    // Similarity picks the ranking, so it can't be excluded.
+    if (isSimilarityLeaf(leaf) && token.negated) {
+      return { op: "term", value: tokenText(token) } as SearchExpression;
+    }
+    return token.negated
+      ? ({ op: "not", item: leaf } as SearchExpression)
+      : leaf;
+  };
+
+  const parseOr = (depth: number): SearchExpression | null => {
+    const items: SearchExpression[] = [];
+    const first = parseAnd(depth);
+    if (first) {
+      items.push(first);
+    }
+    while (isOrToken(tokens[position])) {
+      position += 1;
+      const next = parseAnd(depth);
+      if (next) {
+        items.push(next);
+      }
+    }
+    return joinExpressions("or", items);
+  };
+
+  const parseAnd = (depth: number): SearchExpression | null => {
+    const items: SearchExpression[] = [];
+    while (position < tokens.length) {
+      const token = tokens[position];
+      if (!token || isOrToken(token)) {
+        break;
+      }
+      if (token.paren === ")") {
+        if (ignoredOpens > 0) {
+          ignoredOpens -= 1;
+          position += 1;
+          continue;
+        }
+        if (depth > 0) {
+          break;
+        }
+        position += 1;
+        continue;
+      }
+      position += 1;
+      if (token.paren === "(") {
+        if (depth >= MAX_SEARCH_EXPRESSION_DEPTH) {
+          ignoredOpens += 1;
+          continue;
+        }
+        const group = parseOr(depth + 1);
+        if (tokens[position]?.paren === ")") {
+          position += 1;
+        }
+        if (group) {
+          items.push(token.negated ? { op: "not", item: group } : group);
+        }
+        continue;
+      }
+      const leaf = readLeaf(token);
+      if (leaf) {
+        items.push(leaf);
+      }
+    }
+    return joinExpressions("and", items);
+  };
+
+  const root = parseOr(0);
+  const joined = joinExpressions("and", [...(root ? [root] : []), ...overflow]);
+  if (!joined) {
+    return null;
+  }
+  // Similarity picks the ranking, so it counts only as a top-level filter;
+  // inside a group or an OR it is a plain word.
+  const topLevel = joined.op === "and" ? joined.items : [joined];
+  const demoted = topLevel.map((item) =>
+    item.op === "qualifier" ? item : demoteSimilarity(item)
+  );
+  return joined.op === "and"
+    ? { op: "and", items: demoted }
+    : (demoted[0] ?? null);
+};
+
+const demoteSimilarity = (expression: SearchExpression): SearchExpression => {
+  switch (expression.op) {
+    case "qualifier":
+      return isSimilarityLeaf(expression)
+        ? { op: "term", value: formatSearchQualifier(expression.qualifier) }
+        : expression;
+    case "not":
+      return { op: "not", item: demoteSimilarity(expression.item) };
+    case "and":
+    case "or":
+      return {
+        op: expression.op,
+        items: expression.items.map(demoteSimilarity),
+      };
+    default:
+      return expression;
+  }
+};
+
+/** A word is printed as written, except one that would read as `OR`. */
+const formatTerm = (value: string) =>
+  value === "OR" ? quoteSearchValue(value) : value;
+
+const OPERATOR_PRECEDENCE = { or: 0, and: 1 } as const;
+
+const formatExpression = (
+  expression: SearchExpression,
+  parent: "and" | "or" | "not" | null
+): string => {
+  switch (expression.op) {
+    case "term":
+      return formatTerm(expression.value);
+    case "phrase":
+      return quoteSearchValue(expression.value);
+    case "qualifier":
+      return formatSearchQualifier(expression.qualifier);
+    case "not": {
+      const inner = formatExpression(expression.item, "not");
+      return `-${inner}`;
+    }
+    default: {
+      const text = expression.items
+        .map((item) => formatExpression(item, expression.op))
+        .join(expression.op === "or" ? " OR " : " ");
+      const needsGroup =
+        parent === "not" ||
+        (parent !== null &&
+          OPERATOR_PRECEDENCE[expression.op] < OPERATOR_PRECEDENCE[parent]);
+      return needsGroup ? `(${text})` : text;
+    }
+  }
+};
+
+/** Prints an expression so that parsing the text gives it back. */
+export const formatSearchExpression = (expression: SearchExpression): string =>
+  formatExpression(expression, null);
+
+/** Whether every card an expression matches has one of its words. */
+const requiresWords = (expression: SearchExpression): boolean => {
+  switch (expression.op) {
+    case "term":
+    case "phrase":
+      return true;
+    case "and":
+      return expression.items.some(requiresWords);
+    case "or":
+      return expression.items.every(requiresWords);
+    default:
+      return false;
+  }
+};
+
+const buildParsedQuery = (root: SearchExpression | null): ParsedSearchQuery => {
   const qualifiers: SearchQualifier[] = [];
   const seen = new Set<string>();
   const terms: string[] = [];
   const phrases: string[] = [];
+  const residual: SearchExpression[] = [];
+  const indexWords: string[] = [];
   const addQualifier = (qualifier: SearchQualifier) => {
     const identity = qualifierIdentity(qualifier);
     if (!seen.has(identity)) {
@@ -325,28 +680,25 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
       qualifiers.push(qualifier);
     }
   };
+  const collectIndexWords = (expression: SearchExpression) => {
+    if (expression.op === "term" || expression.op === "phrase") {
+      indexWords.push(expression.value);
+    } else if (expression.op === "and" || expression.op === "or") {
+      for (const item of expression.items) {
+        collectIndexWords(item);
+      }
+    }
+  };
 
-  for (const token of tokenize(input)) {
-    const colon = token.quoted
-      ? token.prefix.indexOf(":")
-      : token.text.indexOf(":");
-    const keyCandidate =
-      colon > 0 ? token.text.slice(0, colon).toLowerCase() : "";
-    if (
-      colon > 0 &&
-      (!token.quoted || colon === token.prefix.length - 1) &&
-      (SEARCH_QUALIFIER_KEYS as readonly string[]).includes(keyCandidate)
-    ) {
-      const key = keyCandidate as SearchQualifierKey;
-      const rawValue = token.text.slice(colon + 1);
-      const qualifier = parseQualifier(
-        key,
-        token.quoted
-          ? rawValue
-          : trimEdgePunctuation(rawValue, key === "site" ? "[]" : "")
-      );
+  const items = root ? (root.op === "and" ? root.items : [root]) : [];
+  for (const item of items) {
+    if (item.op === "term") {
+      terms.push(item.value);
+    } else if (item.op === "phrase") {
+      phrases.push(item.value);
+    } else if (item.op === "qualifier") {
+      const { qualifier } = item;
       if (
-        qualifier &&
         isSimilarityKey(qualifier.key) &&
         qualifiers.some(
           (other) =>
@@ -354,40 +706,13 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
             qualifierIdentity(other) !== qualifierIdentity(qualifier)
         )
       ) {
-        terms.push(token.text);
-      } else if (qualifier) {
-        addQualifier(qualifier);
-      } else if (rawValue.trim()) {
-        terms.push(token.text);
-      }
-      continue;
-    }
-
-    if (token.text.startsWith("#") && (!token.quoted || token.prefix === "#")) {
-      const value = token.quoted
-        ? token.text.slice(1)
-        : trimEdgePunctuation(token.text.slice(1));
-      if (!token.quoted && value && normalizeHexColor(`#${value}`)) {
-        terms.push(token.text);
-        continue;
-      }
-      const qualifier = parseQualifier("tag", value);
-      if (qualifier) {
+        terms.push(formatSearchQualifier(qualifier));
+      } else {
         addQualifier(qualifier);
       }
-      continue;
-    }
-
-    if (token.quoted && token.prefix === "") {
-      const phrase = token.text.trim();
-      if (phrase) {
-        phrases.push(phrase);
-      }
-      continue;
-    }
-
-    if (token.text.trim()) {
-      terms.push(token.text);
+    } else {
+      residual.push(item);
+      collectIndexWords(item);
     }
   }
 
@@ -424,17 +749,36 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     }
   }
 
-  const canonical = [
+  const expression = joinExpressions("and", residual) ?? undefined;
+  // The search index finds cards with any of the words, so the words of an
+  // OR group only go to it when every match has one of them: a card that
+  // matches `is:archived OR notes` through `is:archived` has none.
+  const indexed =
+    terms.length > 0 ||
+    phrases.length > 0 ||
+    (expression !== undefined && requiresWords(expression));
+  const flat = [
     ...qualifiers.map(formatSearchQualifier),
     ...phrases.map(quoteSearchValue),
-    ...terms,
+    ...terms.map(formatTerm),
+  ];
+  const canonical = [
+    ...flat,
+    ...residual.map((item) =>
+      formatExpression(
+        item,
+        flat.length > 0 || residual.length > 1 ? "and" : null
+      )
+    ),
   ].join(" ");
 
   return {
     qualifiers,
     terms,
     phrases,
-    text: [...terms, ...phrases].join(" ").trim(),
+    text: [...terms, ...phrases, ...(indexed ? indexWords : [])]
+      .join(" ")
+      .trim(),
     tags,
     ocrTexts,
     types,
@@ -447,8 +791,29 @@ export const parseSearchQuery = (input: string): ParsedSearchQuery => {
     similarity,
     prices,
     canonical,
+    ...(expression ? { expression } : {}),
   };
 };
+
+export const parseSearchQuery = (input: string): ParsedSearchQuery =>
+  buildParsedQuery(parseSearchTree(input));
+
+/** The residual parts of a parsed query, each as its own top-level item. */
+const residualItems = (parsed: ParsedSearchQuery): SearchExpression[] => {
+  if (!parsed.expression) {
+    return [];
+  }
+  return parsed.expression.op === "and"
+    ? parsed.expression.items
+    : [parsed.expression];
+};
+
+/**
+ * The parts of a query's expression, each printed to sit beside the query's
+ * other words and filters: `-figma`, `(a OR b)`.
+ */
+export const searchExpressionParts = (parsed: ParsedSearchQuery): string[] =>
+  residualItems(parsed).map((item) => formatExpression(item, "and"));
 
 export const combineSearchQueries = (
   scope: string,
@@ -489,14 +854,68 @@ export const combineSearchQueries = (
     ...types.map((value) => ({ key: "type" as const, value })),
     ...sites.map((value) => ({ key: "site" as const, value })),
   ];
+  // Each side's exclusions and OR groups stay whole, so an OR in the
+  // folder's query can't take in the typed words, or the other way round.
   return parseSearchQuery(
     [
       ...qualifiers.map(formatSearchQualifier),
       ...[...outer.phrases, ...inner.phrases].map(quoteSearchValue),
       ...outer.terms,
       ...inner.terms,
+      ...[...residualItems(outer), ...residualItems(inner)].map((item) =>
+        formatExpression(item, "and")
+      ),
     ].join(" ")
   ).canonical;
+};
+
+const renameFolderLeaves = (
+  expression: SearchExpression,
+  fromNameKey: string,
+  toName: string
+): SearchExpression => {
+  switch (expression.op) {
+    case "qualifier":
+      return expression.qualifier.key === "folder" &&
+        expression.qualifier.value.trim().toLowerCase() === fromNameKey
+        ? { op: "qualifier", qualifier: { key: "folder", value: toName } }
+        : expression;
+    case "not":
+      return {
+        op: "not",
+        item: renameFolderLeaves(expression.item, fromNameKey, toName),
+      };
+    case "and":
+    case "or":
+      return {
+        op: expression.op,
+        items: expression.items.map((item) =>
+          renameFolderLeaves(item, fromNameKey, toName)
+        ),
+      };
+    default:
+      return expression;
+  }
+};
+
+/** Every filter a query names, wherever it sits in the expression. */
+export const searchExpressionQualifiers = (
+  expression: SearchExpression | undefined
+): SearchQualifier[] => {
+  if (!expression) {
+    return [];
+  }
+  switch (expression.op) {
+    case "qualifier":
+      return [expression.qualifier];
+    case "not":
+      return searchExpressionQualifiers(expression.item);
+    case "and":
+    case "or":
+      return expression.items.flatMap(searchExpressionQualifiers);
+    default:
+      return [];
+  }
 };
 
 export const renameFolderInSearchQuery = (
@@ -505,22 +924,21 @@ export const renameFolderInSearchQuery = (
   toName: string
 ): string => {
   const parsed = parseSearchQuery(query);
-  if (!parsed.folders.includes(fromNameKey)) {
+  const named = [
+    ...parsed.folders,
+    ...searchExpressionQualifiers(parsed.expression)
+      .filter((qualifier) => qualifier.key === "folder")
+      .map((qualifier) => qualifier.value.trim().toLowerCase()),
+  ];
+  if (!named.includes(fromNameKey)) {
     return query;
   }
-  const qualifiers = parsed.qualifiers.map((qualifier) =>
-    qualifier.key === "folder" &&
-    qualifier.value.trim().toLowerCase() === fromNameKey
-      ? { key: "folder" as const, value: toName }
-      : qualifier
-  );
-  return parseSearchQuery(
-    [
-      ...qualifiers.map(formatSearchQualifier),
-      ...parsed.phrases.map(quoteSearchValue),
-      ...parsed.terms,
-    ].join(" ")
-  ).canonical;
+  const root = parseSearchTree(query);
+  return root
+    ? parseSearchQuery(
+        formatSearchExpression(renameFolderLeaves(root, fromNameKey, toName))
+      ).canonical
+    : query;
 };
 
 export const hasSearchQualifiers = (parsed: ParsedSearchQuery) =>

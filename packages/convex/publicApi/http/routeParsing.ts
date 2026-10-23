@@ -1,3 +1,4 @@
+import { expressionWantsArchived } from "../../shared/search/expression";
 import { narrowTypesForQuery } from "../../card/searchPlanner";
 import { normalizeVisualFilterArgs } from "../../card/visualFilters";
 import type { CardType } from "../../schema";
@@ -9,6 +10,7 @@ import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../../shared/search/con
 import {
   combineSearchQueries,
   hasSearchQualifiers,
+  formatSearchExpression,
   parseSearchQuery,
 } from "../../shared/search/qualifiers";
 import { isSearchMode, semanticRequestFor } from "../../shared/search/semantic";
@@ -231,6 +233,13 @@ export const parseCardsQueryOptions = (
   if (parsed.archived && trashed !== true) {
     matchesNothing ||= archived === "exclude";
     resolvedArchived = "only";
+  } else if (
+    resolvedArchived === "exclude" &&
+    trashed !== true &&
+    expressionWantsArchived(parsed.expression)
+  ) {
+    // `is:archived` inside an OR reads archived cards too.
+    resolvedArchived = "include";
   }
   const tags = [
     ...new Set(
@@ -248,11 +257,16 @@ export const parseCardsQueryOptions = (
     folder,
     favoritesOnly: favorited === true || parsed.favorite,
     ...(matchesNothing ? { matchesNothing } : {}),
-    ...(hasSearchQualifiers(parsed) || parsed.phrases.length > 0
+    ...(hasSearchQualifiers(parsed) ||
+    parsed.phrases.length > 0 ||
+    parsed.expression
       ? {
           qualifiers: {
             archivedInTrash: trashed === true && parsed.archived,
             ...(parsed.done ? { done: true } : {}),
+            ...(parsed.expression
+              ? { expression: formatSearchExpression(parsed.expression) }
+              : {}),
             folderNames: parsed.folders,
             ...(parsed.ocrTexts.length > 0
               ? { ocrTexts: parsed.ocrTexts }

@@ -1309,3 +1309,208 @@ describe("text:", () => {
     ).toEqual(["Receipt screenshot", "Video title card"]);
   });
 });
+
+describe("search operators", () => {
+  const live = {
+    plain: "Plain design system note",
+    example: "Example home",
+    blog: "Blog post about design",
+    notes: "GitHub notes",
+    system: "Design system on GitHub",
+  };
+
+  test("the roadmap examples", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    expect(await search("design -github")).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+    ]);
+    expect(await search("#design -site:github.com")).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+    ]);
+    expect(await search("tag:notes OR tag:writing")).toEqual([
+      live.blog,
+      live.notes,
+    ]);
+    expect(
+      await search("(site:github.com OR site:example.com) -tag:notes")
+    ).toEqual([live.example, live.system]);
+    expect(await search("-design")).toEqual([live.notes]);
+    expect(await search("type:link -type:link")).toEqual([]);
+  });
+
+  test("a hyphen inside a word is not an exclusion", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "A to-do list" });
+    await insert({ content: "Groceries" });
+    expect(await search("to-do")).toEqual(["A to-do list"]);
+  });
+
+  test("archive and trash", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    expect(await search("site:github.com (is:archived OR notes)")).toEqual([
+      "Archived GitHub design",
+      live.notes,
+    ]);
+    expect(await search("-is:archived site:github.com")).toEqual([
+      live.notes,
+      live.system,
+    ]);
+    expect(
+      await search("site:github.com -is:archived", { showTrashOnly: true })
+    ).toEqual(["Trashed GitHub design"]);
+  });
+
+  test("hidden cards show only through a branch that names their tag", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    await insert({ content: "Private design diary", tags: ["hidden", "x"] });
+    expect(await search("-tag:hidden diary")).toEqual([]);
+    expect(await search("-tag:hidden")).not.toContain("Private design diary");
+    expect(await search("tag:hidden OR tag:writing")).toEqual([
+      "Private design diary",
+      live.blog,
+    ]);
+    expect(await search("tag:x OR tag:writing")).toEqual([live.blog]);
+    expect(await search("-(tag:hidden OR x) diary")).toEqual([]);
+  });
+
+  test("folders resolve inside the expression; an unknown one is just false", async () => {
+    const { owner, insert, search } = await setup();
+    await seedLibrary(insert);
+    const work = await owner.mutation(api.folders.createFolder, {
+      name: "Work",
+    });
+    const filed = await insert({ content: "Filed design brief" });
+    await owner.mutation(api.folders.setCardFolders, {
+      cardId: filed,
+      folderIds: [work._id],
+    });
+    expect(await search("folder:work OR tag:writing")).toEqual([
+      "Filed design brief",
+      live.blog,
+    ]);
+    expect(await search("design -folder:WORK")).not.toContain(
+      "Filed design brief"
+    );
+    expect(await search("folder:nope OR tag:writing")).toEqual([live.blog]);
+    expect(await search("tag:notes -folder:nope")).toEqual([live.notes]);
+  });
+
+  test("an exclusion pages through more cards than one batch", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "oldest keep" });
+    for (let index = 0; index < 230; index += 1) {
+      await insert({ content: `noise ${index}`, tags: ["noise"] });
+    }
+    await insert({ content: "newest keep", tags: ["fonts"] });
+    expect(await search("-tag:noise")).toEqual(["newest keep", "oldest keep"]);
+    expect(await search("tag:fonts OR keep")).toEqual([
+      "newest keep",
+      "oldest keep",
+    ]);
+  });
+
+  test("a smart folder's OR and a typed OR intersect", async () => {
+    const { owner, insert, search } = await setup();
+    await seedLibrary(insert);
+    const folder = await owner.mutation(api.folders.createFolder, {
+      name: "Design or notes",
+      kind: "smart",
+      query: "tag:design OR tag:notes",
+    });
+    expect(folder.query).toBe("tag:design OR tag:notes");
+    expect(await search("", { folderId: folder._id })).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+      live.notes,
+      live.system,
+    ]);
+    expect(
+      await search("site:github.com OR site:example.com", {
+        folderId: folder._id,
+      })
+    ).toEqual([live.example, live.notes, live.system]);
+    expect(await search("-tag:notes", { folderId: folder._id })).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+      live.system,
+    ]);
+  });
+
+  test("a smart folder checks folders named inside its expression", async () => {
+    const { owner } = await setup();
+    await expect(
+      owner.mutation(api.folders.createFolder, {
+        name: "Broken",
+        kind: "smart",
+        query: "-folder:nope OR x",
+      })
+    ).rejects.toThrow("No folder named nope");
+    const archive = await owner.mutation(api.folders.createFolder, {
+      name: "Not archive",
+      kind: "smart",
+      query: "-archive",
+    });
+    expect(archive.query).toBe("-archive");
+  });
+
+  test("the API's search and scan pages take the expression", async () => {
+    const { t, owner, insert, runScheduled } = await setup();
+    await seedLibrary(insert);
+    const reading = await owner.mutation(api.folders.createFolder, {
+      name: "Reading",
+    });
+    const filed = await insert({ content: "Filed note" });
+    await owner.mutation(api.folders.setCardFolders, {
+      cardId: filed,
+      folderIds: [reading._id],
+    });
+    await runScheduled();
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          searchQuery: "design",
+          expression: "-site:github.com",
+        })
+      )
+    ).toEqual([live.plain, live.example, live.blog]);
+    const scan = (expression: string, args: Record<string, unknown> = {}) =>
+      t
+        .query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          expression,
+          ...args,
+        })
+        .then(contents);
+    expect(await scan("-tag:design")).toEqual(["Filed note", live.notes]);
+    expect(await scan("folder:reading OR tag:notes")).toEqual([
+      "Filed note",
+      live.notes,
+    ]);
+    expect(
+      await scan("tag:notes OR is:archived", { archived: "include" })
+    ).toEqual(["Archived GitHub design", live.notes]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.shuffleCardsPageForUser, {
+          userId: "owner",
+          shuffleSeed: 3,
+          limit: 50,
+          expression: "-tag:design -filed",
+        })
+      )
+    ).toEqual([live.notes]);
+  });
+});

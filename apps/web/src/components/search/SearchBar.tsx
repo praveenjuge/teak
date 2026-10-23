@@ -26,10 +26,12 @@ import {
   Link as LinkIcon,
   ListFilter,
   Palette,
+  Parentheses,
   Quote,
   ScanText,
   Search,
   Sparkles,
+  Split,
   Star,
   Tag,
   Video,
@@ -64,6 +66,7 @@ import { PageHeader } from "../../screens/PageHeader";
 import {
   buildSearchSuggestions,
   currentSearchToken,
+  describeKeywordChip,
   describeQualifierChip,
   type SearchSuggestion,
   type SearchSuggestionSources,
@@ -151,8 +154,11 @@ const suggestionIcon = (suggestion: SearchSuggestion) => {
   if (suggestion.type) {
     return getFilterIcon(suggestion.type);
   }
+  if (suggestion.key === "OR") {
+    return Split;
+  }
   if (suggestion.key === "is") {
-    return IS_ICONS[suggestion.insert.slice("is:".length)] ?? Star;
+    return IS_ICONS[suggestion.insert.replace(/^-?is:/, "")] ?? Star;
   }
   return QUALIFIER_ICONS[suggestion.key];
 };
@@ -165,6 +171,8 @@ export const searchFieldClassName =
 interface FilterChip {
   ariaLabel: string;
   dashed?: boolean;
+  /** Leaves these cards out: a leading minus and a struck label. */
+  excluded?: boolean;
   icon: ReactNode;
   key: string;
   label: string;
@@ -184,14 +192,28 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
       )}
       onClick={chip.onRemove}
       onMouseDown={preventBlur}
-      title={chip.prefix ? `${chip.prefix} ${chip.label}` : chip.label}
+      title={[chip.prefix, chip.excluded ? "not" : null, chip.label]
+        .filter(Boolean)
+        .join(" ")}
       type="button"
     >
       {chip.icon}
       {chip.prefix ? (
         <span className="shrink-0 text-muted-foreground">{chip.prefix}</span>
       ) : null}
-      <span className="truncate" dir="auto">
+      {chip.excluded ? (
+        <span aria-hidden="true" className="shrink-0 text-muted-foreground">
+          −
+        </span>
+      ) : null}
+      <span
+        className={cn(
+          "truncate",
+          chip.excluded &&
+            "text-muted-foreground line-through decoration-muted-foreground/70"
+        )}
+        dir="auto"
+      >
         {chip.label}
       </span>
       <X aria-hidden="true" className="opacity-50" />
@@ -273,12 +295,14 @@ export function SearchBar({
     query: "",
   });
   const { start: tokenStart, token } = currentSearchToken(searchQuery);
+  const afterWord =
+    hasAnyFilters || searchQuery.slice(0, tokenStart).trim() !== "";
   const { suggestions, completingValue } = useMemo(
     () =>
       onAddQualifier
-        ? buildSearchSuggestions(token, suggestionSources ?? {})
+        ? buildSearchSuggestions(token, suggestionSources ?? {}, { afterWord })
         : { suggestions: [], completingValue: false },
-    [onAddQualifier, suggestionSources, token]
+    [afterWord, onAddQualifier, suggestionSources, token]
   );
   const open =
     focused && dismissedFor !== searchQuery && suggestions.length > 0;
@@ -380,7 +404,7 @@ export function SearchBar({
     if (!described) {
       continue;
     }
-    const { qualifier, label, title } = described;
+    const { excluded, qualifier, label, title } = described;
     const unknownFolder =
       qualifier.key === "folder" &&
       folderNames !== undefined &&
@@ -393,11 +417,16 @@ export function SearchBar({
     } else if (unknownFolder) {
       Icon = CircleSlash;
     }
+    let ariaLabel = `Remove ${title.toLowerCase()} ${label}`;
+    if (unknownFolder) {
+      ariaLabel = `Remove ${chip}: no folder named ${qualifier.value}`;
+    } else if (excluded) {
+      ariaLabel = `Remove excluding ${title.toLowerCase()} ${label}`;
+    }
     chips.push({
-      ariaLabel: unknownFolder
-        ? `Remove ${chip}: no folder named ${qualifier.value}`
-        : `Remove ${title.toLowerCase()} ${label}`,
+      ariaLabel,
       dashed: unknownFolder,
+      excluded,
       icon: <Icon />,
       key: `qualifier-${chip}`,
       label: unknownFolder ? `No folder named ${label}` : label,
@@ -406,11 +435,19 @@ export function SearchBar({
     });
   }
   for (const keyword of keywordTags) {
+    const { excluded, group, label } = describeKeywordChip(keyword);
+    let icon = <Hash />;
+    if (group) {
+      icon = <Parentheses />;
+    } else if (label.startsWith('"')) {
+      icon = <Quote />;
+    }
     chips.push({
-      ariaLabel: `Remove ${keyword}`,
-      icon: keyword.startsWith('"') ? <Quote /> : <Hash />,
+      ariaLabel: excluded ? `Remove excluding ${label}` : `Remove ${label}`,
+      excluded,
+      icon,
       key: `keyword-${keyword}`,
-      label: keyword,
+      label,
       onRemove: () => onRemoveKeyword(keyword),
     });
   }

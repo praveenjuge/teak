@@ -261,6 +261,21 @@ describe("hybrid search in the grid", () => {
     ]);
   });
 
+  test("exclusions and OR groups filter meaning matches too", async () => {
+    const env = await setup();
+    const cards = await seedLibrary(env);
+    expect(await env.grid({ searchQuery: "reading nook -window" })).toEqual([
+      cards.image,
+      cards.keyword,
+    ]);
+    expect(
+      await env.grid({ searchQuery: "reading nook -window", mode: "semantic" })
+    ).toEqual([cards.image]);
+    expect(
+      await env.grid({ searchQuery: "reading nook (type:image OR is:fav)" })
+    ).toEqual([cards.image]);
+  });
+
   test("keyword mode gives keyword results and semantic mode meaning ones", async () => {
     const env = await setup();
     const cards = await seedLibrary(env);

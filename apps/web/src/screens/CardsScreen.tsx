@@ -5,6 +5,8 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
   parseSearchQuery,
   SEARCH_DEFAULT_CARD_LIMIT,
+  searchExpressionQualifiers,
+  searchOperatorsUsed,
 } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { Authenticated, AuthLoading } from "convex/react";
@@ -438,17 +440,22 @@ export function CardsScreen({
       return;
     }
     reportedSearchKeyRef.current = searchKey;
+    const parsed = parseSearchQuery(queryArgs.searchQuery ?? "");
     const qualifiers = Array.from(
       new Set(
-        parseSearchQuery(queryArgs.searchQuery ?? "").qualifiers.map(
-          (qualifier) => qualifier.key
-        )
+        [
+          ...parsed.qualifiers,
+          ...searchExpressionQualifiers(parsed.expression),
+        ].map((qualifier) => qualifier.key)
       )
     );
     captureEvent("search_performed", {
       ...(qualifiers.length > 0 ? { qualifiers } : {}),
       zero_result: cards.length === 0,
     });
+    if (parsed.expression) {
+      captureEvent("search_operator_used", searchOperatorsUsed(parsed));
+    }
   }, [
     cards.length,
     cardsStatus,

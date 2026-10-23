@@ -137,3 +137,37 @@ test("chips read as labels, and an unknown folder says so", async () => {
   expect(labels).toContain("Remove site github.com");
   expect(container.textContent).toContain("No folder named Nope");
 });
+
+test("a minus offers exclusions, and the picked one is an excluded chip", async () => {
+  await type("-");
+  expect(options()).toEqual([
+    "-tag:Leave out cards with a tag",
+    "-type:Leave out links, images, notes…",
+    "-site:Leave out links from a website",
+    "-folder:Leave out cards in a folder",
+    "-is:Leave out favorites, archived, done…",
+  ]);
+  expect(container.textContent).toContain("Exclude");
+  await press("ArrowDown");
+  await press("Enter");
+  expect(input().value).toBe("-tag:");
+  expect(options()).toEqual(["design4"]);
+  await press("Enter");
+  expect(chips).toEqual(["-tag:design"]);
+  const chip = container.querySelector(
+    'button[aria-label="Remove excluding tag design"]'
+  );
+  expect(chip?.textContent).toContain("−");
+  expect(chip?.querySelector(".line-through")?.textContent).toBe("design");
+  expect(chip?.getAttribute("title")).toBe("Tag not design");
+});
+
+test("OR is offered after a word, and inserts itself", async () => {
+  await type("O");
+  expect(options()).toEqual([]);
+  await type("design O");
+  expect(options()).toEqual(["OREither side matches"]);
+  await press("ArrowDown");
+  await press("Enter");
+  expect(input().value).toBe("design OR ");
+});

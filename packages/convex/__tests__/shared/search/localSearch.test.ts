@@ -806,4 +806,79 @@ describe("filterLocalCards hidden cards", () => {
     ]);
     expect(ids({ tag: "Secret" })).toEqual(["flagged"]);
   });
+
+  describe("search operators", () => {
+    const cards = [
+      makeCard({ _id: "design", content: "Design system", tags: ["inspo"] }),
+      makeCard({ _id: "figma", content: "Design in Figma", tags: ["inspo"] }),
+      makeCard({
+        _id: "image",
+        content: "Moodboard",
+        tags: ["inspo"],
+        type: "image",
+      }),
+      makeCard({ _id: "fonts", content: "Inter", tags: ["Fonts"] }),
+      makeCard({ _id: "type", content: "Serif", tags: ["type"] }),
+      makeCard({
+        _id: "github",
+        content: "Repo",
+        type: "link",
+        url: "https://github.com/teak",
+      }),
+      makeCard({
+        _id: "gitlab",
+        content: "Repo",
+        type: "link",
+        url: "https://www.gitlab.com/teak",
+      }),
+      makeCard({
+        _id: "github-archived",
+        content: "Old repo",
+        isArchived: true,
+        type: "link",
+        url: "https://github.com/old",
+      }),
+      makeCard({ _id: "hidden", content: "Diary", tags: ["hidden", "type"] }),
+    ];
+    const ids = (searchTerms: string, filters = {}) =>
+      filterLocalCards(cards, { searchTerms, ...filters })
+        .map((card): string => card._id)
+        .sort();
+
+    it.each([
+      ["design -figma", ["design"]],
+      ["#inspo -type:image", ["design", "figma"]],
+      ["tag:fonts OR tag:type", ["fonts", "type"]],
+      [
+        "(site:github.com OR site:gitlab.com) -is:archived",
+        ["github", "gitlab"],
+      ],
+      ["-tag:hidden diary", []],
+      ["type:image -type:image", []],
+      // Lowercase "or" is a word every card must have.
+      ["inter or serif", []],
+    ] as const)("%s", (query, expected) => {
+      expect(ids(query)).toEqual([...expected].sort());
+    });
+
+    it("a hidden card shows only through the OR branch that names its tag", () => {
+      expect(ids("tag:hidden OR tag:fonts")).toEqual(["fonts", "hidden"]);
+      expect(ids("tag:type OR tag:fonts")).toEqual(["fonts", "type"]);
+    });
+
+    it("is:archived inside an OR reads archived cards too", () => {
+      expect(ids("site:github.com (is:archived OR repo)")).toEqual([
+        "github",
+        "github-archived",
+      ]);
+    });
+
+    it("a card the server matched keeps its folder answer", () => {
+      expect(ids("-folder:Inbox", { textMatchedByServer: true })).toHaveLength(
+        7
+      );
+      // The cache can't tell, so nothing passes there.
+      expect(ids("-folder:Inbox")).toEqual([]);
+    });
+  });
 });

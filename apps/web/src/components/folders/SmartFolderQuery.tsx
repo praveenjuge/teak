@@ -1,9 +1,17 @@
-import { formatSearchQualifier, parseSearchQuery } from "@teak/convex/shared";
-import { Archive, CircleSlash, Quote, Search } from "lucide-react";
+import {
+  formatSearchQualifier,
+  parseSearchQuery,
+  type SearchQualifier,
+  searchExpressionParts,
+} from "@teak/convex/shared";
+import { Archive, CircleSlash, Parentheses, Quote, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
 import { getFilterIcon, QUALIFIER_ICONS } from "../search/SearchBar";
-import { describeQualifierChip } from "../search/searchSuggestions";
+import {
+  describeKeywordChip,
+  describeQualifierChip,
+} from "../search/searchSuggestions";
 
 interface SmartFolderQueryProps {
   className?: string;
@@ -34,6 +42,20 @@ function QueryChip({
   );
 }
 
+function ExcludedLabel({ label }: { label: string }) {
+  return (
+    <>
+      <span aria-hidden="true" className="shrink-0">
+        −
+      </span>
+      <span className="sr-only">not</span>
+      <span className="truncate line-through" dir="auto">
+        {label}
+      </span>
+    </>
+  );
+}
+
 export function SmartFolderQuery({
   className,
   folderNames,
@@ -41,7 +63,7 @@ export function SmartFolderQuery({
   query,
 }: SmartFolderQueryProps) {
   const parsed = parseSearchQuery(query);
-  const chips: ReactNode[] = parsed.qualifiers.map((qualifier) => {
+  const qualifierChip = (qualifier: SearchQualifier, excluded = false) => {
     const chip = formatSearchQualifier(qualifier);
     const described = describeQualifierChip(chip);
     const { label, title } = described ?? { label: qualifier.value, title: "" };
@@ -58,7 +80,7 @@ export function SmartFolderQuery({
       Icon = CircleSlash;
     }
     return (
-      <QueryChip dashed={unknownFolder} key={`q:${chip}`}>
+      <QueryChip dashed={unknownFolder} key={`${excluded ? "-" : ""}q:${chip}`}>
         <Icon aria-hidden="true" className="size-3 shrink-0" />
         {unknownFolder ? (
           <span className="truncate" dir="auto">
@@ -67,14 +89,20 @@ export function SmartFolderQuery({
         ) : (
           <>
             <span className="shrink-0 text-muted-foreground">{title}</span>
-            <span className="truncate" dir="auto">
-              {label}
-            </span>
+            {excluded ? <ExcludedLabel label={label} /> : null}
+            {excluded ? null : (
+              <span className="truncate" dir="auto">
+                {label}
+              </span>
+            )}
           </>
         )}
       </QueryChip>
     );
-  });
+  };
+  const chips: ReactNode[] = parsed.qualifiers.map((qualifier) =>
+    qualifierChip(qualifier)
+  );
   for (const phrase of parsed.phrases) {
     chips.push(
       <QueryChip key={`p:${phrase}`}>
@@ -93,6 +121,27 @@ export function SmartFolderQuery({
         <span className="truncate" dir="auto">
           {words}
         </span>
+      </QueryChip>
+    );
+  }
+  for (const part of searchExpressionParts(parsed)) {
+    const { expression } = parseSearchQuery(part);
+    if (expression?.op === "not" && expression.item.op === "qualifier") {
+      chips.push(qualifierChip(expression.item.qualifier, true));
+      continue;
+    }
+    const { excluded, group, label } = describeKeywordChip(part);
+    const Icon = group ? Parentheses : Search;
+    chips.push(
+      <QueryChip key={`e:${part}`}>
+        <Icon aria-hidden="true" className="size-3 shrink-0" />
+        {excluded ? (
+          <ExcludedLabel label={label} />
+        ) : (
+          <span className="truncate" dir="auto">
+            {label}
+          </span>
+        )}
       </QueryChip>
     );
   }

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   combineSearchQueries,
   describePriceBound,
+  formatSearchExpression,
   formatSearchQualifier,
   matchesDoneState,
   matchesImageText,
@@ -412,5 +413,260 @@ describe("is:done and is:todo", () => {
     expect(matchesDoneState(card, { done: false, todo: false, ...query })).toBe(
       matches
     );
+  });
+});
+
+describe("search operators", () => {
+  const shape = (input: string) => {
+    const parsed = parseSearchQuery(input);
+    return {
+      canonical: parsed.canonical,
+      expression: parsed.expression
+        ? formatSearchExpression(parsed.expression)
+        : undefined,
+    };
+  };
+
+  test.each([
+    ["design -figma", "design -figma", "-figma"],
+    ["#inspo -type:image", "tag:inspo -type:image", "-type:image"],
+    ["tag:fonts OR tag:type", "tag:fonts OR tag:type", "tag:fonts OR tag:type"],
+    [
+      "(site:github.com OR site:gitlab.com) -is:archived",
+      "(site:github.com OR site:gitlab.com) -is:archived",
+      "(site:github.com OR site:gitlab.com) -is:archived",
+    ],
+    ['-"brand guide" notes', 'notes -"brand guide"', '-"brand guide"'],
+    ["-#old", "-tag:old", "-tag:old"],
+    [
+      "-site:x.com -folder:Inbox",
+      "-site:x.com -folder:Inbox",
+      "-site:x.com -folder:Inbox",
+    ],
+    ["-(a OR b) c", "c -(a OR b)", "-(a OR b)"],
+  ])("%s reads as %s", (input, canonical, expression) => {
+    expect(shape(input)).toEqual({ canonical, expression });
+  });
+
+  test("- binds tightest, then a space, then OR", () => {
+    expect(shape("a b OR c -d")).toEqual({
+      canonical: "a b OR c -d",
+      expression: "a b OR c -d",
+    });
+    const parsed = parseSearchQuery("a b OR c -d");
+    expect(parsed.expression).toEqual({
+      op: "or",
+      items: [
+        {
+          op: "and",
+          items: [
+            { op: "term", value: "a" },
+            { op: "term", value: "b" },
+          ],
+        },
+        {
+          op: "and",
+          items: [
+            { op: "term", value: "c" },
+            { op: "not", item: { op: "term", value: "d" } },
+          ],
+        },
+      ],
+    });
+  });
+
+  test("an OR beside other words keeps its parentheses", () => {
+    expect(parseSearchQuery("x (a OR b)").canonical).toBe("x (a OR b)");
+    expect(parseSearchQuery("(a OR b) (c OR d)").canonical).toBe(
+      "(a OR b) (c OR d)"
+    );
+  });
+
+  test.each([
+    ["-", ""],
+    ["- design", "design"],
+    ["OR", ""],
+    ["OR OR", ""],
+    ["design OR", "design"],
+    ["OR design", "design"],
+    ["(()", ""],
+    [")design(", "design"],
+    ["(design", "design"],
+    ["design)", "design"],
+    ["((a OR b)", "a OR b"],
+    ["--design", "--design"],
+    ['"-not negated"', '"-not negated"'],
+    ["to-do", "to-do"],
+    ["e-mail list", "e-mail list"],
+    ["price:<-5", "price:<-5"],
+    ["design or figma", "design or figma"],
+    ['"OR"', '"OR"'],
+    ['OR"', '"OR"'],
+  ])("forgives %p, reading it as %p", (input, canonical) => {
+    expect(parseSearchQuery(input).canonical).toBe(canonical);
+  });
+
+  test("a word with a hyphen inside stays one word, not an exclusion", () => {
+    const parsed = parseSearchQuery("to-do e-mail");
+    expect(parsed.terms).toEqual(["to-do", "e-mail"]);
+    expect(parsed.expression).toBeUndefined();
+  });
+
+  test("like: and mood: can't be excluded or grouped; they stay words", () => {
+    const id = "j97abcdefghijklmnopqrstuvwxyz0123";
+    const negated = parseSearchQuery(`-like:${id}`);
+    expect(negated.similarity).toBeNull();
+    expect(negated.terms).toEqual([`-like:${id}`]);
+    expect(negated.expression).toBeUndefined();
+
+    const grouped = parseSearchQuery("mood:calm OR tag:y");
+    expect(grouped.similarity).toBeNull();
+    expect(grouped.expression).toEqual({
+      op: "or",
+      items: [
+        { op: "term", value: "mood:calm" },
+        { op: "qualifier", qualifier: { key: "tag", value: "y" } },
+      ],
+    });
+  });
+
+  test("a query without operators has no expression and reads as before", () => {
+    const parsed = parseSearchQuery('tag:a "b c" d (e)');
+    expect(parsed.expression).toBeUndefined();
+    expect(parsed).toMatchObject({
+      tags: ["a"],
+      phrases: ["b c"],
+      terms: ["d", "e"],
+      canonical: 'tag:a "b c" d e',
+    });
+  });
+
+  test("words in OR groups are searched; excluded words never are", () => {
+    const parsed = parseSearchQuery('design (figma OR "brand kit") -sketch');
+    expect(parsed.terms).toEqual(["design"]);
+    expect(parsed.text).toBe("design figma brand kit");
+  });
+
+  test.each([
+    ["figma OR sketch", "figma sketch"],
+    ["(figma OR sketch) -tag:old", "figma sketch"],
+    ["tag:x (figma OR sketch)", "figma sketch"],
+    // A card can match these without any of the words, so the search reads
+    // by date and checks every card instead.
+    ["is:archived OR notes", ""],
+    ["tag:x OR figma", ""],
+    ["-figma", ""],
+    ["-(figma OR sketch)", ""],
+    // The required word finds every match.
+    ["notes (is:archived OR figma)", "notes figma"],
+  ])("%s searches the index for %j", (input, text) => {
+    expect(parseSearchQuery(input).text).toBe(text);
+  });
+
+  test("groups nest at most 4 deep; deeper parentheses are ignored", () => {
+    const parsed = parseSearchQuery("(((((a OR b))))) c");
+    expect(parsed.canonical).toBe("c (a OR b)");
+    const deep = parseSearchQuery("x (a ((b ((c OR d) e) f) g) h)");
+    expect(parseSearchQuery(deep.canonical).canonical).toBe(deep.canonical);
+  });
+
+  test("past 64 words and filters, the rest are plain words", () => {
+    const words = Array.from({ length: 70 }, (_, index) => `-w${index}`);
+    const parsed = parseSearchQuery(words.join(" "));
+    const excluded =
+      parsed.expression?.op === "and" ? parsed.expression.items.length : 0;
+    expect(excluded).toBe(64);
+    expect(parsed.terms).toEqual(words.slice(64));
+  });
+
+  test("the canonical form parses back to itself", () => {
+    for (const input of [
+      "design -figma",
+      "tag:fonts OR tag:type",
+      "(site:github.com OR site:gitlab.com) -is:archived",
+      "-(a OR (b -c)) d",
+      'x -"y z" (p OR q OR -r)',
+      "a OR b c OR d",
+    ]) {
+      const canonical = parseSearchQuery(input).canonical;
+      expect(parseSearchQuery(canonical).canonical).toBe(canonical);
+    }
+  });
+
+  const randomQueries = (pieces: string[], count: number) => {
+    let seed = 7;
+    const next = () => {
+      seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+      return seed;
+    };
+    return Array.from({ length: count }, () =>
+      Array.from(
+        { length: next() % 14 },
+        () => pieces[next() % pieces.length]
+      ).join(next() % 2 ? " " : "")
+    );
+  };
+
+  test("never throws on random input, quotes included", () => {
+    for (const input of randomQueries(
+      ["(", ")", "-", "OR", '"', "“", "\\", "a", "tag:x", "#y", "like:", " "],
+      2000
+    )) {
+      expect(() => parseSearchQuery(input)).not.toThrow();
+    }
+  });
+
+  test("its canonical form is stable on random operator soup", () => {
+    const pieces = [
+      "(",
+      ")",
+      "-",
+      "OR",
+      "or",
+      "a",
+      "tag:x",
+      "#y",
+      "-z",
+      "type:image",
+      " ",
+      "  ",
+      "price:<5",
+      "is:fav",
+      "mood:calm",
+    ];
+    for (const input of randomQueries(pieces, 2000)) {
+      const canonical = parseSearchQuery(input).canonical;
+      expect(parseSearchQuery(canonical).canonical).toBe(canonical);
+    }
+  });
+});
+
+describe("combineSearchQueries with operators", () => {
+  test("each side's OR stays its own group", () => {
+    expect(combineSearchQueries("tag:fonts OR tag:type", "a OR b")).toBe(
+      "(tag:fonts OR tag:type) (a OR b)"
+    );
+    expect(combineSearchQueries("tag:fonts OR tag:type", "-tag:fonts")).toBe(
+      "(tag:fonts OR tag:type) -tag:fonts"
+    );
+  });
+
+  test("types and sites still intersect alongside an expression", () => {
+    expect(combineSearchQueries("type:image -is:fav", "type:link")).toBeNull();
+    expect(combineSearchQueries("type:image -is:fav", "type:image x")).toBe(
+      "type:image x -is:fav"
+    );
+  });
+});
+
+describe("renameFolderInSearchQuery with operators", () => {
+  test("renames a folder inside an exclusion or an OR group", () => {
+    expect(
+      renameFolderInSearchQuery(
+        "-folder:inbox (folder:Inbox OR tag:x)",
+        "inbox",
+        "Later"
+      )
+    ).toBe("-folder:Later (folder:Later OR tag:x)");
   });
 });

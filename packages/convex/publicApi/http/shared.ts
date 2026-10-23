@@ -86,6 +86,8 @@ interface CardsQueryOptions {
   qualifiers?: {
     archivedInTrash?: boolean;
     done?: boolean;
+    /** The query's exclusions and OR groups, as `q` text. */
+    expression?: string;
     folderNames?: string[];
     ocrTexts?: string[];
     phrases?: string[];

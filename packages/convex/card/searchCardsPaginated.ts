@@ -802,6 +802,7 @@ export const searchCardsPaginatedHandler = async (
       ? buildHostCardListQuery(ctx, {
           userId: user.teakUserId,
           host,
+          includeHidden,
           scope: archived === "only" ? "archive" : "library",
           createdAt: createdAtBounds,
         })
@@ -809,6 +810,7 @@ export const searchCardsPaginatedHandler = async (
           userId: user.teakUserId,
           scope,
           favoritesOnly,
+          includeHidden,
           types: scanTypes,
           createdAt: createdAtBounds,
         });

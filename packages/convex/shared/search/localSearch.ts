@@ -12,6 +12,12 @@ import type { CreatedAtRange } from "../utils/timeSearch";
 import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
+  expressionFolderNames,
+  expressionRevealTags,
+  expressionWantsArchived,
+  matchesExpression,
+} from "./expression";
+import {
   matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
@@ -93,6 +99,21 @@ export const buildSearchableText = (card: Doc<"cards">) => {
   return text;
 };
 
+const tagKeysCache = new WeakMap<Doc<"cards">, Set<string>>();
+
+const buildTagKeys = (card: Doc<"cards">) => {
+  let keys = tagKeysCache.get(card);
+  if (keys === undefined) {
+    keys = new Set(
+      [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
+        cardTag.trim().toLowerCase()
+      )
+    );
+    tagKeysCache.set(card, keys);
+  }
+  return keys;
+};
+
 const matchesVisualFilters = (
   card: Doc<"cards">,
   filters: {
@@ -160,14 +181,31 @@ export const filterLocalCards = (
     Boolean
   );
   const revealsHidden = isHiddenTagList(tagKeys);
+  const { expression } = parsed;
+  // Hidden cards come only through an OR branch that asks for their tag.
+  const revealTags = revealsHidden ? [] : expressionRevealTags(expression);
   const archivedOnly = showArchivedOnly || parsed.archived;
+  // `is:archived` inside an OR reads archived cards too.
+  const includesArchived = !archivedOnly && expressionWantsArchived(expression);
+  // The client can't tell which folder a name means, so a card the server
+  // matched keeps the server's answer, and a cached card never matches.
+  const expressionUsesFolders = expressionFolderNames(expression).length > 0;
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
 
   return cards
     .filter((card) => {
-      if (!revealsHidden && isCardHidden(card)) {
+      const cardTags = buildTagKeys(card);
+      if (
+        isCardHidden(card) &&
+        !(
+          revealsHidden ||
+          revealTags.some((revealTag) =>
+            cardTags.has(revealTag.trim().toLowerCase())
+          )
+        )
+      ) {
         return false;
       }
       if (showTrashOnly) {
@@ -179,7 +217,7 @@ export const filterLocalCards = (
         }
       } else if (
         card.isDeleted ||
-        (card.isArchived === true) !== archivedOnly
+        !(includesArchived || (card.isArchived === true) === archivedOnly)
       ) {
         return false;
       }
@@ -217,22 +255,13 @@ export const filterLocalCards = (
         return false;
       }
 
-      if (tagKeys.length > 0) {
-        const cardTags = new Set(
-          [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
-            cardTag.trim().toLowerCase()
-          )
-        );
-        if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
-          return false;
-        }
+      if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
+        return false;
       }
 
-      if (parsed.sites.length > 0) {
-        const host = cardSiteHost(card);
-        if (!(host && parsed.sites.includes(host))) {
-          return false;
-        }
+      const host = cardSiteHost(card);
+      if (parsed.sites.length > 0 && !(host && parsed.sites.includes(host))) {
+        return false;
       }
 
       if (
@@ -259,7 +288,7 @@ export const filterLocalCards = (
 
       if (
         (textMatchedByServer && lacksMatchedText(card)) ||
-        (terms.length === 0 && parsed.phrases.length === 0)
+        (terms.length === 0 && parsed.phrases.length === 0 && !expression)
       ) {
         return true;
       }
@@ -271,7 +300,15 @@ export const filterLocalCards = (
           matchesSearchPhrases(
             searchableParts(card).join("\n"),
             parsed.phrases
-          ))
+          )) &&
+        (!expression ||
+          (expressionUsesFolders
+            ? textMatchedByServer
+            : matchesExpression(expression, card, searchableText, {
+                folder: () => false,
+                hasTag: (tagKey) => cardTags.has(tagKey.trim().toLowerCase()),
+                host,
+              })))
       );
     })
     .sort((a, b) =>
