@@ -5,7 +5,7 @@ Let search exclude and combine:
 - uppercase `OR` between terms or qualifiers;
 - parentheses for grouping.
 
-This works everywhere a search runs: the search box, smart folders, the command palette, the API `q`, MCP and the CLI. Phase 6 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
+This works everywhere a search runs: the search box, smart folders, the command palette, the API `q`, MCP and the CLI. Phase 4 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
 
 ## Depends on
 

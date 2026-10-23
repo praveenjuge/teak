@@ -1,6 +1,6 @@
 ## Goal
 
-Insert and edit simple tables in text notes on the web. Tables are stored as GitHub-flavored Markdown, shown as real tables in the note view, and as clean text on grid tiles. Phase 5 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
+Insert and edit simple tables in text notes on the web. Tables are stored as GitHub-flavored Markdown, shown as real tables in the note view, and as clean text on grid tiles. Phase 3 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
 
 ## Depends on
 

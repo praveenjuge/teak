@@ -1,11 +1,11 @@
 ## Goal
 
-Let people highlight passages while reading a saved article in Teak, and keep a short note on any highlight. Highlights are their own records, in one calm color. They are listed in the card's side panel, where clicking one jumps to it in the reader. They can be read and written through the API, MCP, SDK and CLI, and they come in from Instapaper and Omnivore imports as real highlights instead of note text. Phase 12 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
+Let people highlight passages while reading a saved article in Teak, and keep a short note on any highlight. Highlights are their own records, in one calm color. They are listed in the card's side panel, where clicking one jumps to it in the reader. They can be read and written through the API, MCP, SDK and CLI, and they come in from Instapaper and Omnivore imports as real highlights instead of note text. Phase 8 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
 
 ## Depends on
 
-- [Phase 10](2026-10-19-roadmap-v3-10-reader-view.md): you highlight in the Read tab, against the article Markdown that phase 10 extracts.
-- [Phase 9](2026-10-19-roadmap-v3-09-page-archive.md): once a card has highlights, its archive is frozen.
+- [Phase 7](2026-10-19-roadmap-v3-07-reader-view.md): you highlight in the Read tab, against the article Markdown that phase 7 extracts.
+- [Phase 6](2026-10-19-roadmap-v3-06-page-archive.md): once a card has highlights, its archive is frozen.
 
 ## Success Criteria
 
@@ -19,7 +19,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 - **Overlaps.** A new highlight that overlaps an existing one merges into it: the result spans both, and the older note is kept. A highlight can be at most 5,000 characters; past that the toast says "Highlights can be up to 5,000 characters". A card can have at most 200 highlights.
 - **The side panel** gets a **Highlights** section when a card has any. Its title is "Highlights · 4".
   - Each item shows the quote, clamped to 3 lines with a 2px left rule in the highlight color, and its note below in muted 13px.
-  - Clicking an item switches the modal to Read (phase 10's toggle), scrolls to the passage and flashes it once (200 ms).
+  - Clicking an item switches the modal to Read (phase 7's toggle), scrolls to the passage and flashes it once (200 ms).
   - A highlight that can't be placed in the article shows "Not found in the saved article". It can't be clicked, and can still be removed.
 - **Freezing.** Once a card has any highlight (`cards.hasHighlights`), its archive and article are frozen:
   - Refresh details still refreshes the metadata and AI, but skips "archive page" and "extract article";
@@ -34,11 +34,11 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
 
 ## Context And Current Facts
 
-- **The reader** (phase 10) renders the article Markdown with `react-markdown` inside an `ArticleReader` root. Its text comes from `article.textKey` (`.../article-text/<sha256>.md`), and the reader is the only place article text is shown.
+- **The reader** (phase 7) renders the article Markdown with `react-markdown` inside an `ArticleReader` root. Its text comes from `article.textKey` (`.../article-text/<sha256>.md`), and the reader is the only place article text is shown.
 - **Side panel:** `CardMetadataPanel.tsx` builds sections with `PanelSection`:
   - "Linked from" (142), "Notes" (264), "Summary" (288), "Tags" (323), "Colors" (405), "Details" (422).
   - The modal hands it `onOpenCard`, the backlinks and the edit callbacks (`CardModal.tsx:835-850`).
-- **Modal shortcuts** are listed in `apps/web/src/lib/keyboardShortcuts.ts:40-48`. Phase 10 adds `R`, and `H` is still free.
+- **Modal shortcuts** are listed in `apps/web/src/lib/keyboardShortcuts.ts:40-48`. Phase 7 adds `R`, and `H` is still free.
 - **How imports handle highlights today:**
   - Instapaper puts `Selection` into `notes` (`packages/convex/import/instapaper.ts:30-58`, line 50).
   - Omnivore puts the `highlights/<slug>.md` Markdown into `notes` (`packages/convex/import/omnivore.ts:47-71`, read by `apps/files-worker/src/archives/importOmnivore.ts:154-175`).
@@ -87,7 +87,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
   - **`remove`** `{ highlightId }`. Undo calls `create` with the stored selectors.
   - **Rate limit:** a new `highlightWrites` bucket of 120 per minute.
 - **`highlight/anchor.ts` `anchorQuote(plainText, { quote, prefix?, suffix?, start? })`** returns `{ start, end, prefix, suffix } | null`. It is a pure function shared by the server and the web (`packages/convex/shared/highlights/anchor.ts`), and is table-tested.
-- **`highlight/anchorPending.ts`:** after phase 10's `saveArticleText` writes a ready article, it schedules an action that:
+- **`highlight/anchorPending.ts`:** after phase 7's `saveArticleText` writes a ready article, it schedules an action that:
   - reads the article Markdown;
   - converts it to plain text with the same `markdownToReaderText` used by the web (a shared helper);
   - anchors every unanchored highlight of the card, clearing `unanchored` and filling the offsets.
@@ -95,7 +95,7 @@ Let people highlight passages while reading a saved article in Teak, and keep a 
   The highlights that don't match stay unanchored.
 - **Freeze** (`run.ts` and Convex):
   - "archive page" and "extract article" skip when `card.hasHighlights` and the run is a refresh or a re-save;
-  - `createCard`'s re-save path (phase 3) drops a new `pageSnapshotKey` for highlighted cards and queues its object for deletion.
+  - `createCard`'s re-save path (phase 2) drops a new `pageSnapshotKey` for highlighted cards and queues its object for deletion.
 - **Imports:**
   - `ImportCardInput` gains `highlights?: Array<{ quote: string; note?: string }>`, with at most 200 and the same caps, validated in `validateImportCard`.
   - **Instapaper:** a non-empty `selection` becomes `highlights: [{ quote: selection }]`, and `notes` is no longer set from it.
