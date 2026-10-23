@@ -808,7 +808,9 @@ describe("devSeed folder packs", () => {
     const wide = notes.find((card) =>
       card.content.startsWith("# A 20 × 200 table")
     );
-    const rows = wide?.content.split("\n").filter((line) => line.startsWith("|"));
+    const rows = wide?.content
+      .split("\n")
+      .filter((line) => line.startsWith("|"));
     expect(rows).toHaveLength(NOTE_TABLES_WIDE.rows + 1);
     expect(rows?.[0].split(" | ")).toHaveLength(NOTE_TABLES_WIDE.cols);
   });
