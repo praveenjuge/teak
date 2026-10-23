@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
+import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
 
 export type CardWithUrls = Doc<"cards"> & {
   detailUrl?: string;
@@ -225,6 +226,43 @@ export function useCardModal(
 
   const hasUnsavedChanges = unsavedUpdates.length > 0;
 
+  // The card open after the latest commit, so a save or delete that
+  // finishes after the user moved on doesn't touch the card open now.
+  const openCardIdRef = useRef(cardId);
+  const latestEditsRef = useRef({ cardId, updates: unsavedUpdates });
+  useEffect(() => {
+    openCardIdRef.current = cardId;
+    latestEditsRef.current = { cardId, updates: unsavedUpdates };
+  }, [cardId, unsavedUpdates]);
+
+  // Every way off a card (a tag or type link, Back, a swipe, the dialog
+  // unmounting) resets the edits above, so whatever wasn't saved yet is
+  // sent now rather than dropped. Saving first, as the arrows and Close
+  // do, leaves nothing here.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the cleanup must run when the open card changes, and its calls work for any card
+  useEffect(
+    () => () => {
+      const { cardId: leftCardId, updates } = latestEditsRef.current;
+      if (!leftCardId || updates.length === 0) {
+        return;
+      }
+      void (async () => {
+        try {
+          for (const { field, value } of updates) {
+            await updateCardField({
+              cardId: leftCardId as Id<"cards">,
+              field,
+              value,
+            });
+          }
+        } catch (error) {
+          notifyError(error as Error, "save changes");
+        }
+      })();
+    },
+    [cardId]
+  );
+
   useEffect(() => {
     if (!card) {
       return;
@@ -261,6 +299,7 @@ export function useCardModal(
         return true;
       }
       const updates = unsavedUpdates;
+      const isStillOpen = () => openCardIdRef.current === cardId;
       setIsSaving(true);
       setSaveFailed(false);
       try {
@@ -270,7 +309,12 @@ export function useCardModal(
             field,
             value,
           });
-          setSavedValues((prev) => ({ ...prev, [field]: value }));
+          if (isStillOpen()) {
+            setSavedValues((prev) => ({ ...prev, [field]: value }));
+          }
+        }
+        if (!isStillOpen()) {
+          return true;
         }
         setIsSaved(true);
         if (!silent) {
@@ -282,7 +326,9 @@ export function useCardModal(
         return true;
       } catch (error) {
         console.error("Failed to save changes:", error);
-        setSaveFailed(true);
+        if (isStillOpen()) {
+          setSaveFailed(true);
+        }
         notifyError(error as Error, "save changes");
         return false;
       } finally {
@@ -291,6 +337,11 @@ export function useCardModal(
     },
     [cardId, unsavedUpdates, updateCardField, notifyError]
   );
+
+  const saveBeforeLeaving = useCallback(() => {
+    void saveChanges({ silent: true });
+  }, [saveChanges]);
+  useWarnBeforeUnload(hasUnsavedChanges || isSaving, saveBeforeLeaving);
 
   const updateField = useCallback(
     async (
@@ -526,11 +577,13 @@ export function useCardModal(
     [currentTags, writeTags]
   );
 
+  const deletingRef = useRef(false);
   const handleDelete = useCallback(
     async (onClose?: () => void) => {
-      if (!cardId) {
+      if (!cardId || deletingRef.current) {
         return;
       }
+      deletingRef.current = true;
       try {
         await updateCardField({
           cardId: cardId as Id<"cards">,
@@ -549,10 +602,15 @@ export function useCardModal(
             },
           },
         });
-        onClose?.();
+        // Stepping to another card while the delete ran keeps that one open.
+        if (openCardIdRef.current === deletedId) {
+          onClose?.();
+        }
       } catch (error) {
         console.error("Failed to delete card:", error);
         toast.error("Failed to delete card");
+      } finally {
+        deletingRef.current = false;
       }
     },
     [cardId, updateCardField]

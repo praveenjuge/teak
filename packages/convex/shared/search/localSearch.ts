@@ -80,8 +80,18 @@ const searchableParts = (card: Doc<"cards">) =>
     ...(card.aiTags ?? []),
   ].filter(Boolean);
 
-export const buildSearchableText = (card: Doc<"cards">) =>
-  searchableParts(card).join(" ").toLowerCase();
+// Cards from a query result are never mutated (an edit arrives as a new
+// object), so each card's text is built once rather than on every keystroke.
+const searchableTextCache = new WeakMap<Doc<"cards">, string>();
+
+export const buildSearchableText = (card: Doc<"cards">) => {
+  let text = searchableTextCache.get(card);
+  if (text === undefined) {
+    text = searchableParts(card).join(" ").toLowerCase();
+    searchableTextCache.set(card, text);
+  }
+  return text;
+};
 
 const matchesVisualFilters = (
   card: Doc<"cards">,
@@ -257,7 +267,11 @@ export const filterLocalCards = (
       const searchableText = buildSearchableText(card);
       return (
         terms.every((term) => searchableText.includes(term)) &&
-        matchesSearchPhrases(searchableParts(card).join("\n"), parsed.phrases)
+        (parsed.phrases.length === 0 ||
+          matchesSearchPhrases(
+            searchableParts(card).join("\n"),
+            parsed.phrases
+          ))
       );
     })
     .sort((a, b) =>

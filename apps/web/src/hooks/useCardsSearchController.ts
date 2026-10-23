@@ -362,7 +362,9 @@ export function useCardsSearchController(
   }, [localSearchTerms]);
 
   const localSearchResults = useMemo(() => {
-    if (hasFolderQualifier || localSearchTerms === null) {
+    // Without a search the grid shows the remote list as is
+    // (`mergeLocalAndRemoteSearchResults`), so filtering the cache is waste.
+    if (!hasActiveSearch || hasFolderQualifier || localSearchTerms === null) {
       return [];
     }
     const matches = filterLocalCards(
@@ -389,6 +391,7 @@ export function useCardsSearchController(
   }, [
     folderId,
     folderQuery,
+    hasActiveSearch,
     hasFolderQualifier,
     localCards,
     localSearchTerms,

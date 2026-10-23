@@ -93,3 +93,90 @@ test("a successful write reports success", async () => {
     value: "New note",
   });
 });
+
+const cardB = {
+  _creationTime: 2,
+  _id: "card_b",
+  content: "Other",
+  createdAt: 2,
+  type: "text",
+  updatedAt: 2,
+  userId: "user_a",
+} as never;
+
+async function renderSwitchable() {
+  let hook = {} as ReturnType<typeof useCardModal>;
+  let open: { id: string; card: never } = { id: "card_a", card };
+  function Harness() {
+    hook = useCardModal(open.id, { card: open.card });
+    return null;
+  }
+  root = createRoot(document.createElement("div"));
+  await act(() => root?.render(<Harness />));
+  return {
+    hook: () => hook,
+    openCardB: () => {
+      open = { id: "card_b", card: cardB };
+      return act(() => root?.render(<Harness />));
+    },
+  };
+}
+
+test("moving to another card sends the edit it hadn't saved yet", async () => {
+  write = mock(async () => null);
+  const { hook, openCardB } = await renderSwitchable();
+  await act(() => hook().updateNotes("Typed, then a tag was clicked"));
+
+  await openCardB();
+
+  expect(write).toHaveBeenCalledWith({
+    cardId: "card_a",
+    field: "notes",
+    value: "Typed, then a tag was clicked",
+  });
+  expect(hook().hasUnsavedChanges).toBe(false);
+});
+
+test("closing the dialog sends the edit it hadn't saved yet", async () => {
+  write = mock(async () => null);
+  const { hook } = await renderSwitchable();
+  await act(() => hook().updateNotes("Typed, then Back"));
+
+  await act(() => root?.unmount());
+  root = undefined;
+
+  expect(write).toHaveBeenCalledWith({
+    cardId: "card_a",
+    field: "notes",
+    value: "Typed, then Back",
+  });
+});
+
+test("a save that fails after moving on leaves the new card's state alone", async () => {
+  const rejects: ((error: Error) => void)[] = [];
+  write = mock(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejects.push(reject);
+      })
+  );
+  const logError = console.error;
+  console.error = () => undefined;
+  const { hook, openCardB } = await renderSwitchable();
+  await act(() => hook().updateNotes("New note"));
+  let saved: Promise<boolean> | undefined;
+  await act(() => {
+    saved = hook().saveChanges({ silent: true });
+  });
+
+  await openCardB();
+  await act(async () => {
+    for (const reject of rejects) {
+      reject(new Error("offline"));
+    }
+    await saved;
+  });
+  console.error = logError;
+
+  expect(hook().saveState).not.toBe("error");
+});

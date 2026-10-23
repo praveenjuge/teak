@@ -40,6 +40,7 @@ Steps:
 - **Focus editor.** `type` into the composer, then `tap` button "Focus" (or `press` "Control+e"). A full-screen editor with its own textbox "Markdown content" opens. `press` "Control+Enter" to save; the card appears in the grid.
 - **New menu.** `tap` button "New". The menu has items "Note or link", "Upload files" and "Record audio" (each name also contains its shortcut letter, so match with `exact: false`). "Note or link" focuses the composer.
 - **Upload.** The picker's file input is created on demand, so the `e2e` `upload` tool finds no input. Drive the chooser over CDP instead (`.agents/cloud.md`, "File uploads from the e2e MCP server"). The toasts go "Uploading…" then "File uploaded" ("Uploaded <n> files" for several), and a button "Image: <name>" (or "Video:", "Audio:", "Document:") appears.
+- **Paste an image.** Copy an image, click into textbox "Markdown content" and paste. The toasts go "Uploading…" then "File uploaded", an "Image: <name>" card appears, and the composer stays empty. Headless, dispatch a `paste` `ClipboardEvent` whose `clipboardData` holds a `File` on the focused editor. Pasting with focus outside any text field uploads the same way.
 - **Record audio.** Needs Chromium launched with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`. "Record audio" opens dialog "Recording audio". `tap` "Stop and Save"; the toast "Audio recording saved" appears and an "Audio:" card follows.
 
 ## Gotchas
@@ -53,4 +54,6 @@ Steps:
 - Processing shows only an aria-hidden progress bar, so there's no accessible "processing" text. Observe the card's name until it changes. The AI summary appears in the card dialog's "Summary" section.
 - The free plan stops at 200 cards ("Free card limit reached"). Delete what each run creates so the shared account never fills up.
 - Use a WebM (VP9) file to check video playback: Playwright's Chromium can't decode MP4.
-- Drag-and-drop onto the composer is rejected with the toast "Paste text or Markdown into this note." That is intended.
+- Drag-and-drop onto the composer is rejected with the toast "Paste text or Markdown into this note." That is intended. Pasting files into it uploads them; pasting into a card dialog's note doesn't (the toast "Paste plain text or Markdown.").
+- An upload attempt that gets no answer is abandoned after a minute (plus time for the file's size) and retried, twice at most; the toast then reads "The upload stopped responding. Check your connection and try again." To check it, hold the first `PUT` to the Files Worker with Playwright's `page.route` and let later ones through: "File uploaded" arrives after about 62 s.
+- Once one file in a batch hits the free card limit or the rate limit, the rest of the batch isn't uploaded.

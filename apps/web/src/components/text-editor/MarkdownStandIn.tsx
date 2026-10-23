@@ -11,6 +11,7 @@ import {
   type Ref,
   useState,
 } from "react";
+import { extractFilesFromDataTransfer } from "@/lib/upload/fileDrop";
 import { cn } from "@/lib/utils";
 import { escapeTypedHtml } from "./typedHtml";
 import type { MarkdownTextEditorProps } from "./types";
@@ -57,6 +58,7 @@ export function MarkdownStandIn({
   onChange,
   onLimitExceeded,
   onOpenFullScreen,
+  onPasteFiles,
   onSaveShortcut,
   placeholder = "Write a note…",
   ref,
@@ -109,6 +111,16 @@ export function MarkdownStandIn({
         focus.current = true;
       }}
       onKeyDown={handleKeyDown}
+      onPaste={(event) => {
+        if (!onPasteFiles || event.clipboardData.getData("text/plain")) {
+          return;
+        }
+        const { files } = extractFilesFromDataTransfer(event.clipboardData);
+        if (files.length > 0) {
+          event.preventDefault();
+          onPasteFiles(files);
+        }
+      }}
       placeholder={placeholder}
       ref={ref}
       spellCheck

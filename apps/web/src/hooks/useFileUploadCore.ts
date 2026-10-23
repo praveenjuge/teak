@@ -17,6 +17,7 @@ import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "@teak/convex/shared/types";
+import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AdditionalFileMetadata,
@@ -31,6 +32,7 @@ import {
   getUploadEtag,
   isAbortError,
   throwIfAborted,
+  uploadAttemptTimeoutMs,
   uploadWithTransientRetry,
 } from "@/lib/upload/transport";
 
@@ -119,6 +121,29 @@ export interface UploadFileFromUriArgs {
 const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
   errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
 
+// A Convex function's ConvexError keeps its code and message in `data`; its
+// own message is the serialized data, which isn't fit for a toast.
+const toFileUploadError = (error: unknown): FileUploadError => {
+  if (error instanceof ConvexError) {
+    const data = error.data as { code?: unknown; message?: unknown } | null;
+    return {
+      code:
+        typeof data?.code === "string"
+          ? (data.code as CardErrorCode)
+          : undefined,
+      message:
+        typeof data?.message === "string" ? data.message : "Upload failed",
+    };
+  }
+  return {
+    code:
+      error instanceof Error && "code" in error
+        ? (error as CodedUploadError).code
+        : undefined,
+    message: error instanceof Error ? error.message : "Upload failed",
+  };
+};
+
 const fileBucket = (mimeType?: string): string => {
   const bucket = mimeType?.split("/", 1)[0] ?? "unknown";
   return ["audio", "image", "text", "video"].includes(bucket)
@@ -141,19 +166,21 @@ export function useFileUploadCore(
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<FileUploadError | null>(null);
   const activeUploadAbortRef = useRef<AbortController | null>(null);
+  const isUnmountedRef = useRef(false);
   const resetProgressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    return () => {
+      isUnmountedRef.current = true;
       activeUploadAbortRef.current?.abort();
       if (resetProgressTimeoutRef.current) {
         clearTimeout(resetProgressTimeoutRef.current);
       }
-    },
-    []
-  );
+    };
+  }, []);
 
   const beginUpload = useCallback(() => {
     activeUploadAbortRef.current?.abort();
@@ -290,14 +317,15 @@ export function useFileUploadCore(
           config.onProgress?.(25);
           setProgress(25);
           const uploadResponse = await uploadWithTransientRetry(
-            () =>
+            (attemptSignal) =>
               fetch(uploadResult.uploadUrl as string, {
                 method: "PUT",
                 headers: { "Content-Type": fileType },
                 body: file,
-                signal,
+                signal: attemptSignal,
               }),
-            signal
+            signal,
+            { timeoutMs: uploadAttemptTimeoutMs(file.size) }
           );
           if (!uploadResponse.ok) {
             throw new Error(
@@ -353,20 +381,7 @@ export function useFileUploadCore(
           size_bucket: resolveSizeBucket(file.size),
         });
 
-        const errorMessage =
-          error instanceof Error ? error.message : "Upload failed";
-        const fileError: FileUploadError = {
-          message: errorMessage,
-          code: undefined,
-        };
-
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          typeof (error as CodedUploadError).code !== "undefined"
-        ) {
-          fileError.code = (error as CodedUploadError).code;
-        }
+        const fileError = toFileUploadError(error);
 
         if (shouldCaptureUploadError(fileError.code)) {
           captureClientException(error, {
@@ -480,14 +495,15 @@ export function useFileUploadCore(
         setProgress(25);
 
         const uploadResponse = await uploadWithTransientRetry(
-          () =>
+          (attemptSignal) =>
             uploadBinaryFromUri({
               fileUri: uri,
               uploadUrl,
               contentType: fileType,
-              signal,
+              signal: attemptSignal,
             }),
-          signal
+          signal,
+          { timeoutMs: uploadAttemptTimeoutMs(size) }
         );
 
         if (!uploadResponse.ok) {
@@ -540,20 +556,7 @@ export function useFileUploadCore(
           size_bucket: resolveSizeBucket(size),
         });
 
-        const errorMessage =
-          error instanceof Error ? error.message : "Upload failed";
-        const fileError: FileUploadError = {
-          message: errorMessage,
-          code: undefined,
-        };
-
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          typeof (error as CodedUploadError).code !== "undefined"
-        ) {
-          fileError.code = (error as CodedUploadError).code;
-        }
+        const fileError = toFileUploadError(error);
 
         if (shouldCaptureUploadError(fileError.code)) {
           captureClientException(error, {
@@ -608,10 +611,29 @@ export function useFileUploadCore(
       }
 
       const results: UploadMultipleFilesResultItem[] = [];
+      // Once the account is out of cards or rate limited, every later file
+      // would upload in full only to be refused, so the rest are reported
+      // with the same reason instead. Unmounting cancels the rest too.
+      let stopped: UploadFileResult | null = null;
 
       for (const file of files) {
+        if (!stopped && isUnmountedRef.current) {
+          stopped = { success: false, error: "Upload cancelled" };
+        }
+        if (stopped) {
+          results.push({ file: file.name, ...stopped });
+          continue;
+        }
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop
         const result = await uploadFile(file, options);
         results.push({ file: file.name, ...result });
+        if (
+          !result.success &&
+          (result.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED ||
+            result.errorCode === CARD_ERROR_CODES.RATE_LIMITED)
+        ) {
+          stopped = result;
+        }
       }
 
       return results;

@@ -381,7 +381,7 @@ export const Card = memo(function Card({
             ? {
                 icon: CheckSquare,
                 label: isSelected ? "Deselect" : "Select",
-                onSelect: () => onToggleSelection?.(),
+                onSelect: () => onToggleSelection?.(card._id),
                 shortcut: shortcuts.select,
               }
             : {

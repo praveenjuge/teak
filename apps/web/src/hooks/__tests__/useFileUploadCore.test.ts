@@ -937,6 +937,67 @@ describe("useFileUploadCore", () => {
       expect(results[1].file).toBe("file2.png");
     });
 
+    test("stops a batch once the account is out of cards", async () => {
+      const files = [
+        { size: 100, name: "1.png", type: "image/png" },
+        { size: 100, name: "2.png", type: "image/png" },
+        { size: 100, name: "3.png", type: "image/png" },
+      ] as any;
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: false,
+        error: CARD_ERROR_MESSAGES.CARD_LIMIT_REACHED,
+        errorCode: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
+      });
+
+      const results = await hook.uploadMultipleFiles(files);
+
+      expect(mockUploadAndCreateCard).toHaveBeenCalledTimes(1);
+      expect(mockFetch).not.toHaveBeenCalled();
+      expect(results.map((result) => result.file)).toEqual([
+        "1.png",
+        "2.png",
+        "3.png",
+      ]);
+      for (const result of results) {
+        expect(result).toMatchObject({
+          success: false,
+          errorCode: CARD_ERROR_CODES.CARD_LIMIT_REACHED,
+        });
+      }
+    });
+
+    test("cancels the rest of a batch on unmount", async () => {
+      const files = [
+        { size: 100, name: "1.png", type: "image/png" },
+        { size: 100, name: "2.png", type: "image/png" },
+      ] as any;
+      const localHook = useFileUploadCore(dependencies, config);
+      mockUploadAndCreateCard.mockResolvedValue({
+        success: true,
+        uploadUrl: "https://upload",
+        uploadKey: "store_1",
+      });
+      mockFetch.mockImplementation(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () =>
+              reject({ name: "AbortError" })
+            );
+          })
+      );
+
+      const resultsPromise = localHook.uploadMultipleFiles(files);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      mockUseEffectCleanups.at(-1)?.();
+      const results = await resultsPromise;
+
+      expect(mockUploadAndCreateCard).toHaveBeenCalledTimes(1);
+      expect(results).toEqual([
+        { file: "1.png", success: false, error: "Upload cancelled" },
+        { file: "2.png", success: false, error: "Upload cancelled" },
+      ]);
+    });
+
     test("handles partial failures in batch upload", async () => {
       const files = [
         { size: 100, name: "1.png", type: "image/png" },

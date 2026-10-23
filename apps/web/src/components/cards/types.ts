@@ -104,7 +104,7 @@ export interface CardProps {
   onRestore?: (cardId: string) => void;
   onToggleArchive?: (cardId: string, archive: boolean) => void;
   onToggleFavorite?: (cardId: string) => void;
-  onToggleSelection?: () => void;
+  onToggleSelection?: (cardId: string) => void;
 }
 
 const UUID_REGEX =

@@ -174,6 +174,22 @@ describe("shared search helpers", () => {
     expect(text).toContain("beta");
   });
 
+  it("matches an edited card by its new text, not its old", () => {
+    const card = makeCard({ _id: "edited", notes: "before" });
+    expect(filterLocalCards([card], { searchTerms: "before" })).toHaveLength(1);
+
+    const edited = { ...card, notes: "after" };
+    expect(filterLocalCards([edited], { searchTerms: "before" })).toEqual([]);
+    expect(filterLocalCards([edited], { searchTerms: "after" })).toEqual([
+      edited,
+    ]);
+    expect(
+      filterLocalCards([edited], { searchTerms: '"after"' }).map(
+        ({ _id }): string => _id
+      )
+    ).toEqual(["edited"]);
+  });
+
   it("filters by search terms across fields", () => {
     const cards = [
       makeCard({

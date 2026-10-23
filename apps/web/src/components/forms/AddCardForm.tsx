@@ -14,8 +14,10 @@ import {
   MANUAL_CLOSE_TOAST_OPTIONS,
   TOAST_IDS,
 } from "@/constants/toast";
+import { useGlobalFileDrop } from "@/hooks";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
+import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
 import { addCardToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import { useQuery } from "../../lib/convexQueryHooks";
 import {
@@ -124,6 +126,7 @@ export function AddCardForm({
     open: openFocus,
   } = useFocusMode(content);
 
+  const globalFileDrop = useGlobalFileDrop();
   const cardCreationStatus = useQuery(api.auth.getCardCreationStatus);
   const canCreateCard =
     canCreateCardProp ?? cardCreationStatus?.canCreateCard ?? true;
@@ -196,6 +199,11 @@ export function AddCardForm({
     setContent("");
   };
 
+  // The draft is cleared as a note is sent, so until the server has it,
+  // closing the tab would lose it.
+  const [savingNotes, setSavingNotes] = useState(0);
+  useWarnBeforeUnload(savingNotes > 0);
+
   const submitTextCard = async (): Promise<boolean> => {
     const submittedContent = latestContentRef.current;
     if (!(submittedContent.trim() && canCreateCard)) {
@@ -211,6 +219,7 @@ export function AddCardForm({
       via: "text_form",
     });
 
+    setSavingNotes((count) => count + 1);
     try {
       const capture = prepareNoteCapture(submittedContent);
       await createCard({ ...capture, source: "web" });
@@ -241,6 +250,8 @@ export function AddCardForm({
         toast.error(errorMessage, { id: toastId });
       }
       return false;
+    } finally {
+      setSavingNotes((count) => count - 1);
     }
   };
 
@@ -306,6 +317,7 @@ export function AddCardForm({
                   openFocus();
                 }
               }}
+              onPasteFiles={globalFileDrop?.enqueueFiles}
               onSaveShortcut={() => {
                 if (hasContent && canCreateCard) {
                   void submitTextCard();

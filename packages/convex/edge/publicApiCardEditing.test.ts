@@ -627,7 +627,7 @@ describe("Multi-field edits", () => {
     expect(card?.processingRev).toBe(jobs[jobs.length - 1]?.rev);
   });
 
-  test("a bulk edit refused by the account cap leaves the card's next edit a run", async () => {
+  test("a bulk edit past the account's refresh cap saves, and the card's next edit is still a run", async () => {
     const { t, cardId } = await setup();
     await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
       cardId,
@@ -658,7 +658,10 @@ describe("Multi-field edits", () => {
         items: [{ cardId, content: "Bulk edit" }],
       }
     );
-    expect(result.summary.failed).toBe(1);
+    expect(result.summary).toEqual({ total: 1, succeeded: 1, failed: 0 });
+    expect((await t.run((ctx) => ctx.db.get("cards", cardId)))?.content).toBe(
+      "Bulk edit"
+    );
 
     vi.advanceTimersByTime(11_000);
     await t.mutation(internal.publicApi.cardsForUser.patchCardForUser, {
@@ -867,6 +870,49 @@ describe("Bulk items follow the single-card rules", () => {
     ]);
     const cards = await t.run((ctx) => ctx.db.query("cards").collect());
     expect(cards).toHaveLength(1);
+  });
+});
+
+describe("Editing many cards in a minute", () => {
+  test("keeps saving edits after the account's AI refresh budget runs out", async () => {
+    const { t } = await setup();
+    const owner = t.withIdentity({
+      issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+      subject: `user_${Buffer.from("owner").toString("hex")}`,
+      sid: "session_edits",
+      email_verified: true,
+      external_id: "owner",
+    });
+    const cardIds: Id<"cards">[] = [];
+    for (let index = 0; index < 13; index += 1) {
+      cardIds.push(
+        await t.run((ctx) =>
+          ctx.db.insert("cards", {
+            userId: "owner",
+            type: "text",
+            content: `Note ${index}`,
+            createdAt: index,
+            updatedAt: index,
+          })
+        )
+      );
+    }
+
+    // Six refreshes run now and six more wait their turn; the thirteenth
+    // edit finds no budget left.
+    for (const cardId of cardIds) {
+      await owner.mutation(api.cards.updateCardField, {
+        cardId,
+        field: "content",
+        value: `Edited ${cardId}`,
+      });
+    }
+
+    const last = cardIds[12] as Id<"cards">;
+    const card = await t.run((ctx) => ctx.db.get("cards", last));
+    expect(card?.content).toBe(`Edited ${last}`);
+    expect(card?.processingStatus).toBeUndefined();
+    expect(await scheduledWorkflowStarts(t)).toHaveLength(12);
   });
 });
 

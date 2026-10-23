@@ -1,6 +1,7 @@
 import {
   getUploadEtag,
   throwIfAborted,
+  uploadAttemptTimeoutMs,
   uploadWithTransientRetry,
 } from "./transport";
 
@@ -58,14 +59,15 @@ export const uploadMultipartFile = async ({
       fileType
     );
     const response = await uploadWithTransientRetry(
-      () =>
+      (attemptSignal) =>
         fetch(part.uploadUrl, {
           body: blob,
           headers: { "Content-Type": fileType },
           method: "PUT",
-          signal,
+          signal: attemptSignal,
         }),
-      signal
+      signal,
+      { timeoutMs: uploadAttemptTimeoutMs(blob.size) }
     );
     if (!response.ok) {
       throw new Error(`Upload failed with status ${response.status}`);
