@@ -67,11 +67,6 @@ async function deleteLegacyModelRows(
   throw new Error("deletion_legacy_rows_unbounded");
 }
 
-export const deleteLegacyBetterAuthSessions = (
-  ctx: Pick<ActionCtx, "runMutation">,
-  betterAuthUserId: string
-) => deleteLegacyModelRows(ctx, "session", betterAuthUserId);
-
 export async function deleteLegacyBetterAuthRows(
   ctx: Pick<ActionCtx, "runMutation">,
   betterAuthUserId: string

@@ -182,7 +182,7 @@ describe("durable deletion admission and tombstones", () => {
     expect(sibling?.cancelRequested).toBeUndefined();
   });
   test.each([1, 2])(
-    "oversized provider page at stage %s is rejected before revocation",
+    "retired provider stage %s advances without calling WorkOS",
     async (stage) => {
       const { t, signed } = await fixture();
       await signed.mutation(api.accountDeletion.deleteMyAccount, {});
@@ -190,57 +190,16 @@ describe("durable deletion admission and tombstones", () => {
         ctx.db.query("accountDeletionStates").unique()
       );
       await t.run((ctx) => ctx.db.patch(state!._id, { stage }));
-      let requestedLimit: string | null = null;
-      let revocations = 0;
-      vi.stubGlobal(
-        "fetch",
-        vi.fn((input: unknown, options?: RequestInit) => {
-          const url = new URL(
-            input instanceof Request ? input.url : String(input)
-          );
-          if (
-            options?.method === "DELETE" ||
-            url.pathname.endsWith("/sessions/revoke")
-          ) {
-            revocations++;
-            return new Response(null, { status: 204 });
-          }
-          requestedLimit = url.searchParams.get("limit");
-          return Response.json({
-            data: Array.from({ length: 11 }, (_, index) =>
-              stage === 2
-                ? { application: { id: `conn_app_TEST${index}` } }
-                : {
-                    object: "session",
-                    id: `session_TEST${index}`,
-                    user_id: "user_DELETE",
-                    status: "active",
-                    auth_method: "password",
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    expires_at: new Date(Date.now() + 60_000).toISOString(),
-                  }
-            ),
-            list_metadata: {},
-          });
-        })
-      );
-      await expect(
-        t.action(internal.accountDeletionActions.runStage, {
+      const fetcher = vi.fn(() => Response.json({}));
+      vi.stubGlobal("fetch", fetcher);
+      expect(
+        await t.action(internal.accountDeletionActions.runStage, {
           stateId: state!._id,
           generation: 1,
           stage,
         })
-      ).rejects.toThrow(
-        stage === 2
-          ? "workos_authorized_apps_invalid"
-          : "deletion_session_page_invalid"
-      );
-      expect(requestedLimit).toBe("10");
-      expect(revocations).toBe(0);
-      expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
-        stage,
-      });
+      ).toBe(true);
+      expect(fetcher).not.toHaveBeenCalled();
     }
   );
   test.each([
@@ -249,7 +208,7 @@ describe("durable deletion admission and tombstones", () => {
     "user_A%2F..",
     "https://attacker.invalid/",
   ])(
-    "application revocation rejects malformed user ID %s before network access",
+    "WorkOS user deletion rejects malformed user ID %s before network access",
     async (workosUserId) => {
       const { t, signed } = await fixture();
       await signed.mutation(api.accountDeletion.deleteMyAccount, {});
@@ -259,274 +218,86 @@ describe("durable deletion admission and tombstones", () => {
       await t.run(async (ctx) => {
         const owner = await ctx.db.query("users").unique();
         await ctx.db.patch(owner!._id, { workosUserId });
-        await ctx.db.patch(state!._id, { stage: 2, workosUserId });
+        await ctx.db.patch(state!._id, { stage: 4, workosUserId });
       });
       const requests: string[] = [];
       vi.stubGlobal("fetch", (input: string | URL | Request) => {
         requests.push(input instanceof Request ? input.url : String(input));
-        return Response.json({ data: [] });
+        return Response.json({});
       });
       await expect(
         t.action(internal.accountDeletionActions.runStage, {
           stateId: state!._id,
           generation: 1,
-          stage: 2,
+          stage: 4,
         })
       ).rejects.toThrow("deletion_workos_user_id_invalid");
       expect(requests).toEqual([]);
       expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
-        stage: 2,
+        stage: 4,
         workosUserId,
       });
     }
   );
-  test.each(["conn_app_TEST", "connect_app_01M40P8YVQV6ED9DCMYM0BYZG0"])(
-    "application revocation deletes the exact supported provider ID %s",
-    async (applicationId) => {
-      const { t, signed } = await fixture();
-      await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-      const state = await t.run((ctx) =>
-        ctx.db.query("accountDeletionStates").unique()
-      );
-      await t.run((ctx) => ctx.db.patch(state!._id, { stage: 2 }));
-      const deleted: string[] = [];
-      vi.stubGlobal(
-        "fetch",
-        (input: string | URL | Request, options?: RequestInit) => {
-          const url = new URL(
-            input instanceof Request ? input.url : String(input)
-          );
-          if (options?.method === "DELETE") {
-            deleted.push(url.href);
-            return new Response(null, { status: 204 });
-          }
-          return Response.json({
-            data: [{ application: { id: applicationId } }],
-          });
+  test("a deletion already at account data resumes there and still deletes the WorkOS user", async () => {
+    const { t, signed } = await fixture();
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "disposable-secret");
+    const env = filesWorker.withObjectGates({
+      BUCKET: new filesWorker.FakeBucket(),
+      FILES_SIGNING_SECRET: "disposable-secret",
+    });
+    const providerRequests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, options?: RequestInit) => {
+        const url = new URL(
+          input instanceof Request ? input.url : String(input)
+        );
+        const method =
+          options?.method ?? (input instanceof Request ? input.method : "GET");
+        providerRequests.push(`${method} ${url.pathname}`);
+        if (method === "DELETE" && url.pathname.endsWith("/user_DELETE")) {
+          return new Response(null, { status: 204 });
         }
-      );
-      expect(
-        await t.action(internal.accountDeletionActions.runStage, {
+        throw new Error(
+          `unexpected_provider_request:${method}:${url.pathname}`
+        );
+      })
+    );
+    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
+    const state = await t.run((ctx) =>
+      ctx.db.query("accountDeletionStates").unique()
+    );
+    await t.run((ctx) => ctx.db.patch(state!._id, { stage: 3 }));
+    await filesWorker.runAccountDeletion(
+      {
+        env,
+        instanceId: state!.workflowId,
+        params: {
           stateId: state!._id,
           generation: 1,
-          stage: 2,
-        })
-      ).toBe(false);
-      expect(deleted).toEqual([
-        `https://api.workos.com/user_management/users/user_DELETE/authorized_applications/${applicationId}`,
-      ]);
-    }
-  );
-  test.each([
-    "connect_app_",
-    "connect_app_TEST/OTHER",
-    "connect_app_TEST%2fOTHER",
-    "authorized_connect_app_TEST",
-    "client_TEST",
-  ])(
-    "application revocation rejects malformed or wrong-kind provider ID %s",
-    async (applicationId) => {
-      const { t, signed } = await fixture();
-      await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-      const state = await t.run((ctx) =>
-        ctx.db.query("accountDeletionStates").unique()
-      );
-      await t.run((ctx) => ctx.db.patch(state!._id, { stage: 2 }));
-      let deletes = 0;
-      vi.stubGlobal(
-        "fetch",
-        (_input: string | URL | Request, options?: RequestInit) => {
-          if (options?.method === "DELETE") {
-            deletes++;
-          }
-          return Response.json({
-            data: [{ application: { id: applicationId } }],
-          });
-        }
-      );
-      await expect(
-        t.action(internal.accountDeletionActions.runStage, {
-          stateId: state!._id,
-          generation: 1,
-          stage: 2,
-        })
-      ).rejects.toThrow("workos_authorized_apps_invalid");
-      expect(deletes).toBe(0);
-    }
-  );
-  test("application revocation yields between bounded provider pages", async () => {
-    const { t, signed } = await fixture();
-    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-    const state = await t.run((ctx) =>
-      ctx.db.query("accountDeletionStates").unique()
+          convexSiteUrl: "https://session-tests.convex.site",
+        },
+        step: filesWorker.createFakeStep().step,
+      },
+      {
+        convex: convexForWorker(t),
+        ops: (spec: { op: string; params: Record<string, unknown> }) =>
+          filesWorker.callFilesOp(env, spec),
+      }
     );
-    await t.run((ctx) => ctx.db.patch(state!._id, { stage: 2 }));
-    const applications = new Set(["conn_app_ONE", "conn_app_TWO"]);
-    let pages = 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((input: unknown, options?: RequestInit) => {
-        const url = new URL(
-          input instanceof Request ? input.url : String(input)
-        );
-        if (options?.method === "DELETE") {
-          applications.delete(
-            url.pathname.slice(url.pathname.lastIndexOf("/") + 1)
-          );
-          return new Response(null, { status: 204 });
-        }
-        pages++;
-        return Response.json({
-          data: [...applications]
-            .slice(0, 1)
-            .map((id) => ({ application: { id } })),
-          list_metadata: {},
-        });
-      })
-    );
-    const binding = { stateId: state!._id, generation: 1, stage: 2 };
+    expect(providerRequests).toEqual([
+      "DELETE /user_management/users/user_DELETE",
+    ]);
+    expect(await t.run((ctx) => ctx.db.query("cards").take(2))).toEqual([]);
     expect(
-      await t.action(internal.accountDeletionActions.runStage, binding)
-    ).toBe(false);
-    expect(pages).toBe(1);
-    expect([...applications]).toEqual(["conn_app_TWO"]);
-    expect(
-      await t.action(internal.accountDeletionActions.runStage, binding)
-    ).toBe(false);
-    expect(applications.size).toBe(0);
-    expect(
-      await t.action(internal.accountDeletionActions.runStage, binding)
-    ).toBe(true);
-    expect(pages).toBe(3);
-  });
-  test("a provider failure retains page progress and retries only remaining active sessions", async () => {
-    const { t, signed } = await fixture();
-    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-    const state = await t.run((ctx) =>
-      ctx.db.query("accountDeletionStates").unique()
-    );
-    await t.run((ctx) => ctx.db.patch(state!._id, { stage: 1 }));
-    const active = new Set(["session_ONE", "session_TWO"]);
-    const attempted: string[] = [];
-    let unavailable = true;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((input: unknown, options?: RequestInit) => {
-        const url = new URL(
-          input instanceof Request ? input.url : String(input)
-        );
-        if (url.pathname.endsWith("/sessions/revoke")) {
-          const id = JSON.parse(options!.body as string).session_id;
-          attempted.push(id);
-          if (id === "session_TWO" && unavailable) {
-            return Response.json(
-              { message: "Fixture outage" },
-              { status: 503 }
-            );
-          }
-          active.delete(id);
-          return new Response(null, { status: 204 });
-        }
-        if (url.pathname.endsWith("/sessions")) {
-          return Response.json({
-            data: ["session_ONE", "session_TWO"].map((id) => ({
-              object: "session",
-              id,
-              user_id: "user_DELETE",
-              status: active.has(id) ? "active" : "revoked",
-              auth_method: "password",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              expires_at: new Date(Date.now() + 60_000).toISOString(),
-            })),
-            list_metadata: {},
-          });
-        }
-        throw new Error("Unexpected provider operation");
-      })
-    );
-    const binding = { stateId: state!._id, generation: 1, stage: 1 };
-    await expect(
-      t.action(internal.accountDeletionActions.runStage, binding)
-    ).rejects.toThrow();
-    expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
-      stage: 1,
+      await t.run((ctx) => ctx.db.query("accountDeletionStates").take(2))
+    ).toEqual([]);
+    expect(await t.run((ctx) => ctx.db.query("users").first())).toMatchObject({
+      teakUserId: "permanent-owner",
+      deletedAt: expect.any(Number),
     });
-    expect(active).toEqual(new Set(["session_TWO"]));
-    unavailable = false;
-    expect(
-      await t.action(internal.accountDeletionActions.runStage, binding)
-    ).toBe(true);
-    expect(attempted).toEqual(["session_ONE", "session_TWO", "session_TWO"]);
-    expect(active.size).toBe(0);
-  });
-  test("session revocation resumes past inactive pages without revoking them", async () => {
-    const { t, signed } = await fixture();
-    await signed.mutation(api.accountDeletion.deleteMyAccount, {});
-    const state = await t.run((ctx) =>
-      ctx.db.query("accountDeletionStates").unique()
-    );
-    await t.run((ctx) => ctx.db.patch(state!._id, { stage: 1 }));
-    const requests: string[] = [];
-    const revoked: string[] = [];
-    const wireSession = (id: string, status: string) => ({
-      object: "session",
-      id,
-      user_id: "user_DELETE",
-      status,
-      auth_method: "password",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 60_000).toISOString(),
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((input: unknown, options?: RequestInit) => {
-        const url = new URL(
-          input instanceof Request ? input.url : String(input)
-        );
-        if (url.pathname.endsWith("/sessions/revoke")) {
-          revoked.push(JSON.parse(options!.body as string).session_id);
-          return new Response(null, { status: 204 });
-        }
-        if (url.pathname.endsWith("/sessions")) {
-          const after = url.searchParams.get("after") ?? "";
-          requests.push(after);
-          if (requests.length > 2) {
-            return Response.json({ data: [], list_metadata: {} });
-          }
-          return Response.json(
-            after
-              ? {
-                  data: [wireSession("session_ACTIVE", "active")],
-                  list_metadata: {},
-                }
-              : {
-                  data: [
-                    wireSession("session_REVOKED", "revoked"),
-                    wireSession("session_EXPIRED", "expired"),
-                  ],
-                  list_metadata: { after: "session_EXPIRED" },
-                }
-          );
-        }
-        throw new Error("Unexpected provider operation");
-      })
-    );
-    const binding = { stateId: state!._id, generation: 1, stage: 1 };
-    expect(
-      await t.action(internal.accountDeletionActions.runStage, binding)
-    ).toBe(false);
-    expect(revoked).toEqual([]);
-    expect(await t.run((ctx) => ctx.db.get(state!._id))).toMatchObject({
-      providerSessionCursor: "session_EXPIRED",
-      stage: 1,
-    });
-    expect(
-      await t.action(internal.accountDeletionActions.runStage, binding)
-    ).toBe(true);
-    expect(requests).toEqual(["", "session_EXPIRED"]);
-    expect(revoked).toEqual(["session_ACTIVE"]);
   });
   test("accepted request preserves owner, captures binding, denies access and schedules once", async () => {
     const { t, signed, card } = await fixture();
@@ -683,7 +454,7 @@ describe("durable deletion admission and tombstones", () => {
       })
     ).toMatchObject([{ key }]);
   });
-  test("complete stages erase populated disposable data and revoke every provider grant", async () => {
+  test("complete stages erase populated disposable data and delete the WorkOS user", async () => {
     const { t, signed, card } = await fixture();
     vi.stubEnv("WORKOS_API_KEY", "test-workos-account-deletion-key");
     vi.stubEnv("FILES_BASE", "https://files.test");
@@ -704,9 +475,9 @@ describe("durable deletion admission and tombstones", () => {
       BUCKET: bucket,
       FILES_SIGNING_SECRET: "disposable-secret",
     });
-    const sessions = new Set(["session_ONE", "session_TWO"]);
-    const applications = new Set(["conn_app_ONE", "conn_app_TWO"]);
-    let providerDeleted = false;
+    // Deleting the WorkOS user revokes its sessions and Connect grants, so
+    // it is the only provider call a whole deletion makes.
+    const providerRequests: string[] = [];
     const vectorDeletes: { ids: string[]; shard: number }[] = [];
     vi.stubGlobal(
       "fetch",
@@ -716,39 +487,8 @@ describe("durable deletion admission and tombstones", () => {
         );
         const method =
           options?.method ?? (input instanceof Request ? input.method : "GET");
-        if (url.pathname.endsWith("/sessions/revoke")) {
-          sessions.delete(JSON.parse(options!.body as string).session_id);
-          return new Response(null, { status: 204 });
-        }
-        if (url.pathname.endsWith("/sessions")) {
-          return Response.json({
-            data: [...sessions].map((id) => ({
-              object: "session",
-              id,
-              user_id: "user_DELETE",
-              status: "active",
-              auth_method: "password",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              expires_at: new Date(Date.now() + 60_000).toISOString(),
-            })),
-            list_metadata: {},
-          });
-        }
-        if (url.pathname.includes("/authorized_applications")) {
-          if (method === "DELETE") {
-            applications.delete(
-              url.pathname.slice(url.pathname.lastIndexOf("/") + 1)
-            );
-            return new Response(null, { status: 204 });
-          }
-          return Response.json({
-            data: [...applications].map((id) => ({ application: { id } })),
-            list_metadata: {},
-          });
-        }
+        providerRequests.push(`${method} ${url.pathname}`);
         if (method === "DELETE" && url.pathname.endsWith("/user_DELETE")) {
-          providerDeleted = true;
           return new Response(null, { status: 204 });
         }
         throw new Error(
@@ -983,10 +723,10 @@ describe("durable deletion admission and tombstones", () => {
     expect(
       await t.run((ctx) => ctx.db.query("workflowDispatches").take(2))
     ).toMatchObject([{ instanceId: state!.workflowId, state: "done" }]);
-    expect(sessions.size).toBe(0);
-    expect(applications.size).toBe(0);
+    expect(providerRequests).toEqual([
+      "DELETE /user_management/users/user_DELETE",
+    ]);
     expect(bucket.objects.size).toBe(0);
-    expect(providerDeleted).toBe(true);
     expect(vectorDeletes).toEqual([{ ids: [card], shard: 0 }]);
     expect(await t.run((ctx) => ctx.db.query("cards").take(2))).toEqual([]);
     expect(await t.run((ctx) => ctx.db.query("exportJobs").take(2))).toEqual(
