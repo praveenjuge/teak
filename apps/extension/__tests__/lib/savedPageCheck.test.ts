@@ -251,6 +251,29 @@ describe("the saved-page badge", () => {
     expect(badges.get(1)).toBe(true);
   });
 
+  test("an answer that arrives after sign-out is never kept for the next account", async () => {
+    let answer: (response: Response) => void = () => undefined;
+    let calls = 0;
+    const { advance, checker, requested } = setup({
+      respond: () => {
+        calls += 1;
+        return calls === 1
+          ? new Promise<Response>((resolve) => {
+              answer = resolve;
+            })
+          : Response.json({ cardId: null });
+      },
+    });
+    await checker.check({ id: 1, url: SAVED_URL });
+    await advance(CHECK_DEBOUNCE_MS);
+    await checker.clear([1]);
+    answer(Response.json({ cardId: "old-account-card" }));
+    await advance(0);
+    await checker.check({ id: 2, url: SAVED_URL });
+    await advance(CHECK_DEBOUNCE_MS);
+    expect(requested).toEqual([SAVED_URL, SAVED_URL]);
+  });
+
   test("sign-out forgets every answer and clears every badge", async () => {
     const { advance, badges, checker, requested } = setup();
     await checker.check({ id: 1, url: SAVED_URL });

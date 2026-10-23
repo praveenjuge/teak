@@ -10,6 +10,8 @@ import {
 export const SAVE_PAGE_COMMAND = "save-page";
 
 export interface SaveShortcutDependencies {
+  /** The address the tab shows now, or undefined once it closed. */
+  currentUrl: (tabId: number) => Promise<string | undefined>;
   /** Stops badge checks painting the tab; returns the release. */
   hold: (tabId: number) => () => void;
   markSaved: (url: string) => Promise<void>;
@@ -28,6 +30,7 @@ export interface SaveShortcutDependencies {
  * the first save instead of starting another.
  */
 export function createSaveShortcut({
+  currentUrl,
   hold,
   markSaved,
   openPopup,
@@ -83,6 +86,11 @@ export function createSaveShortcut({
       }
       if (outcome.saved) {
         await markSaved(url);
+        // A tab that moved on while the page saved gets its new page's badge.
+        if (checkableUrl(await currentUrl(tab.id)) !== url) {
+          restore = true;
+          return;
+        }
         await paint(tab.id, outcome.badge, outcome.title);
         return;
       }
@@ -91,7 +99,10 @@ export function createSaveShortcut({
     } finally {
       release();
       if (restore) {
-        await refresh(tab);
+        await refresh({
+          ...tab,
+          url: (await currentUrl(tab.id)) ?? tab.url,
+        });
       }
     }
   };

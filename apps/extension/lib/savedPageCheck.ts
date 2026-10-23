@@ -74,6 +74,8 @@ export function createSavedPageCheck({
   const inFlight = new Map<string, Promise<Lookup>>();
   const checksAt: number[] = [];
   let pausedUntil = 0;
+  // Moves on sign-out, so an answer for the old account is never kept.
+  let epoch = 0;
 
   const isCurrent = (tabId: number, generation: number) =>
     generations.get(tabId) === generation && !holds.get(tabId);
@@ -109,6 +111,7 @@ export function createSavedPageCheck({
 
   const ask = async (url: string): Promise<Lookup> => {
     checksAt.push(clock.now());
+    const askedIn = epoch;
     try {
       const response = await request(
         `/v1/cards/duplicate?url=${encodeURIComponent(url)}`
@@ -129,6 +132,9 @@ export function createSavedPageCheck({
         return "unknown";
       }
       const body = (await response.json()) as { cardId?: unknown };
+      if (askedIn !== epoch) {
+        return "unknown";
+      }
       const saved = typeof body.cardId === "string";
       await writeCache(url, saved);
       return saved ? "saved" : "unsaved";
@@ -239,6 +245,8 @@ export function createSavedPageCheck({
     },
     /** After sign-out: forget every result and clear the given tabs. */
     clear: async (tabIds: number[]) => {
+      epoch += 1;
+      inFlight.clear();
       for (const timer of timers.values()) {
         clock.clearTimeout(timer);
       }

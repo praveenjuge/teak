@@ -439,6 +439,11 @@ export default defineBackground(() => {
     });
     savedPages = checks;
     const saveFromShortcut = createSaveShortcut({
+      currentUrl: (tabId) =>
+        chrome.tabs.get(tabId).then(
+          (tab) => tab.url,
+          () => undefined
+        ),
       hold: checks.hold,
       markSaved: checks.markSaved,
       openPopup: () => chrome.action.openPopup(),
@@ -467,8 +472,10 @@ export default defineBackground(() => {
         .then((tab) => checks.check(tab))
         .catch(() => undefined);
     });
+    // Only the tab in front: a page loading in a background tab is checked
+    // when it is activated.
     chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
-      if (change.status === "complete" || change.url) {
+      if (tab.active && (change.status === "complete" || change.url)) {
         void checks.check(tab).catch(() => undefined);
       }
     });

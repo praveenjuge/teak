@@ -12,16 +12,21 @@ const PAGE = "https://example.com/article";
 
 function setup(
   save: (url: string) => Promise<TeakSaveResponse>,
-  { popupOpens = true } = {}
+  {
+    popupOpens = true,
+    showing,
+  }: { popupOpens?: boolean; showing?: () => string | undefined } = {}
 ) {
   const painted: { state: BadgeState; tabId: number; title?: string }[] = [];
   const saved: string[] = [];
   const marked: string[] = [];
   const waits: number[] = [];
-  const refreshed: number[] = [];
+  const refreshed: { tabId: number; url?: string }[] = [];
   let held = 0;
   let popups = 0;
+  let lastTab: chrome.tabs.Tab | undefined;
   const shortcut = createSaveShortcut({
+    currentUrl: () => Promise.resolve(showing ? showing() : lastTab?.url),
     hold: () => {
       held += 1;
       return () => {
@@ -43,7 +48,7 @@ function setup(
       return Promise.resolve();
     },
     refresh: (tab) => {
-      refreshed.push(tab.id ?? -1);
+      refreshed.push({ tabId: tab.id ?? -1, url: tab.url });
       return Promise.resolve();
     },
     save: (url) => {
@@ -62,7 +67,10 @@ function setup(
     popups: () => popups,
     refreshed,
     saved,
-    shortcut,
+    shortcut: (target: chrome.tabs.Tab | undefined) => {
+      lastTab = target;
+      return shortcut(target);
+    },
     waits,
   };
 }
@@ -81,6 +89,23 @@ describe("the save shortcut", () => {
     expect(run.marked).toEqual([PAGE]);
     expect(run.popups()).toBe(0);
     expect(run.held()).toBe(0);
+  });
+
+  test("a tab that moved to another page while saving gets that page's badge, not ✓", async () => {
+    let showing = PAGE;
+    const run = setup(
+      () => {
+        showing = "https://example.com/next";
+        return Promise.resolve({ status: "saved", cardId: "c1" });
+      },
+      { showing: () => showing }
+    );
+    await run.shortcut(tab(PAGE));
+    expect(run.marked).toEqual([PAGE]);
+    expect(run.painted.map((paint) => paint.state)).toEqual(["saving"]);
+    expect(run.refreshed).toEqual([
+      { tabId: 7, url: "https://example.com/next" },
+    ]);
   });
 
   test("a page already in Teak shows ✓ Already in Teak", async () => {
@@ -136,7 +161,7 @@ describe("the save shortcut", () => {
       expect(run.painted[0]?.state).toBe("error");
       expect(run.painted[0]?.title).toStartWith(message);
       expect(run.waits).toEqual([ERROR_BADGE_MS]);
-      expect(run.refreshed).toEqual([7]);
+      expect(run.refreshed.map((entry) => entry.tabId)).toEqual([7]);
     }
   );
 
@@ -145,7 +170,7 @@ describe("the save shortcut", () => {
     await run.shortcut(tab(PAGE));
     expect(run.popups()).toBe(1);
     expect(run.painted.map((paint) => paint.state)).toEqual(["saving"]);
-    expect(run.refreshed).toEqual([7]);
+    expect(run.refreshed.map((entry) => entry.tabId)).toEqual([7]);
   });
 
   test("at the card limit, it opens the popup's upgrade prompt", async () => {
@@ -182,7 +207,7 @@ describe("the save shortcut", () => {
       expect(run.painted.at(-1)).toEqual({ state: "error", tabId: 7, title });
       expect(run.waits).toEqual([ERROR_BADGE_MS]);
       expect(run.marked).toEqual([]);
-      expect(run.refreshed).toEqual([7]);
+      expect(run.refreshed.map((entry) => entry.tabId)).toEqual([7]);
       expect(run.held()).toBe(0);
     }
   );
