@@ -1478,6 +1478,29 @@ describe("search operators", () => {
     ]);
   });
 
+  test("a split page stops at its end cursor, so the client's split ends", async () => {
+    const { owner, insert, runScheduled } = await setup();
+    for (let index = 0; index < 30; index += 1) {
+      await insert({ content: `kept ${index}` });
+    }
+    await runScheduled();
+    const first = await owner.query(api.cards.searchCardsPaginated, {
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    expect(first.page).toHaveLength(5);
+    const page = (endCursor?: string) =>
+      owner.query(api.cards.searchCardsPaginated, {
+        searchQuery: "-tag:noise",
+        paginationOpts: { numItems: 2, cursor: null, endCursor },
+      });
+    // Without an end, a filtered scan reads a whole batch.
+    expect((await page()).page).toHaveLength(30);
+    const split = await page(first.continueCursor);
+    expect(split.page.map((card: { content: string }) => card.content)).toEqual(
+      first.page.map((card: { content: string }) => card.content)
+    );
+  });
+
   test("a smart folder's OR and a typed OR intersect", async () => {
     const { owner, insert, search } = await setup();
     await seedLibrary(insert);

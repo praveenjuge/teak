@@ -710,6 +710,9 @@ export const searchCardsPaginatedHandler = async (
       .order(order)
       .paginate({
         cursor: paginationOpts.cursor,
+        // A split page asks for the rows up to its end; without it each
+        // half comes back whole and the client splits it forever.
+        endCursor: paginationOpts.endCursor,
         maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: filtersCards
           ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
@@ -764,6 +767,9 @@ export const searchCardsPaginatedHandler = async (
       .order(order)
       .paginate({
         cursor: paginationOpts.cursor,
+        // A split page asks for the rows up to its end; without it each
+        // half comes back whole and the client splits it forever.
+        endCursor: paginationOpts.endCursor,
         maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
       });
@@ -838,6 +844,7 @@ export const searchCardsPaginatedHandler = async (
       !visualFilters.hasVisualFilters;
     const rows = await driver.order(order).paginate({
       cursor: paginationOpts.cursor,
+      endCursor: paginationOpts.endCursor,
       maximumRowsRead: paginationOpts.maximumRowsRead,
       numItems: exact
         ? paginationOpts.numItems
