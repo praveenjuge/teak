@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildSearchSuggestions,
+  continuesOperator,
   currentSearchToken,
   describeKeywordChip,
   describeQualifierChip,
@@ -284,5 +285,21 @@ describe("excluded chips", () => {
     expect(describeKeywordChip('"exact words"')).toEqual({
       label: '"exact words"',
     });
+  });
+});
+
+describe("continuesOperator", () => {
+  test.each([
+    ["", false],
+    ["notes ", false],
+    ["tag:fonts OR ", true],
+    ["tag:fonts or ", false],
+    ["(design ", true],
+    ["-(design ", true],
+    ["(a OR b) ", false],
+    ['"(quoted" ', false],
+    ["x OR y ", false],
+  ])("%p", (before: string, expected: boolean) => {
+    expect(continuesOperator(before)).toBe(expected);
   });
 });

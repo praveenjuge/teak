@@ -3,6 +3,7 @@ import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
   expressionFolderNames,
+  expressionHasWords,
   expressionRevealTags,
   expressionWantsArchived,
   matchesExpression,
@@ -54,6 +55,30 @@ export interface ResolvedSearch {
   trash: boolean;
   types?: CardType[];
 }
+
+/**
+ * The search document's text for a card, when an expression checks words
+ * and the card's own fields leave some of its text out (a document's text,
+ * a long transcript). Otherwise `undefined`, and the card's fields suffice.
+ */
+export const readExpressionText = async (
+  ctx: QueryCtx,
+  card: Doc<"cards">,
+  expression: SearchExpression | undefined
+): Promise<string | undefined> => {
+  const textElsewhere =
+    card.hasExtractedText === true ||
+    (card.aiTranscriptCharCount !== undefined &&
+      card.aiTranscript === undefined);
+  if (!(textElsewhere && expressionHasWords(expression))) {
+    return undefined;
+  }
+  const document = await ctx.db
+    .query("cardSearchDocuments")
+    .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
+    .unique();
+  return document?.searchableText;
+};
 
 export const cardHasTag = (card: Doc<"cards">, tag: string) =>
   [...(card.tags ?? []), ...(card.aiTags ?? [])].some(

@@ -43,7 +43,11 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
-import { expandFolderSearch, resolveSearch } from "./searchPlanner";
+import {
+  expandFolderSearch,
+  readExpressionText,
+  resolveSearch,
+} from "./searchPlanner";
 import {
   loadSemanticMatches,
   type SearchCandidate,
@@ -174,7 +178,14 @@ export const searchCardsPaginatedHandler = async (
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];
   const tag = resolved.tags[0] ?? "";
-  const matchesQualifiers = (card: Doc<"cards">) => resolved.matches(card);
+  // A word in the expression reads the search document's text for a card
+  // whose own fields leave some of it out (a document's text, a transcript).
+  const keepQualified = async (cards: Doc<"cards">[]) => {
+    const texts = await Promise.all(
+      cards.map((card) => readExpressionText(ctx, card, parsed.expression))
+    );
+    return cards.filter((card, index) => resolved.matches(card, texts[index]));
+  };
   const paginationOpts = {
     ...rawPaginationOpts,
     numItems: clampPageSize(rawPaginationOpts.numItems),
@@ -218,7 +229,7 @@ export const searchCardsPaginatedHandler = async (
   };
   const shuffleWalkPage = async (
     walk: Omit<ShuffleWalkOptions, "seed" | "userId">,
-    keep?: (cards: Doc<"cards">[]) => Doc<"cards">[]
+    keep?: (cards: Doc<"cards">[]) => Doc<"cards">[] | Promise<Doc<"cards">[]>
   ) => {
     const position = decodeShuffleWalkCursor(seed, paginationOpts.cursor) ?? {
       segment: 0,
@@ -244,7 +255,7 @@ export const searchCardsPaginatedHandler = async (
         maximumRowsRead: filtered ? SHUFFLE_WALK_SCAN_LIMIT : undefined,
       }
     );
-    const cards = keep ? keep(result.cards) : result.cards;
+    const cards = keep ? await keep(result.cards) : result.cards;
     const pageWithUrls = await attachListUrls(ctx, cards);
     return {
       page: applyQuoteFormattingToList(pageWithUrls),
@@ -653,15 +664,20 @@ export const searchCardsPaginatedHandler = async (
       if (card.isDeleted === true) {
         return false;
       }
+      if (archived === "include") {
+        return true;
+      }
       return archived === "only"
         ? card.isArchived === true
         : card.isArchived !== true;
     };
-    const keepTagMatches = (cards: Doc<"cards">[]) =>
-      applyCardLevelFilters(
-        cards.filter((card) => matchesQualifiers(card) && inView(card)),
-        { types, favoritesOnly, createdAtRange, visualFilters }
-      );
+    const keepTagMatches = async (cards: Doc<"cards">[]) =>
+      applyCardLevelFilters((await keepQualified(cards)).filter(inView), {
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+      });
     if (shuffle) {
       const rows = await buildTagCardListQuery(ctx, {
         userId: user.teakUserId,
@@ -699,7 +715,7 @@ export const searchCardsPaginatedHandler = async (
           ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
           : paginationOpts.numItems,
       });
-    const matches = keepTagMatches(
+    const matches = await keepTagMatches(
       await loadCards(
         ctx,
         rows.page.map((row) => row.cardId)
@@ -729,7 +745,7 @@ export const searchCardsPaginatedHandler = async (
       ),
       async (pageIds) =>
         applyCardLevelFilters(
-          (await loadCards(ctx, pageIds)).filter(matchesQualifiers),
+          await keepQualified(await loadCards(ctx, pageIds)),
           { types, favoritesOnly, createdAtRange, visualFilters }
         )
     );
@@ -751,12 +767,12 @@ export const searchCardsPaginatedHandler = async (
         maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
       });
-    const cards = (
+    const cards = await keepQualified(
       await loadCards(
         ctx,
         rows.page.map((row) => row.cardId)
       )
-    ).filter(matchesQualifiers);
+    );
     const matches = applyCardLevelFilters(cards, {
       types,
       favoritesOnly,
@@ -780,8 +796,8 @@ export const searchCardsPaginatedHandler = async (
       sites.length === 1 && !showTrashOnly && archived !== "include"
         ? sites[0]
         : undefined;
-    const keepMatches = (cards: Doc<"cards">[]) =>
-      applyCardLevelFilters(cards.filter(matchesQualifiers), {
+    const keepMatches = async (cards: Doc<"cards">[]) =>
+      applyCardLevelFilters(await keepQualified(cards), {
         types,
         favoritesOnly,
         createdAtRange,
@@ -827,7 +843,7 @@ export const searchCardsPaginatedHandler = async (
         ? paginationOpts.numItems
         : Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
     });
-    const matches = applyCardLevelFilters(rows.page.filter(matchesQualifiers), {
+    const matches = applyCardLevelFilters(await keepQualified(rows.page), {
       types,
       favoritesOnly,
       createdAtRange,

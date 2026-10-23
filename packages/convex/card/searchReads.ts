@@ -35,7 +35,7 @@ export const searchCardsByExactTag = async (
     limit: number;
     scanBudget?: { remaining: number; hitSearchLimit?: boolean };
     sort: "newest" | "oldest";
-    resultFilter?: (card: Doc<"cards">) => boolean;
+    resultFilter?: (card: Doc<"cards">) => boolean | Promise<boolean>;
     includeHidden?: boolean;
   }
 ): Promise<Doc<"cards">[]> => {
@@ -143,7 +143,7 @@ export const searchCardsByExactTag = async (
     if (
       card &&
       (includeHidden || !isCardHidden(card)) &&
-      (!args.resultFilter || args.resultFilter(card))
+      (!args.resultFilter || (await args.resultFilter(card)))
     ) {
       cardsById.set(card._id, card);
       if (cardsById.size >= matchLimit) {

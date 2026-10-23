@@ -227,6 +227,27 @@ export const expressionIndexWords = (
   }
 };
 
+/** Whether an expression checks a word or phrase anywhere, excluded or not. */
+export const expressionHasWords = (
+  expression: SearchExpression | undefined
+): boolean => {
+  if (!expression) {
+    return false;
+  }
+  switch (expression.op) {
+    case "term":
+    case "phrase":
+      return true;
+    case "not":
+      return expressionHasWords(expression.item);
+    case "and":
+    case "or":
+      return expression.items.some(expressionHasWords);
+    default:
+      return false;
+  }
+};
+
 /**
  * Which operators a search uses, for product analytics. `groups` is a
  * parenthesised group the precedence needed, as the canonical form prints.

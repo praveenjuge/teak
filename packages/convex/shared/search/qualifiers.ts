@@ -632,7 +632,8 @@ const formatExpression = (
       return formatSearchQualifier(expression.qualifier);
     case "not": {
       const inner = formatExpression(expression.item, "not");
-      return `-${inner}`;
+      // `--x` would read as the word `-x`, so a minus before a minus groups.
+      return expression.item.op === "not" ? `-(${inner})` : `-${inner}`;
     }
     default: {
       const text = expression.items
@@ -753,13 +754,15 @@ const buildParsedQuery = (root: SearchExpression | null): ParsedSearchQuery => {
   }
 
   const expression = joinExpressions("and", residual) ?? undefined;
-  // The search index finds cards with any of the words, so the words of an
-  // OR group only go to it when every match has one of them: a card that
-  // matches `is:archived OR notes` through `is:archived` has none.
+  // The search index finds cards with any of the words it gets. Top-level
+  // words find every match, as they do without operators, so only a query
+  // without them sends the words of its groups, and only when every match
+  // has one: a card can match `is:archived OR notes` with neither.
   const indexed =
-    terms.length > 0 ||
-    phrases.length > 0 ||
-    (expression !== undefined && requiresWords(expression));
+    terms.length === 0 &&
+    phrases.length === 0 &&
+    expression !== undefined &&
+    requiresWords(expression);
   const flat = [
     ...qualifiers.map(formatSearchQualifier),
     ...phrases.map(quoteSearchValue),

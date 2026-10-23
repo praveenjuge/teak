@@ -16,6 +16,7 @@ import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
   cardHasTag,
   cardUrlHost,
+  readExpressionText,
   resolveExpressionFolders,
 } from "../card/searchPlanner";
 import {
@@ -184,6 +185,22 @@ export const matchesCreatedAt = (
 
   return true;
 };
+
+/**
+ * `matchesStructuredFilters` for a card read without its search document:
+ * a word in the expression reads the document's text when the card's own
+ * fields leave some of it out.
+ */
+export const matchesStructuredFiltersWithText = async (
+  ctx: QueryCtx,
+  card: Doc<"cards">,
+  options: SearchOptions
+): Promise<boolean> =>
+  matchesStructuredFilters(
+    card,
+    options,
+    await readExpressionText(ctx, card, options.expression)
+  );
 
 export const matchesStructuredFilters = (
   card: Doc<"cards">,
@@ -508,9 +525,9 @@ export const searchCardsByTag = async (
         scanBudget,
         sort,
         includeHidden: options.includeHidden,
-        resultFilter: (card) =>
-          matchesStructuredFilters(card, options) &&
-          (!anchor || isAfterMatchAnchor(card, anchor, sort)),
+        resultFilter: async (card) =>
+          (!anchor || isAfterMatchAnchor(card, anchor, sort)) &&
+          (await matchesStructuredFiltersWithText(ctx, card, options)),
       })
     )
   );
@@ -761,7 +778,9 @@ const scanFolderCards = async (
       continue;
     }
     const card = await ctx.db.get("cards", row.cardId);
-    if (!(card && matchesStructuredFilters(card, options))) {
+    if (
+      !(card && (await matchesStructuredFiltersWithText(ctx, card, options)))
+    ) {
       continue;
     }
     matches.push(card);
@@ -833,7 +852,7 @@ export const scanCardsWithBaseQuery = async (
   for (const card of page.page) {
     if (
       isAtOrBeforeListAnchor(card, anchor, options) ||
-      !matchesStructuredFilters(card, options)
+      !(await matchesStructuredFiltersWithText(ctx, card, options))
     ) {
       continue;
     }

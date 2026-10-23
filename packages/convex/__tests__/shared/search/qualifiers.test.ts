@@ -541,24 +541,41 @@ describe("search operators", () => {
     });
   });
 
-  test("words in OR groups are searched; excluded words never are", () => {
+  test.each([
+    ["-(-tag:old)", "-(-tag:old)"],
+    ["-(-(-figma))", "-(-(-figma))"],
+    ["x -(-(a OR b))", "x -(-(a OR b))"],
+  ])("a minus before a minus keeps its group: %s", (input, canonical) => {
+    const parsed = parseSearchQuery(input);
+    expect(parsed.canonical).toBe(canonical);
+    const again = parseSearchQuery(parsed.canonical);
+    expect(again.canonical).toBe(canonical);
+    expect(again.expression).toEqual(parsed.expression);
+  });
+
+  test("top-level words find the matches; excluded words are never searched", () => {
     const parsed = parseSearchQuery('design (figma OR "brand kit") -sketch');
     expect(parsed.terms).toEqual(["design"]);
-    expect(parsed.text).toBe("design figma brand kit");
+    expect(parsed.text).toBe("design");
+    expect(parseSearchQuery('(figma OR "brand kit") -sketch').text).toBe(
+      "figma brand kit"
+    );
   });
 
   test.each([
     ["figma OR sketch", "figma sketch"],
     ["(figma OR sketch) -tag:old", "figma sketch"],
     ["tag:x (figma OR sketch)", "figma sketch"],
+    // A card with only `beta` must not come back for `alpha (… OR beta)`.
+    ["alpha (tag:keep OR beta)", "alpha"],
     // A card can match these without any of the words, so the search reads
     // by date and checks every card instead.
     ["is:archived OR notes", ""],
     ["tag:x OR figma", ""],
     ["-figma", ""],
     ["-(figma OR sketch)", ""],
-    // The required word finds every match.
-    ["notes (is:archived OR figma)", "notes figma"],
+    // The top-level word finds every match.
+    ["notes (is:archived OR figma)", "notes"],
   ])("%s searches the index for %j", (input, text) => {
     expect(parseSearchQuery(input).text).toBe(text);
   });

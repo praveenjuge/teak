@@ -65,6 +65,7 @@ import {
 import { PageHeader } from "../../screens/PageHeader";
 import {
   buildSearchSuggestions,
+  continuesOperator,
   currentSearchToken,
   describeKeywordChip,
   describeQualifierChip,
@@ -321,7 +322,9 @@ export function SearchBar({
 
   const accept = (suggestion: SearchSuggestion) => {
     const before = searchQuery.slice(0, tokenStart);
-    if (suggestion.complete) {
+    if (suggestion.complete && continuesOperator(before)) {
+      onSearchChange(`${before}${suggestion.insert} `);
+    } else if (suggestion.complete) {
       onAddQualifier?.(suggestion.insert);
       onSearchChange(before.trimEnd());
     } else {

@@ -115,6 +115,30 @@ export function currentSearchToken(text: string): {
   return { start, token: text.slice(start) };
 }
 
+/**
+ * Whether the word after `before` belongs to an operator: it follows `OR`,
+ * or an open `(` hasn't closed. A completed filter there stays in the text,
+ * since a pill of its own would leave the OR or group.
+ */
+export function continuesOperator(before: string): boolean {
+  let depth = 0;
+  let inQuotes = false;
+  for (let index = 0; index < before.length; index += 1) {
+    const character = before[index] ?? "";
+    if (character === "\\" && inQuotes) {
+      index += 1;
+    } else if (QUOTES.has(character)) {
+      inQuotes = !inQuotes;
+    } else if (!inQuotes && character === "(") {
+      depth += 1;
+    } else if (!inQuotes && character === ")" && depth > 0) {
+      depth -= 1;
+    }
+  }
+  const words = before.trim().split(/\s+/);
+  return depth > 0 || words.at(-1) === "OR";
+}
+
 const unquote = (value: string) =>
   value.replace(/^["“”]/, "").replace(/["“”]$/, "");
 

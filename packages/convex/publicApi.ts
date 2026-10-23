@@ -49,7 +49,7 @@ import {
   apiCardSortValidator,
   isAfterMatchAnchor,
   MAX_QUERY_SCAN,
-  matchesStructuredFilters,
+  matchesStructuredFiltersWithText,
   normalizeCardsQueryOptions,
   normalizeSort,
   normalizeTag,
@@ -376,7 +376,7 @@ export const shuffleCardsPageForUser = internalQuery({
         if (
           card &&
           card.userId === userId &&
-          matchesStructuredFilters(card, options)
+          (await matchesStructuredFiltersWithText(ctx, card, options))
         ) {
           items.push(card);
         }
@@ -453,8 +453,13 @@ export const shuffleCardsPageForUser = internalQuery({
     } catch {
       throw invalidCursorError();
     }
+    const kept = await Promise.all(
+      result.cards.map((card) =>
+        matchesStructuredFiltersWithText(ctx, card, options)
+      )
+    );
     return respond(
-      result.cards.filter((card) => matchesStructuredFilters(card, options)),
+      result.cards.filter((_card, index) => kept[index]),
       result.next ? { mode: "walk", position: result.next } : null
     );
   },

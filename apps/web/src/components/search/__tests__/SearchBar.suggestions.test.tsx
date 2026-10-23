@@ -171,3 +171,11 @@ test("OR is offered after a word, and inserts itself", async () => {
   await press("Enter");
   expect(input().value).toBe("design OR ");
 });
+
+test("a filter completed after OR stays in the text, not a pill", async () => {
+  await type("tag:fonts OR tag:de");
+  expect(options()).toEqual(["design4"]);
+  await press("Enter");
+  expect(chips).toEqual([]);
+  expect(input().value).toBe("tag:fonts OR tag:design ");
+});

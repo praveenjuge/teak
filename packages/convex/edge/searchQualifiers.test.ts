@@ -1343,6 +1343,68 @@ describe("search operators", () => {
     expect(await search("type:link -type:link")).toEqual([]);
   });
 
+  test("a tag search reads archived cards an OR asks for", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    expect(await search("tag:design (is:archived OR is:fav)")).toEqual([
+      "Archived GitHub design",
+      live.blog,
+    ]);
+  });
+
+  test("words check a document's text, not only the card's own fields", async () => {
+    const { t, insert, search, runScheduled } = await setup();
+    const pdf = await insert({
+      content: "Quarterly report",
+      tags: ["reports"],
+      hasExtractedText: true,
+    });
+    await insert({ content: "Team lunch menu", tags: ["reports"] });
+    await t.run(async (ctx) => {
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (q) => q.eq("cardId", pdf))
+        .unique();
+      if (!document) {
+        throw new Error("missing search document");
+      }
+      await ctx.db.patch("cardSearchDocuments", document._id, {
+        searchableText: `${document.searchableText}\nStrictly confidential figures`,
+      });
+    });
+    await runScheduled();
+    expect(await search("tag:reports -confidential")).toEqual([
+      "Team lunch menu",
+    ]);
+    expect(await search("-confidential tag:reports")).toEqual([
+      "Team lunch menu",
+    ]);
+    expect(await search("tag:nothing OR confidential")).toEqual([
+      "Quarterly report",
+    ]);
+    const scan = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      scanLimit: 50,
+      expression: "-confidential",
+      tags: ["reports"],
+    });
+    expect(scan.items.map((item: { content: string }) => item.content)).toEqual(
+      ["Team lunch menu"]
+    );
+  });
+
+  test("a top-level word stays required beside an OR group", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "alpha and beta" });
+    await insert({ content: "alpha kept", tags: ["keep"] });
+    await insert({ content: "alpha alone" });
+    await insert({ content: "only beta" });
+    expect(await search("alpha (tag:keep OR beta)")).toEqual([
+      "alpha kept",
+      "alpha and beta",
+    ]);
+  });
+
   test("a hyphen inside a word is not an exclusion", async () => {
     const { insert, search } = await setup();
     await insert({ content: "A to-do list" });

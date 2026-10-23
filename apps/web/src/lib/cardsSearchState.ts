@@ -82,10 +82,19 @@ export function createInitialCardsSearchState(): CardsSearchState {
 }
 
 export function buildCardsSearchTerms(state: CardsSearchState): string {
+  const typed = state.searchQuery.trim();
+  const hasPills =
+    state.qualifierChips.length > 0 || state.keywordTags.length > 0;
+  // A space binds tighter than OR, so typed `a OR b` beside the pills is
+  // grouped, the way Enter makes it a pill of its own.
+  const grouped =
+    hasPills && parseSearchQuery(typed).expression?.op === "or"
+      ? `(${typed})`
+      : typed;
   return [
     ...state.qualifierChips,
     ...state.keywordTags,
-    ...(state.searchQuery.trim() ? [state.searchQuery.trim()] : []),
+    ...(grouped ? [grouped] : []),
   ].join(" ");
 }
 

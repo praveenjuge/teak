@@ -306,6 +306,30 @@ describe("search qualifiers in the controller", () => {
     expect(isSameSearch(buildCardsSearchTerms(entered), query)).toBe(true);
   });
 
+  it("a typed OR joins the pills as one group while typing", () => {
+    const typing = {
+      ...baseState(),
+      keywordTags: ["-figma"],
+      qualifierChips: ["tag:x"],
+      searchQuery: "tag:fonts OR tag:type",
+    };
+    const terms = buildCardsSearchTerms(typing);
+    expect(parseSearchQuery(terms).canonical).toBe(
+      "tag:x -figma (tag:fonts OR tag:type)"
+    );
+    // Enter turns it into the same search.
+    expect(
+      isSameSearch(
+        buildCardsSearchTerms(applyEnterToCardsSearchState(typing)),
+        terms
+      )
+    ).toBe(true);
+    // Without pills, the typed text is the search as written.
+    expect(
+      buildCardsSearchTerms({ ...baseState(), searchQuery: "a OR b" })
+    ).toBe("a OR b");
+  });
+
   it("a lone OR group stays one search after Enter", () => {
     const entered = applyEnterToCardsSearchState({
       ...baseState(),
