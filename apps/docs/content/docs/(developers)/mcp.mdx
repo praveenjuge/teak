@@ -166,7 +166,7 @@ type CardFilters = {
   - Output: `{ id, email, name?, plan: "free" | "pro", cardCount, cardLimit: number | null, settingsUrl }`
 - `teak_v1_check_duplicate_url`
   - Input: `{ url: string }`
-  - Output: `{ cardId: string | null }`. Check before saving a link so you don't save it twice. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment`, or `utm_*`, `fbclid` and `gclid` parameters.
+  - Output: `{ cardId: string | null }`. Check before saving a link so you don't save it twice. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.
 - `teak_v1_create_card`
   - Input: text/URL fields or uploaded-file fields `{ fileKey, fileEtag?, fileName, mimeType, fileSize?, cardType? }`, plus optional `idempotencyKey`. Pass the `ETag` response header from the upload PUT as `fileEtag` so Teak can verify the exact stored object. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted. `sourceUrl` and `sourceTitle` record the page a text or quote came from without making it a link; `site:` searches find it. Reusing an `idempotencyKey` returns the first result instead of creating a second card.
   - Output: `{ status: "created", cardId: string, appUrl: string, card?: Card }`. Text and URL creates include the new `card`.

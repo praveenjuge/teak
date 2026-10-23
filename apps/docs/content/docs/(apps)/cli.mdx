@@ -122,7 +122,7 @@ File uploads support the same formats as the web app (source files, Markdown and
 
 Like the web composer, Teak works out the card type from what you add: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Pass `--type text` (or `quote`, `palette`, …) to choose. Structured Markdown always stays a text card and is stored exactly as submitted, including from standard input. Text cards have a 512 KiB UTF-8 limit.
 
-`teak cards duplicate <url>` prints the ID of the card that saves that link, and exits with the not-found code when none does, so a script can check before saving. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment`, or `utm_*`, `fbclid` and `gclid` parameters.
+`teak cards duplicate <url>` prints the ID of the card that saves that link, and exits with the not-found code when none does, so a script can check before saving. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.
 
 `teak cards get` shows the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
 

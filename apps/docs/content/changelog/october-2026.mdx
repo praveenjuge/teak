@@ -59,7 +59,7 @@ changelog:
 
 ## Teak recognises a link you've already saved, even with tracking parameters
 
-- The browser extension, Raycast, the API, MCP and the CLI now know a link is already in Teak when the address differs only by `http` or `https`, `www.`, a trailing slash, a `#fragment`, or `utm_*`, `fbclid` and `gclid` tracking parameters. See [Check for a saved URL](/docs/api#check-for-a-saved-url).
+- The browser extension, Raycast, the API, MCP and the CLI now know a link is already in Teak when the address differs only by `http` or `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` tracking parameters. See [Check for a saved URL](/docs/api#check-for-a-saved-url).
 - Imports skip those variants too, both against your library and within the file. See [Duplicate handling](/docs/import#duplicate-handling).
 
 ## Save a page with ⌥⇧S, and see when it's already in Teak
