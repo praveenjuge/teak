@@ -87,17 +87,6 @@ export default defineSchema({
     failedAttempts: v.optional(v.number()),
     updatedAt: v.number(),
   }).index("by_name", ["name"]),
-  workosEvents: defineTable({
-    eventId: v.string(),
-    workosUserId: v.optional(v.string()),
-    type: v.string(),
-    createdAt: v.number(),
-    email: v.optional(v.string()),
-    emailVerified: v.optional(v.boolean()),
-    externalId: v.optional(v.union(v.string(), v.null())),
-  })
-    .index("by_eventId", ["eventId"])
-    .index("by_workosUserId_and_type", ["workosUserId", "type"]),
   workosApplicationDisconnects: defineTable({
     recoveryReceipt: v.optional(disconnectRecoveryReceipt),
     operationId: v.string(),

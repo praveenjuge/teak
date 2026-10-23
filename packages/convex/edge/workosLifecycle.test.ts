@@ -54,7 +54,6 @@ const seed = (t: Backend, fields: Partial<Doc<"users">> = {}) =>
 const snapshot = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(20),
-    events: await ctx.db.query("workosEvents").take(30),
     quarantine: await ctx.db.query("migrationQuarantine").take(30),
     cards: await ctx.db.query("cards").take(20),
     scheduled: await ctx.db.system.query("_scheduled_functions").take(20),
@@ -97,37 +96,47 @@ describe("WorkOS lifecycle linking and deletion", () => {
     ]);
     expect(after.cards).toEqual(before.cards);
     expect(after.scheduled).toEqual([]);
-    expect(after.events).toMatchObject([
-      {
-        eventId: "evt_create",
-        workosUserId: "user_provider",
-        type: "user.created",
-        createdAt: Date.parse(time(1)),
-      },
-    ]);
   });
 
-  test("duplicate and concurrent delivery commit one original event receipt and one effect", async () => {
+  test("redelivered and concurrent created events link once and change nothing more", async () => {
     const t = setup();
     await seed(t);
     const original = event("evt_duplicate", 1, "user.created");
-    const results = await Promise.all([
-      t.mutation(apply, original),
-      t.mutation(apply, original),
-      t.mutation(apply, original),
+    expect(
+      await Promise.all([
+        t.mutation(apply, original),
+        t.mutation(apply, original),
+        t.mutation(apply, original),
+      ])
+    ).toEqual([
+      { status: "applied" },
+      { status: "applied" },
+      { status: "applied" },
     ]);
-    expect(
-      results.filter(
-        (result: { status: string }) => result.status === "applied"
-      )
-    ).toHaveLength(1);
-    expect(
-      results.filter(
-        (result: { status: string }) => result.status === "duplicate"
-      )
-    ).toHaveLength(2);
     const before = await snapshot(t);
-    expect(await t.mutation(apply, original)).toEqual({ status: "duplicate" });
+    expect(before.users).toMatchObject([
+      { teakUserId: "owner-a", workosUserId: "user_provider" },
+    ]);
+    expect(await t.mutation(apply, original)).toEqual({ status: "applied" });
+    expect(await snapshot(t)).toEqual(before);
+  });
+
+  test("redelivered and concurrent deletions keep one receipt", async () => {
+    const t = setup();
+    await seed(t, { workosUserId: "user_provider" });
+    const deletion = event("evt_delete_twice", 1, "user.deleted");
+    await Promise.all([
+      t.mutation(apply, deletion),
+      t.mutation(apply, deletion),
+    ]);
+    const before = await snapshot(t);
+    expect(before.quarantine).toMatchObject([
+      { reason: "workos_user_deleted", workosUserId: "user_provider" },
+    ]);
+    expect(await t.mutation(apply, deletion)).toEqual({ status: "deleted" });
+    expect(
+      await t.mutation(apply, event("evt_delete_again", 2, "user.deleted"))
+    ).toEqual({ status: "deleted" });
     expect(await snapshot(t)).toEqual(before);
   });
 
@@ -139,11 +148,14 @@ describe("WorkOS lifecycle linking and deletion", () => {
     "accepts RFC3339 fractional precision and offsets: %s",
     async (createdAt) => {
       const t = setup();
-      await seed(t);
+      await seed(t, { workosUserId: "user_provider" });
       expect(
-        await t.mutation(apply, { ...event("evt_rfc3339"), createdAt })
-      ).toEqual({ status: "applied" });
-      expect((await snapshot(t)).events[0].createdAt).toBe(
+        await t.mutation(apply, {
+          ...event("evt_rfc3339", 0, "user.deleted"),
+          createdAt,
+        })
+      ).toEqual({ status: "deleted" });
+      expect((await snapshot(t)).users[0].workosDeletedAt).toBe(
         Date.parse(createdAt)
       );
     }
@@ -174,9 +186,11 @@ describe("WorkOS lifecycle linking and deletion", () => {
       status: "quarantined",
       reason: "external_id_mismatch",
     });
-    expect(await t.mutation(apply, original)).toEqual({ status: "duplicate" });
+    expect(await t.mutation(apply, original)).toEqual({
+      status: "quarantined",
+      reason: "external_id_mismatch",
+    });
     const result = await snapshot(t);
-    expect(result.events).toHaveLength(1);
     expect(result.quarantine).toHaveLength(1);
     expect(result.users).toEqual([]);
     expect(result.cards).toEqual([]);
@@ -252,8 +266,8 @@ describe("WorkOS lifecycle linking and deletion", () => {
       await t.mutation(apply, event("evt_delete_duplicates", 1, "user.deleted"))
     ).toEqual({ status: "deleted" });
     const after = await snapshot(t);
-    expect(after.events).toMatchObject([
-      { type: "user.deleted", workosUserId: "user_provider" },
+    expect(after.quarantine).toMatchObject([
+      { reason: "workos_user_deleted", workosUserId: "user_provider" },
     ]);
     expect(after.users.some((row) => row.workosDeletedAt !== undefined)).toBe(
       true
@@ -301,15 +315,13 @@ describe("WorkOS lifecycle linking and deletion", () => {
       })
     ).toEqual({ status: "deleted" });
     const after = await snapshot(t);
-    expect(
-      after.events.find((receipt) => receipt.eventId === "evt_delete_identity")
-    ).toMatchObject({
-      type: "user.deleted",
-      workosUserId: "user_provider",
-      email: "provider@example.com",
-      emailVerified: false,
-      externalId: "owner-a",
-    });
+    expect(after.quarantine).toMatchObject([
+      {
+        reason: "workos_user_deleted",
+        workosUserId: "user_provider",
+        email: "provider@example.com",
+      },
+    ]);
     expect(after.quarantine[0].resolvedAt).toBeUndefined();
     expect(after.users[0].workosDeletedAt).toBe(Date.parse(time(1)));
     expect(await componentUser(t)).toMatchObject({ emailVerified: true });
@@ -322,9 +334,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
     const t = setup();
     await t.mutation(apply, event("evt_delete_minimal", 1, "user.deleted"));
     const after = await snapshot(t);
-    expect(after.events[0].email).toBeUndefined();
-    expect(after.events[0].emailVerified).toBeUndefined();
-    expect(after.events[0].externalId).toBeNull();
     expect(after.quarantine[0]).toMatchObject({
       reason: "workos_user_deleted",
       source: "webhook",
@@ -367,9 +376,10 @@ describe("WorkOS lifecycle linking and deletion", () => {
         })
       ).toEqual({ status: "deleted" });
       const after = await snapshot(t);
-      expect(after.events[0].email).toBeUndefined();
-      expect(after.events[0].emailVerified).toBeUndefined();
-      expect(after.events[0].externalId).toBeUndefined();
+      expect(after.quarantine[0]).toMatchObject({
+        reason: "workos_user_deleted",
+        email: "",
+      });
       expect(after.quarantine[0].resolvedAt).toBeUndefined();
       expect(
         await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_provider"))
@@ -560,7 +570,7 @@ describe("new WorkOS lifecycle owners", () => {
       status: "ok",
       teakUserId: before.users[0].teakUserId,
     });
-    expect(await t.mutation(apply, fresh)).toEqual({ status: "duplicate" });
+    expect(await t.mutation(apply, fresh)).toEqual({ status: "applied" });
     await t.mutation(sync, freshEvent("same_profile", 2));
     const after = await snapshot(t);
     expect(after.users).toEqual(before.users);
@@ -598,7 +608,7 @@ describe("new WorkOS lifecycle owners", () => {
     expect((await snapshot(t)).users).toEqual([]);
     expect((await snapshot(t)).scheduled).toEqual([]);
   });
-  test("frozen create can later bootstrap without duplicating the event", async () => {
+  test("a replayed frozen create changes nothing once the owner exists", async () => {
     const t = setup();
     vi.stubEnv("SIGNUPS_DISABLED", "true");
     await seedComponentUser(t, { id: "user_NEW", email: "new@example.com" });
@@ -619,7 +629,7 @@ describe("new WorkOS lifecycle owners", () => {
     ).toMatchObject({ status: "linked" });
     const before = await snapshot(t);
     expect(before.users).toHaveLength(1);
-    expect(await t.mutation(apply, fresh)).toEqual({ status: "duplicate" });
+    expect(await t.mutation(apply, fresh)).toEqual({ status: "applied" });
     expect(await snapshot(t)).toEqual(before);
   });
   test("a provider email change moves admin seeding to the new address", async () => {

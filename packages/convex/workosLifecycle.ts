@@ -190,22 +190,14 @@ export const applyWorkosEvent = internalMutation({
   returns: v.object({
     status: v.union(
       v.literal("applied"),
-      v.literal("duplicate"),
       v.literal("deleted"),
       v.literal("quarantined")
     ),
     reason: v.optional(v.string()),
   }),
   handler: async (ctx, event) => {
-    const { time, workosUserId, deleting, email, externalId, profile } =
+    const { time, workosUserId, deleting, email, profile } =
       parseWorkosEvent(event);
-    const duplicate = await ctx.db
-      .query("workosEvents")
-      .withIndex("by_eventId", (q) => q.eq("eventId", event.id))
-      .unique();
-    if (duplicate) {
-      return { status: "duplicate" as const };
-    }
     let result:
       | { status: "applied" | "deleted" }
       | { status: "quarantined"; reason: string } = {
@@ -250,33 +242,21 @@ export const applyWorkosEvent = internalMutation({
         workosDeletionEventAt: time,
         ...(target ? { workosDeletionTarget: target } : {}),
       };
-      const resolvedAt = await expectedWorkosDeletionResolution(ctx, receipt);
-      await ctx.db.insert("migrationQuarantine", {
-        ...receipt,
-        ...(resolvedAt === undefined ? {} : { resolvedAt }),
-      });
+      // A redelivered deletion keeps its first receipt.
+      const recorded = await ctx.db
+        .query("migrationQuarantine")
+        .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+          q.eq("workosUserId", workosUserId).eq("reason", "workos_user_deleted")
+        )
+        .first();
+      if (!recorded) {
+        const resolvedAt = await expectedWorkosDeletionResolution(ctx, receipt);
+        await ctx.db.insert("migrationQuarantine", {
+          ...receipt,
+          ...(resolvedAt === undefined ? {} : { resolvedAt }),
+        });
+      }
     }
-    await ctx.db.insert("workosEvents", {
-      eventId: event.id,
-      workosUserId,
-      type: event.event,
-      createdAt: time,
-      ...(deleting
-        ? {
-            ...(email && isStorableEmail(email) ? { email } : {}),
-            ...(typeof event.data.emailVerified === "boolean"
-              ? { emailVerified: event.data.emailVerified }
-              : {}),
-            ...(externalId === null || validId(externalId)
-              ? { externalId }
-              : {}),
-          }
-        : {
-            email,
-            emailVerified: profile.emailVerified,
-            externalId: profile.externalId,
-          }),
-    });
     return result;
   },
 });
