@@ -251,11 +251,14 @@ export function useCardModal(
       // Each field is sent on its own, so one refused field doesn't drop
       // the others.
       for (const { field, value } of updates) {
+        setSavesInFlight((count) => count + 1);
         updateCardField({
           cardId: leftCardId as Id<"cards">,
           field,
           value,
-        }).catch((error) => notifyError(error as Error, "save changes"));
+        })
+          .catch((error) => notifyError(error as Error, "save changes"))
+          .finally(() => setSavesInFlight((count) => count - 1));
       }
     },
     [cardId]

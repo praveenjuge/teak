@@ -227,3 +227,23 @@ test("a save finishing for a card left behind keeps the open card's save going",
 
   expect(hook().saveState).toBe("saving");
 });
+
+test("edits sent on leaving a card count as saving until they land", async () => {
+  const pending: (() => void)[] = [];
+  write = mock(
+    () => new Promise((resolve) => pending.push(() => resolve(null)))
+  );
+  const { hook, openCardB } = await renderSwitchable();
+  await act(() => hook().updateNotes("Sent on the way out"));
+
+  await openCardB();
+  expect(hook().saveState).toBe("saving");
+
+  await act(async () => {
+    for (const resolve of pending) {
+      resolve();
+    }
+    await Promise.resolve();
+  });
+  expect(hook().saveState).not.toBe("saving");
+});
