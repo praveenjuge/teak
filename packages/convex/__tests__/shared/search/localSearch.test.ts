@@ -909,6 +909,21 @@ describe("filterLocalCards hidden cards", () => {
       expect(ids("-tag:old")).toEqual(["scan", "note"]);
     });
 
+    it("a card link reads as its title, as on the server", () => {
+      const linked = makeCard({
+        _id: "linked",
+        content: "See [[Plan|teak:abcdefghijklmnop]] first",
+      });
+      const ids = (searchTerms: string) =>
+        filterLocalCards([linked], { searchTerms }).map(
+          (match): string => match._id
+        );
+      expect(ids("-teak")).toEqual(["linked"]);
+      expect(ids("-abcdefghijklmnop")).toEqual(["linked"]);
+      expect(ids("plan OR tag:x")).toEqual(["linked"]);
+      expect(ids("plan")).toEqual(["linked"]);
+    });
+
     it("a phrase in an expression never spans two fields", () => {
       const card = makeCard({
         _id: "split",

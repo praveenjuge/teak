@@ -330,6 +330,23 @@ describe("search qualifiers in the controller", () => {
     ).toBe("a OR b");
   });
 
+  it("a leading OR beside pills searches what Enter keeps", () => {
+    const typing = {
+      ...baseState(),
+      qualifierChips: ["tag:fonts"],
+      searchQuery: "OR tag:type",
+    };
+    const terms = buildCardsSearchTerms(typing);
+    // The pill isn't the OR's left side: Enter keeps both, so both apply.
+    expect(parseSearchQuery(terms).canonical).toBe("tag:fonts tag:type");
+    expect(
+      isSameSearch(
+        buildCardsSearchTerms(applyEnterToCardsSearchState(typing)),
+        terms
+      )
+    ).toBe(true);
+  });
+
   it("a lone OR group stays one search after Enter", () => {
     const entered = applyEnterToCardsSearchState({
       ...baseState(),

@@ -292,8 +292,9 @@ export function SearchBar({
     query: "",
   });
   const { start: tokenStart, token } = currentSearchToken(searchQuery);
-  const afterWord =
-    hasAnyFilters || searchQuery.slice(0, tokenStart).trim() !== "";
+  // OR is offered only after a word in the box: a pill can't be its left
+  // side, since Enter turns the box into pills of its own.
+  const afterWord = searchQuery.slice(0, tokenStart).trim() !== "";
   const { suggestions, completingValue } = useMemo(
     () =>
       onAddQualifier

@@ -81,16 +81,16 @@ export function createInitialCardsSearchState(): CardsSearchState {
   };
 }
 
+const TYPED_OR = /(^|[\s(])OR(?=[\s)]|$)/;
+
 export function buildCardsSearchTerms(state: CardsSearchState): string {
   const typed = state.searchQuery.trim();
   const hasPills =
     state.qualifierChips.length > 0 || state.keywordTags.length > 0;
-  // A space binds tighter than OR, so typed `a OR b` beside the pills is
-  // grouped, the way Enter makes it a pill of its own.
-  const grouped =
-    hasPills && parseSearchQuery(typed).expression?.op === "or"
-      ? `(${typed})`
-      : typed;
+  // A space binds tighter than OR, so typed text with an OR beside the pills
+  // is grouped, the way Enter keeps it apart from them: `a OR b`, and a
+  // leading `OR b`, which has no left side in the box.
+  const grouped = hasPills && TYPED_OR.test(typed) ? `(${typed})` : typed;
   return [
     ...state.qualifierChips,
     ...state.keywordTags,

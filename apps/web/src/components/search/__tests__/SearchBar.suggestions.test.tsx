@@ -162,6 +162,14 @@ test("a minus offers exclusions, and the picked one is an excluded chip", async 
   expect(chip?.getAttribute("title")).toBe("Tag not design");
 });
 
+test("OR is not offered after a pill alone", async () => {
+  await act(async () =>
+    root?.render(<Harness initialChips={["tag:fonts"]} key="pill" />)
+  );
+  await type("O");
+  expect(options()).not.toContain("OREither side matches");
+});
+
 test("OR is offered after a word, and inserts itself", async () => {
   await type("O");
   expect(options()).toEqual([]);

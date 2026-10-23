@@ -1,4 +1,5 @@
 import type { Doc } from "../../_generated/dataModel";
+import { cardLinkTokensToText } from "../cardLinks";
 import type { CardType } from "../constants";
 import {
   isColorCardType,
@@ -77,7 +78,8 @@ export const tokenizeSearchQuery = (query: string) =>
 
 const searchableParts = (card: Doc<"cards">) =>
   [
-    card.content,
+    // A `[[Title|teak:<id>]]` link reads as its title, as on the server.
+    card.content ? cardLinkTokensToText(card.content) : undefined,
     card.notes,
     card.aiSummary,
     card.aiTranscript,
