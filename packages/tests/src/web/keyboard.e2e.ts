@@ -135,27 +135,35 @@ test("the library works from the keyboard", async ({
   ).toBeFocused({ timeout: 30_000 });
 
   // U opens the file picker, as New > Upload files does. (Last:
-  // the picker takes focus from the page.) The picker's input removes
-  // itself when the picker is dismissed, so count the click that opens
-  // it instead of the node it briefly adds.
+  // the picker takes focus from the page.) Headless Chromium dismisses the
+  // picker at once, which fires `cancel` on the input and makes the app
+  // remove it, so the node is gone before any count. Observe that cancel.
   await browser.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
-    const tracked = window as unknown as { __filePickerClicks: number };
-    tracked.__filePickerClicks = 0;
-    const originalClick = HTMLInputElement.prototype.click;
-    HTMLInputElement.prototype.click = function (this: HTMLInputElement) {
-      if (this.type === "file") {
-        tracked.__filePickerClicks += 1;
-      }
-      originalClick.call(this);
-    };
+    const tracked = window as unknown as { __filePickerCancels: number };
+    tracked.__filePickerCancels = 0;
+    document.addEventListener(
+      "cancel",
+      (event) => {
+        if (
+          event.target instanceof HTMLInputElement &&
+          event.target.type === "file"
+        ) {
+          tracked.__filePickerCancels += 1;
+        }
+      },
+      { capture: true }
+    );
     return null;
   });
   await press("u");
-  expect(
-    await browser.evaluate(
-      () =>
-        (window as unknown as { __filePickerClicks: number }).__filePickerClicks
+  await expect
+    .poll(() =>
+      browser.evaluate(
+        () =>
+          (window as unknown as { __filePickerCancels: number })
+            .__filePickerCancels
+      )
     )
-  ).toBe(1);
+    .toBe(1);
 });
