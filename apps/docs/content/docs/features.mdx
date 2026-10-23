@@ -71,9 +71,14 @@ Special tokens work automatically:
 | **Phrase** | `"design system"` | Those words together, in that order |
 | **Similar** | `like:<card id>` | Cards closest in meaning to that card (use **More like this**) |
 | **Mood** | `mood:"moody brutalist"` | Images whose look and description match the mood |
+| **Exclude** | `-figma`, `-"brand guide"`, `-tag:old`, `-type:image`, `-is:archived` | Leaves out cards that match. Works before a word, a phrase or any filter except `like:` and `mood:` |
+| **Either** | `tag:fonts OR tag:type` | Cards that match either side. `OR` must be uppercase; a lowercase `or` is just a word |
+| **Group** | `(site:github.com OR site:gitlab.com) -is:archived` | Parentheses decide what `OR` and `-` apply to |
 | **Keyword** | anything else | Full-text match |
 
 Mix tokens in one query — all recognized filters apply together. Tags, folders, image text and prices must all match, so `price:>20 price:<100` is a range; several types or sites match any of them.
+
+A `-` applies to the word or filter right after it, a space joins what must all match, and `OR` joins the sides around it, so `design -figma OR sketch` means `(design -figma) OR sketch`. A `-` inside a word, as in `to-do`, is part of the word. `-design` also leaves out `designer`. Cards tagged `secret` or `hidden` stay out unless the search asks for that tag: `-tag:hidden` never shows them, and `tag:hidden OR tag:recipes` shows them only through the `tag:hidden` side.
 
 ```
 blue button hover state
@@ -81,6 +86,8 @@ minimal dark
 #3B82F6
 feedback this week
 site:github.com tag:design "design system"
+#inspo -type:image
+tag:fonts OR tag:type
 ```
 
 As you type, the search box suggests filters, your tags and folders, and the sites you save most. Pick one with the arrow keys and **Enter**, or click it, and it becomes a removable pill inside the search box. **Esc** closes the suggestions, and **Backspace** in an empty search box removes the last pill. The address bar keeps the whole search, so you can bookmark or share it.

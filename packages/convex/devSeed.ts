@@ -59,6 +59,7 @@ import {
   richSitesPack,
   videoCaptionsPack,
 } from "./devSeed/mediaPacks";
+import { searchOperatorsPack } from "./devSeed/searchOperators";
 import { urlVariantsScenarioPage } from "./devSeed/urlVariants";
 import {
   archiveMixScenarioPage,
@@ -420,6 +421,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "12 notes with GFM tables: 3×3, 20 columns by 200 rows, formatting in cells, escaped pipes, CJK and RTL cells, a table beside a checklist and a link, a 510 KiB note, a note that is only a table and two tables back to back, plus an aligned, a ragged and a quoted table that stay literal Markdown.",
     folders: noteTablesPack,
+  },
+  "search-operators": {
+    description:
+      '400 cards for -, OR and parentheses: "design" with and without "figma", the tags fonts, type and Fonts, images and links on github.com and gitlab.com (some archived), hidden cards, cards in Inbox and Reading list, priced products and receipts reading "total due", plus smart folders "Fonts or type", "Operators, not archived" and "GitHub or GitLab".',
+    folders: searchOperatorsPack,
   },
   "hidden-mix": {
     description:

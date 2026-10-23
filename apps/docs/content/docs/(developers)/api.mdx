@@ -253,7 +253,7 @@ Search and favorites are filtered card listings. `GET /v1/cards` supports
 these query parameters:
 
 <ParamField query="q" type="string">
-  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `is:done`, `is:todo`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, `text:"total due"`, and `"quoted phrases"`. See [Search qualifiers](#search-qualifiers).
+  Search text, with optional qualifiers: `tag:design` or `#design`, `type:link`, `is:fav`, `is:archived`, `is:done`, `is:todo`, `site:github.com`, `folder:"Reading list"`, `like:<card id>`, `mood:"moody brutalist"`, `price:<100`, `text:"total due"`, and `"quoted phrases"`, plus `-` to leave out, `OR` and parentheses (`design -tag:old`). See [Search qualifiers](#search-qualifiers).
 </ParamField>
 
 <ParamField query="similarTo" type="string">
@@ -394,6 +394,22 @@ and several types or sites match any of them. `type:` narrows `type`, so
 `?archived=exclude&q=is:archived` and `?type=image&q=price:<100`. `#` followed by a hex color (`#fff`) is a
 color, not a tag; use `tag:fff` for that tag. Text a qualifier can't use, such
 as `type:banana`, `foo:bar` or `price:cheap`, is searched as words.
+
+`q` also takes operators. A `-` before a word, a phrase or a qualifier leaves
+those cards out: `design -figma`, `-"brand guide"`, `-tag:old`,
+`-type:image`, `-is:archived`. Uppercase `OR` matches either side
+(`tag:fonts OR tag:type`), and parentheses group:
+`(site:github.com OR site:gitlab.com) -is:archived`. A `-` binds tightest,
+then a space (all must match), then `OR`. A lowercase `or`, a `-` inside a
+word (`to-do`) and `-like:` or `-mood:` are searched as words. An excluded
+word leaves out every card whose text contains it, so `-design` also leaves
+out `designer`, and excluded words never count toward meaning search: cards
+matched by meaning are filtered by every exclusion and `OR` group too.
+Unbalanced parentheses close at the end, groups nest at most 4 deep, and past
+64 words and filters the rest is searched as words. Hidden cards stay out
+unless a side of the search asks for their tag: `-tag:hidden` never shows them.
+A search of only exclusions reads your cards newest first and pages with
+`nextCursor`.
 
 `include=metadata` adds palette `colors` (`hex` and optional `name`), resolved
 `linkPreviewMedia`, and the link's site name, author, publisher, and publish

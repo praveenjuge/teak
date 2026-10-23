@@ -39,6 +39,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [API, CLI and MCP](./api-cli-mcp.md) covers the REST API, the CLI from this checkout and the MCP server, with an API key.
 - [Link transcripts and video facts](./link-transcripts.md) covers Vimeo captions and podcast episode transcripts found by a spoken phrase, and YouTube's Channel, Length and Uploaded facts.
 - [Card links](./card-links.md) covers `[[` links between notes, pills with live titles, "Missing card", the "Linked from" section, and `links`/`backlinks` in the API, MCP, SDK and CLI.
+- [Search operators](./search-operators.md) covers `-` exclusions, uppercase `OR` and parentheses in search, smart folders, the API, CLI and MCP, the "Exclude" and `OR` suggestions, excluded pills, hidden cards and the `?` sheet's "Search" group.
 - [Tables in notes](./note-tables.md) covers `/table`, cell keys, the ⋯ menu and Alt+F10, pasting into cells, Focus, round-trips of existing tables, literal tables, and table text on tiles.
 - [Card processing](./card-processing.md) covers the background work after a save (stages, AI tags and summary), read through the local Files Worker's Workflow runs, logs, stored files and crons in Cloudflare's Local Explorer.
 - [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.

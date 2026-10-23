@@ -186,13 +186,16 @@ teak ls --type image --type link --hue blue --date "last month"
 teak search "homepage" --tag design --all --json > cards.json
 ```
 
-The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `is:done`, `is:todo`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"…"`, and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. `text:` finds images, videos, links and scanned PDFs by the words Teak read in them. Quote the whole search for your shell:
+The search text takes the same qualifiers as the search box on the web: `tag:` (or `#tag`), `type:`, `is:fav`, `is:archived`, `is:done`, `is:todo`, `site:`, `folder:`, `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"…"`, and `"quoted phrases"`. `price:` compares a product link's price in any currency, and two bounds make a range. `text:` finds images, videos, links and scanned PDFs by the words Teak read in them. A `-` leaves cards out (`-figma`, `-tag:old`), uppercase `OR` matches either side, and parentheses group, as in [search on the web](/docs/features#smart-search). Quote the whole search for your shell; a search that starts with `-` goes after `--`, or the CLI reads it as a flag and says so:
 
 ```bash
 teak search 'site:github.com tag:design "design system"'
 teak search 'folder:"Reading list" is:fav'
 teak search 'lamp price:>20 price:<100'
 teak search 'text:"total due"'
+teak search 'design -tag:old'
+teak search '(site:github.com OR site:gitlab.com) -is:archived'
+teak search -- -tag:old
 teak search "cozy reading nook" --mode semantic
 teak similar <card-id> --type link
 ```

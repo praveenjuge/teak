@@ -127,6 +127,16 @@ test("a link is marked done and found with is:done; a note can't be", async () =
     await apiFetch(`/v1/cards?q=${encodeURIComponent("is:done")}`, apiKey)
   ).json();
   expect(done.items.map((item: { id: string }) => item.id)).toContain(cardId);
+  const ids = async (q: string) => {
+    const page = await (
+      await apiFetch(`/v1/cards?q=${encodeURIComponent(q)}`, apiKey)
+    ).json();
+    return page.items.map((item: { id: string }) => item.id);
+  };
+  expect(await ids("(is:done OR tag:no-such-tag) -type:image")).toContain(
+    cardId
+  );
+  expect(await ids("type:link -is:done")).not.toContain(cardId);
 
   const cleared = await apiFetch(donePath, apiKey, { method: "DELETE" });
   expect(cleared.status).toBe(200);

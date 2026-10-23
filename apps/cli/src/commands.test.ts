@@ -352,6 +352,29 @@ describe("teak parity commands", () => {
     expect(requests).toHaveLength(0);
   });
 
+  test("search sends operators in q, and an unquoted exclusion says how to pass it", async () => {
+    routes.set("GET /v1/cards", () =>
+      json({ items: [], pageInfo: { hasMore: false, nextCursor: null } })
+    );
+    expect((await teak("search", "design -tag:old OR x")).code).toBe(0);
+    expect((await teak("search", "--", "-tag:old")).code).toBe(0);
+    expect(
+      requests.map((request) =>
+        new URLSearchParams(request.path.split("?")[1]).get("q")
+      )
+    ).toEqual(["design -tag:old OR x", "-tag:old"]);
+
+    const unquoted = await teak("search", "-tag:old");
+    expect(unquoted.code).toBe(EXIT.usage);
+    expect(unquoted.stderr).toContain("unknown option '-tag:old'");
+    expect(unquoted.stderr).toContain('teak search "design -tag:old"');
+    expect(unquoted.stderr).toContain("teak search -- -tag:old");
+    expect((await teak("ls", "-x")).stderr).not.toContain(
+      "leave something out"
+    );
+    expect(requests).toHaveLength(2);
+  });
+
   test("search --all follows every page", async () => {
     routes.set("GET /v1/cards", (_request, url) =>
       url.searchParams.get("cursor")
