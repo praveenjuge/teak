@@ -71,7 +71,7 @@ export const searchOperatorsPack = (): FolderScenarioPack => {
   ) => {
     const index = cards.length;
     const url = `https://${host}/teak-operators/${index}#${SCENARIO_MARKER}-${scenario}-${index}`;
-    add("", tags, {
+    return add("", tags, {
       ...extra,
       type: "link",
       content: url,

@@ -38,13 +38,13 @@ const trimWord = (value: string) => {
   let end = value.length;
   while (
     start < end &&
-    SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[start] ?? "")
+    SEARCH_TOKEN_TRIM_CHARACTERS.includes(value.charAt(start))
   ) {
     start += 1;
   }
   while (
     end > start &&
-    SEARCH_TOKEN_TRIM_CHARACTERS.includes(value[end - 1] ?? "")
+    SEARCH_TOKEN_TRIM_CHARACTERS.includes(value.charAt(end - 1))
   ) {
     end -= 1;
   }
