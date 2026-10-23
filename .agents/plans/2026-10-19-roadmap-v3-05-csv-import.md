@@ -1,10 +1,10 @@
 ## Goal
 
-Import links from any CSV file whose header names the columns: url, title, tags, folder, note and created, plus common aliases. The plain one-URL-per-line import is relabelled as a general "Text file of links" source. Phase 7 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
+Import links from any CSV file whose header names the columns: url, title, tags, folder, note and created, plus common aliases. The plain one-URL-per-line import is relabelled as a general "Text file of links" source. Phase 5 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
 
 ## Depends on
 
-- [Phase 2](2026-10-19-roadmap-v3-02-url-key.md): duplicates in the file and against the library match by URL key.
+- [Phase 2](2026-10-19-roadmap-v3-02-url-key-resave-paste.md): duplicates in the file and against the library match by URL key.
 
 ## Success Criteria
 

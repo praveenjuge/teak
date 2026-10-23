@@ -1,11 +1,11 @@
 ## Goal
 
-Give every archived link a clean reading view, and make what it says findable. A link card's modal gets a "Read" tab that shows the page's article in one carefully set typographic default. The article text is searchable by keyword and by meaning. The API, MCP, SDK and CLI can read it as Markdown. Phase 10 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
+Give every archived link a clean reading view, and make what it says findable. A link card's modal gets a "Read" tab that shows the page's article in one carefully set typographic default. The article text is searchable by keyword and by meaning. The API, MCP, SDK and CLI can read it as Markdown. Phase 7 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
 
 ## Depends on
 
-- [Phase 9](2026-10-19-roadmap-v3-09-page-archive.md): extraction reads the stored archive, not the live page.
-- [Phase 12](2026-10-19-roadmap-v3-12-highlights.md) builds on the Read tab and on the frozen article text that this phase stores.
+- [Phase 6](2026-10-19-roadmap-v3-06-page-archive.md): extraction reads the stored archive, not the live page.
+- [Phase 8](2026-10-19-roadmap-v3-08-highlights.md) builds on the Read tab and on the frozen article text that this phase stores.
 
 ## Success Criteria
 
@@ -30,7 +30,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - Serialized cards gain `article: { wordCount, readingMinutes } | null`.
   - MCP `teak_v1_get_card_content` gains `kind`, the SDK `cards.content(id, { kind })`, the CLI `teak cards content <id> [--kind article]`.
 - **Backfill.** Cards that have a `pageArchive` and no `article` get an article-only run.
-- **Refresh details** re-extracts the article. Phase 12 adds the exception for highlighted cards.
+- **Refresh details** re-extracts the article. Phase 8 adds the exception for highlighted cards.
 - **Native apps keep working.** They don't show the reader in v3.
 
 ## Context And Current Facts
@@ -65,7 +65,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - `GET /v1/cards/{cardId}/content` (`publicApi/openApi/`), `cardContentResponse` (`publicApi/http/cards.ts`);
   - SDK `kind: "document" | "transcript" | "content"` (`packages/sdk/src/index.ts:418-427`, validated at 761);
   - CLI `cards content <id>` (`apps/cli/src/index.ts:440`).
-- **The workflow** ends, after phase 9, with "transcribe podcast" and then "archive page".
+- **The workflow** ends, after phase 6, with "transcribe podcast" and then "archive page".
 
 ## Constraints And Non-goals
 
@@ -148,9 +148,9 @@ Give every archived link a clean reading view, and make what it says findable. A
   - **Rendering:** `react-markdown` with `remark-gfm` (add `remark-gfm` to `apps/web`), then a small rehype plugin that resolves each valid `teak-image:<n>` to `articleImageUrls[n]` (and drops the image when `n` is out of range), then `rehype-sanitize`. The default sanitize schema would strip the custom `teak-image:` scheme, so the tokens are resolved before it runs. Images render through `ResilientMediaImage`. `a` gets `target="_blank" rel="noopener noreferrer"`.
   - **Header:** a `SiteFavicon` with the host, `·` byline, and `·` "N min read" (the minimum is "1 min read"), muted, at 14px.
   - **Title:** the `h1` from `card.article.title`, falling back to the link title. The first `h1` in the Markdown is dropped when it equals the title.
-  - **Footer:** a thin rule, then "Saved from {host} · {date}" and the link "Open original ↗". The date uses the existing `cardDetails` formatter.
+  - **Footer:** a thin rule, then "Saved from {host} · {date}" and the link "Open original ↗", which opens through phase 6's `openCardLink` (so a dead page opens its archived copy). The date uses the existing `cardDetails` formatter.
 - **Stage class:** for the Read view, `px-5 py-8 md:px-10 md:py-12`, with the column `mx-auto max-w-[68ch]`. The scroll position is kept per card while the modal is open.
-- **The side panel** is unchanged in this phase. Phase 12 adds Highlights.
+- **The side panel** is unchanged in this phase. Phase 8 adds Highlights.
 
 ## API / MCP / SDK / CLI
 
@@ -199,7 +199,7 @@ Give every archived link a clean reading view, and make what it says findable. A
   - an extraction failed;
   - a podcast link with both an article and a transcript.
 
-  The Markdown and image fixtures come from the stubbed archive objects in phase 9's `archive-mix`.
+  The Markdown and image fixtures come from the stubbed archive objects in phase 6's `archive-mix`.
 - `reader-search-1000`: 1,000 article cards whose titles share no words with a unique phrase that is only in their body text.
 
 ## Break-it checklist

@@ -1,10 +1,12 @@
 ## Goal
 
-Close the most useful gaps between Teak and three comparable save-everything apps, as 18 separate plans. Each phase is one PR (phase 3 is the one exception: its plan splits it into a schema-and-backfill PR and a behaviour PR, plus the usual later PR that drops replaced indexes), deployed and verified in production before the next one starts. It follows roadmap v2, which closed on 2026-10-18 (#760): phases 1–24 and 26–28 shipped, and phases 25 (feed extras) and 29–31 (Apple, Raycast and Android follow-ups) were skipped.
+Close the most useful gaps between Teak and three comparable save-everything apps, as 10 phases. Each phase is one PR (phase 2 is the one exception: its plan splits it into a schema-and-backfill PR and a behaviour PR, plus the usual later PR that drops replaced indexes), deployed and verified in production before the next one starts. It follows roadmap v2, which closed on 2026-10-18 (#760): phases 1–24 and 26–28 shipped, and phases 25 (feed extras) and 29–31 (Apple, Raycast and Android follow-ups) were skipped.
+
+The roadmap first had 18 phases. On 2026-10-23 the owner dropped four (folder export, folder suggestions with Clef, tag cleanup, and removing an image's background) and merged phases that fit in one PR: the URL key, re-saving and pasting links became phase 2; the page archive and the dead-link fallback became phase 6; the localization foundation and the seven languages became phase 9. The phases were renumbered 1–10.
 
 ## Success Criteria
 
-- Each phase merges as its own PR (phase 3 as two, see its plan), and each PR has:
+- Each phase merges as its own PR (phase 2 as two, see its plan), and each PR has:
   - green CI;
   - a break-it pass over its seed packs;
   - a proof bundle (videos and screenshots) sent to the owner before the PR opens;
@@ -32,47 +34,37 @@ Close the most useful gaps between Teak and three comparable save-everything app
   - **Link processing** (`apps/files-worker/src/workflows/cardProcessing/run.ts`):
     - It fetches the page HTML (kept up to 24 hours in the `LINK_PAGE_CACHE` KV namespace when the binding exists and the fetcher marks the page cacheable), scrapes the metadata, renders a screenshot with Browser Rendering, and reads text from the link images.
     - Apart from that transient cache, the HTML and article text are never stored with the card.
-  - **Clef** (`@cf/cloudflare/clef`, `packages/files-protocol/src/decisions.ts`) is Workers AI's decision model. It returns a probability for every allowed answer to typed questions and already decides the card type, link category, visual styles and search relevance. Card processing calls it from the Files Worker workflow (`apps/files-worker/src/workflows/cardProcessing/decisions.ts`); Convex calls it directly only for search relevance (`search/relevanceActions.ts`).
-  - **Folders:**
-    - Up to 500 manual or smart folders per user and 50 per card.
-    - Membership is stored in `cards.folderIds` and in `folderCards`.
-    - The folder menu is on the sidebar row (`sidebar/SidebarFolders.tsx`).
-  - **Export:** `dataExport.ts` plus the Files Worker `workflows/export.ts`. One export per 7 days, up to 10,000 cards. The ZIP holds `manifest.json`, `cards.json`, `cards.csv`, `bookmarks.html` and `files/`.
   - **Import:** `shared/importSources.ts` lists 10 sources. OneTab already parses one URL per line, and `import/csv.ts` parses RFC 4180 CSV.
   - **Note editor:** Tiptap with editorcn. Markdown tables are kept as literal Markdown blocks; no table extension and no table rendering exist anywhere.
   - **Localization:**
     - No i18n library or string catalog exists. The web has about 340 JSX text lines and 57 toasts.
     - `"en-US"` is hardcoded in about 7 formatters.
     - The AI prompts don't set a language.
-  - **Legal:** the privacy policy and terms state what Teak collects. Phase 9 (archive), phase 1 (badge URL checks) and phase 9's extension HTML capture change what is collected, so those PRs update them.
+  - **Legal:** the privacy policy and terms state what Teak collects. Phase 1 (badge URL checks) and phase 6 (the archive and its extension HTML capture) change what is collected, so those PRs update them.
 
 ## Decisions (from the 2026-10-19 Q&A, apply to every phase)
 
 | Topic | Decision |
 |---|---|
 | Relation to v2 | v3 is a new roadmap. v2 is closed |
-| Order | Quick wins first (phases 1–8), then archive, reader and highlights (9–12), then AI helpers (13–15), then localization (16–18) |
+| Order | Quick wins first (phases 1–5), then archive, reader and highlights (6–8), then localization (9–10) |
 | Surfaces | Backend, web, public API, MCP, SDK and CLI ship in the same PR where they apply. The native apps get no new UI in v3 and must keep working |
 | Pricing | Every feature on every plan |
 | Process | Same as v2: one PR per phase, seed packs, a break-it pass, proof sent to the owner before the PR, a production smoke test |
 | Extension shortcut | Alt+Shift+S (⌥⇧S) saves the page silently. The icon flashes a check and the badge turns on. No popup |
 | Saved badge | Checks the URL with Teak when a tab is activated or loaded, with a short cache. Visited URLs go to Teak, so the privacy policy says so |
 | URL matching | One normalized URL key (scheme, `www`, trailing slash, fragment, `utm_*`/`fbclid`/`gclid`). The stored `url` stays as saved |
-| Re-saving | A new `savedAt` sort key: "Newest first" sorts by it, and `createdAt` stays the first-save date. Re-saving un-archives the card. It does not merge tags or notes, and does not restore from Trash (a trashed match is ignored). Applies to every interactive and API save through one server rule; imports are the exception and never bump (phase 3) |
+| Re-saving | A new `savedAt` sort key: "Newest first" sorts by it, and `createdAt` stays the first-save date. Re-saving un-archives the card. It does not merge tags or notes, and does not restore from Trash (a trashed match is ignored). Applies to every interactive and API save through one server rule; imports are the exception and never bump (phase 2) |
 | Pasting links | Text where every non-empty line is a URL always becomes one link card per line. Up to 100 per paste, queued past the 30-per-minute rate limit, stopping at the free cap. Repeats use the re-save rule |
 | Tables | GFM tables: `/table` inserts a 3×3 table with a header row, Tab moves between cells, and a hover menu adds and removes rows and columns. Rendered in previews; tiles show plain text. Native apps show raw text for now |
 | Search operators | `-word`, `-"phrase"`, `-qualifier` (`-tag:`, `-#`, `-type:`, `-site:`, `-folder:`, `-is:`), uppercase `OR` and parentheses. Filters apply after semantic blending. Taught through search suggestions and the docs or `?` sheet |
 | CSV import | A generic CSV source recognizing the headers url, title, tags, folder, note/notes and created (plus aliases), with no mapping UI. Folders are flattened as today. OneTab's parser becomes a labeled "Text file of links" source, with OneTab kept as an alias |
-| Folder export | "Export folder" in the folder's sidebar menu. Same ZIP as a full export, and the manifest records the folder. Its own looser limit (a few per day, up to 1,000 cards); full exports keep the 7-day rule |
 | Archive | A single-file HTML snapshot of every link, made automatically on save on every plan, and backfilled for existing links. Cap 20 MB: media is dropped first, and past the cap the archive is text-only. When saving from the extension, the extension sends the page's rendered HTML (this reverses v2's "not doing") |
 | Reader | A "Read" tab in the link card modal. One typographic default that follows light and dark, with no controls. The article text is searchable by keyword and by meaning. API, MCP, SDK and CLI can read the article text as Markdown; the HTML snapshot stays in the app. Native apps later |
 | Dead links | When you open a link, a quick server check runs. On a 404, 410 or a dead domain, Teak opens the archived copy with a quiet "Archived copy" label. No background crawling |
 | Highlights | Made in Teak's reader only. Stored as their own record (card, quote, anchor, optional note), in one color. Shown in the card's side panel; clicking one jumps to it. Once a card has highlights its archive is frozen, and Refresh details never replaces its article text. Instapaper, Omnivore and Readwise imports create real highlights. API, MCP, SDK and CLI can read and write them |
-| Folder suggestions | Clef decides between the user's manual folders with 5 or more cards, plus "None", from each folder's name and a few sample titles. It runs as a card-processing step and is skipped when the card is already in a folder. It is shown as a chip in the extension popup and the card side panel. You confirm it; nothing is filed automatically. It can be dismissed per card |
-| Tag cleanup | Rules (plurals, separators, accents, edit distance) find candidate pairs among user and AI tags, and Clef confirms the unclear ones. The pairs are computed when the Tags page opens. A banner opens a review sheet: Merge (pick the survivor) or Keep both, using the existing merge jobs |
-| Background removal | A "Remove background" button for link card images and image cards. The result is a thumbnail override with undo and reset, and the original is kept. Cut-outs show transparent on the card background |
-| Localization | Web app and browser extension only. Languages: Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Chinese. The language is chosen in Settings → Language (default English), with no locale in URLs. AI-translated catalogs, spot-checked by the owner, and CI fails on missing keys. Search syntax stays English. The library is chosen in phase 16. AI summaries and tags follow the language of the saved content |
-| Not doing (v3) | Public share links (dropped again during this Q&A), collaboration, library chat, webhooks, Zapier/IFTTT/Make, reminders, broken-link checker, duplicate finder, nested folders, folder icons, per-folder layouts, automatic backups, scoped API keys, 2FA settings, Windows app, Spotlight, highlights on live pages or PDFs, reader controls, native reader, localized native apps and docs |
+| Localization | Web app and browser extension only. Languages: Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Chinese. The language is chosen in Settings → Language (default English), with no locale in URLs. AI-translated catalogs, spot-checked by the owner, and CI fails on missing keys. Search syntax stays English. The library is chosen in phase 9. AI summaries and tags follow the language of the saved content |
+| Not doing (v3) | Folder export, folder suggestions, tag cleanup and background removal (dropped on 2026-10-23), public share links (dropped again during this Q&A), collaboration, library chat, webhooks, Zapier/IFTTT/Make, reminders, broken-link checker, duplicate finder, nested folders, folder icons, per-folder layouts, automatic backups, scoped API keys, 2FA settings, Windows app, Spotlight, highlights on live pages or PDFs, reader controls, native reader, localized native apps and docs |
 
 ## Rules every phase follows
 
@@ -146,42 +138,34 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 | # | Plan | Group | Depends on |
 |---|---|---|---|
 | 1 | [Extension save shortcut and saved badge](2026-10-19-roadmap-v3-01-extension-shortcut-badge.md) | Quick wins | — |
-| 2 | [One normalized URL key for duplicates](2026-10-19-roadmap-v3-02-url-key.md) | Quick wins | — |
-| 3 | [Re-saving moves a card to the top](2026-10-19-roadmap-v3-03-resave-bump.md) | Quick wins | 2 |
-| 4 | [Paste many links at once](2026-10-19-roadmap-v3-04-paste-links.md) | Quick wins | 3 |
-| 5 | [Tables in notes](2026-10-19-roadmap-v3-05-note-tables.md) | Quick wins | — |
-| 6 | [Exclude, OR and grouping in search](2026-10-19-roadmap-v3-06-search-operators.md) | Quick wins | — |
-| 7 | [CSV and text-file-of-links import](2026-10-19-roadmap-v3-07-csv-import.md) | Quick wins | 2 |
-| 8 | [Export a folder](2026-10-19-roadmap-v3-08-folder-export.md) | Quick wins | — |
-| 9 | [Page archive](2026-10-19-roadmap-v3-09-page-archive.md) | Archive & reading | 2 |
-| 10 | [Reader view and article search](2026-10-19-roadmap-v3-10-reader-view.md) | Archive & reading | 9 |
-| 11 | [Open the archive when a link is dead](2026-10-19-roadmap-v3-11-dead-link-fallback.md) | Archive & reading | 9 |
-| 12 | [Highlights](2026-10-19-roadmap-v3-12-highlights.md) | Archive & reading | 10 |
-| 13 | [Folder suggestions with Clef](2026-10-19-roadmap-v3-13-folder-suggestions.md) | AI helpers | — |
-| 14 | [Tag cleanup](2026-10-19-roadmap-v3-14-tag-cleanup.md) | AI helpers | — |
-| 15 | [Remove an image's background](2026-10-19-roadmap-v3-15-background-removal.md) | AI helpers | — |
-| 16 | [Localization foundation](2026-10-19-roadmap-v3-16-i18n-foundation.md) | Localization | — |
-| 17 | [Seven languages for the web and extension](2026-10-19-roadmap-v3-17-translations.md) | Localization | 16 |
-| 18 | [AI output in the content's language](2026-10-19-roadmap-v3-18-ai-content-language.md) | Localization | — |
+| 2 | [URL key, re-saving and pasting links](2026-10-19-roadmap-v3-02-url-key-resave-paste.md) (two PRs) | Quick wins | — |
+| 3 | [Tables in notes](2026-10-19-roadmap-v3-03-note-tables.md) | Quick wins | — |
+| 4 | [Exclude, OR and grouping in search](2026-10-19-roadmap-v3-04-search-operators.md) | Quick wins | — |
+| 5 | [CSV and text-file-of-links import](2026-10-19-roadmap-v3-05-csv-import.md) | Quick wins | 2 |
+| 6 | [Page archive and dead-link fallback](2026-10-19-roadmap-v3-06-page-archive.md) | Archive & reading | 2 |
+| 7 | [Reader view and article search](2026-10-19-roadmap-v3-07-reader-view.md) | Archive & reading | 6 |
+| 8 | [Highlights](2026-10-19-roadmap-v3-08-highlights.md) | Archive & reading | 7 |
+| 9 | [Localization: foundation and seven languages](2026-10-19-roadmap-v3-09-localization.md) | Localization | — |
+| 10 | [AI output in the content's language](2026-10-19-roadmap-v3-10-ai-content-language.md) | Localization | — |
 
 **Why this order.**
 - The owner chose quick wins first.
-- Phase 2's URL key comes before phase 3 (re-save), phase 4 (paste), phase 7 (import duplicates) and phase 9 (the archive is per link).
+- Phase 2's URL key comes before phase 5 (import duplicates) and phase 6 (the archive is per link, and a re-save carries the extension's snapshot).
 - The archive comes before the reader, and the reader before highlights, because highlights anchor in the reader's frozen article text.
-- The AI helpers come next, and localization comes last because it touches every string that the earlier phases add.
+- Localization comes last because it touches every string that the earlier phases add.
 
 ## Risks And Open Questions
 
-- **Archive cost.** Every link archived, plus a backfill, adds R2 storage and Files Worker time (the inliner never uses Browser Rendering). Phase 9 measures the median and p95 archive size and the worker CPU time on dev before merging, and estimates the cost of the backfill for the owner before it runs.
-- **Archive engine licence.** The common open-source page archivers are SingleFile and monolith. SingleFile is AGPL-3.0 and Teak is MIT. Phase 9 plans its own inliner on `HTMLRewriter`, and flags this for the owner.
+- **Archive cost.** Every link archived, plus a backfill, adds R2 storage and Files Worker time (the inliner never uses Browser Rendering). Phase 6 measures the median and p95 archive size and the worker CPU time on dev before merging, and estimates the cost of the backfill for the owner before it runs.
+- **Archive engine licence.** The common open-source page archivers are SingleFile and monolith. SingleFile is AGPL-3.0 and Teak is MIT. Phase 6 plans its own inliner on `HTMLRewriter`, and flags this for the owner.
 - **Saved badge rate limits.** Checking each tab costs one API request, against 120 per minute per user at both the API and the edge. Phase 1 caches results and debounces, and may add a batched, lighter endpoint.
-- **Privacy wording.** The badge sends visited URLs, and the extension sends page HTML. Both change what Teak collects. The privacy policy and the extension store listings change in phases 1 and 9.
-- **Article text and embeddings.** EmbeddingGemma reads 512 tokens, so long articles are embedded from their title, summary and opening. Phase 10 decides whether to add chunked vectors.
-- **Translations without native review.** AI translations are spot-checked only. Phase 17 keeps a glossary and a "report a translation" link.
-- **Content-language AI tags** may split tags across languages (`design` and `diseño`). Phase 18 keeps tag matching per language. Phase 14's rules don't pair tags across languages, so those stay separate unless merged by hand on the Tags page.
-- **Phase 3 is the heaviest quick win.** A real `savedAt` sort key needs 13 new indexes on cards, folder rows and tag rows, so phase 3 ships as two PRs (fields, indexes and backfill, then readers and the rule). Its plan offers a cheaper alternative for the owner to weigh.
-- **Extension request budget.** Phase 1's badge checks and phase 13's popup polling for a folder suggestion both spend the same 120 requests a minute. Phase 13 reuses phase 1's cache and cap rather than adding its own.
-- **Highlights aren't searchable.** The owner chose to show highlights in the side panel only, so phase 12 keeps search out of scope.
+- **Privacy wording.** The badge sends visited URLs, and the extension sends page HTML. Both change what Teak collects. The privacy policy and the extension store listings change in phases 1 and 6.
+- **Article text and embeddings.** EmbeddingGemma reads 512 tokens, so long articles are embedded from their title, summary and opening. Phase 7 decides whether to add chunked vectors.
+- **Translations without native review.** AI translations are spot-checked only. Phase 9 keeps a glossary and a "report a translation" link.
+- **Content-language AI tags** may split tags across languages (`design` and `diseño`). Phase 10 keeps tag matching per language, so those stay separate unless merged by hand on the Tags page.
+- **Phase 2 is the heaviest quick win.** A real `savedAt` sort key needs 13 new indexes on cards, folder rows and tag rows, so phase 2 ships as two PRs (the URL key, the `savedAt` fields, indexes and both backfills; then readers, the re-save rule and pasting links). Its plan offers a cheaper alternative for the owner to weigh.
+- **Large merged PRs.** Phases 6 and 9 each combine what were two plans. Their plans split the commits by part so reviewers can follow them one at a time.
+- **Highlights aren't searchable.** The owner chose to show highlights in the side panel only, so phase 8 keeps search out of scope.
 
 ## Open decisions for the owner
 
@@ -192,23 +176,19 @@ Each phase file explains its own open decisions. Until the owner decides, the ph
 | 1 | Badge text for a saved page | "✓" |
 | 1 | Safari | No shortcut or badge this phase (its extension has no `tabs` or `commands`) |
 | 2 | Which query parameters to strip | Only `utm_*`, `fbclid` and `gclid`. `#/` and `#!` fragments and query order are kept |
-| 3 | A real `savedAt` (13 indexes, 2 PRs) or the cheaper `firstSavedAt` swap | `savedAt`, as decided |
-| 3 | Tags and notes sent with a re-save | Dropped, as decided. Imports never bump |
-| 4 | Paste limits | 100 links, one paste job at a time |
-| 5 | Tables with column alignment | Kept as literal Markdown |
-| 6 | How words match | Substring, as today. Uppercase `OR` only. No struck-through pills |
-| 7 | CSV dialects | Comma-separated, with a header row required |
-| 8 | Folder export limits | 1,000 cards, 5 a day. No API (owner chose the folder menu only) |
-| 9 | Run a page's JavaScript on the server | No. Extension saves cover single-page apps |
-| 9 | Safari | Server-only archive |
-| 10 | Chunked embeddings for long articles | No: one vector from the title, summary and opening |
-| 10 | Default tab in the card modal | Read for articles, news and research; Preview otherwise |
-| 11 | Detect soft 404s | No |
-| 12 | Readwise highlights (its library CSV has none) | No change in v3 |
-| 12 | Overlapping highlights | Merged into one |
-| 13 | Clef model and threshold | `clef`, 0.8, at most 40 candidate folders, no backfill |
-| 14 | "Keep separate" choices | Remembered on the server. No undo for merges |
-| 15 | Daily background removal cap | 100 |
-| 16 | i18n library | next-intl for the web, use-intl for the extension |
-| 17 | Chinese and register | Simplified Chinese only, formal register |
-| 18 | Setting to keep AI tags in English | No. No backfill of existing cards |
+| 2 | A real `savedAt` (13 indexes, 2 PRs) or the cheaper `firstSavedAt` swap | `savedAt`, as decided |
+| 2 | Tags and notes sent with a re-save | Dropped, as decided. Imports never bump |
+| 2 | Paste limits | 100 links, one paste job at a time |
+| 3 | Tables with column alignment | Kept as literal Markdown |
+| 4 | How words match | Substring, as today. Uppercase `OR` only. No struck-through pills |
+| 5 | CSV dialects | Comma-separated, with a header row required |
+| 6 | Run a page's JavaScript on the server | No. Extension saves cover single-page apps |
+| 6 | Safari | Server-only archive |
+| 6 | Detect soft 404s | No |
+| 7 | Chunked embeddings for long articles | No: one vector from the title, summary and opening |
+| 7 | Default tab in the card modal | Read for articles, news and research; Preview otherwise |
+| 8 | Readwise highlights (its library CSV has none) | No change in v3 |
+| 8 | Overlapping highlights | Merged into one |
+| 9 | i18n library | next-intl for the web, use-intl for the extension |
+| 9 | Chinese and register | Simplified Chinese only, formal register |
+| 10 | Setting to keep AI tags in English | No. No backfill of existing cards |

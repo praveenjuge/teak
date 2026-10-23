@@ -1,10 +1,10 @@
 ## Goal
 
-Write AI summaries and AI tags in the language of the saved item. A Japanese article gets a Japanese summary and Japanese tags, and a Spanish note gets Spanish ones. Items with no text (a photo with no words) stay English. Phase 18 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
+Write AI summaries and AI tags in the language of the saved item. A Japanese article gets a Japanese summary and Japanese tags, and a Spanish note gets Spanish ones. Items with no text (a photo with no words) stay English. Phase 10 of the [roadmap v3](2026-10-19-roadmap-v3-00-roadmap.md).
 
 ## Depends on
 
-- Nothing in v3. It is listed under Localization, but it doesn't use the phase 16–17 UI work and can ship before or after them.
+- Nothing in v3. It is listed under Localization, but it doesn't use the phase 9 UI work and can ship before or after it.
 
 ## Success Criteria
 
@@ -109,7 +109,6 @@ Write AI summaries and AI tags in the language of the saved item. A Japanese art
   - it answers in English for clearly Japanese content (measure how often).
 - **Refresh details** on an old English card: it re-summarizes in the content's language, re-embeds, and leaves user tags alone.
 - **Tag pages and filters** with 2,000 mixed-script tags.
-- **Phase 14's tag cleanup** must not pair `design` with `デザイン` by rules. That is expected; only Clef could, and it isn't asked.
 
 ## Tests
 
@@ -137,7 +136,7 @@ Write AI summaries and AI tags in the language of the saved item. A Japanese art
 
 - **Tag fragmentation.**
   - What happens: a library saved in several languages gets parallel tags (`design`, `diseño`, `デザイン`). `tag:design` won't find the Spanish ones, though semantic search will.
-  - Mitigations: user tags are untouched, phase 14 lets people merge by hand (Clef pairs are bounded and English-centred), and `aiLanguage` lets a later phase offer "AI tags in English" as a setting if fragmentation hurts.
+  - Mitigations: user tags are untouched, people can merge tags by hand on the Tags page, and `aiLanguage` lets a later phase offer "AI tags in English" as a setting if fragmentation hurts.
   - Open decision: add that setting now (default: no, as the owner chose).
 - **Open decision:** whether to backfill existing cards with non-English content (default: no). A backfill would re-run AI metadata for cards whose text isn't English: it costs model calls, changes tags people may rely on, and needs owner approval under `packages/convex/AGENTS.md`.
 - **Open decision:** whether to expose `aiLanguage` in the public API (default: not yet; add it with a filter if there's demand).
