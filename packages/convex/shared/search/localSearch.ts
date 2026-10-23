@@ -306,20 +306,20 @@ export const filterLocalCards = (
       }
 
       const searchableText = buildSearchableText(card);
+      // Fields stay on their own lines, as on the server, so a phrase never
+      // spans two of them.
+      const fieldText = searchableParts(card).join("\n");
       return (
         terms.every((term) => searchableText.includes(term)) &&
         (parsed.phrases.length === 0 ||
-          matchesSearchPhrases(
-            searchableParts(card).join("\n"),
-            parsed.phrases
-          )) &&
+          matchesSearchPhrases(fieldText, parsed.phrases)) &&
         (!expression ||
           (expressionUsesFolders
             ? textMatchedByServer
             : matchesExpression(
                 expression,
                 card,
-                searchableText,
+                fieldText,
                 {
                   folder: () => false,
                   hasTag: (tagKey) => cardTags.has(tagKey.trim().toLowerCase()),

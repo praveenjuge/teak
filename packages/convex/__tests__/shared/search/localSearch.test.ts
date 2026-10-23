@@ -909,6 +909,21 @@ describe("filterLocalCards hidden cards", () => {
       expect(ids("-tag:old")).toEqual(["scan", "note"]);
     });
 
+    it("a phrase in an expression never spans two fields", () => {
+      const card = makeCard({
+        _id: "split",
+        content: "secret",
+        notes: "project",
+      });
+      const whole = makeCard({ _id: "whole", content: "secret project" });
+      const ids = (searchTerms: string) =>
+        filterLocalCards([card, whole], { searchTerms }).map(
+          (match): string => match._id
+        );
+      expect(ids('"secret project" OR tag:keep')).toEqual(["whole"]);
+      expect(ids('-"secret project"')).toEqual(["split"]);
+    });
+
     it("a card the server matched keeps its folder answer", () => {
       expect(ids("-folder:Inbox", { textMatchedByServer: true })).toHaveLength(
         7
