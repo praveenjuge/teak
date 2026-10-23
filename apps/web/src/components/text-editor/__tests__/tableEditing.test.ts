@@ -10,6 +10,7 @@ const { documentExtensions, prepareMarkdownDocument } = await import(
   "../markdownDocument"
 );
 const {
+  cursorIntoTableElement,
   MAX_TABLE_COLUMNS,
   MAX_TABLE_ROWS,
   insertNewTable,
@@ -17,9 +18,11 @@ const {
   TableKeys,
   tableActions,
   tableAt,
+  withTableAction,
 } = await import("../tableEditing");
 
 type TestEditor = InstanceType<typeof Editor>;
+type TableAction = Parameters<typeof withTableAction>[1];
 
 let editor: TestEditor | undefined;
 
@@ -229,6 +232,37 @@ describe("pasting into a cell", () => {
   });
 });
 
+describe("the ⋯ menu's table", () => {
+  const twoTables = `${table([["A"], ["1"]])}\n\n${table([["B"], ["2"]])}`;
+  const tableDom = (current: TestEditor, index: number) => {
+    const positions: number[] = [];
+    current.state.doc.forEach((node, offset) => {
+      if (node.type.name === "table") {
+        positions.push(offset);
+      }
+    });
+    return current.view.nodeDOM(positions[index] ?? -1) as HTMLElement;
+  };
+
+  test("moves the cursor into the hovered table, not the one it was left in", () => {
+    const current = open(twoTables);
+    cursorIn(current, 1, 0);
+    cursorIntoTableElement(current, tableDom(current, 1));
+    current.commands.deleteTable();
+    expect(tidy(current.getMarkdown())).toBe(tidy(table([["A"], ["1"]])));
+  });
+
+  test("keeps the cursor's cell when it is already in that table", () => {
+    const current = open(twoTables);
+    cursorIn(current, 1, 0);
+    const before = current.state.selection.from;
+    const element = tableDom(current, 0);
+    cursorIntoTableElement(current, element);
+    cursorIntoTableElement(current, element.querySelector("table") ?? element);
+    expect(current.state.selection.from).toBe(before);
+  });
+});
+
 describe("keys", () => {
   const twoByTwo = table([
     ["A", "B"],
@@ -321,8 +355,15 @@ describe("the ⋯ menu", () => {
     ["1", "2", "3"],
     ["4", "5", "6"],
   ]);
-  const run = (current: TestEditor, action: string) =>
-    (current.commands as unknown as Record<string, () => boolean>)[action]();
+  const run = (current: TestEditor, action: TableAction) =>
+    withTableAction(current.chain(), action).run();
+  const actionsHere = (current: TestEditor) => {
+    const here = tableAt(current.state);
+    if (!here) {
+      throw new Error("The cursor isn't in a table");
+    }
+    return tableActions(here);
+  };
 
   test.each([
     [
@@ -383,9 +424,7 @@ describe("the ⋯ menu", () => {
   ] as const)("%s", (action, [row, col], expected) => {
     const current = open(grid);
     cursorIn(current, row, col);
-    const state = tableActions(tableAt(current.state)!).find(
-      (item) => item.action === action
-    );
+    const state = actionsHere(current).find((item) => item.action === action);
     expect(state?.disabled).toBeUndefined();
     expect(run(current, action)).toBe(true);
     const markdown = current.getMarkdown();
@@ -404,10 +443,7 @@ describe("the ⋯ menu", () => {
     const current = open(table([["A"], ["1"]]));
     cursorIn(current, 0, 0);
     const disabled = Object.fromEntries(
-      tableActions(tableAt(current.state)!).map((item) => [
-        item.action,
-        item.disabled,
-      ])
+      actionsHere(current).map((item) => [item.action, item.disabled])
     );
     expect(disabled).toEqual({
       addRowBefore: "The header row stays the first row",
@@ -428,10 +464,7 @@ describe("the ⋯ menu", () => {
     const current = open(table([header, ...rows]));
     cursorIn(current, 5, 5);
     const disabled = Object.fromEntries(
-      tableActions(tableAt(current.state)!).map((item) => [
-        item.action,
-        item.disabled,
-      ])
+      actionsHere(current).map((item) => [item.action, item.disabled])
     );
     expect(disabled.addRowBefore).toBe("Tables can have up to 200 rows");
     expect(disabled.addRowAfter).toBe("Tables can have up to 200 rows");

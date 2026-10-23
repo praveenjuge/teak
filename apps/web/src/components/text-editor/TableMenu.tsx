@@ -1,6 +1,5 @@
 import { autoUpdate } from "@floating-ui/dom";
 import type { Editor } from "@tiptap/core";
-import { TextSelection } from "@tiptap/pm/state";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type TableAction, tableActions, tableAt } from "./tableEditing";
+import {
+  cursorIntoTableElement,
+  type TableAction,
+  tableActions,
+  tableAt,
+  withTableAction,
+} from "./tableEditing";
 
 const BUTTON_SIZE = 28;
 const INSET = 4;
@@ -114,26 +119,16 @@ export function TableMenu({ editor }: { editor: Editor }) {
     return null;
   }
 
-  /** A menu opened by hover acts on the hovered table's first cell. */
   const cursorIntoTable = () => {
-    if (tableAt(editor.state) || !anchor) {
-      return;
+    if (anchor) {
+      cursorIntoTableElement(editor, anchor);
     }
-    const cell = anchor.querySelector("th, td");
-    if (!cell) {
-      return;
-    }
-    const pos = editor.view.posAtDOM(cell, 0);
-    const { tr } = editor.state;
-    editor.view.dispatch(
-      tr.setSelection(TextSelection.near(tr.doc.resolve(pos)))
-    );
   };
   const table = tableAt(editor.state);
   const actions = table ? tableActions(table) : [];
   const run = (action: TableAction) => {
     cursorIntoTable();
-    editor.chain().focus()[action]().run();
+    withTableAction(editor.chain().focus(), action).run();
   };
 
   return (

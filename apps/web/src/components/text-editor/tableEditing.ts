@@ -1,4 +1,5 @@
 import {
+  type ChainedCommands,
   type Editor,
   Extension,
   type JSONContent,
@@ -125,6 +126,31 @@ export function pasteIntoTable(
     type: "text",
     text: oneLine(text.trimEnd()),
   });
+}
+
+/**
+ * Puts the cursor in the table that `element` renders, unless it is already
+ * there, so a ⋯ menu opened by hover acts on the hovered table and not on
+ * another table the cursor was left in.
+ */
+export function cursorIntoTableElement(
+  editor: Editor,
+  element: HTMLElement
+): void {
+  const current = tableAt(editor.state);
+  const currentDom = current ? editor.view.nodeDOM(current.pos) : null;
+  if (currentDom && (currentDom === element || currentDom.contains(element))) {
+    return;
+  }
+  const cell = element.querySelector("th, td");
+  if (!cell) {
+    return;
+  }
+  const pos = editor.view.posAtDOM(cell, 0);
+  const { tr } = editor.state;
+  editor.view.dispatch(
+    tr.setSelection(TextSelection.near(tr.doc.resolve(pos)))
+  );
 }
 
 const isTableEmpty = (state: EditorState, table: TableAt) =>
@@ -254,6 +280,31 @@ export type TableAction =
   | "deleteRow"
   | "deleteColumn"
   | "deleteTable";
+
+/** Adds one ⋯ menu action to a command chain. */
+export function withTableAction(
+  chain: ChainedCommands,
+  action: TableAction
+): ChainedCommands {
+  switch (action) {
+    case "addRowBefore":
+      return chain.addRowBefore();
+    case "addRowAfter":
+      return chain.addRowAfter();
+    case "addColumnBefore":
+      return chain.addColumnBefore();
+    case "addColumnAfter":
+      return chain.addColumnAfter();
+    case "deleteRow":
+      return chain.deleteRow();
+    case "deleteColumn":
+      return chain.deleteColumn();
+    case "deleteTable":
+      return chain.deleteTable();
+    default:
+      return chain;
+  }
+}
 
 export interface TableActionState {
   action: TableAction;
