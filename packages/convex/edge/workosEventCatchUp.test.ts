@@ -192,5 +192,7 @@ test("a failing event keeps the progress made before it on the same page", async
   await expect(
     t.action(internal.telemetry.crons.workosEventCatchUp, {})
   ).rejects.toThrow("future");
-  expect(requests[requests.length - 1]?.searchParams.get("after")).toBe("event_applied");
+  expect(requests[requests.length - 1]?.searchParams.get("after")).toBe(
+    "event_applied"
+  );
 });
