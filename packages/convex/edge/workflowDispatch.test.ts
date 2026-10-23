@@ -693,13 +693,28 @@ describe("flush scheduling", () => {
       (job) => job.name === "workflowDispatch:flush"
     ).length;
 
-  test("saves made before the flush runs share one flush", async () => {
+  test("saves from separate mutations each schedule a flush", async () => {
+    // Regression: coalescing saves onto one flush read the due range every
+    // concurrent save writes into, so parallel saves conflicted until one
+    // ran out of OCC retries and the request failed with a 503.
     const t = convexTest(schema, modules);
     const first = await insertExportJob(t, "pending");
     const second = await insertExportJob(t, "pending");
     await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
     await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
     await t.run((ctx) => enqueueObjectDeletion(ctx, [fileKey(1)]));
+    expect(await flushes(t)).toBe(3);
+  });
+
+  test("saves inside one mutation share one flush", async () => {
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    const second = await insertExportJob(t, "pending");
+    await t.run(async (ctx) => {
+      await queueExportWorkflow(ctx, first, "user-1");
+      await queueExportWorkflow(ctx, second, "user-1");
+      await enqueueObjectDeletion(ctx, [fileKey(1)]);
+    });
     expect(await flushes(t)).toBe(1);
   });
 
