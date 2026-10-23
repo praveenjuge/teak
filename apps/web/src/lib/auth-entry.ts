@@ -8,6 +8,10 @@ const ENTRY_FLOWS: Record<string, "signin" | "signup" | "recovery"> = {
 };
 
 const SIGN_IN_ROUTES = new Set(["/sign-in", "/sign-up"]);
+// Ask for AuthKit even with a session: `reauth` after a failed callback (it
+// also asks for credentials again), `renew` when the app rejected a session
+// the server still holds, so AuthKit can issue a fresh one.
+const AUTHKIT_REQUIRED = ["reauth", "renew"];
 
 export function workosEntryRedirect(
   url: Pick<URL, "origin" | "pathname" | "searchParams">,
@@ -15,9 +19,9 @@ export function workosEntryRedirect(
 ): URL | null {
   const next = getSafeNextPath(url.searchParams.get("next"));
   // A signed-in visit to sign-in would only bounce through AuthKit and back.
-  // After a failed callback (`reauth`) the visitor asked to sign in again.
   if (SIGN_IN_ROUTES.has(url.pathname)) {
-    return signedIn && !url.searchParams.has("reauth")
+    return signedIn &&
+      !AUTHKIT_REQUIRED.some((param) => url.searchParams.has(param))
       ? new URL(next ?? "/", url.origin)
       : null;
   }

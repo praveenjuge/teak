@@ -39,7 +39,13 @@ describe("WorkOS entry redirect", () => {
   ])("skips AuthKit for a signed-in visit to %s", (path, destination) => {
     expect(target(path, true)).toBe(destination);
   });
-  test("sends a signed-in visitor back to AuthKit after a failed callback", () => {
-    expect(target("/sign-in?reauth=1", true)).toBeNull();
+  test.each([
+    ["after a failed callback", "/sign-in?reauth=1"],
+    [
+      "to renew a session the app rejected",
+      "/sign-in?renew=1&next=%2Fsettings",
+    ],
+  ])("sends a signed-in visitor to AuthKit %s", (_reason, path) => {
+    expect(target(path, true)).toBeNull();
   });
 });

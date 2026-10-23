@@ -36,11 +36,14 @@ const blockedMessages = {
   quarantined: "Your account isn't ready yet. Try again or contact support.",
 };
 
+// These screens show while the server may still hold the session the app
+// rejected, so `renew` asks AuthKit for a fresh one instead of going straight
+// back to the same page.
 const signInHere = () =>
   window.location.replace(
-    `/sign-in?next=${encodeURIComponent(window.location.pathname + window.location.search)}`
+    `/sign-in?renew=1&next=${encodeURIComponent(window.location.pathname + window.location.search)}`
   );
-const signIn = () => window.location.replace("/sign-in");
+const signIn = () => window.location.replace("/sign-in?renew=1");
 
 export function WorkosAuthBoundary({
   children,

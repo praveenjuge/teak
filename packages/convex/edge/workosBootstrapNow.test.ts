@@ -48,7 +48,7 @@ const requests: URL[] = [];
 beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_BOOTSTRAPNOW");
-  vi.stubEnv("WORKOS_API_KEY", "sk_test_bootstrapnow");
+  vi.stubEnv("WORKOS_API_KEY", "test-workos-api-key");
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
   vi.stubEnv("SIGNUPS_DISABLED", "false");
   requests.length = 0;

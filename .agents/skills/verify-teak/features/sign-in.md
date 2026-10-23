@@ -8,7 +8,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 - `auth-aliases` redirects `/login`, `/forgot-password` and `/reset-password` to `/sign-in`, and `/register` to `/sign-up`, keeping `next`.
 - `auth-sign-in` signs in through the hosted email step, then the password step.
 - `auth-return` lands on `next`, or `/` when there is none.
-- `auth-signed-in-entry` sends a signed-in visit to `/sign-in` or `/sign-up` straight to `next` (or `/`) without the hosted page. `/sign-in?reauth=1` still opens the hosted page.
+- `auth-signed-in-entry` sends a signed-in visit to `/sign-in` or `/sign-up` straight to `next` (or `/`) without the hosted page. `/sign-in?reauth=1` (after a failed callback) and `/sign-in?renew=1` (the app's "Sign in" buttons on "Please sign in again." and "Your session changed") still go through the hosted page.
 - `auth-site-hint` marks the browser signed in for teakvault.com (cookie `teak_session_hint=1`) after sign-in and clears it on sign-out. The site's header then shows "Open Teak" instead of "Login" and "Register", and its sign-up buttons link to the app.
 - `auth-sign-out-settings` signs out from the Settings page.
 - `auth-sign-out-palette` signs out from the command palette.

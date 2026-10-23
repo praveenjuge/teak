@@ -265,7 +265,7 @@ test("asks to sign in again when the open vault's owner disappears", async () =>
     () => undefined
   );
   await act(() => button("Sign in").click());
-  expect(replace).toHaveBeenCalledWith("/sign-in");
+  expect(replace).toHaveBeenCalledWith("/sign-in?renew=1");
   replace.mockRestore();
 });
 
@@ -292,7 +292,9 @@ test("sends a session Convex rejects to sign-in with its current page", async ()
     () => undefined
   );
   await act(() => button("Sign in").click());
-  expect(replace).toHaveBeenCalledWith("/sign-in?next=%2Fcards%3Fview%3Dgrid");
+  expect(replace).toHaveBeenCalledWith(
+    "/sign-in?renew=1&next=%2Fcards%3Fview%3Dgrid"
+  );
   replace.mockRestore();
 });
 

@@ -332,6 +332,20 @@ describe("signed-in page loads", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(target);
   });
+  test.each(["/sign-in?renew=1&next=%2Fsettings", "/sign-in?reauth=1"])(
+    "let a signed-in visit to %s start AuthKit",
+    async (path) => {
+      const session = await signedInSession();
+      globalThis.fetch = session.jwks;
+      const response = await proxy(
+        new NextRequest(`http://localhost:3142${path}`, {
+          headers: { accept: "text/html", cookie: session.cookie },
+        })
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get("location")).toBeNull();
+    }
+  );
   test("tell teakvault.com the browser is signed in, once", async () => {
     const session = await signedInSession();
     globalThis.fetch = session.jwks;
