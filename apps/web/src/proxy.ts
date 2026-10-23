@@ -2,6 +2,7 @@ import { authkit, handleAuthkitProxy } from "@workos-inc/authkit-nextjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { workosEntryRedirect } from "@/lib/auth-entry";
 import { resolveAnalyticsProxyTarget } from "@/lib/posthog-config";
+import { syncSessionHint } from "@/lib/session-hint";
 import { readWorkosWebConfig } from "@/lib/workos-config";
 
 const signInRoutes = new Set(["/sign-in", "/sign-up"]);
@@ -41,16 +42,28 @@ export default async function proxy(request: NextRequest) {
       eagerAuth: true,
       redirectUri: config.redirectUri,
     });
-    const entry = workosEntryRedirect(request.nextUrl, Boolean(session.user));
+    const signedIn = Boolean(session.user);
+    const respond = (response: NextResponse) => {
+      syncSessionHint(
+        request.cookies,
+        response.headers,
+        config.origin,
+        signedIn
+      );
+      return response;
+    };
+    const entry = workosEntryRedirect(request.nextUrl, signedIn);
     if (entry) {
-      return handleAuthkitProxy(request, headers, { redirect: entry });
+      return respond(handleAuthkitProxy(request, headers, { redirect: entry }));
     }
-    if (!(session.user || signInRoutes.has(pathname))) {
+    if (!(signedIn || signInRoutes.has(pathname))) {
       const signIn = new URL("/sign-in", config.origin);
       signIn.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-      return handleAuthkitProxy(request, headers, { redirect: signIn });
+      return respond(
+        handleAuthkitProxy(request, headers, { redirect: signIn })
+      );
     }
-    return handleAuthkitProxy(request, headers);
+    return respond(handleAuthkitProxy(request, headers));
   } catch {
     return new NextResponse(
       "Sign-in is temporarily unavailable. Please reload to try again.",

@@ -2,7 +2,7 @@
 
 import { api } from "@teak/convex";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useAction, useConvexAuth } from "convex/react";
 import {
   type ReactNode,
   useCallback,
@@ -23,6 +23,12 @@ type Bootstrap =
   | { status: "ok"; teakUserId: string }
   | { status: "verify_email" | "frozen" }
   | { status: "quarantined"; reason: string };
+
+// A new account's profile can reach Convex a moment after the browser does.
+// The backend fetches it from WorkOS, so a short wait almost always clears it.
+const PENDING_PROFILE_RETRY_MS = [1000, 2000, 3000];
+const isPendingProfile = (result: Bootstrap) =>
+  result.status === "quarantined" && result.reason === "profile_pending";
 
 const blockedMessages = {
   verify_email: "Verify your email to open Teak.",
@@ -46,7 +52,7 @@ export function WorkosAuthBoundary({
   const { user, sessionId, loading } = useAuth();
   const { error: tokenError, refresh } = useAccessToken();
   const auth = useConvexAuth();
-  const ensure = useMutation(api.workosBootstrap.ensureUser);
+  const ensure = useAction(api.workosBootstrap.ensureUserNow);
   const identity = user ? `${user.id}:${sessionId ?? ""}` : null;
   const established = useRef(identity);
   if (established.current === null && identity) {
@@ -96,19 +102,29 @@ export function WorkosAuthBoundary({
     }
   }, [changed]);
   const runBootstrap = useCallback(
-    (forIdentity: string, isCurrent: () => boolean) => {
+    (forIdentity: string, isCurrent: () => boolean, attempt = 0) => {
       void ensure({})
         .then((result) => {
-          if (isCurrent()) {
-            setBootstrap({ identity: forIdentity, result });
-            if (result.status === "ok") {
-              setOwner({
-                identity: forIdentity,
-                teakUserId: result.teakUserId,
-              });
-            }
-            setFailed(false);
+          if (!isCurrent()) {
+            return;
           }
+          const delay = PENDING_PROFILE_RETRY_MS[attempt];
+          if (isPendingProfile(result) && delay !== undefined) {
+            window.setTimeout(() => {
+              if (isCurrent()) {
+                runBootstrap(forIdentity, isCurrent, attempt + 1);
+              }
+            }, delay);
+            return;
+          }
+          setBootstrap({ identity: forIdentity, result });
+          if (result.status === "ok") {
+            setOwner({
+              identity: forIdentity,
+              teakUserId: result.teakUserId,
+            });
+          }
+          setFailed(false);
         })
         .catch(() => {
           if (isCurrent()) {

@@ -2,18 +2,27 @@ import "server-only";
 import { api } from "@teak/convex";
 import { getSignInUrl, getSignUpUrl } from "@workos-inc/authkit-nextjs";
 import { ConvexHttpClient } from "convex/browser";
+import { cacheLife } from "next/cache";
 import { connection, type NextRequest, NextResponse } from "next/server";
 import { getConvexUrl } from "./public-env";
 import { getSafeNextPath } from "./safe-next-path";
 import { readWorkosWebConfig, workosCallbackState } from "./workos-config";
 
+// The admin pause switch changes rarely, so every sign-up click shouldn't wait
+// on a Convex round trip to read it. A failed read throws, so it isn't cached.
+async function readSignupsOpen(convexUrl: string): Promise<boolean> {
+  "use cache";
+  cacheLife({ revalidate: 60, expire: 300 });
+  const mode = await new ConvexHttpClient(convexUrl).query(
+    api.auth.getAuthMode,
+    {}
+  );
+  return !mode.signupsDisabled;
+}
+
 const signupsOpen = async (): Promise<boolean> => {
   try {
-    const mode = await new ConvexHttpClient(getConvexUrl()).query(
-      api.auth.getAuthMode,
-      {}
-    );
-    return !mode.signupsDisabled;
+    return await readSignupsOpen(getConvexUrl());
   } catch {
     return false;
   }

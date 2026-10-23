@@ -5,6 +5,7 @@ import Icon from "blume/components/Icon.astro";
 import PricingCard from "../components/PricingCard.astro";
 import PricingToggle from "../components/PricingToggle.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { SIGN_UP_URL } from "../lib/app-entry";
 import { buildPageSchemas, buildProductSchema, SITE_URL } from "../lib/jsonld";
 import {
   FREE_CARD_LIMIT,
@@ -19,7 +20,7 @@ import { testimonials } from "../lib/testimonials";
 const monthly = formatUsd(PRO_MONTHLY_PRICE);
 const perMonth = formatUsd(yearlyPerMonth());
 const savings = `${yearlySavingsPercent()}%`;
-const registerHref = "https://app.teakvault.com/register";
+const registerHref = SIGN_UP_URL;
 const githubHref = "https://github.com/praveenjuge/teak";
 
 const pricingPlans = [
