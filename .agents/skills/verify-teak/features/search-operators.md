@@ -53,7 +53,7 @@ Steps:
 - **API, CLI, MCP.** `GET $SITE/v1/cards?q=%23scenario-search-operators%20design%20-figma&limit=100` returns 60 items over its pages and none whose title has "Figma". `bun apps/cli/src/index.ts search '#scenario-search-operators tag:fonts OR tag:type' --all --json` returns 55. `bun apps/cli/src/index.ts search -tag:x` exits 2 with "To leave something out of a search, quote it". MCP `teak_v1_search_cards` with `q: "#scenario-search-operators -is:archived (site:github.com OR site:gitlab.com)"` returns 40.
 - **Break it.** `--design`, `- design`, `OR OR`, `(()`, `)design(`, `"-not negated"`, `to-do`, `price:<-5`, `-like:x`, `mood:x OR tag:y` and a 1,000-character `q` each search without an error.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/web/search-operators.e2e.ts`.
-- **Clean up.** Delete the pack's cards by tag (`GET $SITE/v1/cards?tag=scenario-search-operators`, then `DELETE` each and `?permanent=true`), and its three smart folders by id (`GET $SITE/v1/folders`). Leave "Inbox" and "Reading list" when they were there before. Never clean up with a keyword search.
+- **Clean up.** Move the pack's cards to Trash with `POST $SITE/v1/cards/bulk` (`"operation":"delete"`, 100 ids a call): list them with `GET $SITE/v1/cards?tag=scenario-search-operators` (and `&archived=only`), plus the 10 hidden ones with `q=#scenario-search-operators tag:hidden`, which a tag listing leaves out. Then `DELETE $SITE/v1/cards/<id>?permanent=true` each one in Trash (`&trashed=true`). Delete the smart folders, and "Inbox" and "Reading list" if the seed created them (its result's `folders` count says so), by id from `GET $SITE/v1/folders`. Never clean up with a keyword search.
 
 ## Gotchas
 
@@ -61,3 +61,4 @@ Steps:
 - In a shell, quote a search with a `-`, and pass one that starts with `-` after `--` (`teak search -- -tag:old`), or the CLI reads it as a flag.
 - A search of only exclusions reads the library newest first, so it can need several pages before the first match on a large library.
 - The pills keep the order filters, then words: a search typed as `-figma design` comes back as `design -figma`.
+- At 390 px the search box shows the pills that fit and clips the rest: a long tag pill can hide an excluded pill beside it. The search still applies every pill.
