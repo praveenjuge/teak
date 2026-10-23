@@ -155,8 +155,7 @@ test("the library works from the keyboard", async ({
   expect(
     await browser.evaluate(
       () =>
-        (window as unknown as { __filePickerClicks: number })
-          .__filePickerClicks
+        (window as unknown as { __filePickerClicks: number }).__filePickerClicks
     )
   ).toBe(1);
 });
