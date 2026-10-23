@@ -23,12 +23,14 @@ const tileAspectRatio = ({
 export function LinkCardBody({
   card,
   image,
+  isPriority = false,
   onImageError,
   textInsets,
   title,
 }: {
   card: CardWithUrls;
   image: LinkCardImage | undefined;
+  isPriority?: boolean;
   onImageError: (event: SyntheticEvent<HTMLImageElement>) => void;
   textInsets: string;
   title: string;
@@ -73,6 +75,9 @@ export function LinkCardBody({
             alt={title}
             cardId={card._id}
             className="h-full w-full object-cover object-top"
+            decoding="async"
+            fetchPriority={isPriority ? "high" : undefined}
+            loading={isPriority ? "eager" : "lazy"}
             onPermanentError={onImageError}
             src={image.src}
             storageKey={image.storageKey}

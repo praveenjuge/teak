@@ -384,6 +384,8 @@ export function AddCardActions({
     input.accept = "*/*";
     input.multiple = true;
     input.style.display = "none";
+    // Cancelling the picker fires `cancel`, not `change`.
+    input.addEventListener("cancel", () => input.remove(), { once: true });
 
     input.onchange = async (event) => {
       const files = Array.from((event.target as HTMLInputElement).files || []);

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { MAX_FILE_SIZE } from "@teak/convex/shared/constants";
+import { ConvexError } from "convex/values";
 import { asFetch } from "@/__tests__/helpers/testDoubles";
 import { useFileUploadCore } from "../useFileUploadCore";
 import {
@@ -153,5 +154,32 @@ describe("file upload initialization and multipart flow", () => {
     expect(completeMultipartUpload).toHaveBeenCalledWith({
       sessionId: "session-resumed",
     });
+  });
+
+  test("shows a multipart error's own message and code", async () => {
+    const prepareMultipartUpload = mock(() =>
+      Promise.reject(
+        new ConvexError({ code: "NOT_FOUND", message: "Upload expired" })
+      )
+    );
+    const hook = useFileUploadCore({
+      completeMultipartUpload: mock(),
+      finalizeUploadedCard,
+      prepareMultipartUpload,
+      recordMultipartPart: mock(),
+      uploadAndCreateCard,
+    });
+    const file = new File([new Uint8Array(9 * 1024 * 1024)], "large.png", {
+      type: "image/png",
+    });
+
+    const result = await hook.uploadFile(file);
+
+    expect(result).toEqual({
+      success: false,
+      error: "Upload expired",
+      errorCode: "NOT_FOUND",
+    } as any);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 });

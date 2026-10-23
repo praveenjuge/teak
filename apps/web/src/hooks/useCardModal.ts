@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
+import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
 
 export type CardWithUrls = Doc<"cards"> & {
   detailUrl?: string;
@@ -101,7 +102,9 @@ export function useCardModal(
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  // Saves still in flight, for this card or one left meanwhile.
+  const [savesInFlight, setSavesInFlight] = useState(0);
+  const isSaving = savesInFlight > 0;
   const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
@@ -225,6 +228,42 @@ export function useCardModal(
 
   const hasUnsavedChanges = unsavedUpdates.length > 0;
 
+  // The card open after the latest commit, so a save or delete that
+  // finishes after the user moved on doesn't touch the card open now.
+  const openCardIdRef = useRef(cardId);
+  const latestEditsRef = useRef({ cardId, updates: unsavedUpdates });
+  useEffect(() => {
+    openCardIdRef.current = cardId;
+    latestEditsRef.current = { cardId, updates: unsavedUpdates };
+  }, [cardId, unsavedUpdates]);
+
+  // Every way off a card (a tag or type link, Back, a swipe, the dialog
+  // unmounting) resets the edits above, so whatever wasn't saved yet is
+  // sent now rather than dropped. Saving first, as the arrows and Close
+  // do, leaves nothing here.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the cleanup must run when the open card changes, and its calls work for any card
+  useEffect(
+    () => () => {
+      const { cardId: leftCardId, updates } = latestEditsRef.current;
+      if (!leftCardId || updates.length === 0) {
+        return;
+      }
+      // Each field is sent on its own, so one refused field doesn't drop
+      // the others.
+      for (const { field, value } of updates) {
+        setSavesInFlight((count) => count + 1);
+        updateCardField({
+          cardId: leftCardId as Id<"cards">,
+          field,
+          value,
+        })
+          .catch((error) => notifyError(error as Error, "save changes"))
+          .finally(() => setSavesInFlight((count) => count - 1));
+      }
+    },
+    [cardId]
+  );
+
   useEffect(() => {
     if (!card) {
       return;
@@ -261,7 +300,8 @@ export function useCardModal(
         return true;
       }
       const updates = unsavedUpdates;
-      setIsSaving(true);
+      const isStillOpen = () => openCardIdRef.current === cardId;
+      setSavesInFlight((count) => count + 1);
       setSaveFailed(false);
       try {
         for (const { field, value } of updates) {
@@ -270,7 +310,12 @@ export function useCardModal(
             field,
             value,
           });
-          setSavedValues((prev) => ({ ...prev, [field]: value }));
+          if (isStillOpen()) {
+            setSavedValues((prev) => ({ ...prev, [field]: value }));
+          }
+        }
+        if (!isStillOpen()) {
+          return true;
         }
         setIsSaved(true);
         if (!silent) {
@@ -282,15 +327,22 @@ export function useCardModal(
         return true;
       } catch (error) {
         console.error("Failed to save changes:", error);
-        setSaveFailed(true);
+        if (isStillOpen()) {
+          setSaveFailed(true);
+        }
         notifyError(error as Error, "save changes");
         return false;
       } finally {
-        setIsSaving(false);
+        setSavesInFlight((count) => count - 1);
       }
     },
     [cardId, unsavedUpdates, updateCardField, notifyError]
   );
+
+  const saveBeforeLeaving = useCallback(() => {
+    void saveChanges({ silent: true });
+  }, [saveChanges]);
+  useWarnBeforeUnload(hasUnsavedChanges || isSaving, saveBeforeLeaving);
 
   const updateField = useCallback(
     async (
@@ -526,11 +578,15 @@ export function useCardModal(
     [currentTags, writeTags]
   );
 
+  // The card whose delete is in flight: a second Delete on it is ignored,
+  // while a card stepped to meanwhile can still be deleted.
+  const deletingIdRef = useRef<string | null>(null);
   const handleDelete = useCallback(
     async (onClose?: () => void) => {
-      if (!cardId) {
+      if (!cardId || deletingIdRef.current === cardId) {
         return;
       }
+      deletingIdRef.current = cardId;
       try {
         await updateCardField({
           cardId: cardId as Id<"cards">,
@@ -549,10 +605,17 @@ export function useCardModal(
             },
           },
         });
-        onClose?.();
+        // Stepping to another card while the delete ran keeps that one open.
+        if (openCardIdRef.current === deletedId) {
+          onClose?.();
+        }
       } catch (error) {
         console.error("Failed to delete card:", error);
         toast.error("Failed to delete card");
+      } finally {
+        if (deletingIdRef.current === cardId) {
+          deletingIdRef.current = null;
+        }
       }
     },
     [cardId, updateCardField]

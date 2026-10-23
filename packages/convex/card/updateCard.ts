@@ -120,33 +120,43 @@ const RERUN_AI_LIMIT_MESSAGES: Record<ReprocessLimitName, string> = {
     "You've refreshed a lot of cards. Wait a minute and try again.",
 };
 
+/**
+ * Reserves the AI refresh an edit to a card's content or URL queues: the
+ * delay to queue it with, `null` when this card's refresh is already queued
+ * and will pick the edit up, or `"skipped"` once the account has used its
+ * refresh budget. A skipped refresh leaves the card's processing status as it
+ * was and the edit still saves, unless `refuseWhenSpent`: a new URL clears the
+ * link's preview, which only the refresh fills in again.
+ */
 const reserveEditReprocess = async (
   ctx: MutationCtx,
   userId: string,
-  cardId: Id<"cards">
-): Promise<number | null> => {
+  cardId: Id<"cards">,
+  { refuseWhenSpent = false }: { refuseWhenSpent?: boolean } = {}
+): Promise<number | null | "skipped"> => {
   const perCardArgs = { key: String(cardId), reserve: true } as const;
   const accountArgs = { key: userId, reserve: true } as const;
-  // Check both before reserving either: a bulk update catches each item's
-  // refusal and commits, so a reservation made before the account refuses
-  // would stay behind, and this card's later edits would join a run that
-  // was never scheduled.
+  // Check both before reserving either, so a refusal never leaves a
+  // reservation behind that this card's later edits would wait on.
   if (!(await rateLimiter.check(ctx, "cardReprocessPerCard", perCardArgs)).ok) {
     return null;
   }
-  assertReprocessAllowed(
-    "cardReprocess",
-    await rateLimiter.check(ctx, "cardReprocess", accountArgs)
-  );
+  const account = await rateLimiter.check(ctx, "cardReprocess", accountArgs);
+  if (!account.ok) {
+    if (refuseWhenSpent) {
+      assertReprocessAllowed("cardReprocess", account);
+    }
+    return "skipped";
+  }
   const perCard = await rateLimiter.limit(ctx, "cardReprocessPerCard", {
     ...perCardArgs,
     throws: false,
   });
-  const account = await rateLimiter.limit(ctx, "cardReprocess", {
+  const reserved = await rateLimiter.limit(ctx, "cardReprocess", {
     ...accountArgs,
     throws: false,
   });
-  return Math.max(perCard.retryAfter ?? 0, account.retryAfter ?? 0);
+  return Math.max(perCard.retryAfter ?? 0, reserved.retryAfter ?? 0);
 };
 
 const spendCardReprocessLimits = async (
@@ -269,9 +279,13 @@ export const updateCard = mutation({
       }
     }
 
-    const pipelineDelayMs = contentChanged
+    const reservation = contentChanged
       ? await reserveEditReprocess(ctx, user.teakUserId, id)
       : null;
+    if (reservation === "skipped") {
+      processingStatus = card.processingStatus as ProcessingStatus | undefined;
+    }
+    const pipelineDelayMs = reservation === "skipped" ? null : reservation;
 
     await ctx.db.patch(
       "cards",
@@ -514,9 +528,17 @@ export const updateCardFieldsForUserHandler = async (
     return { pipelineDelayMs: null };
   }
 
-  const pipelineDelayMs = state.shouldSchedulePipeline
-    ? await reserveEditReprocess(ctx, userId, cardId)
+  const reservation = state.shouldSchedulePipeline
+    ? await reserveEditReprocess(ctx, userId, cardId, {
+        refuseWhenSpent: "url" in state.updateData,
+      })
     : null;
+  if (reservation === "skipped") {
+    state.processingStatus = card.processingStatus as
+      | ProcessingStatus
+      | undefined;
+  }
+  const pipelineDelayMs = reservation === "skipped" ? null : reservation;
 
   await ctx.db.patch(
     "cards",

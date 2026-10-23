@@ -753,7 +753,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           onRestore={onRestoreCard}
           onToggleArchive={onToggleArchive}
           onToggleFavorite={onToggleFavorite}
-          onToggleSelection={() => toggleCardSelection(card._id)}
+          onToggleSelection={toggleCardSelection}
         />
       );
     },

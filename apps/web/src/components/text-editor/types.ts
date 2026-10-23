@@ -33,6 +33,8 @@ export interface MarkdownTextEditorProps {
   onChange: (content: string) => void;
   onLimitExceeded?: () => void;
   onOpenFullScreen?: () => void;
+  /** Takes files pasted with no text, such as a copied screenshot. */
+  onPasteFiles?: (files: File[]) => void;
   onSaveShortcut?: () => void;
   placeholder?: string;
   value: string;

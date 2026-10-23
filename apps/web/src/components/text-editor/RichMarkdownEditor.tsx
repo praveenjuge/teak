@@ -22,6 +22,7 @@ import Suggestion, {
 } from "@tiptap/suggestion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { extractFilesFromDataTransfer } from "@/lib/upload/fileDrop";
 import { CardLinkMenu, type CardLinkMenuState } from "./CardLinkMenu";
 import { CardLinkPillNode, CardLinkViewContext } from "./CardLinkPill";
 import { EditorFormatting } from "./EditorControls";
@@ -355,6 +356,12 @@ export function RichMarkdownEditor({
         }
         event.preventDefault();
         if (!text) {
+          const { files } = extractFilesFromDataTransfer(event.clipboardData);
+          const { onPasteFiles } = callbacks.current;
+          if (onPasteFiles && files.length > 0) {
+            onPasteFiles(files);
+            return true;
+          }
           toast.info("Paste plain text or Markdown.");
           return true;
         }

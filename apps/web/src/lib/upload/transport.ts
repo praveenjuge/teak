@@ -10,6 +10,19 @@ export interface UploadResponse {
 
 const UPLOAD_RETRY_DELAYS_MS = [300, 900] as const;
 
+// A PUT that stalls (a captive portal, a dropped Wi-Fi link) never settles on
+// its own, so each attempt gets a deadline: a minute, plus time to send the
+// body at about 0.4 Mbit/s.
+const UPLOAD_ATTEMPT_BASE_TIMEOUT_MS = 60_000;
+const UPLOAD_SLOWEST_BYTES_PER_SECOND = 50_000;
+
+export const UPLOAD_TIMED_OUT_MESSAGE =
+  "The upload stopped responding. Check your connection and try again.";
+
+export const uploadAttemptTimeoutMs = (bytes: number) =>
+  UPLOAD_ATTEMPT_BASE_TIMEOUT_MS +
+  Math.ceil(Math.max(0, bytes) / UPLOAD_SLOWEST_BYTES_PER_SECOND) * 1000;
+
 const isRetriableUploadStatus = (status: number) =>
   status === 408 || status === 429 || status >= 500;
 
@@ -63,9 +76,15 @@ export const getUploadEtag = (
   return entry?.[1];
 };
 
+/**
+ * Runs `upload` up to three times, retrying a network error, a timeout or a
+ * 408, 429 or 5xx response. Each attempt gets its own signal, which aborts
+ * when `signal` does or when the attempt passes `timeoutMs`.
+ */
 export async function uploadWithTransientRetry(
-  upload: () => Promise<UploadResponse>,
-  signal: AbortSignal
+  upload: (attemptSignal: AbortSignal) => Promise<UploadResponse>,
+  signal: AbortSignal,
+  { timeoutMs }: { timeoutMs?: number } = {}
 ): Promise<UploadResponse> {
   let lastError: unknown;
   for (
@@ -74,8 +93,19 @@ export async function uploadWithTransientRetry(
     attempt += 1
   ) {
     throwIfAborted(signal);
+    const attemptController = new AbortController();
+    const abortAttempt = () => attemptController.abort();
+    signal.addEventListener("abort", abortAttempt, { once: true });
+    let timedOut = false;
+    const timeout =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            timedOut = true;
+            attemptController.abort();
+          }, timeoutMs);
     try {
-      const response = await upload();
+      const response = await upload(attemptController.signal);
       throwIfAborted(signal);
       if (
         response.ok ||
@@ -86,13 +116,21 @@ export async function uploadWithTransientRetry(
       }
       lastError = new Error(`Upload failed with status ${response.status}`);
     } catch (error) {
-      if (isAbortError(error)) {
-        throw error;
+      throwIfAborted(signal);
+      const attemptError =
+        timedOut && isAbortError(error)
+          ? new Error(UPLOAD_TIMED_OUT_MESSAGE)
+          : error;
+      if (isAbortError(attemptError)) {
+        throw attemptError;
       }
-      lastError = error;
+      lastError = attemptError;
       if (attempt === UPLOAD_RETRY_DELAYS_MS.length) {
-        throw error;
+        throw attemptError;
       }
+    } finally {
+      clearTimeout(timeout);
+      signal.removeEventListener("abort", abortAttempt);
     }
     await sleep(UPLOAD_RETRY_DELAYS_MS[attempt], signal);
   }

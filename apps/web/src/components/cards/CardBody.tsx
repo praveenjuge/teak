@@ -43,6 +43,7 @@ export function CardBody({
         <LinkCardBody
           card={card}
           image={link.image}
+          isPriority={isPriority}
           onImageError={link.onImageError}
           textInsets={textInsets}
           title={link.title}

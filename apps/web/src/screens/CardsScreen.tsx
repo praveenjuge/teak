@@ -63,7 +63,7 @@ import { useRevisitMode } from "../hooks/useRevisitMode";
 import { useSemanticSearch } from "../hooks/useSemanticSearch";
 import { useStableHandlers } from "../hooks/useStableHandlers";
 import { useViewHasHiddenCards } from "../hooks/useViewHasHiddenCards";
-import { getAdjacentCardIds } from "../lib/cardNeighbors";
+import { getAdjacentCardIdsKeepingPlace } from "../lib/cardNeighbors";
 import {
   buildSmartFolderQuery,
   FOLDER_ICON_CLASSES,
@@ -477,15 +477,26 @@ export function CardsScreen({
     [displayCards, selectedCardId]
   );
 
-  const { previous: previousCardId, next: nextCardId } = useMemo(
+  const neighborIds = useMemo(
     () =>
-      getAdjacentCardIds(
-        displayCards
-          .map((card: Doc<"cards">) => card._id as string)
-          .filter((id: string) => !isOptimisticCard(id)),
-        selectedCardId
-      ),
-    [displayCards, selectedCardId]
+      displayCards
+        .map((card: Doc<"cards">) => card._id as string)
+        .filter((id: string) => !isOptimisticCard(id)),
+    [displayCards]
+  );
+  // The last list that held the open card, so the arrows still step from
+  // its place after an edit takes it out of the view.
+  const [placeIds, setPlaceIds] = useState<readonly string[]>();
+  if (
+    selectedCardId &&
+    placeIds !== neighborIds &&
+    neighborIds.includes(selectedCardId)
+  ) {
+    setPlaceIds(neighborIds);
+  }
+  const { previous: previousCardId, next: nextCardId } = useMemo(
+    () => getAdjacentCardIdsKeepingPlace(neighborIds, placeIds, selectedCardId),
+    [neighborIds, placeIds, selectedCardId]
   );
 
   const cardActions = useCardActions({
