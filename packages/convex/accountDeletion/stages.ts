@@ -1,10 +1,14 @@
 // A state's stored `stage` is its index here, so entries never move. Billing
 // closes first so a stalled stage never charges a deleted owner; analytics
 // goes last so no earlier stage can record another event for the owner.
+// Stages 1 and 2 used to revoke WorkOS sessions and authorized Connect apps.
+// Deleting the WorkOS user (`workosUser`) revokes both, and Teak denies a
+// deleting owner from stage 0, so they now advance without doing anything.
+// They keep their places so later stages keep their numbers.
 export const ACCOUNT_DELETION_STAGES = [
   "accessAndBilling",
-  "providerSessions",
-  "authorizedApps",
+  "retiredProviderSessions",
+  "retiredAuthorizedApps",
   "accountData",
   "workosUser",
   "retainedRecordsAndAnalytics",

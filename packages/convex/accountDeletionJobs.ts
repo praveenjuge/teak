@@ -64,29 +64,6 @@ export const advance = internalMutation({
     return null;
   },
 });
-export const saveSessionCursor = internalMutation({
-  args: {
-    ...bindingArgs,
-    previous: v.union(v.string(), v.null()),
-    next: v.string(),
-  },
-  returns: v.null(),
-  handler: async (ctx, { stateId, generation, previous, next }) => {
-    const state = await ctx.db.get("accountDeletionStates", stateId);
-    if (
-      !state ||
-      state.generation !== generation ||
-      state.stage !== accountDeletionStage("providerSessions") ||
-      (state.providerSessionCursor ?? null) !== previous
-    ) {
-      throw new Error("stale_deletion_session_page");
-    }
-    await ctx.db.patch("accountDeletionStates", stateId, {
-      providerSessionCursor: next,
-    });
-    return null;
-  },
-});
 export const finalize = internalMutation({
   args: bindingArgs,
   returns: v.boolean(),

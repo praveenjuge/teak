@@ -10,22 +10,13 @@ import {
   type AccountDeletionStage,
 } from "./accountDeletion/stages";
 import { closeBillingCustomer } from "./billing";
-import {
-  deleteLegacyBetterAuthRows,
-  deleteLegacyBetterAuthSessions,
-} from "./legacyBetterAuth";
+import { deleteLegacyBetterAuthRows } from "./legacyBetterAuth";
 import { createWorkosClient } from "./shared/workosClient";
-import { WORKOS_SESSION_ID, WORKOS_USER_ID } from "./shared/workosIds";
-import {
-  deleteAuthorizedApp,
-  listAuthorizedAppsPage,
-} from "./workos/authorizedApps";
+import { WORKOS_USER_ID } from "./shared/workosIds";
 import {
   currentWorkosDeletionTarget,
   sameWorkosDeletionTarget,
 } from "./workos/deletionCompletion";
-
-const PROVIDER_DELETE_PAGE_SIZE = 10;
 
 const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
   if (!(state.workosUserId && WORKOS_USER_ID.test(state.workosUserId))) {
@@ -41,35 +32,6 @@ const boundWorkos = async (state: Doc<"accountDeletionStates">) => {
   }
   return createWorkosClient(apiKey, target.clientId).userManagement;
 };
-// One page of the bound user's authorized Connect apps, each revoked. A 404
-// with no WorkOS user means there is nothing left to revoke.
-async function authorizedApps(state: Doc<"accountDeletionStates">) {
-  const users = await boundWorkos(state);
-  const workosUserId = state.workosUserId;
-  const apiKey = process.env.WORKOS_API_KEY;
-  if (!(workosUserId && apiKey)) {
-    throw new Error("deletion_workos_target_unavailable");
-  }
-  const page = await listAuthorizedAppsPage(workosUserId, apiKey, {
-    limit: PROVIDER_DELETE_PAGE_SIZE,
-    timeoutMs: 30_000,
-  });
-  if (!page) {
-    try {
-      await users.getUser(workosUserId);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        return false;
-      }
-      throw error;
-    }
-    throw new Error("deletion_workos_apps_404");
-  }
-  for (const app of page.apps) {
-    await deleteAuthorizedApp(workosUserId, app.id, apiKey, 30_000);
-  }
-  return page.apps.length > 0;
-}
 interface StageBinding {
   generation: number;
   stateId: Id<"accountDeletionStates">;
@@ -100,81 +62,8 @@ const STAGE_HANDLERS: Record<AccountDeletionStage, StageHandler> = {
     await closeBillingCustomer(ctx, state.userId);
     return true;
   },
-  providerSessions: async (ctx, state, binding) => {
-    if (state.workosUserId) {
-      const client = await boundWorkos(state);
-      const previous = state.providerSessionCursor ?? null;
-      let sessions: Awaited<ReturnType<typeof client.listSessions>> | undefined;
-      try {
-        sessions = await client.listSessions(state.workosUserId, {
-          limit: PROVIDER_DELETE_PAGE_SIZE,
-          after: previous,
-          order: "desc",
-        });
-      } catch (error) {
-        if (!(error instanceof NotFoundException)) {
-          throw error;
-        }
-        let confirmedAbsent = false;
-        try {
-          await client.getUser(state.workosUserId);
-        } catch (userError) {
-          if (!(userError instanceof NotFoundException)) {
-            throw userError;
-          }
-          confirmedAbsent = true;
-        }
-        if (!confirmedAbsent) {
-          throw error;
-        }
-      }
-      if (sessions) {
-        if (sessions.data.length > PROVIDER_DELETE_PAGE_SIZE) {
-          throw new Error("deletion_session_page_invalid");
-        }
-        for (const session of sessions.data) {
-          if (
-            session.userId !== state.workosUserId ||
-            !WORKOS_SESSION_ID.test(session.id) ||
-            !["active", "expired", "revoked"].includes(session.status)
-          ) {
-            throw new Error("deletion_session_owner_mismatch");
-          }
-          if (session.status !== "active") {
-            continue;
-          }
-          try {
-            await client.revokeSession({ sessionId: session.id });
-          } catch (error) {
-            if (!(error instanceof NotFoundException)) {
-              throw error;
-            }
-          }
-        }
-        const next = sessions.listMetadata.after;
-        if (next) {
-          if (!WORKOS_SESSION_ID.test(next) || next === previous) {
-            throw new Error("deletion_session_cursor_invalid");
-          }
-          await ctx.runMutation(
-            internal.accountDeletionJobs.saveSessionCursor,
-            {
-              ...binding,
-              previous,
-              next,
-            }
-          );
-          return false;
-        }
-      }
-    }
-    if (state.betterAuthUserId) {
-      await deleteLegacyBetterAuthSessions(ctx, state.betterAuthUserId);
-    }
-    return true;
-  },
-  authorizedApps: async (_ctx, state) =>
-    !(state.workosUserId && (await authorizedApps(state))),
+  retiredProviderSessions: () => Promise.resolve(true),
+  retiredAuthorizedApps: () => Promise.resolve(true),
   accountData: () => {
     throw new Error("deletion_stage_runs_in_files_worker");
   },

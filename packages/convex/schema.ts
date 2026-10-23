@@ -421,7 +421,6 @@ export default defineSchema({
       })
     ),
     stage: v.optional(v.number()),
-    providerSessionCursor: v.optional(v.string()),
     localConsentCursor: v.optional(v.string()),
     deletionReceiptCursor: v.optional(v.string()),
     writerTable: v.optional(
