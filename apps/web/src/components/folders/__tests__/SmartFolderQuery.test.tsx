@@ -10,11 +10,15 @@ const { SmartFolderQuery } = await import("../SmartFolderQuery");
 const chips = async (query: string) => {
   const container = document.createElement("div");
   const root = createRoot(container);
-  await act(async () => root.render(<SmartFolderQuery query={query} />));
+  await act(() => {
+    root.render(<SmartFolderQuery query={query} />);
+  });
   const texts = [...container.querySelectorAll("li")].map((chip) => ({
     text: chip.textContent,
   }));
-  await act(async () => root.unmount());
+  await act(() => {
+    root.unmount();
+  });
   return texts;
 };
 
