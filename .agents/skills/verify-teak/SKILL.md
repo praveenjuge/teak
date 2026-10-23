@@ -7,7 +7,7 @@ description: Drive the real Teak web app, REST API, CLI and MCP server the way a
 
 Prove a Teak change in the running app, not by a passing build. Launch the stack, check it is healthy, drive the features the change touches through their user entry points, keep the evidence, and clean up what the run made. The recipes for each feature live in [`features/`](features/README.md); read its README first.
 
-The primary surface is the web app at `http://localhost:3000` (a worktree has its own port; `bun run dev --status` prints it). The REST API, CLI and MCP server are secondary surfaces with their own recipes, and so are the Apple and Android apps and Raycast, which run against the local E2E stack. The browser extension is not mapped yet.
+The primary surface is the web app at `http://localhost:3000` (a worktree has its own port; `bun run dev --status` prints it). The REST API, CLI and MCP server are secondary surfaces with their own recipes, and so are the Apple and Android apps and Raycast, which run against the local E2E stack. The browser extension's shortcut and badge have a recipe too ([extension](features/extension.md)); its popup, context menu and inline buttons are not mapped yet.
 
 ## Launch
 

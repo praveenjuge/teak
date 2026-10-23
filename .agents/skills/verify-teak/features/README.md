@@ -44,8 +44,9 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 - [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.
 - [Android app](./android.md) covers the Android app on the phone and tablet emulators against the local E2E stack: archive, folders, tags, Revisit, done toggles, link pills, search chips and the share sheet's tags and note.
+- [Browser extension](./extension.md) covers signing the Chrome extension in, the Alt+Shift+S save shortcut and its icon states, and the "Already in Teak" badge, in Chromium under a virtual display.
 - [Raycast](./raycast.md) covers the Raycast commands, card actions and AI tools through the extension's own API client.
 
 ## Not mapped yet
 
-Add a file here when a change touches one of these: import and export (Settings), the browser extension (`.agents/cloud.md` has the load steps), the docs site, and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.
+Add a file here when a change touches one of these: import and export (Settings), the extension's popup, context menu and inline buttons, the docs site, and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.

@@ -44,10 +44,17 @@ import {
 import { toContextMenuStatus } from "../lib/popupStatus";
 import { isPrivateSession } from "../lib/privateSession";
 import { clearRecentTags, rememberTags } from "../lib/recentTags";
+import { apiRequestsInLastMinute } from "../lib/requestBudget";
 import { isRestrictedUrl, restrictedUrlMessage } from "../lib/restrictedUrl";
+import {
+  createSavedPageCheck,
+  type SavedPageCheck,
+} from "../lib/savedPageCheck";
 import { downloadAssetFile, saveFileToTeak } from "../lib/saveFileToTeak";
+import { createSaveShortcut, SAVE_PAGE_COMMAND } from "../lib/saveShortcut";
 import { saveToTeak } from "../lib/saveToTeak";
 import { captureExtensionEvent, reportUncaughtErrors } from "../lib/telemetry";
+import { setTabBadge } from "../lib/toolbarBadge";
 import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
@@ -74,6 +81,9 @@ const isPopupPage = (url: string | undefined) =>
 
 const runningSaves = new Map<string, Promise<TeakSaveResponse>>();
 const queuePatch = createPatchQueue();
+// WXT imports this file at build time, outside a browser, so anything that
+// reads `chrome` is made inside `defineBackground`.
+let savedPages: SavedPageCheck | undefined;
 
 async function patchCard(payload: PatchCardPayload) {
   const result = await queuePatch(payload);
@@ -191,7 +201,22 @@ function runPendingSave(
       "CONTENT_TOO_LARGE",
     ];
     if (result.status === "saved") {
-      await captureExtensionEvent("extension_card_saved", { via: save.kind });
+      await captureExtensionEvent("extension_card_saved", {
+        via:
+          save.kind === "content" && save.input.source === "shortcut"
+            ? "shortcut"
+            : save.kind,
+      });
+    }
+    if (
+      (result.status === "saved" || result.status === "duplicate") &&
+      save.kind === "content"
+    ) {
+      await savedPages?.markSaved(save.input.content).catch(() => undefined);
+      // The shortcut paints its own "Saved to Teak".
+      if (save.input.source !== "shortcut") {
+        refreshActiveTabs();
+      }
     }
     if (
       result.status === "saved" ||
@@ -211,7 +236,8 @@ function runPendingSave(
 async function queueSave(
   input:
     | { kind: "content"; input: Parameters<typeof saveToTeak>[0] }
-    | { kind: "asset"; assetUrl: string; link?: true }
+    | { kind: "asset"; assetUrl: string; link?: true },
+  { interactive = true }: { interactive?: boolean } = {}
 ) {
   const save: PendingSave = {
     ...input,
@@ -220,7 +246,7 @@ async function queueSave(
     ownerId: await getCaptureOwner(),
   };
   await storePendingSave(save);
-  return runPendingSave(save, true);
+  return runPendingSave(save, interactive);
 }
 
 async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
@@ -240,6 +266,18 @@ async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
     }
   }
   return failure;
+}
+
+/** Repaints the badge of each window's active tab, after a save or sign-in. */
+function refreshActiveTabs() {
+  const check = savedPages?.check;
+  if (!check) {
+    return;
+  }
+  void chrome.tabs
+    .query({ active: true })
+    .then((tabs) => Promise.all(tabs.map((tab) => check(tab))))
+    .catch(() => undefined);
 }
 
 const listWaitingSaveIds = async () =>
@@ -390,6 +428,62 @@ export default defineBackground(() => {
   chrome.runtime.onMessage.addListener(handleRuntimeMessage);
   chrome.runtime.onConnect.addListener(handleSaveDetailsPort);
   listenToOmnibox();
+  listenToTabs();
+
+  function listenToTabs() {
+    const checks = createSavedPageCheck({
+      paint: (tabId, saved) => setTabBadge(tabId, saved ? "saved" : "none"),
+      recentRequests: () => apiRequestsInLastMinute(),
+      request: (path) => oauthRequest(path),
+      storage: chrome.storage.session,
+    });
+    savedPages = checks;
+    const saveFromShortcut = createSaveShortcut({
+      hold: checks.hold,
+      markSaved: checks.markSaved,
+      openPopup: () => chrome.action.openPopup(),
+      paint: setTabBadge,
+      refresh: checks.check,
+      save: (url) =>
+        queueSave(
+          { kind: "content", input: { content: url, source: "shortcut" } },
+          { interactive: false }
+        ),
+    });
+    chrome.commands.onCommand.addListener((command, tab) => {
+      if (command !== SAVE_PAGE_COMMAND) {
+        return;
+      }
+      void (async () => {
+        const target =
+          tab ??
+          (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+        await saveFromShortcut(target);
+      })().catch(() => undefined);
+    });
+    chrome.tabs.onActivated.addListener(({ tabId }) => {
+      void chrome.tabs
+        .get(tabId)
+        .then((tab) => checks.check(tab))
+        .catch(() => undefined);
+    });
+    chrome.tabs.onUpdated.addListener((_tabId, change, tab) => {
+      if (change.status === "complete" || change.url) {
+        void checks.check(tab).catch(() => undefined);
+      }
+    });
+    chrome.tabs.onRemoved.addListener((tabId) => checks.forget(tabId));
+    chrome.windows.onFocusChanged.addListener((windowId) => {
+      if (windowId === chrome.windows.WINDOW_ID_NONE) {
+        return;
+      }
+      void chrome.tabs
+        .query({ active: true, windowId })
+        .then((tabs) => Promise.all(tabs.map((tab) => checks.check(tab))))
+        .catch(() => undefined);
+    });
+    refreshActiveTabs();
+  }
 
   function listenToOmnibox() {
     const flavor: OmniboxFlavor =
@@ -688,9 +782,14 @@ export default defineBackground(() => {
           if (message.type === MESSAGE_TYPES.SIGN_OUT) {
             await signOutOAuth();
             await clearRecentTags();
+            const tabs = await chrome.tabs.query({});
+            await savedPages?.clear(
+              tabs.flatMap((tab) => (tab.id === undefined ? [] : [tab.id]))
+            );
           } else {
             await beginOAuthSignIn();
             await resumePendingSaves();
+            refreshActiveTabs();
           }
           sendResponse({
             ...(await getOAuthState()),

@@ -17,6 +17,7 @@ import {
 } from "teak-sdk";
 import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
 import { isPrivateSession } from "./privateSession";
+import { recordApiRequest } from "./requestBudget";
 import { captureExtensionEvent } from "./telemetry";
 
 const IS_FIREFOX = import.meta.env.BROWSER === "firefox";
@@ -435,6 +436,7 @@ export async function oauthRequest(
   }
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${credentials.accessToken}`);
+  recordApiRequest();
   const response = await fetchAuth(requestUrl.href, {
     ...init,
     headers,

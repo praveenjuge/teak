@@ -8,7 +8,7 @@ Keep a private, self-contained copy of every saved link's page, and open it when
 ## Depends on
 
 - [Phase 2](2026-10-19-roadmap-v3-02-url-key-resave-paste.md): there is one archive per card, and a re-save reuses the card, so it never makes a second archive. Phase 2b must have shipped, so an extension re-save goes through `POST /v1/cards` and carries its snapshot.
-- [Phase 1](2026-10-19-roadmap-v3-01-extension-shortcut-badge.md): the shortcut is one of the extension saves that sends a snapshot.
+- Phase 1 (shipped): the shortcut (`apps/extension/lib/saveShortcut.ts`) is one of the extension saves that sends a snapshot.
 - Phase 7 (reader) and phase 8 (highlights) build on this one.
 
 ## Success Criteria

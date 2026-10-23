@@ -13,6 +13,13 @@ The extension ships through `.github/workflows/extension-release.yml`: Chrome to
 
 The release is complete when the exact zips are attached to the GitHub Release and both stores have accepted the submission for review.
 
+## Store privacy disclosures
+
+Keep each store's data disclosure in step with what the extension sends, and update it in the release that changes it:
+
+- **Chrome Web Store:** the item's **Privacy practices** tab declares **Website content** (pages, text and files you save) and **Web history**: while signed in, the saved-page badge sends the address of the page in the active tab to Teak (`GET /v1/cards/duplicate`). A change there can lengthen the store's review.
+- **AMO:** `data_collection_permissions` in `wxt.config.ts` already declares `browsingActivity`, which covers the badge's checks.
+
 ## Retry and recovery
 
 - Rerun the failed GitHub Actions job when the failure is transient.

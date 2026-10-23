@@ -2,6 +2,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 import { FIREFOX_SENDS_TELEMETRY, missingBuildEnvError } from "./lib/env";
 import { OMNIBOX_KEYWORD } from "./lib/omnibox";
+import { SAVE_PAGE_COMMAND } from "./lib/saveShortcut";
 
 /** Pins the Chrome extension id, so OAuth redirects and the store item match. */
 const CHROME_KEY =
@@ -60,6 +61,13 @@ export default defineConfig({
     ],
     host_permissions: ["<all_urls>"],
     omnibox: { keyword: OMNIBOX_KEYWORD },
+    // Browsers let people change it in their own shortcut settings.
+    commands: {
+      [SAVE_PAGE_COMMAND]: {
+        suggested_key: { default: "Alt+Shift+S", mac: "Alt+Shift+S" },
+        description: "Save this page to Teak",
+      },
+    },
     action: {
       default_title: "Save to Teak",
       // Firefox otherwise keeps the button in the extensions menu, a click

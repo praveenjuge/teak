@@ -8,7 +8,8 @@ export type SaveSource =
   | "context-menu-asset"
   | "inline-post"
   | "popup-auto-save"
-  | "popup-file";
+  | "popup-file"
+  | "shortcut";
 export interface SaveToTeakInput {
   content: string;
   enforceAllowedHosts?: boolean;
