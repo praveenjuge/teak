@@ -102,7 +102,9 @@ export function useCardModal(
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
   const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  // Saves still in flight, for this card or one left meanwhile.
+  const [savesInFlight, setSavesInFlight] = useState(0);
+  const isSaving = savesInFlight > 0;
   const [saveFailed, setSaveFailed] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editsCardId, setEditsCardId] = useState(cardId);
@@ -246,19 +248,15 @@ export function useCardModal(
       if (!leftCardId || updates.length === 0) {
         return;
       }
-      void (async () => {
-        try {
-          for (const { field, value } of updates) {
-            await updateCardField({
-              cardId: leftCardId as Id<"cards">,
-              field,
-              value,
-            });
-          }
-        } catch (error) {
-          notifyError(error as Error, "save changes");
-        }
-      })();
+      // Each field is sent on its own, so one refused field doesn't drop
+      // the others.
+      for (const { field, value } of updates) {
+        updateCardField({
+          cardId: leftCardId as Id<"cards">,
+          field,
+          value,
+        }).catch((error) => notifyError(error as Error, "save changes"));
+      }
     },
     [cardId]
   );
@@ -300,7 +298,7 @@ export function useCardModal(
       }
       const updates = unsavedUpdates;
       const isStillOpen = () => openCardIdRef.current === cardId;
-      setIsSaving(true);
+      setSavesInFlight((count) => count + 1);
       setSaveFailed(false);
       try {
         for (const { field, value } of updates) {
@@ -332,7 +330,7 @@ export function useCardModal(
         notifyError(error as Error, "save changes");
         return false;
       } finally {
-        setIsSaving(false);
+        setSavesInFlight((count) => count - 1);
       }
     },
     [cardId, unsavedUpdates, updateCardField, notifyError]

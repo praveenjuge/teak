@@ -180,3 +180,50 @@ test("a save that fails after moving on leaves the new card's state alone", asyn
 
   expect(hook().saveState).not.toBe("error");
 });
+
+test("leaving sends every edited field even when one is refused", async () => {
+  write = mock((args: { field: string }) =>
+    args.field === "content"
+      ? Promise.reject(new Error("refused"))
+      : Promise.resolve(null)
+  ) as typeof write;
+  const { hook, openCardB } = await renderSwitchable();
+  await act(() => {
+    hook().updateContent("Hello there");
+    hook().updateNotes("Kept note");
+  });
+
+  await openCardB();
+  await act(() => Promise.resolve());
+
+  expect(write).toHaveBeenCalledWith({
+    cardId: "card_a",
+    field: "notes",
+    value: "Kept note",
+  });
+});
+
+test("a save finishing for a card left behind keeps the open card's save going", async () => {
+  const pending: (() => void)[] = [];
+  write = mock(
+    () => new Promise((resolve) => pending.push(() => resolve(null)))
+  );
+  const { hook, openCardB } = await renderSwitchable();
+  await act(() => hook().updateNotes("A's note"));
+  let savedA: Promise<boolean> | undefined;
+  await act(() => {
+    savedA = hook().saveChanges({ silent: true });
+  });
+  await openCardB();
+  await act(() => hook().updateNotes("B's note"));
+  await act(() => {
+    void hook().saveChanges({ silent: true });
+  });
+
+  await act(async () => {
+    pending[0]?.();
+    await savedA;
+  });
+
+  expect(hook().saveState).toBe("saving");
+});
