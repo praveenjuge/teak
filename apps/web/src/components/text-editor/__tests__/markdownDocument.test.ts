@@ -3,6 +3,7 @@ import {
   hasSameMarkdownMeaning,
   isWithinMarkdownLimit,
   markdownManager,
+  noteCaptureSavedMessage,
   prepareMarkdownDocument,
   prepareNoteCapture,
 } from "../markdownDocument";
@@ -132,6 +133,18 @@ describe("Markdown compatibility", () => {
       content: source,
       type: "text",
     });
+  });
+  // Bug 29: the composer said "Note saved" for links, quotes and palettes.
+  test.each([
+    ["https://example.com", "Link saved"],
+    ["Read this https://example.com later", "Link saved"],
+    ["[https://example.com](https://example.com)", "Link saved"],
+    ["**Bold** https://example.com", "Saved"],
+    ["Plain text", "Saved"],
+    ["#ff0000 #00ff00", "Saved"],
+    ['"To be or not to be"', "Saved"],
+  ])("tells what saving %p made", (source, message) => {
+    expect(noteCaptureSavedMessage(prepareNoteCapture(source))).toBe(message);
   });
 });
 

@@ -232,4 +232,10 @@ describe("folder bulk actions", () => {
       "Moved 2 cards to Later. 1 couldn't be changed."
     );
   });
+
+  test("toasts shorten a very long folder name", () => {
+    const message = bulkActionCopy.done("addToFolder", 1, "M".repeat(300));
+    expect(message.length).toBeLessThan(60);
+    expect(message.endsWith("…")).toBe(true);
+  });
 });

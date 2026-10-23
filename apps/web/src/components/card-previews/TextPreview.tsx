@@ -26,6 +26,8 @@ interface TextPreviewProps {
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
   onSaveShortcut?: () => void;
+  /** Shows the note without letting it change, as for a card in Trash. */
+  readOnly?: boolean;
 }
 
 export function TextPreview({
@@ -34,6 +36,7 @@ export function TextPreview({
   onContentChange,
   getCurrentValue,
   onSaveShortcut,
+  readOnly = false,
 }: TextPreviewProps) {
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
@@ -46,6 +49,8 @@ export function TextPreview({
   } = useFocusMode(currentContent || "");
   const isFocusOpenRef = useRef(false);
   isFocusOpenRef.current = isFocusOpen;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const focusButtonRef = useRef<HTMLButtonElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +68,7 @@ export function TextPreview({
         event.defaultPrevented ||
         event.isComposing ||
         isFocusOpenRef.current ||
+        readOnlyRef.current ||
         !isFocusNoteKey(event) ||
         document.querySelector("[role='menu'][data-state='open']") ||
         !isInOwnDialog(event.target)
@@ -78,30 +84,33 @@ export function TextPreview({
 
   return (
     <div className="group/text-preview relative h-full" ref={wrapperRef}>
-      <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus" side="left">
-        <Button
-          aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
-          aria-label="Focus"
-          className="absolute top-2 right-2 z-10 size-8 text-muted-foreground"
-          onClick={openFocus}
-          ref={focusButtonRef}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <Maximize2 className="size-4" />
-        </Button>
-      </ShortcutTooltip>
+      {readOnly ? null : (
+        <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus" side="left">
+          <Button
+            aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
+            aria-label="Focus"
+            className="absolute top-2 right-2 z-10 size-8 text-muted-foreground"
+            onClick={openFocus}
+            ref={focusButtonRef}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <Maximize2 className="size-4" />
+          </Button>
+        </ShortcutTooltip>
+      )}
       <MarkdownTextEditor
         ariaLabel="Markdown content"
         cardLinks={cardLinks}
         className="h-full"
+        disabled={readOnly}
         minHeight="55vh"
         onChange={onContentChange}
         onLimitExceeded={() =>
           toast.error("Notes can be up to 512 KiB of UTF-8 text")
         }
-        onOpenFullScreen={openFocus}
+        onOpenFullScreen={readOnly ? undefined : openFocus}
         onSaveShortcut={onSaveShortcut}
         placeholder="Write a note..."
         value={inlineEditorValue}

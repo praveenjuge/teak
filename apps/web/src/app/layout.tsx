@@ -32,7 +32,8 @@ const snProItalic = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Teak",
+  // Routes set their own name ("Settings" becomes "Settings · Teak").
+  title: { default: "Teak", template: "%s · Teak" },
   description:
     "Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations",
   openGraph: {

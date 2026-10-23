@@ -65,6 +65,14 @@ describe("Card keyboard access", () => {
     expect(document.activeElement).toBe(card);
   });
 
+  // Bug 01: the editor saves `<`, `>` and `&` as entities.
+  test("is named after its text as typed, not its entities", async () => {
+    const card = await renderCard({
+      card: textCard({ content: "3 &lt; 5 &amp; &gt; quote" }),
+    });
+    expect(card.getAttribute("aria-label")).toBe("Text: 3 < 5 & > quote");
+  });
+
   test.each(["Enter", " "])("opens with the %p key", async (key) => {
     const onClick = mock();
     const card = await renderCard({ onClick });
@@ -105,6 +113,28 @@ describe("Card keyboard access", () => {
       );
     }
   );
+
+  // Bug 19: Copy text copied the raw `[[Title|teak:<id>]]` token.
+  test("copies a card link in the note as its title", async () => {
+    const onCopyImage = mock();
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() =>
+      root?.render(
+        <Card
+          card={textCard({
+            content:
+              "See [[Garden plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]] first",
+          })}
+          onCopyImage={onCopyImage}
+        />
+      )
+    );
+    const card = container.querySelector<HTMLElement>('[role="button"]');
+    await pressCopy(card as HTMLElement, "metaKey");
+    expect(onCopyImage).toHaveBeenCalledWith("See Garden plan first", false);
+  });
 
   test("leaves Cmd+C to the browser while text is selected", async () => {
     const onCopyImage = mock();

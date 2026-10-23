@@ -11,12 +11,15 @@ interface QuotePreviewProps {
   card: CardWithUrls;
   getCurrentValue?: GetCurrentValue;
   onContentChange: (content: string) => void;
+  /** Shows the quote without letting it change, as for a card in Trash. */
+  readOnly?: boolean;
 }
 
 export function QuotePreview({
   card,
   onContentChange,
   getCurrentValue,
+  readOnly = false,
 }: QuotePreviewProps) {
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
@@ -39,6 +42,7 @@ export function QuotePreview({
             onContentChange(newContent);
           }}
           placeholder="Enter your quote..."
+          readOnly={readOnly}
           value={currentContent || ""}
         />
 

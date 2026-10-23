@@ -29,7 +29,10 @@ import {
   ShortcutKeys,
   ShortcutTooltip,
 } from "../shortcuts/ShortcutTooltip";
-import { prepareNoteCapture } from "../text-editor/noteCapture";
+import {
+  noteCaptureSavedMessage,
+  prepareNoteCapture,
+} from "../text-editor/noteCapture";
 import { useFocusMode } from "../text-editor/useFocusMode";
 
 function getCardErrorCode(err: unknown): string | null {
@@ -201,7 +204,7 @@ export function AddCardForm({
 
     resetDraft();
 
-    const toastId = toast.loading("Saving note...");
+    const toastId = toast.loading("Saving…");
     captureEvent("card_create_submitted", {
       card_type: "text",
       source: "web",
@@ -209,13 +212,11 @@ export function AddCardForm({
     });
 
     try {
-      await createCard({
-        ...prepareNoteCapture(submittedContent),
-        source: "web",
-      });
+      const capture = prepareNoteCapture(submittedContent);
+      await createCard({ ...capture, source: "web" });
 
       onSuccess?.();
-      toast.success("Note saved", { id: toastId });
+      toast.success(noteCaptureSavedMessage(capture), { id: toastId });
       return true;
     } catch (error) {
       console.error("Failed to create card:", error);

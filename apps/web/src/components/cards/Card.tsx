@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
@@ -89,6 +90,19 @@ export async function resolveImageCopyUrl({
     key: fileKey,
   });
   return url;
+}
+
+/**
+ * What Copy copies from a note or a link: a note's Markdown with its
+ * `[[Title|teak:<id>]]` links as their titles, or a link's URL.
+ */
+export function cardCopyText(
+  card: Pick<CardWithUrls, "content" | "type" | "url">
+): string {
+  if (card.type === "text") {
+    return cardLinkTokensToText(card.content ?? "");
+  }
+  return card.type === "link" ? (card.url ?? "") : "";
 }
 
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
@@ -287,10 +301,8 @@ export const Card = memo(function Card({
         toast.error("Failed to copy image");
         return;
       }
-    } else if (card.type === "text") {
-      contentToCopy = card.content ?? "";
-    } else if (card.type === "link" && card.url) {
-      contentToCopy = card.url;
+    } else {
+      contentToCopy = cardCopyText(card);
     }
     if (contentToCopy) {
       onCopyImage?.(contentToCopy, isImage);
@@ -333,14 +345,14 @@ export const Card = memo(function Card({
   };
 
   const copyLinkOrImageLabel =
-    card.type === "link" ? "Copy Link" : "Copy Image";
+    card.type === "link" ? "Copy link" : "Copy image";
   const copyMenuLabel =
-    card.type === "text" ? "Copy Text" : copyLinkOrImageLabel;
+    card.type === "text" ? "Copy text" : copyLinkOrImageLabel;
 
   const shortcuts = focusedCardShortcuts(Boolean(isSelectionMode));
   const menuItems: CardMenuEntry[] = [
-    ...(card.url
-      ? [{ icon: ExternalLink, label: "Open Link", onSelect: openLink }]
+    ...(card.url && !card.isDeleted
+      ? [{ icon: ExternalLink, label: "Open link", onSelect: openLink }]
       : []),
     ...(canCopy
       ? [
@@ -380,7 +392,7 @@ export const Card = memo(function Card({
               },
           {
             icon: Tag,
-            label: "Add Tags",
+            label: "Add tags…",
             onSelect: handleAddTags,
             shortcut: shortcuts.addTags,
           },

@@ -13,7 +13,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -39,6 +39,8 @@ import {
   SidebarMenuSkeleton,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { UNDO_TOAST_DURATION_MS } from "@/constants/toast";
+import { clipFolderName } from "@/lib/clipFolderName";
 import { useFolders } from "../../hooks/useFolders";
 import { bulkActionCopy } from "../../lib/bulkCardActions";
 import {
@@ -140,7 +142,9 @@ export function SidebarFolders({
       } else if (result.failedIds.length > 0) {
         toast.error(bulkActionCopy.failed("addToFolder"));
       } else {
-        toast.success(bulkActionCopy.done("addToFolder", 1, folder.name));
+        toast.success(
+          bulkActionCopy.done("addToFolder", 1, clipFolderName(folder.name))
+        );
       }
     } catch (error) {
       toast.error(
@@ -168,22 +172,39 @@ export function SidebarFolders({
     );
   };
 
-  const remove = async (folder: FolderSummary) => {
-    const wasActive = folder._id === activeFolderId;
+  const deleteNow = async (folder: FolderSummary) => {
     try {
       await deleteFolder({ folderId: folder._id });
     } catch (error) {
       toast.error(folderErrorMessage(error, "Couldn't delete the folder"));
       return;
     }
-    if (wasActive) {
-      onActiveFolderDeleted?.();
-    }
-    toast.success(`Deleted “${folder.name}”`, {
+    toast.success(`Deleted “${clipFolderName(folder.name)}”`, {
       description: "Its cards are still in your library.",
+      duration: UNDO_TOAST_DURATION_MS,
       id: `folder-delete-${folder._id}`,
       action: { label: "Undo", onClick: () => restore(folder) },
     });
+  };
+
+  // The folder open on screen is deleted only once the page has left it, so
+  // it never shows "Folder not found" on the way out.
+  const leftFolderRef = useRef<FolderSummary | null>(null);
+  useEffect(() => {
+    const leftFolder = leftFolderRef.current;
+    if (leftFolder && leftFolder._id !== activeFolderId) {
+      leftFolderRef.current = null;
+      deleteNow(leftFolder).catch(() => undefined);
+    }
+  });
+
+  const remove = async (folder: FolderSummary) => {
+    if (folder._id === activeFolderId && onActiveFolderDeleted) {
+      leftFolderRef.current = folder;
+      onActiveFolderDeleted();
+      return;
+    }
+    await deleteNow(folder);
   };
 
   const openCreate = () => setIsCreating(true);

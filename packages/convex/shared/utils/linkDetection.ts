@@ -25,6 +25,41 @@ function unescapeMarkdownUrl(candidate: string): string {
     );
 }
 
+const TRAILING_PUNCTUATION = new Set([".", ",", ";", ":", "!", "?", "'", '"']);
+const OPENING_BRACKET: Record<string, string> = {
+  ")": "(",
+  "]": "[",
+  "}": "{",
+  ">": "<",
+};
+
+const count = (text: string, character: string) =>
+  text.split(character).length - 1;
+
+/**
+ * A URL written inside a sentence, less the punctuation that ends the
+ * sentence or closes a bracket around it: `(https://x.com/a).` is
+ * `https://x.com/a`. A closing bracket the URL opened stays, as in
+ * `https://en.wikipedia.org/wiki/Teak_(wood)`.
+ */
+export function trimTrailingUrlPunctuation(url: string): string {
+  let end = url.length;
+  while (end > 0) {
+    const last = url[end - 1];
+    const opening = OPENING_BRACKET[last];
+    const head = url.slice(0, end);
+    if (
+      TRAILING_PUNCTUATION.has(last) ||
+      (opening && count(head, last) > count(head, opening))
+    ) {
+      end -= 1;
+    } else {
+      break;
+    }
+  }
+  return url.slice(0, end);
+}
+
 function isValidHttpUrl(candidate: string): boolean {
   try {
     const parsed = new URL(candidate);
@@ -55,7 +90,7 @@ export function extractUrlFromContent(content: string): LinkExtractionResult {
 
   const urlMatch = trimmedContent.match(URL_INLINE_PATTERN);
   if (urlMatch?.[1]) {
-    const url = unescapeMarkdownUrl(urlMatch[1]);
+    const url = trimTrailingUrlPunctuation(unescapeMarkdownUrl(urlMatch[1]));
     if (isValidHttpUrl(url)) {
       return {
         url,

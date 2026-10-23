@@ -146,7 +146,10 @@ export function useSettingsController({
   };
 
   const handleCreateApiKey = async () =>
-    (await createKey({ name: "Default API key" })) as { key: string };
+    (await createKey({ name: "Default API key" })) as {
+      id: string;
+      key: string;
+    };
 
   const handleRevokeApiKey = async (keyId: string) => {
     await revokeKey({ keyId });
@@ -156,7 +159,7 @@ export function useSettingsController({
     (await revokeAllKeys({})) as { hasMore: boolean; revokedCount: number };
 
   const handleRotateApiKey = async (keyId: string) =>
-    (await rotateKey({ keyId })) as { key: string };
+    (await rotateKey({ keyId })) as { id: string; key: string };
 
   const handleRevokeOAuthConnection = async (target: ConnectionTarget) => {
     if (

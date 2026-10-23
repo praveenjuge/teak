@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
-import type { ApiKeyListItem } from "./ApiKeysDialog";
+import type { ApiKeyListItem, CreatedApiKey } from "./ApiKeysDialog";
 import { CustomerPortalButton } from "./CustomerPortalButton";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import type { ExportState } from "./ExportPanel";
@@ -29,6 +29,10 @@ import { ThemeToggle } from "./ThemeToggle";
 
 const LOADED_VALUE = "fade-in-0 animate-in duration-300";
 const LOADED_GROUP = `${LOADED_VALUE} flex items-center gap-2 -space-x-2.5`;
+// A read-only value: plain text, padded like the row's link buttons. Long
+// values (an email address) wrap instead of running under the row's title.
+const SETTING_TEXT =
+  "min-w-0 px-3 text-right text-muted-foreground text-sm [overflow-wrap:anywhere]";
 
 interface SettingsContentProps {
   accountLoading: boolean;
@@ -46,7 +50,7 @@ interface SettingsContentProps {
   inboundEmail?: InboundEmailPanelProps;
   keys: ApiKeyListItem[] | undefined;
   onCancelExport: (jobId: string) => Promise<void>;
-  onCreateApiKey: () => Promise<{ key: string }>;
+  onCreateApiKey: () => Promise<CreatedApiKey>;
   onCreateCustomerPortal: () => Promise<void>;
   onDeleteAccount: () => Promise<void>;
   onDeleteDialogOpenChange: (open: boolean) => void;
@@ -57,7 +61,7 @@ interface SettingsContentProps {
   onRevokeApiKey: (keyId: string) => Promise<void>;
   onRevokeOAuthConnection: (target: ConnectionTarget) => Promise<void>;
   onRevokeSession: (sessionId: string, current: boolean) => Promise<void>;
-  onRotateApiKey: (keyId: string) => Promise<{ key: string }>;
+  onRotateApiKey: (keyId: string) => Promise<CreatedApiKey>;
   onSignOut: () => Promise<void> | void;
   onStartExport: () => Promise<void>;
   onThemeChange?: (value: string) => void;
@@ -112,6 +116,7 @@ export function SettingsContent({
     <span className={LOADED_GROUP}>
       <Badge>Pro</Badge>
       <CustomerPortalButton
+        aria-label="Manage subscription"
         className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
         onCreatePortal={onCreateCustomerPortal}
       >
@@ -134,9 +139,9 @@ export function SettingsContent({
         {accountLoading ? (
           <SettingValueSkeleton className="w-44" />
         ) : (
-          <Button className={LOADED_VALUE} disabled size="sm" variant="ghost">
+          <span className={`${LOADED_VALUE} ${SETTING_TEXT}`}>
             {email ?? "Not available"}
-          </Button>
+          </span>
         )}
       </SettingRow>
 
@@ -144,9 +149,9 @@ export function SettingsContent({
         {accountLoading ? (
           <SettingValueSkeleton className="w-16" />
         ) : (
-          <Button className={LOADED_VALUE} disabled size="sm" variant="ghost">
+          <span className={`${LOADED_VALUE} ${SETTING_TEXT}`}>
             {`${cardCount} Cards`}
-          </Button>
+          </span>
         )}
       </SettingRow>
 

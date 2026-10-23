@@ -242,6 +242,10 @@ export async function verifyWorkosConsentJourney(
     await expect(apiRow).toBeVisible();
     await expect(mcpRow).toBeVisible();
     await apiRow.getByRole("button", "Disconnect", { exact: false }).click();
+    await surface.screen
+      .getByRole("alertdialog")
+      .getByRole("button", "Disconnect")
+      .click();
     await expect(apiRow).toHaveCount(0);
     expect((await apiFetch("/v1/tags", apiGrant.accessToken)).status).toBe(401);
     const deniedRefresh = await refresh(provider, apiGrant);
@@ -251,6 +255,10 @@ export async function verifyWorkosConsentJourney(
     await expect(mcpRow).toBeVisible();
     expect((await mcp.listTools()).tools.length).toBeGreaterThan(0);
     await mcpRow.getByRole("button", "Disconnect", { exact: false }).click();
+    await surface.screen
+      .getByRole("alertdialog")
+      .getByRole("button", "Disconnect")
+      .click();
     await expect(mcpRow).toHaveCount(0);
     expect(await rejectionOf(mcp.listTools())).toMatch(/401|unauthorized/i);
     const deniedMcpRefresh = await refresh(provider, mcpGrant);

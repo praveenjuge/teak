@@ -1291,6 +1291,17 @@ describe("generating metadata", () => {
   });
 
   describe("quotes and palettes", () => {
+    test.each(["text", "quote"])(
+      "an empty %s card gets no made-up summary or tags",
+      async (cardType) => {
+        const { generate, saved } = setup({ content: "  \n " });
+        expect((await generate(cardType)).mode).toBe("skipped");
+        expect(aiPrompts).toEqual([]);
+        expect(saved()).toMatchObject({ aiTags: [] });
+        expect(saved()?.aiSummary).toBeUndefined();
+      }
+    );
+
     test("a quote is described from its text", async () => {
       const { generate } = setup({ content: "  To be or not to be  " });
       expect((await generate("quote")).confidence).toBe(0.95);

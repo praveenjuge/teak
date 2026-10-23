@@ -7,6 +7,11 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const notices: string[] = [];
+mock.module("sonner", () => ({
+  toast: (message: string) => notices.push(message),
+}));
+
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { useLeaveGuard } = await import("../useLeaveGuard");
@@ -16,16 +21,23 @@ let root: Root | undefined;
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
+  notices.length = 0;
 });
 
 async function renderGuard(
   saveChanges: (options: { silent: boolean }) => Promise<boolean>,
   hasUnsavedChanges = true,
-  cardId = "card_a"
+  cardId = "card_a",
+  discardNotice: string | null = null
 ) {
   let guard = {} as ReturnType<typeof useLeaveGuard>;
   function Harness() {
-    guard = useLeaveGuard({ cardId, hasUnsavedChanges, saveChanges });
+    guard = useLeaveGuard({
+      cardId,
+      discardNotice,
+      hasUnsavedChanges,
+      saveChanges,
+    });
     return null;
   }
   root ??= createRoot(document.createElement("div"));
@@ -86,4 +98,18 @@ test("a failed save on one card doesn't let the next card leave unsaved", async 
   const second = await renderGuard(save, true, "card_b");
   expect(await leave(second)).toBe(false);
   expect(save).toHaveBeenCalledTimes(2);
+});
+
+test("leaving an emptied note says it isn't saved", async () => {
+  const save = mock(() => Promise.resolve(true));
+  const guard = await renderGuard(save, false, "card_a", "Not saved");
+  expect(await leave(guard)).toBe(true);
+  expect(notices).toEqual(["Not saved"]);
+});
+
+test("a leave that fails to save says nothing about the note yet", async () => {
+  const save = mock(() => Promise.resolve(false));
+  const guard = await renderGuard(save, true, "card_a", "Not saved");
+  expect(await leave(guard)).toBe(false);
+  expect(notices).toEqual([]);
 });

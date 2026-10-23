@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { markdownToPlainText } from "../../../lib/markdownToPlainText";
+import {
+  linkNoteText,
+  markdownToPlainText,
+} from "../../../lib/markdownToPlainText";
 
 describe("markdownToPlainText", () => {
   test("returns an empty string for empty input", () => {
@@ -117,5 +120,105 @@ describe("markdownToPlainText", () => {
     });
     expect(preview).not.toContain("teak:");
     expect(preview).toMatch(/^a( a)+$/);
+  });
+
+  // The editor saves `<`, `>` and `&` as entities (bug 01).
+  test.each([
+    ["math: 3 &lt; 5 &amp; 7 &gt; 2", "math: 3 < 5 & 7 > 2"],
+    ["&lt;b&gt;not bold&lt;/b&gt;", "<b>not bold</b>"],
+    ["&gt; words of wisdom", "> words of wisdom"],
+    ["Tom &amp; Jerry", "Tom & Jerry"],
+    ["&#60;tag&#62; and &#x3C;hex&#x3E;", "<tag> and <hex>"],
+    ["&quot;hi&quot; &apos;there&apos;", "\"hi\" 'there'"],
+    ["wait&hellip; &mdash; &copy; &rsquo;", "wait… — © ’"],
+    ["&#0; and &#xD800;", "\uFFFD and \uFFFD"],
+  ])("decodes entities in %p", (input, expected) => {
+    expect(markdownToPlainText(input)).toBe(expected);
+  });
+
+  test("decodes each entity once, so an escaped entity reads as typed", () => {
+    expect(markdownToPlainText("&amp;lt; is how you write &amp;amp;")).toBe(
+      "&lt; is how you write &amp;"
+    );
+  });
+
+  test("keeps decoded characters out of Markdown rules", () => {
+    expect(markdownToPlainText("&#42;&#42;kept&#42;&#42; &#35; too")).toBe(
+      "**kept** # too"
+    );
+  });
+
+  test("leaves unknown names and entities inside code as written", () => {
+    expect(markdownToPlainText("&bogus; and `&lt;tag&gt;`")).toBe(
+      "&bogus; and &lt;tag&gt;"
+    );
+  });
+
+  test("never shows half an entity the length cut splits", () => {
+    const preview = markdownToPlainText(`${"&lt;".repeat(20)}x`, {
+      maxLength: 5,
+    });
+    expect(preview).toBe("<<<<<");
+  });
+});
+
+// Bug 17: the words typed around a URL were saved but never shown.
+test("never ends a preview on half of an emoji", () => {
+  expect(markdownToPlainText("&#128512;", { maxLength: 1 })).toBe("");
+  expect(markdownToPlainText("a&#128512;", { maxLength: 2 })).toBe("a");
+  expect(markdownToPlainText("&#128512;", { maxLength: 2 })).toBe("😀");
+});
+
+describe("linkNoteText", () => {
+  test.each([
+    ["Read this https://x.com/a later", "Read this later"],
+    ["See (https://x.com/a).", "See."],
+    ["Check this: https://example.com.", "Check this."],
+    ["https://x.com/a great thread on teak", "great thread on teak"],
+    [
+      "Read https://en.wikipedia.org/wiki/Tectona\\_grandis?a=1&amp;b=2 &amp; enjoy",
+      "Read & enjoy",
+    ],
+    ["**Must** read https://x.com/a", "Must read"],
+  ])("shows the words of %p without the URL", (content, expected) => {
+    expect(linkNoteText(content)).toBe(expected);
+  });
+
+  test.each([
+    ["", "no note"],
+    ["https://x.com/a", "only the URL"],
+    ["  https://x.com/a.  ", "the URL and a period"],
+    ["[https://x.com/a](https://x.com/a)", "a self link"],
+    ["(https://x.com/a)", "the URL in brackets"],
+  ])("shows nothing for %p (%s)", (content) => {
+    expect(linkNoteText(content)).toBeUndefined();
+  });
+
+  test("shows nothing when the note repeats the link's title", () => {
+    expect(
+      linkNoteText("Teak - Wikipedia", { title: "Teak - Wikipedia" })
+    ).toBeUndefined();
+    expect(
+      linkNoteText("teak  -  wikipedia", { title: "Teak - Wikipedia" })
+    ).toBeUndefined();
+    expect(linkNoteText("Teak for decks", { title: "Teak - Wikipedia" })).toBe(
+      "Teak for decks"
+    );
+  });
+
+  test("keeps a note of only emoji", () => {
+    expect(linkNoteText("🔥 https://example.com")).toBe("🔥");
+  });
+
+  test("keeps a note after a URL longer than the note's limit", () => {
+    const url = `https://example.com/?${"t".repeat(600)}`;
+    expect(linkNoteText(`${url} remember this`, { maxLength: 500 })).toBe(
+      "remember this"
+    );
+  });
+
+  test("keeps a short note that only appears inside the title", () => {
+    expect(linkNoteText("work", { title: "Network effects" })).toBe("work");
+    expect(linkNoteText("Teak", { title: "Teak - Wikipedia" })).toBe("Teak");
   });
 });

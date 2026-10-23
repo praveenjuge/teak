@@ -177,3 +177,7 @@ describe("SearchBar View menu", () => {
     );
   });
 });
+
+test("the search box takes no more than the URL and search backend keep", () => {
+  expect(renderSearchBar()).toContain('maxLength="500"');
+});

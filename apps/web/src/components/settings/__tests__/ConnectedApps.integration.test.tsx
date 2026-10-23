@@ -128,6 +128,25 @@ async function click(name: string, parent?: Element) {
     await Promise.resolve();
   });
 }
+function confirmation() {
+  const dialog = document.querySelector('[role="alertdialog"]');
+  if (!dialog) {
+    throw new Error("No confirmation is open");
+  }
+  return dialog;
+}
+// Disconnect and Sign out ask first; press the confirmation's own button.
+async function clickAndConfirm(name: string, confirmLabel: string) {
+  await click(name);
+  const button = [...confirmation().querySelectorAll("button")].find(
+    (element) => element.textContent?.trim() === confirmLabel
+  );
+  expect(button).toBeDefined();
+  await act(async () => {
+    button?.click();
+    await Promise.resolve();
+  });
+}
 
 test("cached app retry retains devices and pages separate same-client grants", async () => {
   await mount();
@@ -178,7 +197,11 @@ test("cached app retry retains devices and pages separate same-client grants", a
     failDisconnect = reject;
   });
   transport.onCall(() => rejectedDisconnect);
+  const callsBeforeAsking = transport.calls.length;
   await click("Disconnect Raycast");
+  expect(confirmation().textContent).toContain("Disconnect Raycast?");
+  expect(transport.calls).toHaveLength(callsBeforeAsking);
+  await clickAndConfirm("Disconnect Raycast", "Disconnect");
   expect(buttons("Disconnect Raycast")[0].disabled).toBe(true);
   await act(async () => {
     failDisconnect(new Error("Mutation outage"));
@@ -189,7 +212,7 @@ test("cached app retry retains devices and pages separate same-client grants", a
   transport.onCall(async (call) =>
     call.path === "securitySessions:listAuthkitSessions" ? page([]) : null
   );
-  await click("Disconnect Raycast");
+  await clickAndConfirm("Disconnect Raycast", "Disconnect");
   expect(transport.calls.at(-1)).toEqual({
     kind: "action",
     path: "workosConsents:disconnectConnection",
@@ -222,7 +245,7 @@ test("an account switch discards pending disconnect UI and rejects a stale callb
         })
       : page([])
   );
-  await click("Disconnect Raycast");
+  await clickAndConfirm("Disconnect Raycast", "Disconnect");
   await act(() => transport.reply("auth:getCurrentUser", { _id: "B" }));
   expect(region("Connected apps").textContent).not.toContain("Raycast");
   expect(region("Connected apps").textContent).toContain("Loading apps");
@@ -255,4 +278,26 @@ test("an account switch discards pending disconnect UI and rejects a stale callb
     "account changed"
   );
   expect(transport.calls).toHaveLength(returnedAccountCalls);
+});
+
+test("devices show their sign-in time, and Sign out asks before it acts", async () => {
+  await mount();
+  const devices = region("Devices");
+  expect(devices.textContent).toMatch(/Signed in .*\d{1,2}:\d{2}/);
+  const before = transport.calls.length;
+  await click("Sign out Current device (this device)", devices);
+  expect(confirmation().textContent).toContain("Sign out of this device?");
+  expect(transport.calls).toHaveLength(before);
+  const cancel = [...confirmation().querySelectorAll("button")].find(
+    (element) => element.textContent?.trim() === "Cancel"
+  );
+  await act(async () => {
+    cancel?.click();
+    await Promise.resolve();
+  });
+  expect(
+    transport.calls.some(
+      (call) => call.path === "securitySessions:revokeAuthkitSession"
+    )
+  ).toBe(false);
 });

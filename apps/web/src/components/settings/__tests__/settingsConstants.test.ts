@@ -6,4 +6,10 @@ describe("settings constants", () => {
     expect(PRO_FEATURES).toContain("Browser Extensions");
     expect(PRO_FEATURES).not.toContain("Chrome Extension");
   });
+
+  test("lists the Android app alongside the Apple apps", () => {
+    const apps = PRO_FEATURES.find((feature) => feature.includes("App"));
+    expect(apps).toContain("Android");
+    expect(apps).toContain("iOS");
+  });
 });

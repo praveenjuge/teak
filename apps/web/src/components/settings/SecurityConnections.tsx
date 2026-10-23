@@ -6,6 +6,7 @@ import { useState } from "react";
 import { usePaginatedQuery } from "../../lib/convexQueryHooks";
 import { RetryableQueryBoundary } from "../feedback/RetryableQueryBoundary";
 import { Button } from "../ui/button";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Spinner } from "../ui/spinner";
 import {
   SettingsEmptyState,
@@ -45,14 +46,56 @@ export interface SecurityConnectionsProps {
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
 });
+// Devices often share a browser name; the sign-in time tells them apart.
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+interface ConnectionConfirm {
+  confirmLabel: string;
+  description: string;
+  title: string;
+}
+
 interface ConnectionRow {
   action: () => Promise<void>;
+  confirm: ConnectionConfirm;
   current?: boolean;
   date: number;
   detail: string;
   id: string;
   lastUsedAt?: number;
   name: string;
+  showTime?: boolean;
+}
+
+/** What signing out a device asks before it acts. */
+export function deviceSignOutConfirm(session: {
+  current: boolean;
+  name: string;
+  signedInAt: number;
+}): ConnectionConfirm {
+  return session.current
+    ? {
+        title: "Sign out of this device?",
+        description: `You’ll be signed out of Teak in this browser (${session.name}) and need to sign in again.`,
+        confirmLabel: "Sign out",
+      }
+    : {
+        title: `Sign out ${session.name}?`,
+        description: `The ${session.name} session that signed in ${dateTimeFormatter.format(session.signedInAt)} is signed out of Teak and needs to sign in again.`,
+        confirmLabel: "Sign out",
+      };
+}
+
+/** What disconnecting an app asks before it acts. */
+export function appDisconnectConfirm(name: string): ConnectionConfirm {
+  return {
+    title: `Disconnect ${name}?`,
+    description: `${name} loses access to your Teak library on every installation until you connect it again.`,
+    confirmLabel: "Disconnect",
+  };
 }
 
 function ConnectionList({
@@ -66,6 +109,8 @@ function ConnectionList({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<ConnectionRow | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const revoke = async (row: ConnectionRow) => {
     setBusy(row.id);
     setError(null);
@@ -96,8 +141,10 @@ function ConnectionList({
           >
             <SettingsIconTile icon={icon(row)} />
             <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <p className="truncate font-medium text-sm">{row.name}</p>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="min-w-0 truncate font-medium text-sm">
+                  {row.name}
+                </p>
                 {row.current ? (
                   <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium text-[11px] text-muted-foreground leading-4">
                     <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -106,7 +153,10 @@ function ConnectionList({
                 ) : null}
               </div>
               <p className="text-muted-foreground text-xs leading-5">
-                {row.detail} {dateFormatter.format(row.date)}
+                {row.detail}{" "}
+                {(row.showTime ? dateTimeFormatter : dateFormatter).format(
+                  row.date
+                )}
                 {row.lastUsedAt
                   ? ` · Last used ${dateFormatter.format(row.lastUsedAt)}`
                   : null}
@@ -116,7 +166,10 @@ function ConnectionList({
               aria-label={`${verb} ${row.name}${row.current ? " (this device)" : ""}`}
               className="text-muted-foreground hover:text-foreground"
               disabled={busy !== null}
-              onClick={() => void revoke(row)}
+              onClick={() => {
+                setPending(row);
+                setConfirmOpen(true);
+              }}
               size="sm"
               variant="ghost"
             >
@@ -125,6 +178,14 @@ function ConnectionList({
           </li>
         ))}
       </SettingsList>
+      {pending ? (
+        <ConfirmDialog
+          {...pending.confirm}
+          onConfirm={() => void revoke(pending)}
+          onOpenChange={setConfirmOpen}
+          open={confirmOpen}
+        />
+      ) : null}
     </>
   );
 }
@@ -164,6 +225,8 @@ function DeviceList(props: SecurityConnectionsProps) {
     date: session.signedInAt,
     current: session.current,
     detail: "Signed in",
+    showTime: true,
+    confirm: deviceSignOutConfirm(session),
     action: () => props.onRevokeSession(session.id, session.current),
   }));
   return (
@@ -210,6 +273,7 @@ function WorkosApps({
     date: connection.connectedAt,
     detail: "Connected",
     lastUsedAt: connection.lastUsedAt,
+    confirm: appDisconnectConfirm(connection.name),
     action: () => onRevokeConnection({ consentId: connection.consentId }),
   }));
   return (

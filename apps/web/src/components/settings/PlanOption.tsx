@@ -62,7 +62,7 @@ export function PlanOption({
         <span className="text-muted-foreground text-sm">{intervalLabel}</span>
       </span>
       {badge ? (
-        <span className="w-fit rounded-md bg-primary/10 px-2 py-0.5 font-medium text-[11px] text-primary leading-4 sm:rounded-full sm:text-xs">
+        <span className="w-fit rounded-md bg-primary px-2 py-0.5 font-medium text-[11px] text-primary-foreground leading-4 sm:rounded-full sm:text-xs">
           {badge}
         </span>
       ) : null}

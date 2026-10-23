@@ -1,3 +1,4 @@
+import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
@@ -102,7 +103,7 @@ import {
 import { cardModalKeyAction } from "./cardModalKeys";
 import type { CardModalCard, GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
-import { useLeaveGuard } from "./useLeaveGuard";
+import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
 import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
@@ -133,6 +134,7 @@ function CardPreview({
           getCurrentValue={getCurrentValue}
           onContentChange={updateContent}
           onSaveShortcut={saveChanges}
+          readOnly={Boolean(card.isDeleted)}
         />
       );
     case "quote":
@@ -141,6 +143,7 @@ function CardPreview({
           card={card}
           getCurrentValue={getCurrentValue}
           onContentChange={updateContent}
+          readOnly={Boolean(card.isDeleted)}
         />
       );
     case "link":
@@ -373,12 +376,17 @@ export function CardModal({
     }
   };
 
+  const discardNotice = emptiedContentNotice(card, getCurrentValue);
   const { noteEdit, readyToLeave } = useLeaveGuard({
     cardId,
+    discardNotice,
     hasUnsavedChanges,
     saveChanges,
   });
   const editContent = (value: string) => {
+    if (card?.isDeleted) {
+      return;
+    }
     noteEdit();
     updateContent(value);
   };
@@ -397,9 +405,13 @@ export function CardModal({
     }
   };
 
-  const closeAfterAction = async () => {
+  /** `keepsCard`: the action leaves the card in place, like Archive. */
+  const closeAfterAction = async ({ keepsCard = false } = {}) => {
     if (hasUnsavedChanges) {
       await saveChanges({ silent: true });
+    }
+    if (keepsCard && discardNotice) {
+      toast(discardNotice, { id: EMPTY_CONTENT_TOAST_ID });
     }
     onCancel?.();
   };
@@ -445,9 +457,10 @@ export function CardModal({
   const canDownload = Boolean(
     card?.fileKey && ["document", "audio", "video", "image"].includes(card.type)
   );
+  // `[[` links copy as their titles, not the stored `[[Title|teak:id]]`.
   const copyableText =
     card?.type === "text" || card?.type === "quote"
-      ? (getCurrentValue("content") ?? "")
+      ? cardLinkTokensToText(getCurrentValue("content") ?? "")
       : "";
   const canToggleDone = Boolean(
     toggleDone && card?.type === "link" && !isDeleted
@@ -461,7 +474,7 @@ export function CardModal({
   const archive = () => {
     if (toggleArchive && !isDeleted) {
       toggleArchive();
-      void closeAfterAction();
+      void closeAfterAction({ keepsCard: true });
     }
   };
 
@@ -489,6 +502,24 @@ export function CardModal({
       return;
     }
     (field === "notes" ? notesRef : tagInputRef).current?.focus();
+  };
+
+  // Add to folder opens once the menu has closed. Opened at once, the
+  // closing menu took focus back from it and then unmounted, leaving focus
+  // on the page, so every card key went dead after the dialog closed.
+  const foldersAfterMenu = useRef<boolean>(false);
+  const openFoldersFromMenu = () => {
+    foldersAfterMenu.current = true;
+  };
+  const onMenuCloseAutoFocus = (event: Event) => {
+    if (!foldersAfterMenu.current) {
+      return;
+    }
+    foldersAfterMenu.current = false;
+    event.preventDefault();
+    // The dialog gives focus back to what had it when it opened: the card.
+    contentRef.current?.focus();
+    setIsFoldersOpen(true);
   };
 
   const asideRef = useRef<HTMLElement>(null);
@@ -651,7 +682,11 @@ export function CardModal({
           <MoreHorizontal />
         </HeaderIconButton>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
+      <DropdownMenuContent
+        align="end"
+        className="w-60"
+        onCloseAutoFocus={onMenuCloseAutoFocus}
+      >
         {isDeleted ? null : (
           <DropdownMenuGroup>
             <DropdownMenuItem
@@ -676,7 +711,7 @@ export function CardModal({
                 </DropdownMenuShortcut>
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem onClick={() => setIsFoldersOpen(true)}>
+            <DropdownMenuItem onClick={openFoldersFromMenu}>
               <FolderPlus />
               Add to folder…
             </DropdownMenuItem>
@@ -1193,6 +1228,27 @@ export function CardModal({
       />
     </>
   );
+}
+
+/**
+ * What to say when a note or quote is left emptied: an empty one isn't
+ * saved (the composer won't make one either), so it keeps its last text.
+ */
+export function emptiedContentNotice(
+  card: CardModalCard | null | undefined,
+  getCurrentValue: GetCurrentValue
+): string | null {
+  if (
+    !(card && (card.type === "text" || card.type === "quote")) ||
+    card.isDeleted ||
+    !card.content?.trim() ||
+    (getCurrentValue("content") ?? "").trim()
+  ) {
+    return null;
+  }
+  return card.type === "quote"
+    ? "Empty quotes aren't saved. The quote keeps its last text."
+    : "Empty notes aren't saved. The note keeps its last text.";
 }
 
 async function copyToClipboard(text: string, message: string) {

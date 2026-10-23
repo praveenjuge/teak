@@ -100,6 +100,35 @@ export function updateCardsInSearchQueries(
       page: updateCards(value.page as Doc<"cards">[], args),
     });
   }
+
+  updateCardsInDetailQueries(localStore, cardIds, updater);
+}
+
+/**
+ * The open card dialog reads its card on its own, so a quick second edit
+ * there (a tag, a favorite) builds on the first instead of the stale card.
+ * A card the update removes stays as it was: the dialog decides when it
+ * closes, not a list.
+ */
+function updateCardsInDetailQueries(
+  localStore: OptimisticLocalStore,
+  cardIds: ReadonlySet<string>,
+  updater: (card: Doc<"cards">) => Doc<"cards"> | null
+) {
+  for (const { args, value } of localStore.getAllQueries(
+    api.cards.getCardByUrlId
+  )) {
+    if (!(value && cardIds.has(value._id))) {
+      continue;
+    }
+    const nextCard = updater(value as Doc<"cards">);
+    if (nextCard) {
+      localStore.setQuery(api.cards.getCardByUrlId, args, {
+        ...value,
+        ...nextCard,
+      });
+    }
+  }
 }
 
 const listsNewestFirst = (sort: SearchFilterArgs["sort"]) =>

@@ -35,7 +35,12 @@ export function SecuritySection({
   return (
     <>
       <SettingRow title="Security">
-        <Button onClick={() => setOpen(true)} size="sm" variant="link">
+        <Button
+          aria-label="Manage security"
+          onClick={() => setOpen(true)}
+          size="sm"
+          variant="link"
+        >
           Manage
         </Button>
       </SettingRow>

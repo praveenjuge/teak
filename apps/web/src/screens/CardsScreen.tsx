@@ -40,6 +40,7 @@ import {
   useVaultSetup,
 } from "@/hooks";
 import type { CardsVisualFilters } from "@/lib/cardsSearchState";
+import { clipFolderName } from "@/lib/clipFolderName";
 import {
   LazyConnectedCardModal as ConnectedCardModal,
   preloadCardModal,
@@ -101,11 +102,6 @@ const EMPTY_VIEW_COPY: Record<
   },
   trash: { icon: Trash2, text: "Trash is empty." },
 };
-
-const clipName = (name: string) =>
-  Array.from(name).length > 40
-    ? `${Array.from(name).slice(0, 39).join("")}…`
-    : name;
 
 export type { SearchUrlChange } from "../lib/searchUrlSync";
 
@@ -268,7 +264,12 @@ export function CardsScreen({
     if (!change) {
       return;
     }
-    if (change.sortChanged || change.typesChanged || change.tagChanged) {
+    if (
+      change.sortChanged ||
+      change.typesChanged ||
+      change.tagChanged ||
+      change.filtersChanged
+    ) {
       window.scrollTo({ top: 0 });
     }
     onSearchUrlStateChange?.(urlState, change);
@@ -911,7 +912,7 @@ export function CardsScreen({
         onSortChange={revisit.onSortChange}
         placeholder={
           folder
-            ? `Search ${clipName(folder.name)}`
+            ? `Search ${clipFolderName(folder.name)}`
             : LIBRARY_VIEW_SEARCH_PLACEHOLDERS[view ?? "all"]
         }
         revisit={revisit.offer}
@@ -1007,7 +1008,7 @@ export function CardsScreen({
           if (folderDialog?.mode !== "save") {
             return;
           }
-          toast.success(`Saved “${saved.name}”`, {
+          toast.success(`Saved “${clipFolderName(saved.name)}”`, {
             description: "It shows every card that matches, as you save them.",
             ...(onOpenFolder
               ? {

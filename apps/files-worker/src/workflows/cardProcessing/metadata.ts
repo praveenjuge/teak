@@ -281,7 +281,8 @@ const generateForType = async (
   switch (cardType) {
     case "text":
     case "quote": {
-      if (cardType === "quote" && !card.content?.trim()) {
+      // An emptied note has nothing to describe; the model would make it up.
+      if (!card.content?.trim()) {
         return empty;
       }
       // `[[Title|teak:<id>]]` links reach the model as their titles.

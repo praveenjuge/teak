@@ -208,6 +208,39 @@ describe("MasonryGrid keyboard actions", () => {
     expect(ref.current?.returnFocusTo("card_b")).toBe(false);
   });
 
+  test.each([
+    ["the next card", "card_b", "card_c"],
+    ["the card before when it was last", "card_c", "card_b"],
+  ])(
+    "a card deleted from its dialog hands focus to %s",
+    async (_label, deleted, focused) => {
+      const ref = createRef<MasonryGridHandle>();
+      const three = [...CARDS, card("card_c", "Third card")];
+      const { cardElement, handlers } = await renderGrid({
+        filteredCards: three,
+        ref,
+      });
+      await press(cardElement(deleted), "Enter");
+      await act(() =>
+        root?.render(
+          <MasonryGrid
+            columns={1}
+            filteredCards={three.filter((entry) => entry._id !== deleted)}
+            ref={ref}
+            {...handlers}
+          />
+        )
+      );
+
+      let returned = false;
+      await act(() => {
+        returned = ref.current?.returnFocusTo(deleted) ?? false;
+      });
+      expect(returned).toBe(true);
+      expect(document.activeElement).toBe(cardElement(focused));
+    }
+  );
+
   test("leaves focus to a dialog the grid did not open", async () => {
     const ref = createRef<MasonryGridHandle>();
     await renderGrid({ ref });

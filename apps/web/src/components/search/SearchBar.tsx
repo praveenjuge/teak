@@ -56,7 +56,10 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
-import type { LibrarySort } from "../../lib/searchUrlState";
+import {
+  type LibrarySort,
+  MAX_URL_SEARCH_LENGTH,
+} from "../../lib/searchUrlState";
 import { PageHeader } from "../../screens/PageHeader";
 import {
   buildSearchSuggestions,
@@ -622,6 +625,7 @@ export function SearchBar({
             className="h-full min-w-20 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
             data-library-search=""
             id={inputId}
+            maxLength={MAX_URL_SEARCH_LENGTH}
             name="q"
             onBlur={() => setFocused(false)}
             onChange={(e) => onSearchChange(e.target.value)}

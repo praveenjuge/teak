@@ -83,11 +83,49 @@ describe("extractUrlFromContent", () => {
     });
   });
 
-  it("keeps a trailing sentence period in the extracted URL", () => {
+  it("drops a trailing sentence period from the extracted URL", () => {
     const result = extractUrlFromContent("Check this: https://example.com.");
     expect(result).toEqual({
-      url: "https://example.com.",
+      url: "https://example.com",
       cleanedContent: "Check this: https://example.com.",
+    });
+  });
+
+  // Bug 16: the punctuation after a URL in a sentence isn't part of it.
+  it.each([
+    ["See (https://x.com/a).", "https://x.com/a"],
+    ["Read https://x.com/a, then rest", "https://x.com/a"],
+    ["Is it https://x.com/a?", "https://x.com/a"],
+    ["Wow https://x.com/a!!", "https://x.com/a"],
+    ["Notes: https://x.com/a; more", "https://x.com/a"],
+    ["Then https://x.com/a: done", "https://x.com/a"],
+    ['She said "https://x.com/a".', "https://x.com/a"],
+    ["It's 'https://x.com/a'", "https://x.com/a"],
+    ["\\[see https://x.com/a\\]", "https://x.com/a"],
+    ["{https://x.com/a}", "https://x.com/a"],
+    ["Autolink &lt;https://x.com/a&gt;.", "https://x.com/a"],
+    [
+      "Teak is https://en.wikipedia.org/wiki/Teak_(wood) wood",
+      "https://en.wikipedia.org/wiki/Teak_(wood)",
+    ],
+    [
+      "(see https://en.wikipedia.org/wiki/Teak_(wood)).",
+      "https://en.wikipedia.org/wiki/Teak_(wood)",
+    ],
+    ["Query https://x.com/a?b=1&amp;c=2.", "https://x.com/a?b=1&c=2"],
+    ["Path https://x.com/a/b/ end", "https://x.com/a/b/"],
+    ["Array https://x.com/list?ids[0]=1 here", "https://x.com/list?ids[0]=1"],
+  ])("extracts the URL from %p without its punctuation", (content, url) => {
+    expect(extractUrlFromContent(content)).toEqual({
+      url,
+      cleanedContent: content,
+    });
+  });
+
+  it("keeps a URL that is the whole note exactly as pasted", () => {
+    expect(extractUrlFromContent("https://example.com/a.")).toEqual({
+      url: "https://example.com/a.",
+      cleanedContent: "https://example.com/a.",
     });
   });
 

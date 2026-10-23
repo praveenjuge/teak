@@ -2,7 +2,7 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
@@ -56,7 +56,9 @@ function isInsideToaster(target: EventTarget | null): boolean {
 function DialogContent({
   className,
   children,
+  onCloseAutoFocus,
   onInteractOutside,
+  onOpenAutoFocus,
   overlayClassName,
   showCloseButton = true,
   ...props
@@ -64,16 +66,25 @@ function DialogContent({
   overlayClassName?: string;
   showCloseButton?: boolean;
 }) {
+  // Radix returns focus to a `DialogTrigger`, and most dialogs here open
+  // from state without one, which left focus on <body>. Return it to
+  // whatever had focus when the dialog opened instead.
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay className={overlayClassName}>
         {showCloseButton ? (
+          // The mouse target sits on the backdrop, outside the focus trap;
+          // keyboard and screen reader users get the Close button inside
+          // the content below.
           <DialogPrimitive.Close
+            aria-hidden
             className="absolute top-3 right-3 rounded-full ring-offset-background transition-opacity focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-white [&_svg:not([class*='size-'])]:size-6 [&_svg]:pointer-events-none [&_svg]:shrink-0"
             data-slot="dialog-close"
+            tabIndex={-1}
           >
             <XIcon className="text-white" />
-            <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         ) : null}
       </DialogOverlay>
@@ -83,15 +94,40 @@ function DialogContent({
           className
         )}
         data-slot="dialog-content"
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          const target = returnFocusRef.current;
+          returnFocusRef.current = null;
+          if (!event.defaultPrevented && target?.isConnected) {
+            event.preventDefault();
+            target.focus({ preventScroll: true });
+          }
+        }}
         onInteractOutside={(event) => {
           if (isInsideToaster(event.target)) {
             event.preventDefault();
           }
           onInteractOutside?.(event);
         }}
+        onOpenAutoFocus={(event) => {
+          const active = document.activeElement;
+          returnFocusRef.current =
+            active instanceof HTMLElement && active !== document.body
+              ? active
+              : null;
+          onOpenAutoFocus?.(event);
+        }}
         {...props}
       >
         {children}
+        {showCloseButton ? (
+          <DialogPrimitive.Close
+            className="sr-only rounded-full focus-visible:not-sr-only focus-visible:absolute focus-visible:top-3 focus-visible:right-3 focus-visible:bg-accent focus-visible:px-3 focus-visible:py-1 focus-visible:text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+            data-slot="dialog-close"
+          >
+            Close
+          </DialogPrimitive.Close>
+        ) : null}
       </DialogPrimitive.Content>
     </DialogPortal>
   );

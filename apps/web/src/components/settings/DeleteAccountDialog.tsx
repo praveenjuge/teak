@@ -25,6 +25,15 @@ export function DeleteAccountDialog({
   loading,
 }: DeleteAccountDialogProps) {
   const [confirmation, setConfirmation] = useState("");
+  const [wasOpen, setWasOpen] = useState(open);
+  // Every open starts empty, however the last one closed (Cancel, Escape,
+  // the close button or a click outside).
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setConfirmation("");
+    }
+  }
 
   const confirmationMatches =
     confirmation.trim().toLowerCase() === "delete account";
@@ -87,7 +96,6 @@ export function DeleteAccountDialog({
             autoComplete="off"
             id="deleteConfirm"
             onChange={handleConfirmationChange}
-            placeholder="delete account"
             value={confirmation}
           />
         </form>

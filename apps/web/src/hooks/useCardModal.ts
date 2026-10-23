@@ -11,6 +11,7 @@ import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 
 export type CardWithUrls = Doc<"cards"> & {
@@ -64,6 +65,13 @@ export interface CardModalOptions extends CardModalConfig {
   card?: CardWithUrls | null;
 }
 
+/**
+ * A note or quote with nothing in it isn't saved, as the composer won't
+ * create one: the card keeps the content it last saved.
+ */
+const isBlankRequiredField = (field: TextField, value: string) =>
+  (field === "metadataTitle" || field === "content") && !value.trim();
+
 export function getUnsavedUpdates(
   card: Partial<Record<TextField, string | undefined>>,
   pending: PendingChanges,
@@ -75,11 +83,14 @@ export function getUnsavedUpdates(
     .filter(
       (update): update is { field: TextField; value: string } =>
         update.value !== undefined &&
-        !(update.field === "metadataTitle" && !update.value.trim()) &&
+        !isBlankRequiredField(update.field, update.value) &&
         update.value !== (card[update.field] ?? "") &&
         update.value !== saved[update.field]
     );
 }
+
+/** Tags compare as the server stores them: trimmed, ignoring case. */
+const tagKey = (tag: string) => tag.trim().toLowerCase();
 
 export function useCardModal(
   cardId: string | null,
@@ -298,26 +309,9 @@ export function useCardModal(
           value,
           tagToRemove,
         });
-
-        if (field === "isFavorited") {
-          setPendingChanges((prev) => {
-            const rest = { ...prev };
-            rest.isFavorited = undefined;
-            return rest;
-          });
-        }
         return true;
       } catch (error) {
         console.error(`Failed to update ${field}:`, error);
-
-        if (field === "isFavorited") {
-          setPendingChanges((prev) => {
-            const rest = { ...prev };
-            rest.isFavorited = undefined;
-            return rest;
-          });
-        }
-
         notifyError(error as Error, `update ${field}`);
         return false;
       }
@@ -345,12 +339,21 @@ export function useCardModal(
     setPendingChanges((prev) => ({ ...prev, aiSummary: summary }));
   }, []);
 
+  // The state on screen, which a quick second press toggles from. Each press
+  // toggles on the server too, so the shown state holds until every press
+  // in flight has settled, rather than flicking back as the first one does.
+  const shownFavorite = useRef<boolean | undefined>(undefined);
+  shownFavorite.current =
+    pendingChanges.isFavorited ?? Boolean(card?.isFavorited);
+  const favoritesInFlight = useRef(0);
+
   const toggleFavorite = useCallback(() => {
     if (!card) {
       return;
     }
 
-    const newFavoriteState = !card.isFavorited;
+    const newFavoriteState = !shownFavorite.current;
+    shownFavorite.current = newFavoriteState;
     const previousCard = card;
     const updatedCard = {
       ...card,
@@ -359,9 +362,14 @@ export function useCardModal(
     };
     config.onCardUpdate?.(updatedCard);
     setPendingChanges((prev) => ({ ...prev, isFavorited: newFavoriteState }));
+    favoritesInFlight.current += 1;
     void updateField("isFavorited").then((didUpdate) => {
+      favoritesInFlight.current -= 1;
       if (!didUpdate) {
         config.onCardUpdate?.(previousCard);
+      }
+      if (favoritesInFlight.current === 0) {
+        setPendingChanges((prev) => ({ ...prev, isFavorited: undefined }));
       }
     });
   }, [card, config.onCardUpdate, updateField]);
@@ -390,6 +398,7 @@ export function useCardModal(
         });
         if (!isUndo) {
           toast.success(done ? `Marked as ${verb}` : `Marked as not ${verb}`, {
+            duration: UNDO_TOAST_DURATION_MS,
             action: {
               label: "Undo",
               onClick: () => {
@@ -428,62 +437,93 @@ export function useCardModal(
     [updateField]
   );
 
+  // The tags the card has once the writes on their way land. A second edit
+  // before the card catches up builds on the first, so quick edits all stick.
+  const tagWrites = useRef<{
+    cardId: string | null;
+    pending?: string[];
+    seen?: string[];
+  }>({ cardId });
+  if (
+    tagWrites.current.cardId !== cardId ||
+    tagWrites.current.seen !== card?.tags
+  ) {
+    tagWrites.current = { cardId, seen: card?.tags };
+  }
+  const currentTags = useCallback(
+    () => tagWrites.current.pending ?? tagWrites.current.seen ?? [],
+    []
+  );
+  const writeTags = useCallback(
+    async (tags: string[]) => {
+      tagWrites.current.pending = tags;
+      const didUpdate = await updateField("tags", tags);
+      if (!didUpdate && tagWrites.current.pending === tags) {
+        tagWrites.current.pending = undefined;
+      }
+      return didUpdate;
+    },
+    [updateField]
+  );
+
   /** Keeps a tag Teak suggested as one of the card's own tags. */
   const acceptAiTag = useCallback(
     (tag: string) => {
-      const currentTags = card?.tags || [];
-      if (!currentTags.includes(tag)) {
-        void updateField("tags", [...currentTags, tag]);
+      const tags = currentTags();
+      if (!tags.some((existing) => tagKey(existing) === tagKey(tag))) {
+        void writeTags([...tags, tag]);
       }
     },
-    [card?.tags, updateField]
+    [currentTags, writeTags]
   );
 
-  const latestTags = useRef<{ cardId?: string | null; tags?: string[] }>({});
-  latestTags.current = { cardId, tags: card?.tags };
-
   const addTag = useCallback(() => {
-    const tag = tagInput.trim().toLowerCase();
-    const currentTags = card?.tags || [];
-
-    if (tag && !currentTags.includes(tag)) {
-      const newTags = [...currentTags, tag];
-      const invalid = explainInvalidCardTags(newTags, currentTags);
-      if (invalid) {
-        toast.error(invalid);
-        return;
-      }
-      const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
-      setTagInput("");
-      void updateField("tags", newTags).then((didUpdate) => {
-        if (didUpdate && hides && isHiddenTagList([tag])) {
-          toast(`Hidden. Search #${tag} to see it.`, {
-            action: {
-              label: "Undo",
-              onClick: () => {
-                const base =
-                  latestTags.current.cardId === cardId
-                    ? (latestTags.current.tags ?? [])
-                    : newTags;
-                void updateField(
-                  "tags",
-                  base.filter((existing) => existing !== tag)
-                );
-              },
-            },
-          });
-        }
-      });
+    const tag = tagKey(tagInput);
+    if (!tag) {
+      return;
     }
-  }, [card, cardId, tagInput, updateField]);
+    const tags = currentTags();
+    const existing = tags.find((current) => tagKey(current) === tag);
+    if (existing) {
+      setTagInput("");
+      toast(`Already tagged #${existing}`);
+      return;
+    }
+    const newTags = [...tags, tag];
+    const invalid = explainInvalidCardTags(newTags, tags);
+    if (invalid) {
+      toast.error(invalid);
+      return;
+    }
+    const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
+    setTagInput("");
+    void writeTags(newTags).then((didUpdate) => {
+      if (didUpdate && hides && isHiddenTagList([tag])) {
+        toast(`Hidden. Search #${tag} to see it.`, {
+          duration: UNDO_TOAST_DURATION_MS,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              const without = (tags: string[]) =>
+                tags.filter((current) => current !== tag);
+              if (tagWrites.current.cardId === cardId) {
+                void writeTags(without(currentTags()));
+              } else {
+                // Another card is open now; this one's tags aren't tracked.
+                void updateField("tags", without(newTags));
+              }
+            },
+          },
+        });
+      }
+    });
+  }, [card, cardId, currentTags, tagInput, updateField, writeTags]);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
-      const currentTags = card?.tags || [];
-      const newTags = currentTags.filter((tag: string) => tag !== tagToRemove);
-      void updateField("tags", newTags);
+      void writeTags(currentTags().filter((tag) => tag !== tagToRemove));
     },
-    [card?.tags, updateField]
+    [currentTags, writeTags]
   );
 
   const handleDelete = useCallback(
@@ -498,6 +538,7 @@ export function useCardModal(
         });
         const deletedId = cardId;
         toast.success("Card deleted", {
+          duration: UNDO_TOAST_DURATION_MS,
           action: {
             label: "Undo",
             onClick: () => {
