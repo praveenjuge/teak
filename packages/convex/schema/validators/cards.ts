@@ -253,6 +253,9 @@ export const cardValidator = v.object({
   type: cardTypeValidator,
   url: v.optional(v.string()),
   urlHost: v.optional(v.string()),
+  // `shared/utils/urlKey`: the key every variant of the link shares, for the
+  // duplicate check. Set on cards with a `url`.
+  urlKey: v.optional(v.string()),
   sourceUrl: v.optional(v.string()),
   sourceTitle: v.optional(v.string()),
   shuffleKey: v.optional(v.number()),
@@ -323,5 +326,10 @@ export const cardValidator = v.object({
   processingRev: v.optional(v.number()),
   onboarding: v.optional(v.string()),
   createdAt: v.number(),
+  // When the card was last saved: `createdAt` until the same link is saved
+  // again. "Newest first" will order by it. Missing on cards from before it
+  // existed until `migration/backfillSavedAt` runs; read `savedAt ??
+  // createdAt`.
+  savedAt: v.optional(v.number()),
   updatedAt: v.number(),
 });

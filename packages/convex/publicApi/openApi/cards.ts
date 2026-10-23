@@ -246,7 +246,9 @@ export const cardPaths = {
   "/v1/cards/duplicate": {
     get: {
       operationId: "findDuplicateCard",
-      summary: "Find a non-deleted card by exact URL",
+      summary: "Find a non-deleted card saved from the same link",
+      description:
+        "Matches a card outside Trash saved from the same link, ignoring `http`/`https`, a leading `www.`, a trailing slash, a `#fragment` (except `#/` and `#!` routes) and `utm_*`, `fbclid` and `gclid` parameters. Other parameters, their order and the path's case count. Archived cards match; when several do, the newest is returned. Percent-encode `#` in the `url` parameter, or the client drops the fragment before sending.",
       security: apiKeySecurity,
       parameters: [
         {

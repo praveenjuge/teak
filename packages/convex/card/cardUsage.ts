@@ -7,6 +7,7 @@ import {
   CARD_ERROR_MESSAGES,
   FREE_TIER_LIMIT,
 } from "../shared/constants";
+import { urlKey } from "../shared/utils/urlKey";
 import { withHiddenFlag } from "./hiddenCards";
 
 export const CARD_USAGE_SCAN_LIMIT = FREE_TIER_LIMIT + 1;
@@ -423,7 +424,15 @@ export const insertCountedCard = async (
   card: WithoutSystemFields<Doc<"cards">>,
   options: { hasPremium?: boolean } = {}
 ): Promise<Id<"cards">> => {
-  const cardId = await ctx.db.insert("cards", withHiddenFlag(card));
+  const cardId = await ctx.db.insert(
+    "cards",
+    withHiddenFlag({
+      ...card,
+      urlKey: card.url ? urlKey(card.url) : undefined,
+      // A card missing from the `…_saved` indexes would drop out of lists.
+      savedAt: card.savedAt ?? card.createdAt,
+    })
+  );
   try {
     await recordActiveCardCreated(ctx, card.userId, cardId, options);
   } catch (error) {

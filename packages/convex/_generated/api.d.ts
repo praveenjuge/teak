@@ -92,6 +92,7 @@ import type * as devSeed_folderPacks from "../devSeed/folderPacks.js";
 import type * as devSeed_helpers from "../devSeed/helpers.js";
 import type * as devSeed_links from "../devSeed/links.js";
 import type * as devSeed_mediaPacks from "../devSeed/mediaPacks.js";
+import type * as devSeed_urlVariants from "../devSeed/urlVariants.js";
 import type * as devSeed_volumeScenarios from "../devSeed/volumeScenarios.js";
 import type * as devUrls from "../devUrls.js";
 import type * as edgeIdentity from "../edgeIdentity.js";
@@ -169,8 +170,10 @@ import type * as migration_backfillFolderCardCounts from "../migration/backfillF
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
+import type * as migration_backfillSavedAt from "../migration/backfillSavedAt.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
+import type * as migration_backfillUrlKey from "../migration/backfillUrlKey.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
@@ -262,6 +265,7 @@ import type * as shared_utils_linkDetection from "../shared/utils/linkDetection.
 import type * as shared_utils_safeUrl from "../shared/utils/safeUrl.js";
 import type * as shared_utils_timeSearch from "../shared/utils/timeSearch.js";
 import type * as shared_utils_urlHost from "../shared/utils/urlHost.js";
+import type * as shared_utils_urlKey from "../shared/utils/urlKey.js";
 import type * as shared_utils_webUrl from "../shared/utils/webUrl.js";
 import type * as shared_workosApi from "../shared/workosApi.js";
 import type * as shared_workosClient from "../shared/workosClient.js";
@@ -424,6 +428,7 @@ declare const fullApi: ApiFromModules<{
   "devSeed/helpers": typeof devSeed_helpers;
   "devSeed/links": typeof devSeed_links;
   "devSeed/mediaPacks": typeof devSeed_mediaPacks;
+  "devSeed/urlVariants": typeof devSeed_urlVariants;
   "devSeed/volumeScenarios": typeof devSeed_volumeScenarios;
   devUrls: typeof devUrls;
   edgeIdentity: typeof edgeIdentity;
@@ -501,8 +506,10 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;
+  "migration/backfillSavedAt": typeof migration_backfillSavedAt;
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
+  "migration/backfillUrlKey": typeof migration_backfillUrlKey;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
@@ -594,6 +601,7 @@ declare const fullApi: ApiFromModules<{
   "shared/utils/safeUrl": typeof shared_utils_safeUrl;
   "shared/utils/timeSearch": typeof shared_utils_timeSearch;
   "shared/utils/urlHost": typeof shared_utils_urlHost;
+  "shared/utils/urlKey": typeof shared_utils_urlKey;
   "shared/utils/webUrl": typeof shared_utils_webUrl;
   "shared/workosApi": typeof shared_workosApi;
   "shared/workosClient": typeof shared_workosClient;

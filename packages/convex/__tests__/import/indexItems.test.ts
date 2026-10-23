@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { importStoredContentType } from "../../import/indexItems";
+import {
+  importStoredContentType,
+  normalizeIndexItem,
+} from "../../import/indexItems";
 
 describe("importStoredContentType", () => {
   test("stores browser-active archive files as inert text", () => {
@@ -33,5 +36,25 @@ describe("importStoredContentType", () => {
         mimeType: "text/html",
       })
     ).toBe("application/octet-stream");
+  });
+});
+
+describe("normalizeIndexItem", () => {
+  test("skips a link the file already listed under another address", () => {
+    const seen = new Set<string>();
+    const statuses = [
+      "https://www.example.com/post/",
+      "http://example.com/post?utm_medium=x",
+      "https://example.com/post?id=2",
+    ].map(
+      (url, index) =>
+        normalizeIndexItem(
+          { type: "link", content: url, url },
+          index,
+          new Map(),
+          seen
+        ).status
+    );
+    expect(statuses).toEqual(["pending", "skipped", "pending"]);
   });
 });

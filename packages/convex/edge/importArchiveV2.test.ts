@@ -144,6 +144,36 @@ describe("schema v2 archive import", () => {
     ).toBe(1);
   });
 
+  test("skips a link already in Teak under another address, and keeps the imported date as savedAt", async () => {
+    const { t, run, cards } = await setup();
+    await run([
+      {
+        type: "link",
+        content: "https://www.example.com/saved/",
+        url: "https://www.example.com/saved/",
+      },
+    ]);
+    const { job } = await run([
+      {
+        type: "link",
+        content: "http://example.com/saved?utm_source=x",
+        url: "http://example.com/saved?utm_source=x",
+      },
+    ]);
+    const all = await cards();
+    expect(all).toHaveLength(1);
+    expect(all[0].savedAt).toBe(all[0].createdAt);
+    const items = await t.run((ctx) =>
+      ctx.db
+        .query("importJobItems")
+        .withIndex("by_job_source", (q) => q.eq("jobId", job))
+        .collect()
+    );
+    expect(items.map((item) => [item.status, item.failureCode])).toEqual([
+      ["skipped", "DUPLICATE_URL"],
+    ]);
+  });
+
   test("restores when a link was marked done, and only on a link", async () => {
     const { run, cardByContent } = await setup();
     await run([

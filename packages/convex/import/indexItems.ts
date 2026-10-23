@@ -1,4 +1,5 @@
 import { inferFileFormat } from "../shared/fileFormats";
+import { urlKey } from "../shared/utils/urlKey";
 import { MAX_IMPORT_FILE_BYTES } from "./constants";
 import { validateImportCard } from "./validate";
 
@@ -12,7 +13,9 @@ export function normalizeIndexItem(
 ) {
   try {
     const card = validateImportCard(raw);
-    if (card.url && seenUrls.has(card.url)) {
+    // Two addresses for one page (`www.`, tracking parameters) count once.
+    const seenKey = card.url ? (urlKey(card.url) ?? card.url) : undefined;
+    if (seenKey && seenUrls.has(seenKey)) {
       return {
         sourceIndex,
         status: "skipped" as const,
@@ -38,8 +41,8 @@ export function normalizeIndexItem(
         throw new Error("File size does not match the archive entry");
       }
     }
-    if (card.url) {
-      seenUrls.add(card.url);
+    if (seenKey) {
+      seenUrls.add(seenKey);
     }
     return {
       sourceIndex,

@@ -179,7 +179,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_check_duplicate_url",
     description:
-      "Check whether a URL is already saved. Returns { cardId } or { cardId: null }; use it before saving a link.",
+      "Check whether a URL is already saved. Matches the same link ignoring http/https, a leading www., a trailing slash, a #fragment (but not a #/ or #! route) and utm_*, fbclid and gclid parameters. Returns { cardId } or { cardId: null }; use it before saving a link.",
     annotations: { title: "Check for a saved URL", ...READ_ONLY },
     inputSchema: inputSchema({ url: { type: "string", minLength: 1 } }, [
       "url",

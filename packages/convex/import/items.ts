@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { createCardForUserHandler } from "../card/createCard";
+import { findLiveCardByUrl } from "../card/findDuplicateCard";
 import {
   getOrCreateImportFolderIds,
   type ImportFolderCache,
@@ -87,12 +88,7 @@ function errorData(error: unknown) {
 }
 
 function existingUrl(ctx: MutationCtx, userId: string, url: string) {
-  return ctx.db
-    .query("cards")
-    .withIndex("by_user_url_deleted", (q) =>
-      q.eq("userId", userId).eq("url", url).eq("isDeleted", undefined)
-    )
-    .first();
+  return findLiveCardByUrl(ctx, userId, url);
 }
 
 export type ImportCardOutcome =
