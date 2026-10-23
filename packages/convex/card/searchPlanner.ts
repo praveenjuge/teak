@@ -78,9 +78,14 @@ export const expressionTextReader = (
     // the read, so reads that run together share the budget.
     const movedTranscript =
       card.aiTranscript === undefined ? (card.aiTranscriptCharCount ?? 0) : 0;
-    const chars =
-      (card.hasExtractedText === true ? SEARCH_PREFIX_MAX_BYTES : 0) +
-      movedTranscript;
+    const fileText =
+      card.hasExtractedText === true
+        ? Math.min(
+            SEARCH_PREFIX_MAX_BYTES,
+            card.extractedTextCharCount ?? SEARCH_PREFIX_MAX_BYTES
+          )
+        : 0;
+    const chars = fileText + movedTranscript;
     if (!readsWords || chars === 0 || chars > remaining) {
       return undefined;
     }

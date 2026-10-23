@@ -1447,6 +1447,31 @@ describe("search operators", () => {
     expect(withoutWords).toBe("not read");
   });
 
+  test("short file texts take only their length from the read budget", async () => {
+    const { t, insert } = await setup();
+    for (let index = 0; index < 100; index += 1) {
+      await insert({
+        content: `Scanned page ${index}`,
+        hasExtractedText: true,
+        extractedTextCharCount: 2000,
+      });
+    }
+    const read = await t.run(async (ctx) => {
+      const reader = expressionTextReader(
+        ctx,
+        parseSearchQuery("-confidential").expression
+      );
+      const cards = await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .collect();
+      const texts = await Promise.all(cards.map((card) => reader(card)));
+      return texts.filter((text) => text !== undefined).length;
+    });
+    // Charged a full 32 KB each, only 64 would fit the 2 MiB budget.
+    expect(read).toBe(100);
+  });
+
   test("a top-level word stays required beside an OR group", async () => {
     const { insert, search } = await setup();
     await insert({ content: "alpha and beta" });
