@@ -77,7 +77,6 @@ const client = (t: Backend, overrides: Partial<UserIdentity> = {}) =>
 const snapshot = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(10),
-    events: await ctx.db.query("workosEvents").take(10),
     deletions: await ctx.db.query("accountDeletionStates").take(10),
   }));
 beforeEach(() => {

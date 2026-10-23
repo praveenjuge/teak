@@ -371,16 +371,6 @@ describe("signed WorkOS bootstrap", () => {
     ]);
     expect(bootstrapResult).toMatchObject({ status: "ok" });
     expect(webhookResult).toEqual({ status: "applied" });
-    const receipts = await t.run((ctx) =>
-      ctx.db.query("workosEvents").take(10)
-    );
-    expect(receipts).toMatchObject([
-      {
-        eventId: "racing_created",
-        workosUserId: "user_NEW",
-        type: "user.created",
-      },
-    ]);
     const after = await state(t);
     expect(after.users).toHaveLength(1);
     expect(after.users[0].workosUserId).toBe("user_NEW");

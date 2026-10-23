@@ -81,7 +81,6 @@ const seed = (t: Backend) =>
 const snapshot = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(10),
-    events: await ctx.db.query("workosEvents").take(10),
     quarantine: await ctx.db.query("migrationQuarantine").take(10),
     cards: await ctx.db.query("cards").take(10),
     scheduled: await ctx.db.system.query("_scheduled_functions").take(10),
@@ -118,9 +117,6 @@ describe.each([
       role: "admin",
       workosUserId: "user_signed",
     });
-    expect(result.events).toMatchObject([
-      { eventId: "evt_signed", createdAt: Date.parse(timestamp) },
-    ]);
     expect(
       await t.query(components.workOSAuthKit.lib.getAuthUser, {
         id: "user_signed",
@@ -152,7 +148,6 @@ describe.each([
           id: "user_signed",
         })
       ).toMatchObject({ emailVerified: verified });
-      expect(result.events).toMatchObject([{ eventId: "evt_new_owner" }]);
       if (verified) {
         expect(result.users).toMatchObject([
           {
@@ -203,7 +198,7 @@ describe.each([
     }
   );
 
-  test("component deduplication cannot suppress a missing Teak receipt or link", async () => {
+  test("component deduplication cannot suppress a missing Teak link", async () => {
     const t = setup();
     await seed(t);
     await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
@@ -222,19 +217,17 @@ describe.each([
         },
       },
     });
-    expect((await snapshot(t)).events).toEqual([]);
+    expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
     expect((await post(t, JSON.stringify(fixture()))).status).toBe(200);
-    expect((await snapshot(t)).events).toHaveLength(1);
     expect((await snapshot(t)).users[0].workosUserId).toBe("user_signed");
   });
 
-  test("quarantined retries commit one canonical event and one alert", async () => {
+  test("quarantined retries commit one alert", async () => {
     const t = setup();
     const body = JSON.stringify(fixture());
     expect((await post(t, body)).status).toBe(200);
     expect((await post(t, body)).status).toBe(200);
     const result = await snapshot(t);
-    expect(result.events).toHaveLength(1);
     expect(result.quarantine).toHaveLength(1);
     expect(result.users).toEqual([]);
     expect(result.cards).toEqual([]);
@@ -256,7 +249,7 @@ describe.each([
     expect(await response.text()).toBe("Webhook processing failed");
     expect(await snapshot(t)).toEqual(before);
     expect((await post(t, JSON.stringify(fixture()))).status).toBe(200);
-    expect((await snapshot(t)).events).toHaveLength(1);
+    expect((await snapshot(t)).users[0].workosUserId).toBe("user_signed");
   });
 
   test("signed trimmed deletion before creation remains terminal without deleting data", async () => {
@@ -448,7 +441,8 @@ describe.each([
 
   test("malformed signed JSON writes nothing", async () => {
     const t = setup();
+    const before = await snapshot(t);
     expect((await post(t, "{broken")).status).toBe(401);
-    expect((await snapshot(t)).events).toEqual([]);
+    expect(await snapshot(t)).toEqual(before);
   });
 });

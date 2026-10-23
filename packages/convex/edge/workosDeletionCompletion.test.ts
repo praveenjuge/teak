@@ -268,9 +268,6 @@ test.each(["before", "after"] as const)(
       await t.run((ctx) => readCanonicalWorkosProfile(ctx, "user_DELETE"))
     ).toBeNull();
     expect(
-      (await t.run((ctx) => ctx.db.query("workosEvents").unique()))?.type
-    ).toBe("user.deleted");
-    expect(
       await t.run((ctx) =>
         ctx.db
           .query("migrationQuarantine")
@@ -289,7 +286,18 @@ test.each(["before", "after"] as const)(
     ).toMatchObject({ status: "quarantined" });
     expect(
       await t.mutation(internal.workosLifecycle.applyWorkosEvent, event)
-    ).toEqual({ status: "duplicate" });
+    ).toEqual({ status: "deleted" });
+    const receipts = await t.run((ctx) =>
+      ctx.db
+        .query("migrationQuarantine")
+        .withIndex("by_workosUserId_and_reason_and_resolvedAt", (q) =>
+          q
+            .eq("workosUserId", "user_DELETE")
+            .eq("reason", "workos_user_deleted")
+        )
+        .take(5)
+    );
+    expect(receipts).toMatchObject([{ resolvedAt: expect.any(Number) }]);
   }
 );
 

@@ -48,7 +48,6 @@ const resolve = (t: Backend) =>
 const snapshot = (t: Backend) =>
   t.run(async (ctx) => ({
     users: await ctx.db.query("users").take(10),
-    events: await ctx.db.query("workosEvents").take(10),
     quarantine: await ctx.db.query("migrationQuarantine").take(10),
     provider: await ctx.runQuery(components.workOSAuthKit.lib.getAuthUser, {
       id: "user_provider",
