@@ -244,22 +244,24 @@ const listTags = async (options: GlobalOptions) => {
   );
 };
 
+// A search that leaves something out (`teak search -tag:old`) reads as a flag
+// to the shell and to Commander, so the search commands' error says how to
+// pass it.
+const searchQuotingHint = {
+  outputError: (message: string, write: (text: string) => void) =>
+    write(
+      /unknown option '-[^-'][^']+'/.test(message)
+        ? `${message}To leave something out of a search, quote it: teak search "design -tag:old", or put -- before it: teak search -- -tag:old\n`
+        : message
+    ),
+};
+
 // Set before adding subcommands: they copy this setting when created, so
 // flag errors reach run() and exit with the usage code.
-// A search that leaves something out (`teak search -tag:old`) reads as a flag
-// to the shell and to Commander, so the error says how to pass it.
-const withSearchQuotingHint = (message: string) =>
-  /unknown option '-[^-'][^']+'/.test(message)
-    ? `${message}To leave something out of a search, quote it: teak search "design -tag:old", or put -- before it: teak search -- -tag:old\n`
-    : message;
-
 export const program = new Command()
   .name("teak")
   .description("Command line client for Teak")
   .exitOverride()
-  .configureOutput({
-    outputError: (message, write) => write(withSearchQuotingHint(message)),
-  })
   .version(VERSION)
   .option("--api-key <key>", "Teak API key")
   .option("--api-url <url>", "Teak API base URL", process.env.TEAK_API_URL)
@@ -344,6 +346,7 @@ withListOptions(
     .description(
       "Search cards, e.g. 'site:github.com tag:design' or \"design -tag:old\""
     )
+    .configureOutput(searchQuotingHint)
 ).action(async (query, options) =>
   writeCards(
     { ...program.opts(), ...options, query: query || options.query },
@@ -728,6 +731,7 @@ withListOptions(
     .description(
       "Search cards, e.g. 'site:github.com tag:design' or \"design -tag:old\""
     )
+    .configureOutput(searchQuotingHint)
 ).action(async (query, options) =>
   writeCards(
     { ...program.opts(), ...options, query: query || options.query },

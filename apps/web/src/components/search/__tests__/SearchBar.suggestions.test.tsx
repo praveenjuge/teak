@@ -179,3 +179,27 @@ test("a filter completed after OR stays in the text, not a pill", async () => {
   expect(chips).toEqual([]);
   expect(input().value).toBe("tag:fonts OR tag:design ");
 });
+
+test("an excluded pill in the +N menu keeps its minus", async () => {
+  await act(async () =>
+    root?.render(
+      <Harness
+        initialChips={["tag:a", "tag:b", "tag:c", "-tag:design"]}
+        key="overflow"
+      />
+    )
+  );
+  const more = container.querySelector(
+    'button[aria-label="1 more filter"]'
+  ) as HTMLButtonElement;
+  await act(() => {
+    more.focus();
+    more.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" })
+    );
+  });
+  const item = document.querySelector(
+    '[role="menuitem"][aria-label="Remove excluding tag design"]'
+  );
+  expect(item?.textContent).toContain("Tag −design");
+});

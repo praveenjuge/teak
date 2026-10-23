@@ -13,6 +13,7 @@ import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
   expressionFolderNames,
+  expressionHasWords,
   expressionRevealTags,
   expressionWantsArchived,
   matchesExpression,
@@ -190,6 +191,7 @@ export const filterLocalCards = (
   // The client can't tell which folder a name means, so a card the server
   // matched keeps the server's answer, and a cached card never matches.
   const expressionUsesFolders = expressionFolderNames(expression).length > 0;
+  const expressionReadsWords = expressionHasWords(expression);
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
@@ -291,6 +293,11 @@ export const filterLocalCards = (
         (terms.length === 0 && parsed.phrases.length === 0 && !expression)
       ) {
         return true;
+      }
+      // Words in an expression can't be checked against text the cache
+      // doesn't hold, so such a card waits for the server's answer.
+      if (expressionReadsWords && lacksMatchedText(card)) {
+        return false;
       }
 
       const searchableText = buildSearchableText(card);

@@ -873,6 +873,26 @@ describe("filterLocalCards hidden cards", () => {
       ]);
     });
 
+    it("a cached card without its full text waits for the server on words", () => {
+      const pdf = makeCard({
+        _id: "pdf",
+        content: "Quarterly report",
+        hasExtractedText: true,
+      });
+      const note = makeCard({ _id: "note", content: "Team lunch" });
+      const ids = (searchTerms: string, filters = {}) =>
+        filterLocalCards([pdf, note], { searchTerms, ...filters }).map(
+          (card): string => card._id
+        );
+      expect(ids("-confidential")).toEqual(["note"]);
+      expect(ids("-tag:old")).toEqual(["pdf", "note"]);
+      // A card the server returned for this search keeps its answer.
+      expect(ids("-confidential", { textMatchedByServer: true })).toEqual([
+        "pdf",
+        "note",
+      ]);
+    });
+
     it("a card the server matched keeps its folder answer", () => {
       expect(ids("-folder:Inbox", { textMatchedByServer: true })).toHaveLength(
         7

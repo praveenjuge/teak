@@ -638,7 +638,19 @@ export function SearchBar({
                           {chip.prefix}{" "}
                         </span>
                       ) : null}
-                      {chip.label}
+                      {chip.excluded ? (
+                        <span
+                          aria-hidden="true"
+                          className="text-muted-foreground"
+                        >
+                          −
+                        </span>
+                      ) : null}
+                      <span
+                        className={cn(chip.excluded && "text-muted-foreground")}
+                      >
+                        {chip.label}
+                      </span>
                     </span>
                     <X className="opacity-50" />
                   </DropdownMenuItem>

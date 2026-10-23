@@ -20,6 +20,7 @@ import {
 } from "../shared/search/qualifiers";
 import { isCardHidden } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
+import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
 import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
@@ -56,28 +57,40 @@ export interface ResolvedSearch {
   types?: CardType[];
 }
 
+// Search document text one search may read back for an expression's words.
+const EXPRESSION_TEXT_READ_BUDGET_CHARS = 2 * 1024 * 1024;
+
 /**
- * The search document's text for a card, when an expression checks words
- * and the card's own fields leave some of its text out (a document's text,
- * a long transcript). Otherwise `undefined`, and the card's fields suffice.
+ * Reads the search document's text for a card when an expression checks
+ * words and the card's own fields leave some of its text out (a document's
+ * text, a long transcript). Returns undefined for other cards, and once the
+ * search's budget is spent, so the caller falls back to the card's fields.
  */
-export const readExpressionText = async (
-  ctx: QueryCtx,
-  card: Doc<"cards">,
+export const expressionTextReader = (
+  ctx: Pick<QueryCtx, "db">,
   expression: SearchExpression | undefined
-): Promise<string | undefined> => {
-  const textElsewhere =
-    card.hasExtractedText === true ||
-    (card.aiTranscriptCharCount !== undefined &&
-      card.aiTranscript === undefined);
-  if (!(textElsewhere && expressionHasWords(expression))) {
-    return undefined;
-  }
-  const document = await ctx.db
-    .query("cardSearchDocuments")
-    .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
-    .unique();
-  return document?.searchableText;
+) => {
+  const readsWords = expressionHasWords(expression);
+  let remaining = EXPRESSION_TEXT_READ_BUDGET_CHARS;
+  return async (card: Doc<"cards">): Promise<string | undefined> => {
+    // What the document holds beyond the card: up to 32 KB of a file's
+    // text, and a transcript that moved off the card. It is reserved before
+    // the read, so reads that run together share the budget.
+    const movedTranscript =
+      card.aiTranscript === undefined ? (card.aiTranscriptCharCount ?? 0) : 0;
+    const chars =
+      (card.hasExtractedText === true ? SEARCH_PREFIX_MAX_BYTES : 0) +
+      movedTranscript;
+    if (!readsWords || chars === 0 || chars > remaining) {
+      return undefined;
+    }
+    remaining -= chars;
+    const document = await ctx.db
+      .query("cardSearchDocuments")
+      .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
+      .unique();
+    return document?.searchableText;
+  };
 };
 
 export const cardHasTag = (card: Doc<"cards">, tag: string) =>

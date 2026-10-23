@@ -16,7 +16,7 @@ import { applyQuoteFormattingToList } from "../card/quoteFormatting";
 import {
   cardHasTag,
   cardUrlHost,
-  readExpressionText,
+  expressionTextReader,
   resolveExpressionFolders,
 } from "../card/searchPlanner";
 import {
@@ -199,8 +199,22 @@ export const matchesStructuredFiltersWithText = async (
   matchesStructuredFilters(
     card,
     options,
-    await readExpressionText(ctx, card, options.expression)
+    await readTextFor(ctx, options)(card)
   );
+
+// One reader, and so one read budget, for each search's options.
+const textReaders = new WeakMap<
+  SearchOptions,
+  ReturnType<typeof expressionTextReader>
+>();
+const readTextFor = (ctx: QueryCtx, options: SearchOptions) => {
+  let reader = textReaders.get(options);
+  if (!reader) {
+    reader = expressionTextReader(ctx, options.expression);
+    textReaders.set(options, reader);
+  }
+  return reader;
+};
 
 export const matchesStructuredFilters = (
   card: Doc<"cards">,
@@ -470,6 +484,7 @@ export const searchCardsByQuery = async (
       keep: (card, searchableText) =>
         matchesStructuredFilters(card, options, searchableText),
       withText: Boolean(options.phrases?.length),
+      readText: readTextFor(ctx, options),
     }
   );
   const fused = fuseRankings(keywordOrder, matches, {

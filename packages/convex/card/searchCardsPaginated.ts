@@ -45,7 +45,7 @@ import {
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import {
   expandFolderSearch,
-  readExpressionText,
+  expressionTextReader,
   resolveSearch,
 } from "./searchPlanner";
 import {
@@ -180,10 +180,9 @@ export const searchCardsPaginatedHandler = async (
   const tag = resolved.tags[0] ?? "";
   // A word in the expression reads the search document's text for a card
   // whose own fields leave some of it out (a document's text, a transcript).
+  const readExpressionText = expressionTextReader(ctx, parsed.expression);
   const keepQualified = async (cards: Doc<"cards">[]) => {
-    const texts = await Promise.all(
-      cards.map((card) => readExpressionText(ctx, card, parsed.expression))
-    );
+    const texts = await Promise.all(cards.map(readExpressionText));
     return cards.filter((card, index) => resolved.matches(card, texts[index]));
   };
   const paginationOpts = {
@@ -324,7 +323,8 @@ export const searchCardsPaginatedHandler = async (
       folderId ||
       tag ||
       hasSearchQualifiers(parsed) ||
-      parsed.phrases.length > 0
+      parsed.phrases.length > 0 ||
+      parsed.expression
     );
 
     if (
@@ -516,6 +516,7 @@ export const searchCardsPaginatedHandler = async (
             minScore: SEMANTIC_MIN_SCORE,
             keep: matchesFilters,
             withText: resolved.phrases.length > 0,
+            readText: readExpressionText,
           }
         );
         for (const match of semantic) {
@@ -606,6 +607,7 @@ export const searchCardsPaginatedHandler = async (
           minScore: SEMANTIC_MIN_SCORE,
           keep: matchesFilters,
           withText: resolved.phrases.length > 0,
+          readText: readExpressionText,
         }
       );
       for (const match of semantic) {

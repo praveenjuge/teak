@@ -822,7 +822,7 @@ describe("devSeed folder packs", () => {
     );
     expect(cards).toHaveLength(SEARCH_OPERATOR_TOTAL);
     const count = (query: string) =>
-      filterLocalCards(cards, { searchTerms: `${scope} ${query}` }).length;
+      filterLocalCards(cards, { searchTerms: `${scope} (${query})` }).length;
     const counts = SEARCH_OPERATOR_COUNTS;
     const archived =
       SEARCH_OPERATOR_ARCHIVED.github + SEARCH_OPERATOR_ARCHIVED.gitlab;

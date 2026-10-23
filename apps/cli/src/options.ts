@@ -158,7 +158,7 @@ export const withListOptions = (command: Command) =>
   command
     .option(
       "-q, --query <text>",
-      'search text; accepts tag:, #tag, type:, is:fav, is:archived, is:done, is:todo, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =), text:"…" (words read from images and scans) and "phrases"; -word or -tag:x leaves out, a OR b matches either, ( ) groups. Quote a search with a - ("design -tag:old"), or start it after --'
+      'search text; accepts tag:, #tag, type:, is:fav, is:archived, is:done, is:todo, site:, folder:, like:<id>, mood:"…", price:<100 (or >, <=, >=, =), text:"…" (words read from images and scans) and "phrases"; -word or -tag:x leaves out, a OR b matches either, ( ) groups. Quote a search with a -: -q "design -tag:old"'
     )
     .option("--similar-to <id>", "only the cards closest in meaning to a card")
     .option(

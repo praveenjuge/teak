@@ -234,11 +234,12 @@ export const parseCardsQueryOptions = (
     matchesNothing ||= archived === "exclude";
     resolvedArchived = "only";
   } else if (
-    (resolvedArchived ?? "exclude") === "exclude" &&
+    resolvedArchived === undefined &&
     trashed !== true &&
     expressionWantsArchived(parsed.expression)
   ) {
-    // `is:archived` inside an OR reads archived cards too.
+    // `is:archived` inside an OR reads archived cards too, unless the caller
+    // set `archived` itself.
     resolvedArchived = "include";
   }
   const tags = [

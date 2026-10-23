@@ -54,9 +54,10 @@ describe("parseCardsQueryOptions", () => {
       archived: "include",
       qualifiers: { expression: "is:archived OR repo" },
     });
+    // An explicit `archived` holds; the expression runs inside it.
     expect(
       parseCardsQueryOptions(get(`q=${q}&archived=exclude`))
-    ).toMatchObject({ archived: "include" });
+    ).toMatchObject({ archived: "exclude" });
     expect(parseCardsQueryOptions(get(`q=${q}&archived=only`))).toMatchObject({
       archived: "only",
     });

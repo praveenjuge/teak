@@ -5,11 +5,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { expressionTextReader } from "../card/searchPlanner";
 import {
   patchCardWithSearchSync,
   syncCardSearchDocumentHandler,
 } from "../card/searchSync";
 import schema from "../schema";
+import { parseSearchQuery } from "../shared/search/qualifiers";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -1393,6 +1395,58 @@ describe("search operators", () => {
     );
   });
 
+  test("expression text reads stop at the search's read budget", async () => {
+    const { t, insert } = await setup();
+    const ids: Id<"cards">[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      // A long transcript that moved off the card.
+      ids.push(
+        await insert({
+          content: `Recording ${index}`,
+          aiTranscriptCharCount: 1_000_000,
+        })
+      );
+    }
+    await insert({ content: "Plain note" });
+    const lengths = await t.run(async (ctx) => {
+      for (const id of ids) {
+        const document = await ctx.db
+          .query("cardSearchDocuments")
+          .withIndex("by_cardId", (q) => q.eq("cardId", id))
+          .unique();
+        if (document) {
+          await ctx.db.patch("cardSearchDocuments", document._id, {
+            searchableText: "x".repeat(1_000_000),
+          });
+        }
+      }
+      const read = expressionTextReader(
+        ctx,
+        parseSearchQuery("-confidential").expression
+      );
+      const cards = await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .order("asc")
+        .collect();
+      return Promise.all(
+        cards.map(async (card) => (await read(card))?.length ?? null)
+      );
+    });
+    // Two transcripts fit the 2 MiB budget, even read together; then the
+    // cards' own fields stand in.
+    expect(lengths).toEqual([1_000_000, 1_000_000, null, null, null]);
+    const withoutWords = await t.run(async (ctx) => {
+      const card = await ctx.db.get("cards", ids[0] as Id<"cards">);
+      const read = expressionTextReader(
+        ctx,
+        parseSearchQuery("-tag:old").expression
+      );
+      return card ? ((await read(card)) ?? "not read") : "missing";
+    });
+    expect(withoutWords).toBe("not read");
+  });
+
   test("a top-level word stays required beside an OR group", async () => {
     const { insert, search } = await setup();
     await insert({ content: "alpha and beta" });
@@ -1403,6 +1457,14 @@ describe("search operators", () => {
       "alpha kept",
       "alpha and beta",
     ]);
+  });
+
+  test("a quick command beside an exclusion is a search, not a view", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "Fav figma file", isFavorited: true });
+    await insert({ content: "Fav sketch file", isFavorited: true });
+    expect(await search("fav")).toEqual(["Fav sketch file", "Fav figma file"]);
+    expect(await search("fav -figma")).toEqual(["Fav sketch file"]);
   });
 
   test("a hyphen inside a word is not an exclusion", async () => {

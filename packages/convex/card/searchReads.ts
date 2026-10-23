@@ -458,6 +458,8 @@ export const loadSemanticMatches = async (
     keep: (card: Doc<"cards">, searchableText?: string) => boolean;
     /** Read moved transcripts back, for a `keep` that matches text. */
     withText?: boolean;
+    /** Reads a card's full search text first, for words in an expression. */
+    readText?: (card: Doc<"cards">) => Promise<string | undefined>;
   }
 ): Promise<{ cardId: Id<"cards">; score: number }[]> => {
   const archived = scopeArchivedMatch(
@@ -476,10 +478,11 @@ export const loadSemanticMatches = async (
         : null;
     })
   );
-  const readText = movedTranscriptSearchText(ctx);
-  const texts = options.withText
-    ? await Promise.all(loaded.map((card) => card && readText(card)))
-    : [];
+  const readTranscript = movedTranscriptSearchText(ctx);
+  const readText = async (card: Doc<"cards">) =>
+    (await options.readText?.(card)) ??
+    (options.withText ? await readTranscript(card) : undefined);
+  const texts = await Promise.all(loaded.map((card) => card && readText(card)));
   const kept: { cardId: Id<"cards">; score: number }[] = [];
   for (const [index, match] of ranking.entries()) {
     if (cardsById.has(match.cardId)) {

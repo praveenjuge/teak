@@ -369,8 +369,12 @@ describe("teak parity commands", () => {
     expect(unquoted.stderr).toContain("unknown option '-tag:old'");
     expect(unquoted.stderr).toContain('teak search "design -tag:old"');
     expect(unquoted.stderr).toContain("teak search -- -tag:old");
-    expect((await teak("ls", "-x")).stderr).not.toContain(
-      "leave something out"
+    const other = await teak("ls", "-bogus");
+    expect(other.code).toBe(EXIT.usage);
+    expect(other.stderr).toContain("unknown option '-bogus'");
+    expect(other.stderr).not.toContain("leave something out");
+    expect((await teak("cards", "search", "-tag:old")).stderr).toContain(
+      "teak search -- -tag:old"
     );
     expect(requests).toHaveLength(2);
   });
