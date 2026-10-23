@@ -72,6 +72,15 @@ describe("splitNotePreview", () => {
     });
   });
 
+  test("reads a note that opens with a table as one body, with no title", () => {
+    const table = "| Plan | Price |\n| --- | --- |\n| Free | $0 |";
+    expect(splitNotePreview(table)).toEqual({ body: table });
+    expect(splitNotePreview(`# Plans\n\n${table}`)).toEqual({
+      heading: "# Plans",
+      body: table,
+    });
+  });
+
   test("keeps a one-paragraph note as body text", () => {
     expect(splitNotePreview("  Just one thought  ")).toEqual({
       body: "Just one thought",

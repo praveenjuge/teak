@@ -10,6 +10,8 @@ import {
 } from "../devSeed/cardScenarios";
 import {
   CHECKLIST_LONG_ITEMS,
+  NOTE_TABLES_LARGE_BYTES,
+  NOTE_TABLES_WIDE,
   OCR_LEASE_PHRASE,
   OCR_SHARED_KEYWORD,
   OMNIBOX_HIDDEN_TITLE,
@@ -784,6 +786,33 @@ describe("devSeed folder packs", () => {
     expect(long?.content.match(/^- \[ \] /gm)).toHaveLength(
       CHECKLIST_LONG_ITEMS
     );
+  });
+
+  test("note-tables seeds its notes once, within the Markdown limit", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "note-tables")).toMatchObject({
+      status: "seeded",
+      cards: 13,
+    });
+    expect(await seedFolders(t, "note-tables")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const notes = await cardsOf(t);
+    const sizes = notes.map(
+      (card) => new TextEncoder().encode(card.content).length
+    );
+    expect(Math.max(...sizes)).toBeGreaterThan(NOTE_TABLES_LARGE_BYTES - 1024);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(MARKDOWN_CONTENT_MAX_BYTES);
+    const wide = notes.find((card) =>
+      card.content.startsWith("# A 20 × 200 table")
+    );
+    const rows = wide?.content
+      .split("\n")
+      .filter((line) => line.startsWith("|"));
+    expect(rows).toHaveLength(NOTE_TABLES_WIDE.rows + 1);
+    expect(rows?.[0].split(" | ")).toHaveLength(NOTE_TABLES_WIDE.cols);
   });
 
   test("hidden-mix seeds once and flags only the reserved user tags", async () => {

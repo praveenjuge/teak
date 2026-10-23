@@ -5,6 +5,7 @@ test.each([
   ["an empty note", "", 0],
   ["whitespace", "   \n\n  ", 0],
   ["plain English", "Write the first draft fast.", 5],
+  ["a table", "| Plan | Price |\n| --- | --- |\n| Free plan | $0 |", 5],
   [
     "Markdown syntax",
     "# Title\n\n- **bold** item\n- [a link](https://example.com)",

@@ -158,7 +158,7 @@ describe("nothing moves", () => {
 
   test("a note that loads as literal Markdown has no task items", () => {
     const prepared = prepareMarkdownDocument(
-      "| a | b |\n| - | - |\n| 1 | 2 |\n\n- [ ] A\n- [ ] B"
+      "| a | b |\n| :- | - |\n| 1 | 2 |\n\n- [ ] A\n- [ ] B"
     );
     expect(prepared.literal).toBe(true);
   });

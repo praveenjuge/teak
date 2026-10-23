@@ -9,7 +9,12 @@ import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { type Editor, Extension } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
-import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
+import {
+  type EditorState,
+  NodeSelection,
+  Plugin,
+  PluginKey,
+} from "@tiptap/pm/state";
 import {
   AddMarkStep,
   ReplaceAroundStep,
@@ -20,6 +25,7 @@ import Suggestion, {
   exitSuggestion,
   type SuggestionProps,
 } from "@tiptap/suggestion";
+import { Table as TableIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { extractFilesFromDataTransfer } from "@/lib/upload/fileDrop";
@@ -33,12 +39,31 @@ import {
   prepareMarkdownDocument,
 } from "./markdownDocument";
 import { SlashMenu } from "./SlashMenu";
+import { TableMenu } from "./TableMenu";
+import { insertNewTable, pasteIntoTable, TableKeys } from "./tableEditing";
 import { TaskListSort } from "./taskListSort";
 import type { CardLinkSuggestion, MarkdownTextEditorProps } from "./types";
 
-const commands = defaultSlashCommandItems;
+const commands: SlashCommandSuggestionItem[] = [
+  ...defaultSlashCommandItems,
+  {
+    id: "table",
+    title: "Table",
+    description: "A table with a header row",
+    keywords: ["grid", "columns", "rows"],
+    icon: <TableIcon />,
+    command: ({ editor, range }) => {
+      insertNewTable(editor, range);
+    },
+  },
+];
 const slashKey = new PluginKey("teakSlashCommands");
 const cardLinkKey = new PluginKey("teakCardLinks");
+/** An open slash or `[[` menu keeps Enter and Tab inside a table cell. */
+const isSuggesting = (state: EditorState) =>
+  Boolean(
+    slashKey.getState(state)?.active || cardLinkKey.getState(state)?.active
+  );
 const CARD_LINK_SEARCH_DEBOUNCE_MS = 150;
 
 const inCode = (editor: Editor) =>
@@ -102,6 +127,7 @@ export function RichMarkdownEditor({
   const [extensions] = useState(() => [
     ...documentExtensions({ cardLinkNode: CardLinkPillNode }),
     TaskListSort,
+    TableKeys(isSuggesting),
     Markdown,
     Placeholder.configure({
       showOnlyWhenEditable: false,
@@ -151,9 +177,13 @@ export function RichMarkdownEditor({
               .toLowerCase()
               .includes(query.toLowerCase())
           ),
+        // A cell holds one line of text, so block commands (and a table in a
+        // table) don't apply there.
         allow: ({ editor: current }) =>
           !(
-            current.isActive("codeBlock") || current.isActive("literalMarkdown")
+            current.isActive("codeBlock") ||
+            current.isActive("literalMarkdown") ||
+            current.isActive("table")
           ),
       },
     }),
@@ -176,10 +206,13 @@ export function RichMarkdownEditor({
             allowSpaces: true,
             allowedPrefixes: null,
             items: () => [],
+            // A link's `|` would need escaping in a table cell, which the
+            // card-link parsers outside the editor don't read.
             allow: ({ editor: current }) =>
               Boolean(callbacks.current.cardLinks) &&
               !callbacks.current.disabled &&
-              !inCode(current),
+              !inCode(current) &&
+              !current.isActive("table"),
             command: ({ editor: current, range, props: item }) => {
               current
                 .chain()
@@ -373,6 +406,16 @@ export function RichMarkdownEditor({
           return true;
         }
         const prepared = prepareMarkdownDocument(text);
+        if (
+          editor &&
+          pasteIntoTable(
+            editor,
+            text,
+            prepared.literal ? null : (prepared.document.content ?? [])
+          )
+        ) {
+          return true;
+        }
         if (editor?.isActive("literalMarkdown") && current.from === 0) {
           editor.commands.insertContent({
             type: "literalMarkdown",
@@ -522,6 +565,7 @@ export function RichMarkdownEditor({
       <BlockEditor editor={editor}>
         {!props.disabled && <EditorFormatting editor={editor} />}
         <EditorContent className="block-editor-content" editor={editor} />
+        {props.disabled ? null : <TableMenu editor={editor} />}
         {menu ? (
           <SlashMenu menu={menu} selected={selectedCommand.current} />
         ) : null}

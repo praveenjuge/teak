@@ -517,11 +517,11 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
       .toBe("[Link text](https://example.com)");
   });
 
-  test("existing tables remain editable as literal Markdown without table controls", async ({
+  test("aligned tables remain editable as literal Markdown without table controls", async ({
     browser,
     library,
   }) => {
-    const original = "| Name | State |\n| --- | --- |\n| Alpha | Ready |";
+    const original = "| Name | State |\n| :--- | ---: |\n| Alpha | Ready |";
     const id = await library.create(original);
     const dialog = await library.open(id);
     const editor = await getBlockEditor(dialog);

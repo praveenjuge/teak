@@ -29,6 +29,7 @@ export const FOLDER_SCENARIOS = [
   "palette-mixed",
   "focus-notes",
   "checklists",
+  "note-tables",
   "hidden-mix",
   "revisit-sizes",
   "save-details",

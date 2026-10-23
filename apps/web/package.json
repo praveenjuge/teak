@@ -35,6 +35,7 @@
     "@tiptap/extension-link": "3.31.4",
     "@tiptap/extension-node-range": "3.31.4",
     "@tiptap/extension-placeholder": "3.31.4",
+    "@tiptap/extension-table": "3.31.4",
     "@tiptap/extension-task-item": "3.31.4",
     "@tiptap/extension-task-list": "3.31.4",
     "@tiptap/extension-underline": "3.31.4",

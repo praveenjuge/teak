@@ -54,6 +54,61 @@ const INLINE_RULES: readonly StripRule[] = [
 ];
 
 const HORIZONTAL_RULE = /^(?:[-*_]\s*){3,}$/;
+const TABLE_DELIMITER_ROW = /^\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?$/;
+
+/** A table row's cells, without its outer pipes. Escaped pipes are
+ * placeholders by now, so every `|` left splits cells. */
+const tableCells = (line: string) =>
+  line
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+
+/**
+ * GFM tables read as one line: cells joined by " · " and rows by " / ", with
+ * no pipes, delimiter row or empty cells. The tile shows a single paragraph, so rows can't
+ * go on lines of their own.
+ */
+/** A line without the `>` markers of the quote it sits in. */
+const unquoted = (line: string) => line.replace(/^(?:>\s?)+/, "").trim();
+
+/** Whether `line` is a table's header row, given the line after it. */
+const startsTable = (line: string, next: string) =>
+  unquoted(line).includes("|") && TABLE_DELIMITER_ROW.test(unquoted(next));
+
+/** Whether Markdown opens with a table, so it has no title line. */
+export const startsWithTable = (markdown: string): boolean => {
+  const [first = "", second = ""] = markdown.trim().split(/\r?\n/, 2);
+  return startsTable(first, second);
+};
+
+function tablesAsText(lines: string[]): string[] {
+  const result: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const next = lines[index + 1] ?? "";
+    if (!startsTable(line, next)) {
+      result.push(line);
+      continue;
+    }
+    const rows = [tableCells(unquoted(line))];
+    index += 2;
+    while (index < lines.length && unquoted(lines[index] ?? "").includes("|")) {
+      rows.push(tableCells(unquoted(lines[index] ?? "")));
+      index += 1;
+    }
+    index -= 1;
+    // Empty cells, and rows with nothing in them, leave no separators.
+    result.push(
+      rows
+        .map((cells) => cells.filter(Boolean).join(" · "))
+        .filter(Boolean)
+        .join(" / ")
+    );
+  }
+  return result;
+}
 
 const applyRules = (text: string, rules: readonly StripRule[]) =>
   rules.reduce(
@@ -192,14 +247,16 @@ export function markdownToPlainText(
       )
     : input;
   return withEscapedPunctuation(source, maxLength, (text) => {
-    const lines = applyRules(text, BLOCK_RULES)
-      .split(/\r?\n/)
-      .map((rawLine) => {
-        const line = rawLine.trim();
-        return HORIZONTAL_RULE.test(line)
-          ? ""
-          : applyRules(line, LINE_MARKER_RULES);
-      });
+    const lines = tablesAsText(
+      applyRules(text, BLOCK_RULES)
+        .split(/\r?\n/)
+        .map((rawLine) => rawLine.trim())
+    ).map((rawLine) => {
+      const line = rawLine.trim();
+      return HORIZONTAL_RULE.test(line)
+        ? ""
+        : applyRules(line, LINE_MARKER_RULES);
+    });
     return applyRules(lines.join(" "), INLINE_RULES).trim();
   });
 }

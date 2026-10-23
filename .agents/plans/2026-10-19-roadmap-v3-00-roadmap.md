@@ -35,7 +35,7 @@ The roadmap first had 18 phases. On 2026-10-23 the owner dropped four (folder ex
     - It fetches the page HTML (kept up to 24 hours in the `LINK_PAGE_CACHE` KV namespace when the binding exists and the fetcher marks the page cacheable), scrapes the metadata, renders a screenshot with Browser Rendering, and reads text from the link images.
     - Apart from that transient cache, the HTML and article text are never stored with the card.
   - **Import:** `shared/importSources.ts` lists 10 sources. OneTab already parses one URL per line, and `import/csv.ts` parses RFC 4180 CSV.
-  - **Note editor:** Tiptap with editorcn. Markdown tables are kept as literal Markdown blocks; no table extension and no table rendering exist anywhere.
+  - **Note editor:** Tiptap with editorcn. Top-level GFM tables render and edit as tables on the web (phase 3); aligned, ragged and nested tables stay literal Markdown, and the native apps show tables as text.
   - **Localization:**
     - No i18n library or string catalog exists. The web has about 340 JSX text lines and 57 toasts.
     - `"en-US"` is hardcoded in about 7 formatters.
@@ -139,7 +139,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 |---|---|---|---|
 | 1 | Extension save shortcut and saved badge (shipped; its plan is in git history) | Quick wins | — |
 | 2 | [URL key, re-saving and pasting links](2026-10-19-roadmap-v3-02-url-key-resave-paste.md) (two PRs) | Quick wins | — |
-| 3 | [Tables in notes](2026-10-19-roadmap-v3-03-note-tables.md) | Quick wins | — |
+| 3 | Tables in notes (shipped; its plan is in git history) | Quick wins | — |
 | 4 | [Exclude, OR and grouping in search](2026-10-19-roadmap-v3-04-search-operators.md) | Quick wins | — |
 | 5 | [CSV and text-file-of-links import](2026-10-19-roadmap-v3-05-csv-import.md) | Quick wins | 2 |
 | 6 | [Page archive and dead-link fallback](2026-10-19-roadmap-v3-06-page-archive.md) | Archive & reading | 2 |

@@ -5,6 +5,36 @@ import {
 } from "../../../lib/markdownToPlainText";
 
 describe("markdownToPlainText", () => {
+  test.each([
+    [
+      "| Name | State |\n| --- | --- |\n| Alpha | Ready |\n| Beta | Done |",
+      "Name · State / Alpha · Ready / Beta · Done",
+    ],
+    ["Name | State\n--- | ---\nAlpha | Ready", "Name · State / Alpha · Ready"],
+    [
+      "| **Bold** | `code` |\n| :--- | ---: |\n| [Teak](https://teakvault.com) | a \\| b |",
+      "Bold · code / Teak · a | b",
+    ],
+    [
+      "Before\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter",
+      "Before A · B / 1 · 2 After",
+    ],
+    ["| A |\n| --- |\n| 1 |\n\n| B |\n| --- |\n| 2 |", "A / 1 B / 2"],
+    [
+      "| Plan | Price | Seats |\n| ---- | ----- | ----- |\n| Team |       |       |\n|      |       |       |",
+      "Plan · Price · Seats / Team",
+    ],
+    ["> | A | B |\n> | --- | --- |\n> | 1 | 2 |", "A · B / 1 · 2"],
+  ])("reads a table as cells and rows: %p", (source, text) => {
+    expect(markdownToPlainText(source)).toBe(text);
+  });
+
+  test("leaves a pipe in ordinary text alone", () => {
+    expect(markdownToPlainText("This | that\nand more")).toBe(
+      "This | that and more"
+    );
+  });
+
   test("returns an empty string for empty input", () => {
     expect(markdownToPlainText("")).toBe("");
     expect(markdownToPlainText(undefined)).toBe("");
