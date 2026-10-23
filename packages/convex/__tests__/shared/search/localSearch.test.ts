@@ -895,6 +895,20 @@ describe("filterLocalCards hidden cards", () => {
       ]);
     });
 
+    it("a cached image without its text waits for the server on text:", () => {
+      const scan = {
+        ...makeCard({ _id: "scan", content: "Scanned memo", type: "image" }),
+        hasOcrText: true as const,
+      };
+      const note = makeCard({ _id: "note", content: "Team lunch" });
+      const ids = (searchTerms: string) =>
+        filterLocalCards([scan, note], { searchTerms }).map(
+          (card): string => card._id
+        );
+      expect(ids("-text:confidential")).toEqual(["note"]);
+      expect(ids("-tag:old")).toEqual(["scan", "note"]);
+    });
+
     it("a card the server matched keeps its folder answer", () => {
       expect(ids("-folder:Inbox", { textMatchedByServer: true })).toHaveLength(
         7

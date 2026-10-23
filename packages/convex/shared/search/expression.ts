@@ -258,6 +258,19 @@ export const expressionIndexWords = (
   }
 };
 
+/** Whether an expression checks image text (`text:`), excluded or not. */
+export const expressionReadsImageText = (
+  expression: SearchExpression | undefined
+): boolean => {
+  let reads = false;
+  walkQualifiers(expression, (qualifier) => {
+    if (qualifier.key === "text") {
+      reads = true;
+    }
+  });
+  return reads;
+};
+
 /** Whether an expression checks a word or phrase anywhere, excluded or not. */
 export const expressionHasWords = (
   expression: SearchExpression | undefined

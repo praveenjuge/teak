@@ -14,6 +14,7 @@ import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
 import {
   expressionFolderNames,
   expressionHasWords,
+  expressionReadsImageText,
   expressionRevealTags,
   expressionWantsArchived,
   matchesExpression,
@@ -192,6 +193,7 @@ export const filterLocalCards = (
   // matched keeps the server's answer, and a cached card never matches.
   const expressionUsesFolders = expressionFolderNames(expression).length > 0;
   const expressionReadsWords = expressionHasWords(expression);
+  const expressionReadsOcr = expressionReadsImageText(expression);
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
@@ -294,9 +296,12 @@ export const filterLocalCards = (
       ) {
         return true;
       }
-      // Words in an expression can't be checked against text the cache
-      // doesn't hold, so such a card waits for the server's answer.
-      if (expressionReadsWords && lacksMatchedText(card)) {
+      // Words or image text in an expression can't be checked against text
+      // the cache doesn't hold, so such a card waits for the server's answer.
+      if (
+        (expressionReadsWords && lacksMatchedText(card)) ||
+        (expressionReadsOcr && lacksOcrText(card))
+      ) {
         return false;
       }
 
