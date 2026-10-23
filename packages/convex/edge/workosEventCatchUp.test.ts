@@ -188,6 +188,9 @@ test("a failing event keeps the progress made before it on the same page", async
   expect(await t.query(internal.workosEventCatchUp.readCursor, {})).toBe(
     "event_applied"
   );
+  expect(
+    await t.run((ctx) => ctx.db.query("workosEventCursors").unique())
+  ).toMatchObject({ failingEventId: "event_stuck", failedAttempts: 1 });
   pages = [[stuck]];
   await expect(
     t.action(internal.telemetry.crons.workosEventCatchUp, {})
