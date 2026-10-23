@@ -334,7 +334,8 @@ export const matchesStructuredFilters = (
           },
           hasTag: (tag) => cardHasTag(card, tag),
           host: cardUrlHost(card),
-        }
+        },
+        isCardHidden(card) && options.revealTags !== undefined
       )
     ) {
       return false;

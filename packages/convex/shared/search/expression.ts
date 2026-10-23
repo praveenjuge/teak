@@ -111,7 +111,13 @@ export const matchesExpression = (
   expression: SearchExpression,
   card: ExpressionCard,
   searchableText: string,
-  context: ExpressionContext
+  context: ExpressionContext,
+  /**
+   * The card is hidden and nothing outside the expression reveals it: it
+   * matches only through a branch that asks for one of its hidden tags, so
+   * `(tag:hidden is:fav) OR tag:x` never shows it through `tag:x`.
+   */
+  hiddenCard = false
 ): boolean => {
   const text = searchableText.toLowerCase();
   const evaluate = (node: SearchExpression): boolean => {
@@ -132,7 +138,32 @@ export const matchesExpression = (
         return node.items.some(evaluate);
     }
   };
-  return evaluate(expression);
+  // Whether the card meets the node (its opposite when negated) through a
+  // branch that wants a hidden tag the card has. A minus flips AND and OR.
+  const reveals = (node: SearchExpression, negated: boolean): boolean => {
+    switch (node.op) {
+      case "qualifier":
+        return (
+          !negated &&
+          node.qualifier.key === "tag" &&
+          isHiddenTagList([node.qualifier.value]) &&
+          evaluate(node)
+        );
+      case "not":
+        return reveals(node.item, !negated);
+      case "and":
+      case "or": {
+        const everyItem = (node.op === "and") !== negated;
+        return everyItem
+          ? node.items.every((item) => evaluate(item) !== negated) &&
+              node.items.some((item) => reveals(item, negated))
+          : node.items.some((item) => reveals(item, negated));
+      }
+      default:
+        return false;
+    }
+  };
+  return hiddenCard ? reveals(expression, false) : evaluate(expression);
 };
 
 /** The filters an expression asks for, each with whether it is excluded. */

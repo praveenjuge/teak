@@ -311,11 +311,17 @@ export const filterLocalCards = (
         (!expression ||
           (expressionUsesFolders
             ? textMatchedByServer
-            : matchesExpression(expression, card, searchableText, {
-                folder: () => false,
-                hasTag: (tagKey) => cardTags.has(tagKey.trim().toLowerCase()),
-                host,
-              })))
+            : matchesExpression(
+                expression,
+                card,
+                searchableText,
+                {
+                  folder: () => false,
+                  hasTag: (tagKey) => cardTags.has(tagKey.trim().toLowerCase()),
+                  host,
+                },
+                isCardHidden(card) && !revealsHidden
+              )))
       );
     })
     .sort((a, b) =>

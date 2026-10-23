@@ -864,6 +864,8 @@ describe("filterLocalCards hidden cards", () => {
     it("a hidden card shows only through the OR branch that names its tag", () => {
       expect(ids("tag:hidden OR tag:fonts")).toEqual(["fonts", "hidden"]);
       expect(ids("tag:type OR tag:fonts")).toEqual(["fonts", "type"]);
+      // Its tag alone is not enough: the branch that names it must match.
+      expect(ids("(tag:hidden is:fav) OR tag:type")).toEqual(["type"]);
     });
 
     it("is:archived inside an OR reads archived cards too", () => {

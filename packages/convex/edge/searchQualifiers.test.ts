@@ -1529,6 +1529,33 @@ describe("search operators", () => {
     expect(await search("-(tag:hidden OR x) diary")).toEqual([]);
   });
 
+  test("a hidden card needs its whole branch to match, not just its tag", async () => {
+    const { t, insert, search } = await setup();
+    await insert({ content: "Hidden plain note", tags: ["hidden", "design"] });
+    await insert({
+      content: "Hidden favorite note",
+      tags: ["hidden"],
+      isFavorited: true,
+    });
+    await insert({ content: "Open design note", tags: ["design"] });
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+    const query = "(tag:hidden is:fav) OR tag:design";
+    expect(await search(query)).toEqual([
+      "Open design note",
+      "Hidden favorite note",
+    ]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          expression: query,
+        })
+      ).sort()
+    ).toEqual(["Hidden favorite note", "Open design note"]);
+  });
+
   test("folders resolve inside the expression; an unknown one is just false", async () => {
     const { owner, insert, search } = await setup();
     await seedLibrary(insert);

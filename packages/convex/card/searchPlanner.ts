@@ -332,14 +332,20 @@ export const resolveSearch = async (
     }
     return (
       !expression ||
-      matchesExpression(expression, card, text, {
-        folder: (name) => {
-          const folderId = expressionFolders.get(name);
-          return Boolean(folderId && cardFolders.includes(folderId));
+      matchesExpression(
+        expression,
+        card,
+        text,
+        {
+          folder: (name) => {
+            const folderId = expressionFolders.get(name);
+            return Boolean(folderId && cardFolders.includes(folderId));
+          },
+          hasTag: (tag) => cardHasTag(card, normalizeCardSearchTag(tag)),
+          host: cardUrlHost(card),
         },
-        hasTag: (tag) => cardHasTag(card, normalizeCardSearchTag(tag)),
-        host: cardUrlHost(card),
-      })
+        isCardHidden(card) && !revealedByTags
+      )
     );
   };
   const favoritesOnly = Boolean(view.favoritesOnly || parsed.favorite);

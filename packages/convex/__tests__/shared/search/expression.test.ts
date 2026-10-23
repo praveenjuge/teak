@@ -32,6 +32,25 @@ const matches = (query: string, card: TestCard) => {
   return matchesExpression(expression, card, card.text ?? "", context);
 };
 
+// The card is hidden and only the expression can reveal it.
+const revealsHiddenCard = (query: string, card: TestCard) => {
+  const { expression } = parseSearchQuery(query);
+  if (!expression) {
+    throw new Error(`"${query}" has no expression`);
+  }
+  return matchesExpression(
+    expression,
+    card,
+    card.text ?? "",
+    {
+      folder: () => false,
+      hasTag: (tag) => (card.tags ?? []).includes(tag.toLowerCase()),
+      host: null,
+    },
+    true
+  );
+};
+
 const note = (overrides: Partial<TestCard> = {}): TestCard => ({
   type: "text",
   ...overrides,
@@ -213,5 +232,28 @@ describe("expression walkers", () => {
     ["design", { groups: false, negation: false, or: false }],
   ] as const)("operators used by %s", (query, used) => {
     expect(searchOperatorsUsed(parseSearchQuery(query))).toEqual(used);
+  });
+});
+
+describe("matchesExpression for a hidden card", () => {
+  const secret = (overrides: Partial<TestCard> = {}) =>
+    note({ tags: ["hidden", "design"], ...overrides });
+
+  test.each([
+    ["tag:hidden OR tag:x", secret(), true],
+    // It matches only through tag:design, which doesn't ask for it.
+    ["(tag:hidden is:fav) OR tag:design", secret(), false],
+    ["(tag:hidden is:fav) OR tag:design", secret({ isFavorited: true }), true],
+    ["tag:design OR tag:x", secret(), false],
+    ["-tag:hidden OR tag:design", secret(), false],
+    // Two minuses ask for it: secret and not x.
+    ["-(-tag:hidden OR tag:x)", secret(), true],
+    ["-(-tag:hidden OR tag:design)", secret(), false],
+  ] as const)("%s", (query, card, expected) => {
+    expect(revealsHiddenCard(query, card)).toBe(expected);
+    // A card that is not hidden matches the expression as usual.
+    if (expected) {
+      expect(matches(query, card)).toBe(true);
+    }
   });
 });
