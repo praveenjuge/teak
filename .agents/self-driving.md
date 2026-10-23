@@ -65,3 +65,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - One extension `$exception`: `chrome.storage.local.setAccessLevel is not a function` (TypeError, 10-21 07:30 IST, single event). Watch for repeats; a browser without that API (Firefox or old Chrome) is the likely cause.
 - Sentry, Vercel, Cloudflare connectors not queried this run. Nothing fixed.
 - Check tomorrow: recurrence of the `setAccessLevel` TypeError; Unit Tests and Backend Deploy green on main.
+
+### 2026-10-23
+- Inbox empty. Unit Tests and Backend Deploy green on main (runs 39819058721, 39819058500). Product health (24h): zero `card_created`, zero processing events, zero failure events. Only card events were queried (not pageviews or other activity); nothing to measure.
+- One backend `$exception`: `workflow_dispatch_stalled` (watchdog cron, 10-22 18:05 IST, single event). Properties: `stalled_pending` 0, `unreconciled_sent` 1, so one sent row the Files Worker's reconcile hadn't checked; the watchdog only kicks `workflowDispatch.flush` for `stalled_pending > 0`, so nothing healed it automatically. Watch for repeats; if it recurs, investigate the reconcile path.
+- Tip: `actions_list` output for workflow runs is huge; parse the saved file with python (`json.loads(t[t.index('{'):])`). Sentry, Vercel, Cloudflare connectors not queried this run.
+- Nothing fixed. Check tomorrow: recurrence of `workflow_dispatch_stalled`; first card traffic.
