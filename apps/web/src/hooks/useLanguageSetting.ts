@@ -19,6 +19,8 @@ import { useLocaleSwitch } from "@/components/providers/LocaleProvider";
 import { TOAST_IDS, UNDO_TOAST_DURATION_MS } from "@/constants/toast";
 import { setPostHogPersonProperties } from "@/lib/posthog-client";
 
+const languageToastId = (count: number) => `${TOAST_IDS.language}-${count}`;
+
 export interface LanguageSetting {
   locale: UiLocale;
   onChange: (next: Locale) => void;
@@ -65,10 +67,10 @@ export function useLanguageSetting(): LanguageSetting | null {
         withEnglishFallback(await loadMessages(next))
       );
       const undoTo = isSupportedLocale(from) ? from : null;
-      toast.dismiss(`${TOAST_IDS.language}-${toastCount.current}`);
+      toast.dismiss(languageToastId(toastCount.current));
       toastCount.current += 1;
       toast.success(tNext("settings.language.changed"), {
-        id: `${TOAST_IDS.language}-${toastCount.current}`,
+        id: languageToastId(toastCount.current),
         duration: UNDO_TOAST_DURATION_MS,
         action: undoTo
           ? {
