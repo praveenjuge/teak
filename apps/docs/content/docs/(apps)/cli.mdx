@@ -88,6 +88,8 @@ teak cards thumbnail <card-id> ./cover.png
 teak cards thumbnail <card-id> --reset
 teak content <card-id>
 teak content <card-id> --kind article
+teak highlights list <card-id>
+teak highlights add <card-id> "a passage of the article" --note "why it matters"
 teak links <card-id>
 teak tags
 teak tags rename Design design-systems --wait
@@ -152,6 +154,10 @@ Cards tagged `secret` or `hidden` stay out of `teak ls` and `teak search` until 
 `teak folders` lists your folders with how many cards each holds, and `teak folders get <folder>` shows one. `teak folders create <name> --color blue` creates one, `teak folders rename <folder> <name>` renames it (`--color` changes its color, and `--color none` clears it), and `teak folders rm` deletes folders without deleting their cards. `teak folders add <folder> <card-ids...>` and `teak folders remove <folder> <card-ids...>` change what's in a folder. Name a folder by its name (ignoring case) or its ID, and list its cards with `teak ls --folder <folder>`.
 
 A smart folder saves a search and lists whatever matches it: `teak folders create "Design links" --query 'tag:design type:link'` makes one, and `teak folders rename "Design links" --query 'tag:design'` changes its search. `teak folders` shows a dash instead of a count for a smart folder, followed by its search. Smart folders don't take cards, so `teak folders add` refuses them.
+
+### Highlights
+
+`teak highlights list <card-id>` lists the passages highlighted in a link's article, in article order, one per line as `<id>  <quote>`, with the note indented below. A highlight not found in the saved article says so. `teak highlights add <card-id> "<quote>"` highlights a passage, found by its text (whitespace, curly quotes and case needn't match); `--note` adds a note, and `--prefix` or `--suffix` (the text just before or after it) picks a later repeat. `teak highlights note <id> "<text>"` changes a note and `teak highlights note <id> --clear` removes it. `teak highlights rm <ids...>` removes highlights. Each takes `--json`. A card without a saved article exits with `NO_ARTICLE`, and a quote the article doesn't have with `QUOTE_NOT_FOUND`.
 
 ### Filter and page through cards
 

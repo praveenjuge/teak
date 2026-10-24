@@ -48,6 +48,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Import](./import.md) covers Settings → Manage data → Import: the source picker, CSV files with their header aliases and the missing url column error, text files of links, duplicates skipped by URL key, and the failed-rows report.
 - [Saved copies of pages](./page-archive.md) covers a link's saved copy: the side panel's Details row in every state, server and extension copies, Refresh details, `archive` and `POST /v1/page-snapshots/upload` in the API, the sandboxed object, and the backfill.
 - [Reader view](./reader.md) covers the card dialog's Preview · Read toggle and the reader in every state, article extraction and its summary, search by article text, `kind: "article"` in the API, MCP, SDK and CLI, and the backfill.
+- [Highlights](./highlights.md) covers highlighting in the Read tab (the button, `H`, the touch bar), notes and removal with Undo, merges and caps, the panel's "Highlights · N" list and jumps, the frozen copy and article of a highlighted link, imported highlights, and highlights in the API, MCP, SDK and CLI.
 - [Docs site](./docs.md) covers the sidebar's groups and order, page rendering in light, dark and 390px, agent-only text kept to the `.md` mirrors, and link checks.
 
 - [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.

@@ -1,5 +1,7 @@
+import { apiFetch } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
 import { runCli } from "../helpers/cli";
+import { seedScenario } from "../helpers/seed";
 import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
@@ -154,5 +156,61 @@ test("teak links lists a card's links and the notes that link to it", async () =
   );
   expect(await runCli(["links", target.cardId], apiKey)).toContain(
     `${note.cardId}  text      See cli-link-renamed-${stamp} ${stamp}`
+  );
+});
+
+test("teak highlights adds a passage by its quote, lists, notes and removes it", async () => {
+  const { apiKey: readerKey, email } = await createApiAccount("cli-highlights");
+  await seedScenario(email, "reader-mix");
+  let cardId = "";
+  await retry(
+    async () => {
+      const response = await apiFetch(
+        "/v1/cards?q=%23scenario-reader&include=metadata&limit=50",
+        readerKey
+      );
+      const { items } = (await response.json()) as {
+        items: Array<{ article: unknown; id: string; url: string | null }>;
+      };
+      const research = items.find((item) =>
+        item.url?.startsWith("https://example.com/reader/research")
+      );
+      expect(research?.article).toBeTruthy();
+      cardId = research?.id ?? "";
+    },
+    { timeout: 60_000 }
+  );
+
+  const added = JSON.parse(
+    await runCli(
+      [
+        "--json",
+        "highlights",
+        "add",
+        cardId,
+        "kept 31% more moisture in July",
+        "--note",
+        "Worth trying",
+      ],
+      readerKey
+    )
+  );
+  expect(added).toMatchObject({
+    anchored: true,
+    note: "Worth trying",
+    quote: "kept 31% more moisture in July",
+  });
+
+  expect(await runCli(["highlights", "list", cardId], readerKey)).toBe(
+    `${added.id}  kept 31% more moisture in July\n    Worth trying`
+  );
+  await runCli(["highlights", "note", added.id, "--clear"], readerKey);
+  expect(
+    JSON.parse(
+      await runCli(["--json", "highlights", "list", cardId], readerKey)
+    ).items[0].note
+  ).toBeNull();
+  expect(await runCli(["highlights", "rm", added.id], readerKey)).toBe(
+    `Removed highlight ${added.id}`
   );
 });
