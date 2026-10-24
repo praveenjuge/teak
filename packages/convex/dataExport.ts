@@ -71,6 +71,7 @@ const startResultValidator = v.object({
 type ExportCardRow = Pick<
   Doc<"cards">,
   | "_id"
+  | "aiLanguage"
   | "aiSummary"
   | "aiTags"
   | "colors"
@@ -464,6 +465,7 @@ const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
   colors: card.colors,
   aiTags: card.aiTags,
   aiSummary: card.aiSummary,
+  aiLanguage: card.aiLanguage,
   metadataTitle: card.metadataTitle,
   isArchived: card.isArchived,
   completedAt: card.completedAt,

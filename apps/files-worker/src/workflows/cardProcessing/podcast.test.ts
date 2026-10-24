@@ -37,6 +37,7 @@ const workersAi = {
       response: aiFails
         ? "not json at all"
         : JSON.stringify({
+            language: "en",
             summary: "An episode about leaves",
             tags: ["leaves", "botany"],
           }),
@@ -184,6 +185,7 @@ describe("transcribePodcastEpisode", () => {
 
     const saved = ctx.convex.callsTo(UPDATE_AI).at(-1);
     expect(saved?.args).toMatchObject({
+      aiLanguage: "en",
       aiSummary: "An episode about leaves",
       aiTags: ["leaves", "botany"],
       aiTranscript: "Today we talk about leaves.",
@@ -281,6 +283,8 @@ describe("transcribePodcastEpisode", () => {
     expect(saved?.aiTranscript).toBe("Today we talk about leaves.");
     expect(saved?.aiSummary).toBeUndefined();
     expect(saved?.aiTags).toBeUndefined();
+    // The page's summary keeps its language.
+    expect(saved).not.toHaveProperty("aiLanguage");
     expect(ctx.card).toMatchObject({
       aiSummary: "From the page",
       aiTags: ["page"],

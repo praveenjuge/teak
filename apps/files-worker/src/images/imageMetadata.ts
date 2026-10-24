@@ -1,5 +1,6 @@
 import {
   type FilesImageMetadataResult,
+  IMAGE_LANGUAGE_RULES,
   MAX_IMAGE_OCR_CHARS,
   normalizeImageOcrText,
   validateTextMetadata,
@@ -33,9 +34,10 @@ Guidelines:
 - Use clear, searchable language
 - Text is every legible word, number and symbol in the image, copied exactly as written, in reading order, with its line breaks, up to ${MAX_IMAGE_OCR_CHARS} characters. Keep the original language and script; do not translate or correct it.
 - Never describe the image in text. If the image has no legible text, text is "".
+${IMAGE_LANGUAGE_RULES}
 
 Respond with a single JSON object using exactly this shape and no other keys:
-{"tags": ["word", "word"], "summary": "...", "text": "..."}`;
+{"tags": ["word", "word"], "summary": "...", "text": "...", "language": "xx"}`;
 
 export type ImageMetadataResult = FilesImageMetadataResult;
 
@@ -59,7 +61,7 @@ export const validationRetryPrompt = (
     attempt >= MAX_IMAGE_METADATA_VALIDATION_RETRIES
       ? 'text set to ""'
       : `text cut to at most ${RETRY_IMAGE_OCR_CHARS} characters`;
-  return `JSON validation retry ${attempt}: your last answer was not valid JSON, possibly cut off. Return only the required JSON object with tags, summary and ${text}. Do not include markdown, commentary, or any other keys.\n\n${prompt}`;
+  return `JSON validation retry ${attempt}: your last answer was not valid JSON, possibly cut off. Return only the required JSON object with tags, summary, language and ${text}. Do not include markdown, commentary, or any other keys.\n\n${prompt}`;
 };
 
 const stripJsonFences = (text: string): string => {
@@ -96,6 +98,7 @@ export const parseImageMetadata = (raw: string): ImageMetadataResult | null => {
   return {
     summary,
     tags: metadata.tags,
+    ...(metadata.language ? { language: metadata.language } : {}),
     ...(text === undefined ? {} : { text }),
   };
 };

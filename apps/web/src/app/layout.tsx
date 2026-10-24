@@ -1,3 +1,4 @@
+import { LOCALE_COOKIE, SUPPORTED_LOCALES } from "@teak/i18n";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -42,6 +43,11 @@ export const metadata: Metadata = {
   },
 };
 
+// The static shell can't read cookies, so it says "en"; this sets the
+// language the cookie asks for before the first paint, so fonts and line
+// breaking for Chinese, Japanese and Korean apply from the start.
+const HTML_LANG_FROM_COOKIE = `try{var m=document.cookie.match(/(?:^|; )${LOCALE_COOKIE}=([^;]+)/);if(m&&${JSON.stringify(SUPPORTED_LOCALES)}.indexOf(m[1])>-1)document.documentElement.lang=m[1]}catch(e){}`;
+
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html
@@ -50,6 +56,10 @@ export default function RootLayout({ children }: PropsWithChildren) {
       suppressHydrationWarning
     >
       <head>
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed script with no user input, so <html lang> is right before first paint.
+          dangerouslySetInnerHTML={{ __html: HTML_LANG_FROM_COOKIE }}
+        />
         <link href="//files.teakvault.com" rel="dns-prefetch" />
         <link href="https://files.teakvault.com" rel="preconnect" />
         <JsonLd

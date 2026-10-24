@@ -5,6 +5,7 @@ After a card is saved, Teak works on it in the background: it settles the card's
 ## Sub-features
 
 - `processing-stages` takes a new card's `processingStatus` stages (classify, categorize, metadata, renderables) from pending to completed, with the AI tags and summary readable on the card.
+- `ai-language` writes the AI tags and summary in the content's main language (English when it has none, or for an image with no text) and stores that language as `cards.aiLanguage` (`ja`, `es`…). It isn't in the public API or the UI; read it from the run's output or the card document.
 - `processing-run` is the Workflow run behind it: one instance per card revision, named `card-<cardId>-<rev>`, with its steps, attempts, output and errors.
 - `processing-files` covers what a run stores in the Files bucket (thumbnails, previews, screenshots) under the account's key prefix.
 - `processing-logs` covers the Files Worker's logs and traces for a run: warnings, errors and each invocation's outcome.
@@ -26,6 +27,7 @@ Steps (with `X=http://127.0.0.1:4102/cdn-cgi/local/explorer/api` and `API=http:/
 
 - **Save.** `curl -X POST $API/v1/cards -H "Authorization: Bearer $KEY" -H 'content-type: application/json' -d '{"content":"verify-<run-id> sourdough starter notes"}'`. The response has `cardId`, and `processingStatus.classify` and `.metadata` are `pending`.
 - **Run.** `curl $X/workflows/teak-e2e-card-processing/instances`: an instance `card-<cardId>-1` is `running`, then `complete`. `curl $X/workflows/teak-e2e-card-processing/instances/card-<cardId>-1`: `result.steps` lists "load card", "classify", "generate metadata", "emit completion" and "report complete", each `success: true`, and `result.output` is `{"mode":"completed", …, "metadata":{"aiTagsCount":4,"hasSummary":true, …}}`. The same from Wrangler, run in `apps/files-worker`: `bunx wrangler workflows instances describe teak-e2e-card-processing latest --local --port 4102` (step outputs and timing as tables).
+- **Language.** The same run's "generate metadata" step output and `result.output.metadata` carry `"aiLanguage":"en","aiPromptVersion":2`: the E2E stack's fake AI always answers English. The card document has `aiLanguage: "en"` (the Convex dashboard for the local backend, or `bunx convex data cards` against it); the public API doesn't return it.
 - **Second view.** `curl $API/v1/cards/<cardId> -H "Authorization: Bearer $KEY"`: `aiTags` and `aiSummary` are filled, and every `processingStatus` stage is `completed`.
 - **Logs.** `curl -X POST $X/local/observability/query -H 'content-type: application/json' -d '{"sql":"SELECT level, message FROM logs WHERE level IN (?, ?) ORDER BY ts_ms DESC LIMIT 20","params":["error","warn"]}'`. Root spans: `SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL ORDER BY start_ms DESC`.
 - **Files.** `curl "$X/r2/buckets/teak-files-e2e/objects"` lists stored objects, keyed `users/<user key>/cards/…` (the seeded vault's uploads are already there); an image or file card adds its own. `curl "$X/r2/buckets/teak-files-e2e/objects/<key>"` returns one.
@@ -34,6 +36,8 @@ Steps (with `X=http://127.0.0.1:4102/cdn-cgi/local/explorer/api` and `API=http:/
 - **Regression proof.** `bun test apps/files-worker/src/workflows/cardProcessing/engine.test.ts` runs card processing on the same Workflows engine against a fake Convex: retries, a stale write ending the run as skipped, and errored runs reported back.
 
 ## Gotchas
+
+- Whether the model really writes in the content's language needs the real Workers AI, so prove `ai-language` on the dev deployment once its Files Worker runs this code: `bun --no-env-file run scripts/ai-language-check.ts --seed --wait 15` seeds the `ai-languages` pack on this checkout's dev account and prints each card's expected language, `aiLanguage` and summary script, then the accuracy per language (ja, es, de, ko, zh and fr must reach 90%). Images, PDFs and audio aren't seeded: upload a photo of Japanese signage, a photo with no text, a German PDF and a Spanish voice note through the app and read their card dialogs.
 
 - A text or quote card with no text skips the AI: its metadata stage completes with no tags and no summary, rather than a made-up description of an empty note. Prove it with `bun test apps/files-worker/src/workflows/cardProcessing/metadata.test.ts`, or on the E2E stack by saving a note, emptying its `content` through the API, and reading the card once its run is `complete`.
 - The E2E stack's AI is a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`): tags are the first words of the content and the summary starts "Saved note about". It doesn't answer the card-type decision, so a text card logs `malformed_clef_response` (op `decide-card-type`) and keeps the rules' type. That is expected here, not a bug.

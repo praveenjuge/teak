@@ -47,6 +47,26 @@ test.each([
     '```json\n{"tags":["sign"],"summary":"A sign.","text":"出口 Exit"}\n```',
     { summary: "A sign.", tags: ["sign"], text: "出口 Exit" },
   ],
+  [
+    "Japanese signage, with its language",
+    '{"tags":["駅","出口"],"summary":"駅の出口の看板。","text":"東京駅 出口","language":"ja"}',
+    {
+      language: "ja",
+      summary: "駅の出口の看板。",
+      tags: ["駅", "出口"],
+      text: "東京駅 出口",
+    },
+  ],
+  [
+    "a region form of a language",
+    '{"tags":["菜单"],"summary":"一份菜单。","text":"今日菜单","language":"zh-CN"}',
+    { language: "zh", summary: "一份菜单。", tags: ["菜单"], text: "今日菜单" },
+  ],
+  [
+    "a language that is a country code, dropped",
+    '{"tags":["sign"],"summary":"A sign.","text":"東京駅 出口","language":"us"}',
+    { summary: "A sign.", tags: ["sign"], text: "東京駅 出口" },
+  ],
   ["text that is a number", '{"tags":["red"],"summary":"A.","text":42}', null],
   ["text that is null", '{"tags":["red"],"summary":"A.","text":null}', null],
 ])("image metadata from %s", (_name, raw, expected) => {
@@ -70,6 +90,7 @@ test("a retry asks for less text, and the last one for none", () => {
   expect(
     validationRetryPrompt("Analyze", MAX_IMAGE_METADATA_VALIDATION_RETRIES)
   ).toContain('text set to ""');
+  expect(validationRetryPrompt("Analyze", 1)).toContain("language");
 });
 
 test.each([

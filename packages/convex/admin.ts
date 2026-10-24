@@ -632,6 +632,7 @@ export const resetCardProcessingState = internalMutation({
       ...(card.fileMetadata ? { fileMetadata } : {}),
       aiTags: undefined,
       aiSummary: undefined,
+      aiLanguage: undefined,
       ...(await clearCardTranscript(ctx, card)),
       aiOcrText: undefined,
       ocrCheckedAt: undefined,

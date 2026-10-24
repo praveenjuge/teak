@@ -67,6 +67,39 @@ describe("signed text/link metadata", () => {
       expect(run).toHaveBeenCalledTimes(1);
     }
   );
+  test.each([
+    ["a language", "ja", { language: "ja" }],
+    ["a region form", "zh-CN", { language: "zh" }],
+    ["a country code", "us", {}],
+    ["no language", undefined, {}],
+  ])(
+    "passes on %s from the model as its language",
+    async (_name, language, expected) => {
+      const answer = {
+        tags: ["デザイン"],
+        summary: "東京のデザイン展。",
+        ...(language === undefined ? {} : { language }),
+      };
+      const run = mock(() =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify(answer) } }],
+        })
+      );
+      const response = await handleInternalOp(
+        await signedRequest("generate-text-metadata", { prompt: "東京のメモ" }),
+        env(run)
+      );
+      expect(response.status).toBe(200);
+      expect((await response.json()).data).toEqual({
+        tags: ["デザイン"],
+        summary: "東京のデザイン展。",
+        ...expected,
+        validationRetryCount: 0,
+      });
+      // An invalid language is dropped, never a retry.
+      expect(run).toHaveBeenCalledTimes(1);
+    }
+  );
   test("routes Workers AI through the configured gateway without logs or cache", async () => {
     const run = mock(() =>
       Promise.resolve({
