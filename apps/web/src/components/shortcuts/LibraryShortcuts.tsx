@@ -199,7 +199,9 @@ export function LibraryShortcuts({
       },
       ...LIBRARY_VIEWS.map((view) => ({
         keys: `g ${GO_TO_VIEW_KEYS[view]}`,
-        run: closeDialogThen(() => onGoToView(view)),
+        run: closeDialogThen(() => {
+          onGoToView(view);
+        }),
       })),
       {
         keys: `g ${GO_TO_SETTINGS_KEY}`,
