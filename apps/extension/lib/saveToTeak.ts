@@ -85,7 +85,11 @@ export async function restResult(
   if (typeof body.cardId !== "string") {
     throw new Error("Invalid save response.");
   }
-  return { status: "saved", cardId: body.cardId };
+  // A link already in Teak comes back as that card, moved to the top (and back
+  // from Archive), so it shows as "already in Teak".
+  return body.resaved === true
+    ? { status: "duplicate", cardId: body.cardId }
+    : { status: "saved", cardId: body.cardId };
 }
 
 export async function saveToTeak(
@@ -112,22 +116,9 @@ export async function saveToTeak(
   }
   const request = dependencies.request ?? oauthRequest;
   try {
+    // No duplicate check first: saving a link already in Teak moves that card
+    // to the top, and the answer says `resaved: true`.
     const content = parsedUrl ? parsedUrl.toString() : input.content;
-    if (parsedUrl) {
-      const response = await request(
-        `/v1/cards/duplicate?url=${encodeURIComponent(content)}`
-      );
-      if (!response) {
-        return { status: "unauthenticated" };
-      }
-      if (!response.ok) {
-        return restResult(response);
-      }
-      const duplicate = await response.json();
-      if (duplicate.cardId) {
-        return { status: "duplicate", cardId: duplicate.cardId };
-      }
-    }
     return await restResult(
       await request("/v1/cards", {
         method: "POST",

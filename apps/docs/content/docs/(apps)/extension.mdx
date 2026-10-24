@@ -44,6 +44,8 @@ Install and enable Safari saving with the [Mac app guide](/docs/mac). Click the 
 
 When you open either extension popup, Teak automatically saves the current page. The popup shows whether the page was saved, was already in your library, or cannot be saved.
 
+In Chrome and Firefox, saving a page that's already in your library says **Already in your Teak** and moves that card to the top of your library, bringing it back from Archive if it was there. Teak doesn't make a second card. The Safari extension says **Saved to Teak** either way, and moves the card the same way.
+
 In Chrome and Firefox, choose **Upload file** in the popup to save a supported local file up to 100 MB. Firefox closes the toolbar popup when a file picker opens, so in Firefox **Upload file** opens a small Teak window to choose the file in.
 
 ### Add tags and a note after saving
@@ -63,7 +65,7 @@ Press **Alt+Shift+S** (**⌥⇧S** on Mac) to save the page in the current tab w
 | Icon | Means |
 | ---- | ----- |
 | **…** | Saving |
-| **✓** | Saved, or the page was already in Teak |
+| **✓** | Saved, or the page was already in Teak and moved to the top |
 | **!** | Teak couldn't save the page. Hover the icon to see why. It clears after a few seconds |
 
 If you're signed out or have reached your free plan limit, the popup opens instead so you can sign in or upgrade. Pages Teak can't save, such as `chrome://` pages and add-on stores, show **!**.
@@ -72,7 +74,7 @@ To use a different shortcut, open `chrome://extensions/shortcuts` in Chrome (or 
 
 ### Already in Teak
 
-While you're signed in, the Teak icon shows **✓** when the page in your current tab is already in your library, and its tooltip reads **Already in Teak**. To show it, the extension asks Teak about the page's address when you switch tabs, a page finishes loading, or you come back to the window. It remembers each answer for five minutes, so a card you delete in Teak can keep its **✓** for up to five minutes. Cards in Trash don't count; archived cards do.
+While you're signed in, the Teak icon shows **✓** when the page in your current tab is already in your library, and its tooltip reads **Already in Teak**. To show it, the extension asks Teak about the page's address when you switch tabs, a page finishes loading, or you come back to the window. It remembers each answer for five minutes, so a card you delete in Teak can keep its **✓** for up to five minutes. Cards in Trash don't count; archived cards do. Saving a page marked **✓** moves its card to the top of your library.
 
 Pages in private and incognito windows are never checked, and neither are browser pages such as `chrome://` and `about:` pages.
 

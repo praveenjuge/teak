@@ -742,6 +742,7 @@
       "moreDetails": "詳細をさらに表示",
       "published": "公開日",
       "publisher": "発行元",
+      "savedAgain": "再保存日",
       "showAllOfType": "{type, select, text {テキストのカードをすべて表示} link {リンクのカードをすべて表示} image {画像のカードをすべて表示} video {動画のカードをすべて表示} audio {音声のカードをすべて表示} document {ドキュメントのカードをすべて表示} palette {パレットのカードをすべて表示} quote {引用のカードをすべて表示} other {カードをすべて表示}}",
       "text": "テキスト",
       "title": "詳細",

@@ -6,10 +6,8 @@ describe("OAuth content saving", () => {
   test.each(["context-menu", "inline-post", "popup-auto-save"] as const)(
     "saves a URL from %s and preserves its idempotency key",
     async (source) => {
-      const request = mock(async (path: string, _init?: RequestInit) =>
-        path.startsWith("/v1/cards/duplicate")
-          ? Response.json({ cardId: null })
-          : Response.json({ cardId: "saved-card" })
+      const request = mock(async (_path: string, _init?: RequestInit) =>
+        Response.json({ status: "created", cardId: "saved-card" })
       );
       expect(
         await saveToTeak(
@@ -21,10 +19,8 @@ describe("OAuth content saving", () => {
           { request }
         )
       ).toEqual({ status: "saved", cardId: "saved-card" });
-      expect(request.mock.calls[0]?.[0]).toBe(
-        "/v1/cards/duplicate?url=https%3A%2F%2Fexample.com%2F"
-      );
-      const init = request.mock.calls[1]?.[1];
+      expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
+      const init = request.mock.calls[0]?.[1];
       expect(JSON.parse(String(init?.body))).toEqual({
         url: "https://example.com/",
       });
@@ -70,10 +66,8 @@ describe("OAuth content saving", () => {
     });
   });
   test("a selection that is a bare URL saves as a link, with no source", async () => {
-    const request = mock(async (path: string, _init?: RequestInit) =>
-      path.startsWith("/v1/cards/duplicate")
-        ? Response.json({ cardId: null })
-        : Response.json({ cardId: "link-card" })
+    const request = mock(async (_path: string, _init?: RequestInit) =>
+      Response.json({ cardId: "link-card" })
     );
     await saveToTeak(
       {
@@ -84,7 +78,7 @@ describe("OAuth content saving", () => {
       },
       { request }
     );
-    expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toEqual({
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       url: "https://example.org/linked",
     });
   });
@@ -124,18 +118,27 @@ describe("OAuth content saving", () => {
       sourceUrl: "https://example.com/essay",
     });
   });
-  test("returns the existing card without creating a duplicate", async () => {
-    const request = mock(async () =>
-      Response.json({ cardId: "existing-card" })
-    );
-    expect(
-      await saveToTeak(
-        { content: "https://example.com/", source: "inline-post" },
-        { request }
-      )
-    ).toEqual({ status: "duplicate", cardId: "existing-card" });
-    expect(request).toHaveBeenCalledTimes(1);
-  });
+  test.each([{ resaved: true }, { resaved: true, wasArchived: true }])(
+    "a link already in Teak is saved again and shows as already in Teak: %p",
+    async (outcome) => {
+      const request = mock(async (_path: string, _init?: RequestInit) =>
+        Response.json({
+          status: "created",
+          cardId: "existing-card",
+          ...outcome,
+        })
+      );
+      expect(
+        await saveToTeak(
+          { content: "https://example.com/", source: "inline-post" },
+          { request }
+        )
+      ).toEqual({ status: "duplicate", cardId: "existing-card" });
+      // The save itself moves the card to the top: no duplicate check first.
+      expect(request.mock.calls.map(([path]) => path)).toEqual(["/v1/cards"]);
+      expect(request.mock.calls[0]?.[1]?.method).toBe("POST");
+    }
+  );
   test("requests reconnect when its OAuth credential is absent or revoked", async () => {
     expect(
       await saveToTeak(
@@ -181,7 +184,7 @@ describe("OAuth content saving", () => {
     ).toMatchObject({ code: "UNSUPPORTED_HOST" });
     expect(request).not.toHaveBeenCalled();
   });
-  test("does not create a card when duplicate detection fails", async () => {
+  test("reports a refused link save", async () => {
     const request = mock(async () =>
       Response.json(
         { code: "RATE_LIMITED", error: "Try later" },

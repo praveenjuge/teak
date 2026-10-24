@@ -18,6 +18,7 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 - `apple-card-details` shows Price, Published, EXIF rows (Camera, Taken, Exposure, Aperture, Focal length, ISO) and the "From <host>" footer.
 - `apple-tags` lists tags with counts (Mac and iPad sidebar, iPhone Settings › Tags) and renames, merges and deletes them with progress.
 - `apple-share-details` adds tags and a note after a single shared item is saved.
+- `apple-safari-save` saves the Safari tab with `createCard` and no duplicate check first: a page already in Teak moves to the top (and out of Archive) and the popup reads "Saved to Teak", since `createCard` returns only the id.
 - `apple-commands` offers Card menu commands on Mac and iPad: Archive ⌃⌘A, Mark as done ⇧⌘D, More Like This ⇧⌘L, Refresh Details ⌥⌘R, and View › Revisit ⌃⌘R.
 
 ## How to get to it (user POV)
@@ -53,6 +54,7 @@ Steps:
 - **Card details.** Search `#scenario-save-details`, open "A selection from a page whose title runs to 300 characters.": "From example.org" and the page title at the bottom. Product links show **Price**, dated links **Published**, uploaded photos with EXIF the camera rows.
 - **Tags.** iPhone Settings › Tags (iPad and Mac sidebar Tags): every tag with counts, hidden tags with an eye-slash. Press and hold "design" → **Rename…** to "design-systems": the progress row, then "Renamed “design” to “design-systems”. 38 cards changed." Rename it back so seeded smart folders keep matching.
 - **Share.** Share a single link or text to Teak: "Saved", then **Add tags** and **Add a note** fields and **Done**/**Save**; it closes on its own after 3 seconds if untouched.
+- **Safari save.** Seed `resave` ([api-cli-mcp](./api-cli-mcp.md), **Re-save**). In Safari on Mac (Debug build, extension on), open `https://example.com/resave/060` (archived in the pack) and click **Teak** in the toolbar: "Saved to Teak". The library lists that card first, out of Archive, and search `resave/060` finds one card. `bun --no-env-file test apps/apple/tests/safari-popup.test.ts` covers the popup's states; the native handler has no automated test.
 - **UI tests.** `TEAK_IPHONE="<iPhone>" apps/apple/scripts/ui-tests.sh ios -only-testing:TeakUITests/LibraryFlowTests` (also `ipad`; `mac` needs UI automation allowed).
 
 ## Gotchas

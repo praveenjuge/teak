@@ -742,6 +742,7 @@
       "moreDetails": "Plus de détails",
       "published": "Publication",
       "publisher": "Éditeur",
+      "savedAgain": "Enregistrée à nouveau",
       "showAllOfType": "{type, select, text {Afficher toutes les fiches texte} link {Afficher toutes les fiches lien} image {Afficher toutes les fiches image} video {Afficher toutes les fiches vidéo} audio {Afficher toutes les fiches audio} document {Afficher toutes les fiches document} palette {Afficher toutes les fiches palette} quote {Afficher toutes les fiches citation} other {Afficher toutes les fiches}}",
       "text": "Texte",
       "title": "Détails",

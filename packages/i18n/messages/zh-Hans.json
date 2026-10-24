@@ -742,6 +742,7 @@
       "moreDetails": "更多详情",
       "published": "发布时间",
       "publisher": "发布者",
+      "savedAgain": "再次保存时间",
       "showAllOfType": "{type, select, text {显示所有文本卡片} link {显示所有链接卡片} image {显示所有图片卡片} video {显示所有视频卡片} audio {显示所有音频卡片} document {显示所有文档卡片} palette {显示所有调色板卡片} quote {显示所有引用卡片} other {显示所有卡片}}",
       "text": "文本",
       "title": "详情",

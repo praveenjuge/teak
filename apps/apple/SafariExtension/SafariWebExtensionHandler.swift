@@ -67,8 +67,8 @@ struct SafariRequests {
         do {
             guard try await session.restore() != nil else { return ["status": "unauthenticated"] }
             let convex = TeakServices.http(session: session)
-            let duplicate = try await convex.query(ConvexFunctions.findDuplicateCard, ["url": .string(url)])
-            if let duplicate { return ["status": "duplicate", "cardId": duplicate.id] }
+            // No duplicate check first: a page already in Teak moves to the top. `createCard`
+            // returns only the id, so the popup says "Saved" either way.
             let id = try await convex.mutation(ConvexFunctions.createCard,
                                                        ["content": .string(url), "type": "link", "url": .string(url),
                                                         "source": CardSource.apple])
