@@ -14,6 +14,8 @@ export interface PrefetchFileTextPreviewOptions {
   cacheKey: string;
   fetchImpl?: typeof fetch;
   fileUrl: string;
+  /** The most bytes read; 1 MiB unless the caller needs more. */
+  maxBytes?: number;
 }
 
 interface CachedPreview {
@@ -93,6 +95,7 @@ export const requestFileTextPreview = ({
   cacheKey,
   fetchImpl,
   fileUrl,
+  maxBytes,
 }: PrefetchFileTextPreviewOptions): Promise<string | null> => {
   const cached = cachedFileTextPreview(cacheKey);
   if (cached !== undefined) {
@@ -104,7 +107,7 @@ export const requestFileTextPreview = ({
     return pending;
   }
 
-  const request = loadFileTextPreview(fileUrl, { fetchImpl })
+  const request = loadFileTextPreview(fileUrl, { fetchImpl, maxBytes })
     .then((source) => {
       if (source !== null) {
         cachePreview(cacheKey, source);
