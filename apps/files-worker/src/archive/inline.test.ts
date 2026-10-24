@@ -368,6 +368,25 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     expect(result.html).not.toContain("amp;amp;");
   });
 
+  test("keeps the fragment of an external SVG reference on its data URI", async () => {
+    const svg: FetchedAsset = {
+      body: new TextEncoder().encode(
+        '<svg xmlns="http://www.w3.org/2000/svg"><filter id="shadow"/></svg>'
+      ),
+      contentType: "image/svg+xml",
+    };
+    const result = await archive(
+      `<head><style>.card{filter:url(/effects.svg#shadow)}.plain{background:url(/effects.svg)}</style></head><p class="card plain">x</p>`,
+      fakeDeps({ defaultAsset: () => svg })
+    );
+    expect(result.html).toMatch(
+      /filter:url\("data:image\/svg\+xml;base64,[^"#]+#shadow"\)/u
+    );
+    expect(result.html).toMatch(
+      /background:url\("data:image\/svg\+xml;base64,[^"#]+"\)/u
+    );
+  });
+
   test("drops a stylesheet over 4 MiB", async () => {
     const big = `.big{color:red}${" ".repeat(PAGE_ARCHIVE_MAX_TEXT_BYTES + 1 - 15)}`;
     const result = await archive(

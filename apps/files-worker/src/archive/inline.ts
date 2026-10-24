@@ -637,15 +637,25 @@ const resolveImports = async (
   return resolved;
 };
 
+/**
+ * The asset's data URI, keeping the reference's fragment: in
+ * `url(effects.svg#shadow)` the fragment names the SVG element to use.
+ */
+const inlinedUrl = (url: string, dataUri: string) => {
+  const hash = url.indexOf("#");
+  return hash === -1 ? dataUri : `${dataUri}${url.slice(hash)}`;
+};
+
 const rewriteForPlan = (
   css: string,
   base: string,
   assets: Map<string, InlineAsset>,
   plan: RenderPlan
 ) =>
-  rewriteCssUrls(css, base, ({ url }) =>
-    plan.kept.has(url) ? (assets.get(url)?.dataUri ?? null) : null
-  );
+  rewriteCssUrls(css, base, ({ url }) => {
+    const asset = plan.kept.has(url) ? assets.get(url) : undefined;
+    return asset ? inlinedUrl(url, asset.dataUri) : null;
+  });
 
 const markIndex = (element: Element, name: string): number | null => {
   const value = element.getAttribute(name);
