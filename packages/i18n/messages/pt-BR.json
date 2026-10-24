@@ -953,7 +953,19 @@
       "placeholder": "Escreva uma nota...",
       "upgradePlaceholder": "Faça upgrade para o Pro para adicionar mais cards...",
       "saveFailed": "Não foi possível salvar a nota",
-      "focus": "Foco"
+      "focus": "Foco",
+      "resaved": "Já está no Teak · Movido para o topo",
+      "resavedFromArchive": "Já está no Teak · Tirado do Arquivo",
+      "open": "Abrir",
+      "saveLinks": "Salvar {count, plural, one {# link} other {# links}}",
+      "saveFirstLinks": "Salvar os primeiros {count, plural, one {# link} other {# links}}"
+    },
+    "pasteLinks": {
+      "progress": "Salvando links · {done} de {total}",
+      "saved": "{created, plural, one {# link salvo} other {# links salvos}}{resaved, plural, =0 {} one { · # já estava no Teak e foi movido para o topo} other { · # já estavam no Teak e foram movidos para o topo}}{failed, plural, =0 {} one { · # não pôde ser salvo} other { · # não puderam ser salvos}}{omitted, plural, =0 {} one { · # ficou de fora ({limit} por vez)} other { · # ficaram de fora ({limit} por vez)}}",
+      "stoppedAtLimit": "{saved} de {total, plural, one {# link salvo} other {# links salvos}} · Você atingiu {limit} cards",
+      "failed": "Não foi possível salvar os links. Tente novamente.",
+      "active": "Ainda estamos salvando seus últimos links. Tente novamente em instantes."
     },
     "addCardActions": {
       "new": "Novo",

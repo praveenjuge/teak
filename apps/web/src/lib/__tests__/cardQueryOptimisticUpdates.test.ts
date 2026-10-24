@@ -4,6 +4,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
 import { getFunctionName } from "convex/server";
 import {
+  addCaptureToSearchQueries,
   addCardToSearchQueries,
   cardMatchesSearchQuery,
   updateCardInSearchQueries,
@@ -271,5 +272,82 @@ describe("card query optimistic updates", () => {
     updateCardInSearchQueries(localStore, "card-1" as Id<"cards">, () => null);
 
     expect(written).toEqual([]);
+  });
+});
+
+describe("a capture being saved from the composer", () => {
+  const firstPage = (page: Doc<"cards">[]) => {
+    const state = {
+      page,
+      store: {} as OptimisticLocalStore,
+    };
+    state.store = {
+      getAllQueries: (query: unknown) =>
+        getFunctionName(query as typeof api.cards.searchCardsPaginated) ===
+        getFunctionName(api.cards.searchCardsPaginated)
+          ? [
+              {
+                args: { paginationOpts: { cursor: null, numItems: 20 } },
+                value: { continueCursor: "", isDone: true, page: state.page },
+              },
+            ]
+          : [],
+      setQuery: (
+        _query: unknown,
+        _args: unknown,
+        value: { page: Doc<"cards">[] }
+      ) => {
+        state.page = value.page;
+      },
+    } as unknown as OptimisticLocalStore;
+    return state;
+  };
+  const link = card({
+    _id: "saved-link" as Id<"cards">,
+    content: "https://www.example.com/post/",
+    isArchived: true,
+    isFavorited: undefined,
+    type: "link",
+    url: "https://www.example.com/post/",
+  });
+  const note = card({ _id: "note" as Id<"cards">, isFavorited: undefined });
+
+  it("moves a link already in the list to the top instead of adding a second tile", () => {
+    const grid = firstPage([note, link]);
+
+    addCaptureToSearchQueries(grid.store, {
+      content: "http://example.com/post?utm_source=x",
+      id: "optimistic" as Id<"cards">,
+      now: 50,
+    });
+
+    expect(grid.page.map((entry) => entry._id)).toEqual(["saved-link", "note"]);
+    expect(grid.page[0]).toMatchObject({ savedAt: 50, isArchived: undefined });
+  });
+
+  it("adds a placeholder tile for a new link or a note", () => {
+    for (const content of ["https://example.com/new", "A note about it"]) {
+      const grid = firstPage([note, link]);
+      addCaptureToSearchQueries(grid.store, {
+        content,
+        id: "optimistic" as Id<"cards">,
+        now: 50,
+      });
+      expect(grid.page.map((entry) => entry._id)).toEqual([
+        "optimistic",
+        "note",
+        "saved-link",
+      ]);
+    }
+  });
+
+  it("never moves a card in Trash", () => {
+    const grid = firstPage([note, { ...link, isDeleted: true }]);
+    addCaptureToSearchQueries(grid.store, {
+      content: "https://www.example.com/post/",
+      id: "optimistic" as Id<"cards">,
+      now: 50,
+    });
+    expect(grid.page[0]._id).toBe("optimistic" as Id<"cards">);
   });
 });

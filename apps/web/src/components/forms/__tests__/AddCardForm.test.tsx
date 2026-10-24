@@ -107,8 +107,12 @@ mock.module("sonner", () => ({
 }));
 
 const addCardApi = {
+  card: {
+    pasteLinks: { getLinkPaste: {}, startLinkPaste: {} },
+  },
   cards: {
     createCard: {},
+    createCardWithOutcome: {},
     uploadAndCreateCard: {},
     finalizeUploadedCard: {},
     searchCards: {},

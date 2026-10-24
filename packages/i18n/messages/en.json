@@ -953,7 +953,19 @@
       "placeholder": "Write a note...",
       "upgradePlaceholder": "Upgrade to Pro to add more cards...",
       "saveFailed": "Failed to save note",
-      "focus": "Focus"
+      "focus": "Focus",
+      "resaved": "Already in Teak · Moved to the top",
+      "resavedFromArchive": "Already in Teak · Moved back from Archive",
+      "open": "Open",
+      "saveLinks": "Save {count, plural, one {# link} other {# links}}",
+      "saveFirstLinks": "Save first {count, plural, one {# link} other {# links}}"
+    },
+    "pasteLinks": {
+      "progress": "Saving links · {done} of {total}",
+      "saved": "Saved {created, plural, one {# link} other {# links}}{resaved, plural, =0 {} other { · # already in Teak, moved to the top}}{failed, plural, =0 {} other { · # couldn't be saved}}{omitted, plural, =0 {} other { · # left out ({limit} at a time)}}",
+      "stoppedAtLimit": "Saved {saved} of {total, plural, one {# link} other {# links}} · You've reached {limit} cards",
+      "failed": "Couldn't save the links. Try again.",
+      "active": "Still saving your last links. Try again in a moment."
     },
     "addCardActions": {
       "new": "New",

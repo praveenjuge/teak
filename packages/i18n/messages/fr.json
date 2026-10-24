@@ -953,7 +953,19 @@
       "placeholder": "Écrivez une note…",
       "upgradePlaceholder": "Passez à Pro pour ajouter d’autres fiches…",
       "saveFailed": "Impossible d’enregistrer la note",
-      "focus": "Concentration"
+      "focus": "Concentration",
+      "resaved": "Déjà dans Teak · Remonté en haut",
+      "resavedFromArchive": "Déjà dans Teak · Sorti des Archives",
+      "open": "Ouvrir",
+      "saveLinks": "Enregistrer {count, plural, one {# lien} other {# liens}}",
+      "saveFirstLinks": "Enregistrer les {count, plural, one {# premier lien} other {# premiers liens}}"
+    },
+    "pasteLinks": {
+      "progress": "Enregistrement des liens · {done} sur {total}",
+      "saved": "{created, plural, one {# lien enregistré} other {# liens enregistrés}}{resaved, plural, =0 {} one { · # déjà dans Teak, remonté en haut} other { · # déjà dans Teak, remontés en haut}}{failed, plural, =0 {} one { · # n’a pas pu être enregistré} other { · # n’ont pas pu être enregistrés}}{omitted, plural, =0 {} one { · # laissé de côté ({limit} à la fois)} other { · # laissés de côté ({limit} à la fois)}}",
+      "stoppedAtLimit": "{saved} sur {total, plural, one {# lien enregistré} other {# liens enregistrés}} · Vous avez atteint {limit} fiches",
+      "failed": "Impossible d’enregistrer les liens. Réessayez.",
+      "active": "Vos derniers liens sont encore en cours d’enregistrement. Réessayez dans un instant."
     },
     "addCardActions": {
       "new": "Nouveau",

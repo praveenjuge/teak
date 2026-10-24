@@ -953,7 +953,19 @@
       "placeholder": "메모를 작성하세요...",
       "upgradePlaceholder": "카드를 더 추가하려면 Pro로 업그레이드하세요...",
       "saveFailed": "메모를 저장하지 못했습니다",
-      "focus": "집중"
+      "focus": "집중",
+      "resaved": "이미 Teak에 있습니다 · 맨 위로 이동했습니다",
+      "resavedFromArchive": "이미 Teak에 있습니다 · 보관함에서 꺼냈습니다",
+      "open": "열기",
+      "saveLinks": "{count, plural, other {링크 #개 저장}}",
+      "saveFirstLinks": "{count, plural, other {처음 링크 #개 저장}}"
+    },
+    "pasteLinks": {
+      "progress": "링크 저장 중 · {total}개 중 {done}개",
+      "saved": "{created, plural, other {링크 #개를 저장했습니다}}{resaved, plural, =0 {} other { · #개는 이미 Teak에 있어 맨 위로 이동했습니다}}{failed, plural, =0 {} other { · #개는 저장하지 못했습니다}}{omitted, plural, =0 {} other { · #개는 제외되었습니다(한 번에 {limit}개까지)}}",
+      "stoppedAtLimit": "{total, plural, other {링크 #개 중 {saved}개를 저장했습니다}} · 카드 {limit}개 한도에 도달했습니다",
+      "failed": "링크를 저장하지 못했습니다. 다시 시도하세요.",
+      "active": "아직 이전 링크를 저장하고 있습니다. 잠시 후 다시 시도하세요."
     },
     "addCardActions": {
       "new": "새로 만들기",

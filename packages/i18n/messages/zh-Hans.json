@@ -953,7 +953,19 @@
       "placeholder": "写笔记…",
       "upgradePlaceholder": "升级到 Pro 以添加更多卡片…",
       "saveFailed": "无法保存笔记",
-      "focus": "专注"
+      "focus": "专注",
+      "resaved": "已在 Teak 中 · 已移到最前",
+      "resavedFromArchive": "已在 Teak 中 · 已从归档中移回",
+      "open": "打开",
+      "saveLinks": "{count, plural, other {保存 # 个链接}}",
+      "saveFirstLinks": "{count, plural, other {保存前 # 个链接}}"
+    },
+    "pasteLinks": {
+      "progress": "正在保存链接 · {done}/{total}",
+      "saved": "{created, plural, other {已保存 # 个链接}}{resaved, plural, =0 {} other { · # 个已在 Teak 中，已移到最前}}{failed, plural, =0 {} other { · # 个无法保存}}{omitted, plural, =0 {} other { · # 个未保存（每次最多 {limit} 个）}}",
+      "stoppedAtLimit": "{total, plural, other {已保存 {saved}/# 个链接}} · 已达到 {limit} 张卡片的上限",
+      "failed": "无法保存这些链接。请重试。",
+      "active": "仍在保存你上次粘贴的链接。请稍后重试。"
     },
     "addCardActions": {
       "new": "新建",

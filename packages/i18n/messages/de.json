@@ -953,7 +953,19 @@
       "placeholder": "Notiz schreiben…",
       "upgradePlaceholder": "Upgraden Sie auf Pro, um weitere Karten hinzuzufügen…",
       "saveFailed": "Die Notiz konnte nicht gespeichert werden",
-      "focus": "Fokus"
+      "focus": "Fokus",
+      "resaved": "Bereits in Teak · Nach oben verschoben",
+      "resavedFromArchive": "Bereits in Teak · Aus dem Archiv zurückgeholt",
+      "open": "Öffnen",
+      "saveLinks": "{count, plural, one {# Link} other {# Links}} speichern",
+      "saveFirstLinks": "Die ersten {count, plural, one {# Link} other {# Links}} speichern"
+    },
+    "pasteLinks": {
+      "progress": "Links werden gespeichert · {done} von {total}",
+      "saved": "{created, plural, one {# Link gespeichert} other {# Links gespeichert}}{resaved, plural, =0 {} one { · # war bereits in Teak und wurde nach oben verschoben} other { · # waren bereits in Teak und wurden nach oben verschoben}}{failed, plural, =0 {} one { · # konnte nicht gespeichert werden} other { · # konnten nicht gespeichert werden}}{omitted, plural, =0 {} other { · # ausgelassen ({limit} auf einmal)}}",
+      "stoppedAtLimit": "{saved} von {total, plural, one {# Link} other {# Links}} gespeichert · Sie haben {limit} Karten erreicht",
+      "failed": "Die Links konnten nicht gespeichert werden. Versuchen Sie es erneut.",
+      "active": "Ihre letzten Links werden noch gespeichert. Versuchen Sie es gleich noch einmal."
     },
     "addCardActions": {
       "new": "Neu",
