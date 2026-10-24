@@ -45,6 +45,7 @@ import {
   finishLinkPasteJob,
   type PasteJob,
   useLinkPasteJobs,
+  useLinkPasteToastOwner,
 } from "./linkPasteJobs";
 import { linkPasteToast } from "./linkPasteToast";
 
@@ -148,16 +149,8 @@ function LinkPasteProgressToast({
     onFinished(job.jobId, kind === "limit");
   }, [job, onFinished, onUpgrade, progress, t, tLimits]);
 
-  // A composer that goes away mid-job leaves no spinner behind; the job
-  // carries on, its cards still arrive, and the next composer picks it up.
-  useEffect(
-    () => () => {
-      if (!finishedRef.current) {
-        toast.dismiss(job.toastId);
-      }
-    },
-    [job.toastId]
-  );
+  // The job carries on if this composer goes away; the next one picks it up.
+  useLinkPasteToastOwner(job);
 
   return null;
 }
@@ -228,9 +221,6 @@ export function AddCardForm({
   const hasContent = Boolean(content.trim());
   // A draft that is only links, one per line, saves one link card each.
   const linkList = useMemo(() => extractLinkList(content), [content]);
-  // Links already in Teak only move, so a list stays savable at the limit;
-  // the job stops at the first new link past it.
-  const canSubmit = canCreateCard || linkList !== null;
   let saveLabel = tc("save");
   if (linkList && linkList.length > LINK_PASTE_LIMIT) {
     saveLabel = t("saveFirstLinks", { count: LINK_PASTE_LIMIT });
@@ -458,7 +448,7 @@ export function AddCardForm({
         />
       ))}
       <FocusEditor
-        canSave={Boolean(content.trim() && canSubmit)}
+        canSave={Boolean(content.trim())}
         cardLinks={cardLinks}
         onChange={setContent}
         onRequestClose={closeFocus}
@@ -502,7 +492,7 @@ export function AddCardForm({
               onOpenFullScreen={openFocus}
               onPasteFiles={globalFileDrop?.enqueueFiles}
               onSaveShortcut={() => {
-                if (hasContent && canSubmit) {
+                if (hasContent) {
                   void submitTextCard();
                 }
               }}
@@ -529,7 +519,6 @@ export function AddCardForm({
                   </ShortcutTooltip>
                   <Button
                     aria-keyshortcuts={ariaKeyShortcut(SAVE_NOTE_KEYS)}
-                    disabled={!canSubmit}
                     size="sm"
                     type="submit"
                   >

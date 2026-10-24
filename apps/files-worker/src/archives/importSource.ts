@@ -1,7 +1,10 @@
 import type { ParsedBookmarkItem } from "@teak/convex/import/bookmarks";
 import { ImportLimitExceeded } from "@teak/convex/import/sourceItems";
 import { parseImportSource } from "@teak/convex/import/sources";
-import { isImportMode } from "@teak/convex/shared/importSources";
+import {
+  IMPORT_FAILURE,
+  isImportMode,
+} from "@teak/convex/shared/importSources";
 import {
   decodeMarkdownUtf8,
   MARKDOWN_CONTENT_MAX_BYTES,
@@ -24,6 +27,22 @@ import {
   readZipDirectory,
   readZipEntry,
 } from "./zip";
+
+/** A CSV import whose header names no url column (`IMPORT_FAILURE`). */
+export const INVALID_MISSING_URL_COLUMN = `invalid_${IMPORT_FAILURE.MISSING_URL_COLUMN}`;
+
+/**
+ * The import's failure class for an `INVALID_INPUT` answer from
+ * `index-import-source`, whose message is the error the op threw.
+ */
+export function importIndexFailureClass(message: string): string {
+  if (message === INVALID_MISSING_URL_COLUMN) {
+    return IMPORT_FAILURE.MISSING_URL_COLUMN;
+  }
+  return /_count$/.test(message)
+    ? IMPORT_FAILURE.TOO_MANY_ITEMS
+    : IMPORT_FAILURE.INVALID_SOURCE;
+}
 
 export async function indexImportSource(
   bucket: R2Bucket,
@@ -132,6 +151,12 @@ export async function indexImportSource(
   } catch (error) {
     if (error instanceof ImportLimitExceeded) {
       throw new Error("invalid_bookmark_count", { cause: error });
+    }
+    if (
+      error instanceof Error &&
+      error.message === IMPORT_FAILURE.MISSING_URL_COLUMN
+    ) {
+      throw new Error(INVALID_MISSING_URL_COLUMN, { cause: error });
     }
     throw new Error("invalid_import_source", { cause: error });
   }

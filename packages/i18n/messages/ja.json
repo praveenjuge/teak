@@ -255,6 +255,7 @@
       "startImport": "インポートを開始",
       "importFrom": "インポート元",
       "upTo": "最大 {size}。",
+      "csvExample": "例",
       "chooseFile": "ファイルを選択",
       "uploadInterrupted": "アップロードが中断されました",
       "resumeHint": "中断したところから再開するには、同じ {source} のファイルを選択してください。",
@@ -269,6 +270,8 @@
         "invalidArchive": "Teak のアーカイブではないようです。「データをエクスポート」で書き出した ZIP を選択してください。",
         "invalidSource": "{article, select, an {} other {}}{source} のエクスポートではないようです。インポート元を確認し、説明にあるファイルを選択してください。",
         "tooManyItems": "このファイルには 10,000 件を超える項目があります。分割して、それぞれをインポートしてください。",
+        "missingUrlColumn": "この CSV には url 列がありません。url（または link）列を含むヘッダー行を追加してください。",
+        "noLinks": "このファイルにはリンクがありません。1 行に 1 つずつリンクを入力してください。",
         "generic": "インポートに失敗しました。もう一度お試しください。"
       },
       "phases": {
@@ -327,6 +330,16 @@
           "title": "OneTab",
           "name": "OneTab",
           "hint": "OneTab の Export URLs のテキストを .txt ファイルとして保存したもの。"
+        },
+        "csv": {
+          "title": "CSV ファイル",
+          "name": "CSV",
+          "hint": "ヘッダー行のある CSV。Teak は url、title、tags、folder、note、created の各列を読み込みます。"
+        },
+        "links": {
+          "title": "リンクのテキストファイル",
+          "name": "テキストファイル",
+          "hint": "1 行に 1 つのリンク。後ろに「 | タイトル」を付けることもできます。OneTab の Export URLs も使えます。"
         },
         "archive": {
           "title": "Teak アーカイブ",

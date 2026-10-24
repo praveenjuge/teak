@@ -1,9 +1,9 @@
 ---
 title: Import Your Data
-description: Bring in browser bookmarks, Pocket, Raindrop, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, OneTab, or a Teak archive
+description: Bring in browser bookmarks, a CSV file or a text file of links, Pocket, Raindrop, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, or a Teak archive
 ---
 
-Teak can import your saved links and notes from a browser bookmarks file, Pocket, Raindrop.io, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, OneTab, or a Teak data archive. Imports are available from Settings in the web app.
+Teak can import your saved links and notes from a browser bookmarks file, a CSV file or a text file of links, Pocket, Raindrop.io, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind, or a Teak data archive. Imports are available from Settings in the web app.
 
 :::note[Imports only add, never remove]
 Importing does not delete or modify any of your existing cards. Links that match a card you already have are skipped, not duplicated.
@@ -34,6 +34,8 @@ Every source keeps a link's original save date when the file has one. Folders be
 | Source | File to upload | What comes in |
 |---|---|---|
 | **Browser bookmarks** | The HTML file from your browser's export (`.html`) | Each bookmark becomes a link card with its name and tags. Bookmark folders become folders. |
+| **CSV file** | Any comma-separated CSV with a header row (`.csv`) | Each row becomes a link card. Teak reads the columns in [CSV columns](#csv-columns) and ignores the rest. Folder paths like `Work/Design` become one folder, **Work / Design**. |
+| **Text file of links** | A `.txt` file with one link per line, optionally followed by ` \| Title`. OneTab's **Export URLs** text works as it is. | Each link becomes a link card, with its title when the line has one. Blank lines and lines that aren't links are skipped. |
 | **Pocket** | The CSV from Pocket's export (`.csv`), or its older HTML export | Links with their titles and tags. Archived items go to Archive. |
 | **Raindrop.io** | The CSV from **Settings → Backups → Export** (`.csv`) | Links with titles, notes, tags, favorites, and saved dates. Collections become folders. |
 | **Instapaper** | The CSV from **Settings → Export** (`.csv`) | Links with titles, tags, and highlighted text as the note. **Archive** goes to Archive, **Starred** to Favorites, and your own folders become folders. |
@@ -41,8 +43,29 @@ Every source keeps a link's original save date when the file has one. Folders be
 | **Omnivore** | The ZIP from Omnivore's export, as downloaded (`.zip`, up to 5 GiB), or one of its `metadata_*.json` files (up to 20 MiB) | Links with titles, labels as tags, and highlights as the note. Archived items go to Archive. |
 | **Linkwarden** | The JSON backup from **Settings → Data → Export** (`.json`) | Links with names, tags, and descriptions as notes. Collections become folders, and pinned links become Favorites. |
 | **mymind** | The CSV from **Settings → Export** (`.csv`) | Links with titles, tags, and notes. Cards with only text become notes. |
-| **OneTab** | The text from **Export URLs**, saved as a `.txt` file | Each saved tab becomes a link card with its title. |
 | **Teak archive** | A ZIP previously downloaded from [Export Your Data](/docs/export) (`.zip`) | Cards are recreated with their original type, content, tags, notes, favorite status, palette colors, and attached files. Archives with `schemaVersion` 2 in `manifest.json` also bring back titles, archived cards (into Archive), folders, and which links you marked done. AI tags and summaries are written fresh. Older archive document cards backed by `.md` or `.markdown` files become editable text cards with their raw Markdown and original source attachment. |
+
+OneTab is no longer listed on its own: choose **Text file of links** for its **Export URLs** text.
+
+### CSV columns
+
+The first row names the columns. Teak matches the names whatever their case, spaces, `_` or `-`, so `Date Added`, `date_added` and `DATE-ADDED` are the same column. Only `url` is required.
+
+| Field | Column names |
+|---|---|
+| Link (required) | `url`, `link`, `href`, `address`, `website` |
+| Title | `title`, `name` |
+| Tags | `tags`, `tag`, `labels`, `keywords`. Separate tags with commas, or with `\|` or `;` when the cell has no comma. A leading `#` is dropped. |
+| Folder | `folder`, `folders`, `collection`, `category`, `list` |
+| Note | `note`, `notes`, `comment`, `comments`, `description` |
+| Date saved | `created`, `created at`, `date`, `date added`, `added`, `saved`, `saved at`, `time added`, `timestamp`. ISO dates (`2024-05-01`, `2024-05-01T10:00:00Z`), `2024-05-01 10:00`, or Unix time in seconds or milliseconds. |
+
+```csv
+url,title,tags,folder,note,created
+https://example.com,Example,"design, type",Work/Design,A note,2024-05-01
+```
+
+Quote a cell that holds a comma or a line break. If two columns share a name, Teak reads the first. Rows without a link, or with a link that isn't `http` or `https`, are listed in the import report with their row number as a spreadsheet shows it (the header is row 1, and blank lines count). Teak reads comma-separated files only: export semicolon-separated spreadsheets as CSV with commas first.
 
 :::note[Folders are no longer tags]
 Before October 2026, folders in bookmark and Raindrop files were added to each card as tags. They now become Teak folders instead, and keep their nesting in the folder name.
@@ -74,6 +97,9 @@ Teak shows how many items were created, skipped, and failed. If any items failed
 <Accordion>
   <AccordionItem title="My import failed immediately">
     Teak says "This doesn't look like a … export" when the file doesn't match the source you picked. Check **Import from**, and that the file is the one the source's guidance names. A wrong file fails before any cards are created.
+  </AccordionItem>
+  <AccordionItem title="My CSV has no url column">
+    The first row of the file must name the columns, and one of them must be the link: `url`, `link`, `href`, `address` or `website`. Add that header row and import the file again. A file separated by semicolons reads as one column, so save it with commas.
   </AccordionItem>
   <AccordionItem title="Some items were skipped">
     Skipped items already exist in your library with the same URL. This is expected and does not indicate an error.

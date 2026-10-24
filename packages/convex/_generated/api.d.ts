@@ -125,6 +125,7 @@ import type * as idempotencyAnalytics from "../idempotencyAnalytics.js";
 import type * as import_bookmarks from "../import/bookmarks.js";
 import type * as import_constants from "../import/constants.js";
 import type * as import_csv from "../import/csv.js";
+import type * as import_genericCsv from "../import/genericCsv.js";
 import type * as import_indexItems from "../import/indexItems.js";
 import type * as import_instapaper from "../import/instapaper.js";
 import type * as import_items from "../import/items.js";
@@ -466,6 +467,7 @@ declare const fullApi: ApiFromModules<{
   "import/bookmarks": typeof import_bookmarks;
   "import/constants": typeof import_constants;
   "import/csv": typeof import_csv;
+  "import/genericCsv": typeof import_genericCsv;
   "import/indexItems": typeof import_indexItems;
   "import/instapaper": typeof import_instapaper;
   "import/items": typeof import_items;

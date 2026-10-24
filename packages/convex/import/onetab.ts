@@ -1,13 +1,15 @@
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { ImportLimitExceeded, linkItem, notAnExport } from "./sourceItems";
 
-const SOURCE = "OneTab";
-
 /**
  * OneTab's "Export URLs" text: one `URL | Title` line per tab, tab groups
- * separated by blank lines.
+ * separated by blank lines. The "Text file of links" source reads the same
+ * shape; `source` names it in errors.
  */
-export function parseOneTabText(text: string): ParsedBookmarkItem[] {
+export function parseOneTabText(
+  text: string,
+  source = "OneTab"
+): ParsedBookmarkItem[] {
   const output: ParsedBookmarkItem[] = [];
   for (const raw of text.replace(/^﻿/, "").split(/\r\n|\r|\n/)) {
     const line = raw.trim();
@@ -17,17 +19,17 @@ export function parseOneTabText(text: string): ParsedBookmarkItem[] {
       continue;
     }
     if (output.length >= 10_000) {
-      throw new ImportLimitExceeded("OneTab export exceeds 10,000 links");
+      throw new ImportLimitExceeded(`${source} exceeds 10,000 links`);
     }
     output.push(
-      linkItem(SOURCE, {
+      linkItem(source, {
         url,
         title: separator === -1 ? "" : line.slice(separator + 3),
       })
     );
   }
   if (output.length === 0) {
-    notAnExport(SOURCE);
+    notAnExport(source);
   }
   return output;
 }
