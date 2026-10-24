@@ -674,7 +674,9 @@ describe("buildPageArchive: text-only", () => {
     expect(result.html).toContain(
       '<p dir="auto">Fish &amp; chips &lt;b&gt; caf\u00e9 \u{1F600}</p>'
     );
-    expect(result.html).toContain('<pre dir="auto">a &lt; b &amp;&amp; c</pre>');
+    expect(result.html).toContain(
+      '<pre dir="auto">a &lt; b &amp;&amp; c</pre>'
+    );
     expect(result.html).not.toContain("&amp;amp;");
   });
 
