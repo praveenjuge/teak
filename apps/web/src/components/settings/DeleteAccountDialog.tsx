@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
-import { Trash2 } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useState } from "react";
+import { Trash } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -75,7 +75,7 @@ export function DeleteAccountDialog({
           </Button>
         </>
       }
-      icon={Trash2}
+      icon={Trash}
       onOpenChange={onOpenChange}
       open={open}
       title={t("title")}

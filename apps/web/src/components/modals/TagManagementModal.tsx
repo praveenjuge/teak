@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
-import { Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Plus, Sparkles, X } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

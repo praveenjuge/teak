@@ -1,5 +1,5 @@
 import { useTranslations } from "@teak/i18n/react";
-import { File } from "lucide-react";
+import { File } from "vadivam-react";
 import { CARD_SURFACE } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 

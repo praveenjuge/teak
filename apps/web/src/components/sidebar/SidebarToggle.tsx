@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
-import { PanelLeft } from "lucide-react";
+import { PanelLeft } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { useOptionalSidebar } from "@/components/ui/sidebar";
 import { cn } from "../../lib/utils";

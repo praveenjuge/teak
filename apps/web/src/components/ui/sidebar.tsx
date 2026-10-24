@@ -3,8 +3,8 @@
 import { Slot } from "@radix-ui/react-slot";
 import { useTranslations } from "@teak/i18n/react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
+import { PanelLeftIcon } from "vadivam-react";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { useReturnFocus } from "../../hooks/useReturnFocus";
 import {

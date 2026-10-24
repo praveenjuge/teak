@@ -1,7 +1,7 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
-import { Pause, Play, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
+import { Pause, Play, Sparkles } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   AUDIO_WAVE_BAR_WIDTH_PX,

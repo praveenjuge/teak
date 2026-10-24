@@ -1,4 +1,4 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "vadivam-react";
 
 export const THEME_OPTIONS = [
   { value: "system", icon: Monitor },

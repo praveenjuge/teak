@@ -8,8 +8,8 @@ import {
 } from "@teak/convex/shared/folders";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { Check, Plus, Search } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { Check, Plus, Search } from "vadivam-react";
 import {
   Dialog,
   DialogContent,

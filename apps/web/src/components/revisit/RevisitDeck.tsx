@@ -1,17 +1,17 @@
 import { api } from "@teak/convex";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
+import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
   ArrowRight,
   Check,
-  Loader2,
+  LoaderCircle,
   RotateCcw,
   X,
-} from "lucide-react";
-import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+} from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -489,7 +489,7 @@ export function RevisitDeck({
                     size="lg"
                   >
                     {deck.pending ? (
-                      <Loader2 className="animate-spin" />
+                      <LoaderCircle className="animate-spin" />
                     ) : (
                       <Archive />
                     )}

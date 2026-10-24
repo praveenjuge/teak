@@ -1,7 +1,7 @@
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { Check, Sparkles } from "vadivam-react";
 import {
   PRO_MONTHLY_PRICE_CENTS,
   PRO_YEARLY_PRICE_CENTS,

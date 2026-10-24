@@ -1,7 +1,7 @@
 import { useTranslations } from "@teak/i18n/react";
-import { Play } from "lucide-react";
 import type { PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { Play } from "vadivam-react";
 import { CARD_SURFACE } from "../cardDisplay";
 import type { ScrubMetadata } from "../types";
 import { ResilientMediaImage } from "./ResilientMediaImage";

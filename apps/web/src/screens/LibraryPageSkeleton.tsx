@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search } from "vadivam-react";
 import { CardsGridSkeleton } from "../components/feedback/CardSkeleton";
 import { searchFieldClassName } from "../components/search/SearchBar";
 import { SidebarToggle } from "../components/sidebar/SidebarToggle";

@@ -2,6 +2,9 @@ import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import type { KeyboardEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Archive,
   ArchiveRestore,
@@ -12,11 +15,11 @@ import {
   CircleCheck,
   Copy,
   Download,
+  Ellipsis,
   FileDown,
   FolderPlus,
   Heart,
   ImageUp,
-  MoreHorizontal,
   PanelRightClose,
   PanelRightOpen,
   Pencil,
@@ -24,13 +27,9 @@ import {
   RotateCcw,
   Sparkles,
   Trash,
-  Trash2,
   Undo2,
   X,
-} from "lucide-react";
-import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+} from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -688,7 +687,7 @@ export function CardModal({
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <HeaderIconButton label={t("menu.moreActions")}>
-          <MoreHorizontal />
+          <Ellipsis />
         </HeaderIconButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -876,7 +875,7 @@ export function CardModal({
               onClick={() => void handleDelete(closeAfterAction)}
               variant="destructive"
             >
-              <Trash2 />
+              <Trash />
               {tc("delete")}
               <DropdownMenuShortcut aria-hidden>
                 {menuShortcuts.delete.label}
@@ -1088,7 +1087,7 @@ export function CardModal({
                     role="status"
                   >
                     <p className="flex items-center gap-2 text-muted-foreground text-sm">
-                      <Trash2 aria-hidden="true" className="size-3.5" />
+                      <Trash aria-hidden="true" className="size-3.5" />
                       {t("trash.inTrash")}
                     </p>
                     <div className="flex gap-1">
