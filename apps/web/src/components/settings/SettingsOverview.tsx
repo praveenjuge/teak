@@ -1,7 +1,7 @@
 "use client";
 
 import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
-import { isSupportedLocale, LOCALE_NAMES } from "@teak/i18n";
+import { LOCALE_NAMES } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -24,6 +24,11 @@ import {
 import { SettingValueSkeleton } from "./SettingValueSkeleton";
 
 const LOADED = "fade-in-0 animate-in duration-300";
+
+/** Each language's own name, by its code. */
+const LANGUAGE_NAMES = new Map(
+  Object.entries(LOCALE_NAMES).map(([code, names]) => [code, names.native])
+);
 
 export interface SettingsOverviewProps {
   accountLoading: boolean;
@@ -151,10 +156,7 @@ function useSummaries({
         });
   }
 
-  const language =
-    locale && isSupportedLocale(locale)
-      ? LOCALE_NAMES[locale].native
-      : LOCALE_NAMES.en.native;
+  const language = LANGUAGE_NAMES.get(locale ?? "en") ?? LOCALE_NAMES.en.native;
   const appearance = hydrated
     ? t("appearance", { theme: theme ?? "system", language })
     : null;

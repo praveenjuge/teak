@@ -203,7 +203,9 @@ export function LibraryShortcuts({
       })),
       {
         keys: `g ${GO_TO_SETTINGS_KEY}`,
-        run: closeDialogThen(() => onNavigate("/settings")),
+        run: closeDialogThen(() => {
+          onNavigate("/settings");
+        }),
       },
     ],
     [closeDialogThen, newNote, onGoToView, onNavigate, setDialogOpen]

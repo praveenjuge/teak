@@ -62,7 +62,9 @@ function useCheckout(hasPremium: boolean | undefined): PlanCheckout {
 
   const onCheckout = async (planId: string) => {
     const checkoutTab = reserveCheckoutTab({
-      assign: (url) => window.location.assign(url),
+      assign: (url) => {
+        window.location.assign(url);
+      },
       openWindow: (url, target) => window.open(url, target),
     });
     captureEvent("checkout_started");

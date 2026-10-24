@@ -1,9 +1,13 @@
 import { describe, expect, mock, test } from "bun:test";
-import React from "react";
+import React, { type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 mock.module("next/link", () => ({
-  default: ({ children, href, ...props }: any) =>
+  default: ({
+    children,
+    href,
+    ...props
+  }: { children?: ReactNode; href: string } & Record<string, unknown>) =>
     React.createElement("a", { href, ...props }, children),
 }));
 mock.module("next/navigation", () => ({

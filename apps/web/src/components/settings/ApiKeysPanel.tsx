@@ -361,8 +361,12 @@ export function ApiKeysPanel({
                 disabled={busy !== null}
                 item={item}
                 key={item.id}
-                onRevoke={() => confirm({ kind: "revoke", item })}
-                onRotate={() => confirm({ kind: "rotate", item })}
+                onRevoke={() => {
+                  confirm({ kind: "revoke", item });
+                }}
+                onRotate={() => {
+                  confirm({ kind: "rotate", item });
+                }}
               />
             ))}
           </SettingsList>
@@ -372,7 +376,9 @@ export function ApiKeysPanel({
             <Button
               className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               disabled={busy !== null}
-              onClick={() => confirm({ kind: "revokeAll" })}
+              onClick={() => {
+                confirm({ kind: "revokeAll" });
+              }}
               size="sm"
               variant="ghost"
             >
