@@ -237,10 +237,15 @@ export const finishLinkCheck = internalMutation({
       v.literal("unsure")
     ),
     reason: v.optional(v.string()),
+    /** The link that was checked. */
+    url: v.string(),
     userId: v.string(),
   },
   returns: v.null(),
-  handler: async (ctx, { cardId, httpStatus, outcome, reason, userId }) => {
+  handler: async (
+    ctx,
+    { cardId, httpStatus, outcome, reason, url, userId }
+  ) => {
     const [card, row] = await Promise.all([
       ctx.db.get("cards", cardId),
       readRow(ctx, cardId),
@@ -250,6 +255,11 @@ export const finishLinkCheck = internalMutation({
       if (row) {
         await ctx.db.delete("linkChecks", row._id);
       }
+      return null;
+    }
+    if (sanitizeExternalUrl(card.url) !== url) {
+      // The link was edited while it was checked. The edit dropped this
+      // check's row; a row now belongs to the new link, so it's left alone.
       return null;
     }
     if (outcome === "unsure") {
@@ -447,6 +457,7 @@ export const checkCardLinkFor = async (
     await ctx.runMutation(internal.card.linkCheck.finishLinkCheck, {
       cardId: state.cardId,
       outcome: result.outcome,
+      url,
       userId,
       ...(result.httpStatus === undefined
         ? {}

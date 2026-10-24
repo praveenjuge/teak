@@ -357,6 +357,7 @@ describe("opening a link card", () => {
         outcome: "alive",
         httpStatus,
         reason: "ok",
+        url: URL_GONE,
       });
 
     await finish(200);
@@ -382,6 +383,33 @@ describe("opening a link card", () => {
     const opening = open(cardId);
     await vi.waitFor(() => expect(urls).toHaveLength(1));
     await t.run((ctx) => ctx.db.delete("cards", cardId));
+    release(DEAD);
+    await opening;
+
+    expect(await rows()).toEqual([]);
+  });
+
+  test("a link edited during its check doesn't keep the old link's answer", async () => {
+    let release: (answer: WorkerAnswer) => void = () => undefined;
+    const urls = stubWorker(
+      () =>
+        new Promise<WorkerAnswer>((resolve) => {
+          release = resolve;
+        })
+    );
+    const { t, link, open, rows } = await setup();
+    const cardId = await link();
+    const opening = open(cardId);
+    await vi.waitFor(() => expect(urls).toHaveLength(1));
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, {
+        content: "https://example.com/moved",
+        url: "https://example.com/moved",
+      });
+      for (const row of await ctx.db.query("linkChecks").collect()) {
+        await ctx.db.delete("linkChecks", row._id);
+      }
+    });
     release(DEAD);
     await opening;
 

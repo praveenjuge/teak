@@ -348,6 +348,26 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     ]);
   });
 
+  test("reads character references in URLs and style attributes before fetching", async () => {
+    const deps = fakeDeps({
+      sheets: { "https://example.com/s.css?v=1&t=2": ".s{color:red}" },
+    });
+    const result = await archive(
+      `<head><link rel="stylesheet" href="/s.css?v=1&amp;t=2"></head>
+      <body><img src="/i.png?a=1&amp;b=2"><p style="background:url('/bg.png?a=1&amp;b=2')">x</p>
+      <a href="/p?a=1&amp;b=2">next</a></body>`,
+      deps
+    );
+    expect(deps.recorded.sheets).toEqual(["https://example.com/s.css?v=1&t=2"]);
+    expect(deps.recorded.assets.map(({ url }) => url).sort()).toEqual([
+      "https://example.com/bg.png?a=1&b=2",
+      "https://example.com/i.png?a=1&b=2",
+    ]);
+    expect(result.html).toContain(".s{color:red}");
+    expect(result.html).toContain('href="https://example.com/p?a=1&amp;b=2"');
+    expect(result.html).not.toContain("amp;amp;");
+  });
+
   test("drops a stylesheet over 4 MiB", async () => {
     const big = `.big{color:red}${" ".repeat(PAGE_ARCHIVE_MAX_TEXT_BYTES + 1 - 15)}`;
     const result = await archive(

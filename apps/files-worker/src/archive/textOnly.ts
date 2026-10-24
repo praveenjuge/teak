@@ -7,6 +7,7 @@ import {
   escapeHtmlAttribute,
   escapeHtmlText,
   htmlResponse,
+  readAttribute,
 } from "./html";
 
 /** The facts about a page a text-only copy keeps. */
@@ -113,7 +114,7 @@ export const buildTextOnlyDocument = async (
     .on("a[href]", {
       element(element) {
         const resolved = resolveHttpUrl(
-          element.getAttribute("href") ?? "",
+          readAttribute(element, "href") ?? "",
           page.baseUrl
         );
         link = resolved ?? undefined;

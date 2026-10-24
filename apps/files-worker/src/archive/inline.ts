@@ -17,6 +17,8 @@ import {
   decodeHtmlText,
   escapeHtmlAttribute,
   htmlResponse,
+  readAttribute,
+  writeAttribute,
 } from "./html";
 import { buildTextOnlyDocument } from "./textOnly";
 
@@ -343,8 +345,8 @@ const collectPage = async (
   const marked = await createRewriter()
     .on("html", {
       element(element) {
-        page.lang = element.getAttribute("lang") ?? undefined;
-        page.dir = element.getAttribute("dir") ?? undefined;
+        page.lang = readAttribute(element, "lang") ?? undefined;
+        page.dir = readAttribute(element, "dir") ?? undefined;
       },
     })
     .on("base[href]", {
@@ -354,7 +356,7 @@ const collectPage = async (
         }
         sawBase = true;
         const resolved = resolveHttpUrl(
-          element.getAttribute("href") ?? "",
+          readAttribute(element, "href") ?? "",
           pageUrl
         );
         if (resolved) {
@@ -370,7 +372,7 @@ const collectPage = async (
     .on("link[href]", {
       element(element) {
         if (isStylesheetLink(element)) {
-          linkHrefs.push(element.getAttribute("href") ?? "");
+          linkHrefs.push(readAttribute(element, "href") ?? "");
         }
       },
     })
@@ -393,7 +395,7 @@ const collectPage = async (
           STYLE_ATTRIBUTE_MARK,
           String(page.styleAttributes.length)
         );
-        page.styleAttributes.push(element.getAttribute("style") ?? "");
+        page.styleAttributes.push(readAttribute(element, "style") ?? "");
       },
     })
     .on("picture", {
@@ -410,16 +412,16 @@ const collectPage = async (
       element(element) {
         const type = (element.getAttribute("type") ?? "").toLowerCase();
         if (!type || /^image\/(?:avif|webp|jpeg|png|gif)$/u.test(type)) {
-          pictureSources.push(element.getAttribute("srcset") ?? "");
+          pictureSources.push(readAttribute(element, "srcset") ?? "");
         }
       },
     })
     .on("img", {
       element(element) {
         element.setAttribute(IMAGE_MARK, String(page.images.length));
-        const src = element.getAttribute("src");
+        const src = readAttribute(element, "src");
         const srcset =
-          element.getAttribute("srcset") ??
+          readAttribute(element, "srcset") ??
           (inPicture ? (pictureSources[0] ?? null) : null);
         page.images.push(
           isInlineImage(src)
@@ -427,10 +429,10 @@ const collectPage = async (
             : pickImageCandidate(
                 {
                   dataSrc:
-                    element.getAttribute("data-src") ??
-                    element.getAttribute("data-lazy-src") ??
-                    element.getAttribute("data-original"),
-                  dataSrcset: element.getAttribute("data-srcset"),
+                    readAttribute(element, "data-src") ??
+                    readAttribute(element, "data-lazy-src") ??
+                    readAttribute(element, "data-original"),
+                  dataSrcset: readAttribute(element, "data-srcset"),
                   src,
                   srcset,
                 },
@@ -669,12 +671,12 @@ const renderFull = async (
       element(element) {
         if (element.tagName === "link" && isStylesheetLink(element)) {
           const url = resolveHttpUrl(
-            element.getAttribute("href") ?? "",
+            readAttribute(element, "href") ?? "",
             page.baseUrl
           );
           const css = url ? stylesheets.linked.get(url) : undefined;
           if (url && css) {
-            const media = element.getAttribute("media");
+            const media = readAttribute(element, "media");
             element.replace(
               `<style${
                 media ? ` media="${escapeHtmlAttribute(media)}"` : ""
@@ -700,7 +702,7 @@ const renderFull = async (
     })
     .on("a[href], area[href]", {
       element(element) {
-        const href = (element.getAttribute("href") ?? "").trim();
+        const href = (readAttribute(element, "href") ?? "").trim();
         if (href.startsWith("#")) {
           element.removeAttribute("target");
           return;
@@ -710,7 +712,7 @@ const renderFull = async (
           element.removeAttribute("href");
           return;
         }
-        element.setAttribute("href", resolved);
+        writeAttribute(element, "href", resolved);
         element.setAttribute("target", "_blank");
         element.setAttribute("rel", "noopener noreferrer");
       },
@@ -756,9 +758,10 @@ const renderFull = async (
         const index = markIndex(element, STYLE_ATTRIBUTE_MARK);
         const value =
           (index === null ? undefined : page.styleAttributes[index]) ??
-          element.getAttribute("style") ??
+          readAttribute(element, "style") ??
           "";
-        element.setAttribute(
+        writeAttribute(
+          element,
           "style",
           rewriteForPlan(
             absolutizeCss(value, page.baseUrl),
@@ -784,7 +787,7 @@ const renderFull = async (
         ]) {
           element.removeAttribute(name);
         }
-        const src = element.getAttribute("src");
+        const src = readAttribute(element, "src");
         if (url === null && isInlineImage(src)) {
           return;
         }
