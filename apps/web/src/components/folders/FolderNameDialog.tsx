@@ -225,6 +225,7 @@ export function FolderNameDialog({
                     event.currentTarget.form?.requestSubmit();
                   }
                 }}
+                // biome-ignore lint/plugin: search syntax, which stays English.
                 placeholder="tag:design type:link"
                 rows={2}
                 spellCheck={false}

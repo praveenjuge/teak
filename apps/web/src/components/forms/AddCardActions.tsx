@@ -503,7 +503,7 @@ export function AddCardActions({
             >
               <PenLine />
               {t("noteOrLink")}
-              <DropdownMenuShortcut>N</DropdownMenuShortcut>
+              <DropdownMenuShortcut>{"N"}</DropdownMenuShortcut>
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
@@ -515,7 +515,7 @@ export function AddCardActions({
           >
             <Upload />
             {t("uploadFiles")}
-            <DropdownMenuShortcut>U</DropdownMenuShortcut>
+            <DropdownMenuShortcut>{"U"}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={isRecording || isSubmitting}

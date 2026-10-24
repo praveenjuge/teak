@@ -5,9 +5,13 @@ language js(typescript, jsx)
 // noJsxLiterals covers text between tags; this covers the attributes,
 // toasts and locale literals it can't see.
 
-// "Teak" is the product's name in every language.
+// "Teak" is the product's name in every language, and a URL reads the same.
 pattern words() {
-  and { r"(?s).*[A-Za-z]{2,}.*", not r"[\x22'`]?Teak[\x22'`]?" }
+  and {
+    r"(?s).*[A-Za-z]{2,}.*",
+    not r"[\x22'`]?Teak[\x22'`]?",
+    not r"[\x22'`]?https?://\S*[\x22'`]?"
+  }
 }
 
 pattern read_aloud_attribute() {

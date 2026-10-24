@@ -3,16 +3,10 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import { formatExifFields, type ImageExif } from "../../lib/exif";
 import { formatPublishedDate } from "../../lib/linkByline";
 import { formatBytes } from "../settings/importExportFormat";
-
-/**
- * The locale the card dialog formatted dates with before translation.
- * English keeps it; pass it to `useIntlLocale` for the reader's language.
- */
-// biome-ignore lint/plugin: the English default that useIntlLocale keeps, not a fixed locale for every language.
-export const ENGLISH_DATE_LOCALE = "en-US";
 
 export type CardDetailsTranslator = TeakTranslator<"cardModal.details">;
 
@@ -24,7 +18,7 @@ const englishDetails: CardDetailsTranslator = createTeakTranslator(
 
 export function formatCardDate(
   timestamp: number,
-  locale: string | undefined = ENGLISH_DATE_LOCALE
+  locale: string | undefined = US_ENGLISH_LOCALE
 ) {
   return new Date(timestamp).toLocaleDateString(locale, {
     year: "numeric",
@@ -82,7 +76,7 @@ export const keyDetailLabels = (t: CardDetailsTranslator = englishDetails) =>
 export function getCardDetailSections(
   card: CardDetailsSource,
   {
-    locale = ENGLISH_DATE_LOCALE,
+    locale = US_ENGLISH_LOCALE,
     t = englishDetails,
   }: { locale?: string; t?: CardDetailsTranslator } = {}
 ) {

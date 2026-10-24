@@ -103,6 +103,9 @@
                 "ignoreProps": true,
                 "allowedStrings": [
                   "·",
+                  "−",
+                  "&ldquo;",
+                  "&rdquo;",
                   "—",
                   "–",
                   "/",

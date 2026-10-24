@@ -3,13 +3,13 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import {
   type CardTypesTranslator,
   cardTypeLabel,
   englishCardTypes,
 } from "../cards/cardTypeLabel";
-import { ENGLISH_DATE_LOCALE } from "./cardDetails";
 
 export type CardHeadingTranslator = TeakTranslator<"cardModal.heading">;
 
@@ -75,7 +75,7 @@ export function formatAddedDate(
   timestamp: number,
   now = Date.now(),
   {
-    locale = ENGLISH_DATE_LOCALE,
+    locale = US_ENGLISH_LOCALE,
     t = englishHeading,
   }: { locale?: string; t?: CardHeadingTranslator } = {}
 ): string {

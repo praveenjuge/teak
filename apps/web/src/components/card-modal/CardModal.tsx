@@ -50,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { CARD_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
@@ -89,7 +90,6 @@ import {
   type SavePdfControl,
 } from "./CardMetadataPanel";
 import { CardModalSkeleton } from "./CardModalSkeleton";
-import { ENGLISH_DATE_LOCALE } from "./cardDetails";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -297,7 +297,7 @@ export function CardModal({
   const tHeading = useTranslations("cardModal.heading");
   const types = useTranslations("cards.types");
   const tDialog = useTranslations("cards.deleteForeverDialog");
-  const dateLocale = useIntlLocale(ENGLISH_DATE_LOCALE);
+  const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
   const [isFoldersOpen, setIsFoldersOpen] = useState(false);

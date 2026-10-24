@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
+import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
@@ -31,7 +32,6 @@ import { FolderDot } from "../folders/FolderDot";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 import {
   type CardDetailField,
-  ENGLISH_DATE_LOCALE,
   getCardDetailSections,
   keyDetailLabels,
 } from "./cardDetails";
@@ -321,7 +321,7 @@ export function CardMetadataPanel({
   const t = useTranslations("cardModal.panel");
   const td = useTranslations("cardModal.details");
   const types = useTranslations("cards.types");
-  const dateLocale = useIntlLocale(ENGLISH_DATE_LOCALE);
+  const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
   const typeLabel = cardTypeLabel(card.type, types);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -598,6 +598,7 @@ export function CardMetadataPanel({
                 href={safeSourceUrl}
                 rel="noopener noreferrer"
                 target="_blank"
+                // biome-ignore lint/plugin: the saved page's own title and URL.
                 title={
                   card.sourceTitle
                     ? `${card.sourceTitle}\n${safeSourceUrl}`
