@@ -10,11 +10,22 @@ export interface CsvLimits {
  * RFC 4180: quoted fields, embedded commas and newlines, `""` escaping, and
  * CRLF/LF/CR line endings.
  */
-export function parseCsvRows(
+export function parseCsvRows(input: string, limits?: CsvLimits): string[][] {
+  return parseCsvRecords(input, limits).rows;
+}
+
+/**
+ * `parseCsvRows`, plus each row's record number as a spreadsheet shows it:
+ * blank records are skipped but still counted, and a quoted cell spanning
+ * several lines stays one record.
+ */
+export function parseCsvRecords(
   input: string,
   { maxRows = MAX_CSV_ROWS }: CsvLimits = {}
-): string[][] {
+): { numbers: number[]; rows: string[][] } {
   const rows: string[][] = [];
+  const numbers: number[] = [];
+  let records = 0;
   let row: string[] = [];
   let pieces: string[] = [];
   let blocks: string[] = [];
@@ -46,6 +57,7 @@ export function parseCsvRows(
   };
   const endRow = () => {
     endField();
+    records += 1;
     if (rows.length === 0 || !isEmptyRow(row)) {
       if (rows.length > maxRows) {
         throw new ImportLimitExceeded(
@@ -53,6 +65,7 @@ export function parseCsvRows(
         );
       }
       rows.push(row);
+      numbers.push(records);
     }
     row = [];
   };
@@ -85,7 +98,7 @@ export function parseCsvRows(
   if (fieldStart < length || pieces.length || blocks.length || row.length) {
     endRow();
   }
-  return rows;
+  return { numbers, rows };
 }
 
 export function isEmptyRow(row: string[]): boolean {

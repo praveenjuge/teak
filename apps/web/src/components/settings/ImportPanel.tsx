@@ -6,6 +6,7 @@ import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import {
   IMPORT_FAILURE,
   IMPORT_MODES,
+  IMPORT_PICKER_MODES,
   IMPORT_SOURCES,
   type ImportMode,
   importFileMatches,
@@ -15,12 +16,24 @@ import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
-import { Copy, Download, FileText, Upload, X } from "lucide-react";
+import {
+  ChevronRight,
+  Copy,
+  Download,
+  FileText,
+  Upload,
+  X,
+} from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useServerErrors } from "../../hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { Button } from "../ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "../ui/collapsible";
 import { Label } from "../ui/label";
 import {
   Select,
@@ -87,6 +100,13 @@ const phaseLabel = (t: ImportTranslator, phase: string) => {
   const key = PHASE_KEYS[phase];
   return key ? t(`phases.${key}`) : phase;
 };
+
+// Column names and sample values people copy into a spreadsheet; they stay
+// English like the header names Teak reads.
+const CSV_EXAMPLE = [
+  "url,title,tags,folder,note,created",
+  'https://example.com,Example,"design, type",Work/Design,A note,2024-05-01',
+].join("\n");
 
 const acceptFor = (mode: ImportMode) =>
   IMPORT_SOURCES[mode].extensions.join(",");
@@ -162,6 +182,9 @@ function describeFailure(job: ImportJob, t: ImportTranslator): string | null {
     if (mode === "archive") {
       return t("failure.invalidArchive");
     }
+    if (mode === "links") {
+      return t("failure.noLinks");
+    }
     return t("failure.invalidSource", {
       article: /^[aeiou]/i.test(IMPORT_SOURCES[mode].name) ? "an" : "a",
       source: t(`sources.${mode}.name`),
@@ -169,6 +192,9 @@ function describeFailure(job: ImportJob, t: ImportTranslator): string | null {
   }
   if (failureClass === IMPORT_FAILURE.TOO_MANY_ITEMS) {
     return t("failure.tooManyItems");
+  }
+  if (failureClass === IMPORT_FAILURE.MISSING_URL_COLUMN) {
+    return t("failure.missingUrlColumn");
   }
   if (failureClass && /\s/.test(failureClass)) {
     return failureClass;
@@ -306,6 +332,35 @@ export function importPanelState(
     return { kind: "interrupted", job };
   }
   return { kind: "idle" };
+}
+
+/** The chosen source's guidance, size limit and, for CSV, an example. */
+export function ImportSourceHint({ mode }: { mode: ImportMode }) {
+  const t = useTranslations("settings.import");
+  const locale = useIntlLocale();
+  return (
+    <>
+      <p className="text-muted-foreground text-xs leading-5">
+        {t(`sources.${mode}.hint`)}{" "}
+        {t("upTo", {
+          size: formatBytes(IMPORT_SOURCES[mode].maxBytes, locale),
+        })}
+      </p>
+      {mode === "csv" ? (
+        <Collapsible>
+          <CollapsibleTrigger className="group inline-flex items-center gap-1 rounded-sm text-muted-foreground text-xs leading-5 outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
+            <ChevronRight className="size-3.5 transition-transform duration-200 ease-out group-data-[state=open]:rotate-90" />
+            {t("csvExample")}
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <pre className="mt-1.5 overflow-x-auto rounded-lg bg-muted px-3 py-2 font-mono text-xs leading-5">
+              {CSV_EXAMPLE}
+            </pre>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+    </>
+  );
 }
 
 export function ImportPanel({ onActiveChange }: ImportPanelProps) {
@@ -558,19 +613,14 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {IMPORT_MODES.map((mode) => (
+                {IMPORT_PICKER_MODES.map((mode) => (
                   <SelectItem key={mode} value={mode}>
                     {t(`sources.${mode}.title`)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-muted-foreground text-xs leading-5">
-              {t(`sources.${source}.hint`)}{" "}
-              {t("upTo", {
-                size: formatBytes(IMPORT_SOURCES[source].maxBytes, locale),
-              })}
-            </p>
+            <ImportSourceHint mode={source} />
           </div>
           <Button onClick={() => fileInput.current?.click()} size="sm">
             <Upload />

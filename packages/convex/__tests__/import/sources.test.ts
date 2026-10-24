@@ -249,6 +249,29 @@ describe("OneTab", () => {
   });
 });
 
+describe("Text file of links", () => {
+  test("one link per line, with or without a title; blank and other lines skipped", () => {
+    const items = parseImportSource("links", fixture("links.txt"));
+    expect(items.map((item) => [item.card?.url, item.card?.content])).toEqual([
+      ["https://example.com/links/one", "First link"],
+      ["https://example.com/links/two", "https://example.com/links/two"],
+      ["https://example.com/links/three", "Third | with a pipe"],
+    ]);
+    expectValidCards(items);
+  });
+
+  test("names the text file, not OneTab, in its errors", () => {
+    expect(() => parseImportSource("links", "no links here")).toThrow(
+      "This doesn't look like a Text file export"
+    );
+    expect(
+      parseImportSource("links", "chrome://settings | Settings")[0]?.error
+    ).toBe(
+      "Text file link is unsafe: only http and https links can be imported"
+    );
+  });
+});
+
 describe("parseImportSource", () => {
   test("routes every text source to its parser", () => {
     for (const mode of IMPORT_MODES) {
@@ -259,6 +282,9 @@ describe("parseImportSource", () => {
     expect(
       parseImportSource("onetab", "https://a.test | A")[0]?.card?.url
     ).toBe("https://a.test");
+    expect(
+      parseImportSource("csv", "link,name\nhttps://a.test/c,C")[0]?.card
+    ).toMatchObject({ url: "https://a.test/c", content: "C" });
   });
 
   test("fuzz: truncated files throw or give items, never crash differently", () => {
@@ -270,6 +296,8 @@ describe("parseImportSource", () => {
       linkwarden: fixture("linkwarden.json"),
       omnivore: fixture("omnivore-metadata.json"),
       onetab: fixture("onetab.txt"),
+      links: fixture("links.txt"),
+      csv: fixture("csv/full.csv"),
     } as const;
     for (const [mode, text] of Object.entries(sources)) {
       for (let cut = 0; cut <= text.length; cut += 7) {

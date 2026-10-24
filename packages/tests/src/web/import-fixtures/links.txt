@@ -1,0 +1,6 @@
+https://example.com/links/one | First link
+https://example.com/links/two
+
+https://example.com/links/three | Third | with a pipe
+
+not a link line

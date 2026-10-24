@@ -255,6 +255,7 @@
       "startImport": "Iniciar importação",
       "importFrom": "Importar de",
       "upTo": "Até {size}.",
+      "csvExample": "Exemplo",
       "chooseFile": "Escolher arquivo",
       "uploadInterrupted": "Envio interrompido",
       "resumeHint": "Escolha o mesmo arquivo de {source} para continuar de onde parou.",
@@ -269,6 +270,8 @@
         "invalidArchive": "Isto não parece um arquivo do Teak. Escolha um ZIP gerado em Exportar seus dados.",
         "invalidSource": "Isto não parece uma exportação {article, select, an {de} other {de}} {source}. Verifique a origem e escolha o arquivo que ela descreve.",
         "tooManyItems": "Este arquivo tem mais de 10.000 itens. Divida-o e importe cada parte.",
+        "missingUrlColumn": "Este CSV não tem uma coluna url. Adicione uma linha de cabeçalho com uma coluna url (ou link).",
+        "noLinks": "Este arquivo não tem links. Coloque um link em cada linha.",
         "generic": "A importação falhou. Tente novamente."
       },
       "phases": {
@@ -327,6 +330,16 @@
           "title": "OneTab",
           "name": "OneTab",
           "hint": "O texto de Export URLs do OneTab, salvo como arquivo .txt."
+        },
+        "csv": {
+          "title": "Arquivo CSV",
+          "name": "CSV",
+          "hint": "Um CSV com uma linha de cabeçalho. O Teak lê as colunas url, title, tags, folder, note e created."
+        },
+        "links": {
+          "title": "Arquivo de texto com links",
+          "name": "arquivo de texto",
+          "hint": "Um link por linha, opcionalmente seguido de \" | Título\". O Export URLs do OneTab também funciona."
         },
         "archive": {
           "title": "Arquivo do Teak",

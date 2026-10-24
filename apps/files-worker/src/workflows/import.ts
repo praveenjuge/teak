@@ -2,7 +2,6 @@ import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   IMPORT_CARD_BATCH,
-  IMPORT_FAILURE,
   IMPORT_INDEX_BATCH,
   type ImportMode,
 } from "@teak/convex/import/constants";
@@ -24,6 +23,7 @@ import type {
   FilesImportMarkdownResult,
 } from "@teak/files-protocol";
 import type { FunctionReturnType } from "convex/server";
+import { importIndexFailureClass } from "../archives/importSource";
 import { sha256Hex } from "../lib";
 import { queueObjectDeletions } from "../queues/objectDeletions";
 import { reportBackgroundError } from "../telemetry";
@@ -231,11 +231,7 @@ export const runImport = (
       return outcome.data;
     }
     if (outcome.code === "INVALID_INPUT") {
-      throw new Error(
-        /_count$/.test(outcome.message)
-          ? IMPORT_FAILURE.TOO_MANY_ITEMS
-          : IMPORT_FAILURE.INVALID_SOURCE
-      );
+      throw new Error(importIndexFailureClass(outcome.message));
     }
     throw new Error("import_source_unavailable");
   };

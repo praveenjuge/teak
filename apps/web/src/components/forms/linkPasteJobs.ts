@@ -1,7 +1,8 @@
 "use client";
 
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 
 export interface PasteJob {
   /** Lines the composer never sent, past the most one paste may send. */
@@ -42,6 +43,36 @@ const subscribe = (listener: () => void) => {
   return () => {
     listeners.delete(listener);
   };
+};
+
+/** How many composers are showing each job's toast right now. */
+const trackers = new Map<Id<"linkPasteJobs">, number>();
+
+/**
+ * Marks a job's toast as shown by the calling component. When the last one
+ * goes away mid-job (a page with no composer), the toast is dismissed so no
+ * spinner is left behind. The check waits a tick: a composer that replaces
+ * another, or React's double effect in development, takes the toast over
+ * instead. Dismissing and then reusing the same toast id makes Sonner remove
+ * the next message it shows under that id.
+ */
+export const useLinkPasteToastOwner = (job: PasteJob) => {
+  const { jobId, toastId } = job;
+  useEffect(() => {
+    trackers.set(jobId, (trackers.get(jobId) ?? 0) + 1);
+    return () => {
+      trackers.set(jobId, (trackers.get(jobId) ?? 1) - 1);
+      setTimeout(() => {
+        if ((trackers.get(jobId) ?? 0) > 0) {
+          return;
+        }
+        trackers.delete(jobId);
+        if (jobs.some((current) => current.jobId === jobId)) {
+          toast.dismiss(toastId);
+        }
+      }, 0);
+    };
+  }, [jobId, toastId]);
 };
 
 const getSnapshot = () => jobs;

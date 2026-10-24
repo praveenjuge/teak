@@ -9,6 +9,11 @@ export type ImportMode = FilesImportMode;
 
 export interface ImportSource {
   extensions: readonly string[];
+  /**
+   * Kept so jobs started with it still validate and show, but no longer
+   * offered in the picker.
+   */
+  hidden?: true;
   hint: string;
   maxBytes: number;
   name: string;
@@ -78,6 +83,22 @@ export const IMPORT_SOURCES: Record<ImportMode, ImportSource> = {
     hint: "OneTab's Export URLs text, saved as a .txt file.",
     extensions: [".txt"],
     maxBytes: 20 * MIB,
+    // "Text file of links" reads the same file (.agents/sunset.md).
+    hidden: true,
+  },
+  csv: {
+    title: "CSV file",
+    name: "CSV",
+    hint: "A CSV with a header row. Teak reads url, title, tags, folder, note and created columns.",
+    extensions: [".csv"],
+    maxBytes: 20 * MIB,
+  },
+  links: {
+    title: "Text file of links",
+    name: "text file",
+    hint: 'One link per line, optionally followed by " | Title". OneTab\'s Export URLs works too.',
+    extensions: [".txt"],
+    maxBytes: 20 * MIB,
   },
   archive: {
     title: "Teak archive",
@@ -88,9 +109,30 @@ export const IMPORT_SOURCES: Record<ImportMode, ImportSource> = {
   },
 };
 
+/**
+ * The sources the import picker offers, in its order: the general ones
+ * first, then the named services, then Teak's own archive.
+ */
+export const IMPORT_PICKER_MODES: readonly ImportMode[] = (
+  [
+    "bookmarks",
+    "csv",
+    "links",
+    "pocket",
+    "raindrop",
+    "instapaper",
+    "readwise",
+    "omnivore",
+    "linkwarden",
+    "mymind",
+    "archive",
+  ] as const satisfies readonly ImportMode[]
+).filter((mode) => !IMPORT_SOURCES[mode].hidden);
+
 export const IMPORT_FAILURE = {
   INVALID_SOURCE: "invalid_source",
   TOO_MANY_ITEMS: "too_many_items",
+  MISSING_URL_COLUMN: "missing_url_column",
 } as const;
 
 /**
@@ -103,12 +145,18 @@ export const describeImportFailure = (
 ): string => {
   const source = IMPORT_SOURCES[mode];
   if (failureClass === IMPORT_FAILURE.INVALID_SOURCE) {
+    if (mode === "links") {
+      return "This file has no links. Put one link on each line.";
+    }
     return mode === "archive"
       ? "This doesn't look like a Teak archive. Choose a ZIP from Export your data."
       : `This doesn't look like ${/^[aeiou]/i.test(source.name) ? "an" : "a"} ${source.name} export. Check the source and choose the file it describes.`;
   }
   if (failureClass === IMPORT_FAILURE.TOO_MANY_ITEMS) {
     return "This file has more than 10,000 items. Split it and import each part.";
+  }
+  if (failureClass === IMPORT_FAILURE.MISSING_URL_COLUMN) {
+    return "This CSV has no url column. Add a header row with a url (or link) column.";
   }
   if (failureClass && /\s/.test(failureClass)) {
     return failureClass;

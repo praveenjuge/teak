@@ -1,0 +1,4 @@
+url,title
+https://example.com/variant,Plain
+https://www.example.com/variant/?utm_source=newsletter,With www and utm
+https://example.com/variant#section,With fragment

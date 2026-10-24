@@ -255,6 +255,7 @@
       "startImport": "开始导入",
       "importFrom": "导入来源",
       "upTo": "最大 {size}。",
+      "csvExample": "示例",
       "chooseFile": "选择文件",
       "uploadInterrupted": "上传已中断",
       "resumeHint": "选择同一个 {source} 文件，从中断处继续。",
@@ -269,6 +270,8 @@
         "invalidArchive": "这看起来不像 Teak 存档。请选择通过“导出数据”生成的 ZIP 文件。",
         "invalidSource": "这看起来不像 {source} 的导出文件{article, select, an {} other {}}。请检查来源，并选择其说明中提到的文件。",
         "tooManyItems": "此文件包含超过 10,000 个项目。请将其拆分后分别导入。",
+        "missingUrlColumn": "此 CSV 没有 url 列。请添加包含 url（或 link）列的标题行。",
+        "noLinks": "此文件中没有链接。请每行放一个链接。",
         "generic": "导入失败，请重试。"
       },
       "phases": {
@@ -327,6 +330,16 @@
           "title": "OneTab",
           "name": "OneTab",
           "hint": "OneTab 的 Export URLs 文本，保存为 .txt 文件。"
+        },
+        "csv": {
+          "title": "CSV 文件",
+          "name": "CSV",
+          "hint": "带标题行的 CSV。Teak 会读取 url、title、tags、folder、note 和 created 列。"
+        },
+        "links": {
+          "title": "链接文本文件",
+          "name": "文本文件",
+          "hint": "每行一个链接，后面可加“ | 标题”。也支持 OneTab 的 Export URLs。"
         },
         "archive": {
           "title": "Teak 存档",

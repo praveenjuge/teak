@@ -192,7 +192,10 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   directory. Drive the chooser over CDP instead: read the port from
   `/tmp/teak-cloud-chromium-*/DevToolsActivePort`, `chromium.connectOverCDP`
   with the repo's `playwright-core`, wait for `page.on("filechooser")` and
-  `setFiles`. Import's inputs in Settings are real and work with `upload`.
+  `setFiles`. Import's file input in Settings is real but hidden, and e2e
+  0.19's `upload` can't reach it either (it needs a node id that `observe`
+  never lists); set it the same way, with `setInputFiles` on
+  `input[type=file][accept=".csv"]` (or the chosen source's extension).
 - **Repository checks while the stack is up:** `turbo run typecheck lint
   test` beside the dev stack's Next.js compile pushed four `@teak/convex`
   HTTP tests past vitest's 5 s timeout on 4 vCPUs; they pass alone. Rerun a

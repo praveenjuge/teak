@@ -282,6 +282,8 @@ export const FILES_IMPORT_MODES = [
   "linkwarden",
   "mymind",
   "onetab",
+  "csv",
+  "links",
   "archive",
 ] as const;
 export type FilesImportMode = (typeof FILES_IMPORT_MODES)[number];
