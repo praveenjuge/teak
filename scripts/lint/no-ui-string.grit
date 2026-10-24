@@ -7,15 +7,19 @@ language js(typescript, jsx)
 
 // "Teak" is the product's name in every language, and a URL reads the same.
 pattern words() {
-  and {
-    r"(?s).*[A-Za-z]{2,}.*",
-    not r"[\x22'`]?Teak[\x22'`]?",
-    not r"[\x22'`]?https?://\S*[\x22'`]?"
-  }
+  and { r"(?s).*[A-Za-z]{2,}.*",
+  not r"[\x22'`]?Teak[\x22'`]?",
+  not r"[\x22'`]?https?://\S*[\x22'`]?" }
 }
 
 pattern read_aloud_attribute() {
-  or { `aria-label`, `aria-description`, `placeholder`, `title`, `alt` }
+  or {
+    `aria-label`,
+    `aria-description`,
+    `placeholder`,
+    `title`,
+    `alt`
+  }
 }
 
 pattern string_with_words() {
