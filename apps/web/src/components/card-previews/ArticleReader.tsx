@@ -3,9 +3,20 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import type { ReactNode, RefObject } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import Markdown, { type Options as MarkdownOptions } from "react-markdown";
+import type { ComponentProps, ReactNode, RefObject } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Markdown, {
+  type Components,
+  type ExtraProps,
+  type Options as MarkdownOptions,
+} from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import type { CardModalCard } from "@/components/card-modal";
@@ -192,6 +203,73 @@ interface ArticleReaderProps {
   title?: string;
 }
 
+const NO_IMAGES: readonly string[] = [];
+
+/** The card's article images, as the reader's `img` component reads them. */
+interface ReaderImages {
+  cardId: string;
+  imageKeys: readonly string[];
+  imageUrls: readonly string[];
+}
+
+const ReaderImagesContext = createContext<ReaderImages>({
+  cardId: "",
+  imageKeys: NO_IMAGES,
+  imageUrls: NO_IMAGES,
+});
+
+function ReaderImage({
+  alt,
+  src,
+  title: caption,
+}: ComponentProps<"img"> & ExtraProps) {
+  const { cardId, imageKeys, imageUrls } = useContext(ReaderImagesContext);
+  const url = typeof src === "string" ? src : "";
+  if (!url) {
+    return null;
+  }
+  const index = imageUrls.indexOf(url);
+  return (
+    <span className="reader-figure">
+      <ResilientMediaImage
+        alt={alt ?? ""}
+        cardId={cardId}
+        className="h-auto w-full rounded-lg"
+        loading="lazy"
+        src={url}
+        storageKey={index >= 0 ? imageKeys[index] : undefined}
+      />
+      {caption ? <span className="reader-caption">{caption}</span> : null}
+    </span>
+  );
+}
+
+/**
+ * The reader's Markdown elements. They live outside the component so they
+ * keep one identity: a component made during render is a new type each
+ * time, and React would remount its links, images and tables on every
+ * highlight change, leaving the highlight layer's text index pointing at
+ * nodes no longer in the page.
+ */
+const READER_COMPONENTS: Components = {
+  a: ({ children, href }) => (
+    <a href={href} rel="noopener noreferrer" target="_blank">
+      {children}
+    </a>
+  ),
+  img: ReaderImage,
+  // Wide tables scroll inside the column, never the page.
+  table: ({ children }) => (
+    <div className="reader-table">
+      <table>{children}</table>
+    </div>
+  ),
+};
+
+const REMARK_PLUGINS: NonNullable<MarkdownOptions["remarkPlugins"]> = [
+  remarkGfm,
+];
+
 /**
  * The Read tab: a link's article in one typographic default. It renders
  * the extracted Markdown, never the page's HTML: GFM, then the article's own
@@ -212,7 +290,7 @@ export function ArticleReader({
   const state = articleReaderState(card);
   const article = card.article?.status === "ready" ? card.article : undefined;
   const loaded = useArticleMarkdown(article?.textKey, card.articleUrl);
-  const imageUrls = card.articleImageUrls ?? [];
+  const imageUrls = card.articleImageUrls ?? NO_IMAGES;
   const title = article?.title ?? fallbackTitle;
   const rootRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -236,6 +314,11 @@ export function ArticleReader({
       [rehypeSanitize, ARTICLE_SANITIZE_SCHEMA],
     ],
     [imageUrls, title]
+  );
+  const imageKeys = article?.imageKeys ?? NO_IMAGES;
+  const images = useMemo<ReaderImages>(
+    () => ({ cardId: card._id, imageKeys, imageUrls }),
+    [card._id, imageKeys, imageUrls]
   );
 
   if (state.kind === "preparing") {
@@ -326,47 +409,16 @@ export function ArticleReader({
         ref={bodyRef}
         {...{ [ARTICLE_BODY_ATTRIBUTE]: "" }}
       >
-        <Markdown
-          components={{
-            a: ({ children, href }) => (
-              <a href={href} rel="noopener noreferrer" target="_blank">
-                {children}
-              </a>
-            ),
-            img: ({ alt, src, title: caption }) => {
-              const url = typeof src === "string" ? src : "";
-              const index = imageUrls.indexOf(url);
-              return url ? (
-                <span className="reader-figure">
-                  <ResilientMediaImage
-                    alt={alt ?? ""}
-                    cardId={card._id}
-                    className="h-auto w-full rounded-lg"
-                    loading="lazy"
-                    src={url}
-                    storageKey={
-                      index >= 0 ? article.imageKeys[index] : undefined
-                    }
-                  />
-                  {caption ? (
-                    <span className="reader-caption">{caption}</span>
-                  ) : null}
-                </span>
-              ) : null;
-            },
-            // Wide tables scroll inside the column, never the page.
-            table: ({ children }) => (
-              <div className="reader-table">
-                <table>{children}</table>
-              </div>
-            ),
-          }}
-          rehypePlugins={plugins}
-          remarkPlugins={[remarkGfm]}
-          skipHtml
-        >
-          {loaded.markdown}
-        </Markdown>
+        <ReaderImagesContext.Provider value={images}>
+          <Markdown
+            components={READER_COMPONENTS}
+            rehypePlugins={plugins}
+            remarkPlugins={REMARK_PLUGINS}
+            skipHtml
+          >
+            {loaded.markdown}
+          </Markdown>
+        </ReaderImagesContext.Provider>
       </div>
       {highlights ? (
         <ArticleHighlights

@@ -251,6 +251,50 @@ describe("selecting in the reader", () => {
     );
   });
 
+  test("a highlight change keeps the article's links, tables and images in the page", async () => {
+    // The highlight layer indexes the body's text nodes once per article: a
+    // remount on a highlight change would leave it pointing at detached ones.
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    const control = (highlights: never[]) => ({
+      create: mock(async () => true),
+      highlights,
+      isFull: false,
+      remove: mock(async () => undefined),
+      updateNote: mock(async () => undefined),
+    });
+    const render = async (
+      key: string,
+      highlights: ReturnType<typeof control>
+    ) => {
+      await act(async () => {
+        root?.render(
+          <ArticleReader card={card(key)} highlights={highlights} />
+        );
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      });
+    };
+    const tableKey = keyOf("headings, lists, a quote and a table");
+    await render(tableKey, control([]));
+    const link = host.querySelector("a[href='https://example.com']");
+    const cell = host.querySelector("td");
+    expect(link?.firstChild?.textContent).toBe("water");
+    expect(cell).not.toBeNull();
+    const linkText = link?.firstChild;
+    await render(tableKey, control([]));
+    expect(link?.isConnected).toBe(true);
+    expect(cell?.isConnected).toBe(true);
+    expect(linkText?.isConnected).toBe(true);
+
+    const imageKey = keyOf("images, captions, code and raw HTML");
+    await render(imageKey, control([]));
+    const figure = host.querySelector(".reader-figure");
+    expect(figure).not.toBeNull();
+    await render(imageKey, control([]));
+    expect(figure?.isConnected).toBe(true);
+  });
+
   test("a selection of the title alone shows no button", async () => {
     const { host } = await mount();
     const title = host.querySelector("h1") as HTMLElement;
