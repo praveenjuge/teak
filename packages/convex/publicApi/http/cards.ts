@@ -2,7 +2,11 @@ import { ConvexError } from "convex/values";
 import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
-import { readDocumentText } from "../../card/documentText";
+import {
+  CARD_TEXT_KINDS,
+  type CardTextKind,
+  readDocumentText,
+} from "../../card/documentText";
 import type { CardWithUrls } from "../../card/queryUtils";
 import { withTranscripts } from "../../card/textContents";
 import {
@@ -10,11 +14,13 @@ import {
   ensureRelevanceScores,
 } from "../../search/relevanceActions";
 import { fetchSemanticRanking } from "../../search/semanticActions";
+import { replaceArticleImageTokens } from "../../shared/article";
 import { combineSearchQueries } from "../../shared/search/qualifiers";
 import {
   RELEVANCE_CANDIDATE_LIMIT,
   type RelevanceScore,
 } from "../../shared/search/relevance";
+import { tryResolveObjectUrl } from "../../storage/fileUrls";
 import { captureBackendEvent } from "../../telemetry/posthog";
 import { relevanceCursorRanked } from "../cursors";
 import {
@@ -625,17 +631,38 @@ const handleSavePdfRequest = async (
   }
 };
 
+/** An article's Markdown with each `teak-image:<n>` as a signed URL. */
+const withSignedArticleImages = async (
+  markdown: string,
+  imageKeys: readonly string[]
+): Promise<string> => {
+  const urls = await Promise.all(
+    imageKeys.map((key) => tryResolveObjectUrl(key).catch(() => undefined))
+  );
+  return replaceArticleImageTokens(
+    markdown,
+    (index) => urls[index] ?? undefined
+  );
+};
+
 const cardContentResponse = async (
   ctx: ActionCtx,
   userId: string,
-  cardId: Id<"cards">
+  cardId: Id<"cards">,
+  kind: CardTextKind | undefined
 ): Promise<Response> => {
   const source = await ctx.runQuery(
     internal["card/documentText"].getCardTextSource,
-    { cardId, userId }
+    { cardId, userId, ...(kind ? { kind } : {}) }
   );
   if (!source) {
-    return errorResponse(404, "NO_CONTENT", "This card has no stored text");
+    return errorResponse(
+      404,
+      "NO_CONTENT",
+      kind
+        ? `This card has no stored text of kind \`${kind}\``
+        : "This card has no stored text"
+    );
   }
   let { text, truncated } = source;
   if (source.sourceKey) {
@@ -649,6 +676,9 @@ const cardContentResponse = async (
       truncated ||= Array.from(text).length < source.charCount;
     }
   }
+  if (source.kind === "article") {
+    text = await withSignedArticleImages(text, source.imageKeys ?? []);
+  }
   return json(200, {
     cardId: source.cardId,
     kind: source.kind,
@@ -656,6 +686,25 @@ const cardContentResponse = async (
     charCount: source.charCount,
     truncated,
   });
+};
+
+/** `?kind=`: one kind of a card's text, or undefined for the default order. */
+const parseContentKind = (
+  request: Request
+): { kind: CardTextKind | undefined } | { error: Response } => {
+  const kind = new URL(request.url).searchParams.get("kind");
+  if (kind === null) {
+    return { kind: undefined };
+  }
+  return (CARD_TEXT_KINDS as readonly string[]).includes(kind)
+    ? { kind: kind as CardTextKind }
+    : {
+        error: errorResponse(
+          400,
+          "INVALID_INPUT",
+          `Query parameter \`kind\` must be one of: ${CARD_TEXT_KINDS.join(", ")}`
+        ),
+      };
 };
 
 const thumbnailErrorResponse = (error: unknown, fallbackMessage: string) => {
@@ -830,10 +879,15 @@ const handleCardsByIdV1Request = async (
   }
 
   if (route.operation === "content") {
+    const parsed = parseContentKind(request);
+    if ("error" in parsed) {
+      return parsed.error;
+    }
     return await cardContentResponse(
       ctx,
       auth.validated.userId,
-      normalizedCardId as Id<"cards">
+      normalizedCardId as Id<"cards">,
+      parsed.kind
     );
   }
 

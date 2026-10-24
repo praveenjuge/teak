@@ -13,6 +13,7 @@ import { addCard, readStdin } from "./files";
 import { formatCardLine, formatCreated, formatDetail } from "./format";
 import {
   authStatus,
+  CONTENT_KINDS,
   changeFolderCards,
   collectPages,
   createFolder,
@@ -457,8 +458,17 @@ cards
 cards
   .command("content")
   .argument("<id>")
-  .description("Print a card's text: its document's text or its transcript")
-  .action(async (id) => showCardContent(id, program.opts()));
+  .description(
+    "Print a card's text: its document's text or its transcript, or a link's article with --kind article"
+  )
+  .option(
+    "--kind <kind>",
+    `one kind of text: ${CONTENT_KINDS.join(", ")}`,
+    oneOf("--kind", CONTENT_KINDS)
+  )
+  .action(async (id, options) =>
+    showCardContent(id, { ...program.opts(), ...options })
+  );
 cards
   .command("links")
   .argument("<id>")
@@ -780,8 +790,17 @@ program
 program
   .command("content")
   .argument("<id>")
-  .description("Print a card's text: its document's text or its transcript")
-  .action(async (id) => showCardContent(id, program.opts()));
+  .description(
+    "Print a card's text: its document's text or its transcript, or a link's article with --kind article"
+  )
+  .option(
+    "--kind <kind>",
+    `one kind of text: ${CONTENT_KINDS.join(", ")}`,
+    oneOf("--kind", CONTENT_KINDS)
+  )
+  .action(async (id, options) =>
+    showCardContent(id, { ...program.opts(), ...options })
+  );
 program
   .command("refresh")
   .argument("<ids...>")

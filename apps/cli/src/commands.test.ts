@@ -1162,6 +1162,39 @@ describe("teak batch and fallback behavior", () => {
     expect(partial.stderr).toContain("try again later");
   });
 
+  test("content --kind article asks for a link's article, and refuses kinds it doesn't know", async () => {
+    routes.set("GET /v1/cards/card_a/content", () =>
+      json({
+        cardId: "card_a",
+        kind: "article",
+        text: "## Gardens\n\n![A rose](https://files.test/rose.webp?sig=1)",
+        charCount: 30,
+        truncated: false,
+      })
+    );
+
+    const article = await teak(
+      "cards",
+      "content",
+      "card_a",
+      "--kind",
+      "article"
+    );
+    expect(article.code).toBe(0);
+    expect(article.stdout).toContain("## Gardens");
+    expect(requests.at(-1)?.path).toBe("/v1/cards/card_a/content?kind=article");
+
+    const plain = await teak("content", "card_a");
+    expect(plain.code).toBe(0);
+    expect(requests.at(-1)?.path).toBe("/v1/cards/card_a/content");
+
+    const unknown = await teak("content", "card_a", "--kind", "video");
+    expect(unknown.code).not.toBe(0);
+    expect(unknown.stderr).toContain(
+      "--kind must be one of: article, document, transcript, content"
+    );
+  });
+
   test("links lists links then backlinks, says when there are none, and --json the lists", async () => {
     routes.set("GET /v1/cards/card_a", () =>
       json(

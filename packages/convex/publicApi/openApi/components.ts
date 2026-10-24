@@ -105,6 +105,21 @@ const cardProperties = {
       { type: "null" },
     ],
   },
+  article: {
+    description:
+      "A link's article, taken from its saved copy: its length in words and minutes to read. Null for other cards, until the article is ready, and for pages that aren't articles. Read it with `GET /v1/cards/{cardId}/content?kind=article`.",
+    oneOf: [
+      {
+        properties: {
+          readingMinutes: { type: "number" },
+          wordCount: { type: "number" },
+        },
+        required: ["wordCount", "readingMinutes"],
+        type: "object",
+      },
+      { type: "null" },
+    ],
+  },
   compactUrl: {
     description:
       "256px rendition URL for small cards; present for image uploads.",
@@ -116,7 +131,7 @@ const cardProperties = {
   processingStatus: {
     additionalProperties: true,
     description:
-      "Per-stage processing state (classify, categorize, metadata, renderables, screenshot), or null once nothing is tracked.",
+      "Per-stage processing state (classify, categorize, metadata, renderables, screenshot, archive, article), or null once nothing is tracked.",
     type: ["object", "null"],
   },
   linkPreviewDescription: { type: ["string", "null"] },
@@ -345,6 +360,7 @@ export const components = {
         aiTranscript: cardProperties.aiTranscript,
         appUrl: { format: "uri", type: "string" },
         archive: cardProperties.archive,
+        article: cardProperties.article,
         compactUrl: {
           description:
             "256px rendition URL for small cards; present for image uploads.",
