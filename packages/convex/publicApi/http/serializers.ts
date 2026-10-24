@@ -42,6 +42,15 @@ const serializeArchive = (card: CardWithUrls) =>
       }
     : null;
 
+/** A link's article: how long it is. `GET …/content?kind=article` reads it. */
+const serializeArticle = (card: CardWithUrls) =>
+  card.article?.status === "ready"
+    ? {
+        readingMinutes: card.article.readingMinutes,
+        wordCount: card.article.wordCount,
+      }
+    : null;
+
 const serializeDisplayMetadata = (card: CardWithUrls) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
@@ -95,6 +104,7 @@ export const serializeCard = (
   aiTranscript: card.aiTranscript ?? null,
   appUrl: getCardAppUrl(requestUrl, card._id),
   archive: serializeArchive(card),
+  article: serializeArticle(card),
   compactUrl: card.compactUrl ?? null,
   content: card.content,
   ...serializeDisplayMetadata(card),
@@ -181,6 +191,7 @@ export const serializeListCard = (
           filePreview: card.fileMetadata?.preview ?? null,
           ...serializeDisplayMetadata(card),
           archive: serializeArchive(card),
+          article: serializeArticle(card),
           compactUrl: card.compactUrl ?? null,
           detailUrl: card.detailUrl ?? null,
           fileUrl: card.fileUrl ?? null,

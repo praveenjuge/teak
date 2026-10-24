@@ -11,6 +11,7 @@ import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
 import { isSupportedLocale, LOCALE_NAMES } from "@teak/i18n/locales";
 import { InvalidArgumentError } from "commander";
 import {
+  type CardContentKind,
   type CardsPage,
   type ExportJob,
   type Folder,
@@ -282,17 +283,36 @@ export const findDuplicateCard = async (
   write(options.json ? { cardId } : cardId, options);
 };
 
-export const showCardContent = async (id: string, options: GlobalOptions) => {
-  const content = await client(options).cards.content(id);
+/** `--kind`: the kinds of text `cards content` can ask for. */
+export const CONTENT_KINDS: readonly CardContentKind[] = [
+  "article",
+  "document",
+  "transcript",
+  "content",
+];
+
+export const showCardContent = async (
+  id: string,
+  options: GlobalOptions & { kind?: CardContentKind }
+) => {
+  const content = await client(options).cards.content(
+    id,
+    options.kind ? { kind: options.kind } : undefined
+  );
   write(options.json ? content : content.text, options);
   if (options.json || !content.truncated) {
     return;
   }
-  process.stderr.write(
-    Array.from(content.text).length < content.charCount
-      ? "Only the start of this document's text could be read; try again later for all of it.\n"
-      : "Teak keeps the first 500 pages and 524,288 characters of a document; this one is longer.\n"
-  );
+  let note =
+    "Teak keeps the first 500 pages and 524,288 characters of a document; this one is longer.\n";
+  if (Array.from(content.text).length < content.charCount) {
+    note =
+      "Only the start of this document's text could be read; try again later for all of it.\n";
+  } else if (content.kind === "article") {
+    note =
+      "Teak keeps the first 524,288 characters of an article; this one is longer.\n";
+  }
+  process.stderr.write(note);
 };
 
 export const showCardLinks = async (id: string, options: GlobalOptions) => {

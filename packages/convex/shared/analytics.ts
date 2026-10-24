@@ -95,6 +95,15 @@ export interface ClientEventCatalog {
   import_started: NoProperties;
   link_pdf_saved: { source: LinkPdfSaveSource };
   locale_changed: { from: string; to: string };
+  /**
+   * The Read tab showed a link's article. `category` is the link category
+   * (or `none`), `words_bucket` the article's length (`articleWordsBucket`).
+   */
+  reader_opened: {
+    category: string;
+    surface: "modal";
+    words_bucket: string;
+  };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
   search_operator_used: { groups: boolean; negation: boolean; or: boolean };
@@ -118,6 +127,14 @@ export interface ServerEventCatalog {
     $ai_span_name: string;
     $ai_total_cost_usd?: number;
     $ai_trace_id?: string;
+  };
+  /**
+   * "extract article" finished for a link: `article`, `none` (the page isn't
+   * an article) or `failed`; `words_bucket` is the article's length.
+   */
+  article_extracted: {
+    outcome: "article" | "none" | "failed";
+    words_bucket: string;
   };
   billing_portal_opened: NoProperties;
   card_create_failed: {

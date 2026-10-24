@@ -21,6 +21,12 @@ import {
   aiLanguagesScenarioCards,
 } from "./devSeed/aiLanguages";
 import {
+  READER_MIX_TAG,
+  READER_SEARCH_SHARED_PHRASE,
+  seedReaderMix,
+  seedReaderSearchPage,
+} from "./devSeed/articles";
+import {
   CARD_DETAILS_SCENARIO_CARDS,
   TAGS_CASE_SCENARIO_CARDS,
 } from "./devSeed/cardScenarios";
@@ -345,6 +351,14 @@ type ScenarioPack = { description: string } & (
         userId: string
       ) => Promise<{ cards: number; status: "already_seeded" | "seeded" }>;
     }
+  | {
+      /** A large pack that writes more than cards, one page at a time. */
+      pagedSeed: (
+        ctx: MutationCtx,
+        userId: string,
+        page: number
+      ) => Promise<{ cards: number; status: "already_seeded" | "seeded" }>;
+    }
   | { folders: () => FolderScenarioPack }
   | { fillTo: number; lead?: DevScenarioCardDef[] }
   | { links: CardLinkScenario }
@@ -632,6 +646,14 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, two that failed (blocked_url, too_large), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Files Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
     seed: seedPageArchiveMix,
   },
+  "reader-mix": {
+    description: `Links for the Read tab in every state: a 3,000-word article with images, code, a wide table and a quote, a news story, a research abstract, a product page that isn't an article, a text-only copy's article, Arabic and Japanese articles, an article cut at 512 KiB characters, one still being prepared, one that failed, and a podcast with an article and a transcript. Copies, Markdown and images are written through the Files Worker. Search \`#${READER_MIX_TAG}\`.`,
+    seed: seedReaderMix,
+  },
+  "reader-search-1000": {
+    description: `1,000 links with articles titled "Field note 1" to "Field note 1000". Only their body text has "${READER_SEARCH_SHARED_PHRASE}" (all of them) and lantern0 to lantern999 (one each), so search finds them by article text alone. Their Markdown isn't written, so the Read tab can't load it. 200 per page.`,
+    pagedSeed: seedReaderSearchPage,
+  },
   "archive-backfill-1000": {
     description:
       "1,000 processed links with no saved copy, for backfillPageArchives (example.com/archive-backfill/0 to /999). 200 per page.",
@@ -722,6 +744,9 @@ export const seedScenario = internalMutation({
     }
     if ("seed" in pack) {
       return await pack.seed(ctx, owner.teakUserId);
+    }
+    if ("pagedSeed" in pack) {
+      return await pack.pagedSeed(ctx, owner.teakUserId, page);
     }
     if ("folders" in pack) {
       if (scenario === "email-in") {

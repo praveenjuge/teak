@@ -102,6 +102,51 @@ export const createCardConvex = (
         return true;
       }
     ),
+    "card/articleText:markArticleStage": write("markArticleStage", (args) => {
+      const stages = {
+        article: {
+          status: args.status,
+          ...(args.reason ? { error: args.reason } : {}),
+        },
+      };
+      record(stages);
+      merge(card as FakeCard, stages);
+      return true;
+    }),
+    "card/articleText:recordNoArticle": write("recordNoArticle", () => {
+      const stages = { article: { status: "completed" } };
+      record(stages);
+      merge(card as FakeCard, stages);
+      Object.assign(card as FakeCard, {
+        article: { extractedAt: Date.now(), status: "none" },
+      });
+      return true;
+    }),
+    "card/articleText:saveArticleSummary": write(
+      "saveArticleSummary",
+      (args) => {
+        Object.assign(card as FakeCard, { aiSummary: args.aiSummary });
+        return true;
+      }
+    ),
+    "card/articleText:saveArticleText": write("saveArticleText", (args) => {
+      const stages = { article: { status: "completed" } };
+      record(stages);
+      merge(card as FakeCard, stages);
+      const article = args.article as Record<string, unknown>;
+      Object.assign(card as FakeCard, {
+        article: {
+          ...article,
+          extractedAt: Date.now(),
+          readingMinutes: 1,
+          status: "ready",
+          textKey: args.textKey,
+        },
+        documentTextKey: args.textKey,
+        hasExtractedText: true,
+      });
+      return true;
+    }),
     "card/documentText:saveDocumentText": write("saveDocumentText", (args) => {
       Object.assign(card as FakeCard, {
         documentTextKey: args.key,

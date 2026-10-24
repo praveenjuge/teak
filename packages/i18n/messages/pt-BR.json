@@ -768,6 +768,12 @@
       "text": "Texto",
       "title": "Detalhes",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "Prévia",
+      "read": "Ler",
+      "toggleTooltip": "Ler ou ver a prévia",
+      "viewLabel": "Prévia ou leitura"
     }
   },
   "cardPreviews": {
@@ -826,6 +832,15 @@
     "video": {
       "gifAlt": "GIF animado",
       "unsupported": "Seu navegador não é compatível com a tag de vídeo."
+    },
+    "reader": {
+      "failed": "Não foi possível preparar este artigo.",
+      "loadFailed": "Não foi possível carregar este artigo.",
+      "loading": "Carregando o artigo",
+      "minutes": "{minutes, plural, other {# min de leitura}}",
+      "preparing": "Preparando o artigo…",
+      "savedFrom": "Salvo de {host} · {date} · <link>Abrir o original ↗</link>",
+      "shortened": "Artigo encurtado para caber."
     }
   },
   "cards": {
@@ -1253,6 +1268,7 @@
       "markLinkDone": "Marcar um link como concluído",
       "copyLinkOrText": "Copiar o link ou o texto",
       "toggleDetails": "Mostrar ou ocultar detalhes",
+      "readOrPreview": "Ler ou ver a prévia",
       "goToEverything": "Tudo",
       "goToFavorites": "Favoritos",
       "goToArchive": "Arquivo",

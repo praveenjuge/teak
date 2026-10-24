@@ -20,3 +20,24 @@ describe("cardStorageObjectKeys: saved pages", () => {
     ).toEqual(["screenshot"]);
   });
 });
+
+describe("cardStorageObjectKeys: articles", () => {
+  test("includes a link's article Markdown and every image it shows", () => {
+    expect(
+      cardStorageObjectKeys({
+        article: {
+          imageKeys: ["article-image-0", "article-image-1"],
+          status: "ready",
+          textKey: "article-text",
+        },
+        documentTextKey: "article-text",
+        pageArchive: { storageKey: "page-archive" },
+      })
+    ).toEqual([
+      "article-text",
+      "page-archive",
+      "article-image-0",
+      "article-image-1",
+    ]);
+  });
+});

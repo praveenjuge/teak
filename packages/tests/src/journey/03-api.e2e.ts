@@ -1,6 +1,7 @@
 import { gzipSync } from "node:zlib";
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
+import { seedScenario } from "../helpers/seed";
 import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
@@ -373,4 +374,50 @@ test("a page snapshot becomes the link's saved copy", async () => {
   expect(await tooLarge.json()).toMatchObject({
     code: "PAGE_SNAPSHOT_TOO_LARGE",
   });
+});
+
+test("reads a link's article as Markdown only when asked for it", async () => {
+  const { apiKey: readerKey, email } = await createApiAccount("api-reader");
+  await seedScenario(email, "reader-mix");
+  const openapi = await loadOpenApi();
+  let card: { id: string } | undefined;
+  await retry(
+    async () => {
+      const response = await apiFetch(
+        "/v1/cards?q=%23scenario-reader&include=content,metadata&limit=50",
+        readerKey
+      );
+      const { items } = (await response.json()) as {
+        items: Array<{
+          article: { readingMinutes: number; wordCount: number } | null;
+          id: string;
+          url: string | null;
+        }>;
+      };
+      const longRead = items.find((item) =>
+        item.url?.startsWith("https://example.com/reader/long-form")
+      );
+      expect(longRead?.article?.wordCount).toBeGreaterThan(2500);
+      card = longRead;
+    },
+    { timeout: 60_000 }
+  );
+  const contentPath = `/v1/cards/${card?.id}/content`;
+
+  const article = await apiFetch(`${contentPath}?kind=article`, readerKey);
+  const body = await article.clone().json();
+  openapi.validate("/v1/cards/{cardId}/content", "GET", article.status, body);
+  expect(article.status).toBe(200);
+  expect(body).toMatchObject({ kind: "article", truncated: false });
+  expect(body.text).toContain("## Planting calendar");
+  expect(body.text).toMatch(/!\[[^\]]*\]\(https?:\/\/\S+article-image\S+/u);
+  expect(body.text).not.toContain("teak-image:");
+
+  // Without kind, an article is never the answer: older clients reject it.
+  const plain = await apiFetch(contentPath, readerKey);
+  expect(plain.status).toBe(404);
+  expect(await plain.json()).toMatchObject({ code: "NO_CONTENT" });
+  expect((await apiFetch(`${contentPath}?kind=video`, readerKey)).status).toBe(
+    400
+  );
 });

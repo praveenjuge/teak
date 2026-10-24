@@ -69,6 +69,7 @@ teak search 'site:github.com tag:design "design system"'
 teak ls --type image --hue blue --date "last month"
 teak cards get <card-id>
 teak content <card-id>           # a document's text or a transcript
+teak content <card-id> --kind article  # a link's article as Markdown
 teak cards duplicate https://example.com   # the card that saves a URL
 teak download <card-id> -o ./original.png
 ```

@@ -1,9 +1,10 @@
+import { opensOnRead } from "@teak/convex/shared/article";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Archive,
@@ -49,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
@@ -66,6 +68,10 @@ import {
   LINK_THUMBNAIL_ACCEPT,
 } from "../../lib/linkThumbnail";
 import { cn } from "../../lib/utils";
+import {
+  ArticleReader,
+  articleReaderState,
+} from "../card-previews/ArticleReader";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
 import { ImagePreview } from "../card-previews/ImagePreview";
@@ -210,6 +216,86 @@ function stageContentClass(card: CardModalCard): string {
   }
 }
 
+/** The Read tab's stage: the reader sets its own 68ch column inside it. */
+const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
+
+type StageView = "preview" | "read";
+
+/**
+ * Preview or Read for a link with an article (or one on its way): the
+ * category's default until someone picks, and only for this card, so a pick
+ * never carries over to the next one. The scroll of each view is kept per
+ * card while the dialog is open.
+ */
+const useStageView = (
+  card: CardModalCard | null | undefined,
+  open: boolean
+) => {
+  const [choice, setChoice] = useState<{
+    cardId: string;
+    view: StageView;
+  } | null>(null);
+  const available = card ? articleReaderState(card).kind !== "none" : false;
+  const fallback: StageView = opensOnRead(
+    card?.metadata?.linkCategory?.category
+  )
+    ? "read"
+    : "preview";
+  let view: StageView = "preview";
+  if (card && available) {
+    view = choice?.cardId === card._id ? choice.view : fallback;
+  }
+
+  const mainRef = useRef<HTMLElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const positions = useRef(new Map<string, [number, number]>());
+  const cardId = card?._id;
+  const remember = () => {
+    if (cardId) {
+      positions.current.set(`${cardId}:${view}`, [
+        mainRef.current?.scrollTop ?? 0,
+        scrollerRef.current?.scrollTop ?? 0,
+      ]);
+    }
+  };
+  const setView = (next: StageView) => {
+    if (!cardId || next === view) {
+      return;
+    }
+    remember();
+    setChoice({ cardId, view: next });
+  };
+  useLayoutEffect(() => {
+    if (!cardId) {
+      return;
+    }
+    const [main, scroller] = positions.current.get(`${cardId}:${view}`) ?? [
+      0, 0,
+    ];
+    if (mainRef.current) {
+      mainRef.current.scrollTop = main;
+    }
+    if (scrollerRef.current) {
+      scrollerRef.current.scrollTop = scroller;
+    }
+  }, [cardId, view]);
+  useEffect(() => {
+    if (!open) {
+      positions.current.clear();
+      setChoice(null);
+    }
+  }, [open]);
+
+  return {
+    available,
+    mainRef,
+    scrollerRef,
+    setView,
+    toggle: () => setView(view === "read" ? "preview" : "read"),
+    view,
+  };
+};
+
 /** The header's one main action, in ink rather than the brand color. */
 const PRIMARY_ACTION_CLASS =
   "h-8 rounded-full bg-foreground px-3.5 text-background hover:bg-foreground/85";
@@ -318,6 +404,7 @@ export function CardModal({
   const detailsHidden = isDetailsHidden && !isMobile;
   const pendingFocus = useRef<"notes" | "tags" | null>(null);
   const saveStatus = useSaveStatus(saveState);
+  const stage = useStageView(card, open);
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
   if (originRef.current.open !== open) {
@@ -606,6 +693,11 @@ export function CardModal({
       case "toggleDetails":
         if (!isMobile) {
           toggleDetails();
+        }
+        break;
+      case "toggleReader":
+        if (stage.available) {
+          stage.toggle();
         }
         break;
       default:
@@ -1115,7 +1207,10 @@ export function CardModal({
 
                 {mobileHeader}
 
-                <div className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row">
+                <div
+                  className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row"
+                  ref={stage.scrollerRef}
+                >
                   <div className="group/stage relative flex min-w-0 flex-col md:min-h-0 md:flex-1">
                     {desktopHeader}
                     <main
@@ -1125,20 +1220,62 @@ export function CardModal({
                         card.type === "image" && "bg-muted/40",
                         card.type === "video" && "bg-black"
                       )}
+                      ref={stage.mainRef}
                     >
-                      <div className={stageContentClass(card)}>
-                        <CardPreview
-                          card={card}
-                          cardLinks={guardedCardLinks}
-                          getCurrentValue={getCurrentValue}
-                          key={card._id}
-                          saveChanges={() => {
-                            void saveChanges();
-                          }}
-                          thumbnail={linkThumbnail}
-                          updateContent={editContent}
-                        />
-                      </div>
+                      {stage.available ? (
+                        <div className="sticky top-0 z-10 flex justify-center bg-background/80 px-5 py-2 backdrop-blur md:px-10">
+                          <ShortcutTooltip
+                            keys={["R"]}
+                            label={t("reader.toggleTooltip")}
+                          >
+                            <ToggleGroup
+                              aria-keyshortcuts="R"
+                              aria-label={t("reader.viewLabel")}
+                              onValueChange={(next) => {
+                                if (next === "preview" || next === "read") {
+                                  stage.setView(next);
+                                }
+                              }}
+                              size="sm"
+                              type="single"
+                              value={stage.view}
+                              variant="outline"
+                            >
+                              <ToggleGroupItem className="px-3" value="preview">
+                                {t("reader.preview")}
+                              </ToggleGroupItem>
+                              <ToggleGroupItem className="px-3" value="read">
+                                {t("reader.read")}
+                              </ToggleGroupItem>
+                            </ToggleGroup>
+                          </ShortcutTooltip>
+                        </div>
+                      ) : null}
+                      {stage.view === "read" ? (
+                        <div className={READ_STAGE_CLASS}>
+                          <ArticleReader
+                            card={card}
+                            key={card._id}
+                            onRetry={isDeleted ? undefined : onReprocess}
+                            retrying={isReprocessing}
+                            title={heading.title}
+                          />
+                        </div>
+                      ) : (
+                        <div className={stageContentClass(card)}>
+                          <CardPreview
+                            card={card}
+                            cardLinks={guardedCardLinks}
+                            getCurrentValue={getCurrentValue}
+                            key={card._id}
+                            saveChanges={() => {
+                              void saveChanges();
+                            }}
+                            thumbnail={linkThumbnail}
+                            updateContent={editContent}
+                          />
+                        </div>
+                      )}
                     </main>
                   </div>
 

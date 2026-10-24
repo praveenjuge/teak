@@ -77,7 +77,8 @@ export const readDispatchQueueDepth = async (
  * run never archives, and a full run may have read the card before the page
  * arrived. An archive-only run gets one too when the page came after it was
  * sent, between recording its copy and ending. Returns the card to queue an
- * archive-only run for, with its archive stage set back to pending.
+ * archive-only run for, with its archive and article stages set back to
+ * pending.
  */
 export const takeSnapshotWaitingAfterRun = async (
   ctx: MutationCtx,
@@ -106,8 +107,10 @@ export const takeSnapshotWaitingAfterRun = async (
     return null;
   }
   await patchCardWithSearchSync(ctx, card._id, {
+    // The archive-only run takes the article from the new copy too.
     processingStatus: mergeProcessingStages(card.processingStatus, {
       archive: stagePending(),
+      article: stagePending(),
     }),
   });
   return card._id;

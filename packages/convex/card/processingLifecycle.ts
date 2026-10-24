@@ -59,7 +59,7 @@ export const initializeCardProcessingState = async (
 };
 
 /**
- * A reset keeps the archive stage, since a run that has nothing to archive
+ * A reset keeps the archive and article stages, since a run that has nothing to archive
  * leaves it alone. Refresh details archives the page again, so for a link it
  * starts over as pending.
  */
@@ -67,12 +67,13 @@ const archiveStageAfterReset = (
   card: { processingStatus?: ProcessingStatus },
   cardType: CardType,
   options: { refresh?: boolean }
-): Pick<ProcessingStatus, "archive"> => {
+): Pick<ProcessingStatus, "archive" | "article"> => {
+  // The article is taken from the copy again with it.
   if (options.refresh === true && shouldRunArchiveStage(cardType)) {
-    return { archive: stagePending() };
+    return { archive: stagePending(), article: stagePending() };
   }
-  const archive = card.processingStatus?.archive;
-  return archive ? { archive } : {};
+  const { archive, article } = card.processingStatus ?? {};
+  return { ...(archive ? { archive } : {}), ...(article ? { article } : {}) };
 };
 
 const UNFINISHED_STAGE_STATUSES = new Set(["pending", "in_progress"]);

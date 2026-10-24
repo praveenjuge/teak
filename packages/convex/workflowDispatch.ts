@@ -40,6 +40,7 @@ import {
 } from "./export/constants";
 import { ACTIVE_IMPORT_STATUSES } from "./import/constants";
 import { importStagedPartKeys } from "./import/indexItems";
+import { articleSkipReason } from "./shared/article";
 import { pageArchiveSkipReason } from "./shared/pageArchive";
 import {
   callFilesWorkerJson,
@@ -125,8 +126,13 @@ export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   options: {
-    /** Only "load card" and "archive page" run: a link's saved copy. */
+    /**
+     * Only "load card", "archive page" and the article steps run: a link's
+     * saved copy and the article in it.
+     */
     archiveOnly?: boolean;
+    /** Only "load card" and the article steps run: a link's article. */
+    articleOnly?: boolean;
     delayMs?: number;
     metadataOnly?: boolean;
     refresh?: boolean;
@@ -146,11 +152,20 @@ export const queueCardProcessing = async (
     options.metadataOnly === true &&
     (!replaced || replaced.params?.metadataOnly === true);
   // A run that takes over a whole pending run keeps its work: it narrows to
-  // the archive only when the run it replaces did too.
-  const archiveOnly =
+  // the archive or the article only when the run it replaces did too, and
+  // to the article alone only when neither asks for the archive.
+  const narrowed = (params?: {
+    archiveOnly?: boolean;
+    articleOnly?: boolean;
+  }) => params?.archiveOnly === true || params?.articleOnly === true;
+  const narrow =
     !(reset || metadataOnly) &&
-    options.archiveOnly === true &&
-    (!replaced || replaced.params?.archiveOnly === true);
+    narrowed(options) &&
+    (!replaced || narrowed(replaced.params));
+  const archiveOnly =
+    narrow &&
+    (options.archiveOnly === true || replaced?.params?.archiveOnly === true);
+  const articleOnly = narrow && !archiveOnly;
   const rev = (card.processingRev ?? 0) + 1;
   await ctx.db.patch("cards", cardId, { processingRev: rev });
   const instanceId = cardProcessingInstanceId(cardId, rev);
@@ -164,6 +179,7 @@ export const queueCardProcessing = async (
       cardId,
       rev,
       ...(archiveOnly ? { archiveOnly: true } : {}),
+      ...(articleOnly ? { articleOnly: true } : {}),
       ...(metadataOnly ? { metadataOnly: true } : {}),
       ...(refresh ? { refresh: true } : {}),
     },
@@ -617,23 +633,35 @@ const handleRunFailure = async (
       // A link whose run ended before its last step still gets its saved
       // copy, from a run of its own: a page that can't be fetched then fails
       // only that stage. An archive-only run that fails just fails the stage.
+      // The same goes for the article in a copy the run didn't reach. A
+      // narrowed run that fails just fails its stages.
       const refresh = params.refresh === true;
+      const narrowed =
+        params.archiveOnly === true || params.articleOnly === true;
       const archiveSeparately =
-        params.archiveOnly !== true &&
-        pageArchiveSkipReason(card, { refresh }) === null;
+        !narrowed && pageArchiveSkipReason(card, { refresh }) === null;
+      const articleSeparately =
+        !(narrowed || archiveSeparately) &&
+        articleSkipReason(card, { refresh }) === null;
       await markUnfinishedCardStagesFailed(
         ctx,
         {
           cardId: row.cardId,
-          stages: archiveSeparately
-            ? CARD_PROCESSING_STAGES
-            : [...CARD_PROCESSING_STAGES, "archive"],
+          stages: [
+            ...CARD_PROCESSING_STAGES,
+            ...(archiveSeparately ? [] : (["archive"] as const)),
+            ...(archiveSeparately || articleSeparately
+              ? []
+              : (["article"] as const)),
+          ],
         },
         error
       );
-      if (archiveSeparately) {
+      if (archiveSeparately || articleSeparately) {
         await queueCardProcessing(ctx, row.cardId, {
-          archiveOnly: true,
+          ...(archiveSeparately
+            ? { archiveOnly: true }
+            : { articleOnly: true }),
           ...(refresh ? { refresh: true } : {}),
         });
       }

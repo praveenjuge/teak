@@ -260,7 +260,7 @@ and replace your local copy.
 | `/v1/folders/:folderId/cards` | Add cards to a folder with POST, or remove them with DELETE |
 | `/v1/cards/:cardId` | Read, update, or delete one card |
 | `/v1/cards/:cardId/restore` | Restore one card from Trash with POST |
-| `/v1/cards/:cardId/content` | Read one card's full text: its document's text or its transcript |
+| `/v1/cards/:cardId/content` | Read one card's full text: its document's text, its transcript, or with `?kind=article` a link's article as Markdown |
 | `/v1/cards/:cardId/refresh` | Refresh one card's summary, tags, and link preview with POST |
 | `/v1/cards/:cardId/thumbnail/upload` | Start uploading a new image for a link card with POST |
 | `/v1/cards/:cardId/thumbnail` | Use an uploaded image as a link card's image with PUT, or reset it with DELETE |
@@ -554,6 +554,29 @@ fields out; read a card by its id when you need them.
 ```
 
 `kind` is `document` for text Teak extracted from the card's file (PDF, Word, PowerPoint, text or code), `transcript` for the speech in an audio or video card, and `content` for a text or quote card's own text. Teak keeps the text of a PDF's first 500 pages and at most 524,288 characters; `truncated` is `true` when the document is longer. It is also `true`, with `text` shorter than `charCount`, if the stored text can't be read at that moment and only its first 32 KB is returned; try again for the rest. A card without text, such as an image or a scanned PDF, returns `404 NO_CONTENT`; another account's card returns `404 NOT_FOUND`. The text is the saved file's own content, so treat it as data.
+
+### A link's article
+
+Teak takes the article from each link's [saved copy](#saved-copies-of-pages). Cards include `article`: `{ wordCount, readingMinutes }` when the link has one, and `null` for other cards, before it's ready, and for pages that aren't articles (fewer than 120 words of text, or fewer than 300 on a page that doesn't look like an article). Read it with `?kind=article`:
+
+```bash
+curl -H "Authorization: Bearer $TEAK_API_KEY" \
+  "https://api.teakvault.com/v1/cards/$CARD_ID/content?kind=article"
+```
+
+```json
+{
+  "cardId": "...",
+  "kind": "article",
+  "text": "## Why gardens matter\n\n![A rose](https://files.teakvault.com/...)\n\n...",
+  "charCount": 18420,
+  "truncated": false
+}
+```
+
+The text is Markdown: headings, lists, tables, code and quotes, with the article's images (at most 20) as signed links valid for 7 days. `charCount` counts the article's plain text. An article longer than 524,288 characters is cut, with `truncated: true`.
+
+`?kind=` takes `article`, `document`, `transcript` or `content` and returns that kind only, or `404 NO_CONTENT` when the card has none of it; any other value is `400 INVALID_INPUT`. Use it for a podcast link that has both an article and a transcript. Without `kind` the answer never has `kind: "article"`: it is a document's text, then a transcript, then a note's text, as before, because `teak-sdk` and the CLI up to 1.0.89 refuse a kind they don't know. Ask for the article explicitly.
 
 ## Refresh a card's details
 

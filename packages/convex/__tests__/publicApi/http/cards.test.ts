@@ -1190,8 +1190,8 @@ describe("publicApiHttp card endpoints", () => {
   );
 
   describe("GET /v1/cards/:id/content", () => {
-    const contentRequest = () =>
-      new Request("https://example.com/v1/cards/card_1/content", {
+    const contentRequest = (query = "") =>
+      new Request(`https://example.com/v1/cards/card_1/content${query}`, {
         headers: {
           Authorization:
             "Bearer teakapi_secret_live_a1b2c3d4_ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
@@ -1205,18 +1205,22 @@ describe("publicApiHttp card endpoints", () => {
         ),
         (byte) => byte.toString(16).padStart(2, "0")
       ).join("");
-    const respond = (source: unknown, card: unknown = { _id: "card_1" }) =>
-      runHandler(
+    let runQuery = mock();
+    const respond = (
+      source: unknown,
+      card: unknown = { _id: "card_1" },
+      query = ""
+    ) => {
+      runQuery = mock()
+        .mockResolvedValueOnce("card_1")
+        .mockResolvedValueOnce(card && { userId: "user_1", ...card })
+        .mockResolvedValueOnce(source);
+      return runHandler(
         cardByIdV1,
-        {
-          runMutation: buildAuthorizedMutationMock(),
-          runQuery: mock()
-            .mockResolvedValueOnce("card_1")
-            .mockResolvedValueOnce(card && { userId: "user_1", ...card })
-            .mockResolvedValueOnce(source),
-        },
-        contentRequest()
+        { runMutation: buildAuthorizedMutationMock(), runQuery },
+        contentRequest(query)
       );
+    };
     const withStoredText = async (
       body: string,
       run: (key: string) => Promise<void>
@@ -1309,6 +1313,77 @@ describe("publicApiHttp card endpoints", () => {
         text: "Hello from the clip",
         charCount: 19,
         truncated: false,
+      });
+    });
+
+    test("?kind=article returns the article's Markdown with each image as a signed URL", async () => {
+      const markdown =
+        '## Gardens\n\n![A rose](teak-image:0 "Spring")\n\n![](teak-image:7)';
+      const originalFetch = global.fetch;
+      const originalBase = process.env.FILES_BASE;
+      const originalSecret = process.env.FILES_SIGNING_SECRET;
+      process.env.FILES_BASE = "https://files.test";
+      process.env.FILES_SIGNING_SECRET = "test-secret";
+      const key = `users/u1/cards/card1/article-text/${await sha256(markdown)}.md`;
+      const imageKey = "users/u1/cards/card1/article-image/rose.webp";
+      global.fetch = mock(() => Promise.resolve(new Response(markdown))) as any;
+      try {
+        const response = await respond(
+          {
+            cardId: "card_1",
+            kind: "article",
+            text: "Gardens",
+            sourceKey: key,
+            imageKeys: [imageKey],
+            charCount: 7,
+            truncated: false,
+          },
+          undefined,
+          "?kind=article"
+        );
+        expect(runQuery.mock.calls[2]?.[1]).toEqual({
+          cardId: "card_1",
+          userId: "user_1",
+          kind: "article",
+        });
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body).toMatchObject({ kind: "article", charCount: 7 });
+        const signed = /!\[A rose\]\((\S+) "Spring"\)/u.exec(body.text)?.[1];
+        expect(new URL(signed ?? "").origin).toBe("https://files.test");
+        expect(new URL(signed ?? "").pathname).toBe(`/${imageKey}`);
+        expect(new URL(signed ?? "").searchParams.get("sig")).toBeTruthy();
+        // A reference with no image left is dropped, never sent as a token.
+        expect(body.text).not.toContain("teak-image:");
+      } finally {
+        global.fetch = originalFetch;
+        process.env.FILES_BASE = originalBase;
+        process.env.FILES_SIGNING_SECRET = originalSecret;
+      }
+    });
+
+    test("?kind= asks for that kind only, 404 when the card has none of it", async () => {
+      const response = await respond(null, undefined, "?kind=transcript");
+      expect(runQuery.mock.calls[2]?.[1]).toMatchObject({ kind: "transcript" });
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({
+        code: "NO_CONTENT",
+        error: "This card has no stored text of kind `transcript`",
+      });
+    });
+
+    test("an unknown kind is a 400 before any read", async () => {
+      const response = await respond(null, undefined, "?kind=slides");
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "INVALID_INPUT" });
+      expect(runQuery.mock.calls).toHaveLength(2);
+    });
+
+    test("without kind the query asks for no kind, so an article never comes back", async () => {
+      await respond(null);
+      expect(runQuery.mock.calls[2]?.[1]).toEqual({
+        cardId: "card_1",
+        userId: "user_1",
       });
     });
 

@@ -581,6 +581,46 @@ describe("teak-sdk", () => {
     ]);
   });
 
+  test("content asks for one kind of text, and accepts kinds it doesn't know", async () => {
+    const sent: string[] = [];
+    const answers = [
+      { kind: "article", text: "## Gardens" },
+      { kind: "document", text: "Report" },
+      { kind: "slides", text: "A kind from a later server" },
+    ];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url) => {
+        sent.push(String(url));
+        const answer = answers[sent.length - 1];
+        return Promise.resolve(
+          Response.json({
+            cardId: "c1",
+            charCount: answer?.text.length,
+            truncated: false,
+            ...answer,
+          })
+        );
+      }) as typeof fetch,
+    });
+
+    expect(await client.cards.content("c1", { kind: "article" })).toMatchObject(
+      { kind: "article", text: "## Gardens" }
+    );
+    expect(await client.cards.content("c1")).toMatchObject({
+      kind: "document",
+    });
+    expect(await client.cards.content("c1")).toMatchObject({
+      kind: "slides",
+    });
+    expect(sent).toEqual([
+      "https://api.example/v1/cards/c1/content?kind=article",
+      "https://api.example/v1/cards/c1/content",
+      "https://api.example/v1/cards/c1/content",
+    ]);
+  });
+
   test("a save already running is an IN_PROGRESS error", async () => {
     const client = createTeakClient({
       baseUrl: "https://api.example",

@@ -1,5 +1,6 @@
 import { CARD_EMBEDDING_VERSION } from "@teak/files-protocol";
 import type { Doc } from "../_generated/dataModel";
+import { ARTICLE_EMBEDDING_OPENING_CHARS } from "../shared/article";
 import { cardLinkTokensToText } from "../shared/cardLinks";
 import { sha256Hex } from "../storage/r2Keys";
 
@@ -24,10 +25,16 @@ export type EmbeddableCard = Pick<
 
 const clean = (value: string | undefined) => value?.trim() || undefined;
 
-// Most telling text first: the model reads only its first ~500 tokens.
+/**
+ * Most telling text first: the model reads only its first ~500 tokens. A
+ * link's `extractedText` is its article (`extractedKind: "article"`): its
+ * opening is the body, unless the link has content of its own that isn't
+ * just its URL or title.
+ */
 export const buildEmbeddingText = (
   card: EmbeddableCard,
-  extractedText?: string
+  extractedText?: string,
+  extractedKind?: "article" | "document"
 ): string => {
   const preview = card.metadata?.linkPreview;
   const tags = [...(card.tags ?? []), ...(card.aiTags ?? [])]
@@ -37,12 +44,21 @@ export const buildEmbeddingText = (
   const content = clean(
     card.content ? cardLinkTokensToText(card.content) : undefined
   );
+  const title = clean(card.metadataTitle) ?? clean(preview?.title);
+  const isArticle = extractedKind === "article";
+  const ownContent =
+    content && content !== clean(card.url) && !(isArticle && content === title)
+      ? content
+      : undefined;
+  const extracted = clean(extractedText);
   const body =
-    (content && content !== clean(card.url) ? content : undefined) ??
-    clean(extractedText) ??
+    ownContent ??
+    (isArticle
+      ? extracted?.slice(0, ARTICLE_EMBEDDING_OPENING_CHARS)
+      : extracted) ??
     clean(card.aiTranscript);
   return [
-    clean(card.metadataTitle) ?? clean(preview?.title),
+    title,
     clean(card.metadataDescription) ?? clean(preview?.description),
     clean(card.aiSummary),
     tags.length ? `Tags: ${Array.from(new Set(tags)).join(", ")}` : undefined,

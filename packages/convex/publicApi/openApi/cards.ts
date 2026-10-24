@@ -430,6 +430,17 @@ export const cardPaths = {
           required: true,
           schema: { type: "string" },
         },
+        {
+          description:
+            "Which text to return when a card has more than one. Without it the response is a document's text, then a transcript, then a note's content, and never `article`: ask for `article` to get a link's article.",
+          in: "query",
+          name: "kind",
+          required: false,
+          schema: {
+            enum: ["article", "document", "transcript", "content"],
+            type: "string",
+          },
+        },
       ],
       responses: {
         200: {
@@ -440,8 +451,8 @@ export const cardPaths = {
                   cardId: { type: "string" },
                   kind: {
                     description:
-                      "document: text extracted from the card's file (PDF, Word, PowerPoint, text or code). transcript: the speech in its audio or video. content: a text or quote card's written text.",
-                    enum: ["document", "transcript", "content"],
+                      "document: text extracted from the card's file (PDF, Word, PowerPoint, text or code). transcript: the speech in its audio or video. content: a text or quote card's written text. article: a link's article from its saved copy, as Markdown whose images are signed URLs valid for 7 days; returned only for `?kind=article`.",
+                    enum: ["document", "transcript", "content", "article"],
                     type: "string",
                   },
                   text: { type: "string" },
@@ -462,9 +473,13 @@ export const cardPaths = {
           },
           description: "The card's full stored text",
         },
+        400: {
+          content: apiErrorContent,
+          description: "INVALID_INPUT: `kind` isn't one of the listed kinds",
+        },
         404: {
           description:
-            "Card not found, or NO_CONTENT: the card has no stored text",
+            "Card not found, or NO_CONTENT: the card has no stored text (of that `kind`, when given)",
         },
       },
       security: apiKeySecurity,

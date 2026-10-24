@@ -47,6 +47,10 @@ import {
 } from "./ai/vectors";
 import { parseArchivePageParams, runArchivePage } from "./archive/archivePage";
 import {
+  parseExtractArticleParams,
+  runExtractArticle,
+} from "./archive/article";
+import {
   buildExportIntoBucket,
   ExportManifestInvalid,
   ExportTooLarge,
@@ -759,6 +763,11 @@ const dispatch = async (
       return success(
         requestId,
         await runArchivePage(env, parseArchivePageParams(params))
+      );
+    case "extract-article":
+      return success(
+        requestId,
+        await runExtractArticle(env, parseExtractArticleParams(params))
       );
     case "store-remote-asset":
       return success(

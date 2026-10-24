@@ -22,6 +22,7 @@ import {
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueObjectDeletion } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
+import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
@@ -427,6 +428,16 @@ const applyCardFieldEdit = (
       state.updateData.metadata =
         Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
       state.updateData.metadataStatus = "pending";
+      // The article was the old page's: the new page's is taken from its
+      // copy once that is saved.
+      Object.assign(state.updateData, droppedArticleFields(state.card));
+      if (card.type === "link") {
+        state.processingStatus = withStageStatus(
+          state.processingStatus,
+          "article",
+          stagePending()
+        );
+      }
       return true;
     }
 
@@ -575,6 +586,8 @@ export const updateCardFieldsForUserHandler = async (
     await queueObjectDeletion(ctx, card.pageArchive?.storageKey);
     await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
     await deleteLinkCheckRows(ctx, cardId);
+    // The old page's article: its text row and objects.
+    await discardArticleObjects(ctx, card);
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {

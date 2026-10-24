@@ -30,6 +30,7 @@ export const FILES_OP_TTL_SECONDS = 10 * 60;
 export const FILES_OPS = [
   "capabilities",
   "archive-page",
+  "extract-article",
   "analyze-image",
   "abort-multipart",
   "build-export",
@@ -322,6 +323,7 @@ export type FilesImportMarkdownResult =
       failureReason: string;
     };
 
+export * from "./article";
 export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";

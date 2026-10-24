@@ -94,6 +94,12 @@ export interface CardArchive {
   kind: "full" | "text_only";
 }
 
+/** A link's article, from its saved copy; read it with `cards.content(id, { kind: "article" })`. */
+export interface CardArticle {
+  readingMinutes: number;
+  wordCount: number;
+}
+
 export interface Card {
   aiSummary: string | null;
   aiTags: string[];
@@ -107,6 +113,8 @@ export interface Card {
   archive?: CardArchive | null;
   /** When the card was archived, or null. */
   archivedAt: number | null;
+  /** A link's article; null when it has none or it isn't ready. */
+  article?: CardArticle | null;
   /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
   audioWaveform: { detail: number[]; grid: number[] } | null;
   /** Your cards that link to this one, most recently updated first. */
@@ -462,6 +470,9 @@ export interface SavedPdf {
   /** False when an earlier save already made that card. */
   created: boolean;
 }
+/** The kinds of stored text a card can have. */
+export type CardContentKind = "article" | "document" | "transcript" | "content";
+
 /** A card's full stored text (GET /v1/cards/:id/content). */
 export interface CardContent {
   cardId: string;
@@ -469,9 +480,11 @@ export interface CardContent {
   charCount: number;
   /**
    * document: extracted from the card's file; transcript: its speech;
-   * content: a text or quote card's written text.
+   * content: a text or quote card's written text; article: a link's article
+   * as Markdown, with image links valid for 7 days. A kind this SDK doesn't
+   * know yet comes through as a string rather than an error.
    */
-  kind: "document" | "transcript" | "content";
+  kind: CardContentKind | (string & {});
   text: string;
   /** The document is longer than Teak keeps. */
   truncated: boolean;
@@ -845,7 +858,8 @@ const asCardContent = (value: unknown): CardContent => {
     typeof value.text !== "string" ||
     typeof value.charCount !== "number" ||
     typeof value.truncated !== "boolean" ||
-    !["document", "transcript", "content"].includes(String(value.kind))
+    // Unknown kinds pass, so a kind added later never breaks this build.
+    typeof value.kind !== "string"
   ) {
     throw new TeakApiError("PARSE_ERROR");
   }
@@ -1056,10 +1070,20 @@ export const createTeakClient = (options: {
         ),
       /**
        * The card's full stored text: document text, transcript, or a text
-       * card's content. Throws NO_CONTENT when the card has none.
+       * card's content. `{ kind: "article" }` reads a link's article as
+       * Markdown; `kind` picks one kind when a card has several. Throws
+       * NO_CONTENT when the card has none (of that kind).
        */
-      content: (id: string) =>
-        request(`${cardPath(id)}/content`, { method: "GET" }, asCardContent),
+      content: (id: string, contentOptions?: { kind?: CardContentKind }) =>
+        request(
+          `${cardPath(id)}/content${
+            contentOptions?.kind
+              ? `?kind=${encodeURIComponent(contentOptions.kind)}`
+              : ""
+          }`,
+          { method: "GET" },
+          asCardContent
+        ),
       /** Moves the card to Trash, or deletes it for good with `permanent`. */
       delete: (id: string, deleteOptions?: { permanent?: boolean }) =>
         request(

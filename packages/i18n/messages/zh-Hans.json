@@ -768,6 +768,12 @@
       "text": "文本",
       "title": "详情",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "预览",
+      "read": "阅读",
+      "toggleTooltip": "阅读或预览",
+      "viewLabel": "预览或阅读"
     }
   },
   "cardPreviews": {
@@ -826,6 +832,15 @@
     "video": {
       "gifAlt": "GIF 动图",
       "unsupported": "你的浏览器不支持 video 标签。"
+    },
+    "reader": {
+      "failed": "无法准备这篇文章。",
+      "loadFailed": "无法加载这篇文章。",
+      "loading": "正在加载文章",
+      "minutes": "{minutes, plural, other {阅读约 # 分钟}}",
+      "preparing": "正在准备文章…",
+      "savedFrom": "保存自 {host} · {date} · <link>打开原文 ↗</link>",
+      "shortened": "文章已截短以适应长度。"
     }
   },
   "cards": {
@@ -1253,6 +1268,7 @@
       "markLinkDone": "将链接标为已完成",
       "copyLinkOrText": "复制链接或文本",
       "toggleDetails": "显示或隐藏详情",
+      "readOrPreview": "阅读或预览",
       "goToEverything": "全部",
       "goToFavorites": "收藏",
       "goToArchive": "归档",

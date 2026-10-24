@@ -198,6 +198,10 @@ const createCardInputSchema = z
     }
   });
 const cardIdInputSchema = z.object({ cardId: nonEmptyString });
+const cardContentInputSchema = z.object({
+  cardId: nonEmptyString,
+  kind: z.enum(["article", "document", "transcript", "content"]).optional(),
+});
 const thumbnailUploadInputSchema = z.object({
   cardId: nonEmptyString,
   mimeType: z.enum(THUMBNAIL_MIME_TYPES),
@@ -615,10 +619,11 @@ const toolConfigs: Record<string, ToolRun> = {
     },
   }),
   teak_v1_get_card_content: defineTool({
-    schema: cardIdInputSchema,
+    schema: cardContentInputSchema,
     operation: (input) => ({
       method: "GET",
       path: `${cardPath(input.cardId)}/content`,
+      ...(input.kind ? { query: { kind: input.kind } } : {}),
     }),
     summary: (payload, input) =>
       `Read ${Number(payload.charCount) || 0} characters of ${typeof payload.kind === "string" ? payload.kind : "text"} from card ${input.cardId}${payload.truncated ? " (truncated)" : ""}`,

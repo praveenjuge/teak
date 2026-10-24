@@ -768,6 +768,12 @@
       "text": "텍스트",
       "title": "세부 정보",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "미리보기",
+      "read": "읽기",
+      "toggleTooltip": "읽기 또는 미리보기",
+      "viewLabel": "미리보기 또는 읽기"
     }
   },
   "cardPreviews": {
@@ -826,6 +832,15 @@
     "video": {
       "gifAlt": "애니메이션 GIF",
       "unsupported": "사용 중인 브라우저가 video 태그를 지원하지 않습니다."
+    },
+    "reader": {
+      "failed": "이 글을 준비하지 못했습니다.",
+      "loadFailed": "이 글을 불러오지 못했습니다.",
+      "loading": "글을 불러오는 중",
+      "minutes": "{minutes, plural, other {읽는 데 #분}}",
+      "preparing": "글을 준비하는 중…",
+      "savedFrom": "{host}에서 저장 · {date} · <link>원본 열기 ↗</link>",
+      "shortened": "길이에 맞게 글을 줄였습니다."
     }
   },
   "cards": {
@@ -1253,6 +1268,7 @@
       "markLinkDone": "링크를 완료로 표시",
       "copyLinkOrText": "링크 또는 텍스트 복사",
       "toggleDetails": "세부 정보 보기 또는 숨기기",
+      "readOrPreview": "읽기 또는 미리보기",
       "goToEverything": "전체",
       "goToFavorites": "즐겨찾기",
       "goToArchive": "보관함",
