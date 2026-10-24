@@ -308,6 +308,18 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     expect(result.html).not.toContain("@import");
   });
 
+  test("keeps url(#id) references into the page's own SVG, in sheets and style attributes", async () => {
+    const result = await archive(
+      `<head><style>.photo{clip-path:url(#crop)}.card{filter:url( "#shadow" )}</style></head>
+      <body><svg><defs><clipPath id="crop"><circle r="5"/></clipPath><linearGradient id="g"/></defs>
+      <rect style="fill:url('#g')"/></svg><p class="photo">x</p></body>`
+    );
+    expect(result.html).toContain('clip-path:url("#crop")');
+    expect(result.html).toContain('filter:url("#shadow")');
+    expect(result.html).toContain("fill:url(&quot;#g&quot;)");
+    expect(result.html).not.toContain("url(data:,)");
+  });
+
   test("drops a stylesheet over 4 MiB", async () => {
     const big = `.big{color:red}${" ".repeat(PAGE_ARCHIVE_MAX_TEXT_BYTES + 1 - 15)}`;
     const result = await archive(

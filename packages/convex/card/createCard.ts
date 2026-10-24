@@ -23,6 +23,7 @@ import { insertCountedCard } from "./cardUsage";
 import { findLiveCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
+import { isCardRunInFlight } from "./processingRuns";
 import {
   buildInitialProcessingStatus,
   mergeProcessingStages,
@@ -405,14 +406,13 @@ export const createCardForUserHandler = async (
   return { cardId, outcome: "created" };
 };
 
-const UNFINISHED_STAGES = new Set(["pending", "in_progress"]);
-
 /**
  * Moves a saved card to the top of "Newest first" and back from Archive. The
  * search sync carries the new `savedAt` to its folder and tag rows. Nothing
  * else changes, and the card isn't processed again, except that a page the
- * extension sent replaces the saved copy: by itself when the card is idle,
- * or at the end of the run already going.
+ * extension sent replaces the saved copy: at once, unless a run is in flight,
+ * which picks the page up when it ends. Stages a run left pending, like AI
+ * metadata waiting for its backfill, don't hold the page back.
  */
 const resaveCard = async (
   ctx: MutationCtx,
@@ -437,9 +437,7 @@ const resaveCard = async (
   const archiveNow =
     snapshot !== null &&
     pageArchiveSkipReason({ ...card, ...snapshot }) === null &&
-    !Object.values(card.processingStatus ?? {}).some(
-      (stage) => stage && UNFINISHED_STAGES.has(stage.status)
-    );
+    !(await isCardRunInFlight(ctx, card));
   await patchCardWithSearchSync(ctx, card._id, {
     savedAt: now,
     updatedAt: now,

@@ -7,22 +7,22 @@ import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight, ImagePlus } from "vadivam-react";
-import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
-import { formatLinkByline } from "../../lib/linkByline";
-import { firstFile } from "../../lib/linkThumbnail";
-import { resolveLinkTitle } from "../../lib/linkTitle";
-import { linkNoteText } from "../../lib/markdownToPlainText";
-import { handleCardLinkClick } from "../../lib/openCardLink";
-import { cn } from "../../lib/utils";
-import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
-import { SiteFavicon } from "../cards/SiteFavicon";
-import { Badge } from "../ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../ui/tooltip";
+} from "@/components/ui/tooltip";
+import { handleCardLinkClick } from "@/lib/openCardLink";
+import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
+import { formatLinkByline } from "../../lib/linkByline";
+import { firstFile } from "../../lib/linkThumbnail";
+import { resolveLinkTitle } from "../../lib/linkTitle";
+import { linkNoteText } from "../../lib/markdownToPlainText";
+import { cn } from "../../lib/utils";
+import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
+import { SiteFavicon } from "../cards/SiteFavicon";
 
 function formatFactValue(value: string, locale: string | undefined) {
   const trimmed = value.trim();

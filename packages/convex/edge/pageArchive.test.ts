@@ -232,16 +232,20 @@ describe("pageSnapshotKey on a re-save", () => {
     ]);
   });
 
-  test("a link still processing keeps its run, which archives the snapshot at its end", async () => {
+  test("a link whose run is in flight keeps it, and gets an archive run when it ends", async () => {
     const t = newBackend();
     const existing = await insertCard(t, {
-      processingRev: 1,
+      pageArchive: archiveOf("k0"),
       processingStatus: {
         ...IDLE_STAGES,
-        archive: { status: "pending" },
+        archive: { status: "completed" },
         metadata: { status: "in_progress" },
       },
     });
+    const queued = await t.run((ctx) =>
+      queueCardProcessing(ctx, existing, { metadataOnly: true })
+    );
+    await t.mutation(internal.workflowDispatch.claim, {});
     const key = snapshotKey(OWNER);
     await registerKey(t, OWNER, key);
 
@@ -250,7 +254,68 @@ describe("pageSnapshotKey on a re-save", () => {
     const saved = await card(t, existing);
     expect(saved.pendingPageSnapshotKey).toBe(key);
     expect(saved.processingRev).toBe(1);
-    expect(await cardRuns(t, existing)).toEqual([]);
+    expect(await cardRuns(t, existing)).toHaveLength(1);
+
+    // The metadata-only run never archives, so its end queues the archive.
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: queued?.instanceId as string,
+      status: "complete",
+    });
+    expect((await card(t, existing)).processingStatus?.archive).toMatchObject({
+      status: "pending",
+    });
+    expect((await cardRuns(t, existing)).map((row) => row.params)).toEqual([
+      { cardId: existing, metadataOnly: true, rev: 1 },
+      { archiveOnly: true, cardId: existing, rev: 2 },
+    ]);
+  });
+
+  test("AI metadata waiting for its backfill doesn't hold the snapshot back", async () => {
+    const t = newBackend();
+    const existing = await insertCard(t, {
+      pageArchive: archiveOf("k0"),
+      processingRev: 1,
+      processingStatus: {
+        ...IDLE_STAGES,
+        archive: { status: "completed" },
+        metadata: { status: "pending" },
+      },
+    });
+    const key = snapshotKey(OWNER);
+    await registerKey(t, OWNER, key);
+
+    await create(t, { content: LINK, pageSnapshotKey: key });
+
+    expect((await cardRuns(t, existing)).map((row) => row.params)).toEqual([
+      { archiveOnly: true, cardId: existing, rev: 2 },
+    ]);
+  });
+
+  test("a run that ends with no new snapshot, or an archive-only run, queues nothing", async () => {
+    const t = newBackend();
+    const plain = await insertCard(t, { pageArchive: archiveOf("k0") });
+    const pending = snapshotKey(OWNER);
+    const archiving = await insertCard(t, {
+      pendingPageSnapshotAt: NOW,
+      pendingPageSnapshotKey: pending,
+      url: "https://example.com/other",
+      urlKey: "example.com/other",
+    });
+    const first = await t.run((ctx) => queueCardProcessing(ctx, plain));
+    const second = await t.run((ctx) =>
+      queueCardProcessing(ctx, archiving, { archiveOnly: true })
+    );
+    await t.mutation(internal.workflowDispatch.claim, {});
+
+    for (const queued of [first, second]) {
+      await t.mutation(internal.workflowDispatch.complete, {
+        instanceId: queued?.instanceId as string,
+        status: "complete",
+      });
+    }
+
+    expect(await cardRuns(t, plain)).toHaveLength(1);
+    expect(await cardRuns(t, archiving)).toHaveLength(1);
   });
 
   test("a second snapshot replaces the first, which is deleted", async () => {

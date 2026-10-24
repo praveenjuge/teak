@@ -147,7 +147,8 @@ const quoteCssUrl = (value: string) =>
 /**
  * Rewrites every `url()` in `css`: `replace` gets the absolute URL and its
  * kind and returns a data URI, or null to drop the reference. Data URIs
- * already in the CSS stay only when they are images or fonts.
+ * already in the CSS stay only when they are images or fonts, and references
+ * into the page (`url(#id)`) stay as they are.
  */
 export const rewriteCssUrls = (
   css: string,
@@ -167,6 +168,11 @@ export const rewriteCssUrls = (
       const raw = (doubleQuoted ?? singleQuoted ?? bare ?? "").trim();
       if (raw.toLowerCase().startsWith("data:")) {
         return KEPT_DATA_URI.test(raw) ? quoteCssUrl(raw) : EMPTY_CSS_URL;
+      }
+      // `url(#id)` points into the page itself, like an SVG clip path or
+      // gradient, and needs nothing fetched.
+      if (raw.startsWith("#")) {
+        return quoteCssUrl(raw);
       }
       const url = resolveHttpUrl(raw, base);
       if (!url) {
