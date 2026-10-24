@@ -60,6 +60,7 @@ export const FILES_OPS = [
   "process-audio",
   "store-remote-asset",
   "store-linked-pdf",
+  "check-link",
   "store-onboarding-files",
   "fetch-link-page",
   "embed-upsert",
@@ -324,6 +325,7 @@ export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";
 export * from "./inspect";
+export * from "./linkCheck";
 export * from "./linkedPdf";
 export * from "./linkPage";
 export * from "./metadata";

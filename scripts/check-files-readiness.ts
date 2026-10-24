@@ -20,6 +20,7 @@ const required = [
   "fetch-link-page",
   "store-remote-asset",
   "store-linked-pdf",
+  "check-link",
   "store-onboarding-files",
   "embed-upsert",
   "vector-delete",

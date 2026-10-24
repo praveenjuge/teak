@@ -68,6 +68,7 @@ import {
   loadImageForAi,
 } from "./images/imageMetadata";
 import { sha256Hex, verifyBodySignature } from "./lib";
+import { checkLinkOp } from "./linkCheck";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
@@ -763,6 +764,8 @@ const dispatch = async (
         requestId,
         await storeLinkedPdf(env, parseLinkedPdfParams(params))
       );
+    case "check-link":
+      return success(requestId, await checkLinkOp(env, params));
     case "store-onboarding-files":
       return success(
         requestId,

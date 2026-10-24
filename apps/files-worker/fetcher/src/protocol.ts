@@ -80,12 +80,20 @@ export const FETCHER_HOP_MAX_TIMEOUT_MS = 30_000;
 export const FETCHER_STREAM_MAX_BYTES = 100 * 1024 * 1024;
 export const FETCHER_STREAM_MAX_TIMEOUT_MS = 5 * 60 * 1000;
 
+/**
+ * The methods a hop may send. HEAD is for the link check; a fetcher built
+ * before it ignores `method` and sends GET, which answers the same question.
+ */
+export const FETCHER_HOP_METHODS = ["GET", "HEAD"] as const;
+
 export interface FetcherHopRequest {
   addresses: string[];
   headers: Partial<
     Record<(typeof FETCHER_HOP_REQUEST_HEADERS)[number], string>
   >;
   maxBytes: number;
+  /** GET when absent. */
+  method?: (typeof FETCHER_HOP_METHODS)[number];
   timeoutMs: number;
   url: string;
 }
