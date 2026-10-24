@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 oven/bun:1.4.2-alpine AS build
+FROM --platform=linux/amd64 oven/bun:1.4.4-alpine AS build
 WORKDIR /build
 COPY src ./src
 RUN bun build --compile --minify --target=bun-linux-x64-musl src/server.ts --outfile /build/renderer

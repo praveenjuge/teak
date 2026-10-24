@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 oven/bun:1.4.2-alpine AS build
+FROM --platform=linux/amd64 oven/bun:1.4.4-alpine AS build
 WORKDIR /build
 COPY apps/files-worker/fetcher/package.json apps/files-worker/fetcher/bun.lock ./
 RUN bun install --frozen-lockfile --production

@@ -67,7 +67,7 @@ The Firefox build comes from the same source as Chrome (`bun run zip:firefox`). 
 
 > Teak is a monorepo. The sources zip holds the root manifests, `bun.lock`, the extension (`apps/extension`) and the workspace packages it imports (`packages/convex`, `packages/files-protocol`, `packages/sdk`).
 >
-> To build: install Bun 1.4.2 and Node 24, then from the zip's root run
+> To build: install Bun 1.4.4 and Node 24, then from the zip's root run
 > `bun install --frozen-lockfile`, then
 > `VITE_PUBLIC_CONVEX_URL=https://uncommon-ladybug-882.convex.cloud VITE_PUBLIC_CONVEX_SITE_URL=https://uncommon-ladybug-882.convex.site bun run --cwd apps/extension build:firefox`.
 > The output in `apps/extension/.output/firefox-mv3` matches the uploaded package file for file.
