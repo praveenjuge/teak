@@ -13,6 +13,6 @@ O Teak é o seu centro de conhecimento pessoal para reunir, lembrar e redescobri
 - Pressione Alt+Shift+S para salvar a página atual sem abrir o pop-up. O ícone na barra de ferramentas mostra quando uma página já está no Teak.
 - Envie um arquivo de até 100 MB pelo pop-up.
 - Pesquise na sua biblioteca pela barra de endereços: digite "teak", um espaço e o que você procura.
-- Salve publicações do Instagram, Pinterest, X, Hacker News, Sidebar e HeyDesigner com um botão em cada publicação.
+- Salve publicações de redes sociais e sites de design compatíveis com um botão em cada publicação.
 
 Entre com a sua conta do Teak para começar. O plano gratuito comporta 200 cards; o Teak Pro tem cards ilimitados.

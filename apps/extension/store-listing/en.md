@@ -13,6 +13,6 @@ Teak is your personal knowledge hub for collecting, remembering, and rediscoveri
 - Press Alt+Shift+S to save the current page without opening the popup. The toolbar icon shows when a page is already in Teak.
 - Upload a file of up to 100 MB from the popup.
 - Search your library from the address bar: type "teak", then a space, and what you're looking for.
-- Save posts from Instagram, Pinterest, X, Hacker News, Sidebar, and HeyDesigner with a button on each post.
+- Save posts on supported social and design sites with a button on each post.
 
 Sign in with your Teak account to start. The free plan holds 200 cards; Teak Pro has unlimited cards.
