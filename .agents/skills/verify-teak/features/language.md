@@ -46,6 +46,7 @@ Steps:
 
 - The pseudo-locale is development only: production ignores both the cookie value and the parameter. It is never saved to the account, so the Language select shows English while it is on.
 - The 404 page and the root error page render in English first, then switch once the browser reads the cookie.
-- Server-made text stays English in every language: link facts, bylines, price labels, import errors, and the API, MCP and CLI.
+- Server-made text stays English in every language: link facts, bylines, price labels, import errors, connection names in Security ("Chrome extension"), and the API, MCP and CLI.
+- Also English on purpose: browser tab titles (route metadata renders before the language is known), the toast region's screen-reader label "Notifications", and key names in shortcuts (Esc, Enter, Ctrl, Del).
 - The extension's name in the browser follows the browser's language, not the account's.
 - A second tab follows a language change on its next query update or reload, not instantly.
