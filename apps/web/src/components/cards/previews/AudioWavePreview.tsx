@@ -2,7 +2,7 @@ import {
   AUDIO_WAVE_BARS,
   getAudioWaveHeight,
 } from "@teak/convex/shared/audioWave";
-import { Play } from "lucide-react";
+import { Play } from "vadivam-react";
 import { CARD_SURFACE } from "../cardDisplay";
 
 const AUDIO_WAVE_BAR_WIDTH_PX = 2;

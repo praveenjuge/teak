@@ -1,8 +1,8 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
-import { ShieldCheck } from "lucide-react";
 import { type ComponentProps, useState } from "react";
+import { ShieldCheck } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ApiKeysPanel } from "./ApiKeysDialog";

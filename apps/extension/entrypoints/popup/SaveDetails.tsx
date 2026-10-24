@@ -1,7 +1,6 @@
 import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { Check, X } from "lucide-react";
 import {
   type KeyboardEvent,
   useCallback,
@@ -9,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Check, X } from "vadivam-react";
 import { Button } from "../../components/ui/button";
 import { MAX_PATCH_TAGS } from "../../lib/cardPatch";
 import { readRecentTags, suggestTags } from "../../lib/recentTags";

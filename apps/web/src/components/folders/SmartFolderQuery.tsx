@@ -5,8 +5,14 @@ import {
   searchExpressionParts,
 } from "@teak/convex/shared";
 import { useTranslations } from "@teak/i18n/react";
-import { Archive, CircleSlash, Parentheses, Quote, Search } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  Archive,
+  CircleSlash,
+  Parentheses,
+  Quote,
+  Search,
+} from "vadivam-react";
 import { cn } from "../../lib/utils";
 import { getFilterIcon, QUALIFIER_ICONS } from "../search/SearchBar";
 import {

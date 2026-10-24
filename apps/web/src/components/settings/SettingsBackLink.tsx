@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
+import { ArrowLeft } from "vadivam-react";
 import { SidebarToggle } from "@/components/sidebar";
 import { libraryViewForPath } from "@/lib/libraryViews";
 import { PageHeader, PageTitle } from "@/screens";

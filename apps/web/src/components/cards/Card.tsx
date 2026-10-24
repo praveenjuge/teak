@@ -10,27 +10,26 @@ import {
 } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
+import type { DragEvent, KeyboardEvent } from "react";
+import { memo, useRef } from "react";
+import { toast } from "sonner";
 import {
   Archive,
   ArchiveRestore,
   ArrowUpRight,
   Check,
-  CheckSquare,
   Copy,
+  Ellipsis,
   ExternalLink,
   Folder as FolderIcon,
   Heart,
-  Loader2,
-  MoreHorizontal,
+  LoaderCircle,
   RefreshCw,
   RotateCcw,
+  SquareCheckBig,
   Tag,
   Trash,
-  Trash2,
-} from "lucide-react";
-import type { DragEvent, KeyboardEvent } from "react";
-import { memo, useRef } from "react";
-import { toast } from "sonner";
+} from "vadivam-react";
 import { CardContent, Card as UICard } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -413,14 +412,14 @@ export const Card = memo(function Card({
       : [
           isSelectionMode
             ? {
-                icon: CheckSquare,
+                icon: SquareCheckBig,
                 id: "select",
                 label: isSelected ? t("menu.deselect") : t("menu.select"),
                 onSelect: () => onToggleSelection?.(card._id),
                 shortcut: shortcuts.select,
               }
             : {
-                icon: CheckSquare,
+                icon: SquareCheckBig,
                 id: "select",
                 label: t("menu.select"),
                 onSelect: handleSelect,
@@ -479,7 +478,7 @@ export const Card = memo(function Card({
             : []),
           { separator: "before-delete" },
           {
-            icon: Trash2,
+            icon: Trash,
             id: "delete",
             label: tc("delete"),
             onSelect: handleDelete,
@@ -528,7 +527,7 @@ export const Card = memo(function Card({
           >
             {isOptimistic && (
               <div className="absolute inset-0 z-10 flex items-center justify-center">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
               </div>
             )}
             <CardContent className="p-0">
@@ -622,7 +621,7 @@ export const Card = memo(function Card({
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <QuickActionButton label={t("menu.moreActions")}>
-                    <MoreHorizontal />
+                    <Ellipsis />
                   </QuickActionButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">

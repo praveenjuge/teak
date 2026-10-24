@@ -4,9 +4,9 @@ import {
   sanitizeExternalUrl,
 } from "@teak/convex/shared/utils/safeUrl";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { ArrowUpRight, ImagePlus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, ImagePlus } from "vadivam-react";
 import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import { formatLinkByline } from "../../lib/linkByline";
 import { firstFile } from "../../lib/linkThumbnail";

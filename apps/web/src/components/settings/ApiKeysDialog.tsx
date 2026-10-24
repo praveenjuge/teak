@@ -1,7 +1,7 @@
 import type { TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { Copy, KeyRound, RotateCw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { Copy, KeyRound, RotateCw, Trash } from "vadivam-react";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -169,7 +169,7 @@ function ApiKeyRow({
           title={t("revokeKey")}
           variant="ghost"
         >
-          <Trash2 />
+          <Trash />
         </Button>
       </div>
     </li>

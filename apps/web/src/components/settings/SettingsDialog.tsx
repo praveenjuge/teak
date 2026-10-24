@@ -2,8 +2,8 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "@teak/i18n/react";
-import { type LucideIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { type VadivamIcon, XIcon } from "vadivam-react";
 import { cn } from "../../lib/utils";
 import {
   Dialog,
@@ -19,7 +19,7 @@ interface SettingsDialogProps {
   className?: string;
   description?: ReactNode;
   footer?: ReactNode;
-  icon: LucideIcon;
+  icon: VadivamIcon;
   onOpenAutoFocus?: (event: Event) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
@@ -33,7 +33,7 @@ export function SettingsIconTile({
   className,
 }: {
   className?: string;
-  icon: LucideIcon;
+  icon: VadivamIcon;
   tone?: SettingsDialogTone;
 }) {
   return (

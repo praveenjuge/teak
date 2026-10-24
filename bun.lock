@@ -66,11 +66,12 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "convex": "^1.46.0",
-        "lucide-react": "^1.55.0",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
         "tailwind-merge": "^3.7.0",
         "teak-sdk": "workspace:*",
+        "vadivam": "^0.0.66",
+        "vadivam-react": "^0.0.66",
       },
       "devDependencies": {
         "@tailwindcss/vite": "^4.3.3",
@@ -169,7 +170,6 @@
         "convex": "^1.46.0",
         "convex-helpers": "^0.1.128",
         "lowlight": "3.3.0",
-        "lucide-react": "^1.55.0",
         "marked": "17.0.5",
         "next": "16.4.1",
         "next-themes": "^0.4.6",
@@ -181,6 +181,7 @@
         "schema-dts": "^2.1.0",
         "sonner": "^2.0.8",
         "tailwind-merge": "^3.7.0",
+        "vadivam-react": "^0.0.66",
       },
       "devDependencies": {
         "@happy-dom/global-registrator": "20.14.5",
@@ -2425,8 +2426,6 @@
 
     "lru_map": ["lru_map@0.4.1", "", {}, "sha512-I+lBvqMMFfqaV8CJCISjI3wbjmwVu/VyOoU7+qtu9d7ioW5klMgsTTiUOUp+DJvfTTzKXoPbyC6YfgkNcyPSOg=="],
 
-    "lucide-react": ["lucide-react@1.55.0", "", { "peerDependencies": { "@types/react": "*", "react": "^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0" }, "optionalPeers": ["@types/react"] }, "sha512-bSozQHiI3/8q7JvgoqVRGOYUi7fYT3siAZwmZsljjsOH2Husp/2ODdFf/leD+ZC/2yKfn7r8oh6yeoR3ITR5vA=="],
-
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
     "magicast": ["magicast@0.5.4", "", { "dependencies": { "@babel/parser": "^7.29.7", "@babel/types": "^7.29.7", "source-map-js": "^1.2.1" } }, "sha512-llBEhWm1SacoRwgHUoQJYtwp4PBLF4faQi5TCpIGyGs9n4y5+juI0tDgyKIfpqxckRHaHzouUEph3THklWh03w=="],
@@ -3162,6 +3161,10 @@
     "util-deprecate": ["util-deprecate@1.0.2", "", {}, "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="],
 
     "uuid": ["uuid@13.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw=="],
+
+    "vadivam": ["vadivam@0.0.66", "", { "bin": { "vadivam": "dist/cli.js" } }, "sha512-cLahV+9yNxLcS9BBEpFk/AGEIJ/LBtv8tIX5bGD9931gzSf9Re1BRg8QVZiJ4F+wDnqt3ROsqNj/Ig0yudvGUQ=="],
+
+    "vadivam-react": ["vadivam-react@0.0.66", "", { "peerDependencies": { "react": ">=18" } }, "sha512-w/HjDuLC2rQE46Kmd0/8scs2EnSjQkgfU2Gr8gS7HhU2kUvDc/ftk4zlm3V/wKuaxPyjWcH3HYEqKMKTy6E4EA=="],
 
     "vali-date": ["vali-date@1.0.0", "", {}, "sha512-sgECfZthyaCKW10N0fm27cg8HYTFK5qMWgypqkXMQ4Wbl/zZKx7xZICgcoxIIE+WFAP/MBL2EFwC/YvLxw3Zeg=="],
 

@@ -13,20 +13,20 @@ import type { Messages } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { Authenticated, AuthLoading } from "convex/react";
 import { usePaginatedQuery, useQuery } from "convex-helpers/react/cache/hooks";
+import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Archive,
   Folder,
   FolderSearch,
   FolderX,
   Heart,
-  type LucideIcon,
   Pencil,
   Plus,
-  Trash2,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+  Trash,
+  type VadivamIcon,
+} from "vadivam-react";
 import type { CardWithUrls } from "@/components/cards";
 import { CardsGridSkeleton } from "@/components/feedback/CardSkeleton";
 import { VaultSetupState } from "@/components/feedback/VaultSetupState";
@@ -97,7 +97,7 @@ type CardsScreenMessage = keyof Messages["screens"]["cards"];
 
 const EMPTY_VIEW_COPY: Record<
   Exclude<LibraryView, "all">,
-  { icon: LucideIcon; text: CardsScreenMessage }
+  { icon: VadivamIcon; text: CardsScreenMessage }
 > = {
   favorites: {
     icon: Heart,
@@ -107,7 +107,7 @@ const EMPTY_VIEW_COPY: Record<
     icon: Archive,
     text: "emptyArchive",
   },
-  trash: { icon: Trash2, text: "emptyTrash" },
+  trash: { icon: Trash, text: "emptyTrash" },
 };
 
 export type { SearchUrlChange } from "../lib/searchUrlSync";

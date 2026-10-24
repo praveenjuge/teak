@@ -4,6 +4,7 @@ import { api } from "@teak/convex";
 import { useTranslations } from "@teak/i18n/react";
 import { defaultFilter } from "cmdk";
 import { useQueries } from "convex-helpers/react/cache/hooks";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   FileText,
@@ -12,14 +13,13 @@ import {
   Import,
   Keyboard,
   LogOut,
-  type LucideIcon,
   Search,
   Settings,
   Shuffle,
   SunMoon,
   Upload,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+  type VadivamIcon,
+} from "vadivam-react";
 import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../hooks/useCardsSearchController";
 import { useFolders } from "../../hooks/useFolders";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
@@ -70,7 +70,7 @@ export type PaletteCardsState =
   | { status: "error" }
   | { status: "ready"; cards: PaletteCard[] };
 
-const ACTION_ICONS: Record<CommandPaletteActionId, LucideIcon> = {
+const ACTION_ICONS: Record<CommandPaletteActionId, VadivamIcon> = {
   "new-note": FileText,
   upload: Upload,
   import: Import,

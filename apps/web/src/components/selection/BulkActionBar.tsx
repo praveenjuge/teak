@@ -1,21 +1,21 @@
 import { useTranslations } from "@teak/i18n/react";
+import type { ReactNode } from "react";
 import {
   Archive,
   ArchiveRestore,
+  Ellipsis,
   FolderInput,
   FolderMinus,
   FolderPlus,
   Heart,
   HeartOff,
   Link as LinkIcon,
-  MoreHorizontal,
   RotateCcw,
   Tag,
   Tags,
-  Trash2,
+  Trash,
   X,
-} from "lucide-react";
-import type { ReactNode } from "react";
+} from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -137,7 +137,7 @@ export function BulkActionBar({
                 size="sm"
                 variant="outline"
               >
-                <MoreHorizontal />
+                <Ellipsis />
                 <span className="max-sm:sr-only">{tc("more")}</span>
               </Button>
             </DropdownMenuTrigger>
@@ -199,7 +199,7 @@ export function BulkActionBar({
                 shortcut={shortcutFor("delete")}
                 variant="destructive"
               >
-                <Trash2 />
+                <Trash />
                 {t("moveToTrash")}
               </BarMenuItem>
             </DropdownMenuContent>

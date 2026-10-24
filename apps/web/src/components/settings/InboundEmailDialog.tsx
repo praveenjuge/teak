@@ -1,9 +1,9 @@
 "use client";
 
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { Copy, Mail } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Copy, Mail } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatRelativeTime } from "./importExportFormat";

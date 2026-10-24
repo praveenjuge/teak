@@ -13,13 +13,13 @@ import {
   Image,
   Layers,
   Link as LinkIcon,
-  type LucideIcon,
   Palette,
   Quote,
   SlidersHorizontal,
+  type VadivamIcon,
   Video,
   Volume2,
-} from "lucide-react";
+} from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -47,7 +47,7 @@ import {
 
 const englishSearch = createTeakTranslator("en", englishMessages, "search");
 
-const TYPE_ICONS: Record<CardType, LucideIcon> = {
+const TYPE_ICONS: Record<CardType, VadivamIcon> = {
   text: FileText,
   link: LinkIcon,
   image: Image,

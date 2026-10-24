@@ -2,8 +2,8 @@
 
 import { useTranslations } from "@teak/i18n/react";
 import { Command as CommandPrimitive } from "cmdk";
-import { SearchIcon } from "lucide-react";
 import type * as React from "react";
+import { SearchIcon } from "vadivam-react";
 
 import { cn } from "../../lib/utils";
 import {

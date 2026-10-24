@@ -9,6 +9,8 @@ import {
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import type { KeyboardEvent, ReactNode, RefObject } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronDown,
   Circle,
@@ -18,9 +20,7 @@ import {
   Plus,
   Sparkles,
   X,
-} from "lucide-react";
-import type { KeyboardEvent, ReactNode, RefObject } from "react";
-import { useMemo, useState } from "react";
+} from "vadivam-react";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";

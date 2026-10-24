@@ -4,17 +4,17 @@ import { api } from "@teak/convex";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
+import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownAZ,
   ArrowDownWideNarrow,
   Combine,
+  Ellipsis,
   Hash,
-  MoreHorizontal,
   Pencil,
   Search,
-  Trash2,
-} from "lucide-react";
-import { memo, type ReactNode, useEffect, useMemo, useState } from "react";
+  Trash,
+} from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -95,7 +95,7 @@ const TagRow = memo(function TagRow({
       type="button"
       variant="ghost"
     >
-      <MoreHorizontal className="size-4" />
+      <Ellipsis className="size-4" />
     </Button>
   );
   return (
@@ -141,7 +141,7 @@ const TagRow = memo(function TagRow({
               onSelect={() => onAction("delete", item)}
               variant="destructive"
             >
-              <Trash2 />
+              <Trash />
               {t("delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
