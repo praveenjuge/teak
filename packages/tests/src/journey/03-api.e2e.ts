@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
 import { expect, retry, test } from "../helpers/test";
@@ -321,4 +322,55 @@ test("a card's links and backlinks are on the card, not on lists", async () => {
     expect(item).not.toHaveProperty("links");
     expect(item).not.toHaveProperty("backlinks");
   }
+});
+
+test("a page snapshot becomes the link's saved copy", async () => {
+  const marker = `page-snapshot-${Date.now()}`;
+  const page = gzipSync(
+    `<!doctype html><html><head><title>${marker}</title><script>alert(1)</script></head><body><h1>As the browser showed it</h1><p>${marker}</p></body></html>`
+  );
+  const upload = await apiFetch("/v1/page-snapshots/upload", apiKey, {
+    method: "POST",
+    body: JSON.stringify({ bytes: page.byteLength }),
+  });
+  expect(upload.status).toBe(200);
+  const { fileKey, uploadUrl } = await upload.json();
+  // The signed URL is the local Files Worker's, not the API's.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  const put = await fetch(uploadUrl, {
+    body: page,
+    headers: { "Content-Type": "application/gzip" },
+    method: "PUT",
+  });
+  expect(put.status).toBe(200);
+
+  const created = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      pageSnapshotKey: fileKey,
+      url: `https://example.com/${marker}`,
+    }),
+  });
+  expect(created.status).toBe(200);
+  const { cardId } = await created.json();
+
+  // The local stack has no link fetcher, so the run's other link steps fail;
+  // the copy still comes from the snapshot, in a run of its own.
+  await retry(
+    async () => {
+      const card = await (await apiFetch(`/v1/cards/${cardId}`, apiKey)).json();
+      expect(card.archive).toMatchObject({ kind: "full" });
+      expect(card.archive.bytes).toBeGreaterThan(0);
+    },
+    { intervals: [2000, 5000], timeout: 240_000 }
+  );
+
+  const tooLarge = await apiFetch("/v1/page-snapshots/upload", apiKey, {
+    method: "POST",
+    body: JSON.stringify({ bytes: 20 * 1024 * 1024 + 1 }),
+  });
+  expect(tooLarge.status).toBe(413);
+  expect(await tooLarge.json()).toMatchObject({
+    code: "PAGE_SNAPSHOT_TOO_LARGE",
+  });
 });
