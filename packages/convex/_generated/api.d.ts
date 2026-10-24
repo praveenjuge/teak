@@ -93,6 +93,7 @@ import type * as devSeed_folderPacks from "../devSeed/folderPacks.js";
 import type * as devSeed_helpers from "../devSeed/helpers.js";
 import type * as devSeed_links from "../devSeed/links.js";
 import type * as devSeed_mediaPacks from "../devSeed/mediaPacks.js";
+import type * as devSeed_resave from "../devSeed/resave.js";
 import type * as devSeed_searchOperators from "../devSeed/searchOperators.js";
 import type * as devSeed_urlVariants from "../devSeed/urlVariants.js";
 import type * as devSeed_volumeScenarios from "../devSeed/volumeScenarios.js";
@@ -433,6 +434,7 @@ declare const fullApi: ApiFromModules<{
   "devSeed/helpers": typeof devSeed_helpers;
   "devSeed/links": typeof devSeed_links;
   "devSeed/mediaPacks": typeof devSeed_mediaPacks;
+  "devSeed/resave": typeof devSeed_resave;
   "devSeed/searchOperators": typeof devSeed_searchOperators;
   "devSeed/urlVariants": typeof devSeed_urlVariants;
   "devSeed/volumeScenarios": typeof devSeed_volumeScenarios;
