@@ -349,11 +349,13 @@ describe("POST /inbound/email", () => {
   });
 
   test("a bare link already in Teak, emailed again, moves that card to the top", async () => {
+    vi.useFakeTimers();
     const { cards, owner, send } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
 
     await send(email({ text: "https://example.com/article" }));
     const [first] = await cards();
+    vi.advanceTimersByTime(60_000);
     await send(
       email({
         messageId: "<two@mail.example.test>",
@@ -363,8 +365,8 @@ describe("POST /inbound/email", () => {
 
     const saved = await cards();
     expect(saved).toHaveLength(1);
-    expect(saved[0]?.savedAt).toBeGreaterThanOrEqual(first?.savedAt ?? 0);
-    expect(saved[0]?.updatedAt).toBeGreaterThanOrEqual(first?.updatedAt ?? 0);
+    expect(saved[0]?.savedAt).toBeGreaterThan(first?.savedAt ?? 0);
+    expect(saved[0]?.createdAt).toBe(first?.createdAt);
   });
 
   test("mail from an account whose WorkOS identity was deleted is rejected", async () => {
