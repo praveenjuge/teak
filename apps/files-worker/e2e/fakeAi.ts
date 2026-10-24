@@ -110,13 +110,18 @@ export default class FakeWorkersAi extends WorkerEntrypoint {
     if (hasImage(inputs)) {
       return chatReply(
         {
+          language: "en",
           summary: "A photo analyzed by the local test model.",
           tags: ["photo", "local-test"],
         },
         text
       );
     }
-    return chatReply({ summary: summaryFor(text), tags: tagsFor(text) }, text);
+    // Its summaries are English, whatever the note's language.
+    return chatReply(
+      { language: "en", summary: summaryFor(text), tags: tagsFor(text) },
+      text
+    );
   }
 
   fetch(): Response {

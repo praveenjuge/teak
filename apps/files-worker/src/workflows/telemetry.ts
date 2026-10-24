@@ -113,10 +113,11 @@ export const observeAiGeneration = async <T>(
 
 export const emitCardProcessingCompleted = (
   env: TelemetryEnvVars,
-  properties: { cardType: string; durationMs: number }
+  properties: { aiLanguage?: string; cardType: string; durationMs: number }
 ): Promise<void> =>
   withWorkflowTelemetry(env, (telemetry) => {
     telemetry.record("card_processing_completed", {
+      ...(properties.aiLanguage ? { ai_language: properties.aiLanguage } : {}),
       card_type: properties.cardType,
       duration_ms: properties.durationMs,
     });

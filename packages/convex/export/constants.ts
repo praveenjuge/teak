@@ -9,7 +9,8 @@ export const EXPORT_VERSION = 1;
 /**
  * Card payload schema version. Bump when the shape of serialized card objects
  * in `cards.json` changes. v2 added `aiTags`, `aiSummary`, `metadataTitle`,
- * `isArchived` and `folders`; readers of v1 ignore them.
+ * `isArchived` and `folders`; readers of v1 ignore them. The optional
+ * `aiLanguage` came later in v2: a reader that doesn't know it ignores it.
  */
 export const SCHEMA_VERSION = 2;
 

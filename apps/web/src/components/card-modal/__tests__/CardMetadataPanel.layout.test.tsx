@@ -126,6 +126,16 @@ test("tags Teak suggested stay folded until opened, and can be kept or removed",
   expect(tags.removeAiTag).toHaveBeenCalledWith("macro");
 });
 
+test("a suggested tag in Arabic or Japanese runs in its own direction", async () => {
+  await render(imageCard({ aiTags: ["تطبيق", "デザイン"] }));
+  await act(() => button("2 suggested tags")?.click());
+  for (const tag of ["تطبيق", "デザイン"]) {
+    const label = button(`Keep tag ${tag}`)?.querySelector("span[dir]");
+    expect(label?.textContent).toBe(tag);
+    expect(label?.getAttribute("dir")).toBe("auto");
+  }
+});
+
 test("a suggestion the card already has as its own tag isn't suggested", async () => {
   await render(imageCard({ tags: ["petal"] }));
   expect(button("2 suggested tags")).toBeDefined();

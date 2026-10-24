@@ -88,6 +88,30 @@ describe("AI metadata generation", () => {
   });
 
   test.each([
+    ["ko", "ko"],
+    ["zh-CN", "zh"],
+    ["jp", undefined],
+    [undefined, undefined],
+  ])(
+    "the op's language %p arrives as aiLanguage %p",
+    async (language, expected) => {
+      const { job, telemetry } = setup({
+        data: {
+          summary: "디자인 노트.",
+          tags: ["디자인"],
+          validationRetryCount: 0,
+          ...(language === undefined ? {} : { language }),
+        },
+      });
+      expect(await generateTextMetadata(job, telemetry, "디자인")).toEqual({
+        aiSummary: "디자인 노트.",
+        aiTags: ["디자인"],
+        ...(expected ? { aiLanguage: expected } : {}),
+      });
+    }
+  );
+
+  test.each([
     {
       answer: {
         throws: Object.assign(
@@ -167,6 +191,26 @@ describe("normalizeAiTags", () => {
     expect(normalizeAiTags(["Sky", " sky ", "", "Blue", "SKY"])).toEqual([
       "sky",
       "blue",
+    ]);
+  });
+
+  test("keeps CJK, accented and Hangul tags as they are", () => {
+    expect(
+      normalizeAiTags([
+        "デザイン",
+        " 设计 ",
+        "디자인",
+        "Diseño",
+        "DISEÑO",
+        "Ölçü",
+      ])
+    ).toEqual(["デザイン", "设计", "디자인", "diseño", "ölçü"]);
+  });
+
+  test("keeps a translated secret as a normal tag; only secret and hidden hide", () => {
+    expect(normalizeAiTags(["秘密", "secreto", "Secret"])).toEqual([
+      "秘密",
+      "secreto",
     ]);
   });
 

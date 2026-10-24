@@ -12,6 +12,8 @@ export const updateCardAI = internalMutation({
     cardId: v.id("cards"),
     aiTags: v.optional(v.array(v.string())),
     aiSummary: v.optional(v.string()),
+    /** The language of `aiSummary` and `aiTags`; sent with them or not at all. */
+    aiLanguage: v.optional(v.string()),
     aiTranscript: v.optional(v.string()),
     aiOcrText: v.optional(v.string()),
     ocrCheckedAt: v.optional(v.number()),
@@ -20,13 +22,25 @@ export const updateCardAI = internalMutation({
   },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const { cardId, processingStatus, aiOcrText, aiTranscript, ...rest } = args;
+    const {
+      cardId,
+      processingStatus,
+      aiLanguage,
+      aiOcrText,
+      aiTranscript,
+      ...rest
+    } = args;
     const card = await ctx.db.get("cards", cardId);
     if (!card || (await accountDeletionOwnsRows(ctx, card.userId))) {
       return false;
     }
+    // New AI tags or a new summary bring their language, or clear the old
+    // one: a stored language always describes the stored output.
+    const writesAiOutput =
+      args.aiTags !== undefined || args.aiSummary !== undefined;
     const updates = {
       ...rest,
+      ...(writesAiOutput ? { aiLanguage } : {}),
       ...(aiOcrText === undefined ? {} : { aiOcrText: aiOcrText || undefined }),
       ...(aiTranscript === undefined
         ? {}

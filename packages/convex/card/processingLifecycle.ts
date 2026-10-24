@@ -38,6 +38,7 @@ export const initializeCardProcessingState = async (
   await patchCardWithSearchSync(ctx, cardId, {
     aiTags: undefined,
     aiSummary: undefined,
+    aiLanguage: undefined,
     ...(await clearCardTranscript(ctx, card)),
     aiOcrText: undefined,
     ocrCheckedAt: undefined,

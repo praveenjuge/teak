@@ -236,6 +236,24 @@ describe("serializeCard", () => {
     expect(out).not.toHaveProperty("metadataTitle");
   });
 
+  test("writes the language AI wrote in, and nothing when there is none", () => {
+    const japanese = serializeCard({
+      ...baseCard,
+      aiLanguage: "ja",
+      aiSummary: "東京のデザイン展についてのメモ。",
+      aiTags: ["デザイン"],
+    });
+    expect(japanese).toMatchObject({
+      aiLanguage: "ja",
+      aiSummary: "東京のデザイン展についてのメモ。",
+      aiTags: ["デザイン"],
+    });
+    expect(serializeCard(baseCard)).not.toHaveProperty("aiLanguage");
+    expect(serializeCard({ ...baseCard, aiLanguage: " " })).not.toHaveProperty(
+      "aiLanguage"
+    );
+  });
+
   test("writes when a link was marked done, and nothing for one that isn't", () => {
     const link = { ...baseCard, type: "link" as const };
     const done = serializeCard({ ...link, completedAt: 1_700_000_900_000 });

@@ -17,6 +17,10 @@ import {
   ONBOARDING_CARDS,
 } from "./card/defaultCards";
 import {
+  AI_LANGUAGES_TAG,
+  aiLanguagesScenarioCards,
+} from "./devSeed/aiLanguages";
+import {
   CARD_DETAILS_SCENARIO_CARDS,
   TAGS_CASE_SCENARIO_CARDS,
 } from "./devSeed/cardScenarios";
@@ -548,6 +552,10 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description:
       "No cards: sets the account's language to German (de), as Settings → Language would. Set the browser's teak-locale cookie to ja first to see the account win on the next load; seed again with `en` restored from Settings to undo.",
     locale: "de",
+  },
+  "ai-languages": {
+    description: `Notes in Japanese, Spanish, German, Korean, Chinese, Hindi and Arabic, an English note with a Spanish quote, one with no words at all, and French and Portuguese Wikipedia links, all run through AI processing so their tags and summary come back in the content's language. Images, PDFs and audio need uploaded files, so they aren't seeded. Search \`#${AI_LANGUAGES_TAG}\`; \`bun --no-env-file run scripts/ai-language-check.ts\` scores it.`,
+    cards: firstPageOnly(aiLanguagesScenarioCards()),
   },
   "shuffle-partial": {
     description:

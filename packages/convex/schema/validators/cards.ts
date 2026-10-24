@@ -302,6 +302,12 @@ export const cardValidator = v.object({
   aiTags: v.optional(v.array(v.string())),
   aiSummary: v.optional(v.string()),
   /**
+   * The language AI wrote `aiSummary` and `aiTags` in, as a BCP 47 primary
+   * tag (`ja`, `es`, `en`): the content's main language. Set with them, and
+   * cleared when new AI output has none. Not in search or the public API.
+   */
+  aiLanguage: v.optional(v.string()),
+  /**
    * Unused: transcripts live in `cardTextContents`, and no card holds one
    * here. Dropped in a later deploy (.agents/sunset.md).
    */

@@ -86,6 +86,7 @@ import type * as dataExport from "../dataExport.js";
 import type * as dataImport from "../dataImport.js";
 import type * as devPushLease from "../devPushLease.js";
 import type * as devSeed from "../devSeed.js";
+import type * as devSeed_aiLanguages from "../devSeed/aiLanguages.js";
 import type * as devSeed_cardScenarios from "../devSeed/cardScenarios.js";
 import type * as devSeed_contentPacks from "../devSeed/contentPacks.js";
 import type * as devSeed_folderPacks from "../devSeed/folderPacks.js";
@@ -425,6 +426,7 @@ declare const fullApi: ApiFromModules<{
   dataImport: typeof dataImport;
   devPushLease: typeof devPushLease;
   devSeed: typeof devSeed;
+  "devSeed/aiLanguages": typeof devSeed_aiLanguages;
   "devSeed/cardScenarios": typeof devSeed_cardScenarios;
   "devSeed/contentPacks": typeof devSeed_contentPacks;
   "devSeed/folderPacks": typeof devSeed_folderPacks;

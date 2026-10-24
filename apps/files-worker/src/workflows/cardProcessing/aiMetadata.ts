@@ -1,17 +1,20 @@
+import { internal } from "@teak/convex/_generated/api";
 import { isVisualStyle, type VisualStyle } from "@teak/convex/shared/constants";
 import { HIDDEN_TAG_KEYS } from "@teak/convex/shared/tags";
 import {
   buildLinkMetadataPrompt,
   buildTextMetadataPrompt,
   type FilesTextMetadataOpResult,
+  normalizeAiLanguage,
   normalizeImageOcrText,
   readFilesAiGenerationFacts,
   readVisualStylesDecision,
   TEXT_METADATA_MODEL_ID,
   validateTextMetadata,
 } from "@teak/files-protocol";
+import type { FunctionArgs } from "convex/server";
 import { observeAiGeneration, type WorkflowTelemetry } from "../telemetry";
-import type { CardJob } from "./context";
+import { type CardJob, guardOf } from "./context";
 
 const JSON_VALIDATION_ERROR =
   /failed to validate json|failed_generation|no (?:object|output) generated|response did not match schema|type validation failed/iu;
@@ -48,9 +51,54 @@ export const normalizeAiTags = (tags: readonly string[]): string[] =>
   );
 
 export interface GeneratedMetadata {
+  /** The language the model said the content is in, when it gave a valid one. */
+  aiLanguage?: string;
   aiSummary: string;
   aiTags: string[];
 }
+
+/** `aiLanguage` as a spread: absent when the model gave none. */
+const languageOf = (value: unknown): Pick<GeneratedMetadata, "aiLanguage"> => {
+  const aiLanguage = normalizeAiLanguage(value);
+  return aiLanguage ? { aiLanguage } : {};
+};
+
+type CardAiWrite = FunctionArgs<
+  typeof internal.workflows.aiMetadata.mutations.updateCardAI
+>;
+
+// Convex's refusal of an argument its validator doesn't know.
+const refusesAiLanguage = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("aiLanguage") && /validator/iu.test(message);
+};
+
+/**
+ * Saves AI output to the card under the run's revision. The Worker deploys
+ * before Convex, and a Convex from before `aiLanguage` refuses the whole
+ * write, so the write is sent again without the language
+ * (`.agents/sunset.md`).
+ */
+export const saveCardAi = async (
+  job: CardJob,
+  args: CardAiWrite
+): Promise<boolean> => {
+  const save = (write: CardAiWrite) =>
+    job.deps.convex.mutation(
+      internal.workflows.aiMetadata.mutations.updateCardAI,
+      write,
+      guardOf(job)
+    );
+  try {
+    return await save(args);
+  } catch (error) {
+    if (args.aiLanguage === undefined || !refusesAiLanguage(error)) {
+      throw error;
+    }
+    const { aiLanguage: _unknownToConvex, ...withoutLanguage } = args;
+    return await save(withoutLanguage);
+  }
+};
 
 const generateWorkerMetadata = async (
   job: CardJob,
@@ -88,6 +136,7 @@ const generateWorkerMetadata = async (
   return {
     aiSummary: result.output.summary,
     aiTags: normalizeAiTags(result.output.tags),
+    ...languageOf(result.output.language),
   };
 };
 
@@ -130,6 +179,7 @@ export const generateImageMetadataForStoredKey = async (
   }
 > => {
   const outcome = await job.deps.filesOp<{
+    language?: unknown;
     summary: string;
     tags: string[];
     text?: unknown;
@@ -163,6 +213,7 @@ export const generateImageMetadataForStoredKey = async (
   return {
     aiSummary: outcome.data.summary,
     aiTags: normalizeAiTags(outcome.data.tags),
+    ...languageOf(outcome.data.language),
     ...(aiOcrText ? { aiOcrText } : {}),
     ocrChecked: text !== undefined,
     ...(visualStyles ? { visualStyles } : {}),

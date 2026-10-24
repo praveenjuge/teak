@@ -108,7 +108,12 @@ export interface ServerEventCatalog {
   };
   card_created: { card_type: string; source: string };
   card_done_toggled: CardDoneToggled;
-  card_processing_completed: { card_type: string; duration_ms: number };
+  card_processing_completed: {
+    /** The language AI wrote the tags and summary in (`ja`, `es`), if any. */
+    ai_language?: string;
+    card_type: string;
+    duration_ms: number;
+  };
   card_processing_failed: {
     card_type?: string;
     error_class: string;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { SCRAPE_ELEMENTS } from "@teak/convex/linkMetadata/selectors";
 import { buildSelectorResultsFromHtml } from "@teak/convex/linkMetadata/staticHtml";
-import type { FilesOp } from "@teak/files-protocol";
+import { AI_METADATA_PROMPT_VERSION, type FilesOp } from "@teak/files-protocol";
 import {
   CARD_ID,
   createCardConvex,
@@ -136,6 +136,35 @@ describe("card processing", () => {
       mode: "completed",
     });
     expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a Japanese note: its language is saved and is in the run's facts", async () => {
+    const card = makeCard({ content: "来週、東京でデザイン展を見に行く。" });
+    const { run } = setup(card, {
+      "generate-text-metadata": {
+        data: {
+          language: "ja",
+          summary: "東京のデザイン展についてのメモ。",
+          tags: ["デザイン", "東京"],
+          validationRetryCount: 0,
+        },
+      },
+    });
+
+    const result = await run();
+
+    expect(card).toMatchObject({
+      aiLanguage: "ja",
+      aiTags: ["デザイン", "東京"],
+    });
+    expect(result).toMatchObject({
+      metadata: {
+        aiLanguage: "ja",
+        aiPromptVersion: AI_METADATA_PROMPT_VERSION,
+        mode: "completed",
+      },
+      mode: "completed",
+    });
   });
 
   test("every card-processing write carries the run's revision", async () => {
