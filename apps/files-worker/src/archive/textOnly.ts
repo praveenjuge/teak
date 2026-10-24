@@ -45,7 +45,8 @@ const PARAGRAPH_LIKE = new Set([
   "summary",
   "caption",
 ]);
-const SKIPPED_TEXT = "style, script, template, svg, select, noscript";
+const SKIPPED_TEXT =
+  "title, style, script, template, svg, select, noscript, textarea";
 
 interface TextRun {
   href?: string;
@@ -120,7 +121,9 @@ export const buildTextOnlyDocument = async (
         });
       },
     })
-    .on("body", {
+    // The whole document's text, so a page without a <body> tag keeps its
+    // words; the title and other head text are skipped above.
+    .onDocument({
       text(text) {
         if (skipDepth > 0 || !text.text) {
           return;

@@ -194,6 +194,38 @@ export const createCardConvex = (
       }
     ),
     "storage/ownership:registerObject": write("registerObject", () => true),
+    "workflows/steps/archive/mutations:markPageArchiveStage": write(
+      "markPageArchiveStage",
+      (args) => {
+        const stages = {
+          archive: {
+            status: args.status,
+            ...(args.reason ? { error: args.reason } : {}),
+          },
+        };
+        record(stages);
+        merge(card as FakeCard, stages);
+        return true;
+      }
+    ),
+    "workflows/steps/archive/mutations:recordPageArchive": write(
+      "recordPageArchive",
+      (args) => {
+        const stages = { archive: { status: "completed" } };
+        record(stages);
+        merge(card as FakeCard, stages);
+        const target = card as FakeCard;
+        target.pageArchive = args.archive;
+        if (
+          args.snapshotKey !== undefined &&
+          target.pendingPageSnapshotKey === args.snapshotKey
+        ) {
+          target.pendingPageSnapshotKey = undefined;
+          target.pendingPageSnapshotAt = undefined;
+        }
+        return true;
+      }
+    ),
     "workflowDispatch:complete": () => null,
     "workflows/aiMetadata/mutations:updateCardAI": write(
       "updateCardAI",

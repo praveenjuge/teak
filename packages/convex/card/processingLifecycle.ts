@@ -6,6 +6,7 @@ import {
   buildInitialProcessingStatus,
   type ProcessingStageKey,
   type ProcessingStatus,
+  shouldRunArchiveStage,
   stageFailed,
   stagePending,
 } from "./processingStatus";
@@ -43,15 +44,35 @@ export const initializeCardProcessingState = async (
     aiOcrText: undefined,
     ocrCheckedAt: undefined,
     aiBackfillAttempts: undefined,
-    processingStatus: buildInitialProcessingStatus({
-      now,
-      cardType,
-      classificationStatus: card.processingStatus?.classify ?? stagePending(),
-    }),
+    processingStatus: {
+      ...buildInitialProcessingStatus({
+        now,
+        cardType,
+        classificationStatus: card.processingStatus?.classify ?? stagePending(),
+      }),
+      ...archiveStageAfterReset(card, cardType, options),
+    },
     metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
     updatedAt: now,
   });
   return true;
+};
+
+/**
+ * A reset keeps the archive stage, since a run that has nothing to archive
+ * leaves it alone. Refresh details archives the page again, so for a link it
+ * starts over as pending.
+ */
+const archiveStageAfterReset = (
+  card: { processingStatus?: ProcessingStatus },
+  cardType: CardType,
+  options: { refresh?: boolean }
+): Pick<ProcessingStatus, "archive"> => {
+  if (options.refresh === true && shouldRunArchiveStage(cardType)) {
+    return { archive: stagePending() };
+  }
+  const archive = card.processingStatus?.archive;
+  return archive ? { archive } : {};
 };
 
 const UNFINISHED_STAGE_STATUSES = new Set(["pending", "in_progress"]);

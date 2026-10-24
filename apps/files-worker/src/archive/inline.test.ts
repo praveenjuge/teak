@@ -653,12 +653,14 @@ describe("buildPageArchive: text-only", () => {
   test("never exceeds the budget, even with more text than fits", async () => {
     const paragraphs = "<p>Many words in a paragraph.</p>".repeat(5000);
     const result = await archive(
-      `<style>${hugeCss}</style>${paragraphs}`,
+      `<style>${hugeCss}</style>${paragraphs}<p>The very last words.</p>`,
       fakeDeps(),
       { budgetBytes: 64 * 1024 }
     );
     expect(result.kind).toBe("text_only");
     expect(result.bytes).toBeLessThanOrEqual(64 * 1024);
+    expect(result.html).toContain("Many words in a paragraph.");
+    expect(result.html).not.toContain("The very last words.");
     expect(result.html).toEndWith("</body></html>");
   });
 });

@@ -29,6 +29,7 @@ export const FILES_OP_TTL_SECONDS = 10 * 60;
 
 export const FILES_OPS = [
   "capabilities",
+  "archive-page",
   "analyze-image",
   "abort-multipart",
   "build-export",
@@ -328,6 +329,7 @@ export * from "./linkedPdf";
 export * from "./linkPage";
 export * from "./metadata";
 export * from "./onboarding";
+export * from "./pageArchive";
 export * from "./remoteAsset";
 export * from "./rendering";
 export * from "./storage";

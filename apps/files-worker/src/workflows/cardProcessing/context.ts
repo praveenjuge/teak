@@ -102,7 +102,7 @@ export const markInProgress = async (
 
 export const objectKey = (
   loaded: LoadedCard,
-  args: { cardId?: string; fileName?: string; role: string }
+  args: { cardId?: string; fileName?: string; objectId?: string; role: string }
 ): string =>
   buildCardObjectKey({
     envPrefix: loaded.keyPrefix,

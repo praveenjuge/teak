@@ -10,6 +10,8 @@ export const cardStorageObjectKeys = (card: {
       screenshotStorageKey?: string;
     };
   };
+  pageArchive?: { storageKey?: string };
+  pendingPageSnapshotKey?: string;
   previewKey?: string;
   previousThumbnailOverride?: { override?: { storageKey?: string } | null };
   scrubKey?: string;
@@ -36,6 +38,8 @@ export const cardStorageObjectKeys = (card: {
     ]),
     card.thumbnailOverride?.storageKey,
     card.previousThumbnailOverride?.override?.storageKey,
+    card.pageArchive?.storageKey,
+    card.pendingPageSnapshotKey,
   ].filter((key, index, keys): key is string =>
     Boolean(key && keys.indexOf(key) === index)
   );

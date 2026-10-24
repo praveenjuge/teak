@@ -44,6 +44,11 @@ export const processingStatusObjectValidator = v.object({
   metadata: v.optional(stageStatusValidator),
   renderables: v.optional(stageStatusValidator),
   screenshot: v.optional(stageStatusValidator),
+  /**
+   * The link's saved copy (`pageArchive`). Never fails the card: a run with
+   * nothing to archive leaves it as it was.
+   */
+  archive: v.optional(stageStatusValidator),
 });
 
 export const processingStatusValidator = v.optional(
@@ -159,6 +164,20 @@ export const fileMetadataValidator = v.optional(
 );
 
 export const r2KeyValidator = v.string();
+
+/**
+ * A link's saved copy: one self-contained HTML file (role `page-archive`),
+ * `text_only` when the page was too large to keep whole. `source` says
+ * whether the browser extension sent the page or Teak fetched it.
+ */
+export const pageArchiveValidator = v.object({
+  storageKey: r2KeyValidator,
+  bytes: v.number(),
+  kind: v.union(v.literal("full"), v.literal("text_only")),
+  source: v.union(v.literal("server"), v.literal("extension")),
+  capturedAt: v.number(),
+  sourceUrl: v.string(),
+});
 
 export const thumbnailOverrideValidator = v.object({
   storageKey: r2KeyValidator,
@@ -319,6 +338,14 @@ export const cardValidator = v.object({
   aiOcrText: v.optional(v.string()),
   ocrCheckedAt: v.optional(v.number()),
   documentTextKey: v.optional(r2KeyValidator),
+  /** Links only: the saved copy of the page. */
+  pageArchive: v.optional(pageArchiveValidator),
+  /**
+   * The page as the browser extension saw it (a gzipped pending upload), and
+   * when it was taken, until the card's workflow archives it.
+   */
+  pendingPageSnapshotKey: v.optional(r2KeyValidator),
+  pendingPageSnapshotAt: v.optional(v.number()),
   hasExtractedText: v.optional(v.literal(true)),
   extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),
