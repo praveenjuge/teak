@@ -567,7 +567,7 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
         }
         if (
           message.type === "Mutation" &&
-          message.udfPath === "cards:createCard"
+          message.udfPath === "cards:createCardWithOutcome"
         ) {
           context.state.requestId = message.requestId;
         }
