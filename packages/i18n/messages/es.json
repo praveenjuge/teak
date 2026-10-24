@@ -742,6 +742,7 @@
       "moreDetails": "Más detalles",
       "published": "Publicado",
       "publisher": "Editor",
+      "savedAgain": "Guardada de nuevo",
       "showAllOfType": "{type, select, text {Mostrar todas las tarjetas de texto} link {Mostrar todas las tarjetas de enlace} image {Mostrar todas las tarjetas de imagen} video {Mostrar todas las tarjetas de vídeo} audio {Mostrar todas las tarjetas de audio} document {Mostrar todas las tarjetas de documento} palette {Mostrar todas las tarjetas de paleta} quote {Mostrar todas las tarjetas de cita} other {Mostrar todas las tarjetas}}",
       "text": "Texto",
       "title": "Detalles",

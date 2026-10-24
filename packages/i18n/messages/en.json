@@ -742,6 +742,7 @@
       "moreDetails": "More details",
       "published": "Published",
       "publisher": "Publisher",
+      "savedAgain": "Saved again",
       "showAllOfType": "{type, select, text {Show all Text cards} link {Show all Link cards} image {Show all Image cards} video {Show all Video cards} audio {Show all Audio cards} document {Show all Document cards} palette {Show all Palette cards} quote {Show all Quote cards} other {Show all Card cards}}",
       "text": "Text",
       "title": "Details",

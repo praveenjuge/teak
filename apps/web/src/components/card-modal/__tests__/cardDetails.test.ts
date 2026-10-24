@@ -110,4 +110,83 @@ describe("getCardDetailSections", () => {
     });
     expect(labels(sections.details)).toEqual(["Added"]);
   });
+
+  test("shows when a link was saved again, beside the date it was first added", () => {
+    const createdAt = Date.UTC(2025, 4, 6, 7, 8);
+    const savedAt = Date.UTC(2026, 9, 20, 9, 30);
+    const sections = getCardDetailSections(
+      { createdAt, savedAt, updatedAt: savedAt },
+      { locale: "en-US" }
+    );
+    expect(sections.details).toEqual([
+      {
+        label: "Added",
+        value: new Date(createdAt).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      },
+      {
+        label: "Saved again",
+        value: new Date(savedAt).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+      },
+    ]);
+  });
+
+  test("formats the saved-again date in the reader's language", () => {
+    const createdAt = Date.UTC(2025, 4, 6, 7, 8);
+    const savedAt = Date.UTC(2026, 9, 20, 9, 30);
+    const [, savedAgain] = getCardDetailSections(
+      { createdAt, savedAt, updatedAt: savedAt },
+      { locale: "de-DE" }
+    ).details;
+    expect(savedAgain?.value).toContain("2026");
+    expect(savedAgain?.value).toContain("Okt");
+  });
+
+  test("leaves out the saved-again date of a card saved only once", () => {
+    const createdAt = Date.UTC(2026, 0, 2, 3, 4);
+    expect(
+      labels(
+        getCardDetailSections({
+          createdAt,
+          savedAt: createdAt,
+          updatedAt: createdAt,
+        }).details
+      )
+    ).toEqual(["Added"]);
+    expect(
+      labels(
+        getCardDetailSections({
+          createdAt,
+          savedAt: createdAt + 60_000,
+          updatedAt: createdAt + 60_000,
+        }).details
+      )
+    ).toEqual(["Added"]);
+  });
+
+  test("still shows an edit made after the link was saved again", () => {
+    const createdAt = Date.UTC(2025, 4, 6, 7, 8);
+    const savedAt = Date.UTC(2026, 9, 20, 9, 30);
+    const sections = getCardDetailSections({
+      createdAt,
+      savedAt,
+      updatedAt: savedAt + 2 * 60 * 60 * 1000,
+    });
+    expect(labels(sections.details)).toEqual([
+      "Added",
+      "Saved again",
+      "Edited",
+    ]);
+  });
 });
