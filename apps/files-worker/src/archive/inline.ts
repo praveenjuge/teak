@@ -8,11 +8,13 @@ import {
   selectFontSources,
   stripCharsetRule,
   stripCssImports,
+  wrapImportedCss,
 } from "./css";
 import {
   atEndTag,
   byteLength,
   createRewriter,
+  decodeHtmlText,
   escapeHtmlAttribute,
   htmlResponse,
 } from "./html";
@@ -442,7 +444,7 @@ const collectPage = async (
   page.stylesheets = linkHrefs
     .map((href) => resolveHttpUrl(href, page.baseUrl))
     .filter((url): url is string => url !== null);
-  page.title = page.title.replace(/\s+/gu, " ").trim();
+  page.title = decodeHtmlText(page.title).replace(/\s+/gu, " ").trim();
   return page;
 };
 
@@ -592,7 +594,8 @@ const loadStylesheets = async (
 
 /**
  * Replaces each `@import` with the imported stylesheet, one level deep: the
- * imported sheet's own imports are dropped, so a loop ends at once.
+ * imported sheet's own imports are dropped, so a loop ends at once. The
+ * import's media, `supports()` and `layer` conditions wrap what it brings in.
  */
 const resolveImports = async (
   css: string,
@@ -600,12 +603,15 @@ const resolveImports = async (
   fetchSheet: (url: string) => Promise<string | null>
 ): Promise<string> => {
   let resolved = css;
-  for (const { rule, url } of cssImports(css, base)) {
+  for (const { conditions, rule, url } of cssImports(css, base)) {
     const imported = url ? await fetchSheet(url) : null;
     const inlined = imported
-      ? rewriteCssUrls(stripCssImports(imported), url, ({ url: ref }) => ref)
-      : "";
-    resolved = resolved.replace(rule, () => inlined);
+      ? wrapImportedCss(
+          rewriteCssUrls(stripCssImports(imported), url, ({ url: ref }) => ref),
+          conditions
+        )
+      : null;
+    resolved = resolved.replace(rule, () => inlined ?? "");
   }
   return resolved;
 };

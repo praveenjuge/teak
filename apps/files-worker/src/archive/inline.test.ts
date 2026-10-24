@@ -285,6 +285,29 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     expect(result.html).not.toContain("@import");
   });
 
+  test("keeps an import's media, supports and layer conditions around what it brings in", async () => {
+    const deps = fakeDeps({
+      sheets: {
+        "https://example.com/grid.css": ".grid{display:grid}",
+        "https://example.com/plain.css": ".plain{color:red}",
+        "https://example.com/print.css": "body{display:none}",
+        "https://example.com/theme.css": ".theme{color:blue}",
+      },
+    });
+    const result = await archive(
+      `<head><style>@import url("/print.css") print; @import "/grid.css" supports(display: grid) screen and (min-width: 40em); @import url(/theme.css) layer(theme); @import "/plain.css";</style></head><p>x</p>`,
+      deps
+    );
+    expect(result.html).toContain("@media print{body{display:none}}");
+    expect(result.html).toContain(
+      "@supports (display: grid){@media screen and (min-width: 40em){.grid{display:grid}}}"
+    );
+    expect(result.html).toContain("@layer theme{.theme{color:blue}}");
+    expect(result.html).toContain(".plain{color:red}");
+    expect(result.html).not.toContain("@media all");
+    expect(result.html).not.toContain("@import");
+  });
+
   test("drops a stylesheet over 4 MiB", async () => {
     const big = `.big{color:red}${" ".repeat(PAGE_ARCHIVE_MAX_TEXT_BYTES + 1 - 15)}`;
     const result = await archive(
@@ -640,6 +663,19 @@ describe("buildPageArchive: text-only", () => {
     expect(result.html).toContain('<p dir="auto">Loose text in a div</p>');
     expect(result.html).not.toContain(".x{content");
     expect(result.html).toContain("default-src 'none'");
+  });
+
+  test("shows character references in the text and title as the page does", async () => {
+    const page = `<head><title>Tom &amp; Jerry&#8217;s</title><style>${hugeCss}</style></head><body><p>Fish &amp; chips &lt;b&gt; caf&eacute; &#x1F600;</p><pre>a &lt; b &amp;&amp; c</pre></body>`;
+    const result = await archive(page, fakeDeps(), { budgetBytes: 32 * 1024 });
+    expect(result.kind).toBe("text_only");
+    expect(result.html).toContain("<title>Tom &amp; Jerry\u2019s</title>");
+    expect(result.html).toContain('<h1 dir="auto">Tom &amp; Jerry\u2019s</h1>');
+    expect(result.html).toContain(
+      '<p dir="auto">Fish &amp; chips &lt;b&gt; caf\u00e9 \u{1F600}</p>'
+    );
+    expect(result.html).toContain('<pre dir="auto">a &lt; b &amp;&amp; c</pre>');
+    expect(result.html).not.toContain("&amp;amp;");
   });
 
   test("keeps an RTL Arabic article's language and direction", async () => {
