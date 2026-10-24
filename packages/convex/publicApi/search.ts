@@ -65,6 +65,7 @@ import {
   SEMANTIC_MIN_SCORE,
   type SearchMode,
 } from "../shared/search/semantic";
+import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden } from "../shared/tags";
 import {
   type ApiCursor,
@@ -146,12 +147,17 @@ export const normalizeCreatedTimestamp = (
   return value;
 };
 
+type SortedCard = Pick<Doc<"cards">, "createdAt" | "savedAt" | "_id">;
+
+/** `sort=newest|oldest`: by the saved date (`savedAt ?? createdAt`), then id. */
 export const compareCards = (
-  left: Pick<Doc<"cards">, "createdAt" | "_id">,
-  right: Pick<Doc<"cards">, "createdAt" | "_id">,
+  left: SortedCard,
+  right: SortedCard,
   sort: ApiCardSort
 ): number => {
-  if (left.createdAt === right.createdAt) {
+  const leftSavedAt = savedAtOf(left);
+  const rightSavedAt = savedAtOf(right);
+  if (leftSavedAt === rightSavedAt) {
     // Code-unit order, matching how indexes order ids, so keyset cursors
     // resume exactly where an index read stopped.
     const leftId = String(left._id);
@@ -164,22 +170,20 @@ export const compareCards = (
   }
 
   return sort === "oldest"
-    ? left.createdAt - right.createdAt
-    : right.createdAt - left.createdAt;
+    ? leftSavedAt - rightSavedAt
+    : rightSavedAt - leftSavedAt;
 };
 
-export const matchesCreatedAt = (
-  createdAt: number,
+/** `createdAfter`/`createdBefore` (names kept for clients) bound `savedAt`. */
+export const matchesSavedAt = (
+  savedAt: number,
   options: Pick<SearchOptions, "createdAfter" | "createdBefore">
 ): boolean => {
-  if (options.createdAfter !== undefined && createdAt < options.createdAfter) {
+  if (options.createdAfter !== undefined && savedAt < options.createdAfter) {
     return false;
   }
 
-  if (
-    options.createdBefore !== undefined &&
-    createdAt > options.createdBefore
-  ) {
+  if (options.createdBefore !== undefined && savedAt > options.createdBefore) {
     return false;
   }
 
@@ -246,7 +250,7 @@ export const matchesStructuredFilters = (
     return false;
   }
 
-  if (!matchesCreatedAt(card.createdAt, options)) {
+  if (!matchesSavedAt(savedAtOf(card), options)) {
     return false;
   }
 
@@ -371,7 +375,11 @@ export const isAfterMatchAnchor = (
 ): boolean =>
   compareCards(
     card,
-    { createdAt: anchor.createdAt, _id: anchor.id as Id<"cards"> },
+    {
+      createdAt: anchor.savedAt,
+      savedAt: anchor.savedAt,
+      _id: anchor.id as Id<"cards">,
+    },
     sort
   ) > 0;
 
@@ -517,12 +525,9 @@ export const searchCardsByTag = async (
   let createdAfter = options.createdAfter;
   let createdBefore = options.createdBefore;
   if (anchor && sort === "newest") {
-    createdBefore = Math.min(
-      createdBefore ?? anchor.createdAt,
-      anchor.createdAt
-    );
+    createdBefore = Math.min(createdBefore ?? anchor.savedAt, anchor.savedAt);
   } else if (anchor) {
-    createdAfter = Math.max(createdAfter ?? anchor.createdAt, anchor.createdAt);
+    createdAfter = Math.max(createdAfter ?? anchor.savedAt, anchor.savedAt);
   }
 
   const typeGroups = options.types ?? [options.type];
@@ -709,9 +714,9 @@ const createBaseQuery = (
   let lower = options.createdAfter;
   let upper = options.createdBefore;
   if (anchor && descending) {
-    upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
+    upper = Math.min(upper ?? anchor.savedAt, anchor.savedAt);
   } else if (anchor) {
-    lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
+    lower = Math.max(lower ?? anchor.savedAt, anchor.savedAt);
   }
   const host = options.sites?.length === 1 ? options.sites[0] : undefined;
   const scope = cardListScope(options.archived, options.showTrashOnly);
@@ -720,7 +725,7 @@ const createBaseQuery = (
       userId,
       host,
       scope,
-      createdAt: { gte: lower, lte: upper },
+      savedAt: { gte: lower, lte: upper },
       includeHidden: options.includeHidden,
     });
   }
@@ -730,7 +735,7 @@ const createBaseQuery = (
     scope,
     favoritesOnly: options.favorited === true,
     types: options.type ? [options.type] : options.types,
-    createdAt: { gte: lower, lte: upper },
+    savedAt: { gte: lower, lte: upper },
   });
 };
 
@@ -742,7 +747,7 @@ const isAtOrBeforeListAnchor = (
   if (!anchor) {
     return false;
   }
-  if (card.createdAt !== anchor.createdAt) {
+  if (savedAtOf(card) !== anchor.savedAt) {
     return false;
   }
   return normalizeSort(options.sort) === "newest"
@@ -761,9 +766,9 @@ const scanFolderCards = async (
   let lower = options.createdAfter;
   let upper = options.createdBefore;
   if (anchor && descending) {
-    upper = Math.min(upper ?? anchor.createdAt, anchor.createdAt);
+    upper = Math.min(upper ?? anchor.savedAt, anchor.savedAt);
   } else if (anchor) {
-    lower = Math.max(lower ?? anchor.createdAt, anchor.createdAt);
+    lower = Math.max(lower ?? anchor.savedAt, anchor.savedAt);
   }
   let page: PaginationResult<Doc<"folderCards">>;
   try {
@@ -771,7 +776,7 @@ const scanFolderCards = async (
       folderId: options.folderId,
       scope: cardListScope(options.archived, options.showTrashOnly),
       types: options.type ? [options.type] : options.types,
-      createdAt: { gte: lower, lte: upper },
+      savedAt: { gte: lower, lte: upper },
     })
       .order(descending ? "desc" : "asc")
       .paginate({
@@ -787,7 +792,7 @@ const scanFolderCards = async (
   for (const row of page.page) {
     if (
       anchor &&
-      row.cardCreatedAt === anchor.createdAt &&
+      (row.cardSavedAt ?? row.cardCreatedAt) === anchor.savedAt &&
       (descending
         ? row._creationTime >= anchor.creationTime
         : row._creationTime <= anchor.creationTime)
@@ -805,8 +810,8 @@ const scanFolderCards = async (
       encodeCursor({
         mode: "list",
         anchor: {
-          createdAt: row.cardCreatedAt,
           creationTime: row._creationTime,
+          savedAt: row.cardSavedAt ?? row.cardCreatedAt,
         },
       })
     );

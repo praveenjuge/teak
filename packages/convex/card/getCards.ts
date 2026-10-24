@@ -12,7 +12,7 @@ import {
   type CardListScope,
   cardListScope,
   cardListSortValidator,
-  compareCardsByCreatedAt,
+  compareCardsBySavedAt,
   normalizeCardListSort,
   takeCardList,
 } from "./listQuery";
@@ -219,7 +219,7 @@ export const searchCards = query({
       });
 
       const limitedResults = filteredResults
-        .sort((a, b) => compareCardsByCreatedAt(a, b, sort))
+        .sort((a, b) => compareCardsBySavedAt(a, b, sort))
         .slice(0, limit);
 
       const resultsWithUrls = await attachFileUrls(ctx, limitedResults);
@@ -253,7 +253,7 @@ export const searchCards = query({
           scope,
           favoritesOnly,
           types,
-          createdAt: createdAtRange
+          savedAt: createdAtRange
             ? { gte: createdAtRange.start, lt: createdAtRange.end }
             : undefined,
         },

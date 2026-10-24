@@ -149,7 +149,7 @@ export const countTagSummaryPage = internalQuery({
   handler: async (ctx, { userId, cursor }) => {
     const page = await ctx.db
       .query("cardSearchTags")
-      .withIndex("by_user_tag_deleted_archived_created_v2", (q) =>
+      .withIndex("by_user_tag_deleted_archived_saved", (q) =>
         q.eq("userId", userId)
       )
       .paginate({ cursor, numItems: TAG_SUMMARY_PAGE_ROWS });

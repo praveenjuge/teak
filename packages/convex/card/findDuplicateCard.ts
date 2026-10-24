@@ -30,8 +30,9 @@ export const findLiveCardByUrl = async (
           .order("desc")
           .first()
       : null,
-    // Finds a card saved before `urlKey` existed, by its exact address,
-    // until `migration/backfillUrlKey` has run (`.agents/sunset.md`).
+    // Finds a card without a `urlKey` by its exact address. The production
+    // backfill keyed every card; this stays until a later PR drops it
+    // (`.agents/sunset.md`).
     ctx.db
       .query("cards")
       .withIndex("by_user_url_deleted", (q) =>

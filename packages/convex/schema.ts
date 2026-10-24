@@ -352,8 +352,8 @@ export default defineSchema({
     isArchived: v.optional(v.literal(true)),
     type: cardTypeValidator,
     cardCreatedAt: v.number(),
-    // The card's `savedAt ?? createdAt`. Missing on rows from before it
-    // existed until `migration/backfillSavedAt` runs.
+    // The card's `savedAt ?? createdAt`. Every row has it since the
+    // production backfill; readers still read `cardSavedAt ?? cardCreatedAt`.
     cardSavedAt: v.optional(v.number()),
     addedAt: v.number(),
   })
@@ -658,8 +658,8 @@ export default defineSchema({
     isFavorited: v.optional(v.boolean()),
     isArchived: v.optional(v.literal(true)),
     cardCreatedAt: v.number(),
-    // The card's `savedAt ?? createdAt`. Missing on rows from before it
-    // existed until `migration/backfillSavedAt` runs.
+    // The card's `savedAt ?? createdAt`. Every row has it since the
+    // production backfill; readers still read `cardSavedAt ?? cardCreatedAt`.
     cardSavedAt: v.optional(v.number()),
     sourceUpdatedAt: v.number(),
     syncGeneration: v.number(),

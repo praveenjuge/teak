@@ -15,7 +15,8 @@ import {
 import { SEARCH_MAX_VISUAL_FILTERS_PER_DIMENSION } from "../shared/search/constants";
 import {
   type CardListSort,
-  compareCardsByCreatedAt,
+  compareCardsBySavedAt,
+  savedAtOf,
 } from "../shared/search/sort";
 import { isCardHidden } from "../shared/tags";
 import { normalizeHexFilters } from "../shared/utils/colorUtils";
@@ -28,10 +29,8 @@ export interface VisualFilterState {
   styleFilters?: VisualStyle[];
 }
 
-const isCreatedAtInRange = (
-  createdAt: number,
-  range?: CreatedAtRange
-): boolean => !range || (createdAt >= range.start && createdAt < range.end);
+const isSavedAtInRange = (savedAt: number, range?: CreatedAtRange): boolean =>
+  !range || (savedAt >= range.start && savedAt < range.end);
 
 export const normalizeVisualFilterArgs = (args: {
   styleFilters?: string[];
@@ -134,7 +133,7 @@ export const applyCardLevelFilters = (
       return false;
     }
 
-    if (!isCreatedAtInRange(card.createdAt, options.createdAtRange)) {
+    if (!isSavedAtInRange(savedAtOf(card), options.createdAtRange)) {
       return false;
     }
 
@@ -196,7 +195,7 @@ export const findVisualMatches = async (
           scope: options.scope,
           favoritesOnly: options.favoritesOnly,
           types: [type],
-          createdAt: options.createdAtRange
+          savedAt: options.createdAtRange
             ? {
                 gte: options.createdAtRange.start,
                 lt: options.createdAtRange.end,
@@ -225,6 +224,6 @@ export const findVisualMatches = async (
   );
   return perType
     .flat()
-    .sort((a, b) => compareCardsByCreatedAt(a, b, sort))
+    .sort((a, b) => compareCardsBySavedAt(a, b, sort))
     .slice(0, options.limit);
 };

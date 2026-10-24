@@ -2,6 +2,7 @@ import type { IndexRange, SearchFilterFinalizer } from "convex/server";
 import { ConvexError } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden, isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
 import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
@@ -14,11 +15,11 @@ import { scanInBatches } from "./scanInBatches";
 import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
 import { readCardTranscript } from "./textContents";
 
-interface CreatedAtRange {
+interface SavedAtRange {
   gte: (
-    field: "cardCreatedAt",
+    field: "cardSavedAt",
     value: number
-  ) => { lte: (field: "cardCreatedAt", value: number) => IndexRange };
+  ) => { lte: (field: "cardSavedAt", value: number) => IndexRange };
 }
 
 export const searchCardsByExactTag = async (
@@ -30,6 +31,7 @@ export const searchCardsByExactTag = async (
     isFavorited?: boolean;
     archived?: ArchivedFilter;
     type?: Doc<"cards">["type"];
+    // The API's names; they bound the card's saved date (`cardSavedAt`).
     createdAfter?: number;
     createdBefore?: number;
     limit: number;
@@ -51,16 +53,16 @@ export const searchCardsByExactTag = async (
   );
   const matchLimit = Math.min(4096, Math.max(1, args.limit));
   const order = args.sort === "oldest" ? "asc" : "desc";
-  const createdBetween = (range: CreatedAtRange) =>
+  const savedBetween = (range: SavedAtRange) =>
     range
-      .gte("cardCreatedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
-      .lte("cardCreatedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER);
+      .gte("cardSavedAt", args.createdAfter ?? Number.MIN_SAFE_INTEGER)
+      .lte("cardSavedAt", args.createdBefore ?? Number.MAX_SAFE_INTEGER);
   const tags = ctx.db.query("cardSearchTags");
   let tagQuery: AsyncIterable<Doc<"cardSearchTags">>;
   if (archived === "any") {
     tagQuery = tags
-      .withIndex("by_user_tag_deleted_created", (range) =>
-        createdBetween(
+      .withIndex("by_user_tag_deleted_saved", (range) =>
+        savedBetween(
           range
             .eq("userId", args.userId)
             .eq("tag", tag)
@@ -70,8 +72,8 @@ export const searchCardsByExactTag = async (
       .order(order);
   } else if (type !== undefined && isFavorited !== undefined) {
     tagQuery = tags
-      .withIndex("by_user_tag_deleted_archived_type_favorited_v2", (range) =>
-        createdBetween(
+      .withIndex("by_user_tag_deleted_archived_type_favorited_saved", (range) =>
+        savedBetween(
           range
             .eq("userId", args.userId)
             .eq("tag", tag)
@@ -84,8 +86,8 @@ export const searchCardsByExactTag = async (
       .order(order);
   } else if (type !== undefined) {
     tagQuery = tags
-      .withIndex("by_user_tag_deleted_archived_type_v2", (range) =>
-        createdBetween(
+      .withIndex("by_user_tag_deleted_archived_type_saved", (range) =>
+        savedBetween(
           range
             .eq("userId", args.userId)
             .eq("tag", tag)
@@ -97,8 +99,8 @@ export const searchCardsByExactTag = async (
       .order(order);
   } else if (isFavorited === undefined) {
     tagQuery = tags
-      .withIndex("by_user_tag_deleted_archived_created_v2", (range) =>
-        createdBetween(
+      .withIndex("by_user_tag_deleted_archived_saved", (range) =>
+        savedBetween(
           range
             .eq("userId", args.userId)
             .eq("tag", tag)
@@ -109,8 +111,8 @@ export const searchCardsByExactTag = async (
       .order(order);
   } else {
     tagQuery = tags
-      .withIndex("by_user_tag_deleted_archived_favorited_v2", (range) =>
-        createdBetween(
+      .withIndex("by_user_tag_deleted_archived_favorited_saved", (range) =>
+        savedBetween(
           range
             .eq("userId", args.userId)
             .eq("tag", tag)
@@ -300,9 +302,10 @@ export const searchCardsByDocument = async (
 export interface SearchCandidate {
   card?: Doc<"cards">;
   cardId: Id<"cards">;
-  createdAt: number;
   creationTime: number;
   document?: Doc<"cardSearchDocuments">;
+  /** The card's `savedAt ?? createdAt`, which orders the matches. */
+  savedAt: number;
   searchableText: string;
 }
 
@@ -312,8 +315,8 @@ export const searchCandidateOf = (
 ): SearchCandidate => ({
   card,
   cardId: card._id,
-  createdAt: card.createdAt,
   creationTime: card._creationTime,
+  savedAt: savedAtOf(card),
   searchableText,
 });
 
@@ -330,7 +333,7 @@ export const searchCandidatesByDocument = async (
   args: Omit<DocumentSearchArgs, "searchTexts"> & {
     keepDocument?: (
       document: Doc<"cardSearchDocuments">,
-      createdAt: number
+      savedAt: number
     ) => boolean;
   }
 ): Promise<SearchCandidate[]> => {
@@ -362,15 +365,13 @@ export const searchCandidatesByDocument = async (
     if (found.size >= matchLimit) {
       break;
     }
-    if (
-      !args.keepDocument ||
-      args.keepDocument(document, document.cardCreatedAt)
-    ) {
+    const savedAt = document.cardSavedAt ?? document.cardCreatedAt;
+    if (!args.keepDocument || args.keepDocument(document, savedAt)) {
       found.set(document.cardId, {
         cardId: document.cardId,
-        createdAt: document.cardCreatedAt,
         creationTime: document.cardCreationTime,
         document,
+        savedAt,
         searchableText: document.searchableText,
       });
     }

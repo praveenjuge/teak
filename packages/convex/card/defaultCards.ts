@@ -81,11 +81,16 @@ export interface DefaultCardDef {
 export interface DevScenarioCardDef extends DefaultCardDef {
   /** Text read from the image, filled in directly. */
   aiOcrText?: string;
-  /** A card saved before `urlKey` and `savedAt` existed: it has neither. */
+  /**
+   * A card saved before `urlKey` existed: it has none, so the duplicate check
+   * finds it only by its exact address.
+   */
   beforeUrlKey?: true;
   /** When the link was marked done. */
   completedAt?: number;
   folderIds?: Id<"folders">[];
+  /** When it was last saved, for a card saved again after `createdAt`. */
+  savedAt?: number;
   /** The Shuffle key, or `null` for none (a card saved before Shuffle). */
   shuffleKey?: number | null;
 }
@@ -409,6 +414,7 @@ export const insertCompletedCards = async (
   const processingStatus = buildCompletedProcessingStatus(now);
   for (const [i, cardDef] of cards.entries()) {
     const timestamp = cardDef.createdAt ?? now + i * 1000;
+    const savedAt = cardDef.savedAt ?? timestamp;
     const { colorHexes, colorHues } = buildColorFacets(cardDef.colors);
     const cardId = await ctx.db.insert("cards", {
       userId,
@@ -463,8 +469,8 @@ export const insertCompletedCards = async (
           }
         : { metadataStatus: "completed" as const, processingStatus }),
       createdAt: timestamp,
-      savedAt: timestamp,
-      updatedAt: timestamp,
+      savedAt,
+      updatedAt: Math.max(timestamp, savedAt),
     });
     await recordActiveCardCreated(ctx, userId, cardId, {
       hasPremium: options.ignoreCardLimit,
@@ -489,10 +495,7 @@ export const insertCompletedCards = async (
     }
     await syncCardSearch(ctx, cardId, userId);
     if (cardDef.beforeUrlKey) {
-      await ctx.db.patch("cards", cardId, {
-        urlKey: undefined,
-        savedAt: undefined,
-      });
+      await ctx.db.patch("cards", cardId, { urlKey: undefined });
     }
     if (
       cardDef.type === "document" &&
@@ -670,7 +673,7 @@ export const createDefaultCardsForUser = internalMutation({
     await initializeCardUsageShards(ctx, usage);
     const existingCard = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted_created", (q) =>
+      .withIndex("by_user_deleted_saved", (q) =>
         q.eq("userId", userId).eq("isDeleted", undefined)
       )
       .first();

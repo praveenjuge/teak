@@ -64,6 +64,7 @@ import {
   richSitesPack,
   videoCaptionsPack,
 } from "./devSeed/mediaPacks";
+import { orderingSavedPack } from "./devSeed/orderingSaved";
 import { searchOperatorsPack } from "./devSeed/searchOperators";
 import { urlVariantsScenarioPage } from "./devSeed/urlVariants";
 import {
@@ -242,7 +243,7 @@ export const seed = internalMutation({
     }
     const cards = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted_created", (q) =>
+      .withIndex("by_user_deleted_saved", (q) =>
         q.eq("userId", owner.teakUserId)
       )
       .take(ONBOARDING_CARDS.length + 1);
@@ -340,7 +341,7 @@ const fillScenarioCards = async (
 ) => {
   const active = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted_created", (q) =>
+    .withIndex("by_user_deleted_saved", (q) =>
       q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(target);
@@ -538,6 +539,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "An email's body note and its attachments as their own document cards, tagged email: PDFs, two with the same name, a CJK name, a Word file and a 24 MB report. Search `#scenario-email-attachments`.",
     folders: emailAttachmentsPack,
   },
+  "ordering-saved": {
+    description:
+      'Cards saved again after they were first saved (savedAt later than createdAt), in the folder "Saved again", tagged, and the links on ordering-saved.example.com: one first saved 400 days ago and saved again yesterday (a favorite), cards saved 2, 30 and 730 days ago and never again, two archived (one saved again 3 days ago) and one in Trash saved again 5 days ago. Newest first puts the one saved yesterday on top; `last week` finds it. Dates are relative to when it is seeded. Search `#scenario-ordering-saved`.',
+    folders: orderingSavedPack,
+  },
   "done-states-images": {
     description:
       "1,000 image cards and no links, so `is:todo` lists nothing. Seed it on an account without links. 200 per page.",
@@ -545,7 +551,7 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   },
   "url-variants": {
     description:
-      "50 links that exercise the duplicate check's URL key: http and https, www, a trailing slash, #fragment, #/ and #! routes, utm_*, fbclid and gclid, near misses that must stay apart (?id=1 and ?id=2, parameter order, the path's case, :8080), an IDN host, a percent-encoded path, a 2,000-character address, two cards for one link, an archived and a trashed one. Each is seeded under /k/ with a key and under /l/ as a card from before keys and savedAt, for the fallbacks and the backfills. Search `#scenario-url-variants`.",
+      "50 links that exercise the duplicate check's URL key: http and https, www, a trailing slash, #fragment, #/ and #! routes, utm_*, fbclid and gclid, near misses that must stay apart (?id=1 and ?id=2, parameter order, the path's case, :8080), an IDN host, a percent-encoded path, a 2,000-character address, two cards for one link, an archived and a trashed one. Each is seeded under /k/ with a key and under /l/ without one, for the exact-address fallback. Search `#scenario-url-variants`.",
     cards: urlVariantsScenarioPage,
   },
   "locale-switch": {

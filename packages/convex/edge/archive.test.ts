@@ -63,6 +63,7 @@ const setup = async () => {
         createdAt: 1000,
         updatedAt: 1000,
         ...seed,
+        savedAt: seed.savedAt ?? seed.createdAt ?? 1000,
       });
       await syncCardSearchDocumentHandler(ctx, id);
       return id;

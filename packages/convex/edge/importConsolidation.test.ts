@@ -554,7 +554,7 @@ describe("imports staged in R2", () => {
       const cards = await t.run((ctx) =>
         ctx.db
           .query("cards")
-          .withIndex("by_user_deleted_created", (q) => q.eq("userId", userId))
+          .withIndex("by_user_deleted_saved", (q) => q.eq("userId", userId))
           .collect()
       );
       return {

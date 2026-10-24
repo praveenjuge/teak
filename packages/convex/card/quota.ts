@@ -68,7 +68,7 @@ export const ensureCardQuotaAvailable = async (
     : (
         await ctx.db
           .query("cards")
-          .withIndex("by_user_deleted_created", (query) =>
+          .withIndex("by_user_deleted_saved", (query) =>
             query.eq("userId", userId).eq("isDeleted", undefined)
           )
           .take(FREE_TIER_LIMIT)

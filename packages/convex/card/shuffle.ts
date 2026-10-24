@@ -11,7 +11,7 @@ import { shuffleDescends, shuffleStart } from "../shared/search/shuffle";
 import { excludeHiddenRows, keepVisible } from "./hiddenCards";
 import {
   type CardListScope,
-  type CreatedAtBounds,
+  type SavedAtBounds,
   scopeArchivedMatch,
   scopeDeletedMatch,
 } from "./listQuery";
@@ -19,9 +19,9 @@ import {
 export const newShuffleKey = (): number => Math.random();
 
 export interface ShuffleWalkOptions {
-  createdAt?: CreatedAtBounds;
   favoritesOnly?: boolean;
   includeHidden?: boolean;
+  savedAt?: SavedAtBounds;
   scope?: CardListScope;
   seed: number;
   types?: readonly CardType[];
@@ -108,13 +108,14 @@ export const buildShuffleSegmentQuery = (
   );
   const filteredTypes =
     options.favoritesOnly || !singleType ? types : undefined;
-  const bounds = options.createdAt;
-  const filtered =
-    filteredTypes ||
-    bounds?.gte !== undefined ||
-    bounds?.lt !== undefined ||
-    bounds?.lte !== undefined;
-  if (!filtered) {
+  const savedAt = options.savedAt;
+  const bounds =
+    savedAt?.gte !== undefined ||
+    savedAt?.lt !== undefined ||
+    savedAt?.lte !== undefined
+      ? savedAt
+      : undefined;
+  if (!(filteredTypes || bounds)) {
     return query;
   }
   return query.filter((q) => {
@@ -126,13 +127,27 @@ export const buildShuffleSegmentQuery = (
           .reduce((acc, condition) => q.or(acc, condition))
       );
     }
-    if (bounds?.gte !== undefined) {
-      conditions.push(q.gte(q.field("createdAt"), bounds.gte));
-    }
-    if (bounds?.lte !== undefined) {
-      conditions.push(q.lte(q.field("createdAt"), bounds.lte));
-    } else if (bounds?.lt !== undefined) {
-      conditions.push(q.lt(q.field("createdAt"), bounds.lt));
+    if (bounds) {
+      // `savedAt ?? createdAt`: a row from before `savedAt` is bounded by
+      // its `createdAt`.
+      const within = (field: "createdAt" | "savedAt") => {
+        const checks: ExpressionOrValue<boolean>[] = [];
+        if (bounds.gte !== undefined) {
+          checks.push(q.gte(q.field(field), bounds.gte));
+        }
+        if (bounds.lte !== undefined) {
+          checks.push(q.lte(q.field(field), bounds.lte));
+        } else if (bounds.lt !== undefined) {
+          checks.push(q.lt(q.field(field), bounds.lt));
+        }
+        return checks.reduce((acc, check) => q.and(acc, check));
+      };
+      conditions.push(
+        q.or(
+          q.and(q.neq(q.field("savedAt"), undefined), within("savedAt")),
+          q.and(q.eq(q.field("savedAt"), undefined), within("createdAt"))
+        )
+      );
     }
     return conditions.reduce((acc, condition) => q.and(acc, condition));
   });

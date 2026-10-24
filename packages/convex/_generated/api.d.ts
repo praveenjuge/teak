@@ -172,10 +172,8 @@ import type * as migration_backfillFolderCardCounts from "../migration/backfillF
 import type * as migration_backfillHiddenCards from "../migration/backfillHiddenCards.js";
 import type * as migration_backfillLinkOcr from "../migration/backfillLinkOcr.js";
 import type * as migration_backfillPdfOcr from "../migration/backfillPdfOcr.js";
-import type * as migration_backfillSavedAt from "../migration/backfillSavedAt.js";
 import type * as migration_backfillTagCounts from "../migration/backfillTagCounts.js";
 import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js";
-import type * as migration_backfillUrlKey from "../migration/backfillUrlKey.js";
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
@@ -512,10 +510,8 @@ declare const fullApi: ApiFromModules<{
   "migration/backfillHiddenCards": typeof migration_backfillHiddenCards;
   "migration/backfillLinkOcr": typeof migration_backfillLinkOcr;
   "migration/backfillPdfOcr": typeof migration_backfillPdfOcr;
-  "migration/backfillSavedAt": typeof migration_backfillSavedAt;
   "migration/backfillTagCounts": typeof migration_backfillTagCounts;
   "migration/backfillUrlHost": typeof migration_backfillUrlHost;
-  "migration/backfillUrlKey": typeof migration_backfillUrlKey;
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/ocrBackfill": typeof migration_ocrBackfill;

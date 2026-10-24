@@ -183,7 +183,7 @@ export const report = internalQuery({
     }
     const rows = await ctx.db
       .query("cardSearchTags")
-      .withIndex("by_user_tag_deleted_created", (q) =>
+      .withIndex("by_user_tag_deleted_saved", (q) =>
         q
           .eq("userId", owner.teakUserId)
           .eq("tag", normalizeCardSearchTag(AI_LANGUAGES_TAG))

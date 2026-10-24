@@ -389,7 +389,7 @@ export const shuffleCardsPageForUser = internalQuery({
           : null
       );
     };
-    const createdAt = {
+    const savedAt = {
       gte: options.createdAfter,
       lte: options.createdBefore,
     };
@@ -406,7 +406,7 @@ export const shuffleCardsPageForUser = internalQuery({
         scope: cardListScope(options.archived, options.showTrashOnly),
         types,
         favoritesOnly: options.favorited === true,
-        createdAt,
+        savedAt,
       })
         .order("desc")
         .take(SHUFFLE_SET_ROWS);
@@ -417,7 +417,7 @@ export const shuffleCardsPageForUser = internalQuery({
         folderId: options.folderId,
         scope: cardListScope(options.archived, options.showTrashOnly),
         types,
-        createdAt,
+        savedAt,
       })
         .order("desc")
         .take(SHUFFLE_SET_ROWS);
@@ -434,10 +434,7 @@ export const shuffleCardsPageForUser = internalQuery({
       scope: cardListScope(options.archived, options.showTrashOnly),
       favoritesOnly: options.favorited === true,
       types: options.type ? [options.type] : options.types,
-      createdAt: {
-        gte: options.createdAfter,
-        lte: options.createdBefore,
-      },
+      savedAt,
     };
     const position =
       cursor.mode === "walk" ? cursor.position : { segment: 0, page: null };
@@ -556,7 +553,7 @@ export const listTagsForUser = internalQuery({
       if (tagsLeft <= 0) {
         const more = await ctx.db
           .query("cardSearchTags")
-          .withIndex("by_user_tag_deleted_created", (query) =>
+          .withIndex("by_user_tag_deleted_saved", (query) =>
             previousTag === undefined
               ? query.eq("userId", userId)
               : query.eq("userId", userId).gt("tag", previousTag)
@@ -569,7 +566,7 @@ export const listTagsForUser = internalQuery({
       const afterTag = previousTag;
       const next = await ctx.db
         .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_created", (query) =>
+        .withIndex("by_user_tag_deleted_saved", (query) =>
           afterTag === undefined
             ? query.eq("userId", userId)
             : query.eq("userId", userId).gt("tag", afterTag)
@@ -584,7 +581,7 @@ export const listTagsForUser = internalQuery({
       let count = 0;
       const activeRows = ctx.db
         .query("cardSearchTags")
-        .withIndex("by_user_tag_deleted_archived_created_v2", (query) =>
+        .withIndex("by_user_tag_deleted_archived_saved", (query) =>
           query
             .eq("userId", userId)
             .eq("tag", next.tag)

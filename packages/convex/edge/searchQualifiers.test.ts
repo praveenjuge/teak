@@ -1426,7 +1426,7 @@ describe("search operators", () => {
       );
       const cards = await ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "owner"))
         .order("asc")
         .collect();
       return Promise.all(
@@ -1463,7 +1463,7 @@ describe("search operators", () => {
       );
       const cards = await ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "owner"))
         .collect();
       const texts = await Promise.all(cards.map((card) => reader(card)));
       return texts.filter((text) => text !== undefined).length;

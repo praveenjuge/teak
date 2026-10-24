@@ -12,8 +12,9 @@ import { excludeHiddenRows } from "./hiddenCards";
 
 export {
   type CardListSort,
-  compareCardsByCreatedAt,
+  compareCardsBySavedAt,
   normalizeCardListSort,
+  savedAtOf,
 } from "../shared/search/sort";
 
 export const cardListSortValidator = v.union(
@@ -75,18 +76,23 @@ export const scopeDeletedMatch = (
   scope: CardListScope = "library"
 ): true | undefined => (scope === "trash" ? true : undefined);
 
-export interface CreatedAtBounds {
+/**
+ * Bounds on when a card was last saved (`savedAt`; `cardSavedAt` on folder
+ * and tag rows). Date words ("last week") and `createdAfter`/`createdBefore`
+ * keep their names for clients but bound this date.
+ */
+export interface SavedAtBounds {
   gte?: number;
   lt?: number;
   lte?: number;
 }
 
 export interface CardListQueryOptions {
-  createdAt?: CreatedAtBounds;
   favoritesOnly?: boolean;
   // Callers still drop loaded cards with `keepVisible` for the ones the
   // `isHidden` backfill hasn't reached.
   includeHidden?: boolean;
+  savedAt?: SavedAtBounds;
   /**
    * Reads hidden rows too, so a caller's row budget counts every row read;
    * the caller drops hidden cards itself.
@@ -109,7 +115,7 @@ interface DateBoundRange<Field extends string> extends UpperBoundRange<Field> {
 const withDateBounds = <Field extends string>(
   range: DateBoundRange<Field>,
   field: Field,
-  bounds?: CreatedAtBounds
+  bounds?: SavedAtBounds
 ): IndexRange => {
   const lower =
     bounds?.gte === undefined ? range : range.gte(field, bounds.gte);
@@ -122,10 +128,10 @@ const withDateBounds = <Field extends string>(
   return lower;
 };
 
-const withCreatedAt = (
-  range: DateBoundRange<"createdAt">,
-  bounds?: CreatedAtBounds
-) => withDateBounds(range, "createdAt", bounds);
+const withSavedAt = (
+  range: DateBoundRange<"savedAt">,
+  bounds?: SavedAtBounds
+) => withDateBounds(range, "savedAt", bounds);
 
 export const buildCardListQuery = (
   ctx: QueryCtx,
@@ -137,19 +143,19 @@ export const buildCardListQuery = (
   );
 
 const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
-  const { userId, createdAt } = options;
+  const { userId, savedAt } = options;
   const types = options.types?.length ? options.types : undefined;
   const singleType = types?.length === 1 ? types[0] : undefined;
   const cards = ctx.db.query("cards");
   const archived = scopeArchivedMatch(options.scope);
 
   if (archived === "any") {
-    const query = cards.withIndex("by_user_deleted_created", (q) =>
-      withCreatedAt(
+    const query = cards.withIndex("by_user_deleted_saved", (q) =>
+      withSavedAt(
         q
           .eq("userId", userId)
           .eq("isDeleted", scopeDeletedMatch(options.scope)),
-        createdAt
+        savedAt
       )
     );
     const ofTypes = types
@@ -166,15 +172,15 @@ const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
 
   if (options.favoritesOnly) {
     const query = cards.withIndex(
-      "by_user_deleted_archived_favorited_created",
+      "by_user_deleted_archived_favorited_saved",
       (q) =>
-        withCreatedAt(
+        withSavedAt(
           q
             .eq("userId", userId)
             .eq("isDeleted", undefined)
             .eq("isArchived", archived)
             .eq("isFavorited", true),
-          createdAt
+          savedAt
         )
     );
     return types
@@ -187,25 +193,25 @@ const cardListIndexQuery = (ctx: QueryCtx, options: CardListQueryOptions) => {
   }
 
   if (singleType) {
-    return cards.withIndex("by_user_deleted_archived_type_created", (q) =>
-      withCreatedAt(
+    return cards.withIndex("by_user_deleted_archived_type_saved", (q) =>
+      withSavedAt(
         q
           .eq("userId", userId)
           .eq("isDeleted", undefined)
           .eq("isArchived", archived)
           .eq("type", singleType),
-        createdAt
+        savedAt
       )
     );
   }
 
-  const query = cards.withIndex("by_user_deleted_archived_created", (q) =>
-    withCreatedAt(
+  const query = cards.withIndex("by_user_deleted_archived_saved", (q) =>
+    withSavedAt(
       q
         .eq("userId", userId)
         .eq("isDeleted", undefined)
         .eq("isArchived", archived),
-      createdAt
+      savedAt
     )
   );
   return types
@@ -240,7 +246,7 @@ export const cardListStream = (
   residual?: (card: Doc<"cards">) => boolean;
   rows: QueryStream<Doc<"cards">>;
 } => {
-  const { userId, createdAt } = options;
+  const { userId, savedAt } = options;
   const types = options.types?.length
     ? Array.from(new Set(options.types))
     : undefined;
@@ -253,19 +259,19 @@ export const cardListStream = (
       rows: mergedStream(
         states.map((state) =>
           cards()
-            .withIndex("by_user_deleted_archived_favorited_created", (q) =>
-              withCreatedAt(
+            .withIndex("by_user_deleted_archived_favorited_saved", (q) =>
+              withSavedAt(
                 q
                   .eq("userId", userId)
                   .eq("isDeleted", isDeleted)
                   .eq("isArchived", state)
                   .eq("isFavorited", true),
-                createdAt
+                savedAt
               )
             )
             .order(order)
         ),
-        ["createdAt"]
+        ["savedAt"]
       ),
       residual: types ? (card) => types.includes(card.type) : undefined,
     };
@@ -276,20 +282,20 @@ export const cardListStream = (
         states.flatMap((state) =>
           types.map((type) =>
             cards()
-              .withIndex("by_user_deleted_archived_type_created", (q) =>
-                withCreatedAt(
+              .withIndex("by_user_deleted_archived_type_saved", (q) =>
+                withSavedAt(
                   q
                     .eq("userId", userId)
                     .eq("isDeleted", isDeleted)
                     .eq("isArchived", state)
                     .eq("type", type),
-                  createdAt
+                  savedAt
                 )
               )
               .order(order)
           )
         ),
-        ["createdAt"]
+        ["savedAt"]
       ),
     };
   }
@@ -297,18 +303,18 @@ export const cardListStream = (
     rows: mergedStream(
       states.map((state) =>
         cards()
-          .withIndex("by_user_deleted_archived_created", (q) =>
-            withCreatedAt(
+          .withIndex("by_user_deleted_archived_saved", (q) =>
+            withSavedAt(
               q
                 .eq("userId", userId)
                 .eq("isDeleted", isDeleted)
                 .eq("isArchived", state),
-              createdAt
+              savedAt
             )
           )
           .order(order)
       ),
-      ["createdAt"]
+      ["savedAt"]
     ),
   };
 };
@@ -337,7 +343,7 @@ export const takeCardList = (
 export const buildHostCardListQuery = (
   ctx: QueryCtx,
   options: {
-    createdAt?: CreatedAtBounds;
+    savedAt?: SavedAtBounds;
     host: string;
     includeHidden?: boolean;
     scope?: "library" | "archive";
@@ -347,14 +353,14 @@ export const buildHostCardListQuery = (
   excludeHiddenRows(
     ctx.db
       .query("cards")
-      .withIndex("by_user_deleted_archived_host_created", (q) =>
-        withCreatedAt(
+      .withIndex("by_user_deleted_archived_host_saved", (q) =>
+        withSavedAt(
           q
             .eq("userId", options.userId)
             .eq("isDeleted", undefined)
             .eq("isArchived", options.scope === "archive" ? true : undefined)
             .eq("urlHost", options.host),
-          options.createdAt
+          options.savedAt
         )
       ),
     options.includeHidden
@@ -363,7 +369,7 @@ export const buildHostCardListQuery = (
 export const buildFolderCardListQuery = (
   ctx: QueryCtx,
   options: {
-    createdAt?: CreatedAtBounds;
+    savedAt?: SavedAtBounds;
     folderId: Id<"folders">;
     scope?: CardListScope;
     types?: readonly CardType[];
@@ -371,15 +377,15 @@ export const buildFolderCardListQuery = (
 ) => {
   const types = options.types?.length ? options.types : undefined;
   const archived = scopeArchivedMatch(options.scope);
-  const bounds = options.createdAt;
-  const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
-    withDateBounds(range, "cardCreatedAt", bounds);
+  const bounds = options.savedAt;
+  const withDates = (range: DateBoundRange<"cardSavedAt">) =>
+    withDateBounds(range, "cardSavedAt", bounds);
   const isDeleted = scopeDeletedMatch(options.scope);
   const dated =
     archived === "any"
       ? ctx.db
           .query("folderCards")
-          .withIndex("by_folderId_and_isDeleted_and_cardCreatedAt", (q) =>
+          .withIndex("by_folderId_and_isDeleted_and_cardSavedAt", (q) =>
             withDates(
               q.eq("folderId", options.folderId).eq("isDeleted", isDeleted)
             )
@@ -387,7 +393,7 @@ export const buildFolderCardListQuery = (
       : ctx.db
           .query("folderCards")
           .withIndex(
-            "by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt",
+            "by_folderId_and_isDeleted_and_isArchived_and_cardSavedAt",
             (q) =>
               withDates(
                 q
@@ -409,7 +415,7 @@ export const buildFolderCardListQuery = (
 export const buildTagCardListQuery = (
   ctx: QueryCtx,
   options: {
-    createdAt?: CreatedAtBounds;
+    savedAt?: SavedAtBounds;
     favoritesOnly?: boolean;
     scope?: CardListScope;
     tag: string;
@@ -419,9 +425,9 @@ export const buildTagCardListQuery = (
 ) => {
   const types = options.types?.length ? options.types : undefined;
   const archived = scopeArchivedMatch(options.scope);
-  const bounds = options.createdAt;
-  const withDates = (range: DateBoundRange<"cardCreatedAt">) =>
-    withDateBounds(range, "cardCreatedAt", bounds);
+  const bounds = options.savedAt;
+  const withDates = (range: DateBoundRange<"cardSavedAt">) =>
+    withDateBounds(range, "cardSavedAt", bounds);
   const isDeleted = scopeDeletedMatch(options.scope);
   const singleType = types?.length === 1 ? types[0] : undefined;
   const favorited = options.favoritesOnly === true;
@@ -430,7 +436,7 @@ export const buildTagCardListQuery = (
   const tagRows = () => {
     const rows = ctx.db.query("cardSearchTags");
     if (anyArchived) {
-      return rows.withIndex("by_user_tag_deleted_created", (q) =>
+      return rows.withIndex("by_user_tag_deleted_saved", (q) =>
         withDates(
           q.eq("userId", userId).eq("tag", tag).eq("isDeleted", isDeleted)
         )
@@ -438,7 +444,7 @@ export const buildTagCardListQuery = (
     }
     if (singleType && favorited) {
       return rows.withIndex(
-        "by_user_tag_deleted_archived_type_favorited_v2",
+        "by_user_tag_deleted_archived_type_favorited_saved",
         (q) =>
           withDates(
             q
@@ -452,7 +458,7 @@ export const buildTagCardListQuery = (
       );
     }
     if (singleType) {
-      return rows.withIndex("by_user_tag_deleted_archived_type_v2", (q) =>
+      return rows.withIndex("by_user_tag_deleted_archived_type_saved", (q) =>
         withDates(
           q
             .eq("userId", userId)
@@ -464,18 +470,20 @@ export const buildTagCardListQuery = (
       );
     }
     if (favorited) {
-      return rows.withIndex("by_user_tag_deleted_archived_favorited_v2", (q) =>
-        withDates(
-          q
-            .eq("userId", userId)
-            .eq("tag", tag)
-            .eq("isDeleted", isDeleted)
-            .eq("isArchived", archived)
-            .eq("isFavorited", true)
-        )
+      return rows.withIndex(
+        "by_user_tag_deleted_archived_favorited_saved",
+        (q) =>
+          withDates(
+            q
+              .eq("userId", userId)
+              .eq("tag", tag)
+              .eq("isDeleted", isDeleted)
+              .eq("isArchived", archived)
+              .eq("isFavorited", true)
+          )
       );
     }
-    return rows.withIndex("by_user_tag_deleted_archived_created_v2", (q) =>
+    return rows.withIndex("by_user_tag_deleted_archived_saved", (q) =>
       withDates(
         q
           .eq("userId", userId)

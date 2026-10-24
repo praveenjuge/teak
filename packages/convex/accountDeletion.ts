@@ -100,7 +100,7 @@ export const takeOwnedCards = async (
   let bytes = 0;
   for await (const card of ctx.db
     .query("cards")
-    .withIndex("by_user_deleted_created", (q) => q.eq("userId", userId))) {
+    .withIndex("by_user_deleted_saved", (q) => q.eq("userId", userId))) {
     bytes += JSON.stringify(card).length;
     if (cards.length > 0 && bytes > maxBytes) {
       break;

@@ -333,9 +333,9 @@ export const cardValidator = v.object({
   onboarding: v.optional(v.string()),
   createdAt: v.number(),
   // When the card was last saved: `createdAt` until the same link is saved
-  // again. "Newest first" will order by it. Missing on cards from before it
-  // existed until `migration/backfillSavedAt` runs; read `savedAt ??
-  // createdAt`.
+  // again. "Newest first" and date words order and bound by it. Every card
+  // has it since the production backfill (October 2026); readers still read
+  // `savedAt ?? createdAt` (`.agents/sunset.md`).
   savedAt: v.optional(v.number()),
   updatedAt: v.number(),
 });
