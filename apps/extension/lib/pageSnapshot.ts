@@ -14,6 +14,8 @@ export interface PageSnapshot {
 
 /** A snapshot that takes longer than this is skipped, never waited for. */
 export const PAGE_SNAPSHOT_TIMEOUT_MS = 3000;
+/** How long uploading a snapshot may hold up the save it belongs to. */
+export const PAGE_SNAPSHOT_UPLOAD_TIMEOUT_MS = 10_000;
 /** Markup past this many characters isn't worth compressing. */
 const MAX_HTML_CHARACTERS = 60 * 1024 * 1024;
 
@@ -125,6 +127,11 @@ type ExecuteScript = (injection: {
 
 export interface CapturePageSnapshotDependencies {
   executeScript?: ExecuteScript;
+  /**
+   * The link being saved: a tab that moved on to another page before the
+   * script ran gives no snapshot, so no card keeps another page's copy.
+   */
+  expectedUrl?: string;
   timeoutMs?: number;
 }
 
@@ -159,7 +166,12 @@ export async function capturePageSnapshot(
       target: { tabId },
     });
     const page = first?.result;
-    if (!isSerializedPage(page) || page.html.length > MAX_HTML_CHARACTERS) {
+    if (
+      !isSerializedPage(page) ||
+      page.html.length > MAX_HTML_CHARACTERS ||
+      (dependencies.expectedUrl !== undefined &&
+        page.url !== dependencies.expectedUrl)
+    ) {
       return null;
     }
     const gzip = await gzipText(page.html);
@@ -185,21 +197,49 @@ export interface UploadPageSnapshotDependencies {
   fetchImpl?: typeof fetch;
   /** An authorized request to Teak's API: null when signed out. */
   request: (path: string, init?: RequestInit) => Promise<Response | null>;
+  timeoutMs?: number;
 }
 
 /**
  * Uploads a snapshot to Teak and returns its key for `POST /v1/cards`, or
- * null when anything goes wrong: the save then goes on without it.
+ * null when anything goes wrong or it takes more than 10 seconds: the save
+ * then goes on without it, and Teak fetches the page itself.
  */
 export async function uploadPageSnapshot(
   snapshot: PageSnapshot,
-  { fetchImpl = fetch, request }: UploadPageSnapshotDependencies
+  {
+    fetchImpl = fetch,
+    request,
+    timeoutMs = PAGE_SNAPSHOT_UPLOAD_TIMEOUT_MS,
+  }: UploadPageSnapshotDependencies
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timedOut = new Promise<null>((resolve) => {
+    controller.signal.addEventListener("abort", () => resolve(null));
+  });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await Promise.race([
+      uploadSnapshot(snapshot, fetchImpl, request, controller.signal),
+      timedOut,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function uploadSnapshot(
+  snapshot: PageSnapshot,
+  fetchImpl: typeof fetch,
+  request: UploadPageSnapshotDependencies["request"],
+  signal: AbortSignal
 ): Promise<string | null> {
   try {
     const prepared = await request("/v1/page-snapshots/upload", {
       body: JSON.stringify({ bytes: snapshot.gzip.byteLength }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
+      signal,
     });
     if (!prepared?.ok) {
       return null;
@@ -218,6 +258,7 @@ export async function uploadPageSnapshot(
       body: snapshot.gzip,
       headers: { "Content-Type": "application/gzip" },
       method: "PUT",
+      signal,
     });
     return put.ok ? upload.fileKey : null;
   } catch (error) {

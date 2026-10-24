@@ -282,7 +282,7 @@ async function snapshotTabPage(
     if (!tab.url || tab.url !== url || isRestrictedUrl(tab.url)) {
       return null;
     }
-    return await capturePageSnapshot(tabId);
+    return await capturePageSnapshot(tabId, { expectedUrl: url });
   } catch {
     return null;
   }

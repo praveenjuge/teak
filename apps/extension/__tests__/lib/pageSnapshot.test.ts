@@ -4,6 +4,7 @@ import {
   capturePageSnapshot,
   type PageSnapshot,
   serializeRenderedPage,
+  uploadPageSnapshot,
 } from "../../lib/pageSnapshot";
 import { saveToTeak } from "../../lib/saveToTeak";
 
@@ -50,6 +51,22 @@ describe("capturePageSnapshot", () => {
     expect(snapshot).toBeNull();
     expect(waited).toBeGreaterThanOrEqual(2900);
     expect(waited).toBeLessThan(4000);
+  });
+
+  test("a tab that moved on to another page gives no snapshot", async () => {
+    const executeScript = page("<p>Next page</p>", "https://example.com/next");
+    expect(
+      await capturePageSnapshot(7, {
+        executeScript,
+        expectedUrl: "https://example.com/post",
+      })
+    ).toBeNull();
+    expect(
+      await capturePageSnapshot(7, {
+        executeScript,
+        expectedUrl: "https://example.com/next",
+      })
+    ).not.toBeNull();
   });
 
   test("a page the extension can't read gives no snapshot", async () => {
@@ -146,6 +163,24 @@ describe("saveToTeak with a page snapshot", () => {
     expect(bodyOf(request, "/v1/cards")).toEqual({
       url: "https://example.com/post",
     });
+  });
+
+  test("an upload that stalls gives up, so the link saves without it", async () => {
+    const signals: AbortSignal[] = [];
+    const started = Date.now();
+    const key = await uploadPageSnapshot(snapshot, {
+      fetchImpl: ((_url: string, init?: RequestInit) => {
+        if (init?.signal) {
+          signals.push(init.signal);
+        }
+        return new Promise(() => undefined);
+      }) as unknown as typeof fetch,
+      request: api(),
+      timeoutMs: 50,
+    });
+    expect(key).toBeNull();
+    expect(Date.now() - started).toBeLessThan(1000);
+    expect(signals.map((signal) => signal.aborted)).toEqual([true]);
   });
 
   test("a retry sends the key the first attempt uploaded, without uploading again", async () => {
