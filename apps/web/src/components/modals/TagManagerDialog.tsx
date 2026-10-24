@@ -97,6 +97,7 @@ function TagManagerForm({
   const t = useTranslations("modals.tagManager");
   const tc = useTranslations("common");
   const errors = useServerErrors();
+  const tErrors = useTranslations("errors");
   const intlLocale = useIntlLocale();
   const inputId = useId();
   const listId = useId();
@@ -139,8 +140,7 @@ function TagManagerForm({
 
   let problem: string | null = null;
   if (mode === "rename") {
-    const invalid = trimmed ? explainTagNameInput(trimmed) : null;
-    problem = invalid ? errors.byEnglishMessage(invalid) : null;
+    problem = trimmed ? explainTagNameInput(trimmed, tErrors) : null;
     if (!problem && existing) {
       problem = t("nameTaken", { name: existing.name });
     }

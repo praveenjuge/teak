@@ -4,12 +4,12 @@ import {
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
 import type { TeakTranslator } from "@teak/i18n";
+import { englishErrors, englishTranslator } from "./englishTranslators";
 import {
-  englishErrors,
-  englishTranslator,
+  type ErrorsTranslator,
+  translateErrorKey,
   translateServerMessage,
-} from "./englishTranslators";
-import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
+} from "./serverErrors";
 
 export const LINK_THUMBNAIL_ACCEPT = THUMBNAIL_MIME_TYPES.join(",");
 

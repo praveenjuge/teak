@@ -3,8 +3,11 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
-import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
-import { resolveLinkTitle } from "../../lib/linkTitle";
+import { englishTranslator, US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
+import {
+  type LinkTitleTranslator,
+  resolveLinkTitle,
+} from "../../lib/linkTitle";
 import {
   type CardTypesTranslator,
   cardTypeLabel,
@@ -31,9 +34,14 @@ interface HeadingSource {
 export function getCardHeading(
   card: HeadingSource,
   {
+    link = englishTranslator("lib.linkTitle"),
     t = englishHeading,
     types = englishCardTypes,
-  }: { t?: CardHeadingTranslator; types?: CardTypesTranslator } = {}
+  }: {
+    link?: LinkTitleTranslator;
+    t?: CardHeadingTranslator;
+    types?: CardTypesTranslator;
+  } = {}
 ): {
   editable: boolean;
   title: string;
@@ -46,12 +54,15 @@ export function getCardHeading(
         : undefined;
     return {
       editable: true,
-      title: resolveLinkTitle({
-        metadataTitle: card.metadataTitle,
-        metadataTitleEdited: card.metadataTitleEdited,
-        previewTitle: preview?.title,
-        url: card.url,
-      }),
+      title: resolveLinkTitle(
+        {
+          metadataTitle: card.metadataTitle,
+          metadataTitleEdited: card.metadataTitleEdited,
+          previewTitle: preview?.title,
+          url: card.url,
+        },
+        link
+      ),
     };
   }
   if (

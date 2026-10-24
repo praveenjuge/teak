@@ -31,11 +31,6 @@ export interface BulkFolderTarget {
 
 export const BULK_CHUNK_SIZE = 100;
 
-export const cardCountLabel = (
-  count: number,
-  t: BulkCopyTranslator = englishBulkCopy
-) => t("cardCount", { count });
-
 export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
   {
     archive: "unarchive",

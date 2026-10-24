@@ -3,8 +3,15 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
-import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
-import { formatExifFields, type ImageExif } from "../../lib/exif";
+import {
+  englishTranslator,
+  US_ENGLISH_LOCALE,
+} from "../../lib/englishTranslators";
+import {
+  type ExifTranslator,
+  formatExifFields,
+  type ImageExif,
+} from "../../lib/exif";
 import { formatPublishedDate } from "../../lib/linkByline";
 import { formatBytes } from "../settings/importExportFormat";
 
@@ -76,9 +83,10 @@ export const keyDetailLabels = (t: CardDetailsTranslator = englishDetails) =>
 export function getCardDetailSections(
   card: CardDetailsSource,
   {
+    exif = englishTranslator("lib.exif"),
     locale = US_ENGLISH_LOCALE,
     t = englishDetails,
-  }: { locale?: string; t?: CardDetailsTranslator } = {}
+  }: { exif?: ExifTranslator; locale?: string; t?: CardDetailsTranslator } = {}
 ) {
   const file = card.fileMetadata;
   const linkPreview =
@@ -112,9 +120,14 @@ export function getCardDetailSections(
       { label: t("publisher"), value: linkPreview?.publisher },
       {
         label: t("published"),
-        value: formatPublishedDate(linkPreview?.publishedAt),
+        value: formatPublishedDate(
+          linkPreview?.publishedAt,
+          Date.now(),
+          locale
+        ),
       },
     ]),
-    camera: card.type === "image" ? formatExifFields(file?.exif) : [],
+    camera:
+      card.type === "image" ? formatExifFields(file?.exif, exif, locale) : [],
   };
 }

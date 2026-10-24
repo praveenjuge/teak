@@ -40,6 +40,10 @@ import {
 } from "@/components/ui/tooltip";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
+import {
+  type CardTypesTranslator,
+  englishCardTypes,
+} from "../cards/cardTypeLabel";
 
 const englishSearch = createTeakTranslator("en", englishMessages, "search");
 
@@ -68,9 +72,10 @@ interface ViewMenuProps {
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
   sort: LibrarySort = "newest",
-  t: TeakTranslator<"search"> = englishSearch
+  t: TeakTranslator<"search"> = englishSearch,
+  types: CardTypesTranslator = englishCardTypes
 ): string => {
-  const parts = activeTypes.map((type) => t(`cardTypes.${type}`));
+  const parts = activeTypes.map((type) => types(type));
   if (sort === "oldest") {
     parts.push(t("viewMenu.oldestFirstState"));
   } else if (sort === "shuffle") {
@@ -94,6 +99,7 @@ export function ViewMenu({
   sort = "newest",
 }: ViewMenuProps) {
   const t = useTranslations("search");
+  const types = useTranslations("cards.types");
   const count = activeTypes.length;
   const changedOrder = sort !== "newest" && sort !== "relevance";
   const changed = count > 0 || changedOrder;
@@ -101,7 +107,7 @@ export function ViewMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={viewMenuLabel(activeTypes, sort, t)}
+          aria-label={viewMenuLabel(activeTypes, sort, t, types)}
           className="relative size-9 shrink-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
           size="icon"
           type="button"
@@ -144,7 +150,7 @@ export function ViewMenu({
                   }}
                 >
                   <Icon className="text-muted-foreground" />
-                  {t(`cardTypes.${type}`)}
+                  {types(type)}
                 </DropdownMenuCheckboxItem>
               );
             })}

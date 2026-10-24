@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/sidebar";
 import { UNDO_TOAST_DURATION_MS } from "@/constants/toast";
 import { useServerErrors } from "@/hooks/useServerErrors";
+import { bulkActionCopy } from "@/lib/bulkCardActions";
 import { clipFolderName } from "@/lib/clipFolderName";
 import { useFolders } from "../../hooks/useFolders";
 import {
@@ -49,6 +50,7 @@ import {
   FOLDER_ICON_CLASSES,
   type FolderColor,
   type FolderSummary,
+  folderColorLabel,
   folderPath,
   isCardDrag,
 } from "../../lib/folders";
@@ -90,7 +92,8 @@ export function SidebarFolders({
   onNavigate,
 }: SidebarFoldersProps) {
   const t = useTranslations("sidebar.folders");
-  const tColors = useTranslations("folders.colors");
+  const tFolders = useTranslations("lib.folders");
+  const tBulk = useTranslations("lib.bulkCardActions");
   const tc = useTranslations("common");
   const errors = useServerErrors();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -143,12 +146,16 @@ export function SidebarFolders({
       if (result.folderLimitIds.length > 0) {
         toast.error(errors.byKey("folders.TOO_MANY_FOLDERS_ON_CARD"));
       } else if (result.failedIds.length > 0) {
-        toast.error(t("addFailed"));
+        toast.error(bulkActionCopy.failed("addToFolder", tBulk));
       } else {
-        toast.success(t("addedCard", { folder: clipFolderName(folder.name) }));
+        toast.success(
+          bulkActionCopy.done("addToFolder", 1, folder.name, tBulk)
+        );
       }
     } catch (error) {
-      toast.error(errors.message(error, t("addFailed")));
+      toast.error(
+        errors.message(error, bulkActionCopy.failed("addToFolder", tBulk))
+      );
     }
   };
 
@@ -369,12 +376,12 @@ export function SidebarFolders({
                       >
                         <DropdownMenuRadioItem value="none">
                           <FolderDot />
-                          {tColors("none")}
+                          {tFolders("colors.none")}
                         </DropdownMenuRadioItem>
                         {FOLDER_COLORS.map((color) => (
                           <DropdownMenuRadioItem key={color} value={color}>
                             <FolderDot color={color} />
-                            {tColors(color)}
+                            {folderColorLabel(color, tFolders)}
                           </DropdownMenuRadioItem>
                         ))}
                       </DropdownMenuRadioGroup>

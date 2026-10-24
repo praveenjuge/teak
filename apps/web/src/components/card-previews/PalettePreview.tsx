@@ -1,6 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
-import { toast } from "sonner";
+import { copyColorHexToClipboard } from "../../lib/clipboard";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -11,21 +11,9 @@ interface PalettePreviewProps {
   card: CardWithUrls;
 }
 
-async function copyToClipboard(
-  text: string,
-  messages: { copied: string; failed: string }
-) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(messages.copied);
-  } catch (err) {
-    console.error("Failed to copy:", err);
-    toast.error(messages.failed);
-  }
-}
-
 export function PalettePreview({ card }: PalettePreviewProps) {
   const t = useTranslations("cardPreviews.palette");
+  const tClipboard = useTranslations("lib.clipboard");
   const colors = card.colors || [];
 
   if (colors.length === 0) {
@@ -44,12 +32,7 @@ export function PalettePreview({ card }: PalettePreviewProps) {
             aria-label={t("copy", { hex: color.hex })}
             className="group flex h-32 min-w-24 flex-1 basis-0 cursor-pointer items-end justify-center p-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:h-56 md:min-w-28"
             key={color.hex}
-            onClick={() =>
-              void copyToClipboard(color.hex, {
-                copied: t("copied", { hex: color.hex }),
-                failed: t("copyFailed"),
-              })
-            }
+            onClick={() => void copyColorHexToClipboard(color.hex, tClipboard)}
             style={{ backgroundColor: color.hex }}
             title={t("copy", { hex: color.hex })}
             type="button"

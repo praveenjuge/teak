@@ -302,6 +302,7 @@ export function SearchBar({
 }: SearchBarProps) {
   const t = useTranslations("search");
   const tc = useTranslations("common");
+  const types = useTranslations("cards.types");
   const locale = useIntlLocale();
   const placeholder = placeholderProp ?? t("bar.placeholder");
   const hasAnyFilters =
@@ -335,9 +336,10 @@ export function SearchBar({
             afterWord,
             locale,
             t,
+            types,
           })
         : { suggestions: [], completingValue: false },
-    [afterWord, locale, onAddQualifier, suggestionSources, t, token]
+    [afterWord, locale, onAddQualifier, suggestionSources, t, token, types]
   );
   const open =
     focused && dismissedFor !== searchQuery && suggestions.length > 0;
@@ -438,7 +440,7 @@ export function SearchBar({
     });
   }
   for (const chip of qualifierChips) {
-    const described = describeQualifierChip(chip, similarAnchorTitle, t);
+    const described = describeQualifierChip(chip, similarAnchorTitle, t, types);
     if (!described) {
       continue;
     }
@@ -508,7 +510,7 @@ export function SearchBar({
   }
   for (const filter of filterTags) {
     const Icon = getFilterIcon(filter);
-    const typeLabel = t(`cardTypes.${filter}`);
+    const typeLabel = types(filter);
     chips.push({
       ariaLabel: t("bar.removeType", { type: typeLabel }),
       icon: <Icon />,

@@ -19,6 +19,10 @@ import {
   englishMessages,
   type TeakTranslator,
 } from "@teak/i18n";
+import {
+  type CardTypesTranslator,
+  englishCardTypes,
+} from "../cards/cardTypeLabel";
 
 type SearchTranslator = TeakTranslator<"search">;
 
@@ -242,6 +246,7 @@ interface SuggestionText {
   /** The locale for counts; undefined is the browser's. */
   locale?: string;
   t: SearchTranslator;
+  types: CardTypesTranslator;
 }
 
 const countLabel = (count: number, locale?: string) =>
@@ -252,7 +257,7 @@ const valueSuggestions = (
   value: string,
   sources: SearchSuggestionSources,
   limit: number,
-  { locale, t }: SuggestionText
+  { locale, t, types }: SuggestionText
 ): SearchSuggestion[] => {
   switch (key) {
     case "tag":
@@ -281,7 +286,7 @@ const valueSuggestions = (
         (type) => `${type} ${CARD_TYPE_LABELS[type]}`,
         limit
       ).map((type) =>
-        complete({ key: "type", value: type }, "Types", t(`cardTypes.${type}`))
+        complete({ key: "type", value: type }, "Types", types(type))
       );
     case "is": {
       const needle = value.trim().toLowerCase();
@@ -373,9 +378,15 @@ export function buildSearchSuggestions(
     afterWord = false,
     locale,
     t = englishSearch,
-  }: { afterWord?: boolean; locale?: string; t?: SearchTranslator } = {}
+    types = englishCardTypes,
+  }: {
+    afterWord?: boolean;
+    locale?: string;
+    t?: SearchTranslator;
+    types?: CardTypesTranslator;
+  } = {}
 ): SearchSuggestionResult {
-  const text: SuggestionText = { locale, t };
+  const text: SuggestionText = { locale, t, types };
   const none = { completingValue: false, suggestions: [] };
   if (!token.trim()) {
     return none;
@@ -465,16 +476,17 @@ export interface QualifierChipDescription {
 export function describeQualifierChip(
   chip: string,
   anchorTitle?: string,
-  t: SearchTranslator = englishSearch
+  t: SearchTranslator = englishSearch,
+  types: CardTypesTranslator = englishCardTypes
 ): QualifierChipDescription | null {
   const parsed = parseSearchQuery(chip);
   const [qualifier] = parsed.qualifiers;
   if (qualifier) {
-    return describeQualifier(qualifier, t, anchorTitle);
+    return describeQualifier(qualifier, t, types, anchorTitle);
   }
   const { expression } = parsed;
   if (expression?.op === "not" && expression.item.op === "qualifier") {
-    const described = describeQualifier(expression.item.qualifier, t);
+    const described = describeQualifier(expression.item.qualifier, t, types);
     return described ? { ...described, excluded: true } : null;
   }
   return null;
@@ -508,6 +520,7 @@ export function describeKeywordChip(chip: string): {
 function describeQualifier(
   qualifier: SearchQualifier,
   t: SearchTranslator,
+  types: CardTypesTranslator,
   anchorTitle?: string
 ): QualifierChipDescription | null {
   switch (qualifier.key) {
@@ -521,7 +534,7 @@ function describeQualifier(
       return {
         qualifier,
         title: t("chips.titles.type"),
-        label: t(`cardTypes.${qualifier.value}`),
+        label: types(qualifier.value),
       };
     case "is":
       return {

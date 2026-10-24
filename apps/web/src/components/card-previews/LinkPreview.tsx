@@ -7,6 +7,7 @@ import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { ArrowUpRight, ImagePlus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { US_ENGLISH_LOCALE } from "../../lib/englishTranslators";
 import { formatLinkByline } from "../../lib/linkByline";
 import { firstFile } from "../../lib/linkThumbnail";
 import { resolveLinkTitle } from "../../lib/linkTitle";
@@ -152,18 +153,24 @@ export function LinkPreview({
   thumbnail,
 }: LinkPreviewProps) {
   const t = useTranslations("cardPreviews.link");
+  const tLinkTitle = useTranslations("lib.linkTitle");
+  const tByline = useTranslations("lib.linkByline");
   const locale = useIntlLocale();
+  const bylineLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
 
-  const linkTitle = resolveLinkTitle({
-    metadataTitle: card.metadataTitle,
-    metadataTitleEdited: card.metadataTitleEdited,
-    previewTitle: linkPreview?.title,
-    url: card.url,
-  });
+  const linkTitle = resolveLinkTitle(
+    {
+      metadataTitle: card.metadataTitle,
+      metadataTitleEdited: card.metadataTitleEdited,
+      previewTitle: linkPreview?.title,
+      url: card.url,
+    },
+    tLinkTitle
+  );
   const linkDescription = linkPreview?.description || card.metadataDescription;
   const note = linkNoteText(card.content, {
     maxLength: NOTE_MAX_LENGTH,
@@ -178,12 +185,17 @@ export function LinkPreview({
   const safeUrl = useMemo(() => sanitizeExternalUrl(card.url), [card.url]);
 
   const hostname = getSafeUrlHostname(card.url)?.replace(/^www\./, "");
-  const byline = formatLinkByline({
-    author: linkPreview?.author,
-    hostname,
-    publishedAt: linkPreview?.publishedAt,
-    publisher: linkPreview?.publisher,
-  });
+  const byline = formatLinkByline(
+    {
+      author: linkPreview?.author,
+      hostname,
+      publishedAt: linkPreview?.publishedAt,
+      publisher: linkPreview?.publisher,
+    },
+    Date.now(),
+    tByline,
+    bylineLocale
+  );
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
   const previewImages = [
     {

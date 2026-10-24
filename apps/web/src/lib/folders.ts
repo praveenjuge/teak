@@ -15,12 +15,8 @@ import {
 } from "@teak/convex/shared/folders";
 import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
-import {
-  englishErrors,
-  englishTranslator,
-  translateServerMessage,
-} from "./englishTranslators";
-import type { ErrorsTranslator } from "./serverErrors";
+import { englishErrors, englishTranslator } from "./englishTranslators";
+import { type ErrorsTranslator, translateServerMessage } from "./serverErrors";
 
 export type FoldersTranslator = TeakTranslator<"lib.folders">;
 
@@ -75,19 +71,6 @@ export const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
   blue: "text-blue-500 fill-blue-500/15",
   violet: "text-violet-500 fill-violet-500/15",
   pink: "text-pink-500 fill-pink-500/15",
-};
-
-/** English color names. Prefer folderColorLabel, which translates. */
-export const FOLDER_COLOR_LABELS: Record<FolderColor, string> = {
-  gray: "Gray",
-  red: "Red",
-  orange: "Orange",
-  amber: "Amber",
-  green: "Green",
-  teal: "Teal",
-  blue: "Blue",
-  violet: "Violet",
-  pink: "Pink",
 };
 
 export const folderColorLabel = (

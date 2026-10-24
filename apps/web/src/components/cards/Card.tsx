@@ -172,6 +172,7 @@ export const Card = memo(function Card({
   const t = useTranslations("cards");
   const tc = useTranslations("common");
   const tLabel = useTranslations("cards.accessibleLabel");
+  const tLinkTitle = useTranslations("lib.linkTitle");
   const refreshCardMediaUrl = useAction(
     api.card.getFileUrl.refreshCardMediaUrl
   );
@@ -339,12 +340,15 @@ export const Card = memo(function Card({
     onEnterSelectionMode?.(card._id);
   };
 
-  const linkCardTitle = resolveLinkTitle({
-    metadataTitle: card.metadataTitle,
-    metadataTitleEdited: card.metadataTitleEdited,
-    previewTitle: successfulLinkPreview(card)?.title,
-    url: card.url,
-  });
+  const linkCardTitle = resolveLinkTitle(
+    {
+      metadataTitle: card.metadataTitle,
+      metadataTitleEdited: card.metadataTitleEdited,
+      previewTitle: successfulLinkPreview(card)?.title,
+      url: card.url,
+    },
+    tLinkTitle
+  );
   const { image: linkImage, onImageError: handleLinkImageError } =
     useLinkCardImage(card);
 

@@ -7,12 +7,12 @@ import {
 } from "@teak/convex/shared/tags";
 import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
+import { englishErrors, englishTranslator } from "./englishTranslators";
 import {
-  englishErrors,
-  englishTranslator,
+  type ErrorsTranslator,
+  translateErrorKey,
   translateServerMessage,
-} from "./englishTranslators";
-import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
+} from "./serverErrors";
 
 export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 

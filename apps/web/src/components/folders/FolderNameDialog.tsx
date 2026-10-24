@@ -35,6 +35,7 @@ import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderColor,
   type FolderSummary,
+  folderColorLabel,
   folderErrorMessage,
   hasFolderNamed,
   suggestSmartFolderName,
@@ -61,7 +62,7 @@ export function FolderNameDialog({
   queryNote,
 }: FolderNameDialogProps) {
   const t = useTranslations("folders.nameDialog");
-  const tColors = useTranslations("folders.colors");
+  const tFolders = useTranslations("lib.folders");
   const tc = useTranslations("common");
   const errors = useServerErrors();
   const inputId = useId();
@@ -82,13 +83,13 @@ export function FolderNameDialog({
         folder?.name ??
           (initialQuery === undefined
             ? ""
-            : suggestSmartFolderName(initialQuery))
+            : suggestSmartFolderName(initialQuery, tFolders))
       );
       setQuery(folder?.query ?? initialQuery ?? "");
       setColor(folder?.color);
       setServerError(null);
     }
-  }, [folder, initialQuery, open]);
+  }, [folder, initialQuery, open, tFolders]);
 
   const trimmed = name.trim();
   const canonicalQuery = isSmart ? parseSearchQuery(query).canonical : "";
@@ -254,7 +255,7 @@ export function FolderNameDialog({
             <div className="flex flex-wrap gap-1.5">
               <ColorSwatch
                 checked={color === undefined}
-                label={tColors("none")}
+                label={tFolders("colors.none")}
                 onSelect={() => setColor(undefined)}
               />
               {FOLDER_COLORS.map((option) => (
@@ -262,7 +263,7 @@ export function FolderNameDialog({
                   checked={color === option}
                   color={option}
                   key={option}
-                  label={tColors(option)}
+                  label={folderColorLabel(option, tFolders)}
                   onSelect={() => setColor(option)}
                 />
               ))}

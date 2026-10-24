@@ -8,9 +8,9 @@ import { AppSidebar, SidebarFoldersSkeleton } from "@/components/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { folderIdForPath } from "@/lib/folders";
 import {
-  LIBRARY_VIEW_LABELS,
-  LIBRARY_VIEW_SEARCH_PLACEHOLDERS,
   libraryViewForPath,
+  libraryViewLabel,
+  libraryViewSearchPlaceholder,
 } from "@/lib/libraryViews";
 import { LibraryPageSkeleton } from "@/screens";
 import { SettingsPageSkeleton } from "../settings/SettingsPageSkeleton";
@@ -23,13 +23,14 @@ export function AppShellSkeleton({
   defaultWidth: number;
 }) {
   const t = useTranslations("appShell.skeleton");
+  const tViews = useTranslations("lib.libraryViews");
   const pathname = usePathname();
   const view = libraryViewForPath(pathname);
   const isSettings = pathname.startsWith("/settings");
   const isTags = pathname === "/tags";
   let title = "";
   if (view) {
-    title = LIBRARY_VIEW_LABELS[view];
+    title = libraryViewLabel(view, tViews);
   } else if (isTags) {
     title = t("tags");
   } else if (folderIdForPath(pathname)) {
@@ -38,7 +39,7 @@ export function AppShellSkeleton({
   let content = (
     <LibraryPageSkeleton
       searchPlaceholder={
-        view ? LIBRARY_VIEW_SEARCH_PLACEHOLDERS[view] : undefined
+        view ? libraryViewSearchPlaceholder(view, tViews) : undefined
       }
       title={title}
     />

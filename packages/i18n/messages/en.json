@@ -4,9 +4,7 @@
     "back": "Back",
     "cancel": "Cancel",
     "close": "Close",
-    "continue": "Continue",
     "copy": "Copy",
-    "copied": "Copied",
     "delete": "Delete",
     "done": "Done",
     "edit": "Edit",
@@ -446,7 +444,8 @@
       "NOT_FOUND": "Tag not found",
       "SAME_TAG": "Choose a different tag to merge into",
       "OPERATION_RUNNING": "Another tag change is still running",
-      "OPERATION_NOT_FOUND": "Tag operation not found"
+      "OPERATION_NOT_FOUND": "Tag operation not found",
+      "TAG_EXISTS": "A tag named \"{name}\" already exists. Merge into it instead."
     },
     "thumbnails": {
       "rateLimited": "You've changed a lot of images. Try again in a minute.",
@@ -470,6 +469,13 @@
       "NOT_FOUND": "Card not found",
       "RATE_LIMITED": "You're saving quickly. Try again in a minute.",
       "TRASHED": "Restore this card from Trash before saving its PDF."
+    },
+    "cardTags": {
+      "TAG_TOO_LONG": "Each tag must be at most {max} characters",
+      "TOO_MANY_TAGS": "A card can have at most {max} tags"
+    },
+    "settings": {
+      "UNSUPPORTED_LOCALE": "That language isn't available."
     }
   },
   "revisit": {
@@ -486,7 +492,6 @@
       "startOver": "Start over",
       "revisitMore": "Revisit {count} more",
       "undoHint": "<kbd>Z</kbd> undoes the last archive",
-      "cardFallback": "Card",
       "openDetails": "Open details: {type}",
       "saved": "Saved {date}",
       "inTrash": "In Trash",
@@ -500,18 +505,6 @@
     }
   },
   "folders": {
-    "colors": {
-      "none": "No color",
-      "gray": "Gray",
-      "red": "Red",
-      "orange": "Orange",
-      "amber": "Amber",
-      "green": "Green",
-      "teal": "Teal",
-      "blue": "Blue",
-      "violet": "Violet",
-      "pink": "Pink"
-    },
     "nameDialog": {
       "titleNew": "New folder",
       "titleNewSmart": "Save as smart folder",
@@ -558,12 +551,6 @@
   },
   "sidebar": {
     "nav": {
-      "views": {
-        "all": "Everything",
-        "favorites": "Favorites",
-        "archive": "Archive",
-        "trash": "Trash"
-      },
       "home": "Teak home",
       "keepOpen": "Keep sidebar open",
       "collapse": "Collapse sidebar",
@@ -579,8 +566,6 @@
       "renameItem": "Rename…",
       "editSearch": "Edit search…",
       "color": "Color",
-      "addedCard": "Added 1 card to {folder}",
-      "addFailed": "Couldn't add these cards to the folder",
       "colorFailed": "Couldn't change the color",
       "restoreFailed": "Couldn't restore the folder",
       "deleteFailed": "Couldn't delete the folder",
@@ -800,18 +785,14 @@
       "uploadingAlt": "Uploading the new link preview"
     },
     "palette": {
-      "copied": "Copied {hex}",
       "copy": "Copy {hex}",
-      "copyFailed": "Failed to copy",
       "empty": "No colors detected in this palette"
     },
     "quote": {
       "placeholder": "Enter your quote..."
     },
     "text": {
-      "editorLabel": "Markdown content",
       "focus": "Focus",
-      "focusPlaceholder": "Write a note…",
       "placeholder": "Write a note...",
       "tooLarge": "Notes can be up to 512 KiB of UTF-8 text"
     },
@@ -1033,16 +1014,6 @@
     }
   },
   "search": {
-    "cardTypes": {
-      "text": "Text",
-      "link": "Link",
-      "image": "Image",
-      "video": "Video",
-      "audio": "Audio",
-      "document": "Document",
-      "palette": "Palette",
-      "quote": "Quote"
-    },
     "visualStyles": {
       "abstract": "Abstract",
       "cinematic": "Cinematic",
@@ -1183,10 +1154,6 @@
       "folders": "Folders"
     },
     "views": {
-      "all": "Everything",
-      "favorites": "Favorites",
-      "archive": "Archive",
-      "trash": "Trash",
       "tags": "Tags",
       "settings": "Settings"
     },
@@ -1476,7 +1443,6 @@
   },
   "lib": {
     "bulkCardActions": {
-      "cardCount": "{count, plural, one {# card} other {# cards}}",
       "progress": {
         "favorite": "Adding to favorites {done} of {total}…",
         "unfavorite": "Removing from favorites {done} of {total}…",
@@ -1535,6 +1501,7 @@
     },
     "folders": {
       "colors": {
+        "none": "No color",
         "gray": "Gray",
         "red": "Red",
         "orange": "Orange",

@@ -65,10 +65,12 @@ export function SmartFolderQuery({
   query,
 }: SmartFolderQueryProps) {
   const t = useTranslations("folders.smartQuery");
+  const tSearch = useTranslations("search");
+  const types = useTranslations("cards.types");
   const parsed = parseSearchQuery(query);
   const qualifierChip = (qualifier: SearchQualifier, excluded = false) => {
     const chip = formatSearchQualifier(qualifier);
-    const described = describeQualifierChip(chip);
+    const described = describeQualifierChip(chip, undefined, tSearch, types);
     const { label, title } = described ?? { label: qualifier.value, title: "" };
     const unknownFolder =
       qualifier.key === "folder" &&

@@ -27,8 +27,6 @@ const englishCardLink = createTeakTranslator(
   "textEditor.cardLink"
 );
 
-export const MISSING_CARD_LABEL = englishCardLink("missing");
-
 const PILL_CLASS =
   "mx-px inline-flex max-w-[min(40ch,100%)] items-center gap-1 rounded-full border px-2 align-baseline font-medium text-[0.9em] leading-normal no-underline transition-colors";
 const OPEN_PILL_CLASS =

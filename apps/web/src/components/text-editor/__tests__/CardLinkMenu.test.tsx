@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CardLinkMenu, type CardLinkMenuState } from "../CardLinkMenu";
-import { cardLinkPillState, MISSING_CARD_LABEL } from "../CardLinkPill";
+import { cardLinkPillState } from "../CardLinkPill";
 
 if (!GlobalRegistrator.isRegistered) {
   GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -172,7 +172,7 @@ describe("card link pills", () => {
     });
     expect(cardLinkPillState("gone", "Old", targets)).toMatchObject({
       missing: true,
-      title: MISSING_CARD_LABEL,
+      title: "Missing card",
     });
   });
 });

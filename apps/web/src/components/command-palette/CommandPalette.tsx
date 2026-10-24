@@ -39,7 +39,11 @@ import {
   folderPath,
 } from "../../lib/folders";
 import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
-import { LIBRARY_VIEW_PATHS, LIBRARY_VIEWS } from "../../lib/libraryViews";
+import {
+  LIBRARY_VIEW_PATHS,
+  LIBRARY_VIEWS,
+  libraryViewLabel,
+} from "../../lib/libraryViews";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
@@ -112,6 +116,7 @@ export function CommandPaletteResults({
   query,
 }: CommandPaletteResultsProps) {
   const t = useTranslations("commandPalette");
+  const tViews = useTranslations("lib.libraryViews");
   const trimmed = query.trim();
   return (
     <>
@@ -125,7 +130,7 @@ export function CommandPaletteResults({
       <CommandGroup heading={t("groups.navigate")}>
         {LIBRARY_VIEWS.map((view) => {
           const Icon = LIBRARY_VIEW_ICONS[view];
-          const label = t(`views.${view}`);
+          const label = libraryViewLabel(view, tViews);
           return (
             <CommandItem
               key={view}
@@ -246,6 +251,7 @@ function PaletteCardRows({
   query: string;
 }) {
   const t = useTranslations("commandPalette");
+  const tLinkTitle = useTranslations("lib.linkTitle");
   if (cards.status === "loading" || cards.status === "idle") {
     return (
       <div
@@ -273,7 +279,7 @@ function PaletteCardRows({
     <>
       {cards.cards.map((card) => {
         const Icon = getCardTypeIconComponent(card.type);
-        const title = paletteCardTitle(card, t);
+        const title = paletteCardTitle(card, t, tLinkTitle);
         const host = paletteCardHost(card);
         return (
           <CommandItem

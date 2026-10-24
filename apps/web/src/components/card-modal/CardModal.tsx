@@ -296,6 +296,7 @@ export function CardModal({
   const tc = useTranslations("common");
   const tHeading = useTranslations("cardModal.heading");
   const types = useTranslations("cards.types");
+  const tLinkTitle = useTranslations("lib.linkTitle");
   const tDialog = useTranslations("cards.deleteForeverDialog");
   const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
@@ -609,7 +610,9 @@ export function CardModal({
   };
 
   const menuShortcuts = cardMenuShortcuts();
-  const heading = card ? getCardHeading(card, { t: tHeading, types }) : null;
+  const heading = card
+    ? getCardHeading(card, { link: tLinkTitle, t: tHeading, types })
+    : null;
   const hostname =
     card?.type === "link" ? getDisplayHostname(card.url) : undefined;
   const typeLabel = cardTypeLabel(card?.type, types);

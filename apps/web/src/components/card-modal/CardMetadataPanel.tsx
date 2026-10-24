@@ -321,6 +321,8 @@ export function CardMetadataPanel({
   const t = useTranslations("cardModal.panel");
   const td = useTranslations("cardModal.details");
   const types = useTranslations("cards.types");
+  const exif = useTranslations("lib.exif");
+  const clipboard = useTranslations("lib.clipboard");
   const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
   const typeLabel = cardTypeLabel(card.type, types);
@@ -348,7 +350,11 @@ export function CardMetadataPanel({
   const aiTags = (card.aiTags ?? []).filter((tag) => !userTags.includes(tag));
   const summary = getCurrentValue("aiSummary");
   const isLongSummary = (summary?.length ?? 0) > SUMMARY_FOLD_LENGTH;
-  const sections = getCardDetailSections(card, { locale: dateLocale, t: td });
+  const sections = getCardDetailSections(card, {
+    exif,
+    locale: dateLocale,
+    t: td,
+  });
   const keyLabels = keyDetailLabels(td);
   const keyDetails = sections.details.filter((field) =>
     keyLabels.has(field.label)
@@ -565,7 +571,7 @@ export function CardMetadataPanel({
                 aria-label={t("copyColor", { hex })}
                 className="group/swatch relative size-6 rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)] outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 key={hex}
-                onClick={() => void copyColorHexToClipboard(hex)}
+                onClick={() => void copyColorHexToClipboard(hex, clipboard)}
                 style={{ backgroundColor: hex }}
                 title={t("copyColor", { hex })}
                 type="button"

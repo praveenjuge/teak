@@ -40,6 +40,7 @@ export function TextPreview({
   readOnly = false,
 }: TextPreviewProps) {
   const t = useTranslations("cardPreviews.text");
+  const tNote = useTranslations("textEditor.note");
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
@@ -103,13 +104,13 @@ export function TextPreview({
         </ShortcutTooltip>
       )}
       <MarkdownTextEditor
-        ariaLabel={t("editorLabel")}
+        ariaLabel={tNote("contentLabel")}
         cardLinks={cardLinks}
         className="h-full"
         disabled={readOnly}
         minHeight="55vh"
         onChange={onContentChange}
-        onLimitExceeded={() => toast.error(t("tooLarge"))}
+        onLimitExceeded={() => toast.error(tNote("tooLarge"))}
         onOpenFullScreen={readOnly ? undefined : openFocus}
         onSaveShortcut={onSaveShortcut}
         placeholder={t("placeholder")}
@@ -124,7 +125,7 @@ export function TextPreview({
         onRequestClose={closeFocus}
         onSave={() => onSaveShortcut?.()}
         open={isFocusOpen}
-        placeholder={t("focusPlaceholder")}
+        placeholder={tNote("placeholder")}
         title={t("focus")}
         value={currentContent || ""}
       />

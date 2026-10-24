@@ -9,6 +9,7 @@ import {
   type ComponentProps,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -135,6 +136,12 @@ export function AddCardActions({
   const t = useTranslations("forms.addCardActions");
   const tLimits = useTranslations("forms.limits");
   const errors = useServerErrors();
+  const tUpload = useTranslations("hooks.upload");
+  const tErrors = useTranslations("errors");
+  const uploadTranslators = useMemo(
+    () => ({ errors: tErrors, upload: tUpload }),
+    [tErrors, tUpload]
+  );
   const [isRecordingDialogOpen, setIsRecordingDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -168,13 +175,17 @@ export function AddCardActions({
   const finalizeUploadedCard = (args: FinalizeUploadedCardArgs) =>
     finalizeUploadedCardAction({ ...args, source: "web" });
 
-  const { uploadFile } = useFileUploadCore({
-    completeMultipartUpload,
-    uploadAndCreateCard,
-    finalizeUploadedCard,
-    prepareMultipartUpload,
-    recordMultipartPart,
-  });
+  const { uploadFile } = useFileUploadCore(
+    {
+      completeMultipartUpload,
+      uploadAndCreateCard,
+      finalizeUploadedCard,
+      prepareMultipartUpload,
+      recordMultipartPart,
+    },
+    {},
+    uploadTranslators
+  );
 
   const handleUpgrade = useCallback(() => {
     if (onUpgrade) {

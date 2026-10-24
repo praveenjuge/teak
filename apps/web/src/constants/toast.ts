@@ -13,8 +13,6 @@ export const TOAST_IDS = {
   language: "language",
 } as const;
 
-export const CARD_LIMIT_TOAST_MESSAGE = "Free card limit reached";
-
 export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {
   duration: Number.POSITIVE_INFINITY,
   closeButton: true,

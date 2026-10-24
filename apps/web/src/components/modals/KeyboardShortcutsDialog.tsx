@@ -6,7 +6,7 @@ import {
   type TeakTranslator,
 } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { SHORTCUTS_DIALOG_ATTRIBUTE } from "../../hooks/useKeyboardShortcuts";
 import {
-  KEYBOARD_SHORTCUT_GROUPS,
+  keyboardShortcutGroups,
   platformKey,
   type ShortcutRow,
 } from "../../lib/keyboardShortcuts";
@@ -36,6 +36,11 @@ export function KeyboardShortcutsDialog({
   onOpenChange,
 }: KeyboardShortcutsDialogProps) {
   const t = useTranslations("modals.shortcuts");
+  const tShortcuts = useTranslations("shortcuts");
+  const groups = useMemo(
+    () => keyboardShortcutGroups(tShortcuts),
+    [tShortcuts]
+  );
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
@@ -51,11 +56,8 @@ export function KeyboardShortcutsDialog({
         </DialogHeader>
         {/* One list, each group's name staying in view while its rows scroll. */}
         <div className="min-h-0 overflow-y-auto px-5 pb-3">
-          {KEYBOARD_SHORTCUT_GROUPS.map((group, index) => (
-            <section
-              aria-labelledby={`shortcut-group-${index}`}
-              key={group.title}
-            >
+          {groups.map((group, index) => (
+            <section aria-labelledby={`shortcut-group-${index}`} key={group.id}>
               <h3
                 className="sticky top-0 z-10 bg-background pt-3 pb-1 font-medium text-muted-foreground text-xs"
                 id={`shortcut-group-${index}`}
@@ -66,7 +68,7 @@ export function KeyboardShortcutsDialog({
                 {group.rows.map((row) => (
                   <div
                     className="flex h-7 items-center justify-between gap-3"
-                    key={row.label}
+                    key={row.id ?? row.label}
                   >
                     <dt className="min-w-0 truncate text-[13px]">
                       {row.label}

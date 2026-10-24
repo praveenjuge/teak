@@ -27,7 +27,11 @@ import {
 } from "@/components/ui/sidebar";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { ariaKeyShortcut, GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
-import { LIBRARY_VIEW_PATHS, type LibraryView } from "../../lib/libraryViews";
+import {
+  LIBRARY_VIEW_PATHS,
+  type LibraryView,
+  libraryViewLabel,
+} from "../../lib/libraryViews";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
@@ -65,14 +69,15 @@ export interface AppSidebarProps {
 }
 
 function ViewTooltip({ view }: { view: LibraryView }) {
-  const t = useTranslations("sidebar.nav.views");
+  const t = useTranslations("lib.libraryViews");
+  const label = libraryViewLabel(view, t);
   return (
     <>
-      {t(view)}
+      {label}
       <ShortcutHint
         row={{
           keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
-          label: t(view),
+          label,
           sequence: true,
         }}
       />
@@ -92,6 +97,7 @@ export function AppSidebar({
   tagsHref = "/tags",
 }: AppSidebarProps) {
   const t = useTranslations("sidebar.nav");
+  const tViews = useTranslations("lib.libraryViews");
   const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
   const apple = useIsApplePlatform();
 
@@ -121,7 +127,7 @@ export function AppSidebar({
             onClick={handleNavigate}
           >
             <Icon />
-            <span>{t(`views.${view}`)}</span>
+            <span>{libraryViewLabel(view, tViews)}</span>
           </LinkComponent>
         </SidebarMenuButton>
         <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">

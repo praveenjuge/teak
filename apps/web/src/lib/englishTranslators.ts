@@ -4,11 +4,7 @@ import {
   type TeakNamespace,
   type TeakTranslator,
 } from "@teak/i18n";
-import {
-  type ErrorsTranslator,
-  keyByEnglishMessage,
-  translateErrorKey,
-} from "./serverErrors";
+import type { ErrorsTranslator } from "./serverErrors";
 
 /**
  * An English translator for one namespace: the default for helpers outside
@@ -27,15 +23,3 @@ export const englishErrors: ErrorsTranslator = englishTranslator("errors");
  */
 // biome-ignore lint/plugin: the one place this English default is written down.
 export const US_ENGLISH_LOCALE = "en-US";
-
-/**
- * A message the server sent in English, in the UI language when the catalog
- * knows it, else as sent.
- */
-export const translateServerMessage = (
-  t: ErrorsTranslator,
-  message: string
-): string => {
-  const key = keyByEnglishMessage.get(message);
-  return key ? translateErrorKey(t, key) : message;
-};

@@ -46,22 +46,6 @@ export const libraryViewSearchPlaceholder = (
   t: LibraryViewsTranslator = englishLibraryViews
 ) => t(`searchPlaceholders.${view}`);
 
-/** English view names. Prefer libraryViewLabel, which translates. */
-export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
-  all: libraryViewLabel("all"),
-  favorites: libraryViewLabel("favorites"),
-  archive: libraryViewLabel("archive"),
-  trash: libraryViewLabel("trash"),
-};
-
-/** English placeholders. Prefer libraryViewSearchPlaceholder. */
-export const LIBRARY_VIEW_SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
-  all: libraryViewSearchPlaceholder("all"),
-  favorites: libraryViewSearchPlaceholder("favorites"),
-  archive: libraryViewSearchPlaceholder("archive"),
-  trash: libraryViewSearchPlaceholder("trash"),
-};
-
 function trimTrailingSlashes(path: string): string {
   let end = path.length;
   while (end > 1 && path[end - 1] === "/") {

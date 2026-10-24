@@ -6,9 +6,10 @@ import {
   type TeakTranslator,
 } from "@teak/i18n";
 import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
+import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { libraryViewForPath } from "./libraryViews";
-import { resolveLinkTitle } from "./linkTitle";
+import { type LinkTitleTranslator, resolveLinkTitle } from "./linkTitle";
 import { markdownToPlainText } from "./markdownToPlainText";
 import { isApplePlatform } from "./platform";
 
@@ -197,7 +198,8 @@ const MAX_PALETTE_TITLE_LENGTH = 300;
 
 export function paletteCardTitle(
   card: PaletteCard,
-  t: TeakTranslator<"commandPalette"> = englishPalette
+  t: TeakTranslator<"commandPalette"> = englishPalette,
+  linkTitle: LinkTitleTranslator = englishTranslator("lib.linkTitle")
 ): string {
   const isFileCard =
     card.type === "image" ||
@@ -210,12 +212,15 @@ export function paletteCardTitle(
       : undefined;
   const title =
     (card.type === "link"
-      ? resolveLinkTitle({
-          metadataTitle: card.metadataTitle,
-          metadataTitleEdited: card.metadataTitleEdited,
-          previewTitle: linkPreview?.title,
-          url: card.url,
-        })
+      ? resolveLinkTitle(
+          {
+            metadataTitle: card.metadataTitle,
+            metadataTitleEdited: card.metadataTitleEdited,
+            previewTitle: linkPreview?.title,
+            url: card.url,
+          },
+          linkTitle
+        )
       : "") ||
     (isFileCard ? card.fileMetadata?.fileName : "") ||
     card.metadataTitle ||

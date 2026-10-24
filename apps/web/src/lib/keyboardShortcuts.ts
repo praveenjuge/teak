@@ -123,10 +123,6 @@ export const keyboardShortcutGroups = (
     rows: group.rows.map((row) => ({ ...row, label: t(`rows.${row.id}`) })),
   }));
 
-/** The shortcuts list in English; `keyboardShortcutGroups(t)` translates it. */
-export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] =
-  keyboardShortcutGroups();
-
 export function platformKey(key: string, apple = isApplePlatform()): string {
   if (key === "Mod") {
     return apple ? "⌘" : "Ctrl";

@@ -19,12 +19,12 @@ import type {
 import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
 import {
-  englishErrors,
-  englishTranslator,
+  type ErrorsTranslator,
+  translateErrorKey,
   translateServerMessage,
-} from "@/lib/englishTranslators";
-import { type ErrorsTranslator, translateErrorKey } from "@/lib/serverErrors";
+} from "@/lib/serverErrors";
 import {
   type AdditionalFileMetadata,
   buildAdditionalFileMetadata,

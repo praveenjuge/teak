@@ -1,5 +1,4 @@
 import { api } from "@teak/convex";
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import {
@@ -30,6 +29,7 @@ import {
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { cn } from "../../lib/utils";
 import { CardBody } from "../cards/CardBody";
+import { cardTypeLabel } from "../cards/cardTypeLabel";
 import {
   successfulLinkPreview,
   useLinkCardImage,
@@ -106,12 +106,16 @@ const mediaWidth = (card: CardWithUrls): string | undefined => {
 
 function DeckCard({ card }: { card: CardWithUrls }) {
   const { image, onImageError } = useLinkCardImage(card);
-  const title = resolveLinkTitle({
-    metadataTitle: card.metadataTitle,
-    metadataTitleEdited: card.metadataTitleEdited,
-    previewTitle: successfulLinkPreview(card)?.title,
-    url: card.url,
-  });
+  const tLinkTitle = useTranslations("lib.linkTitle");
+  const title = resolveLinkTitle(
+    {
+      metadataTitle: card.metadataTitle,
+      metadataTitleEdited: card.metadataTitleEdited,
+      previewTitle: successfulLinkPreview(card)?.title,
+      url: card.url,
+    },
+    tLinkTitle
+  );
   return (
     <div
       className="max-h-(--revisit-card-height) overflow-hidden rounded-2xl bg-card shadow-lg ring-1 ring-border"
@@ -175,6 +179,7 @@ export function RevisitDeck({
 }: RevisitDeckProps) {
   const t = useTranslations("revisit.deck");
   const tc = useTranslations("common");
+  const types = useTranslations("cards.types");
   const intlLocale = useIntlLocale();
   const savedDate = useMemo(
     () => new Intl.DateTimeFormat(intlLocale, { dateStyle: "medium" }),
@@ -347,8 +352,7 @@ export function RevisitDeck({
     if (!card) {
       return null;
     }
-    const typeLabel =
-      CARD_TYPE_LABELS[card.type as CardType] ?? t("cardFallback");
+    const typeLabel = cardTypeLabel(card.type, types);
     return (
       <div className="relative flex w-full max-w-md flex-col items-center">
         {leaving ? (

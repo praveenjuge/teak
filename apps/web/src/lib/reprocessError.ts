@@ -1,10 +1,6 @@
 import type { TeakTranslator } from "@teak/i18n";
-import {
-  englishErrors,
-  englishTranslator,
-  translateServerMessage,
-} from "./englishTranslators";
-import type { ErrorsTranslator } from "./serverErrors";
+import { englishErrors, englishTranslator } from "./englishTranslators";
+import { type ErrorsTranslator, translateServerMessage } from "./serverErrors";
 
 export type ReprocessTranslator = TeakTranslator<"lib.reprocess">;
 
