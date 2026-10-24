@@ -1900,37 +1900,6 @@ describe("devSeed page archive packs", () => {
         .sort()
     );
   });
-
-  test("archive-backfill-1000 seeds 1,000 links with no copy, 200 a page", async () => {
-    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
-    const t = await setup();
-    for (let page = 0; page < 5; page += 1) {
-      expect(
-        await t.mutation(internal.devSeed.seedScenario, {
-          workosUserId: WORKOS_USER_ID,
-          scenario: "archive-backfill-1000",
-          page,
-        })
-      ).toEqual({ status: "seeded", cards: 200 });
-    }
-    expect(
-      await t.mutation(internal.devSeed.seedScenario, {
-        workosUserId: WORKOS_USER_ID,
-        scenario: "archive-backfill-1000",
-        page: 5,
-      })
-    ).toEqual({ status: "already_seeded", cards: 0 });
-    const links = await t.run((ctx) =>
-      ctx.db
-        .query("cards")
-        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
-        .collect()
-    );
-    expect(links).toHaveLength(1000);
-    expect(
-      links.every((card) => card.type === "link" && !card.pageArchive)
-    ).toBe(true);
-  }, 60_000);
 });
 
 describe("devSeed reader packs", () => {

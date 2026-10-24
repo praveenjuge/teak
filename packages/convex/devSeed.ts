@@ -74,7 +74,6 @@ import {
 } from "./devSeed/mediaPacks";
 import { orderingSavedPack } from "./devSeed/orderingSaved";
 import {
-  archiveBackfillScenarioPage,
   PAGE_ARCHIVE_MIX_TAG,
   seedPageArchiveMix,
 } from "./devSeed/pageArchives";
@@ -658,11 +657,6 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   "reader-search-1000": {
     description: `1,000 links with articles titled "Field note 1" to "Field note 1000". Only their body text has "${READER_SEARCH_SHARED_PHRASE}" (all of them) and lantern0 to lantern999 (one each), so search finds them by article text alone. Their Markdown isn't written, so the Read tab can't load it. 200 per page.`,
     pagedSeed: seedReaderSearchPage,
-  },
-  "archive-backfill-1000": {
-    description:
-      "1,000 processed links with no saved copy, for backfillPageArchives (example.com/archive-backfill/0 to /999). 200 per page.",
-    cards: archiveBackfillScenarioPage,
   },
   "shuffle-partial": {
     description:
