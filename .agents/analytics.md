@@ -45,6 +45,8 @@ Client events (`captureEvent`):
 - `signed_in`, `extension_card_saved` {via}
 - `extension_omnibox_used` {result: `card` or `search`}: Enter in the address bar's Teak mode opened a suggested card or the web search. The query text is never sent
 - `locale_changed` {from, to}: the UI language changed in Settings → Language (codes such as `en`, `de`, `zh-Hans`)
+- `dead_link_checked` {outcome, reason?}: opening a link card with an archived copy checked its page on `/open/<cardId>`. `outcome` is `alive`, `dead` or `unsure` for a fresh check, `cached_alive` or `cached_dead` for a kept answer (alive for 24 hours, dead for 6); `reason` is the check's short code (`ok`, `http_404`, `http_410`, `dns`, `http_status`, `timeout`, `blocked`, `rate_limited`…), never the URL
+- `archived_copy_opened` {surface: `open_page`}: the archived copy of a link whose page is gone was shown
 
 Server events (`captureBackendEvent`):
 

@@ -22,4 +22,16 @@ describe("filesWorkerConfigs", () => {
       existsSync(join(assets.directory, "onboarding/coral-lily.webp"))
     ).toBe(true);
   });
+
+  test("binds the link fetcher to the fake worker's stand-in", () => {
+    const { fakeAi, worker } = filesWorkerConfigs(slotPorts(3));
+    expect(worker.durable_objects.bindings).toContainEqual({
+      name: "LINK_FETCHER",
+      class_name: "FakeLinkFetcher",
+      script_name: fakeAi.name,
+    });
+    expect(fakeAi.migrations).toEqual([
+      { tag: "e2e-v1", new_sqlite_classes: ["FakeLinkFetcher"] },
+    ]);
+  });
 });
