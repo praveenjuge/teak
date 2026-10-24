@@ -38,7 +38,9 @@ export const importModeValidator = v.union(
   v.literal("omnivore"),
   v.literal("linkwarden"),
   v.literal("mymind"),
-  v.literal("onetab")
+  v.literal("onetab"),
+  v.literal("csv"),
+  v.literal("links")
 );
 
 export const importItemStatusValidator = v.union(

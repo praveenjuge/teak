@@ -26,6 +26,18 @@ mock.module("../../ui/button", () => ({
     React.createElement("button", { type: "button", ...props }, children),
   buttonVariants: () => "",
 }));
+// Radix renders a closed Select's options in a portal; list them inline so
+// the picker's choices and their order show in the markup.
+mock.module("../../ui/select", () => ({
+  Select: ({ children }: any) => React.createElement("div", null, children),
+  SelectContent: ({ children }: any) =>
+    React.createElement("ul", { "data-select-options": "" }, children),
+  SelectItem: ({ children, value }: any) =>
+    React.createElement("li", { "data-value": value }, children),
+  SelectTrigger: ({ children }: any) =>
+    React.createElement("button", { type: "button" }, children),
+  SelectValue: () => null,
+}));
 mock.module("../../ui/spinner", () => ({
   Spinner: () => React.createElement("span", { "data-spinner": "" }),
 }));
@@ -33,9 +45,12 @@ mock.module("sonner", () => ({
   toast: { error: mock(), loading: mock(() => "id"), success: mock() },
 }));
 
-const { ImportPanel, ImportProgressSummary, importPanelState } = await import(
-  "../ImportPanel"
-);
+const {
+  ImportPanel,
+  ImportProgressSummary,
+  ImportSourceHint,
+  importPanelState,
+} = await import("../ImportPanel");
 const { putParts } = await import("../importUpload");
 
 function renderImportPanel() {
@@ -72,6 +87,101 @@ describe("ImportPanel", () => {
       const markup = renderImportPanel();
       expect(markup).toContain("This doesn&#x27;t look like a Pocket export.");
       expect(markup).not.toContain("invalid_source");
+    } finally {
+      importQueryResult = null;
+    }
+  });
+
+  test("lists browser bookmarks, CSV and text file first, Teak archive last, and no OneTab", () => {
+    const markup = renderImportPanel();
+    const options = [...markup.matchAll(/<li data-value="([^"]+)">([^<]+)</g)];
+    expect(options.map(([, value, label]) => [value, label])).toEqual([
+      ["bookmarks", "Browser bookmarks"],
+      ["csv", "CSV file"],
+      ["links", "Text file of links"],
+      ["pocket", "Pocket"],
+      ["raindrop", "Raindrop.io"],
+      ["instapaper", "Instapaper"],
+      ["readwise", "Readwise Reader"],
+      ["omnivore", "Omnivore"],
+      ["linkwarden", "Linkwarden"],
+      ["mymind", "mymind"],
+      ["archive", "Teak archive"],
+    ]);
+  });
+
+  test("CSV shows its columns and a collapsed Example", () => {
+    const markup = renderToStaticMarkup(<ImportSourceHint mode="csv" />);
+    expect(markup).toContain(
+      "A CSV with a header row. Teak reads url, title, tags, folder, note and created columns."
+    );
+    expect(markup).toContain("Example");
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).not.toContain("url,title,tags,folder,note,created");
+  });
+
+  test("only CSV has an Example", () => {
+    const markup = renderToStaticMarkup(<ImportSourceHint mode="links" />);
+    expect(markup).toContain(
+      "One link per line, optionally followed by &quot; | Title&quot;. OneTab&#x27;s Export URLs works too."
+    );
+    expect(markup).not.toContain("Example");
+  });
+
+  test.each([
+    [
+      "csv",
+      "missing_url_column",
+      "This CSV has no url column. Add a header row with a url (or link) column.",
+    ],
+    ["csv", "invalid_source", "This doesn&#x27;t look like a CSV export."],
+    [
+      "links",
+      "invalid_source",
+      "This file has no links. Put one link on each line.",
+    ],
+  ])("a failed %s import with %s says %p", (mode, failureClass, message) => {
+    importQueryResult = {
+      id: "job",
+      mode,
+      status: "failed",
+      failureClass,
+      createdCount: 0,
+      failedCount: 0,
+      reportAvailable: false,
+      parsedCount: 0,
+      phase: "Import failed",
+      processedCount: 0,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      const markup = renderImportPanel();
+      expect(markup).toContain(message);
+      expect(markup).not.toContain(failureClass);
+    } finally {
+      importQueryResult = null;
+    }
+  });
+
+  test("an interrupted OneTab upload from before still names OneTab", () => {
+    importQueryResult = {
+      id: "job",
+      mode: "onetab",
+      status: "uploading",
+      createdCount: 0,
+      failedCount: 0,
+      reportAvailable: false,
+      parsedCount: 0,
+      phase: "Uploading",
+      processedCount: 0,
+      skippedCount: 0,
+      updatedAt: 0,
+    };
+    try {
+      expect(renderImportPanel()).toContain(
+        "Choose the same OneTab file to resume where it left off."
+      );
     } finally {
       importQueryResult = null;
     }

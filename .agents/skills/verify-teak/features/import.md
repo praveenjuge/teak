@@ -1,0 +1,44 @@
+# Import
+
+Settings → Manage data → Import brings cards in from a file: browser bookmarks, any CSV with a header row, a text file of links, the named services (Pocket, Raindrop.io, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind) and a Teak archive. The file uploads, then imports in the background with progress, a one-line summary ("Last import: N created, M skipped"), the rows that failed and a downloadable report. Links already in the library, and repeats inside the file, are skipped by URL key.
+
+## Sub-features
+
+- `import-picker` lists "Browser bookmarks", "CSV file", "Text file of links", the services, then "Teak archive". OneTab is not offered; an import started as OneTab before still shows its name.
+- `import-csv` reads url, title, tags, folder, note and created columns, and their aliases (Link, Name, Labels, Collection, Description, Date Added…), from a comma-separated CSV with a header row. The hint has a collapsed "Example".
+- `import-csv-missing-url` stops a CSV whose header has no url column with "This CSV has no url column. Add a header row with a url (or link) column."
+- `import-links` reads one link per line, optionally followed by " | Title" (OneTab's Export URLs too).
+- `import-report` lists rows that couldn't be imported ("Row 4 has no url", unsafe links) under "Items that couldn't be imported", with "Copy error report" and "Download error report".
+- `import-duplicates` skips links already saved and repeats in the file (the same link with `www`, `utm_*` or a fragment), counted as skipped.
+
+## How to get to it (user POV)
+
+- `/settings` → the Import and export row's button "Manage import and export" (visible text "Manage") → dialog "Manage data", tab "Import".
+- Command palette: "Import".
+
+## Driving it with e2e MCP
+
+Preconditions:
+
+- Signed in ([sign-in](./sign-in.md)), with the backend that has the `csv` and `links` modes pushed: the running Files Worker and Convex must both know them, or the upload is refused or the import fails.
+- No import is running (a second one is refused until the first finishes).
+- Fixtures live in `packages/tests/src/web/import-fixtures/` (the e2e upload tool takes paths relative to `packages/tests`): `full.csv`, `aliases.csv`, `no-url.csv`, `variants.csv`, `unsafe-urls.csv`, `links.txt`. More awkward files are in `packages/convex/__tests__/import/fixtures/` (BOM and CRLF, quoted newlines, pipe tags); copy one into the fixtures folder to upload it.
+
+Steps:
+
+- **Picker.** Open the dialog and `tap` combobox "Import from". The options read, in order: "Browser bookmarks", "CSV file", "Text file of links", "Pocket", "Raindrop.io", "Instapaper", "Readwise Reader", "Omnivore", "Linkwarden", "mymind", "Teak archive". There is no "OneTab".
+- **CSV hint.** `tap` option "CSV file". The hint reads "A CSV with a header row. Teak reads url, title, tags, folder, note and created columns. Up to 20 MB." `tap` button "Example" (it starts collapsed): a block shows `url,title,tags,folder,note,created` and one sample row. Screenshot it in light and dark at 390 and 1440 px; the sample row scrolls inside its block, never the page.
+- **Import a CSV.** `upload` `src/web/import-fixtures/aliases.csv` to the hidden file input (`input[type=file][accept=".csv"]`; "Choose file" opens the system picker, which the harness can't drive). A confirmation shows the file name and "CSV file · <size>"; `tap` "Start import". Progress runs through "Uploading", "Parsing import file" and "Importing cards", then the line reads "Last import: 1 created, 0 skipped — <when>". Close the dialog, search `example.com/aliases`, and open the card: title "Alias title", tags "alpha" and "beta", folder "Projects / Teak", note "Alias note", saved 1 May 2024.
+- **Missing url column.** Import `no-url.csv`. The import stops: "Import stopped" and "This CSV has no url column. Add a header row with a url (or link) column."
+- **Duplicates and the report.** Import `variants.csv` (three spellings of one link): "1 created, 2 skipped". Import it again: "0 created, 3 skipped". Import `unsafe-urls.csv`: "1 created" and "3 failed", and "Items that couldn't be imported" lists "Row 2: CSV link is unsafe…", "Row 3: …" and "Row 4 has no url". `tap` "Download error report"; the file lists the same rows.
+- **Text file of links.** Choose "Text file of links" (the file chooser takes `.txt`) and import `links.txt`: 3 created, the third titled "Third | with a pipe".
+- **Clean up.** Move the imported cards to Trash and delete the folders the import made ("Work / Design", "Reading", "Projects / Teak").
+
+## Gotchas
+
+- Imports parse in the Files Worker, so a new import mode needs the Files Worker and Convex deployed (Files Worker first). Until then, choosing a new source fails at "Start import" (Convex refuses the mode) or right after parsing (the Worker doesn't know it).
+- Only comma-separated CSVs are read. A semicolon-separated file (European spreadsheet exports) has one column and stops with the missing url column message.
+- Rows are numbered as a spreadsheet shows them, the header being row 1; blank rows are skipped and don't count.
+- Skipped duplicates are counted, not listed in the report; the report lists failed rows only.
+- The free plan stops at 200 cards: an import past it ends with the card limit message. Use an account with room.
+- Imports never move an existing card to the top or change it; a link already saved is only skipped.

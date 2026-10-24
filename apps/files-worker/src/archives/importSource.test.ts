@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { strToU8, zipSync } from "fflate";
 import { FakeBucket, fakeHttpEtag } from "../test/testsupport";
-import { indexImportSource, readImportMarkdown } from "./importSource";
+import {
+  importIndexFailureClass,
+  indexImportSource,
+  readImportMarkdown,
+} from "./importSource";
 import {
   ArchiveEntryTooLargeError,
   extractZipEntries,
@@ -337,5 +341,48 @@ describe("worker import source", () => {
         url: "https://example.com",
       });
     }
+  });
+  const indexText = (mode: "csv" | "links", text: string) => {
+    const bytes = strToU8(text);
+    const bucket = new FakeBucket();
+    bucket.objects.set(sourceKey, { bytes });
+    return indexImportSource(asBucket(bucket), {
+      sourceKey,
+      mode,
+      expectedSize: bytes.length,
+    });
+  };
+  test("indexes a CSV file and a text file of links", async () => {
+    const csv = await indexText(
+      "csv",
+      "Link,Name,Labels\nhttps://example.com/c,From CSV,a|b\n,No url,"
+    );
+    expect(csv.items[0].card).toMatchObject({
+      url: "https://example.com/c",
+      content: "From CSV",
+      tags: ["a", "b"],
+    });
+    expect(csv.items[1].error).toBe("Row 3 has no url");
+    const links = await indexText("links", "https://example.com/l | Linked\n");
+    expect(links.items[0].card).toMatchObject({ content: "Linked" });
+  });
+  test("a CSV without a url column fails as missing_url_column, not as a bad source", async () => {
+    let message = "";
+    try {
+      await indexText("csv", "title,tags\nNo url,a");
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toBe("invalid_missing_url_column");
+    expect(importIndexFailureClass(message)).toBe("missing_url_column");
+    await expect(indexText("csv", "")).rejects.toThrow("invalid_import_source");
+  });
+  test.each([
+    ["invalid_missing_url_column", "missing_url_column"],
+    ["invalid_bookmark_count", "too_many_items"],
+    ["invalid_import_source", "invalid_source"],
+    ["invalid_archive_missing_manifest", "invalid_source"],
+  ])("an index failure %p is the import failure %p", (message, failure) => {
+    expect(importIndexFailureClass(message)).toBe(failure);
   });
 });

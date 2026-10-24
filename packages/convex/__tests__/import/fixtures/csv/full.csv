@@ -1,0 +1,5 @@
+url,title,tags,folder,note,created
+https://example.com/full/one,First link,"design, type",Work/Design,A note,2024-05-01
+https://example.com/full/two,Second link,#reading,Reading,"Commas, and ""quotes""",2024-05-02 09:30
+https://example.com/full/three,Third link,,,,1714521600
+https://example.com/full/four,Fourth link,,,,1714521600000

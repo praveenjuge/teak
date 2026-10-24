@@ -1,5 +1,6 @@
 import type { ImportMode } from "../shared/importSources";
 import { type ParsedBookmarkItem, parseBookmarksHtml } from "./bookmarks";
+import { parseGenericCsv } from "./genericCsv";
 import { parseInstapaperCsv } from "./instapaper";
 import { parseLinkwardenJson } from "./linkwarden";
 import { parseMymindCsv } from "./mymind";
@@ -34,6 +35,10 @@ export function parseImportSource(
       return parseMymindCsv(text);
     case "onetab":
       return parseOneTabText(text);
+    case "csv":
+      return parseGenericCsv(text);
+    case "links":
+      return parseOneTabText(text, "Text file");
     default:
       throw new Error(`Unsupported import source: ${mode satisfies never}`);
   }
