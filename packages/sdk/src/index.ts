@@ -557,7 +557,9 @@ export const buildCardsSearchParams = (input: {
    * `is:fav`, `is:archived`, `site:github.com`, `folder:"Reading list"`,
    * `price:<100` (also `>`, `<=`, `>=` and `=`), `text:"total due"` (only
    * the words Teak read in images, video thumbnails, link previews and scanned
-   * PDFs) and `"quoted phrases"`.
+   * PDFs) and `"quoted phrases"`. A `-` leaves cards out (`design -figma`,
+   * `-tag:old`), uppercase `OR` matches either side and parentheses group:
+   * `(site:github.com OR site:gitlab.com) -is:archived`.
    */
   query?: string;
   /** Required with `sort: "shuffle"`: the same seed gives the same order. */

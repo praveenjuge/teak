@@ -13,7 +13,12 @@ import {
 } from "../card/listQuery";
 import { attachFileUrls } from "../card/queryUtils";
 import { applyQuoteFormattingToList } from "../card/quoteFormatting";
-import { cardUrlHost } from "../card/searchPlanner";
+import {
+  cardHasTag,
+  cardUrlHost,
+  expressionTextReader,
+  resolveExpressionFolders,
+} from "../card/searchPlanner";
 import {
   loadSemanticMatches,
   searchCardsByDocument,
@@ -37,11 +42,17 @@ import {
 import type { TeakUserId } from "../securitySessions";
 import { clampPublicApiLimit } from "../shared/publicApiLimits";
 import {
+  expressionRevealTags,
+  matchesExpression,
+} from "../shared/search/expression";
+import {
   matchesDoneState,
   matchesImageText,
   matchesPriceBounds,
   matchesSearchPhrases,
   type PriceBound,
+  parseSearchQuery,
+  type SearchExpression,
   type SearchSimilarity,
 } from "../shared/search/qualifiers";
 import {
@@ -78,6 +89,10 @@ export interface SearchOptions {
   createdAfter?: number;
   createdBefore?: number;
   done?: boolean;
+  /** The search's exclusions and OR groups, checked on every card. */
+  expression?: SearchExpression;
+  /** The folders `expression` names, by name key; null for none. */
+  expressionFolders?: ReadonlyMap<string, Id<"folders"> | null>;
   favorited?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
@@ -89,6 +104,11 @@ export interface SearchOptions {
   ocrTexts?: string[];
   phrases?: string[];
   prices?: PriceBound[];
+  /**
+   * Hidden tags an OR branch asks for. A hidden card shows only when it has
+   * one, unless the search's own tags already reveal hidden cards.
+   */
+  revealTags?: string[];
   searchQuery?: string;
   semantic?: { mode: SearchMode; ranking: SemanticRanking };
   showTrashOnly?: boolean;
@@ -166,12 +186,47 @@ export const matchesCreatedAt = (
   return true;
 };
 
+/**
+ * `matchesStructuredFilters` for a card read without its search document:
+ * a word in the expression reads the document's text when the card's own
+ * fields leave some of it out.
+ */
+export const matchesStructuredFiltersWithText = async (
+  ctx: QueryCtx,
+  card: Doc<"cards">,
+  options: SearchOptions
+): Promise<boolean> =>
+  matchesStructuredFilters(
+    card,
+    options,
+    await readTextFor(ctx, options)(card)
+  );
+
+// One reader, and so one read budget, for each search's options.
+const textReaders = new WeakMap<
+  SearchOptions,
+  ReturnType<typeof expressionTextReader>
+>();
+const readTextFor = (ctx: QueryCtx, options: SearchOptions) => {
+  let reader = textReaders.get(options);
+  if (!reader) {
+    reader = expressionTextReader(ctx, options.expression);
+    textReaders.set(options, reader);
+  }
+  return reader;
+};
+
 export const matchesStructuredFilters = (
   card: Doc<"cards">,
   options: SearchOptions,
   searchableText?: string
 ): boolean => {
-  if (!options.includeHidden && isCardHidden(card)) {
+  if (
+    isCardHidden(card) &&
+    !(options.revealTags
+      ? options.revealTags.some((tag) => cardHasTag(card, tag))
+      : options.includeHidden)
+  ) {
     return false;
   }
   if (options.folderId && !(card.folderIds ?? []).includes(options.folderId)) {
@@ -264,6 +319,29 @@ export const matchesStructuredFilters = (
     return false;
   }
 
+  if (options.expression) {
+    const folders = options.expressionFolders;
+    const cardFolders = card.folderIds ?? [];
+    if (
+      !matchesExpression(
+        options.expression,
+        card,
+        searchableText ?? buildCardSearchText(card),
+        {
+          folder: (name) => {
+            const folderId = folders?.get(name);
+            return Boolean(folderId && cardFolders.includes(folderId));
+          },
+          hasTag: (tag) => cardHasTag(card, tag),
+          host: cardUrlHost(card),
+        },
+        isCardHidden(card) && options.revealTags !== undefined
+      )
+    ) {
+      return false;
+    }
+  }
+
   const archived = scopeArchivedMatch(
     cardListScope(options.archived, options.showTrashOnly)
   );
@@ -319,6 +397,7 @@ export const searchCardsByQuery = async (
       keep: (card, searchableText) =>
         matchesStructuredFilters(card, options, searchableText),
       text: options.searchQuery ?? "",
+      readText: readTextFor(ctx, options),
     });
     return {
       cards: sortCards(cards, normalizeSort(options.sort)),
@@ -407,6 +486,7 @@ export const searchCardsByQuery = async (
       keep: (card, searchableText) =>
         matchesStructuredFilters(card, options, searchableText),
       withText: Boolean(options.phrases?.length),
+      readText: readTextFor(ctx, options),
     }
   );
   const fused = fuseRankings(keywordOrder, matches, {
@@ -462,9 +542,9 @@ export const searchCardsByTag = async (
         scanBudget,
         sort,
         includeHidden: options.includeHidden,
-        resultFilter: (card) =>
-          matchesStructuredFilters(card, options) &&
-          (!anchor || isAfterMatchAnchor(card, anchor, sort)),
+        resultFilter: async (card) =>
+          (!anchor || isAfterMatchAnchor(card, anchor, sort)) &&
+          (await matchesStructuredFiltersWithText(ctx, card, options)),
       })
     )
   );
@@ -477,8 +557,31 @@ export const searchCardsByTag = async (
   return { cards: sorted.slice(0, limit), hasMore: sorted.length > limit };
 };
 
+/**
+ * Reads the `expression` text a search query carries and resolves the
+ * folders it names.
+ */
+export const resolveQueryExpression = async (
+  ctx: QueryCtx,
+  userId: string,
+  text: string | undefined
+): Promise<{
+  expression: SearchExpression | undefined;
+  expressionFolders: ReadonlyMap<string, Id<"folders"> | null> | undefined;
+}> => {
+  const expression = text ? parseSearchQuery(text).expression : undefined;
+  return {
+    expression,
+    expressionFolders: expression
+      ? await resolveExpressionFolders(ctx, userId, expression)
+      : undefined,
+  };
+};
+
 export const normalizeCardsQueryOptions = (args: {
   archived?: ArchivedFilter;
+  expression?: SearchExpression;
+  expressionFolders?: ReadonlyMap<string, Id<"folders"> | null>;
   archivedInTrash?: boolean;
   folderId?: Id<"folders">;
   folderIds?: Id<"folders">[];
@@ -506,8 +609,19 @@ export const normalizeCardsQueryOptions = (args: {
   const tags = Array.from(
     new Set((args.tags ?? []).map(normalizeTag).filter(Boolean))
   ) as string[];
+  const revealedByTags = revealsHidden([args.tag, ...tags]);
+  const revealTags = revealedByTags
+    ? []
+    : expressionRevealTags(args.expression);
   const normalized: SearchOptions = {
     archived: args.archived,
+    ...(args.expression
+      ? {
+          expression: args.expression,
+          expressionFolders: args.expressionFolders,
+        }
+      : {}),
+    ...(revealTags.length > 0 ? { revealTags } : {}),
     archivedInTrash: args.archivedInTrash === true && args.showTrashOnly,
     folderId: args.folderId,
     folderIds: args.folderIds?.length ? args.folderIds : undefined,
@@ -518,7 +632,7 @@ export const normalizeCardsQueryOptions = (args: {
     prices: args.prices?.length ? args.prices : undefined,
     sites: args.sites?.length ? args.sites : undefined,
     tags: tags.length ? tags : undefined,
-    includeHidden: revealsHidden([args.tag, ...tags]),
+    includeHidden: revealedByTags || revealTags.length > 0,
     showTrashOnly: args.showTrashOnly,
     ...normalizeVisualFilterArgs(args),
     createdAfter: normalizeCreatedTimestamp(args.createdAfter),
@@ -681,7 +795,9 @@ const scanFolderCards = async (
       continue;
     }
     const card = await ctx.db.get("cards", row.cardId);
-    if (!(card && matchesStructuredFilters(card, options))) {
+    if (
+      !(card && (await matchesStructuredFiltersWithText(ctx, card, options)))
+    ) {
       continue;
     }
     matches.push(card);
@@ -753,7 +869,7 @@ export const scanCardsWithBaseQuery = async (
   for (const card of page.page) {
     if (
       isAtOrBeforeListAnchor(card, anchor, options) ||
-      !matchesStructuredFilters(card, options)
+      !(await matchesStructuredFiltersWithText(ctx, card, options))
     ) {
       continue;
     }

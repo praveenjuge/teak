@@ -244,6 +244,18 @@ const listTags = async (options: GlobalOptions) => {
   );
 };
 
+// A search that leaves something out (`teak search -tag:old`) reads as a flag
+// to the shell and to Commander, so the search commands' error says how to
+// pass it.
+const searchQuotingHint = {
+  outputError: (message: string, write: (text: string) => void) =>
+    write(
+      /unknown option '-[^-'][^']+'/.test(message)
+        ? `${message}To leave something out of a search, quote it: teak search "design -tag:old", or put -- before it: teak search -- -tag:old\n`
+        : message
+    ),
+};
+
 // Set before adding subcommands: they copy this setting when created, so
 // flag errors reach run() and exit with the usage code.
 export const program = new Command()
@@ -331,7 +343,10 @@ withListOptions(
   cards
     .command("search")
     .argument("[query]")
-    .description("Search cards, e.g. 'site:github.com tag:design'")
+    .description(
+      "Search cards, e.g. 'site:github.com tag:design' or \"design -tag:old\""
+    )
+    .configureOutput(searchQuotingHint)
 ).action(async (query, options) =>
   writeCards(
     { ...program.opts(), ...options, query: query || options.query },
@@ -713,7 +728,10 @@ withListOptions(
   program
     .command("search")
     .argument("[query]")
-    .description("Search cards, e.g. 'site:github.com tag:design'")
+    .description(
+      "Search cards, e.g. 'site:github.com tag:design' or \"design -tag:old\""
+    )
+    .configureOutput(searchQuotingHint)
 ).action(async (query, options) =>
   writeCards(
     { ...program.opts(), ...options, query: query || options.query },

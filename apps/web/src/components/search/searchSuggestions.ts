@@ -1,5 +1,6 @@
 import {
   describePriceBound,
+  formatSearchExpression,
   formatSearchQualifier,
   hostForDisplay,
   parsePriceBound,
@@ -21,6 +22,8 @@ export interface SearchSuggestionSources {
 }
 
 export type SearchSuggestionGroup =
+  | "Combine"
+  | "Exclude"
   | "Filters"
   | "Tags"
   | "Types"
@@ -34,7 +37,8 @@ export interface SearchSuggestion {
   group: SearchSuggestionGroup;
   id: string;
   insert: string;
-  key: SearchQualifierKey;
+  /** The qualifier it inserts, or `OR`. */
+  key: SearchQualifierKey | "OR";
   label: string;
   type?: CardType;
 }
@@ -57,6 +61,25 @@ const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
   { key: "price", hint: "Price under or over" },
   { key: "text", hint: "Words in images and scans" },
 ];
+
+/** The filters a `-` can leave out; `like:` and `mood:` can't be excluded. */
+const EXCLUDE_HINTS: { key: SearchQualifierKey; hint: string }[] = [
+  { key: "tag", hint: "Leave out cards with a tag" },
+  { key: "type", hint: "Leave out links, images, notes…" },
+  { key: "site", hint: "Leave out links from a website" },
+  { key: "folder", hint: "Leave out cards in a folder" },
+  { key: "is", hint: "Leave out favorites, archived, done…" },
+];
+
+const OR_SUGGESTION: SearchSuggestion = {
+  complete: false,
+  detail: "Either side matches",
+  group: "Combine",
+  id: "Combine:OR",
+  insert: "OR ",
+  key: "OR",
+  label: "OR",
+};
 
 const IS_OPTIONS = [
   { value: "fav", label: "Favorites", words: ["fav", "favorites", "starred"] },
@@ -90,6 +113,46 @@ export function currentSearchToken(text: string): {
     }
   }
   return { start, token: text.slice(start) };
+}
+
+/**
+ * Whether the word after `before` belongs to an operator: the text has an
+ * `OR` outside parentheses (`a OR b tag:x` is `a OR (b tag:x)`), or an open
+ * `(` hasn't closed. A completed filter there stays in the text, since a pill
+ * of its own would leave the OR or group.
+ */
+export function continuesOperator(before: string): boolean {
+  let depth = 0;
+  let inQuotes = false;
+  let word = "";
+  let topLevelOr = false;
+  const endWord = () => {
+    if (word === "OR" && depth === 0) {
+      topLevelOr = true;
+    }
+    word = "";
+  };
+  for (let index = 0; index < before.length; index += 1) {
+    const character = before[index] ?? "";
+    if (character === "\\" && inQuotes) {
+      index += 1;
+    } else if (QUOTES.has(character)) {
+      inQuotes = !inQuotes;
+      word = "";
+    } else if (!inQuotes && character === "(") {
+      endWord();
+      depth += 1;
+    } else if (!inQuotes && character === ")") {
+      endWord();
+      depth = Math.max(0, depth - 1);
+    } else if (!inQuotes && /\s/.test(character)) {
+      endWord();
+    } else if (!inQuotes) {
+      word += character;
+    }
+  }
+  endWord();
+  return depth > 0 || topLevelOr;
 }
 
 const unquote = (value: string) =>
@@ -218,13 +281,67 @@ const valueSuggestions = (
   }
 };
 
-export function buildSearchSuggestions(
+const excluded = (suggestion: SearchSuggestion): SearchSuggestion => ({
+  ...suggestion,
+  group: "Exclude",
+  id: `Exclude:-${suggestion.insert}`,
+  insert: `-${suggestion.insert}`,
+});
+
+/** Suggestions for a token after a `-`: the filters to leave out. */
+const excludeSuggestions = (
   token: string,
   sources: SearchSuggestionSources
+): SearchSuggestionResult => {
+  const result = buildSearchSuggestions(token, sources);
+  const word = token.toLowerCase();
+  const keys = EXCLUDE_HINTS.filter(({ key }) => key.startsWith(word)).map(
+    ({ key, hint }): SearchSuggestion => ({
+      complete: false,
+      detail: hint,
+      group: "Exclude",
+      id: `Exclude:-${key}`,
+      insert: `-${key}:`,
+      key,
+      label: `-${key}:`,
+    })
+  );
+  const isKeyHint = (suggestion: SearchSuggestion) =>
+    suggestion.group === "Filters";
+  const allowed = (suggestion: SearchSuggestion) =>
+    EXCLUDE_HINTS.some(({ key }) => key === suggestion.key);
+  return {
+    completingValue: result.completingValue,
+    suggestions: [
+      ...(token.includes(":") || token.startsWith("#") ? [] : keys),
+      ...result.suggestions
+        .filter((suggestion) => !isKeyHint(suggestion) && allowed(suggestion))
+        .map(excluded),
+    ],
+  };
+};
+
+export function buildSearchSuggestions(
+  token: string,
+  sources: SearchSuggestionSources,
+  { afterWord = false }: { afterWord?: boolean } = {}
 ): SearchSuggestionResult {
   const none = { completingValue: false, suggestions: [] };
   if (!token.trim()) {
     return none;
+  }
+
+  if (token.startsWith("-") && !token.startsWith("--")) {
+    return excludeSuggestions(token.slice(1), sources);
+  }
+
+  // `OR` joins two words or filters, so it is offered only after one.
+  if (afterWord && /^or?$/i.test(token)) {
+    const positive = buildSearchSuggestions(token, sources);
+    return {
+      completingValue: false,
+      suggestions: [OR_SUGGESTION, ...positive.suggestions],
+    };
   }
 
   if (token.startsWith("#")) {
@@ -285,18 +402,60 @@ export function buildSearchSuggestions(
   };
 }
 
-export function describeQualifierChip(
-  chip: string,
-  anchorTitle?: string
-): {
+export interface QualifierChipDescription {
+  /** The chip leaves these cards out: `-tag:old`. */
+  excluded?: true;
   label: string;
   qualifier: SearchQualifier;
   title: string;
-} | null {
-  const qualifier = parseSearchQuery(chip).qualifiers[0];
-  if (!qualifier) {
-    return null;
+}
+
+export function describeQualifierChip(
+  chip: string,
+  anchorTitle?: string
+): QualifierChipDescription | null {
+  const parsed = parseSearchQuery(chip);
+  const [qualifier] = parsed.qualifiers;
+  if (qualifier) {
+    return describeQualifier(qualifier, anchorTitle);
   }
+  const { expression } = parsed;
+  if (expression?.op === "not" && expression.item.op === "qualifier") {
+    const described = describeQualifier(expression.item.qualifier);
+    return described ? { ...described, excluded: true } : null;
+  }
+  return null;
+}
+
+/**
+ * How a word pill reads: an excluded word or phrase (`-figma`) shows the word
+ * after a minus, and an OR group shows without its outer parentheses.
+ */
+export function describeKeywordChip(chip: string): {
+  excluded?: true;
+  group?: true;
+  label: string;
+} {
+  const { expression } = parseSearchQuery(chip);
+  if (!expression) {
+    return { label: chip };
+  }
+  if (
+    expression.op === "not" &&
+    (expression.item.op === "term" || expression.item.op === "phrase")
+  ) {
+    return {
+      excluded: true,
+      label: formatSearchExpression(expression.item),
+    };
+  }
+  return { group: true, label: formatSearchExpression(expression) };
+}
+
+function describeQualifier(
+  qualifier: SearchQualifier,
+  anchorTitle?: string
+): QualifierChipDescription | null {
   switch (qualifier.key) {
     case "tag":
       return { qualifier, title: "Tag", label: qualifier.value };

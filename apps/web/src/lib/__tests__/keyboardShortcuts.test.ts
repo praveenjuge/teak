@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
   ariaKeyShortcut,
+  KEYBOARD_SHORTCUT_GROUPS,
   platformKey,
   pressUploadFiles,
   registerUploadFiles,
@@ -55,5 +56,21 @@ describe("pressUploadFiles", () => {
     const leave = registerUploadFiles(() => false);
     expect(pressUploadFiles()).toBe(false);
     leave();
+  });
+});
+
+describe("the Search group", () => {
+  test("teaches the search operators", () => {
+    const search = KEYBOARD_SHORTCUT_GROUPS.find(
+      (group) => group.title === "Search"
+    );
+    expect(search?.rows.map((row) => [row.keys.join(" "), row.label])).toEqual([
+      ["-word", "Exclude a word"],
+      ["-tag:x", "Exclude a tag, type, site or folder"],
+      ["a OR b", "Either one"],
+      ["( … )", "Group"],
+      ['"phrase"', "Exact words"],
+    ]);
+    expect(search?.rows.every((row) => row.syntax)).toBe(true);
   });
 });

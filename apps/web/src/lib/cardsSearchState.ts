@@ -7,6 +7,8 @@ import {
   quoteSearchValue,
   randomShuffleSeed,
   resolveQuickSearchCommand,
+  type SearchExpression,
+  searchExpressionParts,
   type TimeFilter,
 } from "@teak/convex/shared";
 import type {
@@ -79,11 +81,20 @@ export function createInitialCardsSearchState(): CardsSearchState {
   };
 }
 
+const TYPED_OR = /(^|[\s(])OR(?=[\s)]|$)/;
+
 export function buildCardsSearchTerms(state: CardsSearchState): string {
+  const typed = state.searchQuery.trim();
+  const hasPills =
+    state.qualifierChips.length > 0 || state.keywordTags.length > 0;
+  // A space binds tighter than OR, so typed text with an OR beside the pills
+  // is grouped, the way Enter keeps it apart from them: `a OR b`, and a
+  // leading `OR b`, which has no left side in the box.
+  const grouped = hasPills && TYPED_OR.test(typed) ? `(${typed})` : typed;
   return [
     ...state.qualifierChips,
     ...state.keywordTags,
-    ...(state.searchQuery.trim() ? [state.searchQuery.trim()] : []),
+    ...(grouped ? [grouped] : []),
   ].join(" ");
 }
 
@@ -148,8 +159,32 @@ const phraseChips = (phrases: readonly string[]) =>
     new Set(phrases.map((phrase) => quoteSearchValue(phrase.toLowerCase())))
   );
 
+const isExcludedQualifier = (expression: SearchExpression | undefined) =>
+  expression?.op === "not" && expression.item.op === "qualifier";
+
+/**
+ * The operators of a query as pills: an excluded filter (`-tag:old`) joins
+ * the filter pills, and an excluded word or an OR group joins the words.
+ */
+const expressionChips = (parsed: ReturnType<typeof parseSearchQuery>) => {
+  const qualifierChips: string[] = [];
+  const keywordTags: string[] = [];
+  for (const part of searchExpressionParts(parsed)) {
+    if (isExcludedQualifier(parseSearchQuery(part).expression)) {
+      qualifierChips.push(part);
+    } else {
+      keywordTags.push(part);
+    }
+  }
+  return { keywordTags, qualifierChips };
+};
+
 export function qualifierChipsFromText(text: string): string[] {
-  return parseSearchQuery(text).qualifiers.map(formatSearchQualifier);
+  const parsed = parseSearchQuery(text);
+  return [
+    ...parsed.qualifiers.map(formatSearchQualifier),
+    ...expressionChips(parsed).qualifierChips,
+  ];
 }
 
 export const addChips = (current: string[], additions: string[]) => {
@@ -208,9 +243,13 @@ export function cardsSearchStateFromQuery(
   query: string
 ): Pick<CardsSearchState, "keywordTags" | "qualifierChips" | "searchQuery"> {
   const parsed = parseSearchQuery(query);
+  const operators = expressionChips(parsed);
   return {
-    keywordTags: phraseChips(parsed.phrases),
-    qualifierChips: parsed.qualifiers.map(formatSearchQualifier),
+    keywordTags: [...phraseChips(parsed.phrases), ...operators.keywordTags],
+    qualifierChips: [
+      ...parsed.qualifiers.map(formatSearchQualifier),
+      ...operators.qualifierChips,
+    ],
     searchQuery: parsed.terms.join(" "),
   };
 }
@@ -277,10 +316,15 @@ export function applyEnterToCardsSearchState(
   const hueAdditions: ColorHueBucket[] = [];
   const hexAdditions: string[] = [];
   const parsed = parseSearchQuery(state.searchQuery);
-  const qualifierAdditions = parsed.qualifiers.map(formatSearchQualifier);
-  const keywordAdditions: string[] = phraseChips(parsed.phrases).filter(
-    (phrase) => !state.keywordTags.includes(phrase)
-  );
+  const operators = expressionChips(parsed);
+  const qualifierAdditions = [
+    ...parsed.qualifiers.map(formatSearchQualifier),
+    ...operators.qualifierChips,
+  ];
+  const keywordAdditions: string[] = [
+    ...phraseChips(parsed.phrases),
+    ...operators.keywordTags,
+  ].filter((phrase) => !state.keywordTags.includes(phrase));
 
   for (const token of parsed.terms) {
     const classified = classifySearchToken(token);

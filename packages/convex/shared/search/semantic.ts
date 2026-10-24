@@ -3,6 +3,7 @@ import {
   VECTOR_QUERY_MAX_TOP_K,
 } from "@teak/files-protocol";
 import { normalizeHexColor } from "../utils/colorUtils";
+import { expressionIndexWords } from "./expression";
 import type { ParsedSearchQuery, SearchSimilarity } from "./qualifiers";
 
 export const SEARCH_MODES = ["hybrid", "keyword", "semantic"] as const;
@@ -19,11 +20,17 @@ export const RRF_K = 60;
 export const SEMANTIC_QUERY_MAX_CHARS = VECTOR_QUERY_MAX_CHARS;
 const SEMANTIC_QUERY_MIN_CHARS = 2;
 
+/**
+ * The words a search embeds: its words and phrases, including those in OR
+ * groups, but never excluded ones or hex colors.
+ */
 export const semanticQueryText = (parsed: ParsedSearchQuery): string => {
-  const words = parsed.terms.filter(
-    (term) => !(term.startsWith("#") && normalizeHexColor(term))
-  );
-  const text = [...words, ...parsed.phrases]
+  const words = [
+    ...parsed.terms,
+    ...parsed.phrases,
+    ...expressionIndexWords(parsed.expression),
+  ].filter((term) => !(term.startsWith("#") && normalizeHexColor(term)));
+  const text = words
     .join(" ")
     .replace(/\s+/g, " ")
     .trim()

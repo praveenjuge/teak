@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  comparableSearch,
   EMPTY_SEARCH_URL_STATE,
   isSameSearchUrlState,
   MAX_URL_SEARCH_LENGTH,
@@ -383,4 +384,15 @@ test("a type: qualifier is the same search as that type picked", () => {
       { ...EMPTY_SEARCH_URL_STATE, q: "poster", types: ["image"] }
     )
   ).toBe(true);
+});
+
+describe("comparableSearch with operators", () => {
+  test("keeps the operators when a type moves to the type filter", () => {
+    expect(
+      comparableSearch({
+        ...EMPTY_SEARCH_URL_STATE,
+        q: "type:image design -figma",
+      })
+    ).toEqual({ q: "design -figma", types: ["image"] });
+  });
 });

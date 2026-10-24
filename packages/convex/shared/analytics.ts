@@ -77,6 +77,7 @@ export interface ClientEventCatalog {
   link_pdf_saved: { source: LinkPdfSaveSource };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
+  search_operator_used: { groups: boolean; negation: boolean; or: boolean };
   search_performed: {
     qualifiers?: SearchQualifierKey[];
     zero_result: boolean;

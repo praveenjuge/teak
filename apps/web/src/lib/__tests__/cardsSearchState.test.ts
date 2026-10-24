@@ -280,4 +280,82 @@ describe("search qualifiers in the controller", () => {
     ).toBe(true);
     expect(isSameSearch(terms, "notes")).toBe(false);
   });
+
+  it("keeps operators as pills from a URL and through Enter", () => {
+    const query = "design -tag:old (site:github.com OR site:gitlab.com) -figma";
+    const fromUrl = cardsSearchStateFromQuery(query);
+    expect(fromUrl).toEqual({
+      keywordTags: ["(site:github.com OR site:gitlab.com)", "-figma"],
+      qualifierChips: ["-tag:old"],
+      searchQuery: "design",
+    });
+    const terms = buildCardsSearchTerms({ ...baseState(), ...fromUrl });
+    expect(isSameSearch(terms, query)).toBe(true);
+
+    const entered = applyEnterToCardsSearchState({
+      ...baseState(),
+      searchQuery: query,
+    });
+    expect(entered.qualifierChips).toEqual(["-tag:old"]);
+    expect(entered.keywordTags).toEqual([
+      "(site:github.com OR site:gitlab.com)",
+      "-figma",
+      "design",
+    ]);
+    expect(entered.searchQuery).toBe("");
+    expect(isSameSearch(buildCardsSearchTerms(entered), query)).toBe(true);
+  });
+
+  it("a typed OR joins the pills as one group while typing", () => {
+    const typing = {
+      ...baseState(),
+      keywordTags: ["-figma"],
+      qualifierChips: ["tag:x"],
+      searchQuery: "tag:fonts OR tag:type",
+    };
+    const terms = buildCardsSearchTerms(typing);
+    expect(parseSearchQuery(terms).canonical).toBe(
+      "tag:x -figma (tag:fonts OR tag:type)"
+    );
+    // Enter turns it into the same search.
+    expect(
+      isSameSearch(
+        buildCardsSearchTerms(applyEnterToCardsSearchState(typing)),
+        terms
+      )
+    ).toBe(true);
+    // Without pills, the typed text is the search as written.
+    expect(
+      buildCardsSearchTerms({ ...baseState(), searchQuery: "a OR b" })
+    ).toBe("a OR b");
+  });
+
+  it("a leading OR beside pills searches what Enter keeps", () => {
+    const typing = {
+      ...baseState(),
+      qualifierChips: ["tag:fonts"],
+      searchQuery: "OR tag:type",
+    };
+    const terms = buildCardsSearchTerms(typing);
+    // The pill isn't the OR's left side: Enter keeps both, so both apply.
+    expect(parseSearchQuery(terms).canonical).toBe("tag:fonts tag:type");
+    expect(
+      isSameSearch(
+        buildCardsSearchTerms(applyEnterToCardsSearchState(typing)),
+        terms
+      )
+    ).toBe(true);
+  });
+
+  it("a lone OR group stays one search after Enter", () => {
+    const entered = applyEnterToCardsSearchState({
+      ...baseState(),
+      qualifierChips: ["tag:x"],
+      searchQuery: "tag:fonts OR tag:type",
+    });
+    expect(entered.keywordTags).toEqual(["(tag:fonts OR tag:type)"]);
+    expect(parseSearchQuery(buildCardsSearchTerms(entered)).canonical).toBe(
+      "tag:x (tag:fonts OR tag:type)"
+    );
+  });
 });

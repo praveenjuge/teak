@@ -49,12 +49,13 @@ import {
   apiCardSortValidator,
   isAfterMatchAnchor,
   MAX_QUERY_SCAN,
-  matchesStructuredFilters,
+  matchesStructuredFiltersWithText,
   normalizeCardsQueryOptions,
   normalizeSort,
   normalizeTag,
   priceBoundValidator,
   relevancePage,
+  resolveQueryExpression,
   scanCardsWithBaseQuery,
   searchCardsByQuery,
   searchCardsByTag,
@@ -159,6 +160,7 @@ export const searchCardsPageForUser = internalQuery({
     done: v.optional(v.boolean()),
     todo: v.optional(v.boolean()),
     folderNames: v.optional(v.array(v.string())),
+    expression: v.optional(v.string()),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
@@ -182,7 +184,11 @@ export const searchCardsPageForUser = internalQuery({
       return { items: [], pageInfo: { nextCursor: null, hasMore: false } };
     }
     const options = {
-      ...normalizeCardsQueryOptions({ ...args, folderIds }),
+      ...normalizeCardsQueryOptions({
+        ...args,
+        ...(await resolveQueryExpression(ctx, userId, args.expression)),
+        folderIds,
+      }),
       semantic: semanticOption(args),
       similarity: similarityOption(args),
     };
@@ -276,6 +282,7 @@ export const shuffleCardsPageForUser = internalQuery({
     done: v.optional(v.boolean()),
     todo: v.optional(v.boolean()),
     folderNames: v.optional(v.array(v.string())),
+    expression: v.optional(v.string()),
     archivedInTrash: v.optional(v.boolean()),
     favorited: v.optional(v.boolean()),
     createdAfter: v.optional(v.number()),
@@ -304,7 +311,12 @@ export const shuffleCardsPageForUser = internalQuery({
       return empty;
     }
     const options = {
-      ...normalizeCardsQueryOptions({ ...args, folderIds, sort: "newest" }),
+      ...normalizeCardsQueryOptions({
+        ...args,
+        ...(await resolveQueryExpression(ctx, userId, args.expression)),
+        folderIds,
+        sort: "newest",
+      }),
       semantic: semanticOption(args),
       similarity: similarityOption(args),
     };
@@ -364,7 +376,7 @@ export const shuffleCardsPageForUser = internalQuery({
         if (
           card &&
           card.userId === userId &&
-          matchesStructuredFilters(card, options)
+          (await matchesStructuredFiltersWithText(ctx, card, options))
         ) {
           items.push(card);
         }
@@ -441,8 +453,13 @@ export const shuffleCardsPageForUser = internalQuery({
     } catch {
       throw invalidCursorError();
     }
+    const kept = await Promise.all(
+      result.cards.map((card) =>
+        matchesStructuredFiltersWithText(ctx, card, options)
+      )
+    );
     return respond(
-      result.cards.filter((card) => matchesStructuredFilters(card, options)),
+      result.cards.filter((_card, index) => kept[index]),
       result.next ? { mode: "walk", position: result.next } : null
     );
   },
@@ -473,6 +490,7 @@ export const scanCardsPageForUser = internalQuery({
     done: v.optional(v.boolean()),
     todo: v.optional(v.boolean()),
     folderNames: v.optional(v.array(v.string())),
+    expression: v.optional(v.string()),
     archivedInTrash: v.optional(v.boolean()),
   },
   returns: scannedCardsResultValidator,
@@ -489,6 +507,7 @@ export const scanCardsPageForUser = internalQuery({
     const [firstFolder, ...otherFolders] = folderIds;
     const options = normalizeCardsQueryOptions({
       ...args,
+      ...(await resolveQueryExpression(ctx, userId, args.expression)),
       folderId: args.folderId ?? firstFolder,
       folderIds: args.folderId ? folderIds : otherFolders,
     });

@@ -806,4 +806,145 @@ describe("filterLocalCards hidden cards", () => {
     ]);
     expect(ids({ tag: "Secret" })).toEqual(["flagged"]);
   });
+
+  describe("search operators", () => {
+    const cards = [
+      makeCard({ _id: "design", content: "Design system", tags: ["inspo"] }),
+      makeCard({ _id: "figma", content: "Design in Figma", tags: ["inspo"] }),
+      makeCard({
+        _id: "image",
+        content: "Moodboard",
+        tags: ["inspo"],
+        type: "image",
+      }),
+      makeCard({ _id: "fonts", content: "Inter", tags: ["Fonts"] }),
+      makeCard({ _id: "type", content: "Serif", tags: ["type"] }),
+      makeCard({
+        _id: "github",
+        content: "Repo",
+        type: "link",
+        url: "https://github.com/teak",
+      }),
+      makeCard({
+        _id: "gitlab",
+        content: "Repo",
+        type: "link",
+        url: "https://www.gitlab.com/teak",
+      }),
+      makeCard({
+        _id: "github-archived",
+        content: "Old repo",
+        isArchived: true,
+        type: "link",
+        url: "https://github.com/old",
+      }),
+      makeCard({ _id: "hidden", content: "Diary", tags: ["hidden", "type"] }),
+    ];
+    const ids = (searchTerms: string, filters = {}) =>
+      filterLocalCards(cards, { searchTerms, ...filters })
+        .map((card): string => card._id)
+        .sort();
+
+    it.each([
+      ["design -figma", ["design"]],
+      ["#inspo -type:image", ["design", "figma"]],
+      ["tag:fonts OR tag:type", ["fonts", "type"]],
+      [
+        "(site:github.com OR site:gitlab.com) -is:archived",
+        ["github", "gitlab"],
+      ],
+      ["-tag:hidden diary", []],
+      ["type:image -type:image", []],
+      // Lowercase "or" is a word every card must have.
+      ["inter or serif", []],
+    ] as const)("%s", (query, expected) => {
+      expect(ids(query)).toEqual([...expected].sort());
+    });
+
+    it("a hidden card shows only through the OR branch that names its tag", () => {
+      expect(ids("tag:hidden OR tag:fonts")).toEqual(["fonts", "hidden"]);
+      expect(ids("tag:type OR tag:fonts")).toEqual(["fonts", "type"]);
+      // Its tag alone is not enough: the branch that names it must match.
+      expect(ids("(tag:hidden is:fav) OR tag:type")).toEqual(["type"]);
+    });
+
+    it("is:archived inside an OR reads archived cards too", () => {
+      expect(ids("site:github.com (is:archived OR repo)")).toEqual([
+        "github",
+        "github-archived",
+      ]);
+    });
+
+    it("a cached card without its full text waits for the server on words", () => {
+      const pdf = makeCard({
+        _id: "pdf",
+        content: "Quarterly report",
+        hasExtractedText: true,
+      });
+      const note = makeCard({ _id: "note", content: "Team lunch" });
+      const ids = (searchTerms: string, filters = {}) =>
+        filterLocalCards([pdf, note], { searchTerms, ...filters }).map(
+          (card): string => card._id
+        );
+      expect(ids("-confidential")).toEqual(["note"]);
+      expect(ids("-tag:old")).toEqual(["pdf", "note"]);
+      // A card the server returned for this search keeps its answer.
+      expect(ids("-confidential", { textMatchedByServer: true })).toEqual([
+        "pdf",
+        "note",
+      ]);
+    });
+
+    it("a cached image without its text waits for the server on text:", () => {
+      const scan = {
+        ...makeCard({ _id: "scan", content: "Scanned memo", type: "image" }),
+        hasOcrText: true as const,
+      };
+      const note = makeCard({ _id: "note", content: "Team lunch" });
+      const ids = (searchTerms: string) =>
+        filterLocalCards([scan, note], { searchTerms }).map(
+          (card): string => card._id
+        );
+      expect(ids("-text:confidential")).toEqual(["note"]);
+      expect(ids("-tag:old")).toEqual(["scan", "note"]);
+    });
+
+    it("a card link reads as its title, as on the server", () => {
+      const linked = makeCard({
+        _id: "linked",
+        content: "See [[Plan|teak:abcdefghijklmnop]] first",
+      });
+      const ids = (searchTerms: string) =>
+        filterLocalCards([linked], { searchTerms }).map(
+          (match): string => match._id
+        );
+      expect(ids("-teak")).toEqual(["linked"]);
+      expect(ids("-abcdefghijklmnop")).toEqual(["linked"]);
+      expect(ids("plan OR tag:x")).toEqual(["linked"]);
+      expect(ids("plan")).toEqual(["linked"]);
+    });
+
+    it("a phrase in an expression never spans two fields", () => {
+      const card = makeCard({
+        _id: "split",
+        content: "secret",
+        notes: "project",
+      });
+      const whole = makeCard({ _id: "whole", content: "secret project" });
+      const ids = (searchTerms: string) =>
+        filterLocalCards([card, whole], { searchTerms }).map(
+          (match): string => match._id
+        );
+      expect(ids('"secret project" OR tag:keep')).toEqual(["whole"]);
+      expect(ids('-"secret project"')).toEqual(["split"]);
+    });
+
+    it("a card the server matched keeps its folder answer", () => {
+      expect(ids("-folder:Inbox", { textMatchedByServer: true })).toHaveLength(
+        7
+      );
+      // The cache can't tell, so nothing passes there.
+      expect(ids("-folder:Inbox")).toEqual([]);
+    });
+  });
 });

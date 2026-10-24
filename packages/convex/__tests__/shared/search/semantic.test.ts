@@ -10,6 +10,14 @@ import {
 const text = (query: string) => semanticQueryText(parseSearchQuery(query));
 
 describe("semanticQueryText", () => {
+  test("embeds words from OR groups but never excluded words", () => {
+    expect(text("design -figma")).toBe("design");
+    expect(text('-"brand guide" -tag:old')).toBe("");
+    expect(text("(serif OR mono) fonts -(figma OR sketch)")).toBe(
+      "fonts serif mono"
+    );
+  });
+
   test("keeps the free words and phrases, lowercased", () => {
     expect(text('Cozy   Reading "Window Seat" tag:home')).toBe(
       "cozy reading window seat"

@@ -31,6 +31,7 @@ Client events (`captureEvent`):
 
 - `card_create_submitted` {card_type, source, via}
 - `search_performed` {zero_result, qualifiers?}: `qualifiers` lists the qualifier keys the search used (`text`, `tag`, `price`…), never their values
+- `search_operator_used` {negation, or, groups}: sent with `search_performed` when the search used `-`, `OR` or parentheses. Each flag says whether that operator appeared (`groups` is a parenthesised group the operators' precedence needed)
 - `similar_search_opened` {source}: "More like this" in a card's details
 - `revisit_started` and `revisit_finished` {archived, kept, completed}: a Revisit deck opened, then closed or finished. The counts are cards, 0 to 20; `completed` is true when the deck reached its end screen
 - `card_thumbnail_replaced` {source: `drop`, `paste` or `pick`} and `card_thumbnail_reset`, when someone replaces or resets a link's image in the card dialog

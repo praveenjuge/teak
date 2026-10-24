@@ -5,11 +5,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedWorkosOwner } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { expressionTextReader } from "../card/searchPlanner";
 import {
   patchCardWithSearchSync,
   syncCardSearchDocumentHandler,
 } from "../card/searchSync";
 import schema from "../schema";
+import { parseSearchQuery } from "../shared/search/qualifiers";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -1307,5 +1309,407 @@ describe("text:", () => {
         })
       )
     ).toEqual(["Receipt screenshot", "Video title card"]);
+  });
+});
+
+describe("search operators", () => {
+  const live = {
+    plain: "Plain design system note",
+    example: "Example home",
+    blog: "Blog post about design",
+    notes: "GitHub notes",
+    system: "Design system on GitHub",
+  };
+
+  test("the roadmap examples", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    expect(await search("design -github")).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+    ]);
+    expect(await search("#design -site:github.com")).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+    ]);
+    expect(await search("tag:notes OR tag:writing")).toEqual([
+      live.blog,
+      live.notes,
+    ]);
+    expect(
+      await search("(site:github.com OR site:example.com) -tag:notes")
+    ).toEqual([live.example, live.system]);
+    expect(await search("-design")).toEqual([live.notes]);
+    expect(await search("type:link -type:link")).toEqual([]);
+  });
+
+  test("a tag search reads archived cards an OR asks for", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    expect(await search("tag:design (is:archived OR is:fav)")).toEqual([
+      "Archived GitHub design",
+      live.blog,
+    ]);
+  });
+
+  test("words check a document's text, not only the card's own fields", async () => {
+    const { t, insert, search, runScheduled } = await setup();
+    const pdf = await insert({
+      content: "Quarterly report",
+      tags: ["reports"],
+      hasExtractedText: true,
+    });
+    await insert({ content: "Team lunch menu", tags: ["reports"] });
+    await t.run(async (ctx) => {
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (q) => q.eq("cardId", pdf))
+        .unique();
+      if (!document) {
+        throw new Error("missing search document");
+      }
+      await ctx.db.patch("cardSearchDocuments", document._id, {
+        searchableText: `${document.searchableText}\nStrictly confidential figures`,
+      });
+    });
+    await runScheduled();
+    expect(await search("tag:reports -confidential")).toEqual([
+      "Team lunch menu",
+    ]);
+    expect(await search("-confidential tag:reports")).toEqual([
+      "Team lunch menu",
+    ]);
+    expect(await search("tag:nothing OR confidential")).toEqual([
+      "Quarterly report",
+    ]);
+    const scan = await t.query(internal.publicApi.scanCardsPageForUser, {
+      userId: "owner",
+      scanLimit: 50,
+      expression: "-confidential",
+      tags: ["reports"],
+    });
+    expect(scan.items.map((item: { content: string }) => item.content)).toEqual(
+      ["Team lunch menu"]
+    );
+  });
+
+  test("expression text reads stop at the search's read budget", async () => {
+    const { t, insert } = await setup();
+    const ids: Id<"cards">[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      // A long transcript that moved off the card.
+      ids.push(
+        await insert({
+          content: `Recording ${index}`,
+          aiTranscriptCharCount: 1_000_000,
+        })
+      );
+    }
+    await insert({ content: "Plain note" });
+    const lengths = await t.run(async (ctx) => {
+      for (const id of ids) {
+        const document = await ctx.db
+          .query("cardSearchDocuments")
+          .withIndex("by_cardId", (q) => q.eq("cardId", id))
+          .unique();
+        if (document) {
+          await ctx.db.patch("cardSearchDocuments", document._id, {
+            searchableText: "x".repeat(1_000_000),
+          });
+        }
+      }
+      const read = expressionTextReader(
+        ctx,
+        parseSearchQuery("-confidential").expression
+      );
+      const cards = await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .order("asc")
+        .collect();
+      return Promise.all(
+        cards.map(async (card) => (await read(card))?.length ?? null)
+      );
+    });
+    // Two transcripts fit the 2 MiB budget, even read together; then the
+    // cards' own fields stand in.
+    expect(lengths).toEqual([1_000_000, 1_000_000, null, null, null]);
+    const withoutWords = await t.run(async (ctx) => {
+      const card = await ctx.db.get("cards", ids[0] as Id<"cards">);
+      const read = expressionTextReader(
+        ctx,
+        parseSearchQuery("-tag:old").expression
+      );
+      return card ? ((await read(card)) ?? "not read") : "missing";
+    });
+    expect(withoutWords).toBe("not read");
+  });
+
+  test("short file texts take only their length from the read budget", async () => {
+    const { t, insert } = await setup();
+    for (let index = 0; index < 100; index += 1) {
+      await insert({
+        content: `Scanned page ${index}`,
+        hasExtractedText: true,
+        extractedTextCharCount: 2000,
+      });
+    }
+    const read = await t.run(async (ctx) => {
+      const reader = expressionTextReader(
+        ctx,
+        parseSearchQuery("-confidential").expression
+      );
+      const cards = await ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .collect();
+      const texts = await Promise.all(cards.map((card) => reader(card)));
+      return texts.filter((text) => text !== undefined).length;
+    });
+    // Charged a full 32 KB each, only 64 would fit the 2 MiB budget.
+    expect(read).toBe(100);
+  });
+
+  test("a top-level word stays required beside an OR group", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "alpha and beta" });
+    await insert({ content: "alpha kept", tags: ["keep"] });
+    await insert({ content: "alpha alone" });
+    await insert({ content: "only beta" });
+    expect(await search("alpha (tag:keep OR beta)")).toEqual([
+      "alpha kept",
+      "alpha and beta",
+    ]);
+  });
+
+  test("a quick command beside an exclusion is a search, not a view", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "Fav figma file", isFavorited: true });
+    await insert({ content: "Fav sketch file", isFavorited: true });
+    expect(await search("fav")).toEqual(["Fav sketch file", "Fav figma file"]);
+    expect(await search("fav -figma")).toEqual(["Fav sketch file"]);
+  });
+
+  test("a hyphen inside a word is not an exclusion", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "A to-do list" });
+    await insert({ content: "Groceries" });
+    expect(await search("to-do")).toEqual(["A to-do list"]);
+  });
+
+  test("archive and trash", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    expect(await search("site:github.com (is:archived OR notes)")).toEqual([
+      "Archived GitHub design",
+      live.notes,
+    ]);
+    expect(await search("-is:archived site:github.com")).toEqual([
+      live.notes,
+      live.system,
+    ]);
+    expect(
+      await search("site:github.com -is:archived", { showTrashOnly: true })
+    ).toEqual(["Trashed GitHub design"]);
+  });
+
+  test("hidden cards show only through a branch that names their tag", async () => {
+    const { insert, search } = await setup();
+    await seedLibrary(insert);
+    await insert({ content: "Private design diary", tags: ["hidden", "x"] });
+    expect(await search("-tag:hidden diary")).toEqual([]);
+    expect(await search("-tag:hidden")).not.toContain("Private design diary");
+    expect(await search("tag:hidden OR tag:writing")).toEqual([
+      "Private design diary",
+      live.blog,
+    ]);
+    expect(await search("tag:x OR tag:writing")).toEqual([live.blog]);
+    expect(await search("-(tag:hidden OR x) diary")).toEqual([]);
+  });
+
+  test("a hidden card needs its whole branch to match, not just its tag", async () => {
+    const { t, insert, search } = await setup();
+    await insert({ content: "Hidden plain note", tags: ["hidden", "design"] });
+    await insert({
+      content: "Hidden favorite note",
+      tags: ["hidden"],
+      isFavorited: true,
+    });
+    await insert({ content: "Open design note", tags: ["design"] });
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+    const query = "(tag:hidden is:fav) OR tag:design";
+    expect(await search(query)).toEqual([
+      "Open design note",
+      "Hidden favorite note",
+    ]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          expression: query,
+        })
+      ).sort()
+    ).toEqual(["Hidden favorite note", "Open design note"]);
+  });
+
+  test("folders resolve inside the expression; an unknown one is just false", async () => {
+    const { owner, insert, search } = await setup();
+    await seedLibrary(insert);
+    const work = await owner.mutation(api.folders.createFolder, {
+      name: "Work",
+    });
+    const filed = await insert({ content: "Filed design brief" });
+    await owner.mutation(api.folders.setCardFolders, {
+      cardId: filed,
+      folderIds: [work._id],
+    });
+    expect(await search("folder:work OR tag:writing")).toEqual([
+      "Filed design brief",
+      live.blog,
+    ]);
+    expect(await search("design -folder:WORK")).not.toContain(
+      "Filed design brief"
+    );
+    expect(await search("folder:nope OR tag:writing")).toEqual([live.blog]);
+    expect(await search("tag:notes -folder:nope")).toEqual([live.notes]);
+  });
+
+  test("an exclusion pages through more cards than one batch", async () => {
+    const { insert, search } = await setup();
+    await insert({ content: "oldest keep" });
+    for (let index = 0; index < 230; index += 1) {
+      await insert({ content: `noise ${index}`, tags: ["noise"] });
+    }
+    await insert({ content: "newest keep", tags: ["fonts"] });
+    expect(await search("-tag:noise")).toEqual(["newest keep", "oldest keep"]);
+    expect(await search("tag:fonts OR keep")).toEqual([
+      "newest keep",
+      "oldest keep",
+    ]);
+  });
+
+  test("a split page stops at its end cursor, so the client's split ends", async () => {
+    const { owner, insert, runScheduled } = await setup();
+    for (let index = 0; index < 30; index += 1) {
+      await insert({ content: `kept ${index}` });
+    }
+    await runScheduled();
+    const first = await owner.query(api.cards.searchCardsPaginated, {
+      paginationOpts: { numItems: 5, cursor: null },
+    });
+    expect(first.page).toHaveLength(5);
+    const page = (endCursor?: string) =>
+      owner.query(api.cards.searchCardsPaginated, {
+        searchQuery: "-tag:noise",
+        paginationOpts: { numItems: 2, cursor: null, endCursor },
+      });
+    // Without an end, a filtered scan reads a whole batch.
+    expect((await page()).page).toHaveLength(30);
+    const split = await page(first.continueCursor);
+    expect(split.page.map((card: { content: string }) => card.content)).toEqual(
+      first.page.map((card: { content: string }) => card.content)
+    );
+  });
+
+  test("a smart folder's OR and a typed OR intersect", async () => {
+    const { owner, insert, search } = await setup();
+    await seedLibrary(insert);
+    const folder = await owner.mutation(api.folders.createFolder, {
+      name: "Design or notes",
+      kind: "smart",
+      query: "tag:design OR tag:notes",
+    });
+    expect(folder.query).toBe("tag:design OR tag:notes");
+    expect(await search("", { folderId: folder._id })).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+      live.notes,
+      live.system,
+    ]);
+    expect(
+      await search("site:github.com OR site:example.com", {
+        folderId: folder._id,
+      })
+    ).toEqual([live.example, live.notes, live.system]);
+    expect(await search("-tag:notes", { folderId: folder._id })).toEqual([
+      live.plain,
+      live.example,
+      live.blog,
+      live.system,
+    ]);
+  });
+
+  test("a smart folder checks folders named inside its expression", async () => {
+    const { owner } = await setup();
+    await expect(
+      owner.mutation(api.folders.createFolder, {
+        name: "Broken",
+        kind: "smart",
+        query: "-folder:nope OR x",
+      })
+    ).rejects.toThrow("No folder named nope");
+    const archive = await owner.mutation(api.folders.createFolder, {
+      name: "Not archive",
+      kind: "smart",
+      query: "-archive",
+    });
+    expect(archive.query).toBe("-archive");
+  });
+
+  test("the API's search and scan pages take the expression", async () => {
+    const { t, owner, insert, runScheduled } = await setup();
+    await seedLibrary(insert);
+    const reading = await owner.mutation(api.folders.createFolder, {
+      name: "Reading",
+    });
+    const filed = await insert({ content: "Filed note" });
+    await owner.mutation(api.folders.setCardFolders, {
+      cardId: filed,
+      folderIds: [reading._id],
+    });
+    await runScheduled();
+    const contents = (page: { items: { content: string }[] }) =>
+      page.items.map((item) => item.content);
+    expect(
+      contents(
+        await t.query(internal.publicApi.searchCardsPageForUser, {
+          userId: "owner",
+          searchQuery: "design",
+          expression: "-site:github.com",
+        })
+      )
+    ).toEqual([live.plain, live.example, live.blog]);
+    const scan = (expression: string, args: Record<string, unknown> = {}) =>
+      t
+        .query(internal.publicApi.scanCardsPageForUser, {
+          userId: "owner",
+          scanLimit: 50,
+          expression,
+          ...args,
+        })
+        .then(contents);
+    expect(await scan("-tag:design")).toEqual(["Filed note", live.notes]);
+    expect(await scan("folder:reading OR tag:notes")).toEqual([
+      "Filed note",
+      live.notes,
+    ]);
+    expect(
+      await scan("tag:notes OR is:archived", { archived: "include" })
+    ).toEqual(["Archived GitHub design", live.notes]);
+    expect(
+      contents(
+        await t.query(internal.publicApi.shuffleCardsPageForUser, {
+          userId: "owner",
+          shuffleSeed: 3,
+          limit: 50,
+          expression: "-tag:design -filed",
+        })
+      )
+    ).toEqual([live.notes]);
   });
 });

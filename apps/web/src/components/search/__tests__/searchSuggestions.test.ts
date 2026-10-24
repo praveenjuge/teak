@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildSearchSuggestions,
+  continuesOperator,
   currentSearchToken,
+  describeKeywordChip,
   describeQualifierChip,
   SEARCH_SUGGESTION_GROUP_LIMIT,
 } from "../searchSuggestions";
@@ -197,5 +199,112 @@ describe("describeQualifierChip", () => {
   test("text that is not a qualifier has no chip", () => {
     expect(describeQualifierChip("notes")).toBeNull();
     expect(describeQualifierChip("price:cheap")).toBeNull();
+  });
+});
+
+describe("exclusions and OR", () => {
+  test("a minus offers the filters it can leave out", () => {
+    const result = buildSearchSuggestions("-", sources);
+    expect(result.suggestions.map((s) => s.insert)).toEqual([
+      "-tag:",
+      "-type:",
+      "-site:",
+      "-folder:",
+      "-is:",
+    ]);
+    expect(new Set(result.suggestions.map((s) => s.group))).toEqual(
+      new Set(["Exclude"])
+    );
+    expect(result.suggestions[0]?.detail).toBe("Leave out cards with a tag");
+  });
+
+  test("like: and mood: are never offered after a minus", () => {
+    expect(inserts("-l")).toEqual([]);
+    expect(inserts("-mo")).toEqual([]);
+    expect(inserts("-like:")).toEqual([]);
+  });
+
+  test("values complete as they do without the minus", () => {
+    expect(inserts("-tag:des")).toEqual(["-tag:design", '-tag:"web design"']);
+    expect(inserts("-#dev")).toEqual(["-tag:devops"]);
+    expect(inserts("-is:arch")).toEqual(["-is:archived"]);
+    expect(inserts("-type:ima")).toEqual(["-type:image"]);
+    expect(inserts("-git")).toEqual(["-site:github.com"]);
+    const values = buildSearchSuggestions("-tag:des", sources);
+    expect(values.completingValue).toBe(true);
+    expect(values.suggestions.every((s) => s.complete)).toBe(true);
+  });
+
+  test("a double minus is a plain word", () => {
+    expect(inserts("--")).toEqual([]);
+  });
+
+  test("OR is offered only after a word", () => {
+    expect(inserts("O")).toEqual([]);
+    const afterWord = (token: string) =>
+      buildSearchSuggestions(token, sources, { afterWord: true }).suggestions;
+    expect(afterWord("O")[0]).toMatchObject({
+      detail: "Either side matches",
+      insert: "OR ",
+      label: "OR",
+    });
+    expect(afterWord("or")[0]?.insert).toBe("OR ");
+    expect(afterWord("ora").map((s) => s.insert)).not.toContain("OR ");
+  });
+});
+
+describe("excluded chips", () => {
+  test("an excluded filter reads as its filter, marked excluded", () => {
+    expect(describeQualifierChip("-tag:design")).toMatchObject({
+      excluded: true,
+      label: "design",
+      title: "Tag",
+    });
+    expect(describeQualifierChip("-is:archived")).toMatchObject({
+      excluded: true,
+      label: "Archived",
+    });
+    expect(describeQualifierChip("tag:design")?.excluded).toBeUndefined();
+    expect(describeQualifierChip("-figma")).toBeNull();
+  });
+
+  test("word chips show exclusions and groups", () => {
+    expect(describeKeywordChip("-figma")).toEqual({
+      excluded: true,
+      label: "figma",
+    });
+    expect(describeKeywordChip('-"brand guide"')).toEqual({
+      excluded: true,
+      label: '"brand guide"',
+    });
+    expect(describeKeywordChip("(tag:a OR b)")).toEqual({
+      group: true,
+      label: "tag:a OR b",
+    });
+    expect(describeKeywordChip("design")).toEqual({ label: "design" });
+    expect(describeKeywordChip('"exact words"')).toEqual({
+      label: '"exact words"',
+    });
+  });
+});
+
+describe("continuesOperator", () => {
+  test.each([
+    ["", false],
+    ["notes ", false],
+    ["tag:fonts OR ", true],
+    ["tag:fonts or ", false],
+    ["(design ", true],
+    ["-(design ", true],
+    ["(a OR b) ", false],
+    ['"(quoted" ', false],
+    // A word after `x OR y` joins the y side of the OR.
+    ["x OR y ", true],
+    ["foo OR bar ", true],
+    ["(a OR b) c ", false],
+    ['"x OR y" ', false],
+    ["xOR y ", false],
+  ])("%p", (before: string, expected: boolean) => {
+    expect(continuesOperator(before)).toBe(expected);
   });
 });

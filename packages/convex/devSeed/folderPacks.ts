@@ -30,6 +30,7 @@ export const FOLDER_SCENARIOS = [
   "focus-notes",
   "checklists",
   "note-tables",
+  "search-operators",
   "hidden-mix",
   "revisit-sizes",
   "save-details",

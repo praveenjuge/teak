@@ -16,6 +16,7 @@ import {
   type ShortcutRow,
 } from "../../lib/keyboardShortcuts";
 import { isApplePlatform } from "../../lib/platform";
+import { cn } from "../../lib/utils";
 
 interface KeyboardShortcutsDialogProps {
   onCloseAutoFocus?: (event: Event) => void;
@@ -93,7 +94,12 @@ function ShortcutKeys({ row }: { row: ShortcutRow }) {
               then
             </span>
           )}
-          <Kbd aria-hidden="true">{key}</Kbd>
+          <Kbd
+            aria-hidden="true"
+            className={cn(row.syntax && "font-mono tracking-normal")}
+          >
+            {key}
+          </Kbd>
         </Fragment>
       ))}
     </KbdGroup>
@@ -114,6 +120,9 @@ const KEY_NAMES: Record<string, string> = {
 };
 
 export function shortcutAccessibleLabel(row: ShortcutRow): string {
+  if (row.syntax) {
+    return `Type ${row.keys.join(" ")}`;
+  }
   const names = row.keys.map((key) => KEY_NAMES[key] ?? key);
   if (row.combo) {
     return names.join(" plus ");

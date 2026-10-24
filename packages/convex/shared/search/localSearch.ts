@@ -1,4 +1,5 @@
 import type { Doc } from "../../_generated/dataModel";
+import { cardLinkTokensToText } from "../cardLinks";
 import type { CardType } from "../constants";
 import {
   isColorCardType,
@@ -11,6 +12,14 @@ import { normalizeHexFilters } from "../utils/colorUtils";
 import type { CreatedAtRange } from "../utils/timeSearch";
 import { cardSiteHost } from "../utils/urlHost";
 import { SEARCH_LOCAL_SEARCH_CACHE_LIMIT } from "./constants";
+import {
+  expressionFolderNames,
+  expressionHasWords,
+  expressionReadsImageText,
+  expressionRevealTags,
+  expressionWantsArchived,
+  matchesExpression,
+} from "./expression";
 import {
   matchesDoneState,
   matchesImageText,
@@ -69,7 +78,8 @@ export const tokenizeSearchQuery = (query: string) =>
 
 const searchableParts = (card: Doc<"cards">) =>
   [
-    card.content,
+    // A `[[Title|teak:<id>]]` link reads as its title, as on the server.
+    card.content ? cardLinkTokensToText(card.content) : undefined,
     card.notes,
     card.aiSummary,
     card.aiTranscript,
@@ -91,6 +101,21 @@ export const buildSearchableText = (card: Doc<"cards">) => {
     searchableTextCache.set(card, text);
   }
   return text;
+};
+
+const tagKeysCache = new WeakMap<Doc<"cards">, Set<string>>();
+
+const buildTagKeys = (card: Doc<"cards">) => {
+  let keys = tagKeysCache.get(card);
+  if (keys === undefined) {
+    keys = new Set(
+      [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
+        cardTag.trim().toLowerCase()
+      )
+    );
+    tagKeysCache.set(card, keys);
+  }
+  return keys;
 };
 
 const matchesVisualFilters = (
@@ -160,14 +185,33 @@ export const filterLocalCards = (
     Boolean
   );
   const revealsHidden = isHiddenTagList(tagKeys);
+  const { expression } = parsed;
+  // Hidden cards come only through an OR branch that asks for their tag.
+  const revealTags = revealsHidden ? [] : expressionRevealTags(expression);
   const archivedOnly = showArchivedOnly || parsed.archived;
+  // `is:archived` inside an OR reads archived cards too.
+  const includesArchived = !archivedOnly && expressionWantsArchived(expression);
+  // The client can't tell which folder a name means, so a card the server
+  // matched keeps the server's answer, and a cached card never matches.
+  const expressionUsesFolders = expressionFolderNames(expression).length > 0;
+  const expressionReadsWords = expressionHasWords(expression);
+  const expressionReadsOcr = expressionReadsImageText(expression);
   const normalizedStyles = normalizeVisualStyleFilters(styleFilters);
   const normalizedHues = normalizeHueFilters(hueFilters);
   const normalizedHexes = normalizeHexFilters(hexFilters).normalized;
 
   return cards
     .filter((card) => {
-      if (!revealsHidden && isCardHidden(card)) {
+      const cardTags = buildTagKeys(card);
+      if (
+        isCardHidden(card) &&
+        !(
+          revealsHidden ||
+          revealTags.some((revealTag) =>
+            cardTags.has(revealTag.trim().toLowerCase())
+          )
+        )
+      ) {
         return false;
       }
       if (showTrashOnly) {
@@ -179,7 +223,7 @@ export const filterLocalCards = (
         }
       } else if (
         card.isDeleted ||
-        (card.isArchived === true) !== archivedOnly
+        !(includesArchived || (card.isArchived === true) === archivedOnly)
       ) {
         return false;
       }
@@ -217,22 +261,13 @@ export const filterLocalCards = (
         return false;
       }
 
-      if (tagKeys.length > 0) {
-        const cardTags = new Set(
-          [...(card.tags ?? []), ...(card.aiTags ?? [])].map((cardTag) =>
-            cardTag.trim().toLowerCase()
-          )
-        );
-        if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
-          return false;
-        }
+      if (!tagKeys.every((tagKey) => cardTags.has(tagKey))) {
+        return false;
       }
 
-      if (parsed.sites.length > 0) {
-        const host = cardSiteHost(card);
-        if (!(host && parsed.sites.includes(host))) {
-          return false;
-        }
+      const host = cardSiteHost(card);
+      if (parsed.sites.length > 0 && !(host && parsed.sites.includes(host))) {
+        return false;
       }
 
       if (
@@ -259,19 +294,41 @@ export const filterLocalCards = (
 
       if (
         (textMatchedByServer && lacksMatchedText(card)) ||
-        (terms.length === 0 && parsed.phrases.length === 0)
+        (terms.length === 0 && parsed.phrases.length === 0 && !expression)
       ) {
         return true;
       }
+      // Words or image text in an expression can't be checked against text
+      // the cache doesn't hold, so such a card waits for the server's answer.
+      if (
+        (expressionReadsWords && lacksMatchedText(card)) ||
+        (expressionReadsOcr && lacksOcrText(card))
+      ) {
+        return false;
+      }
 
       const searchableText = buildSearchableText(card);
+      // Fields stay on their own lines, as on the server, so a phrase never
+      // spans two of them.
+      const fieldText = searchableParts(card).join("\n");
       return (
         terms.every((term) => searchableText.includes(term)) &&
         (parsed.phrases.length === 0 ||
-          matchesSearchPhrases(
-            searchableParts(card).join("\n"),
-            parsed.phrases
-          ))
+          matchesSearchPhrases(fieldText, parsed.phrases)) &&
+        (!expression ||
+          (expressionUsesFolders
+            ? textMatchedByServer
+            : matchesExpression(
+                expression,
+                card,
+                fieldText,
+                {
+                  folder: () => false,
+                  hasTag: (tagKey) => cardTags.has(tagKey.trim().toLowerCase()),
+                  host,
+                },
+                isCardHidden(card) && !revealsHidden
+              )))
       );
     })
     .sort((a, b) =>

@@ -192,6 +192,46 @@ describe("like: in the grid", () => {
     ]);
   });
 
+  test("takes operators: an OR of words, and an exclusion in a document's text", async () => {
+    const env = await setup();
+    const cards = await seedNeighbors(env);
+    const like = `like:${cards.anchor}`;
+    expect(
+      await env.grid({ searchQuery: `${like} (stairwell OR facade)` })
+    ).toEqual([cards.image, cards.near]);
+    // "confidential" is only in the far card's extracted document text.
+    await env.t.run(async (ctx) => {
+      await ctx.db.patch("cards", cards.far, { hasExtractedText: true });
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (q) => q.eq("cardId", cards.far))
+        .unique();
+      if (!document) {
+        throw new Error("missing search document");
+      }
+      await ctx.db.patch("cardSearchDocuments", document._id, {
+        searchableText: `${document.searchableText}\nConfidential notes`,
+      });
+    });
+    expect(await env.grid({ searchQuery: `${like} -confidential` })).toEqual([
+      cards.image,
+      cards.near,
+    ]);
+    const page = await env.t.query(internal.publicApi.searchCardsPageForUser, {
+      userId: "owner",
+      limit: 50,
+      similarity: { kind: "like", cardId: cards.anchor },
+      semanticRanking: [
+        { cardId: cards.near, score: 0.7 },
+        { cardId: cards.far, score: 0.1 },
+      ] as { cardId: Id<"cards">; score: number }[],
+      expression: "-confidential",
+    });
+    expect(page.items.map((card: { _id: string }) => card._id)).toEqual([
+      cards.near,
+    ]);
+  });
+
   test("lists nothing for a card in Trash, another user's card, or before the ranking is cached", async () => {
     const env = await setup();
     const cards = await seedNeighbors(env);

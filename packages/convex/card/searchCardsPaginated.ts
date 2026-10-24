@@ -43,7 +43,11 @@ import {
   isCreatedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
-import { expandFolderSearch, resolveSearch } from "./searchPlanner";
+import {
+  expandFolderSearch,
+  expressionTextReader,
+  resolveSearch,
+} from "./searchPlanner";
 import {
   loadSemanticMatches,
   type SearchCandidate,
@@ -174,7 +178,13 @@ export const searchCardsPaginatedHandler = async (
   const searchQuery = resolved.text;
   const folderId = resolved.folderIds[0];
   const tag = resolved.tags[0] ?? "";
-  const matchesQualifiers = (card: Doc<"cards">) => resolved.matches(card);
+  // A word in the expression reads the search document's text for a card
+  // whose own fields leave some of it out (a document's text, a transcript).
+  const readExpressionText = expressionTextReader(ctx, parsed.expression);
+  const keepQualified = async (cards: Doc<"cards">[]) => {
+    const texts = await Promise.all(cards.map(readExpressionText));
+    return cards.filter((card, index) => resolved.matches(card, texts[index]));
+  };
   const paginationOpts = {
     ...rawPaginationOpts,
     numItems: clampPageSize(rawPaginationOpts.numItems),
@@ -218,7 +228,7 @@ export const searchCardsPaginatedHandler = async (
   };
   const shuffleWalkPage = async (
     walk: Omit<ShuffleWalkOptions, "seed" | "userId">,
-    keep?: (cards: Doc<"cards">[]) => Doc<"cards">[]
+    keep?: (cards: Doc<"cards">[]) => Doc<"cards">[] | Promise<Doc<"cards">[]>
   ) => {
     const position = decodeShuffleWalkCursor(seed, paginationOpts.cursor) ?? {
       segment: 0,
@@ -244,7 +254,7 @@ export const searchCardsPaginatedHandler = async (
         maximumRowsRead: filtered ? SHUFFLE_WALK_SCAN_LIMIT : undefined,
       }
     );
-    const cards = keep ? keep(result.cards) : result.cards;
+    const cards = keep ? await keep(result.cards) : result.cards;
     const pageWithUrls = await attachListUrls(ctx, cards);
     return {
       page: applyQuoteFormattingToList(pageWithUrls),
@@ -296,6 +306,7 @@ export const searchCardsPaginatedHandler = async (
         isCreatedAtInRange(card.createdAt, createdAtRange) &&
         doesCardMatchVisualFilters(card, visualFilters),
       text: parsed.text,
+      readText: readExpressionText,
     });
     const ordered = shuffle
       ? shuffleBySeed(similar, seed, (card) => card._id)
@@ -313,7 +324,8 @@ export const searchCardsPaginatedHandler = async (
       folderId ||
       tag ||
       hasSearchQualifiers(parsed) ||
-      parsed.phrases.length > 0
+      parsed.phrases.length > 0 ||
+      parsed.expression
     );
 
     if (
@@ -505,6 +517,7 @@ export const searchCardsPaginatedHandler = async (
             minScore: SEMANTIC_MIN_SCORE,
             keep: matchesFilters,
             withText: resolved.phrases.length > 0,
+            readText: readExpressionText,
           }
         );
         for (const match of semantic) {
@@ -595,6 +608,7 @@ export const searchCardsPaginatedHandler = async (
           minScore: SEMANTIC_MIN_SCORE,
           keep: matchesFilters,
           withText: resolved.phrases.length > 0,
+          readText: readExpressionText,
         }
       );
       for (const match of semantic) {
@@ -653,15 +667,20 @@ export const searchCardsPaginatedHandler = async (
       if (card.isDeleted === true) {
         return false;
       }
+      if (archived === "include") {
+        return true;
+      }
       return archived === "only"
         ? card.isArchived === true
         : card.isArchived !== true;
     };
-    const keepTagMatches = (cards: Doc<"cards">[]) =>
-      applyCardLevelFilters(
-        cards.filter((card) => matchesQualifiers(card) && inView(card)),
-        { types, favoritesOnly, createdAtRange, visualFilters }
-      );
+    const keepTagMatches = async (cards: Doc<"cards">[]) =>
+      applyCardLevelFilters((await keepQualified(cards)).filter(inView), {
+        types,
+        favoritesOnly,
+        createdAtRange,
+        visualFilters,
+      });
     if (shuffle) {
       const rows = await buildTagCardListQuery(ctx, {
         userId: user.teakUserId,
@@ -694,12 +713,15 @@ export const searchCardsPaginatedHandler = async (
       .order(order)
       .paginate({
         cursor: paginationOpts.cursor,
+        // A split page asks for the rows up to its end; without it each
+        // half comes back whole and the client splits it forever.
+        endCursor: paginationOpts.endCursor,
         maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: filtersCards
           ? Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH)
           : paginationOpts.numItems,
       });
-    const matches = keepTagMatches(
+    const matches = await keepTagMatches(
       await loadCards(
         ctx,
         rows.page.map((row) => row.cardId)
@@ -729,7 +751,7 @@ export const searchCardsPaginatedHandler = async (
       ),
       async (pageIds) =>
         applyCardLevelFilters(
-          (await loadCards(ctx, pageIds)).filter(matchesQualifiers),
+          await keepQualified(await loadCards(ctx, pageIds)),
           { types, favoritesOnly, createdAtRange, visualFilters }
         )
     );
@@ -748,15 +770,18 @@ export const searchCardsPaginatedHandler = async (
       .order(order)
       .paginate({
         cursor: paginationOpts.cursor,
+        // A split page asks for the rows up to its end; without it each
+        // half comes back whole and the client splits it forever.
+        endCursor: paginationOpts.endCursor,
         maximumRowsRead: paginationOpts.maximumRowsRead,
         numItems: Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
       });
-    const cards = (
+    const cards = await keepQualified(
       await loadCards(
         ctx,
         rows.page.map((row) => row.cardId)
       )
-    ).filter(matchesQualifiers);
+    );
     const matches = applyCardLevelFilters(cards, {
       types,
       favoritesOnly,
@@ -780,8 +805,8 @@ export const searchCardsPaginatedHandler = async (
       sites.length === 1 && !showTrashOnly && archived !== "include"
         ? sites[0]
         : undefined;
-    const keepMatches = (cards: Doc<"cards">[]) =>
-      applyCardLevelFilters(cards.filter(matchesQualifiers), {
+    const keepMatches = async (cards: Doc<"cards">[]) =>
+      applyCardLevelFilters(await keepQualified(cards), {
         types,
         favoritesOnly,
         createdAtRange,
@@ -802,6 +827,7 @@ export const searchCardsPaginatedHandler = async (
       ? buildHostCardListQuery(ctx, {
           userId: user.teakUserId,
           host,
+          includeHidden,
           scope: archived === "only" ? "archive" : "library",
           createdAt: createdAtBounds,
         })
@@ -809,6 +835,7 @@ export const searchCardsPaginatedHandler = async (
           userId: user.teakUserId,
           scope,
           favoritesOnly,
+          includeHidden,
           types: scanTypes,
           createdAt: createdAtBounds,
         });
@@ -820,12 +847,13 @@ export const searchCardsPaginatedHandler = async (
       !visualFilters.hasVisualFilters;
     const rows = await driver.order(order).paginate({
       cursor: paginationOpts.cursor,
+      endCursor: paginationOpts.endCursor,
       maximumRowsRead: paginationOpts.maximumRowsRead,
       numItems: exact
         ? paginationOpts.numItems
         : Math.max(paginationOpts.numItems, FOLDER_FILTER_SCAN_BATCH),
     });
-    const matches = applyCardLevelFilters(rows.page.filter(matchesQualifiers), {
+    const matches = applyCardLevelFilters(await keepQualified(rows.page), {
       types,
       favoritesOnly,
       createdAtRange,

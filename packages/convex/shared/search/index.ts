@@ -1,4 +1,5 @@
 export * from "./constants";
+export * from "./expression";
 export * from "./localSearch";
 export * from "./qualifiers";
 export * from "./semantic";

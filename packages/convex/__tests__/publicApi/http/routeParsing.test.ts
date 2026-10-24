@@ -48,6 +48,23 @@ describe("parseCardsQueryOptions", () => {
       );
     }
   );
+  test("is:archived inside an OR reads archived cards too", () => {
+    const q = encodeURIComponent("site:github.com (is:archived OR repo)");
+    expect(parseCardsQueryOptions(get(`q=${q}`))).toMatchObject({
+      archived: "include",
+      qualifiers: { expression: "is:archived OR repo" },
+    });
+    // An explicit `archived` holds; the expression runs inside it.
+    expect(
+      parseCardsQueryOptions(get(`q=${q}&archived=exclude`))
+    ).toMatchObject({ archived: "exclude" });
+    expect(parseCardsQueryOptions(get(`q=${q}&archived=only`))).toMatchObject({
+      archived: "only",
+    });
+    expect(
+      parseCardsQueryOptions(get(`q=${encodeURIComponent("-is:archived x")}`))
+    ).toMatchObject({ archived: undefined });
+  });
   test.each([
     "trashed=yes",
     "style=unknown",

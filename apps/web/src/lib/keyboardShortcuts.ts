@@ -6,6 +6,8 @@ export interface ShortcutRow {
   keys: string[];
   label: string;
   sequence?: boolean;
+  /** Text typed in the search box rather than keys pressed. */
+  syntax?: boolean;
 }
 
 export interface ShortcutGroup {
@@ -60,6 +62,20 @@ export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["G", "F"], label: "Favorites", sequence: true },
       { keys: ["G", "A"], label: "Archive", sequence: true },
       { keys: ["G", "T"], label: "Trash", sequence: true },
+    ],
+  },
+  {
+    title: "Search",
+    rows: [
+      { keys: ["-word"], label: "Exclude a word", syntax: true },
+      {
+        keys: ["-tag:x"],
+        label: "Exclude a tag, type, site or folder",
+        syntax: true,
+      },
+      { keys: ["a OR b"], label: "Either one", syntax: true },
+      { keys: ["( … )"], label: "Group", syntax: true },
+      { keys: ['"phrase"'], label: "Exact words", syntax: true },
     ],
   },
   {

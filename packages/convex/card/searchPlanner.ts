@@ -2,6 +2,13 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import type { CardType } from "../schema";
 import {
+  expressionFolderNames,
+  expressionHasWords,
+  expressionRevealTags,
+  expressionWantsArchived,
+  matchesExpression,
+} from "../shared/search/expression";
+import {
   combineSearchQueries,
   matchesDoneState,
   matchesImageText,
@@ -9,9 +16,11 @@ import {
   matchesSearchPhrases,
   type ParsedSearchQuery,
   type PriceBound,
+  type SearchExpression,
 } from "../shared/search/qualifiers";
 import { isCardHidden } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
+import { SEARCH_PREFIX_MAX_BYTES } from "./documentTextFormat";
 import { revealsHidden } from "./hiddenCards";
 import type { ArchivedFilter } from "./listQuery";
 import { buildCardSearchText, normalizeCardSearchTag } from "./searchSync";
@@ -48,7 +57,48 @@ export interface ResolvedSearch {
   types?: CardType[];
 }
 
-const cardHasTag = (card: Doc<"cards">, tag: string) =>
+// Search document text one search may read back for an expression's words.
+const EXPRESSION_TEXT_READ_BUDGET_CHARS = 2 * 1024 * 1024;
+
+/**
+ * Reads the search document's text for a card when an expression checks
+ * words and the card's own fields leave some of its text out (a document's
+ * text, a long transcript). Returns undefined for other cards, and once the
+ * search's budget is spent, so the caller falls back to the card's fields.
+ */
+export const expressionTextReader = (
+  ctx: Pick<QueryCtx, "db">,
+  expression: SearchExpression | undefined
+) => {
+  const readsWords = expressionHasWords(expression);
+  let remaining = EXPRESSION_TEXT_READ_BUDGET_CHARS;
+  return async (card: Doc<"cards">): Promise<string | undefined> => {
+    // What the document holds beyond the card: up to 32 KB of a file's
+    // text, and a transcript that moved off the card. It is reserved before
+    // the read, so reads that run together share the budget.
+    const movedTranscript =
+      card.aiTranscript === undefined ? (card.aiTranscriptCharCount ?? 0) : 0;
+    const fileText =
+      card.hasExtractedText === true
+        ? Math.min(
+            SEARCH_PREFIX_MAX_BYTES,
+            card.extractedTextCharCount ?? SEARCH_PREFIX_MAX_BYTES
+          )
+        : 0;
+    const chars = fileText + movedTranscript;
+    if (!readsWords || chars === 0 || chars > remaining) {
+      return undefined;
+    }
+    remaining -= chars;
+    const document = await ctx.db
+      .query("cardSearchDocuments")
+      .withIndex("by_cardId", (q) => q.eq("cardId", card._id))
+      .unique();
+    return document?.searchableText;
+  };
+};
+
+export const cardHasTag = (card: Doc<"cards">, tag: string) =>
   [...(card.tags ?? []), ...(card.aiTags ?? [])].some(
     (cardTag) => normalizeCardSearchTag(cardTag) === tag
   );
@@ -82,6 +132,26 @@ export const resolveFolderNames = async (
     folderIds.push(found);
   }
   return folderIds;
+};
+
+/**
+ * The folders an expression names, by name key. A name that matches no
+ * manual folder maps to null, so its filter matches nothing without
+ * emptying the whole search.
+ */
+export const resolveExpressionFolders = async (
+  ctx: QueryCtx,
+  userId: string,
+  expression: SearchExpression | undefined
+): Promise<Map<string, Id<"folders"> | null>> => {
+  const folders = new Map<string, Id<"folders"> | null>();
+  for (const name of expressionFolderNames(expression)) {
+    folders.set(
+      name,
+      (await resolveFolderNames(ctx, userId, [name]))?.[0] ?? null
+    );
+  }
+  return folders;
 };
 
 export const expandFolderSearch = async (
@@ -163,9 +233,15 @@ export const resolveSearch = async (
     return null;
   }
 
+  const { expression } = parsed;
   const archivedInTrash = trash && parsed.archived;
-  const archived: ArchivedFilter =
+  let archived: ArchivedFilter =
     !trash && parsed.archived ? "only" : view.archived;
+  // `is:archived` inside an OR or group reads archived cards too, and the
+  // expression decides which of them match.
+  if (archived === "exclude" && expressionWantsArchived(expression)) {
+    archived = "include";
+  }
 
   const folderIds: Id<"folders">[] = [];
   if (view.folderId) {
@@ -189,17 +265,32 @@ export const resolveSearch = async (
     }
   }
 
+  const expressionFolders = await resolveExpressionFolders(
+    ctx,
+    userId,
+    expression
+  );
+
   const tags = Array.from(
     new Set([view.tag ?? "", ...parsed.tags].map(normalizeCardSearchTag))
   ).filter(Boolean);
   const { sites, phrases, prices, ocrTexts } = parsed;
-  const includeHidden = revealsHidden(tags);
+  const revealedByTags = revealsHidden(tags);
+  // Hidden cards come only through an OR branch that asks for their tag.
+  const revealTags = revealedByTags ? [] : expressionRevealTags(expression);
+  const includeHidden = revealedByTags || revealTags.length > 0;
 
   const matches = (card: Doc<"cards">, searchableText?: string) => {
     if (card.userId !== userId) {
       return false;
     }
-    if (!includeHidden && isCardHidden(card)) {
+    if (
+      isCardHidden(card) &&
+      !(
+        revealedByTags ||
+        revealTags.some((revealTag) => cardHasTag(card, revealTag))
+      )
+    ) {
       return false;
     }
     if (archivedInTrash && card.isArchived !== true) {
@@ -235,13 +326,32 @@ export const resolveSearch = async (
     if (!matchesDoneState(card, parsed)) {
       return false;
     }
-    return matchesSearchPhrases(
-      searchableText ?? buildCardSearchText(card),
-      phrases
+    const text = searchableText ?? buildCardSearchText(card);
+    if (!matchesSearchPhrases(text, phrases)) {
+      return false;
+    }
+    return (
+      !expression ||
+      matchesExpression(
+        expression,
+        card,
+        text,
+        {
+          folder: (name) => {
+            const folderId = expressionFolders.get(name);
+            return Boolean(folderId && cardFolders.includes(folderId));
+          },
+          hasTag: (tag) => cardHasTag(card, normalizeCardSearchTag(tag)),
+          host: cardUrlHost(card),
+        },
+        isCardHidden(card) && !revealedByTags
+      )
     );
   };
   const favoritesOnly = Boolean(view.favoritesOnly || parsed.favorite);
   const readsOnlyDocumentFields =
+    !expression &&
+    revealTags.length === 0 &&
     folderIds.length === 0 &&
     tags.length === 0 &&
     prices.length === 0 &&
@@ -263,6 +373,7 @@ export const resolveSearch = async (
     favoritesOnly,
     folderIds,
     hasCardFilters:
+      expression !== undefined ||
       archivedInTrash ||
       folderIds.length > 1 ||
       tags.length > 1 ||

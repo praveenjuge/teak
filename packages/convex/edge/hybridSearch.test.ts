@@ -261,6 +261,53 @@ describe("hybrid search in the grid", () => {
     ]);
   });
 
+  test("exclusions and OR groups filter meaning matches too", async () => {
+    const env = await setup();
+    const cards = await seedLibrary(env);
+    expect(await env.grid({ searchQuery: "reading nook -window" })).toEqual([
+      cards.image,
+      cards.keyword,
+    ]);
+    expect(
+      await env.grid({ searchQuery: "reading nook -window", mode: "semantic" })
+    ).toEqual([cards.image]);
+    expect(
+      await env.grid({ searchQuery: "reading nook (type:image OR is:fav)" })
+    ).toEqual([cards.image]);
+  });
+
+  test("an exclusion reads a meaning match's document text", async () => {
+    const env = await setup();
+    const cards = await seedLibrary(env);
+    const pdf = await env.insert({ content: "Cosy corner plans" });
+    await env.t.run(async (ctx) => {
+      await ctx.db.patch("cards", pdf, { hasExtractedText: true });
+      const document = await ctx.db
+        .query("cardSearchDocuments")
+        .withIndex("by_cardId", (q) => q.eq("cardId", pdf))
+        .unique();
+      if (!document) {
+        throw new Error("missing search document");
+      }
+      await ctx.db.patch("cardSearchDocuments", document._id, {
+        searchableText: `${document.searchableText}\nconfidential floor plan`,
+      });
+    });
+    await env.cache("reading nook", [
+      { id: cards.armchair, score: STRONG },
+      { id: pdf, score: STRONG },
+    ]);
+    expect(
+      await env.grid({ searchQuery: "reading nook", mode: "semantic" })
+    ).toEqual([pdf, cards.armchair]);
+    expect(
+      await env.grid({
+        searchQuery: "reading nook -confidential",
+        mode: "semantic",
+      })
+    ).toEqual([cards.armchair]);
+  });
+
   test("keyword mode gives keyword results and semantic mode meaning ones", async () => {
     const env = await setup();
     const cards = await seedLibrary(env);

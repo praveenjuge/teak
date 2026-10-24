@@ -31,6 +31,7 @@ import { resolveQuickSearchCommand } from "../shared/search/constants";
 import {
   parseSearchQuery,
   renameFolderInSearchQuery,
+  searchExpressionQualifiers,
 } from "../shared/search/qualifiers";
 import {
   deleteFolderCardCounts,
@@ -285,7 +286,8 @@ export const normalizeSmartFolderQuery = async (
   const command =
     parsed.qualifiers.length === 0 &&
     parsed.phrases.length === 0 &&
-    parsed.terms.length === 1
+    parsed.terms.length === 1 &&
+    !parsed.expression
       ? resolveQuickSearchCommand(parsed.terms[0] ?? "")
       : null;
   if (command === "favorites") {
@@ -304,7 +306,10 @@ export const normalizeSmartFolderQuery = async (
   if (invalid) {
     throw new ConvexError({ code: "INVALID_INPUT", message: invalid });
   }
-  for (const qualifier of parsed.qualifiers) {
+  for (const qualifier of [
+    ...parsed.qualifiers,
+    ...searchExpressionQualifiers(parsed.expression),
+  ]) {
     if (qualifier.key !== "folder") {
       continue;
     }

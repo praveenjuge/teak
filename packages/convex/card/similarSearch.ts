@@ -31,16 +31,19 @@ export const loadSimilarCards = async (
     ranking,
     keep,
     text,
+    readText,
   }: {
     userId: string;
     similarity: SearchSimilarity;
     ranking: SemanticRanking;
     keep: (card: Doc<"cards">, searchableText?: string) => boolean;
     text: string;
+    /** Reads a card's search text for a search expression's words. */
+    readText?: (card: Doc<"cards">) => Promise<string | undefined>;
   }
 ): Promise<Doc<"cards">[]> => {
   const words = tokenizeSearchInput(text).map((word) => word.toLowerCase());
-  const readText = movedTranscriptSearchText(ctx);
+  const readTranscript = movedTranscriptSearchText(ctx);
   const minScore = similarity.kind === "mood" ? SEMANTIC_MIN_SCORE : 0;
   const anchorId = similarity.kind === "like" ? similarity.cardId : null;
   const seen = new Set<Id<"cards">>();
@@ -66,7 +69,8 @@ export const loadSimilarCards = async (
       }
       // Words and phrases also match a transcript that moved off the card.
       const searchableText =
-        words.length > 0 ? await readText(card) : undefined;
+        (await readText?.(card)) ??
+        (words.length > 0 ? await readTranscript(card) : undefined);
       return { card, searchableText };
     },
     (_match, loaded) => {

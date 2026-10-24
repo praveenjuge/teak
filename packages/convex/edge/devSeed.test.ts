@@ -26,6 +26,11 @@ import {
   UGLY_FOLDER_NAMES,
 } from "../devSeed/folderPacks";
 import {
+  SEARCH_OPERATOR_ARCHIVED,
+  SEARCH_OPERATOR_COUNTS,
+  SEARCH_OPERATOR_TOTAL,
+} from "../devSeed/searchOperators";
+import {
   ARCHIVE_MIX_SCENARIO_PAGE_SIZE,
   ARCHIVE_MIX_SCENARIO_SIZE,
   archiveMixScenarioCard,
@@ -50,6 +55,7 @@ import {
 } from "../shared/folders";
 import { LINK_CATEGORIES } from "../shared/linkCategories";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../shared/markdown";
+import { filterLocalCards } from "../shared/search/localSearch";
 import { buildRawSelectorMap } from "../workflows/steps/categorization/enrichment";
 import { findFeedUrl } from "../workflows/steps/podcast/resolveEnclosure";
 
@@ -786,6 +792,66 @@ describe("devSeed folder packs", () => {
     expect(long?.content.match(/^- \[ \] /gm)).toHaveLength(
       CHECKLIST_LONG_ITEMS
     );
+  });
+
+  test("search-operators gives each operator its own answer", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(await seedFolders(t, "search-operators")).toMatchObject({
+      status: "seeded",
+      cards: SEARCH_OPERATOR_TOTAL,
+    });
+    expect(await seedFolders(t, "search-operators")).toMatchObject({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const folders = await foldersOf(t);
+    const scope = "tag:scenario-search-operators";
+    expect(
+      folders.filter((folder) => folder.query).map((folder) => folder.query)
+    ).toEqual([
+      `${scope} (tag:fonts OR tag:type)`,
+      `${scope} -is:archived`,
+      `${scope} (site:github.com OR site:gitlab.com)`,
+    ]);
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(cards).toHaveLength(SEARCH_OPERATOR_TOTAL);
+    const count = (query: string) =>
+      filterLocalCards(cards, { searchTerms: `${scope} (${query})` }).length;
+    const counts = SEARCH_OPERATOR_COUNTS;
+    const archived =
+      SEARCH_OPERATOR_ARCHIVED.github + SEARCH_OPERATOR_ARCHIVED.gitlab;
+    const fonts = counts.fonts + counts.fontsCaseVariant + counts.fontsAndType;
+    expect(count("design")).toBe(counts.designNotes + counts.figmaNotes);
+    expect(count("design -figma")).toBe(counts.designNotes);
+    expect(count("#inspo -type:image")).toBe(counts.inspoLinks);
+    expect(count("tag:fonts OR tag:type")).toBe(fonts + counts.type);
+    expect(count("(site:github.com OR site:gitlab.com) -is:archived")).toBe(
+      counts.github + counts.gitlab - archived
+    );
+    expect(count("(site:github.com OR site:gitlab.com) is:archived")).toBe(
+      archived
+    );
+    expect(count("tag:hidden OR tag:fonts")).toBe(fonts + counts.hidden);
+    expect(count("-tag:hidden diary")).toBe(0);
+    expect(count('-"brand guide" guide')).toBe(0);
+    expect(count('text:"total due"')).toBe(counts.receipts);
+    expect(count('"total due" -type:image')).toBe(counts.receiptNotes);
+    // Prices are 20, 40, … 400.
+    expect(count("price:<100 OR price:>300")).toBe(4 + 5);
+    expect(
+      folders
+        .filter((folder) => ["Inbox", "Reading list"].includes(folder.name))
+        .map((folder) => folder.activeCardCount)
+    ).toEqual([
+      counts.inbox + counts.inBoth,
+      counts.readingList + counts.inBoth,
+    ]);
   });
 
   test("note-tables seeds its notes once, within the Markdown limit", async () => {
