@@ -1,11 +1,16 @@
 import { api } from "@teak/convex";
-import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import type { Id } from "@teak/convex/_generated/dataModel";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
+import {
+  LINK_PASTE_ACTIVE_CODE,
+  LINK_PASTE_LIMIT,
+  LINK_PASTE_MAX_INPUT,
+} from "@teak/convex/shared/constants";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
@@ -16,7 +21,7 @@ import { useServerErrors } from "@/hooks/useServerErrors";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
-import { addCardToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
+import { addCaptureToSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import { useQuery } from "../../lib/convexQueryHooks";
 import {
   ariaKeyShortcut,
@@ -30,10 +35,12 @@ import {
   ShortcutTooltip,
 } from "../shortcuts/ShortcutTooltip";
 import {
+  extractLinkList,
   noteCaptureSavedMessage,
   prepareNoteCapture,
 } from "../text-editor/noteCapture";
 import { useFocusMode } from "../text-editor/useFocusMode";
+import { linkPasteToast } from "./linkPasteToast";
 
 function getCardErrorCode(err: unknown): string | null {
   if (!err || typeof err !== "object") {
@@ -76,6 +83,85 @@ function isRateLimitError(err: unknown): boolean {
   return getCardErrorCode(err) === CARD_ERROR_CODES.RATE_LIMITED;
 }
 
+function isPasteActiveError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { data?: { code?: unknown } }).data?.code === LINK_PASTE_ACTIVE_CODE
+  );
+}
+
+interface PasteJob {
+  /** Lines the composer never sent, past the most one paste may send. */
+  extraOmitted: number;
+  jobId: Id<"linkPasteJobs">;
+  toastId: string | number;
+}
+
+/**
+ * Keeps a pasted list's toast up to date while the server saves the links,
+ * then swaps it for how the job ended. Renders nothing.
+ */
+function LinkPasteProgressToast({
+  job,
+  onFinished,
+  onUpgrade,
+}: {
+  job: PasteJob;
+  onFinished: (jobId: Id<"linkPasteJobs">) => void;
+  onUpgrade: () => void;
+}) {
+  const t = useTranslations("forms.pasteLinks");
+  const tLimits = useTranslations("forms.limits");
+  const progress = useQuery(api.card.pasteLinks.getLinkPaste, {
+    jobId: job.jobId,
+  });
+  const finishedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (progress === undefined || finishedRef.current) {
+      return;
+    }
+    if (progress === null) {
+      finishedRef.current = true;
+      toast.dismiss(job.toastId);
+      onFinished(job.jobId);
+      return;
+    }
+    const { kind, message } = linkPasteToast(progress, job.extraOmitted, t);
+    if (kind === "loading") {
+      toast.loading(message, { id: job.toastId });
+      return;
+    }
+    if (kind === "success") {
+      toast.success(message, { id: job.toastId });
+    } else if (kind === "limit") {
+      toast.error(message, {
+        ...MANUAL_CLOSE_TOAST_OPTIONS,
+        action: { label: tLimits("upgrade"), onClick: onUpgrade },
+        id: job.toastId,
+      });
+    } else {
+      toast.error(message, { id: job.toastId });
+    }
+    finishedRef.current = true;
+    onFinished(job.jobId);
+  }, [job, onFinished, onUpgrade, progress, t, tLimits]);
+
+  // A composer that goes away mid-job leaves no spinner behind; the job
+  // carries on, and its cards still arrive.
+  useEffect(
+    () => () => {
+      if (!finishedRef.current) {
+        toast.dismiss(job.toastId);
+      }
+    },
+    [job.toastId]
+  );
+
+  return null;
+}
+
 export interface AddCardFormProps {
   autoFocus?: boolean;
   canCreateCard?: boolean;
@@ -105,6 +191,7 @@ export function AddCardForm({
 }: AddCardFormProps) {
   const t = useTranslations("forms.addCard");
   const tLimits = useTranslations("forms.limits");
+  const tPaste = useTranslations("forms.pasteLinks");
   const tEditor = useTranslations("textEditor");
   const tc = useTranslations("common");
   const errors = useServerErrors();
@@ -139,6 +226,17 @@ export function AddCardForm({
   const inlinePlaceholderText = basePlaceholderText;
   const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
+  // A draft that is only links, one per line, saves one link card each.
+  const linkList = useMemo(() => extractLinkList(content), [content]);
+  // Links already in Teak only move, so a list stays savable at the limit;
+  // the job stops at the first new link past it.
+  const canSubmit = canCreateCard || linkList !== null;
+  let saveLabel = tc("save");
+  if (linkList && linkList.length > LINK_PASTE_LIMIT) {
+    saveLabel = t("saveFirstLinks", { count: LINK_PASTE_LIMIT });
+  } else if (linkList) {
+    saveLabel = t("saveLinks", { count: linkList.length });
+  }
   const cardLinks = useCardLinkEditor({ onOpenCard, value: content });
   const hasShownBlockedToastRef = useRef<boolean>(false);
 
@@ -179,27 +277,33 @@ export function AddCardForm({
     hasShownBlockedToastRef.current = false;
   }, [cardCreationStatus?.canCreateCard, showUpgradeToast]);
 
-  const createCard = useMutation(api.cards.createCard).withOptimisticUpdate(
-    (localStore, args) => {
-      const now = Date.now();
-      const submittedContent = args.content ?? "";
-
-      const optimisticCard: Doc<"cards"> = {
-        _id: crypto.randomUUID() as Id<"cards">,
-        _creationTime: now,
-        userId: "",
-        content: submittedContent,
-        type: "text",
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      addCardToSearchQueries(localStore, optimisticCard);
-    }
-  );
+  const createCard = useMutation(
+    api.cards.createCardWithOutcome
+  ).withOptimisticUpdate((localStore, args) => {
+    addCaptureToSearchQueries(localStore, {
+      content: args.content ?? "",
+      id: crypto.randomUUID() as Id<"cards">,
+      now: Date.now(),
+    });
+  });
+  const startLinkPaste = useMutation(api.card.pasteLinks.startLinkPaste);
+  const [pasteJob, setPasteJob] = useState<PasteJob | null>(null);
+  const finishPasteJob = useCallback((jobId: Id<"linkPasteJobs">) => {
+    setPasteJob((current) => (current?.jobId === jobId ? null : current));
+  }, []);
 
   const resetDraft = () => {
     setContent("");
+  };
+
+  // A failed save puts the draft back, ahead of anything typed since.
+  const restoreDraft = (submittedContent: string) => {
+    const newerDraft = latestContentRef.current;
+    setContent(
+      newerDraft.trim()
+        ? `${submittedContent}\n\n${newerDraft}`
+        : submittedContent
+    );
   };
 
   // The draft is cleared as a note is sent, so until the server has it,
@@ -207,9 +311,57 @@ export function AddCardForm({
   const [savingNotes, setSavingNotes] = useState(0);
   useWarnBeforeUnload(savingNotes > 0);
 
+  const submitLinkList = async (
+    submittedContent: string,
+    links: string[]
+  ): Promise<boolean> => {
+    resetDraft();
+    const urls = links.slice(0, LINK_PASTE_MAX_INPUT);
+    const toastId = toast.loading(
+      tPaste("progress", {
+        done: 0,
+        total: Math.min(links.length, LINK_PASTE_LIMIT),
+      })
+    );
+    captureEvent("card_create_submitted", {
+      card_type: "link",
+      source: "web",
+      via: "link_paste",
+    });
+
+    setSavingNotes((count) => count + 1);
+    try {
+      const { jobId } = await startLinkPaste({ urls });
+      onSuccess?.();
+      setPasteJob({
+        extraOmitted: links.length - urls.length,
+        jobId,
+        toastId,
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to start saving links:", error);
+      restoreDraft(submittedContent);
+      toast.error(
+        isPasteActiveError(error) ? tPaste("active") : tPaste("failed"),
+        { id: toastId }
+      );
+      return false;
+    } finally {
+      setSavingNotes((count) => count - 1);
+    }
+  };
+
   const submitTextCard = async (): Promise<boolean> => {
     const submittedContent = latestContentRef.current;
-    if (!(submittedContent.trim() && canCreateCard)) {
+    if (!submittedContent.trim()) {
+      return false;
+    }
+    const links = extractLinkList(submittedContent);
+    if (links) {
+      return await submitLinkList(submittedContent, links);
+    }
+    if (!canCreateCard) {
       return false;
     }
 
@@ -225,20 +377,32 @@ export function AddCardForm({
     setSavingNotes((count) => count + 1);
     try {
       const capture = prepareNoteCapture(submittedContent);
-      await createCard({ ...capture, source: "web" });
+      const saved = await createCard({ ...capture, source: "web" });
 
       onSuccess?.();
-      toast.success(noteCaptureSavedMessage(capture, tEditor), { id: toastId });
+      if (saved.outcome === "resaved") {
+        toast.success(
+          saved.wasArchived ? t("resavedFromArchive") : t("resaved"),
+          {
+            id: toastId,
+            ...(onOpenCard && {
+              action: {
+                label: t("open"),
+                onClick: () => onOpenCard(saved.cardId),
+              },
+            }),
+          }
+        );
+      } else {
+        toast.success(noteCaptureSavedMessage(capture, tEditor), {
+          id: toastId,
+        });
+      }
       return true;
     } catch (error) {
       console.error("Failed to create card:", error);
 
-      const newerDraft = latestContentRef.current;
-      setContent(
-        newerDraft.trim()
-          ? `${submittedContent}\n\n${newerDraft}`
-          : submittedContent
-      );
+      restoreDraft(submittedContent);
 
       const errorMessage = errors.message(
         error,
@@ -272,8 +436,16 @@ export function AddCardForm({
 
   return (
     <>
+      {pasteJob !== null && (
+        <LinkPasteProgressToast
+          job={pasteJob}
+          key={pasteJob.jobId}
+          onFinished={finishPasteJob}
+          onUpgrade={handleUpgrade}
+        />
+      )}
       <FocusEditor
-        canSave={Boolean(content.trim() && canCreateCard)}
+        canSave={Boolean(content.trim() && canSubmit)}
         cardLinks={cardLinks}
         disabled={!canCreateCard}
         onChange={setContent}
@@ -281,6 +453,7 @@ export function AddCardForm({
         onSave={handleFocusSave}
         open={isFocusOpen}
         placeholder={focusPlaceholderText}
+        saveLabel={saveLabel}
         title={t("focus")}
         value={content}
       />
@@ -322,7 +495,7 @@ export function AddCardForm({
               }}
               onPasteFiles={globalFileDrop?.enqueueFiles}
               onSaveShortcut={() => {
-                if (hasContent && canCreateCard) {
+                if (hasContent && canSubmit) {
                   void submitTextCard();
                 }
               }}
@@ -350,11 +523,11 @@ export function AddCardForm({
                   </ShortcutTooltip>
                   <Button
                     aria-keyshortcuts={ariaKeyShortcut(SAVE_NOTE_KEYS)}
-                    disabled={!canCreateCard}
+                    disabled={!canSubmit}
                     size="sm"
                     type="submit"
                   >
-                    {tc("save")}
+                    {saveLabel}
                     <ShortcutKeys
                       className={PRIMARY_BUTTON_KEYS_CLASS}
                       keys={SAVE_NOTE_KEYS}

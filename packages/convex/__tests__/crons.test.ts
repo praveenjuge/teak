@@ -7,6 +7,7 @@ import crons from "../crons";
 const EXPECTED_SCHEDULES: Record<string, string> = {
   "workos-event-catch-up": "15 * * * *",
   "workflow-dispatch-watchdog": "35 * * * *",
+  "cleanup-finished-link-pastes": "25 3 * * *",
 };
 
 const WORKER_DIR = join(import.meta.dir, "../../../apps/files-worker");
@@ -25,7 +26,7 @@ const triggerCrons = (path: string): string[] =>
 describe("crons.ts", () => {
   test("names every scheduled job once", () => {
     const slugs = Object.values(CRONS).map(({ name }) => name);
-    expect(slugs).toHaveLength(15);
+    expect(slugs).toHaveLength(16);
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 

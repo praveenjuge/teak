@@ -954,7 +954,19 @@
       "placeholder": "Escriba una nota…",
       "upgradePlaceholder": "Pásese a Pro para añadir más tarjetas…",
       "saveFailed": "No se pudo guardar la nota",
-      "focus": "Concentración"
+      "focus": "Concentración",
+      "resaved": "Ya está en Teak · Se movió al principio",
+      "resavedFromArchive": "Ya está en Teak · Se sacó del Archivo",
+      "open": "Abrir",
+      "saveLinks": "Guardar {count, plural, one {# enlace} other {# enlaces}}",
+      "saveFirstLinks": "Guardar los primeros {count, plural, one {# enlace} other {# enlaces}}"
+    },
+    "pasteLinks": {
+      "progress": "Guardando enlaces · {done} de {total}",
+      "saved": "{created, plural, one {Se guardó # enlace} other {Se guardaron # enlaces}}{resaved, plural, =0 {} one { · # ya estaba en Teak y se movió al principio} other { · # ya estaban en Teak y se movieron al principio}}{failed, plural, =0 {} one { · # no se pudo guardar} other { · # no se pudieron guardar}}{omitted, plural, =0 {} one { · # quedó fuera ({limit} cada vez)} other { · # quedaron fuera ({limit} cada vez)}}",
+      "stoppedAtLimit": "Se guardaron {saved} de {total, plural, one {# enlace} other {# enlaces}} · Alcanzó el límite de {limit} tarjetas",
+      "failed": "No se pudieron guardar los enlaces. Inténtelo de nuevo.",
+      "active": "Todavía se están guardando sus últimos enlaces. Inténtelo de nuevo en un momento."
     },
     "addCardActions": {
       "new": "Nuevo",

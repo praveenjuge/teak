@@ -18,6 +18,14 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "convex",
   },
+  // Pasted link jobs a week after they finish (card/pasteLinks.ts). Daily
+  // and small, so it stays on Convex beside the job itself.
+  cleanupFinishedLinkPastes: {
+    name: "cleanup-finished-link-pastes",
+    schedule: "25 3 * * *",
+    everyMs: DAY_MS,
+    runsOn: "convex",
+  },
   // The Files Worker runs the hourly cleanups with the workflow reconcile.
   cleanupExpiredIdempotency: {
     name: "cleanup-expired-idempotency",

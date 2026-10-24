@@ -54,6 +54,7 @@ import type * as card_markdown from "../card/markdown.js";
 import type * as card_mobileCardSummaries from "../card/mobileCardSummaries.js";
 import type * as card_onboarding_processed from "../card/onboarding/processed.js";
 import type * as card_onboardingFiles from "../card/onboardingFiles.js";
+import type * as card_pasteLinks from "../card/pasteLinks.js";
 import type * as card_processingLifecycle from "../card/processingLifecycle.js";
 import type * as card_processingRpc from "../card/processingRpc.js";
 import type * as card_processingStatus from "../card/processingStatus.js";
@@ -394,6 +395,7 @@ declare const fullApi: ApiFromModules<{
   "card/mobileCardSummaries": typeof card_mobileCardSummaries;
   "card/onboarding/processed": typeof card_onboarding_processed;
   "card/onboardingFiles": typeof card_onboardingFiles;
+  "card/pasteLinks": typeof card_pasteLinks;
   "card/processingLifecycle": typeof card_processingLifecycle;
   "card/processingRpc": typeof card_processingRpc;
   "card/processingStatus": typeof card_processingStatus;
