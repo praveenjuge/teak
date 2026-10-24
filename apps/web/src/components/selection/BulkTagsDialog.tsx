@@ -1,4 +1,5 @@
 import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { cardCountLabel } from "../../lib/bulkCardActions";
 
 const MAX_TAGS = 20;
 
@@ -44,6 +44,8 @@ export function BulkTagsDialog({
   selectedCount,
   suggestions = [],
 }: BulkTagsDialogProps) {
+  const t = useTranslations("selection.tagsDialog");
+  const tc = useTranslations("common");
   const inputId = useId();
   const [input, setInput] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -59,9 +61,9 @@ export function BulkTagsDialog({
   const tooLong = tags.find((tag) => tag.length > MAX_TAG_NAME_LENGTH);
   let problem: string | null = null;
   if (tooLong) {
-    problem = `Tags can be at most ${MAX_TAG_NAME_LENGTH} characters.`;
+    problem = t("tagTooLong", { max: MAX_TAG_NAME_LENGTH });
   } else if (tags.length > MAX_TAGS) {
-    problem = `Choose at most ${MAX_TAGS} tags at a time.`;
+    problem = t("tooManyTags", { max: MAX_TAGS });
   }
   const canSubmit = tags.length > 0 && !problem;
 
@@ -81,19 +83,18 @@ export function BulkTagsDialog({
     );
 
   const isAdd = mode === "add";
-  const cards = cardCountLabel(selectedCount);
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isAdd ? `Add tags to ${cards}` : `Remove tags from ${cards}`}
+            {isAdd
+              ? t("addTitle", { count: selectedCount })
+              : t("removeTitle", { count: selectedCount })}
           </DialogTitle>
           <DialogDescription>
-            {isAdd
-              ? "Separate tags with commas."
-              : "Choose tags below or type them, separated by commas."}
+            {isAdd ? t("addDescription") : t("removeDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -124,13 +125,13 @@ export function BulkTagsDialog({
           )}
           <div className="space-y-2">
             <label className="sr-only" htmlFor={inputId}>
-              Tags
+              {t("label")}
             </label>
             <Input
               autoFocus
               id={inputId}
               onChange={(event) => setInput(event.target.value)}
-              placeholder={isAdd ? "design, inspiration" : "Tag names"}
+              placeholder={isAdd ? t("addPlaceholder") : t("removePlaceholder")}
               value={input}
             />
             {problem ? (
@@ -145,10 +146,10 @@ export function BulkTagsDialog({
               type="button"
               variant="outline"
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button disabled={!canSubmit} type="submit">
-              {isAdd ? "Add tags" : "Remove tags"}
+              {isAdd ? t("addSubmit") : t("removeSubmit")}
             </Button>
           </DialogFooter>
         </form>

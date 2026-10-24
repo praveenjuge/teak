@@ -1,3 +1,9 @@
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import type { NodeViewProps } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import { Unlink } from "lucide-react";
@@ -15,7 +21,13 @@ interface CardLinkView {
 
 export const CardLinkViewContext = createContext<CardLinkView>({});
 
-export const MISSING_CARD_LABEL = "Missing card";
+const englishCardLink = createTeakTranslator(
+  "en",
+  englishMessages,
+  "textEditor.cardLink"
+);
+
+export const MISSING_CARD_LABEL = englishCardLink("missing");
 
 const PILL_CLASS =
   "mx-px inline-flex max-w-[min(40ch,100%)] items-center gap-1 rounded-full border px-2 align-baseline font-medium text-[0.9em] leading-normal no-underline transition-colors";
@@ -27,26 +39,29 @@ const MISSING_PILL_CLASS = "cursor-default border-dashed text-muted-foreground";
 export function cardLinkPillState(
   cardId: string,
   storedTitle: string,
-  targets?: ReadonlyMap<string, CardLinkTarget>
+  targets?: ReadonlyMap<string, CardLinkTarget>,
+  t: TeakTranslator<"textEditor.cardLink"> = englishCardLink
 ) {
   const target = targets?.get(cardId);
   if (target?.missing) {
-    return { missing: true, title: MISSING_CARD_LABEL, type: undefined };
+    return { missing: true, title: t("missing"), type: undefined };
   }
   return {
     missing: false,
-    title: target?.title || storedTitle || "Card",
+    title: target?.title || storedTitle || t("fallbackTitle"),
     type: target?.type ?? undefined,
   };
 }
 
 function CardLinkPill({ node, selected }: NodeViewProps) {
+  const t = useTranslations("textEditor.cardLink");
   const { onOpenCard, targets } = useContext(CardLinkViewContext);
   const cardId = String(node.attrs.cardId);
   const { missing, title, type } = cardLinkPillState(
     cardId,
     String(node.attrs.title),
-    targets
+    targets,
+    t
   );
   const Icon = missing ? Unlink : getCardTypeIconComponent(type);
   const canOpen = !missing && Boolean(onOpenCard);
@@ -87,9 +102,7 @@ function CardLinkPill({ node, selected }: NodeViewProps) {
             missing ? MISSING_PILL_CLASS : OPEN_PILL_CLASS
           )}
           contentEditable={false}
-          title={
-            missing ? "This card is in Trash, deleted or not yours" : title
-          }
+          title={missing ? t("missingHint") : title}
         >
           {label}
         </span>

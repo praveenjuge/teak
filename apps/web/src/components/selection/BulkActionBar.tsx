@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import {
   Archive,
   ArchiveRestore,
@@ -24,7 +25,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type BulkCardAction, cardCountLabel } from "../../lib/bulkCardActions";
+import type { BulkCardAction } from "../../lib/bulkCardActions";
 import { selectionShortcut } from "../../lib/gridKeys";
 import type { MenuShortcut } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -51,11 +52,19 @@ interface BulkActionBarProps {
 
 const PRIMARY: Record<
   BulkBarView,
-  { action: BulkCardAction; icon: typeof Archive; label: string }
+  {
+    action: BulkCardAction;
+    icon: typeof Archive;
+    labelKey: "archive" | "unarchive" | "restore";
+  }
 > = {
-  library: { action: "archive", icon: Archive, label: "Archive" },
-  archive: { action: "unarchive", icon: ArchiveRestore, label: "Unarchive" },
-  trash: { action: "restore", icon: RotateCcw, label: "Restore" },
+  library: { action: "archive", icon: Archive, labelKey: "archive" },
+  archive: {
+    action: "unarchive",
+    icon: ArchiveRestore,
+    labelKey: "unarchive",
+  },
+  trash: { action: "restore", icon: RotateCcw, labelKey: "restore" },
 };
 
 export function BulkActionBar({
@@ -68,13 +77,15 @@ export function BulkActionBar({
   view = "library",
   isBusy = false,
 }: BulkActionBarProps) {
+  const t = useTranslations("selection.bar");
+  const tc = useTranslations("common");
   const primary = addToFolder
     ? {
         action: "addToFolder" as const,
         icon: FolderPlus,
-        label: `Add to ${addToFolder.name}`,
+        label: t("addToNamedFolder", { folder: addToFolder.name }),
       }
-    : PRIMARY[view];
+    : { ...PRIMARY[view], label: t(PRIMARY[view].labelKey) };
   const PrimaryIcon = primary.icon;
   const disabled = selectedCount === 0 || isBusy;
   const shortcutFor = (action: BulkBarAction) =>
@@ -107,8 +118,8 @@ export function BulkActionBar({
           className="mr-auto truncate font-medium text-sm tabular-nums"
         >
           {addToFolder && selectedCount === 0
-            ? "Choose cards to add"
-            : `${cardCountLabel(selectedCount)} selected`}
+            ? t("chooseCards")
+            : t("selectedCount", { count: selectedCount })}
         </span>
         {primaryKeys ? (
           <ShortcutTooltip keys={primaryKeys} label={primary.label}>
@@ -121,13 +132,13 @@ export function BulkActionBar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                aria-label="More actions"
+                aria-label={t("moreActions")}
                 disabled={disabled}
                 size="sm"
                 variant="outline"
               >
                 <MoreHorizontal />
-                <span className="max-sm:sr-only">More</span>
+                <span className="max-sm:sr-only">{tc("more")}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
@@ -137,7 +148,7 @@ export function BulkActionBar({
                 shortcut={shortcutFor("favorite")}
               >
                 <Heart />
-                Add to favorites
+                {t("favorite")}
               </BarMenuItem>
               <BarMenuItem
                 action="unfavorite"
@@ -145,7 +156,7 @@ export function BulkActionBar({
                 shortcut={shortcutFor("unfavorite")}
               >
                 <HeartOff />
-                Remove from favorites
+                {t("unfavorite")}
               </BarMenuItem>
               <DropdownMenuSeparator />
               <BarMenuItem
@@ -154,29 +165,31 @@ export function BulkActionBar({
                 shortcut={shortcutFor("addTags")}
               >
                 <Tag />
-                Add tags…
+                {t("addTags")}
               </BarMenuItem>
               <DropdownMenuItem onSelect={() => onAction("removeTags")}>
                 <Tags />
-                Remove tags…
+                {t("removeTags")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onAction("copyLinks")}>
                 <LinkIcon />
-                Copy links
+                {t("copyLinks")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => onAction("addToFolder")}>
                 <FolderPlus />
-                Add to folder…
+                {t("addToFolder")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onAction("moveToFolder")}>
                 <FolderInput />
-                Move to folder…
+                {t("moveToFolder")}
               </DropdownMenuItem>
               {folder ? (
                 <DropdownMenuItem onSelect={() => onAction("removeFromFolder")}>
                   <FolderMinus />
-                  <span className="truncate">Remove from {folder.name}</span>
+                  <span className="truncate">
+                    {t("removeFromFolder", { folder: folder.name })}
+                  </span>
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuSeparator />
@@ -187,15 +200,15 @@ export function BulkActionBar({
                 variant="destructive"
               >
                 <Trash2 />
-                Move to Trash
+                {t("moveToTrash")}
               </BarMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <ShortcutTooltip keys={["Esc"]} label="Cancel selection">
+        <ShortcutTooltip keys={["Esc"]} label={t("cancelSelection")}>
           <Button
             aria-keyshortcuts="Escape"
-            aria-label="Cancel selection"
+            aria-label={t("cancelSelection")}
             className="size-8"
             onClick={onCancel}
             size="icon"

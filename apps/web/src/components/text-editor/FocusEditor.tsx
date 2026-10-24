@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import {
   type RefObject,
   useCallback,
@@ -39,9 +40,8 @@ export function editorPopupOwnsEscape(
   active: Element | null
 ): boolean {
   return (
-    dialog.querySelector(
-      "[role='listbox'][aria-label='Formatting commands'], [role='listbox'][aria-label='Link a card']"
-    ) !== null || Boolean(active?.closest(".teak-editor-formatting"))
+    dialog.querySelector("[role='listbox'][data-editor-popup]") !== null ||
+    Boolean(active?.closest(".teak-editor-formatting"))
   );
 }
 
@@ -72,10 +72,12 @@ export function FocusEditor({
   onSave,
   open,
   placeholder,
-  saveLabel = "Save",
+  saveLabel,
   title,
   value,
 }: FocusEditorProps) {
+  const t = useTranslations("textEditor");
+  const tc = useTranslations("common");
   const [isTyping, setIsTyping] = useState(false);
   const [wordCount, setWordCount] = useState(0);
   const [isCountShown, setIsCountShown] = useState(false);
@@ -161,7 +163,7 @@ export function FocusEditor({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">
-          Focus mode: only the note is on screen. Press Escape to leave.
+          {t("focus.description")}
         </DialogDescription>
 
         <div className="relative flex h-dvh w-full flex-col">
@@ -180,7 +182,7 @@ export function FocusEditor({
               type="button"
               variant="ghost"
             >
-              Close
+              {tc("close")}
               <ShortcutKeys className="max-sm:hidden" keys={["Esc"]} />
             </Button>
             <Button
@@ -190,7 +192,7 @@ export function FocusEditor({
               size="sm"
               type="button"
             >
-              {saveLabel}
+              {saveLabel ?? tc("save")}
               <ShortcutKeys
                 className={PRIMARY_BUTTON_KEYS_CLASS}
                 keys={SAVE_NOTE_KEYS}
@@ -199,16 +201,14 @@ export function FocusEditor({
           </div>
 
           <MarkdownTextEditor
-            ariaLabel="Markdown content"
+            ariaLabel={t("note.contentLabel")}
             autoFocus
             cardLinks={cardLinks}
             className="mx-auto h-full w-full max-w-3xl overflow-y-auto px-4 pt-14 pb-16 sm:px-6"
             disabled={disabled}
             minHeight="60vh"
             onChange={handleChange}
-            onLimitExceeded={() =>
-              toast.error("Notes can be up to 512 KiB of UTF-8 text")
-            }
+            onLimitExceeded={() => toast.error(t("note.tooLarge"))}
             onOpenFullScreen={onRequestClose}
             onSaveShortcut={saveIfAllowed}
             placeholder={placeholder}
@@ -223,7 +223,7 @@ export function FocusEditor({
             )}
             data-word-count={isCountShown ? "shown" : "hidden"}
           >
-            {formatWordCount(wordCount)}
+            {formatWordCount(wordCount, t)}
           </output>
         </div>
       </DialogContent>

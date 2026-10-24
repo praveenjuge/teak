@@ -4,6 +4,7 @@ import {
   MARKDOWN_CONTENT_MAX_BYTES,
   markdownContentByteLength,
 } from "@teak/convex/shared/markdown";
+import { useTranslations } from "@teak/i18n/react";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -21,7 +22,7 @@ export interface StandInFocus {
 }
 
 export function EditorFieldset({
-  ariaLabel = "Markdown note",
+  ariaLabel,
   children,
   className,
   minHeight,
@@ -30,9 +31,10 @@ export function EditorFieldset({
   MarkdownTextEditorProps,
   "ariaLabel" | "className" | "minHeight" | "variant"
 > & { children: ReactNode }) {
+  const t = useTranslations("textEditor.note");
   return (
     <fieldset
-      aria-label={`${ariaLabel} editor`}
+      aria-label={t("editorLabel", { label: ariaLabel ?? t("ariaLabel") })}
       className={cn(
         "teak-markdown-editor w-full min-w-0",
         variant === "modal" && "h-full",
@@ -51,7 +53,7 @@ export function EditorFieldset({
 }
 
 export function MarkdownStandIn({
-  ariaLabel = "Markdown note",
+  ariaLabel,
   autoFocus,
   disabled,
   focus,
@@ -60,13 +62,14 @@ export function MarkdownStandIn({
   onOpenFullScreen,
   onPasteFiles,
   onSaveShortcut,
-  placeholder = "Write a note…",
+  placeholder,
   ref,
   value,
 }: MarkdownTextEditorProps & {
   focus: StandInFocus;
   ref?: Ref<HTMLTextAreaElement>;
 }) {
+  const t = useTranslations("textEditor.note");
   const [escapesHtml] = useState(() => escapeTypedHtml(value) === value);
   const [typed, setTyped] = useState({ markdown: value, text: value });
   const text = typed.markdown === value ? typed.text : value;
@@ -89,7 +92,7 @@ export function MarkdownStandIn({
   };
   return (
     <textarea
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? t("ariaLabel")}
       autoFocus={autoFocus}
       className="block h-full min-h-[var(--teak-editor-min-height,8rem)] w-full resize-none bg-transparent p-1 font-sans text-[length:var(--teak-editor-font-size,1rem)] leading-[1.65] outline-none placeholder:text-muted-foreground disabled:cursor-default"
       data-editor-fallback=""
@@ -121,7 +124,7 @@ export function MarkdownStandIn({
           onPasteFiles(files);
         }
       }}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t("placeholder")}
       ref={ref}
       spellCheck
       value={text}

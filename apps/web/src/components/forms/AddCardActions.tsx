@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { Mic, PenLine, Plus, Square, Upload } from "lucide-react";
 import {
@@ -31,17 +32,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  CARD_LIMIT_TOAST_MESSAGE,
-  MANUAL_CLOSE_TOAST_OPTIONS,
-  TOAST_IDS,
-} from "@/constants/toast";
+import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import {
   type FinalizeUploadedCardArgs,
   type UploadAndCreateCardArgs,
   useFileUploadCore,
 } from "@/hooks/useFileUploadCore";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { registerUploadFiles } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -58,9 +56,10 @@ const NEW_MENU_TRIGGER_CLASS =
   "size-7 rounded-md text-sidebar-foreground hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent [&_svg]:size-4 [&_svg]:opacity-60 [&_svg]:transition-opacity hover:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100";
 
 export function NewMenuPlaceholder() {
+  const t = useTranslations("forms.addCardActions");
   return (
     <Button
-      aria-label="New"
+      aria-label={t("new")}
       className={NEW_MENU_TRIGGER_CLASS}
       disabled
       size="icon"
@@ -73,12 +72,13 @@ export function NewMenuPlaceholder() {
 }
 
 function NewMenuTrigger(props: ComponentProps<typeof Button>) {
+  const t = useTranslations("forms.addCardActions");
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <DropdownMenuTrigger asChild>
           <Button
-            aria-label="New"
+            aria-label={t("new")}
             className={NEW_MENU_TRIGGER_CLASS}
             size="icon"
             type="button"
@@ -89,7 +89,7 @@ function NewMenuTrigger(props: ComponentProps<typeof Button>) {
           </Button>
         </DropdownMenuTrigger>
       </TooltipTrigger>
-      <TooltipContent side="right">New</TooltipContent>
+      <TooltipContent side="right">{t("new")}</TooltipContent>
     </Tooltip>
   );
 }
@@ -132,6 +132,9 @@ export function AddCardActions({
   upgradeUrl = "/settings",
   variant = "toolbar",
 }: AddCardActionsProps) {
+  const t = useTranslations("forms.addCardActions");
+  const tLimits = useTranslations("forms.limits");
+  const errors = useServerErrors();
   const [isRecordingDialogOpen, setIsRecordingDialogOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -186,16 +189,16 @@ export function AddCardActions({
 
   const showUpgradeToast = useCallback(
     (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(CARD_LIMIT_TOAST_MESSAGE, {
+      toast.error(tLimits("cardLimitReached"), {
         ...MANUAL_CLOSE_TOAST_OPTIONS,
         action: {
-          label: "Upgrade",
+          label: tLimits("upgrade"),
           onClick: handleUpgrade,
         },
         id: toastId,
       });
     },
-    [handleUpgrade]
+    [handleUpgrade, tLimits]
   );
 
   const clearRecordingResources = useCallback(() => {
@@ -215,7 +218,7 @@ export function AddCardActions({
 
   const autoSaveAudio = useCallback(
     async (blob: Blob, extension: string) => {
-      const toastId = toast.loading("Saving audio recording...");
+      const toastId = toast.loading(t("savingRecording"));
 
       try {
         setIsSubmitting(true);
@@ -241,7 +244,7 @@ export function AddCardActions({
           setRecordingTime(0);
           setIsRecordingDialogOpen(false);
           onSuccess?.();
-          toast.success("Audio recording saved", { id: toastId });
+          toast.success(t("recordingSaved"), { id: toastId });
           return;
         }
 
@@ -251,24 +254,26 @@ export function AddCardActions({
         }
 
         if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.error("Too many cards created. Please wait a moment.", {
+          toast.error(tLimits("rateLimited"), {
             id: toastId,
           });
           return;
         }
 
-        throw new Error(result.error || "Failed to save audio recording");
+        throw new Error(
+          result.error
+            ? errors.byEnglishMessage(result.error)
+            : t("recordingSaveFailed")
+        );
       } catch (error) {
         const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "Failed to save audio recording";
+          error instanceof Error ? error.message : t("recordingSaveFailed");
         toast.error(errorMessage, { id: toastId });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [onSuccess, showUpgradeToast, uploadFile]
+    [errors, onSuccess, showUpgradeToast, t, tLimits, uploadFile]
   );
 
   const startRecording = useCallback(async () => {
@@ -283,7 +288,7 @@ export function AddCardActions({
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        toast.error("Microphone recording is not supported in this app.");
+        toast.error(t("microphoneUnsupported"));
         setIsRecordingDialogOpen(false);
         return;
       }
@@ -332,18 +337,24 @@ export function AddCardActions({
       setIsRecordingDialogOpen(false);
 
       if (error instanceof DOMException && error.name === "NotAllowedError") {
-        toast.error("Microphone permission was denied. Allow it and retry.");
+        toast.error(t("microphoneDenied"));
         return;
       }
 
       if (error instanceof DOMException && error.name === "NotFoundError") {
-        toast.error("No microphone was detected. Connect one and retry.");
+        toast.error(t("microphoneMissing"));
         return;
       }
 
-      toast.error("Failed to start recording. Check your microphone setup.");
+      toast.error(t("recordingStartFailed"));
     }
-  }, [autoSaveAudio, canCreateCard, clearRecordingResources, showUpgradeToast]);
+  }, [
+    autoSaveAudio,
+    canCreateCard,
+    clearRecordingResources,
+    showUpgradeToast,
+    t,
+  ]);
 
   const stopRecording = useCallback(() => {
     if (!(mediaRecorderRef.current && isRecording)) {
@@ -401,7 +412,7 @@ export function AddCardActions({
       }
 
       for (const file of files) {
-        const toastId = toast.loading(`Uploading ${file.name}...`);
+        const toastId = toast.loading(t("uploading", { name: file.name }));
         captureEvent("card_create_submitted", {
           card_type:
             inferFileFormat({ fileName: file.name, mimeType: file.type })
@@ -413,7 +424,7 @@ export function AddCardActions({
         const result = await uploadFile(file, { content: "" });
 
         if (result.success) {
-          toast.success(`${file.name} uploaded`, { id: toastId });
+          toast.success(t("uploaded", { name: file.name }), { id: toastId });
           onSuccess?.();
           continue;
         }
@@ -423,14 +434,19 @@ export function AddCardActions({
           break;
         }
         if (result.errorCode === CARD_ERROR_CODES.RATE_LIMITED) {
-          toast.error("Too many cards created. Please wait a moment.", {
+          toast.error(tLimits("rateLimited"), {
             id: toastId,
           });
           break;
         }
 
         toast.error(
-          `Failed to upload ${file.name}: ${result.error || "Upload failed"}`,
+          t("uploadFailed", {
+            name: file.name,
+            error: result.error
+              ? errors.byEnglishMessage(result.error)
+              : t("uploadFailedReason"),
+          }),
           { ...MANUAL_CLOSE_TOAST_OPTIONS, id: toastId }
         );
       }
@@ -440,12 +456,11 @@ export function AddCardActions({
     input.click();
   };
 
-  let recordingStatusDescription = "Starting microphone...";
+  let recordingStatusDescription = t("startingMicrophone");
   if (isSubmitting) {
-    recordingStatusDescription = "Saving recording...";
+    recordingStatusDescription = t("savingRecordingStatus");
   } else if (isRecording) {
-    recordingStatusDescription =
-      "Speak naturally. Teak will save this as an audio card.";
+    recordingStatusDescription = t("recordingHint");
   }
 
   const uploadRef = useRef(handleFileUpload);
@@ -487,7 +502,7 @@ export function AddCardActions({
               }}
             >
               <PenLine />
-              Note or link
+              {t("noteOrLink")}
               <DropdownMenuShortcut>N</DropdownMenuShortcut>
             </DropdownMenuItem>
           ) : null}
@@ -499,7 +514,7 @@ export function AddCardActions({
             }}
           >
             <Upload />
-            Upload files
+            {t("uploadFiles")}
             <DropdownMenuShortcut>U</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -510,16 +525,16 @@ export function AddCardActions({
             }}
           >
             <Mic />
-            Record audio
+            {t("recordAudio")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ) : (
       <div className="flex items-center gap-1">
-        <ShortcutTooltip keys={["U"]} label="Upload files">
+        <ShortcutTooltip keys={["U"]} label={t("uploadFiles")}>
           <Button
             aria-keyshortcuts="U"
-            aria-label="Upload files"
+            aria-label={t("uploadFiles")}
             disabled={globalFileDrop?.isUploading}
             onClick={handleFileUpload}
             size="icon"
@@ -530,7 +545,7 @@ export function AddCardActions({
           </Button>
         </ShortcutTooltip>
         <Button
-          aria-label="Record audio"
+          aria-label={t("recordAudio")}
           disabled={isRecording || isSubmitting}
           onClick={() => void startRecording()}
           size="icon"
@@ -551,7 +566,7 @@ export function AddCardActions({
         open={isRecordingDialogOpen}
       >
         <DialogContent className="max-w-sm text-center" showCloseButton={false}>
-          <DialogTitle>Recording audio</DialogTitle>
+          <DialogTitle>{t("recordingTitle")}</DialogTitle>
           <DialogDescription>{recordingStatusDescription}</DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
@@ -563,7 +578,7 @@ export function AddCardActions({
               type="button"
             >
               <Square />
-              Stop and Save
+              {t("stopAndSave")}
             </Button>
           </div>
         </DialogContent>

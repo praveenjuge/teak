@@ -853,5 +853,375 @@
       "copyLinksFailed": "Couldn't copy the links",
       "noLinks": "None of these cards have a link"
     }
+  },
+  "textEditor": {
+    "formatting": {
+      "toolbar": "Text formatting",
+      "bold": "Bold",
+      "italic": "Italic",
+      "strikethrough": "Strikethrough",
+      "inlineCode": "Inline code",
+      "editLink": "Edit link"
+    },
+    "linkEditor": {
+      "url": "Link URL",
+      "apply": "Apply",
+      "invalidUrl": "Use an http or https link."
+    },
+    "note": {
+      "ariaLabel": "Markdown note",
+      "contentLabel": "Markdown content",
+      "editorLabel": "{label} editor",
+      "placeholder": "Write a note…",
+      "tooLarge": "Notes can be up to 512 KiB of UTF-8 text",
+      "unsafeChange": "This change cannot be saved as Markdown.",
+      "dropUnsupported": "Paste text or Markdown into this note.",
+      "pasteUnsupported": "Paste plain text or Markdown."
+    },
+    "focus": {
+      "description": "Focus mode: only the note is on screen. Press Escape to leave.",
+      "wordCount": "{count, plural, one {# word} other {# words}}"
+    },
+    "noteCapture": {
+      "linkSaved": "Link saved",
+      "saved": "Saved"
+    },
+    "cardLinkMenu": {
+      "label": "Link a card",
+      "searching": "Searching cards…",
+      "searchFailed": "Couldn't search cards",
+      "noMatches": "No matching cards",
+      "noCards": "No cards yet"
+    },
+    "cardLink": {
+      "missing": "Missing card",
+      "missingHint": "This card is in Trash, deleted or not yours",
+      "fallbackTitle": "Card"
+    },
+    "slashMenu": {
+      "label": "Formatting commands",
+      "commands": {
+        "text": "Text",
+        "h1": "Heading 1",
+        "h2": "Heading 2",
+        "h3": "Heading 3",
+        "bulletList": "Bullet List",
+        "orderedList": "Numbered List",
+        "taskList": "Task List",
+        "blockquote": "Quote",
+        "codeBlock": "Code",
+        "divider": "Divider",
+        "table": "Table"
+      }
+    },
+    "table": {
+      "options": "Table options",
+      "headerPlaceholder": "Header",
+      "addRowAbove": "Add row above",
+      "addRowBelow": "Add row below",
+      "addColumnLeft": "Add column left",
+      "addColumnRight": "Add column right",
+      "deleteRow": "Delete row",
+      "deleteColumn": "Delete column",
+      "deleteTable": "Delete table",
+      "rowLimit": "Tables can have up to {max} rows",
+      "columnLimit": "Tables can have up to {max} columns",
+      "headerRowFirst": "The header row stays the first row",
+      "headerRowKept": "The header row can't be deleted",
+      "lastColumn": "Delete the table to remove its last column"
+    }
+  },
+  "forms": {
+    "limits": {
+      "cardLimitReached": "Free card limit reached",
+      "upgrade": "Upgrade",
+      "rateLimited": "Too many cards created. Please wait a moment."
+    },
+    "addCard": {
+      "placeholder": "Write a note...",
+      "upgradePlaceholder": "Upgrade to Pro to add more cards...",
+      "saveFailed": "Failed to save note",
+      "focus": "Focus"
+    },
+    "addCardActions": {
+      "new": "New",
+      "noteOrLink": "Note or link",
+      "uploadFiles": "Upload files",
+      "recordAudio": "Record audio",
+      "savingRecording": "Saving audio recording...",
+      "recordingSaved": "Audio recording saved",
+      "recordingSaveFailed": "Failed to save audio recording",
+      "microphoneUnsupported": "Microphone recording is not supported in this app.",
+      "microphoneDenied": "Microphone permission was denied. Allow it and retry.",
+      "microphoneMissing": "No microphone was detected. Connect one and retry.",
+      "recordingStartFailed": "Failed to start recording. Check your microphone setup.",
+      "uploading": "Uploading {name}...",
+      "uploaded": "{name} uploaded",
+      "uploadFailed": "Failed to upload {name}: {error}",
+      "uploadFailedReason": "Upload failed",
+      "startingMicrophone": "Starting microphone...",
+      "savingRecordingStatus": "Saving recording...",
+      "recordingHint": "Speak naturally. Teak will save this as an audio card.",
+      "recordingTitle": "Recording audio",
+      "stopAndSave": "Stop and Save"
+    },
+    "emptyState": {
+      "title": "Let's add your first card!",
+      "description": "Start capturing your thoughts, links, and media above"
+    }
+  },
+  "selection": {
+    "bar": {
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "restore": "Restore",
+      "addToNamedFolder": "Add to {folder}",
+      "chooseCards": "Choose cards to add",
+      "selectedCount": "{count, plural, one {# card} other {# cards}} selected",
+      "moreActions": "More actions",
+      "favorite": "Add to favorites",
+      "unfavorite": "Remove from favorites",
+      "addTags": "Add tags…",
+      "removeTags": "Remove tags…",
+      "copyLinks": "Copy links",
+      "addToFolder": "Add to folder…",
+      "moveToFolder": "Move to folder…",
+      "removeFromFolder": "Remove from {folder}",
+      "moveToTrash": "Move to Trash",
+      "cancelSelection": "Cancel selection"
+    },
+    "tagsDialog": {
+      "tagTooLong": "Tags can be at most {max} characters.",
+      "tooManyTags": "Choose at most {max} tags at a time.",
+      "addTitle": "Add tags to {count, plural, one {# card} other {# cards}}",
+      "removeTitle": "Remove tags from {count, plural, one {# card} other {# cards}}",
+      "addDescription": "Separate tags with commas.",
+      "removeDescription": "Choose tags below or type them, separated by commas.",
+      "label": "Tags",
+      "addPlaceholder": "design, inspiration",
+      "removePlaceholder": "Tag names",
+      "addSubmit": "Add tags",
+      "removeSubmit": "Remove tags"
+    }
+  },
+  "search": {
+    "cardTypes": {
+      "text": "Text",
+      "link": "Link",
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio",
+      "document": "Document",
+      "palette": "Palette",
+      "quote": "Quote"
+    },
+    "visualStyles": {
+      "abstract": "Abstract",
+      "cinematic": "Cinematic",
+      "dark": "Dark",
+      "illustrative": "Illustrative",
+      "minimal": "Minimal",
+      "monochrome": "Monochrome",
+      "moody": "Moody",
+      "pastel": "Pastel",
+      "photographic": "Photographic",
+      "retro": "Retro",
+      "surreal": "Surreal",
+      "vintage": "Vintage",
+      "vibrant": "Vibrant",
+      "typographic": "Typographic",
+      "threeD": "3D",
+      "flat": "Flat",
+      "geometric": "Geometric",
+      "handDrawn": "Hand-drawn",
+      "futuristic": "Futuristic"
+    },
+    "colorHues": {
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "purple": "Purple",
+      "pink": "Pink",
+      "brown": "Brown",
+      "neutral": "Neutral"
+    },
+    "bar": {
+      "placeholder": "Search everything",
+      "open": "Search",
+      "formLabel": "Search cards",
+      "clearAll": "Clear all",
+      "suggestions": "Search suggestions",
+      "moreFilters": "{count, plural, one {# more filter} other {# more filters}}",
+      "chipTitle": "{prefix} {label}",
+      "chipTitleExcluded": "{prefix} not {label}",
+      "chipTitleExcludedNoPrefix": "not {label}",
+      "remove": "Remove {label}",
+      "removeExcluded": "Remove excluding {label}",
+      "removeTagFilter": "Remove tag filter {tag}",
+      "removeType": "Remove type {type}",
+      "removeQualifier": "Remove {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
+      "removeExcludedQualifier": "Remove excluding {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
+      "removeUnknownFolder": "Remove {chip}: no folder named {folder}",
+      "unknownFolder": "No folder named {folder}"
+    },
+    "chips": {
+      "titles": {
+        "tag": "Tag",
+        "type": "Type",
+        "is": "Show",
+        "site": "Site",
+        "folder": "Folder",
+        "like": "Similar to",
+        "mood": "Mood",
+        "price": "Price",
+        "text": "Text in image"
+      },
+      "anyCard": "a card",
+      "moodValue": "“{value}”"
+    },
+    "suggestions": {
+      "groups": {
+        "combine": "Combine",
+        "exclude": "Exclude",
+        "filters": "Filters",
+        "tags": "Tags",
+        "types": "Types",
+        "folders": "Folders",
+        "sites": "Sites",
+        "show": "Show"
+      },
+      "hints": {
+        "tag": "Cards with a tag",
+        "type": "Links, images, notes…",
+        "site": "Links from a website",
+        "folder": "Cards in a folder",
+        "is": "Favorites, archived, done or to do",
+        "mood": "Images by mood",
+        "price": "Price under or over",
+        "text": "Words in images and scans"
+      },
+      "excludeHints": {
+        "tag": "Leave out cards with a tag",
+        "type": "Leave out links, images, notes…",
+        "site": "Leave out links from a website",
+        "folder": "Leave out cards in a folder",
+        "is": "Leave out favorites, archived, done…"
+      },
+      "orDetail": "Either side matches",
+      "isOptions": {
+        "fav": "Favorites",
+        "archived": "Archived",
+        "done": "Done",
+        "todo": "To do"
+      },
+      "hiddenTagCount": "Shows hidden cards · {count}"
+    },
+    "viewMenu": {
+      "label": "View",
+      "labelWithState": "View: {state}",
+      "oldestFirstState": "oldest first",
+      "shuffledState": "shuffled",
+      "revisitingState": "revisiting",
+      "show": "Show",
+      "showAllTypes": "Show all types",
+      "sort": "Sort",
+      "sorts": {
+        "relevance": "Best match",
+        "newest": "Newest first",
+        "oldest": "Oldest first",
+        "shuffle": "Shuffle",
+        "revisit": "Revisit"
+      },
+      "nothingToRevisit": "Nothing to revisit here",
+      "saveAsSmartFolder": "Save as smart folder…",
+      "reshuffle": "Reshuffle"
+    }
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "description": "Go to a view or folder, find a card, or run an action",
+    "inputLabel": "Search commands, folders and cards",
+    "placeholder": "Type a command or search…",
+    "noResults": "No results",
+    "smartFolder": "Smart folder",
+    "groups": {
+      "navigate": "Navigate",
+      "cards": "Cards",
+      "actions": "Actions",
+      "folders": "Folders"
+    },
+    "views": {
+      "all": "Everything",
+      "favorites": "Favorites",
+      "archive": "Archive",
+      "trash": "Trash",
+      "tags": "Tags",
+      "settings": "Settings"
+    },
+    "actions": {
+      "newNote": "New note",
+      "upload": "Upload files",
+      "import": "Import",
+      "export": "Export",
+      "toggleTheme": "Toggle theme",
+      "shuffle": "Shuffle",
+      "shortcuts": "Keyboard shortcuts",
+      "signOut": "Sign out"
+    },
+    "cards": {
+      "searching": "Searching cards",
+      "searchFailed": "Couldn’t search cards",
+      "searchAll": "Search all for “{query}”",
+      "untitled": "Untitled card"
+    }
+  },
+  "shortcuts": {
+    "groups": {
+      "cards": "Cards",
+      "openCard": "Open card",
+      "goTo": "Go to",
+      "search": "Search",
+      "anywhere": "Anywhere"
+    },
+    "rows": {
+      "moveBetweenCards": "Move between cards",
+      "nextOrPreviousCard": "Next or previous card",
+      "openCard": "Open the card",
+      "favorite": "Favorite or unfavorite",
+      "addTags": "Add tags",
+      "archive": "Archive or unarchive",
+      "moveToTrash": "Move to Trash",
+      "select": "Select or deselect",
+      "copy": "Copy text, link, or image",
+      "clearSelection": "Clear the selection",
+      "previousOrNextCard": "Previous or next card",
+      "addTag": "Add a tag",
+      "writeNote": "Write a note",
+      "focusNote": "Focus on the note",
+      "openOrDownload": "Open the link or download the file",
+      "openLink": "Open the link",
+      "markLinkDone": "Mark a link done",
+      "copyLinkOrText": "Copy the link or text",
+      "toggleDetails": "Show or hide details",
+      "goToEverything": "Everything",
+      "goToFavorites": "Favorites",
+      "goToArchive": "Archive",
+      "goToTrash": "Trash",
+      "excludeWord": "Exclude a word",
+      "excludeFilter": "Exclude a tag, type, site or folder",
+      "eitherOne": "Either one",
+      "group": "Group",
+      "exactWords": "Exact words",
+      "commandPalette": "Command palette",
+      "search": "Search",
+      "newNote": "New note",
+      "uploadFiles": "Upload files",
+      "notifications": "Go to notifications (Undo)",
+      "keyboardShortcuts": "Keyboard shortcuts"
+    }
   }
 }

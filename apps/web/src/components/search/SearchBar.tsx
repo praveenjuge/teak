@@ -1,13 +1,11 @@
 import type { TimeFilter } from "@teak/convex/shared";
 import {
-  CARD_TYPE_LABELS,
   type CardType,
-  COLOR_HUE_LABELS,
   type ColorHueBucket,
   getCardTypeIcon,
-  VISUAL_STYLE_LABELS,
   type VisualStyle,
 } from "@teak/convex/shared/constants";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import {
   Aperture,
   Archive,
@@ -70,7 +68,9 @@ import {
   describeKeywordChip,
   describeQualifierChip,
   type SearchSuggestion,
+  type SearchSuggestionGroup,
   type SearchSuggestionSources,
+  searchSuggestionGroupLabel,
 } from "./searchSuggestions";
 import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
@@ -166,6 +166,28 @@ const suggestionIcon = (suggestion: SearchSuggestion) => {
 
 const MAX_INLINE_CHIPS = 3;
 
+const VISUAL_STYLE_MESSAGE_KEYS = {
+  abstract: "abstract",
+  cinematic: "cinematic",
+  dark: "dark",
+  illustrative: "illustrative",
+  minimal: "minimal",
+  monochrome: "monochrome",
+  moody: "moody",
+  pastel: "pastel",
+  photographic: "photographic",
+  retro: "retro",
+  surreal: "surreal",
+  vintage: "vintage",
+  vibrant: "vibrant",
+  typographic: "typographic",
+  "3d": "threeD",
+  flat: "flat",
+  geometric: "geometric",
+  "hand-drawn": "handDrawn",
+  futuristic: "futuristic",
+} as const satisfies Record<VisualStyle, string>;
+
 export const searchFieldClassName =
   "group/search flex h-9 w-full min-w-0 items-center gap-1.5 rounded-lg bg-muted/60 pr-1.5 pl-2.5 ring-1 ring-transparent transition-[background-color,box-shadow] duration-150 hover:bg-muted focus-within:bg-background focus-within:shadow-sm focus-within:ring-border dark:bg-muted/40";
 
@@ -182,6 +204,15 @@ interface FilterChip {
 }
 
 function FilterChipButton({ chip }: { chip: FilterChip }) {
+  const t = useTranslations("search.bar");
+  let title = chip.label;
+  if (chip.prefix && chip.excluded) {
+    title = t("chipTitleExcluded", { label: chip.label, prefix: chip.prefix });
+  } else if (chip.prefix) {
+    title = t("chipTitle", { label: chip.label, prefix: chip.prefix });
+  } else if (chip.excluded) {
+    title = t("chipTitleExcludedNoPrefix", { label: chip.label });
+  }
   return (
     <button
       aria-label={chip.ariaLabel}
@@ -193,9 +224,7 @@ function FilterChipButton({ chip }: { chip: FilterChip }) {
       )}
       onClick={chip.onRemove}
       onMouseDown={preventBlur}
-      title={[chip.prefix, chip.excluded ? "not" : null, chip.label]
-        .filter(Boolean)
-        .join(" ")}
+      title={title}
       type="button"
     >
       {chip.icon}
@@ -261,7 +290,7 @@ export function SearchBar({
   HeaderActions,
   leading,
   lockedChips,
-  placeholder = "Search everything",
+  placeholder: placeholderProp,
   sort = "newest",
   canSortByRelevance,
   revisit,
@@ -271,6 +300,10 @@ export function SearchBar({
   onToggleFilter,
   title,
 }: SearchBarProps) {
+  const t = useTranslations("search");
+  const tc = useTranslations("common");
+  const locale = useIntlLocale();
+  const placeholder = placeholderProp ?? t("bar.placeholder");
   const hasAnyFilters =
     qualifierChips.length > 0 ||
     keywordTags.length > 0 ||
@@ -298,9 +331,13 @@ export function SearchBar({
   const { suggestions, completingValue } = useMemo(
     () =>
       onAddQualifier
-        ? buildSearchSuggestions(token, suggestionSources ?? {}, { afterWord })
+        ? buildSearchSuggestions(token, suggestionSources ?? {}, {
+            afterWord,
+            locale,
+            t,
+          })
         : { suggestions: [], completingValue: false },
-    [afterWord, onAddQualifier, suggestionSources, token]
+    [afterWord, locale, onAddQualifier, suggestionSources, t, token]
   );
   const open =
     focused && dismissedFor !== searchQuery && suggestions.length > 0;
@@ -370,7 +407,8 @@ export function SearchBar({
     onKeyDown(e);
   };
 
-  const groups: { name: string; items: SearchSuggestion[] }[] = [];
+  const groups: { name: SearchSuggestionGroup; items: SearchSuggestion[] }[] =
+    [];
   for (const suggestion of suggestions) {
     const last = groups[groups.length - 1];
     if (last?.name === suggestion.group) {
@@ -392,7 +430,7 @@ export function SearchBar({
   const chips: FilterChip[] = [];
   if (tagFilter) {
     chips.push({
-      ariaLabel: `Remove tag filter ${tagFilter}`,
+      ariaLabel: t("bar.removeTagFilter", { tag: tagFilter }),
       icon: <Tag />,
       key: "tag-filter",
       label: tagFilter,
@@ -400,7 +438,7 @@ export function SearchBar({
     });
   }
   for (const chip of qualifierChips) {
-    const described = describeQualifierChip(chip, similarAnchorTitle);
+    const described = describeQualifierChip(chip, similarAnchorTitle, t);
     if (!described) {
       continue;
     }
@@ -417,11 +455,17 @@ export function SearchBar({
     } else if (unknownFolder) {
       Icon = CircleSlash;
     }
-    let ariaLabel = `Remove ${title.toLowerCase()} ${label}`;
+    let ariaLabel = t("bar.removeQualifier", { kind: qualifier.key, label });
     if (unknownFolder) {
-      ariaLabel = `Remove ${chip}: no folder named ${qualifier.value}`;
+      ariaLabel = t("bar.removeUnknownFolder", {
+        chip,
+        folder: qualifier.value,
+      });
     } else if (excluded) {
-      ariaLabel = `Remove excluding ${title.toLowerCase()} ${label}`;
+      ariaLabel = t("bar.removeExcludedQualifier", {
+        kind: qualifier.key,
+        label,
+      });
     }
     chips.push({
       ariaLabel,
@@ -429,7 +473,7 @@ export function SearchBar({
       excluded,
       icon: <Icon />,
       key: `qualifier-${chip}`,
-      label: unknownFolder ? `No folder named ${label}` : label,
+      label: unknownFolder ? t("bar.unknownFolder", { folder: label }) : label,
       prefix: unknownFolder ? undefined : title,
       onRemove: () => onRemoveQualifier?.(chip),
     });
@@ -443,7 +487,9 @@ export function SearchBar({
       icon = <Quote />;
     }
     chips.push({
-      ariaLabel: excluded ? `Remove excluding ${label}` : `Remove ${label}`,
+      ariaLabel: excluded
+        ? t("bar.removeExcluded", { label })
+        : t("bar.remove", { label }),
       excluded,
       icon,
       key: `keyword-${keyword}`,
@@ -453,7 +499,7 @@ export function SearchBar({
   }
   if (timeFilter) {
     chips.push({
-      ariaLabel: `Remove ${timeFilter.label}`,
+      ariaLabel: t("bar.remove", { label: timeFilter.label }),
       icon: <Clock />,
       key: "time-filter",
       label: timeFilter.label,
@@ -462,35 +508,38 @@ export function SearchBar({
   }
   for (const filter of filterTags) {
     const Icon = getFilterIcon(filter);
+    const typeLabel = t(`cardTypes.${filter}`);
     chips.push({
-      ariaLabel: `Remove type ${CARD_TYPE_LABELS[filter]}`,
+      ariaLabel: t("bar.removeType", { type: typeLabel }),
       icon: <Icon />,
       key: `filter-${filter}`,
-      label: CARD_TYPE_LABELS[filter],
+      label: typeLabel,
       onRemove: () => onRemoveFilter(filter),
     });
   }
   for (const style of styleFilters) {
+    const styleLabel = t(`visualStyles.${VISUAL_STYLE_MESSAGE_KEYS[style]}`);
     chips.push({
-      ariaLabel: `Remove ${VISUAL_STYLE_LABELS[style]}`,
+      ariaLabel: t("bar.remove", { label: styleLabel }),
       icon: <Sparkles />,
       key: `style-${style}`,
-      label: VISUAL_STYLE_LABELS[style],
+      label: styleLabel,
       onRemove: () => onRemoveStyleFilter(style),
     });
   }
   for (const hue of hueFilters) {
+    const hueLabel = t(`colorHues.${hue}`);
     chips.push({
-      ariaLabel: `Remove ${COLOR_HUE_LABELS[hue]}`,
+      ariaLabel: t("bar.remove", { label: hueLabel }),
       icon: <Droplets />,
       key: `hue-${hue}`,
-      label: COLOR_HUE_LABELS[hue],
+      label: hueLabel,
       onRemove: () => onRemoveHueFilter(hue),
     });
   }
   for (const hex of hexFilters) {
     chips.push({
-      ariaLabel: `Remove ${hex}`,
+      ariaLabel: t("bar.remove", { label: hex }),
       icon: (
         <span
           className="size-3 shrink-0 rounded-full border"
@@ -517,7 +566,7 @@ export function SearchBar({
       actions={
         <>
           <Button
-            aria-label="Search"
+            aria-label={t("bar.open")}
             className={cn(
               "size-9 shrink-0 text-muted-foreground sm:hidden",
               fieldShown && "hidden"
@@ -543,7 +592,7 @@ export function SearchBar({
               type="button"
               variant="ghost"
             >
-              Cancel
+              {tc("cancel")}
             </Button>
           ) : null}
           {onSortChange && onReshuffle && sort === "shuffle" && (
@@ -588,7 +637,7 @@ export function SearchBar({
       }
     >
       <form
-        aria-label="Search cards"
+        aria-label={t("bar.formLabel")}
         className={cn(
           "relative min-w-0 flex-1 sm:ml-auto sm:max-w-xl",
           !fieldShown && "max-sm:hidden"
@@ -617,7 +666,9 @@ export function SearchBar({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  aria-label={`${overflowChips.length} more ${overflowChips.length === 1 ? "filter" : "filters"}`}
+                  aria-label={t("bar.moreFilters", {
+                    count: overflowChips.length,
+                  })}
                   className="inline-flex h-6 shrink-0 items-center rounded-md bg-background px-1.5 font-medium text-muted-foreground text-xs shadow-xs ring-1 ring-border/70 hover:text-foreground"
                   onMouseDown={preventBlur}
                   type="button"
@@ -693,7 +744,7 @@ export function SearchBar({
           />
           {canClear ? (
             <button
-              aria-label="Clear all"
+              aria-label={t("bar.clearAll")}
               className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               onClick={clearAll}
               onMouseDown={preventBlur}
@@ -712,16 +763,20 @@ export function SearchBar({
 
         {open ? (
           <div
-            aria-label="Search suggestions"
+            aria-label={t("bar.suggestions")}
             className="fade-in-0 zoom-in-95 absolute inset-x-0 top-full z-50 mt-1.5 max-h-80 animate-in overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-md duration-100"
             id={listId}
             role="listbox"
           >
             {groups.map((group) => (
               // biome-ignore lint/a11y/useSemanticElements: an ARIA listbox groups its options with role="group"
-              <div aria-label={group.name} key={group.name} role="group">
+              <div
+                aria-label={searchSuggestionGroupLabel(group.name, t)}
+                key={group.name}
+                role="group"
+              >
                 <div className="px-2 pt-2 pb-1 font-medium text-muted-foreground text-xs">
-                  {group.name}
+                  {searchSuggestionGroupLabel(group.name, t)}
                 </div>
                 {group.items.map((suggestion) => {
                   const index = suggestions.indexOf(suggestion);

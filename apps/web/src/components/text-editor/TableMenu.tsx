@@ -1,4 +1,5 @@
 import { autoUpdate } from "@floating-ui/dom";
+import { useTranslations } from "@teak/i18n/react";
 import type { Editor } from "@tiptap/core";
 import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -33,6 +34,7 @@ const tableElement = (editor: Editor, pos: number): HTMLElement | null => {
  * its menu returns focus to the cell.
  */
 export function TableMenu({ editor }: { editor: Editor }) {
+  const t = useTranslations("textEditor");
   const [focusedTable, setFocusedTable] = useState<HTMLElement | null>(null);
   const [hoveredTable, setHoveredTable] = useState<HTMLElement | null>(null);
   const [overButton, setOverButton] = useState(false);
@@ -125,7 +127,7 @@ export function TableMenu({ editor }: { editor: Editor }) {
     }
   };
   const table = tableAt(editor.state);
-  const actions = table ? tableActions(table) : [];
+  const actions = table ? tableActions(table, t) : [];
   const run = (action: TableAction) => {
     cursorIntoTable();
     withTableAction(editor.chain().focus(), action).run();
@@ -144,7 +146,7 @@ export function TableMenu({ editor }: { editor: Editor }) {
     >
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label="Table options"
+          aria-label={t("table.options")}
           className="absolute z-20 size-7 rounded-md bg-background/90 text-muted-foreground shadow-xs backdrop-blur-sm hover:text-foreground"
           onBlur={() => setButtonFocused(false)}
           onFocus={() => setButtonFocused(true)}

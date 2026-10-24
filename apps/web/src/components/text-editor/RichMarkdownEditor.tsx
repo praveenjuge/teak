@@ -6,6 +6,7 @@ import {
 } from "@editorcn/block-editor";
 import { cardLinkTokenTitle } from "@teak/convex/shared/cardLinks";
 import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { useTranslations } from "@teak/i18n/react";
 import { type Editor, Extension } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Markdown } from "@tiptap/markdown";
@@ -38,7 +39,7 @@ import {
   markdownManager,
   prepareMarkdownDocument,
 } from "./markdownDocument";
-import { SlashMenu } from "./SlashMenu";
+import { SlashMenu, slashCommandTitle } from "./SlashMenu";
 import { TableMenu } from "./TableMenu";
 import { insertNewTable, pasteIntoTable, TableKeys } from "./tableEditing";
 import { TaskListSort } from "./taskListSort";
@@ -95,6 +96,9 @@ export function RichMarkdownEditor({
 }) {
   const callbacks = useRef(props);
   callbacks.current = props;
+  const t = useTranslations("textEditor");
+  const translate = useRef(t);
+  translate.current = t;
   const lastValue = useRef(props.value);
   const [initial] = useState(() => {
     const prepared = prepareMarkdownDocument(props.value);
@@ -127,11 +131,12 @@ export function RichMarkdownEditor({
   const [extensions] = useState(() => [
     ...documentExtensions({ cardLinkNode: CardLinkPillNode }),
     TaskListSort,
-    TableKeys(isSuggesting),
+    TableKeys(isSuggesting, () => translate.current("table.headerPlaceholder")),
     Markdown,
     Placeholder.configure({
       showOnlyWhenEditable: false,
-      placeholder: () => callbacks.current.placeholder ?? "Write a note…",
+      placeholder: () =>
+        callbacks.current.placeholder ?? translate.current("note.placeholder"),
     }),
     SlashCommand.configure({
       suggestion: {
@@ -172,11 +177,15 @@ export function RichMarkdownEditor({
           },
         }),
         items: ({ query }) =>
-          commands.filter((item) =>
-            `${item.title} ${item.keywords.join(" ")}`
+          commands.filter((item) => {
+            // People search in the UI language; the English title still works.
+            const title = slashCommandTitle(translate.current, item);
+            const titles =
+              title === item.title ? title : `${title} ${item.title}`;
+            return `${titles} ${item.keywords.join(" ")}`
               .toLowerCase()
-              .includes(query.toLowerCase())
-          ),
+              .includes(query.toLowerCase());
+          }),
         // A cell holds one line of text, so block commands (and a table in a
         // table) don't apply there.
         allow: ({ editor: current }) =>
@@ -347,7 +356,7 @@ export function RichMarkdownEditor({
               }
               if (!safe) {
                 queueMicrotask(() =>
-                  toast.error("This change cannot be saved as Markdown.")
+                  toast.error(translate.current("note.unsafeChange"))
                 );
               }
               if (safe) {
@@ -370,15 +379,18 @@ export function RichMarkdownEditor({
     editorProps: {
       attributes: () => ({
         role: "textbox",
-        "aria-label": callbacks.current.ariaLabel ?? "Markdown note",
+        "aria-label":
+          callbacks.current.ariaLabel ?? translate.current("note.ariaLabel"),
         "aria-multiline": "true",
-        "aria-placeholder": callbacks.current.placeholder ?? "Write a note…",
+        "aria-placeholder":
+          callbacks.current.placeholder ??
+          translate.current("note.placeholder"),
         spellcheck: "true",
         "aria-readonly": String(Boolean(callbacks.current.disabled)),
       }),
       handleDrop(_view, event) {
         event.preventDefault();
-        toast.info("Paste text or Markdown into this note.");
+        toast.info(translate.current("note.dropUnsupported"));
         return true;
       },
       handlePaste(view, event) {
@@ -395,7 +407,7 @@ export function RichMarkdownEditor({
             onPasteFiles(files);
             return true;
           }
-          toast.info("Paste plain text or Markdown.");
+          toast.info(translate.current("note.pasteUnsupported"));
           return true;
         }
         if (

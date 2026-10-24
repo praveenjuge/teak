@@ -1,3 +1,8 @@
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 
 const segmenter =
@@ -24,7 +29,13 @@ export function countWords(markdown: string): number {
   return count;
 }
 
-const numberFormat = new Intl.NumberFormat();
+const englishTextEditor = createTeakTranslator(
+  "en",
+  englishMessages,
+  "textEditor"
+);
 
-export const formatWordCount = (count: number) =>
-  `${numberFormat.format(count)} ${count === 1 ? "word" : "words"}`;
+export const formatWordCount = (
+  count: number,
+  t: TeakTranslator<"textEditor"> = englishTextEditor
+) => t("focus.wordCount", { count });

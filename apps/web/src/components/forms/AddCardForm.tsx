@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { CARD_ERROR_CODES } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,12 +10,9 @@ import { toast } from "sonner";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  CARD_LIMIT_TOAST_MESSAGE,
-  MANUAL_CLOSE_TOAST_OPTIONS,
-  TOAST_IDS,
-} from "@/constants/toast";
+import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
@@ -105,6 +103,11 @@ export function AddCardForm({
   onUpgrade,
   upgradeUrl = "/settings",
 }: AddCardFormProps) {
+  const t = useTranslations("forms.addCard");
+  const tLimits = useTranslations("forms.limits");
+  const tEditor = useTranslations("textEditor");
+  const tc = useTranslations("common");
+  const errors = useServerErrors();
   const [content, setInternalContent] = useState(
     () => draftContentRef?.current ?? ""
   );
@@ -131,8 +134,8 @@ export function AddCardForm({
   const canCreateCard =
     canCreateCardProp ?? cardCreationStatus?.canCreateCard ?? true;
   const basePlaceholderText = canCreateCard
-    ? "Write a note..."
-    : "Upgrade to Pro to add more cards...";
+    ? t("placeholder")
+    : t("upgradePlaceholder");
   const inlinePlaceholderText = basePlaceholderText;
   const focusPlaceholderText = basePlaceholderText;
   const hasContent = Boolean(content.trim());
@@ -152,16 +155,16 @@ export function AddCardForm({
 
   const showUpgradeToast = useCallback(
     (toastId: string | number = TOAST_IDS.cardLimit) => {
-      toast.error(CARD_LIMIT_TOAST_MESSAGE, {
+      toast.error(tLimits("cardLimitReached"), {
         ...MANUAL_CLOSE_TOAST_OPTIONS,
         action: {
-          label: "Upgrade",
+          label: tLimits("upgrade"),
           onClick: handleUpgrade,
         },
         id: toastId,
       });
     },
-    [handleUpgrade]
+    [handleUpgrade, tLimits]
   );
 
   useEffect(() => {
@@ -212,7 +215,7 @@ export function AddCardForm({
 
     resetDraft();
 
-    const toastId = toast.loading("Saving…");
+    const toastId = toast.loading(tc("saving"));
     captureEvent("card_create_submitted", {
       card_type: "text",
       source: "web",
@@ -225,7 +228,7 @@ export function AddCardForm({
       await createCard({ ...capture, source: "web" });
 
       onSuccess?.();
-      toast.success(noteCaptureSavedMessage(capture), { id: toastId });
+      toast.success(noteCaptureSavedMessage(capture, tEditor), { id: toastId });
       return true;
     } catch (error) {
       console.error("Failed to create card:", error);
@@ -237,13 +240,15 @@ export function AddCardForm({
           : submittedContent
       );
 
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to save note";
+      const errorMessage = errors.message(
+        error,
+        error instanceof Error ? error.message : t("saveFailed")
+      );
 
       if (isCardLimitError(error)) {
         showUpgradeToast(toastId);
       } else if (isRateLimitError(error)) {
-        toast.error("Too many cards created. Please wait a moment.", {
+        toast.error(tLimits("rateLimited"), {
           id: toastId,
         });
       } else {
@@ -276,7 +281,7 @@ export function AddCardForm({
         onSave={handleFocusSave}
         open={isFocusOpen}
         placeholder={focusPlaceholderText}
-        title="Focus"
+        title={t("focus")}
         value={content}
       />
       <Card
@@ -299,7 +304,7 @@ export function AddCardForm({
             onSubmit={handleTextSubmit}
           >
             <MarkdownTextEditor
-              ariaLabel="Markdown content"
+              ariaLabel={tEditor("note.contentLabel")}
               autoFocus={autoFocus}
               cardLinks={cardLinks}
               className={cn(
@@ -309,9 +314,7 @@ export function AddCardForm({
               disabled={!canCreateCard}
               minHeight="5rem"
               onChange={setContent}
-              onLimitExceeded={() =>
-                toast.error("Notes can be up to 512 KiB of UTF-8 text")
-              }
+              onLimitExceeded={() => toast.error(tEditor("note.tooLarge"))}
               onOpenFullScreen={() => {
                 if (canCreateCard) {
                   openFocus();
@@ -331,10 +334,10 @@ export function AddCardForm({
             <div className="absolute right-3 bottom-3 flex justify-end gap-2">
               {hasContent && (
                 <>
-                  <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus">
+                  <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label={t("focus")}>
                     <Button
                       aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
-                      aria-label="Focus"
+                      aria-label={t("focus")}
                       className="w-8 px-0"
                       disabled={!canCreateCard}
                       onClick={openFocus}
@@ -351,7 +354,7 @@ export function AddCardForm({
                     size="sm"
                     type="submit"
                   >
-                    Save
+                    {tc("save")}
                     <ShortcutKeys
                       className={PRIMARY_BUTTON_KEYS_CLASS}
                       keys={SAVE_NOTE_KEYS}
