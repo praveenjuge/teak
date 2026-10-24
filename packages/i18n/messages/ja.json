@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "フィードバックがあれば、<twitterLink>{handle}</twitterLink> または <emailLink>{email}</emailLink> までお知らせください。退会したくなったときは、いつでも<deleteAccount>アカウントを削除</deleteAccount>できます。私が楽しんで作ったのと同じくらい、Teak を楽しんで使っていただけたらうれしいです。",
-      "signature": "Praveen Juge の署名"
+      "feedback": "フィードバックがあれば、<twitterLink>{handle}</twitterLink> または <emailLink>{email}</emailLink> までお知らせください。私が楽しんで作ったのと同じくらい、Teak を楽しんで使っていただけたらうれしいです。",
+      "signature": "Praveen Juge の署名",
+      "linksLabel": "ヘルプとリソース",
+      "docs": "ドキュメント",
+      "changelog": "更新履歴",
+      "support": "ヘルプ",
+      "version": "バージョン {version}"
     },
     "header": {
       "title": "設定"
-    },
-    "rows": {
-      "email": "メール",
-      "usage": "使用状況",
-      "plan": "プラン",
-      "saveByEmail": "メールで保存",
-      "security": "セキュリティ",
-      "importExport": "データのインポート/エクスポート",
-      "theme": "テーマ",
-      "signOut": "サインアウト",
-      "language": "言語"
     },
     "skeleton": {
       "loading": "設定を読み込み中…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "利用できません",
-      "cardCount": "{count, plural, other {# 件のカード}}",
       "pro": "Pro",
       "freePlan": "無料プラン",
-      "manage": "管理",
       "manageSubscription": "サブスクリプションを管理",
-      "upgrade": "アップグレード",
       "signOut": "サインアウト"
     },
     "theme": {
       "useSystem": "システムのテーマを使用",
       "useLight": "ライトテーマを使用",
-      "useDark": "ダークテーマを使用"
-    },
-    "importExport": {
-      "manage": "管理",
-      "manageLabel": "インポートとエクスポートを管理",
-      "title": "データの管理",
-      "description": "ほかのツールからカードを取り込んだり、すべてのデータのコピーを持ち出したりできます。",
-      "importTab": "インポート",
-      "exportTab": "エクスポート"
-    },
-    "security": {
-      "manage": "管理",
-      "manageLabel": "セキュリティを管理",
-      "title": "セキュリティ",
-      "description": "Teak アカウントにアクセスできるデバイス、アプリ、キーを管理します。",
-      "connectionsTab": "接続",
-      "apiKeysTab": "API キー"
+      "useDark": "ダークテーマを使用",
+      "system": "システム",
+      "light": "ライト",
+      "dark": "ダーク"
     },
     "connections": {
       "devicesTitle": "デバイス",
@@ -119,7 +97,6 @@
       "disconnectDescription": "もう一度接続するまで、{name} はすべてのインストール先で Teak ライブラリにアクセスできなくなります。"
     },
     "apiKeys": {
-      "title": "API キー",
       "revokeAllTitle": "すべての API キーを無効にしますか？",
       "revokeAllDescription": "CLI、Raycast、MCP クライアントで使われているキーを含め、すべての API キーがただちに使えなくなります。この操作は元に戻せません。",
       "revokeAllConfirm": "すべてのキーを無効化",
@@ -161,7 +138,6 @@
     "subscription": {
       "title": "Pro にアップグレード",
       "description": "すべての機能が使えるようになり、制限がなくなります。",
-      "maybeLater": "あとで",
       "continueToCheckout": "購入手続きに進む",
       "choosePlan": "プランを選択",
       "everythingInPro": "Pro に含まれるもの",
@@ -178,10 +154,10 @@
         "browserExtensions": "ブラウザ拡張機能",
         "apps": "iOS・Mac・Android アプリ",
         "apiAndMcp": "API と MCP のアクセス"
-      }
+      },
+      "cancelAnytime": "いつでも解約できます。"
     },
     "inboundEmail": {
-      "title": "メールで保存",
       "genericError": "メールで保存を更新できませんでした。もう一度お試しください。",
       "rateLimited": "変更が多すぎます。1 分後にもう一度お試しください。",
       "addressCopied": "アドレスをコピーしました",
@@ -195,11 +171,7 @@
       "unverified": "サインイン用のメールアドレス <strong>{sender}</strong> を確認するまで、メールは保存されません。",
       "howItWorks": "何でも転送・送信できます。リンクが 1 つだけのメールはリンクカードに、それ以外はメモになり、添付ファイルはそれぞれ別のカードになります。どれにも email タグが付きます。",
       "lastReceived": "最終受信：{when}",
-      "turnOff": "オフにする",
-      "on": "オン",
-      "off": "オフ",
-      "statusOnLabel": "メールで保存：オン",
-      "statusOffLabel": "メールで保存：オフ"
+      "turnOff": "オフにする"
     },
     "export": {
       "starting": "エクスポートを開始しています…",
@@ -365,9 +337,110 @@
       "label": "言語",
       "saving": "言語を変更しています",
       "changed": "言語を変更しました",
-      "changeFailed": "言語を変更できませんでした。もう一度お試しください。",
-      "feedback": "翻訳の改善に協力する",
-      "feedbackSubject": "翻訳へのフィードバック（{locale}）"
+      "changeFailed": "言語を変更できませんでした。もう一度お試しください。"
+    },
+    "nav": {
+      "label": "設定のページ",
+      "account": "アカウント",
+      "plan": "プラン",
+      "appearance": "外観",
+      "integrations": "連携",
+      "security": "セキュリティ",
+      "data": "インポートとエクスポート"
+    },
+    "pages": {
+      "account": {
+        "description": "サインイン中のアカウントと、すべての設定の概要です。"
+      },
+      "plan": {
+        "title": "プラン",
+        "description": "ご利用のプラン、保存したカードの数、お支払いについて。"
+      },
+      "appearance": {
+        "title": "外観",
+        "description": "Teak の見た目と表示言語。"
+      },
+      "integrations": {
+        "title": "連携",
+        "description": "メール、ブラウザ、デバイス、独自のツールから Teak に保存できます。"
+      },
+      "security": {
+        "title": "セキュリティ",
+        "description": "Teak アカウントにアクセスできるデバイスとアプリ。"
+      },
+      "data": {
+        "title": "インポートとエクスポート",
+        "description": "ほかのツールからカードを取り込んだり、すべてのデータのコピーを持ち出したりできます。"
+      }
+    },
+    "overview": {
+      "sectionsLabel": "すべての設定",
+      "planFree": "無料プラン · {count} / {limit} 件のカード",
+      "planPro": "Pro · {count, plural, other {# 件のカード}}",
+      "appearance": "{theme, select, light {ライトテーマ} dark {ダークテーマ} other {システムのテーマ}} · {language}",
+      "integrations": "{email, select, on {メールで保存: オン} other {メールで保存: オフ}} · {keys, plural, =0 {API キーなし} other {API キー # 件}}",
+      "devices": "{count, plural, =0 {サインイン中のデバイスはありません} other {# 台のデバイスでサインイン中}}",
+      "devicesMore": "{count} 台以上のデバイスでサインイン中",
+      "exportRunning": "エクスポート中",
+      "exportReady": "エクスポートをダウンロードできます",
+      "exportLast": "前回のエクスポート: {date}",
+      "dataIdle": "カードを取り込む、または持ち出す",
+      "signedInAs": "サインイン中のアカウント"
+    },
+    "dangerZone": {
+      "title": "アカウントを削除",
+      "description": "アカウント、カード、ファイルを完全に削除します。この操作は元に戻せません。",
+      "action": "アカウントを削除"
+    },
+    "plan": {
+      "currentTitle": "現在のプラン",
+      "freeDescription": "最大 {limit} 件のカードを保存できます。",
+      "proDescription": "すべてのアプリで、カードとストレージが無制限です。",
+      "usageLabel": "使用済みのカード",
+      "usage": "{count} / {limit} 件のカード",
+      "remaining": "{count, plural, other {残り # 件}}",
+      "limitReachedShort": "上限に達しました",
+      "limitReached": "無料プランのカードの上限に達しました。保存を続けるには Pro にアップグレードしてください。",
+      "unlimited": "{count, plural, other {# 件のカードを保存済み}}、上限はありません。",
+      "manageDescription": "プランの変更や解約、請求書の確認ができます。",
+      "includedTitle": "ご利用のプランに含まれるもの"
+    },
+    "appearance": {
+      "themeTitle": "テーマ",
+      "themeDescription": "システムに合わせるか、常にライトまたはダークを使います。このブラウザに保存されます。",
+      "languageTitle": "言語",
+      "languageDescription": "アカウントに保存されるため、どのブラウザでも同じ言語になります。"
+    },
+    "integrations": {
+      "saveByEmailTitle": "メールで保存",
+      "appsTitle": "アプリと拡張機能",
+      "appsDescription": "ブラウザ、スマートフォン、Raycast から保存できます。<link>すべてのアプリを見る</link>",
+      "apiTitle": "API キー",
+      "apiDescription": "API、CLI、MCP クライアントでキーを使えます。<link>API のドキュメントを読む</link>",
+      "opensInNewTab": "{name}(新しいタブで開きます)",
+      "apps": {
+        "chrome": {
+          "name": "Chrome 拡張機能",
+          "detail": "Chrome からページ、リンク、画像を保存します。"
+        },
+        "firefox": {
+          "name": "Firefox アドオン",
+          "detail": "Firefox からページ、リンク、画像を保存します。"
+        },
+        "apple": {
+          "name": "iPhone、iPad、Mac",
+          "detail": "App Store で Teak を入手します。"
+        },
+        "raycast": {
+          "name": "Raycast",
+          "detail": "Raycast からカードを検索して保存します。"
+        }
+      }
+    },
+    "data": {
+      "importTitle": "インポート",
+      "importDescription": "ブラウザやほかのアプリからリンクとメモを取り込みます。",
+      "exportTitle": "エクスポート"
     }
   },
   "app": {
@@ -1234,7 +1307,8 @@
       "navigate": "移動",
       "cards": "カード",
       "actions": "操作",
-      "folders": "フォルダ"
+      "folders": "フォルダ",
+      "settings": "設定"
     },
     "views": {
       "tags": "タグ",
@@ -1256,7 +1330,8 @@
       "searchAll": "すべてから「{query}」を検索",
       "untitled": "無題のカード"
     },
-    "resultsLabel": "候補"
+    "resultsLabel": "候補",
+    "settingsSection": "設定: {section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1377,8 @@
       "newNote": "新規メモ",
       "uploadFiles": "ファイルをアップロード",
       "notifications": "通知に移動（元に戻す）",
-      "keyboardShortcuts": "キーボードショートカット"
+      "keyboardShortcuts": "キーボードショートカット",
+      "goToSettings": "設定"
     }
   },
   "extension": {

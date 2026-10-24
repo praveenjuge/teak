@@ -1,6 +1,6 @@
 # Import
 
-Settings → Manage data → Import brings cards in from a file: browser bookmarks, any CSV with a header row, a text file of links, the named services (Pocket, Raindrop.io, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind) and a Teak archive. The file uploads, then imports in the background with progress, a one-line summary ("Last import: N created, M skipped"), the rows that failed and a downloadable report. Links already in the library, and repeats inside the file, are skipped by URL key.
+Settings → Import & export → Import brings cards in from a file: browser bookmarks, any CSV with a header row, a text file of links, the named services (Pocket, Raindrop.io, Instapaper, Readwise Reader, Omnivore, Linkwarden, mymind) and a Teak archive. The file uploads, then imports in the background with progress, a one-line summary ("Last import: N created, M skipped"), the rows that failed and a downloadable report. Links already in the library, and repeats inside the file, are skipped by URL key.
 
 ## Sub-features
 
@@ -13,7 +13,7 @@ Settings → Manage data → Import brings cards in from a file: browser bookmar
 
 ## How to get to it (user POV)
 
-- `/settings` → the Import and export row's button "Manage import and export" (visible text "Manage") → dialog "Manage data", tab "Import".
+- Settings → "Import & export" (`/settings/data`) → region "Import".
 - Command palette: "Import".
 
 ## Driving it with e2e MCP
@@ -26,9 +26,9 @@ Preconditions:
 
 Steps:
 
-- **Picker.** Open the dialog and `tap` combobox "Import from". The options read, in order: "Browser bookmarks", "CSV file", "Text file of links", "Pocket", "Raindrop.io", "Instapaper", "Readwise Reader", "Omnivore", "Linkwarden", "mymind", "Teak archive". There is no "OneTab".
+- **Picker.** `navigate` to `/settings/data` and, in region "Import", `tap` combobox "Import from". The options read, in order: "Browser bookmarks", "CSV file", "Text file of links", "Pocket", "Raindrop.io", "Instapaper", "Readwise Reader", "Omnivore", "Linkwarden", "mymind", "Teak archive". There is no "OneTab".
 - **CSV hint.** `tap` option "CSV file". The hint reads "A CSV with a header row. Teak reads url, title, tags, folder, note and created columns. Up to 20 MB." `tap` button "Example" (it starts collapsed): a block shows `url,title,tags,folder,note,created` and one sample row. Screenshot it in light and dark at 390 and 1440 px; the sample row scrolls inside its block, never the page.
-- **Import a CSV.** Set `src/web/import-fixtures/aliases.csv` on the hidden file input, `input[type=file][accept=".csv"]`. e2e's `upload` can't reach that input and "Choose file" opens the system picker, so use Playwright's `setInputFiles` over CDP (see `.agents/cloud.md`, "File uploads"). A confirmation shows the file name and "CSV file · <size>"; `tap` "Start import". Progress runs through "Uploading", "Parsing import file" and "Importing cards", then the line reads "Last import: 1 created, 0 skipped — <when>". Close the dialog, search "Alias title", and open the card: title "Alias title", tags "alpha" and "beta", folder "Projects / Teak", note "Alias note", and "Added May 1, 2024, 10:00 AM" (the hour follows the browser's time zone).
+- **Import a CSV.** Set `src/web/import-fixtures/aliases.csv` on the hidden file input, `input[type=file][accept=".csv"]`. e2e's `upload` can't reach that input and "Choose file" opens the system picker, so use Playwright's `setInputFiles` over CDP (see `.agents/cloud.md`, "File uploads"). A confirmation shows the file name and "CSV file · <size>"; `tap` "Start import". Progress runs through "Uploading", "Parsing import file" and "Importing cards", then the line reads "Last import: 1 created, 0 skipped — <when>". Go to Everything, search "Alias title", and open the card: title "Alias title", tags "alpha" and "beta", folder "Projects / Teak", note "Alias note", and "Added May 1, 2024, 10:00 AM" (the hour follows the browser's time zone).
 - **Missing url column.** Import `no-url.csv`. The import stops: "Import stopped" and "This CSV has no url column. Add a header row with a url (or link) column."
 - **Duplicates and the report.** Import `variants.csv` (three spellings of one link): "1 created, 2 skipped". Import it again: "0 created, 3 skipped". Import `unsafe-urls.csv`: "1 created" and "3 failed", and "Items that couldn't be imported" lists "Row 2: CSV link is unsafe…", "Row 3: …" and "Row 4 has no url". `tap` "Download error report"; the file lists the same rows.
 - **Text file of links.** Choose "Text file of links" (the file chooser takes `.txt`) and import `links.txt`: 3 created, the third titled "Third | with a pipe".

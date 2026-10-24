@@ -5,7 +5,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef } from "react";
 import { SidebarToggle } from "@/components/sidebar";
 import { folderPath } from "@/lib/folders";
-import { rememberHomeScroll } from "@/lib/homeScroll";
 import {
   FOCUS_COMPOSER_PARAM,
   LIBRARY_VIEW_PATHS,
@@ -16,6 +15,7 @@ import {
   type SearchUrlState,
   serializeSearchUrlState,
 } from "@/lib/searchUrlState";
+import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import type { SearchUrlChange } from "@/screens";
 import { CardsScreenAdapter } from "@/screens";
 
@@ -185,8 +185,7 @@ export function HomePageClient({
   );
 
   const handleUpgrade = useCallback(() => {
-    rememberHomeScroll();
-    router.push("/settings");
+    router.push(SETTINGS_PLAN_HREF);
   }, [router]);
 
   return (
@@ -213,7 +212,7 @@ export function HomePageClient({
       searchUrlState={searchUrlState}
       toastIdPrefix="web-masonry"
       UpgradeLinkComponent={Link}
-      upgradeUrl="/settings"
+      upgradeUrl={SETTINGS_PLAN_HREF}
       view={view}
     />
   );

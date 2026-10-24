@@ -15,7 +15,7 @@ test("Settings → Language switches in place, saves to the account and survives
   library,
   screen,
 }) => {
-  await gotoApp(browser, "/settings");
+  await gotoApp(browser, "/settings/appearance");
   const language = screen.getByRole("combobox", en.settings.language.label);
   await expect(language).toBeVisible({ timeout: 30_000 });
   await expect(language).toHaveText(/English/);
@@ -24,7 +24,9 @@ test("Settings → Language switches in place, saves to the account and survives
   await screen.getByRole("option", "Deutsch", { exact: false }).click();
 
   // The page re-renders in German without a navigation.
-  await expect(screen.getByText(de.settings.rows.language)).toBeVisible();
+  await expect(
+    screen.getByRole("heading", de.settings.appearance.languageTitle)
+  ).toBeVisible();
   await expect(screen.getByText(de.settings.language.changed)).toBeVisible();
   expect(await htmlLang(browser)).toBe("de");
   expect(
@@ -44,11 +46,13 @@ test("Settings → Language switches in place, saves to the account and survives
   ).toBeVisible({ timeout: 30_000 });
 
   // Back to English.
-  await gotoApp(browser, "/settings");
+  await gotoApp(browser, "/settings/appearance");
   const german = screen.getByRole("combobox", de.settings.language.label);
   await german.click();
   await screen.getByRole("option", "English", { exact: false }).click();
-  await expect(screen.getByText(en.settings.rows.language)).toBeVisible();
+  await expect(
+    screen.getByRole("heading", en.settings.appearance.languageTitle)
+  ).toBeVisible();
   expect(await htmlLang(browser)).toBe("en");
   expect(
     await library.client.query(api.settings.preferences.getPreferences, {})

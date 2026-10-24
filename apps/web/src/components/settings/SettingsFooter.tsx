@@ -1,48 +1,52 @@
 import { useTranslations } from "@teak/i18n/react";
-import { cn } from "../../lib/utils";
 import Logo from "../Logo";
-import { Button, buttonVariants } from "../ui/button";
+
+const HELP_LINKS = [
+  { id: "docs", href: "https://teakvault.com/docs" },
+  { id: "changelog", href: "https://teakvault.com/changelog" },
+  { id: "support", href: "https://teakvault.com/docs/support" },
+] as const;
 
 interface SettingsFooterProps {
   email?: string;
-  onDeleteClick?: () => void;
   twitterUrl?: string;
+  version?: string;
 }
 
 export function SettingsFooter({
-  onDeleteClick,
   twitterUrl = "https://x.com/praveenjuge",
   email = "hello@praveenjuge.com",
+  version = process.env.NEXT_PUBLIC_APP_VERSION,
 }: SettingsFooterProps) {
   const t = useTranslations("settings.footer");
   return (
-    <div className="relative mt-12 flex flex-col items-start gap-5">
-      <Logo variant="primary" />
-      <div className="break-words text-muted-foreground">
+    <div className="relative mt-10 flex flex-col items-start gap-4 border-t pt-6">
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <Logo variant="primary" />
+        <nav
+          aria-label={t("linksLabel")}
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs"
+        >
+          {HELP_LINKS.map((link) => (
+            <a
+              className="hover:text-foreground hover:underline"
+              href={link.href}
+              key={link.id}
+              rel="noopener"
+              target="_blank"
+            >
+              {t(link.id)}
+            </a>
+          ))}
+          {version ? (
+            <span className="tabular-nums">{t("version", { version })}</span>
+          ) : null}
+        </nav>
+      </div>
+      <div className="break-words text-[13px] text-muted-foreground leading-5">
         {t.rich("feedback", {
           email,
           handle: "@praveenjuge",
-          deleteAccount: (chunks) =>
-            onDeleteClick ? (
-              <Button
-                className="h-auto p-0"
-                onClick={onDeleteClick}
-                size="sm"
-                variant="link"
-              >
-                {chunks}
-              </Button>
-            ) : (
-              <a
-                className={cn(
-                  buttonVariants({ size: "sm", variant: "link" }),
-                  "h-auto p-0"
-                )}
-                href="/settings"
-              >
-                {chunks}
-              </a>
-            ),
           emailLink: (chunks) => (
             <a
               className="select-all font-medium text-primary"
@@ -64,7 +68,7 @@ export function SettingsFooter({
         })}
       </div>
       <svg
-        className="w-28 text-muted-foreground"
+        className="w-24 text-muted-foreground"
         fill="currentColor"
         viewBox="0 0 138 48"
         xmlns="http://www.w3.org/2000/svg"

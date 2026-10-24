@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "Schreiben Sie mir gern unter <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink>, wenn Sie Feedback haben. Falls Sie Teak einmal verlassen möchten, können Sie <deleteAccount>Ihr Konto löschen</deleteAccount>. Ich hoffe, Sie nutzen Teak so gern, wie ich es entwickelt habe.",
-      "signature": "Unterschrift von Praveen Juge"
+      "feedback": "Schreiben Sie mir gern unter <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink>, wenn Sie Feedback haben. Ich hoffe, Sie nutzen Teak so gern, wie ich es entwickelt habe.",
+      "signature": "Unterschrift von Praveen Juge",
+      "linksLabel": "Hilfe und Ressourcen",
+      "docs": "Dokumentation",
+      "changelog": "Neuerungen",
+      "support": "Hilfe",
+      "version": "Version {version}"
     },
     "header": {
       "title": "Einstellungen"
-    },
-    "rows": {
-      "email": "E-Mail",
-      "usage": "Nutzung",
-      "plan": "Tarif",
-      "saveByEmail": "Per E-Mail speichern",
-      "security": "Sicherheit",
-      "importExport": "Daten importieren/exportieren",
-      "theme": "Design",
-      "signOut": "Abmelden",
-      "language": "Sprache"
     },
     "skeleton": {
       "loading": "Einstellungen werden geladen…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "Nicht verfügbar",
-      "cardCount": "{count, plural, one {# Karte} other {# Karten}}",
       "pro": "Pro",
       "freePlan": "Kostenloser Tarif",
-      "manage": "Verwalten",
       "manageSubscription": "Abo verwalten",
-      "upgrade": "Upgraden",
       "signOut": "Abmelden"
     },
     "theme": {
       "useSystem": "Systemdesign verwenden",
       "useLight": "Helles Design verwenden",
-      "useDark": "Dunkles Design verwenden"
-    },
-    "importExport": {
-      "manage": "Verwalten",
-      "manageLabel": "Import und Export verwalten",
-      "title": "Daten verwalten",
-      "description": "Holen Sie Karten aus anderen Tools oder nehmen Sie eine vollständige Kopie mit.",
-      "importTab": "Importieren",
-      "exportTab": "Exportieren"
-    },
-    "security": {
-      "manage": "Verwalten",
-      "manageLabel": "Sicherheit verwalten",
-      "title": "Sicherheit",
-      "description": "Verwalten Sie die Geräte, Apps und Schlüssel, die auf Ihr Teak-Konto zugreifen können.",
-      "connectionsTab": "Verbindungen",
-      "apiKeysTab": "API-Schlüssel"
+      "useDark": "Dunkles Design verwenden",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
     },
     "connections": {
       "devicesTitle": "Geräte",
@@ -119,7 +97,6 @@
       "disconnectDescription": "{name} verliert auf allen Installationen den Zugriff auf Ihre Teak-Bibliothek, bis Sie es erneut verbinden."
     },
     "apiKeys": {
-      "title": "API-Schlüssel",
       "revokeAllTitle": "Alle API-Schlüssel widerrufen?",
       "revokeAllDescription": "Alle API-Schlüssel funktionieren sofort nicht mehr, auch die von CLI, Raycast und MCP-Clients. Dies kann nicht rückgängig gemacht werden.",
       "revokeAllConfirm": "Alle Schlüssel widerrufen",
@@ -161,7 +138,6 @@
     "subscription": {
       "title": "Auf Pro upgraden",
       "description": "Schalten Sie alle Funktionen frei und entfernen Sie alle Limits.",
-      "maybeLater": "Vielleicht später",
       "continueToCheckout": "Weiter zur Kasse",
       "choosePlan": "Tarif wählen",
       "everythingInPro": "Alles in Pro",
@@ -178,10 +154,10 @@
         "browserExtensions": "Browsererweiterungen",
         "apps": "Apps für iOS, Mac & Android",
         "apiAndMcp": "Zugriff auf API & MCP"
-      }
+      },
+      "cancelAnytime": "Jederzeit kündbar."
     },
     "inboundEmail": {
-      "title": "Per E-Mail speichern",
       "genericError": "„Per E-Mail speichern“ konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
       "rateLimited": "Zu viele Änderungen. Versuchen Sie es in einer Minute erneut.",
       "addressCopied": "Adresse kopiert",
@@ -195,11 +171,7 @@
       "unverified": "E-Mails werden erst gespeichert, wenn Sie Ihre Anmelde-E-Mail-Adresse <strong>{sender}</strong> bestätigen.",
       "howItWorks": "Leiten Sie alles weiter oder senden Sie es direkt. Eine E-Mail mit nur einem Link wird zu einer Linkkarte, alles andere zu einer Notiz, und Anhänge werden zu eigenen Karten. Alle erhalten den Tag „email“.",
       "lastReceived": "Letzte E-Mail erhalten: {when}",
-      "turnOff": "Deaktivieren",
-      "on": "An",
-      "off": "Aus",
-      "statusOnLabel": "Per E-Mail speichern: An",
-      "statusOffLabel": "Per E-Mail speichern: Aus"
+      "turnOff": "Deaktivieren"
     },
     "export": {
       "starting": "Export wird gestartet…",
@@ -365,9 +337,110 @@
       "label": "Sprache",
       "saving": "Sprache wird geändert",
       "changed": "Sprache geändert",
-      "changeFailed": "Die Sprache konnte nicht geändert werden. Versuchen Sie es erneut.",
-      "feedback": "Übersetzungen verbessern",
-      "feedbackSubject": "Feedback zur Übersetzung ({locale})"
+      "changeFailed": "Die Sprache konnte nicht geändert werden. Versuchen Sie es erneut."
+    },
+    "nav": {
+      "label": "Einstellungsseiten",
+      "account": "Konto",
+      "plan": "Tarif",
+      "appearance": "Darstellung",
+      "integrations": "Integrationen",
+      "security": "Sicherheit",
+      "data": "Import und Export"
+    },
+    "pages": {
+      "account": {
+        "description": "Mit welchem Konto Sie angemeldet sind, und alle Einstellungen auf einen Blick."
+      },
+      "plan": {
+        "title": "Tarif",
+        "description": "Ihr Tarif, wie viele Karten Sie gespeichert haben, und die Abrechnung."
+      },
+      "appearance": {
+        "title": "Darstellung",
+        "description": "Wie Teak aussieht und welche Sprache es verwendet."
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "description": "Speichern Sie in Teak aus Ihrem Postfach, Ihrem Browser, Ihren Geräten und Ihren eigenen Tools."
+      },
+      "security": {
+        "title": "Sicherheit",
+        "description": "Die Geräte und Apps, die auf Ihr Teak-Konto zugreifen können."
+      },
+      "data": {
+        "title": "Import und Export",
+        "description": "Holen Sie Karten aus anderen Tools oder nehmen Sie eine vollständige Kopie mit."
+      }
+    },
+    "overview": {
+      "sectionsLabel": "Alle Einstellungen",
+      "planFree": "Kostenloser Tarif · {count} von {limit} Karten",
+      "planPro": "Pro · {count, plural, one {# Karte} other {# Karten}}",
+      "appearance": "{theme, select, light {Helles Design} dark {Dunkles Design} other {Systemdesign}} · {language}",
+      "integrations": "{email, select, on {Per E-Mail speichern an} other {Per E-Mail speichern aus}} · {keys, plural, =0 {keine API-Schlüssel} one {# API-Schlüssel} other {# API-Schlüssel}}",
+      "devices": "{count, plural, =0 {Keine Geräte angemeldet} one {# Gerät angemeldet} other {# Geräte angemeldet}}",
+      "devicesMore": "Mehr als {count} Geräte angemeldet",
+      "exportRunning": "Export läuft",
+      "exportReady": "Export bereit zum Herunterladen",
+      "exportLast": "Letzter Export: {date}",
+      "dataIdle": "Karten holen oder mitnehmen",
+      "signedInAs": "Angemeldet als"
+    },
+    "dangerZone": {
+      "title": "Konto löschen",
+      "description": "Löschen Sie Ihr Konto, Ihre Karten und Dateien endgültig. Das lässt sich nicht rückgängig machen.",
+      "action": "Ihr Konto löschen"
+    },
+    "plan": {
+      "currentTitle": "Aktueller Tarif",
+      "freeDescription": "Speichern Sie bis zu {limit} Karten.",
+      "proDescription": "Unbegrenzt Karten und Speicher, in allen Apps.",
+      "usageLabel": "Genutzte Karten",
+      "usage": "{count} von {limit} Karten",
+      "remaining": "{count, plural, one {Noch # Karte} other {Noch # Karten}}",
+      "limitReachedShort": "Limit erreicht",
+      "limitReached": "Sie haben das Kartenlimit des kostenlosen Tarifs erreicht. Upgraden Sie, um weiter zu speichern.",
+      "unlimited": "{count, plural, one {# Karte gespeichert} other {# Karten gespeichert}}, ohne Limit.",
+      "manageDescription": "Ändern oder kündigen Sie Ihren Tarif und sehen Sie Ihre Rechnungen ein.",
+      "includedTitle": "In Ihrem Tarif enthalten"
+    },
+    "appearance": {
+      "themeTitle": "Design",
+      "themeDescription": "Folgen Sie dem System oder verwenden Sie immer Hell oder Dunkel. Wird in diesem Browser gespeichert.",
+      "languageTitle": "Sprache",
+      "languageDescription": "Wird in Ihrem Konto gespeichert und gilt so in jedem Browser."
+    },
+    "integrations": {
+      "saveByEmailTitle": "Per E-Mail speichern",
+      "appsTitle": "Apps und Erweiterungen",
+      "appsDescription": "Speichern Sie aus Ihrem Browser, auf dem Smartphone oder mit Raycast. <link>Alle Apps ansehen</link>",
+      "apiTitle": "API-Schlüssel",
+      "apiDescription": "Verwenden Sie einen Schlüssel mit der API, der CLI oder einem MCP-Client. <link>API-Dokumentation lesen</link>",
+      "opensInNewTab": "{name} (öffnet sich in einem neuen Tab)",
+      "apps": {
+        "chrome": {
+          "name": "Chrome-Erweiterung",
+          "detail": "Speichern Sie Seiten, Links und Bilder aus Chrome."
+        },
+        "firefox": {
+          "name": "Firefox-Add-on",
+          "detail": "Speichern Sie Seiten, Links und Bilder aus Firefox."
+        },
+        "apple": {
+          "name": "iPhone, iPad und Mac",
+          "detail": "Teak im App Store laden."
+        },
+        "raycast": {
+          "name": "Raycast",
+          "detail": "Karten in Raycast suchen und speichern."
+        }
+      }
+    },
+    "data": {
+      "importTitle": "Importieren",
+      "importDescription": "Holen Sie Links und Notizen aus Ihrem Browser oder einer anderen App.",
+      "exportTitle": "Exportieren"
     }
   },
   "app": {
@@ -1234,7 +1307,8 @@
       "navigate": "Navigieren",
       "cards": "Karten",
       "actions": "Aktionen",
-      "folders": "Ordner"
+      "folders": "Ordner",
+      "settings": "Einstellungen"
     },
     "views": {
       "tags": "Tags",
@@ -1256,7 +1330,8 @@
       "searchAll": "Überall nach „{query}“ suchen",
       "untitled": "Karte ohne Titel"
     },
-    "resultsLabel": "Vorschläge"
+    "resultsLabel": "Vorschläge",
+    "settingsSection": "Einstellungen: {section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1377,8 @@
       "newNote": "Neue Notiz",
       "uploadFiles": "Dateien hochladen",
       "notifications": "Zu Benachrichtigungen (Rückgängig)",
-      "keyboardShortcuts": "Tastenkürzel"
+      "keyboardShortcuts": "Tastenkürzel",
+      "goToSettings": "Einstellungen"
     }
   },
   "extension": {

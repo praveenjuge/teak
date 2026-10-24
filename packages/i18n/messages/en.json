@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "Let me know <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> if you have any feedback. If you ever want to leave, you can <deleteAccount>delete your account</deleteAccount>. Hope you enjoy using Teak as much as I enjoyed creating it.",
-      "signature": "Praveen Juge Signature"
+      "feedback": "Let me know <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> if you have any feedback. Hope you enjoy using Teak as much as I enjoyed creating it.",
+      "signature": "Praveen Juge Signature",
+      "linksLabel": "Help and resources",
+      "docs": "Docs",
+      "changelog": "Changelog",
+      "support": "Help",
+      "version": "Version {version}"
     },
     "header": {
       "title": "Settings"
-    },
-    "rows": {
-      "email": "Email",
-      "usage": "Usage",
-      "plan": "Plan",
-      "saveByEmail": "Save by email",
-      "security": "Security",
-      "importExport": "Import/Export Data",
-      "theme": "Theme",
-      "signOut": "Sign out",
-      "language": "Language"
     },
     "skeleton": {
       "loading": "Loading settings…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "Not available",
-      "cardCount": "{count, plural, other {# Cards}}",
       "pro": "Pro",
       "freePlan": "Free Plan",
-      "manage": "Manage",
       "manageSubscription": "Manage subscription",
-      "upgrade": "Upgrade",
       "signOut": "Sign out"
     },
     "theme": {
       "useSystem": "Use system theme",
       "useLight": "Use light theme",
-      "useDark": "Use dark theme"
-    },
-    "importExport": {
-      "manage": "Manage",
-      "manageLabel": "Manage import and export",
-      "title": "Manage data",
-      "description": "Bring cards in from other tools, or take a full copy with you.",
-      "importTab": "Import",
-      "exportTab": "Export"
-    },
-    "security": {
-      "manage": "Manage",
-      "manageLabel": "Manage security",
-      "title": "Security",
-      "description": "Manage the devices, apps and keys that can access your Teak account.",
-      "connectionsTab": "Connections",
-      "apiKeysTab": "API keys"
+      "useDark": "Use dark theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
     },
     "connections": {
       "devicesTitle": "Devices",
@@ -119,7 +97,6 @@
       "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again."
     },
     "apiKeys": {
-      "title": "API keys",
       "revokeAllTitle": "Revoke all API keys?",
       "revokeAllDescription": "Every API key stops working right away, including keys used by the CLI, Raycast and MCP clients. This can’t be undone.",
       "revokeAllConfirm": "Revoke all keys",
@@ -161,7 +138,6 @@
     "subscription": {
       "title": "Upgrade to Pro",
       "description": "Unlock all features and remove limits.",
-      "maybeLater": "Maybe later",
       "continueToCheckout": "Continue to checkout",
       "choosePlan": "Choose a plan",
       "everythingInPro": "Everything in Pro",
@@ -178,10 +154,10 @@
         "browserExtensions": "Browser Extensions",
         "apps": "iOS, Mac & Android Apps",
         "apiAndMcp": "API & MCP Access"
-      }
+      },
+      "cancelAnytime": "Cancel anytime."
     },
     "inboundEmail": {
-      "title": "Save by email",
       "genericError": "Couldn't update Save by email. Try again.",
       "rateLimited": "Too many changes. Try again in a minute.",
       "addressCopied": "Address copied",
@@ -195,11 +171,7 @@
       "unverified": "Mail isn't saved until you verify your sign-in email, <strong>{sender}</strong>.",
       "howItWorks": "Forward or send anything. An email with a single link becomes a link card, everything else becomes a note, and attachments become their own cards. All are tagged email.",
       "lastReceived": "Last email received {when}",
-      "turnOff": "Turn off",
-      "on": "On",
-      "off": "Off",
-      "statusOnLabel": "Save by email: On",
-      "statusOffLabel": "Save by email: Off"
+      "turnOff": "Turn off"
     },
     "export": {
       "starting": "Starting export…",
@@ -365,9 +337,110 @@
       "label": "Language",
       "saving": "Changing the language",
       "changed": "Language changed",
-      "changeFailed": "Couldn't change the language. Try again.",
-      "feedback": "Help improve translations",
-      "feedbackSubject": "Translation feedback ({locale})"
+      "changeFailed": "Couldn't change the language. Try again."
+    },
+    "nav": {
+      "label": "Settings pages",
+      "account": "Account",
+      "plan": "Plan",
+      "appearance": "Appearance",
+      "integrations": "Integrations",
+      "security": "Security",
+      "data": "Import & export"
+    },
+    "pages": {
+      "account": {
+        "description": "Who you're signed in as, and all your settings at a glance."
+      },
+      "plan": {
+        "title": "Plan",
+        "description": "Your plan, how many cards you’ve saved, and billing."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "description": "How Teak looks, and the language it uses."
+      },
+      "integrations": {
+        "title": "Integrations",
+        "description": "Save to Teak from your inbox, your browser, your devices and your own tools."
+      },
+      "security": {
+        "title": "Security",
+        "description": "The devices and apps that can reach your Teak account."
+      },
+      "data": {
+        "title": "Import & export",
+        "description": "Bring cards in from other tools, or take a full copy with you."
+      }
+    },
+    "overview": {
+      "sectionsLabel": "All settings",
+      "planFree": "Free Plan · {count} of {limit} cards",
+      "planPro": "Pro · {count, plural, one {# card} other {# cards}}",
+      "appearance": "{theme, select, light {Light theme} dark {Dark theme} other {System theme}} · {language}",
+      "integrations": "{email, select, on {Save by email on} other {Save by email off}} · {keys, plural, =0 {no API keys} one {# API key} other {# API keys}}",
+      "devices": "{count, plural, =0 {No devices signed in} one {# device signed in} other {# devices signed in}}",
+      "devicesMore": "{count}+ devices signed in",
+      "exportRunning": "Export in progress",
+      "exportReady": "Export ready to download",
+      "exportLast": "Last export {date}",
+      "dataIdle": "Bring cards in, or take them with you",
+      "signedInAs": "Signed in as"
+    },
+    "dangerZone": {
+      "title": "Delete account",
+      "description": "Permanently delete your account, cards and files. This can’t be undone.",
+      "action": "Delete your account"
+    },
+    "plan": {
+      "currentTitle": "Current plan",
+      "freeDescription": "Save up to {limit} cards.",
+      "proDescription": "Unlimited cards and storage, on every app.",
+      "usageLabel": "Cards used",
+      "usage": "{count} of {limit} cards",
+      "remaining": "{count, plural, one {# card left} other {# cards left}}",
+      "limitReachedShort": "Limit reached",
+      "limitReached": "You’ve reached the free plan’s card limit. Upgrade to keep saving.",
+      "unlimited": "{count, plural, one {# card saved} other {# cards saved}}, with no limit.",
+      "manageDescription": "Change or cancel your plan, and see your invoices.",
+      "includedTitle": "Included in your plan"
+    },
+    "appearance": {
+      "themeTitle": "Theme",
+      "themeDescription": "Follow your system, or always use light or dark. Saved in this browser.",
+      "languageTitle": "Language",
+      "languageDescription": "Saved to your account, so it follows you to every browser."
+    },
+    "integrations": {
+      "saveByEmailTitle": "Save by email",
+      "appsTitle": "Apps and extensions",
+      "appsDescription": "Save from your browser, your phone or Raycast. <link>See all apps</link>",
+      "apiTitle": "API keys",
+      "apiDescription": "Use a key with the API, the CLI or an MCP client. <link>Read the API docs</link>",
+      "opensInNewTab": "{name} (opens in a new tab)",
+      "apps": {
+        "chrome": {
+          "name": "Chrome extension",
+          "detail": "Save pages, links and images from Chrome."
+        },
+        "firefox": {
+          "name": "Firefox add-on",
+          "detail": "Save pages, links and images from Firefox."
+        },
+        "apple": {
+          "name": "iPhone, iPad and Mac",
+          "detail": "Get Teak on the App Store."
+        },
+        "raycast": {
+          "name": "Raycast",
+          "detail": "Search and save cards from Raycast."
+        }
+      }
+    },
+    "data": {
+      "importTitle": "Import",
+      "importDescription": "Bring links and notes in from your browser or another app.",
+      "exportTitle": "Export"
     }
   },
   "app": {
@@ -1234,7 +1307,8 @@
       "navigate": "Navigate",
       "cards": "Cards",
       "actions": "Actions",
-      "folders": "Folders"
+      "folders": "Folders",
+      "settings": "Settings"
     },
     "views": {
       "tags": "Tags",
@@ -1256,7 +1330,8 @@
       "searchAll": "Search all for “{query}”",
       "untitled": "Untitled card"
     },
-    "resultsLabel": "Suggestions"
+    "resultsLabel": "Suggestions",
+    "settingsSection": "Settings: {section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1377,8 @@
       "newNote": "New note",
       "uploadFiles": "Upload files",
       "notifications": "Go to notifications (Undo)",
-      "keyboardShortcuts": "Keyboard shortcuts"
+      "keyboardShortcuts": "Keyboard shortcuts",
+      "goToSettings": "Go to Settings"
     }
   },
   "extension": {

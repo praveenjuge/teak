@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "如有任何反馈，请通过 <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> 告诉我。如果你想离开，随时可以<deleteAccount>删除账户</deleteAccount>。希望你喜欢使用 Teak，就像我喜欢创造它一样。",
-      "signature": "Praveen Juge 的签名"
+      "feedback": "如有任何反馈，请通过 <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> 告诉我。希望你喜欢使用 Teak，就像我喜欢创造它一样。",
+      "signature": "Praveen Juge 的签名",
+      "linksLabel": "帮助和资源",
+      "docs": "文档",
+      "changelog": "更新日志",
+      "support": "帮助",
+      "version": "版本 {version}"
     },
     "header": {
       "title": "设置"
-    },
-    "rows": {
-      "email": "电子邮件",
-      "usage": "用量",
-      "plan": "方案",
-      "saveByEmail": "通过邮件保存",
-      "security": "安全",
-      "importExport": "导入/导出数据",
-      "theme": "主题",
-      "signOut": "退出登录",
-      "language": "语言"
     },
     "skeleton": {
       "loading": "正在加载设置…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "不可用",
-      "cardCount": "{count, plural, other {# 张卡片}}",
       "pro": "Pro",
       "freePlan": "免费方案",
-      "manage": "管理",
       "manageSubscription": "管理订阅",
-      "upgrade": "升级",
       "signOut": "退出登录"
     },
     "theme": {
       "useSystem": "使用系统主题",
       "useLight": "使用浅色主题",
-      "useDark": "使用深色主题"
-    },
-    "importExport": {
-      "manage": "管理",
-      "manageLabel": "管理导入和导出",
-      "title": "管理数据",
-      "description": "从其他工具导入卡片，或导出一份完整副本带走。",
-      "importTab": "导入",
-      "exportTab": "导出"
-    },
-    "security": {
-      "manage": "管理",
-      "manageLabel": "管理安全",
-      "title": "安全",
-      "description": "管理可以访问你的 Teak 账户的设备、应用和密钥。",
-      "connectionsTab": "连接",
-      "apiKeysTab": "API 密钥"
+      "useDark": "使用深色主题",
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色"
     },
     "connections": {
       "devicesTitle": "设备",
@@ -119,7 +97,6 @@
       "disconnectDescription": "{name} 将在所有安装上失去对你的 Teak 资料库的访问权限，直到你重新连接。"
     },
     "apiKeys": {
-      "title": "API 密钥",
       "revokeAllTitle": "要吊销所有 API 密钥吗？",
       "revokeAllDescription": "所有 API 密钥会立即失效，包括 CLI、Raycast 和 MCP 客户端使用的密钥。此操作无法撤销。",
       "revokeAllConfirm": "吊销所有密钥",
@@ -161,7 +138,6 @@
     "subscription": {
       "title": "升级到 Pro",
       "description": "解锁全部功能，移除所有限制。",
-      "maybeLater": "以后再说",
       "continueToCheckout": "继续结账",
       "choosePlan": "选择方案",
       "everythingInPro": "Pro 包含的全部功能",
@@ -178,10 +154,10 @@
         "browserExtensions": "浏览器扩展",
         "apps": "iOS、Mac 和 Android 应用",
         "apiAndMcp": "API 和 MCP 访问权限"
-      }
+      },
+      "cancelAnytime": "可随时取消。"
     },
     "inboundEmail": {
-      "title": "通过邮件保存",
       "genericError": "无法更新“通过邮件保存”，请重试。",
       "rateLimited": "更改过于频繁，请一分钟后重试。",
       "addressCopied": "地址已复制",
@@ -195,11 +171,7 @@
       "unverified": "验证你的登录邮箱 <strong>{sender}</strong> 之前，邮件不会被保存。",
       "howItWorks": "转发或发送任何内容。只含一个链接的邮件会成为链接卡片，其他邮件会成为笔记，附件会各自成为独立的卡片。所有卡片都会加上 email 标签。",
       "lastReceived": "上次收到邮件：{when}",
-      "turnOff": "关闭",
-      "on": "已开启",
-      "off": "已关闭",
-      "statusOnLabel": "通过邮件保存：已开启",
-      "statusOffLabel": "通过邮件保存：已关闭"
+      "turnOff": "关闭"
     },
     "export": {
       "starting": "正在开始导出…",
@@ -365,9 +337,110 @@
       "label": "语言",
       "saving": "正在更改语言",
       "changed": "语言已更改",
-      "changeFailed": "无法更改语言，请重试。",
-      "feedback": "帮助改进翻译",
-      "feedbackSubject": "翻译反馈（{locale}）"
+      "changeFailed": "无法更改语言，请重试。"
+    },
+    "nav": {
+      "label": "设置页面",
+      "account": "账户",
+      "plan": "方案",
+      "appearance": "外观",
+      "integrations": "集成",
+      "security": "安全",
+      "data": "导入和导出"
+    },
+    "pages": {
+      "account": {
+        "description": "你登录的账户，以及所有设置的概览。"
+      },
+      "plan": {
+        "title": "方案",
+        "description": "你的方案、已保存的卡片数量和账单。"
+      },
+      "appearance": {
+        "title": "外观",
+        "description": "Teak 的外观和使用的语言。"
+      },
+      "integrations": {
+        "title": "集成",
+        "description": "从邮箱、浏览器、设备和你自己的工具保存到 Teak。"
+      },
+      "security": {
+        "title": "安全",
+        "description": "可以访问你的 Teak 账户的设备和应用。"
+      },
+      "data": {
+        "title": "导入和导出",
+        "description": "从其他工具导入卡片，或导出一份完整副本带走。"
+      }
+    },
+    "overview": {
+      "sectionsLabel": "全部设置",
+      "planFree": "免费方案 · {count} / {limit} 张卡片",
+      "planPro": "Pro · {count, plural, other {# 张卡片}}",
+      "appearance": "{theme, select, light {浅色主题} dark {深色主题} other {跟随系统}} · {language}",
+      "integrations": "{email, select, on {通过邮件保存已开启} other {通过邮件保存已关闭}} · {keys, plural, =0 {没有 API 密钥} other {# 个 API 密钥}}",
+      "devices": "{count, plural, =0 {没有已登录的设备} other {# 台设备已登录}}",
+      "devicesMore": "超过 {count} 台设备已登录",
+      "exportRunning": "正在导出",
+      "exportReady": "导出文件可以下载",
+      "exportLast": "上次导出：{date}",
+      "dataIdle": "导入卡片，或把它们带走",
+      "signedInAs": "当前登录账户"
+    },
+    "dangerZone": {
+      "title": "删除账户",
+      "description": "永久删除你的账户、卡片和文件。此操作无法撤销。",
+      "action": "删除你的账户"
+    },
+    "plan": {
+      "currentTitle": "当前方案",
+      "freeDescription": "最多保存 {limit} 张卡片。",
+      "proDescription": "在所有应用中享有无限卡片和存储空间。",
+      "usageLabel": "已用卡片",
+      "usage": "{count} / {limit} 张卡片",
+      "remaining": "{count, plural, other {还剩 # 张}}",
+      "limitReachedShort": "已达上限",
+      "limitReached": "你已达到免费方案的卡片上限。升级后即可继续保存。",
+      "unlimited": "{count, plural, other {已保存 # 张卡片}}，没有上限。",
+      "manageDescription": "更改或取消方案，并查看你的发票。",
+      "includedTitle": "你的方案包含"
+    },
+    "appearance": {
+      "themeTitle": "主题",
+      "themeDescription": "跟随系统，或始终使用浅色或深色。保存在此浏览器中。",
+      "languageTitle": "语言",
+      "languageDescription": "保存在你的账户中，在每个浏览器上都一样。"
+    },
+    "integrations": {
+      "saveByEmailTitle": "通过邮件保存",
+      "appsTitle": "应用和扩展",
+      "appsDescription": "从浏览器、手机或 Raycast 保存。<link>查看所有应用</link>",
+      "apiTitle": "API 密钥",
+      "apiDescription": "在 API、CLI 或 MCP 客户端中使用密钥。<link>阅读 API 文档</link>",
+      "opensInNewTab": "{name}（在新标签页中打开）",
+      "apps": {
+        "chrome": {
+          "name": "Chrome 扩展",
+          "detail": "从 Chrome 保存网页、链接和图片。"
+        },
+        "firefox": {
+          "name": "Firefox 附加组件",
+          "detail": "从 Firefox 保存网页、链接和图片。"
+        },
+        "apple": {
+          "name": "iPhone、iPad 和 Mac",
+          "detail": "在 App Store 获取 Teak。"
+        },
+        "raycast": {
+          "name": "Raycast",
+          "detail": "在 Raycast 中搜索和保存卡片。"
+        }
+      }
+    },
+    "data": {
+      "importTitle": "导入",
+      "importDescription": "从浏览器或其他应用导入链接和笔记。",
+      "exportTitle": "导出"
     }
   },
   "app": {
@@ -1234,7 +1307,8 @@
       "navigate": "导航",
       "cards": "卡片",
       "actions": "操作",
-      "folders": "文件夹"
+      "folders": "文件夹",
+      "settings": "设置"
     },
     "views": {
       "tags": "标签",
@@ -1256,7 +1330,8 @@
       "searchAll": "在全部内容中搜索“{query}”",
       "untitled": "无标题卡片"
     },
-    "resultsLabel": "建议"
+    "resultsLabel": "建议",
+    "settingsSection": "设置：{section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1377,8 @@
       "newNote": "新建笔记",
       "uploadFiles": "上传文件",
       "notifications": "前往通知（撤销）",
-      "keyboardShortcuts": "键盘快捷键"
+      "keyboardShortcuts": "键盘快捷键",
+      "goToSettings": "设置"
     }
   },
   "extension": {

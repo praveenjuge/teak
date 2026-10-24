@@ -35,7 +35,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Capture](./capture.md) covers the composer (text, link, quote, palette), the Focus editor, the "New" menu, uploads and audio recording.
 - [Find](./find.md) covers search, qualifiers and chips, the View menu, sidebar views, tags and folders, the command palette, and empty states.
 - [Card actions](./card-actions.md) covers the card dialog (notes, tags, folders), favorites, archive, Trash, restore, delete forever, and bulk selection.
-- [Settings](./settings.md) covers the Settings page, theme, devices and API keys in the Security dialog.
+- [Settings](./settings.md) covers the Settings pages (Account, Plan, Appearance, Integrations, Security, Import & export), their nav and `G S` shortcut, theme, devices, API keys, the plan and usage, and delete account.
 - [API, CLI and MCP](./api-cli-mcp.md) covers the REST API, the CLI from this checkout and the MCP server, with an API key.
 - [Link transcripts and video facts](./link-transcripts.md) covers Vimeo captions and podcast episode transcripts found by a spoken phrase, and YouTube's Channel, Length and Uploaded facts.
 - [Card links](./card-links.md) covers `[[` links between notes, pills with live titles, "Missing card", the "Linked from" section, and `links`/`backlinks` in the API, MCP, SDK and CLI.
@@ -43,9 +43,9 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Tables in notes](./note-tables.md) covers `/table`, cell keys, the ⋯ menu and Alt+F10, pasting into cells, Focus, round-trips of existing tables, literal tables, and table text on tiles.
 - [Card processing](./card-processing.md) covers the background work after a save (stages, AI tags and summary), read through the local Files Worker's Workflow runs, logs, stored files and crons in Cloudflare's Local Explorer.
 - [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.
-- [Language](./language.md) covers Settings → Language, switching in place with Undo, the account's choice beating the cookie, formats and plurals per language, translated server errors, the `en-XA` pseudo-locale break-it pass, and `locale` in `/v1/me` and `teak whoami`.
+- [Language](./language.md) covers Settings → Appearance → Language, switching in place with Undo, the account's choice beating the cookie, formats and plurals per language, translated server errors, the `en-XA` pseudo-locale break-it pass, and `locale` in `/v1/me` and `teak whoami`.
 - [Opening links](./open-links.md) covers opening a link card's page through `/open/<cardId>`: the check, the archived copy when the page is gone (its bar, sandboxed frame, ⋯ menu at 390 px and missing state), "This card isn’t available", and the card dialog's "Archived copy" chip.
-- [Import](./import.md) covers Settings → Manage data → Import: the source picker, CSV files with their header aliases and the missing url column error, text files of links, duplicates skipped by URL key, and the failed-rows report.
+- [Import](./import.md) covers Settings → Import & export → Import: the source picker, CSV files with their header aliases and the missing url column error, text files of links, duplicates skipped by URL key, and the failed-rows report.
 - [Saved copies of pages](./page-archive.md) covers a link's saved copy: the side panel's Details row in every state, server and extension copies, Refresh details, `archive` and `POST /v1/page-snapshots/upload` in the API, the sandboxed object, and the backfill.
 - [Reader view](./reader.md) covers the card dialog's Preview · Read toggle and the reader in every state, article extraction and its summary, search by article text, `kind: "article"` in the API, MCP, SDK and CLI, and the backfill.
 - [Highlights](./highlights.md) covers highlighting in the Read tab (the button, `H`, the touch bar), notes and removal with Undo, merges and caps, the panel's "Highlights · N" list and jumps, the frozen copy and article of a highlighted link, imported highlights, and highlights in the API, MCP, SDK and CLI.
@@ -58,4 +58,4 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 ## Not mapped yet
 
-Add a file here when a change touches one of these: export (Settings), the extension's popup, context menu and inline buttons (their language follows the account, see [Language](./language.md)), and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.
+Add a file here when a change touches one of these: export (Settings → Import & export), the extension's popup, context menu and inline buttons (their language follows the account, see [Language](./language.md)), and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.

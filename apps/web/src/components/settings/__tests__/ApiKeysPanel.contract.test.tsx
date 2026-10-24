@@ -24,21 +24,6 @@ mock.module("../../ui/button", () => ({
   buttonVariants: () => "",
 }));
 
-mock.module("../../ui/dialog", () => ({
-  Dialog: ({ children, open }: any) =>
-    open ? React.createElement("div", { "data-dialog": "" }, children) : null,
-  DialogContent: ({ children }: any) =>
-    React.createElement("div", { "data-dialog-content": "" }, children),
-  DialogDescription: ({ children }: any) =>
-    React.createElement("p", { "data-dialog-description": "" }, children),
-  DialogFooter: ({ children }: any) =>
-    React.createElement("div", { "data-dialog-footer": "" }, children),
-  DialogHeader: ({ children }: any) =>
-    React.createElement("div", { "data-dialog-header": "" }, children),
-  DialogTitle: ({ children }: any) =>
-    React.createElement("h2", { "data-dialog-title": "" }, children),
-}));
-
 mock.module("../../ui/input", () => ({
   Input: ({ value, readOnly }: any) =>
     React.createElement("input", { readOnly, value }),
@@ -56,7 +41,7 @@ mock.module("sonner", () => ({
   },
 }));
 
-const { ApiKeysDialog } = await import("../ApiKeysDialog");
+const { ApiKeysPanel } = await import("../ApiKeysPanel");
 
 const keys = [
   {
@@ -85,19 +70,12 @@ const handlers = {
   onRotateKey: mock(() => Promise.resolve({ key: "rotated-key" })),
 };
 
-describe("ApiKeysDialog", () => {
+describe("ApiKeysPanel", () => {
   test("renders component and disabled key states", () => {
     const markup = renderToStaticMarkup(
-      <ApiKeysDialog
-        isLoading={false}
-        keys={keys}
-        onOpenChange={mock()}
-        open={true}
-        {...handlers}
-      />
+      <ApiKeysPanel isLoading={false} keys={keys} {...handlers} />
     );
 
-    expect(markup).toContain("API keys");
     expect(markup).toContain("Create key");
     expect(markup).toContain("Revoke all keys");
     expect(markup).toContain("10 active keys");
@@ -119,9 +97,9 @@ describe("ApiKeysDialog", () => {
     expect(markup).not.toContain("for API, MCP, and Raycast access");
   });
 
-  test("does not render repeated default key names in the modal", () => {
+  test("does not render repeated default key names in the list", () => {
     const markup = renderToStaticMarkup(
-      <ApiKeysDialog
+      <ApiKeysPanel
         isLoading={false}
         keys={[
           {
@@ -129,8 +107,6 @@ describe("ApiKeysDialog", () => {
             name: "API Keys",
           },
         ]}
-        onOpenChange={mock()}
-        open={true}
         {...handlers}
       />
     );
@@ -143,7 +119,7 @@ describe("ApiKeysDialog", () => {
 
   test("keeps terminal key statuses out of the table", () => {
     const markup = renderToStaticMarkup(
-      <ApiKeysDialog
+      <ApiKeysPanel
         isLoading={false}
         keys={[
           {
@@ -153,8 +129,6 @@ describe("ApiKeysDialog", () => {
             status: "exhausted" as const,
           },
         ]}
-        onOpenChange={mock()}
-        open={true}
         {...handlers}
       />
     );

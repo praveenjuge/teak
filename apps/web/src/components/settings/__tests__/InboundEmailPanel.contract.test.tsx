@@ -15,7 +15,7 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { InboundEmailPanel } = await import("../InboundEmailDialog");
+const { InboundEmailPanel } = await import("../InboundEmailPanel");
 
 type PanelProps = Parameters<typeof InboundEmailPanel>[0];
 
@@ -97,9 +97,6 @@ describe("InboundEmailPanel", () => {
       onEnable,
       state: { ...on, enabled: false },
     });
-    expect(container.textContent).toContain(
-      "Send or forward email to Teak, and it's saved as cards."
-    );
     expect(container.textContent).not.toContain(ADDRESS);
 
     await click(button(container, "Turn on"));

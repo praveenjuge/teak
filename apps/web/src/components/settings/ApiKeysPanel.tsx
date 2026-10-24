@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { Copy, KeyRound, RotateCw, Trash } from "vadivam-react";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
 import {
@@ -91,11 +90,6 @@ interface ApiKeysPanelProps {
   onRevokeAllKeys?: () => Promise<{ hasMore: boolean; revokedCount: number }>;
   onRevokeKey: (keyId: string) => Promise<void>;
   onRotateKey: (keyId: string) => Promise<CreatedApiKey | null>;
-}
-
-interface ApiKeysDialogProps extends ApiKeysPanelProps {
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
 }
 
 const visibleKeyName = (name: string) => {
@@ -387,23 +381,5 @@ export function ApiKeysPanel({
         />
       ) : null}
     </div>
-  );
-}
-
-export function ApiKeysDialog({
-  open,
-  onOpenChange,
-  ...props
-}: ApiKeysDialogProps) {
-  const t = useTranslations("settings.apiKeys");
-  return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-        </DialogHeader>
-        <ApiKeysPanel {...props} />
-      </DialogContent>
-    </Dialog>
   );
 }

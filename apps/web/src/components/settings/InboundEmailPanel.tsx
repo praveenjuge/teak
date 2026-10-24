@@ -3,12 +3,10 @@
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Copy, Mail } from "vadivam-react";
+import { Copy } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatRelativeTime } from "./importExportFormat";
-import { SettingRow, SettingValueSkeleton } from "./SettingRow";
-import { SettingsDialog, SettingsDialogBody } from "./SettingsDialog";
 
 /** What `inbound.settings.getMine` returns for the signed-in account. */
 export interface InboundEmailState {
@@ -122,7 +120,6 @@ export function InboundEmailPanel({
     const unverified = state ? !state.senderVerified : false;
     return (
       <div className="space-y-4">
-        <p className="text-muted-foreground text-sm leading-5">{t("intro")}</p>
         {unverified ? (
           <p className="text-sm leading-5">
             {t.rich("verifyToTurnOn", {
@@ -133,7 +130,6 @@ export function InboundEmailPanel({
         ) : null}
         {errorLine}
         <Button
-          className="w-full"
           disabled={state === null || unverified || busy !== null}
           onClick={() => void run("enable", onEnable)}
         >
@@ -195,57 +191,5 @@ export function InboundEmailPanel({
         </Button>
       </div>
     </div>
-  );
-}
-
-export function InboundEmailDialog({
-  onOpenChange,
-  open,
-  ...panel
-}: InboundEmailPanelProps & {
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const t = useTranslations("settings.inboundEmail");
-  return (
-    <SettingsDialog
-      icon={Mail}
-      onOpenChange={onOpenChange}
-      open={open}
-      title={t("title")}
-    >
-      <SettingsDialogBody>
-        <InboundEmailPanel {...panel} />
-      </SettingsDialogBody>
-    </SettingsDialog>
-  );
-}
-
-/** The Settings row: whether Save by email is on, and its dialog. */
-export function InboundEmailSection(props: InboundEmailPanelProps) {
-  const t = useTranslations("settings.inboundEmail");
-  const tRows = useTranslations("settings.rows");
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <SettingRow title={tRows("saveByEmail")}>
-        {props.state === undefined ? (
-          <SettingValueSkeleton className="w-10" />
-        ) : (
-          <Button
-            aria-label={t(
-              props.state?.enabled ? "statusOnLabel" : "statusOffLabel"
-            )}
-            disabled={props.state === null}
-            onClick={() => setOpen(true)}
-            size="sm"
-            variant="link"
-          >
-            {t(props.state?.enabled ? "on" : "off")}
-          </Button>
-        )}
-      </SettingRow>
-      <InboundEmailDialog {...props} onOpenChange={setOpen} open={open} />
-    </>
   );
 }

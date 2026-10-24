@@ -18,7 +18,7 @@ In a link's **Read** tab on the web, selecting text shows **Highlight** above it
 
 - Open a saved article's card on **Read**, select a sentence, and choose **Highlight** or press `H`.
 - `?` lists "Highlight the selection" under the open card's shortcuts.
-- Settings → Manage data → Import → Instapaper or Omnivore, with a file that has highlights.
+- Settings → Import & export → Import → Instapaper or Omnivore, with a file that has highlights.
 
 ## Driving it with e2e MCP and the API
 

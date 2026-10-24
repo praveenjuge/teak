@@ -31,7 +31,7 @@ Every API request uses a bearer token in the `Authorization` header.
 Never commit `teakapi_` keys or paste them into public issue trackers. Rotate a key immediately if it leaks.
 :::
 
-Generate a long-lived `teakapi_` key in Teak Settings. Each account can have
+Generate a long-lived `teakapi_` key in Teak **Settings → Integrations → API keys**. Each account can have
 up to 10 active keys, and new keys can be created at most five times per
 minute. Use **Revoke all keys** if you need to clear every key, including any
 that no longer appear in the list.
@@ -760,7 +760,7 @@ to Trash first.
 ## Export your cards
 
 `POST /v1/exports` starts a ZIP export of your cards and their original files,
-the same export as **Settings → Import/Export Data** on the web. It returns `202`
+the same export as **Settings → Import & export** on the web. It returns `202`
 with the new `job`. One export can run at a time (`409` while one is running),
 and you can start one every 7 days (`429` with `retryAt` and `Retry-After`
 until then).

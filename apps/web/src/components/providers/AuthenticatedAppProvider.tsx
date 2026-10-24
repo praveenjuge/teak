@@ -9,6 +9,7 @@ import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { GlobalFileDropProvider } from "@/components/providers/GlobalFileDropProvider";
 import { localeFromCookie } from "@/lib/locale";
+import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { readSidebarCookies } from "../app-shell/AppShellFrame";
 import { AppShellSkeleton } from "../app-shell/AppShellSkeleton";
 import { WebMcpTools } from "../app-shell/WebMcpTools";
@@ -46,7 +47,7 @@ export default async function AuthenticatedAppProvider({
         >
           <AccountLocaleSync />
           <WebMcpTools />
-          <GlobalFileDropProvider upgradeUrl="/settings">
+          <GlobalFileDropProvider upgradeUrl={SETTINGS_PLAN_HREF}>
             {children}
           </GlobalFileDropProvider>
         </WorkosAuthBoundary>

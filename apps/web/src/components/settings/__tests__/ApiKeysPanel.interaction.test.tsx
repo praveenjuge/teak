@@ -8,8 +8,8 @@ if (!GlobalRegistrator.isRegistered) {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act, useState } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { ApiKeysPanel, nextRevealedKeys } = await import("../ApiKeysDialog");
-type ApiKeyListItem = import("../ApiKeysDialog").ApiKeyListItem;
+const { ApiKeysPanel, nextRevealedKeys } = await import("../ApiKeysPanel");
+type ApiKeyListItem = import("../ApiKeysPanel").ApiKeyListItem;
 
 let root: Root | undefined;
 

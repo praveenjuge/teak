@@ -602,7 +602,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       ) : null}
 
       {state.kind === "idle" ? (
-        <div className="space-y-3 rounded-xl border p-4">
+        <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="import-source">{t("importFrom")}</Label>
             <Select

@@ -179,62 +179,38 @@ export const expectSignInRefused = async (surface: Surface, email: string) => {
 
 // The Settings row whose label is `label`: the nearest block around the label
 // that holds a button.
-const settingsRow = (browser: Browser, label: string) =>
-  browser.locator(
-    `xpath=//*[text()[normalize-space(.)=${JSON.stringify(label)}]]/ancestor::div[.//button][1]`
-  );
-
 type SecurityTab = "Connections" | "API keys";
 
-export const securityDialogOf = (screen: Screen) =>
-  screen.getByRole("dialog", "Security");
+// Devices and connected apps live on Settings → Security; API keys on
+// Settings → Integrations.
+const SETTINGS_PAGES: Record<SecurityTab, { path: string; region: string }> = {
+  Connections: { path: "/settings/security", region: "Devices" },
+  "API keys": { path: "/settings/integrations", region: "API keys" },
+};
 
-export const openSecurityDialog = async (
+/** The page's settings, below the header and beside the Settings nav. */
+export const settingsContentOf = (browser: Browser) =>
+  browser.locator('[data-slot="settings-content"]');
+
+export const openSecurity = async (
   { browser, screen }: Surface,
   tab: SecurityTab = "Connections"
 ) => {
-  const manageButton = settingsRow(browser, "Security").getByRole(
-    "button",
-    "Manage",
-    { exact: false }
-  );
-  const dialog = securityDialogOf(screen);
-  const tabTrigger = dialog.getByRole("tab", tab);
-  const tabPanel = dialog.getByRole("tabpanel", tab);
-  // A click can fail to select its tab, or the dialog can disappear afterward.
-  // Retry the complete read-only navigation, verifying the mounted panel.
-  await retry(
-    async () => {
-      if (!(await dialog.isVisible())) {
-        await clickRetryingReplacedNode(manageButton, { timeout: 2500 });
-      }
-      await expect(dialog).toBeVisible({ timeout: 2500 });
-      if ((await tabTrigger.getAttribute("aria-selected")) !== "true") {
-        await clickRetryingReplacedNode(tabTrigger, { timeout: 2500 });
-      }
-      await expect(tabTrigger).toBeSelected({ timeout: 2500 });
-      await expect(tabPanel).toBeVisible({ timeout: 2500 });
-    },
-    { timeout: 20_000 }
-  );
-  return dialog;
-};
-
-export const openSecurity = async (
-  surface: Surface,
-  tab: SecurityTab = "Connections"
-) => {
-  await gotoApp(surface.browser, "/settings");
-  return openSecurityDialog(surface, tab);
+  const page = SETTINGS_PAGES[tab];
+  await gotoApp(browser, page.path);
+  await expect(screen.getByRole("region", page.region)).toBeVisible({
+    timeout: 30_000,
+  });
+  return settingsContentOf(browser);
 };
 
 export const generateApiKey = async (surface: Surface) => {
-  const dialog = await openSecurity(surface, "API keys");
-  await clickRetryingReplacedNode(dialog.getByRole("button", "Create key"));
+  const settings = await openSecurity(surface, "API keys");
+  await clickRetryingReplacedNode(settings.getByRole("button", "Create key"));
   // React updates the input's live value property, not necessarily its HTML
   // value attribute, so do not use an attribute-prefix CSS selector here.
   const input = surface.browser
-    .locator('[role="dialog"] input[readonly]')
+    .locator('[data-slot="settings-content"] input[readonly]')
     .first();
   await expect(input).toHaveValue(/^teakapi_/);
   return input.inputValue();
@@ -249,8 +225,8 @@ export const apiStatus = async (apiKey: string) =>
 
 export const revokeVisibleKey = async (surface: Surface, rawKey: string) => {
   const visiblePrefix = rawKey.split("_").slice(0, 4).join("_");
-  const dialog = await openSecurity(surface, "API keys");
-  const row = dialog.getByRole("listitem").filter({ hasText: visiblePrefix });
+  const settings = await openSecurity(surface, "API keys");
+  const row = settings.getByRole("listitem").filter({ hasText: visiblePrefix });
   await expect(row).toBeVisible();
   await row.getByRole("button", /^Revoke /).click();
   await surface.screen

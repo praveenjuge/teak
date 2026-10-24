@@ -5,6 +5,7 @@ import { initialCardsSearchQueryArgs } from "./cardsSearchState";
 import { type FolderSummary, folderIdForPath } from "./folders";
 import { libraryViewForPath } from "./libraryViews";
 import { parseSearchUrlState } from "./searchUrlState";
+import { settingsSectionForPath } from "./settingsSections";
 
 export interface FirstLoadQuery {
   args: Record<string, unknown>;
@@ -28,7 +29,7 @@ export function firstLoadQueries(
     queries.push({ query: api.tags.listTagSummary, args: {} });
     return queries;
   }
-  if (url.pathname === "/settings") {
+  if (settingsSectionForPath(url.pathname)) {
     queries.push(
       { query: api.auth.getCurrentUser, args: {} },
       { query: api.apiKeys.listUserApiKeys, args: {} },

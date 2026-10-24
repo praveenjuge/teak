@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "의견이 있으시면 <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink>(으)⁠로 알려 주세요. 언제든 떠나고 싶으시면 <deleteAccount>계정을 삭제</deleteAccount>할 수 있습니다. 제가 Teak을 즐겁게 만든 만큼 여러분도 즐겁게 사용하시길 바랍니다.",
-      "signature": "Praveen Juge 서명"
+      "feedback": "의견이 있으시면 <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink>(으)⁠로 알려 주세요. 제가 Teak을 즐겁게 만든 만큼 여러분도 즐겁게 사용하시길 바랍니다.",
+      "signature": "Praveen Juge 서명",
+      "linksLabel": "도움말 및 리소스",
+      "docs": "문서",
+      "changelog": "변경 사항",
+      "support": "도움말",
+      "version": "버전 {version}"
     },
     "header": {
       "title": "설정"
-    },
-    "rows": {
-      "email": "이메일",
-      "usage": "사용량",
-      "plan": "요금제",
-      "saveByEmail": "이메일로 저장",
-      "security": "보안",
-      "importExport": "데이터 가져오기/내보내기",
-      "theme": "테마",
-      "signOut": "로그아웃",
-      "language": "언어"
     },
     "skeleton": {
       "loading": "설정을 불러오는 중…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "사용할 수 없음",
-      "cardCount": "{count, plural, other {카드 #개}}",
       "pro": "Pro",
       "freePlan": "무료 요금제",
-      "manage": "관리",
       "manageSubscription": "구독 관리",
-      "upgrade": "업그레이드",
       "signOut": "로그아웃"
     },
     "theme": {
       "useSystem": "시스템 테마 사용",
       "useLight": "라이트 테마 사용",
-      "useDark": "다크 테마 사용"
-    },
-    "importExport": {
-      "manage": "관리",
-      "manageLabel": "가져오기 및 내보내기 관리",
-      "title": "데이터 관리",
-      "description": "다른 도구에서 카드를 가져오거나 전체 사본을 내보낼 수 있습니다.",
-      "importTab": "가져오기",
-      "exportTab": "내보내기"
-    },
-    "security": {
-      "manage": "관리",
-      "manageLabel": "보안 관리",
-      "title": "보안",
-      "description": "Teak 계정에 접근할 수 있는 기기, 앱, 키를 관리합니다.",
-      "connectionsTab": "연결",
-      "apiKeysTab": "API 키"
+      "useDark": "다크 테마 사용",
+      "system": "시스템",
+      "light": "라이트",
+      "dark": "다크"
     },
     "connections": {
       "devicesTitle": "기기",
@@ -119,7 +97,6 @@
       "disconnectDescription": "다시 연결할 때까지 모든 설치에서 {name}이(가) Teak 라이브러리에 접근할 수 없게 됩니다."
     },
     "apiKeys": {
-      "title": "API 키",
       "revokeAllTitle": "모든 API 키를 폐기하시겠습니까?",
       "revokeAllDescription": "CLI, Raycast, MCP 클라이언트에서 사용하는 키를 포함해 모든 API 키가 즉시 작동을 멈춥니다. 이 작업은 되돌릴 수 없습니다.",
       "revokeAllConfirm": "모든 키 폐기",
@@ -161,7 +138,6 @@
     "subscription": {
       "title": "Pro로 업그레이드",
       "description": "모든 기능을 사용하고 제한을 없애세요.",
-      "maybeLater": "나중에",
       "continueToCheckout": "결제 계속하기",
       "choosePlan": "요금제 선택",
       "everythingInPro": "Pro의 모든 기능",
@@ -178,10 +154,10 @@
         "browserExtensions": "브라우저 확장 프로그램",
         "apps": "iOS, Mac 및 Android 앱",
         "apiAndMcp": "API 및 MCP 이용"
-      }
+      },
+      "cancelAnytime": "언제든 해지할 수 있습니다."
     },
     "inboundEmail": {
-      "title": "이메일로 저장",
       "genericError": "이메일로 저장 설정을 업데이트하지 못했습니다. 다시 시도해 주세요.",
       "rateLimited": "변경이 너무 많습니다. 1분 후에 다시 시도해 주세요.",
       "addressCopied": "주소가 복사되었습니다",
@@ -195,11 +171,7 @@
       "unverified": "로그인 이메일 <strong>{sender}</strong>을(를) 인증할 때까지 메일이 저장되지 않습니다.",
       "howItWorks": "무엇이든 전달하거나 보내세요. 링크 하나만 있는 이메일은 링크 카드가 되고, 나머지는 모두 메모가 되며, 첨부 파일은 각각 별도의 카드가 됩니다. 모두 email 태그가 붙습니다.",
       "lastReceived": "마지막 이메일 수신: {when}",
-      "turnOff": "끄기",
-      "on": "켜짐",
-      "off": "꺼짐",
-      "statusOnLabel": "이메일로 저장: 켜짐",
-      "statusOffLabel": "이메일로 저장: 꺼짐"
+      "turnOff": "끄기"
     },
     "export": {
       "starting": "내보내기를 시작하는 중…",
@@ -365,9 +337,110 @@
       "label": "언어",
       "saving": "언어 변경 중",
       "changed": "언어가 변경되었습니다",
-      "changeFailed": "언어를 변경하지 못했습니다. 다시 시도해 주세요.",
-      "feedback": "번역 개선에 참여하기",
-      "feedbackSubject": "번역 의견 ({locale})"
+      "changeFailed": "언어를 변경하지 못했습니다. 다시 시도해 주세요."
+    },
+    "nav": {
+      "label": "설정 페이지",
+      "account": "계정",
+      "plan": "요금제",
+      "appearance": "화면 모드",
+      "integrations": "연동",
+      "security": "보안",
+      "data": "가져오기 및 내보내기"
+    },
+    "pages": {
+      "account": {
+        "description": "로그인한 계정과 모든 설정을 한눈에 확인합니다."
+      },
+      "plan": {
+        "title": "요금제",
+        "description": "요금제, 저장한 카드 수, 결제 정보를 확인합니다."
+      },
+      "appearance": {
+        "title": "화면 모드",
+        "description": "Teak의 모양과 사용하는 언어를 정합니다."
+      },
+      "integrations": {
+        "title": "연동",
+        "description": "이메일, 브라우저, 기기, 직접 만든 도구에서 Teak에 저장합니다."
+      },
+      "security": {
+        "title": "보안",
+        "description": "Teak 계정에 접근할 수 있는 기기와 앱입니다."
+      },
+      "data": {
+        "title": "가져오기 및 내보내기",
+        "description": "다른 도구에서 카드를 가져오거나 전체 사본을 내보낼 수 있습니다."
+      }
+    },
+    "overview": {
+      "sectionsLabel": "모든 설정",
+      "planFree": "무료 요금제 · 카드 {count}/{limit}개",
+      "planPro": "Pro · {count, plural, other {카드 #개}}",
+      "appearance": "{theme, select, light {라이트 테마} dark {다크 테마} other {시스템 테마}} · {language}",
+      "integrations": "{email, select, on {이메일로 저장 켜짐} other {이메일로 저장 꺼짐}} · {keys, plural, =0 {API 키 없음} other {API 키 #개}}",
+      "devices": "{count, plural, =0 {로그인한 기기 없음} other {기기 #대에 로그인함}}",
+      "devicesMore": "기기 {count}대 이상에 로그인함",
+      "exportRunning": "내보내는 중",
+      "exportReady": "내보낸 파일을 다운로드할 수 있음",
+      "exportLast": "마지막 내보내기: {date}",
+      "dataIdle": "카드를 가져오거나 내보내기",
+      "signedInAs": "로그인한 계정"
+    },
+    "dangerZone": {
+      "title": "계정 삭제",
+      "description": "계정, 카드, 파일을 영구 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
+      "action": "계정 삭제"
+    },
+    "plan": {
+      "currentTitle": "현재 요금제",
+      "freeDescription": "카드를 최대 {limit}개까지 저장할 수 있습니다.",
+      "proDescription": "모든 앱에서 카드와 저장 공간을 무제한으로 사용합니다.",
+      "usageLabel": "사용한 카드",
+      "usage": "카드 {count}/{limit}개",
+      "remaining": "{count, plural, other {#개 남음}}",
+      "limitReachedShort": "한도 도달",
+      "limitReached": "무료 요금제의 카드 한도에 도달했습니다. 계속 저장하려면 업그레이드하세요.",
+      "unlimited": "{count, plural, other {카드 #개 저장됨}}, 한도 없음.",
+      "manageDescription": "요금제를 변경하거나 해지하고 청구서를 확인합니다.",
+      "includedTitle": "요금제에 포함된 기능"
+    },
+    "appearance": {
+      "themeTitle": "테마",
+      "themeDescription": "시스템 설정을 따르거나 항상 라이트 또는 다크를 사용합니다. 이 브라우저에 저장됩니다.",
+      "languageTitle": "언어",
+      "languageDescription": "계정에 저장되므로 모든 브라우저에서 같은 언어가 적용됩니다."
+    },
+    "integrations": {
+      "saveByEmailTitle": "이메일로 저장",
+      "appsTitle": "앱 및 확장 프로그램",
+      "appsDescription": "브라우저, 휴대폰, Raycast에서 저장합니다. <link>모든 앱 보기</link>",
+      "apiTitle": "API 키",
+      "apiDescription": "API, CLI, MCP 클라이언트에서 키를 사용합니다. <link>API 문서 읽기</link>",
+      "opensInNewTab": "{name}(새 탭에서 열림)",
+      "apps": {
+        "chrome": {
+          "name": "Chrome 확장 프로그램",
+          "detail": "Chrome에서 페이지, 링크, 이미지를 저장합니다."
+        },
+        "firefox": {
+          "name": "Firefox 부가 기능",
+          "detail": "Firefox에서 페이지, 링크, 이미지를 저장합니다."
+        },
+        "apple": {
+          "name": "iPhone, iPad 및 Mac",
+          "detail": "App Store에서 Teak을 받습니다."
+        },
+        "raycast": {
+          "name": "Raycast",
+          "detail": "Raycast에서 카드를 검색하고 저장합니다."
+        }
+      }
+    },
+    "data": {
+      "importTitle": "가져오기",
+      "importDescription": "브라우저나 다른 앱에서 링크와 메모를 가져옵니다.",
+      "exportTitle": "내보내기"
     }
   },
   "app": {
@@ -1234,7 +1307,8 @@
       "navigate": "이동",
       "cards": "카드",
       "actions": "작업",
-      "folders": "폴더"
+      "folders": "폴더",
+      "settings": "설정"
     },
     "views": {
       "tags": "태그",
@@ -1256,7 +1330,8 @@
       "searchAll": "“{query}” 전체 검색",
       "untitled": "제목 없는 카드"
     },
-    "resultsLabel": "제안"
+    "resultsLabel": "제안",
+    "settingsSection": "설정: {section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1377,8 @@
       "newNote": "새 메모",
       "uploadFiles": "파일 업로드",
       "notifications": "알림으로 이동(실행 취소)",
-      "keyboardShortcuts": "키보드 단축키"
+      "keyboardShortcuts": "키보드 단축키",
+      "goToSettings": "설정"
     }
   },
   "extension": {

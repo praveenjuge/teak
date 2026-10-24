@@ -22,15 +22,6 @@ describe("LanguageRow", () => {
     expect(render("en-XA")).toContain(">English<");
   });
 
-  test("the feedback link names the language in the subject", () => {
-    expect(render("de")).toContain(
-      `href="mailto:hello@praveenjuge.com?subject=${encodeURIComponent(
-        "Translation feedback (de)"
-      )}"`
-    );
-    expect(render("de")).toContain("Help improve translations");
-  });
-
   test("the select has an accessible name", () => {
     expect(render("en")).toContain('aria-label="Language"');
   });
