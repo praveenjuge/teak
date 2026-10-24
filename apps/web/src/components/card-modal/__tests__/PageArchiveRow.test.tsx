@@ -85,7 +85,7 @@ describe("PageArchiveRow", () => {
       link({ processingStatus: { archive: { error, status: "failed" } } })
     );
     expect(text(html)).toBe("Archived copy Couldn't save a copy");
-    expect(html).toContain(`aria-label="${reason.replace("'", "&#x27;")}"`);
+    expect(html).toContain(`aria-label="${reason.replaceAll("'", "&#x27;")}"`);
   });
 
   test("other cards, and links never archived, have no row", () => {
