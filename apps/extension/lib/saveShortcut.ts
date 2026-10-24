@@ -18,8 +18,11 @@ export interface SaveShortcutDependencies {
   paint: (tabId: number, state: BadgeState, title?: string) => Promise<void>;
   /** Re-checks the tab once a save's own badge is done. */
   refresh: (tab: chrome.tabs.Tab) => Promise<void>;
-  /** Queues the page in the pending-save store without signing in. */
-  save: (url: string) => Promise<TeakSaveResponse>;
+  /**
+   * Queues the page in the pending-save store without signing in; `tabId`
+   * is the tab whose page becomes the link's saved copy.
+   */
+  save: (url: string, tabId: number) => Promise<TeakSaveResponse>;
   wait?: (ms: number) => Promise<void>;
 }
 
@@ -63,7 +66,7 @@ export function createSaveShortcut({
       await paint(tab.id, "saving");
       let pending = running.get(url);
       if (!pending) {
-        pending = save(url).finally(() => running.delete(url));
+        pending = save(url, tab.id).finally(() => running.delete(url));
         running.set(url, pending);
       }
       const outcome = shortcutOutcome(await pending);

@@ -29,6 +29,8 @@ export const FILES_OP_TTL_SECONDS = 10 * 60;
 
 export const FILES_OPS = [
   "capabilities",
+  "archive-page",
+  "extract-article",
   "analyze-image",
   "abort-multipart",
   "build-export",
@@ -60,6 +62,7 @@ export const FILES_OPS = [
   "process-audio",
   "store-remote-asset",
   "store-linked-pdf",
+  "check-link",
   "store-onboarding-files",
   "fetch-link-page",
   "embed-upsert",
@@ -320,14 +323,17 @@ export type FilesImportMarkdownResult =
       failureReason: string;
     };
 
+export * from "./article";
 export * from "./decisions";
 export * from "./edgeIdentity";
 export * from "./embeddings";
 export * from "./inspect";
+export * from "./linkCheck";
 export * from "./linkedPdf";
 export * from "./linkPage";
 export * from "./metadata";
 export * from "./onboarding";
+export * from "./pageArchive";
 export * from "./remoteAsset";
 export * from "./rendering";
 export * from "./storage";

@@ -20,7 +20,9 @@ import {
   tagKey,
 } from "../shared/tags";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import { queueObjectDeletion } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
+import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
@@ -28,6 +30,7 @@ import {
   restoreCountedCard,
 } from "./cardUsage";
 import { withHiddenFlag } from "./hiddenCards";
+import { deleteLinkCheckRows } from "./linkCheckRows";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -323,6 +326,10 @@ export interface CardFieldEdit {
   value?: unknown;
 }
 
+/** A URL edit refused because the link has highlights. */
+export const HIGHLIGHTED_URL_MESSAGE =
+  "Remove this link's highlights before changing its URL";
+
 const EDITABLE_CARD_FIELDS = new Set<string>([
   "content",
   "url",
@@ -387,6 +394,14 @@ const applyCardFieldEdit = (
       if (nextUrl === card.url) {
         return false;
       }
+      if (card.hasHighlights) {
+        // Its highlights were made in the saved copy of this URL's page,
+        // which a new URL would replace: they go first, by choice.
+        throw new ConvexError({
+          code: "CONFLICT",
+          message: HIGHLIGHTED_URL_MESSAGE,
+        });
+      }
       state.updateData.url = nextUrl;
       const baseStatus = state.processingStatus
         ? withStageStatus(state.processingStatus, "classify", stagePending())
@@ -400,6 +415,19 @@ const applyCardFieldEdit = (
         "categorize",
         stagePending()
       );
+      // The saved copy and the last link check were of the old page: drop
+      // them so the run archives the new one and an old "dead" answer can't
+      // open the old copy.
+      state.updateData.pageArchive = undefined;
+      state.updateData.pendingPageSnapshotKey = undefined;
+      state.updateData.pendingPageSnapshotAt = undefined;
+      if (card.type === "link") {
+        state.processingStatus = withStageStatus(
+          state.processingStatus,
+          "archive",
+          stagePending()
+        );
+      }
       state.shouldSchedulePipeline = true;
 
       const nextMetadata = { ...(card.metadata ?? {}) };
@@ -412,6 +440,16 @@ const applyCardFieldEdit = (
       state.updateData.metadata =
         Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
       state.updateData.metadataStatus = "pending";
+      // The article was the old page's: the new page's is taken from its
+      // copy once that is saved.
+      Object.assign(state.updateData, droppedArticleFields(state.card));
+      if (card.type === "link") {
+        state.processingStatus = withStageStatus(
+          state.processingStatus,
+          "article",
+          stagePending()
+        );
+      }
       return true;
     }
 
@@ -555,6 +593,13 @@ export const updateCardFieldsForUserHandler = async (
   );
   if (!options.deferSearchSync) {
     await syncCardSearch(ctx, cardId, userId, card);
+  }
+  if ("url" in state.updateData) {
+    await queueObjectDeletion(ctx, card.pageArchive?.storageKey);
+    await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
+    await deleteLinkCheckRows(ctx, cardId);
+    // The old page's article: its text row and objects.
+    await discardArticleObjects(ctx, card);
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {

@@ -81,10 +81,16 @@ export function formatDuration(seconds?: number): string | undefined {
     : `${mins}:${secs}`;
 }
 
+/**
+ * Whether the card is still being processed. A link's saved copy is quiet
+ * background work that never holds a card up, so its stage doesn't count.
+ */
 export function isCardProcessing(card: {
   processingStatus?: Partial<Record<string, { status: string } | undefined>>;
 }): boolean {
-  return Object.values(card.processingStatus ?? {}).some(
-    (stage) => stage?.status === "pending" || stage?.status === "in_progress"
+  return Object.entries(card.processingStatus ?? {}).some(
+    ([stage, value]) =>
+      stage !== "archive" &&
+      (value?.status === "pending" || value?.status === "in_progress")
   );
 }

@@ -2,7 +2,6 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
-import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import {
   createTeakTranslator,
   englishMessages,
@@ -48,6 +47,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { openCardLink } from "@/lib/openCardLink";
 import { useReprocessCard } from "../../hooks/useReprocessCard";
 import { rememberCardOpenOrigin } from "../../lib/cardOpenOrigin";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
@@ -326,10 +326,7 @@ export const Card = memo(function Card({
   };
 
   const openLink = () => {
-    const safeUrl = sanitizeExternalUrl(card.url);
-    if (safeUrl) {
-      window.open(safeUrl, "_blank", "noopener,noreferrer");
-    }
+    openCardLink(card);
   };
 
   const handleSelect = () => {

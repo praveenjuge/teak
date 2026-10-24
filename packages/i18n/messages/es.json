@@ -740,10 +740,22 @@
       "suggestedTags": "{count, plural, one {# etiqueta sugerida} other {# etiquetas sugeridas}}",
       "summary": "Resumen",
       "tags": "Etiquetas",
-      "teakTagHint": "Etiqueta añadida por Teak. Mostrar las tarjetas con la etiqueta {tag}"
+      "teakTagHint": "Etiqueta añadida por Teak. Mostrar las tarjetas con la etiqueta {tag}",
+      "highlights": "Resaltados · {count, number}",
+      "highlightNotFound": "No se encuentra en el artículo guardado",
+      "highlightWaiting": "Esperando el artículo…",
+      "highlightActions": "Acciones del resaltado"
     },
     "details": {
       "added": "Añadida",
+      "archive": "Copia guardada",
+      "archiveFailed": "No se pudo guardar una copia",
+      "archiveFailedBlocked": "Teak no puede abrir esta página",
+      "archiveFailedNotPage": "El enlace no es una página web",
+      "archiveFailedTooLarge": "La página es demasiado grande para guardarla",
+      "archiveFailedUnreachable": "No se pudo acceder a la página",
+      "archiveSaving": "Guardando una copia…",
+      "archiveTextOnly": "Solo texto",
       "author": "Autor",
       "edited": "Editada",
       "extractedText": "{count, plural, one {# carácter extraído} other {# caracteres extraídos}}",
@@ -760,6 +772,12 @@
       "text": "Texto",
       "title": "Detalles",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "Vista previa",
+      "read": "Leer",
+      "toggleTooltip": "Leer o ver la vista previa",
+      "viewLabel": "Vista previa o lectura"
     }
   },
   "cardPreviews": {
@@ -794,6 +812,8 @@
     },
     "link": {
       "addImage": "Añadir una imagen",
+      "archivedCopy": "Copia guardada",
+      "archivedCopyTooltip": "La página original ya no existía en la última comprobación, el {date}",
       "attachedMedia": "Contenido adjunto de la publicación {number}",
       "attachedVideo": "Vídeo adjunto {number}",
       "imageAlt": "Imagen del enlace",
@@ -816,6 +836,29 @@
     "video": {
       "gifAlt": "GIF animado",
       "unsupported": "Su navegador no admite la reproducción de vídeo."
+    },
+    "reader": {
+      "failed": "No se pudo preparar este artículo.",
+      "loadFailed": "No se pudo cargar este artículo.",
+      "loading": "Cargando el artículo",
+      "minutes": "{minutes, plural, other {# min de lectura}}",
+      "preparing": "Preparando el artículo…",
+      "savedFrom": "Guardado de {host} · {date} · <link>Abrir el original ↗</link>",
+      "shortened": "Artículo acortado para que quepa."
+    },
+    "highlights": {
+      "highlight": "Resaltar",
+      "limitReached": "Esta tarjeta tiene {max, number} resaltados, el máximo que admite",
+      "merged": "Combinado con un resaltado existente",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Nota del resaltado",
+      "notePlaceholder": "Añadir una nota",
+      "rateLimited": "Demasiados cambios. Inténtelo de nuevo en un momento.",
+      "remove": "Quitar resaltado",
+      "removed": "Resaltado quitado",
+      "saveFailed": "No se pudo guardar el resaltado. Inténtelo de nuevo.",
+      "tooLong": "Los resaltados pueden tener hasta {max, number} caracteres",
+      "unsupported": "Su navegador no puede mostrar resaltados en el texto"
     }
   },
   "cards": {
@@ -1243,6 +1286,8 @@
       "markLinkDone": "Marcar un enlace como hecho",
       "copyLinkOrText": "Copiar el enlace o el texto",
       "toggleDetails": "Mostrar u ocultar detalles",
+      "readOrPreview": "Leer o ver la vista previa",
+      "highlightSelection": "Resaltar la selección",
       "goToEverything": "Todo",
       "goToFavorites": "Favoritas",
       "goToArchive": "Archivo",
@@ -1405,6 +1450,20 @@
     },
     "logo": {
       "earlyAccess": "Acceso anticipado"
+    },
+    "openLink": {
+      "archiveMissing": "No se pudo cargar la copia de Teak.",
+      "archivedCopy": "Copia guardada",
+      "backToTeak": "Volver a Teak",
+      "checking": "Abriendo {host}…",
+      "frameTitle": "Copia guardada de {host}",
+      "moreActions": "Más acciones",
+      "noLongerAvailable": "Esta página ya no está disponible · Guardada el {date} desde {host}",
+      "noLongerAvailableShort": "Ya no está disponible",
+      "openInTeak": "Abrir en Teak",
+      "openOriginalNow": "Abrir el original ahora",
+      "tryOriginal": "Probar el original ↗",
+      "unavailable": "Esta tarjeta no está disponible."
     }
   },
   "hooks": {

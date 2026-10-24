@@ -5,7 +5,8 @@
  * Every cell is quoted, rows end in CRLF, and the file starts with a UTF-8
  * byte order mark so Excel reads emoji, RTL and CJK text correctly. A cell a
  * spreadsheet would run as a formula gets a leading apostrophe. List cells
- * (tags, folders) are joined with ", "; `cards.json` keeps the exact values.
+ * (tags, folders) are joined with ", ", and highlights' quotes with a blank
+ * line; `cards.json` keeps the exact values.
  */
 
 import type { SerializedCard } from "./serialize";
@@ -26,6 +27,7 @@ export const CSV_COLUMNS = [
   "createdAt",
   "sourceUrl",
   "sourceTitle",
+  "highlights",
 ] as const;
 
 const BOM = "﻿";
@@ -53,6 +55,7 @@ const row = (card: SerializedCard): string[] => [
   card.createdAt.iso,
   card.sourceUrl ?? "",
   card.sourceTitle ?? "",
+  (card.highlights ?? []).map((highlight) => highlight.quote).join("\n\n"),
 ];
 
 export function buildCardsCsv(cards: readonly SerializedCard[]): string {

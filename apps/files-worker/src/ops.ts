@@ -45,6 +45,11 @@ import {
   vectorQuery,
   vectorSimilar,
 } from "./ai/vectors";
+import { parseArchivePageParams, runArchivePage } from "./archive/archivePage";
+import {
+  parseExtractArticleParams,
+  runExtractArticle,
+} from "./archive/article";
 import {
   buildExportIntoBucket,
   ExportManifestInvalid,
@@ -68,6 +73,7 @@ import {
   loadImageForAi,
 } from "./images/imageMetadata";
 import { sha256Hex, verifyBodySignature } from "./lib";
+import { checkLinkOp } from "./linkCheck";
 import {
   captureHtmlScreenshot,
   decodeHtmlParam,
@@ -753,6 +759,16 @@ const dispatch = async (
         storedContentType: "image/jpeg",
       });
     }
+    case "archive-page":
+      return success(
+        requestId,
+        await runArchivePage(env, parseArchivePageParams(params))
+      );
+    case "extract-article":
+      return success(
+        requestId,
+        await runExtractArticle(env, parseExtractArticleParams(params))
+      );
     case "store-remote-asset":
       return success(
         requestId,
@@ -763,6 +779,8 @@ const dispatch = async (
         requestId,
         await storeLinkedPdf(env, parseLinkedPdfParams(params))
       );
+    case "check-link":
+      return success(requestId, await checkLinkOp(env, params));
     case "store-onboarding-files":
       return success(
         requestId,

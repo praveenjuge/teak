@@ -36,6 +36,15 @@ export interface ExportableCard {
     recordingTimestamp?: number;
   };
   folderIds?: string[];
+  /** Set when the card has highlights to read before it is serialized. */
+  hasHighlights?: boolean;
+  /** A link's highlights, oldest first, when it has any. */
+  highlights?: Array<{
+    anchored: boolean;
+    createdAt: number;
+    note?: string;
+    quote: string;
+  }>;
   isArchived?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
@@ -67,6 +76,13 @@ export interface SerializedCardFile {
   width?: number;
 }
 
+export interface SerializedHighlight {
+  anchored: boolean;
+  createdAt: DualTimestamp;
+  note?: string;
+  quote: string;
+}
+
 export interface SerializedCard {
   /** The language AI wrote `aiSummary` and `aiTags` in (`ja`, `es`), when known. */
   aiLanguage?: string;
@@ -82,6 +98,12 @@ export interface SerializedCard {
   file?: SerializedCardFile;
   /** Names of the folders the card is in, in the card's order (schema v2). */
   folders: string[];
+  /**
+   * Passages highlighted in a link's article, oldest first, each with its
+   * note. `anchored` is false for one never found in the saved article. An
+   * import brings them back and finds them in the article again.
+   */
+  highlights?: SerializedHighlight[];
   id: string;
   isArchived: boolean;
   isFavorited: boolean;
@@ -199,6 +221,15 @@ export function serializeCard(
   const aiLanguage = nonEmpty(card.aiLanguage);
   if (aiLanguage !== undefined) {
     serialized.aiLanguage = aiLanguage;
+  }
+
+  if (Array.isArray(card.highlights) && card.highlights.length > 0) {
+    serialized.highlights = card.highlights.map((highlight) => ({
+      quote: highlight.quote,
+      ...(highlight.note ? { note: highlight.note } : {}),
+      createdAt: toDualTimestamp(highlight.createdAt),
+      anchored: highlight.anchored,
+    }));
   }
 
   if (Array.isArray(card.colors) && card.colors.length > 0) {

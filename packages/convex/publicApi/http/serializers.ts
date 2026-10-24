@@ -30,6 +30,27 @@ const serializeLinkPrice = (price: unknown) =>
     ? { amount: price.amount, currency: price.currency ?? null }
     : null;
 
+/**
+ * A link's saved copy: what it is, never where. The HTML stays in the app.
+ */
+const serializeArchive = (card: CardWithUrls) =>
+  card.pageArchive
+    ? {
+        bytes: card.pageArchive.bytes,
+        capturedAt: card.pageArchive.capturedAt,
+        kind: card.pageArchive.kind,
+      }
+    : null;
+
+/** A link's article: how long it is. `GET …/content?kind=article` reads it. */
+const serializeArticle = (card: CardWithUrls) =>
+  card.article?.status === "ready"
+    ? {
+        readingMinutes: card.article.readingMinutes,
+        wordCount: card.article.wordCount,
+      }
+    : null;
+
 const serializeDisplayMetadata = (card: CardWithUrls) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
@@ -82,6 +103,8 @@ export const serializeCard = (
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
   appUrl: getCardAppUrl(requestUrl, card._id),
+  archive: serializeArchive(card),
+  article: serializeArticle(card),
   compactUrl: card.compactUrl ?? null,
   content: card.content,
   ...serializeDisplayMetadata(card),
@@ -96,6 +119,7 @@ export const serializeCard = (
   fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
   archivedAt: card.archivedAt ?? null,
+  highlightCount: card.highlightCount ?? 0,
   completedAt: card.completedAt ?? null,
   folderIds: card.folderIds ?? [],
   isArchived: Boolean(card.isArchived),
@@ -133,6 +157,7 @@ export const serializeListCard = (
     completedAt: card.completedAt ?? null,
     createdAt: card.createdAt,
     folderIds: card.folderIds ?? [],
+    highlightCount: card.highlightCount ?? 0,
     id: card._id,
     isArchived: Boolean(card.isArchived),
     isFavorited: Boolean(card.isFavorited),
@@ -167,6 +192,8 @@ export const serializeListCard = (
           fileLanguage: card.fileMetadata?.language ?? null,
           filePreview: card.fileMetadata?.preview ?? null,
           ...serializeDisplayMetadata(card),
+          archive: serializeArchive(card),
+          article: serializeArticle(card),
           compactUrl: card.compactUrl ?? null,
           detailUrl: card.detailUrl ?? null,
           fileUrl: card.fileUrl ?? null,
@@ -229,4 +256,25 @@ export const serializeFolder = (folder: {
   cardCount: folder.kind === "smart" ? null : folder.activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
+});
+
+/** A highlight as the public API returns it. */
+export const serializeHighlight = (highlight: {
+  _id: string;
+  cardId: string;
+  createdAt: number;
+  note?: string;
+  quote: string;
+  source: string;
+  unanchored?: boolean;
+  updatedAt: number;
+}) => ({
+  anchored: highlight.unanchored !== true,
+  cardId: highlight.cardId,
+  createdAt: highlight.createdAt,
+  id: highlight._id,
+  note: highlight.note ?? null,
+  quote: highlight.quote,
+  source: highlight.source,
+  updatedAt: highlight.updatedAt,
 });

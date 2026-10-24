@@ -4,6 +4,12 @@ import {
   MAX_FOLDERS_PER_CARD,
   normalizeFolderName,
 } from "../shared/folders";
+import {
+  highlightLength,
+  MAX_HIGHLIGHT_NOTE_CHARS,
+  MAX_HIGHLIGHT_QUOTE_CHARS,
+  MAX_HIGHLIGHTS_PER_CARD,
+} from "../shared/highlights/constants";
 import { IMPORT_SOURCES } from "../shared/importSources";
 import { validateMarkdownContent } from "../shared/markdown";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
@@ -36,6 +42,11 @@ export interface ImportFileInput {
   width?: number;
 }
 
+export interface ImportHighlightInput {
+  note?: string;
+  quote: string;
+}
+
 export interface ImportCardInput {
   colors?: Array<{ hex: string; name?: string }>;
   completedAt?: number;
@@ -43,6 +54,11 @@ export interface ImportCardInput {
   createdAt?: number;
   file?: ImportFileInput;
   folders?: string[];
+  /**
+   * Passages highlighted in the source, for a link: they become highlights,
+   * found in the article once Teak has it.
+   */
+  highlights?: ImportHighlightInput[];
   isArchived?: boolean;
   isFavorited?: boolean;
   metadataTitle?: string;
@@ -145,6 +161,58 @@ function importFolderNames(raw: unknown): string[] | undefined {
     }
   }
   return names.length ? names : undefined;
+}
+
+/**
+ * `text` trimmed, then cut to `max` characters. Overlapping highlights merge
+ * into one that can run past the quote limit, and Teak's export writes it as
+ * it is: the passage's start still finds it in the article.
+ */
+const clipHighlightText = (text: string, max: number): string => {
+  const trimmed = text.trim();
+  return highlightLength(trimmed) > max
+    ? Array.from(trimmed).slice(0, max).join("").trim()
+    : trimmed;
+};
+
+/**
+ * A link's highlights: at most 200, each a quote of at most 5,000 characters
+ * with a note of at most 2,000, longer ones cut to fit. Empty quotes are
+ * skipped.
+ */
+export function importHighlights(
+  raw: unknown
+): ImportHighlightInput[] | undefined {
+  if (raw === undefined || raw === null) {
+    return;
+  }
+  if (!Array.isArray(raw) || raw.length > MAX_HIGHLIGHTS_PER_CARD) {
+    throw new Error("Card highlights are invalid");
+  }
+  const highlights: ImportHighlightInput[] = [];
+  for (const value of raw) {
+    const entry =
+      value && typeof value === "object"
+        ? (value as Record<string, unknown>)
+        : null;
+    if (
+      typeof entry?.quote !== "string" ||
+      (entry.note !== undefined &&
+        entry.note !== null &&
+        typeof entry.note !== "string")
+    ) {
+      throw new Error("Card highlights are invalid");
+    }
+    const quote = clipHighlightText(entry.quote, MAX_HIGHLIGHT_QUOTE_CHARS);
+    const note =
+      typeof entry.note === "string"
+        ? clipHighlightText(entry.note, MAX_HIGHLIGHT_NOTE_CHARS)
+        : "";
+    if (quote) {
+      highlights.push(note ? { quote, note } : { quote });
+    }
+  }
+  return highlights.length ? highlights : undefined;
 }
 
 function importTitle(raw: unknown): string | undefined {
@@ -261,6 +329,8 @@ export function validateImportCard(raw: unknown): ImportCardInput {
     isArchived: value.isArchived === true ? true : undefined,
     metadataTitle: importTitle(value.metadataTitle),
     folders: importFolderNames(value.folders),
+    highlights:
+      type === "link" ? importHighlights(value.highlights) : undefined,
     colors: rawColors as ImportCardInput["colors"],
     createdAt: parseImportedTimestamp(value.createdAt),
     savedAt: parseImportedTimestamp(value.savedAt),

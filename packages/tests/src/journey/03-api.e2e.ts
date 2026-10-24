@@ -1,5 +1,7 @@
+import { gzipSync } from "node:zlib";
 import { apiFetch, loadOpenApi } from "../helpers/api";
 import { createApiAccount } from "../helpers/app";
+import { seedScenario } from "../helpers/seed";
 import { expect, retry, test } from "../helpers/test";
 
 let apiKey = "";
@@ -321,4 +323,175 @@ test("a card's links and backlinks are on the card, not on lists", async () => {
     expect(item).not.toHaveProperty("links");
     expect(item).not.toHaveProperty("backlinks");
   }
+});
+
+test("a page snapshot becomes the link's saved copy", async () => {
+  const marker = `page-snapshot-${Date.now()}`;
+  const page = gzipSync(
+    `<!doctype html><html><head><title>${marker}</title><script>alert(1)</script></head><body><h1>As the browser showed it</h1><p>${marker}</p></body></html>`
+  );
+  const upload = await apiFetch("/v1/page-snapshots/upload", apiKey, {
+    method: "POST",
+    body: JSON.stringify({ bytes: page.byteLength }),
+  });
+  expect(upload.status).toBe(200);
+  const { fileKey, uploadUrl } = await upload.json();
+  // The signed URL is the local Files Worker's, not the API's.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
+  const put = await fetch(uploadUrl, {
+    body: page,
+    headers: { "Content-Type": "application/gzip" },
+    method: "PUT",
+  });
+  expect(put.status).toBe(200);
+
+  const created = await apiFetch("/v1/cards", apiKey, {
+    method: "POST",
+    body: JSON.stringify({
+      pageSnapshotKey: fileKey,
+      url: `https://example.com/${marker}`,
+    }),
+  });
+  expect(created.status).toBe(200);
+  const { cardId } = await created.json();
+
+  // The local stack has no link fetcher, so the run's other link steps fail;
+  // the copy still comes from the snapshot, in a run of its own.
+  await retry(
+    async () => {
+      const card = await (await apiFetch(`/v1/cards/${cardId}`, apiKey)).json();
+      expect(card.archive).toMatchObject({ kind: "full" });
+      expect(card.archive.bytes).toBeGreaterThan(0);
+    },
+    { intervals: [2000, 5000], timeout: 240_000 }
+  );
+
+  const tooLarge = await apiFetch("/v1/page-snapshots/upload", apiKey, {
+    method: "POST",
+    body: JSON.stringify({ bytes: 20 * 1024 * 1024 + 1 }),
+  });
+  expect(tooLarge.status).toBe(413);
+  expect(await tooLarge.json()).toMatchObject({
+    code: "PAGE_SNAPSHOT_TOO_LARGE",
+  });
+});
+
+test("reads a link's article as Markdown only when asked for it", async () => {
+  const { apiKey: readerKey, email } = await createApiAccount("api-reader");
+  await seedScenario(email, "reader-mix");
+  const openapi = await loadOpenApi();
+  let card: { id: string } | undefined;
+  await retry(
+    async () => {
+      const response = await apiFetch(
+        "/v1/cards?q=%23scenario-reader&include=content,metadata&limit=50",
+        readerKey
+      );
+      const { items } = (await response.json()) as {
+        items: Array<{
+          article: { readingMinutes: number; wordCount: number } | null;
+          id: string;
+          url: string | null;
+        }>;
+      };
+      const longRead = items.find((item) =>
+        item.url?.startsWith("https://example.com/reader/long-form")
+      );
+      expect(longRead?.article?.wordCount).toBeGreaterThan(2500);
+      card = longRead;
+    },
+    { timeout: 60_000 }
+  );
+  const contentPath = `/v1/cards/${card?.id}/content`;
+
+  const article = await apiFetch(`${contentPath}?kind=article`, readerKey);
+  const body = await article.clone().json();
+  openapi.validate("/v1/cards/{cardId}/content", "GET", article.status, body);
+  expect(article.status).toBe(200);
+  expect(body).toMatchObject({ kind: "article", truncated: false });
+  expect(body.text).toContain("## Planting calendar");
+  expect(body.text).toMatch(/!\[[^\]]*\]\(https?:\/\/\S+article-image\S+/u);
+  expect(body.text).not.toContain("teak-image:");
+
+  // Without kind, an article is never the answer: older clients reject it.
+  const plain = await apiFetch(contentPath, readerKey);
+  expect(plain.status).toBe(404);
+  expect(await plain.json()).toMatchObject({ code: "NO_CONTENT" });
+  expect((await apiFetch(`${contentPath}?kind=video`, readerKey)).status).toBe(
+    400
+  );
+});
+
+test("highlights a passage of a link's article by its quote, and lists it", async () => {
+  const { apiKey: readerKey, email } = await createApiAccount("api-highlights");
+  await seedScenario(email, "reader-mix");
+  const openapi = await loadOpenApi();
+  let cardId = "";
+  await retry(
+    async () => {
+      const response = await apiFetch(
+        "/v1/cards?q=%23scenario-reader&include=metadata&limit=50",
+        readerKey
+      );
+      const { items } = (await response.json()) as {
+        items: Array<{
+          article: { wordCount: number } | null;
+          id: string;
+          url: string | null;
+        }>;
+      };
+      const research = items.find((item) =>
+        item.url?.startsWith("https://example.com/reader/research")
+      );
+      expect(research?.article?.wordCount).toBeGreaterThan(0);
+      cardId = research?.id ?? "";
+    },
+    { timeout: 60_000 }
+  );
+  const path = `/v1/cards/${cardId}/highlights`;
+
+  const created = await apiFetch(path, readerKey, {
+    method: "POST",
+    body: JSON.stringify({
+      quote: "kept 31%  more moisture\nin July",
+      note: "Worth trying",
+    }),
+  });
+  const highlight = await created.clone().json();
+  openapi.validate("/v1/cards/{cardId}/highlights", "POST", 201, highlight);
+  expect(created.status).toBe(201);
+  expect(highlight).toMatchObject({
+    anchored: true,
+    cardId,
+    note: "Worth trying",
+    quote: "kept 31% more moisture in July",
+    source: "api",
+  });
+
+  const listed = await apiFetch(path, readerKey);
+  const list = await listed.clone().json();
+  openapi.validate("/v1/cards/{cardId}/highlights", "GET", 200, list);
+  expect(list.items.map((item: { id: string }) => item.id)).toEqual([
+    highlight.id,
+  ]);
+  const card = await (await apiFetch(`/v1/cards/${cardId}`, readerKey)).json();
+  expect(card.highlightCount).toBe(1);
+
+  const missing = await apiFetch(path, readerKey, {
+    method: "POST",
+    body: JSON.stringify({ quote: "a passage this abstract never had" }),
+  });
+  expect(missing.status).toBe(422);
+  expect(await missing.json()).toMatchObject({ code: "QUOTE_NOT_FOUND" });
+
+  const noted = await apiFetch(`/v1/highlights/${highlight.id}`, readerKey, {
+    method: "PATCH",
+    body: JSON.stringify({ note: null }),
+  });
+  expect(noted.status).toBe(200);
+  expect(await noted.json()).toMatchObject({ note: null });
+  const removed = await apiFetch(`/v1/highlights/${highlight.id}`, readerKey, {
+    method: "DELETE",
+  });
+  expect(removed.status).toBe(204);
 });

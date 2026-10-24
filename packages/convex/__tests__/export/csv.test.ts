@@ -92,6 +92,7 @@ describe("buildCardsCsv", () => {
       "2026-10-01T00:00:00.000Z",
       "",
       "",
+      "",
     ]);
   });
 
@@ -104,10 +105,30 @@ describe("buildCardsCsv", () => {
         }),
       ])
     );
-    expect(rows[1]?.slice(-2)).toEqual([
+    expect(rows[1]?.slice(-3, -1)).toEqual([
       "https://example.com/essay",
       "On simplicity",
     ]);
+  });
+
+  test("ends a highlighted link's row with its quotes, a blank line apart", () => {
+    const at = toDualTimestamp(Date.UTC(2026, 9, 3));
+    const rows = parse(
+      buildCardsCsv([
+        card({
+          highlights: [
+            { quote: "First passage", createdAt: at, anchored: true },
+            {
+              quote: 'Second, "quoted"',
+              note: "A note stays in cards.json",
+              createdAt: at,
+              anchored: false,
+            },
+          ],
+        }),
+      ])
+    );
+    expect(rows[1]?.at(-1)).toBe('First passage\n\nSecond, "quoted"');
   });
 
   test("an empty library is just the header", () => {

@@ -125,15 +125,18 @@ const containerHop =
   (
     env: FetcherEnv,
     mode:
-      | { maxBytes: number; stream: false }
+      | { maxBytes: number; stream: false; timeoutMs?: number }
       | { maxBytes: number; stream: true; timeoutMs: number }
   ): PinnedFetch =>
   async (url, addresses, init) => {
-    const timeoutMs = mode.stream ? mode.timeoutMs : SAFE_FETCH_TIMEOUT_MS;
+    const timeoutMs = mode.timeoutMs ?? SAFE_FETCH_TIMEOUT_MS;
     const request: FetcherHopRequest = {
       addresses,
       headers: hopHeaders(init),
       maxBytes: mode.maxBytes,
+      ...(init.method?.toUpperCase() === "HEAD"
+        ? { method: "HEAD" as const }
+        : {}),
       timeoutMs,
       url,
     };
@@ -193,16 +196,18 @@ const containerHop =
 
 /**
  * A `PinnedFetch` that makes each hop from the link fetcher Container. Only
- * `accept` and `user-agent` travel with the request, and at most `maxBytes`
- * (plus one, so `readBodyWithLimit` sees an overflow) come back.
+ * `accept` and `user-agent` travel with the request (and HEAD, when asked),
+ * and at most `maxBytes` (plus one, so `readBodyWithLimit` sees an overflow)
+ * come back. `timeoutMs` is the Container's limit for the hop.
  */
 export const createContainerPinnedFetch = (
   env: FetcherEnv,
-  options: { maxBytes?: number } = {}
+  options: { maxBytes?: number; timeoutMs?: number } = {}
 ): PinnedFetch =>
   containerHop(env, {
     maxBytes: options.maxBytes ?? DEFAULT_HOP_MAX_BYTES,
     stream: false,
+    ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
   });
 
 /**

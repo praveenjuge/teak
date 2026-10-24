@@ -468,6 +468,10 @@ describe("durable deletion admission and tombstones", () => {
       "users/exact/unclaimed.pdf",
       "users/exact/document-text/digest.txt",
       "users/exact/linked.pdf",
+      "users/exact/cards/k/page-archive/r1-archive.html",
+      "users/exact/cards/upload-pending-v2/page-snapshot/s1",
+      "users/exact/cards/k/article-text/digest.md",
+      "users/exact/cards/k/article-image/digest.webp",
     ]) {
       bucket.objects.set(key, { bytes: new Uint8Array([1]) });
     }
@@ -501,6 +505,27 @@ describe("durable deletion admission and tombstones", () => {
         fileKey: "users/exact/file",
         documentTextKey: "users/exact/document-text/digest.txt",
         hasExtractedText: true,
+        // The saved copy of a page, and a snapshot the extension sent.
+        pageArchive: {
+          bytes: 1,
+          capturedAt: 1,
+          kind: "full",
+          source: "extension",
+          sourceUrl: "https://example.com/private",
+          storageKey: "users/exact/cards/k/page-archive/r1-archive.html",
+        },
+        pendingPageSnapshotAt: 1,
+        pendingPageSnapshotKey:
+          "users/exact/cards/upload-pending-v2/page-snapshot/s1",
+        // The article in that copy, and an image it shows.
+        article: {
+          status: "ready",
+          textKey: "users/exact/cards/k/article-text/digest.md",
+          imageKeys: ["users/exact/cards/k/article-image/digest.webp"],
+          wordCount: 300,
+          readingMinutes: 1,
+          extractedAt: 1,
+        },
         tags: ["private"],
         folderIds: [],
       });
@@ -565,6 +590,15 @@ describe("durable deletion admission and tombstones", () => {
         charCount: 7,
         truncated: false,
       });
+      await ctx.db.insert("cardTextContents", {
+        cardId: card,
+        userId: "permanent-owner",
+        kind: "article",
+        text: "private article",
+        sourceKey: "users/exact/cards/k/article-text/digest.md",
+        charCount: 15,
+        truncated: false,
+      });
       await ctx.db.insert("linkedPdfs", {
         userId: "permanent-owner",
         sourceCardId: card,
@@ -585,6 +619,25 @@ describe("durable deletion admission and tombstones", () => {
         toCardId: card,
         createdAt: 1,
       });
+      await ctx.db.insert("linkChecks", {
+        userId: "permanent-owner",
+        cardId: card,
+        outcome: "dead",
+        httpStatus: 404,
+        reason: "http_404",
+        checkedAt: 1,
+      });
+      for (let index = 0; index < 120; index += 1) {
+        await ctx.db.insert("highlights", {
+          userId: "permanent-owner",
+          cardId: card,
+          quote: `Passage ${index}`,
+          unanchored: true,
+          source: "import",
+          createdAt: index,
+          updatedAt: index,
+        });
+      }
       await ctx.db.insert("userPreferences", {
         userId: "permanent-owner",
         locale: "de",
@@ -769,6 +822,8 @@ describe("durable deletion admission and tombstones", () => {
       "cardTextContents",
       "linkedPdfs",
       "cardLinks",
+      "linkChecks",
+      "highlights",
       "linkPasteJobs",
       "userPreferences",
       "userTagSummaries",

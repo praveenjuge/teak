@@ -740,10 +740,22 @@
       "suggestedTags": "{count, plural, one {# tag suggéré} other {# tags suggérés}}",
       "summary": "Résumé",
       "tags": "Tags",
-      "teakTagHint": "Tag ajouté par Teak. Afficher les fiches avec le tag {tag}"
+      "teakTagHint": "Tag ajouté par Teak. Afficher les fiches avec le tag {tag}",
+      "highlights": "Surlignages · {count, number}",
+      "highlightNotFound": "Introuvable dans l’article enregistré",
+      "highlightWaiting": "En attente de l’article…",
+      "highlightActions": "Actions du surlignage"
     },
     "details": {
       "added": "Ajoutée",
+      "archive": "Copie enregistrée",
+      "archiveFailed": "Impossible d’enregistrer une copie",
+      "archiveFailedBlocked": "Teak ne peut pas ouvrir cette page",
+      "archiveFailedNotPage": "Le lien n’est pas une page web",
+      "archiveFailedTooLarge": "La page est trop volumineuse pour être enregistrée",
+      "archiveFailedUnreachable": "La page est inaccessible",
+      "archiveSaving": "Enregistrement d’une copie…",
+      "archiveTextOnly": "Texte seul",
       "author": "Auteur",
       "edited": "Modifiée",
       "extractedText": "{count, plural, one {# caractère extrait} other {# caractères extraits}}",
@@ -760,6 +772,12 @@
       "text": "Texte",
       "title": "Détails",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "Aperçu",
+      "read": "Lire",
+      "toggleTooltip": "Lire ou afficher l’aperçu",
+      "viewLabel": "Aperçu ou lecture"
     }
   },
   "cardPreviews": {
@@ -794,6 +812,8 @@
     },
     "link": {
       "addImage": "Ajouter une image",
+      "archivedCopy": "Copie enregistrée",
+      "archivedCopyTooltip": "La page d’origine avait disparu lors de la dernière vérification, le {date}",
       "attachedMedia": "Média joint à la publication {number}",
       "attachedVideo": "Vidéo jointe {number}",
       "imageAlt": "Image du lien",
@@ -816,6 +836,29 @@
     "video": {
       "gifAlt": "GIF animé",
       "unsupported": "Votre navigateur ne prend pas en charge la balise vidéo."
+    },
+    "reader": {
+      "failed": "Impossible de préparer cet article.",
+      "loadFailed": "Impossible de charger cet article.",
+      "loading": "Chargement de l’article",
+      "minutes": "{minutes, plural, other {# min de lecture}}",
+      "preparing": "Préparation de l’article…",
+      "savedFrom": "Enregistré depuis {host} · {date} · <link>Ouvrir l’original ↗</link>",
+      "shortened": "Article raccourci pour tenir."
+    },
+    "highlights": {
+      "highlight": "Surligner",
+      "limitReached": "Cette fiche compte {max, number} surlignages, le maximum possible",
+      "merged": "Fusionné avec un surlignage existant",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Note du surlignage",
+      "notePlaceholder": "Ajouter une note",
+      "rateLimited": "Trop de modifications. Réessayez dans un instant.",
+      "remove": "Retirer le surlignage",
+      "removed": "Surlignage retiré",
+      "saveFailed": "Impossible d’enregistrer le surlignage. Veuillez réessayer.",
+      "tooLong": "Un surlignage peut compter jusqu’à {max, number} caractères",
+      "unsupported": "Votre navigateur ne peut pas afficher les surlignages dans le texte"
     }
   },
   "cards": {
@@ -1243,6 +1286,8 @@
       "markLinkDone": "Marquer un lien comme terminé",
       "copyLinkOrText": "Copier le lien ou le texte",
       "toggleDetails": "Afficher ou masquer les détails",
+      "readOrPreview": "Lire ou afficher l’aperçu",
+      "highlightSelection": "Surligner la sélection",
       "goToEverything": "Tout",
       "goToFavorites": "Favoris",
       "goToArchive": "Archives",
@@ -1405,6 +1450,20 @@
     },
     "logo": {
       "earlyAccess": "Accès anticipé"
+    },
+    "openLink": {
+      "archiveMissing": "Impossible de charger la copie de Teak.",
+      "archivedCopy": "Copie enregistrée",
+      "backToTeak": "Retour à Teak",
+      "checking": "Ouverture de {host}…",
+      "frameTitle": "Copie enregistrée de {host}",
+      "moreActions": "Plus d’actions",
+      "noLongerAvailable": "Cette page n’est plus disponible · Enregistrée le {date} depuis {host}",
+      "noLongerAvailableShort": "N’est plus disponible",
+      "openInTeak": "Ouvrir dans Teak",
+      "openOriginalNow": "Ouvrir l’original maintenant",
+      "tryOriginal": "Essayer l’original ↗",
+      "unavailable": "Cette fiche n’est pas disponible."
     }
   },
   "hooks": {

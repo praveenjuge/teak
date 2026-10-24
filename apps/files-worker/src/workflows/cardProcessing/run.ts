@@ -2,6 +2,7 @@ import { NonRetryableError } from "cloudflare:workflows";
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { stageFailed } from "@teak/convex/card/processingStatus";
+import { ARTICLE_SUMMARY_MIN_WORDS } from "@teak/convex/shared/article";
 import {
   CONVEX_STEP,
   NO_RETRY,
@@ -16,6 +17,14 @@ import {
   withWorkflowTelemetry,
 } from "../telemetry";
 import { isAiProviderCapacityError } from "./aiMetadata";
+import { ARCHIVE_STEP, archivePage, markArchiveFailed } from "./archive";
+import {
+  EXTRACT_ARTICLE_STEP,
+  extractArticle,
+  markArticleFailed,
+  SUMMARIZE_ARTICLE_STEP,
+  summarizeArticle,
+} from "./article";
 import { categorizeLink } from "./categorization";
 import { type CompletedClassification, classifyCard } from "./classification";
 import {
@@ -49,6 +58,13 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 // the existing ones.
 
 export interface CardProcessingParams {
+  /**
+   * Only "load card", "archive page" and the article steps: a link's saved
+   * copy and the article in it.
+   */
+  archiveOnly?: boolean;
+  /** Only "load card", "extract article" and "summarize article". */
+  articleOnly?: boolean;
   cardId: string;
   metadataOnly?: boolean;
   refresh?: boolean;
@@ -103,6 +119,8 @@ const rethrowSuperseded = (error: unknown): void => {
 interface InitialFacts {
   classification: CompletedClassification | null;
   creationTime: number;
+  /** The link has an article, which a metadata-only run summarizes again. */
+  hasArticle?: true;
   /** The link's stored category, for a metadata-only run's podcast check. */
   linkCategory?: string;
   rev: number;
@@ -124,6 +142,8 @@ export type CardProcessingResult =
       mode: "completed";
       renderables?: { thumbnailGenerated: boolean };
     }
+  | { mode: "archive_only"; archive: string; article: string }
+  | { mode: "article_only"; article: string }
   | { mode: "skipped"; reason: "card_missing" | "superseded" };
 
 export const runCardProcessing = (
@@ -140,6 +160,8 @@ export const runCardProcessing = (
     rev: params.rev,
   };
   const metadataOnly = params.metadataOnly === true;
+  const archiveOnly = params.archiveOnly === true;
+  const articleOnly = !archiveOnly && params.articleOnly === true;
   return runReported(
     run,
     async () => {
@@ -156,7 +178,11 @@ export const runCardProcessing = (
         );
 
       try {
-        return await processCard(job, step, reported, metadataOnly);
+        return await processCard(job, step, reported, {
+          archiveOnly,
+          articleOnly,
+          metadataOnly,
+        });
       } catch (error) {
         if (isSuperseded(error)) {
           return {
@@ -184,7 +210,11 @@ const processCard = async (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],
   reported: Reported,
-  metadataOnly: boolean
+  {
+    archiveOnly,
+    articleOnly,
+    metadataOnly,
+  }: { archiveOnly: boolean; articleOnly: boolean; metadataOnly: boolean }
 ): Promise<CardProcessingResult> => {
   const initial = await step.do(
     "load card",
@@ -216,6 +246,7 @@ const processCard = async (
               }
             : null,
         creationTime: card._creationTime,
+        ...(card.article?.status === "ready" ? { hasArticle: true } : {}),
         ...(card.metadata?.linkCategory?.category
           ? { linkCategory: card.metadata.linkCategory.category }
           : {}),
@@ -228,6 +259,18 @@ const processCard = async (
   }
   if (initial.rev !== job.rev) {
     return { mode: "skipped", reason: "superseded" };
+  }
+
+  if (archiveOnly) {
+    const archive = await archivePageStep(job, step);
+    return {
+      archive,
+      article: await articleSteps(job, step),
+      mode: "archive_only",
+    };
+  }
+  if (articleOnly) {
+    return { article: await articleSteps(job, step), mode: "article_only" };
   }
 
   const classified =
@@ -254,6 +297,10 @@ const processCard = async (
       metadata?.mode === "completed"
     ) {
       await transcribePodcastStep(job, step, { keepTranscript: true });
+    }
+    // The metadata just written summarized the page without its article.
+    if (initial.hasArticle && metadata?.mode === "completed") {
+      await summarizeArticleStep(job, step);
     }
     return completedResult(classified, cardType, metadata, null);
   }
@@ -428,6 +475,14 @@ const processCard = async (
     await transcribePodcastStep(job, step);
   }
 
+  // The last step, whether or not AI metadata finished: the page's saved
+  // copy. A failure fails only its own stage.
+  // Then the article in it, and a summary written from that.
+  if (cardType === "link") {
+    await archivePageStep(job, step);
+    await articleSteps(job, step);
+  }
+
   return {
     ...completedResult(classified, cardType, metadata, renderables),
     ...(categorization ? { categorization } : {}),
@@ -459,6 +514,103 @@ const completedResult = (
     ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
     : {}),
 });
+
+/**
+ * "archive page", and "mark archive failed" once its retries are spent; only
+ * a superseded run's error escapes. Says what happened, for the run's result.
+ */
+const archivePageStep = async (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"]
+): Promise<string> => {
+  try {
+    const outcome = await step.do("archive page", ARCHIVE_STEP, () =>
+      archivePage(job)
+    );
+    return outcome.status === "archived"
+      ? outcome.kind
+      : `${outcome.status}:${outcome.reason}`;
+  } catch (error) {
+    rethrowSuperseded(error);
+    console.warn("[cardProcessing] Page archive failed", {
+      cardId: job.cardId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await step
+      .do("mark archive failed", CONVEX_STEP, () => markArchiveFailed(job))
+      .catch((markError: unknown) => {
+        rethrowSuperseded(markError);
+        return null;
+      });
+    return "failed:unreachable";
+  }
+};
+
+/**
+ * "extract article", then "summarize article" when it made one. A failure
+ * fails only the article stage ("mark article failed"); a summary that can't
+ * be written leaves the one the card has. Only a superseded run's error
+ * escapes. Says what happened, for the run's result.
+ */
+const articleSteps = async (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"]
+): Promise<string> => {
+  let extracted: Awaited<ReturnType<typeof extractArticle>>;
+  try {
+    extracted = await step.do("extract article", EXTRACT_ARTICLE_STEP, () =>
+      extractArticle(job)
+    );
+  } catch (error) {
+    rethrowSuperseded(error);
+    console.warn("[cardProcessing] Article extraction failed", {
+      cardId: job.cardId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await step
+      .do("mark article failed", CONVEX_STEP, () => markArticleFailed(job))
+      .catch((markError: unknown) => {
+        rethrowSuperseded(markError);
+        return null;
+      });
+    return "failed:extract_error";
+  }
+  if (extracted.status !== "extracted") {
+    return "reason" in extracted
+      ? `${extracted.status}:${extracted.reason}`
+      : extracted.status;
+  }
+  // A short article adds little to the summary the page's details made.
+  if (extracted.wordCount >= ARTICLE_SUMMARY_MIN_WORDS) {
+    await summarizeArticleStep(job, step);
+  }
+  return "article";
+};
+
+/** "summarize article", logged; only a superseded run's error escapes. */
+const summarizeArticleStep = async (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"]
+) => {
+  try {
+    const outcome = await step.do(
+      "summarize article",
+      SUMMARIZE_ARTICLE_STEP,
+      () =>
+        withWorkflowTelemetry(job.env, (telemetry) =>
+          summarizeArticle(job, telemetry)
+        )
+    );
+    return outcome;
+  } catch (error) {
+    rethrowSuperseded(error);
+    console.warn("[cardProcessing] Article summary failed", {
+      cardId: job.cardId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+};
 
 /**
  * The podcast transcript, logged; only a superseded run's error escapes. The

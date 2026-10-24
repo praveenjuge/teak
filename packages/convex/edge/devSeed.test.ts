@@ -1,8 +1,10 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { searchCardsByDocument } from "../card/searchReads";
 import { readCardTranscript } from "../card/textContents";
 import { DEV_SEED_CARDS } from "../devSeed";
 import { AI_LANGUAGE_CASES, AI_LANGUAGES_TAG } from "../devSeed/aiLanguages";
@@ -20,6 +22,11 @@ import {
   REVISIT_SIZE_GROUPS,
   SAVE_DETAILS_SAVED_URL,
 } from "../devSeed/contentPacks";
+import {
+  DEAD_LINK_CASES,
+  DEAD_LINKS_CAPTURED_AT,
+  DEAD_LINKS_NXDOMAIN_URL,
+} from "../devSeed/deadLinks";
 import {
   EXPORT_UGLY_FOLDER_NAMES,
   type FolderScenario,
@@ -377,6 +384,83 @@ describe("devSeed.seedScenario", () => {
     );
     expect(error).toContain("  shuffle-partial: 400 cards");
     expect(await cardsOf(t)).toHaveLength(0);
+  });
+});
+
+describe("devSeed dead-links pack", () => {
+  test("seeds links with copies at the given origin, and writes each copy", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const puts = new Map<string, { body: string; type: string | null }>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = new URL(String(input));
+        puts.set(
+          decodeURIComponent(url.pathname.replace(/^\/__upload\/v1\//u, "")),
+          {
+            body: new TextDecoder().decode(init?.body as Uint8Array),
+            type: new Headers(init?.headers).get("content-type"),
+          }
+        );
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r",
+            data: { etag: "e", key: "k", size: 1 },
+          })
+        );
+      })
+    );
+    const t = await setup();
+    const args = {
+      workosUserId: WORKOS_USER_ID,
+      scenario: "dead-links",
+      origin: "http://127.0.0.1:4555/",
+    };
+
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "seeded",
+      cards: DEAD_LINK_CASES.length,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "already_seeded",
+      cards: 0,
+    });
+
+    const cards = await cardsOf(t);
+    const byUrl = (url: string) => cards.find((card) => card.url === url);
+    expect(
+      byUrl("http://127.0.0.1:4555/status/404")?.pageArchive
+    ).toMatchObject({ kind: "full", capturedAt: DEAD_LINKS_CAPTURED_AT });
+    expect(
+      byUrl("http://127.0.0.1:4555/status/410?copy=text")?.pageArchive
+    ).toMatchObject({ kind: "text_only" });
+    expect(
+      byUrl("http://127.0.0.1:4555/status/404?copy=none")?.pageArchive
+    ).toBeUndefined();
+    expect(byUrl("http://127.0.0.1:4555/status/404?in=trash")?.isDeleted).toBe(
+      true
+    );
+    expect(byUrl(DEAD_LINKS_NXDOMAIN_URL)?.pageArchive).toBeDefined();
+
+    const archiveKeys = cards.flatMap((card) =>
+      card.pageArchive ? [card.pageArchive.storageKey] : []
+    );
+    expect([...puts.keys()].sort()).toEqual(archiveKeys.sort());
+    for (const card of cards) {
+      if (card.pageArchive) {
+        const put = puts.get(card.pageArchive.storageKey);
+        expect(put?.type).toBe("text/html; charset=utf-8");
+        expect(new TextEncoder().encode(put?.body).byteLength).toBe(
+          card.pageArchive.bytes
+        );
+      }
+    }
+    vi.unstubAllGlobals();
   });
 });
 
@@ -1755,5 +1839,286 @@ describe("devSeed ordering-saved pack", () => {
       "Resaved: first saved 400 days ago, saved again yesterday",
       "Two days: saved 2 days ago, never again",
     ]);
+  });
+});
+
+describe("devSeed page archive packs", () => {
+  test("page-archive-mix seeds every saved-copy state once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "page-archive-mix",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 8 });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    const bySlug = new Map(
+      cards.map((card) => [
+        new URL(card.url as string).pathname.split("/").pop(),
+        card,
+      ])
+    );
+    expect(bySlug.get("full")?.pageArchive).toMatchObject({
+      kind: "full",
+      source: "server",
+    });
+    expect(bySlug.get("full")?.pageArchive?.bytes ?? 0).toBeGreaterThanOrEqual(
+      35_000
+    );
+    expect(bySlug.get("text-only")?.pageArchive?.kind).toBe("text_only");
+    expect(bySlug.get("extension")?.pageArchive?.source).toBe("extension");
+    expect(bySlug.get("blocked")?.processingStatus?.archive).toMatchObject({
+      error: "blocked_url",
+      status: "failed",
+    });
+    expect(bySlug.get("too-large")?.processingStatus?.archive?.error).toBe(
+      "too_large"
+    );
+    expect(bySlug.get("pending")?.processingStatus?.archive?.status).toBe(
+      "pending"
+    );
+    expect(bySlug.get("trashed")).toMatchObject({ isDeleted: true });
+    expect(bySlug.get("trashed")?.pageArchive).toBeDefined();
+    expect(bySlug.get("podcast")?.aiTranscriptCharCount).toBeGreaterThan(0);
+    // Every stub is owned by the account, so deleting it removes them.
+    const owned = await t.run((ctx) =>
+      ctx.db.query("accountStorageObjects").collect()
+    );
+    expect(owned.map((row) => row.key).sort()).toEqual(
+      cards
+        .flatMap((card) =>
+          card.pageArchive ? [card.pageArchive.storageKey] : []
+        )
+        .sort()
+    );
+  });
+
+  test("archive-backfill-1000 seeds 1,000 links with no copy, 200 a page", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    for (let page = 0; page < 5; page += 1) {
+      expect(
+        await t.mutation(internal.devSeed.seedScenario, {
+          workosUserId: WORKOS_USER_ID,
+          scenario: "archive-backfill-1000",
+          page,
+        })
+      ).toEqual({ status: "seeded", cards: 200 });
+    }
+    expect(
+      await t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "archive-backfill-1000",
+        page: 5,
+      })
+    ).toEqual({ status: "already_seeded", cards: 0 });
+    const links = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(links).toHaveLength(1000);
+    expect(
+      links.every((card) => card.type === "link" && !card.pageArchive)
+    ).toBe(true);
+  }, 60_000);
+});
+
+describe("devSeed reader packs", () => {
+  test("reader-mix seeds every Read tab state once, and records the ready articles after writing them", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const puts = new Map<string, string | null>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = new URL(String(input));
+        puts.set(
+          decodeURIComponent(url.pathname.replace(/^\/__upload\/v1\//u, "")),
+          new Headers(init?.headers).get("content-type")
+        );
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r",
+            data: { etag: "e", key: "k", size: 1 },
+          })
+        );
+      })
+    );
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "reader-mix",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 11 });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+
+    const cards = await cardsOf(t);
+    const bySlug = new Map(
+      cards.map((card) => [
+        new URL(card.url as string).pathname.split("/").pop(),
+        card,
+      ])
+    );
+    const longForm = bySlug.get("long-form");
+    expect(longForm?.article).toMatchObject({
+      status: "ready",
+      byline: "Ada Gardener",
+    });
+    expect(
+      longForm?.article?.status === "ready" && longForm.article.imageKeys
+    ).toHaveLength(3);
+    expect(
+      longForm?.article?.status === "ready" && longForm.article.wordCount
+    ).toBeGreaterThan(2500);
+    expect(bySlug.get("product")?.article).toMatchObject({ status: "none" });
+    expect(bySlug.get("arabic")?.article).toMatchObject({ lang: "ar" });
+    expect(bySlug.get("japanese")?.article).toMatchObject({ lang: "ja" });
+    expect(bySlug.get("truncated")?.article).toMatchObject({ truncated: true });
+    expect(bySlug.get("text-only")?.pageArchive?.kind).toBe("text_only");
+    expect(bySlug.get("pending")?.processingStatus?.article?.status).toBe(
+      "pending"
+    );
+    expect(bySlug.get("failed")?.processingStatus?.article).toMatchObject({
+      error: "extract_error",
+      status: "failed",
+    });
+    expect(bySlug.get("podcast")?.article?.status).toBe("ready");
+    expect(bySlug.get("podcast")?.aiTranscriptCharCount).toBeGreaterThan(0);
+    // Each ready article's Markdown and images were written, and are owned.
+    const written = cards.flatMap((card) =>
+      card.article?.status === "ready"
+        ? [card.article.textKey, ...card.article.imageKeys]
+        : []
+    );
+    expect(written).toHaveLength(8 + 3);
+    for (const key of written) {
+      expect(puts.has(key)).toBe(true);
+    }
+    const owned = await t.run(async (ctx) =>
+      (await ctx.db.query("accountStorageObjects").collect()).map(
+        (row) => row.key
+      )
+    );
+    expect(owned).toEqual(expect.arrayContaining(written));
+    vi.unstubAllGlobals();
+  });
+
+  test("highlights-mix highlights the reader-mix articles once, waiting for reader-mix first", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const stored = new Map<string, string>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = new URL(String(input));
+        if (url.pathname.startsWith("/__upload/v1/")) {
+          stored.set(
+            decodeURIComponent(url.pathname.replace(/^\/__upload\/v1\//u, "")),
+            new TextDecoder().decode(init?.body as Uint8Array)
+          );
+          return Promise.resolve(
+            Response.json({
+              ok: true,
+              version: 1,
+              requestId: "r",
+              data: { etag: "e", key: "k", size: 1 },
+            })
+          );
+        }
+        return Promise.resolve(
+          new Response(stored.get(url.pathname.slice(1)) ?? "", {
+            status: stored.has(url.pathname.slice(1)) ? 200 : 404,
+          })
+        );
+      })
+    );
+    const t = await setup();
+    rateLimiterTest.register(t, "rateLimiterV2");
+    const seed = (scenario: string) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario,
+      });
+    await expect(seed("highlights-mix")).rejects.toThrow("reader-mix");
+    await seed("reader-mix");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await seed("highlights-mix")).toEqual({
+      status: "seeded",
+      cards: 7,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await seed("highlights-mix")).toEqual({
+      status: "already_seeded",
+      cards: 0,
+    });
+
+    const cards = await cardsOf(t);
+    const bySlug = new Map(
+      cards.map((card) => [
+        new URL(card.url as string).pathname.split("/").pop(),
+        card,
+      ])
+    );
+    const rows = await t.run((ctx) => ctx.db.query("highlights").collect());
+    const of = (slug: string) =>
+      rows.filter((row) => row.cardId === bySlug.get(slug)?._id);
+    expect(bySlug.get("long-form")?.highlightCount).toBe(200);
+    expect(of("long-form")).toHaveLength(200);
+    expect(of("news")).toHaveLength(12);
+    expect(of("news").some((row) => row.note?.length === 2000)).toBe(true);
+    expect(of("research")).toHaveLength(1);
+    expect(of("japanese")).toHaveLength(1);
+    expect(of("japanese")[0]?.quote).toBe(
+      "庭は手をかける人の忍耐に季節ごとに応えてくれます"
+    );
+    // The imported ones were found, all but the one no article has.
+    const textOnly = of("text-only");
+    expect(textOnly).toHaveLength(4);
+    expect(
+      textOnly.filter((row) => row.unanchored).map((row) => row.quote)
+    ).toEqual(["A sentence that is in no article at all"]);
+    expect(bySlug.get("podcast")?.hasHighlights).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  test("reader-search-1000 makes articles only their body text finds, 200 a page", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "reader-search-1000",
+        page,
+      });
+    expect(await seed(0)).toEqual({ status: "seeded", cards: 200 });
+    expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
+
+    const found = await t.run((ctx) =>
+      searchCardsByDocument(ctx, {
+        userId: "teak_dev",
+        searchQuery: "lantern137",
+        type: "link",
+        limit: 20,
+      })
+    );
+    expect(found.map((card) => card.metadataTitle)).toEqual(["Field note 138"]);
   });
 });

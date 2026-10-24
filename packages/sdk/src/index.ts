@@ -46,6 +46,7 @@ export const ERROR_CODES = [
   "FILE_TOO_LARGE",
   "FOLDER_LIMIT",
   "FORBIDDEN",
+  "HIGHLIGHT_LIMIT",
   "IN_PROGRESS",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
@@ -56,9 +57,12 @@ export const ERROR_CODES = [
   "METHOD_NOT_ALLOWED",
   "NETWORK_ERROR",
   "NOT_FOUND",
+  "NO_ARTICLE",
   "NO_CONTENT",
   "NOT_IN_TRASH",
+  "PAGE_SNAPSHOT_TOO_LARGE",
   "PARSE_ERROR",
+  "QUOTE_NOT_FOUND",
   "RATE_LIMITED",
   "REQUEST_FAILED",
   "SERVICE_UNAVAILABLE",
@@ -86,13 +90,34 @@ export interface TokenProvider {
   ) => Promise<string | null> | string | null;
 }
 
+/** A link's saved copy of its page. The HTML itself stays in Teak. */
+export interface CardArchive {
+  bytes: number;
+  capturedAt: number;
+  kind: "full" | "text_only";
+}
+
+/** A link's article, from its saved copy; read it with `cards.content(id, { kind: "article" })`. */
+export interface CardArticle {
+  readingMinutes: number;
+  wordCount: number;
+}
+
 export interface Card {
   aiSummary: string | null;
   aiTags: string[];
   aiTranscript: string | null;
   appUrl: string;
+  /**
+   * A link's saved copy of its page: `full`, or `text_only` when the page
+   * was too large; null until it is saved and for other cards. Servers that
+   * predate saved copies leave it out.
+   */
+  archive?: CardArchive | null;
   /** When the card was archived, or null. */
   archivedAt: number | null;
+  /** A link's article; null when it has none or it isn't ready. */
+  article?: CardArticle | null;
   /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
   audioWaveform: { detail: number[]; grid: number[] } | null;
   /** Your cards that link to this one, most recently updated first. */
@@ -117,6 +142,11 @@ export interface Card {
   fileUrl: string | null;
   /** Ids of the folders the card is in. */
   folderIds: string[];
+  /**
+   * Passages highlighted in a link's article; 0 for other cards. Servers
+   * that predate highlights leave it out.
+   */
+  highlightCount?: number;
   id: string;
   /** Archived cards are hidden from the library but still count. */
   isArchived: boolean;
@@ -289,6 +319,30 @@ export interface TagOperation {
   total: number;
   updatedAt: number;
 }
+/** A passage highlighted in a link's article, with an optional note. */
+export interface Highlight {
+  /** False until the quote is found in the card's saved article. */
+  anchored: boolean;
+  cardId: string;
+  createdAt: number;
+  id: string;
+  note: string | null;
+  quote: string;
+  /** `reader`, `api` or `import`; accept values this SDK doesn't know. */
+  source: string;
+  updatedAt: number;
+}
+
+export interface CreateHighlightInput {
+  note?: string;
+  /** Text just before the quote, to pick one of its repeats. */
+  prefix?: string;
+  /** Text from the article; whitespace, curly quotes and case needn't match. */
+  quote: string;
+  /** Text just after the quote, to pick one of its repeats. */
+  suffix?: string;
+}
+
 export interface FolderCardsResult {
   failedIds: string[];
   /** Failed cards that are already in the most folders a card can be in. */
@@ -320,6 +374,12 @@ export interface CreateCardInput {
   mimeType?: string;
   /** Free-form notes attached to the card. */
   notes?: string | null;
+  /**
+   * The `fileKey` from `pageSnapshots.createUpload`: the page as the browser
+   * showed it, which becomes a link's saved copy. Ignored when it isn't one
+   * of your snapshot uploads.
+   */
+  pageSnapshotKey?: string;
   /**
    * A free label for what saved the card (extension, CLI, API, and so on),
    * kept in its metadata. For the page the card came from, use `sourceUrl`.
@@ -400,6 +460,10 @@ export interface CreateUploadInput {
   mimeType: string;
 }
 /** A link image upload: JPEG, PNG, WebP, GIF or AVIF, under 20 MB. */
+export interface CreatePageSnapshotUploadInput {
+  /** The gzipped page's exact size; at most 20 MiB. */
+  bytes: number;
+}
 export interface CreateThumbnailUploadInput {
   fileSize: number;
   mimeType: string;
@@ -438,6 +502,9 @@ export interface SavedPdf {
   /** False when an earlier save already made that card. */
   created: boolean;
 }
+/** The kinds of stored text a card can have. */
+export type CardContentKind = "article" | "document" | "transcript" | "content";
+
 /** A card's full stored text (GET /v1/cards/:id/content). */
 export interface CardContent {
   cardId: string;
@@ -445,9 +512,11 @@ export interface CardContent {
   charCount: number;
   /**
    * document: extracted from the card's file; transcript: its speech;
-   * content: a text or quote card's written text.
+   * content: a text or quote card's written text; article: a link's article
+   * as Markdown, with image links valid for 7 days. A kind this SDK doesn't
+   * know yet comes through as a string rather than an error.
    */
-  kind: "document" | "transcript" | "content";
+  kind: CardContentKind | (string & {});
   text: string;
   /** The document is longer than Teak keeps. */
   truncated: boolean;
@@ -741,6 +810,25 @@ const asFolders = (value: unknown): { items: Folder[] } => {
   }
   return { items: value.items.map(asFolder) };
 };
+const asHighlight = (value: unknown): Highlight => {
+  if (
+    !isObject(value) ||
+    typeof value.id !== "string" ||
+    typeof value.quote !== "string"
+  ) {
+    throw new TeakApiError(
+      "PARSE_ERROR",
+      "Teak returned an unexpected highlight payload."
+    );
+  }
+  return value as unknown as Highlight;
+};
+const asHighlights = (value: unknown): { items: Highlight[] } => {
+  if (!(isObject(value) && Array.isArray(value.items))) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return { items: value.items.map(asHighlight) };
+};
 const asFolderCards = (value: unknown): FolderCardsResult => {
   if (
     !(
@@ -821,7 +909,8 @@ const asCardContent = (value: unknown): CardContent => {
     typeof value.text !== "string" ||
     typeof value.charCount !== "number" ||
     typeof value.truncated !== "boolean" ||
-    !["document", "transcript", "content"].includes(String(value.kind))
+    // Unknown kinds pass, so a kind added later never breaks this build.
+    typeof value.kind !== "string"
   ) {
     throw new TeakApiError("PARSE_ERROR");
   }
@@ -956,6 +1045,8 @@ export const createTeakClient = (options: {
       : {};
   const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
   const folderPath = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
+  const highlightPath = (id: string) =>
+    `/v1/highlights/${encodeURIComponent(id)}`;
   const putFile = async (
     uploadUrl: string,
     bytes: BodyInit,
@@ -1032,10 +1123,20 @@ export const createTeakClient = (options: {
         ),
       /**
        * The card's full stored text: document text, transcript, or a text
-       * card's content. Throws NO_CONTENT when the card has none.
+       * card's content. `{ kind: "article" }` reads a link's article as
+       * Markdown; `kind` picks one kind when a card has several. Throws
+       * NO_CONTENT when the card has none (of that kind).
        */
-      content: (id: string) =>
-        request(`${cardPath(id)}/content`, { method: "GET" }, asCardContent),
+      content: (id: string, contentOptions?: { kind?: CardContentKind }) =>
+        request(
+          `${cardPath(id)}/content${
+            contentOptions?.kind
+              ? `?kind=${encodeURIComponent(contentOptions.kind)}`
+              : ""
+          }`,
+          { method: "GET" },
+          asCardContent
+        ),
       /** Moves the card to Trash, or deletes it for good with `permanent`. */
       delete: (id: string, deleteOptions?: { permanent?: boolean }) =>
         request(
@@ -1224,6 +1325,37 @@ export const createTeakClient = (options: {
           asFolder
         ),
     },
+    highlights: {
+      /**
+       * Highlights a passage of a link's saved article, found by its text:
+       * the first match unless `prefix` or `suffix` points at another. An
+       * overlapping highlight merges with it. 409 NO_ARTICLE without a saved
+       * article, 422 QUOTE_NOT_FOUND, 409 HIGHLIGHT_LIMIT past 200.
+       */
+      create: (cardId: string, input: CreateHighlightInput) =>
+        request(
+          `${cardPath(cardId)}/highlights`,
+          { body: JSON.stringify(input), method: "POST" },
+          asHighlight
+        ),
+      /** Removes a highlight and its note. */
+      delete: (id: string) =>
+        request(highlightPath(id), { method: "DELETE" }, () => null),
+      /** A card's highlights, in the order they appear in its article. */
+      list: (cardId: string) =>
+        request(
+          `${cardPath(cardId)}/highlights`,
+          { method: "GET" },
+          asHighlights
+        ),
+      /** Writes or changes a highlight's note; `note: null` clears it. */
+      update: (id: string, input: { note: string | null }) =>
+        request(
+          highlightPath(id),
+          { body: JSON.stringify(input), method: "PATCH" },
+          asHighlight
+        ),
+    },
     me: () => request("/v1/me", { method: "GET" }, asMe),
     tags: {
       /**
@@ -1257,6 +1389,19 @@ export const createTeakClient = (options: {
           "/v1/tags/rename",
           { body: JSON.stringify({ from, to }), method: "POST" },
           asTagOperation
+        ),
+    },
+    pageSnapshots: {
+      /**
+       * A signed URL for the page a browser extension saw, gzipped: `PUT`
+       * it with `Content-Type: application/gzip`, then pass the `fileKey`
+       * to `cards.create` as `pageSnapshotKey`.
+       */
+      createUpload: (input: CreatePageSnapshotUploadInput) =>
+        request(
+          "/v1/page-snapshots/upload",
+          { body: JSON.stringify(input), method: "POST" },
+          asUpload
         ),
     },
     uploads: {

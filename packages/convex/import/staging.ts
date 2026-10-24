@@ -37,7 +37,7 @@ const loadStagedJob = async (ctx: MutationCtx, jobId: Id<"importJobs">) => {
 const insertFailedItem = (
   ctx: MutationCtx,
   job: Doc<"importJobs">,
-  item: Infer<typeof failedItemValidator>
+  { highlights: _highlights, ...item }: Infer<typeof failedItemValidator>
 ) => {
   const now = Date.now();
   return ctx.db.insert("importJobItems", {

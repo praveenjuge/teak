@@ -33,10 +33,10 @@ Each export is a ZIP with every card outside Trash, archived cards included:
 
 | File | What it holds |
 |---|---|
-| `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folder names, favorite and archive state, when a link was marked done (`completedAt`), and dates: `createdAt` (first saved) and `savedAt` (last saved, later when a link was saved again). Teak imports this file back, keeping both, so the library comes back in the same order. |
+| `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folder names, favorite and archive state, when a link was marked done (`completedAt`), a link's `highlights` (each `quote`, `note`, `createdAt` and whether it was found in the saved article, `anchored`), and dates: `createdAt` (first saved) and `savedAt` (last saved, later when a link was saved again). Teak imports this file back, keeping both, so the library comes back in the same order. |
 | `files/` | The original file attached to each image, video, audio, and document card. |
 | `bookmarks.html` | Your link cards in the bookmark format Chrome, Firefox, and Safari import. Links in no folder come first; each folder is its own bookmarks folder, and a link in several folders appears in each. Your tags are kept where the browser supports them. |
-| `cards.csv` | One row per card for Excel, Numbers, or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `createdAt`, and, for text saved from a page, `sourceUrl` and `sourceTitle`. Tags and folders are separated by commas. |
+| `cards.csv` | One row per card for Excel, Numbers, or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `createdAt`, for text saved from a page `sourceUrl` and `sourceTitle`, and `highlights`. Tags and folders are separated by commas, and highlights' quotes by a blank line. |
 | `manifest.json` | When the archive was made, its card and file counts, and its format version (`schemaVersion` 2). |
 
 `cards.csv` is safe to open in a spreadsheet: a cell that starts with `=`, `+`, `-`, or `@` begins with an apostrophe so it shows as text instead of running as a formula.

@@ -354,3 +354,38 @@ describe("validateFavoritePayload", () => {
     expect(validateFavoritePayload(payload)).toBeNull();
   });
 });
+
+describe("parseCreatePayload: pageSnapshotKey", () => {
+  test("keeps a link's page snapshot key", () => {
+    expect(
+      parseCreatePayload({
+        pageSnapshotKey: "users/u/cards/upload-pending-v2/page-snapshot/s1",
+        url: "https://example.com/post",
+      })
+    ).toMatchObject({
+      payload: {
+        pageSnapshotKey: "users/u/cards/upload-pending-v2/page-snapshot/s1",
+      },
+    });
+  });
+
+  test.each([
+    [
+      "beside an uploaded file",
+      {
+        fileKey: "uploads/a",
+        fileName: "a.png",
+        mimeType: "image/png",
+        pageSnapshotKey: "k",
+      },
+      "`pageSnapshotKey` can't be sent with an uploaded `fileKey`",
+    ],
+    [
+      "that isn't a string",
+      { pageSnapshotKey: 42, url: "https://example.com" },
+      "`pageSnapshotKey` must be a string",
+    ],
+  ])("refuses one %s", (_name, body, error) => {
+    expect(parseCreatePayload(body)).toEqual({ error });
+  });
+});

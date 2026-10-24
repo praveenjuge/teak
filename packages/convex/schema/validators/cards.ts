@@ -44,6 +44,16 @@ export const processingStatusObjectValidator = v.object({
   metadata: v.optional(stageStatusValidator),
   renderables: v.optional(stageStatusValidator),
   screenshot: v.optional(stageStatusValidator),
+  /**
+   * The link's saved copy (`pageArchive`). Never fails the card: a run with
+   * nothing to archive leaves it as it was.
+   */
+  archive: v.optional(stageStatusValidator),
+  /**
+   * The article taken from the saved copy (`article`). Never fails the card:
+   * a link without a copy closes it with no article.
+   */
+  article: v.optional(stageStatusValidator),
 });
 
 export const processingStatusValidator = v.optional(
@@ -159,6 +169,72 @@ export const fileMetadataValidator = v.optional(
 );
 
 export const r2KeyValidator = v.string();
+
+/**
+ * A link's saved copy: one self-contained HTML file (role `page-archive`),
+ * `text_only` when the page was too large to keep whole. `source` says
+ * whether the browser extension sent the page or Teak fetched it.
+ */
+export const pageArchiveValidator = v.object({
+  storageKey: r2KeyValidator,
+  bytes: v.number(),
+  kind: v.union(v.literal("full"), v.literal("text_only")),
+  source: v.union(v.literal("server"), v.literal("extension")),
+  capturedAt: v.number(),
+  sourceUrl: v.string(),
+});
+
+/**
+ * A link's article, taken from its saved copy for the reader: Markdown
+ * (role `article-text`) whose images are `teak-image:<n>` references to
+ * `imageKeys[n]` (role `article-image`, WebP). `none` is a page that isn't an
+ * article (too little text). Both are named by their content.
+ */
+export const articleValidator = v.union(
+  v.object({
+    status: v.literal("ready"),
+    textKey: r2KeyValidator,
+    imageKeys: v.array(r2KeyValidator),
+    wordCount: v.number(),
+    readingMinutes: v.number(),
+    title: v.optional(v.string()),
+    byline: v.optional(v.string()),
+    lang: v.optional(v.string()),
+    /** The Markdown was cut to fit 512 KiB characters. */
+    truncated: v.optional(v.literal(true)),
+    extractedAt: v.number(),
+  }),
+  v.object({ status: v.literal("none"), extractedAt: v.number() })
+);
+
+export const highlightSourceValidator = v.union(
+  v.literal("reader"),
+  v.literal("api"),
+  v.literal("import")
+);
+
+/**
+ * A passage someone highlighted in a link's article, with an optional note.
+ * `quote` with `prefix` and `suffix` find it again (a W3C TextQuote
+ * selector); `start` and `end` are offsets into the article as the reader
+ * shows it, and `articleKey` the article text they point into. An imported
+ * highlight is `unanchored` until the card's article is there to find it in.
+ */
+export const highlightValidator = v.object({
+  userId: v.string(),
+  cardId: v.id("cards"),
+  quote: v.string(),
+  prefix: v.optional(v.string()),
+  suffix: v.optional(v.string()),
+  start: v.optional(v.number()),
+  end: v.optional(v.number()),
+  articleKey: v.optional(r2KeyValidator),
+  note: v.optional(v.string()),
+  unanchored: v.optional(v.literal(true)),
+  source: highlightSourceValidator,
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
 
 export const thumbnailOverrideValidator = v.object({
   storageKey: r2KeyValidator,
@@ -319,6 +395,23 @@ export const cardValidator = v.object({
   aiOcrText: v.optional(v.string()),
   ocrCheckedAt: v.optional(v.number()),
   documentTextKey: v.optional(r2KeyValidator),
+  /** Links only: the saved copy of the page. */
+  pageArchive: v.optional(pageArchiveValidator),
+  /**
+   * The page as the browser extension saw it (a gzipped pending upload), and
+   * when it was taken, until the card's workflow archives it.
+   */
+  pendingPageSnapshotKey: v.optional(r2KeyValidator),
+  pendingPageSnapshotAt: v.optional(v.number()),
+  /** Links only: the article in the saved copy, for the reader. */
+  article: v.optional(articleValidator),
+  /**
+   * Set while the card has rows in `highlights`, with their count; kept in
+   * step by every highlight write. A highlighted link's saved copy and
+   * article are frozen: nothing replaces them.
+   */
+  hasHighlights: v.optional(v.literal(true)),
+  highlightCount: v.optional(v.number()),
   hasExtractedText: v.optional(v.literal(true)),
   extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),

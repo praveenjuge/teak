@@ -29,6 +29,7 @@ import {
   quotaResetInMs,
 } from "./export/serialize";
 import { readLiveFolders } from "./folder/folders";
+import { loadCardHighlights } from "./highlight/highlights";
 import { requireSessionUserId } from "./securitySessions";
 import { getR2Url } from "./storage/fileUrls";
 import { enqueueObjectDeletion, queueExportWorkflow } from "./workflowDispatch";
@@ -68,7 +69,17 @@ const startResultValidator = v.object({
   job: v.optional(exportSummaryValidator),
 });
 
-type ExportCardRow = Pick<
+interface ExportHighlight {
+  anchored: boolean;
+  createdAt: number;
+  note?: string;
+  quote: string;
+}
+
+type ExportCardRow = {
+  /** Its highlights come from `getExportHighlights`, not with the card. */
+  hasHighlights?: true;
+} & Pick<
   Doc<"cards">,
   | "_id"
   | "aiLanguage"
@@ -451,6 +462,16 @@ export const recordSnapshotPage = internalMutation({
   },
 });
 
+/**
+ * A card read for an export. Its highlights are read on their own
+ * (`getExportHighlights`): a page of cards each holding 200 long ones would
+ * pass the query's read limit.
+ */
+const exportCardRow = (card: Doc<"cards">): ExportCardRow => ({
+  ...toExportCardRow(card),
+  ...(card.hasHighlights ? { hasHighlights: true as const } : {}),
+});
+
 const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
   _id: card._id,
   type: card.type,
@@ -548,10 +569,87 @@ export const getExportCardsByIds = internalQuery({
     );
     for (const card of fetched) {
       if (card && card.userId === job.userId && isActiveCard(card)) {
-        cards.push(toExportCardRow(card));
+        cards.push(exportCardRow(card));
       }
     }
     return cards;
+  },
+});
+
+/**
+ * How much highlight text one `getExportHighlights` read gathers before it
+ * stops, in UTF-16 units. A card holds at most 200 highlights and its
+ * anchored ones never overlap, so the card that passes this still keeps the
+ * read well under Convex's 16 MiB limit.
+ */
+const EXPORT_HIGHLIGHT_READ_UNITS = 2_000_000;
+
+/**
+ * The highlights of snapshotted cards, oldest first, starting from the first
+ * id. It stops once it has read about `EXPORT_HIGHLIGHT_READ_UNITS` of text
+ * (always after at least one card); `read` says how many ids it covered, and
+ * the caller asks again from there. Cards deleted since, or not the job
+ * owner's, come back with none.
+ */
+export const getExportHighlights = internalQuery({
+  args: { jobId: v.id("exportJobs"), cardIds: v.array(v.id("cards")) },
+  returns: v.object({
+    cards: v.array(
+      v.object({
+        cardId: v.id("cards"),
+        highlights: v.array(
+          v.object({
+            anchored: v.boolean(),
+            createdAt: v.number(),
+            note: v.optional(v.string()),
+            quote: v.string(),
+          })
+        ),
+      })
+    ),
+    read: v.number(),
+  }),
+  handler: async (ctx, { jobId, cardIds }) => {
+    if (cardIds.length > MAX_EXPORT_CARDS_PER_READ) {
+      throw new Error("Too many cards in one read");
+    }
+    const job = (await ctx.db.get(jobId)) as unknown as ExportJobDoc | null;
+    const cards: Array<{
+      cardId: Id<"cards">;
+      highlights: ExportHighlight[];
+    }> = [];
+    let read = 0;
+    let units = 0;
+    for (const cardId of cardIds) {
+      if (read > 0 && units >= EXPORT_HIGHLIGHT_READ_UNITS) {
+        break;
+      }
+      read += 1;
+      const card = job ? await ctx.db.get(cardId) : null;
+      if (
+        !(
+          card?.hasHighlights &&
+          card.userId === job?.userId &&
+          isActiveCard(card)
+        )
+      ) {
+        continue;
+      }
+      const rows = await loadCardHighlights(ctx, card._id);
+      const highlights = rows.map((row) => {
+        units += row.quote.length + (row.note?.length ?? 0);
+        return {
+          quote: row.quote,
+          ...(row.note ? { note: row.note } : {}),
+          createdAt: row.createdAt,
+          anchored: row.unanchored !== true,
+        };
+      });
+      if (highlights.length > 0) {
+        cards.push({ cardId, highlights });
+      }
+    }
+    return { cards, read };
   },
 });
 
@@ -584,7 +682,7 @@ export const getExportCardsPage = internalQuery({
       if (!(card && isActiveCard(card))) {
         continue;
       }
-      cards.push(toExportCardRow(card));
+      cards.push(exportCardRow(card));
     }
 
     return {

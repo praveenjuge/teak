@@ -17,6 +17,7 @@
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0",
     "@cloudflare/puppeteer": "1.4.0",
+    "@mozilla/readability": "^0.6.0",
     "@resvg/resvg-wasm": "^2.6.2",
     "@streamparser/json": "^0.0.26",
     "@teak/convex": "workspace:*",
@@ -24,10 +25,13 @@
     "client-zip": "^2.4.5",
     "convex": "^1.46.0",
     "fflate": "^0.8.3",
-    "htmlparser2": "^12.0.0"
+    "htmlparser2": "^12.0.0",
+    "linkedom": "^0.18.14",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@types/probe-image-size": "^7.2.5",
+    "@types/turndown": "^5.0.6",
     "jose": "6.2.12",
     "probe-image-size": "7.4.0",
     "undici": "^7.30.0",

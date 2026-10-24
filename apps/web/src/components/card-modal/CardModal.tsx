@@ -1,9 +1,10 @@
+import { opensOnRead } from "@teak/convex/shared/article";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Archive,
@@ -30,6 +31,11 @@ import {
   Undo2,
   X,
 } from "vadivam-react";
+import { ArticleReader, articleReaderState } from "@/components/card-previews";
+import type {
+  HighlightJump,
+  ReaderHighlightControls,
+} from "@/components/card-previews/ArticleHighlights";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -49,6 +55,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
@@ -89,6 +97,7 @@ import {
   type SavePdfControl,
 } from "./CardMetadataPanel";
 import { CardModalSkeleton } from "./CardModalSkeleton";
+import { CheckedLinkPreview } from "./CheckedLinkPreview";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -149,21 +158,25 @@ function CardPreview({
           readOnly={Boolean(card.isDeleted)}
         />
       );
-    case "link":
-      return (
-        <LinkPreview
+    case "link": {
+      const linkThumbnail =
+        thumbnail && !card.isDeleted
+          ? {
+              onFile: (file: File) => thumbnail.replace(file, "drop"),
+              uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
+            }
+          : undefined;
+      // Only a link with an archived copy is ever checked.
+      return card.pageArchive && !card.isDeleted ? (
+        <CheckedLinkPreview
           card={card}
           showScreenshot
-          thumbnail={
-            thumbnail && !card.isDeleted
-              ? {
-                  onFile: (file) => thumbnail.replace(file, "drop"),
-                  uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
-                }
-              : undefined
-          }
+          thumbnail={linkThumbnail}
         />
+      ) : (
+        <LinkPreview card={card} showScreenshot thumbnail={linkThumbnail} />
       );
+    }
     case "image":
       return <ImagePreview card={card} />;
     case "video":
@@ -205,6 +218,86 @@ function stageContentClass(card: CardModalCard): string {
   }
 }
 
+/** The Read tab's stage: the reader sets its own 68ch column inside it. */
+const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
+
+type StageView = "preview" | "read";
+
+/**
+ * Preview or Read for a link with an article (or one on its way): the
+ * category's default until someone picks, and only for this card, so a pick
+ * never carries over to the next one. The scroll of each view is kept per
+ * card while the dialog is open.
+ */
+const useStageView = (
+  card: CardModalCard | null | undefined,
+  open: boolean
+) => {
+  const [choice, setChoice] = useState<{
+    cardId: string;
+    view: StageView;
+  } | null>(null);
+  const available = card ? articleReaderState(card).kind !== "none" : false;
+  const fallback: StageView = opensOnRead(
+    card?.metadata?.linkCategory?.category
+  )
+    ? "read"
+    : "preview";
+  let view: StageView = "preview";
+  if (card && available) {
+    view = choice?.cardId === card._id ? choice.view : fallback;
+  }
+
+  const mainRef = useRef<HTMLElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const positions = useRef(new Map<string, [number, number]>());
+  const cardId = card?._id;
+  const remember = () => {
+    if (cardId) {
+      positions.current.set(`${cardId}:${view}`, [
+        mainRef.current?.scrollTop ?? 0,
+        scrollerRef.current?.scrollTop ?? 0,
+      ]);
+    }
+  };
+  const setView = (next: StageView) => {
+    if (!cardId || next === view) {
+      return;
+    }
+    remember();
+    setChoice({ cardId, view: next });
+  };
+  useLayoutEffect(() => {
+    if (!cardId) {
+      return;
+    }
+    const [main, scroller] = positions.current.get(`${cardId}:${view}`) ?? [
+      0, 0,
+    ];
+    if (mainRef.current) {
+      mainRef.current.scrollTop = main;
+    }
+    if (scrollerRef.current) {
+      scrollerRef.current.scrollTop = scroller;
+    }
+  }, [cardId, view]);
+  useEffect(() => {
+    if (!open) {
+      positions.current.clear();
+      setChoice(null);
+    }
+  }, [open]);
+
+  return {
+    available,
+    mainRef,
+    scrollerRef,
+    setView,
+    toggle: () => setView(view === "read" ? "preview" : "read"),
+    view,
+  };
+};
+
 /** The header's one main action, in ink rather than the brand color. */
 const PRIMARY_ACTION_CLASS =
   "h-8 rounded-full bg-foreground px-3.5 text-background hover:bg-foreground/85";
@@ -229,6 +322,8 @@ interface CardModalProps {
   handlePermanentDelete: (onClose?: () => void) => Promise<void>;
   handleRestore: (onClose?: () => void) => Promise<void>;
   hasUnsavedChanges: boolean;
+  /** A link's highlights, read and written in the Read tab and the panel. */
+  highlights?: CardHighlightsControl;
   isDownloading?: boolean;
   isReprocessing?: boolean;
   linkThumbnail?: LinkThumbnailControl;
@@ -279,6 +374,7 @@ export function CardModal({
   handleDelete,
   handleRestore,
   handlePermanentDelete,
+  highlights,
   openLink,
   downloadFile,
   saveChanges,
@@ -313,6 +409,25 @@ export function CardModal({
   const detailsHidden = isDetailsHidden && !isMobile;
   const pendingFocus = useRef<"notes" | "tags" | null>(null);
   const saveStatus = useSaveStatus(saveState);
+  const stage = useStageView(card, open);
+  const readerControls = useRef<ReaderHighlightControls | null>(null);
+  const [highlightJump, setHighlightJump] = useState<HighlightJump | null>(
+    null
+  );
+  // A jump is shown once: leaving the Read tab, or the card, forgets it.
+  const readingCard = stage.view === "read" ? card?._id : undefined;
+  useEffect(() => {
+    if (!readingCard) {
+      setHighlightJump(null);
+    }
+  }, [readingCard]);
+  const jumpToHighlight = (highlightId: string) => {
+    stage.setView("read");
+    setHighlightJump((last) => ({
+      id: highlightId,
+      seq: (last?.seq ?? 0) + 1,
+    }));
+  };
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
   if (originRef.current.open !== open) {
@@ -601,6 +716,16 @@ export function CardModal({
       case "toggleDetails":
         if (!isMobile) {
           toggleDetails();
+        }
+        break;
+      case "toggleReader":
+        if (stage.available) {
+          stage.toggle();
+        }
+        break;
+      case "highlight":
+        if (stage.view === "read") {
+          readerControls.current?.highlightSelection();
         }
         break;
       default:
@@ -1044,6 +1169,12 @@ export function CardModal({
               event.preventDefault();
             }
           }}
+          onEscapeKeyDown={(event) => {
+            // Esc first lets go of a selection in the reader.
+            if (readerControls.current?.dismiss()) {
+              event.preventDefault();
+            }
+          }}
           onKeyDown={handleKeyDown}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -1110,7 +1241,10 @@ export function CardModal({
 
                 {mobileHeader}
 
-                <div className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row">
+                <div
+                  className="flex min-h-0 flex-1 flex-col max-md:overflow-y-auto md:flex-row"
+                  ref={stage.scrollerRef}
+                >
                   <div className="group/stage relative flex min-w-0 flex-col md:min-h-0 md:flex-1">
                     {desktopHeader}
                     <main
@@ -1120,20 +1254,72 @@ export function CardModal({
                         card.type === "image" && "bg-muted/40",
                         card.type === "video" && "bg-black"
                       )}
+                      ref={stage.mainRef}
                     >
-                      <div className={stageContentClass(card)}>
-                        <CardPreview
-                          card={card}
-                          cardLinks={guardedCardLinks}
-                          getCurrentValue={getCurrentValue}
-                          key={card._id}
-                          saveChanges={() => {
-                            void saveChanges();
-                          }}
-                          thumbnail={linkThumbnail}
-                          updateContent={editContent}
-                        />
-                      </div>
+                      {stage.available ? (
+                        <div className="sticky top-0 z-10 flex justify-center bg-background/80 px-5 py-2 backdrop-blur md:px-10">
+                          <ShortcutTooltip
+                            keys={["R"]}
+                            label={t("reader.toggleTooltip")}
+                          >
+                            <ToggleGroup
+                              aria-keyshortcuts="R"
+                              aria-label={t("reader.viewLabel")}
+                              onValueChange={(next) => {
+                                if (next === "preview" || next === "read") {
+                                  stage.setView(next);
+                                }
+                              }}
+                              size="sm"
+                              type="single"
+                              value={stage.view}
+                              variant="outline"
+                            >
+                              <ToggleGroupItem className="px-3" value="preview">
+                                {t("reader.preview")}
+                              </ToggleGroupItem>
+                              <ToggleGroupItem className="px-3" value="read">
+                                {t("reader.read")}
+                              </ToggleGroupItem>
+                            </ToggleGroup>
+                          </ShortcutTooltip>
+                        </div>
+                      ) : null}
+                      {stage.view === "read" ? (
+                        <div className={READ_STAGE_CLASS}>
+                          <ArticleReader
+                            card={card}
+                            highlightControlsRef={readerControls}
+                            highlightJump={
+                              highlightJump?.id &&
+                              highlights?.highlights?.some(
+                                (item) => item._id === highlightJump.id
+                              )
+                                ? highlightJump
+                                : null
+                            }
+                            highlights={isDeleted ? undefined : highlights}
+                            key={card._id}
+                            onRetry={isDeleted ? undefined : onReprocess}
+                            retrying={isReprocessing}
+                            title={heading.title}
+                          />
+                        </div>
+                      ) : (
+                        <div className={stageContentClass(card)}>
+                          <CardPreview
+                            card={card}
+                            cardLinks={guardedCardLinks}
+                            getCurrentValue={getCurrentValue}
+                            key={card._id}
+                            saveChanges={() => {
+                              void saveChanges();
+                            }}
+                            thumbnail={linkThumbnail}
+                            updateContent={editContent}
+                          />
+                        </div>
+                      )}
                     </main>
                   </div>
 
@@ -1158,6 +1344,19 @@ export function CardModal({
                           : undefined
                       }
                       getCurrentValue={getCurrentValue}
+                      highlights={
+                        highlights?.highlights
+                          ? {
+                              items: highlights.highlights,
+                              onJump: stage.available
+                                ? jumpToHighlight
+                                : undefined,
+                              onRemove: (highlight) => {
+                                void highlights.remove(highlight);
+                              },
+                            }
+                          : undefined
+                      }
                       notesRef={notesRef}
                       onCardTypeClick={() => onCardTypeClick?.(card.type)}
                       onCommit={commit}

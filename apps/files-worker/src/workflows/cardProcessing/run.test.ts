@@ -49,7 +49,28 @@ const clefAnswer = (decision: null) => ({
   data: { decision, model: "@cf/cloudflare/clef", version: 1 },
 });
 
-const NO_DECISIONS: Partial<Record<FilesOp, OpAnswer>> = {
+/** A link's saved copy, written where the step asked. */
+const archivedPage = (params: Record<string, unknown>): OpAnswer => ({
+  data: {
+    bytes: 2048,
+    kind: "full",
+    pageUrl: params.url,
+    source: params.snapshotKey ? "extension" : "server",
+    storageKey: params.destinationKey,
+    stored: true,
+  },
+});
+
+/** A saved copy that isn't an article, unless a test says otherwise. */
+const NOT_AN_ARTICLE: OpAnswer = {
+  data: { kind: "none", reason: "too_short", wordCount: 40 },
+};
+
+const NO_DECISIONS: Partial<
+  Record<FilesOp, OpAnswer | ((params: Record<string, unknown>) => OpAnswer)>
+> = {
+  "archive-page": archivedPage,
+  "extract-article": NOT_AN_ARTICLE,
   "decide-card-type": clefAnswer(null),
   "decide-link-category": clefAnswer(null),
 };
@@ -61,6 +82,8 @@ const setup = (
     /** Podcast audio needs a bucket with multipart uploads. */
     bucket?: FakeBucket;
     deps?: Partial<CardProcessingDeps>;
+    archiveOnly?: boolean;
+    articleOnly?: boolean;
     handlers?: Parameters<typeof createCardConvex>[1];
     metadataOnly?: boolean;
     refresh?: boolean;
@@ -82,6 +105,8 @@ const setup = (
         params: {
           cardId: CARD_ID,
           convexSiteUrl: TEST_CONVEX_SITE_URL,
+          ...(options.archiveOnly ? { archiveOnly: true } : {}),
+          ...(options.articleOnly ? { articleOnly: true } : {}),
           ...(options.metadataOnly ? { metadataOnly: true } : {}),
           ...(options.refresh ? { refresh: true } : {}),
           rev: options.rev ?? 1,
@@ -214,6 +239,8 @@ describe("card processing", () => {
       "capture screenshot",
       "read link image text",
       "emit completion",
+      "archive page",
+      "extract article",
       "report complete",
     ]);
     const screenshotKey = (
@@ -347,13 +374,15 @@ describe("card processing", () => {
       "emit completion",
       "find podcast episode",
       "transcribe podcast",
+      "archive page",
+      "extract article",
       "report complete",
     ]);
     // No stage waits on it: the card was complete before it started.
     expect(
       Object.values(card.processingStatus ?? {}).map((stage) => stage.status)
     ).not.toContain("in_progress");
-    expect(fakeStep.records.at(-2)).toMatchObject({
+    expect(fakeStep.records.at(-4)).toMatchObject({
       name: "transcribe podcast",
       outcome: "ok",
     });
@@ -452,7 +481,7 @@ describe("card processing", () => {
 
     const result = await run();
 
-    expect(fakeStep.records.at(-2)).toMatchObject({
+    expect(fakeStep.records.at(-4)).toMatchObject({
       name: "transcribe podcast",
       outcome: "error",
     });
@@ -1032,5 +1061,799 @@ describe("card processing", () => {
 
     await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable");
     expect(reported(convex)).toEqual(["errored"]);
+  });
+});
+
+describe("archive page", () => {
+  const ARCHIVED_AT = Date.UTC(2026, 9, 1);
+  const SNAPSHOT_KEY = `users/x/cards/upload-pending-v2/page-snapshot/${"a".repeat(8)}`;
+
+  /** A link whose AI processing is done, so only the archive is left. */
+  const processedLink = (fields: Partial<FakeCard> = {}) =>
+    makeCard({
+      content: "https://example.com/article",
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "A good article",
+          url: "https://example.com/article",
+        },
+      },
+      metadataStatus: "completed",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+      type: "link",
+      url: "https://example.com/article",
+      ...fields,
+    });
+
+  const archiveCalls = (ops: ReturnType<typeof setup>["ops"]) =>
+    ops.calls.filter((call) => call.op === "archive-page");
+
+  test("is a link's last step, and records the copy under a key registered first", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const { convex, fakeStep, ops, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "" } },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    await run();
+
+    expect(fakeStep.names().slice(-3)).toEqual([
+      "archive page",
+      "extract article",
+      "report complete",
+    ]);
+    const [call] = archiveCalls(ops);
+    const key = call?.params.destinationKey as string;
+    expect(key).toEndWith("/page-archive/r1-archive.html");
+    expect(call?.params).toMatchObject({ url: "https://example.com/article" });
+    expect(call?.params.snapshotKey).toBeUndefined();
+    expect(
+      convex
+        .callsTo("storage/ownership:registerObject")
+        .map((registered) => registered.args.key)
+    ).toContain(key);
+    expect(card.pageArchive).toMatchObject({
+      bytes: 2048,
+      kind: "full",
+      source: "server",
+      sourceUrl: "https://example.com/article",
+      storageKey: key,
+    });
+    expect(stageHistory(convex.stageWrites, "archive")).toEqual([
+      "in_progress",
+      "completed",
+    ]);
+  });
+
+  test("an archive-only run loads the card, archives it and reads its article, nothing else", async () => {
+    const card = processedLink();
+    const { fakeStep, ops, run } = setup(card, {}, { archiveOnly: true });
+
+    const result = await run();
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "archive page",
+      "extract article",
+      "report complete",
+    ]);
+    expect(ops.opsCalled()).toEqual(["archive-page", "extract-article"]);
+    expect(result).toEqual({
+      archive: "full",
+      article: "none",
+      mode: "archive_only",
+    });
+    expect(card.processingStatus?.archive?.status).toBe("completed");
+  });
+
+  test("uses the extension's snapshot, then lets it go", async () => {
+    const card = processedLink({
+      pendingPageSnapshotAt: ARCHIVED_AT,
+      pendingPageSnapshotKey: SNAPSHOT_KEY,
+    });
+    const { ops, run } = setup(card, {}, { archiveOnly: true });
+
+    await run();
+
+    expect(archiveCalls(ops)[0]?.params.snapshotKey).toBe(SNAPSHOT_KEY);
+    expect(card.pageArchive).toMatchObject({ source: "extension" });
+    expect(card.pendingPageSnapshotKey).toBeUndefined();
+  });
+
+  test.each([
+    {
+      name: "a card that already has a copy",
+      card: () =>
+        processedLink({
+          pageArchive: {
+            bytes: 1,
+            capturedAt: ARCHIVED_AT,
+            kind: "full",
+            source: "server",
+            sourceUrl: "https://example.com/article",
+            storageKey: "users/x/cards/k/page-archive/r0-archive.html",
+          },
+        }),
+    },
+    {
+      name: "a card in Trash",
+      card: () => processedLink({ isDeleted: true }),
+    },
+    {
+      name: "a note",
+      card: () =>
+        makeCard({ content: "Not a link", processingStatus: {}, type: "text" }),
+    },
+  ])("skips $name", async ({ card }) => {
+    const target = card();
+    const before = target.processingStatus?.archive;
+    const { ops, run } = setup(target, {}, { archiveOnly: true });
+
+    await run();
+
+    expect(archiveCalls(ops)).toEqual([]);
+    expect(target.processingStatus?.archive).toEqual(before);
+  });
+
+  test("Refresh details archives a page that already has a copy, fetching it fresh", async () => {
+    const card = processedLink({
+      pageArchive: {
+        bytes: 1,
+        capturedAt: ARCHIVED_AT,
+        kind: "full",
+        source: "server",
+        sourceUrl: "https://example.com/article",
+        storageKey: "users/x/cards/k/page-archive/r0-archive.html",
+      },
+      processingRev: 2,
+    });
+    const { ops, run } = setup(
+      card,
+      {},
+      { archiveOnly: true, refresh: true, rev: 2 }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)[0]?.params).toMatchObject({ fresh: true });
+    expect(card.pageArchive?.storageKey).toEndWith(
+      "/page-archive/r2-archive.html"
+    );
+  });
+
+  test("a snapshot sent after the copy was taken is archived again", async () => {
+    const card = processedLink({
+      pageArchive: {
+        bytes: 1,
+        capturedAt: ARCHIVED_AT,
+        kind: "full",
+        source: "server",
+        sourceUrl: "https://example.com/article",
+        storageKey: "users/x/cards/k/page-archive/r0-archive.html",
+      },
+      pendingPageSnapshotAt: ARCHIVED_AT + 1,
+      pendingPageSnapshotKey: SNAPSHOT_KEY,
+    });
+    const { ops, run } = setup(card, {}, { archiveOnly: true });
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(1);
+    expect(card.pageArchive).toMatchObject({ source: "extension" });
+  });
+
+  test("a page the fetcher can't have fails the stage at once, and the run completes", async () => {
+    const card = processedLink();
+    const { convex, ops, run } = setup(
+      card,
+      { "archive-page": { data: { reason: "blocked_url", stored: false } } },
+      { archiveOnly: true }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(1);
+    expect(card.processingStatus?.archive).toMatchObject({
+      error: "blocked_url",
+      status: "failed",
+    });
+    expect(card.pageArchive).toBeUndefined();
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a busy fetcher is retried three times, then the stage fails and the card completes", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const { convex, fakeStep, ops, run } = setup(card, {
+      "archive-page": {
+        throws: new Error("files_worker_error:RENDERER_UNAVAILABLE:503:wf"),
+      },
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "" } },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    const result = await run();
+
+    expect(archiveCalls(ops)).toHaveLength(4);
+    expect(
+      fakeStep.delays
+        .filter((delay) => delay.name === "archive page")
+        .map((delay) => delay.delay)
+    ).toEqual(["30 seconds", "30 seconds", "30 seconds"]);
+    // With no copy there is no article to wait for: its stage closes.
+    expect(fakeStep.names().slice(-4)).toEqual([
+      "archive page",
+      "mark archive failed",
+      "extract article",
+      "report complete",
+    ]);
+    expect(card.processingStatus?.archive).toMatchObject({
+      error: "unreachable",
+      status: "failed",
+    });
+    expect(card.processingStatus?.metadata?.status).toBe("completed");
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a card edited while it archives: the copy is deleted and the run ends as replaced", async () => {
+    const card = processedLink();
+    const { ops, run } = setup(
+      card,
+      {
+        "archive-page": (params) => {
+          card.processingRev = 2;
+          return archivedPage(params);
+        },
+        "delete-object": { data: { deleted: true } },
+      },
+      { archiveOnly: true }
+    );
+
+    const result = await run();
+
+    const written = archiveCalls(ops)[0]?.params.destinationKey;
+    expect(
+      ops.calls
+        .filter((call) => call.op === "delete-object")
+        .map((call) => call.params.key)
+    ).toEqual([written]);
+    expect(card.pageArchive).toBeUndefined();
+    expect(result).toEqual({ mode: "skipped", reason: "superseded" });
+  });
+});
+
+describe("article steps", () => {
+  const CAPTURED_AT = Date.UTC(2026, 9, 1);
+  const ARCHIVE_KEY = "users/x/cards/k/page-archive/r1-archive.html";
+
+  /** A link whose copy is saved, so only its article is left. */
+  const archivedLink = (fields: Partial<FakeCard> = {}) =>
+    makeCard({
+      content: "https://example.com/article",
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "A good article",
+          url: "https://example.com/article",
+        },
+      },
+      metadataStatus: "completed",
+      aiSummary: "From the page's details",
+      aiTags: ["kept"],
+      pageArchive: {
+        bytes: 2048,
+        capturedAt: CAPTURED_AT,
+        kind: "full",
+        source: "server",
+        sourceUrl: "https://example.com/article",
+        storageKey: ARCHIVE_KEY,
+      },
+      processingStatus: {
+        archive: { status: "completed" },
+        article: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+      type: "link",
+      url: "https://example.com/article",
+      ...fields,
+    });
+
+  const MARKDOWN = "## Gardens\n\nPlant in spring. ![A rose](teak-image:0)";
+
+  const anArticle = (wordCount: number): OpAnswer => ({
+    data: {
+      byline: "Ada",
+      images: [
+        {
+          base64: btoa("WEBP-BYTES"),
+          bytes: 10,
+          contentType: "image/webp",
+        },
+      ],
+      kind: "article",
+      lang: "en",
+      markdown: MARKDOWN,
+      title: "Gardens",
+      truncated: false,
+      wordCount,
+    },
+  });
+
+  test("an article-only run extracts the article, stores it by content and summarizes it", async () => {
+    const card = archivedLink();
+    const bucket = new FakeBucket();
+    const { convex, fakeStep, ops, run } = setup(
+      card,
+      {
+        "extract-article": anArticle(640),
+        "generate-link-metadata": textMetadataAnswer(
+          ["new", "tags"],
+          "From the article"
+        ),
+      },
+      { articleOnly: true, bucket }
+    );
+
+    const result = await run();
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "extract article",
+      "summarize article",
+      "report complete",
+    ]);
+    expect(result).toEqual({ article: "article", mode: "article_only" });
+    expect(ops.calls[0]).toEqual({
+      op: "extract-article",
+      params: {
+        archiveKey: ARCHIVE_KEY,
+        pageUrl: "https://example.com/article",
+      },
+    });
+    const [saved] = convex.callsTo("card/articleText:saveArticleText");
+    const textKey = saved?.args.textKey as string;
+    expect(textKey).toMatch(
+      /\/k57card0+1\/article-text\/r1-[a-f0-9]{64}\.md$/u
+    );
+    const article = saved?.args.article as { imageKeys: string[] };
+    const imageKeys = article.imageKeys;
+    expect(imageKeys).toHaveLength(1);
+    expect(imageKeys[0]).toMatch(/\/article-image\/r1-[a-f0-9]{64}\.webp$/u);
+    expect(saved?.args).toMatchObject({
+      article: { byline: "Ada", lang: "en", title: "Gardens", wordCount: 640 },
+      charCount: Array.from("Gardens\n\nPlant in spring. A rose").length,
+      searchText: "Gardens\n\nPlant in spring. A rose",
+      truncated: false,
+    });
+    // Every object is registered to the account before it is written.
+    const registered = convex
+      .callsTo("storage/ownership:registerObject")
+      .map((call) => call.args.key);
+    expect(registered).toEqual([imageKeys[0], textKey]);
+    expect(bucket.puts.map((put) => put.key)).toEqual([imageKeys[0], textKey]);
+    expect(new TextDecoder().decode(bucket.objects.get(textKey)?.bytes)).toBe(
+      MARKDOWN
+    );
+    expect(bucket.puts[0]?.httpMetadata).toEqual({
+      contentType: "image/webp",
+    });
+    // The summary is written again from the article; the tags stay.
+    expect(card.aiSummary).toBe("From the article");
+    expect(card.aiTags).toEqual(["kept"]);
+    const prompt = String(
+      ops.calls.find((call) => call.op === "generate-link-metadata")?.params
+        .prompt
+    );
+    expect(prompt).toContain("Article: Gardens");
+    expect(stageHistory(convex.stageWrites, "article")).toEqual([
+      "in_progress",
+      "completed",
+    ]);
+  });
+
+  test("an article under 200 words keeps the summary it has", async () => {
+    const card = archivedLink();
+    const { fakeStep, ops, run } = setup(
+      card,
+      { "extract-article": anArticle(150) },
+      { articleOnly: true }
+    );
+
+    await run();
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "extract article",
+      "report complete",
+    ]);
+    expect(ops.opsCalled()).toEqual(["extract-article"]);
+    expect(card.aiSummary).toBe("From the page's details");
+  });
+
+  test("an account with AI turned off keeps its summary", async () => {
+    const card = archivedLink();
+    const { ops, run } = setup(
+      card,
+      { "extract-article": anArticle(640) },
+      {
+        articleOnly: true,
+        handlers: { "adminAccess:getAiGate": () => "user_disabled" },
+      }
+    );
+
+    await run();
+
+    expect(ops.opsCalled()).toEqual(["extract-article"]);
+    expect(card.aiSummary).toBe("From the page's details");
+  });
+
+  test("the article comes after the copy in a whole run", async () => {
+    const card = archivedLink({
+      pageArchive: undefined,
+      processingStatus: {
+        archive: { status: "pending" },
+        article: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+    });
+    const { fakeStep, ops, run } = setup(
+      card,
+      { "extract-article": anArticle(150) },
+      { archiveOnly: true }
+    );
+
+    const result = await run();
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "archive page",
+      "extract article",
+      "report complete",
+    ]);
+    // It reads the copy the run just saved.
+    const extractCall = ops.calls.find((call) => call.op === "extract-article");
+    expect(extractCall?.params.archiveKey).toEndWith(
+      "/page-archive/r1-archive.html"
+    );
+    expect(result).toEqual({
+      archive: "full",
+      article: "article",
+      mode: "archive_only",
+    });
+  });
+
+  test("a new run keeps the keys of content it already stored, and names new content for itself", async () => {
+    const card = archivedLink({ processingRev: 1 });
+    const bucket = new FakeBucket();
+    const keysOf = (convex: ReturnType<typeof setup>["convex"]) => {
+      const [saved] = convex.callsTo("card/articleText:saveArticleText");
+      return {
+        image: (saved?.args.article as { imageKeys?: string[] } | undefined)
+          ?.imageKeys?.[0],
+        text: saved?.args.textKey as string,
+      };
+    };
+    const first = setup(
+      card,
+      { "extract-article": anArticle(640) },
+      { articleOnly: true, bucket }
+    );
+    await first.run();
+    const stored = keysOf(first.convex);
+
+    card.processingRev = 2;
+    const same = setup(
+      card,
+      { "extract-article": anArticle(640) },
+      { articleOnly: true, bucket, refresh: true, rev: 2 }
+    );
+    await same.run();
+    expect(keysOf(same.convex)).toEqual(stored);
+    expect(bucket.puts).toHaveLength(2);
+
+    card.processingRev = 3;
+    const changed = anArticle(640) as { data: { markdown: string } };
+    changed.data.markdown = "## Gardens\n\nPlant in autumn.";
+    const edited = setup(
+      card,
+      { "extract-article": changed as OpAnswer },
+      { articleOnly: true, bucket, refresh: true, rev: 3 }
+    );
+    await edited.run();
+    const next = keysOf(edited.convex);
+    expect(next.image).toBe(stored.image);
+    expect(next.text).not.toBe(stored.text);
+    expect(next.text).toMatch(/\/article-text\/r3-[a-f0-9]{64}\.md$/u);
+  });
+
+  test("a page that isn't an article is recorded as none", async () => {
+    const card = archivedLink();
+    const { convex, run } = setup(card, {}, { articleOnly: true });
+
+    const result = await run();
+
+    expect(result).toEqual({ article: "none", mode: "article_only" });
+    expect(convex.callsTo("card/articleText:recordNoArticle")[0]?.args).toEqual(
+      { cardId: CARD_ID, wordCount: 40 }
+    );
+    expect(card.article).toMatchObject({ status: "none" });
+  });
+
+  test("an article made from this copy is kept, unless Refresh details asked again", async () => {
+    const extracted = {
+      extractedAt: CAPTURED_AT + 1000,
+      imageKeys: [],
+      readingMinutes: 3,
+      status: "ready",
+      textKey: "users/x/cards/k/article-text/old.md",
+      wordCount: 640,
+    };
+    const kept = archivedLink({ article: extracted });
+    const first = setup(kept, {}, { articleOnly: true });
+    expect(await first.run()).toEqual({
+      article: "skipped:already_extracted",
+      mode: "article_only",
+    });
+    expect(first.ops.opsCalled()).toEqual([]);
+
+    const refreshed = archivedLink({ article: extracted });
+    const second = setup(
+      refreshed,
+      { "extract-article": anArticle(150) },
+      { articleOnly: true, refresh: true }
+    );
+    expect(await second.run()).toEqual({
+      article: "article",
+      mode: "article_only",
+    });
+
+    // An article older than the copy is taken again.
+    const stale = archivedLink({
+      article: { ...extracted, extractedAt: CAPTURED_AT - 1 },
+    });
+    const third = setup(stale, {}, { articleOnly: true });
+    await third.run();
+    expect(third.ops.opsCalled()).toEqual(["extract-article"]);
+  });
+
+  test("a highlighted link keeps its copy and article on Refresh details and on a re-save", async () => {
+    const extracted = {
+      extractedAt: CAPTURED_AT + 1000,
+      imageKeys: [],
+      readingMinutes: 3,
+      status: "ready",
+      textKey: "users/x/cards/k/article-text/r1-old.md",
+      wordCount: 640,
+    };
+    const refreshed = archivedLink({
+      article: extracted,
+      hasHighlights: true,
+      highlightCount: 2,
+      processingRev: 2,
+    });
+    const refresh = setup(
+      refreshed,
+      {},
+      { archiveOnly: true, refresh: true, rev: 2 }
+    );
+    expect(await refresh.run()).toEqual({
+      archive: "skipped:frozen",
+      article: "skipped:frozen",
+      mode: "archive_only",
+    });
+    expect(refresh.ops.opsCalled()).toEqual([]);
+    expect(refreshed.pageArchive).toMatchObject({ storageKey: ARCHIVE_KEY });
+    expect(refreshed.article).toEqual(extracted);
+
+    // The extension sent the page again after the copy was taken.
+    const resaved = archivedLink({
+      article: extracted,
+      hasHighlights: true,
+      highlightCount: 1,
+      pendingPageSnapshotAt: CAPTURED_AT + 5000,
+      pendingPageSnapshotKey: `users/x/cards/upload-pending-v2/page-snapshot/${"b".repeat(8)}`,
+    });
+    const resave = setup(resaved, {}, { archiveOnly: true });
+    expect(await resave.run()).toEqual({
+      archive: "skipped:frozen",
+      article: "skipped:frozen",
+      mode: "archive_only",
+    });
+    expect(resave.ops.opsCalled()).toEqual([]);
+    expect(resaved.pageArchive).toMatchObject({ storageKey: ARCHIVE_KEY });
+
+    // Without highlights, the same refresh takes both again.
+    const plain = archivedLink({ article: extracted, processingRev: 2 });
+    const unfrozen = setup(
+      plain,
+      { "extract-article": anArticle(150) },
+      { archiveOnly: true, refresh: true, rev: 2 }
+    );
+    await unfrozen.run();
+    expect(unfrozen.ops.opsCalled()).toContain("archive-page");
+  });
+
+  test("an imported highlight's link still gets its first copy and article", async () => {
+    const card = archivedLink({
+      hasHighlights: true,
+      highlightCount: 1,
+      pageArchive: undefined,
+      processingStatus: {
+        archive: { status: "pending" },
+        article: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+    });
+    const { ops, run } = setup(
+      card,
+      { "extract-article": anArticle(150) },
+      { archiveOnly: true }
+    );
+    expect(await run()).toMatchObject({ article: "article" });
+    expect(ops.opsCalled()).toEqual(["archive-page", "extract-article"]);
+  });
+
+  test("a link without a saved copy closes its article stage", async () => {
+    const card = archivedLink({ pageArchive: undefined });
+    const { convex, ops, run } = setup(card, {}, { articleOnly: true });
+
+    expect(await run()).toEqual({
+      article: "skipped:no_archive",
+      mode: "article_only",
+    });
+    expect(ops.opsCalled()).toEqual([]);
+    expect(stageHistory(convex.stageWrites, "article")).toEqual(["completed"]);
+  });
+
+  test("an extraction that fails for good fails only the article stage", async () => {
+    const card = archivedLink();
+    const { convex, fakeStep, run } = setup(
+      card,
+      { "extract-article": { throws: new Error("isolate busy") } },
+      { articleOnly: true }
+    );
+
+    const result = await run();
+
+    expect(fakeStep.names().slice(-3)).toEqual([
+      "extract article",
+      "mark article failed",
+      "report complete",
+    ]);
+    expect(
+      fakeStep.delays
+        .filter((delay) => delay.name === "extract article")
+        .map((delay) => delay.delay)
+    ).toEqual(["20 seconds", "20 seconds"]);
+    expect(card.processingStatus?.article).toMatchObject({
+      error: "extract_error",
+      status: "failed",
+    });
+    expect(result).toEqual({
+      article: "failed:extract_error",
+      mode: "article_only",
+    });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a saved copy gone from storage fails the stage without retrying", async () => {
+    const card = archivedLink();
+    const { run } = setup(
+      card,
+      { "extract-article": { data: { kind: "missing" } } },
+      { articleOnly: true }
+    );
+
+    expect(await run()).toEqual({
+      article: "failed:archive_missing",
+      mode: "article_only",
+    });
+    expect(card.processingStatus?.article).toMatchObject({
+      error: "archive_missing",
+      status: "failed",
+    });
+  });
+
+  test("a summary that fails leaves the article and the card done", async () => {
+    const card = archivedLink();
+    const { convex, run } = setup(
+      card,
+      {
+        "extract-article": anArticle(640),
+        "generate-link-metadata": { throws: new Error("model down") },
+      },
+      { articleOnly: true }
+    );
+
+    await run();
+
+    expect(card.article).toMatchObject({ status: "ready" });
+    expect(card.aiSummary).toBe("From the page's details");
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a metadata-only run summarizes a link's article again after its metadata", async () => {
+    const card = archivedLink({
+      article: {
+        extractedAt: CAPTURED_AT + 1000,
+        imageKeys: [],
+        readingMinutes: 3,
+        status: "ready",
+        textKey: "users/x/cards/k/article-text/a.md",
+        wordCount: 640,
+      },
+      processingStatus: {
+        categorize: { status: "completed" },
+        classify: { confidence: 0.9, status: "completed" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+    });
+    const bucket = new FakeBucket();
+    await bucket.put("users/x/cards/k/article-text/a.md", "The article text.");
+    const { fakeStep, run } = setup(
+      card,
+      {
+        "generate-link-metadata": ((params: Record<string, unknown>) =>
+          String(params.prompt).includes("Article: The article text.")
+            ? textMetadataAnswer(["t"], "Article summary")
+            : textMetadataAnswer(["t"], "Details summary")) as () => OpAnswer,
+      },
+      { bucket, metadataOnly: true }
+    );
+
+    await run();
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "generate metadata",
+      "summarize article",
+      "report complete",
+    ]);
+    expect(card.aiSummary).toBe("Article summary");
   });
 });

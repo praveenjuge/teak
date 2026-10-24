@@ -12,6 +12,7 @@ import { useTranslations } from "@teak/i18n/react";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { openCardLink } from "@/lib/openCardLink";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 import { cardActionFailedMessage } from "./cardActions";
@@ -676,16 +677,16 @@ export function useCardModal(
 
   const openLink = useCallback(() => {
     const safeUrl = sanitizeExternalUrl(card?.url);
-    if (safeUrl) {
+    if (safeUrl && card) {
       if (config.onOpenLink) {
         config.onOpenLink(safeUrl);
       } else if (typeof window !== "undefined") {
-        window.open(safeUrl, "_blank", "noopener,noreferrer");
+        openCardLink(card);
       }
     } else if (card?.url) {
       toast.error(t("unsafeLink"));
     }
-  }, [card?.url, config.onOpenLink, t]);
+  }, [card, config.onOpenLink, t]);
 
   const hasFileObject = Boolean(card?.fileKey);
 

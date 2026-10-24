@@ -29,6 +29,10 @@ export type CardWithUrls = Doc<"cards"> & {
   linkPreviewImageUrl?: string;
   hasThumbnailOverride?: true;
   hasOcrText?: true;
+  /** A ready article's Markdown, signed; only a card's detail has it. */
+  articleUrl?: string;
+  /** The article's images, signed, in `teak-image:<n>` order. */
+  articleImageUrls?: string[];
 };
 
 /**
@@ -48,6 +52,30 @@ export const omitCardText = <T extends Doc<"cards">>(
   };
 };
 
+/**
+ * A ready article's signed URLs, for the reader: the Markdown, and each
+ * image in order (an image that can't be signed is an empty string, so the
+ * numbering holds).
+ */
+const articleUrls = async (
+  card: Doc<"cards">
+): Promise<Pick<CardWithUrls, "articleImageUrls" | "articleUrl">> => {
+  if (card.article?.status !== "ready") {
+    return {};
+  }
+  const [articleUrl, ...imageUrls] = await Promise.all(
+    [card.article.textKey, ...card.article.imageKeys].map((key) =>
+      tryResolveObjectUrl(key)
+    )
+  );
+  return articleUrl
+    ? {
+        articleUrl,
+        articleImageUrls: imageUrls.map((url) => url ?? ""),
+      }
+    : {};
+};
+
 /** A card as its detail shows it: with its transcript and image text. */
 export const attachCardDetailUrls = async (
   ctx: Pick<QueryCtx, "db">,
@@ -60,6 +88,7 @@ export const attachCardDetailUrls = async (
   const aiTranscript = await readCardTranscript(ctx, card);
   return {
     ...withUrls,
+    ...(await articleUrls(card)),
     ...(aiTranscript === undefined ? {} : { aiTranscript }),
     ...(card.aiOcrText === undefined ? {} : { aiOcrText: card.aiOcrText }),
   };

@@ -195,6 +195,115 @@ describe("MCP tools", () => {
     });
   });
 
+  test("get_card_content passes kind, and leaves it out when not given", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        Response.json({
+          cardId: "card_1",
+          charCount: 10,
+          kind: "article",
+          text: "## Gardens",
+          truncated: false,
+        })
+      );
+    }) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card_content",
+      { cardId: "card_1", kind: "article" },
+      mcpRequest({ jsonrpc: "2.0", id: 61, method: "tools/call" }),
+      executor
+    );
+    await callTeakV1Tool(
+      "teak_v1_get_card_content",
+      { cardId: "card_1" },
+      mcpRequest({ jsonrpc: "2.0", id: 62, method: "tools/call" }),
+      executor
+    );
+    const refused = await callTeakV1Tool(
+      "teak_v1_get_card_content",
+      { cardId: "card_1", kind: "slides" },
+      mcpRequest({ jsonrpc: "2.0", id: 63, method: "tools/call" }),
+      executor
+    );
+
+    expect(captured).toHaveLength(2);
+    expect(captured[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards/card_1/content",
+      query: { kind: "article" },
+    });
+    expect(captured[1]).toMatchObject({
+      method: "GET",
+      path: "/v1/cards/card_1/content",
+    });
+    expect(captured[1]).not.toHaveProperty("query");
+    expect(result.content[0]).toMatchObject({
+      text: "Read 10 characters of article from card card_1",
+    });
+    expect(refused.isError).toBe(true);
+  });
+
+  test("highlight tools reach the highlight routes with their bodies", async () => {
+    const captured: Parameters<PublicApiToolExecutor>[0][] = [];
+    const executor = mock((operation: Parameters<PublicApiToolExecutor>[0]) => {
+      captured.push(operation);
+      return Promise.resolve(
+        operation.method === "DELETE"
+          ? new Response(null, { status: 204 })
+          : Response.json(
+              operation.method === "GET"
+                ? { items: [{ id: "h_1" }, { id: "h_2" }] }
+                : { id: "h_1", note: null }
+            )
+      );
+    }) as PublicApiToolExecutor;
+    const call = (name: string, input: unknown) =>
+      callTeakV1Tool(
+        name,
+        input,
+        mcpRequest({ jsonrpc: "2.0", id: 70, method: "tools/call" }),
+        executor
+      );
+    const listed = await call("teak_v1_list_highlights", { cardId: "card/1" });
+    await call("teak_v1_create_highlight", {
+      cardId: "card_1",
+      quote: "Plant marigolds",
+      note: "Spring",
+      suffix: " around",
+    });
+    const cleared = await call("teak_v1_update_highlight", {
+      highlightId: "h_1",
+      note: null,
+    });
+    const refused = await call("teak_v1_delete_highlight", {
+      highlightId: "h_1",
+    });
+    await call("teak_v1_delete_highlight", {
+      highlightId: "h_1",
+      confirm: true,
+    });
+
+    expect(
+      captured.map(({ headers: _headers, ...operation }) => operation)
+    ).toEqual([
+      { method: "GET", path: "/v1/cards/card%2F1/highlights" },
+      {
+        method: "POST",
+        path: "/v1/cards/card_1/highlights",
+        body: { quote: "Plant marigolds", note: "Spring", suffix: " around" },
+      },
+      { method: "PATCH", path: "/v1/highlights/h_1", body: { note: null } },
+      { method: "DELETE", path: "/v1/highlights/h_1" },
+    ]);
+    expect(listed.content[0]).toMatchObject({ text: "Fetched 2 highlights" });
+    expect(cleared.content[0]).toMatchObject({
+      text: "Cleared the note of h_1",
+    });
+    expect(refused.isError).toBe(true);
+  });
+
   test("get_card_links reads the card and returns only its links and backlinks", async () => {
     const captured: Parameters<PublicApiToolExecutor>[0][] = [];
     const links = [{ id: "card_2", missing: false, title: "B", type: "text" }];

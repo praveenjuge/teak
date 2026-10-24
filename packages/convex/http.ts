@@ -20,7 +20,9 @@ import {
   createUploadV1,
   folderByIdV1,
   foldersV1,
+  highlightByIdV1,
   listCardsV1,
+  pageSnapshotUploadV1,
   tagOperationsV1,
   tagsV1,
 } from "./publicApi/http/routes";
@@ -89,6 +91,7 @@ for (const path of [
   "/v1/me",
   "/v1/cards",
   "/v1/uploads",
+  "/v1/page-snapshots/upload",
   "/v1/cards/bulk",
   "/v1/cards/changes",
   "/v1/tags",
@@ -114,6 +117,12 @@ http.route({
 
 http.route({
   pathPrefix: "/v1/folders/",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
+http.route({
+  pathPrefix: "/v1/highlights/",
   method: "OPTIONS",
   handler: v1CorsPreflight,
 });
@@ -169,6 +178,12 @@ http.route({
 });
 
 http.route({
+  path: "/v1/page-snapshots/upload",
+  method: "POST",
+  handler: pageSnapshotUploadV1,
+});
+
+http.route({
   path: "/v1/cards/bulk",
   method: "POST",
   handler: bulkCardsV1,
@@ -202,6 +217,14 @@ for (const method of ["GET", "POST"] as const) {
 
 for (const method of ["GET", "PATCH", "POST", "DELETE"] as const) {
   http.route({ pathPrefix: "/v1/folders/", method, handler: folderByIdV1 });
+}
+
+for (const method of ["PATCH", "DELETE"] as const) {
+  http.route({
+    pathPrefix: "/v1/highlights/",
+    method,
+    handler: highlightByIdV1,
+  });
 }
 
 http.route({

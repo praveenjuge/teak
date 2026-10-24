@@ -64,11 +64,33 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 10,
   },
+  // The browser extension uploads the page it saves, one per save.
+  pageSnapshotUploads: {
+    kind: "token bucket",
+    rate: 60,
+    period: MINUTE,
+    capacity: 60,
+  },
   podcastTranscription: {
     kind: "token bucket",
     rate: 20,
     period: HOUR,
     capacity: 20,
+  },
+  // Link checks when a link card with an archived copy is opened. Past it,
+  // the original opens without a check.
+  linkChecks: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 30,
+  },
+  // Highlights made, noted and removed, across the reader and the API.
+  highlightWrites: {
+    kind: "token bucket",
+    rate: 120,
+    period: MINUTE,
+    capacity: 120,
   },
   // Save by email: mail one account saves an hour (past it, mail is dropped
   // silently), and how often its Settings switch can change.

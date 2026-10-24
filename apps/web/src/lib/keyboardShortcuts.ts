@@ -77,6 +77,8 @@ const SHORTCUT_GROUPS: {
       { id: "markLinkDone", keys: ["D"] },
       { id: "copyLinkOrText", keys: ["C"] },
       { id: "toggleDetails", keys: ["I"] },
+      { id: "readOrPreview", keys: ["R"] },
+      { id: "highlightSelection", keys: ["H"] },
       { id: "archive", keys: ["E"] },
       { id: "moveToTrash", keys: ["Delete"] },
     ],

@@ -124,6 +124,21 @@ describe("fetcher hop", () => {
     expect((await response.arrayBuffer()).byteLength).toBe(11);
   });
 
+  test("sends HEAD when asked, and GET otherwise", async () => {
+    const { calls, hop } = setup(() => new Response(null, { status: 404 }));
+    const head = await hop({ method: "HEAD" });
+    await hop({});
+    expect(head.headers.get(FETCHER_HOP_RESPONSE_HEADERS.status)).toBe("404");
+    expect(calls.map((call) => call.init.method)).toEqual(["HEAD", "GET"]);
+  });
+
+  test("refuses a method other than GET or HEAD", async () => {
+    const { calls, hop } = setup(() => new Response("ok"));
+    const response = await hop({ method: "POST" });
+    expect(response.status).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
   test("refuses request headers outside the allowlist", async () => {
     const { calls, hop } = setup(() => new Response("ok"));
     const response = await hop({ headers: { cookie: "session=1" } });

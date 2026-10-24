@@ -37,6 +37,39 @@ Saving a link you already have doesn't make a second card. Teak moves that card 
 - A card in Trash doesn't count: saving its link again makes a new card.
 - The card's **Details** keep **Added**, the date you first saved it, and show **Saved again** with the last time you saved it.
 
+### Saved copies of pages
+
+Teak keeps a private copy of every link you save, on every plan, so the page outlives the site. The copy is made automatically after you save: one file with the page's text, styles, fonts and images, up to 20 MB. Video, audio and scripts aren't kept, and a page too large to keep whole is kept as text only. Links you saved before get a copy too.
+
+- Saving a page from the Chrome or Firefox extension (the popup, ⌥⇧S, or **Save Page** in the right-click menu) keeps the page as you saw it, including pages you're signed in to. Passwords, payment card numbers and one-time codes are left out.
+- The card's **Details** show **Archived copy** with its size, **Text only**, **Saving a copy…** while it's made, or **Couldn't save a copy** with the reason.
+- **Refresh details** saves a new copy of the page, unless the link has [highlights](#highlights): highlighted articles keep their saved copy.
+- If a saved page disappears, opening it shows Teak's copy instead.
+
+### Read
+
+A saved article reads cleanly in Teak. On the web, a link card's dialog has **Preview · Read** above it when Teak found an article in the page's saved copy: **Read** shows the article's text and images in one calm layout that follows light and dark, with the site, author and reading time above it and **Open original ↗** below. Press `R` to switch between them.
+
+- Articles, news and research open on **Read**; other links open on **Preview**. Your pick lasts for that card while the dialog is open.
+- A page counts as an article when its main text has at least 120 words (300 when the page doesn't look like an article, such as a shop or a home page). Pages with less show only **Preview**.
+- While the article is prepared after saving, **Read** says **Preparing the article…**. If it couldn't be prepared, **Try again** refreshes the card's details.
+- Search finds links by words in their article, and the AI summary of a long article is written from the article itself.
+- **Refresh details** prepares the article again from a new copy of the page, unless it has highlights.
+- Agents and scripts can read it too: the API, MCP, SDK and CLI return a link's article as Markdown (`teak cards content <id> --kind article`). See [Read a card's text](/docs/api#read-a-cards-text).
+- The iPhone, iPad, Mac and Android apps don't show the reader yet.
+
+### Highlights
+
+Mark the passages worth keeping while you read. In **Read**, select some text and choose **Highlight** above it, or press `H`. On a phone or tablet, **Highlight** appears in a bar at the bottom. The passage is painted in one calm color.
+
+- Click a highlight to add a note to it (up to 2,000 characters; it saves when you click away, or with `⌘Enter`), or to **Remove highlight**. Removing it offers **Undo**.
+- A new highlight that overlaps one you have joins it: they become one highlight covering both, with the older note. A highlight can be up to 5,000 characters, and a card can have up to 200.
+- The card's details list **Highlights · N** after Notes, in the order they appear in the article. Click one to jump to it in **Read**. A highlight Teak can't find in the saved article says **Not found in the saved article**, and you can still remove it.
+- Highlighted articles keep their saved copy: **Refresh details** still refreshes the preview, summary and tags, but no longer replaces the copy or the article, and saving the link again from the extension doesn't either. A highlighted link's URL can't be changed until its highlights are removed.
+- Highlights from [Instapaper, Omnivore and Raindrop.io imports](/docs/import) arrive as highlights. Until Teak has prepared the article they say **Waiting for the article…**, then appear in the text.
+- Highlights aren't searched. They're kept in your [export](/docs/export), and agents and scripts can list, add, note and remove them through the [API](/docs/api#highlights), MCP, SDK and CLI.
+- Highlights are made in Teak's reader only, not on live pages, PDFs or notes. The iPhone, iPad, Mac and Android apps don't show them yet.
+
 ## Search and organization
 
 ### Sidebar
@@ -246,6 +279,8 @@ With a card open:
 | `C` | Copy the link, or a note's or quote's text |
 | `D` | Mark a link as read, watched, bought, and so on |
 | `I` | Hide or show the details beside the card |
+| `R` | Switch a link between **Preview** and **Read** |
+| `H` | Highlight the text selected in **Read** |
 | `⌘E` (`Ctrl+E` on Windows and Linux) | Focus on the note: write with nothing else on screen |
 | `E` | Archive or unarchive |
 | `Delete` (`⌫` on a Mac) | Move to Trash |
@@ -307,7 +342,7 @@ Summaries and AI tags are written in the language of what you save: a Japanese a
 
 ### Refresh details
 
-If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, reading the link's page again for its preview, and a Vimeo video's captions or a podcast episode's audio again for its transcript. If the page can't be reached, the card keeps the preview it has. Your own tags and notes stay. You can refresh a card once a minute, and up to six cards a minute.
+If a summary or tags miss the mark, or a link's preview looks out of date, open the card and choose **Refresh details** from its **More** menu, or right-click it in the grid. Teak clears the card's summary, tags, and transcript and processes it again, reading the link's page again for its preview, and a Vimeo video's captions or a podcast episode's audio again for its transcript. If the page can't be reached, the card keeps the preview it has. Your own tags and notes stay, and so does a highlighted link's saved copy and article. You can refresh a card once a minute, and up to six cards a minute.
 
 ### Replace a link's image
 

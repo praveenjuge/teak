@@ -219,3 +219,5 @@ export class FakeVectorize extends WorkerEntrypoint {
     return { count: matches.length, matches };
   }
 }
+
+export { FakeLinkFetcher } from "./fakeLinkFetcher";

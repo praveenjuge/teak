@@ -15,6 +15,9 @@ export interface PublicParityRow {
 const INFRASTRUCTURE: IntentionalGap = {
   none: "infrastructure endpoint for monitors and API clients, not a feature",
 };
+const BROWSER_CAPTURE_ONLY: IntentionalGap = {
+  none: "browser capture only",
+};
 const NO_AGENT_EXPORTS: IntentionalGap = {
   none: "a full-account ZIP is for people; agents read cards one page at a time",
 };
@@ -172,6 +175,13 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     cli: ["cards thumbnail"],
   },
   {
+    operationId: "createPageSnapshotUpload",
+    feature: "Upload the page a link was saved from",
+    mcp: BROWSER_CAPTURE_ONLY,
+    sdk: ["pageSnapshots.createUpload"],
+    cli: BROWSER_CAPTURE_ONLY,
+  },
+  {
     operationId: "setCardThumbnail",
     feature: "Replace a link's image",
     mcp: ["teak_v1_set_card_thumbnail"],
@@ -302,6 +312,34 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     cli: ["folders remove"],
   },
   {
+    operationId: "listHighlights",
+    feature: "List a link's highlights",
+    mcp: ["teak_v1_list_highlights"],
+    sdk: ["highlights.list"],
+    cli: ["highlights list"],
+  },
+  {
+    operationId: "createHighlight",
+    feature: "Highlight a passage of a link's article by its text",
+    mcp: ["teak_v1_create_highlight"],
+    sdk: ["highlights.create"],
+    cli: ["highlights add"],
+  },
+  {
+    operationId: "updateHighlight",
+    feature: "Change or clear a highlight's note",
+    mcp: ["teak_v1_update_highlight"],
+    sdk: ["highlights.update"],
+    cli: ["highlights note"],
+  },
+  {
+    operationId: "deleteHighlight",
+    feature: "Remove a highlight",
+    mcp: ["teak_v1_delete_highlight"],
+    sdk: ["highlights.delete"],
+    cli: ["highlights rm"],
+  },
+  {
     operationId: "startExport",
     feature: "Export everything as a ZIP",
     mcp: NO_AGENT_EXPORTS,
@@ -342,6 +380,7 @@ export const CLI_LOCAL_COMMANDS: Record<string, string> = {
   login: "signs in through the browser and stores the credential",
   auth: "groups `auth status`",
   cards: "groups the card commands",
+  highlights: "groups the highlight commands",
 };
 
 export const SDK_LOCAL_MEMBERS: Record<string, string> = {

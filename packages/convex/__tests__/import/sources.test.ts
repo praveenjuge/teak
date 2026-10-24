@@ -67,15 +67,17 @@ describe("Pocket", () => {
 });
 
 describe("Instapaper", () => {
-  test("Starred, Archive, own folders, JSON tags, selection as note", () => {
+  test("Starred, Archive, own folders, JSON tags, selection as a highlight", () => {
     const items = parseInstapaperCsv(fixture("instapaper.csv"));
     expect(items[0]?.card).toMatchObject({
       content: "Starred article",
       isFavorited: true,
-      notes: 'A highlighted, quoted "line"',
+      highlights: [{ quote: 'A highlighted, quoted "line"' }],
       tags: ["design", "typography"],
       createdAt: 1_700_000_000_000,
     });
+    expect(items[0]?.card?.notes).toBeUndefined();
+    expect(items[1]?.card?.highlights).toBeUndefined();
     expect(items[0]?.card?.folders).toBeUndefined();
     expect(items[1]?.card?.isArchived).toBe(true);
     expect(items[2]?.card?.folders).toEqual(["Reading list"]);
@@ -219,12 +221,26 @@ describe("Omnivore", () => {
     expectValidCards(items);
   });
 
-  test("highlights become the note", () => {
+  test("a highlights file becomes highlights with their notes", () => {
     const item = omnivoreItem(
       { url: "https://example.com/h", savedAt: "2024-05-01T09:00:00Z" },
-      "> A highlighted line\n\nMy comment"
+      "> A highlighted line\n\nMy comment\n\n> Another one\n> on two lines"
     );
-    expect(item.card?.notes).toBe("> A highlighted line\n\nMy comment");
+    expect(item.card?.highlights).toEqual([
+      { quote: "A highlighted line", note: "My comment" },
+      { quote: "Another one\non two lines" },
+    ]);
+    expect(item.card?.notes).toBeUndefined();
+    expectValidCards([item]);
+  });
+
+  test("a highlights file with no quote in it stays the note", () => {
+    const item = omnivoreItem(
+      { url: "https://example.com/h", savedAt: "2024-05-01T09:00:00Z" },
+      "Just some text, no quote marks"
+    );
+    expect(item.card?.highlights).toBeUndefined();
+    expect(item.card?.notes).toBe("Just some text, no quote marks");
   });
 
   test("JSON that isn't Omnivore metadata", () => {

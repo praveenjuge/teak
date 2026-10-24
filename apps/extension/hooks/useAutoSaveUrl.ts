@@ -125,6 +125,9 @@ export const useAutoSaveUrl = (
                 payload: {
                   content: currentTab.url,
                   source: "popup-auto-save",
+                  ...(currentTab.id === undefined
+                    ? {}
+                    : { tabId: currentTab.id }),
                 },
               },
               (messageResponse: TeakSaveResponse) => {

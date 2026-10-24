@@ -62,7 +62,8 @@ export const buildLinkContentParts = (
     url?: string;
   },
   siteSummary?: string,
-  transcript?: string
+  /** A video's captions or a podcast's transcript, or the page's article. */
+  bodyText?: string | { kind: "article"; text: string }
 ): string[] => {
   const preview =
     card.metadata?.linkPreview?.status === "success"
@@ -94,10 +95,11 @@ export const buildLinkContentParts = (
     "",
     card.url || card.content
   ).length;
-  for (const [label, text] of [
-    [SUMMARY_LABEL, siteSummary],
-    [TRANSCRIPT_LABEL, transcript],
-  ] as const) {
+  const body =
+    typeof bodyText === "string"
+      ? ([TRANSCRIPT_LABEL, bodyText] as const)
+      : ([ARTICLE_LABEL, bodyText?.text] as const);
+  for (const [label, text] of [[SUMMARY_LABEL, siteSummary], body] as const) {
     const trimmed = text?.trim();
     if (!trimmed) {
       continue;
@@ -117,6 +119,7 @@ export const buildLinkContentParts = (
 
 const SUMMARY_LABEL = "Summary: ";
 const TRANSCRIPT_LABEL = "Transcript: ";
+const ARTICLE_LABEL = "Article: ";
 
 const linkSiteSummary = async (
   job: CardJob,

@@ -1,4 +1,5 @@
 import type { ParsedBookmarkItem } from "./bookmarks";
+import { parseOmnivoreHighlights } from "./highlightText";
 import { linkItem, notAnExport, parseSourceDate } from "./sourceItems";
 
 const SOURCE = "Omnivore";
@@ -46,13 +47,17 @@ export function readOmnivoreMetadata(json: string): OmnivoreItem[] {
 
 /**
  * One Omnivore item as an import item: labels become tags, "Archived"
- * archive state, savedAt the saved date, and its highlights (Markdown, when
- * given) the card's note.
+ * archive state, savedAt the saved date, and its highlights file (Markdown,
+ * when given) highlights with their notes. A file with no `> quote` in it
+ * stays the card's note, so nothing in it is lost.
  */
 export function omnivoreItem(
   item: OmnivoreItem,
-  highlights?: string
+  highlightsMarkdown?: string
 ): ParsedBookmarkItem {
+  const highlights = highlightsMarkdown
+    ? parseOmnivoreHighlights(highlightsMarkdown)
+    : [];
   const labels = Array.isArray(item.labels)
     ? item.labels.filter((label): label is string => typeof label === "string")
     : [];
@@ -60,7 +65,8 @@ export function omnivoreItem(
     url: typeof item.url === "string" ? item.url : "",
     title: typeof item.title === "string" ? item.title : "",
     tags: labels,
-    notes: highlights,
+    highlights,
+    notes: highlights.length > 0 ? undefined : highlightsMarkdown,
     createdAt: parseSourceDate(
       typeof item.savedAt === "string" || typeof item.savedAt === "number"
         ? item.savedAt

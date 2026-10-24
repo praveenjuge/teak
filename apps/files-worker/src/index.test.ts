@@ -575,6 +575,42 @@ describe("files worker handler", () => {
     expect(bytes.length).toBe(makePng(32, 32).length);
   });
 
+  test("serves a page archive sandboxed, with no scripts and nothing loaded", async () => {
+    const env_ = env();
+    seed(env_);
+    const archiveKey = "users/u1/cards/c1/page-archive/r1-archive.html";
+    (env_.BUCKET as unknown as FakeBucket).objects.set(archiveKey, {
+      bytes: new TextEncoder().encode("<p>Saved</p>"),
+      httpMetadata: { contentType: "text/html; charset=utf-8" },
+    });
+    const archive = await worker.fetch(
+      new Request(await signedUrl(`/${archiveKey}`)),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(archive.status).toBe(200);
+    expect(archive.headers.get("content-security-policy")).toBe(
+      "sandbox allow-popups allow-popups-to-escape-sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:"
+    );
+    // Its links may open new tabs, but it never runs scripts or reads the
+    // files origin.
+    expect(archive.headers.get("content-security-policy")).not.toMatch(
+      /allow-scripts|allow-same-origin/u
+    );
+    expect(archive.headers.get("cross-origin-resource-policy")).toBe(
+      "cross-origin"
+    );
+    expect(archive.headers.get("x-content-type-options")).toBe("nosniff");
+
+    const image = await worker.fetch(
+      new Request(await signedUrl("/users/u1/cards/f/x.png")),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(image.headers.get("content-security-policy")).toBeNull();
+    expect(image.headers.get("cross-origin-resource-policy")).toBeNull();
+  });
+
   test("answers conditional requests with a bodyless 304", async () => {
     const env_ = env();
     seed(env_);

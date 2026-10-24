@@ -581,6 +581,123 @@ describe("teak-sdk", () => {
     ]);
   });
 
+  test("content asks for one kind of text, and accepts kinds it doesn't know", async () => {
+    const sent: string[] = [];
+    const answers = [
+      { kind: "article", text: "## Gardens" },
+      { kind: "document", text: "Report" },
+      { kind: "slides", text: "A kind from a later server" },
+    ];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url) => {
+        sent.push(String(url));
+        const answer = answers[sent.length - 1];
+        return Promise.resolve(
+          Response.json({
+            cardId: "c1",
+            charCount: answer?.text.length,
+            truncated: false,
+            ...answer,
+          })
+        );
+      }) as typeof fetch,
+    });
+
+    expect(await client.cards.content("c1", { kind: "article" })).toMatchObject(
+      { kind: "article", text: "## Gardens" }
+    );
+    expect(await client.cards.content("c1")).toMatchObject({
+      kind: "document",
+    });
+    expect(await client.cards.content("c1")).toMatchObject({
+      kind: "slides",
+    });
+    expect(sent).toEqual([
+      "https://api.example/v1/cards/c1/content?kind=article",
+      "https://api.example/v1/cards/c1/content",
+      "https://api.example/v1/cards/c1/content",
+    ]);
+  });
+
+  test("highlights list, create by quote, change a note and delete", async () => {
+    const sent: Array<{ body?: string; method: string; url: string }> = [];
+    const highlight = {
+      anchored: true,
+      cardId: "c1",
+      createdAt: 1,
+      id: "h1",
+      note: null,
+      quote: "Plant marigolds",
+      source: "api",
+      updatedAt: 1,
+    };
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((url, init) => {
+        sent.push({
+          method: init?.method ?? "GET",
+          url: String(url),
+          ...(init?.body ? { body: String(init.body) } : {}),
+        });
+        if (init?.method === "DELETE") {
+          return Promise.resolve(new Response(null, { status: 204 }));
+        }
+        return Promise.resolve(
+          Response.json(
+            init?.method === "GET" ? { items: [highlight] } : highlight
+          )
+        );
+      }) as typeof fetch,
+    });
+
+    expect(await client.highlights.list("c1")).toEqual({ items: [highlight] });
+    expect(
+      await client.highlights.create("c1", {
+        quote: "Plant marigolds",
+        note: "Spring",
+      })
+    ).toEqual(highlight);
+    expect(await client.highlights.update("h1", { note: null })).toEqual(
+      highlight
+    );
+    expect(await client.highlights.delete("h1")).toBeNull();
+    expect(sent).toEqual([
+      { method: "GET", url: "https://api.example/v1/cards/c1/highlights" },
+      {
+        method: "POST",
+        url: "https://api.example/v1/cards/c1/highlights",
+        body: JSON.stringify({ quote: "Plant marigolds", note: "Spring" }),
+      },
+      {
+        method: "PATCH",
+        url: "https://api.example/v1/highlights/h1",
+        body: JSON.stringify({ note: null }),
+      },
+      { method: "DELETE", url: "https://api.example/v1/highlights/h1" },
+    ]);
+  });
+
+  test.each([
+    ["NO_ARTICLE", 409],
+    ["QUOTE_NOT_FOUND", 422],
+    ["HIGHLIGHT_LIMIT", 409],
+  ])("a %s answer is that error code", async (code, status) => {
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: (() =>
+        Promise.resolve(
+          Response.json({ code, error: "No" }, { status })
+        )) as unknown as typeof fetch,
+    });
+    await expect(
+      client.highlights.create("c1", { quote: "x" })
+    ).rejects.toMatchObject({ code, status });
+  });
+
   test("a save already running is an IN_PROGRESS error", async () => {
     const client = createTeakClient({
       baseUrl: "https://api.example",

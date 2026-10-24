@@ -9,6 +9,10 @@ import {
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../shared/folders";
 import {
+  MAX_HIGHLIGHT_NOTE_CHARS,
+  MAX_HIGHLIGHT_QUOTE_CHARS,
+} from "../shared/highlights/constants";
+import {
   PUBLIC_API_MAX_BULK_ITEMS,
   PUBLIC_API_MAX_LIMIT,
 } from "../shared/publicApiLimits";
@@ -198,6 +202,10 @@ const createCardInputSchema = z
     }
   });
 const cardIdInputSchema = z.object({ cardId: nonEmptyString });
+const cardContentInputSchema = z.object({
+  cardId: nonEmptyString,
+  kind: z.enum(["article", "document", "transcript", "content"]).optional(),
+});
 const thumbnailUploadInputSchema = z.object({
   cardId: nonEmptyString,
   mimeType: z.enum(THUMBNAIL_MIME_TYPES),
@@ -259,6 +267,22 @@ const updateFolderInputSchema = z
 const folderIdInputSchema = z.object({ folderId: nonEmptyString });
 const deleteFolderInputSchema = z.object({
   folderId: nonEmptyString,
+  confirm: z.literal(true),
+});
+const listHighlightsInputSchema = z.object({ cardId: nonEmptyString });
+const createHighlightInputSchema = z.object({
+  cardId: nonEmptyString,
+  quote: nonEmptyString.max(MAX_HIGHLIGHT_QUOTE_CHARS),
+  note: z.string().max(MAX_HIGHLIGHT_NOTE_CHARS).optional(),
+  prefix: z.string().optional(),
+  suffix: z.string().optional(),
+});
+const updateHighlightInputSchema = z.object({
+  highlightId: nonEmptyString,
+  note: z.string().max(MAX_HIGHLIGHT_NOTE_CHARS).nullable(),
+});
+const deleteHighlightInputSchema = z.object({
+  highlightId: nonEmptyString,
   confirm: z.literal(true),
 });
 const folderCardsInputSchema = z.object({
@@ -548,6 +572,8 @@ const bulkSummary = (payload: JsonObject) => {
 const cardPath = (id: string): string => `/v1/cards/${encodeURIComponent(id)}`;
 const folderPath = (id: string): string =>
   `/v1/folders/${encodeURIComponent(id)}`;
+const highlightPath = (id: string): string =>
+  `/v1/highlights/${encodeURIComponent(id)}`;
 const FULL_CARD_INCLUDE = "content,metadata";
 const pageToCardResults = (payload: JsonObject): JsonObject => ({
   items: Array.isArray(payload.items) ? payload.items : [],
@@ -615,10 +641,11 @@ const toolConfigs: Record<string, ToolRun> = {
     },
   }),
   teak_v1_get_card_content: defineTool({
-    schema: cardIdInputSchema,
+    schema: cardContentInputSchema,
     operation: (input) => ({
       method: "GET",
       path: `${cardPath(input.cardId)}/content`,
+      ...(input.kind ? { query: { kind: input.kind } } : {}),
     }),
     summary: (payload, input) =>
       `Read ${Number(payload.charCount) || 0} characters of ${typeof payload.kind === "string" ? payload.kind : "text"} from card ${input.cardId}${payload.truncated ? " (truncated)" : ""}`,
@@ -845,6 +872,47 @@ const toolConfigs: Record<string, ToolRun> = {
     isError: (payload) => count(payload, "failedIds") > 0,
     summary: (payload) =>
       `Removed ${countLabel(count(payload, "updatedIds"), "card")}; ${count(payload, "failedIds")} failed`,
+  }),
+  teak_v1_list_highlights: defineTool({
+    schema: listHighlightsInputSchema,
+    operation: (input) => ({
+      method: "GET",
+      path: `${cardPath(input.cardId)}/highlights`,
+    }),
+    summary: (payload) => `Fetched ${countLabel(count(payload), "highlight")}`,
+  }),
+  teak_v1_create_highlight: defineTool({
+    schema: createHighlightInputSchema,
+    operation: ({ cardId, ...body }) => ({
+      method: "POST",
+      path: `${cardPath(cardId)}/highlights`,
+      body,
+    }),
+    summary: (payload) => `Highlighted ${String(payload.id ?? "")}`,
+  }),
+  teak_v1_update_highlight: defineTool({
+    schema: updateHighlightInputSchema,
+    operation: ({ highlightId, note }) => ({
+      method: "PATCH",
+      path: highlightPath(highlightId),
+      body: { note },
+    }),
+    summary: (payload) =>
+      payload.note === null
+        ? `Cleared the note of ${String(payload.id ?? "")}`
+        : `Updated the note of ${String(payload.id ?? "")}`,
+  }),
+  teak_v1_delete_highlight: defineTool({
+    schema: deleteHighlightInputSchema,
+    operation: (input) => ({
+      method: "DELETE",
+      path: highlightPath(input.highlightId),
+    }),
+    transform: (_payload, input) => ({
+      status: "deleted",
+      highlightId: input.highlightId,
+    }),
+    summary: (_payload, input) => `Removed highlight ${input.highlightId}`,
   }),
   teak_v1_list_tags: defineTool({
     schema: z.object({}),

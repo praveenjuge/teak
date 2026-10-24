@@ -15,12 +15,21 @@ import {
   ChevronDown,
   Circle,
   CircleCheck,
+  Ellipsis,
   EyeOff,
   FolderPlus,
   Plus,
   Sparkles,
+  Trash,
   X,
 } from "vadivam-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { CardHighlight } from "@/hooks/useCardHighlights";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
@@ -36,6 +45,7 @@ import {
   keyDetailLabels,
 } from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
+import { PageArchiveRow } from "./PageArchiveRow";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
@@ -67,11 +77,20 @@ export interface CardDoneControl {
   onToggle: () => void;
 }
 
+/** A link's highlights, for the panel's list. */
+export interface CardHighlightsPanelControl {
+  items: CardHighlight[];
+  /** Shows the highlight in the Read tab. */
+  onJump?: (highlightId: string) => void;
+  onRemove: (highlight: CardHighlight) => void;
+}
+
 interface CardMetadataPanelProps {
   backlinks?: CardBacklinks;
   card: CardModalCard;
   done?: CardDoneControl;
   getCurrentValue: GetCurrentValue;
+  highlights?: CardHighlightsPanelControl;
   notesRef?: RefObject<HTMLTextAreaElement | null>;
   onCardTypeClick: () => void;
   onCommit: () => void;
@@ -224,6 +243,109 @@ export function LinkedFromSection({
   );
 }
 
+const isAnchored = (highlight: CardHighlight) =>
+  highlight.unanchored !== true &&
+  highlight.start !== undefined &&
+  highlight.end !== undefined;
+
+/** Whether the card's article is still on its way. */
+const articleOnItsWay = (card: CardModalCard) => {
+  const stage = card.processingStatus?.article?.status;
+  return (
+    card.article?.status !== "ready" &&
+    (stage === "pending" || stage === "in_progress" || !card.article)
+  );
+};
+
+function HighlightText({ highlight }: { highlight: CardHighlight }) {
+  return (
+    <>
+      <span
+        className="line-clamp-3 border-[var(--highlight-active)] border-l-2 pl-3 text-sm leading-relaxed"
+        dir="auto"
+      >
+        {highlight.quote}
+      </span>
+      {highlight.note ? (
+        <span
+          className="mt-1 line-clamp-3 whitespace-pre-line pl-3.5 text-[13px] text-muted-foreground"
+          dir="auto"
+        >
+          {highlight.note}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * "Highlights · N": the passages highlighted in a link's article, in article
+ * order. One found in the article jumps to it in the Read tab; one that
+ * isn't says so, and can still be removed.
+ */
+export function HighlightsSection({
+  card,
+  control,
+}: {
+  card: CardModalCard;
+  control?: CardHighlightsPanelControl;
+}) {
+  const t = useTranslations("cardModal.panel");
+  const tc = useTranslations("common");
+  if (!(control && control.items.length > 0)) {
+    return null;
+  }
+  const waiting = articleOnItsWay(card);
+  return (
+    <PanelSection title={t("highlights", { count: control.items.length })}>
+      <ul className="-mx-1 space-y-1">
+        {control.items.map((highlight) => (
+          <li className="group/highlight relative" key={highlight._id}>
+            {isAnchored(highlight) ? (
+              <button
+                className="flex w-full min-w-0 flex-col rounded-md py-1.5 pr-7 pl-1 text-left transition-colors duration-150 hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+                disabled={!control.onJump}
+                onClick={() => control.onJump?.(highlight._id)}
+                type="button"
+              >
+                <HighlightText highlight={highlight} />
+              </button>
+            ) : (
+              <div className="flex min-w-0 flex-col py-1.5 pr-7 pl-1">
+                <HighlightText highlight={highlight} />
+                <span className="mt-1 pl-3.5 text-muted-foreground text-xs">
+                  {waiting ? t("highlightWaiting") : t("highlightNotFound")}
+                </span>
+              </div>
+            )}
+            {card.isDeleted ? null : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    aria-label={t("highlightActions")}
+                    className="absolute top-1 right-0 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-focus-within/highlight:opacity-100 group-hover/highlight:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-3.5"
+                    type="button"
+                  >
+                    <Ellipsis />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={() => control.onRemove(highlight)}
+                  >
+                    <Trash />
+                    {tc("remove")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </li>
+        ))}
+      </ul>
+    </PanelSection>
+  );
+}
+
 /** Tags Teak added, folded away until someone wants to look. */
 function SuggestedTags({
   disabled,
@@ -312,6 +434,7 @@ export function CardMetadataPanel({
   card,
   done,
   getCurrentValue,
+  highlights,
   notesRef,
   onCardTypeClick,
   onCommit,
@@ -425,6 +548,8 @@ export function CardMetadataPanel({
           )}
         </div>
       </PanelSection>
+
+      <HighlightsSection card={card} control={highlights} />
 
       {hasOrganize ? (
         <PanelSection
@@ -631,6 +756,7 @@ export function CardMetadataPanel({
               </a>
             </PropertyRow>
           ) : null}
+          <PageArchiveRow card={card} />
           <DetailRows fields={keyDetails} />
           {isDetailsOpen ? <DetailRows fields={moreDetails} /> : null}
         </dl>

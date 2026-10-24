@@ -503,6 +503,9 @@ const FILE_TEXT_SEARCH_READ_BUDGET_BYTES = 4 * 1024 * 1024;
 export const FILE_TEXT_SEARCH_LIMIT =
   FILE_TEXT_SEARCH_READ_BUDGET_BYTES / SEARCH_PREFIX_MAX_BYTES;
 
+const TEXT_KIND_BY_CARD_TYPE: Partial<Record<string, "article" | "document">> =
+  { document: "document", link: "article" };
+
 const addCardsFoundByFileText = async (
   ctx: QueryCtx,
   args: Pick<
@@ -524,19 +527,33 @@ const addCardsFoundByFileText = async (
     wanted: () => number;
   }
 ) => {
-  if (args.type !== undefined && args.type !== "document") {
+  // Documents have their file's text, links their article's. A search for
+  // one of them reads only that kind of text, so the other kind never fills
+  // the bounded read first.
+  const kind = TEXT_KIND_BY_CARD_TYPE[args.type ?? ""];
+  if (args.type !== undefined && !kind) {
     return;
   }
   const textLimit = scanBudget.textRemaining ?? FILE_TEXT_SEARCH_LIMIT;
   if (textLimit <= 0) {
     return;
   }
-  const rows = await ctx.db
-    .query("cardTextContents")
-    .withSearchIndex("search_text", (query) =>
-      query.search("text", args.searchQuery).eq("userId", args.userId)
-    )
-    .take(textLimit);
+  const rows = kind
+    ? await ctx.db
+        .query("cardTextContents")
+        .withSearchIndex("search_text_by_kind", (query) =>
+          query
+            .search("text", args.searchQuery)
+            .eq("userId", args.userId)
+            .eq("kind", kind)
+        )
+        .take(textLimit)
+    : await ctx.db
+        .query("cardTextContents")
+        .withSearchIndex("search_text", (query) =>
+          query.search("text", args.searchQuery).eq("userId", args.userId)
+        )
+        .take(textLimit);
   scanBudget.textRemaining = textLimit - rows.length;
   await scanInBatches(
     rows.filter((row) => !found.has(row.cardId)),

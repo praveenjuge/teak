@@ -21,6 +21,7 @@ describe("API guide create-card table", () => {
       "cardType",
       "content",
       "notes",
+      "pageSnapshotKey",
       "source",
       "sourceTitle",
       "sourceUrl",

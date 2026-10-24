@@ -8,6 +8,7 @@ import type { FetchAssetDeps } from "./fetchAsset";
 import {
   FETCHER_HOP_MAX_BYTES,
   FETCHER_HOP_MAX_TIMEOUT_MS,
+  FETCHER_HOP_METHODS,
   FETCHER_HOP_REQUEST_HEADERS,
   FETCHER_STREAM_MAX_BYTES,
   FETCHER_STREAM_MAX_TIMEOUT_MS,
@@ -44,11 +45,13 @@ export const parseFetcherHopRequest = (
   if (!value || typeof value !== "object") {
     return null;
   }
-  const { addresses, headers, maxBytes, timeoutMs, url } = value as Record<
-    string,
-    unknown
-  >;
+  const { addresses, headers, maxBytes, method, timeoutMs, url } =
+    value as Record<string, unknown>;
   if (
+    !(
+      method === undefined ||
+      (FETCHER_HOP_METHODS as readonly unknown[]).includes(method)
+    ) ||
     typeof url !== "string" ||
     !url ||
     url.length > MAX_URL_LENGTH ||
@@ -82,6 +85,7 @@ export const parseFetcherHopRequest = (
     addresses: addresses as string[],
     headers: Object.fromEntries(entries) as FetcherHopRequest["headers"],
     maxBytes,
+    ...(method === "HEAD" ? { method: "HEAD" as const } : {}),
     timeoutMs,
     url,
   };
@@ -162,6 +166,7 @@ const openHop = async (
   try {
     const response = await pinnedFetch(request.url, request.addresses, {
       headers: request.headers,
+      method: request.method ?? "GET",
       redirect: "manual",
       signal: AbortSignal.timeout(request.timeoutMs),
     });

@@ -18,6 +18,10 @@ export type CardModalCard = Doc<"cards"> & {
   }>;
   linkPreviewImageUrl?: string;
   hasThumbnailOverride?: true;
+  /** A ready article's signed Markdown URL, for the Read tab. */
+  articleUrl?: string;
+  /** Its images, signed, in `teak-image:<n>` order ("" for one unsigned). */
+  articleImageUrls?: string[];
 };
 
 export type GetCurrentValue = (

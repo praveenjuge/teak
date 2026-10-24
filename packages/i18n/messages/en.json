@@ -740,10 +740,22 @@
       "suggestedTags": "{count, plural, one {# suggested tag} other {# suggested tags}}",
       "summary": "Summary",
       "tags": "Tags",
-      "teakTagHint": "Tag added by Teak. Show cards tagged {tag}"
+      "teakTagHint": "Tag added by Teak. Show cards tagged {tag}",
+      "highlights": "Highlights · {count, number}",
+      "highlightNotFound": "Not found in the saved article",
+      "highlightWaiting": "Waiting for the article…",
+      "highlightActions": "Highlight actions"
     },
     "details": {
       "added": "Added",
+      "archive": "Archived copy",
+      "archiveFailed": "Couldn't save a copy",
+      "archiveFailedBlocked": "Teak can't open this page",
+      "archiveFailedNotPage": "The link isn't a web page",
+      "archiveFailedTooLarge": "The page is too large to save",
+      "archiveFailedUnreachable": "The page couldn't be reached",
+      "archiveSaving": "Saving a copy…",
+      "archiveTextOnly": "Text only",
       "author": "Author",
       "edited": "Edited",
       "extractedText": "{count, plural, one {# character extracted} other {# characters extracted}}",
@@ -760,6 +772,12 @@
       "text": "Text",
       "title": "Details",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "Preview",
+      "read": "Read",
+      "toggleTooltip": "Read or preview",
+      "viewLabel": "Preview or read"
     }
   },
   "cardPreviews": {
@@ -794,6 +812,8 @@
     },
     "link": {
       "addImage": "Add an image",
+      "archivedCopy": "Archived copy",
+      "archivedCopyTooltip": "The original page was gone when last checked on {date}",
       "attachedMedia": "Attached post media {number}",
       "attachedVideo": "Attached video {number}",
       "imageAlt": "Link image",
@@ -816,6 +836,29 @@
     "video": {
       "gifAlt": "Animated GIF",
       "unsupported": "Your browser does not support the video tag."
+    },
+    "reader": {
+      "failed": "Couldn't prepare this article.",
+      "loadFailed": "Couldn't load this article.",
+      "loading": "Loading the article",
+      "minutes": "{minutes, plural, other {# min read}}",
+      "preparing": "Preparing the article…",
+      "savedFrom": "Saved from {host} · {date} · <link>Open original ↗</link>",
+      "shortened": "Article shortened to fit."
+    },
+    "highlights": {
+      "highlight": "Highlight",
+      "limitReached": "This card has {max, number} highlights, the most it can hold",
+      "merged": "Merged with an existing highlight",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Note on this highlight",
+      "notePlaceholder": "Add a note",
+      "rateLimited": "Too many changes. Try again in a moment.",
+      "remove": "Remove highlight",
+      "removed": "Highlight removed",
+      "saveFailed": "Couldn't save the highlight. Try again.",
+      "tooLong": "Highlights can be up to {max, number} characters",
+      "unsupported": "Your browser can't show highlights in the text"
     }
   },
   "cards": {
@@ -1243,6 +1286,8 @@
       "markLinkDone": "Mark a link done",
       "copyLinkOrText": "Copy the link or text",
       "toggleDetails": "Show or hide details",
+      "readOrPreview": "Read or preview",
+      "highlightSelection": "Highlight the selection",
       "goToEverything": "Everything",
       "goToFavorites": "Favorites",
       "goToArchive": "Archive",
@@ -1405,6 +1450,20 @@
     },
     "logo": {
       "earlyAccess": "Early Access"
+    },
+    "openLink": {
+      "archiveMissing": "Teak’s copy couldn’t be loaded.",
+      "archivedCopy": "Archived copy",
+      "backToTeak": "Back to Teak",
+      "checking": "Opening {host}…",
+      "frameTitle": "Archived copy of {host}",
+      "moreActions": "More actions",
+      "noLongerAvailable": "This page is no longer available · Saved {date} from {host}",
+      "noLongerAvailableShort": "No longer available",
+      "openInTeak": "Open in Teak",
+      "openOriginalNow": "Open the original now",
+      "tryOriginal": "Try the original ↗",
+      "unavailable": "This card isn’t available."
     }
   },
   "hooks": {

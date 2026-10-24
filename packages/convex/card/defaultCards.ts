@@ -89,6 +89,8 @@ export interface DevScenarioCardDef extends DefaultCardDef {
   /** When the link was marked done. */
   completedAt?: number;
   folderIds?: Id<"folders">[];
+  /** A link's archived copy, pointing at an object the pack writes. */
+  pageArchive?: Doc<"cards">["pageArchive"];
   /** When it was last saved, for a card saved again after `createdAt`. */
   savedAt?: number;
   /** The Shuffle key, or `null` for none (a card saved before Shuffle). */
@@ -455,6 +457,7 @@ export const insertCompletedCards = async (
       ...(cardDef.completedAt === undefined
         ? {}
         : { completedAt: cardDef.completedAt }),
+      ...(cardDef.pageArchive ? { pageArchive: cardDef.pageArchive } : {}),
       ...(isHiddenTagList(cardDef.tags) ? { isHidden: true as const } : {}),
       ...(cardDef.runProcessing
         ? {

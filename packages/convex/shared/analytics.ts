@@ -48,7 +48,20 @@ export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
 type NoProperties = Record<string, never>;
 
+/**
+ * What opening a link card with an archived copy found: a fresh check's
+ * outcome, or the cached one (alive for 24 hours, dead for 6).
+ */
+export type DeadLinkCheckOutcome =
+  | "alive"
+  | "dead"
+  | "unsure"
+  | "cached_alive"
+  | "cached_dead";
+
 export interface ClientEventCatalog {
+  /** The archived copy of a link whose page is gone was shown. */
+  archived_copy_opened: { surface: "open_page" };
   card_backlink_opened: NoProperties;
   card_create_submitted: {
     card_type: string;
@@ -60,6 +73,12 @@ export interface ClientEventCatalog {
   card_thumbnail_reset: NoProperties;
   checkout_opened: NoProperties;
   checkout_started: NoProperties;
+  /**
+   * Opening a link card with an archived copy checked its page. `reason` is
+   * the check's short code (`http_404`, `dns`, `timeout`, `rate_limited`…),
+   * never the URL.
+   */
+  dead_link_checked: { outcome: DeadLinkCheckOutcome; reason?: string };
   export_completed: NoProperties;
   export_failed: { error_class?: string };
   export_started: NoProperties;
@@ -76,6 +95,15 @@ export interface ClientEventCatalog {
   import_started: NoProperties;
   link_pdf_saved: { source: LinkPdfSaveSource };
   locale_changed: { from: string; to: string };
+  /**
+   * The Read tab showed a link's article. `category` is the link category
+   * (or `none`), `words_bucket` the article's length (`articleWordsBucket`).
+   */
+  reader_opened: {
+    category: string;
+    surface: "modal";
+    words_bucket: string;
+  };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
   search_operator_used: { groups: boolean; negation: boolean; or: boolean };
@@ -99,6 +127,14 @@ export interface ServerEventCatalog {
     $ai_span_name: string;
     $ai_total_cost_usd?: number;
     $ai_trace_id?: string;
+  };
+  /**
+   * "extract article" finished for a link: `article`, `none` (the page isn't
+   * an article) or `failed`; `words_bucket` is the article's length.
+   */
+  article_extracted: {
+    outcome: "article" | "none" | "failed";
+    words_bucket: string;
   };
   billing_portal_opened: NoProperties;
   card_create_failed: {
@@ -138,6 +174,20 @@ export interface ServerEventCatalog {
   /** Save by email turned on or off in Settings. */
   email_save_toggled: { enabled: boolean };
   /**
+   * A passage of a link's article was highlighted: in the reader, through
+   * the public API, or by an import (one event per card, with `count`).
+   * `merged` says it joined a highlight it overlapped.
+   */
+  highlight_created: {
+    count?: number;
+    merged: boolean;
+    source: "reader" | "api" | "import";
+  };
+  /** A highlight's note was written, changed or (`cleared`) emptied. */
+  highlight_note_saved: { cleared: boolean; source: "reader" | "api" };
+  /** A highlight was removed. */
+  highlight_removed: { source: "reader" | "api" };
+  /**
    * A list of links pasted into the web composer finished saving. `count` is
    * the links the job kept (at most 100); `created` and `resaved` split the
    * ones saved; `stopped_at_limit` says the free card limit ended it early.
@@ -154,6 +204,25 @@ export interface ServerEventCatalog {
     outcome: "ok" | "error" | "unauthorized";
     status?: number;
     tool: string;
+  };
+  /**
+   * A link's page couldn't be saved as a copy. `reason` is the stage's
+   * (`blocked_url`, `too_large`, `http_error`, `not_html`, `unreachable`,
+   * `archive_error`); `source` whether the extension sent the page.
+   */
+  page_archive_failed: {
+    reason: string;
+    source: "extension" | "server";
+  };
+  /**
+   * A link's page was saved as a copy: `kind` is `full` or `text_only`,
+   * `source` `extension` (the page as the browser showed it) or `server`.
+   */
+  page_archived: {
+    bytes_bucket: SizeBucket;
+    duration_ms_bucket: string;
+    kind: "full" | "text_only";
+    source: "extension" | "server";
   };
   subscription_ended: NoProperties;
   user_signed_up: { source?: string };

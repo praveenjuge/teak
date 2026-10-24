@@ -11,10 +11,12 @@ import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
 import { isSupportedLocale, LOCALE_NAMES } from "@teak/i18n/locales";
 import { InvalidArgumentError } from "commander";
 import {
+  type CardContentKind,
   type CardsPage,
   type ExportJob,
   type Folder,
   type FolderColor,
+  type Highlight,
   type LatestExport,
   type TagOperation,
   TeakApiError,
@@ -282,17 +284,36 @@ export const findDuplicateCard = async (
   write(options.json ? { cardId } : cardId, options);
 };
 
-export const showCardContent = async (id: string, options: GlobalOptions) => {
-  const content = await client(options).cards.content(id);
+/** `--kind`: the kinds of text `cards content` can ask for. */
+export const CONTENT_KINDS: readonly CardContentKind[] = [
+  "article",
+  "document",
+  "transcript",
+  "content",
+];
+
+export const showCardContent = async (
+  id: string,
+  options: GlobalOptions & { kind?: CardContentKind }
+) => {
+  const content = await client(options).cards.content(
+    id,
+    options.kind ? { kind: options.kind } : undefined
+  );
   write(options.json ? content : content.text, options);
   if (options.json || !content.truncated) {
     return;
   }
-  process.stderr.write(
-    Array.from(content.text).length < content.charCount
-      ? "Only the start of this document's text could be read; try again later for all of it.\n"
-      : "Teak keeps the first 500 pages and 524,288 characters of a document; this one is longer.\n"
-  );
+  let note =
+    "Teak keeps the first 500 pages and 524,288 characters of a document; this one is longer.\n";
+  if (Array.from(content.text).length < content.charCount) {
+    note =
+      "Only the start of this document's text could be read; try again later for all of it.\n";
+  } else if (content.kind === "article") {
+    note =
+      "Teak keeps the first 524,288 characters of an article; this one is longer.\n";
+  }
+  process.stderr.write(note);
 };
 
 export const showCardLinks = async (id: string, options: GlobalOptions) => {
@@ -792,4 +813,80 @@ export const tagOperationStatus = async (
     operation = await waitForTagOperation(api, operation, options.intervalMs);
   }
   reportTagOperation(operation, options);
+};
+
+/** One highlight: its id and quote on a line, its note indented below. */
+export const formatHighlight = (highlight: Highlight) => {
+  const quote = highlight.quote.replace(/\s+/g, " ").trim();
+  const lines = [
+    `${highlight.id}  ${quote}${highlight.anchored ? "" : "  (not found in the saved article yet)"}`,
+  ];
+  if (highlight.note) {
+    lines.push(
+      ...highlight.note.split("\n").map((line) => `    ${line}`.trimEnd())
+    );
+  }
+  return lines.join("\n");
+};
+
+export const listHighlights = async (
+  cardId: string,
+  options: GlobalOptions
+) => {
+  const result = await client(options).highlights.list(cardId);
+  write(
+    options.json ? result : result.items.map(formatHighlight).join("\n"),
+    options
+  );
+};
+
+export const addHighlight = async (
+  cardId: string,
+  quote: string,
+  options: GlobalOptions & { note?: string; prefix?: string; suffix?: string }
+) => {
+  const highlight = await client(options).highlights.create(cardId, {
+    quote,
+    ...(options.note === undefined ? {} : { note: options.note }),
+    ...(options.prefix === undefined ? {} : { prefix: options.prefix }),
+    ...(options.suffix === undefined ? {} : { suffix: options.suffix }),
+  });
+  write(options.json ? highlight : formatHighlight(highlight), options);
+};
+
+export const noteHighlight = async (
+  id: string,
+  text: string | undefined,
+  options: GlobalOptions & { clear?: boolean }
+) => {
+  if (options.clear === true && text !== undefined) {
+    throw new InvalidArgumentError("give the note's text or --clear, not both");
+  }
+  if (options.clear !== true && text === undefined) {
+    throw new InvalidArgumentError("give the note's text, or --clear");
+  }
+  const highlight = await client(options).highlights.update(id, {
+    note: options.clear === true ? null : (text as string),
+  });
+  write(options.json ? highlight : formatHighlight(highlight), options);
+};
+
+export const removeHighlights = async (
+  ids: string[],
+  options: GlobalOptions
+) => {
+  const api = client(options);
+  const { failed, succeeded } = await eachCard(ids, (id) =>
+    api.highlights.delete(id)
+  );
+  writeBatch(
+    options.json
+      ? {
+          ...(failed.length > 0 ? { failed: failed.map(failureJson) } : {}),
+          deleted: succeeded,
+        }
+      : succeeded.map((id) => `Removed highlight ${id}`).join("\n"),
+    failed,
+    options
+  );
 };

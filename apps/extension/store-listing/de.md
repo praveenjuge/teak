@@ -11,6 +11,7 @@ Teak ist Ihre persönliche Wissenszentrale, um Ideen und Inspiration zu sammeln,
 - Speichern Sie die aktuelle Seite: Öffnen Sie das Teak-Pop-up, und die Seite wird gespeichert. Fügen Sie direkt danach Tags und eine Notiz hinzu.
 - Speichern Sie per Rechtsklick eine Seite, ein Bild, ein Video, einen Link oder markierten Text. Text behält einen Link zu der Seite, von der er stammt.
 - Drücken Sie Alt+Umschalt+S, um die aktuelle Seite zu speichern, ohne das Pop-up zu öffnen. Das Symbol in der Symbolleiste zeigt, wenn eine Seite bereits in Teak ist.
+- Teak behält eine private Kopie jeder gespeicherten Seite, so wie Sie sie gesehen haben, damit Sie sie auch lesen können, wenn die Seite verschwindet.
 - Laden Sie im Pop-up eine Datei mit bis zu 100 MB hoch.
 - Durchsuchen Sie Ihre Bibliothek über die Adressleiste: Geben Sie „teak“, ein Leerzeichen und Ihren Suchbegriff ein.
 - Speichern Sie Beiträge auf unterstützten Social-Media- und Design-Websites über eine Schaltfläche an jedem Beitrag.

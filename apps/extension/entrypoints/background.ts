@@ -34,6 +34,7 @@ import {
   searchUrl,
   stillSignedOut,
 } from "../lib/omnibox";
+import { capturePageSnapshot, type PageSnapshot } from "../lib/pageSnapshot";
 import {
   getPendingSave,
   listPendingSaveIds,
@@ -101,7 +102,9 @@ const RETRY_SAFE_WINDOW_MS = API_IDEMPOTENCY_KEY_TTL_MS - 60 * 60 * 1000;
 
 function runPendingSave(
   pending: PendingSave,
-  interactive: boolean
+  interactive: boolean,
+  /** Only the first run of a save has the page; it isn't stored with it. */
+  pageSnapshot: PageSnapshot | null = null
 ): Promise<TeakSaveResponse> {
   let save = pending;
   const existing = runningSaves.get(save.id);
@@ -141,9 +144,17 @@ function runPendingSave(
       const request = (path: string, init?: RequestInit) =>
         oauthRequest(path, init, ownerId);
       if (save.kind === "content") {
+        const contentSave = save;
         return saveToTeak(
-          { ...save.input, idempotencyKey: save.id },
-          { request }
+          { ...contentSave.input, idempotencyKey: contentSave.id },
+          {
+            onPageSnapshotUploaded: async (pageSnapshotKey) => {
+              contentSave.input.pageSnapshotKey = pageSnapshotKey;
+              await updatePendingSave(contentSave);
+            },
+            pageSnapshot,
+            request,
+          }
         );
       }
       const keepsFile = pendingSaveStore().retainsFiles;
@@ -243,7 +254,10 @@ async function queueSave(
   input:
     | { kind: "content"; input: Parameters<typeof saveToTeak>[0] }
     | { kind: "asset"; assetUrl: string; link?: true },
-  { interactive = true }: { interactive?: boolean } = {}
+  {
+    interactive = true,
+    pageSnapshot = null,
+  }: { interactive?: boolean; pageSnapshot?: PageSnapshot | null } = {}
 ) {
   const save: PendingSave = {
     ...input,
@@ -252,7 +266,26 @@ async function queueSave(
     ownerId: await getCaptureOwner(),
   };
   await storePendingSave(save);
-  return runPendingSave(save, interactive);
+  return runPendingSave(save, interactive, pageSnapshot);
+}
+
+/**
+ * The page a link is being saved from, as the tab shows it, when the tab
+ * still shows that link. Safari has its own extension and never gets here.
+ */
+async function snapshotTabPage(
+  tabId: number,
+  url: string
+): Promise<PageSnapshot | null> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!tab.url || tab.url !== url || isRestrictedUrl(tab.url)) {
+      return null;
+    }
+    return await capturePageSnapshot(tabId, { expectedUrl: url });
+  } catch {
+    return null;
+  }
 }
 
 async function resumePendingSaves(): Promise<TeakSaveResponse | undefined> {
@@ -405,7 +438,9 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
     case MESSAGE_TYPES.SAVE_CONTENT:
       return (
         boundedString(value.content, 512 * 1024) &&
-        ["popup-auto-save", "context-menu"].includes(String(value.source))
+        ["popup-auto-save", "context-menu"].includes(String(value.source)) &&
+        (value.tabId === undefined ||
+          (Number.isSafeInteger(value.tabId) && Number(value.tabId) >= 0))
       );
     case MESSAGE_TYPES.SAVE_ASSET:
       return boundedString(value.assetUrl, 8192);
@@ -463,10 +498,13 @@ export default defineBackground(() => {
       openPopup: () => chrome.action.openPopup(),
       paint: setTabBadge,
       refresh: checks.check,
-      save: (url) =>
+      save: async (url, tabId) =>
         queueSave(
           { kind: "content", input: { content: url, source: "shortcut" } },
-          { interactive: false }
+          {
+            interactive: false,
+            pageSnapshot: await snapshotTabPage(tabId, url),
+          }
         ),
     });
     chrome.commands.onCommand.addListener((command, tab) => {
@@ -649,16 +687,25 @@ export default defineBackground(() => {
 
       const saveResult = asset
         ? await queueSave({ kind: "asset", ...asset })
-        : await queueSave({
-            kind: "content",
-            input: {
-              content,
-              source: "context-menu",
-              ...(action === "save-text"
-                ? { sourceTitle: tab.title, sourceUrl: tab.url }
-                : {}),
+        : await queueSave(
+            {
+              kind: "content",
+              input: {
+                content,
+                source: "context-menu",
+                ...(action === "save-text"
+                  ? { sourceTitle: tab.title, sourceUrl: tab.url }
+                  : {}),
+              },
             },
-          });
+            {
+              // Save Page keeps the page as it is shown; Save Text doesn't.
+              pageSnapshot:
+                action === "save-page"
+                  ? await snapshotTabPage(tab.id, content)
+                  : null,
+            }
+          );
       if (saveResult.status === "unauthenticated") {
         await chrome.storage.local.remove("contextMenuSave");
         return;
@@ -849,13 +896,16 @@ export default defineBackground(() => {
 
         if (message.type === MESSAGE_TYPES.SAVE_CONTENT) {
           const saveRequest = message as SaveContentRequest;
-          const result = await queueSave({
-            kind: "content",
-            input: {
-              content: saveRequest.payload.content,
-              source: saveRequest.payload.source,
-            },
-          });
+          const { content, source, tabId } = saveRequest.payload;
+          const result = await queueSave(
+            { kind: "content", input: { content, source } },
+            {
+              pageSnapshot:
+                source === "popup-auto-save" && tabId !== undefined
+                  ? await snapshotTabPage(tabId, content)
+                  : null,
+            }
+          );
           if (result.status === "unauthenticated") {
             void chrome.action.openPopup();
           }

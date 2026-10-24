@@ -9,6 +9,59 @@
   --typeset-flow: 1.25em;
 }
 
+/*
+ * The Read tab's one typographic default: SN Pro, 17px/1.65 on phones and
+ * 18px/1.7 from md up, set in a 68ch column by the reader.
+ */
+.typeset-reader {
+  --typeset-font-body: var(--font-sans);
+  --typeset-font-heading: var(--font-sans);
+  --typeset-font-mono: var(--font-mono);
+  --typeset-flow: 1.25em;
+}
+.typeset.typeset-reader {
+  font-size: 17px;
+  line-height: 1.65;
+}
+@media (min-width: 48rem) {
+  .typeset.typeset-reader {
+    font-size: 18px;
+    line-height: 1.7;
+  }
+}
+.typeset-reader a {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.typeset-reader .reader-figure {
+  display: block;
+  margin-block: 1.5em;
+}
+.typeset-reader .reader-figure img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+.typeset-reader .reader-caption {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  text-align: center;
+}
+.typeset-reader .reader-table {
+  display: block;
+  max-width: 100%;
+  margin-block-start: var(--typeset-flow);
+  overflow-x: auto;
+}
+.typeset-reader .reader-table > table {
+  margin-block-start: 0;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -168,6 +221,26 @@
   --teak-toast-muted: oklch(0.707 0.022 261.325);
   --teak-toast-success: oklch(0.792 0.209 151.711);
   --teak-toast-error: oklch(0.704 0.191 22.216);
+}
+
+/* Highlights in the reader: one calm color, a step stronger for the one
+   flashed or open. Body text keeps AA contrast on both, in both themes. */
+:root {
+  --highlight: oklch(0.94 0.11 95);
+  --highlight-active: oklch(0.87 0.15 92);
+}
+
+.dark {
+  --highlight: oklch(0.42 0.08 85 / 0.6);
+  --highlight-active: oklch(0.5 0.1 85 / 0.8);
+}
+
+::highlight(teak-highlight) {
+  background-color: var(--highlight);
+}
+
+::highlight(teak-highlight-active) {
+  background-color: var(--highlight-active);
 }
 
 .dark {

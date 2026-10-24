@@ -21,6 +21,12 @@ import {
   aiLanguagesScenarioCards,
 } from "./devSeed/aiLanguages";
 import {
+  READER_MIX_TAG,
+  READER_SEARCH_SHARED_PHRASE,
+  seedReaderMix,
+  seedReaderSearchPage,
+} from "./devSeed/articles";
+import {
   CARD_DETAILS_SCENARIO_CARDS,
   TAGS_CASE_SCENARIO_CARDS,
 } from "./devSeed/cardScenarios";
@@ -40,6 +46,7 @@ import {
   SAVE_DETAILS_SAVED_URL,
   saveDetailsPack,
 } from "./devSeed/contentPacks";
+import { deadLinksOrigin, seedDeadLinks } from "./devSeed/deadLinks";
 import {
   cardIn50FoldersPack,
   exportUglyPack,
@@ -52,6 +59,7 @@ import {
   smartFoldersPack,
 } from "./devSeed/folderPacks";
 import { link, palette } from "./devSeed/helpers";
+import { seedHighlightsMix } from "./devSeed/highlights";
 import {
   CARD_LINK_SCENARIO_DESCRIPTIONS,
   type CardLinkScenario,
@@ -65,6 +73,11 @@ import {
   videoCaptionsPack,
 } from "./devSeed/mediaPacks";
 import { orderingSavedPack } from "./devSeed/orderingSaved";
+import {
+  archiveBackfillScenarioPage,
+  PAGE_ARCHIVE_MIX_TAG,
+  seedPageArchiveMix,
+} from "./devSeed/pageArchives";
 import {
   PASTE_LINKS_KNOWN,
   PASTE_LINKS_LIBRARY_SIZE,
@@ -332,6 +345,21 @@ const seedFolderScenario = async (
 
 type ScenarioPack = { description: string } & (
   | { cards: (page: number) => DevScenarioCardDef[] }
+  | { deadLinks: true }
+  | {
+      seed: (
+        ctx: MutationCtx,
+        userId: string
+      ) => Promise<{ cards: number; status: "already_seeded" | "seeded" }>;
+    }
+  | {
+      /** A large pack that writes more than cards, one page at a time. */
+      pagedSeed: (
+        ctx: MutationCtx,
+        userId: string,
+        page: number
+      ) => Promise<{ cards: number; status: "already_seeded" | "seeded" }>;
+    }
   | { folders: () => FolderScenarioPack }
   | { fillTo: number; lead?: DevScenarioCardDef[] }
   | { links: CardLinkScenario }
@@ -601,6 +629,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     fillTo: PASTE_LINKS_LIBRARY_SIZE,
     lead: PASTE_LINKS_KNOWN,
   },
+  "dead-links": {
+    description:
+      "Link cards with archived copies whose pages are gone or not: 404, 410, a domain that no longer exists (opens the copy), 403, 500, a page that answers after 6 seconds and a live one (open the original), plus a 404 with no copy (opens directly), one in Trash and a text-only copy. They point at httpbin.org unless `origin` names a server that answers `/status/<code>` and `/delay/<s>`. The copies are small pages written through the Files Worker. Search `#scenario-dead-links`.",
+    deadLinks: true,
+  },
   "locale-switch": {
     description:
       "No cards: sets the account's language to German (de), as Settings → Language would. Set the browser's teak-locale cookie to ja first to see the account win on the next load; seed again with `en` restored from Settings to undo.",
@@ -609,6 +642,27 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   "ai-languages": {
     description: `Notes in Japanese, Spanish, German, Korean, Chinese, Hindi and Arabic, an English note with a Spanish quote, one with no words at all, and French and Portuguese Wikipedia links, all run through AI processing so their tags and summary come back in the content's language. Images, PDFs and audio need uploaded files, so they aren't seeded. Search \`#${AI_LANGUAGES_TAG}\`; \`bun --no-env-file run scripts/ai-language-check.ts\` scores it.`,
     cards: firstPageOnly(aiLanguagesScenarioCards()),
+  },
+  "page-archive-mix": {
+    description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, two that failed (blocked_url, too_large), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Files Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
+    seed: seedPageArchiveMix,
+  },
+  "reader-mix": {
+    description: `Links for the Read tab in every state: a 3,000-word article with images, code, a wide table and a quote, a news story, a research abstract, a product page that isn't an article, a text-only copy's article, Arabic and Japanese articles, an article cut at 512 KiB characters, one still being prepared, one that failed, and a podcast with an article and a transcript. Copies, Markdown and images are written through the Files Worker. Search \`#${READER_MIX_TAG}\`.`,
+    seed: seedReaderMix,
+  },
+  "highlights-mix": {
+    description: `Highlights on the reader-mix articles (seed reader-mix first and wait for its articles): the long read at the cap of 200, the news story with 12 (some with notes, one of 2,000 characters), the research abstract with 1, a quote repeated in every paragraph highlighted the third time, three imported highlights on the text-only article waiting for their article (one never matches), Arabic and Japanese highlights (the Japanese one merged from two overlapping requests), and a highlighted podcast episode to refresh, whose saved copy must stay. Search \`#${READER_MIX_TAG}\`.`,
+    seed: seedHighlightsMix,
+  },
+  "reader-search-1000": {
+    description: `1,000 links with articles titled "Field note 1" to "Field note 1000". Only their body text has "${READER_SEARCH_SHARED_PHRASE}" (all of them) and lantern0 to lantern999 (one each), so search finds them by article text alone. Their Markdown isn't written, so the Read tab can't load it. 200 per page.`,
+    pagedSeed: seedReaderSearchPage,
+  },
+  "archive-backfill-1000": {
+    description:
+      "1,000 processed links with no saved copy, for backfillPageArchives (example.com/archive-backfill/0 to /999). 200 per page.",
+    cards: archiveBackfillScenarioPage,
   },
   "shuffle-partial": {
     description:
@@ -654,13 +708,15 @@ export const seedScenario = internalMutation({
     workosUserId: v.string(),
     scenario: v.string(),
     page: v.optional(v.number()),
+    /** `dead-links` only: the server its links point at. */
+    origin: v.optional(v.string()),
   },
   returns: v.object({
     status: v.union(v.literal("seeded"), v.literal("already_seeded")),
     cards: v.number(),
     folders: v.optional(v.number()),
   }),
-  handler: async (ctx, { workosUserId, scenario, page = 0 }) => {
+  handler: async (ctx, { workosUserId, scenario, page = 0, origin }) => {
     if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
       throw new Error(
         "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
@@ -683,6 +739,19 @@ export const seedScenario = internalMutation({
     }
     if ("links" in pack) {
       return await seedCardLinkScenario(ctx, owner.teakUserId, pack.links);
+    }
+    if ("deadLinks" in pack) {
+      return await seedDeadLinks(
+        ctx,
+        owner.teakUserId,
+        deadLinksOrigin(origin)
+      );
+    }
+    if ("seed" in pack) {
+      return await pack.seed(ctx, owner.teakUserId);
+    }
+    if ("pagedSeed" in pack) {
+      return await pack.pagedSeed(ctx, owner.teakUserId, page);
     }
     if ("folders" in pack) {
       if (scenario === "email-in") {

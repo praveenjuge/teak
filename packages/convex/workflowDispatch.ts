@@ -31,11 +31,17 @@ import {
   markUnfinishedCardStagesFailed,
 } from "./card/processingLifecycle";
 import {
+  pendingRunToTakeOver,
+  takeSnapshotWaitingAfterRun,
+} from "./card/processingRuns";
+import {
   ACTIVE_EXPORT_STATUSES,
   EXPORT_FAILURE_CLASS,
 } from "./export/constants";
 import { ACTIVE_IMPORT_STATUSES } from "./import/constants";
 import { importStagedPartKeys } from "./import/indexItems";
+import { articleSkipReason } from "./shared/article";
+import { pageArchiveSkipReason } from "./shared/pageArchive";
 import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
@@ -116,27 +122,17 @@ const insertDispatch = async (
   return id;
 };
 
-const pendingRunToTakeOver = async (
-  ctx: MutationCtx,
-  card: Doc<"cards">
-): Promise<Doc<"workflowDispatches"> | null> => {
-  const currentRev = card.processingRev;
-  if (!currentRev) {
-    return null;
-  }
-  const currentRun = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_instanceId", (q) =>
-      q.eq("instanceId", cardProcessingInstanceId(card._id, currentRev))
-    )
-    .first();
-  return currentRun?.state === "pending" ? currentRun : null;
-};
-
 export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   options: {
+    /**
+     * Only "load card", "archive page" and the article steps run: a link's
+     * saved copy and the article in it.
+     */
+    archiveOnly?: boolean;
+    /** Only "load card" and the article steps run: a link's article. */
+    articleOnly?: boolean;
     delayMs?: number;
     metadataOnly?: boolean;
     refresh?: boolean;
@@ -155,6 +151,21 @@ export const queueCardProcessing = async (
     !refresh &&
     options.metadataOnly === true &&
     (!replaced || replaced.params?.metadataOnly === true);
+  // A run that takes over a whole pending run keeps its work: it narrows to
+  // the archive or the article only when the run it replaces did too, and
+  // to the article alone only when neither asks for the archive.
+  const narrowed = (params?: {
+    archiveOnly?: boolean;
+    articleOnly?: boolean;
+  }) => params?.archiveOnly === true || params?.articleOnly === true;
+  const narrow =
+    !(reset || metadataOnly) &&
+    narrowed(options) &&
+    (!replaced || narrowed(replaced.params));
+  const archiveOnly =
+    narrow &&
+    (options.archiveOnly === true || replaced?.params?.archiveOnly === true);
+  const articleOnly = narrow && !archiveOnly;
   const rev = (card.processingRev ?? 0) + 1;
   await ctx.db.patch("cards", cardId, { processingRev: rev });
   const instanceId = cardProcessingInstanceId(cardId, rev);
@@ -167,6 +178,8 @@ export const queueCardProcessing = async (
     params: {
       cardId,
       rev,
+      ...(archiveOnly ? { archiveOnly: true } : {}),
+      ...(articleOnly ? { articleOnly: true } : {}),
       ...(metadataOnly ? { metadataOnly: true } : {}),
       ...(refresh ? { refresh: true } : {}),
     },
@@ -617,11 +630,41 @@ const handleRunFailure = async (
       if (!card || (card.processingRev ?? 0) !== row.rev) {
         return;
       }
+      // A link whose run ended before its last step still gets its saved
+      // copy, from a run of its own: a page that can't be fetched then fails
+      // only that stage. An archive-only run that fails just fails the stage.
+      // The same goes for the article in a copy the run didn't reach. A
+      // narrowed run that fails just fails its stages.
+      const refresh = params.refresh === true;
+      const narrowed =
+        params.archiveOnly === true || params.articleOnly === true;
+      const archiveSeparately =
+        !narrowed && pageArchiveSkipReason(card, { refresh }) === null;
+      const articleSeparately =
+        !(narrowed || archiveSeparately) &&
+        articleSkipReason(card, { refresh }) === null;
       await markUnfinishedCardStagesFailed(
         ctx,
-        { cardId: row.cardId, stages: CARD_PROCESSING_STAGES },
+        {
+          cardId: row.cardId,
+          stages: [
+            ...CARD_PROCESSING_STAGES,
+            ...(archiveSeparately ? [] : (["archive"] as const)),
+            ...(archiveSeparately || articleSeparately
+              ? []
+              : (["article"] as const)),
+          ],
+        },
         error
       );
+      if (archiveSeparately || articleSeparately) {
+        await queueCardProcessing(ctx, row.cardId, {
+          ...(archiveSeparately
+            ? { archiveOnly: true }
+            : { articleOnly: true }),
+          ...(refresh ? { refresh: true } : {}),
+        });
+      }
       return;
     }
     case "export": {
@@ -766,6 +809,11 @@ export const complete = internalMutation({
     });
     if (status === "errored") {
       await handleRunFailure(ctx, row, "workflow_failed");
+    } else {
+      const waiting = await takeSnapshotWaitingAfterRun(ctx, row);
+      if (waiting) {
+        await queueCardProcessing(ctx, waiting, { archiveOnly: true });
+      }
     }
     return null;
   },

@@ -11,6 +11,7 @@ Teak es su centro de conocimiento personal para reunir, recordar y redescubrir i
 - Guarde la página en la que está: abra la ventana de Teak y la página se guarda. Añada etiquetas y una nota justo después de guardarla.
 - Haga clic derecho para guardar una página, una imagen, un vídeo, un enlace o el texto seleccionado. El texto conserva un enlace a la página de la que procede.
 - Pulse Alt+Mayús+S para guardar la página actual sin abrir la ventana. El icono de la barra de herramientas indica cuándo una página ya está en Teak.
+- Teak guarda una copia privada de cada página que guarda, tal como la vio, para que pueda leerla aunque la página desaparezca.
 - Suba un archivo de hasta 100 MB desde la ventana.
 - Busque en su biblioteca desde la barra de direcciones: escriba «teak», un espacio y lo que busca.
 - Guarde publicaciones de redes sociales y sitios de diseño compatibles con un botón en cada publicación.

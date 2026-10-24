@@ -11,7 +11,10 @@ import { filesWorkerOrigin, type StackPorts, stackUrls } from "./config";
 // AI and the Vectorize index are service bindings to fakes
 // (apps/files-worker/e2e/fakeAi.ts); Browser Run and the two Containers are
 // absent, so link fetching, screenshots and media rendering fail the way they
-// do when those services are down.
+// do when those services are down. The link fetcher is a fake that answers
+// like the missing Container, except for a hop to a `/teak-e2e-forward/<port>`
+// path, which it makes to a server on that local port
+// (apps/files-worker/e2e/fakeLinkFetcher.ts), so a link check can reach it.
 
 const ROOT = join(import.meta.dir, "../../../..");
 const WORKER_DIR = join(ROOT, "apps/files-worker");
@@ -54,6 +57,8 @@ const QUEUE_ROLES = [
 
 const queueName = (role: string) => `teak-e2e-${role}`;
 
+const FAKE_AI_WORKER = "teak-e2e-fake-ai";
+
 export const filesWorkerConfigs = (ports: StackPorts) => {
   const compatibilityDate = readCompatibilityDate();
   const urls = stackUrls(ports);
@@ -76,7 +81,11 @@ export const filesWorkerConfigs = (ports: StackPorts) => {
       bindings: [
         { name: "OBJECT_GATES", class_name: "ObjectDeletionGate" },
         { name: "MEDIA_RENDERER", class_name: "MediaRenderer" },
-        { name: "LINK_FETCHER", class_name: "LinkFetcher" },
+        {
+          name: "LINK_FETCHER",
+          class_name: "FakeLinkFetcher",
+          script_name: FAKE_AI_WORKER,
+        },
       ],
     },
     migrations: [
@@ -132,11 +141,11 @@ export const filesWorkerConfigs = (ports: StackPorts) => {
       { binding: "AI_USAGE", dataset: "teak_e2e_ai_usage" },
     ],
     services: [
-      { binding: "AI", service: "teak-e2e-fake-ai" },
+      { binding: "AI", service: FAKE_AI_WORKER },
       {
         binding: "CARD_VECTORS_0",
         entrypoint: "FakeVectorize",
-        service: "teak-e2e-fake-ai",
+        service: FAKE_AI_WORKER,
       },
     ],
     images: { binding: "IMAGES" },
@@ -162,9 +171,13 @@ export const filesWorkerConfigs = (ports: StackPorts) => {
     },
   };
   const fakeAi = {
-    name: "teak-e2e-fake-ai",
+    name: FAKE_AI_WORKER,
     main: join(WORKER_DIR, "e2e/fakeAi.ts"),
     compatibility_date: compatibilityDate,
+    durable_objects: {
+      bindings: [{ name: "LINK_FETCHER", class_name: "FakeLinkFetcher" }],
+    },
+    migrations: [{ tag: "e2e-v1", new_sqlite_classes: ["FakeLinkFetcher"] }],
   };
   return { fakeAi, worker };
 };

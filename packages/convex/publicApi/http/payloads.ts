@@ -36,6 +36,7 @@ const CREATE_KEYS = new Set([
   "fileSize",
   "mimeType",
   "notes",
+  "pageSnapshotKey",
   "source",
   "sourceTitle",
   "sourceUrl",
@@ -50,6 +51,7 @@ const CREATE_STRING_KEYS = [
   "fileKey",
   "fileName",
   "mimeType",
+  "pageSnapshotKey",
   "source",
   "sourceTitle",
   "sourceUrl",
@@ -83,6 +85,7 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
   const mimeType = parseOptionalString(source.mimeType);
   const cardType = parseOptionalString(source.cardType);
   const notes = parseOptionalNullableString(source.notes);
+  const pageSnapshotKey = parseOptionalString(source.pageSnapshotKey);
   const sourceValue = parseOptionalString(source.source);
   const cardSource = {
     sourceTitle: source.sourceTitle as string | undefined,
@@ -135,6 +138,11 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
     if (cardSource.sourceUrl !== undefined) {
       return { error: "`sourceUrl` can't be sent with an uploaded `fileKey`" };
     }
+    if (pageSnapshotKey !== undefined) {
+      return {
+        error: "`pageSnapshotKey` can't be sent with an uploaded `fileKey`",
+      };
+    }
     return {
       payload: {
         cardType,
@@ -172,6 +180,7 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
       cardType,
       content,
       notes,
+      ...(pageSnapshotKey ? { pageSnapshotKey } : {}),
       source: sourceValue,
       ...normalizeCardSource(cardSource),
       tags,

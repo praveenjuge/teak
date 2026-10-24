@@ -73,6 +73,7 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_check_duplicate_url: { url: "https://example.com" },
   teak_v1_create_card: { content: "x" },
   teak_v1_create_folder: { name: "Reading" },
+  teak_v1_create_highlight: { cardId: "card_1", quote: "x" },
   teak_v1_create_thumbnail_upload: {
     cardId: "card_1",
     mimeType: "image/png",
@@ -85,6 +86,7 @@ const MCP_SAMPLES: Record<string, unknown> = {
   },
   teak_v1_delete_card: { cardId: "card_1", confirm: true },
   teak_v1_delete_folder: { folderId: "folder_1", confirm: true },
+  teak_v1_delete_highlight: { highlightId: "highlight_1", confirm: true },
   teak_v1_delete_tag: { tag: "design", confirm: true },
   teak_v1_find_similar_cards: { cardId: "card_1" },
   teak_v1_get_card: { cardId: "card_1" },
@@ -97,6 +99,7 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_list_cards: {},
   teak_v1_list_favorite_cards: {},
   teak_v1_list_folders: {},
+  teak_v1_list_highlights: { cardId: "card_1" },
   teak_v1_list_tags: {},
   teak_v1_merge_tags: { from: "a", into: "b" },
   teak_v1_refresh_card: { cardId: "card_1" },
@@ -115,6 +118,7 @@ const MCP_SAMPLES: Record<string, unknown> = {
   teak_v1_set_card_thumbnail: { cardId: "card_1", fileKey: "key_1" },
   teak_v1_update_card: { cardId: "card_1", notes: "n" },
   teak_v1_update_folder: { folderId: "folder_1", name: "Later" },
+  teak_v1_update_highlight: { highlightId: "highlight_1", note: null },
 };
 
 const mcpOperations = async (tool: string) => {
@@ -141,6 +145,8 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
     "cards.changes": (c) => c.cards.changes({ since: 1 }),
     "cards.content": (c) => c.cards.content("card_1"),
+    "pageSnapshots.createUpload": (c) =>
+      c.pageSnapshots.createUpload({ bytes: 1024 }),
     "cards.createThumbnailUpload": (c) =>
       c.cards.createThumbnailUpload("card_1", {
         fileSize: 1,
@@ -174,6 +180,11 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "folders.list": (c) => c.folders.list(),
     "folders.removeCards": (c) => c.folders.removeCards("folder_1", ["card_1"]),
     "folders.update": (c) => c.folders.update("folder_1", { name: "Later" }),
+    "highlights.create": (c) => c.highlights.create("card_1", { quote: "x" }),
+    "highlights.delete": (c) => c.highlights.delete("highlight_1"),
+    "highlights.list": (c) => c.highlights.list("card_1"),
+    "highlights.update": (c) =>
+      c.highlights.update("highlight_1", { note: null }),
     me: (c) => c.me(),
     "tags.delete": (c) => c.tags.delete("design"),
     "tags.list": (c) => c.tags.list(),

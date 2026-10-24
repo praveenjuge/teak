@@ -9,6 +9,7 @@ import {
   cardTypeValidator,
   cardValidator,
   folderColorValidator,
+  highlightValidator,
   r2KeyValidator,
 } from "./schema/validators/cards";
 import {
@@ -546,13 +547,18 @@ export default defineSchema({
   cardTextContents: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),
-    kind: v.union(v.literal("document"), v.literal("transcript")),
+    kind: v.union(
+      v.literal("document"),
+      v.literal("transcript"),
+      v.literal("article")
+    ),
     /**
-     * A document's searchable start, or one part of a transcript: a
-     * transcript is split into parts of at most `SEARCH_PREFIX_MAX_BYTES`.
+     * A document's or a link's article's searchable start (plain text), or
+     * one part of a transcript: a transcript is split into parts of at most
+     * `SEARCH_PREFIX_MAX_BYTES`.
      */
     text: v.string(),
-    /** The R2 object holding a document's whole text. */
+    /** The R2 object holding a document's whole text, or an article's Markdown. */
     sourceKey: v.optional(r2KeyValidator),
     /** A transcript part's place, from 0. */
     part: v.optional(v.number()),
@@ -564,6 +570,12 @@ export default defineSchema({
     .searchIndex("search_text", {
       searchField: "text",
       filterFields: ["userId"],
+    })
+    // A search for one card type reads only its own kind of text, so
+    // documents never fill the read before a link's article is seen.
+    .searchIndex("search_text_by_kind", {
+      searchField: "text",
+      filterFields: ["userId", "kind"],
     }),
   // Save by email (inbound/): whether mail sent from an account's sign-in
   // email to the shared save@ address becomes cards. Off until turned on.
@@ -630,6 +642,11 @@ export default defineSchema({
     .index("by_fromCardId_and_toCardId", ["fromCardId", "toCardId"])
     .index("by_toCardId", ["toCardId"])
     .index("by_userId", ["userId"]),
+  // Passages highlighted in a link's article (highlight/highlights.ts), at
+  // most 200 per card. `cards.hasHighlights` and `highlightCount` follow them.
+  highlights: defineTable(highlightValidator)
+    .index("by_cardId_and_createdAt", ["cardId", "createdAt"])
+    .index("by_userId", ["userId"]),
   linkedPdfs: defineTable({
     userId: v.string(),
     sourceCardId: v.id("cards"),
@@ -649,6 +666,21 @@ export default defineSchema({
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .index("by_status", ["status"]),
+  // The last answer to "is this link's page still there?", checked when a
+  // link card with an archived copy is opened (card/linkCheck.ts). Only alive
+  // and dead are kept; `checkingUntil` claims a check in flight, so a second
+  // open waits for it instead of checking again. One row per card.
+  linkChecks: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    outcome: v.optional(v.union(v.literal("alive"), v.literal("dead"))),
+    httpStatus: v.optional(v.number()),
+    reason: v.optional(v.string()),
+    checkedAt: v.optional(v.number()),
+    checkingUntil: v.optional(v.number()),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"]),
   // A list of links pasted into the web composer, saved in the background as
   // one link card each (card/pasteLinks.ts). The counts are stored at start,
   // so every toast reads the normalized numbers. Removed 7 days after it

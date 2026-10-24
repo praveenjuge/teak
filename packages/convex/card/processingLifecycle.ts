@@ -1,11 +1,14 @@
+import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { CardType } from "../schema";
+import { pageArchiveSkipReason } from "../shared/pageArchive";
 import type { Id } from "../shared/types";
 import { queueCardProcessingFailed } from "../telemetry/schedule";
 import {
   buildInitialProcessingStatus,
   type ProcessingStageKey,
   type ProcessingStatus,
+  shouldRunArchiveStage,
   stageFailed,
   stagePending,
 } from "./processingStatus";
@@ -43,15 +46,41 @@ export const initializeCardProcessingState = async (
     aiOcrText: undefined,
     ocrCheckedAt: undefined,
     aiBackfillAttempts: undefined,
-    processingStatus: buildInitialProcessingStatus({
-      now,
-      cardType,
-      classificationStatus: card.processingStatus?.classify ?? stagePending(),
-    }),
+    processingStatus: {
+      ...buildInitialProcessingStatus({
+        now,
+        cardType,
+        classificationStatus: card.processingStatus?.classify ?? stagePending(),
+      }),
+      ...archiveStageAfterReset(card, cardType, options),
+    },
     metadataStatus: awaitingLinkMetadata ? "pending" : "completed",
     updatedAt: now,
   });
   return true;
+};
+
+/**
+ * A reset keeps the archive and article stages, since a run that has nothing to archive
+ * leaves it alone. Refresh details archives the page again, so for a link it
+ * starts over as pending, except on a highlighted link, whose copy stays.
+ */
+const archiveStageAfterReset = (
+  card: Doc<"cards">,
+  cardType: CardType,
+  options: { refresh?: boolean }
+): Pick<ProcessingStatus, "archive" | "article"> => {
+  // The article is taken from the copy again with it, unless highlights
+  // froze them both.
+  if (
+    options.refresh === true &&
+    shouldRunArchiveStage(cardType) &&
+    pageArchiveSkipReason(card, { refresh: true }) !== "frozen"
+  ) {
+    return { archive: stagePending(), article: stagePending() };
+  }
+  const { archive, article } = card.processingStatus ?? {};
+  return { ...(archive ? { archive } : {}), ...(article ? { article } : {}) };
 };
 
 const UNFINISHED_STAGE_STATUSES = new Set(["pending", "in_progress"]);

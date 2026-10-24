@@ -740,10 +740,22 @@
       "suggestedTags": "{count, plural, other {# 个建议标签}}",
       "summary": "摘要",
       "tags": "标签",
-      "teakTagHint": "由 Teak 添加的标签。显示带有 {tag} 标签的卡片"
+      "teakTagHint": "由 Teak 添加的标签。显示带有 {tag} 标签的卡片",
+      "highlights": "高亮 · {count, number}",
+      "highlightNotFound": "在保存的文章中找不到",
+      "highlightWaiting": "正在等待文章…",
+      "highlightActions": "高亮操作"
     },
     "details": {
       "added": "添加时间",
+      "archive": "已保存的副本",
+      "archiveFailed": "无法保存副本",
+      "archiveFailedBlocked": "Teak 无法打开此页面",
+      "archiveFailedNotPage": "此链接不是网页",
+      "archiveFailedTooLarge": "页面太大，无法保存",
+      "archiveFailedUnreachable": "无法访问该页面",
+      "archiveSaving": "正在保存副本…",
+      "archiveTextOnly": "仅文本",
       "author": "作者",
       "edited": "编辑时间",
       "extractedText": "{count, plural, other {已提取 # 个字符}}",
@@ -760,6 +772,12 @@
       "text": "文本",
       "title": "详情",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "预览",
+      "read": "阅读",
+      "toggleTooltip": "阅读或预览",
+      "viewLabel": "预览或阅读"
     }
   },
   "cardPreviews": {
@@ -794,6 +812,8 @@
     },
     "link": {
       "addImage": "添加图片",
+      "archivedCopy": "已保存的副本",
+      "archivedCopyTooltip": "上次于 {date} 检查时，原网页已不存在",
       "attachedMedia": "帖子附带的媒体 {number}",
       "attachedVideo": "附带的视频 {number}",
       "imageAlt": "链接图片",
@@ -816,6 +836,29 @@
     "video": {
       "gifAlt": "GIF 动图",
       "unsupported": "你的浏览器不支持 video 标签。"
+    },
+    "reader": {
+      "failed": "无法准备这篇文章。",
+      "loadFailed": "无法加载这篇文章。",
+      "loading": "正在加载文章",
+      "minutes": "{minutes, plural, other {阅读约 # 分钟}}",
+      "preparing": "正在准备文章…",
+      "savedFrom": "保存自 {host} · {date} · <link>打开原文 ↗</link>",
+      "shortened": "文章已截短以适应长度。"
+    },
+    "highlights": {
+      "highlight": "高亮",
+      "limitReached": "此卡片已有 {max, number} 个高亮，已达上限",
+      "merged": "已与现有高亮合并",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "高亮笔记",
+      "notePlaceholder": "添加笔记",
+      "rateLimited": "更改过多。请稍后再试。",
+      "remove": "移除高亮",
+      "removed": "已移除高亮",
+      "saveFailed": "无法保存高亮。请重试。",
+      "tooLong": "高亮最多 {max, number} 个字符",
+      "unsupported": "你的浏览器无法在正文中显示高亮"
     }
   },
   "cards": {
@@ -1243,6 +1286,8 @@
       "markLinkDone": "将链接标为已完成",
       "copyLinkOrText": "复制链接或文本",
       "toggleDetails": "显示或隐藏详情",
+      "readOrPreview": "阅读或预览",
+      "highlightSelection": "高亮所选内容",
       "goToEverything": "全部",
       "goToFavorites": "收藏",
       "goToArchive": "归档",
@@ -1405,6 +1450,20 @@
     },
     "logo": {
       "earlyAccess": "抢先体验"
+    },
+    "openLink": {
+      "archiveMissing": "无法加载 Teak 保存的副本。",
+      "archivedCopy": "已保存的副本",
+      "backToTeak": "返回 Teak",
+      "checking": "正在打开 {host}…",
+      "frameTitle": "{host} 的已保存副本",
+      "moreActions": "更多操作",
+      "noLongerAvailable": "此网页已无法访问 · 于 {date} 保存自 {host}",
+      "noLongerAvailableShort": "已无法访问",
+      "openInTeak": "在 Teak 中打开",
+      "openOriginalNow": "立即打开原网页",
+      "tryOriginal": "尝试打开原网页 ↗",
+      "unavailable": "此卡片不可用。"
     }
   },
   "hooks": {

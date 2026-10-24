@@ -740,10 +740,22 @@
       "suggestedTags": "{count, plural, other {# 件のおすすめタグ}}",
       "summary": "要約",
       "tags": "タグ",
-      "teakTagHint": "Teak が付けたタグです。タグ {tag} の付いたカードを表示"
+      "teakTagHint": "Teak が付けたタグです。タグ {tag} の付いたカードを表示",
+      "highlights": "ハイライト · {count, number}",
+      "highlightNotFound": "保存した記事に見つかりません",
+      "highlightWaiting": "記事を待っています…",
+      "highlightActions": "ハイライトの操作"
     },
     "details": {
       "added": "追加日",
+      "archive": "保存されたコピー",
+      "archiveFailed": "コピーを保存できませんでした",
+      "archiveFailedBlocked": "Teak からこのページを開けません",
+      "archiveFailedNotPage": "このリンクはウェブページではありません",
+      "archiveFailedTooLarge": "ページが大きすぎて保存できません",
+      "archiveFailedUnreachable": "ページにアクセスできませんでした",
+      "archiveSaving": "コピーを保存中…",
+      "archiveTextOnly": "テキストのみ",
       "author": "作成者",
       "edited": "編集日",
       "extractedText": "{count, plural, other {# 文字を抽出}}",
@@ -760,6 +772,12 @@
       "text": "テキスト",
       "title": "詳細",
       "url": "URL"
+    },
+    "reader": {
+      "preview": "プレビュー",
+      "read": "読む",
+      "toggleTooltip": "読む/プレビュー",
+      "viewLabel": "プレビューまたは読む"
     }
   },
   "cardPreviews": {
@@ -794,6 +812,8 @@
     },
     "link": {
       "addImage": "画像を追加",
+      "archivedCopy": "保存されたコピー",
+      "archivedCopyTooltip": "{date} の前回の確認時点で、元のページはなくなっていました",
       "attachedMedia": "投稿に添付されたメディア {number}",
       "attachedVideo": "添付された動画 {number}",
       "imageAlt": "リンクの画像",
@@ -816,6 +836,29 @@
     "video": {
       "gifAlt": "アニメーション GIF",
       "unsupported": "お使いのブラウザは video タグに対応していません。"
+    },
+    "reader": {
+      "failed": "この記事を準備できませんでした。",
+      "loadFailed": "この記事を読み込めませんでした。",
+      "loading": "記事を読み込み中",
+      "minutes": "{minutes, plural, other {#分で読めます}}",
+      "preparing": "記事を準備しています…",
+      "savedFrom": "{host} から保存 · {date} · <link>元のページを開く ↗</link>",
+      "shortened": "収まるように記事を短くしました。"
+    },
+    "highlights": {
+      "highlight": "ハイライト",
+      "limitReached": "このカードには{max, number}件のハイライトがあり、これ以上追加できません",
+      "merged": "既存のハイライトと結合しました",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "ハイライトのメモ",
+      "notePlaceholder": "メモを追加",
+      "rateLimited": "変更が多すぎます。しばらくしてからもう一度お試しください。",
+      "remove": "ハイライトを削除",
+      "removed": "ハイライトを削除しました",
+      "saveFailed": "ハイライトを保存できませんでした。もう一度お試しください。",
+      "tooLong": "ハイライトは{max, number}文字までです",
+      "unsupported": "お使いのブラウザでは本文にハイライトを表示できません"
     }
   },
   "cards": {
@@ -1243,6 +1286,8 @@
       "markLinkDone": "リンクを完了にする",
       "copyLinkOrText": "リンクまたはテキストをコピー",
       "toggleDetails": "詳細の表示/非表示",
+      "readOrPreview": "読む/プレビュー",
+      "highlightSelection": "選択範囲をハイライト",
       "goToEverything": "すべて",
       "goToFavorites": "お気に入り",
       "goToArchive": "アーカイブ",
@@ -1405,6 +1450,20 @@
     },
     "logo": {
       "earlyAccess": "アーリーアクセス"
+    },
+    "openLink": {
+      "archiveMissing": "Teak のコピーを読み込めませんでした。",
+      "archivedCopy": "保存されたコピー",
+      "backToTeak": "Teak に戻る",
+      "checking": "{host} を開いています…",
+      "frameTitle": "{host} の保存されたコピー",
+      "moreActions": "その他の操作",
+      "noLongerAvailable": "このページは利用できなくなりました · {date} に {host} から保存",
+      "noLongerAvailableShort": "利用できなくなりました",
+      "openInTeak": "Teak で開く",
+      "openOriginalNow": "今すぐ元のページを開く",
+      "tryOriginal": "元のページを試す ↗",
+      "unavailable": "このカードは利用できません。"
     }
   },
   "hooks": {
