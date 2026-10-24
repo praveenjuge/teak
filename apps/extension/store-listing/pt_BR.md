@@ -11,6 +11,7 @@ O Teak é o seu centro de conhecimento pessoal para reunir, lembrar e redescobri
 - Salve a página em que você está: abra o pop-up do Teak e a página é salva. Adicione tags e uma nota logo depois de salvar.
 - Clique com o botão direito para salvar uma página, uma imagem, um vídeo, um link ou o texto selecionado. O texto mantém um link para a página de onde veio.
 - Pressione Alt+Shift+S para salvar a página atual sem abrir o pop-up. O ícone na barra de ferramentas mostra quando uma página já está no Teak.
+- O Teak guarda uma cópia privada de cada página que você salva, do jeito que você a viu, para você continuar lendo mesmo se a página sumir.
 - Envie um arquivo de até 100 MB pelo pop-up.
 - Pesquise na sua biblioteca pela barra de endereços: digite "teak", um espaço e o que você procura.
 - Salve publicações de redes sociais e sites de design compatíveis com um botão em cada publicação.

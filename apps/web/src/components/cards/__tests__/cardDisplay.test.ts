@@ -136,4 +136,15 @@ describe("isCardProcessing", () => {
     ).toBe(false);
     expect(isCardProcessing({})).toBe(false);
   });
+
+  test("a link saving its page's copy isn't shown as processing", () => {
+    expect(
+      isCardProcessing({
+        processingStatus: {
+          archive: { status: "in_progress" },
+          metadata: { status: "completed" },
+        },
+      })
+    ).toBe(false);
+  });
 });

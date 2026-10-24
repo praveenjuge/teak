@@ -96,6 +96,7 @@ import type * as devSeed_helpers from "../devSeed/helpers.js";
 import type * as devSeed_links from "../devSeed/links.js";
 import type * as devSeed_mediaPacks from "../devSeed/mediaPacks.js";
 import type * as devSeed_orderingSaved from "../devSeed/orderingSaved.js";
+import type * as devSeed_pageArchives from "../devSeed/pageArchives.js";
 import type * as devSeed_resave from "../devSeed/resave.js";
 import type * as devSeed_searchOperators from "../devSeed/searchOperators.js";
 import type * as devSeed_urlVariants from "../devSeed/urlVariants.js";
@@ -444,6 +445,7 @@ declare const fullApi: ApiFromModules<{
   "devSeed/links": typeof devSeed_links;
   "devSeed/mediaPacks": typeof devSeed_mediaPacks;
   "devSeed/orderingSaved": typeof devSeed_orderingSaved;
+  "devSeed/pageArchives": typeof devSeed_pageArchives;
   "devSeed/resave": typeof devSeed_resave;
   "devSeed/searchOperators": typeof devSeed_searchOperators;
   "devSeed/urlVariants": typeof devSeed_urlVariants;

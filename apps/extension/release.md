@@ -23,8 +23,8 @@ Keep the description free of lists of site or brand names. The Chrome Web Store 
 
 Keep each store's data disclosure in step with what the extension sends, and update it in the release that changes it:
 
-- **Chrome Web Store:** the item's **Privacy practices** tab declares **Website content** (pages, text and files you save) and **Web history**: while signed in, the saved-page badge sends the address of the page in the active tab to Teak (`GET /v1/cards/duplicate`). A change there can lengthen the store's review.
-- **AMO:** `data_collection_permissions` in `wxt.config.ts` already declares `browsingActivity`, which covers the badge's checks.
+- **Chrome Web Store:** the item's **Privacy practices** tab declares **Website content** as collected, for app functionality: the pages, text and files you save, and, since the release with saved copies of pages, the content of the page you save (its rendered HTML, gzipped, uploaded through `POST /v1/page-snapshots/upload` so Teak keeps a copy as you saw it; password, hidden, one-time-code and payment-card fields are cleared first). It also declares **Web history**: while signed in, the saved-page badge sends the address of the page in the active tab to Teak (`GET /v1/cards/duplicate`). In the justification for `scripting` and host access, say the extension reads the current page's content when you save it. A change there can lengthen the store's review.
+- **AMO:** `data_collection_permissions` in `wxt.config.ts` already declares `websiteContent`, which covers the page content a save sends, and `browsingActivity`, which covers the badge's checks. Nothing in the manifest changes; mention the page content in the reviewer notes below.
 
 ## Retry and recovery
 
@@ -77,6 +77,8 @@ The Firefox build comes from the same source as Chrome (`bun run zip:firefox`). 
 > The same steps are public at https://teakvault.com/docs/extension#build-from-source.
 >
 > To test: click the Teak toolbar button and sign in with the test account below. The popup saves the open page; the context menu saves pages, images and selected text; typing `teak` and a space in the address bar searches the account's cards.
+>
+> When it saves a page (the popup, the save shortcut, or **Save Page**), the extension reads the page's rendered HTML with `scripting.executeScript`, clears password, hidden, one-time-code and payment-card fields, gzips it and uploads it to Teak, which keeps a private copy of the page for the account. It never runs on its own, and Save Text and image saves send no page content.
 
 ### Automated releases
 

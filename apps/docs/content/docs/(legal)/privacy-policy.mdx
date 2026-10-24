@@ -3,7 +3,7 @@ title: Privacy Policy
 description: Privacy policy for Teak apps, API, and integrations
 ---
 
-**Effective date:** October 23, 2026
+**Effective date:** October 24, 2026
 
 ## Overview
 
@@ -17,10 +17,10 @@ The short version: your cards are private to you, we don't sell your data or use
 
 - **Account data:** your name, email address, optional profile photo, sign-in details, and account preferences.
 - **Your content:** cards (notes, links, images, videos, audio, documents, palettes, quotes), the files you upload, tags, folders, favorites, notes, and timestamps.
-- **Generated data:** tags, summaries, audio transcripts, colors, thumbnails, link previews, screenshots and search embeddings that Teak creates from your content (see [AI Processing](#ai-processing)).
+- **Generated data:** tags, summaries, audio transcripts, colors, thumbnails, link previews, screenshots, saved copies of the pages you link to, and search embeddings that Teak creates from your content (see [AI Processing](#ai-processing)).
 - **Usage and diagnostic data:** which features you use (for example, that you saved a card or ran a search), page views, performance timings, error and crash reports, and device, browser and app version details. These are linked to your Teak account ID and email.
 - **Billing data:** your plan, subscription status, and the email used for checkout. Payment card details go directly to our payment provider, Polar; we never see or store them.
-- **Capture data:** the page URL, title, or text you choose to save from the browser extension, share sheets, Raycast, the CLI, the API, or MCP.
+- **Capture data:** the page URL, title, or text you choose to save from the browser extension, share sheets, Raycast, the CLI, the API, or MCP, and, when you save from the Chrome or Firefox extension, the page's content as it appears in your browser.
 - **Email you send to Teak:** when you turn on Save by email, the messages you send or forward from your sign-in email to save@in.teakvault.com: the sender, subject, date, body and attachments. We keep what becomes cards. For 30 days we also keep a receipt of each email, so a copy delivered twice is saved once: a one-way hash of its message ID (or, when it has none, of its sender, date, subject and body), and each attachment's file name, type and size. The rest of the message isn't stored.
 - **Support messages:** anything you send us by email.
 
@@ -46,7 +46,7 @@ Teak uses AI to tag, summarize and transcribe your cards so you can find them la
 
 ## Links You Save
 
-When you save a link, Teak's servers visit that page to fetch its title, description, preview image and a screenshot. The website sees a request from Teak's servers, not from your device. For posts on X, Teak also asks X's public embed service for the post's details.
+When you save a link, Teak's servers visit that page to fetch its title, description, preview image and a screenshot, and keep a private copy of the page (its text, styles and images, without scripts), so you can still read it if the page disappears. The website sees a request from Teak's servers, not from your device. When you save from the Chrome or Firefox extension, the copy is made from the page as your browser shows it, which can include what you see when signed in to that site; the extension leaves out passwords, payment card numbers, one-time codes and hidden form fields. The copy is only shown to you and is deleted with the card. For posts on X, Teak also asks X's public embed service for the post's details.
 
 In the web app, a link's site icon is loaded from Google's favicon service, which receives the website's domain name and your browser's IP address.
 
@@ -88,6 +88,7 @@ Teak uses [PostHog](https://posthog.com) (PostHog Inc., United States) for produ
 | Data | How long we keep it |
 | --- | --- |
 | Cards, files and generated data | Until you delete them |
+| Saved copies of pages | Deleted with the card they belong to |
 | Cards in Trash | 30 days, then deleted for good |
 | Data exports | 7 days after they're ready |
 | Save by email receipts (a one-way hash identifying the email, and attachment names, types and sizes) | 30 days, then deleted |
@@ -134,7 +135,7 @@ Teak stores your account, content and files in the United States. Some providers
 - **Web:** essential cookies for your sign-in session and sidebar layout; local storage for your theme; a first-party cookie and local storage entries that hold your PostHog analytics ID, account ID and email.
 - **iPhone, iPad and Mac apps:** sign-in credentials stored in the Keychain; camera (iPhone and iPad) and microphone only when you capture a photo or record audio; photos only through the system picker, which shares just the items you choose; crash reports and app open and close events through PostHog.
 - **Android app:** camera and microphone only when you use them; photos through the system picker; a notification while uploads finish in the background; crash reports and app open and close events through PostHog.
-- **Browser extension:** reads the current tab's address, title, or selected content when you save. To add save buttons on supported sites (such as X, Hacker News, Instagram and Pinterest), it has access to the pages you visit, but it only acts on supported sites and sends nothing until you click save. While you're signed in, it asks Teak whether the page in your current tab is already saved, sending that page's address, so its icon can show a check mark. Teak doesn't store these checks, and pages in private and incognito windows are never checked. In Chrome, error reports and a "card saved" event go to PostHog directly from the extension, without any remote code. The Firefox extension sends neither.
+- **Browser extension:** reads the current tab's address, title, or selected content when you save. When you save a page, it also sends that page's content, so Teak can keep a copy. To add save buttons on supported sites (such as X, Hacker News, Instagram and Pinterest), it has access to the pages you visit, but it only acts on supported sites and sends nothing until you click save. While you're signed in, it asks Teak whether the page in your current tab is already saved, sending that page's address, so its icon can show a check mark. Teak doesn't store these checks, and pages in private and incognito windows are never checked. In Chrome, error reports and a "card saved" event go to PostHog directly from the extension, without any remote code. The Firefox extension sends neither.
 - **CLI, Raycast, API, MCP:** authenticate with browser sign-in or an API key you control; revoke keys and connected apps anytime in Settings.
 
 ## Cookies
