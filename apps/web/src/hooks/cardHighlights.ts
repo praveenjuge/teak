@@ -161,3 +161,38 @@ export const undoRemovalInput = (
     ...(highlight.note ? { note: highlight.note } : {}),
   };
 };
+
+const OPTIMISTIC_ID_PREFIX = "optimistic-";
+
+/** The id a highlight shows until its create returns the real one. */
+export const optimisticHighlightId = (count: number): string =>
+  `${OPTIMISTIC_ID_PREFIX}${count}`;
+
+/**
+ * The server id each optimistic highlight turns into. A note typed, or a
+ * removal asked for, while a new highlight is still being saved waits for
+ * its real id instead of sending the temporary one, which the server
+ * refuses.
+ */
+export const createPendingHighlightIds = () => {
+  const pending = new Map<string, Promise<string | null>>();
+  return {
+    /** Records what the optimistic `tempId` becomes once `saved` returns. */
+    track(tempId: string, saved: Promise<{ highlight: { _id: string } }>) {
+      pending.set(
+        tempId,
+        saved.then(
+          (result) => result.highlight._id,
+          () => null
+        )
+      );
+    },
+    /** The id to send for `id`: itself, or null when its create failed. */
+    resolve(id: string): Promise<string | null> {
+      if (!id.startsWith(OPTIMISTIC_ID_PREFIX)) {
+        return Promise.resolve(id);
+      }
+      return pending.get(id) ?? Promise.resolve(null);
+    },
+  };
+};

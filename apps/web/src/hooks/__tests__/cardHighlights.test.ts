@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import {
   type CardHighlight,
+  createPendingHighlightIds,
   highlightProblem,
+  optimisticHighlightId,
   undoRemovalInput,
   withNewHighlight,
 } from "../cardHighlights";
@@ -144,5 +146,32 @@ describe("undoRemovalInput", () => {
       undoRemovalInput(row("h1", 2, 5, { articleKey: "key", unanchored: true }))
     ).toBeNull();
     expect(undoRemovalInput(row("h2", 2, 5))).toBeNull();
+  });
+});
+
+describe("createPendingHighlightIds", () => {
+  test("a highlight still being saved gets its real id once the save returns", async () => {
+    const ids = createPendingHighlightIds();
+    let finish: (value: { highlight: { _id: string } }) => void = () => {
+      // replaced below
+    };
+    const saving = new Promise<{ highlight: { _id: string } }>((resolve) => {
+      finish = resolve;
+    });
+    const tempId = optimisticHighlightId(1);
+    ids.track(tempId, saving);
+
+    const resolved = ids.resolve(tempId);
+    finish({ highlight: { _id: "real_1" } });
+    expect(await resolved).toBe("real_1");
+    // A real id is sent as it is.
+    expect(await ids.resolve("real_2")).toBe("real_2");
+  });
+
+  test("a save that failed, or an unknown temporary id, resolves to nothing", async () => {
+    const ids = createPendingHighlightIds();
+    ids.track(optimisticHighlightId(1), Promise.reject(new Error("refused")));
+    expect(await ids.resolve(optimisticHighlightId(1))).toBeNull();
+    expect(await ids.resolve(optimisticHighlightId(2))).toBeNull();
   });
 });

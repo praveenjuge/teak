@@ -7,13 +7,15 @@ import {
 } from "@teak/convex/shared/highlights/constants";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@/lib/convexQueryHooks";
 import {
   type CardHighlight,
+  createPendingHighlightIds,
   highlightProblem,
   type NewHighlight,
+  optimisticHighlightId,
   undoRemovalInput,
   withNewHighlight,
 } from "./cardHighlights";
@@ -51,6 +53,7 @@ export function useCardHighlights(
     enabled && args ? args : "skip"
   );
   const tempIds = useRef(0);
+  const [pendingIds] = useState(createPendingHighlightIds);
 
   const createHighlight = useMutation(
     api.highlight.highlights.create
@@ -66,7 +69,7 @@ export function useCardHighlights(
       query,
       withNewHighlight(list, input, {
         cardId: input.cardId,
-        id: `optimistic-${tempIds.current}`,
+        id: optimisticHighlightId(tempIds.current),
         now: Date.now(),
       }).list
     );
@@ -133,7 +136,9 @@ export function useCardHighlights(
         return false;
       }
       try {
-        const result = await createHighlight({
+        // The optimistic update numbers the row it adds next.
+        const tempId = optimisticHighlightId(tempIds.current + 1);
+        const saving = createHighlight({
           articleKey: input.articleKey,
           cardId: args.cardId,
           quote: input.quote,
@@ -143,6 +148,8 @@ export function useCardHighlights(
           ...(input.suffix === undefined ? {} : { suffix: input.suffix }),
           ...(input.note ? { note: input.note } : {}),
         });
+        pendingIds.track(tempId, saving);
+        const result = await saving;
         if (result.merged) {
           toast(t("merged"), { id: HIGHLIGHT_TOAST_ID });
         }
@@ -152,7 +159,7 @@ export function useCardHighlights(
         return false;
       }
     },
-    [args, createHighlight, showProblem, t]
+    [args, createHighlight, pendingIds, showProblem, t]
   );
 
   const updateNote = useCallback(
@@ -161,22 +168,30 @@ export function useCardHighlights(
       if (next === (highlight.note ?? "")) {
         return;
       }
+      const highlightId = await pendingIds.resolve(highlight._id);
+      if (!highlightId) {
+        return;
+      }
       try {
         await updateHighlightNote({
-          highlightId: highlight._id,
+          highlightId: highlightId as Id<"highlights">,
           note: next ? next : null,
         });
       } catch (error) {
         showProblem(error);
       }
     },
-    [showProblem, updateHighlightNote]
+    [pendingIds, showProblem, updateHighlightNote]
   );
 
   const remove = useCallback(
     async (highlight: CardHighlight) => {
+      const highlightId = await pendingIds.resolve(highlight._id);
+      if (!highlightId) {
+        return;
+      }
       try {
-        await removeHighlight({ highlightId: highlight._id });
+        await removeHighlight({ highlightId: highlightId as Id<"highlights"> });
       } catch (error) {
         showProblem(error);
         return;
@@ -194,7 +209,7 @@ export function useCardHighlights(
         ...(undo ? { action: { label: tc("undo"), onClick: undo } } : {}),
       });
     },
-    [createHighlight, removeHighlight, showProblem, t, tc]
+    [createHighlight, pendingIds, removeHighlight, showProblem, t, tc]
   );
 
   return useMemo(
