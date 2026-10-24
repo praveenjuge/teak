@@ -280,7 +280,7 @@ export const deleteAccountViaUi = async (
   account: AccountState
 ) => {
   const { browser, screen } = surface;
-  await gotoApp(browser, "/settings");
+  await gotoApp(browser, "/settings/security");
   await screen.getByRole("button", /delete your account/i).click();
   await expect(
     screen.getByRole("dialog", "Delete Account", { exact: false })

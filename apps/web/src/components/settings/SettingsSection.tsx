@@ -10,7 +10,7 @@ export function SettingsPageIntro({
   title: string;
 }) {
   return (
-    <div className="space-y-1 pb-6">
+    <div className="space-y-1 pb-8">
       <h2 className="font-semibold text-lg tracking-tight">{title}</h2>
       {description ? (
         <p className="text-muted-foreground text-sm">{description}</p>
@@ -34,7 +34,7 @@ interface SettingsSectionProps {
 
 /**
  * One group of settings on a page: a title and description, then its
- * controls. Groups sit on the page itself, divided by a hairline.
+ * controls. Groups sit on the page itself, set apart by space.
  */
 export function SettingsSection({
   action,
@@ -50,7 +50,7 @@ export function SettingsSection({
   return (
     <section
       aria-labelledby={title ? titleId : undefined}
-      className={cn("scroll-mt-20 py-6 first:pt-0", className)}
+      className={cn("scroll-mt-20", className)}
       data-slot="settings-section"
       id={id}
     >
@@ -85,7 +85,7 @@ export function SettingsSection({
   );
 }
 
-/** A page's sections, divided by hairlines. */
+/** A page's sections, spaced the same on every page. */
 export function SettingsStack({ children }: { children: ReactNode }) {
-  return <div className="divide-y border-t pt-6">{children}</div>;
+  return <div className="flex flex-col gap-10">{children}</div>;
 }

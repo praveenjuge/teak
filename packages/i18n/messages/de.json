@@ -122,10 +122,8 @@
       "keyRegenerated": "API-Schlüssel neu generiert. Kopieren Sie jetzt den neuen Schlüssel.",
       "keyCopied": "API-Schlüssel kopiert.",
       "copyFailed": "Der Schlüssel konnte nicht kopiert werden. Markieren und kopieren Sie ihn manuell.",
-      "limitNote": "Schlüssel haben vollen Zugriff auf Ihre Bibliothek. Sie können bis zu 10 aktive Schlüssel haben.",
       "createKey": "Schlüssel erstellen",
       "loading": "API-Schlüssel werden geladen…",
-      "empty": "Erstellen Sie Ihren ersten API-Schlüssel, um externe Tools zu verbinden.",
       "revokeAll": "Alle Schlüssel widerrufen"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "Adresse kopieren",
       "sendFrom": "Senden Sie von <strong>{sender}</strong>. E-Mails von anderen Adressen werden nicht gespeichert.",
       "unverified": "E-Mails werden erst gespeichert, wenn Sie Ihre Anmelde-E-Mail-Adresse <strong>{sender}</strong> bestätigen.",
-      "howItWorks": "Leiten Sie alles weiter oder senden Sie es direkt. Eine E-Mail mit nur einem Link wird zu einer Linkkarte, alles andere zu einer Notiz, und Anhänge werden zu eigenen Karten. Alle erhalten den Tag „email“.",
       "lastReceived": "Letzte E-Mail erhalten: {when}",
       "turnOff": "Deaktivieren"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "Importbericht kopiert.",
       "reportCopyFailed": "Der Importbericht konnte nicht kopiert werden.",
       "reportDownloadFailed": "Der Importbericht konnte nicht heruntergeladen werden.",
-      "noImports": "Noch keine Importe.",
       "loadingLast": "Details zum letzten Import werden geladen…",
       "resumeUpload": "Upload fortsetzen",
       "startImport": "Import starten",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "Eine ZIP-Datei aus „Ihre Daten exportieren“ in Teak."
         }
-      }
+      },
+      "orDrop": "oder hier ablegen"
     },
     "format": {
       "justNow": "gerade eben",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "Per E-Mail speichern",
       "appsTitle": "Apps und Erweiterungen",
-      "appsDescription": "Speichern Sie aus Ihrem Browser, auf dem Smartphone oder mit Raycast. <link>Alle Apps ansehen</link>",
       "apiTitle": "API-Schlüssel",
-      "apiDescription": "Verwenden Sie einen Schlüssel mit der API, der CLI oder einem MCP-Client. <link>API-Dokumentation lesen</link>",
+      "apiDescription": "Für die API, die CLI und MCP-Clients, mit vollem Zugriff auf Ihre Bibliothek. Bis zu 10 Schlüssel. <link>API-Dokumentation</link>",
       "opensInNewTab": "{name} (öffnet sich in einem neuen Tab)",
       "apps": {
-        "chrome": {
-          "name": "Chrome-Erweiterung",
-          "detail": "Speichern Sie Seiten, Links und Bilder aus Chrome."
-        },
-        "firefox": {
-          "name": "Firefox-Add-on",
-          "detail": "Speichern Sie Seiten, Links und Bilder aus Firefox."
-        },
-        "apple": {
-          "name": "iPhone, iPad und Mac",
-          "detail": "Teak im App Store laden."
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "Karten in Raycast suchen und speichern."
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone und Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "Alle Apps"
     },
     "data": {
       "importTitle": "Importieren",
       "importDescription": "Holen Sie Links und Notizen aus Ihrem Browser oder einer anderen App.",
-      "exportTitle": "Exportieren"
+      "exportTitle": "Exportieren",
+      "exportDescription": "Alle Karten und ihre Dateien in einer ZIP-Datei, mit einer Lesezeichendatei und einer Tabelle."
     }
   },
   "app": {

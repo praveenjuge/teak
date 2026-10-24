@@ -7,6 +7,7 @@ import { Copy } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatRelativeTime } from "./importExportFormat";
+import { SettingsSection } from "./SettingsSection";
 
 /** What `inbound.settings.getMine` returns for the signed-in account. */
 export interface InboundEmailState {
@@ -52,7 +53,8 @@ function MiddleTruncatedAddress({ address }: { address: string }) {
   );
 }
 
-export function InboundEmailPanel({
+/** Settings → Integrations → Save by email: its switch and, when on, the address. */
+export function InboundEmailSection({
   onDisable,
   onEnable,
   state,
@@ -60,6 +62,7 @@ export function InboundEmailPanel({
   const t = useTranslations("settings.inboundEmail");
   const tc = useTranslations("common");
   const tFormat = useTranslations("settings.format");
+  const tIntegrations = useTranslations("settings.integrations");
   const locale = useIntlLocale();
   const [busy, setBusy] = useState<"enable" | "disable" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,20 +97,34 @@ export function InboundEmailPanel({
     }
   };
 
+  const intro = t("intro");
+  const section = (props: {
+    action?: ReactNode;
+    children?: ReactNode;
+    description?: ReactNode;
+  }) => (
+    <SettingsSection
+      action={props.action}
+      description={props.description ?? intro}
+      id="save-by-email"
+      title={tIntegrations("saveByEmailTitle")}
+    >
+      {props.children}
+    </SettingsSection>
+  );
+
   if (state === undefined) {
-    return (
-      <div aria-busy="true" className="space-y-3" role="status">
-        <span className="sr-only">{t("loading")}</span>
-        <div aria-hidden className="flex gap-2">
-          <span className="h-9 flex-1 animate-pulse rounded-md bg-muted" />
-          <span className="h-9 w-20 animate-pulse rounded-md bg-muted" />
-        </div>
+    return section({
+      action: (
         <span
-          aria-hidden
-          className="block h-3 w-3/5 animate-pulse rounded-full bg-muted"
-        />
-      </div>
-    );
+          aria-busy="true"
+          className="block h-8 w-20 animate-pulse rounded-full bg-muted"
+          role="status"
+        >
+          <span className="sr-only">{t("loading")}</span>
+        </span>
+      ),
+    });
   }
 
   const errorLine = error ? (
@@ -118,78 +135,75 @@ export function InboundEmailPanel({
 
   if (!state?.enabled) {
     const unverified = state ? !state.senderVerified : false;
-    return (
-      <div className="space-y-4">
-        {unverified ? (
-          <p className="text-sm leading-5">
-            {t.rich("verifyToTurnOn", {
-              sender: state?.sender ?? "",
-              strong: senderName,
-            })}
-          </p>
-        ) : null}
-        {errorLine}
+    return section({
+      action: (
         <Button
           disabled={state === null || unverified || busy !== null}
           onClick={() => void run("enable", onEnable)}
+          size="sm"
         >
           {busy === "enable" ? <Spinner /> : null}
           {t("turnOn")}
         </Button>
-      </div>
-    );
+      ),
+      description: unverified
+        ? t.rich("verifyToTurnOn", {
+            sender: state?.sender ?? "",
+            strong: senderName,
+          })
+        : intro,
+      children: errorLine,
+    });
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex min-w-0 gap-2">
-        <MiddleTruncatedAddress address={state.address} />
-        <Button
-          aria-label={t("copyAddress")}
-          onClick={() => void copy(state.address)}
-          variant="outline"
-        >
-          <Copy />
-          {tc("copy")}
-        </Button>
+  const lastReceived =
+    state.lastReceivedAt === null
+      ? null
+      : t("lastReceived", {
+          when: formatRelativeTime(
+            state.lastReceivedAt,
+            Date.now(),
+            tFormat,
+            locale
+          ),
+        });
+
+  return section({
+    action: (
+      <Button
+        disabled={busy !== null}
+        onClick={() => void run("disable", onDisable)}
+        size="sm"
+        variant="outline"
+      >
+        {busy === "disable" ? <Spinner /> : null}
+        {t("turnOff")}
+      </Button>
+    ),
+    children: (
+      <div className="space-y-2">
+        <div className="flex min-w-0 gap-2">
+          <MiddleTruncatedAddress address={state.address} />
+          <Button
+            aria-label={t("copyAddress")}
+            onClick={() => void copy(state.address)}
+            variant="outline"
+          >
+            <Copy />
+            {tc("copy")}
+          </Button>
+        </div>
+        <p className="flex flex-wrap gap-x-2 text-[13px] text-muted-foreground leading-5">
+          <span>
+            {t.rich(state.senderVerified ? "sendFrom" : "unverified", {
+              sender: state.sender,
+              strong: senderName,
+            })}
+          </span>
+          {lastReceived ? <span>{lastReceived}</span> : null}
+        </p>
+        {errorLine}
       </div>
-      {state.senderVerified ? (
-        <p className="text-sm leading-5">
-          {t.rich("sendFrom", { sender: state.sender, strong: senderName })}
-        </p>
-      ) : (
-        <p className="text-sm leading-5">
-          {t.rich("unverified", { sender: state.sender, strong: senderName })}
-        </p>
-      )}
-      <p className="text-muted-foreground text-sm leading-5">
-        {t("howItWorks")}
-      </p>
-      {state.lastReceivedAt === null ? null : (
-        <p className="text-muted-foreground text-xs leading-5">
-          {t("lastReceived", {
-            when: formatRelativeTime(
-              state.lastReceivedAt,
-              Date.now(),
-              tFormat,
-              locale
-            ),
-          })}
-        </p>
-      )}
-      {errorLine}
-      <div className="flex justify-end">
-        <Button
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          disabled={busy !== null}
-          onClick={() => void run("disable", onDisable)}
-          size="sm"
-          variant="ghost"
-        >
-          {busy === "disable" ? <Spinner /> : null}
-          {t("turnOff")}
-        </Button>
-      </div>
-    </div>
-  );
+    ),
+  });
 }

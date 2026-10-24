@@ -15,7 +15,9 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { InboundEmailPanel } = await import("../InboundEmailPanel");
+const { InboundEmailSection: InboundEmailPanel } = await import(
+  "../InboundEmailPanel"
+);
 
 type PanelProps = Parameters<typeof InboundEmailPanel>[0];
 
@@ -138,7 +140,6 @@ describe("InboundEmailPanel", () => {
     expect(container.textContent).toContain(
       "Send from ada@example.com. Mail from other addresses isn't saved."
     );
-    expect(container.textContent).toContain("attachments become their own");
     expect(container.textContent).toContain(
       "Last email received 5 minutes ago"
     );

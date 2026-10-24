@@ -30,7 +30,6 @@ const overviewProps = {
   inboundEmailEnabled: false,
   locale: "en",
   name: "Ada Lovelace",
-  onDeleteClick: mock(() => undefined),
   onSignOut: mock(() => undefined),
   signOutLoading: false,
 };
@@ -46,7 +45,7 @@ const links = (markup: string) =>
   [...markup.matchAll(/<a[^>]*href="([^"]+)"/g)].map(([, href]) => href);
 
 describe("SettingsOverview", () => {
-  test("keeps sign out, the pages and delete available while the account loads", () => {
+  test("keeps sign out and the pages available while the account loads", () => {
     const markup = renderToStaticMarkup(
       <SettingsOverview
         {...overviewProps}
@@ -59,7 +58,6 @@ describe("SettingsOverview", () => {
     );
 
     expect(markup).toContain("Sign out");
-    expect(markup).toContain("Delete your account");
     expect(markup).not.toContain("hello@example.com");
     expect(markup).not.toContain("Free Plan");
     expect(markup).toContain('data-slot="setting-value-skeleton"');
@@ -235,9 +233,7 @@ describe("IntegrationsSettings", () => {
     );
     expect(markup).toContain("Turn on");
     expect(markup).toContain('id="apps"');
-    expect(markup).toContain(
-      'aria-label="Chrome extension (opens in a new tab)"'
-    );
+    expect(markup).toContain('aria-label="Chrome (opens in a new tab)"');
     expect(markup).toContain('id="api-keys"');
     expect(markup).toContain("Create key");
     const external = [...markup.matchAll(/<a[^>]*target="_blank"[^>]*>/g)].map(

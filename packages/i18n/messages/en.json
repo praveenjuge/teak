@@ -122,10 +122,8 @@
       "keyRegenerated": "API key regenerated. Copy the new key now.",
       "keyCopied": "API key copied.",
       "copyFailed": "Could not copy the key. Select and copy it manually.",
-      "limitNote": "Keys have full access to your library. You can keep up to 10 active keys.",
       "createKey": "Create key",
       "loading": "Loading API keys…",
-      "empty": "Create your first API key to connect external tools.",
       "revokeAll": "Revoke all keys"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "Copy address",
       "sendFrom": "Send from <strong>{sender}</strong>. Mail from other addresses isn't saved.",
       "unverified": "Mail isn't saved until you verify your sign-in email, <strong>{sender}</strong>.",
-      "howItWorks": "Forward or send anything. An email with a single link becomes a link card, everything else becomes a note, and attachments become their own cards. All are tagged email.",
       "lastReceived": "Last email received {when}",
       "turnOff": "Turn off"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "Import report copied.",
       "reportCopyFailed": "Import report could not be copied.",
       "reportDownloadFailed": "Import report could not be downloaded.",
-      "noImports": "No imports yet.",
       "loadingLast": "Loading last import details…",
       "resumeUpload": "Resume upload",
       "startImport": "Start import",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "A ZIP from Export your data in Teak."
         }
-      }
+      },
+      "orDrop": "or drop it here"
     },
     "format": {
       "justNow": "just now",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "Save by email",
       "appsTitle": "Apps and extensions",
-      "appsDescription": "Save from your browser, your phone or Raycast. <link>See all apps</link>",
       "apiTitle": "API keys",
-      "apiDescription": "Use a key with the API, the CLI or an MCP client. <link>Read the API docs</link>",
+      "apiDescription": "For the API, the CLI and MCP clients, with full access to your library. Up to 10 keys. <link>API docs</link>",
       "opensInNewTab": "{name} (opens in a new tab)",
       "apps": {
-        "chrome": {
-          "name": "Chrome extension",
-          "detail": "Save pages, links and images from Chrome."
-        },
-        "firefox": {
-          "name": "Firefox add-on",
-          "detail": "Save pages, links and images from Firefox."
-        },
-        "apple": {
-          "name": "iPhone, iPad and Mac",
-          "detail": "Get Teak on the App Store."
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "Search and save cards from Raycast."
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone & Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "All apps"
     },
     "data": {
       "importTitle": "Import",
       "importDescription": "Bring links and notes in from your browser or another app.",
-      "exportTitle": "Export"
+      "exportTitle": "Export",
+      "exportDescription": "Every card and its files in one ZIP, with a bookmarks file and a spreadsheet."
     }
   },
   "app": {

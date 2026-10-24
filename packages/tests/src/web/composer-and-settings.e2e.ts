@@ -32,7 +32,7 @@ describe("Composer and settings", () => {
     screen,
     webAccount: _signedIn,
   }) => {
-    await gotoApp(browser, "/settings");
+    await gotoApp(browser, "/settings/security");
     await screen.getByRole("button", /delete your account/i).click();
     const dialog = screen.getByRole("dialog", "Delete Account", {
       exact: false,

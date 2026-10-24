@@ -1,27 +1,25 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import {
+  ArrowUpRight,
   Command,
-  ExternalLink,
   Globe,
   Smartphone,
   type VadivamIcon,
 } from "vadivam-react";
 import { ApiKeysPanel } from "./ApiKeysPanel";
 import {
-  InboundEmailPanel,
   type InboundEmailPanelProps,
+  InboundEmailSection,
 } from "./InboundEmailPanel";
-import { SettingsList } from "./SettingsDialog";
 import {
   SettingsPageIntro,
   SettingsSection,
   SettingsStack,
 } from "./SettingsSection";
 
-const API_DOCS_URL = "https://teakvault.com/docs/api";
 const ALL_APPS_URL = "https://teakvault.com/apps";
 
 type AppLinkId = "chrome" | "firefox" | "apple" | "raycast";
@@ -53,40 +51,48 @@ const APP_LINKS: readonly {
   },
 ];
 
-/** Where to get Teak's browser extensions and apps. */
-function AppLinks() {
+/** Where to get Teak's browser extensions and apps, as one row of tiles. */
+function AppsSection() {
   const t = useTranslations("settings.integrations");
   return (
-    <SettingsList>
-      {APP_LINKS.map(({ href, icon: Icon, id }) => (
-        <li key={id}>
-          <a
-            aria-label={t("opensInNewTab", { name: t(`apps.${id}.name`) })}
-            className="flex items-center gap-3.5 px-4 py-3.5 outline-none transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-accent/50 focus-visible:bg-accent/50"
-            href={href}
-            rel="noopener"
-            target="_blank"
-          >
-            <Icon className="size-[18px] shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium text-sm">
-                {t(`apps.${id}.name`)}
-              </span>
-              <span className="block truncate text-muted-foreground text-xs leading-5">
-                {t(`apps.${id}.detail`)}
-              </span>
-            </span>
-            <ExternalLink className="size-4 shrink-0 text-muted-foreground" />
-          </a>
-        </li>
-      ))}
-    </SettingsList>
+    <SettingsSection
+      action={
+        <a
+          className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
+          href={ALL_APPS_URL}
+          rel="noopener"
+          target="_blank"
+        >
+          {t("allApps")}
+          <ArrowUpRight className="size-3.5" />
+        </a>
+      }
+      id="apps"
+      title={t("appsTitle")}
+    >
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {APP_LINKS.map(({ href, icon: Icon, id }) => (
+          <li key={id}>
+            <a
+              aria-label={t("opensInNewTab", { name: t(`apps.${id}`) })}
+              className="flex h-full items-center gap-2.5 rounded-xl border px-3 py-2.5 font-medium text-sm outline-none transition-colors hover:bg-accent/50 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              href={href}
+              rel="noopener"
+              target="_blank"
+            >
+              <Icon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0">{t(`apps.${id}`)}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </SettingsSection>
   );
 }
 
 interface IntegrationsSettingsProps {
   apiKeys: ComponentProps<typeof ApiKeysPanel>;
-  /** Save by email's state and switch; the card is left out without it. */
+  /** Save by email's state and switch; the section is left out without it. */
   inboundEmail?: InboundEmailPanelProps;
 }
 
@@ -94,19 +100,7 @@ export function IntegrationsSettings({
   apiKeys,
   inboundEmail,
 }: IntegrationsSettingsProps) {
-  const t = useTranslations("settings.integrations");
   const tPages = useTranslations("settings.pages");
-  const tInbound = useTranslations("settings.inboundEmail");
-  const link = (href: string) => (chunks: ReactNode) => (
-    <a
-      className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline"
-      href={href}
-      rel="noopener"
-      target="_blank"
-    >
-      {chunks}
-    </a>
-  );
   return (
     <>
       <SettingsPageIntro
@@ -114,31 +108,9 @@ export function IntegrationsSettings({
         title={tPages("integrations.title")}
       />
       <SettingsStack>
-        {inboundEmail ? (
-          <SettingsSection
-            description={tInbound("intro")}
-            id="save-by-email"
-            title={t("saveByEmailTitle")}
-          >
-            <InboundEmailPanel {...inboundEmail} />
-          </SettingsSection>
-        ) : null}
-        <SettingsSection
-          description={t.rich("appsDescription", {
-            link: link(ALL_APPS_URL),
-          })}
-          id="apps"
-          title={t("appsTitle")}
-        >
-          <AppLinks />
-        </SettingsSection>
-        <SettingsSection
-          description={t.rich("apiDescription", { link: link(API_DOCS_URL) })}
-          id="api-keys"
-          title={t("apiTitle")}
-        >
-          <ApiKeysPanel {...apiKeys} />
-        </SettingsSection>
+        {inboundEmail ? <InboundEmailSection {...inboundEmail} /> : null}
+        <AppsSection />
+        <ApiKeysPanel {...apiKeys} />
       </SettingsStack>
     </>
   );

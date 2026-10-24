@@ -36,35 +36,25 @@ export function SettingsPageClient() {
   useLegacyDialogRedirect();
   const { inboundEmail, language, settings } = useSettings();
   return (
-    <>
-      <SettingsOverview
-        accountLoading={settings.accountLoading}
-        apiKeyCount={settings.keys?.length}
-        cardCount={settings.cardCount}
-        deviceCount={settings.sessions?.length}
-        devicesHaveMore={settings.sessionsHasMore}
-        email={settings.email}
-        exportState={settings.exportState}
-        hasPremium={settings.hasPremium}
-        inboundEmailEnabled={
-          inboundEmail.state === undefined
-            ? undefined
-            : (inboundEmail.state?.enabled ?? null)
-        }
-        locale={language?.locale}
-        name={settings.name}
-        onDeleteClick={() => settings.setDeleteDialogOpen(true)}
-        onSignOut={settings.handleSignOut}
-        signOutLoading={settings.signOutLoading}
-      />
-      <DeleteAccountDialog
-        error={settings.deleteDialogError}
-        loading={settings.deleteLoading}
-        onDelete={settings.handleDeleteAccount}
-        onOpenChange={settings.setDeleteDialogOpen}
-        open={settings.deleteDialogOpen}
-      />
-    </>
+    <SettingsOverview
+      accountLoading={settings.accountLoading}
+      apiKeyCount={settings.keys?.length}
+      cardCount={settings.cardCount}
+      deviceCount={settings.sessions?.length}
+      devicesHaveMore={settings.sessionsHasMore}
+      email={settings.email}
+      exportState={settings.exportState}
+      hasPremium={settings.hasPremium}
+      inboundEmailEnabled={
+        inboundEmail.state === undefined
+          ? undefined
+          : (inboundEmail.state?.enabled ?? null)
+      }
+      locale={language?.locale}
+      name={settings.name}
+      onSignOut={settings.handleSignOut}
+      signOutLoading={settings.signOutLoading}
+    />
   );
 }
 
@@ -106,17 +96,27 @@ export function IntegrationsPageClient() {
 export function SecurityPageClient() {
   const { settings } = useSettings();
   return (
-    <SecuritySettings
-      connectionIdentity={settings.connectionIdentity}
-      onLoadMoreSessions={settings.loadMoreSessions}
-      onRetrySessions={settings.retrySessions}
-      onRevokeConnection={settings.handleRevokeOAuthConnection}
-      onRevokeSession={settings.handleRevokeSession}
-      sessions={settings.sessions}
-      sessionsError={settings.sessionsError}
-      sessionsHasMore={settings.sessionsHasMore}
-      sessionsLoadingMore={settings.sessionsLoadingMore}
-    />
+    <>
+      <SecuritySettings
+        connectionIdentity={settings.connectionIdentity}
+        onDeleteClick={() => settings.setDeleteDialogOpen(true)}
+        onLoadMoreSessions={settings.loadMoreSessions}
+        onRetrySessions={settings.retrySessions}
+        onRevokeConnection={settings.handleRevokeOAuthConnection}
+        onRevokeSession={settings.handleRevokeSession}
+        sessions={settings.sessions}
+        sessionsError={settings.sessionsError}
+        sessionsHasMore={settings.sessionsHasMore}
+        sessionsLoadingMore={settings.sessionsLoadingMore}
+      />
+      <DeleteAccountDialog
+        error={settings.deleteDialogError}
+        loading={settings.deleteLoading}
+        onDelete={settings.handleDeleteAccount}
+        onOpenChange={settings.setDeleteDialogOpen}
+        open={settings.deleteDialogOpen}
+      />
+    </>
   );
 }
 

@@ -122,10 +122,8 @@
       "keyRegenerated": "API キーを再生成しました。新しいキーを今すぐコピーしてください。",
       "keyCopied": "API キーをコピーしました。",
       "copyFailed": "キーをコピーできませんでした。選択して手動でコピーしてください。",
-      "limitNote": "キーはライブラリにフルアクセスできます。有効なキーは 10 個まで保持できます。",
       "createKey": "キーを作成",
       "loading": "API キーを読み込み中…",
-      "empty": "最初の API キーを作成して、外部ツールと接続しましょう。",
       "revokeAll": "すべてのキーを無効化"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "アドレスをコピー",
       "sendFrom": "<strong>{sender}</strong> から送信してください。ほかのアドレスからのメールは保存されません。",
       "unverified": "サインイン用のメールアドレス <strong>{sender}</strong> を確認するまで、メールは保存されません。",
-      "howItWorks": "何でも転送・送信できます。リンクが 1 つだけのメールはリンクカードに、それ以外はメモになり、添付ファイルはそれぞれ別のカードになります。どれにも email タグが付きます。",
       "lastReceived": "最終受信：{when}",
       "turnOff": "オフにする"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "インポートレポートをコピーしました。",
       "reportCopyFailed": "インポートレポートをコピーできませんでした。",
       "reportDownloadFailed": "インポートレポートをダウンロードできませんでした。",
-      "noImports": "まだインポートはありません。",
       "loadingLast": "前回のインポートの詳細を読み込み中…",
       "resumeUpload": "アップロードを再開",
       "startImport": "インポートを開始",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "Teak の「データをエクスポート」で書き出した ZIP。"
         }
-      }
+      },
+      "orDrop": "またはここにドロップ"
     },
     "format": {
       "justNow": "たった今",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "メールで保存",
       "appsTitle": "アプリと拡張機能",
-      "appsDescription": "ブラウザ、スマートフォン、Raycast から保存できます。<link>すべてのアプリを見る</link>",
       "apiTitle": "API キー",
-      "apiDescription": "API、CLI、MCP クライアントでキーを使えます。<link>API のドキュメントを読む</link>",
+      "apiDescription": "API、CLI、MCP クライアント用で、ライブラリ全体にアクセスできます。最大 10 個まで。<link>API のドキュメント</link>",
       "opensInNewTab": "{name}(新しいタブで開きます)",
       "apps": {
-        "chrome": {
-          "name": "Chrome 拡張機能",
-          "detail": "Chrome からページ、リンク、画像を保存します。"
-        },
-        "firefox": {
-          "name": "Firefox アドオン",
-          "detail": "Firefox からページ、リンク、画像を保存します。"
-        },
-        "apple": {
-          "name": "iPhone、iPad、Mac",
-          "detail": "App Store で Teak を入手します。"
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "Raycast からカードを検索して保存します。"
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone と Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "すべてのアプリ"
     },
     "data": {
       "importTitle": "インポート",
       "importDescription": "ブラウザやほかのアプリからリンクとメモを取り込みます。",
-      "exportTitle": "エクスポート"
+      "exportTitle": "エクスポート",
+      "exportDescription": "すべてのカードとファイルを 1 つの ZIP に。ブックマークファイルとスプレッドシートも含まれます。"
     }
   },
   "app": {

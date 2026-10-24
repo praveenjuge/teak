@@ -38,7 +38,6 @@ export interface SettingsOverviewProps {
   inboundEmailEnabled?: boolean | null;
   locale?: string;
   name?: string | null;
-  onDeleteClick: () => void;
   onSignOut: () => Promise<void> | void;
   signOutLoading: boolean;
 }
@@ -209,7 +208,7 @@ export function SettingsOverview(props: SettingsOverviewProps) {
       />
       <SettingsStack>
         <ProfileSection {...props} />
-        <nav aria-label={t("sectionsLabel")} className="py-6">
+        <nav aria-label={t("sectionsLabel")}>
           <ul className="divide-y rounded-xl border">
             <SectionRow id="plan" summary={summaries.plan} />
             <SectionRow id="appearance" summary={summaries.appearance} />
@@ -218,31 +217,8 @@ export function SettingsOverview(props: SettingsOverviewProps) {
             <SectionRow id="data" summary={summaries.data} />
           </ul>
         </nav>
-        <DangerZone onDeleteClick={props.onDeleteClick} />
       </SettingsStack>
       <SettingsFooter />
     </>
-  );
-}
-
-function DangerZone({ onDeleteClick }: { onDeleteClick: () => void }) {
-  const t = useTranslations("settings.dangerZone");
-  return (
-    <SettingsSection
-      action={
-        <Button
-          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={onDeleteClick}
-          size="sm"
-          variant="outline"
-        >
-          {t("action")}
-        </Button>
-      }
-      description={t("description")}
-      id="danger-zone"
-      title={t("title")}
-      tone="destructive"
-    />
   );
 }

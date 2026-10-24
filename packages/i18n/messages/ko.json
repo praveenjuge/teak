@@ -122,10 +122,8 @@
       "keyRegenerated": "API 키가 다시 생성되었습니다. 지금 새 키를 복사하세요.",
       "keyCopied": "API 키가 복사되었습니다.",
       "copyFailed": "키를 복사하지 못했습니다. 직접 선택해서 복사하세요.",
-      "limitNote": "키는 라이브러리 전체에 접근할 수 있습니다. 활성 키는 최대 10개까지 유지할 수 있습니다.",
       "createKey": "키 생성",
       "loading": "API 키를 불러오는 중…",
-      "empty": "첫 API 키를 생성해 외부 도구를 연결하세요.",
       "revokeAll": "모든 키 폐기"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "주소 복사",
       "sendFrom": "<strong>{sender}</strong>에서 보내세요. 다른 주소에서 보낸 메일은 저장되지 않습니다.",
       "unverified": "로그인 이메일 <strong>{sender}</strong>을(를) 인증할 때까지 메일이 저장되지 않습니다.",
-      "howItWorks": "무엇이든 전달하거나 보내세요. 링크 하나만 있는 이메일은 링크 카드가 되고, 나머지는 모두 메모가 되며, 첨부 파일은 각각 별도의 카드가 됩니다. 모두 email 태그가 붙습니다.",
       "lastReceived": "마지막 이메일 수신: {when}",
       "turnOff": "끄기"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "가져오기 보고서가 복사되었습니다.",
       "reportCopyFailed": "가져오기 보고서를 복사할 수 없습니다.",
       "reportDownloadFailed": "가져오기 보고서를 다운로드할 수 없습니다.",
-      "noImports": "아직 가져온 항목이 없습니다.",
       "loadingLast": "마지막 가져오기 정보를 불러오는 중…",
       "resumeUpload": "업로드 재개",
       "startImport": "가져오기 시작",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "Teak의 데이터 내보내기에서 받은 ZIP 파일입니다."
         }
-      }
+      },
+      "orDrop": "또는 여기에 놓기"
     },
     "format": {
       "justNow": "방금 전",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "이메일로 저장",
       "appsTitle": "앱 및 확장 프로그램",
-      "appsDescription": "브라우저, 휴대폰, Raycast에서 저장합니다. <link>모든 앱 보기</link>",
       "apiTitle": "API 키",
-      "apiDescription": "API, CLI, MCP 클라이언트에서 키를 사용합니다. <link>API 문서 읽기</link>",
+      "apiDescription": "API, CLI, MCP 클라이언트용이며 라이브러리 전체에 접근할 수 있습니다. 최대 10개. <link>API 문서</link>",
       "opensInNewTab": "{name}(새 탭에서 열림)",
       "apps": {
-        "chrome": {
-          "name": "Chrome 확장 프로그램",
-          "detail": "Chrome에서 페이지, 링크, 이미지를 저장합니다."
-        },
-        "firefox": {
-          "name": "Firefox 부가 기능",
-          "detail": "Firefox에서 페이지, 링크, 이미지를 저장합니다."
-        },
-        "apple": {
-          "name": "iPhone, iPad 및 Mac",
-          "detail": "App Store에서 Teak을 받습니다."
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "Raycast에서 카드를 검색하고 저장합니다."
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone 및 Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "모든 앱"
     },
     "data": {
       "importTitle": "가져오기",
       "importDescription": "브라우저나 다른 앱에서 링크와 메모를 가져옵니다.",
-      "exportTitle": "내보내기"
+      "exportTitle": "내보내기",
+      "exportDescription": "모든 카드와 파일을 ZIP 하나로 받습니다. 북마크 파일과 스프레드시트도 포함됩니다."
     }
   },
   "app": {

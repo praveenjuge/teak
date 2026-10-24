@@ -122,10 +122,8 @@
       "keyRegenerated": "Nova chave de API gerada. Copie a nova chave agora.",
       "keyCopied": "Chave de API copiada.",
       "copyFailed": "Não foi possível copiar a chave. Selecione e copie manualmente.",
-      "limitNote": "As chaves têm acesso total à sua biblioteca. Você pode manter até 10 chaves ativas.",
       "createKey": "Criar chave",
       "loading": "Carregando chaves de API…",
-      "empty": "Crie sua primeira chave de API para conectar ferramentas externas.",
       "revokeAll": "Revogar todas as chaves"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "Copiar endereço",
       "sendFrom": "Envie de <strong>{sender}</strong>. E-mails de outros endereços não são salvos.",
       "unverified": "Os e-mails não são salvos até você verificar seu e-mail de acesso, <strong>{sender}</strong>.",
-      "howItWorks": "Encaminhe ou envie qualquer coisa. Um e-mail com um único link vira um card de link, todo o resto vira uma nota, e os anexos viram cards próprios. Todos recebem a tag email.",
       "lastReceived": "Último e-mail recebido {when}",
       "turnOff": "Desativar"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "Relatório da importação copiado.",
       "reportCopyFailed": "Não foi possível copiar o relatório da importação.",
       "reportDownloadFailed": "Não foi possível baixar o relatório da importação.",
-      "noImports": "Nenhuma importação ainda.",
       "loadingLast": "Carregando os detalhes da última importação…",
       "resumeUpload": "Retomar envio",
       "startImport": "Iniciar importação",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "Um ZIP gerado em Exportar seus dados no Teak."
         }
-      }
+      },
+      "orDrop": "ou solte aqui"
     },
     "format": {
       "justNow": "agora mesmo",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "Salvar por e-mail",
       "appsTitle": "Apps e extensões",
-      "appsDescription": "Salve pelo navegador, pelo celular ou pelo Raycast. <link>Ver todos os apps</link>",
       "apiTitle": "Chaves de API",
-      "apiDescription": "Use uma chave com a API, a CLI ou um cliente MCP. <link>Ler a documentação da API</link>",
+      "apiDescription": "Para a API, a CLI e clientes MCP, com acesso total à sua biblioteca. Até 10 chaves. <link>Documentação da API</link>",
       "opensInNewTab": "{name} (abre em uma nova aba)",
       "apps": {
-        "chrome": {
-          "name": "Extensão para Chrome",
-          "detail": "Salve páginas, links e imagens pelo Chrome."
-        },
-        "firefox": {
-          "name": "Complemento para Firefox",
-          "detail": "Salve páginas, links e imagens pelo Firefox."
-        },
-        "apple": {
-          "name": "iPhone, iPad e Mac",
-          "detail": "Baixe o Teak na App Store."
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "Pesquise e salve cards pelo Raycast."
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone e Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "Todos os apps"
     },
     "data": {
       "importTitle": "Importar",
       "importDescription": "Traga links e notas do seu navegador ou de outro app.",
-      "exportTitle": "Exportar"
+      "exportTitle": "Exportar",
+      "exportDescription": "Todos os cards e seus arquivos em um ZIP, com um arquivo de favoritos e uma planilha."
     }
   },
   "app": {

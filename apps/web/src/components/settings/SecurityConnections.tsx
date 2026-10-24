@@ -347,7 +347,7 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
   const t = useTranslations("settings.connections");
   const identity = props.connectionIdentity;
   return (
-    <div className="divide-y" key={identity?.key}>
+    <div className="flex flex-col gap-10" key={identity?.key}>
       <SettingsSection
         description={t("devicesDescription")}
         id="devices"

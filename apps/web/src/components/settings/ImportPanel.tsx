@@ -16,7 +16,13 @@ import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type DragEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import {
   ChevronRight,
@@ -28,6 +34,7 @@ import {
 } from "vadivam-react";
 import { useServerErrors } from "../../hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
+import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import {
   Collapsible,
@@ -49,7 +56,7 @@ import {
   formatRelativeTime,
 } from "./importExportFormat";
 import { putParts, type UploadPlan } from "./importUpload";
-import { SettingsIconTile } from "./SettingsDialog";
+import { SettingsSection } from "./SettingsSection";
 
 interface ImportJob {
   completedAt?: number;
@@ -365,6 +372,7 @@ export function ImportSourceHint({ mode }: { mode: ImportMode }) {
 
 export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const t = useTranslations("settings.import");
+  const tData = useTranslations("settings.data");
   const tc = useTranslations("common");
   const tFormat = useTranslations("settings.format");
   const locale = useIntlLocale();
@@ -386,6 +394,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
     | null
     | undefined;
   const [source, setSource] = useState<ImportMode>("bookmarks");
+  const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const resumeInput = useRef<HTMLInputElement>(null);
   const controllersRef = useRef<Set<AbortController> | null>(null);
@@ -563,20 +572,33 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   const lastLoading = latest === undefined;
-  let lastText = t("noImports");
+  let lastText = "";
   if (lastLoading) {
     lastText = t("loadingLast");
   } else if (latest) {
     lastText = describeImport(latest, t, tFormat, locale);
   }
 
+  const dropFile = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      stageFile(file, source);
+    }
+  };
+
   return (
-    <div className="min-w-0 space-y-4 text-sm">
-      {state.kind === "confirming" ? (
-        <div className="space-y-4 rounded-xl border p-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <SettingsIconTile icon={FileText} />
-            <div className="min-w-0">
+    <SettingsSection
+      description={tData("importDescription")}
+      id="import"
+      title={tData("importTitle")}
+    >
+      <div className="min-w-0 space-y-4 text-sm">
+        {state.kind === "confirming" ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border px-4 py-3">
+            <FileText className="size-[18px] shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
               <div className="truncate font-medium">
                 {state.pending.file.name}
               </div>
@@ -585,158 +607,188 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
                 {formatBytes(state.pending.file.size, locale)}
               </div>
             </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setPending(null)}
+                size="sm"
+                variant="outline"
+              >
+                {tc("cancel")}
+              </Button>
+              <Button onClick={confirmPending} size="sm">
+                {state.resume ? t("resumeUpload") : t("startImport")}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2 *:flex-1">
+        ) : null}
+
+        {state.kind === "idle" ? (
+          // biome-ignore lint/a11y/noStaticElementInteractions: dropping a file is a shortcut; "Choose file" does the same with the keyboard.
+          // biome-ignore lint/a11y/noNoninteractiveElementInteractions: as above
+          <div
+            className={cn(
+              "flex flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-6 text-center transition-colors",
+              dragging && "border-primary bg-primary/5"
+            )}
+            data-no-drop=""
+            onDragLeave={() => setDragging(false)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragging(true);
+            }}
+            onDrop={dropFile}
+          >
+            <span className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <Upload className="size-4" />
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Label className="sr-only" htmlFor="import-source">
+                {t("importFrom")}
+              </Label>
+              <Select
+                onValueChange={(value) => setSource(value as ImportMode)}
+                value={source}
+              >
+                <SelectTrigger
+                  className="min-w-44"
+                  id="import-source"
+                  size="sm"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {IMPORT_PICKER_MODES.map((mode) => (
+                    <SelectItem key={mode} value={mode}>
+                      {t(`sources.${mode}.title`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={() => fileInput.current?.click()} size="sm">
+                {t("chooseFile")}
+              </Button>
+              <span className="text-muted-foreground text-xs">
+                {t("orDrop")}
+              </span>
+            </div>
+            <div className="max-w-md space-y-1">
+              <ImportSourceHint mode={source} />
+            </div>
+          </div>
+        ) : null}
+
+        {state.kind === "interrupted" ? (
+          <div className="space-y-2 rounded-xl border p-4">
+            <div className="font-medium">{t("uploadInterrupted")}</div>
+            <div className="text-muted-foreground">
+              {t("resumeHint", {
+                source: t(`sources.${state.job.mode}.title`),
+              })}
+            </div>
             <Button
-              onClick={() => setPending(null)}
+              onClick={() => resumeInput.current?.click()}
               size="sm"
               variant="outline"
             >
-              {tc("cancel")}
-            </Button>
-            <Button onClick={confirmPending} size="sm">
-              {state.resume ? t("resumeUpload") : t("startImport")}
+              <Upload />
+              {t("resumeUpload")}
             </Button>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {state.kind === "idle" ? (
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="import-source">{t("importFrom")}</Label>
-            <Select
-              onValueChange={(value) => setSource(value as ImportMode)}
-              value={source}
-            >
-              <SelectTrigger className="w-full" id="import-source">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {IMPORT_PICKER_MODES.map((mode) => (
-                  <SelectItem key={mode} value={mode}>
-                    {t(`sources.${mode}.title`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <ImportSourceHint mode={source} />
-          </div>
-          <Button onClick={() => fileInput.current?.click()} size="sm">
-            <Upload />
-            {t("chooseFile")}
+        <input
+          accept={acceptFor(source)}
+          aria-label={t("chooseFileFrom", {
+            source: t(`sources.${source}.title`),
+          })}
+          className="hidden"
+          onChange={(event) => handleInputChange(event, source)}
+          ref={fileInput}
+          type="file"
+        />
+        <input
+          accept={ALL_EXTENSIONS}
+          aria-label={t("chooseResumeFile")}
+          className="hidden"
+          onChange={handleResumeInput}
+          ref={resumeInput}
+          type="file"
+        />
+
+        {state.kind === "running" ? (
+          <ImportProgressSummary
+            job={state.job}
+            uploadPercent={uploadPercent}
+          />
+        ) : null}
+
+        {running ||
+        state.kind === "interrupted" ||
+        (state.kind === "confirming" && state.resume) ? (
+          <Button onClick={() => void cancel()} size="sm" variant="outline">
+            {t("cancelImport")}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
 
-      {state.kind === "interrupted" ? (
-        <div className="space-y-2 rounded-xl border p-4">
-          <div className="font-medium">{t("uploadInterrupted")}</div>
-          <div className="text-muted-foreground">
-            {t("resumeHint", {
-              source: t(`sources.${state.job.mode}.title`),
-            })}
+        {state.kind === "idle" && latest !== null ? (
+          <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
+            {lastLoading ? <Spinner className="size-4" /> : null}
+            <span className="min-w-0 break-words">{lastText}</span>
           </div>
-          <Button
-            onClick={() => resumeInput.current?.click()}
-            size="sm"
-            variant="outline"
-          >
-            <Upload />
-            {t("resumeUpload")}
-          </Button>
-        </div>
-      ) : null}
+        ) : null}
 
-      <input
-        accept={acceptFor(source)}
-        aria-label={t("chooseFileFrom", {
-          source: t(`sources.${source}.title`),
-        })}
-        className="hidden"
-        onChange={(event) => handleInputChange(event, source)}
-        ref={fileInput}
-        type="file"
-      />
-      <input
-        accept={ALL_EXTENSIONS}
-        aria-label={t("chooseResumeFile")}
-        className="hidden"
-        onChange={handleResumeInput}
-        ref={resumeInput}
-        type="file"
-      />
+        {terminalFailure ? (
+          <div className="min-w-0 rounded-xl border border-destructive/35 bg-destructive/10 p-3 text-destructive">
+            <div className="font-medium">{t("importStopped")}</div>
+            <p className="mt-1 break-words">{terminalFailure}</p>
+          </div>
+        ) : null}
 
-      {state.kind === "running" ? (
-        <ImportProgressSummary job={state.job} uploadPercent={uploadPercent} />
-      ) : null}
-
-      {running ||
-      state.kind === "interrupted" ||
-      (state.kind === "confirming" && state.resume) ? (
-        <Button onClick={() => void cancel()} size="sm" variant="outline">
-          {t("cancelImport")}
-        </Button>
-      ) : null}
-
-      {state.kind === "idle" ? (
-        <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-xs leading-5">
-          {lastLoading ? <Spinner className="size-4" /> : null}
-          <span className="min-w-0 break-words">{lastText}</span>
-        </div>
-      ) : null}
-
-      {terminalFailure ? (
-        <div className="min-w-0 rounded-xl border border-destructive/35 bg-destructive/10 p-3 text-destructive">
-          <div className="font-medium">{t("importStopped")}</div>
-          <p className="mt-1 break-words">{terminalFailure}</p>
-        </div>
-      ) : null}
-
-      {finishedJob && failureSamples && failureSamples.length > 0 ? (
-        <div className="min-w-0 space-y-1.5">
-          <div className="font-medium">{t("failedItems")}</div>
-          <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
-            {failureSamples.map((sample) => (
-              <li
-                className="flex min-w-0 items-start gap-2"
-                key={`${sample.sourceIndex}-${sample.item}`}
-              >
-                <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
-                <span className="min-w-0">
-                  <span className="block break-words">{sample.item}</span>
-                  <span className="block break-words text-muted-foreground">
-                    {sample.reason}
+        {finishedJob && failureSamples && failureSamples.length > 0 ? (
+          <div className="min-w-0 space-y-1.5">
+            <div className="font-medium">{t("failedItems")}</div>
+            <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
+              {failureSamples.map((sample) => (
+                <li
+                  className="flex min-w-0 items-start gap-2"
+                  key={`${sample.sourceIndex}-${sample.item}`}
+                >
+                  <X className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+                  <span className="min-w-0">
+                    <span className="block break-words">{sample.item}</span>
+                    <span className="block break-words text-muted-foreground">
+                      {sample.reason}
+                    </span>
                   </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
-      {!running && job?.reportAvailable ? (
-        <div className="flex min-w-0 flex-wrap gap-2">
-          <Button
-            className="min-w-0"
-            onClick={() => void copyReport()}
-            size="sm"
-            variant="outline"
-          >
-            <Copy />
-            {t("copyReport")}
-          </Button>
-          <Button
-            className="min-w-0"
-            onClick={() => void downloadReport()}
-            size="sm"
-            variant="outline"
-          >
-            <Download />
-            {t("downloadReport")}
-          </Button>
-        </div>
-      ) : null}
-    </div>
+        {!running && job?.reportAvailable ? (
+          <div className="flex min-w-0 flex-wrap gap-2">
+            <Button
+              className="min-w-0"
+              onClick={() => void copyReport()}
+              size="sm"
+              variant="outline"
+            >
+              <Copy />
+              {t("copyReport")}
+            </Button>
+            <Button
+              className="min-w-0"
+              onClick={() => void downloadReport()}
+              size="sm"
+              variant="outline"
+            >
+              <Download />
+              {t("downloadReport")}
+            </Button>
+          </div>
+        ) : null}
+      </div>
+    </SettingsSection>
   );
 }

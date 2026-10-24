@@ -78,7 +78,8 @@ describe("ApiKeysPanel", () => {
 
     expect(markup).toContain("Create key");
     expect(markup).toContain("Revoke all keys");
-    expect(markup).toContain("10 active keys");
+    expect(markup).toContain("Up to 10 keys.");
+    expect(markup).toContain('href="https://teakvault.com/docs/api"');
     expect(markup).toContain("Key");
     expect(markup).not.toContain("Last used");
     expect(markup).toContain("Created");

@@ -3,11 +3,7 @@
 import { useTranslations } from "@teak/i18n/react";
 import { ExportPanel, type ExportState } from "./ExportPanel";
 import { ImportPanel } from "./ImportPanel";
-import {
-  SettingsPageIntro,
-  SettingsSection,
-  SettingsStack,
-} from "./SettingsSection";
+import { SettingsPageIntro, SettingsStack } from "./SettingsSection";
 
 interface DataSettingsProps {
   exportLoading: boolean;
@@ -24,7 +20,6 @@ export function DataSettings({
   onDownloadExport,
   onStartExport,
 }: DataSettingsProps) {
-  const t = useTranslations("settings.data");
   const tPages = useTranslations("settings.pages");
   return (
     <>
@@ -33,22 +28,14 @@ export function DataSettings({
         title={tPages("data.title")}
       />
       <SettingsStack>
-        <SettingsSection
-          description={t("importDescription")}
-          id="import"
-          title={t("importTitle")}
-        >
-          <ImportPanel />
-        </SettingsSection>
-        <SettingsSection id="export" title={t("exportTitle")}>
-          <ExportPanel
-            exportState={exportState}
-            isLoading={exportLoading}
-            onCancelExport={onCancelExport}
-            onDownloadExport={onDownloadExport}
-            onStartExport={onStartExport}
-          />
-        </SettingsSection>
+        <ImportPanel />
+        <ExportPanel
+          exportState={exportState}
+          isLoading={exportLoading}
+          onCancelExport={onCancelExport}
+          onDownloadExport={onDownloadExport}
+          onStartExport={onStartExport}
+        />
       </SettingsStack>
     </>
   );

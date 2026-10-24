@@ -1,13 +1,48 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
+import { Button } from "../ui/button";
 import {
   SecurityConnections,
   type SecurityConnectionsProps,
 } from "./SecurityConnections";
-import { SettingsPageIntro, SettingsStack } from "./SettingsSection";
+import {
+  SettingsPageIntro,
+  SettingsSection,
+  SettingsStack,
+} from "./SettingsSection";
 
-export function SecuritySettings(props: SecurityConnectionsProps) {
+/** The last section of Security: deleting the account, behind a dialog. */
+function DeleteAccountSection({
+  onDeleteClick,
+}: {
+  onDeleteClick: () => void;
+}) {
+  const t = useTranslations("settings.dangerZone");
+  return (
+    <SettingsSection
+      action={
+        <Button
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDeleteClick}
+          size="sm"
+          variant="outline"
+        >
+          {t("action")}
+        </Button>
+      }
+      description={t("description")}
+      id="danger-zone"
+      title={t("title")}
+      tone="destructive"
+    />
+  );
+}
+
+export function SecuritySettings({
+  onDeleteClick,
+  ...connections
+}: SecurityConnectionsProps & { onDeleteClick: () => void }) {
   const tPages = useTranslations("settings.pages");
   return (
     <>
@@ -16,7 +51,8 @@ export function SecuritySettings(props: SecurityConnectionsProps) {
         title={tPages("security.title")}
       />
       <SettingsStack>
-        <SecurityConnections {...props} />
+        <SecurityConnections {...connections} />
+        <DeleteAccountSection onDeleteClick={onDeleteClick} />
       </SettingsStack>
     </>
   );

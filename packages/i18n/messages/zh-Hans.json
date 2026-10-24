@@ -122,10 +122,8 @@
       "keyRegenerated": "API 密钥已重新生成。请立即复制新密钥。",
       "keyCopied": "API 密钥已复制。",
       "copyFailed": "无法复制密钥。请手动选择并复制。",
-      "limitNote": "密钥拥有对你的资料库的完全访问权限。最多可保留 10 个有效密钥。",
       "createKey": "创建密钥",
       "loading": "正在加载 API 密钥…",
-      "empty": "创建你的第一个 API 密钥，以连接外部工具。",
       "revokeAll": "吊销所有密钥"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "复制地址",
       "sendFrom": "请从 <strong>{sender}</strong> 发送。来自其他地址的邮件不会被保存。",
       "unverified": "验证你的登录邮箱 <strong>{sender}</strong> 之前，邮件不会被保存。",
-      "howItWorks": "转发或发送任何内容。只含一个链接的邮件会成为链接卡片，其他邮件会成为笔记，附件会各自成为独立的卡片。所有卡片都会加上 email 标签。",
       "lastReceived": "上次收到邮件：{when}",
       "turnOff": "关闭"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "导入报告已复制。",
       "reportCopyFailed": "无法复制导入报告。",
       "reportDownloadFailed": "无法下载导入报告。",
-      "noImports": "尚无导入记录。",
       "loadingLast": "正在加载上次导入的详情…",
       "resumeUpload": "继续上传",
       "startImport": "开始导入",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "在 Teak 中通过“导出数据”生成的 ZIP 文件。"
         }
-      }
+      },
+      "orDrop": "或拖放到这里"
     },
     "format": {
       "justNow": "刚刚",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "通过邮件保存",
       "appsTitle": "应用和扩展",
-      "appsDescription": "从浏览器、手机或 Raycast 保存。<link>查看所有应用</link>",
       "apiTitle": "API 密钥",
-      "apiDescription": "在 API、CLI 或 MCP 客户端中使用密钥。<link>阅读 API 文档</link>",
+      "apiDescription": "用于 API、CLI 和 MCP 客户端，可完整访问你的资料库。最多 10 个密钥。<link>API 文档</link>",
       "opensInNewTab": "{name}（在新标签页中打开）",
       "apps": {
-        "chrome": {
-          "name": "Chrome 扩展",
-          "detail": "从 Chrome 保存网页、链接和图片。"
-        },
-        "firefox": {
-          "name": "Firefox 附加组件",
-          "detail": "从 Firefox 保存网页、链接和图片。"
-        },
-        "apple": {
-          "name": "iPhone、iPad 和 Mac",
-          "detail": "在 App Store 获取 Teak。"
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "在 Raycast 中搜索和保存卡片。"
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone 和 Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "所有应用"
     },
     "data": {
       "importTitle": "导入",
       "importDescription": "从浏览器或其他应用导入链接和笔记。",
-      "exportTitle": "导出"
+      "exportTitle": "导出",
+      "exportDescription": "所有卡片及其文件打包为一个 ZIP，附带书签文件和电子表格。"
     }
   },
   "app": {

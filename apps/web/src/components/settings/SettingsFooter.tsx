@@ -20,7 +20,7 @@ export function SettingsFooter({
 }: SettingsFooterProps) {
   const t = useTranslations("settings.footer");
   return (
-    <div className="relative mt-10 flex flex-col items-start gap-4 border-t pt-6">
+    <div className="relative mt-14 flex flex-col items-start gap-4">
       <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <Logo variant="primary" />
         <nav

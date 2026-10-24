@@ -122,10 +122,8 @@
       "keyRegenerated": "Clé d’API régénérée. Copiez la nouvelle clé maintenant.",
       "keyCopied": "Clé d’API copiée.",
       "copyFailed": "Impossible de copier la clé. Sélectionnez-la et copiez-la manuellement.",
-      "limitNote": "Les clés ont un accès complet à votre bibliothèque. Vous pouvez avoir jusqu’à 10 clés actives.",
       "createKey": "Créer une clé",
       "loading": "Chargement des clés d’API…",
-      "empty": "Créez votre première clé d’API pour connecter des outils externes.",
       "revokeAll": "Révoquer toutes les clés"
     },
     "deleteAccount": {
@@ -169,7 +167,6 @@
       "copyAddress": "Copier l’adresse",
       "sendFrom": "Envoyez depuis <strong>{sender}</strong>. Les messages provenant d’autres adresses ne sont pas enregistrés.",
       "unverified": "Les messages ne sont pas enregistrés tant que vous n’avez pas vérifié votre e-mail de connexion, <strong>{sender}</strong>.",
-      "howItWorks": "Transférez ou envoyez n’importe quoi. Un e-mail contenant un seul lien devient une fiche lien, tout le reste devient une note, et les pièces jointes deviennent des fiches à part entière. Toutes reçoivent le tag email.",
       "lastReceived": "Dernier e-mail reçu {when}",
       "turnOff": "Désactiver"
     },
@@ -221,7 +218,6 @@
       "reportCopied": "Rapport d’importation copié.",
       "reportCopyFailed": "Impossible de copier le rapport d’importation.",
       "reportDownloadFailed": "Impossible de télécharger le rapport d’importation.",
-      "noImports": "Aucune importation pour l’instant.",
       "loadingLast": "Chargement des détails de la dernière importation…",
       "resumeUpload": "Reprendre l’importation",
       "startImport": "Lancer l’importation",
@@ -318,7 +314,8 @@
           "name": "Teak",
           "hint": "Un ZIP issu de Exporter vos données dans Teak."
         }
-      }
+      },
+      "orDrop": "ou déposez-le ici"
     },
     "format": {
       "justNow": "à l’instant",
@@ -414,33 +411,22 @@
     "integrations": {
       "saveByEmailTitle": "Enregistrer par e-mail",
       "appsTitle": "Applications et extensions",
-      "appsDescription": "Enregistrez depuis votre navigateur, votre téléphone ou Raycast. <link>Voir toutes les applications</link>",
       "apiTitle": "Clés d’API",
-      "apiDescription": "Utilisez une clé avec l’API, la CLI ou un client MCP. <link>Lire la documentation de l’API</link>",
+      "apiDescription": "Pour l’API, la CLI et les clients MCP, avec un accès complet à votre bibliothèque. Jusqu’à 10 clés. <link>Documentation de l’API</link>",
       "opensInNewTab": "{name} (s’ouvre dans un nouvel onglet)",
       "apps": {
-        "chrome": {
-          "name": "Extension Chrome",
-          "detail": "Enregistrez des pages, liens et images depuis Chrome."
-        },
-        "firefox": {
-          "name": "Module Firefox",
-          "detail": "Enregistrez des pages, liens et images depuis Firefox."
-        },
-        "apple": {
-          "name": "iPhone, iPad et Mac",
-          "detail": "Téléchargez Teak sur l’App Store."
-        },
-        "raycast": {
-          "name": "Raycast",
-          "detail": "Recherchez et enregistrez des fiches depuis Raycast."
-        }
-      }
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone et Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "Toutes les applications"
     },
     "data": {
       "importTitle": "Importer",
       "importDescription": "Importez des liens et des notes depuis votre navigateur ou une autre application.",
-      "exportTitle": "Exporter"
+      "exportTitle": "Exporter",
+      "exportDescription": "Toutes vos fiches et leurs fichiers dans un ZIP, avec un fichier de favoris et une feuille de calcul."
     }
   },
   "app": {
