@@ -137,6 +137,17 @@ export interface ServerEventCatalog {
   email_received: { outcome: EmailReceivedOutcome };
   /** Save by email turned on or off in Settings. */
   email_save_toggled: { enabled: boolean };
+  /**
+   * A list of links pasted into the web composer finished saving. `count` is
+   * the links the job kept (at most 100); `created` and `resaved` split the
+   * ones saved; `stopped_at_limit` says the free card limit ended it early.
+   */
+  link_paste_saved: {
+    count: number;
+    created: number;
+    resaved: number;
+    stopped_at_limit: boolean;
+  };
   link_pdf_saved: { source: LinkPdfSaveSource };
   mcp_tool_called: {
     duration_ms: number;

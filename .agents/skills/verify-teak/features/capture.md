@@ -8,6 +8,8 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - `capture-link` turns a bare URL into a link card, whose title fills in after processing.
 - `capture-quote` turns quoted text into a quote card, with the quotes stripped.
 - `capture-palette` turns a hex color into a palette card after processing.
+- `capture-resave` saves a link that's already in Teak: no second card, the saved one moves to the top (and back from Archive).
+- `capture-paste-links` saves a pasted list of links, one per line, as one link card each, in the background.
 - `capture-focus` saves from the full-screen Focus editor.
 - `capture-new-menu` opens the sidebar "New" menu: "Note or link", "Upload files", "Record audio".
 - `capture-upload` uploads files as image, video, audio or document cards.
@@ -33,6 +35,8 @@ Steps:
 - **Text.** `tap` textbox "Markdown content", `type` "verify-<run-id> text note", then `tap` button "Save" (or `press` "Control+Enter"). The composer clears, the toast "Saved" appears, and a button "Text: verify-<run-id> text note" appears in the grid.
 - **Persistence.** `navigate` to `/` (a reload), then search for the marker ([find](./find.md)). The same "Text: …" button is listed. `tap` it: a dialog named "Note" opens and the URL gains `?card=<id>`.
 - **Link.** Save "https://example.com/?verify-<run-id>". The toast "Link saved" appears. A button starting "Link:" appears, named by the URL at first and by the page title once metadata arrives (often within a minute on the dev deployment).
+- **Save a link again.** Save "https://example.com/?verify-<run-id>" a second time, or a variant of it ("http://www.example.com/?verify-<run-id>&utm_source=x"). The toast reads "Already in Teak · Moved to the top" with an "Open" action that opens the card's dialog; the grid still has one "Link:" button for it, now first. Archive it from its dialog and save it again: the toast reads "Already in Teak · Moved back from Archive" and the card is back in Everything.
+- **Paste a list of links.** Paste (a `paste` `ClipboardEvent` with `text/plain`, as `pasteMarkdown` in `packages/tests/src/web/editor-library.ts` does) 12 lines `https://example.com/verify-<run-id>/1` … `/12`. The composer's button reads "Save 12 links" (101 or more lines: "Save first 100 links"). Save: the composer clears and a loading toast counts "Saving links · 8 of 12", then "Saved 12 links"; 12 "Link:" buttons appear. Paste three lines where one is already saved: "Saved 2 links · 1 already in Teak, moved to the top". Paste again while a long list is still saving: "Still saving your last links. Try again in a moment." and the draft stays. Seed `paste-links` on a free account (195 cards, ten links under example.com/paste-links/) and paste those ten plus five or more new links: the known ones move, five new ones are saved, and the toast reads "Saved … of … links · You've reached 200 cards" with "Upgrade".
 - **Link inside a sentence.** Save `Read verify-<run-id> (https://example.com/?verify-<run-id>-s).` The card's URL has no `).` (its "Open link" opens `https://example.com/?verify-<run-id>-s`), and the card shows the words "Read verify-<run-id>." under its title, without the URL. Its dialog shows the same words below the link.
 - **Characters.** Save `verify-<run-id> 3 < 5 & 7 > 2 <b>not bold</b>`. The card and its name read exactly that ("Text: verify-<run-id> 3 < 5 & 7 > 2 <b>not bold</b>"), never `&lt;`, `&gt;` or `&amp;`.
 - **Quote.** Save `"verify-<run-id> quote"`, with the quotes. A button "Quote: verify-<run-id> quote" appears without quotes, and its dialog is named "Quote".
@@ -50,6 +54,8 @@ Steps:
 - Markdown formatting (a leading `# `, `- `, `> `, or `/` opening the "Formatting commands" menu) saves the note as text, never a link, quote or palette.
 - Text containing a URL, like "see https://x.com", becomes a link card that keeps its text, and the card and its dialog show that text without the URL. Punctuation right after the URL (`.`, `,`, `)` and the like) isn't part of the link; brackets the URL opens itself, as in `…/wiki/Teak_(wood)`, are.
 - The composer's toast says "Link saved" for a link and "Saved" for anything else, since processing may still make a note a quote or a palette.
+- A draft splits into links only when every non-empty line is a single http(s) URL (plain, a link showing its own address, or `<…>`), in paragraphs or list items, at least two of them. A URL with words after it, a code block, a quote, a checklist or one link saves as one card, as before.
+- A paste job saves 10 links at once and the rest at the card creation limit's pace (about 30 a minute), so 100 links take three to four minutes. It runs on the server: closing the tab drops the toast but the cards keep arriving. One job runs per account.
 - A note with no text (one emptied through the API, say) shows "Empty note" in the grid and gets no AI tags or summary.
 - Processing shows only an aria-hidden progress bar, so there's no accessible "processing" text. Observe the card's name until it changes. The AI summary appears in the card dialog's "Summary" section.
 - The free plan stops at 200 cards ("Free card limit reached"). Delete what each run creates so the shared account never fills up.

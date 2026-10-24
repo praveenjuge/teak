@@ -649,6 +649,36 @@ export default defineSchema({
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .index("by_status", ["status"]),
+  // A list of links pasted into the web composer, saved in the background as
+  // one link card each (card/pasteLinks.ts). The counts are stored at start,
+  // so every toast reads the normalized numbers. Removed 7 days after it
+  // finishes.
+  linkPasteJobs: defineTable({
+    userId: v.string(),
+    /** At most 100, already normalized and unique by URL key. */
+    urls: v.array(v.string()),
+    total: v.number(),
+    omittedOverLimit: v.number(),
+    omittedRepeats: v.number(),
+    omittedUnsafe: v.number(),
+    nextIndex: v.number(),
+    created: v.number(),
+    resaved: v.number(),
+    failed: v.number(),
+    /** Retries spent on the URL at `nextIndex`. */
+    attempts: v.number(),
+    status: v.union(
+      v.literal("running"),
+      v.literal("done"),
+      v.literal("stopped_at_limit"),
+      v.literal("failed")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    finishedAt: v.optional(v.number()),
+  })
+    .index("by_user_status", ["userId", "status"])
+    .index("by_status_finished", ["status", "finishedAt"]),
   cardSearchTags: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),

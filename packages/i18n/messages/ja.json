@@ -954,7 +954,19 @@
       "placeholder": "メモを書く…",
       "upgradePlaceholder": "さらにカードを追加するには Pro にアップグレードしてください…",
       "saveFailed": "メモを保存できませんでした",
-      "focus": "集中モード"
+      "focus": "集中モード",
+      "resaved": "すでに Teak にあります · 一番上に移動しました",
+      "resavedFromArchive": "すでに Teak にあります · アーカイブから戻しました",
+      "open": "開く",
+      "saveLinks": "{count, plural, other {# 件のリンクを保存}}",
+      "saveFirstLinks": "{count, plural, other {最初の # 件のリンクを保存}}"
+    },
+    "pasteLinks": {
+      "progress": "リンクを保存しています · {done} / {total}",
+      "saved": "{created, plural, other {# 件のリンクを保存しました}}{resaved, plural, =0 {} other { · # 件はすでに Teak にあったため、一番上に移動しました}}{failed, plural, =0 {} other { · # 件は保存できませんでした}}{omitted, plural, =0 {} other { · # 件は対象外です（一度に {limit} 件まで）}}",
+      "stoppedAtLimit": "{total, plural, other {# 件中 {saved} 件のリンクを保存しました}} · カードの上限（{limit} 枚）に達しました",
+      "failed": "リンクを保存できませんでした。もう一度お試しください。",
+      "active": "前回のリンクをまだ保存しています。しばらくしてからもう一度お試しください。"
     },
     "addCardActions": {
       "new": "新規",

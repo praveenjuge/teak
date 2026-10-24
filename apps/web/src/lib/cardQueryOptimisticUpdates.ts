@@ -1,6 +1,8 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { combineSearchQueries, filterLocalCards } from "@teak/convex/shared";
+import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
+import { urlKey } from "@teak/convex/shared/utils/urlKey";
 import type { OptimisticLocalStore } from "convex/browser";
 import type { FunctionArgs } from "convex/server";
 
@@ -165,4 +167,72 @@ export function addCardToSearchQueries(
       });
     }
   }
+}
+
+/** The link in content that is only a link, as a re-save would match it. */
+const bareLinkKey = (content: string): string | undefined => {
+  const { url, cleanedContent } = extractUrlFromContent(content);
+  return url && cleanedContent === url ? (urlKey(url) ?? url) : undefined;
+};
+
+const linkKeyOf = (card: Doc<"cards">) =>
+  card.urlKey ?? (card.url ? (urlKey(card.url) ?? card.url) : undefined);
+
+function findSavedLink(
+  localStore: OptimisticLocalStore,
+  key: string
+): Doc<"cards"> | undefined {
+  const matches = (card: Doc<"cards">) =>
+    card.type === "link" && !card.isDeleted && linkKeyOf(card) === key;
+  for (const { value } of localStore.getAllQueries(api.cards.searchCards)) {
+    const found = (value as Doc<"cards">[] | undefined)?.find(matches);
+    if (found) {
+      return found;
+    }
+  }
+  for (const { value } of localStore.getAllQueries(
+    api.cards.searchCardsPaginated
+  )) {
+    const found = (value?.page as Doc<"cards">[] | undefined)?.find(matches);
+    if (found) {
+      return found;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Shows a note or link being saved from the composer. A bare link already in
+ * a loaded list is saved again on the server, which moves it to the top, so
+ * it moves up here too instead of a second tile appearing beside it; any
+ * other capture gets a placeholder tile at the top. Convex drops both once
+ * the save's result arrives.
+ */
+export function addCaptureToSearchQueries(
+  localStore: OptimisticLocalStore,
+  capture: { content: string; id: Id<"cards">; now: number }
+) {
+  const { content, id, now } = capture;
+  const key = bareLinkKey(content);
+  const saved = key ? findSavedLink(localStore, key) : undefined;
+  if (!saved) {
+    addCardToSearchQueries(localStore, {
+      _id: id,
+      _creationTime: now,
+      userId: "",
+      content,
+      type: "text",
+      createdAt: now,
+      updatedAt: now,
+    });
+    return;
+  }
+  updateCardInSearchQueries(localStore, saved._id, () => null);
+  addCardToSearchQueries(localStore, {
+    ...saved,
+    savedAt: now,
+    updatedAt: now,
+    isArchived: undefined,
+    archivedAt: undefined,
+  });
 }

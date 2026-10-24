@@ -70,7 +70,7 @@ const SAVED_AGAIN_AFTER_MS = 60_000;
 const savedAgainLine = (card: { createdAt: number; savedAt?: number }) =>
   card.savedAt !== undefined &&
   card.savedAt - card.createdAt > SAVED_AGAIN_AFTER_MS
-    ? `Saved again ${new Date(card.savedAt).toISOString()}`
+    ? `saved again: ${new Date(card.savedAt).toISOString()}`
     : null;
 
 /** `teak add`: the new card, or the card a link was already saved as. */
