@@ -44,6 +44,7 @@ export const FOLDER_SCENARIOS = [
   "podcast-transcripts",
   "email-in",
   "email-attachments",
+  "resave",
 ] as const;
 export type FolderScenario = (typeof FOLDER_SCENARIOS)[number];
 

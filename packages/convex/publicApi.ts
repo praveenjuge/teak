@@ -996,28 +996,33 @@ export const executeBulkCardsForUser = internalMutation({
             } else if (typeof payload.url === "string" && payload.url.trim()) {
               requestedType = "link";
             }
-            const cardId = await createCardForUserHandler(
-              ctx,
-              userId,
-              {
-                content:
-                  typeof payload.content === "string" ? payload.content : "",
-                url: typeof payload.url === "string" ? payload.url : undefined,
-                notes:
-                  typeof payload.notes === "string"
-                    ? payload.notes.trim() || undefined
-                    : undefined,
-                ...normalizeCardSource(bulkCardSource(payload)),
-                tags: bulkItemTags(payload),
-                type: requestedType,
-              },
-              { source: "api" }
-            );
+            const { cardId, outcome, wasArchived } =
+              await createCardForUserHandler(
+                ctx,
+                userId,
+                {
+                  content:
+                    typeof payload.content === "string" ? payload.content : "",
+                  url:
+                    typeof payload.url === "string" ? payload.url : undefined,
+                  notes:
+                    typeof payload.notes === "string"
+                      ? payload.notes.trim() || undefined
+                      : undefined,
+                  ...normalizeCardSource(bulkCardSource(payload)),
+                  tags: bulkItemTags(payload),
+                  type: requestedType,
+                },
+                { source: "api" }
+              );
 
             results.push({
               index,
               status: "success",
               cardId,
+              // The link was already saved, so that card moved to the top.
+              ...(outcome === "resaved" ? { resaved: true } : {}),
+              ...(wasArchived ? { wasArchived: true } : {}),
             });
             break;
           }

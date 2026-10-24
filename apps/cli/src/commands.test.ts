@@ -922,6 +922,43 @@ describe("teak batch and fallback behavior", () => {
     expect(body).not.toHaveProperty("url");
   });
 
+  test("add says when the link was already in Teak and moved to the top", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({
+        appUrl: "https://app/?card=card_l",
+        cardId: "card_l",
+        resaved: true,
+        status: "created",
+      })
+    );
+    const result = await teak("add", "https://example.com/article");
+    expect(result.code).toBe(0);
+    expect(result.stdout.trim()).toBe(
+      "Already in Teak, moved to the top: card_l  https://app/?card=card_l"
+    );
+
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_n", status: "created" })
+    );
+    const created = await teak("add", "https://example.com/new");
+    expect(created.stdout.trim()).toBe("card_n  https://app/");
+  });
+
+  test("get shows when a card was saved again, more than a minute after it was made", async () => {
+    const createdAt = Date.UTC(2026, 0, 2, 3, 4, 5);
+    routes.set("GET /v1/cards/card_a", () =>
+      json(card("card_a", { savedAt: Date.UTC(2026, 4, 6, 7, 8, 9) }))
+    );
+    routes.set("GET /v1/cards/card_b", () =>
+      json(card("card_b", { savedAt: createdAt + 30_000 }))
+    );
+    const again = await teak("cards", "get", "card_a");
+    expect(again.stdout).toContain("created: 2026-01-02T03:04:05.000Z");
+    expect(again.stdout).toContain("Saved again 2026-05-06T07:08:09.000Z");
+    const once = await teak("cards", "get", "card_b");
+    expect(once.stdout).not.toContain("Saved again");
+  });
+
   test("add with only a URL argument sends no duplicate content", async () => {
     routes.set("POST /v1/cards", () =>
       json({ appUrl: "https://app/", cardId: "card_l", status: "created" })
@@ -1442,6 +1479,7 @@ describe("teak batch and fallback behavior", () => {
         operation: "create",
         results: [
           { cardId: "card_new", index: 0, status: "success" },
+          { cardId: "card_old", index: 2, resaved: true, status: "success" },
           {
             code: "INVALID_INPUT",
             error: "Each create item must include `content` or `url`",
@@ -1463,7 +1501,10 @@ describe("teak batch and fallback behavior", () => {
       operation: "create",
     });
     expect(result.stdout).toContain("1/2 succeeded");
-    expect(result.stdout).toContain("[0] card_new");
+    expect(result.stdout).toContain("[0] card_new\n");
+    expect(result.stdout).toContain(
+      "[2] card_old (already in Teak, moved to the top)"
+    );
     expect(result.stdout).toContain(
       "[1] INVALID_INPUT: Each create item must include `content` or `url`"
     );

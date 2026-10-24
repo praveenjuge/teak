@@ -140,33 +140,35 @@ const reissueUploads = async (pending: PendingAttachment[]) =>
       })
   );
 
-const createBodyCard = (
+const createBodyCard = async (
   ctx: MutationCtx,
   userId: string,
   plan:
     | { kind: "link"; notes?: string; url: string }
     | { kind: "text"; markdown: string }
 ) =>
-  createCardForUserHandler(
-    ctx,
-    userId as Parameters<typeof createCardForUserHandler>[1],
-    plan.kind === "link"
-      ? {
-          content: plan.url,
-          metadata: { source: "email" },
-          ...(plan.notes ? { notes: plan.notes } : {}),
-          tags: [EMAIL_TAG],
-          type: "link",
-          url: plan.url,
-        }
-      : {
-          content: plan.markdown,
-          metadata: { source: "email" },
-          tags: [EMAIL_TAG],
-          type: "text",
-        },
-    { source: "email" }
-  );
+  (
+    await createCardForUserHandler(
+      ctx,
+      userId as Parameters<typeof createCardForUserHandler>[1],
+      plan.kind === "link"
+        ? {
+            content: plan.url,
+            metadata: { source: "email" },
+            ...(plan.notes ? { notes: plan.notes } : {}),
+            tags: [EMAIL_TAG],
+            type: "link",
+            url: plan.url,
+          }
+        : {
+            content: plan.markdown,
+            metadata: { source: "email" },
+            tags: [EMAIL_TAG],
+            type: "text",
+          },
+      { source: "email" }
+    )
+  ).cardId;
 
 /**
  * Saves one verified email: its body card, and a signed upload URL for each

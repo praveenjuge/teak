@@ -2,8 +2,8 @@ import {
   buildColorFacets,
   extractPaletteColors,
 } from "@teak/convex/shared/utils/colorUtils";
-import { ConvexError, v } from "convex/values";
-import type { Id } from "../_generated/dataModel";
+import { ConvexError, type Infer, v } from "convex/values";
+import type { Doc, Id } from "../_generated/dataModel";
 import { type MutationCtx, mutation } from "../_generated/server";
 import { type CardType, cardTypeValidator, colorValidator } from "../schema";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
@@ -14,10 +14,12 @@ import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
+import { urlKey } from "../shared/utils/urlKey";
 import { buildR2UserPrefix } from "../storage/r2";
-import { queueCardOutcome } from "../telemetry/schedule";
+import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
+import { findLiveCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -26,7 +28,7 @@ import {
 } from "./processingStatus";
 import { authorizeCardCreation } from "./quota";
 import { normalizeQuoteContent } from "./quoteFormatting";
-import { syncCardSearch } from "./searchSync";
+import { patchCardWithSearchSync, syncCardSearch } from "./searchSync";
 import { newShuffleKey } from "./shuffle";
 import { normalizeCardTags } from "./updateCard";
 import { extractUrlFromContent } from "./validationUtils";
@@ -96,6 +98,7 @@ const sessionCreateCardArgs = {
   ...createCardArgs,
   source: v.optional(clientCardSourceValidator),
 } as const;
+const sessionCreateCardArgsValidator = v.object(sessionCreateCardArgs);
 
 interface CreateCardArgs {
   colors?: {
@@ -130,7 +133,46 @@ interface ImportedVisibleFields {
   isArchived?: boolean;
   isFavorited?: boolean;
   metadataTitle?: string;
+  /** When the card was last saved; never before `createdAt`. */
+  savedAt?: number;
 }
+
+/**
+ * What a save did: made a new card, or found the link already in Teak and
+ * moved that card to the top (`resaved`), bringing it back from Archive when
+ * `wasArchived`.
+ */
+export interface CreateCardOutcome {
+  cardId: Id<"cards">;
+  outcome: "created" | "resaved";
+  wasArchived?: boolean;
+}
+
+export const createCardOutcomeValidator = v.object({
+  cardId: v.id("cards"),
+  outcome: v.union(v.literal("created"), v.literal("resaved")),
+  wasArchived: v.optional(v.boolean()),
+});
+
+/**
+ * True when `content` adds nothing to the link in `url`: it is empty, or it
+ * is only that link (or a variant of it). A link with words around it is a
+ * note about the link, which is saved as its own card.
+ */
+export const isBareLinkContent = (content: string, url: string): boolean => {
+  const trimmed = content.trim();
+  if (!trimmed || trimmed === url) {
+    return true;
+  }
+  const extracted = extractUrlFromContent(trimmed);
+  if (!extracted.url || extracted.cleanedContent !== extracted.url) {
+    return false;
+  }
+  return (
+    extracted.url === url ||
+    (urlKey(extracted.url) ?? extracted.url) === (urlKey(url) ?? url)
+  );
+};
 
 export const resolveCreatedCardType = ({
   providedType,
@@ -173,9 +215,14 @@ export const createCardForUserHandler = async (
     importedVisibleFields?: ImportedVisibleFields;
     /** Runs once the card is counted, so a refused card makes no folders. */
     resolveFolderIds?: () => Promise<Id<"folders">[]>;
+    /**
+     * Always insert, even when the link is already saved. Imports skip
+     * duplicates themselves and never move an existing card.
+     */
+    skipResave?: boolean;
     source?: CardCreationSource;
   } = {}
-): Promise<Id<"cards">> => {
+): Promise<CreateCardOutcome> => {
   const tags = args.tags && normalizeCardTags(args.tags);
   const { hasPremium } = await authorizeCardCreation(ctx, userId);
 
@@ -227,6 +274,25 @@ export const createCardForUserHandler = async (
     finalContent = validateTextCardContent(finalContent);
   }
 
+  // Saving a link that's already in Teak moves that card to the top instead
+  // of making a second one. The rate-limit token is spent above, and only the
+  // insert below checks the free plan's cap, so a re-save at the cap works.
+  if (
+    !options.skipResave &&
+    cardType === "link" &&
+    finalUrl &&
+    !(args.fileKey || args.thumbnailKey) &&
+    isBareLinkContent(args.content, finalUrl)
+  ) {
+    const existing = await findLiveCardByUrl(ctx, userId, finalUrl);
+    if (existing) {
+      return await resaveCard(ctx, existing, {
+        now,
+        source: options.source ?? "unknown",
+      });
+    }
+  }
+
   let resolvedColors = args.colors;
   if (!resolvedColors && cardType === "palette") {
     const paletteText = [
@@ -274,6 +340,14 @@ export const createCardForUserHandler = async (
       classificationStatus,
     }),
     createdAt: options.importedVisibleFields?.createdAt ?? now,
+    ...(options.importedVisibleFields?.savedAt === undefined
+      ? {}
+      : {
+          savedAt: Math.max(
+            options.importedVisibleFields.savedAt,
+            options.importedVisibleFields.createdAt ?? now
+          ),
+        }),
     updatedAt: now,
     shuffleKey: newShuffleKey(),
     isFavorited: options.importedVisibleFields?.isFavorited,
@@ -307,29 +381,75 @@ export const createCardForUserHandler = async (
     userId,
   });
 
-  return cardId;
+  return { cardId, outcome: "created" };
 };
 
+/**
+ * Moves a saved card to the top of "Newest first" and back from Archive. The
+ * search sync carries the new `savedAt` to its folder and tag rows. Nothing
+ * else changes, and the card isn't processed again.
+ */
+const resaveCard = async (
+  ctx: MutationCtx,
+  card: Doc<"cards">,
+  { now, source }: { now: number; source: CardCreationSource }
+): Promise<CreateCardOutcome> => {
+  const wasArchived = card.isArchived === true;
+  await patchCardWithSearchSync(ctx, card._id, {
+    savedAt: now,
+    updatedAt: now,
+    ...(wasArchived ? { isArchived: undefined, archivedAt: undefined } : {}),
+  });
+  await queueBackendEvent(ctx, "card_resaved", card.userId, {
+    source,
+    was_archived: wasArchived,
+  });
+  return {
+    cardId: card._id,
+    outcome: "resaved",
+    ...(wasArchived ? { wasArchived: true } : {}),
+  };
+};
+
+const createCardForSession = async (
+  ctx: MutationCtx,
+  {
+    source: clientSource,
+    ...args
+  }: Infer<typeof sessionCreateCardArgsValidator>
+): Promise<CreateCardOutcome> => {
+  const user = await requireSessionUser(ctx);
+  const source: CardCreationSource = clientSource ?? "unknown";
+
+  try {
+    return await createCardForUserHandler(ctx, user.teakUserId, args, {
+      source,
+    });
+  } catch (error) {
+    await queueCardOutcome(ctx, {
+      cardType: args.type,
+      errorClass: normalizeErrorClass(error),
+      outcome: "failure",
+      source,
+      userId: user.teakUserId,
+    });
+    throw error;
+  }
+};
+
+/** Returns only the card's id, which the native apps expect. */
 export const createCard = mutation({
   args: sessionCreateCardArgs,
   returns: v.id("cards"),
-  handler: async (ctx, { source: clientSource, ...args }) => {
-    const user = await requireSessionUser(ctx);
-    const source: CardCreationSource = clientSource ?? "unknown";
+  handler: async (ctx, args) => (await createCardForSession(ctx, args)).cardId,
+});
 
-    try {
-      return await createCardForUserHandler(ctx, user.teakUserId, args, {
-        source,
-      });
-    } catch (error) {
-      await queueCardOutcome(ctx, {
-        cardType: args.type,
-        errorClass: normalizeErrorClass(error),
-        outcome: "failure",
-        source,
-        userId: user.teakUserId,
-      });
-      throw error;
-    }
-  },
+/**
+ * `createCard`, also saying whether the save made a new card or moved a card
+ * already in Teak to the top (`resaved`).
+ */
+export const createCardWithOutcome = mutation({
+  args: sessionCreateCardArgs,
+  returns: createCardOutcomeValidator,
+  handler: (ctx, args) => createCardForSession(ctx, args),
 });

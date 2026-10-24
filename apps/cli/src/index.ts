@@ -10,7 +10,7 @@ import {
   TeakApiError,
 } from "teak-sdk";
 import { addCard, readStdin } from "./files";
-import { formatCardLine, formatDetail } from "./format";
+import { formatCardLine, formatCreated, formatDetail } from "./format";
 import {
   authStatus,
   changeFolderCards,
@@ -193,7 +193,7 @@ const createCard = async (
   }
 ) => {
   const result = await addCard(content, options);
-  write(options.json ? result : `${result.cardId}  ${result.appUrl}`, options);
+  write(options.json ? result : formatCreated(result), options);
 };
 
 const BULK_OPERATIONS: readonly string[] = [
@@ -224,11 +224,14 @@ export const formatBulkResult = (value: unknown, position: number) => {
     code?: unknown;
     error?: unknown;
     index?: unknown;
+    resaved?: unknown;
     status?: unknown;
   };
   const index = typeof item.index === "number" ? item.index : position;
   if (item.status === "success") {
-    return `[${index}] ${String(item.cardId ?? "ok")}`;
+    const resaved =
+      item.resaved === true ? " (already in Teak, moved to the top)" : "";
+    return `[${index}] ${String(item.cardId ?? "ok")}${resaved}`;
   }
   const message = typeof item.error === "string" ? item.error : "failed";
   return `[${index}] ${typeof item.code === "string" ? `${item.code}: ` : ""}${message}`;

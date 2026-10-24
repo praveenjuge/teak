@@ -64,6 +64,7 @@ import {
   richSitesPack,
   videoCaptionsPack,
 } from "./devSeed/mediaPacks";
+import { RESAVE_AT_LIMIT_LINKS, resavePack } from "./devSeed/resave";
 import { searchOperatorsPack } from "./devSeed/searchOperators";
 import { urlVariantsScenarioPage } from "./devSeed/urlVariants";
 import {
@@ -326,17 +327,22 @@ const seedFolderScenario = async (
 type ScenarioPack = { description: string } & (
   | { cards: (page: number) => DevScenarioCardDef[] }
   | { folders: () => FolderScenarioPack }
-  | { fillTo: number }
+  | { fillTo: number; lead?: DevScenarioCardDef[] }
   | { links: CardLinkScenario }
   | { locale: Locale }
 );
 
 const FILL_START = Date.UTC(2025, 0, 1);
 
+/**
+ * The cards that bring a library to `target` active cards: `lead` first,
+ * those not saved yet, then text fillers.
+ */
 const fillScenarioCards = async (
   ctx: MutationCtx,
   userId: string,
-  target: number
+  target: number,
+  lead: DevScenarioCardDef[] = []
 ) => {
   const active = await ctx.db
     .query("cards")
@@ -344,15 +350,34 @@ const fillScenarioCards = async (
       q.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(target);
-  return Array.from(
-    { length: Math.max(0, target - active.length) },
-    (_, index): DevScenarioCardDef => ({
-      type: "text",
-      content: `Filler card ${index + 1}`,
-      createdAt: FILL_START + index * 60_000,
-      tags: ["scenario-card-limit"],
-    })
-  );
+  const missingLead: DevScenarioCardDef[] = [];
+  for (const card of lead) {
+    const saved = card.url
+      ? await ctx.db
+          .query("cards")
+          .withIndex("by_user_url_deleted", (q) =>
+            q.eq("userId", userId).eq("url", card.url)
+          )
+          .first()
+      : null;
+    if (!saved) {
+      missingLead.push(card);
+    }
+  }
+  return [
+    ...missingLead,
+    ...Array.from(
+      {
+        length: Math.max(0, target - active.length - missingLead.length),
+      },
+      (_, index): DevScenarioCardDef => ({
+        type: "text",
+        content: `Filler card ${index + 1}`,
+        createdAt: FILL_START + index * 60_000,
+        tags: ["scenario-card-limit"],
+      })
+    ),
+  ];
 };
 
 const firstPageOnly = (cards: DevScenarioCardDef[]) => (page: number) =>
@@ -548,6 +573,17 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "50 links that exercise the duplicate check's URL key: http and https, www, a trailing slash, #fragment, #/ and #! routes, utm_*, fbclid and gclid, near misses that must stay apart (?id=1 and ?id=2, parameter order, the path's case, :8080), an IDN host, a percent-encoded path, a 2,000-character address, two cards for one link, an archived and a trashed one. Each is seeded under /k/ with a key and under /l/ as a card from before keys and savedAt, for the fallbacks and the backfills. Search `#scenario-url-variants`.",
     cards: urlVariantsScenarioPage,
   },
+  resave: {
+    description:
+      "Links to save again: 300 spread over three years with known keys (example.com/resave/001 to /300, every 15th archived), five only in Trash (saving one makes a new card), one in three folders and tagged reading (/resave/reading), and one saved with utm_source (save /resave/utm-variant to move it). Search `#scenario-resave`; seed resave-at-limit on a free account for the card limit.",
+    folders: resavePack,
+  },
+  "resave-at-limit": {
+    description:
+      "A free account at the card limit (200 of 200) whose cards include five links to save again (example.com/resave-limit/1 to /5, the fifth archived): saving one moves it to the top, and a new link is refused. Search `#scenario-resave-at-limit`.",
+    fillTo: FREE_TIER_LIMIT,
+    lead: RESAVE_AT_LIMIT_LINKS,
+  },
   "locale-switch": {
     description:
       "No cards: sets the account's language to German (de), as Settings → Language would. Set the browser's teak-locale cookie to ja first to see the account win on the next load; seed again with `en` restored from Settings to undo.",
@@ -641,7 +677,8 @@ export const seedScenario = internalMutation({
       const filler = await fillScenarioCards(
         ctx,
         owner.teakUserId,
-        pack.fillTo
+        pack.fillTo,
+        pack.lead
       );
       if (filler.length === 0) {
         return { status: "already_seeded" as const, cards: 0 };

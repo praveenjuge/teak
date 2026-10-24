@@ -146,6 +146,29 @@ An explicit `cardType` must fit the card. `image`, `video`, `audio`, and `docume
 
 A create response includes the new `cardId` and its Teak app URL. See **Create Card** in the [API Reference](/reference) for the complete request and response schemas.
 
+### Saving a link again
+
+Saving a link you already have makes no second card. When the save is just a link (`url`, or `content` that is only the link) and a card outside Trash has the same link, ignoring the differences the [duplicate check](#check-for-a-saved-url) ignores, that card moves to the top of `sort=newest` and comes back from Archive. The response is still `200` with `status: "created"`, plus `resaved: true` and, when the card was archived, `wasArchived: true`. `cardId` and `card` are the existing card, whose `savedAt` is now the time of the save.
+
+```json
+{
+  "status": "created",
+  "resaved": true,
+  "wasArchived": true,
+  "cardId": "k57...",
+  "appUrl": "https://app.teakvault.com/?card=k57...",
+  "card": { "id": "k57...", "createdAt": 1735689600000, "savedAt": 1761300000000 }
+}
+```
+
+- Tags, notes and content sent with a re-save are not applied. Check `resaved` and `PATCH` the card to add them.
+- A re-save counts toward the limit of 30 new cards a minute, but not toward the free plan's card limit, so it works at 200 of 200 cards.
+- A link with other words in `content`, a `text` card, a quote and an upload always make a new card, as does a link whose only match is in Trash.
+- The card is not processed again.
+- Retrying with the same `Idempotency-Key` returns the first response.
+
+Every card has `savedAt`: when it was last saved. It starts equal to `createdAt`, which stays the date it was first saved, and moves forward with each re-save. `sort=newest` and `sort=oldest` order by `savedAt`, and `/v1/cards/changes` reports a re-save through `updatedAt`. In `POST /v1/cards/bulk`, a `create` item whose link is already saved succeeds with `resaved: true` and the existing card's `cardId`; the same link twice in one request makes one card, and the second item re-saves it.
+
 ## Edit a card
 
 Send changed fields to `PATCH /v1/cards/:cardId`: `content`, `notes`, `tags`,
@@ -278,7 +301,7 @@ these query parameters:
 </ParamField>
 
 <ParamField query="sort" type="string">
-  Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`, a random order picked by `shuffleSeed`. Or `relevance` (Best match) with `q`: the search's top 64 results by how well they match its words, then the rest in search order; without `q` it is `newest`. See [Best match](#best-match).
+  Order by the date each card was last saved (`savedAt`; saving a link again moves its card to the top): `newest` (default) or `oldest`. Or `shuffle`, a random order picked by `shuffleSeed`. Or `relevance` (Best match) with `q`: the search's top 64 results by how well they match its words, then the rest in search order; without `q` it is `newest`. See [Best match](#best-match).
 </ParamField>
 
 <ParamField query="shuffleSeed" type="number">

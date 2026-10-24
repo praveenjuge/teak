@@ -86,6 +86,7 @@ type ExportCardRow = Pick<
   | "isHidden"
   | "metadataTitle"
   | "notes"
+  | "savedAt"
   | "sourceTitle"
   | "sourceUrl"
   | "tags"
@@ -472,6 +473,7 @@ const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
   isHidden: card.isHidden,
   folderIds: card.folderIds,
   createdAt: card.createdAt,
+  savedAt: card.savedAt,
   updatedAt: card.updatedAt,
 });
 

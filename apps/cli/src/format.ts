@@ -64,12 +64,33 @@ const transcriptBlock = (transcript: string | null | undefined) => {
   ];
 };
 
+/** A card is "saved again" once `savedAt` is more than a minute after it was made. */
+const SAVED_AGAIN_AFTER_MS = 60_000;
+
+const savedAgainLine = (card: { createdAt: number; savedAt?: number }) =>
+  card.savedAt !== undefined &&
+  card.savedAt - card.createdAt > SAVED_AGAIN_AFTER_MS
+    ? `Saved again ${new Date(card.savedAt).toISOString()}`
+    : null;
+
+/** `teak add`: the new card, or the card a link was already saved as. */
+export const formatCreated = (result: {
+  appUrl: string;
+  cardId: string;
+  resaved?: boolean;
+  wasArchived?: boolean;
+}) =>
+  result.resaved
+    ? `Already in Teak, moved to the top${result.wasArchived ? " and out of Archive" : ""}: ${result.cardId}  ${result.appUrl}`
+    : `${result.cardId}  ${result.appUrl}`;
+
 export const formatDetail = (card: Card) =>
   [
     `id: ${card.id}`,
     `type: ${card.type}`,
     card.metadataTitle ? `title: ${card.metadataTitle}` : null,
     `created: ${new Date(card.createdAt).toISOString()}`,
+    savedAgainLine(card),
     `updated: ${new Date(card.updatedAt).toISOString()}`,
     card.isFavorited ? "favorite: yes" : null,
     card.completedAt

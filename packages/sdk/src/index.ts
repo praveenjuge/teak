@@ -168,6 +168,11 @@ export interface Card {
   notes: string | null;
   placeholderUrl: string | null;
   processingStatus: Record<string, unknown> | null;
+  /**
+   * When the card was last saved: `createdAt`, or later when the same link
+   * was saved again. Lists order by it. Servers that predate it leave it out.
+   */
+  savedAt?: number;
   screenshotUrl: string | null;
   /**
    * The title of the page in `sourceUrl`. Servers that predate sources
@@ -410,7 +415,16 @@ export interface CreateCardResponse {
   appUrl: string;
   card?: Card;
   cardId: string;
+  /**
+   * True when the link was already in Teak: no card was made, and that card
+   * (`cardId`) moved to the top. Tags and notes sent with the save were not
+   * applied; update the card to add them.
+   */
+  resaved?: true;
+  /** `status` stays `created` for a re-save too. */
   status: "created";
+  /** True when the re-saved card was archived; it is back in the library. */
+  wasArchived?: true;
 }
 export interface RefreshCardResponse {
   cardId: string;

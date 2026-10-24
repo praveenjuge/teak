@@ -166,10 +166,11 @@ type CardFilters = {
   - Output: `{ id, email, name?, plan: "free" | "pro", cardCount, cardLimit: number | null, locale, settingsUrl }`. `locale` is the language chosen in Teak's Settings, such as `en` or `de`; treat a code you don't know as English.
 - `teak_v1_check_duplicate_url`
   - Input: `{ url: string }`
-  - Output: `{ cardId: string | null }`. Check before saving a link so you don't save it twice. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.
+  - Output: `{ cardId: string | null }`. Saving a link that's already in Teak doesn't make a second card (see `teak_v1_create_card`), so you only need this to tell whether a link is saved. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.
 - `teak_v1_create_card`
   - Input: text/URL fields or uploaded-file fields `{ fileKey, fileEtag?, fileName, mimeType, fileSize?, cardType? }`, plus optional `idempotencyKey`. Pass the `ETag` response header from the upload PUT as `fileEtag` so Teak can verify the exact stored object. Explicit `cardType: "text"` stores raw Markdown exactly; automatic URL, quote, and palette detection remains when the type is omitted. `sourceUrl` and `sourceTitle` record the page a text or quote came from without making it a link; `site:` searches find it. Reusing an `idempotencyKey` returns the first result instead of creating a second card.
-  - Output: `{ status: "created", cardId: string, appUrl: string, card?: Card }`. Text and URL creates include the new `card`.
+  - Saving a link that's already in Teak (just the link, as `url` or as the whole `content`, matched the way `teak_v1_check_duplicate_url` matches) makes no second card: that card moves to the top of `newest` and comes back from Archive. The result adds `resaved: true`, and `wasArchived: true` when it was archived, and its text reads "Already in Teak, moved to the top". Tags and notes sent with a re-save are ignored; add them with `teak_v1_update_card`. A link with other words in `content` always makes a new card.
+  - Output: `{ status: "created", cardId: string, appUrl: string, card?: Card, resaved?: true, wasArchived?: true }`. Text and URL creates include the `card`. Every card has `savedAt`, when it was last saved: `createdAt` until the link is saved again. Lists sorted `newest` or `oldest` order by it.
 - `teak_v1_list_tags`
   - Input: `{}`
   - Output: `{ items: { name: string, count: number }[] }`
@@ -189,7 +190,7 @@ type CardFilters = {
   - Output: `{ items: Card[], deletedIds: string[], pageInfo: { hasMore: boolean, nextCursor: string | null } }`
 - `teak_v1_bulk_cards` <Badge variant="warning">Delete needs confirm</Badge>
   - Input: `{ operation: "create" | "update" | "favorite" | "delete" | "archive" | "unarchive" | "addTags" | "removeTags" | "restore", items: object[], confirm?: true, idempotencyKey?: string }`. Archive, unarchive, restore, and delete items are `{ cardId }`; addTags and removeTags items are `{ cardId, tags }`.
-  - Output: `{ operation, results: [{ index, status: "success", cardId } | { index, status: "error", code, error }], failedIds: string[], summary: { total, succeeded, failed } }`. Delete batches move cards to Trash and require `confirm: true`.
+  - Output: `{ operation, results: [{ index, status: "success", cardId, resaved?: true } | { index, status: "error", code, error }], failedIds: string[], summary: { total, succeeded, failed } }`. A `create` item whose link is already saved re-saves that card (`resaved: true`) instead of making a second one. Delete batches move cards to Trash and require `confirm: true`.
   - If any item fails, the result is marked as a tool error (`isError: true`) and its text lists the failed items. The other items still succeed.
 - `teak_v1_create_upload`
   - Input: `{ fileName: string, mimeType: string, fileSize: number }`
