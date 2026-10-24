@@ -230,3 +230,25 @@
     --teak-editor-font-size: 0.875rem;
   }
 }
+
+/* Chinese, Japanese and Korean: system fonts after SN Pro, which has no CJK
+   glyphs, and each language's line-breaking rules. */
+:root:lang(ja) {
+  --font-sans:
+    "SN Pro", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
+    Meiryo, "Noto Sans JP", system-ui, sans-serif;
+  line-break: strict;
+}
+
+:root:lang(ko) {
+  --font-sans:
+    "SN Pro", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui,
+    sans-serif;
+  word-break: keep-all;
+}
+
+:root:lang(zh) {
+  --font-sans:
+    "SN Pro", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", system-ui, sans-serif;
+}
