@@ -158,7 +158,7 @@ describe("createPendingHighlightIds", () => {
     const saving = new Promise<{ highlight: { _id: string } }>((resolve) => {
       finish = resolve;
     });
-    const tempId = optimisticHighlightId(1);
+    const tempId = optimisticHighlightId({ start: 2, end: 5 });
     ids.track(tempId, saving);
 
     const resolved = ids.resolve(tempId);
@@ -170,8 +170,40 @@ describe("createPendingHighlightIds", () => {
 
   test("a save that failed, or an unknown temporary id, resolves to nothing", async () => {
     const ids = createPendingHighlightIds();
-    ids.track(optimisticHighlightId(1), Promise.reject(new Error("refused")));
-    expect(await ids.resolve(optimisticHighlightId(1))).toBeNull();
-    expect(await ids.resolve(optimisticHighlightId(2))).toBeNull();
+    ids.track(
+      optimisticHighlightId({ start: 2, end: 5 }),
+      Promise.reject(new Error("refused"))
+    );
+    expect(
+      await ids.resolve(optimisticHighlightId({ start: 2, end: 5 }))
+    ).toBeNull();
+    expect(
+      await ids.resolve(optimisticHighlightId({ start: 7, end: 9 }))
+    ).toBeNull();
+  });
+});
+
+describe("optimisticHighlightId", () => {
+  test("names a new highlight by its passage, so a replayed update keeps the id", () => {
+    // Convex runs a pending optimistic update again whenever results arrive.
+    const span = { start: 2, end: 5 };
+    expect(optimisticHighlightId(span)).toBe(optimisticHighlightId(span));
+    const first = withNewHighlight(
+      [],
+      { ...span, articleKey: "k", quote: "cde" },
+      {
+        ...stamp,
+        id: optimisticHighlightId(span),
+      }
+    );
+    const replayed = withNewHighlight(
+      [],
+      { ...span, articleKey: "k", quote: "cde" },
+      { ...stamp, id: optimisticHighlightId(span) }
+    );
+    expect(first.list[0]?._id).toBe(replayed.list[0]?._id);
+    expect(optimisticHighlightId({ start: 2, end: 6 })).not.toBe(
+      optimisticHighlightId(span)
+    );
   });
 });

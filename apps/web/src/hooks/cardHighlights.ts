@@ -164,9 +164,16 @@ export const undoRemovalInput = (
 
 const OPTIMISTIC_ID_PREFIX = "optimistic-";
 
-/** The id a highlight shows until its create returns the real one. */
-export const optimisticHighlightId = (count: number): string =>
-  `${OPTIMISTIC_ID_PREFIX}${count}`;
+/**
+ * The id a new highlight shows until its create returns the real one. It
+ * comes from the passage, not a counter: Convex runs an optimistic update
+ * again whenever query results arrive, and the row must keep its id each
+ * time.
+ */
+export const optimisticHighlightId = (span: {
+  end: number;
+  start: number;
+}): string => `${OPTIMISTIC_ID_PREFIX}${span.start}-${span.end}`;
 
 /**
  * The server id each optimistic highlight turns into. A note typed, or a

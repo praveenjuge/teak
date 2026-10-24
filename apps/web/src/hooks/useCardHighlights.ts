@@ -7,7 +7,7 @@ import {
 } from "@teak/convex/shared/highlights/constants";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@/lib/convexQueryHooks";
 import {
@@ -52,7 +52,6 @@ export function useCardHighlights(
     api.highlight.highlights.listForCard,
     enabled && args ? args : "skip"
   );
-  const tempIds = useRef(0);
   const [pendingIds] = useState(createPendingHighlightIds);
 
   const createHighlight = useMutation(
@@ -63,13 +62,12 @@ export function useCardHighlights(
     if (!list) {
       return;
     }
-    tempIds.current += 1;
     store.setQuery(
       api.highlight.highlights.listForCard,
       query,
       withNewHighlight(list, input, {
         cardId: input.cardId,
-        id: optimisticHighlightId(tempIds.current),
+        id: optimisticHighlightId(input),
         now: Date.now(),
       }).list
     );
@@ -136,8 +134,7 @@ export function useCardHighlights(
         return false;
       }
       try {
-        // The optimistic update numbers the row it adds next.
-        const tempId = optimisticHighlightId(tempIds.current + 1);
+        const tempId = optimisticHighlightId(input);
         const saving = createHighlight({
           articleKey: input.articleKey,
           cardId: args.cardId,
@@ -197,11 +194,11 @@ export function useCardHighlights(
         return;
       }
       const input = undoRemovalInput(highlight);
+      // Through `create`, so a note typed on the restored highlight while it
+      // saves waits for its real id too.
       const undo = input
         ? () => {
-            createHighlight({ cardId: highlight.cardId, ...input }).catch(
-              showProblem
-            );
+            create(input);
           }
         : undefined;
       toast(t("removed"), {
@@ -209,7 +206,7 @@ export function useCardHighlights(
         ...(undo ? { action: { label: tc("undo"), onClick: undo } } : {}),
       });
     },
-    [createHighlight, pendingIds, removeHighlight, showProblem, t, tc]
+    [create, pendingIds, removeHighlight, showProblem, t, tc]
   );
 
   return useMemo(
