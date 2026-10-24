@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { PRO_FEATURES } from "../../../constants/settings";
+import { englishMessages } from "@teak/i18n";
 
-describe("settings constants", () => {
+const PRO_FEATURES = Object.values(
+  englishMessages.settings.subscription.features
+);
+
+describe("Pro features", () => {
   test("describes browser extension access without excluding Safari", () => {
     expect(PRO_FEATURES).toContain("Browser Extensions");
     expect(PRO_FEATURES).not.toContain("Chrome Extension");

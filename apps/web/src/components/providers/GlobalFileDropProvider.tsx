@@ -67,6 +67,7 @@ export function GlobalFileDropProvider({
   upgradeUrl,
 }: GlobalFileDropProviderProps) {
   const t = useTranslations("providers.fileDrop");
+  const tUpload = useTranslations("lib.upload");
   const serverErrors = useServerErrors();
   const [isDragActive, setIsDragActive] = useState(false);
   const { isOnline } = useNetworkStatus();
@@ -102,7 +103,11 @@ export function GlobalFileDropProvider({
   const resolveResultToast = useCallback(
     (results: UploadMultipleFilesResultItem[], skippedCount: number) => {
       const summary = summarizeBatchResults(results);
-      const skippedNote = formatSkippedNote(skippedCount, MAX_FILES_PER_UPLOAD);
+      const skippedNote = formatSkippedNote(
+        skippedCount,
+        MAX_FILES_PER_UPLOAD,
+        tUpload
+      );
       const withSkippedNote = (message: string) =>
         skippedNote ? `${message} ${skippedNote}` : message;
 
@@ -174,12 +179,15 @@ export function GlobalFileDropProvider({
         return;
       }
 
-      toast.error(withSkippedNote(formatPartialFailureMessage(summary)), {
-        ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-        id: TOAST_IDS.uploadQueue,
-      });
+      toast.error(
+        withSkippedNote(formatPartialFailureMessage(summary, tUpload)),
+        {
+          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          id: TOAST_IDS.uploadQueue,
+        }
+      );
     },
-    [handleUpgrade, serverErrors, t]
+    [handleUpgrade, serverErrors, t, tUpload]
   );
 
   const handlersRef = useRef<UploadQueueHandlers | null>(null);
@@ -187,10 +195,13 @@ export function GlobalFileDropProvider({
     handlersRef.current = {
       onFinish: resolveResultToast,
       onSkipped: (skippedCount) =>
-        toast.warning(formatSkippedNote(skippedCount, MAX_FILES_PER_UPLOAD), {
-          ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
-          id: TOAST_IDS.uploadQueue,
-        }),
+        toast.warning(
+          formatSkippedNote(skippedCount, MAX_FILES_PER_UPLOAD, tUpload),
+          {
+            ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
+            id: TOAST_IDS.uploadQueue,
+          }
+        ),
       onStart: () =>
         toast.loading(t("uploading"), {
           ...UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
@@ -198,7 +209,7 @@ export function GlobalFileDropProvider({
         }),
       upload: uploadMultipleFiles,
     };
-  }, [resolveResultToast, t, uploadMultipleFiles]);
+  }, [resolveResultToast, t, tUpload, uploadMultipleFiles]);
   const [queue] = useState(() =>
     createUploadQueue(MAX_FILES_PER_UPLOAD, () => {
       if (!handlersRef.current) {
