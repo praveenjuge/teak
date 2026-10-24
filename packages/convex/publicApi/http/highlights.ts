@@ -152,6 +152,9 @@ const createHighlight = async (
       {
         userId,
         cardId: source.cardId,
+        // The text the quote was found in: a card whose article changed
+        // since refuses the offsets.
+        articleKey: source.textKey,
         quote: text.slice(anchor.start, anchor.end),
         prefix: anchor.prefix,
         suffix: anchor.suffix,

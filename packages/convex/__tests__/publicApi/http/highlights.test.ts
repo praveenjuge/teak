@@ -115,6 +115,8 @@ describe("POST /v1/cards/{cardId}/highlights", () => {
     expect(args).toMatchObject({
       userId: "user_1",
       cardId: "card_1",
+      // The text the quote was found in, so a replaced article refuses it.
+      articleKey: (await articleSource()).textKey,
       quote: "water in the morning",
       start,
       end: start + "water in the morning".length,

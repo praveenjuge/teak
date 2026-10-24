@@ -370,6 +370,7 @@ export function ArticleReader({
       </div>
       {highlights ? (
         <ArticleHighlights
+          articleKey={article.textKey}
           bodyRef={bodyRef}
           control={highlights}
           controlsRef={highlightControlsRef}

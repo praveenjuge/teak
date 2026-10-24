@@ -160,17 +160,22 @@ const setup = async () => {
         (row) => cardId === undefined || row.cardId === cardId
       )
     );
-  const create = (
+  const articleKey = async (cardId: Id<"cards">) => {
+    const { article } = await card(cardId);
+    return article?.status === "ready" ? article.textKey : "";
+  };
+  const create = async (
     cardId: Id<"cards">,
     quote: string,
     extra: { nth?: number; note?: string } = {}
   ) =>
     owner.mutation(api.highlight.highlights.create, {
+      articleKey: await articleKey(cardId),
       cardId,
       ...span(quote, extra.nth),
       ...(extra.note ? { note: extra.note } : {}),
     });
-  return { t, owner, other, link, card, rows, create, textKey };
+  return { t, owner, other, link, card, rows, create, textKey, articleKey };
 };
 
 const codeOf = async (promise: Promise<unknown>) => {
@@ -255,13 +260,36 @@ describe("making highlights", () => {
       "INVALID_INPUT",
     ],
   ])("refuses %s", async (_name, args, code) => {
-    const { link, owner } = await setup();
+    const { link, owner, articleKey } = await setup();
     const cardId = await link();
     expect(
       await codeOf(
-        owner.mutation(api.highlight.highlights.create, { cardId, ...args })
+        owner.mutation(api.highlight.highlights.create, {
+          articleKey: await articleKey(cardId),
+          cardId,
+          ...args,
+        })
       )
     ).toBe(code);
+  });
+
+  test("refuses offsets measured in an article the card no longer has", async () => {
+    // The article was replaced (a refresh, a re-save) between reading the
+    // text and saving the highlight: its offsets belong to the old text.
+    const { link, owner, rows, articleKey } = await setup();
+    const cardId = await link();
+    const stale = await articleKey(cardId);
+    expect(stale).not.toBe("");
+    expect(
+      await codeOf(
+        owner.mutation(api.highlight.highlights.create, {
+          articleKey: stale.replace(/\/r1-/u, "/r2-"),
+          cardId,
+          ...span("Plant marigolds"),
+        })
+      )
+    ).toBe("CONFLICT");
+    expect(await rows(cardId)).toEqual([]);
   });
 
   test("refuses a note past 2,000 characters", async () => {
@@ -333,6 +361,7 @@ describe("making highlights", () => {
     expect(
       await codeOf(
         other.mutation(api.highlight.highlights.create, {
+          articleKey: "",
           cardId,
           ...span("Mulch"),
         })

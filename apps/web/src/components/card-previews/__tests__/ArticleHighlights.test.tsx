@@ -240,7 +240,8 @@ describe("selecting in the reader", () => {
       string,
       unknown
     >;
-    expect(input).toMatchObject({ quote: "them" });
+    // The offsets belong to the article the reader shows.
+    expect(input).toMatchObject({ articleKey: keyOf("select"), quote: "them" });
     const index = indexBodyText(body);
     expect(
       index.map.text.slice(input.start as number, input.end as number)

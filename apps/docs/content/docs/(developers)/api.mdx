@@ -685,6 +685,7 @@ A link with highlights keeps its saved copy and article: refreshing it, or savin
 | `404` | `NOT_FOUND` | Another account's card or highlight |
 | `409` | `NO_ARTICLE` | The card isn't a link with a saved article, or is in Trash |
 | `409` | `HIGHLIGHT_LIMIT` | The card has 200 highlights |
+| `409` | `CONFLICT` | The card's saved article changed while the quote was being found; try again |
 | `422` | `QUOTE_NOT_FOUND` | The article doesn't have the quote |
 | `429` | `RATE_LIMITED` | More than 120 highlight changes in a minute; see `retryAt` |
 

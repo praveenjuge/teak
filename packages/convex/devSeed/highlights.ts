@@ -225,6 +225,8 @@ export const seedHighlightsMix = async (
     ctx,
     userId,
     {
+      articleKey:
+        japanese.article?.status === "ready" ? japanese.article.textKey : "",
       cardId: japanese._id as Id<"cards">,
       quote: japaneseText.slice(overlap.start, overlap.end),
       ...anchorContext(japaneseText, overlap.start, overlap.end),

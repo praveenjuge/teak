@@ -72,7 +72,7 @@ export const highlightPaths = {
         404: { content: apiErrorContent, description: "Card not found" },
         409: {
           content: apiErrorContent,
-          description: `NO_ARTICLE: the card isn't a link with a saved article, or is in Trash. HIGHLIGHT_LIMIT: the card has ${MAX_HIGHLIGHTS_PER_CARD} highlights`,
+          description: `NO_ARTICLE: the card isn't a link with a saved article, or is in Trash. HIGHLIGHT_LIMIT: the card has ${MAX_HIGHLIGHTS_PER_CARD} highlights. CONFLICT: the card's saved article changed while the quote was being found; try again`,
         },
         422: {
           content: apiErrorContent,

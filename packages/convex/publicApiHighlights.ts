@@ -74,6 +74,7 @@ export const createHighlightForApi = internalMutation({
   args: {
     userId: v.string(),
     cardId: v.id("cards"),
+    articleKey: v.string(),
     quote: v.string(),
     prefix: v.optional(v.string()),
     suffix: v.optional(v.string()),

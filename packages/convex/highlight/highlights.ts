@@ -38,6 +38,8 @@ import { queueBackendEvent } from "../telemetry/schedule";
 
 /** The server's messages; the web app shows its own words for each code. */
 export const HIGHLIGHT_ERROR_MESSAGES = {
+  ARTICLE_CHANGED:
+    "This card's saved article changed while you highlighted. Try again.",
   CARD_NOT_FOUND: "Card not found",
   EMPTY_QUOTE: "Highlight some text",
   HIGHLIGHT_LIMIT: `This card has ${MAX_HIGHLIGHTS_PER_CARD} highlights, the most it can hold`,
@@ -303,6 +305,12 @@ const placeSpan = async (
 };
 
 export interface CreateHighlightArgs extends SpanInput {
+  /**
+   * The article (`cards.article.textKey`) the offsets were measured in. A
+   * card whose article was replaced since refuses them: they belong to
+   * another text.
+   */
+  articleKey: string;
   cardId: Id<"cards">;
   note?: string;
 }
@@ -326,6 +334,9 @@ export const createHighlightForUser = async (
 ): Promise<CreateHighlightResult> => {
   const card = await ownedCard(ctx, userId, args.cardId);
   const article = highlightableArticle(card);
+  if (args.articleKey !== article.textKey) {
+    fail("CONFLICT", HIGHLIGHT_ERROR_MESSAGES.ARTICLE_CHANGED);
+  }
   await assertAccountNotDeleting(ctx, card.userId);
   assertQuote(args.quote);
   const note = cleanHighlightNote(args.note);
@@ -583,6 +594,7 @@ const createResultValidator = v.object({
 export const create = mutation({
   args: {
     cardId: v.id("cards"),
+    articleKey: v.string(),
     quote: v.string(),
     prefix: v.optional(v.string()),
     suffix: v.optional(v.string()),

@@ -133,6 +133,7 @@ export function useCardHighlights(
       }
       try {
         const result = await createHighlight({
+          articleKey: input.articleKey,
           cardId: args.cardId,
           quote: input.quote,
           start: input.start,

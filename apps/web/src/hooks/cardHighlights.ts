@@ -14,6 +14,8 @@ export type CardHighlight = FunctionReturnType<
 >[number];
 
 export interface NewHighlight extends HighlightSpan {
+  /** The article the offsets were measured in (`cards.article.textKey`). */
+  articleKey: string;
   note?: string;
 }
 

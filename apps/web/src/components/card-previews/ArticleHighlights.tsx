@@ -210,6 +210,7 @@ function HighlightButton({
  * one clicked.
  */
 export function ArticleHighlights({
+  articleKey,
   bodyRef,
   control,
   controlsRef,
@@ -217,6 +218,8 @@ export function ArticleHighlights({
   rootRef,
   version,
 }: {
+  /** The article the body shows: a highlight's offsets are measured in it. */
+  articleKey: string;
   bodyRef: RefObject<HTMLElement | null>;
   control: CardHighlightsControl;
   controlsRef?: RefObject<ReaderHighlightControls | null>;
@@ -378,6 +381,7 @@ export function ArticleHighlights({
     setSelected(null);
     control
       .create({
+        articleKey,
         quote: span.quote,
         start: span.start,
         end: span.end,
@@ -387,7 +391,7 @@ export function ArticleHighlights({
         creating.current = false;
       });
     return true;
-  }, [control, selected]);
+  }, [articleKey, control, selected]);
 
   useEffect(() => {
     if (!controlsRef) {
