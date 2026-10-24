@@ -145,7 +145,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 | 6 | [Page archive and dead-link fallback](2026-10-19-roadmap-v3-06-page-archive.md) | Archive & reading | 2 |
 | 7 | [Reader view and article search](2026-10-19-roadmap-v3-07-reader-view.md) | Archive & reading | 6 |
 | 8 | [Highlights](2026-10-19-roadmap-v3-08-highlights.md) | Archive & reading | 7 |
-| 9 | [Localization: foundation and seven languages](2026-10-19-roadmap-v3-09-localization.md) | Localization | — |
+| 9 | Localization: foundation and seven languages (shipped; its plan is in git history) | Localization | — |
 | 10 | [AI output in the content's language](2026-10-19-roadmap-v3-10-ai-content-language.md) | Localization | — |
 
 **Why this order.**

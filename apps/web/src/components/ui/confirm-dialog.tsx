@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import { Button } from "./button";
 import {
@@ -27,9 +28,10 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = "Cancel",
+  cancelLabel,
   onConfirm,
 }: ConfirmDialogProps) {
+  const tc = useTranslations("common");
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
@@ -43,7 +45,7 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)} variant="outline">
-            {cancelLabel}
+            {cancelLabel ?? tc("cancel")}
           </Button>
           <Button
             onClick={() => {

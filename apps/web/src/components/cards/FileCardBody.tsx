@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { formatDuration, getFileFormatBadge } from "./cardDisplay";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
 import { GridDocumentPreview } from "./previews/GridDocumentPreview";
@@ -51,11 +52,14 @@ export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
 }
 
 export function AudioCardBody({ card }: Pick<FileCardBodyProps, "card">) {
+  const t = useTranslations("cards.body");
   return (
     <AudioWavePreview
       cardId={card._id}
       durationLabel={formatDuration(card.fileMetadata?.duration)}
-      title={card.metadataTitle || card.fileMetadata?.fileName || "Recording"}
+      title={
+        card.metadataTitle || card.fileMetadata?.fileName || t("recording")
+      }
       waveformGrid={card.fileMetadata?.waveform?.grid}
     />
   );

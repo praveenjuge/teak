@@ -8,6 +8,7 @@ import {
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
 import { fetchWebUrl } from "@teak/convex/shared/utils/webUrl";
+import { isSupportedLocale, LOCALE_NAMES } from "@teak/i18n/locales";
 import { InvalidArgumentError } from "commander";
 import {
   type CardsPage,
@@ -358,9 +359,17 @@ const planLine = (me: Awaited<ReturnType<TeakClient["me"]>>) =>
     ? `Pro plan · ${me.cardCount} cards`
     : `Free plan · ${me.cardCount} of ${me.cardLimit} cards`;
 
+// The language in its own name; a code this CLI doesn't know prints as is.
+const languageLine = (locale: string) =>
+  `Language: ${isSupportedLocale(locale) ? LOCALE_NAMES[locale].native : locale}`;
+
 export const whoami = async (options: GlobalOptions) => {
   const me = await client(options).me();
-  write(options.json ? me : `${me.email}\n${planLine(me)}`, options);
+  const lines = [me.email, planLine(me)];
+  if (me.locale) {
+    lines.push(languageLine(me.locale));
+  }
+  write(options.json ? me : lines.join("\n"), options);
 };
 
 export const authStatus = async (options: GlobalOptions, source: string) => {

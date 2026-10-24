@@ -4,6 +4,7 @@ import {
   type SearchQualifier,
   searchExpressionParts,
 } from "@teak/convex/shared";
+import { useTranslations } from "@teak/i18n/react";
 import { Archive, CircleSlash, Parentheses, Quote, Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
@@ -43,12 +44,13 @@ function QueryChip({
 }
 
 function ExcludedLabel({ label }: { label: string }) {
+  const t = useTranslations("folders.smartQuery");
   return (
     <>
       <span aria-hidden="true" className="shrink-0">
-        −
+        {"−"}
       </span>
-      <span className="sr-only">not</span>
+      <span className="sr-only">{t("excluded")}</span>
       <span className="truncate text-muted-foreground" dir="auto">
         {label}
       </span>
@@ -62,10 +64,13 @@ export function SmartFolderQuery({
   inline = false,
   query,
 }: SmartFolderQueryProps) {
+  const t = useTranslations("folders.smartQuery");
+  const tSearch = useTranslations("search");
+  const types = useTranslations("cards.types");
   const parsed = parseSearchQuery(query);
   const qualifierChip = (qualifier: SearchQualifier, excluded = false) => {
     const chip = formatSearchQualifier(qualifier);
-    const described = describeQualifierChip(chip);
+    const described = describeQualifierChip(chip, undefined, tSearch, types);
     const { label, title } = described ?? { label: qualifier.value, title: "" };
     const unknownFolder =
       qualifier.key === "folder" &&
@@ -84,7 +89,7 @@ export function SmartFolderQuery({
         <Icon aria-hidden="true" className="size-3 shrink-0" />
         {unknownFolder ? (
           <span className="truncate" dir="auto">
-            No folder named {qualifier.value}
+            {t("noFolderNamed", { name: qualifier.value })}
           </span>
         ) : (
           <>
@@ -147,7 +152,7 @@ export function SmartFolderQuery({
   }
   return (
     <ul
-      aria-label={`Search: ${query}`}
+      aria-label={t("label", { query })}
       className={cn(
         inline
           ? "flex min-w-0 flex-nowrap gap-1 overflow-hidden"

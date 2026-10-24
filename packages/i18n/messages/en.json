@@ -1,0 +1,1591 @@
+{
+  "common": {
+    "add": "Add",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "copy": "Copy",
+    "delete": "Delete",
+    "done": "Done",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "more": "More",
+    "remove": "Remove",
+    "rename": "Rename",
+    "retry": "Retry",
+    "save": "Save",
+    "saving": "Saving…",
+    "tryAgain": "Try again",
+    "undo": "Undo"
+  },
+  "ui": {
+    "loading": "Loading",
+    "close": "Close",
+    "menu": "Menu",
+    "menuDescription": "Library views, card types and settings.",
+    "toggleSidebar": "Toggle Sidebar",
+    "commandDialog": {
+      "title": "Command palette",
+      "description": "Search for a command to run"
+    },
+    "resizeSidebar": "Resize sidebar",
+    "expandSidebar": "Expand sidebar",
+    "resizeSidebarHint": "Drag to resize, double-click to reset"
+  },
+  "settings": {
+    "footer": {
+      "feedback": "Let me know <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> if you have any feedback. If you ever want to leave, you can <deleteAccount>delete your account</deleteAccount>. Hope you enjoy using Teak as much as I enjoyed creating it.",
+      "signature": "Praveen Juge Signature"
+    },
+    "header": {
+      "title": "Settings"
+    },
+    "rows": {
+      "email": "Email",
+      "usage": "Usage",
+      "plan": "Plan",
+      "saveByEmail": "Save by email",
+      "security": "Security",
+      "importExport": "Import/Export Data",
+      "theme": "Theme",
+      "signOut": "Sign out",
+      "language": "Language"
+    },
+    "skeleton": {
+      "loading": "Loading settings…"
+    },
+    "errorAlert": {
+      "title": "Error"
+    },
+    "content": {
+      "notAvailable": "Not available",
+      "cardCount": "{count, plural, other {# Cards}}",
+      "pro": "Pro",
+      "freePlan": "Free Plan",
+      "manage": "Manage",
+      "manageSubscription": "Manage subscription",
+      "upgrade": "Upgrade",
+      "signOut": "Sign out"
+    },
+    "theme": {
+      "useSystem": "Use system theme",
+      "useLight": "Use light theme",
+      "useDark": "Use dark theme"
+    },
+    "importExport": {
+      "manage": "Manage",
+      "manageLabel": "Manage import and export",
+      "title": "Manage data",
+      "description": "Bring cards in from other tools, or take a full copy with you.",
+      "importTab": "Import",
+      "exportTab": "Export"
+    },
+    "security": {
+      "manage": "Manage",
+      "manageLabel": "Manage security",
+      "title": "Security",
+      "description": "Manage the devices, apps and keys that can access your Teak account.",
+      "connectionsTab": "Connections",
+      "apiKeysTab": "API keys"
+    },
+    "connections": {
+      "devicesTitle": "Devices",
+      "devicesDescription": "Browsers and devices signed in to your account.",
+      "appsTitle": "Connected apps",
+      "appsDescription": "Disconnecting signs an app out across all its installations.",
+      "loadingDevices": "Loading devices…",
+      "loadingApps": "Loading apps…",
+      "devicesLoadFailed": "Could not load devices. Please try again.",
+      "appsLoadFailed": "Could not load apps. Please try again.",
+      "noDevices": "No devices.",
+      "noApps": "No apps are connected.",
+      "showMoreDevices": "Show more devices",
+      "showMoreApps": "Show more apps",
+      "thisDevice": "This device",
+      "signedIn": "Signed in {date}",
+      "connected": "Connected {date}",
+      "lastUsed": "Last used {date}",
+      "signOut": "Sign out",
+      "signOutLabel": "Sign out {name}",
+      "signOutCurrentLabel": "Sign out {name} (this device)",
+      "disconnect": "Disconnect",
+      "disconnectLabel": "Disconnect {name}",
+      "updateFailed": "Could not update this connection. Please try again.",
+      "signOutCurrentTitle": "Sign out of this device?",
+      "signOutCurrentDescription": "You’ll be signed out of Teak in this browser ({name}) and need to sign in again.",
+      "signOutTitle": "Sign out {name}?",
+      "signOutDescription": "The {name} session that signed in {date} is signed out of Teak and needs to sign in again.",
+      "disconnectTitle": "Disconnect {name}?",
+      "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again."
+    },
+    "apiKeys": {
+      "title": "API keys",
+      "revokeAllTitle": "Revoke all API keys?",
+      "revokeAllDescription": "Every API key stops working right away, including keys used by the CLI, Raycast and MCP clients. This can’t be undone.",
+      "revokeAllConfirm": "Revoke all keys",
+      "revokeTitle": "Revoke this API key?",
+      "revokeDescription": "{key} stops working right away. Anything that uses it loses access to your library. This can’t be undone.",
+      "revokeConfirm": "Revoke key",
+      "regenerateTitle": "Regenerate this API key?",
+      "regenerateDescription": "{key} stops working right away and is replaced by a new key. Update anything that uses it with the new key.",
+      "regenerateConfirm": "Regenerate key",
+      "identityCreated": "created {date}",
+      "regenerateLabel": "Regenerate {identity}",
+      "revokeLabel": "Revoke {identity}",
+      "regenerateKey": "Regenerate key",
+      "revokeKey": "Revoke key",
+      "created": "Created {date}",
+      "copyNewKey": "Copy your new key now",
+      "newKeyLabel": "New API key",
+      "updateFailed": "Could not update your API keys. Please try again.",
+      "keyCreated": "API key created. Copy it now; it is only shown once.",
+      "revokingRemaining": "Revoking remaining keys in the background.",
+      "allRevoked": "All API keys revoked.",
+      "keyRevoked": "API key revoked.",
+      "keyRegenerated": "API key regenerated. Copy the new key now.",
+      "keyCopied": "API key copied.",
+      "copyFailed": "Could not copy the key. Select and copy it manually.",
+      "limitNote": "Keys have full access to your library. You can keep up to 10 active keys.",
+      "createKey": "Create key",
+      "loading": "Loading API keys…",
+      "empty": "Create your first API key to connect external tools.",
+      "revokeAll": "Revoke all keys"
+    },
+    "deleteAccount": {
+      "title": "Delete account",
+      "description": "This permanently deletes your account, cards, tags, and uploaded files. This can’t be undone.",
+      "submit": "Delete account",
+      "confirmPhrase": "delete account",
+      "confirmPrompt": "Type \"<strong>{phrase}</strong>\" to proceed"
+    },
+    "subscription": {
+      "title": "Upgrade to Pro",
+      "description": "Unlock all features and remove limits.",
+      "maybeLater": "Maybe later",
+      "continueToCheckout": "Continue to checkout",
+      "choosePlan": "Choose a plan",
+      "everythingInPro": "Everything in Pro",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "bestValue": "Best Value • Save {percent}%",
+      "features": {
+        "unlimitedCards": "Unlimited Cards",
+        "unlimitedStorage": "Unlimited Storage",
+        "summaryAndTags": "Automatic Summary and Tags",
+        "audioTranscription": "Automatic Audio Transcription",
+        "browserExtensions": "Browser Extensions",
+        "apps": "iOS, Mac & Android Apps",
+        "apiAndMcp": "API & MCP Access"
+      }
+    },
+    "inboundEmail": {
+      "title": "Save by email",
+      "genericError": "Couldn't update Save by email. Try again.",
+      "rateLimited": "Too many changes. Try again in a minute.",
+      "addressCopied": "Address copied",
+      "copyFailed": "Couldn't copy the address. Select and copy it manually.",
+      "loading": "Loading Save by email…",
+      "intro": "Send or forward email to Teak, and it's saved as cards.",
+      "verifyToTurnOn": "Verify your sign-in email, <strong>{sender}</strong>, to turn this on.",
+      "turnOn": "Turn on",
+      "copyAddress": "Copy address",
+      "sendFrom": "Send from <strong>{sender}</strong>. Mail from other addresses isn't saved.",
+      "unverified": "Mail isn't saved until you verify your sign-in email, <strong>{sender}</strong>.",
+      "howItWorks": "Forward or send anything. An email with a single link becomes a link card, everything else becomes a note, and attachments become their own cards. All are tagged email.",
+      "lastReceived": "Last email received {when}",
+      "turnOff": "Turn off",
+      "on": "On",
+      "off": "Off",
+      "statusOnLabel": "Save by email: On",
+      "statusOffLabel": "Save by email: Off"
+    },
+    "export": {
+      "starting": "Starting export…",
+      "started": "Export started. We'll prepare your archive in the background.",
+      "startFailed": "Could not start export.",
+      "canceling": "Canceling export…",
+      "canceled": "Export canceled.",
+      "cancelFailed": "Could not cancel export.",
+      "preparingDownload": "Preparing download…",
+      "downloadReady": "Your download is ready.",
+      "downloadFailed": "Could not prepare download.",
+      "preparing": "Preparing your export…",
+      "runsInBackground": "This keeps running in the background.",
+      "snapshotting": "Snapshotting your cards",
+      "snapshotProgress": "{count, plural, one {# card captured so far} other {# cards captured so far}}",
+      "archiving": "Building your archive…",
+      "zipping": "Zipping your cards and files.",
+      "quotaCaption": "One export per week, available for 7 days after it's ready.",
+      "lastFailed": "Last export failed. You can try again.",
+      "quotaUsed": "You've used this week's export.",
+      "cancelExport": "Cancel export",
+      "ready": "Your export is ready",
+      "cardCount": "{count, plural, other {# cards}}",
+      "filesOmittedTitle": "Some original files couldn't be read at export time and were left out of the archive.",
+      "filesUnavailable": "{count, plural, one {# file unavailable} other {# files unavailable}}",
+      "availableUntil": "available until {date}",
+      "downloadArchive": "Download archive",
+      "title": "Export your data",
+      "description": "A ZIP of every card outside Trash with its original files, plus a bookmarks file for your browser and a spreadsheet.",
+      "startExport": "Start export",
+      "nextAvailable": "Next export available {date}",
+      "availableIn": "Available in {countdown}"
+    },
+    "import": {
+      "wrongFile": "Choose a {extensions} file from {source}.",
+      "extensionSeparator": " or ",
+      "fileTooLarge": "That file is {size}. The limit is {limit}.",
+      "fileEmpty": "That file is empty.",
+      "lastImport": "Last import: {created} created, {skipped} skipped{failed, plural, =0 {} other {, # failed}} — {when}",
+      "created": "{count} created",
+      "skipped": "{count} skipped",
+      "failed": "{count} failed",
+      "continuesInBackground": "You can close this and come back later. Importing continues in the background.",
+      "startFailed": "Import could not start",
+      "cancelFailed": "Import could not be canceled.",
+      "reportLoadFailed": "Import report could not be loaded",
+      "reportCopied": "Import report copied.",
+      "reportCopyFailed": "Import report could not be copied.",
+      "reportDownloadFailed": "Import report could not be downloaded.",
+      "noImports": "No imports yet.",
+      "loadingLast": "Loading last import details…",
+      "resumeUpload": "Resume upload",
+      "startImport": "Start import",
+      "importFrom": "Import from",
+      "upTo": "Up to {size}.",
+      "chooseFile": "Choose file",
+      "uploadInterrupted": "Upload interrupted",
+      "resumeHint": "Choose the same {source} file to resume where it left off.",
+      "chooseFileFrom": "Choose a file from {source}",
+      "chooseResumeFile": "Choose a file to resume the interrupted upload",
+      "cancelImport": "Cancel import",
+      "importStopped": "Import stopped",
+      "failedItems": "Items that couldn't be imported",
+      "copyReport": "Copy error report",
+      "downloadReport": "Download error report",
+      "failure": {
+        "invalidArchive": "This doesn't look like a Teak archive. Choose a ZIP from Export your data.",
+        "invalidSource": "This doesn't look like {article, select, an {an} other {a}} {source} export. Check the source and choose the file it describes.",
+        "tooManyItems": "This file has more than 10,000 items. Split it and import each part.",
+        "generic": "Import failed. Please try again."
+      },
+      "phases": {
+        "uploading": "Uploading",
+        "waitingToParse": "Waiting to parse",
+        "parsing": "Parsing import file",
+        "importing": "Importing cards",
+        "waitingForRateLimit": "Waiting for card rate limit",
+        "canceling": "Canceling import",
+        "complete": "Import complete",
+        "failed": "Import failed",
+        "canceled": "Import canceled"
+      },
+      "sources": {
+        "bookmarks": {
+          "title": "Browser bookmarks",
+          "name": "browser bookmarks",
+          "hint": "The bookmarks HTML file from your browser's Export bookmarks."
+        },
+        "pocket": {
+          "title": "Pocket",
+          "name": "Pocket",
+          "hint": "The CSV from Pocket's export, or its older HTML export."
+        },
+        "raindrop": {
+          "title": "Raindrop.io",
+          "name": "Raindrop",
+          "hint": "The CSV from Raindrop's Settings → Backups → Export."
+        },
+        "instapaper": {
+          "title": "Instapaper",
+          "name": "Instapaper",
+          "hint": "The CSV from Instapaper's Settings → Export."
+        },
+        "readwise": {
+          "title": "Readwise Reader",
+          "name": "Readwise Reader",
+          "hint": "The CSV from Reader's Export library as CSV."
+        },
+        "omnivore": {
+          "title": "Omnivore",
+          "name": "Omnivore",
+          "hint": "The ZIP from Omnivore's export, as you downloaded it."
+        },
+        "linkwarden": {
+          "title": "Linkwarden",
+          "name": "Linkwarden",
+          "hint": "The JSON backup from Linkwarden's Settings → Data → Export."
+        },
+        "mymind": {
+          "title": "mymind",
+          "name": "mymind",
+          "hint": "The CSV from mymind's Settings → Export."
+        },
+        "onetab": {
+          "title": "OneTab",
+          "name": "OneTab",
+          "hint": "OneTab's Export URLs text, saved as a .txt file."
+        },
+        "archive": {
+          "title": "Teak archive",
+          "name": "Teak",
+          "hint": "A ZIP from Export your data in Teak."
+        }
+      }
+    },
+    "format": {
+      "justNow": "just now",
+      "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+      "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+      "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+      "now": "now",
+      "underAMinute": "under a minute",
+      "days": "{days}d",
+      "daysHours": "{days}d {hours}h",
+      "hours": "{hours}h",
+      "hoursMinutes": "{hours}h {minutes}m",
+      "minutes": "{minutes}m"
+    },
+    "language": {
+      "label": "Language",
+      "saving": "Changing the language",
+      "changed": "Language changed",
+      "changeFailed": "Couldn't change the language. Try again.",
+      "feedback": "Help improve translations",
+      "feedbackSubject": "Translation feedback ({locale})"
+    }
+  },
+  "app": {
+    "settings": {
+      "deletionRequested": "Account deletion requested. You’re being signed out.",
+      "welcomePro": "Welcome to Pro! Your subscription has been activated.",
+      "openingCheckout": "Opening checkout...",
+      "checkoutNewTab": "Checkout opened in a new tab",
+      "checkoutFailed": "Failed to start checkout. Please try again."
+    },
+    "globalError": {
+      "message": "Something went wrong. Please try again."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "This page doesn’t exist or has moved.",
+      "goHome": "Go to your cards"
+    }
+  },
+  "feedback": {
+    "cardsGrid": {
+      "loading": "Loading cards"
+    },
+    "fileDrop": {
+      "dropFiles": "Drop files to upload"
+    },
+    "vaultSetup": {
+      "title": "Setting up your vault",
+      "steps": {
+        "starterCards": "Adding a few starter cards",
+        "photoColors": "Pulling colors from a photo",
+        "voiceMemo": "Writing out a voice memo",
+        "searchCheatSheet": "Reading a search cheat sheet",
+        "moodboard": "Making you a moodboard"
+      }
+    }
+  },
+  "providers": {
+    "authUnavailable": {
+      "message": "We couldn't check your session. Please try again."
+    },
+    "auth": {
+      "signIn": "Sign in",
+      "signInAgain": "Please sign in again.",
+      "sessionChanged": "Your session changed. Please sign in again.",
+      "signOut": "Sign out",
+      "blocked": {
+        "verifyEmail": "Verify your email to open Teak.",
+        "frozen": "Signups are paused. Your account hasn't been created.",
+        "quarantined": "Your account isn't ready yet. Try again or contact support."
+      }
+    },
+    "fileDrop": {
+      "uploaded": "{count, plural, one {File uploaded} other {Uploaded # files}}",
+      "uploadedSentence": "{count, plural, one {File uploaded.} other {Uploaded # files.}}",
+      "cardLimitReached": "Free card limit reached",
+      "upgrade": "Upgrade",
+      "rateLimited": "Too many cards created. Please wait a moment.",
+      "uploadFailed": "Upload failed",
+      "uploadFailedMany": "Failed to upload {count, plural, other {# files}}. {reason}",
+      "uploading": "Uploading…",
+      "foldersNotSupported": "Folders can't be uploaded. Drop individual files instead.",
+      "offline": "You're offline. Reconnect and try again."
+    }
+  },
+  "appShell": {
+    "skeleton": {
+      "tags": "Tags",
+      "folder": "Folder"
+    }
+  },
+  "errors": {
+    "folders": {
+      "DUPLICATE_NAME": "A folder with this name already exists",
+      "EMPTY_NAME": "Name the folder",
+      "NAME_TOO_LONG": "Folder names can be at most {max} characters",
+      "TOO_MANY_FOLDERS": "You can have up to {max} folders",
+      "TOO_MANY_FOLDERS_ON_CARD": "A card can be in up to {max} folders",
+      "NOT_FOUND": "Folder not found",
+      "EMPTY_QUERY": "Add a search for the smart folder",
+      "QUERY_TOO_LONG": "Smart folder searches can be at most {max} characters",
+      "SMART_FOLDER_IN_QUERY": "A smart folder's search can't use another smart folder",
+      "SMART_FOLDER_MEMBERSHIP": "Cards can't be added to a smart folder; it shows the cards that match its search",
+      "QUERY_ON_MANUAL_FOLDER": "Only smart folders have a search",
+      "SMART_FOLDER_TRASH": "Smart folders don't show Trash. To search for the word, put it in quotes"
+    },
+    "tags": {
+      "EMPTY_NAME": "Name the tag",
+      "NAME_TOO_LONG": "Tags can be at most {max} characters",
+      "NOT_FOUND": "Tag not found",
+      "SAME_TAG": "Choose a different tag to merge into",
+      "OPERATION_RUNNING": "Another tag change is still running",
+      "OPERATION_NOT_FOUND": "Tag operation not found",
+      "TAG_EXISTS": "A tag named \"{name}\" already exists. Merge into it instead."
+    },
+    "thumbnails": {
+      "rateLimited": "You've changed a lot of images. Try again in a minute.",
+      "tooLarge": "Images must be under 20 MB.",
+      "unreadable": "This image couldn't be read.",
+      "unsupported": "Use a JPEG, PNG, WebP, GIF or AVIF image."
+    },
+    "cards": {
+      "CARD_LIMIT_REACHED": "Card limit reached. Please upgrade to Pro for unlimited cards.",
+      "CONTENT_TOO_LARGE": "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+      "INVALID_UTF8": "Markdown uploads must contain valid UTF-8 text.",
+      "RATE_LIMITED": "Too many cards created. Please wait a moment and try again.",
+      "FILE_TOO_LARGE": "File is too large. Maximum file size is 100MB.",
+      "TOO_MANY_FILES": "Too many files selected. You can upload up to {max} files at a time.",
+      "UNSUPPORTED_TYPE": "Unsupported file type. Please upload an image, video, audio, or document.",
+      "TYPE_MISMATCH": "Uploaded file does not match the selected type."
+    },
+    "pdfs": {
+      "IN_PROGRESS": "This PDF is already being saved. Try again in a moment.",
+      "NO_PDF": "This card has no PDF to save.",
+      "NOT_FOUND": "Card not found",
+      "RATE_LIMITED": "You're saving quickly. Try again in a minute.",
+      "TRASHED": "Restore this card from Trash before saving its PDF."
+    },
+    "cardTags": {
+      "TAG_TOO_LONG": "Each tag must be at most {max} characters",
+      "TOO_MANY_TAGS": "A card can have at most {max} tags"
+    },
+    "settings": {
+      "UNSUPPORTED_LOCALE": "That language isn't available."
+    }
+  },
+  "revisit": {
+    "deck": {
+      "title": "Revisit",
+      "description": "One card at a time. Left arrow archives it, right arrow keeps it, Space opens its details, Z undoes the last archive and Escape leaves.",
+      "close": "Close Revisit",
+      "progress": "{position} of {total}",
+      "loadingCards": "Loading cards",
+      "loadFailed": "Couldn't load cards",
+      "empty": "Nothing to revisit here",
+      "allCaughtUp": "All caught up",
+      "summary": "{archived} archived · {kept} kept",
+      "startOver": "Start over",
+      "revisitMore": "Revisit {count} more",
+      "undoHint": "<kbd>Z</kbd> undoes the last archive",
+      "openDetails": "Open details: {type}",
+      "saved": "Saved {date}",
+      "inTrash": "In Trash",
+      "archived": "Archived",
+      "releaseToArchive": "Release to archive",
+      "releaseToKeep": "Release to keep",
+      "archive": "Archive",
+      "keep": "Keep",
+      "keyHints": "<kbd>Space</kbd> details · <kbd>Z</kbd> undo · <kbd>Esc</kbd> exit",
+      "swipeHint": "Swipe left to archive, right to keep"
+    }
+  },
+  "folders": {
+    "nameDialog": {
+      "titleNew": "New folder",
+      "titleNewSmart": "Save as smart folder",
+      "titleEdit": "Edit folder",
+      "titleEditSmart": "Edit smart folder",
+      "descriptionSmart": "Shows every card that matches the search, including cards you save later.",
+      "descriptionEdit": "Change the folder's name or color.",
+      "descriptionNew": "Name the folder and pick a color.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Reading list",
+      "searchLabel": "Search",
+      "colorLegend": "Color",
+      "submitCreate": "Create folder",
+      "submitSmart": "Save smart folder",
+      "saveFailed": "Couldn't save the folder",
+      "createFailed": "Couldn't create the folder"
+    },
+    "list": {
+      "searchLabel": "Search folders",
+      "searchPlaceholder": "Find or create a folder",
+      "listLabel": "Folders",
+      "loading": "Loading folders…",
+      "noMatch": "No folder by that name.",
+      "noFolders": "No folders yet. Type a name to create one.",
+      "createNamed": "Create folder “{name}”",
+      "createFailed": "Couldn't create the folder"
+    },
+    "picker": {
+      "addTitle": "Add {count, plural, one {# card} other {# cards}} to a folder",
+      "moveTitle": "Move {count, plural, one {# card} other {# cards}} to a folder",
+      "description": "Search your folders or type a new name."
+    },
+    "cardFolders": {
+      "title": "Folders",
+      "notInFolder": "This card isn't in a folder.",
+      "inFolders": "In {count, plural, one {# folder} other {# folders}}.",
+      "changeFailed": "Couldn't change the card's folders"
+    },
+    "smartQuery": {
+      "label": "Search: {query}",
+      "noFolderNamed": "No folder named {name}",
+      "excluded": "not"
+    }
+  },
+  "sidebar": {
+    "nav": {
+      "home": "Teak home",
+      "keepOpen": "Keep sidebar open",
+      "collapse": "Collapse sidebar",
+      "tags": "Tags",
+      "settings": "Settings"
+    },
+    "toggle": "Toggle sidebar",
+    "folders": {
+      "title": "Folders",
+      "newFolder": "New folder",
+      "emptyHint": "Group related cards. Make a folder, then drag cards onto it.",
+      "moreFor": "More for {name}",
+      "renameItem": "Rename…",
+      "editSearch": "Edit search…",
+      "color": "Color",
+      "colorFailed": "Couldn't change the color",
+      "restoreFailed": "Couldn't restore the folder",
+      "deleteFailed": "Couldn't delete the folder",
+      "deleted": "Deleted “{name}”",
+      "deletedDescription": "Its cards are still in your library."
+    },
+    "newFolder": {
+      "nameLabel": "New folder name",
+      "placeholder": "Folder name",
+      "createFailed": "Couldn't create the folder"
+    }
+  },
+  "modals": {
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "description": "Shortcuts work anywhere in your library, except while you type.",
+      "then": "then",
+      "typeKeys": "Type {keys}",
+      "comboSeparator": " plus ",
+      "sequenceSeparator": " then ",
+      "alternativeSeparator": " or ",
+      "keyNames": {
+        "leftArrow": "Left arrow",
+        "upArrow": "Up arrow",
+        "rightArrow": "Right arrow",
+        "downArrow": "Down arrow",
+        "slash": "Slash",
+        "questionMark": "Question mark",
+        "option": "Option",
+        "command": "Command",
+        "shift": "Shift",
+        "return": "Return"
+      }
+    },
+    "tagManagement": {
+      "title": "Manage Tags",
+      "addLabel": "Add New Tag",
+      "placeholder": "Enter tag name",
+      "addTag": "Add tag",
+      "yourTags": "Your Tags",
+      "removeUserTag": "Remove user tag {tag}",
+      "teakTags": "Tags by Teak",
+      "removeTeakTag": "Remove Teak tag {tag}",
+      "empty": "No tags yet. Add your first tag above!"
+    },
+    "tagManager": {
+      "renameTitle": "Rename tag",
+      "mergeTitle": "Merge “{name}” into…",
+      "deleteTitle": "Delete “{name}”?",
+      "renameDescription": "Renames “{name}” on {count, plural, one {# card} other {# cards}}, plus any in Archive or Trash.",
+      "mergeDescription": "Cards tagged “{name}” get the tag you pick instead. A card with both keeps one.",
+      "deleteDescription": "Removes “{name}” from {count, plural, one {# card} other {# cards}}, plus any in Archive or Trash. The cards are kept. This can't be undone.",
+      "merge": "Merge",
+      "mergeInto": "Merge into “{name}”",
+      "mergeIntoInstead": "Merge into “{name}” instead",
+      "deleteTag": "Delete tag",
+      "newName": "New name",
+      "findTag": "Find a tag",
+      "tagsLabel": "Tags",
+      "noMatch": "No tag by that name.",
+      "noOtherTags": "No other tags yet.",
+      "typeToFindMore": "Type to find more tags.",
+      "nameTaken": "A tag named “{name}” already exists.",
+      "startFailed": "Couldn't start the tag change"
+    }
+  },
+  "cardModal": {
+    "header": {
+      "actionsLabel": "Card actions",
+      "contentLabel": "{type, select, text {Text content} link {Link content} image {Image content} video {Video content} audio {Audio content} document {Document content} palette {Palette content} quote {Quote content} other {Card content}}",
+      "detailsLabel": "Card details",
+      "download": "Download",
+      "downloadTooltip": "Download the file",
+      "downloading": "Downloading…",
+      "loadingDescription": "Loading card details",
+      "loadingTitle": "Loading card",
+      "nextCard": "Next card",
+      "open": "Open",
+      "openingCard": "Opening card",
+      "openTooltip": "Open the link",
+      "previousCard": "Previous card",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Untitled link"
+    },
+    "saveState": {
+      "error": "Couldn't save",
+      "saved": "Saved",
+      "unsaved": "Unsaved changes"
+    },
+    "menu": {
+      "addToFolder": "Add to folder…",
+      "archive": "Archive",
+      "copyLink": "Copy Link",
+      "copyText": "Copy Text",
+      "download": "Download",
+      "favorite": "Favorite",
+      "hideDetails": "Hide details",
+      "moreActions": "More actions",
+      "moreLikeThis": "More like this",
+      "refreshDetails": "Refresh details",
+      "replaceImage": "Replace image",
+      "resetImage": "Reset to original image",
+      "savePdf": "Save PDF",
+      "savingPdf": "Saving PDF…",
+      "shortcutsHint": "Press <kbd>?</kbd> for all shortcuts",
+      "showDetails": "Show details",
+      "unarchive": "Unarchive",
+      "unfavorite": "Unfavorite"
+    },
+    "toasts": {
+      "copiedLink": "Copied link",
+      "copiedText": "Copied text",
+      "copyFailed": "Failed to copy",
+      "emptyNote": "Empty notes aren't saved. The note keeps its last text.",
+      "emptyQuote": "Empty quotes aren't saved. The quote keeps its last text."
+    },
+    "trash": {
+      "deleteForever": "Delete Forever",
+      "inTrash": "This card is in Trash",
+      "restore": "Restore"
+    },
+    "done": {
+      "markAs": "{verb, select, read {Mark as read} watched {Mark as watched} listened {Mark as listened} bought {Mark as bought} cooked {Mark as cooked} played {Mark as played} other {Mark as done}}",
+      "markAsNot": "{verb, select, read {Mark as not read} watched {Mark as not watched} listened {Mark as not listened} bought {Mark as not bought} cooked {Mark as not cooked} played {Mark as not played} other {Mark as not done}}",
+      "state": "{verb, select, read {Read} watched {Watched} listened {Listened} bought {Bought} cooked {Cooked} played {Played} other {Done}}"
+    },
+    "heading": {
+      "addedOn": "Added {date}",
+      "addedToday": "Added today",
+      "addedYesterday": "Added yesterday",
+      "note": "Note"
+    },
+    "panel": {
+      "addTagLabel": "Add a tag",
+      "addTagPlaceholder": "Add tag…",
+      "addToFolder": "Add to a folder",
+      "andMore": "and more",
+      "colors": "Colors",
+      "copyColor": "Copy {hex}",
+      "folderOverflow": "{name} +{count}",
+      "hidden": "Hidden",
+      "hiddenHint": "Only a search for #secret or #hidden shows this card",
+      "inFolders": "In {folders}",
+      "inFoldersChange": "In {folders}. Change folders",
+      "keepTag": "Keep tag {tag}",
+      "keepTagHint": "Keep {tag} as one of your tags",
+      "linkedFrom": "Linked from",
+      "noNotes": "No notes",
+      "notes": "Notes",
+      "notesPlaceholder": "Add a note…",
+      "removeTag": "Remove tag {tag}",
+      "removeTeakTag": "Remove Teak tag {tag}",
+      "showLess": "Show less",
+      "showMore": "Show more",
+      "showTagged": "Show cards tagged {tag}",
+      "suggestedTags": "{count, plural, one {# suggested tag} other {# suggested tags}}",
+      "summary": "Summary",
+      "tags": "Tags",
+      "teakTagHint": "Tag added by Teak. Show cards tagged {tag}"
+    },
+    "details": {
+      "added": "Added",
+      "author": "Author",
+      "edited": "Edited",
+      "extractedText": "{count, plural, one {# character extracted} other {# characters extracted}}",
+      "fewerDetails": "Fewer details",
+      "fileName": "File name",
+      "fileSize": "File size",
+      "fileType": "File type",
+      "from": "From",
+      "moreDetails": "More details",
+      "published": "Published",
+      "publisher": "Publisher",
+      "showAllOfType": "{type, select, text {Show all Text cards} link {Show all Link cards} image {Show all Image cards} video {Show all Video cards} audio {Show all Audio cards} document {Show all Document cards} palette {Show all Palette cards} quote {Show all Quote cards} other {Show all Card cards}}",
+      "text": "Text",
+      "title": "Details",
+      "url": "URL"
+    }
+  },
+  "cardPreviews": {
+    "audio": {
+      "loadFailed": "This recording couldn't be loaded. Try downloading it instead.",
+      "pause": "Pause",
+      "play": "Play",
+      "seek": "Seek",
+      "seekPosition": "{current} of {duration}",
+      "transcript": "Transcript"
+    },
+    "document": {
+      "facts": {
+        "colorVariables": "{count, plural, other {# color variables}}",
+        "files": "{count, plural, other {# files}}",
+        "folders": "{count, plural, other {# folders}}",
+        "headings": "{count, plural, other {# headings}}",
+        "lines": "{count, plural, other {# lines}}",
+        "slides": "{count, plural, other {# slides}}",
+        "words": "{count, plural, other {# words}}"
+      },
+      "file": "File",
+      "openFile": "Open file",
+      "untitled": "Document"
+    },
+    "fileText": {
+      "loading": "Loading file preview"
+    },
+    "image": {
+      "alt": "Image",
+      "unavailable": "Image preview unavailable"
+    },
+    "link": {
+      "addImage": "Add an image",
+      "attachedMedia": "Attached post media {number}",
+      "attachedVideo": "Attached video {number}",
+      "imageAlt": "Link image",
+      "openGraphAlt": "Open Graph preview",
+      "screenshotAlt": "Rendered webpage screenshot",
+      "uploadingAlt": "Uploading the new link preview"
+    },
+    "palette": {
+      "copy": "Copy {hex}",
+      "empty": "No colors detected in this palette"
+    },
+    "quote": {
+      "placeholder": "Enter your quote..."
+    },
+    "text": {
+      "focus": "Focus",
+      "placeholder": "Write a note...",
+      "tooLarge": "Notes can be up to 512 KiB of UTF-8 text"
+    },
+    "video": {
+      "gifAlt": "Animated GIF",
+      "unsupported": "Your browser does not support the video tag."
+    }
+  },
+  "cards": {
+    "types": {
+      "text": "Text",
+      "link": "Link",
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio",
+      "document": "Document",
+      "palette": "Palette",
+      "quote": "Quote",
+      "card": "Card"
+    },
+    "accessibleLabel": {
+      "titled": "{type, select, text {Text: {title}} link {Link: {title}} image {Image: {title}} video {Video: {title}} audio {Audio: {title}} document {Document: {title}} palette {Palette: {title}} quote {Quote: {title}} other {Card: {title}}}",
+      "untitled": "{type, select, text {Text card} link {Link card} image {Image card} video {Video card} audio {Audio card} document {Document card} palette {Palette card} quote {Quote card} other {Card card}}"
+    },
+    "menu": {
+      "addTags": "Add tags…",
+      "archive": "Archive",
+      "copyImage": "Copy image",
+      "copyLink": "Copy link",
+      "copyText": "Copy text",
+      "deleteForever": "Delete Forever",
+      "deselect": "Deselect",
+      "favorite": "Favorite",
+      "folders": "Folders…",
+      "moreActions": "More actions",
+      "openLink": "Open link",
+      "refreshDetails": "Refresh details",
+      "restore": "Restore",
+      "select": "Select",
+      "unarchive": "Unarchive",
+      "unfavorite": "Unfavorite"
+    },
+    "copyImageFailed": "Failed to copy image",
+    "deleteForeverDialog": {
+      "confirm": "Delete Forever",
+      "description": "This permanently deletes the card and its files. This can’t be undone.",
+      "title": "Delete this card forever?"
+    },
+    "body": {
+      "emptyNote": "Empty note",
+      "recording": "Recording"
+    },
+    "link": {
+      "markedAs": "{verb, select, read {Marked as read} watched {Marked as watched} listened {Marked as listened} bought {Marked as bought} cooked {Marked as cooked} played {Marked as played} other {Marked as done}}"
+    },
+    "previews": {
+      "documentPreview": "Preview of document",
+      "documentPreviewOf": "Preview of {fileName}",
+      "gifPreview": "GIF preview",
+      "imageAlt": "Image",
+      "videoThumbnail": "Video thumbnail"
+    }
+  },
+  "grids": {
+    "masonry": {
+      "copiedLinks": "{count, plural, one {Copied # link} other {Copied # links}}",
+      "copyLinksFailed": "Couldn't copy the links",
+      "noLinks": "None of these cards have a link"
+    }
+  },
+  "textEditor": {
+    "formatting": {
+      "toolbar": "Text formatting",
+      "bold": "Bold",
+      "italic": "Italic",
+      "strikethrough": "Strikethrough",
+      "inlineCode": "Inline code",
+      "editLink": "Edit link"
+    },
+    "linkEditor": {
+      "url": "Link URL",
+      "apply": "Apply",
+      "invalidUrl": "Use an http or https link."
+    },
+    "note": {
+      "ariaLabel": "Markdown note",
+      "contentLabel": "Markdown content",
+      "editorLabel": "{label} editor",
+      "placeholder": "Write a note…",
+      "tooLarge": "Notes can be up to 512 KiB of UTF-8 text",
+      "unsafeChange": "This change cannot be saved as Markdown.",
+      "dropUnsupported": "Paste text or Markdown into this note.",
+      "pasteUnsupported": "Paste plain text or Markdown."
+    },
+    "focus": {
+      "description": "Focus mode: only the note is on screen. Press Escape to leave.",
+      "wordCount": "{count, plural, one {# word} other {# words}}"
+    },
+    "noteCapture": {
+      "linkSaved": "Link saved",
+      "saved": "Saved"
+    },
+    "cardLinkMenu": {
+      "label": "Link a card",
+      "searching": "Searching cards…",
+      "searchFailed": "Couldn't search cards",
+      "noMatches": "No matching cards",
+      "noCards": "No cards yet"
+    },
+    "cardLink": {
+      "missing": "Missing card",
+      "missingHint": "This card is in Trash, deleted or not yours",
+      "fallbackTitle": "Card"
+    },
+    "slashMenu": {
+      "label": "Formatting commands",
+      "commands": {
+        "text": "Text",
+        "h1": "Heading 1",
+        "h2": "Heading 2",
+        "h3": "Heading 3",
+        "bulletList": "Bullet List",
+        "orderedList": "Numbered List",
+        "taskList": "Task List",
+        "blockquote": "Quote",
+        "codeBlock": "Code",
+        "divider": "Divider",
+        "table": "Table"
+      }
+    },
+    "table": {
+      "options": "Table options",
+      "headerPlaceholder": "Header",
+      "addRowAbove": "Add row above",
+      "addRowBelow": "Add row below",
+      "addColumnLeft": "Add column left",
+      "addColumnRight": "Add column right",
+      "deleteRow": "Delete row",
+      "deleteColumn": "Delete column",
+      "deleteTable": "Delete table",
+      "rowLimit": "Tables can have up to {max} rows",
+      "columnLimit": "Tables can have up to {max} columns",
+      "headerRowFirst": "The header row stays the first row",
+      "headerRowKept": "The header row can't be deleted",
+      "lastColumn": "Delete the table to remove its last column"
+    }
+  },
+  "forms": {
+    "limits": {
+      "cardLimitReached": "Free card limit reached",
+      "upgrade": "Upgrade",
+      "rateLimited": "Too many cards created. Please wait a moment."
+    },
+    "addCard": {
+      "placeholder": "Write a note...",
+      "upgradePlaceholder": "Upgrade to Pro to add more cards...",
+      "saveFailed": "Failed to save note",
+      "focus": "Focus"
+    },
+    "addCardActions": {
+      "new": "New",
+      "noteOrLink": "Note or link",
+      "uploadFiles": "Upload files",
+      "recordAudio": "Record audio",
+      "savingRecording": "Saving audio recording...",
+      "recordingSaved": "Audio recording saved",
+      "recordingSaveFailed": "Failed to save audio recording",
+      "microphoneUnsupported": "Microphone recording is not supported in this app.",
+      "microphoneDenied": "Microphone permission was denied. Allow it and retry.",
+      "microphoneMissing": "No microphone was detected. Connect one and retry.",
+      "recordingStartFailed": "Failed to start recording. Check your microphone setup.",
+      "uploading": "Uploading {name}...",
+      "uploaded": "{name} uploaded",
+      "uploadFailed": "Failed to upload {name}: {error}",
+      "uploadFailedReason": "Upload failed",
+      "startingMicrophone": "Starting microphone...",
+      "savingRecordingStatus": "Saving recording...",
+      "recordingHint": "Speak naturally. Teak will save this as an audio card.",
+      "recordingTitle": "Recording audio",
+      "stopAndSave": "Stop and Save"
+    },
+    "emptyState": {
+      "title": "Let's add your first card!",
+      "description": "Start capturing your thoughts, links, and media above"
+    }
+  },
+  "selection": {
+    "bar": {
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "restore": "Restore",
+      "addToNamedFolder": "Add to {folder}",
+      "chooseCards": "Choose cards to add",
+      "selectedCount": "{count, plural, one {# card} other {# cards}} selected",
+      "moreActions": "More actions",
+      "favorite": "Add to favorites",
+      "unfavorite": "Remove from favorites",
+      "addTags": "Add tags…",
+      "removeTags": "Remove tags…",
+      "copyLinks": "Copy links",
+      "addToFolder": "Add to folder…",
+      "moveToFolder": "Move to folder…",
+      "removeFromFolder": "Remove from {folder}",
+      "moveToTrash": "Move to Trash",
+      "cancelSelection": "Cancel selection"
+    },
+    "tagsDialog": {
+      "tagTooLong": "Tags can be at most {max} characters.",
+      "tooManyTags": "Choose at most {max} tags at a time.",
+      "addTitle": "Add tags to {count, plural, one {# card} other {# cards}}",
+      "removeTitle": "Remove tags from {count, plural, one {# card} other {# cards}}",
+      "addDescription": "Separate tags with commas.",
+      "removeDescription": "Choose tags below or type them, separated by commas.",
+      "label": "Tags",
+      "addPlaceholder": "design, inspiration",
+      "removePlaceholder": "Tag names",
+      "addSubmit": "Add tags",
+      "removeSubmit": "Remove tags"
+    }
+  },
+  "search": {
+    "visualStyles": {
+      "abstract": "Abstract",
+      "cinematic": "Cinematic",
+      "dark": "Dark",
+      "illustrative": "Illustrative",
+      "minimal": "Minimal",
+      "monochrome": "Monochrome",
+      "moody": "Moody",
+      "pastel": "Pastel",
+      "photographic": "Photographic",
+      "retro": "Retro",
+      "surreal": "Surreal",
+      "vintage": "Vintage",
+      "vibrant": "Vibrant",
+      "typographic": "Typographic",
+      "threeD": "3D",
+      "flat": "Flat",
+      "geometric": "Geometric",
+      "handDrawn": "Hand-drawn",
+      "futuristic": "Futuristic"
+    },
+    "colorHues": {
+      "red": "Red",
+      "orange": "Orange",
+      "yellow": "Yellow",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "purple": "Purple",
+      "pink": "Pink",
+      "brown": "Brown",
+      "neutral": "Neutral"
+    },
+    "bar": {
+      "placeholder": "Search everything",
+      "open": "Search",
+      "formLabel": "Search cards",
+      "clearAll": "Clear all",
+      "suggestions": "Search suggestions",
+      "moreFilters": "{count, plural, one {# more filter} other {# more filters}}",
+      "chipTitle": "{prefix} {label}",
+      "chipTitleExcluded": "{prefix} not {label}",
+      "chipTitleExcludedNoPrefix": "not {label}",
+      "remove": "Remove {label}",
+      "removeExcluded": "Remove excluding {label}",
+      "removeTagFilter": "Remove tag filter {tag}",
+      "removeType": "Remove type {type}",
+      "removeQualifier": "Remove {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
+      "removeExcludedQualifier": "Remove excluding {kind, select, tag {tag} type {type} is {show} site {site} folder {folder} like {similar to} mood {mood} price {price} text {text in image} other {filter}} {label}",
+      "removeUnknownFolder": "Remove {chip}: no folder named {folder}",
+      "unknownFolder": "No folder named {folder}"
+    },
+    "chips": {
+      "titles": {
+        "tag": "Tag",
+        "type": "Type",
+        "is": "Show",
+        "site": "Site",
+        "folder": "Folder",
+        "like": "Similar to",
+        "mood": "Mood",
+        "price": "Price",
+        "text": "Text in image"
+      },
+      "anyCard": "a card",
+      "moodValue": "“{value}”"
+    },
+    "suggestions": {
+      "groups": {
+        "combine": "Combine",
+        "exclude": "Exclude",
+        "filters": "Filters",
+        "tags": "Tags",
+        "types": "Types",
+        "folders": "Folders",
+        "sites": "Sites",
+        "show": "Show"
+      },
+      "hints": {
+        "tag": "Cards with a tag",
+        "type": "Links, images, notes…",
+        "site": "Links from a website",
+        "folder": "Cards in a folder",
+        "is": "Favorites, archived, done or to do",
+        "mood": "Images by mood",
+        "price": "Price under or over",
+        "text": "Words in images and scans"
+      },
+      "excludeHints": {
+        "tag": "Leave out cards with a tag",
+        "type": "Leave out links, images, notes…",
+        "site": "Leave out links from a website",
+        "folder": "Leave out cards in a folder",
+        "is": "Leave out favorites, archived, done…"
+      },
+      "orDetail": "Either side matches",
+      "isOptions": {
+        "fav": "Favorites",
+        "archived": "Archived",
+        "done": "Done",
+        "todo": "To do"
+      },
+      "hiddenTagCount": "Shows hidden cards · {count}"
+    },
+    "viewMenu": {
+      "label": "View",
+      "labelWithState": "View: {state}",
+      "oldestFirstState": "oldest first",
+      "shuffledState": "shuffled",
+      "revisitingState": "revisiting",
+      "show": "Show",
+      "showAllTypes": "Show all types",
+      "sort": "Sort",
+      "sorts": {
+        "relevance": "Best match",
+        "newest": "Newest first",
+        "oldest": "Oldest first",
+        "shuffle": "Shuffle",
+        "revisit": "Revisit"
+      },
+      "nothingToRevisit": "Nothing to revisit here",
+      "saveAsSmartFolder": "Save as smart folder…",
+      "reshuffle": "Reshuffle"
+    },
+    "dates": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "thisYear": "This Year",
+      "lastYear": "Last Year",
+      "lastWeekday": "Last {day}"
+    }
+  },
+  "commandPalette": {
+    "title": "Command palette",
+    "description": "Go to a view or folder, find a card, or run an action",
+    "inputLabel": "Search commands, folders and cards",
+    "placeholder": "Type a command or search…",
+    "noResults": "No results",
+    "smartFolder": "Smart folder",
+    "groups": {
+      "navigate": "Navigate",
+      "cards": "Cards",
+      "actions": "Actions",
+      "folders": "Folders"
+    },
+    "views": {
+      "tags": "Tags",
+      "settings": "Settings"
+    },
+    "actions": {
+      "newNote": "New note",
+      "upload": "Upload files",
+      "import": "Import",
+      "export": "Export",
+      "toggleTheme": "Toggle theme",
+      "shuffle": "Shuffle",
+      "shortcuts": "Keyboard shortcuts",
+      "signOut": "Sign out"
+    },
+    "cards": {
+      "searching": "Searching cards",
+      "searchFailed": "Couldn’t search cards",
+      "searchAll": "Search all for “{query}”",
+      "untitled": "Untitled card"
+    },
+    "resultsLabel": "Suggestions"
+  },
+  "shortcuts": {
+    "groups": {
+      "cards": "Cards",
+      "openCard": "Open card",
+      "goTo": "Go to",
+      "search": "Search",
+      "anywhere": "Anywhere"
+    },
+    "rows": {
+      "moveBetweenCards": "Move between cards",
+      "nextOrPreviousCard": "Next or previous card",
+      "openCard": "Open the card",
+      "favorite": "Favorite or unfavorite",
+      "addTags": "Add tags",
+      "archive": "Archive or unarchive",
+      "moveToTrash": "Move to Trash",
+      "select": "Select or deselect",
+      "copy": "Copy text, link, or image",
+      "clearSelection": "Clear the selection",
+      "previousOrNextCard": "Previous or next card",
+      "addTag": "Add a tag",
+      "writeNote": "Write a note",
+      "focusNote": "Focus on the note",
+      "openOrDownload": "Open the link or download the file",
+      "openLink": "Open the link",
+      "markLinkDone": "Mark a link done",
+      "copyLinkOrText": "Copy the link or text",
+      "toggleDetails": "Show or hide details",
+      "goToEverything": "Everything",
+      "goToFavorites": "Favorites",
+      "goToArchive": "Archive",
+      "goToTrash": "Trash",
+      "excludeWord": "Exclude a word",
+      "excludeFilter": "Exclude a tag, type, site or folder",
+      "eitherOne": "Either one",
+      "group": "Group",
+      "exactWords": "Exact words",
+      "commandPalette": "Command palette",
+      "search": "Search",
+      "newNote": "New note",
+      "uploadFiles": "Upload files",
+      "notifications": "Go to notifications (Undo)",
+      "keyboardShortcuts": "Keyboard shortcuts"
+    }
+  },
+  "extension": {
+    "popup": {
+      "loading": "Loading",
+      "loadAccountFailed": "We couldn't load your account.",
+      "somethingWentWrong": "Something went wrong",
+      "tryAgain": "Try again",
+      "privateSession": "Firefox is in private browsing mode, so Teak forgets your sign-in and unsent saves when it closes.",
+      "pendingSaves": "{count, plural, one {# save} other {# saves}} didn't finish",
+      "discard": "Discard",
+      "retry": "Retry",
+      "pendingSavesFailed": "Could not update pending saves.",
+      "headline": "Save anything, anywhere",
+      "signInPrompt": "Sign in to save pages, images, and text to your Teak.",
+      "signIn": "Sign in",
+      "finishingSignIn": "Finishing sign-in…",
+      "signInFailed": "Could not sign in. Please try again.",
+      "openTeak": "Open Teak",
+      "upgrade": "Upgrade to Pro",
+      "signOut": "Sign out",
+      "signOutFailed": "Could not sign out. Please try again.",
+      "uploadFile": "Upload file",
+      "fileInvalid": "File is empty or too large.",
+      "fileSaveFailed": "Could not save the file. Please try again.",
+      "reconnectForUpload": "Reconnect to finish your pending upload.",
+      "pseudoLocale": "Pseudo-locale (en-XA)",
+      "status": {
+        "chooseFile": "Choose a file to save",
+        "fileSizeLimit": "Up to 100 MB",
+        "freeLimitReached": "You've reached the free limit",
+        "upgradeForUnlimited": "Upgrade to Pro for unlimited cards.",
+        "alreadySaved": "Already in your Teak",
+        "uploadingFile": "Uploading file",
+        "fileSaved": "File saved",
+        "uploadFailed": "Couldn't upload file",
+        "savingToTeak": "Saving to Teak",
+        "savedToTeak": "Saved to Teak",
+        "pageSaved": "Page saved",
+        "textSaved": "Text saved",
+        "saveFailed": "Couldn't save",
+        "savingPage": "Saving page",
+        "pageSaveFailed": "Couldn't save this page",
+        "cantSavePage": "Can't save this page",
+        "cantSavePageDetail": "Open a web page to save it, or upload a file."
+      },
+      "details": {
+        "loadingTags": "Loading tags",
+        "loadFailed": "Couldn't load this card's tags.",
+        "retry": "Retry",
+        "tags": "Tags",
+        "addTags": "Add tags",
+        "removeTag": "Remove tag {tag}",
+        "suggestedTags": "Suggested tags",
+        "note": "Note",
+        "addNote": "Add a note",
+        "saved": "Saved",
+        "tagTooLong": "Tags can be at most {max} characters.",
+        "tooManyTags": "A card can have at most {max} tags here.",
+        "signInAgain": "Sign in again to save your changes.",
+        "tagsFailed": "Couldn't save tags.",
+        "noteFailed": "Couldn't save the note."
+      }
+    },
+    "contextMenu": {
+      "savePage": "Save Page to Teak",
+      "saveAsset": "Save Asset to Teak",
+      "saveText": "Save Text to Teak"
+    },
+    "omnibox": {
+      "search": "Search Teak",
+      "searchFor": "Search Teak for <match>{query}</match>",
+      "signIn": "Sign in to Teak to search",
+      "noMatches": "No matching cards",
+      "unreachable": "Couldn't reach Teak",
+      "rateLimited": "Too many searches, slow down",
+      "cardType": "{type, select, text {text} link {link} image {image} video {video} audio {audio} document {document} palette {palette} quote {quote} other {{type}}}",
+      "untitled": "{type, select, text {Untitled text} link {Untitled link} image {Untitled image} video {Untitled video} audio {Untitled audio} document {Untitled document} palette {Untitled palette} quote {Untitled quote} other {Untitled {type}}}"
+    },
+    "inline": {
+      "idle": "Save to Teak",
+      "saving": "Saving to Teak",
+      "saved": "Saved to Teak",
+      "duplicate": "Already saved in Teak",
+      "error": "Save failed. Retry",
+      "errorWithReason": "Save failed. Retry: {reason}",
+      "invalidPost": "Invalid post data",
+      "signIn": "Sign in to Teak to save",
+      "saveFailed": "Failed to save post"
+    }
+  },
+  "screens": {
+    "cards": {
+      "emptyFavorites": "No favorites yet. Favorite a card to find it here.",
+      "emptyArchive": "Nothing archived. Archive a card to keep it out of your library.",
+      "emptyTrash": "Trash is empty.",
+      "hiddenCardsHint": "Some cards are hidden. Search #secret or #hidden to see them.",
+      "cardNotFound": "Card not found",
+      "folderNotFound": "Folder not found",
+      "folderMayBeDeleted": "It may have been deleted.",
+      "goToEverything": "Go to Everything",
+      "nothingLeftToDo": "Nothing left to do.",
+      "noSmartFolderMatches": "No cards match this smart folder.",
+      "editSearch": "Edit search",
+      "noCardsInFolder": "No cards in this folder yet.",
+      "addCards": "Add cards",
+      "nothingSimilar": "Nothing similar yet",
+      "noMoodMatches": "No images match this mood yet",
+      "stillLearning": "Still learning about this card. Try again in a moment.",
+      "tooManySearches": "Too many searches. Try again in a minute.",
+      "semanticUnavailable": "Couldn't search by meaning right now.",
+      "noFilterMatches": "Nothing found matching your filters",
+      "clearFilters": "Clear filters",
+      "smartFolderSuffix": " (smart folder)",
+      "folderCardCountSuffix": "{count, plural, one { card} other { cards}}",
+      "folderTitle": "Folder",
+      "searchFolder": "Search {folder}",
+      "savedSmartFolder": "Saved “{name}”",
+      "savedSmartFolderDescription": "It shows every card that matches, as you save them.",
+      "open": "Open",
+      "unsavableFilters": "Colors, styles and dates aren't saved in a smart folder.",
+      "loadFailed": "Couldn't load your cards."
+    },
+    "tags": {
+      "sortMostUsed": "Most used",
+      "sortName": "Name",
+      "sortLabel": "Sort: {sort}",
+      "sortBy": "Sort tags by",
+      "moreFor": "More for {tag}",
+      "rowLabel": "{tag}, {count, plural, one {# card} other {# cards}}",
+      "rename": "Rename…",
+      "mergeInto": "Merge into…",
+      "delete": "Delete…",
+      "matchCount": "{matches, number} of {total, number}",
+      "topCount": "Top {total, number}",
+      "tagsSuffix": " tags",
+      "title": "Tags",
+      "findTag": "Find a tag",
+      "loading": "Loading tags",
+      "noTags": "No tags yet",
+      "noTagsDescription": "Tags you add to cards, and the ones Teak suggests, show up here.",
+      "noMatches": "No tags match “{query}”.",
+      "list": "Tags",
+      "showMore": "Show {count, number} more"
+    },
+    "logo": {
+      "earlyAccess": "Early Access"
+    }
+  },
+  "hooks": {
+    "cardActions": {
+      "deletedFindInTrash": "Card deleted. Find it by searching 'trash'",
+      "cardDeleted": "Card deleted",
+      "cardRestored": "Card restored",
+      "cardPermanentlyDeleted": "Card permanently deleted",
+      "deleteFailed": "Failed to delete card",
+      "restoreFailed": "Failed to restore card",
+      "permanentDeleteFailed": "Failed to permanently delete card",
+      "changesSaved": "Changes saved",
+      "markedDone": "Marked as {verb, select, read {read} watched {watched} listened {listened} bought {bought} cooked {cooked} played {played} other {done}}",
+      "markedNotDone": "Marked as not {verb, select, read {read} watched {watched} listened {listened} bought {bought} cooked {cooked} played {played} other {done}}",
+      "doneUpdateFailed": "Couldn't update. Try again.",
+      "alreadyTagged": "Already tagged #{tag}",
+      "hiddenByTag": "Hidden. Search #{tag} to see it.",
+      "unsafeLink": "This link can't be opened because it uses an unsafe address",
+      "failed": {
+        "delete": "Failed to delete",
+        "restore": "Failed to restore",
+        "permanentDelete": "Failed to permanent delete",
+        "toggleFavorite": "Failed to toggle favorite",
+        "saveChanges": "Failed to save changes",
+        "downloadFile": "Failed to download file",
+        "removeTag": "Failed to remove tag",
+        "update": "Failed to update {field}",
+        "other": "Failed to {operation}"
+      }
+    },
+    "clipboard": {
+      "copyingImage": "Copying image...",
+      "imageCopied": "Image copied to clipboard",
+      "copied": "Copied to clipboard",
+      "linkCopied": "Link copied to clipboard",
+      "copyFailed": "Failed to copy to clipboard"
+    },
+    "deviceSessions": {
+      "loadFailed": "Could not load devices. Please try again."
+    },
+    "linkThumbnail": {
+      "replaced": "Image replaced",
+      "reset": "Back to the original image",
+      "undoExpired": "It's too late to undo that change."
+    },
+    "reprocess": {
+      "started": "Refreshing details. The summary and tags update shortly."
+    },
+    "savePdf": {
+      "saved": "PDF saved",
+      "alreadySaved": "Already saved",
+      "open": "Open",
+      "cardLimitReached": "Free card limit reached",
+      "tooLarge": "This PDF is too large. Teak keeps files up to 100 MB.",
+      "notPdf": "arXiv didn't send a PDF for this paper.",
+      "failed": "Couldn't save the PDF. Try again."
+    },
+    "settings": {
+      "openingPortal": "Opening customer portal...",
+      "portalOpened": "Customer portal opened",
+      "portalFailed": "Could not open portal",
+      "deleteAccountFailed": "Something went wrong while deleting your account.",
+      "signOutFailed": "Failed to sign out. Please try again."
+    },
+    "tagOperations": {
+      "startFailed": "Couldn't start the tag change"
+    },
+    "upload": {
+      "failed": "Upload failed",
+      "failedWithStatus": "Upload failed with status {status}",
+      "unsupportedType": "Unsupported file type",
+      "prepareFailed": "Failed to prepare upload",
+      "createFailed": "Failed to create card",
+      "cancelled": "Upload cancelled",
+      "timedOut": "The upload stopped responding. Check your connection and try again."
+    }
+  },
+  "lib": {
+    "bulkCardActions": {
+      "progress": {
+        "favorite": "Adding to favorites {done} of {total}…",
+        "unfavorite": "Removing from favorites {done} of {total}…",
+        "archive": "Archiving {done} of {total}…",
+        "unarchive": "Returning to the library {done} of {total}…",
+        "addTags": "Adding tags to {done} of {total}…",
+        "removeTags": "Removing tags from {done} of {total}…",
+        "delete": "Moving to Trash {done} of {total}…",
+        "restore": "Restoring {done} of {total}…",
+        "addToFolder": "Adding to the folder {done} of {total}…",
+        "removeFromFolder": "Removing from the folder {done} of {total}…",
+        "moveToFolder": "Moving {done} of {total}…"
+      },
+      "done": {
+        "favorite": "Added {count, plural, one {# card} other {# cards}} to favorites",
+        "unfavorite": "Removed {count, plural, one {# card} other {# cards}} from favorites",
+        "archive": "Archived {count, plural, one {# card} other {# cards}}",
+        "unarchive": "Returned {count, plural, one {# card} other {# cards}} to the library",
+        "addTags": "Added tags to {count, plural, one {# card} other {# cards}}",
+        "removeTags": "Removed tags from {count, plural, one {# card} other {# cards}}",
+        "delete": "Moved {count, plural, one {# card} other {# cards}} to Trash",
+        "restore": "Restored {count, plural, one {# card} other {# cards}}",
+        "addToFolder": "Added {count, plural, one {# card} other {# cards}} to {folder}",
+        "removeFromFolder": "Removed {count, plural, one {# card} other {# cards}} from {folder}",
+        "moveToFolder": "Moved {count, plural, one {# card} other {# cards}} to {folder}",
+        "addToUnnamedFolder": "Added {count, plural, one {# card} other {# cards}} to the folder",
+        "removeFromUnnamedFolder": "Removed {count, plural, one {# card} other {# cards}} from the folder",
+        "moveToUnnamedFolder": "Moved {count, plural, one {# card} other {# cards}} to the folder"
+      },
+      "partial": "{done}. {failed} couldn't be changed.",
+      "failed": {
+        "favorite": "Couldn't add these cards to favorites",
+        "unfavorite": "Couldn't remove these cards from favorites",
+        "archive": "Couldn't archive these cards",
+        "unarchive": "Couldn't unarchive these cards",
+        "addTags": "Couldn't add tags to these cards",
+        "removeTags": "Couldn't remove tags from these cards",
+        "delete": "Couldn't move these cards to Trash",
+        "restore": "Couldn't restore these cards",
+        "addToFolder": "Couldn't add these cards to the folder",
+        "removeFromFolder": "Couldn't remove these cards from the folder",
+        "moveToFolder": "Couldn't move these cards"
+      }
+    },
+    "clipboard": {
+      "copiedColor": "Copied {hex}",
+      "copyFailed": "Failed to copy"
+    },
+    "exif": {
+      "camera": "Camera",
+      "taken": "Taken",
+      "exposure": "Exposure",
+      "aperture": "Aperture",
+      "focalLength": "Focal length",
+      "iso": "ISO"
+    },
+    "folders": {
+      "colors": {
+        "none": "No color",
+        "gray": "Gray",
+        "red": "Red",
+        "orange": "Orange",
+        "amber": "Amber",
+        "green": "Green",
+        "teal": "Teal",
+        "blue": "Blue",
+        "violet": "Violet",
+        "pink": "Pink"
+      },
+      "suggestedName": {
+        "type": "{type, select, text {Texts} link {Links} image {Images} video {Videos} audio {Audios} document {Documents} palette {Palettes} quote {Quotes} other {{type}}}",
+        "favorites": "Favorites",
+        "archived": "Archived",
+        "price": "Price {bound}",
+        "text": "Text “{text}”"
+      }
+    },
+    "libraryViews": {
+      "labels": {
+        "all": "Everything",
+        "favorites": "Favorites",
+        "archive": "Archive",
+        "trash": "Trash"
+      },
+      "searchPlaceholders": {
+        "all": "Search everything",
+        "favorites": "Search favorites",
+        "archive": "Search archive",
+        "trash": "Search Trash"
+      }
+    },
+    "linkByline": {
+      "byAuthor": "By {author}"
+    },
+    "linkThumbnail": {
+      "changeFailed": "Couldn't change the image. Try again."
+    },
+    "linkTitle": {
+      "fallback": "Link"
+    },
+    "reprocess": {
+      "failed": "Couldn't refresh this card. Try again in a moment."
+    },
+    "tags": {
+      "progress": "{changed, number} of {total, plural, one {# card} other {# cards}}",
+      "completed": {
+        "rename": "Renamed “{from}” to “{to}”",
+        "merge": "Merged “{from}” into “{to}”",
+        "delete": "Deleted “{from}”"
+      },
+      "running": {
+        "rename": "Renaming “{from}” to “{to}”…",
+        "merge": "Merging “{from}” into “{to}”…",
+        "delete": "Deleting “{from}”…"
+      },
+      "failed": {
+        "rename": "Couldn't finish renaming. {changed, number} of {total, plural, one {# card} other {# cards}} changed.",
+        "merge": "Couldn't finish merging. {changed, number} of {total, plural, one {# card} other {# cards}} changed.",
+        "delete": "Couldn't finish deleting. {changed, number} of {total, plural, one {# card} other {# cards}} changed."
+      },
+      "changedDescription": "{count, plural, one {# card} other {# cards}} changed",
+      "runningDescription": "{changed, number} of {total, plural, one {# card} other {# cards}} changed",
+      "failedDescription": "Try again to change the rest."
+    },
+    "upload": {
+      "partialFailure": "Uploaded {successCount} of {total} files.",
+      "partialFailureWithReason": "Uploaded {successCount} of {total} files. First failure: {file} — {reason}",
+      "skippedNote": "{count, plural, one {# file was} other {# files were}} skipped. You can upload up to {max} at a time."
+    }
+  }
+}

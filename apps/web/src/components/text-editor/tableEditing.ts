@@ -1,4 +1,9 @@
 import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import {
   type ChainedCommands,
   type Editor,
   Extension,
@@ -10,6 +15,14 @@ import type { EditorState } from "@tiptap/pm/state";
 import { Plugin, TextSelection } from "@tiptap/pm/state";
 import { findTable, TableMap } from "@tiptap/pm/tables";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+
+type TextEditorTranslator = TeakTranslator<"textEditor">;
+
+const englishTextEditor = createTeakTranslator(
+  "en",
+  englishMessages,
+  "textEditor"
+);
 
 export const MAX_TABLE_COLUMNS = 20;
 export const MAX_TABLE_ROWS = 200;
@@ -189,28 +202,29 @@ const singleLineCells = new Plugin({
 });
 
 /** "Header" in an empty header cell while it has the cursor. */
-const headerPlaceholder = new Plugin({
-  props: {
-    decorations: (state) => {
-      const { $from, empty } = state.selection;
-      if (
-        !empty ||
-        $from.depth < 1 ||
-        $from.parent.content.size > 0 ||
-        $from.node($from.depth - 1).type.name !== "tableHeader"
-      ) {
-        return null;
-      }
-      const start = $from.before();
-      return DecorationSet.create(state.doc, [
-        Decoration.node(start, start + $from.parent.nodeSize, {
-          class: "is-empty",
-          "data-placeholder": "Header",
-        }),
-      ]);
+const headerPlaceholder = (label: () => string) =>
+  new Plugin({
+    props: {
+      decorations: (state) => {
+        const { $from, empty } = state.selection;
+        if (
+          !empty ||
+          $from.depth < 1 ||
+          $from.parent.content.size > 0 ||
+          $from.node($from.depth - 1).type.name !== "tableHeader"
+        ) {
+          return null;
+        }
+        const start = $from.before();
+        return DecorationSet.create(state.doc, [
+          Decoration.node(start, start + $from.parent.nodeSize, {
+            class: "is-empty",
+            "data-placeholder": label(),
+          }),
+        ]);
+      },
     },
-  },
-});
+  });
 
 /**
  * Keys inside a table: Enter (and Shift+Enter, since a cell is one line)
@@ -219,12 +233,15 @@ const headerPlaceholder = new Plugin({
  * `isSuggesting` lets an open slash or `[[` menu keep Enter. An empty header
  * cell with the cursor shows "Header".
  */
-export const TableKeys = (isSuggesting: (state: EditorState) => boolean) =>
+export const TableKeys = (
+  isSuggesting: (state: EditorState) => boolean,
+  headerLabel: () => string = () => englishTextEditor("table.headerPlaceholder")
+) =>
   Extension.create({
     name: "teakTableKeys",
     priority: 200,
     addProseMirrorPlugins() {
-      return [singleLineCells, headerPlaceholder];
+      return [singleLineCells, headerPlaceholder(headerLabel)];
     },
     addKeyboardShortcuts() {
       const moveDown = () => {
@@ -313,45 +330,48 @@ export interface TableActionState {
 }
 
 /** The ⋯ menu's actions for the cursor's cell, with why any is off. */
-export function tableActions(table: TableAt): TableActionState[] {
+export function tableActions(
+  table: TableAt,
+  t: TextEditorTranslator = englishTextEditor
+): TableActionState[] {
   const rowCap = canAddTableRow(table)
     ? undefined
-    : `Tables can have up to ${MAX_TABLE_ROWS} rows`;
+    : t("table.rowLimit", { max: MAX_TABLE_ROWS });
   const columnCap = canAddTableColumn(table)
     ? undefined
-    : `Tables can have up to ${MAX_TABLE_COLUMNS} columns`;
+    : t("table.columnLimit", { max: MAX_TABLE_COLUMNS });
   return [
     {
       action: "addRowBefore",
-      label: "Add row above",
+      label: t("table.addRowAbove"),
       disabled:
-        rowCap ??
-        (table.row === 0 ? "The header row stays the first row" : undefined),
+        rowCap ?? (table.row === 0 ? t("table.headerRowFirst") : undefined),
     },
-    { action: "addRowAfter", label: "Add row below", disabled: rowCap },
+    {
+      action: "addRowAfter",
+      label: t("table.addRowBelow"),
+      disabled: rowCap,
+    },
     {
       action: "addColumnBefore",
-      label: "Add column left",
+      label: t("table.addColumnLeft"),
       disabled: columnCap,
     },
     {
       action: "addColumnAfter",
-      label: "Add column right",
+      label: t("table.addColumnRight"),
       disabled: columnCap,
     },
     {
       action: "deleteRow",
-      label: "Delete row",
-      disabled: table.row === 0 ? "The header row can't be deleted" : undefined,
+      label: t("table.deleteRow"),
+      disabled: table.row === 0 ? t("table.headerRowKept") : undefined,
     },
     {
       action: "deleteColumn",
-      label: "Delete column",
-      disabled:
-        table.cols === 1
-          ? "Delete the table to remove its last column"
-          : undefined,
+      label: t("table.deleteColumn"),
+      disabled: table.cols === 1 ? t("table.lastColumn") : undefined,
     },
-    { action: "deleteTable", label: "Delete table" },
+    { action: "deleteTable", label: t("table.deleteTable") },
   ];
 }

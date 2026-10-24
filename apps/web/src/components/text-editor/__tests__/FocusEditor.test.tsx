@@ -172,12 +172,12 @@ test("typing hides the bar and the count; a pause shows the new count", async ()
 test.each([
   [
     "the slash menu is open",
-    "<div role='listbox' aria-label='Formatting commands'></div><p data-active></p>",
+    "<div role='listbox' aria-label='Formatting commands' data-editor-popup></div><p data-active></p>",
     true,
   ],
   [
     "the card link menu is open",
-    "<div role='listbox' aria-label='Link a card'></div><p data-active></p>",
+    "<div role='listbox' aria-label='Link a card' data-editor-popup></div><p data-active></p>",
     true,
   ],
   [

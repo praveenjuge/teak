@@ -1,3 +1,4 @@
+import { useIntlLocale } from "@teak/i18n/react";
 import { cn } from "../../lib/utils";
 
 interface PlanOptionProps {
@@ -21,8 +22,9 @@ export function PlanOption({
   selected,
   onSelect,
 }: PlanOptionProps) {
+  const locale = useIntlLocale();
   const formattedPrice = priceAmount
-    ? `$${(priceAmount / 100).toLocaleString()}`
+    ? `$${(priceAmount / 100).toLocaleString(locale)}`
     : "--";
 
   return (

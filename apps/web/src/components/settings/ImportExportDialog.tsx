@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { ArrowDownUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ExportPanel, type ExportState } from "./ExportPanel";
@@ -35,22 +36,23 @@ export function ImportExportDialog({
   onStartExport,
   open,
 }: ImportExportDialogProps) {
+  const t = useTranslations("settings.importExport");
   return (
     <SettingsDialog
       className="sm:h-[min(88dvh,36rem)] sm:max-w-lg"
-      description="Bring cards in from other tools, or take a full copy with you."
+      description={t("description")}
       icon={ArrowDownUp}
       onOpenChange={onOpenChange}
       open={open}
-      title="Manage data"
+      title={t("title")}
     >
       <Tabs className={settingsTabsClassName} defaultValue={defaultTab}>
         <TabsList className={settingsTabsListClassName}>
           <TabsTrigger className={settingsTabsTriggerClassName} value="import">
-            Import
+            {t("importTab")}
           </TabsTrigger>
           <TabsTrigger className={settingsTabsTriggerClassName} value="export">
-            Export
+            {t("exportTab")}
           </TabsTrigger>
         </TabsList>
 

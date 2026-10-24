@@ -5,6 +5,7 @@ import {
   offset,
   shift,
 } from "@floating-ui/dom";
+import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useRef } from "react";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { Button } from "../ui/button";
@@ -34,6 +35,7 @@ export function CardLinkMenu({
   selected,
   state,
 }: CardLinkMenuProps) {
+  const t = useTranslations("textEditor.cardLinkMenu");
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -85,19 +87,19 @@ export function CardLinkMenu({
       <div aria-busy="true" className="flex items-center gap-2 px-2 py-2">
         <span className="size-4 animate-pulse rounded bg-muted" />
         <span className="h-3 w-40 animate-pulse rounded-full bg-muted" />
-        <span className="sr-only">Searching cards…</span>
+        <span className="sr-only">{t("searching")}</span>
       </div>
     );
   } else if (state.status === "error") {
     message = (
       <p className={MESSAGE_CLASS} role="alert">
-        Couldn't search cards
+        {t("searchFailed")}
       </p>
     );
   } else if (items.length === 0) {
     message = (
       <p className={MESSAGE_CLASS} role="status">
-        {query.trim() ? "No matching cards" : "No cards yet"}
+        {query.trim() ? t("noMatches") : t("noCards")}
       </p>
     );
   }
@@ -110,7 +112,13 @@ export function CardLinkMenu({
       data-slot="card-link-menu"
       ref={ref}
     >
-      <div aria-label="Link a card" id={id} ref={listRef} role="listbox">
+      <div
+        aria-label={t("label")}
+        data-editor-popup=""
+        id={id}
+        ref={listRef}
+        role="listbox"
+      >
         {items.map((item, index) => {
           const Icon = getCardTypeIconComponent(item.type);
           return (

@@ -317,6 +317,27 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
   },
 ];
 
+/**
+ * Account changes the Teak apps make that no public surface does: no API
+ * operation, MCP tool, SDK method or CLI command. `convex` names the session
+ * function that makes the change, and `readBy` the operation that reports it.
+ */
+export interface AppOnlyChange {
+  convex: string;
+  feature: string;
+  readBy?: string;
+  reason: string;
+}
+
+export const APP_ONLY_CHANGES: readonly AppOnlyChange[] = [
+  {
+    feature: "Set the account language",
+    convex: "settings/preferences:setLocale",
+    readBy: "getMe",
+    reason: "a display preference set in Settings",
+  },
+];
+
 export const CLI_LOCAL_COMMANDS: Record<string, string> = {
   login: "signs in through the browser and stores the credential",
   auth: "groups `auth status`",
@@ -339,6 +360,13 @@ export const parityMarkdown = () =>
     ...PUBLIC_PARITY.map(
       (row) =>
         `| ${row.feature} | \`${row.operationId}\` | ${cell(row.mcp)} | ${cell(row.sdk)} | ${cell(row.cli)} |`
+    ),
+    "",
+    "| App-only change | Read by | Why no API, MCP, SDK or CLI setter |",
+    "| --- | --- | --- |",
+    ...APP_ONLY_CHANGES.map(
+      (row) =>
+        `| ${row.feature} | ${row.readBy ? `\`${row.readBy}\`` : "none"} | ${row.reason} |`
     ),
   ].join("\n");
 

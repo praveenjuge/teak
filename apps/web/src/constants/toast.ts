@@ -10,9 +10,8 @@ export const TOAST_IDS = {
   checkoutOpen: "checkout-open",
   apiKeyCreate: "api-key-create",
   uploadQueue: "upload-queue",
+  language: "language",
 } as const;
-
-export const CARD_LIMIT_TOAST_MESSAGE = "Free card limit reached";
 
 export const MANUAL_CLOSE_TOAST_OPTIONS: ExternalToast = {
   duration: Number.POSITIVE_INFINITY,

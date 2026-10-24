@@ -1,11 +1,23 @@
 import type { CardType } from "@teak/convex/shared/constants";
 import { getSafeUrlHostname } from "@teak/convex/shared/utils/safeUrl";
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
 import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
+import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
 import { libraryViewForPath } from "./libraryViews";
-import { resolveLinkTitle } from "./linkTitle";
+import { type LinkTitleTranslator, resolveLinkTitle } from "./linkTitle";
 import { markdownToPlainText } from "./markdownToPlainText";
 import { isApplePlatform } from "./platform";
+
+const englishPalette = createTeakTranslator(
+  "en",
+  englishMessages,
+  "commandPalette"
+);
 
 export const PALETTE_MIN_CARD_QUERY_LENGTH = 2;
 export const PALETTE_CARD_LIMIT = 8;
@@ -66,8 +78,10 @@ export type CommandPaletteActionId =
 export interface CommandPaletteAction {
   id: CommandPaletteActionId;
   keys?: string[];
+  /** Extra English words the filter matches besides the label. */
   keywords: string[];
-  label: string;
+  /** The label's message key under `commandPalette.actions`. */
+  labelKey: keyof (typeof englishMessages)["commandPalette"]["actions"];
 }
 
 export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
@@ -75,29 +89,37 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
     id: "new-note",
     keywords: ["write", "text", "add"],
     keys: ["N"],
-    label: "New note",
+    labelKey: "newNote",
   },
   {
     id: "upload",
     keywords: ["file", "image", "add"],
     keys: ["U"],
-    label: "Upload files",
+    labelKey: "upload",
   },
-  { id: "import", keywords: ["bookmarks", "pocket", "data"], label: "Import" },
-  { id: "export", keywords: ["download", "backup", "data"], label: "Export" },
+  {
+    id: "import",
+    keywords: ["bookmarks", "pocket", "data"],
+    labelKey: "import",
+  },
+  {
+    id: "export",
+    keywords: ["download", "backup", "data"],
+    labelKey: "export",
+  },
   {
     id: "toggle-theme",
     keywords: ["dark", "light", "appearance"],
-    label: "Toggle theme",
+    labelKey: "toggleTheme",
   },
-  { id: "shuffle", keywords: ["random", "sort"], label: "Shuffle" },
+  { id: "shuffle", keywords: ["random", "sort"], labelKey: "shuffle" },
   {
     id: "shortcuts",
     keywords: ["keys", "help", "hotkeys"],
     keys: ["?"],
-    label: "Keyboard shortcuts",
+    labelKey: "shortcuts",
   },
-  { id: "sign-out", keywords: ["log out", "logout"], label: "Sign out" },
+  { id: "sign-out", keywords: ["log out", "logout"], labelKey: "signOut" },
 ];
 
 export function isLibraryRoute(pathname: string | null | undefined): boolean {
@@ -174,7 +196,11 @@ export interface PaletteCard {
 
 const MAX_PALETTE_TITLE_LENGTH = 300;
 
-export function paletteCardTitle(card: PaletteCard): string {
+export function paletteCardTitle(
+  card: PaletteCard,
+  t: TeakTranslator<"commandPalette"> = englishPalette,
+  linkTitle: LinkTitleTranslator = englishTranslator("lib.linkTitle")
+): string {
   const isFileCard =
     card.type === "image" ||
     card.type === "video" ||
@@ -186,18 +212,21 @@ export function paletteCardTitle(card: PaletteCard): string {
       : undefined;
   const title =
     (card.type === "link"
-      ? resolveLinkTitle({
-          metadataTitle: card.metadataTitle,
-          metadataTitleEdited: card.metadataTitleEdited,
-          previewTitle: linkPreview?.title,
-          url: card.url,
-        })
+      ? resolveLinkTitle(
+          {
+            metadataTitle: card.metadataTitle,
+            metadataTitleEdited: card.metadataTitleEdited,
+            previewTitle: linkPreview?.title,
+            url: card.url,
+          },
+          linkTitle
+        )
       : "") ||
     (isFileCard ? card.fileMetadata?.fileName : "") ||
     card.metadataTitle ||
     markdownToPlainText(card.content?.trim().split("\n", 1)[0]).trim() ||
     card.fileMetadata?.fileName ||
-    "Untitled card";
+    t("cards.untitled");
   return title.slice(0, MAX_PALETTE_TITLE_LENGTH);
 }
 

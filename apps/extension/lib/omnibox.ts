@@ -3,6 +3,7 @@ import {
   cardSiteHost,
   hostForDisplay,
 } from "@teak/convex/shared/utils/urlHost";
+import type { TeakTranslator } from "@teak/i18n";
 
 export const OMNIBOX_KEYWORD = "teak";
 export const OMNIBOX_MIN_CHARS = 2;
@@ -37,6 +38,9 @@ export interface OmniboxSuggestion {
   description: string;
 }
 
+/** The omnibox's words, in the UI language. */
+export type OmniboxStrings = TeakTranslator<"extension.omnibox">;
+
 const XML_ESCAPES: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -47,6 +51,10 @@ const XML_ESCAPES: Record<string, string> = {
 
 export const escapeOmniboxXml = (text: string): string =>
   text.replace(/[&<>"']/g, (char) => XML_ESCAPES[char] ?? char);
+
+// Catalog text sits between Chromium's tags; quotes are fine there.
+const escapeXmlText = (text: string): string =>
+  text.replace(/[&<>]/g, (char) => XML_ESCAPES[char] ?? char);
 
 export const truncateTitle = (
   text: string,
@@ -65,25 +73,32 @@ const displayHost = (card: OmniboxCard) => {
   return host ? hostForDisplay(host) : "";
 };
 
-export const omniboxCardTitle = (card: OmniboxCard): string => {
+export const omniboxCardTitle = (
+  card: OmniboxCard,
+  t: OmniboxStrings
+): string => {
   const content = collapse(card.content);
   return (
     collapse(card.metadataTitle) ||
     (content === card.url ? "" : content) ||
     collapse(card.sourceTitle) ||
     displayHost(card) ||
-    `Untitled ${card.type}`
+    t("untitled", { type: card.type })
   );
 };
 
 export function buildSuggestions(
   cards: readonly OmniboxCard[],
-  flavor: OmniboxFlavor
+  flavor: OmniboxFlavor,
+  t: OmniboxStrings
 ): OmniboxSuggestion[] {
   return cards.map((card) => {
-    const title = truncateTitle(omniboxCardTitle(card));
+    const title = truncateTitle(omniboxCardTitle(card, t));
     const host = displayHost(card);
-    const details = [card.type, host === title ? "" : host]
+    const details = [
+      t("cardType", { type: card.type }),
+      host === title ? "" : host,
+    ]
       .filter(Boolean)
       .join(" · ");
     return {
@@ -96,12 +111,25 @@ export function buildSuggestions(
   });
 }
 
-const NOTICES: Partial<Record<OmniboxOutcome["kind"], string>> = {
-  empty: "No matching cards",
-  error: "Couldn't reach Teak",
-  rateLimited: "Too many searches, slow down",
+const NOTICES: Partial<
+  Record<OmniboxOutcome["kind"], "noMatches" | "rateLimited" | "unreachable">
+> = {
+  empty: "noMatches",
+  error: "unreachable",
+  rateLimited: "rateLimited",
 };
-const SIGN_IN = "Sign in to Teak to search";
+
+const noticeFor = (outcome: OmniboxOutcome, t: OmniboxStrings) => {
+  if (outcome.kind === "signedOut") {
+    return t("signIn");
+  }
+  const key = NOTICES[outcome.kind];
+  return key ? t(key) : undefined;
+};
+
+// Placeholders for Chromium's <match> tags, swapped in after escaping.
+const MATCH_OPEN = "\u0001";
+const MATCH_CLOSE = "\u0002";
 
 /**
  * The default row, the one Enter on the typed text picks. In Chromium `%s`
@@ -111,17 +139,25 @@ const SIGN_IN = "Sign in to Teak to search";
  */
 export function defaultSuggestion(
   outcome: OmniboxOutcome,
-  flavor: OmniboxFlavor
+  flavor: OmniboxFlavor,
+  t: OmniboxStrings
 ): string {
   if (outcome.kind === "signedOut") {
-    return SIGN_IN;
+    return t("signIn");
   }
   if (flavor === "firefox") {
-    return "Search Teak";
+    return t("search");
   }
-  const notice = NOTICES[outcome.kind];
-  const search = "Search Teak for <match>%s</match>";
-  return notice ? `${search} <dim>${notice}</dim>` : search;
+  const search = escapeXmlText(
+    t.markup("searchFor", {
+      match: (chunks) => `${MATCH_OPEN}${chunks}${MATCH_CLOSE}`,
+      query: "%s",
+    })
+  )
+    .replace(MATCH_OPEN, "<match>")
+    .replace(MATCH_CLOSE, "</match>");
+  const notice = noticeFor(outcome, t);
+  return notice ? `${search} <dim>${escapeXmlText(notice)}</dim>` : search;
 }
 
 /**
@@ -131,9 +167,10 @@ export function defaultSuggestion(
 export function noticeRow(
   outcome: OmniboxOutcome,
   text: string,
-  flavor: OmniboxFlavor
+  flavor: OmniboxFlavor,
+  t: OmniboxStrings
 ): OmniboxSuggestion | null {
-  const notice = outcome.kind === "signedOut" ? SIGN_IN : NOTICES[outcome.kind];
+  const notice = noticeFor(outcome, t);
   // Firefox drops a row whose content is exactly the typed text; the space
   // keeps it, and Enter trims it off.
   return flavor === "firefox" && notice && text.trim()

@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOptionalSidebar } from "@/components/ui/sidebar";
 import { cn } from "../../lib/utils";
 
 export function SidebarToggle({ className }: { className?: string }) {
+  const t = useTranslations("sidebar");
   const sidebar = useOptionalSidebar();
   if (!sidebar) {
     return null;
@@ -14,7 +16,7 @@ export function SidebarToggle({ className }: { className?: string }) {
   return (
     <Button
       aria-expanded={isOpen}
-      aria-label="Toggle sidebar"
+      aria-label={t("toggle")}
       className={cn(
         "size-8 shrink-0 text-muted-foreground",
         sidebar.open && "md:hidden",

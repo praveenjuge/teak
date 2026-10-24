@@ -1,4 +1,6 @@
 import { MAX_TAG_NAME_LENGTH } from "@teak/convex/shared/tags";
+import type { TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { Check, X } from "lucide-react";
 import {
   type KeyboardEvent,
@@ -44,14 +46,18 @@ const sendPatch = async (
   }
 };
 
-const failureMessage = (result: CardPatchResponse, tags: boolean) => {
+const failureMessage = (
+  result: CardPatchResponse,
+  tags: boolean,
+  t: TeakTranslator<"extension.popup.details">
+) => {
   if (result.status === "unauthenticated") {
-    return "Sign in again to save your changes.";
+    return t("signInAgain");
   }
   if (result.status === "error" && result.code === "RATE_LIMITED") {
     return result.message;
   }
-  return tags ? "Couldn't save tags." : "Couldn't save the note.";
+  return tags ? t("tagsFailed") : t("noteFailed");
 };
 
 export function SaveDetails({
@@ -60,6 +66,7 @@ export function SaveDetails({
   onKeepOpen,
   userId,
 }: SaveDetailsProps) {
+  const t = useTranslations("extension.popup.details");
   const [loadState, setLoadState] = useState<"error" | "loading" | "ready">(
     alreadySaved ? "loading" : "ready"
   );
@@ -130,7 +137,7 @@ export function SaveDetails({
         }
         return;
       }
-      setSaveError(failureMessage(response, change.tags !== undefined));
+      setSaveError(failureMessage(response, change.tags !== undefined, t));
     });
   };
 
@@ -145,13 +152,13 @@ export function SaveDetails({
       return true;
     }
     if (name.length > MAX_TAG_NAME_LENGTH) {
-      setTagError(`Tags can be at most ${MAX_TAG_NAME_LENGTH} characters.`);
+      setTagError(t("tagTooLong", { max: MAX_TAG_NAME_LENGTH }));
       return false;
     }
     const key = name.toLowerCase();
     if (!tags.some((tag) => tag.toLowerCase() === key)) {
       if (tags.length >= MAX_PATCH_TAGS) {
-        setTagError(`A card can have at most ${MAX_PATCH_TAGS} tags here.`);
+        setTagError(t("tooManyTags", { max: MAX_PATCH_TAGS }));
         return false;
       }
       updateTags([...tags, name]);
@@ -215,7 +222,7 @@ export function SaveDetails({
   if (loadState === "loading") {
     return (
       <div aria-busy="true" className="w-full" role="status">
-        <span className="sr-only">Loading tags</span>
+        <span className="sr-only">{t("loadingTags")}</span>
         <div className="h-8 w-full animate-pulse rounded-lg bg-muted" />
         <div className="mt-2 h-14 w-full animate-pulse rounded-lg bg-muted" />
       </div>
@@ -228,16 +235,14 @@ export function SaveDetails({
         className="flex w-full items-center justify-between gap-2 rounded-lg bg-muted/60 py-1 pr-1 pl-3 text-left text-xs"
         role="alert"
       >
-        <span className="text-muted-foreground">
-          Couldn&apos;t load this card&apos;s tags.
-        </span>
+        <span className="text-muted-foreground">{t("loadFailed")}</span>
         <Button
           className="h-7 px-2.5 text-xs"
           onClick={() => void load()}
           size="sm"
           variant="ghost"
         >
-          Retry
+          {t("retry")}
         </Button>
       </div>
     );
@@ -256,7 +261,7 @@ export function SaveDetails({
                 {tag}
               </span>
               <button
-                aria-label={`Remove tag ${tag}`}
+                aria-label={t("removeTag", { tag })}
                 className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
                 onClick={() => removeTag(tag)}
                 type="button"
@@ -273,7 +278,7 @@ export function SaveDetails({
             aria-controls="teak-tag-options"
             aria-expanded={suggestions.length > 0}
             aria-invalid={tagError ? true : undefined}
-            aria-label="Tags"
+            aria-label={t("tags")}
             className="h-6 min-w-24 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
             enterKeyHint="done"
             onBlur={() => {
@@ -292,7 +297,7 @@ export function SaveDetails({
               onKeepOpen();
             }}
             onKeyDown={handleTagKeyDown}
-            placeholder={tags.length ? "" : "Add tags"}
+            placeholder={tags.length ? "" : t("addTags")}
             role="combobox"
             value={tagInput}
           />
@@ -300,7 +305,7 @@ export function SaveDetails({
       </div>
       {suggestions.length > 0 ? (
         <div
-          aria-label="Suggested tags"
+          aria-label={t("suggestedTags")}
           className="flex flex-wrap gap-1"
           id="teak-tag-options"
           role="listbox"
@@ -335,7 +340,7 @@ export function SaveDetails({
       ) : null}
       <div className="relative">
         <textarea
-          aria-label="Note"
+          aria-label={t("note")}
           className="field-sizing-content block max-h-[8.5rem] min-h-14 w-full resize-none overflow-y-auto rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           dir="auto"
           onBlur={save}
@@ -344,7 +349,7 @@ export function SaveDetails({
             setNotes(event.target.value);
           }}
           onFocus={onKeepOpen}
-          placeholder="Add a note"
+          placeholder={t("addNote")}
           value={notes}
         />
         {noteSaved ? (
@@ -353,7 +358,7 @@ export function SaveDetails({
             className="pointer-events-none absolute right-2 bottom-1.5 inline-flex items-center gap-1 text-emerald-600 text-xs dark:text-emerald-400"
           >
             <Check aria-hidden="true" className="size-3" />
-            Saved
+            {t("saved")}
           </span>
         ) : null}
       </div>
@@ -369,7 +374,7 @@ export function SaveDetails({
             size="sm"
             variant="ghost"
           >
-            Retry
+            {t("retry")}
           </Button>
         </div>
       ) : null}

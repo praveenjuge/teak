@@ -1181,6 +1181,22 @@ describe("devSeed folder packs", () => {
     ).toBe("https://shows.example.com/field-notes/feed.xml");
   });
 
+  test("locale-switch sets the account's language to German", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    expect(
+      await t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "locale-switch",
+      })
+    ).toEqual({ status: "seeded", cards: 0 });
+    expect(
+      await t.query(internal.settings.preferences.getPreferencesForUser, {
+        userId: "teak_dev",
+      })
+    ).toEqual({ locale: "de" });
+  });
+
   test("email-in seeds cards as Save by email makes them, and turns it on", async () => {
     vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
     const t = await setup();

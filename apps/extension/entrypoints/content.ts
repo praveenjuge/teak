@@ -1,5 +1,12 @@
 import {
+  ENGLISH_INLINE_LABELS,
+  type InlineLabels,
+  isInlineLabels,
+  withReason,
+} from "../lib/inlineLabels";
+import {
   type AuthStateResponse,
+  type InlineLabelsResponse,
   MESSAGE_TYPES,
   type TeakSaveResponse,
 } from "../types/messages";
@@ -123,6 +130,7 @@ export default defineContentScript({
 
     authPollTimer = window.setInterval(() => {
       void refreshAuthState();
+      void refreshLabels();
     }, 15_000);
 
     window.addEventListener("beforeunload", () => {
@@ -136,6 +144,7 @@ export default defineContentScript({
     });
 
     void refreshAuthState();
+    void refreshLabels();
   },
 });
 
@@ -220,12 +229,33 @@ const ICONS: Record<Exclude<ButtonState, "idle">, string> = {
   error: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>`,
 };
 
-const STATE_LABELS: Record<ButtonState, string> = {
-  idle: "Save to Teak",
-  saving: "Saving to Teak",
-  saved: "Saved to Teak",
-  duplicate: "Already saved in Teak",
-  error: "Save failed. Retry",
+// English until the background answers with the UI language's labels.
+let labels: InlineLabels = ENGLISH_INLINE_LABELS;
+
+/** Asks the background for the labels, and relabels buttons already shown. */
+const refreshLabels = async () => {
+  const response = await sendRuntimeMessage<InlineLabelsResponse>({
+    type: MESSAGE_TYPES.GET_INLINE_LABELS,
+  }).catch(() => undefined);
+  const next = response?.labels;
+  if (
+    !isInlineLabels(next) ||
+    Object.entries(next).every(
+      ([key, value]) => labels[key as keyof InlineLabels] === value
+    )
+  ) {
+    return;
+  }
+  labels = next;
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    ".teak-save-button"
+  )) {
+    const state = button.dataset.state as ButtonState | undefined;
+    // A failure's reason is gone; it returns to idle in a moment anyway.
+    if (state && state !== "error") {
+      labelButton(button, labels[state]);
+    }
+  }
 };
 
 const STYLE_ID = "teak-inline-save-style";
@@ -387,6 +417,11 @@ const iconNodes = (markup: string): Node[] => [
   ...new DOMParser().parseFromString(markup, "text/html").body.childNodes,
 ];
 
+const labelButton = (button: HTMLButtonElement, label: string) => {
+  button.setAttribute("aria-label", label);
+  button.title = label;
+};
+
 const setButtonState = (
   button: HTMLButtonElement,
   state: ButtonState,
@@ -394,12 +429,12 @@ const setButtonState = (
 ) => {
   button.dataset.state = state;
   button.replaceChildren(...iconNodes(getIconMarkup(state)));
-  const label =
+  labelButton(
+    button,
     state === "error" && errorMessage
-      ? `${STATE_LABELS[state]}: ${errorMessage}`
-      : STATE_LABELS[state];
-  button.setAttribute("aria-label", label);
-  button.title = label;
+      ? withReason(labels, errorMessage)
+      : labels[state]
+  );
   button.disabled =
     state === "saving" || state === "saved" || state === "duplicate";
 };
@@ -463,7 +498,7 @@ const handleButtonClick = async (
   const postKey = button.dataset.postKey;
   const platform = button.dataset.platform as Platform | undefined;
   if (!(permalink && postKey && platform)) {
-    setButtonState(button, "error", "Invalid post data");
+    setButtonState(button, "error", labels.invalidPost);
     window.setTimeout(() => setButtonState(button, "idle"), 2500);
     return;
   }
@@ -494,18 +529,17 @@ const handleButtonClick = async (
     }
 
     if (response.status === "unauthenticated") {
-      setButtonState(button, "error", "Sign in to Teak to save");
+      setButtonState(button, "error", labels.signIn);
       window.setTimeout(() => setButtonState(button, "idle"), 2500);
       return;
     }
 
     const errorMessage =
-      response.status === "error" ? response.message : "Failed to save post";
+      response.status === "error" ? response.message : labels.saveFailed;
     setButtonState(button, "error", errorMessage);
     window.setTimeout(() => setButtonState(button, "idle"), 2500);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to save post";
+    const message = error instanceof Error ? error.message : labels.saveFailed;
     setButtonState(button, "error", message);
     window.setTimeout(() => setButtonState(button, "idle"), 2500);
   }

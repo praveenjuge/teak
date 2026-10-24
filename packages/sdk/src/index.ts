@@ -354,6 +354,12 @@ export interface Me {
   cardLimit: number | null;
   email: string;
   id: string;
+  /**
+   * The account's Teak language, chosen in Settings: a BCP 47 code such as
+   * `en`, `de` or `pt-BR`. More may be added, so treat an unknown code as
+   * English.
+   */
+  locale: string;
   name?: string;
   plan: "free" | "pro";
   settingsUrl: string;

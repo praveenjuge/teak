@@ -9,6 +9,8 @@ import {
   MAX_FOLDERS_PER_USER,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "@teak/convex/shared/folders";
+import type { TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { Check } from "lucide-react";
 import { useEffect, useId, useState } from "react";
@@ -24,15 +26,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
-  FOLDER_COLOR_LABELS,
   FOLDER_COLORS,
   FOLDER_DOT_CLASSES,
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderColor,
   type FolderSummary,
+  folderColorLabel,
   folderErrorMessage,
   hasFolderNamed,
   suggestSmartFolderName,
@@ -58,6 +61,10 @@ export function FolderNameDialog({
   query: initialQuery,
   queryNote,
 }: FolderNameDialogProps) {
+  const t = useTranslations("folders.nameDialog");
+  const tFolders = useTranslations("lib.folders");
+  const tc = useTranslations("common");
+  const errors = useServerErrors();
   const inputId = useId();
   const queryId = useId();
   const folders = useFolders();
@@ -76,13 +83,13 @@ export function FolderNameDialog({
         folder?.name ??
           (initialQuery === undefined
             ? ""
-            : suggestSmartFolderName(initialQuery))
+            : suggestSmartFolderName(initialQuery, tFolders))
       );
       setQuery(folder?.query ?? initialQuery ?? "");
       setColor(folder?.color);
       setServerError(null);
     }
-  }, [folder, initialQuery, open]);
+  }, [folder, initialQuery, open, tFolders]);
 
   const trimmed = name.trim();
   const canonicalQuery = isSmart ? parseSearchQuery(query).canonical : "";
@@ -144,7 +151,7 @@ export function FolderNameDialog({
       setServerError(
         folderErrorMessage(
           caught,
-          isRename ? "Couldn't save the folder" : "Couldn't create the folder"
+          isRename ? t("saveFailed") : t("createFailed")
         )
       );
     }
@@ -154,13 +161,11 @@ export function FolderNameDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>{dialogTitle(isRename, isSmart)}</DialogTitle>
+          <DialogTitle>{dialogTitle(t, isRename, isSmart)}</DialogTitle>
           <DialogDescription className={isSmart ? undefined : "sr-only"}>
-            {isSmart
-              ? "Shows every card that matches the search, including cards you save later."
-              : null}
-            {!isSmart && isRename && "Change the folder's name or color."}
-            {!(isSmart || isRename) && "Name the folder and pick a color."}
+            {isSmart ? t("descriptionSmart") : null}
+            {!isSmart && isRename && t("descriptionEdit")}
+            {!(isSmart || isRename) && t("descriptionNew")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -171,7 +176,7 @@ export function FolderNameDialog({
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor={inputId}>Name</Label>
+            <Label htmlFor={inputId}>{t("nameLabel")}</Label>
             <Input
               aria-describedby={error ? `${inputId}-error` : undefined}
               aria-invalid={error ? true : undefined}
@@ -183,7 +188,7 @@ export function FolderNameDialog({
                 setName(event.target.value);
                 setServerError(null);
               }}
-              placeholder="Reading list"
+              placeholder={t("namePlaceholder")}
               value={name}
             />
             {error ? (
@@ -192,13 +197,13 @@ export function FolderNameDialog({
                 id={`${inputId}-error`}
                 role="alert"
               >
-                {error}
+                {errors.byEnglishMessage(error)}
               </p>
             ) : null}
           </div>
           {isSmart ? (
             <div className="space-y-2">
-              <Label htmlFor={queryId}>Search</Label>
+              <Label htmlFor={queryId}>{t("searchLabel")}</Label>
               <Textarea
                 aria-describedby={
                   queryError || queryNote ? `${queryId}-help` : undefined
@@ -221,6 +226,7 @@ export function FolderNameDialog({
                     event.currentTarget.form?.requestSubmit();
                   }
                 }}
+                // biome-ignore lint/plugin: search syntax, which stays English.
                 placeholder="tag:design type:link"
                 rows={2}
                 spellCheck={false}
@@ -235,17 +241,21 @@ export function FolderNameDialog({
                   id={`${queryId}-help`}
                   role={queryError ? "alert" : undefined}
                 >
-                  {queryError ?? queryNote}
+                  {queryError
+                    ? errors.byEnglishMessage(queryError)
+                    : (queryNote ?? null)}
                 </p>
               ) : null}
             </div>
           ) : null}
           <fieldset className="space-y-2">
-            <legend className="mb-2 font-medium text-sm">Color</legend>
+            <legend className="mb-2 font-medium text-sm">
+              {t("colorLegend")}
+            </legend>
             <div className="flex flex-wrap gap-1.5">
               <ColorSwatch
                 checked={color === undefined}
-                label="No color"
+                label={tFolders("colors.none")}
                 onSelect={() => setColor(undefined)}
               />
               {FOLDER_COLORS.map((option) => (
@@ -253,7 +263,7 @@ export function FolderNameDialog({
                   checked={color === option}
                   color={option}
                   key={option}
-                  label={FOLDER_COLOR_LABELS[option]}
+                  label={folderColorLabel(option, tFolders)}
                   onSelect={() => setColor(option)}
                 />
               ))}
@@ -265,10 +275,10 @@ export function FolderNameDialog({
               type="button"
               variant="outline"
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button disabled={!canSubmit || isSaving} type="submit">
-              {submitLabel(isRename, isSmart)}
+              {submitLabel(t, tc, isRename, isSmart)}
             </Button>
           </DialogFooter>
         </form>
@@ -284,18 +294,29 @@ const NAME_ERRORS = [
   FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS,
 ] as const;
 
-const dialogTitle = (isRename: boolean, isSmart: boolean) => {
+type NameDialogTranslator = TeakTranslator<"folders.nameDialog">;
+
+const dialogTitle = (
+  t: NameDialogTranslator,
+  isRename: boolean,
+  isSmart: boolean
+) => {
   if (isRename) {
-    return isSmart ? "Edit smart folder" : "Edit folder";
+    return isSmart ? t("titleEditSmart") : t("titleEdit");
   }
-  return isSmart ? "Save as smart folder" : "New folder";
+  return isSmart ? t("titleNewSmart") : t("titleNew");
 };
 
-const submitLabel = (isRename: boolean, isSmart: boolean) => {
+const submitLabel = (
+  t: NameDialogTranslator,
+  tc: TeakTranslator<"common">,
+  isRename: boolean,
+  isSmart: boolean
+) => {
   if (isRename) {
-    return "Save";
+    return tc("save");
   }
-  return isSmart ? "Save smart folder" : "Create folder";
+  return isSmart ? t("submitSmart") : t("submitCreate");
 };
 
 function ColorSwatch({

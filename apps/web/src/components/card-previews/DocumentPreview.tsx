@@ -2,6 +2,8 @@
 
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import type { TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { Archive, Code, ExternalLink, File, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileTextPreview } from "./FileTextPreview";
@@ -15,7 +17,10 @@ interface DocumentPreviewProps {
   card: CardWithUrls;
 }
 
-const previewFactLabels = (card: CardWithUrls): string[] => {
+const previewFactLabels = (
+  card: CardWithUrls,
+  t: TeakTranslator<"cardPreviews.document.facts">
+): string[] => {
   const preview = card.fileMetadata?.preview;
   if (!preview) {
     return [];
@@ -23,25 +28,25 @@ const previewFactLabels = (card: CardWithUrls): string[] => {
 
   const facts: string[] = [];
   if (typeof preview.slideCount === "number") {
-    facts.push(`${preview.slideCount} slides`);
+    facts.push(t("slides", { count: preview.slideCount }));
   }
   if (typeof preview.wordCount === "number") {
-    facts.push(`${preview.wordCount.toLocaleString()} words`);
+    facts.push(t("words", { count: preview.wordCount }));
   }
   if (typeof preview.headingCount === "number" && preview.headingCount > 0) {
-    facts.push(`${preview.headingCount.toLocaleString()} headings`);
+    facts.push(t("headings", { count: preview.headingCount }));
   }
   if (typeof preview.lineCount === "number") {
-    facts.push(`${preview.lineCount.toLocaleString()} lines`);
+    facts.push(t("lines", { count: preview.lineCount }));
   }
   if (typeof preview.archiveFileCount === "number") {
-    facts.push(`${preview.archiveFileCount} files`);
+    facts.push(t("files", { count: preview.archiveFileCount }));
   }
   if (typeof preview.archiveDirectoryCount === "number") {
-    facts.push(`${preview.archiveDirectoryCount} folders`);
+    facts.push(t("folders", { count: preview.archiveDirectoryCount }));
   }
   if (typeof preview.colorVariableCount === "number") {
-    facts.push(`${preview.colorVariableCount} color variables`);
+    facts.push(t("colorVariables", { count: preview.colorVariableCount }));
   }
   return facts;
 };
@@ -60,7 +65,9 @@ const iconForKind = (kind?: string) => {
 };
 
 export function DocumentPreview({ card }: DocumentPreviewProps) {
-  const fileName = card.fileMetadata?.fileName || card.content || "Document";
+  const t = useTranslations("cardPreviews.document");
+  const tFacts = useTranslations("cardPreviews.document.facts");
+  const fileName = card.fileMetadata?.fileName || card.content || t("untitled");
   const mimeType = card.fileMetadata?.mimeType || "";
   const fileUrl = card.fileUrl;
   const format = inferFileFormat({ fileName, mimeType });
@@ -78,7 +85,7 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
   }
 
   const Icon = iconForKind(format?.kind ?? card.fileMetadata?.kind);
-  const facts = previewFactLabels(card);
+  const facts = previewFactLabels(card, tFacts);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -89,14 +96,14 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
           <p className="text-muted-foreground text-xs">
             {[format?.language, format?.kind, ...facts]
               .filter(Boolean)
-              .join(" · ") || "File"}
+              .join(" · ") || t("file")}
           </p>
         </div>
         {fileUrl ? (
           <Button asChild size="sm" variant="outline">
             <a href={fileUrl} rel="noopener noreferrer" target="_blank">
               <ExternalLink data-icon="inline-start" />
-              Open file
+              {t("openFile")}
             </a>
           </Button>
         ) : null}

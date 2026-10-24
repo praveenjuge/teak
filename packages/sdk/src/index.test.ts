@@ -88,6 +88,33 @@ describe("teak-sdk", () => {
     });
   });
 
+  test("me reads the account's language, including codes newer than this SDK", async () => {
+    const profile = (locale: string) => ({
+      data: {
+        id: "u",
+        email: "me@example.org",
+        plan: "free",
+        cardCount: 1,
+        cardLimit: 200,
+        locale,
+        settingsUrl: "https://app/settings",
+      },
+    });
+    const bodies = [profile("de"), profile("tlh")];
+    const urls: string[] = [];
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      fetch: ((input: unknown) => {
+        urls.push(String(input));
+        return Promise.resolve(Response.json(bodies.shift()));
+      }) as typeof fetch,
+      tokenProvider: { getAccessToken: () => "token" },
+    });
+    expect((await client.me()).locale).toBe("de");
+    expect(urls).toEqual(["https://api.example/v1/me"]);
+    expect((await client.me()).locale).toBe("tlh");
+  });
+
   test("sends a search mode other than the API's hybrid default", () => {
     expect(buildCardsSearchParams({ query: "nook", mode: "semantic" })).toBe(
       "q=nook&mode=semantic&limit=50"

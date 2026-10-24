@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeviceSession } from "../components/settings/SecuritySection";
@@ -8,6 +9,7 @@ import type { DeviceSession } from "../components/settings/SecuritySection";
 // Convex actions do not subscribe: pages stay local, and a response for a
 // previous account is discarded.
 export function useDeviceSessions(identityKey: string | undefined) {
+  const t = useTranslations("hooks.deviceSessions");
   const list = useAction(api.securitySessions.listAuthkitSessions);
   const activeIdentity = useRef(identityKey);
   activeIdentity.current = identityKey;
@@ -20,8 +22,8 @@ export function useDeviceSessions(identityKey: string | undefined) {
     failedCursor?: string | null;
     hasMore: boolean;
     loading: boolean;
-    error: string | null;
-  }>({ cursor: null, hasMore: false, loading: false, error: null });
+    error: boolean;
+  }>({ cursor: null, hasMore: false, loading: false, error: false });
   const load = useCallback(
     async (cursor: string | null = null) => {
       if (
@@ -33,7 +35,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
       }
       const request = generation.current;
       inFlight.current = true;
-      setState((previous) => ({ ...previous, loading: true, error: null }));
+      setState((previous) => ({ ...previous, loading: true, error: false }));
       try {
         const result = await list({ paginationOpts: { cursor, numItems: 25 } });
         if (request !== generation.current) {
@@ -51,7 +53,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
           cursor: result.continueCursor || null,
           hasMore: !result.isDone,
           loading: false,
-          error: null,
+          error: false,
         }));
       } catch {
         if (request !== generation.current) {
@@ -61,7 +63,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
           ...previous,
           key: identityKey,
           loading: false,
-          error: "Could not load devices. Please try again.",
+          error: true,
           failedCursor: cursor,
         }));
       } finally {
@@ -80,7 +82,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
       cursor: null,
       hasMore: false,
       loading: false,
-      error: null,
+      error: false,
     });
     void load();
     return () => {
@@ -93,7 +95,7 @@ export function useDeviceSessions(identityKey: string | undefined) {
     sessions: visible ? state.rows : undefined,
     sessionsHasMore: visible && state.hasMore,
     sessionsLoadingMore: visible && state.loading && state.rows !== undefined,
-    sessionsError: visible ? state.error : null,
+    sessionsError: visible && state.error ? t("loadFailed") : null,
     retrySessions: () => void load(state.failedCursor ?? null),
     loadMoreSessions: () => {
       if (state.hasMore) {

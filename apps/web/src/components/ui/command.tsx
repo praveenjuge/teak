@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon } from "lucide-react";
 import type * as React from "react";
@@ -30,8 +31,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command palette",
-  description = "Search for a command to run",
+  title,
+  description,
   children,
   className,
   commandProps,
@@ -48,6 +49,7 @@ function CommandDialog({
   showCloseButton?: boolean;
   title?: string;
 }) {
+  const t = useTranslations("ui.commandDialog");
   return (
     <Dialog {...props}>
       <DialogContent
@@ -56,8 +58,10 @@ function CommandDialog({
         showCloseButton={showCloseButton}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>{title ?? t("title")}</DialogTitle>
+          <DialogDescription>
+            {description ?? t("description")}
+          </DialogDescription>
         </DialogHeader>
         <Command
           {...commandProps}

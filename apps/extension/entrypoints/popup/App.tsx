@@ -1,4 +1,5 @@
 import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
+import { useTranslations } from "@teak/i18n/react";
 import {
   ArrowUpRight,
   BookmarkCheck,
@@ -23,6 +24,7 @@ import {
   getPopupStatus,
   type PopupStatus,
   type PopupTone,
+  uploadPromptStatus,
 } from "../../lib/popupStatus";
 import { cn } from "../../lib/utils";
 import { MESSAGE_TYPES, type TeakSaveResponse } from "../../types/messages";
@@ -36,13 +38,6 @@ const IS_UPLOAD_WINDOW = window.location.hash === UPLOAD_HASH;
 if (IS_UPLOAD_WINDOW) {
   document.body.classList.replace("w-90", "w-full");
 }
-
-const UPLOAD_PROMPT: PopupStatus = {
-  autoClose: false,
-  detail: "Up to 100 MB",
-  title: "Choose a file to save",
-  tone: "info",
-};
 
 const openUploadWindow = async () => {
   await chrome.windows.create({
@@ -83,6 +78,7 @@ interface SessionUser {
 }
 
 function App() {
+  const t = useTranslations("extension.popup");
   const {
     data: session,
     isPending,
@@ -98,7 +94,7 @@ function App() {
     return (
       <div className="flex min-h-80 items-center justify-center">
         <Loader2
-          aria-label="Loading"
+          aria-label={t("loading")}
           className="size-5 animate-spin text-primary"
         />
       </div>
@@ -111,13 +107,13 @@ function App() {
         <StatusView
           status={{
             autoClose: false,
-            detail: sessionError.message || "We couldn't load your account.",
-            title: "Something went wrong",
+            detail: sessionError.message || t("loadAccountFailed"),
+            title: t("somethingWentWrong"),
             tone: "error",
           }}
         >
           <Button onClick={() => refetch()} size="sm" variant="outline">
-            Try again
+            {t("tryAgain")}
           </Button>
         </StatusView>
       </div>
@@ -183,6 +179,7 @@ function PrivateSessionNotice({
   className?: string;
   show: boolean;
 }) {
+  const t = useTranslations("extension.popup");
   return show ? (
     <p
       className={cn(
@@ -190,13 +187,13 @@ function PrivateSessionNotice({
         className
       )}
     >
-      Firefox is in private browsing mode, so Teak forgets your sign-in and
-      unsent saves when it closes.
+      {t("privateSession")}
     </p>
   ) : null;
 }
 
 function PendingSavesNotice({ count }: { count: number }) {
+  const t = useTranslations("extension.popup");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!count) {
@@ -216,9 +213,7 @@ function PendingSavesNotice({ count }: { count: number }) {
       }
     } catch (failure) {
       setError(
-        failure instanceof Error
-          ? failure.message
-          : "Could not update pending saves."
+        failure instanceof Error ? failure.message : t("pendingSavesFailed")
       );
     } finally {
       setBusy(false);
@@ -228,7 +223,7 @@ function PendingSavesNotice({ count }: { count: number }) {
     <div className="w-full space-y-1.5 text-left">
       <div className="flex items-center gap-1 rounded-xl border bg-muted/50 py-1 pr-1 pl-3 text-xs">
         <span className="flex-1 text-muted-foreground">
-          {count} {count === 1 ? "save" : "saves"} didn&apos;t finish
+          {t("pendingSaves", { count })}
         </span>
         <Button
           className="h-7 px-2.5 text-xs"
@@ -237,7 +232,7 @@ function PendingSavesNotice({ count }: { count: number }) {
           size="sm"
           variant="ghost"
         >
-          Discard
+          {t("discard")}
         </Button>
         <Button
           className="h-7 px-2.5 text-xs"
@@ -246,7 +241,7 @@ function PendingSavesNotice({ count }: { count: number }) {
           size="sm"
           variant="outline"
         >
-          Retry
+          {t("retry")}
         </Button>
       </div>
       {error ? (
@@ -269,6 +264,7 @@ function AuthPanel({
   notice?: string;
   privateSession: boolean;
 }) {
+  const t = useTranslations("extension.popup");
   const [error, setError] = useState<string | null>(null);
   const handleSignIn = async () => {
     setError(null);
@@ -277,10 +273,10 @@ function AuthPanel({
         type: MESSAGE_TYPES.SIGN_IN,
       });
       if (result?.status === "error") {
-        setError(result.message || "Could not sign in. Please try again.");
+        setError(result.message || t("signInFailed"));
       }
     } catch {
-      setError("Could not sign in. Please try again.");
+      setError(t("signInFailed"));
     }
   };
 
@@ -288,9 +284,9 @@ function AuthPanel({
     <div className="flex min-h-80 flex-col items-center justify-center gap-6 px-8 py-10 text-center">
       <Wordmark className="h-7 w-auto" title="Teak" variant="primary" />
       <div className="space-y-1.5">
-        <h1 className="font-medium text-base">Save anything, anywhere</h1>
+        <h1 className="font-medium text-base">{t("headline")}</h1>
         <p className="text-balance text-muted-foreground">
-          Sign in to save pages, images, and text to your Teak.
+          {t("signInPrompt")}
         </p>
       </div>
       <PendingSavesNotice count={pendingCount} />
@@ -316,10 +312,10 @@ function AuthPanel({
         {isFinishingSignIn ? (
           <>
             <Loader2 className="animate-spin" />
-            Finishing sign-in…
+            {t("finishingSignIn")}
           </>
         ) : (
-          "Sign in"
+          t("signIn")
         )}
       </Button>
     </div>
@@ -335,6 +331,8 @@ function AuthenticatedPopup({
   pendingCount: number;
   privateSession: boolean;
 }) {
+  const t = useTranslations("extension.popup");
+  const statusStrings = useTranslations("extension.popup.status");
   const { state: contextMenuState, isRecentSave: recentMenuSave } =
     useContextMenuSave();
   const isRecentSave = recentMenuSave && !IS_UPLOAD_WINDOW;
@@ -349,18 +347,22 @@ function AuthenticatedPopup({
     state: FileUploadState;
   }>({ state: "idle" });
 
-  const baseStatus = getPopupStatus({
-    autoSave: {
-      code: autoSave.code,
-      error: autoSave.error,
-      state: autoSave.state,
-      url: autoSave.currentUrl,
+  const baseStatus = getPopupStatus(
+    {
+      autoSave: {
+        code: autoSave.code,
+        error: autoSave.error,
+        state: autoSave.state,
+        url: autoSave.currentUrl,
+      },
+      contextMenu: isRecentSave ? contextMenuState : undefined,
+      detailsTouched,
+      fileUpload,
     },
-    contextMenu: isRecentSave ? contextMenuState : undefined,
-    detailsTouched,
-    fileUpload,
-  });
-  const status = baseStatus ?? (IS_UPLOAD_WINDOW ? UPLOAD_PROMPT : null);
+    statusStrings
+  );
+  const status =
+    baseStatus ?? (IS_UPLOAD_WINDOW ? uploadPromptStatus(statusStrings) : null);
   const detailsCardId =
     !isRecentSave &&
     fileUpload.state === "idle" &&
@@ -389,7 +391,7 @@ function AuthenticatedPopup({
       setFileUpload({ code, error, fileName, state: "error" });
     setFileUpload({ fileName, state: "saving" });
     if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
-      fail("File is empty or too large.");
+      fail(t("fileInvalid"));
       return;
     }
     let result: TeakSaveResponse;
@@ -415,11 +417,11 @@ function AuthenticatedPopup({
         payload: retainsFiles ? { id } : { file, id },
       });
     } catch {
-      fail("Could not save the file. Please try again.");
+      fail(t("fileSaveFailed"));
       return;
     }
     if (result.status === "unauthenticated") {
-      fail("Reconnect to finish your pending upload.");
+      fail(t("reconnectForUpload"));
       return;
     }
     if (result.status === "saved") {
@@ -444,7 +446,7 @@ function AuthenticatedPopup({
         throw new Error(result.message);
       }
     } catch {
-      setSignOutError("Could not sign out. Please try again.");
+      setSignOutError(t("signOutFailed"));
     } finally {
       setSignOutLoading(false);
     }
@@ -460,7 +462,7 @@ function AuthenticatedPopup({
         </a>
         <Button asChild size="sm" variant="ghost">
           <a href={APP_URL} rel="noopener noreferrer" target="_blank">
-            Open Teak
+            {t("openTeak")}
             <ArrowUpRight />
           </a>
         </Button>
@@ -480,7 +482,7 @@ function AuthenticatedPopup({
                   rel="noopener noreferrer"
                   target="_blank"
                 >
-                  Upgrade to Pro
+                  {t("upgrade")}
                   <ArrowUpRight />
                 </a>
               </Button>
@@ -521,7 +523,7 @@ function AuthenticatedPopup({
           size="sm"
           variant="ghost"
         >
-          Sign out
+          {t("signOut")}
         </Button>
         {UPLOADS_IN_WINDOW && !IS_UPLOAD_WINDOW ? (
           <Button
@@ -532,7 +534,7 @@ function AuthenticatedPopup({
             variant="outline"
           >
             <Upload />
-            Upload file
+            {t("uploadFile")}
           </Button>
         ) : (
           <Button
@@ -546,7 +548,7 @@ function AuthenticatedPopup({
           >
             <label>
               <Upload />
-              Upload file
+              {t("uploadFile")}
               <input
                 className="sr-only"
                 disabled={isUploading}

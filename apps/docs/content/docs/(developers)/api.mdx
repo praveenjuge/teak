@@ -81,6 +81,11 @@ revoked, or deleted-account credentials return 401. Responses are not cached.
     <ResponseField name="plan" type="string" required>
       `free` or `pro`.
     </ResponseField>
+    <ResponseField name="locale" type="string" required>
+      The language you chose in Teak's Settings, as a code such as `en`,
+      `de` or `pt-BR`; `en` until you choose one. Teak may add languages, so
+      treat a code you don't know as English. The API can't change it.
+    </ResponseField>
     <ResponseField name="settingsUrl" type="string" required>
       Teak's web Settings, where you manage your plan, API keys, and imports.
     </ResponseField>

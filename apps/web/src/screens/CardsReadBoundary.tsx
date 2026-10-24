@@ -1,6 +1,7 @@
 "use client";
 
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
+import { useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { RetryableQueryBoundary } from "../components/feedback/RetryableQueryBoundary";
@@ -26,6 +27,8 @@ export function CardsReadBoundary({
   headerLeading,
   resetKey,
 }: CardsReadBoundaryProps) {
+  const t = useTranslations("screens.cards");
+  const tc = useTranslations("common");
   return (
     <RetryableQueryBoundary
       catches={isCardsReadError}
@@ -36,9 +39,9 @@ export function CardsReadBoundary({
               <div className="flex h-12 items-center">{headerLeading}</div>
             ) : null}
             <div className="space-y-4 py-12 text-center" role="alert">
-              <p className="text-muted-foreground">Couldn't load your cards.</p>
+              <p className="text-muted-foreground">{t("loadFailed")}</p>
               <Button onClick={retry} variant="outline">
-                Try again
+                {tc("tryAgain")}
               </Button>
             </div>
           </>

@@ -4,6 +4,7 @@ import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ export function useSettingsController({
   onOpenExternal,
   onSignOut,
 }: UseSettingsControllerOptions) {
+  const t = useTranslations("hooks.settings");
   const user = useQuery(api.auth.getCurrentUser);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -172,7 +174,7 @@ export function useSettingsController({
   };
 
   const handleCreateCustomerPortal = async () => {
-    const toastId = toast.loading("Opening customer portal...", {
+    const toastId = toast.loading(t("openingPortal"), {
       id: TOAST_IDS.customerPortal,
     });
 
@@ -181,12 +183,12 @@ export function useSettingsController({
         createCustomerPortal: () => createCustomerPortal({}),
         openPortal: onOpenExternal,
       });
-      toast.success("Customer portal opened", { id: toastId });
+      toast.success(t("portalOpened"), { id: toastId });
     } catch (error) {
       captureClientException(error, {
         operation: "billing.customer_portal",
       });
-      toast.error("Could not open portal", { id: toastId });
+      toast.error(t("portalFailed"), { id: toastId });
     }
   };
 
@@ -200,9 +202,7 @@ export function useSettingsController({
     } catch (error) {
       captureClientException(error, { operation: "account.delete" });
       setDeleteError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong while deleting your account."
+        error instanceof Error ? error.message : t("deleteAccountFailed")
       );
     } finally {
       setDeleteLoading(false);
@@ -215,7 +215,7 @@ export function useSettingsController({
       await onSignOut();
     } catch (error) {
       captureClientException(error, { operation: "auth.sign_out" });
-      toast.error("Failed to sign out. Please try again.");
+      toast.error(t("signOutFailed"));
     } finally {
       setSignOutLoading(false);
     }

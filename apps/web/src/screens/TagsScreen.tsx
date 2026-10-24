@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import {
@@ -48,10 +49,10 @@ export type TagSort = "count" | "name";
 const TAG_PAGE_SIZE = 150;
 const SUMMARY_RETRY_MS = 5000;
 const SKELETON_WIDTHS = ["42%", "28%", "56%", "34%", "48%", "24%"];
-const SORT_LABELS: Record<TagSort, string> = {
-  count: "Most used",
-  name: "Name",
-};
+const SORT_LABELS = {
+  count: "sortMostUsed",
+  name: "sortName",
+} as const satisfies Record<TagSort, string>;
 
 const libraryTagHref = (name: string) =>
   `${LIBRARY_VIEW_PATHS.all}?${new URLSearchParams({ tag: name })}`;
@@ -71,9 +72,6 @@ interface TagRowProps {
   onMenuOpenChange: (name: string | null) => void;
 }
 
-const cardCountLabel = (count: number) =>
-  `${count.toLocaleString()} ${count === 1 ? "card" : "cards"}`;
-
 const TagRow = memo(function TagRow({
   href,
   isMenuOpen,
@@ -82,9 +80,11 @@ const TagRow = memo(function TagRow({
   onAction,
   onMenuOpenChange,
 }: TagRowProps) {
+  const t = useTranslations("screens.tags");
+  const intlLocale = useIntlLocale();
   const trigger = (
     <Button
-      aria-label={`More for ${item.name}`}
+      aria-label={t("moreFor", { tag: item.name })}
       className={cn(
         "mr-2 size-8 shrink-0 text-muted-foreground transition-opacity hover:text-foreground",
         "md:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100",
@@ -106,7 +106,7 @@ const TagRow = memo(function TagRow({
       )}
     >
       <LinkComponent
-        aria-label={`${item.name}, ${cardCountLabel(item.count)}`}
+        aria-label={t("rowLabel", { tag: item.name, count: item.count })}
         className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         href={href}
       >
@@ -118,7 +118,7 @@ const TagRow = memo(function TagRow({
           {item.name}
         </span>
         <span className="ml-auto shrink-0 pl-3 text-muted-foreground text-sm tabular-nums">
-          {item.count.toLocaleString()}
+          {item.count.toLocaleString(intlLocale)}
         </span>
       </LinkComponent>
       {isMenuOpen ? (
@@ -130,11 +130,11 @@ const TagRow = memo(function TagRow({
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onSelect={() => onAction("rename", item)}>
               <Pencil />
-              Rename…
+              {t("rename")}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onAction("merge", item)}>
               <Combine />
-              Merge into…
+              {t("mergeInto")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -142,7 +142,7 @@ const TagRow = memo(function TagRow({
               variant="destructive"
             >
               <Trash2 />
-              Delete…
+              {t("delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -160,12 +160,13 @@ function TagSortMenu({
   onSortChange: (sort: TagSort) => void;
   sort: TagSort;
 }) {
+  const t = useTranslations("screens.tags");
   const Icon = sort === "name" ? ArrowDownAZ : ArrowDownWideNarrow;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={`Sort: ${SORT_LABELS[sort]}`}
+          aria-label={t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
           className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
           size="icon"
           type="button"
@@ -181,17 +182,17 @@ function TagSortMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-          Sort tags by
+          {t("sortBy")}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup
           onValueChange={(value) => onSortChange(value as TagSort)}
           value={sort}
         >
           <DropdownMenuRadioItem value="count">
-            {SORT_LABELS.count}
+            {t(SORT_LABELS.count)}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="name">
-            {SORT_LABELS.name}
+            {t(SORT_LABELS.name)}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
@@ -204,6 +205,8 @@ export function TagsScreen({
   LinkComponent,
   tagHref = libraryTagHref,
 }: TagsScreenProps) {
+  const t = useTranslations("screens.tags");
+  const intlLocale = useIntlLocale();
   const summary = useQuery(api.tags.listTagSummary, {});
   const requestSummary = useMutation(api.tags.requestTagSummary);
   const { latest, start } = useTagOperations();
@@ -264,16 +267,19 @@ export function TagsScreen({
 
   let count: ReactNode;
   if (items && matches && (needle || items.length > 0)) {
-    let figure = items.length.toLocaleString();
+    let figure = items.length.toLocaleString(intlLocale);
     if (needle) {
-      figure = `${matches.length.toLocaleString()} of ${figure}`;
+      figure = t("matchCount", {
+        matches: matches.length,
+        total: items.length,
+      });
     } else if (summary && !summary.isComplete) {
-      figure = `Top ${figure}`;
+      figure = t("topCount", { total: items.length });
     }
     count = (
       <>
         {figure}
-        <span className="sr-only"> tags</span>
+        <span className="sr-only">{t("tagsSuffix")}</span>
       </>
     );
   }
@@ -291,10 +297,10 @@ export function TagsScreen({
           />
         }
         leading={headerLeading}
-        title={<PageTitle count={count}>Tags</PageTitle>}
+        title={<PageTitle count={count}>{t("title")}</PageTitle>}
       >
         <form
-          aria-label="Find a tag"
+          aria-label={t("findTag")}
           className="min-w-0 max-w-44 flex-1 sm:ml-auto sm:max-w-xl"
           onSubmit={(event) => event.preventDefault()}
         >
@@ -305,7 +311,7 @@ export function TagsScreen({
             />
             <Input
               aria-keyshortcuts="/"
-              aria-label="Find a tag"
+              aria-label={t("findTag")}
               autoCapitalize="off"
               autoCorrect="off"
               className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-0.5 text-sm shadow-none focus-visible:outline-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
@@ -314,7 +320,7 @@ export function TagsScreen({
                 setQuery(event.target.value);
                 setLimit(TAG_PAGE_SIZE);
               }}
-              placeholder="Find a tag"
+              placeholder={t("findTag")}
               type="search"
               value={query}
             />
@@ -325,7 +331,7 @@ export function TagsScreen({
       <div className="max-w-3xl">
         {matches === undefined && (
           <ul
-            aria-label="Loading tags"
+            aria-label={t("loading")}
             className="overflow-hidden rounded-xl border bg-card"
           >
             {SKELETON_WIDTHS.map((width) => (
@@ -346,9 +352,9 @@ export function TagsScreen({
             <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-muted">
               <Hash className="size-5 text-muted-foreground" />
             </div>
-            <p className="font-medium">No tags yet</p>
+            <p className="font-medium">{t("noTags")}</p>
             <p className="mt-1 max-w-xs text-muted-foreground text-sm">
-              Tags you add to cards, and the ones Teak suggests, show up here.
+              {t("noTagsDescription")}
             </p>
           </div>
         )}
@@ -356,14 +362,14 @@ export function TagsScreen({
         {items && items.length > 0 && matches?.length === 0 && (
           <div className="rounded-xl border bg-card px-6 py-12 text-center">
             <p className="text-muted-foreground text-sm">
-              No tags match “{query.trim()}”.
+              {t("noMatches", { query: query.trim() })}
             </p>
           </div>
         )}
 
         {visible.length > 0 && (
           <ul
-            aria-label="Tags"
+            aria-label={t("list")}
             className="overflow-hidden rounded-xl border bg-card"
           >
             {visible.map((item) => (
@@ -389,7 +395,7 @@ export function TagsScreen({
               type="button"
               variant="ghost"
             >
-              Show {Math.min(remaining, TAG_PAGE_SIZE).toLocaleString()} more
+              {t("showMore", { count: Math.min(remaining, TAG_PAGE_SIZE) })}
             </Button>
           </div>
         )}

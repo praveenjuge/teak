@@ -13,6 +13,10 @@ The extension ships through `.github/workflows/extension-release.yml`: Chrome to
 
 The release is complete when the exact zips are attached to the GitHub Release and both stores have accepted the submission for review.
 
+## Store listing text
+
+The listing's summary and description live in `store-listing/<locale>.md`: English and the seven languages the extension is translated into, named like the `_locales` folders (`pt_BR`, `zh_CN`). The stores don't read them from the upload, so in a release that changes any of them, paste each changed language into the Chrome Web Store dashboard (**Store listing**, per language) and the AMO Developer Hub (**Edit Product Page**, per locale). The manifest's own name and description come from `public/_locales/<locale>/messages.json` and ship with the build.
+
 ## Store privacy disclosures
 
 Keep each store's data disclosure in step with what the extension sends, and update it in the release that changes it:

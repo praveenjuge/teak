@@ -1,0 +1,27 @@
+{
+  "name": "@teak/i18n",
+  "version": "1.0.88",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./locales": "./src/locales.ts",
+    "./react": "./src/react.tsx",
+    "./messages/*": "./messages/*"
+  },
+  "scripts": {
+    "test": "bun test src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@formatjs/icu-messageformat-parser": "3.5.22",
+    "use-intl": "4.14.9"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0"
+  }
+}

@@ -51,7 +51,7 @@ Files in a suite run in parallel and share nothing: every spec makes its own acc
 | Directory | Covers |
 | --- | --- |
 | `src/journey/` | Sign-up through the verification code; cards, search, filters, favorites, tags, trash and restore, bulk actions, the editor, deep links, link metadata; the REST API with OpenAPI checks, the CLI from this checkout, every public MCP tool, contention; cross-tenant access, revoked keys, hostile input, security headers, the session cookie; axe scans of `/` and `/settings`; password reset, sign-out, account deletion and dead credentials afterward |
-| `src/web/` | Markdown editor, WebMCP, sign-in entry routing, settings navigation and layout, composer save shortcut |
+| `src/web/` | Markdown editor, WebMCP, sign-in entry routing, settings navigation and layout, composer save shortcut, Settings → Language and the pseudo-locale |
 | `src/matrix/` | Sign-up, create and search in each engine |
 
 ## How the stack is wired

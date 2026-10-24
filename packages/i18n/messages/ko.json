@@ -1,0 +1,1591 @@
+{
+  "common": {
+    "add": "추가",
+    "back": "뒤로",
+    "cancel": "취소",
+    "close": "닫기",
+    "copy": "복사",
+    "delete": "삭제",
+    "done": "완료",
+    "edit": "편집",
+    "loading": "불러오는 중…",
+    "more": "더 보기",
+    "remove": "제거",
+    "rename": "이름 변경",
+    "retry": "다시 시도",
+    "save": "저장",
+    "saving": "저장 중…",
+    "tryAgain": "다시 시도",
+    "undo": "실행 취소"
+  },
+  "ui": {
+    "loading": "불러오는 중",
+    "close": "닫기",
+    "menu": "메뉴",
+    "menuDescription": "라이브러리 보기, 카드 유형 및 설정입니다.",
+    "toggleSidebar": "사이드바 전환",
+    "commandDialog": {
+      "title": "명령 팔레트",
+      "description": "실행할 명령을 검색합니다"
+    },
+    "resizeSidebar": "사이드바 크기 조정",
+    "expandSidebar": "사이드바 펼치기",
+    "resizeSidebarHint": "드래그하여 크기 조정, 더블클릭하여 재설정"
+  },
+  "settings": {
+    "footer": {
+      "feedback": "의견이 있으시면 <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink>(으)로 알려 주세요. 언제든 떠나고 싶으시면 <deleteAccount>계정을 삭제</deleteAccount>할 수 있습니다. 제가 Teak을 즐겁게 만든 만큼 여러분도 즐겁게 사용하시길 바랍니다.",
+      "signature": "Praveen Juge 서명"
+    },
+    "header": {
+      "title": "설정"
+    },
+    "rows": {
+      "email": "이메일",
+      "usage": "사용량",
+      "plan": "요금제",
+      "saveByEmail": "이메일로 저장",
+      "security": "보안",
+      "importExport": "데이터 가져오기/내보내기",
+      "theme": "테마",
+      "signOut": "로그아웃",
+      "language": "언어"
+    },
+    "skeleton": {
+      "loading": "설정을 불러오는 중…"
+    },
+    "errorAlert": {
+      "title": "오류"
+    },
+    "content": {
+      "notAvailable": "사용할 수 없음",
+      "cardCount": "{count, plural, other {카드 #개}}",
+      "pro": "Pro",
+      "freePlan": "무료 요금제",
+      "manage": "관리",
+      "manageSubscription": "구독 관리",
+      "upgrade": "업그레이드",
+      "signOut": "로그아웃"
+    },
+    "theme": {
+      "useSystem": "시스템 테마 사용",
+      "useLight": "라이트 테마 사용",
+      "useDark": "다크 테마 사용"
+    },
+    "importExport": {
+      "manage": "관리",
+      "manageLabel": "가져오기 및 내보내기 관리",
+      "title": "데이터 관리",
+      "description": "다른 도구에서 카드를 가져오거나 전체 사본을 내보낼 수 있습니다.",
+      "importTab": "가져오기",
+      "exportTab": "내보내기"
+    },
+    "security": {
+      "manage": "관리",
+      "manageLabel": "보안 관리",
+      "title": "보안",
+      "description": "Teak 계정에 접근할 수 있는 기기, 앱, 키를 관리합니다.",
+      "connectionsTab": "연결",
+      "apiKeysTab": "API 키"
+    },
+    "connections": {
+      "devicesTitle": "기기",
+      "devicesDescription": "계정에 로그인된 브라우저와 기기입니다.",
+      "appsTitle": "연결된 앱",
+      "appsDescription": "연결을 해제하면 해당 앱의 모든 설치에서 로그아웃됩니다.",
+      "loadingDevices": "기기를 불러오는 중…",
+      "loadingApps": "앱을 불러오는 중…",
+      "devicesLoadFailed": "기기를 불러오지 못했습니다. 다시 시도해 주세요.",
+      "appsLoadFailed": "앱을 불러오지 못했습니다. 다시 시도해 주세요.",
+      "noDevices": "기기가 없습니다.",
+      "noApps": "연결된 앱이 없습니다.",
+      "showMoreDevices": "기기 더 보기",
+      "showMoreApps": "앱 더 보기",
+      "thisDevice": "이 기기",
+      "signedIn": "{date}에 로그인함",
+      "connected": "{date}에 연결됨",
+      "lastUsed": "마지막 사용: {date}",
+      "signOut": "로그아웃",
+      "signOutLabel": "{name} 로그아웃",
+      "signOutCurrentLabel": "{name} 로그아웃(이 기기)",
+      "disconnect": "연결 해제",
+      "disconnectLabel": "{name} 연결 해제",
+      "updateFailed": "이 연결을 업데이트하지 못했습니다. 다시 시도해 주세요.",
+      "signOutCurrentTitle": "이 기기에서 로그아웃하시겠습니까?",
+      "signOutCurrentDescription": "이 브라우저({name})에서 Teak 계정이 로그아웃되며 다시 로그인해야 합니다.",
+      "signOutTitle": "{name}에서 로그아웃하시겠습니까?",
+      "signOutDescription": "{date}에 로그인한 {name} 세션이 Teak에서 로그아웃되며 다시 로그인해야 합니다.",
+      "disconnectTitle": "{name} 연결을 해제하시겠습니까?",
+      "disconnectDescription": "다시 연결할 때까지 모든 설치에서 {name}이(가) Teak 라이브러리에 접근할 수 없게 됩니다."
+    },
+    "apiKeys": {
+      "title": "API 키",
+      "revokeAllTitle": "모든 API 키를 폐기하시겠습니까?",
+      "revokeAllDescription": "CLI, Raycast, MCP 클라이언트에서 사용하는 키를 포함해 모든 API 키가 즉시 작동을 멈춥니다. 이 작업은 되돌릴 수 없습니다.",
+      "revokeAllConfirm": "모든 키 폐기",
+      "revokeTitle": "이 API 키를 폐기하시겠습니까?",
+      "revokeDescription": "{key}이(가) 즉시 작동을 멈춥니다. 이 키를 사용하는 모든 항목이 라이브러리에 접근할 수 없게 됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "revokeConfirm": "키 폐기",
+      "regenerateTitle": "이 API 키를 다시 생성하시겠습니까?",
+      "regenerateDescription": "{key}이(가) 즉시 작동을 멈추고 새 키로 대체됩니다. 이 키를 사용하는 모든 항목을 새 키로 업데이트하세요.",
+      "regenerateConfirm": "키 다시 생성",
+      "identityCreated": "{date}에 생성됨",
+      "regenerateLabel": "{identity} 다시 생성",
+      "revokeLabel": "{identity} 폐기",
+      "regenerateKey": "키 다시 생성",
+      "revokeKey": "키 폐기",
+      "created": "{date}에 생성됨",
+      "copyNewKey": "지금 새 키를 복사하세요",
+      "newKeyLabel": "새 API 키",
+      "updateFailed": "API 키를 업데이트하지 못했습니다. 다시 시도해 주세요.",
+      "keyCreated": "API 키가 생성되었습니다. 한 번만 표시되므로 지금 복사하세요.",
+      "revokingRemaining": "나머지 키를 백그라운드에서 폐기하고 있습니다.",
+      "allRevoked": "모든 API 키가 폐기되었습니다.",
+      "keyRevoked": "API 키가 폐기되었습니다.",
+      "keyRegenerated": "API 키가 다시 생성되었습니다. 지금 새 키를 복사하세요.",
+      "keyCopied": "API 키가 복사되었습니다.",
+      "copyFailed": "키를 복사하지 못했습니다. 직접 선택해서 복사하세요.",
+      "limitNote": "키는 라이브러리 전체에 접근할 수 있습니다. 활성 키는 최대 10개까지 유지할 수 있습니다.",
+      "createKey": "키 생성",
+      "loading": "API 키를 불러오는 중…",
+      "empty": "첫 API 키를 생성해 외부 도구를 연결하세요.",
+      "revokeAll": "모든 키 폐기"
+    },
+    "deleteAccount": {
+      "title": "계정 삭제",
+      "description": "계정, 카드, 태그, 업로드한 파일이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "submit": "계정 삭제",
+      "confirmPhrase": "계정 삭제",
+      "confirmPrompt": "계속하려면 \"<strong>{phrase}</strong>\"을(를) 입력하세요"
+    },
+    "subscription": {
+      "title": "Pro로 업그레이드",
+      "description": "모든 기능을 사용하고 제한을 없애세요.",
+      "maybeLater": "나중에",
+      "continueToCheckout": "결제 계속하기",
+      "choosePlan": "요금제 선택",
+      "everythingInPro": "Pro의 모든 기능",
+      "monthly": "월간",
+      "yearly": "연간",
+      "perMonth": "/ 월",
+      "perYear": "/ 년",
+      "bestValue": "최고의 가치 • {percent}% 절약",
+      "features": {
+        "unlimitedCards": "무제한 카드",
+        "unlimitedStorage": "무제한 저장 공간",
+        "summaryAndTags": "자동 요약 및 태그",
+        "audioTranscription": "자동 오디오 텍스트 변환",
+        "browserExtensions": "브라우저 확장 프로그램",
+        "apps": "iOS, Mac 및 Android 앱",
+        "apiAndMcp": "API 및 MCP 이용"
+      }
+    },
+    "inboundEmail": {
+      "title": "이메일로 저장",
+      "genericError": "이메일로 저장 설정을 업데이트하지 못했습니다. 다시 시도해 주세요.",
+      "rateLimited": "변경이 너무 많습니다. 1분 후에 다시 시도해 주세요.",
+      "addressCopied": "주소가 복사되었습니다",
+      "copyFailed": "주소를 복사하지 못했습니다. 직접 선택해서 복사하세요.",
+      "loading": "이메일로 저장 설정을 불러오는 중…",
+      "intro": "Teak으로 이메일을 보내거나 전달하면 카드로 저장됩니다.",
+      "verifyToTurnOn": "이 기능을 켜려면 로그인 이메일 <strong>{sender}</strong>을(를) 인증하세요.",
+      "turnOn": "켜기",
+      "copyAddress": "주소 복사",
+      "sendFrom": "<strong>{sender}</strong>에서 보내세요. 다른 주소에서 보낸 메일은 저장되지 않습니다.",
+      "unverified": "로그인 이메일 <strong>{sender}</strong>을(를) 인증할 때까지 메일이 저장되지 않습니다.",
+      "howItWorks": "무엇이든 전달하거나 보내세요. 링크 하나만 있는 이메일은 링크 카드가 되고, 나머지는 모두 메모가 되며, 첨부 파일은 각각 별도의 카드가 됩니다. 모두 email 태그가 붙습니다.",
+      "lastReceived": "마지막 이메일 수신: {when}",
+      "turnOff": "끄기",
+      "on": "켜짐",
+      "off": "꺼짐",
+      "statusOnLabel": "이메일로 저장: 켜짐",
+      "statusOffLabel": "이메일로 저장: 꺼짐"
+    },
+    "export": {
+      "starting": "내보내기를 시작하는 중…",
+      "started": "내보내기가 시작되었습니다. 백그라운드에서 아카이브를 준비합니다.",
+      "startFailed": "내보내기를 시작하지 못했습니다.",
+      "canceling": "내보내기를 취소하는 중…",
+      "canceled": "내보내기가 취소되었습니다.",
+      "cancelFailed": "내보내기를 취소하지 못했습니다.",
+      "preparingDownload": "다운로드를 준비하는 중…",
+      "downloadReady": "다운로드가 준비되었습니다.",
+      "downloadFailed": "다운로드를 준비하지 못했습니다.",
+      "preparing": "내보내기를 준비하는 중…",
+      "runsInBackground": "백그라운드에서 계속 진행됩니다.",
+      "snapshotting": "카드 스냅샷을 만드는 중",
+      "snapshotProgress": "{count, plural, other {지금까지 카드 #개 캡처됨}}",
+      "archiving": "아카이브를 만드는 중…",
+      "zipping": "카드와 파일을 압축하고 있습니다.",
+      "quotaCaption": "내보내기는 주 1회 가능하며, 준비된 후 7일 동안 다운로드할 수 있습니다.",
+      "lastFailed": "마지막 내보내기에 실패했습니다. 다시 시도할 수 있습니다.",
+      "quotaUsed": "이번 주 내보내기를 이미 사용했습니다.",
+      "cancelExport": "내보내기 취소",
+      "ready": "내보내기가 준비되었습니다",
+      "cardCount": "{count, plural, other {카드 #개}}",
+      "filesOmittedTitle": "일부 원본 파일을 내보내기 시점에 읽을 수 없어 아카이브에서 제외되었습니다.",
+      "filesUnavailable": "{count, plural, other {파일 #개 사용할 수 없음}}",
+      "availableUntil": "{date}까지 이용 가능",
+      "downloadArchive": "아카이브 다운로드",
+      "title": "데이터 내보내기",
+      "description": "휴지통을 제외한 모든 카드와 원본 파일이 담긴 ZIP 파일이며, 브라우저용 북마크 파일과 스프레드시트도 포함됩니다.",
+      "startExport": "내보내기 시작",
+      "nextAvailable": "다음 내보내기 가능: {date}",
+      "availableIn": "{countdown} 후 이용 가능"
+    },
+    "import": {
+      "wrongFile": "{source}의 {extensions} 파일을 선택하세요.",
+      "extensionSeparator": " 또는 ",
+      "fileTooLarge": "이 파일은 {size}입니다. 한도는 {limit}입니다.",
+      "fileEmpty": "빈 파일입니다.",
+      "lastImport": "마지막 가져오기: {created}개 생성, {skipped}개 건너뜀{failed, plural, =0 {} other {, #개 실패}} — {when}",
+      "created": "{count}개 생성됨",
+      "skipped": "{count}개 건너뜀",
+      "failed": "{count}개 실패",
+      "continuesInBackground": "이 창을 닫고 나중에 다시 와도 됩니다. 가져오기는 백그라운드에서 계속 진행됩니다.",
+      "startFailed": "가져오기를 시작할 수 없습니다",
+      "cancelFailed": "가져오기를 취소할 수 없습니다.",
+      "reportLoadFailed": "가져오기 보고서를 불러올 수 없습니다",
+      "reportCopied": "가져오기 보고서가 복사되었습니다.",
+      "reportCopyFailed": "가져오기 보고서를 복사할 수 없습니다.",
+      "reportDownloadFailed": "가져오기 보고서를 다운로드할 수 없습니다.",
+      "noImports": "아직 가져온 항목이 없습니다.",
+      "loadingLast": "마지막 가져오기 정보를 불러오는 중…",
+      "resumeUpload": "업로드 재개",
+      "startImport": "가져오기 시작",
+      "importFrom": "가져올 위치",
+      "upTo": "최대 {size}.",
+      "chooseFile": "파일 선택",
+      "uploadInterrupted": "업로드 중단됨",
+      "resumeHint": "중단된 지점부터 재개하려면 같은 {source} 파일을 선택하세요.",
+      "chooseFileFrom": "{source}의 파일 선택",
+      "chooseResumeFile": "중단된 업로드를 재개할 파일 선택",
+      "cancelImport": "가져오기 취소",
+      "importStopped": "가져오기 중지됨",
+      "failedItems": "가져오지 못한 항목",
+      "copyReport": "오류 보고서 복사",
+      "downloadReport": "오류 보고서 다운로드",
+      "failure": {
+        "invalidArchive": "Teak 아카이브가 아닌 것 같습니다. 데이터 내보내기에서 받은 ZIP 파일을 선택하세요.",
+        "invalidSource": "{article, select, an {} other {}}{source} 내보내기 파일이 아닌 것 같습니다. 소스를 확인하고 설명에 맞는 파일을 선택하세요.",
+        "tooManyItems": "이 파일에는 항목이 10,000개를 넘습니다. 파일을 나누어 각각 가져오세요.",
+        "generic": "가져오기에 실패했습니다. 다시 시도해 주세요."
+      },
+      "phases": {
+        "uploading": "업로드 중",
+        "waitingToParse": "분석 대기 중",
+        "parsing": "가져오기 파일 분석 중",
+        "importing": "카드 가져오는 중",
+        "waitingForRateLimit": "카드 속도 제한 대기 중",
+        "canceling": "가져오기 취소 중",
+        "complete": "가져오기 완료",
+        "failed": "가져오기 실패",
+        "canceled": "가져오기 취소됨"
+      },
+      "sources": {
+        "bookmarks": {
+          "title": "브라우저 북마크",
+          "name": "브라우저 북마크",
+          "hint": "브라우저의 북마크 내보내기로 만든 북마크 HTML 파일입니다."
+        },
+        "pocket": {
+          "title": "Pocket",
+          "name": "Pocket",
+          "hint": "Pocket에서 내보낸 CSV 파일 또는 이전 HTML 내보내기 파일입니다."
+        },
+        "raindrop": {
+          "title": "Raindrop.io",
+          "name": "Raindrop",
+          "hint": "Raindrop의 Settings → Backups → Export에서 받은 CSV 파일입니다."
+        },
+        "instapaper": {
+          "title": "Instapaper",
+          "name": "Instapaper",
+          "hint": "Instapaper의 Settings → Export에서 받은 CSV 파일입니다."
+        },
+        "readwise": {
+          "title": "Readwise Reader",
+          "name": "Readwise Reader",
+          "hint": "Reader의 Export library as CSV로 받은 CSV 파일입니다."
+        },
+        "omnivore": {
+          "title": "Omnivore",
+          "name": "Omnivore",
+          "hint": "Omnivore에서 내보내 다운로드한 그대로의 ZIP 파일입니다."
+        },
+        "linkwarden": {
+          "title": "Linkwarden",
+          "name": "Linkwarden",
+          "hint": "Linkwarden의 Settings → Data → Export에서 받은 JSON 백업 파일입니다."
+        },
+        "mymind": {
+          "title": "mymind",
+          "name": "mymind",
+          "hint": "mymind의 Settings → Export에서 받은 CSV 파일입니다."
+        },
+        "onetab": {
+          "title": "OneTab",
+          "name": "OneTab",
+          "hint": "OneTab의 Export URLs 텍스트를 .txt 파일로 저장한 것입니다."
+        },
+        "archive": {
+          "title": "Teak 아카이브",
+          "name": "Teak",
+          "hint": "Teak의 데이터 내보내기에서 받은 ZIP 파일입니다."
+        }
+      }
+    },
+    "format": {
+      "justNow": "방금 전",
+      "minutesAgo": "{count, plural, other {#분 전}}",
+      "hoursAgo": "{count, plural, other {#시간 전}}",
+      "daysAgo": "{count, plural, other {#일 전}}",
+      "now": "지금",
+      "underAMinute": "1분 미만",
+      "days": "{days}일",
+      "daysHours": "{days}일 {hours}시간",
+      "hours": "{hours}시간",
+      "hoursMinutes": "{hours}시간 {minutes}분",
+      "minutes": "{minutes}분"
+    },
+    "language": {
+      "label": "언어",
+      "saving": "언어 변경 중",
+      "changed": "언어가 변경되었습니다",
+      "changeFailed": "언어를 변경하지 못했습니다. 다시 시도해 주세요.",
+      "feedback": "번역 개선에 참여하기",
+      "feedbackSubject": "번역 의견 ({locale})"
+    }
+  },
+  "app": {
+    "settings": {
+      "deletionRequested": "계정 삭제가 요청되었습니다. 로그아웃하는 중입니다.",
+      "welcomePro": "Pro에 오신 것을 환영합니다! 구독이 활성화되었습니다.",
+      "openingCheckout": "결제 페이지를 여는 중...",
+      "checkoutNewTab": "새 탭에서 결제 페이지가 열렸습니다",
+      "checkoutFailed": "결제를 시작하지 못했습니다. 다시 시도해 주세요."
+    },
+    "globalError": {
+      "message": "문제가 발생했습니다. 다시 시도해 주세요."
+    },
+    "notFound": {
+      "title": "페이지를 찾을 수 없음",
+      "body": "이 페이지는 존재하지 않거나 이동되었습니다.",
+      "goHome": "내 카드로 이동"
+    }
+  },
+  "feedback": {
+    "cardsGrid": {
+      "loading": "카드를 불러오는 중"
+    },
+    "fileDrop": {
+      "dropFiles": "업로드할 파일을 놓으세요"
+    },
+    "vaultSetup": {
+      "title": "보관소를 준비하는 중",
+      "steps": {
+        "starterCards": "시작용 카드 몇 개를 추가하는 중",
+        "photoColors": "사진에서 색상을 추출하는 중",
+        "voiceMemo": "음성 메모를 텍스트로 옮기는 중",
+        "searchCheatSheet": "검색 요약표를 읽는 중",
+        "moodboard": "무드보드를 만드는 중"
+      }
+    }
+  },
+  "providers": {
+    "authUnavailable": {
+      "message": "세션을 확인하지 못했습니다. 다시 시도해 주세요."
+    },
+    "auth": {
+      "signIn": "로그인",
+      "signInAgain": "다시 로그인해 주세요.",
+      "sessionChanged": "세션이 변경되었습니다. 다시 로그인해 주세요.",
+      "signOut": "로그아웃",
+      "blocked": {
+        "verifyEmail": "Teak을 열려면 이메일을 인증하세요.",
+        "frozen": "가입이 일시 중지되었습니다. 계정이 생성되지 않았습니다.",
+        "quarantined": "계정이 아직 준비되지 않았습니다. 다시 시도하거나 지원팀에 문의하세요."
+      }
+    },
+    "fileDrop": {
+      "uploaded": "{count, plural, other {파일 #개 업로드됨}}",
+      "uploadedSentence": "{count, plural, other {파일 #개가 업로드되었습니다.}}",
+      "cardLimitReached": "무료 카드 한도에 도달했습니다",
+      "upgrade": "업그레이드",
+      "rateLimited": "카드를 너무 많이 만들었습니다. 잠시 기다려 주세요.",
+      "uploadFailed": "업로드 실패",
+      "uploadFailedMany": "{count, plural, other {파일 #개}}를 업로드하지 못했습니다. {reason}",
+      "uploading": "업로드 중…",
+      "foldersNotSupported": "폴더는 업로드할 수 없습니다. 파일을 하나씩 놓아 주세요.",
+      "offline": "오프라인 상태입니다. 다시 연결한 후 시도해 주세요."
+    }
+  },
+  "appShell": {
+    "skeleton": {
+      "tags": "태그",
+      "folder": "폴더"
+    }
+  },
+  "errors": {
+    "folders": {
+      "DUPLICATE_NAME": "같은 이름의 폴더가 이미 있습니다",
+      "EMPTY_NAME": "폴더 이름을 입력하세요",
+      "NAME_TOO_LONG": "폴더 이름은 최대 {max}자까지 가능합니다",
+      "TOO_MANY_FOLDERS": "폴더는 최대 {max}개까지 만들 수 있습니다",
+      "TOO_MANY_FOLDERS_ON_CARD": "카드 하나는 최대 {max}개의 폴더에 넣을 수 있습니다",
+      "NOT_FOUND": "폴더를 찾을 수 없습니다",
+      "EMPTY_QUERY": "스마트 폴더의 검색어를 추가하세요",
+      "QUERY_TOO_LONG": "스마트 폴더 검색어는 최대 {max}자까지 가능합니다",
+      "SMART_FOLDER_IN_QUERY": "스마트 폴더의 검색에 다른 스마트 폴더를 사용할 수 없습니다",
+      "SMART_FOLDER_MEMBERSHIP": "스마트 폴더에는 카드를 추가할 수 없습니다. 스마트 폴더는 검색과 일치하는 카드를 보여 줍니다",
+      "QUERY_ON_MANUAL_FOLDER": "검색은 스마트 폴더에만 있습니다",
+      "SMART_FOLDER_TRASH": "스마트 폴더에는 휴지통이 표시되지 않습니다. 해당 단어를 검색하려면 따옴표로 묶으세요"
+    },
+    "tags": {
+      "EMPTY_NAME": "태그 이름을 입력하세요",
+      "NAME_TOO_LONG": "태그는 최대 {max}자까지 가능합니다",
+      "NOT_FOUND": "태그를 찾을 수 없습니다",
+      "SAME_TAG": "병합할 다른 태그를 선택하세요",
+      "OPERATION_RUNNING": "다른 태그 변경 작업이 아직 진행 중입니다",
+      "OPERATION_NOT_FOUND": "태그 작업을 찾을 수 없습니다",
+      "TAG_EXISTS": "\"{name}\" 태그가 이미 있습니다. 대신 해당 태그로 병합하세요."
+    },
+    "thumbnails": {
+      "rateLimited": "이미지를 너무 많이 변경했습니다. 1분 후에 다시 시도해 주세요.",
+      "tooLarge": "이미지는 20MB 미만이어야 합니다.",
+      "unreadable": "이 이미지를 읽을 수 없습니다.",
+      "unsupported": "JPEG, PNG, WebP, GIF 또는 AVIF 이미지를 사용하세요."
+    },
+    "cards": {
+      "CARD_LIMIT_REACHED": "카드 한도에 도달했습니다. 카드를 무제한으로 사용하려면 Pro로 업그레이드하세요.",
+      "CONTENT_TOO_LARGE": "텍스트 카드의 내용은 UTF-8로 인코딩했을 때 512KiB를 넘을 수 없습니다.",
+      "INVALID_UTF8": "Markdown 업로드에는 올바른 UTF-8 텍스트가 있어야 합니다.",
+      "RATE_LIMITED": "카드를 너무 많이 만들었습니다. 잠시 후 다시 시도해 주세요.",
+      "FILE_TOO_LARGE": "파일이 너무 큽니다. 최대 파일 크기는 100MB입니다.",
+      "TOO_MANY_FILES": "선택한 파일이 너무 많습니다. 한 번에 최대 {max}개의 파일을 업로드할 수 있습니다.",
+      "UNSUPPORTED_TYPE": "지원하지 않는 파일 형식입니다. 이미지, 동영상, 오디오 또는 문서를 업로드하세요.",
+      "TYPE_MISMATCH": "업로드한 파일이 선택한 유형과 일치하지 않습니다."
+    },
+    "pdfs": {
+      "IN_PROGRESS": "이 PDF는 이미 저장 중입니다. 잠시 후 다시 시도해 주세요.",
+      "NO_PDF": "이 카드에는 저장할 PDF가 없습니다.",
+      "NOT_FOUND": "카드를 찾을 수 없습니다",
+      "RATE_LIMITED": "너무 빠르게 저장하고 있습니다. 1분 후에 다시 시도해 주세요.",
+      "TRASHED": "PDF를 저장하기 전에 휴지통에서 이 카드를 복원하세요."
+    },
+    "cardTags": {
+      "TAG_TOO_LONG": "각 태그는 최대 {max}자까지 가능합니다",
+      "TOO_MANY_TAGS": "카드 하나에 태그는 최대 {max}개까지 가능합니다"
+    },
+    "settings": {
+      "UNSUPPORTED_LOCALE": "해당 언어는 사용할 수 없습니다."
+    }
+  },
+  "revisit": {
+    "deck": {
+      "title": "다시 보기",
+      "description": "카드를 한 장씩 봅니다. 왼쪽 화살표는 보관, 오른쪽 화살표는 유지, Space는 세부 정보 열기, Z는 마지막 보관 취소, Escape는 나가기입니다.",
+      "close": "다시 보기 닫기",
+      "progress": "{position}/{total}",
+      "loadingCards": "카드를 불러오는 중",
+      "loadFailed": "카드를 불러오지 못했습니다",
+      "empty": "다시 볼 카드가 없습니다",
+      "allCaughtUp": "모두 확인했습니다",
+      "summary": "{archived}개 보관 · {kept}개 유지",
+      "startOver": "처음부터 다시",
+      "revisitMore": "{count}개 더 다시 보기",
+      "undoHint": "<kbd>Z</kbd>를 누르면 마지막 보관을 취소합니다",
+      "openDetails": "세부 정보 열기: {type}",
+      "saved": "{date}에 저장됨",
+      "inTrash": "휴지통에 있음",
+      "archived": "보관됨",
+      "releaseToArchive": "놓으면 보관",
+      "releaseToKeep": "놓으면 유지",
+      "archive": "보관",
+      "keep": "유지",
+      "keyHints": "<kbd>Space</kbd> 세부 정보 · <kbd>Z</kbd> 실행 취소 · <kbd>Esc</kbd> 나가기",
+      "swipeHint": "왼쪽으로 밀면 보관, 오른쪽으로 밀면 유지"
+    }
+  },
+  "folders": {
+    "nameDialog": {
+      "titleNew": "새 폴더",
+      "titleNewSmart": "스마트 폴더로 저장",
+      "titleEdit": "폴더 편집",
+      "titleEditSmart": "스마트 폴더 편집",
+      "descriptionSmart": "나중에 저장하는 카드를 포함해 검색과 일치하는 모든 카드를 보여 줍니다.",
+      "descriptionEdit": "폴더 이름이나 색상을 변경합니다.",
+      "descriptionNew": "폴더 이름을 정하고 색상을 고르세요.",
+      "nameLabel": "이름",
+      "namePlaceholder": "읽을거리",
+      "searchLabel": "검색",
+      "colorLegend": "색상",
+      "submitCreate": "폴더 만들기",
+      "submitSmart": "스마트 폴더 저장",
+      "saveFailed": "폴더를 저장하지 못했습니다",
+      "createFailed": "폴더를 만들지 못했습니다"
+    },
+    "list": {
+      "searchLabel": "폴더 검색",
+      "searchPlaceholder": "폴더 찾기 또는 만들기",
+      "listLabel": "폴더",
+      "loading": "폴더를 불러오는 중…",
+      "noMatch": "해당 이름의 폴더가 없습니다.",
+      "noFolders": "아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.",
+      "createNamed": "“{name}” 폴더 만들기",
+      "createFailed": "폴더를 만들지 못했습니다"
+    },
+    "picker": {
+      "addTitle": "{count, plural, other {카드 #개}}를 폴더에 추가",
+      "moveTitle": "{count, plural, other {카드 #개}}를 폴더로 이동",
+      "description": "폴더를 검색하거나 새 이름을 입력하세요."
+    },
+    "cardFolders": {
+      "title": "폴더",
+      "notInFolder": "이 카드는 폴더에 없습니다.",
+      "inFolders": "{count, plural, other {폴더 #개}}에 있습니다.",
+      "changeFailed": "카드의 폴더를 변경하지 못했습니다"
+    },
+    "smartQuery": {
+      "label": "검색: {query}",
+      "noFolderNamed": "{name} 폴더가 없습니다",
+      "excluded": "제외"
+    }
+  },
+  "sidebar": {
+    "nav": {
+      "home": "Teak 홈",
+      "keepOpen": "사이드바 열어 두기",
+      "collapse": "사이드바 접기",
+      "tags": "태그",
+      "settings": "설정"
+    },
+    "toggle": "사이드바 전환",
+    "folders": {
+      "title": "폴더",
+      "newFolder": "새 폴더",
+      "emptyHint": "관련 카드를 묶어 보세요. 폴더를 만든 다음 카드를 폴더로 끌어 놓으면 됩니다.",
+      "moreFor": "{name} 더 보기",
+      "renameItem": "이름 변경…",
+      "editSearch": "검색 편집…",
+      "color": "색상",
+      "colorFailed": "색상을 변경하지 못했습니다",
+      "restoreFailed": "폴더를 복원하지 못했습니다",
+      "deleteFailed": "폴더를 삭제하지 못했습니다",
+      "deleted": "“{name}”을(를) 삭제했습니다",
+      "deletedDescription": "폴더의 카드는 라이브러리에 그대로 남아 있습니다."
+    },
+    "newFolder": {
+      "nameLabel": "새 폴더 이름",
+      "placeholder": "폴더 이름",
+      "createFailed": "폴더를 만들지 못했습니다"
+    }
+  },
+  "modals": {
+    "shortcuts": {
+      "title": "키보드 단축키",
+      "description": "입력 중일 때를 제외하고 라이브러리 어디에서나 단축키를 사용할 수 있습니다.",
+      "then": "다음",
+      "typeKeys": "{keys} 입력",
+      "comboSeparator": " 더하기 ",
+      "sequenceSeparator": " 다음 ",
+      "alternativeSeparator": " 또는 ",
+      "keyNames": {
+        "leftArrow": "왼쪽 화살표",
+        "upArrow": "위쪽 화살표",
+        "rightArrow": "오른쪽 화살표",
+        "downArrow": "아래쪽 화살표",
+        "slash": "슬래시",
+        "questionMark": "물음표",
+        "option": "Option",
+        "command": "Command",
+        "shift": "Shift",
+        "return": "Return"
+      }
+    },
+    "tagManagement": {
+      "title": "태그 관리",
+      "addLabel": "새 태그 추가",
+      "placeholder": "태그 이름 입력",
+      "addTag": "태그 추가",
+      "yourTags": "내 태그",
+      "removeUserTag": "사용자 태그 {tag} 제거",
+      "teakTags": "Teak이 추가한 태그",
+      "removeTeakTag": "Teak 태그 {tag} 제거",
+      "empty": "아직 태그가 없습니다. 위에서 첫 태그를 추가하세요!"
+    },
+    "tagManager": {
+      "renameTitle": "태그 이름 변경",
+      "mergeTitle": "“{name}”을(를) 다음 태그로 병합…",
+      "deleteTitle": "“{name}”을(를) 삭제하시겠습니까?",
+      "renameDescription": "보관함이나 휴지통에 있는 카드를 포함해 {count, plural, other {카드 #개}}에서 “{name}”의 이름을 변경합니다.",
+      "mergeDescription": "“{name}” 태그가 붙은 카드에 선택한 태그가 대신 붙습니다. 두 태그가 모두 있는 카드는 하나만 유지합니다.",
+      "deleteDescription": "보관함이나 휴지통에 있는 카드를 포함해 {count, plural, other {카드 #개}}에서 “{name}”을(를) 제거합니다. 카드는 유지됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "merge": "병합",
+      "mergeInto": "“{name}”(으)로 병합",
+      "mergeIntoInstead": "대신 “{name}”(으)로 병합",
+      "deleteTag": "태그 삭제",
+      "newName": "새 이름",
+      "findTag": "태그 찾기",
+      "tagsLabel": "태그",
+      "noMatch": "해당 이름의 태그가 없습니다.",
+      "noOtherTags": "아직 다른 태그가 없습니다.",
+      "typeToFindMore": "입력해서 태그를 더 찾으세요.",
+      "nameTaken": "“{name}” 태그가 이미 있습니다.",
+      "startFailed": "태그 변경을 시작하지 못했습니다"
+    }
+  },
+  "cardModal": {
+    "header": {
+      "actionsLabel": "카드 작업",
+      "contentLabel": "{type, select, text {텍스트 내용} link {링크 내용} image {이미지 내용} video {동영상 내용} audio {오디오 내용} document {문서 내용} palette {팔레트 내용} quote {인용 내용} other {카드 내용}}",
+      "detailsLabel": "카드 세부 정보",
+      "download": "다운로드",
+      "downloadTooltip": "파일 다운로드",
+      "downloading": "다운로드 중…",
+      "loadingDescription": "카드 세부 정보를 불러오는 중",
+      "loadingTitle": "카드를 불러오는 중",
+      "nextCard": "다음 카드",
+      "open": "열기",
+      "openingCard": "카드를 여는 중",
+      "openTooltip": "링크 열기",
+      "previousCard": "이전 카드",
+      "titleLabel": "제목",
+      "titlePlaceholder": "제목 없는 링크"
+    },
+    "saveState": {
+      "error": "저장하지 못함",
+      "saved": "저장됨",
+      "unsaved": "저장되지 않은 변경 사항"
+    },
+    "menu": {
+      "addToFolder": "폴더에 추가…",
+      "archive": "보관",
+      "copyLink": "링크 복사",
+      "copyText": "텍스트 복사",
+      "download": "다운로드",
+      "favorite": "즐겨찾기에 추가",
+      "hideDetails": "세부 정보 숨기기",
+      "moreActions": "추가 작업",
+      "moreLikeThis": "비슷한 카드",
+      "refreshDetails": "세부 정보 새로 고침",
+      "replaceImage": "이미지 교체",
+      "resetImage": "원본 이미지로 재설정",
+      "savePdf": "PDF 저장",
+      "savingPdf": "PDF 저장 중…",
+      "shortcutsHint": "<kbd>?</kbd>를 누르면 모든 단축키를 볼 수 있습니다",
+      "showDetails": "세부 정보 보기",
+      "unarchive": "보관 해제",
+      "unfavorite": "즐겨찾기에서 제거"
+    },
+    "toasts": {
+      "copiedLink": "링크가 복사되었습니다",
+      "copiedText": "텍스트가 복사되었습니다",
+      "copyFailed": "복사하지 못했습니다",
+      "emptyNote": "빈 메모는 저장되지 않습니다. 메모는 마지막 텍스트를 유지합니다.",
+      "emptyQuote": "빈 인용은 저장되지 않습니다. 인용은 마지막 텍스트를 유지합니다."
+    },
+    "trash": {
+      "deleteForever": "영구 삭제",
+      "inTrash": "이 카드는 휴지통에 있습니다",
+      "restore": "복원"
+    },
+    "done": {
+      "markAs": "{verb, select, read {읽음으로 표시} watched {시청함으로 표시} listened {들음으로 표시} bought {구매함으로 표시} cooked {요리함으로 표시} played {플레이함으로 표시} other {완료로 표시}}",
+      "markAsNot": "{verb, select, read {읽지 않음으로 표시} watched {시청하지 않음으로 표시} listened {듣지 않음으로 표시} bought {구매하지 않음으로 표시} cooked {요리하지 않음으로 표시} played {플레이하지 않음으로 표시} other {미완료로 표시}}",
+      "state": "{verb, select, read {읽음} watched {시청함} listened {들음} bought {구매함} cooked {요리함} played {플레이함} other {완료}}"
+    },
+    "heading": {
+      "addedOn": "{date}에 추가됨",
+      "addedToday": "오늘 추가됨",
+      "addedYesterday": "어제 추가됨",
+      "note": "메모"
+    },
+    "panel": {
+      "addTagLabel": "태그 추가",
+      "addTagPlaceholder": "태그 추가…",
+      "addToFolder": "폴더에 추가",
+      "andMore": "외 다수",
+      "colors": "색상",
+      "copyColor": "{hex} 복사",
+      "folderOverflow": "{name} +{count}",
+      "hidden": "숨김",
+      "hiddenHint": "#secret 또는 #hidden으로 검색할 때만 이 카드가 표시됩니다",
+      "inFolders": "{folders}에 있음",
+      "inFoldersChange": "{folders}에 있음. 폴더 변경",
+      "keepTag": "{tag} 태그 유지",
+      "keepTagHint": "{tag}을(를) 내 태그로 유지",
+      "linkedFrom": "링크한 카드",
+      "noNotes": "메모 없음",
+      "notes": "메모",
+      "notesPlaceholder": "메모 추가…",
+      "removeTag": "{tag} 태그 제거",
+      "removeTeakTag": "Teak 태그 {tag} 제거",
+      "showLess": "간단히 보기",
+      "showMore": "더 보기",
+      "showTagged": "{tag} 태그가 붙은 카드 보기",
+      "suggestedTags": "{count, plural, other {추천 태그 #개}}",
+      "summary": "요약",
+      "tags": "태그",
+      "teakTagHint": "Teak이 추가한 태그입니다. {tag} 태그가 붙은 카드 보기"
+    },
+    "details": {
+      "added": "추가됨",
+      "author": "작성자",
+      "edited": "편집됨",
+      "extractedText": "{count, plural, other {#자 추출됨}}",
+      "fewerDetails": "세부 정보 간단히",
+      "fileName": "파일 이름",
+      "fileSize": "파일 크기",
+      "fileType": "파일 형식",
+      "from": "출처",
+      "moreDetails": "세부 정보 더 보기",
+      "published": "게시일",
+      "publisher": "게시자",
+      "showAllOfType": "{type, select, text {모든 텍스트 카드 보기} link {모든 링크 카드 보기} image {모든 이미지 카드 보기} video {모든 동영상 카드 보기} audio {모든 오디오 카드 보기} document {모든 문서 카드 보기} palette {모든 팔레트 카드 보기} quote {모든 인용 카드 보기} other {모든 카드 보기}}",
+      "text": "텍스트",
+      "title": "세부 정보",
+      "url": "URL"
+    }
+  },
+  "cardPreviews": {
+    "audio": {
+      "loadFailed": "이 녹음을 불러올 수 없습니다. 대신 다운로드해 보세요.",
+      "pause": "일시 정지",
+      "play": "재생",
+      "seek": "탐색",
+      "seekPosition": "{current} / {duration}",
+      "transcript": "녹취록"
+    },
+    "document": {
+      "facts": {
+        "colorVariables": "{count, plural, other {색상 변수 #개}}",
+        "files": "{count, plural, other {파일 #개}}",
+        "folders": "{count, plural, other {폴더 #개}}",
+        "headings": "{count, plural, other {제목 #개}}",
+        "lines": "{count, plural, other {#줄}}",
+        "slides": "{count, plural, other {슬라이드 #개}}",
+        "words": "{count, plural, other {#단어}}"
+      },
+      "file": "파일",
+      "openFile": "파일 열기",
+      "untitled": "문서"
+    },
+    "fileText": {
+      "loading": "파일 미리보기를 불러오는 중"
+    },
+    "image": {
+      "alt": "이미지",
+      "unavailable": "이미지 미리보기를 사용할 수 없음"
+    },
+    "link": {
+      "addImage": "이미지 추가",
+      "attachedMedia": "첨부된 게시물 미디어 {number}",
+      "attachedVideo": "첨부된 동영상 {number}",
+      "imageAlt": "링크 이미지",
+      "openGraphAlt": "Open Graph 미리보기",
+      "screenshotAlt": "렌더링된 웹페이지 스크린샷",
+      "uploadingAlt": "새 링크 미리보기를 업로드하는 중"
+    },
+    "palette": {
+      "copy": "{hex} 복사",
+      "empty": "이 팔레트에서 감지된 색상이 없습니다"
+    },
+    "quote": {
+      "placeholder": "인용을 입력하세요..."
+    },
+    "text": {
+      "focus": "집중",
+      "placeholder": "메모를 작성하세요...",
+      "tooLarge": "메모는 UTF-8 텍스트로 최대 512KiB까지 가능합니다"
+    },
+    "video": {
+      "gifAlt": "애니메이션 GIF",
+      "unsupported": "사용 중인 브라우저가 video 태그를 지원하지 않습니다."
+    }
+  },
+  "cards": {
+    "types": {
+      "text": "텍스트",
+      "link": "링크",
+      "image": "이미지",
+      "video": "동영상",
+      "audio": "오디오",
+      "document": "문서",
+      "palette": "팔레트",
+      "quote": "인용",
+      "card": "카드"
+    },
+    "accessibleLabel": {
+      "titled": "{type, select, text {텍스트: {title}} link {링크: {title}} image {이미지: {title}} video {동영상: {title}} audio {오디오: {title}} document {문서: {title}} palette {팔레트: {title}} quote {인용: {title}} other {카드: {title}}}",
+      "untitled": "{type, select, text {텍스트 카드} link {링크 카드} image {이미지 카드} video {동영상 카드} audio {오디오 카드} document {문서 카드} palette {팔레트 카드} quote {인용 카드} other {카드}}"
+    },
+    "menu": {
+      "addTags": "태그 추가…",
+      "archive": "보관",
+      "copyImage": "이미지 복사",
+      "copyLink": "링크 복사",
+      "copyText": "텍스트 복사",
+      "deleteForever": "영구 삭제",
+      "deselect": "선택 해제",
+      "favorite": "즐겨찾기에 추가",
+      "folders": "폴더…",
+      "moreActions": "추가 작업",
+      "openLink": "링크 열기",
+      "refreshDetails": "세부 정보 새로 고침",
+      "restore": "복원",
+      "select": "선택",
+      "unarchive": "보관 해제",
+      "unfavorite": "즐겨찾기에서 제거"
+    },
+    "copyImageFailed": "이미지를 복사하지 못했습니다",
+    "deleteForeverDialog": {
+      "confirm": "영구 삭제",
+      "description": "카드와 파일이 영구적으로 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "title": "이 카드를 영구 삭제하시겠습니까?"
+    },
+    "body": {
+      "emptyNote": "빈 메모",
+      "recording": "녹음"
+    },
+    "link": {
+      "markedAs": "{verb, select, read {읽음으로 표시됨} watched {시청함으로 표시됨} listened {들음으로 표시됨} bought {구매함으로 표시됨} cooked {요리함으로 표시됨} played {플레이함으로 표시됨} other {완료로 표시됨}}"
+    },
+    "previews": {
+      "documentPreview": "문서 미리보기",
+      "documentPreviewOf": "{fileName} 미리보기",
+      "gifPreview": "GIF 미리보기",
+      "imageAlt": "이미지",
+      "videoThumbnail": "동영상 썸네일"
+    }
+  },
+  "grids": {
+    "masonry": {
+      "copiedLinks": "{count, plural, other {링크 #개가 복사되었습니다}}",
+      "copyLinksFailed": "링크를 복사하지 못했습니다",
+      "noLinks": "이 카드 중 링크가 있는 카드가 없습니다"
+    }
+  },
+  "textEditor": {
+    "formatting": {
+      "toolbar": "텍스트 서식",
+      "bold": "굵게",
+      "italic": "기울임꼴",
+      "strikethrough": "취소선",
+      "inlineCode": "인라인 코드",
+      "editLink": "링크 편집"
+    },
+    "linkEditor": {
+      "url": "링크 URL",
+      "apply": "적용",
+      "invalidUrl": "http 또는 https 링크를 사용하세요."
+    },
+    "note": {
+      "ariaLabel": "Markdown 메모",
+      "contentLabel": "Markdown 내용",
+      "editorLabel": "{label} 편집기",
+      "placeholder": "메모를 작성하세요…",
+      "tooLarge": "메모는 UTF-8 텍스트로 최대 512KiB까지 가능합니다",
+      "unsafeChange": "이 변경 사항은 Markdown으로 저장할 수 없습니다.",
+      "dropUnsupported": "이 메모에는 텍스트나 Markdown을 붙여 넣으세요.",
+      "pasteUnsupported": "일반 텍스트나 Markdown을 붙여 넣으세요."
+    },
+    "focus": {
+      "description": "집중 모드: 화면에 메모만 표시됩니다. 나가려면 Escape를 누르세요.",
+      "wordCount": "{count, plural, other {#단어}}"
+    },
+    "noteCapture": {
+      "linkSaved": "링크가 저장되었습니다",
+      "saved": "저장됨"
+    },
+    "cardLinkMenu": {
+      "label": "카드 링크",
+      "searching": "카드를 검색하는 중…",
+      "searchFailed": "카드를 검색하지 못했습니다",
+      "noMatches": "일치하는 카드가 없습니다",
+      "noCards": "아직 카드가 없습니다"
+    },
+    "cardLink": {
+      "missing": "없는 카드",
+      "missingHint": "이 카드는 휴지통에 있거나, 삭제되었거나, 내 카드가 아닙니다",
+      "fallbackTitle": "카드"
+    },
+    "slashMenu": {
+      "label": "서식 명령",
+      "commands": {
+        "text": "텍스트",
+        "h1": "제목 1",
+        "h2": "제목 2",
+        "h3": "제목 3",
+        "bulletList": "글머리 기호 목록",
+        "orderedList": "번호 매기기 목록",
+        "taskList": "할 일 목록",
+        "blockquote": "인용",
+        "codeBlock": "코드",
+        "divider": "구분선",
+        "table": "표"
+      }
+    },
+    "table": {
+      "options": "표 옵션",
+      "headerPlaceholder": "머리글",
+      "addRowAbove": "위에 행 추가",
+      "addRowBelow": "아래에 행 추가",
+      "addColumnLeft": "왼쪽에 열 추가",
+      "addColumnRight": "오른쪽에 열 추가",
+      "deleteRow": "행 삭제",
+      "deleteColumn": "열 삭제",
+      "deleteTable": "표 삭제",
+      "rowLimit": "표에는 최대 {max}개의 행을 만들 수 있습니다",
+      "columnLimit": "표에는 최대 {max}개의 열을 만들 수 있습니다",
+      "headerRowFirst": "머리글 행은 항상 첫 번째 행입니다",
+      "headerRowKept": "머리글 행은 삭제할 수 없습니다",
+      "lastColumn": "마지막 열을 제거하려면 표를 삭제하세요"
+    }
+  },
+  "forms": {
+    "limits": {
+      "cardLimitReached": "무료 카드 한도에 도달했습니다",
+      "upgrade": "업그레이드",
+      "rateLimited": "카드를 너무 많이 만들었습니다. 잠시 기다려 주세요."
+    },
+    "addCard": {
+      "placeholder": "메모를 작성하세요...",
+      "upgradePlaceholder": "카드를 더 추가하려면 Pro로 업그레이드하세요...",
+      "saveFailed": "메모를 저장하지 못했습니다",
+      "focus": "집중"
+    },
+    "addCardActions": {
+      "new": "새로 만들기",
+      "noteOrLink": "메모 또는 링크",
+      "uploadFiles": "파일 업로드",
+      "recordAudio": "오디오 녹음",
+      "savingRecording": "오디오 녹음을 저장하는 중...",
+      "recordingSaved": "오디오 녹음이 저장되었습니다",
+      "recordingSaveFailed": "오디오 녹음을 저장하지 못했습니다",
+      "microphoneUnsupported": "이 앱에서는 마이크 녹음을 지원하지 않습니다.",
+      "microphoneDenied": "마이크 권한이 거부되었습니다. 권한을 허용한 후 다시 시도하세요.",
+      "microphoneMissing": "마이크가 감지되지 않았습니다. 마이크를 연결한 후 다시 시도하세요.",
+      "recordingStartFailed": "녹음을 시작하지 못했습니다. 마이크 설정을 확인하세요.",
+      "uploading": "{name} 업로드 중...",
+      "uploaded": "{name} 업로드됨",
+      "uploadFailed": "{name}을(를) 업로드하지 못했습니다: {error}",
+      "uploadFailedReason": "업로드 실패",
+      "startingMicrophone": "마이크를 시작하는 중...",
+      "savingRecordingStatus": "녹음을 저장하는 중...",
+      "recordingHint": "자연스럽게 말하세요. Teak이 오디오 카드로 저장합니다.",
+      "recordingTitle": "오디오 녹음 중",
+      "stopAndSave": "중지 및 저장"
+    },
+    "emptyState": {
+      "title": "첫 카드를 추가해 보세요!",
+      "description": "위에서 생각, 링크, 미디어를 저장해 보세요"
+    }
+  },
+  "selection": {
+    "bar": {
+      "archive": "보관",
+      "unarchive": "보관 해제",
+      "restore": "복원",
+      "addToNamedFolder": "{folder}에 추가",
+      "chooseCards": "추가할 카드 선택",
+      "selectedCount": "{count, plural, other {카드 #개}} 선택됨",
+      "moreActions": "추가 작업",
+      "favorite": "즐겨찾기에 추가",
+      "unfavorite": "즐겨찾기에서 제거",
+      "addTags": "태그 추가…",
+      "removeTags": "태그 제거…",
+      "copyLinks": "링크 복사",
+      "addToFolder": "폴더에 추가…",
+      "moveToFolder": "폴더로 이동…",
+      "removeFromFolder": "{folder}에서 제거",
+      "moveToTrash": "휴지통으로 이동",
+      "cancelSelection": "선택 취소"
+    },
+    "tagsDialog": {
+      "tagTooLong": "태그는 최대 {max}자까지 가능합니다.",
+      "tooManyTags": "한 번에 최대 {max}개의 태그를 선택할 수 있습니다.",
+      "addTitle": "{count, plural, other {카드 #개}}에 태그 추가",
+      "removeTitle": "{count, plural, other {카드 #개}}에서 태그 제거",
+      "addDescription": "태그는 쉼표로 구분하세요.",
+      "removeDescription": "아래에서 태그를 선택하거나 쉼표로 구분해 입력하세요.",
+      "label": "태그",
+      "addPlaceholder": "디자인, 영감",
+      "removePlaceholder": "태그 이름",
+      "addSubmit": "태그 추가",
+      "removeSubmit": "태그 제거"
+    }
+  },
+  "search": {
+    "visualStyles": {
+      "abstract": "추상적",
+      "cinematic": "영화적",
+      "dark": "어두운",
+      "illustrative": "일러스트",
+      "minimal": "미니멀",
+      "monochrome": "흑백",
+      "moody": "분위기 있는",
+      "pastel": "파스텔",
+      "photographic": "사진",
+      "retro": "레트로",
+      "surreal": "초현실적",
+      "vintage": "빈티지",
+      "vibrant": "선명한",
+      "typographic": "타이포그래피",
+      "threeD": "3D",
+      "flat": "플랫",
+      "geometric": "기하학적",
+      "handDrawn": "손그림",
+      "futuristic": "미래적"
+    },
+    "colorHues": {
+      "red": "빨간색",
+      "orange": "주황색",
+      "yellow": "노란색",
+      "green": "초록색",
+      "teal": "청록색",
+      "cyan": "시안",
+      "blue": "파란색",
+      "purple": "보라색",
+      "pink": "분홍색",
+      "brown": "갈색",
+      "neutral": "무채색"
+    },
+    "bar": {
+      "placeholder": "모든 항목 검색",
+      "open": "검색",
+      "formLabel": "카드 검색",
+      "clearAll": "모두 지우기",
+      "suggestions": "검색 제안",
+      "moreFilters": "{count, plural, other {필터 #개 더}}",
+      "chipTitle": "{prefix} {label}",
+      "chipTitleExcluded": "{prefix} {label} 제외",
+      "chipTitleExcludedNoPrefix": "{label} 제외",
+      "remove": "{label} 제거",
+      "removeExcluded": "{label} 제외 조건 제거",
+      "removeTagFilter": "태그 필터 {tag} 제거",
+      "removeType": "유형 {type} 제거",
+      "removeQualifier": "{kind, select, tag {태그} type {유형} is {표시} site {사이트} folder {폴더} like {유사 항목} mood {분위기} price {가격} text {이미지 속 텍스트} other {필터}} {label} 제거",
+      "removeExcludedQualifier": "{kind, select, tag {태그} type {유형} is {표시} site {사이트} folder {폴더} like {유사 항목} mood {분위기} price {가격} text {이미지 속 텍스트} other {필터}} {label} 제외 조건 제거",
+      "removeUnknownFolder": "{chip} 제거: {folder} 폴더가 없습니다",
+      "unknownFolder": "{folder} 폴더가 없습니다"
+    },
+    "chips": {
+      "titles": {
+        "tag": "태그",
+        "type": "유형",
+        "is": "표시",
+        "site": "사이트",
+        "folder": "폴더",
+        "like": "유사 항목",
+        "mood": "분위기",
+        "price": "가격",
+        "text": "이미지 속 텍스트"
+      },
+      "anyCard": "카드",
+      "moodValue": "“{value}”"
+    },
+    "suggestions": {
+      "groups": {
+        "combine": "조합",
+        "exclude": "제외",
+        "filters": "필터",
+        "tags": "태그",
+        "types": "유형",
+        "folders": "폴더",
+        "sites": "사이트",
+        "show": "표시"
+      },
+      "hints": {
+        "tag": "태그가 붙은 카드",
+        "type": "링크, 이미지, 메모…",
+        "site": "웹사이트의 링크",
+        "folder": "폴더 안의 카드",
+        "is": "즐겨찾기, 보관됨, 완료, 할 일",
+        "mood": "분위기별 이미지",
+        "price": "가격 이하 또는 이상",
+        "text": "이미지와 스캔 속 단어"
+      },
+      "excludeHints": {
+        "tag": "태그가 붙은 카드 제외",
+        "type": "링크, 이미지, 메모 등 제외…",
+        "site": "웹사이트의 링크 제외",
+        "folder": "폴더 안의 카드 제외",
+        "is": "즐겨찾기, 보관됨, 완료 등 제외…"
+      },
+      "orDetail": "어느 쪽이든 일치",
+      "isOptions": {
+        "fav": "즐겨찾기",
+        "archived": "보관됨",
+        "done": "완료",
+        "todo": "할 일"
+      },
+      "hiddenTagCount": "숨긴 카드 표시 · {count}"
+    },
+    "viewMenu": {
+      "label": "보기",
+      "labelWithState": "보기: {state}",
+      "oldestFirstState": "오래된 순",
+      "shuffledState": "셔플됨",
+      "revisitingState": "다시 보기 중",
+      "show": "표시",
+      "showAllTypes": "모든 유형 표시",
+      "sort": "정렬",
+      "sorts": {
+        "relevance": "관련도순",
+        "newest": "최신순",
+        "oldest": "오래된 순",
+        "shuffle": "셔플",
+        "revisit": "다시 보기"
+      },
+      "nothingToRevisit": "다시 볼 카드가 없습니다",
+      "saveAsSmartFolder": "스마트 폴더로 저장…",
+      "reshuffle": "다시 셔플"
+    },
+    "dates": {
+      "today": "오늘",
+      "yesterday": "어제",
+      "thisWeek": "이번 주",
+      "lastWeek": "지난주",
+      "thisMonth": "이번 달",
+      "lastMonth": "지난달",
+      "thisYear": "올해",
+      "lastYear": "작년",
+      "lastWeekday": "지난 {day}"
+    }
+  },
+  "commandPalette": {
+    "title": "명령 팔레트",
+    "description": "보기나 폴더로 이동하거나, 카드를 찾거나, 작업을 실행합니다",
+    "inputLabel": "명령, 폴더, 카드 검색",
+    "placeholder": "명령을 입력하거나 검색하세요…",
+    "noResults": "결과 없음",
+    "smartFolder": "스마트 폴더",
+    "groups": {
+      "navigate": "이동",
+      "cards": "카드",
+      "actions": "작업",
+      "folders": "폴더"
+    },
+    "views": {
+      "tags": "태그",
+      "settings": "설정"
+    },
+    "actions": {
+      "newNote": "새 메모",
+      "upload": "파일 업로드",
+      "import": "가져오기",
+      "export": "내보내기",
+      "toggleTheme": "테마 전환",
+      "shuffle": "셔플",
+      "shortcuts": "키보드 단축키",
+      "signOut": "로그아웃"
+    },
+    "cards": {
+      "searching": "카드를 검색하는 중",
+      "searchFailed": "카드를 검색하지 못했습니다",
+      "searchAll": "“{query}” 전체 검색",
+      "untitled": "제목 없는 카드"
+    },
+    "resultsLabel": "제안"
+  },
+  "shortcuts": {
+    "groups": {
+      "cards": "카드",
+      "openCard": "열린 카드",
+      "goTo": "이동",
+      "search": "검색",
+      "anywhere": "어디서나"
+    },
+    "rows": {
+      "moveBetweenCards": "카드 간 이동",
+      "nextOrPreviousCard": "다음 또는 이전 카드",
+      "openCard": "카드 열기",
+      "favorite": "즐겨찾기 추가 또는 제거",
+      "addTags": "태그 추가",
+      "archive": "보관 또는 보관 해제",
+      "moveToTrash": "휴지통으로 이동",
+      "select": "선택 또는 선택 해제",
+      "copy": "텍스트, 링크 또는 이미지 복사",
+      "clearSelection": "선택 해제",
+      "previousOrNextCard": "이전 또는 다음 카드",
+      "addTag": "태그 추가",
+      "writeNote": "메모 작성",
+      "focusNote": "메모에 집중",
+      "openOrDownload": "링크 열기 또는 파일 다운로드",
+      "openLink": "링크 열기",
+      "markLinkDone": "링크를 완료로 표시",
+      "copyLinkOrText": "링크 또는 텍스트 복사",
+      "toggleDetails": "세부 정보 보기 또는 숨기기",
+      "goToEverything": "전체",
+      "goToFavorites": "즐겨찾기",
+      "goToArchive": "보관함",
+      "goToTrash": "휴지통",
+      "excludeWord": "단어 제외",
+      "excludeFilter": "태그, 유형, 사이트 또는 폴더 제외",
+      "eitherOne": "둘 중 하나",
+      "group": "그룹화",
+      "exactWords": "정확한 단어",
+      "commandPalette": "명령 팔레트",
+      "search": "검색",
+      "newNote": "새 메모",
+      "uploadFiles": "파일 업로드",
+      "notifications": "알림으로 이동(실행 취소)",
+      "keyboardShortcuts": "키보드 단축키"
+    }
+  },
+  "extension": {
+    "popup": {
+      "loading": "불러오는 중",
+      "loadAccountFailed": "계정을 불러오지 못했습니다.",
+      "somethingWentWrong": "문제가 발생했습니다",
+      "tryAgain": "다시 시도",
+      "privateSession": "Firefox가 사생활 보호 모드이므로 창을 닫으면 Teak이 로그인 정보와 전송되지 않은 저장 항목을 잊어버립니다.",
+      "pendingSaves": "{count, plural, other {저장 #건}}을 완료하지 못했습니다",
+      "discard": "버리기",
+      "retry": "다시 시도",
+      "pendingSavesFailed": "대기 중인 저장 항목을 업데이트하지 못했습니다.",
+      "headline": "무엇이든, 어디서든 저장",
+      "signInPrompt": "로그인하면 페이지, 이미지, 텍스트를 Teak에 저장할 수 있습니다.",
+      "signIn": "로그인",
+      "finishingSignIn": "로그인을 완료하는 중…",
+      "signInFailed": "로그인하지 못했습니다. 다시 시도해 주세요.",
+      "openTeak": "Teak 열기",
+      "upgrade": "Pro로 업그레이드",
+      "signOut": "로그아웃",
+      "signOutFailed": "로그아웃하지 못했습니다. 다시 시도해 주세요.",
+      "uploadFile": "파일 업로드",
+      "fileInvalid": "파일이 비어 있거나 너무 큽니다.",
+      "fileSaveFailed": "파일을 저장하지 못했습니다. 다시 시도해 주세요.",
+      "reconnectForUpload": "대기 중인 업로드를 완료하려면 다시 연결하세요.",
+      "pseudoLocale": "의사 로캘(en-XA)",
+      "status": {
+        "chooseFile": "저장할 파일 선택",
+        "fileSizeLimit": "최대 100MB",
+        "freeLimitReached": "무료 한도에 도달했습니다",
+        "upgradeForUnlimited": "카드를 무제한으로 사용하려면 Pro로 업그레이드하세요.",
+        "alreadySaved": "이미 Teak에 있습니다",
+        "uploadingFile": "파일 업로드 중",
+        "fileSaved": "파일이 저장되었습니다",
+        "uploadFailed": "파일을 업로드하지 못했습니다",
+        "savingToTeak": "Teak에 저장하는 중",
+        "savedToTeak": "Teak에 저장되었습니다",
+        "pageSaved": "페이지가 저장되었습니다",
+        "textSaved": "텍스트가 저장되었습니다",
+        "saveFailed": "저장하지 못했습니다",
+        "savingPage": "페이지 저장 중",
+        "pageSaveFailed": "이 페이지를 저장하지 못했습니다",
+        "cantSavePage": "이 페이지는 저장할 수 없습니다",
+        "cantSavePageDetail": "저장하려면 웹페이지를 열거나 파일을 업로드하세요."
+      },
+      "details": {
+        "loadingTags": "태그를 불러오는 중",
+        "loadFailed": "이 카드의 태그를 불러오지 못했습니다.",
+        "retry": "다시 시도",
+        "tags": "태그",
+        "addTags": "태그 추가",
+        "removeTag": "{tag} 태그 제거",
+        "suggestedTags": "추천 태그",
+        "note": "메모",
+        "addNote": "메모 추가",
+        "saved": "저장됨",
+        "tagTooLong": "태그는 최대 {max}자까지 가능합니다.",
+        "tooManyTags": "여기서는 카드 하나에 태그를 최대 {max}개까지 추가할 수 있습니다.",
+        "signInAgain": "변경 사항을 저장하려면 다시 로그인하세요.",
+        "tagsFailed": "태그를 저장하지 못했습니다.",
+        "noteFailed": "메모를 저장하지 못했습니다."
+      }
+    },
+    "contextMenu": {
+      "savePage": "Teak에 페이지 저장",
+      "saveAsset": "Teak에 에셋 저장",
+      "saveText": "Teak에 텍스트 저장"
+    },
+    "omnibox": {
+      "search": "Teak 검색",
+      "searchFor": "Teak에서 <match>{query}</match> 검색",
+      "signIn": "검색하려면 Teak에 로그인하세요",
+      "noMatches": "일치하는 카드가 없습니다",
+      "unreachable": "Teak에 연결할 수 없습니다",
+      "rateLimited": "검색이 너무 많습니다. 잠시 후 다시 시도하세요",
+      "cardType": "{type, select, text {텍스트} link {링크} image {이미지} video {동영상} audio {오디오} document {문서} palette {팔레트} quote {인용} other {{type}}}",
+      "untitled": "{type, select, text {제목 없는 텍스트} link {제목 없는 링크} image {제목 없는 이미지} video {제목 없는 동영상} audio {제목 없는 오디오} document {제목 없는 문서} palette {제목 없는 팔레트} quote {제목 없는 인용} other {제목 없는 {type}}}"
+    },
+    "inline": {
+      "idle": "Teak에 저장",
+      "saving": "Teak에 저장하는 중",
+      "saved": "Teak에 저장됨",
+      "duplicate": "이미 Teak에 저장됨",
+      "error": "저장 실패. 다시 시도",
+      "errorWithReason": "저장 실패. 다시 시도: {reason}",
+      "invalidPost": "잘못된 게시물 데이터",
+      "signIn": "저장하려면 Teak에 로그인하세요",
+      "saveFailed": "게시물을 저장하지 못했습니다"
+    }
+  },
+  "screens": {
+    "cards": {
+      "emptyFavorites": "아직 즐겨찾기가 없습니다. 카드를 즐겨찾기에 추가하면 여기에서 볼 수 있습니다.",
+      "emptyArchive": "보관된 카드가 없습니다. 카드를 보관하면 라이브러리에서 숨겨집니다.",
+      "emptyTrash": "휴지통이 비어 있습니다.",
+      "hiddenCardsHint": "일부 카드가 숨겨져 있습니다. 보려면 #secret 또는 #hidden으로 검색하세요.",
+      "cardNotFound": "카드를 찾을 수 없습니다",
+      "folderNotFound": "폴더를 찾을 수 없습니다",
+      "folderMayBeDeleted": "삭제되었을 수 있습니다.",
+      "goToEverything": "전체로 이동",
+      "nothingLeftToDo": "남은 할 일이 없습니다.",
+      "noSmartFolderMatches": "이 스마트 폴더와 일치하는 카드가 없습니다.",
+      "editSearch": "검색 편집",
+      "noCardsInFolder": "이 폴더에 아직 카드가 없습니다.",
+      "addCards": "카드 추가",
+      "nothingSimilar": "아직 비슷한 카드가 없습니다",
+      "noMoodMatches": "아직 이 분위기와 일치하는 이미지가 없습니다",
+      "stillLearning": "아직 이 카드를 분석하고 있습니다. 잠시 후 다시 시도해 주세요.",
+      "tooManySearches": "검색이 너무 많습니다. 1분 후에 다시 시도해 주세요.",
+      "semanticUnavailable": "지금은 의미로 검색할 수 없습니다.",
+      "noFilterMatches": "필터와 일치하는 항목이 없습니다",
+      "clearFilters": "필터 지우기",
+      "smartFolderSuffix": " (스마트 폴더)",
+      "folderCardCountSuffix": "{count, plural, other {개의 카드}}",
+      "folderTitle": "폴더",
+      "searchFolder": "{folder} 검색",
+      "savedSmartFolder": "“{name}”을(를) 저장했습니다",
+      "savedSmartFolderDescription": "일치하는 모든 카드를 저장하는 대로 보여 줍니다.",
+      "open": "열기",
+      "unsavableFilters": "색상, 스타일, 날짜는 스마트 폴더에 저장되지 않습니다.",
+      "loadFailed": "카드를 불러오지 못했습니다."
+    },
+    "tags": {
+      "sortMostUsed": "많이 사용한 순",
+      "sortName": "이름",
+      "sortLabel": "정렬: {sort}",
+      "sortBy": "태그 정렬 기준",
+      "moreFor": "{tag} 더 보기",
+      "rowLabel": "{tag}, {count, plural, other {카드 #개}}",
+      "rename": "이름 변경…",
+      "mergeInto": "병합…",
+      "delete": "삭제…",
+      "matchCount": "{matches, number}/{total, number}",
+      "topCount": "상위 {total, number}",
+      "tagsSuffix": "개의 태그",
+      "title": "태그",
+      "findTag": "태그 찾기",
+      "loading": "태그를 불러오는 중",
+      "noTags": "아직 태그가 없습니다",
+      "noTagsDescription": "카드에 추가한 태그와 Teak이 추천한 태그가 여기에 표시됩니다.",
+      "noMatches": "“{query}”와(과) 일치하는 태그가 없습니다.",
+      "list": "태그",
+      "showMore": "{count, number}개 더 보기"
+    },
+    "logo": {
+      "earlyAccess": "얼리 액세스"
+    }
+  },
+  "hooks": {
+    "cardActions": {
+      "deletedFindInTrash": "카드가 삭제되었습니다. 'trash'로 검색하면 찾을 수 있습니다",
+      "cardDeleted": "카드가 삭제되었습니다",
+      "cardRestored": "카드가 복원되었습니다",
+      "cardPermanentlyDeleted": "카드가 영구 삭제되었습니다",
+      "deleteFailed": "카드를 삭제하지 못했습니다",
+      "restoreFailed": "카드를 복원하지 못했습니다",
+      "permanentDeleteFailed": "카드를 영구 삭제하지 못했습니다",
+      "changesSaved": "변경 사항이 저장되었습니다",
+      "markedDone": "{verb, select, read {읽음으로} watched {시청함으로} listened {들음으로} bought {구매함으로} cooked {요리함으로} played {플레이함으로} other {완료로}} 표시했습니다",
+      "markedNotDone": "{verb, select, read {읽지 않음으로} watched {시청하지 않음으로} listened {듣지 않음으로} bought {구매하지 않음으로} cooked {요리하지 않음으로} played {플레이하지 않음으로} other {미완료로}} 표시했습니다",
+      "doneUpdateFailed": "업데이트하지 못했습니다. 다시 시도해 주세요.",
+      "alreadyTagged": "이미 #{tag} 태그가 있습니다",
+      "hiddenByTag": "숨겨졌습니다. 보려면 #{tag}(으)로 검색하세요.",
+      "unsafeLink": "안전하지 않은 주소를 사용하므로 이 링크를 열 수 없습니다",
+      "failed": {
+        "delete": "삭제하지 못했습니다",
+        "restore": "복원하지 못했습니다",
+        "permanentDelete": "영구 삭제하지 못했습니다",
+        "toggleFavorite": "즐겨찾기를 변경하지 못했습니다",
+        "saveChanges": "변경 사항을 저장하지 못했습니다",
+        "downloadFile": "파일을 다운로드하지 못했습니다",
+        "removeTag": "태그를 제거하지 못했습니다",
+        "update": "{field} 업데이트에 실패했습니다",
+        "other": "{operation} 작업에 실패했습니다"
+      }
+    },
+    "clipboard": {
+      "copyingImage": "이미지를 복사하는 중...",
+      "imageCopied": "이미지가 클립보드에 복사되었습니다",
+      "copied": "클립보드에 복사되었습니다",
+      "linkCopied": "링크가 클립보드에 복사되었습니다",
+      "copyFailed": "클립보드에 복사하지 못했습니다"
+    },
+    "deviceSessions": {
+      "loadFailed": "기기를 불러오지 못했습니다. 다시 시도해 주세요."
+    },
+    "linkThumbnail": {
+      "replaced": "이미지가 교체되었습니다",
+      "reset": "원본 이미지로 되돌렸습니다",
+      "undoExpired": "이 변경 사항은 더 이상 실행 취소할 수 없습니다."
+    },
+    "reprocess": {
+      "started": "세부 정보를 새로 고치는 중입니다. 요약과 태그가 곧 업데이트됩니다."
+    },
+    "savePdf": {
+      "saved": "PDF가 저장되었습니다",
+      "alreadySaved": "이미 저장되었습니다",
+      "open": "열기",
+      "cardLimitReached": "무료 카드 한도에 도달했습니다",
+      "tooLarge": "이 PDF는 너무 큽니다. Teak은 최대 100MB까지의 파일을 보관합니다.",
+      "notPdf": "arXiv에서 이 논문의 PDF를 보내지 않았습니다.",
+      "failed": "PDF를 저장하지 못했습니다. 다시 시도해 주세요."
+    },
+    "settings": {
+      "openingPortal": "고객 포털을 여는 중...",
+      "portalOpened": "고객 포털이 열렸습니다",
+      "portalFailed": "포털을 열지 못했습니다",
+      "deleteAccountFailed": "계정을 삭제하는 중에 문제가 발생했습니다.",
+      "signOutFailed": "로그아웃하지 못했습니다. 다시 시도해 주세요."
+    },
+    "tagOperations": {
+      "startFailed": "태그 변경을 시작하지 못했습니다"
+    },
+    "upload": {
+      "failed": "업로드 실패",
+      "failedWithStatus": "업로드 실패(상태 {status})",
+      "unsupportedType": "지원하지 않는 파일 형식",
+      "prepareFailed": "업로드를 준비하지 못했습니다",
+      "createFailed": "카드를 만들지 못했습니다",
+      "cancelled": "업로드가 취소되었습니다",
+      "timedOut": "업로드가 응답하지 않습니다. 연결을 확인하고 다시 시도해 주세요."
+    }
+  },
+  "lib": {
+    "bulkCardActions": {
+      "progress": {
+        "favorite": "즐겨찾기에 추가하는 중 {done}/{total}…",
+        "unfavorite": "즐겨찾기에서 제거하는 중 {done}/{total}…",
+        "archive": "보관하는 중 {done}/{total}…",
+        "unarchive": "라이브러리로 되돌리는 중 {done}/{total}…",
+        "addTags": "태그를 추가하는 중 {done}/{total}…",
+        "removeTags": "태그를 제거하는 중 {done}/{total}…",
+        "delete": "휴지통으로 이동하는 중 {done}/{total}…",
+        "restore": "복원하는 중 {done}/{total}…",
+        "addToFolder": "폴더에 추가하는 중 {done}/{total}…",
+        "removeFromFolder": "폴더에서 제거하는 중 {done}/{total}…",
+        "moveToFolder": "이동하는 중 {done}/{total}…"
+      },
+      "done": {
+        "favorite": "{count, plural, other {카드 #개}}를 즐겨찾기에 추가했습니다",
+        "unfavorite": "{count, plural, other {카드 #개}}를 즐겨찾기에서 제거했습니다",
+        "archive": "{count, plural, other {카드 #개}}를 보관했습니다",
+        "unarchive": "{count, plural, other {카드 #개}}를 라이브러리로 되돌렸습니다",
+        "addTags": "{count, plural, other {카드 #개}}에 태그를 추가했습니다",
+        "removeTags": "{count, plural, other {카드 #개}}에서 태그를 제거했습니다",
+        "delete": "{count, plural, other {카드 #개}}를 휴지통으로 이동했습니다",
+        "restore": "{count, plural, other {카드 #개}}를 복원했습니다",
+        "addToFolder": "{count, plural, other {카드 #개}}를 {folder}에 추가했습니다",
+        "removeFromFolder": "{count, plural, other {카드 #개}}를 {folder}에서 제거했습니다",
+        "moveToFolder": "{count, plural, other {카드 #개}}를 {folder}(으)로 이동했습니다",
+        "addToUnnamedFolder": "{count, plural, other {카드 #개}}를 폴더에 추가했습니다",
+        "removeFromUnnamedFolder": "{count, plural, other {카드 #개}}를 폴더에서 제거했습니다",
+        "moveToUnnamedFolder": "{count, plural, other {카드 #개}}를 폴더로 이동했습니다"
+      },
+      "partial": "{done}. {failed}개는 변경하지 못했습니다.",
+      "failed": {
+        "favorite": "이 카드들을 즐겨찾기에 추가하지 못했습니다",
+        "unfavorite": "이 카드들을 즐겨찾기에서 제거하지 못했습니다",
+        "archive": "이 카드들을 보관하지 못했습니다",
+        "unarchive": "이 카드들의 보관을 해제하지 못했습니다",
+        "addTags": "이 카드들에 태그를 추가하지 못했습니다",
+        "removeTags": "이 카드들에서 태그를 제거하지 못했습니다",
+        "delete": "이 카드들을 휴지통으로 이동하지 못했습니다",
+        "restore": "이 카드들을 복원하지 못했습니다",
+        "addToFolder": "이 카드들을 폴더에 추가하지 못했습니다",
+        "removeFromFolder": "이 카드들을 폴더에서 제거하지 못했습니다",
+        "moveToFolder": "이 카드들을 이동하지 못했습니다"
+      }
+    },
+    "clipboard": {
+      "copiedColor": "{hex} 복사됨",
+      "copyFailed": "복사하지 못했습니다"
+    },
+    "exif": {
+      "camera": "카메라",
+      "taken": "촬영일",
+      "exposure": "노출",
+      "aperture": "조리개",
+      "focalLength": "초점 거리",
+      "iso": "ISO"
+    },
+    "folders": {
+      "colors": {
+        "none": "색상 없음",
+        "gray": "회색",
+        "red": "빨간색",
+        "orange": "주황색",
+        "amber": "호박색",
+        "green": "초록색",
+        "teal": "청록색",
+        "blue": "파란색",
+        "violet": "보라색",
+        "pink": "분홍색"
+      },
+      "suggestedName": {
+        "type": "{type, select, text {텍스트} link {링크} image {이미지} video {동영상} audio {오디오} document {문서} palette {팔레트} quote {인용} other {{type}}}",
+        "favorites": "즐겨찾기",
+        "archived": "보관됨",
+        "price": "가격 {bound}",
+        "text": "텍스트 “{text}”"
+      }
+    },
+    "libraryViews": {
+      "labels": {
+        "all": "전체",
+        "favorites": "즐겨찾기",
+        "archive": "보관함",
+        "trash": "휴지통"
+      },
+      "searchPlaceholders": {
+        "all": "모든 항목 검색",
+        "favorites": "즐겨찾기 검색",
+        "archive": "보관함 검색",
+        "trash": "휴지통 검색"
+      }
+    },
+    "linkByline": {
+      "byAuthor": "작성자: {author}"
+    },
+    "linkThumbnail": {
+      "changeFailed": "이미지를 변경하지 못했습니다. 다시 시도해 주세요."
+    },
+    "linkTitle": {
+      "fallback": "링크"
+    },
+    "reprocess": {
+      "failed": "이 카드를 새로 고치지 못했습니다. 잠시 후 다시 시도해 주세요."
+    },
+    "tags": {
+      "progress": "{total, plural, other {카드 #개}} 중 {changed, number}개",
+      "completed": {
+        "rename": "“{from}”의 이름을 “{to}”(으)로 변경했습니다",
+        "merge": "“{from}”을(를) “{to}”(으)로 병합했습니다",
+        "delete": "“{from}”을(를) 삭제했습니다"
+      },
+      "running": {
+        "rename": "“{from}”의 이름을 “{to}”(으)로 변경하는 중…",
+        "merge": "“{from}”을(를) “{to}”(으)로 병합하는 중…",
+        "delete": "“{from}”을(를) 삭제하는 중…"
+      },
+      "failed": {
+        "rename": "이름 변경을 완료하지 못했습니다. {total, plural, other {카드 #개}} 중 {changed, number}개가 변경되었습니다.",
+        "merge": "병합을 완료하지 못했습니다. {total, plural, other {카드 #개}} 중 {changed, number}개가 변경되었습니다.",
+        "delete": "삭제를 완료하지 못했습니다. {total, plural, other {카드 #개}} 중 {changed, number}개가 변경되었습니다."
+      },
+      "changedDescription": "{count, plural, other {카드 #개}}가 변경되었습니다",
+      "runningDescription": "{total, plural, other {카드 #개}} 중 {changed, number}개가 변경되었습니다",
+      "failedDescription": "나머지를 변경하려면 다시 시도하세요."
+    },
+    "upload": {
+      "partialFailure": "파일 {total}개 중 {successCount}개를 업로드했습니다.",
+      "partialFailureWithReason": "파일 {total}개 중 {successCount}개를 업로드했습니다. 첫 번째 실패: {file} — {reason}",
+      "skippedNote": "{count, plural, other {파일 #개}}를 건너뛰었습니다. 한 번에 최대 {max}개까지 업로드할 수 있습니다."
+    }
+  }
+}

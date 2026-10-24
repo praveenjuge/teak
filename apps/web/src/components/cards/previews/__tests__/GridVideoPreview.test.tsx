@@ -28,7 +28,7 @@ describe("GridVideoPreview", () => {
 
   test("keeps GIF previews as images instead of video elements", () => {
     expect(source).toContain("if (isGif && videoUrl)");
-    expect(source).toContain('alt="GIF preview"');
+    expect(source).toContain('alt={t("gifPreview")}');
   });
 
   test("shows a play overlay while idle and hides it while hovering", () => {

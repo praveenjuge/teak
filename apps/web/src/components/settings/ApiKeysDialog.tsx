@@ -1,3 +1,5 @@
+import type { TeakTranslator } from "@teak/i18n";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { Copy, KeyRound, RotateCw, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "../ui/button";
@@ -30,27 +32,31 @@ type PendingConfirm =
   | { kind: "revoke" | "rotate"; item: ApiKeyListItem }
   | { kind: "revokeAll" };
 
+type ApiKeysTranslator = TeakTranslator<"settings.apiKeys">;
+
 /** The confirmation each destructive key action asks for. */
-export function apiKeyConfirmCopy(pending: PendingConfirm) {
+export function apiKeyConfirmCopy(
+  pending: PendingConfirm,
+  t: ApiKeysTranslator
+) {
   if (pending.kind === "revokeAll") {
     return {
-      title: "Revoke all API keys?",
-      description:
-        "Every API key stops working right away, including keys used by the CLI, Raycast and MCP clients. This can’t be undone.",
-      confirmLabel: "Revoke all keys",
+      title: t("revokeAllTitle"),
+      description: t("revokeAllDescription"),
+      confirmLabel: t("revokeAllConfirm"),
     };
   }
-  const label = visibleKeyName(pending.item.name) ?? pending.item.maskedKey;
+  const key = visibleKeyName(pending.item.name) ?? pending.item.maskedKey;
   return pending.kind === "revoke"
     ? {
-        title: "Revoke this API key?",
-        description: `${label} stops working right away. Anything that uses it loses access to your library. This can’t be undone.`,
-        confirmLabel: "Revoke key",
+        title: t("revokeTitle"),
+        description: t("revokeDescription", { key }),
+        confirmLabel: t("revokeConfirm"),
       }
     : {
-        title: "Regenerate this API key?",
-        description: `${label} stops working right away and is replaced by a new key. Update anything that uses it with the new key.`,
-        confirmLabel: "Regenerate key",
+        title: t("regenerateTitle"),
+        description: t("regenerateDescription", { key }),
+        confirmLabel: t("regenerateConfirm"),
       };
 }
 
@@ -92,9 +98,6 @@ interface ApiKeysDialogProps extends ApiKeysPanelProps {
   open: boolean;
 }
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-});
 const visibleKeyName = (name: string) => {
   const trimmed = name.trim();
   return ["", "API Keys", "Default API key"].includes(trimmed) ? null : trimmed;
@@ -113,11 +116,16 @@ function ApiKeyRow({
   onRotate: () => void;
   onRevoke: () => void;
 }) {
+  const t = useTranslations("settings.apiKeys");
+  const locale = useIntlLocale();
+  const createdAt = new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+  }).format(item.createdAt);
   const name = visibleKeyName(item.name);
   const identity = [
     name,
     item.maskedKey,
-    `created ${dateFormatter.format(item.createdAt)}`,
+    t("identityCreated", { date: createdAt }),
   ]
     .filter(Boolean)
     .join(", ");
@@ -137,28 +145,28 @@ function ApiKeyRow({
           {item.maskedKey}
         </p>
         <p className="text-muted-foreground text-xs leading-5">
-          Created {dateFormatter.format(item.createdAt)}
+          {t("created", { date: createdAt })}
         </p>
       </div>
       <div className="flex shrink-0 items-center text-muted-foreground">
         {canRotate ? (
           <Button
-            aria-label={`Regenerate ${identity}`}
+            aria-label={t("regenerateLabel", { identity })}
             disabled={disabled}
             onClick={onRotate}
             size="icon"
-            title="Regenerate key"
+            title={t("regenerateKey")}
             variant="ghost"
           >
             {busy ? <Spinner /> : <RotateCw />}
           </Button>
         ) : null}
         <Button
-          aria-label={`Revoke ${identity}`}
+          aria-label={t("revokeLabel", { identity })}
           disabled={disabled}
           onClick={onRevoke}
           size="icon"
-          title="Revoke key"
+          title={t("revokeKey")}
           variant="ghost"
         >
           <Trash2 />
@@ -169,12 +177,14 @@ function ApiKeyRow({
 }
 
 function RevealedKey({ value, onCopy }: { value: string; onCopy: () => void }) {
+  const t = useTranslations("settings.apiKeys");
+  const tc = useTranslations("common");
   return (
     <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
-      <p className="font-medium text-sm">Copy your new key now</p>
+      <p className="font-medium text-sm">{t("copyNewKey")}</p>
       <div className="flex gap-2">
         <Input
-          aria-label="New API key"
+          aria-label={t("newKeyLabel")}
           className="bg-background font-mono md:text-xs"
           onFocus={(event) => event.currentTarget.select()}
           readOnly
@@ -182,7 +192,7 @@ function RevealedKey({ value, onCopy }: { value: string; onCopy: () => void }) {
         />
         <Button onClick={onCopy} variant="outline">
           <Copy />
-          Copy
+          {tc("copy")}
         </Button>
       </div>
     </div>
@@ -197,6 +207,7 @@ export function ApiKeysPanel({
   onRevokeKey,
   onRotateKey,
 }: ApiKeysPanelProps) {
+  const t = useTranslations("settings.apiKeys");
   const [revealedKeys, setRevealedKeys] = useState<CreatedApiKey[]>([]);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
     null
@@ -220,7 +231,7 @@ export function ApiKeysPanel({
       setFeedback({ message: await action(), error: false });
     } catch {
       setFeedback({
-        message: "Could not update your API keys. Please try again.",
+        message: t("updateFailed"),
         error: true,
       });
     } finally {
@@ -238,7 +249,7 @@ export function ApiKeysPanel({
       setRevealedKeys((current) =>
         nextRevealedKeys(current, { kind: "created", key })
       );
-      return "API key created. Copy it now; it is only shown once.";
+      return t("keyCreated");
     });
   const revokeAll = () =>
     perform("all", async () => {
@@ -249,9 +260,7 @@ export function ApiKeysPanel({
       setRevealedKeys((current) =>
         nextRevealedKeys(current, { kind: "revokedAll" })
       );
-      return result.hasMore
-        ? "Revoking remaining keys in the background."
-        : "All API keys revoked.";
+      return result.hasMore ? t("revokingRemaining") : t("allRevoked");
     });
   const revoke = (item: ApiKeyListItem) =>
     perform(item.id, async () => {
@@ -259,7 +268,7 @@ export function ApiKeysPanel({
       setRevealedKeys((current) =>
         nextRevealedKeys(current, { kind: "revoked", keyId: item.id })
       );
-      return "API key revoked.";
+      return t("keyRevoked");
     });
   const rotate = (item: ApiKeyListItem) =>
     perform(item.id, async () => {
@@ -270,7 +279,7 @@ export function ApiKeysPanel({
       setRevealedKeys((current) =>
         nextRevealedKeys(current, { kind: "rotated", keyId: item.id, key })
       );
-      return "API key regenerated. Copy the new key now.";
+      return t("keyRegenerated");
     });
   const confirm = (pending: PendingConfirm) => {
     setPendingConfirm(pending);
@@ -291,10 +300,10 @@ export function ApiKeysPanel({
   const copy = async (revealedKey: CreatedApiKey) => {
     try {
       await navigator.clipboard.writeText(revealedKey.key);
-      setFeedback({ message: "API key copied.", error: false });
+      setFeedback({ message: t("keyCopied"), error: false });
     } catch {
       setFeedback({
-        message: "Could not copy the key. Select and copy it manually.",
+        message: t("copyFailed"),
         error: true,
       });
     }
@@ -304,8 +313,7 @@ export function ApiKeysPanel({
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <p className="text-muted-foreground text-xs leading-5">
-          Keys have full access to your library. You can keep up to 10 active
-          keys.
+          {t("limitNote")}
         </p>
         <Button
           className="shrink-0"
@@ -313,7 +321,8 @@ export function ApiKeysPanel({
           onClick={() => void create()}
           size="sm"
         >
-          {busy === "create" ? <Spinner /> : null}Create key
+          {busy === "create" ? <Spinner /> : null}
+          {t("createKey")}
         </Button>
       </div>
       {feedback ? (
@@ -336,12 +345,10 @@ export function ApiKeysPanel({
         />
       ))}
       {isLoading ? (
-        <SettingsListSkeleton label="Loading API keys…" rows={2} />
+        <SettingsListSkeleton label={t("loading")} rows={2} />
       ) : null}
       {!isLoading && keys?.length === 0 ? (
-        <SettingsEmptyState>
-          Create your first API key to connect external tools.
-        </SettingsEmptyState>
+        <SettingsEmptyState>{t("empty")}</SettingsEmptyState>
       ) : null}
       {keys?.length ? (
         <SettingsList>
@@ -366,13 +373,14 @@ export function ApiKeysPanel({
             size="sm"
             variant="ghost"
           >
-            {busy === "all" ? <Spinner /> : null}Revoke all keys
+            {busy === "all" ? <Spinner /> : null}
+            {t("revokeAll")}
           </Button>
         </div>
       ) : null}
       {pendingConfirm ? (
         <ConfirmDialog
-          {...apiKeyConfirmCopy(pendingConfirm)}
+          {...apiKeyConfirmCopy(pendingConfirm, t)}
           onConfirm={runConfirmed}
           onOpenChange={setConfirmOpen}
           open={confirmOpen}
@@ -387,11 +395,12 @@ export function ApiKeysDialog({
   onOpenChange,
   ...props
 }: ApiKeysDialogProps) {
+  const t = useTranslations("settings.apiKeys");
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>API keys</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
         <ApiKeysPanel {...props} />
       </DialogContent>

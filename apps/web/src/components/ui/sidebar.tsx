@@ -1,6 +1,7 @@
 "use client";
 
 import { Slot } from "@radix-ui/react-slot";
+import { useTranslations } from "@teak/i18n/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
@@ -226,6 +227,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
+  const t = useTranslations("ui");
   const { isMobile, isPeeking, setPeeking, state, openMobile, setOpenMobile } =
     useSidebar();
   const returnFocus = useReturnFocus(isMobile && openMobile);
@@ -339,10 +341,8 @@ function Sidebar({
           }
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Menu</SheetTitle>
-            <SheetDescription>
-              Library views, card types and settings.
-            </SheetDescription>
+            <SheetTitle>{t("menu")}</SheetTitle>
+            <SheetDescription>{t("menuDescription")}</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -409,6 +409,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
+  const t = useTranslations("ui");
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -425,7 +426,7 @@ function SidebarTrigger({
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only">{t("toggleSidebar")}</span>
     </Button>
   );
 }
@@ -438,10 +439,11 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
     width: number;
   } | null>(null);
   const isCollapsed = state === "collapsed";
+  const t = useTranslations("ui");
 
   return (
     <button
-      aria-label={isCollapsed ? "Expand sidebar" : "Resize sidebar"}
+      aria-label={isCollapsed ? t("expandSidebar") : t("resizeSidebar")}
       className={cn(
         "absolute inset-y-0 z-20 hidden w-3 -translate-x-1/2 touch-none transition-colors ease-out after:absolute after:inset-y-0 after:left-1/2 after:w-px after:transition-colors hover:after:bg-sidebar-border group-data-[side=left]:-right-3 group-data-[side=right]:left-0 sm:flex",
         "in-data-[side=left]:cursor-col-resize in-data-[side=right]:cursor-col-resize",
@@ -498,9 +500,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
         }
       }}
       tabIndex={-1}
-      title={
-        isCollapsed ? "Expand sidebar" : "Drag to resize, double-click to reset"
-      }
+      title={isCollapsed ? t("expandSidebar") : t("resizeSidebarHint")}
       type="button"
       {...props}
     />

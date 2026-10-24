@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export function TagManagementModal({
   onRemoveTag,
   onRemoveAiTag,
 }: TagManagementModalProps) {
+  const t = useTranslations("modals.tagManagement");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,24 +60,24 @@ export function TagManagementModal({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Manage Tags</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="new-tag">Add New Tag</Label>
+            <Label htmlFor="new-tag">{t("addLabel")}</Label>
             <div className="mt-2 flex gap-2">
               <Input
                 className="flex-1"
                 id="new-tag"
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Enter tag name"
+                placeholder={t("placeholder")}
                 ref={inputRef}
                 value={tagInput}
               />
               <Button
-                aria-label="Add tag"
+                aria-label={t("addTag")}
                 disabled={!tagInput.trim()}
                 onClick={onAddTag}
                 size="icon"
@@ -87,7 +89,7 @@ export function TagManagementModal({
 
           {userTags.length > 0 && (
             <div>
-              <Label>Your Tags</Label>
+              <Label>{t("yourTags")}</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {userTags.map((tag) => (
                   <div className="inline-flex" key={tag}>
@@ -99,7 +101,7 @@ export function TagManagementModal({
                       {tag}
                     </Button>
                     <Button
-                      aria-label={`Remove user tag ${tag}`}
+                      aria-label={t("removeUserTag", { tag })}
                       className="rounded-l-none"
                       onClick={() => onRemoveTag(tag)}
                       size="sm"
@@ -115,7 +117,7 @@ export function TagManagementModal({
 
           {aiTags.length > 0 && (
             <div>
-              <Label>Tags by Teak</Label>
+              <Label>{t("teakTags")}</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {aiTags.map((tag) => (
                   <div className="inline-flex" key={`ai-${tag}`}>
@@ -128,7 +130,7 @@ export function TagManagementModal({
                       {tag}
                     </Button>
                     <Button
-                      aria-label={`Remove Teak tag ${tag}`}
+                      aria-label={t("removeTeakTag", { tag })}
                       className="rounded-l-none"
                       onClick={() => onRemoveAiTag(tag)}
                       size="sm"
@@ -144,7 +146,7 @@ export function TagManagementModal({
 
           {userTags.length === 0 && aiTags.length === 0 && (
             <div className="py-4 text-center text-muted-foreground">
-              <p>No tags yet. Add your first tag above!</p>
+              <p>{t("empty")}</p>
             </div>
           )}
         </div>

@@ -11,6 +11,7 @@ import {
   reportUncaughtErrors,
 } from "../../lib/telemetry";
 import App from "./App.tsx";
+import { LocaleRoot, loadPopupLocale } from "./LocaleRoot.tsx";
 import "../../style.css";
 
 reportUncaughtErrors(window, "popup");
@@ -34,8 +35,14 @@ const applyTheme = () =>
 applyTheme();
 darkScheme.addEventListener("change", applyTheme);
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// Nothing renders until the stored language loads (a few milliseconds), so
+// the popup never flashes English first.
+void loadPopupLocale().then((initial) => {
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <LocaleRoot initial={initial}>
+        <App />
+      </LocaleRoot>
+    </React.StrictMode>
+  );
+});

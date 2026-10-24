@@ -1,5 +1,44 @@
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import type { Id } from "@teak/convex/shared/types";
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "@/lib/englishTranslators";
+
+export type CardActionsTranslator = TeakTranslator<"hooks.cardActions">;
+
+const englishCardActions: CardActionsTranslator =
+  englishTranslator("hooks.cardActions");
+
+const FAILED_OPERATION_KEYS = {
+  delete: "failed.delete",
+  restore: "failed.restore",
+  "permanent delete": "failed.permanentDelete",
+  "toggle favorite": "failed.toggleFavorite",
+  "save changes": "failed.saveChanges",
+  "download file": "failed.downloadFile",
+} as const;
+
+const UPDATE_PREFIX = "update ";
+
+/**
+ * "Failed to …" for an operation passed to `onError`, such as `"delete"` or
+ * `"update tags"`. An update names the field as the code does.
+ */
+export const cardActionFailedMessage = (
+  operation: string,
+  t: CardActionsTranslator = englishCardActions
+): string => {
+  if (operation in FAILED_OPERATION_KEYS) {
+    return t(
+      FAILED_OPERATION_KEYS[operation as keyof typeof FAILED_OPERATION_KEYS]
+    );
+  }
+  if (operation.startsWith(UPDATE_PREFIX)) {
+    return t("failed.update", {
+      field: operation.slice(UPDATE_PREFIX.length),
+    });
+  }
+  return t("failed.other", { operation });
+};
 
 export interface CardActionsConfig {
   onDeleteSuccess?: (message?: string) => void;
@@ -43,7 +82,8 @@ export interface BulkDeleteResult {
 
 export function createCardActions(
   { permanentDeleteCard, updateCardField }: CardActionsDependencies,
-  config: CardActionsConfig = {}
+  config: CardActionsConfig = {},
+  t: CardActionsTranslator = englishCardActions
 ) {
   const deleteCardInternal = async (
     cardId: Id<"cards">,
@@ -55,7 +95,7 @@ export function createCardActions(
     try {
       await updateCardField({ cardId, field: "delete" });
       if (!options.suppressSuccessCallback) {
-        config.onDeleteSuccess?.("Card deleted. Find it by searching 'trash'");
+        config.onDeleteSuccess?.(t("deletedFindInTrash"));
       }
       return true;
     } catch (error) {
@@ -97,7 +137,7 @@ export function createCardActions(
   const handleRestoreCard = async (cardId: Id<"cards">) => {
     try {
       await updateCardField({ cardId, field: "restore" });
-      config.onRestoreSuccess?.("Card restored");
+      config.onRestoreSuccess?.(t("cardRestored"));
     } catch (error) {
       captureClientException(error, { operation: "card.restore" });
       config.onError?.(error as Error, "restore");
@@ -107,7 +147,7 @@ export function createCardActions(
   const handlePermanentDeleteCard = async (cardId: Id<"cards">) => {
     try {
       await permanentDeleteCard({ id: cardId });
-      config.onPermanentDeleteSuccess?.("Card permanently deleted");
+      config.onPermanentDeleteSuccess?.(t("cardPermanentlyDeleted"));
     } catch (error) {
       captureClientException(error, { operation: "card.permanent_delete" });
       config.onError?.(error as Error, "permanent delete");

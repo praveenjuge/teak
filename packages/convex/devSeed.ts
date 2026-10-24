@@ -1,3 +1,4 @@
+import type { Locale } from "@teak/i18n/locales";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -74,6 +75,7 @@ import {
 } from "./devSeed/volumeScenarios";
 import { readIsDevDeployment } from "./env";
 import { insertFolder, readLiveFolders } from "./folder/folders";
+import { writeAccountLocale } from "./settings/preferences";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import {
   CLOUD_DEV_ACCOUNT_EMAIL,
@@ -322,6 +324,7 @@ type ScenarioPack = { description: string } & (
   | { folders: () => FolderScenarioPack }
   | { fillTo: number }
   | { links: CardLinkScenario }
+  | { locale: Locale }
 );
 
 const FILL_START = Date.UTC(2025, 0, 1);
@@ -541,6 +544,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "50 links that exercise the duplicate check's URL key: http and https, www, a trailing slash, #fragment, #/ and #! routes, utm_*, fbclid and gclid, near misses that must stay apart (?id=1 and ?id=2, parameter order, the path's case, :8080), an IDN host, a percent-encoded path, a 2,000-character address, two cards for one link, an archived and a trashed one. Each is seeded under /k/ with a key and under /l/ as a card from before keys and savedAt, for the fallbacks and the backfills. Search `#scenario-url-variants`.",
     cards: urlVariantsScenarioPage,
   },
+  "locale-switch": {
+    description:
+      "No cards: sets the account's language to German (de), as Settings → Language would. Set the browser's teak-locale cookie to ja first to see the account win on the next load; seed again with `en` restored from Settings to undo.",
+    locale: "de",
+  },
   "shuffle-partial": {
     description:
       "400 cards, 300 without a Shuffle key as before its backfill; Shuffle must still show each card once. 200 per page.",
@@ -607,6 +615,10 @@ export const seedScenario = internalMutation({
       .unique();
     if (!owner) {
       throw new Error("No Teak owner is linked to that WorkOS user.");
+    }
+    if ("locale" in pack) {
+      await writeAccountLocale(ctx, owner.teakUserId, pack.locale);
+      return { status: "seeded" as const, cards: 0 };
     }
     if ("links" in pack) {
       return await seedCardLinkScenario(ctx, owner.teakUserId, pack.links);

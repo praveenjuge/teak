@@ -1,4 +1,5 @@
 import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { useTranslations } from "@teak/i18n/react";
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -12,6 +13,7 @@ import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 const EDIT_LINK_KEYS = ["Mod", "K"] as const;
 
 export function EditorFormatting({ editor }: { editor: Editor }) {
+  const t = useTranslations("textEditor.formatting");
   const [editingLink, setEditingLink] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const bubbleOptions = useMemo(
@@ -40,28 +42,32 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
   });
   const formats = [
     {
-      name: "Bold",
+      id: "bold",
+      name: t("bold"),
       icon: Bold,
       keys: ["Mod", "B"],
       active: active.bold,
       run: () => editor.chain().focus().toggleBold().run(),
     },
     {
-      name: "Italic",
+      id: "italic",
+      name: t("italic"),
       icon: Italic,
       keys: ["Mod", "I"],
       active: active.italic,
       run: () => editor.chain().focus().toggleItalic().run(),
     },
     {
-      name: "Strikethrough",
+      id: "strikethrough",
+      name: t("strikethrough"),
       icon: Strikethrough,
       keys: ["Mod", "Shift", "S"],
       active: active.strike,
       run: () => editor.chain().focus().toggleStrike().run(),
     },
     {
-      name: "Inline code",
+      id: "inlineCode",
+      name: t("inlineCode"),
       icon: Code,
       keys: undefined,
       active: active.code,
@@ -90,14 +96,14 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
       updateDelay={0}
     >
       <div
-        aria-label="Text formatting"
+        aria-label={t("toolbar")}
         className="teak-editor-formatting flex flex-wrap items-center gap-1 rounded-xl border bg-popover p-1 text-popover-foreground shadow-md"
         ref={toolbarRef}
         role="toolbar"
       >
         {formats.map((format) => (
           <ShortcutTooltip
-            key={format.name}
+            key={format.id}
             keys={format.keys}
             label={format.name}
             side="top"
@@ -118,10 +124,10 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
             </Button>
           </ShortcutTooltip>
         ))}
-        <ShortcutTooltip keys={EDIT_LINK_KEYS} label="Edit link" side="top">
+        <ShortcutTooltip keys={EDIT_LINK_KEYS} label={t("editLink")} side="top">
           <Button
             aria-keyshortcuts={ariaKeyShortcut(EDIT_LINK_KEYS)}
-            aria-label="Edit link"
+            aria-label={t("editLink")}
             onClick={() => {
               setEditingLink(!editingLink);
             }}
@@ -148,6 +154,7 @@ function LinkEditor({
   editor: Editor;
   onDone: () => void;
 }) {
+  const t = useTranslations("textEditor.linkEditor");
   const [url, setUrl] = useState<string>(
     editor.getAttributes("link").href ?? ""
   );
@@ -192,7 +199,7 @@ function LinkEditor({
     <div className="flex flex-wrap items-center gap-1">
       <Input
         aria-invalid={invalid}
-        aria-label="Link URL"
+        aria-label={t("url")}
         autoFocus
         onChange={(event) => {
           setUrl(event.target.value);
@@ -215,11 +222,11 @@ function LinkEditor({
         value={url}
       />
       <Button onClick={apply} size="sm" type="button" variant="ghost">
-        Apply
+        {t("apply")}
       </Button>
       {invalid ? (
         <span className="text-destructive text-sm" role="alert">
-          Use an http or https link.
+          {t("invalidUrl")}
         </span>
       ) : null}
     </div>

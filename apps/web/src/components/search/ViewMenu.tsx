@@ -1,8 +1,10 @@
+import { type CardType, cardTypes } from "@teak/convex/shared/constants";
 import {
-  CARD_TYPE_LABELS,
-  type CardType,
-  cardTypes,
-} from "@teak/convex/shared/constants";
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import {
   Dices,
   File,
@@ -38,14 +40,12 @@ import {
 } from "@/components/ui/tooltip";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
+import {
+  type CardTypesTranslator,
+  englishCardTypes,
+} from "../cards/cardTypeLabel";
 
-export const SORT_LABELS: Record<LibrarySort, string> = {
-  newest: "Newest first",
-  oldest: "Oldest first",
-  relevance: "Best match",
-  revisit: "Revisit",
-  shuffle: "Shuffle",
-};
+const englishSearch = createTeakTranslator("en", englishMessages, "search");
 
 const TYPE_ICONS: Record<CardType, LucideIcon> = {
   text: FileText,
@@ -71,17 +71,21 @@ interface ViewMenuProps {
 
 export const viewMenuLabel = (
   activeTypes: readonly CardType[],
-  sort: LibrarySort = "newest"
+  sort: LibrarySort = "newest",
+  t: TeakTranslator<"search"> = englishSearch,
+  types: CardTypesTranslator = englishCardTypes
 ): string => {
-  const parts = activeTypes.map((type) => CARD_TYPE_LABELS[type]);
+  const parts = activeTypes.map((type) => types(type));
   if (sort === "oldest") {
-    parts.push("oldest first");
+    parts.push(t("viewMenu.oldestFirstState"));
   } else if (sort === "shuffle") {
-    parts.push("shuffled");
+    parts.push(t("viewMenu.shuffledState"));
   } else if (sort === "revisit") {
-    parts.push("revisiting");
+    parts.push(t("viewMenu.revisitingState"));
   }
-  return parts.length > 0 ? `View: ${parts.join(", ")}` : "View";
+  return parts.length > 0
+    ? t("viewMenu.labelWithState", { state: parts.join(", ") })
+    : t("viewMenu.label");
 };
 
 export function ViewMenu({
@@ -94,6 +98,8 @@ export function ViewMenu({
   revisit,
   sort = "newest",
 }: ViewMenuProps) {
+  const t = useTranslations("search");
+  const types = useTranslations("cards.types");
   const count = activeTypes.length;
   const changedOrder = sort !== "newest" && sort !== "relevance";
   const changed = count > 0 || changedOrder;
@@ -101,7 +107,7 @@ export function ViewMenu({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          aria-label={viewMenuLabel(activeTypes, sort)}
+          aria-label={viewMenuLabel(activeTypes, sort, t, types)}
           className="relative size-9 shrink-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
           size="icon"
           type="button"
@@ -130,7 +136,7 @@ export function ViewMenu({
         {onToggleType ? (
           <>
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-              Show
+              {t("viewMenu.show")}
             </DropdownMenuLabel>
             {cardTypes.map((type) => {
               const Icon = TYPE_ICONS[type];
@@ -144,7 +150,7 @@ export function ViewMenu({
                   }}
                 >
                   <Icon className="text-muted-foreground" />
-                  {CARD_TYPE_LABELS[type]}
+                  {types(type)}
                 </DropdownMenuCheckboxItem>
               );
             })}
@@ -156,7 +162,7 @@ export function ViewMenu({
                   onClearTypes();
                 }}
               >
-                Show all types
+                {t("viewMenu.showAllTypes")}
               </DropdownMenuItem>
             )}
           </>
@@ -165,7 +171,7 @@ export function ViewMenu({
           <>
             {onToggleType ? <DropdownMenuSeparator /> : null}
             <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-              Sort
+              {t("viewMenu.sort")}
             </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               onValueChange={(value) => onSortChange(value as LibrarySort)}
@@ -173,17 +179,17 @@ export function ViewMenu({
             >
               {canSortByRelevance ? (
                 <DropdownMenuRadioItem value="relevance">
-                  {SORT_LABELS.relevance}
+                  {t("viewMenu.sorts.relevance")}
                 </DropdownMenuRadioItem>
               ) : null}
               <DropdownMenuRadioItem value="newest">
-                {SORT_LABELS.newest}
+                {t("viewMenu.sorts.newest")}
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="oldest">
-                {SORT_LABELS.oldest}
+                {t("viewMenu.sorts.oldest")}
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="shuffle">
-                {SORT_LABELS.shuffle}
+                {t("viewMenu.sorts.shuffle")}
               </DropdownMenuRadioItem>
               {revisit ? (
                 <DropdownMenuRadioItem
@@ -191,11 +197,11 @@ export function ViewMenu({
                   disabled={revisit === "empty"}
                   value="revisit"
                 >
-                  {SORT_LABELS.revisit}
+                  {t("viewMenu.sorts.revisit")}
                   <Layers className="ml-auto text-muted-foreground" />
                   {revisit === "empty" && (
                     <span className="w-full text-muted-foreground text-xs">
-                      Nothing to revisit here
+                      {t("viewMenu.nothingToRevisit")}
                     </span>
                   )}
                 </DropdownMenuRadioItem>
@@ -208,7 +214,7 @@ export function ViewMenu({
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onSaveSearch}>
               <FolderSearch />
-              Save as smart folder…
+              {t("viewMenu.saveAsSmartFolder")}
             </DropdownMenuItem>
           </>
         ) : null}
@@ -218,12 +224,13 @@ export function ViewMenu({
 }
 
 export function ReshuffleButton({ onReshuffle }: { onReshuffle: () => void }) {
+  const t = useTranslations("search.viewMenu");
   return (
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            aria-label="Reshuffle"
+            aria-label={t("reshuffle")}
             className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
             onClick={onReshuffle}
             size="icon"
@@ -233,7 +240,7 @@ export function ReshuffleButton({ onReshuffle }: { onReshuffle: () => void }) {
             <Dices className="size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Reshuffle</TooltipContent>
+        <TooltipContent>{t("reshuffle")}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

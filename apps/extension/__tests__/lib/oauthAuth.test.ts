@@ -1003,3 +1003,34 @@ test.each([
     expect(webAuth).not.toHaveBeenCalled();
   }
 );
+
+test.each([
+  ["de", "de"],
+  ["tlh", "en"],
+  [undefined, "ja"],
+])(
+  "getOAuthState stores the account's language from /v1/me (%s)",
+  async (locale, stored) => {
+    storage[tokenKey] = {
+      ...workosBinding,
+      accessToken,
+      refreshToken,
+      expiresAt: Date.now() + 3_600_000,
+      userId: "owner",
+    };
+    storage.teakLocale = "ja";
+    globalThis.fetch = withDiscovery((async (input) => {
+      if (String(input).endsWith("/v1/me")) {
+        return await Promise.resolve(
+          Response.json({
+            data: { id: "owner", email: "owner@example.com", locale },
+          })
+        );
+      }
+      throw new Error("Unexpected request");
+    }) as typeof fetch);
+    const state = await (await load()).getOAuthState();
+    expect(state.authenticated).toBe(true);
+    expect(storage.teakLocale).toBe(stored);
+  }
+);

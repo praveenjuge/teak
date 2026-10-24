@@ -36,6 +36,19 @@
       "includes": ["**/apps/web/src/**"]
     },
     {
+      "path": "./scripts/lint/no-ui-string.grit",
+      "includes": [
+        "**/apps/web/src/**/*.ts",
+        "**/apps/web/src/**/*.tsx",
+        "**/apps/extension/entrypoints/**/*.ts",
+        "**/apps/extension/entrypoints/**/*.tsx",
+        "**/apps/extension/components/**/*.tsx",
+        "!**/__tests__/**",
+        "!**/*.test.*",
+        "!**/apps/web/src/components/ui/**"
+      ]
+    },
+    {
       "path": "./scripts/lint/no-translucent-icon-color.grit",
       "includes": ["**/*.tsx"]
     }
@@ -66,6 +79,56 @@
         "rules": {
           "suspicious": {
             "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
+      // Every word people read comes from the @teak/i18n catalog
+      // (.agents/i18n.md). Props are checked by no-ui-string.grit.
+      "includes": [
+        "apps/web/src/**/*.tsx",
+        "apps/extension/entrypoints/**/*.tsx",
+        "apps/extension/components/**/*.tsx",
+        "!**/__tests__/**",
+        "!**/*.test.*",
+        "!apps/web/src/components/ui/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noJsxLiterals": {
+              "level": "error",
+              "options": {
+                "ignoreProps": true,
+                "allowedStrings": [
+                  "·",
+                  "−",
+                  "&ldquo;",
+                  "&rdquo;",
+                  "—",
+                  "–",
+                  "/",
+                  "…",
+                  "+",
+                  "×",
+                  "%",
+                  ":",
+                  "(",
+                  ")",
+                  "|",
+                  "•",
+                  "→",
+                  "←",
+                  "↵",
+                  "⌘",
+                  "⇧",
+                  "⌥",
+                  "⌃",
+                  "Teak"
+                ]
+              }
+            }
           }
         }
       }

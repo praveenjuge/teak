@@ -19,6 +19,9 @@ mock.module("../SettingsFooter", () => ({
 mock.module("../ThemeToggle", () => ({
   ThemeToggle: () => React.createElement("div", null, "Theme toggle"),
 }));
+mock.module("../LanguageRow", () => ({
+  LanguageRow: () => React.createElement("div", null, "Language select"),
+}));
 
 const { SettingsContent } = await import("../SettingsContent");
 const { SettingsContentSkeleton } = await import("../SettingsContentSkeleton");
@@ -48,6 +51,11 @@ const baseProps = {
     },
   },
   keys: [],
+  language: {
+    locale: "en" as const,
+    onChange: mock(() => undefined),
+    pending: false,
+  },
   sessions: [],
   sessionsHasMore: false,
   sessionsLoadingMore: false,

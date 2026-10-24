@@ -12,6 +12,8 @@ export type CardMenuEntry =
       disabled?: boolean;
       icon: ComponentType<{ className?: string }>;
       iconClassName?: string;
+      /** Stable across languages, unlike the label. */
+      id: string;
       label: string;
       onSelect: () => void;
       shortcut?: MenuShortcut;
@@ -45,7 +47,7 @@ export function CardMenuEntries({
       <Item
         aria-keyshortcuts={entry.shortcut?.keys}
         disabled={entry.disabled}
-        key={entry.label}
+        key={entry.id}
         onClick={entry.onSelect}
         variant={entry.destructive ? "destructive" : "default"}
       >

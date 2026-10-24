@@ -217,6 +217,7 @@ import type * as search_relevanceCache from "../search/relevanceCache.js";
 import type * as search_semanticActions from "../search/semanticActions.js";
 import type * as search_semanticCache from "../search/semanticCache.js";
 import type * as securitySessions from "../securitySessions.js";
+import type * as settings_preferences from "../settings/preferences.js";
 import type * as shared_analytics from "../shared/analytics.js";
 import type * as shared_apiKeyFormat from "../shared/apiKeyFormat.js";
 import type * as shared_audioWave from "../shared/audioWave.js";
@@ -555,6 +556,7 @@ declare const fullApi: ApiFromModules<{
   "search/semanticActions": typeof search_semanticActions;
   "search/semanticCache": typeof search_semanticCache;
   securitySessions: typeof securitySessions;
+  "settings/preferences": typeof settings_preferences;
   "shared/analytics": typeof shared_analytics;
   "shared/apiKeyFormat": typeof shared_apiKeyFormat;
   "shared/audioWave": typeof shared_audioWave;

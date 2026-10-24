@@ -1,3 +1,4 @@
+import type { InlineLabels } from "../lib/inlineLabels";
 import type { Platform } from "./social";
 
 export const MESSAGE_TYPES = {
@@ -12,12 +13,22 @@ export const MESSAGE_TYPES = {
   SAVE_POST: "TEAK_SAVE_POST",
   PATCH_CARD: "TEAK_PATCH_CARD",
   LOAD_SAVE_DETAILS: "TEAK_LOAD_SAVE_DETAILS",
+  GET_INLINE_LABELS: "TEAK_GET_INLINE_LABELS",
 } as const;
 
 export type SaveContentSource = "popup-auto-save" | "context-menu";
 
 export interface GetAuthStateRequest {
   type: typeof MESSAGE_TYPES.GET_AUTH_STATE;
+}
+
+/** A content script asks for its inline button's words in the UI language. */
+export interface GetInlineLabelsRequest {
+  type: typeof MESSAGE_TYPES.GET_INLINE_LABELS;
+}
+
+export interface InlineLabelsResponse {
+  labels: InlineLabels;
 }
 
 export interface SaveContentRequest {
@@ -88,6 +99,7 @@ export type TeakRuntimeRequest =
       payload: SaveFilePayload;
     }
   | GetAuthStateRequest
+  | GetInlineLabelsRequest
   | SaveAssetRequest
   | SaveContentRequest
   | SavePostRequest

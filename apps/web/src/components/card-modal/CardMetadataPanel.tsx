@@ -1,5 +1,5 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import type { CardType } from "@teak/convex/shared/constants";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { isCardHidden } from "@teak/convex/shared/tags";
 import { normalizeHexColor } from "@teak/convex/shared/utils/colorUtils";
@@ -8,6 +8,7 @@ import {
   hostForDisplay,
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import {
   ChevronDown,
   Circle,
@@ -20,14 +21,20 @@ import {
 } from "lucide-react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { useMemo, useState } from "react";
+import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { useFolders } from "../../hooks/useFolders";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { copyColorHexToClipboard } from "../../lib/clipboard";
 import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
+import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
-import { type CardDetailField, getCardDetailSections } from "./cardDetails";
+import {
+  type CardDetailField,
+  getCardDetailSections,
+  keyDetailLabels,
+} from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
@@ -76,9 +83,6 @@ interface CardMetadataPanelProps {
 }
 
 const SUMMARY_FOLD_LENGTH = 140;
-
-/** The rows Details shows before "More details". */
-const KEY_DETAIL_LABELS = new Set(["Added", "File size"]);
 
 export const DETAILS_EXPANDED_KEY = "teak.cardModal.detailsExpanded";
 
@@ -147,10 +151,9 @@ export function DoneButton({
   done: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("cardModal.done");
   const verb = doneActionLabel(category);
-  const label = done
-    ? `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`
-    : `Mark as ${verb}`;
+  const label = done ? t("state", { verb }) : t("markAs", { verb });
   return (
     <ShortcutTooltip keys={["D"]} label={label} side="left">
       <button
@@ -181,11 +184,12 @@ export function LinkedFromSection({
   backlinks?: CardBacklinks;
   onOpenCard?: (cardId: string) => void;
 }) {
+  const t = useTranslations("cardModal.panel");
   if (!(backlinks && backlinks.backlinks.length > 0)) {
     return null;
   }
   return (
-    <PanelSection title="Linked from">
+    <PanelSection title={t("linkedFrom")}>
       <ul className="-mx-1 space-y-0.5">
         {backlinks.backlinks.map((source) => {
           const Icon = getCardTypeIconComponent(source.type as CardType);
@@ -214,7 +218,7 @@ export function LinkedFromSection({
         })}
       </ul>
       {backlinks.hasMore ? (
-        <p className="px-1 text-muted-foreground text-xs">and more</p>
+        <p className="px-1 text-muted-foreground text-xs">{t("andMore")}</p>
       ) : null}
     </PanelSection>
   );
@@ -234,6 +238,7 @@ function SuggestedTags({
   onTagClick?: (tag: string) => void;
   tags: string[];
 }) {
+  const t = useTranslations("cardModal.panel");
   const [isOpen, setIsOpen] = useState(false);
   if (tags.length === 0) {
     return null;
@@ -247,9 +252,7 @@ function SuggestedTags({
         type="button"
       >
         <Sparkles aria-hidden="true" className="size-3" />
-        {tags.length === 1
-          ? "1 suggested tag"
-          : `${tags.length} suggested tags`}
+        {t("suggestedTags", { count: tags.length })}
         <ChevronDown
           aria-hidden="true"
           className={cn("size-3 transition-transform", isOpen && "rotate-180")}
@@ -264,10 +267,10 @@ function SuggestedTags({
             >
               {onAccept && !disabled ? (
                 <button
-                  aria-label={`Keep tag ${tag}`}
+                  aria-label={t("keepTag", { tag })}
                   className="inline-flex min-w-0 items-center gap-1 hover:text-foreground"
                   onClick={() => onAccept(tag)}
-                  title={`Keep ${tag} as one of your tags`}
+                  title={t("keepTagHint", { tag })}
                   type="button"
                 >
                   <Plus aria-hidden="true" className="size-3 shrink-0" />
@@ -277,7 +280,7 @@ function SuggestedTags({
                 <button
                   className="truncate hover:text-foreground hover:underline hover:underline-offset-2"
                   onClick={() => onTagClick?.(tag)}
-                  title={`Tag added by Teak. Show cards tagged ${tag}`}
+                  title={t("teakTagHint", { tag })}
                   type="button"
                 >
                   {tag}
@@ -285,7 +288,7 @@ function SuggestedTags({
               )}
               {disabled ? null : (
                 <button
-                  aria-label={`Remove Teak tag ${tag}`}
+                  aria-label={t("removeTeakTag", { tag })}
                   className={chipRemoveClass}
                   onClick={() => onRemove(tag)}
                   type="button"
@@ -315,8 +318,14 @@ export function CardMetadataPanel({
   onTagClick,
   tags,
 }: CardMetadataPanelProps) {
+  const t = useTranslations("cardModal.panel");
+  const td = useTranslations("cardModal.details");
+  const types = useTranslations("cards.types");
+  const exif = useTranslations("lib.exif");
+  const clipboard = useTranslations("lib.clipboard");
+  const dateLocale = useIntlLocale(US_ENGLISH_LOCALE);
   const TypeIcon = getCardTypeIconComponent(card.type as CardType);
-  const typeLabel = CARD_TYPE_LABELS[card.type as CardType] ?? "Card";
+  const typeLabel = cardTypeLabel(card.type, types);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useStoredFlag(DETAILS_EXPANDED_KEY);
   const folders = useFolders();
@@ -341,12 +350,17 @@ export function CardMetadataPanel({
   const aiTags = (card.aiTags ?? []).filter((tag) => !userTags.includes(tag));
   const summary = getCurrentValue("aiSummary");
   const isLongSummary = (summary?.length ?? 0) > SUMMARY_FOLD_LENGTH;
-  const sections = getCardDetailSections(card);
+  const sections = getCardDetailSections(card, {
+    exif,
+    locale: dateLocale,
+    t: td,
+  });
+  const keyLabels = keyDetailLabels(td);
   const keyDetails = sections.details.filter((field) =>
-    KEY_DETAIL_LABELS.has(field.label)
+    keyLabels.has(field.label)
   );
   const moreDetails = [
-    ...sections.details.filter((field) => !KEY_DETAIL_LABELS.has(field.label)),
+    ...sections.details.filter((field) => !keyLabels.has(field.label)),
     ...sections.source,
     ...sections.camera,
   ];
@@ -386,16 +400,16 @@ export function CardMetadataPanel({
         />
       ) : null}
 
-      <PanelSection title="Notes">
+      <PanelSection title={t("notes")}>
         <div className="relative">
           <textarea
             aria-keyshortcuts={isDeleted ? undefined : "N"}
-            aria-label="Notes"
+            aria-label={t("notes")}
             className="peer field-sizing-content -mx-2 block max-h-72 min-h-9 w-[calc(100%+1rem)] resize-none rounded-md bg-transparent px-2 py-1 text-sm leading-relaxed outline-none transition-colors placeholder:text-muted-foreground/60 hover:bg-foreground/[0.03] focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
             dir="auto"
             onBlur={onCommit}
             onChange={(event) => onNotesChange(event.target.value)}
-            placeholder={isDeleted ? "No notes" : "Add a note…"}
+            placeholder={isDeleted ? t("noNotes") : t("notesPlaceholder")}
             readOnly={isDeleted}
             ref={notesRef}
             value={getCurrentValue("notes") ?? ""}
@@ -415,22 +429,22 @@ export function CardMetadataPanel({
             isCardHidden(card) && (
               <span
                 className="inline-flex items-center gap-1 text-muted-foreground text-xs"
-                title="Only a search for #secret or #hidden shows this card"
+                title={t("hiddenHint")}
               >
                 <EyeOff aria-hidden="true" className="size-3" />
-                Hidden
+                {t("hidden")}
               </span>
             )
           }
-          title="Tags"
+          title={t("tags")}
         >
           <div className="flex flex-wrap items-center gap-1">
             {cardFolders.length > 0 ? (
               <button
                 aria-label={
                   isDeleted
-                    ? `In ${folderNames}`
-                    : `In ${folderNames}. Change folders`
+                    ? t("inFolders", { folders: folderNames })
+                    : t("inFoldersChange", { folders: folderNames })
                 }
                 className="inline-flex h-6 max-w-full items-center gap-1.5 rounded-md px-2 text-sm ring-1 ring-border ring-inset hover:bg-foreground/5 disabled:pointer-events-none"
                 disabled={isDeleted || !onOpenFolders}
@@ -446,7 +460,10 @@ export function CardMetadataPanel({
                 <span className="truncate" dir="auto">
                   {cardFolders.length === 1
                     ? cardFolders[0]?.name
-                    : `${cardFolders[0]?.name} +${cardFolders.length - 1}`}
+                    : t("folderOverflow", {
+                        count: cardFolders.length - 1,
+                        name: cardFolders[0]?.name ?? "",
+                      })}
                 </span>
               </button>
             ) : null}
@@ -458,14 +475,14 @@ export function CardMetadataPanel({
                 <button
                   className="truncate hover:underline hover:underline-offset-2"
                   onClick={() => onTagClick?.(tag)}
-                  title={`Show cards tagged ${tag}`}
+                  title={t("showTagged", { tag })}
                   type="button"
                 >
                   {tag}
                 </button>
                 {!isDeleted && (
                   <button
-                    aria-label={`Remove tag ${tag}`}
+                    aria-label={t("removeTag", { tag })}
                     className={chipRemoveClass}
                     onClick={() => tags.removeTag(tag)}
                     type="button"
@@ -479,13 +496,13 @@ export function CardMetadataPanel({
               <span className="flex min-w-24 flex-1 items-center gap-1">
                 <input
                   aria-keyshortcuts="T"
-                  aria-label="Add a tag"
+                  aria-label={t("addTagLabel")}
                   className="peer h-6 min-w-0 flex-1 rounded-md bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground/60 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-ring/40"
                   enterKeyHint="done"
                   maxLength={100}
                   onChange={(event) => tags.setTagInput(event.target.value)}
                   onKeyDown={handleTagKeyDown}
-                  placeholder="Add tag…"
+                  placeholder={t("addTagPlaceholder")}
                   ref={tags.inputRef}
                   value={tags.tagInput}
                 />
@@ -496,9 +513,9 @@ export function CardMetadataPanel({
                   />
                 )}
                 {cardFolders.length === 0 && onOpenFolders ? (
-                  <ShortcutTooltip label="Add to a folder" side="left">
+                  <ShortcutTooltip label={t("addToFolder")} side="left">
                     <button
-                      aria-label="Add to a folder"
+                      aria-label={t("addToFolder")}
                       className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/5 hover:text-foreground [&_svg]:size-3.5"
                       onClick={onOpenFolders}
                       type="button"
@@ -523,7 +540,7 @@ export function CardMetadataPanel({
       {summary && (
         <PanelSection
           icon={<Sparkles aria-hidden="true" className="size-3" />}
-          title="Summary"
+          title={t("summary")}
         >
           <p
             className={cn(
@@ -540,23 +557,23 @@ export function CardMetadataPanel({
               onClick={() => setIsSummaryOpen((value) => !value)}
               type="button"
             >
-              {isSummaryOpen ? "Show less" : "Show more"}
+              {isSummaryOpen ? t("showLess") : t("showMore")}
             </button>
           )}
         </PanelSection>
       )}
 
       {paletteHexes.length > 0 && card.type !== "palette" && (
-        <PanelSection title="Colors">
+        <PanelSection title={t("colors")}>
           <div className="flex flex-wrap gap-1.5">
             {paletteHexes.map((hex) => (
               <button
-                aria-label={`Copy ${hex}`}
+                aria-label={t("copyColor", { hex })}
                 className="group/swatch relative size-6 rounded-full shadow-[inset_0_0_0_1px_rgb(0_0_0/0.12)] outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 key={hex}
-                onClick={() => void copyColorHexToClipboard(hex)}
+                onClick={() => void copyColorHexToClipboard(hex, clipboard)}
                 style={{ backgroundColor: hex }}
-                title={`Copy ${hex}`}
+                title={t("copyColor", { hex })}
                 type="button"
               />
             ))}
@@ -569,24 +586,25 @@ export function CardMetadataPanel({
           <button
             className="-mr-1 inline-flex h-5 items-center gap-1 rounded px-1.5 text-muted-foreground text-xs hover:bg-foreground/5 hover:text-foreground"
             onClick={onCardTypeClick}
-            title={`Show all ${typeLabel} cards`}
+            title={td("showAllOfType", { type: card.type ?? "card" })}
             type="button"
           >
             <TypeIcon aria-hidden="true" className="size-3" />
             {typeLabel}
           </button>
         }
-        title="Details"
+        title={td("title")}
       >
         <dl className="text-sm">
           {safeSourceUrl && sourceHost ? (
-            <PropertyRow label="From">
+            <PropertyRow label={td("from")}>
               <a
                 className="block truncate hover:underline hover:underline-offset-2"
                 dir="auto"
                 href={safeSourceUrl}
                 rel="noopener noreferrer"
                 target="_blank"
+                // biome-ignore lint/plugin: the saved page's own title and URL.
                 title={
                   card.sourceTitle
                     ? `${card.sourceTitle}\n${safeSourceUrl}`
@@ -598,7 +616,7 @@ export function CardMetadataPanel({
             </PropertyRow>
           ) : null}
           {safeUrl ? (
-            <PropertyRow label="URL">
+            <PropertyRow label={td("url")}>
               <a
                 className="block truncate hover:underline hover:underline-offset-2"
                 href={safeUrl}
@@ -620,7 +638,7 @@ export function CardMetadataPanel({
             onClick={() => setIsDetailsOpen((value) => !value)}
             type="button"
           >
-            {isDetailsOpen ? "Fewer details" : "More details"}
+            {isDetailsOpen ? td("fewerDetails") : td("moreDetails")}
             <ChevronDown
               aria-hidden="true"
               className={cn(

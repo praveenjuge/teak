@@ -524,6 +524,49 @@ describe("teak parity commands", () => {
     expect(result.stdout).toBe("me@example.org\nFree plan · 29 of 200 cards\n");
   });
 
+  test.each([
+    ["de", "Deutsch"],
+    ["pt-BR", "Português (Brasil)"],
+    ["ja", "日本語"],
+    ["tlh", "tlh"],
+  ])("whoami names the %s language in its own name", async (locale, name) => {
+    routes.set("GET /v1/me", () =>
+      json({
+        data: {
+          id: "u",
+          email: "me@example.org",
+          plan: "pro",
+          cardCount: 3,
+          cardLimit: null,
+          locale,
+          settingsUrl: "https://app/settings",
+        },
+      })
+    );
+    const result = await teak("whoami");
+    expect(result.stdout).toBe(
+      `me@example.org\nPro plan · 3 cards\nLanguage: ${name}\n`
+    );
+  });
+
+  test("whoami --json passes the locale through", async () => {
+    routes.set("GET /v1/me", () =>
+      json({
+        data: {
+          id: "u",
+          email: "me@example.org",
+          plan: "free",
+          cardCount: 0,
+          cardLimit: 200,
+          locale: "ko",
+          settingsUrl: "https://app/settings",
+        },
+      })
+    );
+    const result = await teak("--json", "whoami");
+    expect(JSON.parse(result.stdout)).toMatchObject({ locale: "ko" });
+  });
+
   test("tags rm removes own and AI tags in any capitalization", async () => {
     routes.set("GET /v1/cards/card_a", () =>
       json(

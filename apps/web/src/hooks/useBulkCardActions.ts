@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
@@ -43,6 +44,8 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
   );
 
   const runCount = useRef(0);
+  const t = useTranslations("lib.bulkCardActions");
+  const tc = useTranslations("common");
 
   const run = useCallback(
     async (
@@ -54,7 +57,7 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
       const toastId = `${toastIdPrefix}-bulk-${runCount.current}`;
       const total = new Set(cardIds).size;
       if (total > 1 && !options.silent) {
-        toast.loading(bulkActionCopy.progress(action, 0, total), {
+        toast.loading(bulkActionCopy.progress(action, 0, total, t), {
           id: toastId,
         });
       }
@@ -80,7 +83,7 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
           }),
         (done, count) => {
           if (count > 1 && done < count && !options.silent) {
-            toast.loading(bulkActionCopy.progress(action, done, count), {
+            toast.loading(bulkActionCopy.progress(action, done, count, t), {
               id: toastId,
             });
           }
@@ -115,13 +118,13 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
           return result;
         }
         toast.success(
-          bulkActionCopy.done(action, updatedIds.length, folderName),
+          bulkActionCopy.done(action, updatedIds.length, folderName, t),
           {
             id: toastId,
             ...(undoSteps?.length
               ? {
                   action: {
-                    label: "Undo",
+                    label: tc("undo"),
                     onClick: () => {
                       runUndo(undoSteps).catch(() => undefined);
                     },
@@ -138,13 +141,14 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
                 action,
                 updatedIds.length,
                 failedIds.length,
-                folderName
+                folderName,
+                t
               )
-            : bulkActionCopy.failed(action),
+            : bulkActionCopy.failed(action, t),
           {
             id: toastId,
             action: {
-              label: "Retry",
+              label: tc("retry"),
               onClick: () => {
                 run(action, failedIds, options).catch(() => undefined);
               },
@@ -154,7 +158,7 @@ export function useBulkCardActions(toastIdPrefix = "cards") {
       }
       return result;
     },
-    [bulkUpdate, toastIdPrefix]
+    [bulkUpdate, t, tc, toastIdPrefix]
   );
 
   return run;

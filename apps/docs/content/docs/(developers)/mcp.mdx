@@ -163,7 +163,7 @@ type CardFilters = {
   - Output: `{ cardId: string, kind: "document" | "transcript" | "content", text: string, charCount: number, truncated: boolean }`
 - `teak_v1_get_me`
   - Input: `{}`
-  - Output: `{ id, email, name?, plan: "free" | "pro", cardCount, cardLimit: number | null, settingsUrl }`
+  - Output: `{ id, email, name?, plan: "free" | "pro", cardCount, cardLimit: number | null, locale, settingsUrl }`. `locale` is the language chosen in Teak's Settings, such as `en` or `de`; treat a code you don't know as English.
 - `teak_v1_check_duplicate_url`
   - Input: `{ url: string }`
   - Output: `{ cardId: string | null }`. Check before saving a link so you don't save it twice. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.

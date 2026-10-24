@@ -1,0 +1,1591 @@
+{
+  "common": {
+    "add": "Ajouter",
+    "back": "Retour",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "copy": "Copier",
+    "delete": "Supprimer",
+    "done": "Terminé",
+    "edit": "Modifier",
+    "loading": "Chargement…",
+    "more": "Plus",
+    "remove": "Retirer",
+    "rename": "Renommer",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "tryAgain": "Réessayer",
+    "undo": "Annuler"
+  },
+  "ui": {
+    "loading": "Chargement",
+    "close": "Fermer",
+    "menu": "Menu",
+    "menuDescription": "Vues de la bibliothèque, types de fiches et réglages.",
+    "toggleSidebar": "Afficher ou masquer la barre latérale",
+    "commandDialog": {
+      "title": "Palette de commandes",
+      "description": "Recherchez une commande à exécuter"
+    },
+    "resizeSidebar": "Redimensionner la barre latérale",
+    "expandSidebar": "Développer la barre latérale",
+    "resizeSidebarHint": "Faites glisser pour redimensionner, double-cliquez pour réinitialiser"
+  },
+  "settings": {
+    "footer": {
+      "feedback": "Écrivez-moi sur <twitterLink>{handle}</twitterLink> ou à <emailLink>{email}</emailLink> si vous avez des remarques. Si vous souhaitez partir un jour, vous pouvez <deleteAccount>supprimer votre compte</deleteAccount>. J’espère que vous aurez autant de plaisir à utiliser Teak que j’en ai eu à le créer.",
+      "signature": "Signature de Praveen Juge"
+    },
+    "header": {
+      "title": "Réglages"
+    },
+    "rows": {
+      "email": "E-mail",
+      "usage": "Utilisation",
+      "plan": "Formule",
+      "saveByEmail": "Enregistrer par e-mail",
+      "security": "Sécurité",
+      "importExport": "Importer/exporter des données",
+      "theme": "Thème",
+      "signOut": "Se déconnecter",
+      "language": "Langue"
+    },
+    "skeleton": {
+      "loading": "Chargement des réglages…"
+    },
+    "errorAlert": {
+      "title": "Erreur"
+    },
+    "content": {
+      "notAvailable": "Non disponible",
+      "cardCount": "{count, plural, one {# fiche} other {# fiches}}",
+      "pro": "Pro",
+      "freePlan": "Formule gratuite",
+      "manage": "Gérer",
+      "manageSubscription": "Gérer l’abonnement",
+      "upgrade": "Passer à Pro",
+      "signOut": "Se déconnecter"
+    },
+    "theme": {
+      "useSystem": "Utiliser le thème du système",
+      "useLight": "Utiliser le thème clair",
+      "useDark": "Utiliser le thème sombre"
+    },
+    "importExport": {
+      "manage": "Gérer",
+      "manageLabel": "Gérer l’importation et l’exportation",
+      "title": "Gérer les données",
+      "description": "Importez des fiches depuis d’autres outils, ou emportez une copie complète.",
+      "importTab": "Importer",
+      "exportTab": "Exporter"
+    },
+    "security": {
+      "manage": "Gérer",
+      "manageLabel": "Gérer la sécurité",
+      "title": "Sécurité",
+      "description": "Gérez les appareils, applications et clés qui peuvent accéder à votre compte Teak.",
+      "connectionsTab": "Connexions",
+      "apiKeysTab": "Clés d’API"
+    },
+    "connections": {
+      "devicesTitle": "Appareils",
+      "devicesDescription": "Navigateurs et appareils connectés à votre compte.",
+      "appsTitle": "Applications connectées",
+      "appsDescription": "Déconnecter une application la déconnecte de toutes ses installations.",
+      "loadingDevices": "Chargement des appareils…",
+      "loadingApps": "Chargement des applications…",
+      "devicesLoadFailed": "Impossible de charger les appareils. Veuillez réessayer.",
+      "appsLoadFailed": "Impossible de charger les applications. Veuillez réessayer.",
+      "noDevices": "Aucun appareil.",
+      "noApps": "Aucune application connectée.",
+      "showMoreDevices": "Afficher plus d’appareils",
+      "showMoreApps": "Afficher plus d’applications",
+      "thisDevice": "Cet appareil",
+      "signedIn": "Connecté le {date}",
+      "connected": "Connectée le {date}",
+      "lastUsed": "Dernière utilisation le {date}",
+      "signOut": "Déconnecter",
+      "signOutLabel": "Déconnecter {name}",
+      "signOutCurrentLabel": "Déconnecter {name} (cet appareil)",
+      "disconnect": "Déconnecter",
+      "disconnectLabel": "Déconnecter {name}",
+      "updateFailed": "Impossible de mettre à jour cette connexion. Veuillez réessayer.",
+      "signOutCurrentTitle": "Se déconnecter de cet appareil ?",
+      "signOutCurrentDescription": "Vous serez déconnecté de Teak dans ce navigateur ({name}) et devrez vous reconnecter.",
+      "signOutTitle": "Déconnecter {name} ?",
+      "signOutDescription": "La session {name} ouverte le {date} est déconnectée de Teak et devra se reconnecter.",
+      "disconnectTitle": "Déconnecter {name} ?",
+      "disconnectDescription": "{name} perd l’accès à votre bibliothèque Teak sur toutes ses installations jusqu’à ce que vous la reconnectiez."
+    },
+    "apiKeys": {
+      "title": "Clés d’API",
+      "revokeAllTitle": "Révoquer toutes les clés d’API ?",
+      "revokeAllDescription": "Toutes les clés d’API cessent immédiatement de fonctionner, y compris celles utilisées par le CLI, Raycast et les clients MCP. Cette action est irréversible.",
+      "revokeAllConfirm": "Révoquer toutes les clés",
+      "revokeTitle": "Révoquer cette clé d’API ?",
+      "revokeDescription": "{key} cesse immédiatement de fonctionner. Tout ce qui l’utilise perd l’accès à votre bibliothèque. Cette action est irréversible.",
+      "revokeConfirm": "Révoquer la clé",
+      "regenerateTitle": "Régénérer cette clé d’API ?",
+      "regenerateDescription": "{key} cesse immédiatement de fonctionner et est remplacée par une nouvelle clé. Mettez à jour tout ce qui l’utilise avec la nouvelle clé.",
+      "regenerateConfirm": "Régénérer la clé",
+      "identityCreated": "créée le {date}",
+      "regenerateLabel": "Régénérer {identity}",
+      "revokeLabel": "Révoquer {identity}",
+      "regenerateKey": "Régénérer la clé",
+      "revokeKey": "Révoquer la clé",
+      "created": "Créée le {date}",
+      "copyNewKey": "Copiez votre nouvelle clé maintenant",
+      "newKeyLabel": "Nouvelle clé d’API",
+      "updateFailed": "Impossible de mettre à jour vos clés d’API. Veuillez réessayer.",
+      "keyCreated": "Clé d’API créée. Copiez-la maintenant ; elle n’est affichée qu’une seule fois.",
+      "revokingRemaining": "Révocation des clés restantes en arrière-plan.",
+      "allRevoked": "Toutes les clés d’API ont été révoquées.",
+      "keyRevoked": "Clé d’API révoquée.",
+      "keyRegenerated": "Clé d’API régénérée. Copiez la nouvelle clé maintenant.",
+      "keyCopied": "Clé d’API copiée.",
+      "copyFailed": "Impossible de copier la clé. Sélectionnez-la et copiez-la manuellement.",
+      "limitNote": "Les clés ont un accès complet à votre bibliothèque. Vous pouvez avoir jusqu’à 10 clés actives.",
+      "createKey": "Créer une clé",
+      "loading": "Chargement des clés d’API…",
+      "empty": "Créez votre première clé d’API pour connecter des outils externes.",
+      "revokeAll": "Révoquer toutes les clés"
+    },
+    "deleteAccount": {
+      "title": "Supprimer le compte",
+      "description": "Cette action supprime définitivement votre compte, vos fiches, vos tags et vos fichiers importés. Elle est irréversible.",
+      "submit": "Supprimer le compte",
+      "confirmPhrase": "supprimer le compte",
+      "confirmPrompt": "Saisissez « <strong>{phrase}</strong> » pour continuer"
+    },
+    "subscription": {
+      "title": "Passer à Pro",
+      "description": "Débloquez toutes les fonctionnalités et supprimez les limites.",
+      "maybeLater": "Plus tard",
+      "continueToCheckout": "Passer au paiement",
+      "choosePlan": "Choisissez une formule",
+      "everythingInPro": "Tout ce qu’inclut Pro",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "perMonth": "/ mois",
+      "perYear": "/ an",
+      "bestValue": "Meilleur rapport qualité-prix • Économisez {percent} %",
+      "features": {
+        "unlimitedCards": "Fiches illimitées",
+        "unlimitedStorage": "Stockage illimité",
+        "summaryAndTags": "Résumé et tags automatiques",
+        "audioTranscription": "Transcription audio automatique",
+        "browserExtensions": "Extensions de navigateur",
+        "apps": "Applications iOS, Mac et Android",
+        "apiAndMcp": "Accès API et MCP"
+      }
+    },
+    "inboundEmail": {
+      "title": "Enregistrer par e-mail",
+      "genericError": "Impossible de mettre à jour Enregistrer par e-mail. Réessayez.",
+      "rateLimited": "Trop de modifications. Réessayez dans une minute.",
+      "addressCopied": "Adresse copiée",
+      "copyFailed": "Impossible de copier l’adresse. Sélectionnez-la et copiez-la manuellement.",
+      "loading": "Chargement d’Enregistrer par e-mail…",
+      "intro": "Envoyez ou transférez des e-mails à Teak : ils sont enregistrés comme fiches.",
+      "verifyToTurnOn": "Vérifiez votre e-mail de connexion, <strong>{sender}</strong>, pour activer cette fonction.",
+      "turnOn": "Activer",
+      "copyAddress": "Copier l’adresse",
+      "sendFrom": "Envoyez depuis <strong>{sender}</strong>. Les messages provenant d’autres adresses ne sont pas enregistrés.",
+      "unverified": "Les messages ne sont pas enregistrés tant que vous n’avez pas vérifié votre e-mail de connexion, <strong>{sender}</strong>.",
+      "howItWorks": "Transférez ou envoyez n’importe quoi. Un e-mail contenant un seul lien devient une fiche lien, tout le reste devient une note, et les pièces jointes deviennent des fiches à part entière. Toutes reçoivent le tag email.",
+      "lastReceived": "Dernier e-mail reçu {when}",
+      "turnOff": "Désactiver",
+      "on": "Activé",
+      "off": "Désactivé",
+      "statusOnLabel": "Enregistrer par e-mail : activé",
+      "statusOffLabel": "Enregistrer par e-mail : désactivé"
+    },
+    "export": {
+      "starting": "Démarrage de l’exportation…",
+      "started": "Exportation lancée. Nous préparons votre archive en arrière-plan.",
+      "startFailed": "Impossible de lancer l’exportation.",
+      "canceling": "Annulation de l’exportation…",
+      "canceled": "Exportation annulée.",
+      "cancelFailed": "Impossible d’annuler l’exportation.",
+      "preparingDownload": "Préparation du téléchargement…",
+      "downloadReady": "Votre téléchargement est prêt.",
+      "downloadFailed": "Impossible de préparer le téléchargement.",
+      "preparing": "Préparation de votre exportation…",
+      "runsInBackground": "Elle se poursuit en arrière-plan.",
+      "snapshotting": "Capture de vos fiches",
+      "snapshotProgress": "{count, plural, one {# fiche capturée jusqu’ici} other {# fiches capturées jusqu’ici}}",
+      "archiving": "Création de votre archive…",
+      "zipping": "Compression de vos fiches et fichiers.",
+      "quotaCaption": "Une exportation par semaine, disponible pendant 7 jours une fois prête.",
+      "lastFailed": "La dernière exportation a échoué. Vous pouvez réessayer.",
+      "quotaUsed": "Vous avez utilisé l’exportation de cette semaine.",
+      "cancelExport": "Annuler l’exportation",
+      "ready": "Votre exportation est prête",
+      "cardCount": "{count, plural, one {# fiche} other {# fiches}}",
+      "filesOmittedTitle": "Certains fichiers d’origine n’ont pas pu être lus lors de l’exportation et ne figurent pas dans l’archive.",
+      "filesUnavailable": "{count, plural, one {# fichier indisponible} other {# fichiers indisponibles}}",
+      "availableUntil": "disponible jusqu’au {date}",
+      "downloadArchive": "Télécharger l’archive",
+      "title": "Exporter vos données",
+      "description": "Un ZIP de toutes les fiches hors corbeille avec leurs fichiers d’origine, ainsi qu’un fichier de favoris pour votre navigateur et un tableur.",
+      "startExport": "Lancer l’exportation",
+      "nextAvailable": "Prochaine exportation disponible le {date}",
+      "availableIn": "Disponible dans {countdown}"
+    },
+    "import": {
+      "wrongFile": "Choisissez un fichier {extensions} provenant de {source}.",
+      "extensionSeparator": " ou ",
+      "fileTooLarge": "Ce fichier fait {size}. La limite est de {limit}.",
+      "fileEmpty": "Ce fichier est vide.",
+      "lastImport": "Dernière importation : {created} créées, {skipped} ignorées{failed, plural, =0 {} other {, # en échec}} — {when}",
+      "created": "{count} créées",
+      "skipped": "{count} ignorées",
+      "failed": "{count} en échec",
+      "continuesInBackground": "Vous pouvez fermer cette fenêtre et revenir plus tard. L’importation se poursuit en arrière-plan.",
+      "startFailed": "Impossible de lancer l’importation",
+      "cancelFailed": "Impossible d’annuler l’importation.",
+      "reportLoadFailed": "Impossible de charger le rapport d’importation",
+      "reportCopied": "Rapport d’importation copié.",
+      "reportCopyFailed": "Impossible de copier le rapport d’importation.",
+      "reportDownloadFailed": "Impossible de télécharger le rapport d’importation.",
+      "noImports": "Aucune importation pour l’instant.",
+      "loadingLast": "Chargement des détails de la dernière importation…",
+      "resumeUpload": "Reprendre l’importation",
+      "startImport": "Lancer l’importation",
+      "importFrom": "Importer depuis",
+      "upTo": "Jusqu’à {size}.",
+      "chooseFile": "Choisir un fichier",
+      "uploadInterrupted": "Importation interrompue",
+      "resumeHint": "Choisissez le même fichier {source} pour reprendre là où elle s’est arrêtée.",
+      "chooseFileFrom": "Choisissez un fichier provenant de {source}",
+      "chooseResumeFile": "Choisissez un fichier pour reprendre l’importation interrompue",
+      "cancelImport": "Annuler l’importation",
+      "importStopped": "Importation arrêtée",
+      "failedItems": "Éléments qui n’ont pas pu être importés",
+      "copyReport": "Copier le rapport d’erreurs",
+      "downloadReport": "Télécharger le rapport d’erreurs",
+      "failure": {
+        "invalidArchive": "Ce fichier ne ressemble pas à une archive Teak. Choisissez un ZIP issu de Exporter vos données.",
+        "invalidSource": "Ce fichier ne ressemble pas à {article, select, an {un} other {un}} export {source}. Vérifiez la source et choisissez le fichier qu’elle décrit.",
+        "tooManyItems": "Ce fichier contient plus de 10 000 éléments. Divisez-le et importez chaque partie.",
+        "generic": "L’importation a échoué. Veuillez réessayer."
+      },
+      "phases": {
+        "uploading": "Importation du fichier",
+        "waitingToParse": "En attente d’analyse",
+        "parsing": "Analyse du fichier d’importation",
+        "importing": "Importation des fiches",
+        "waitingForRateLimit": "En attente de la limite de création de fiches",
+        "canceling": "Annulation de l’importation",
+        "complete": "Importation terminée",
+        "failed": "Échec de l’importation",
+        "canceled": "Importation annulée"
+      },
+      "sources": {
+        "bookmarks": {
+          "title": "Favoris du navigateur",
+          "name": "favoris du navigateur",
+          "hint": "Le fichier HTML de favoris obtenu avec Exporter les favoris de votre navigateur."
+        },
+        "pocket": {
+          "title": "Pocket",
+          "name": "Pocket",
+          "hint": "Le CSV de l’export Pocket, ou son ancien export HTML."
+        },
+        "raindrop": {
+          "title": "Raindrop.io",
+          "name": "Raindrop",
+          "hint": "Le CSV obtenu dans Raindrop via Settings → Backups → Export."
+        },
+        "instapaper": {
+          "title": "Instapaper",
+          "name": "Instapaper",
+          "hint": "Le CSV obtenu dans Instapaper via Settings → Export."
+        },
+        "readwise": {
+          "title": "Readwise Reader",
+          "name": "Readwise Reader",
+          "hint": "Le CSV obtenu avec Export library as CSV dans Reader."
+        },
+        "omnivore": {
+          "title": "Omnivore",
+          "name": "Omnivore",
+          "hint": "Le ZIP de l’export Omnivore, tel que vous l’avez téléchargé."
+        },
+        "linkwarden": {
+          "title": "Linkwarden",
+          "name": "Linkwarden",
+          "hint": "La sauvegarde JSON obtenue dans Linkwarden via Settings → Data → Export."
+        },
+        "mymind": {
+          "title": "mymind",
+          "name": "mymind",
+          "hint": "Le CSV obtenu dans mymind via Settings → Export."
+        },
+        "onetab": {
+          "title": "OneTab",
+          "name": "OneTab",
+          "hint": "Le texte Export URLs de OneTab, enregistré dans un fichier .txt."
+        },
+        "archive": {
+          "title": "Archive Teak",
+          "name": "Teak",
+          "hint": "Un ZIP issu de Exporter vos données dans Teak."
+        }
+      }
+    },
+    "format": {
+      "justNow": "à l’instant",
+      "minutesAgo": "{count, plural, one {il y a # minute} other {il y a # minutes}}",
+      "hoursAgo": "{count, plural, one {il y a # heure} other {il y a # heures}}",
+      "daysAgo": "{count, plural, one {il y a # jour} other {il y a # jours}}",
+      "now": "maintenant",
+      "underAMinute": "moins d’une minute",
+      "days": "{days} j",
+      "daysHours": "{days} j {hours} h",
+      "hours": "{hours} h",
+      "hoursMinutes": "{hours} h {minutes} min",
+      "minutes": "{minutes} min"
+    },
+    "language": {
+      "label": "Langue",
+      "saving": "Changement de langue",
+      "changed": "Langue modifiée",
+      "changeFailed": "Impossible de changer la langue. Réessayez.",
+      "feedback": "Aidez à améliorer les traductions",
+      "feedbackSubject": "Remarques sur la traduction ({locale})"
+    }
+  },
+  "app": {
+    "settings": {
+      "deletionRequested": "Suppression du compte demandée. Vous allez être déconnecté.",
+      "welcomePro": "Bienvenue dans Pro ! Votre abonnement est activé.",
+      "openingCheckout": "Ouverture du paiement…",
+      "checkoutNewTab": "Le paiement s’est ouvert dans un nouvel onglet",
+      "checkoutFailed": "Impossible de lancer le paiement. Veuillez réessayer."
+    },
+    "globalError": {
+      "message": "Une erreur s’est produite. Veuillez réessayer."
+    },
+    "notFound": {
+      "title": "Page introuvable",
+      "body": "Cette page n’existe pas ou a été déplacée.",
+      "goHome": "Accéder à vos fiches"
+    }
+  },
+  "feedback": {
+    "cardsGrid": {
+      "loading": "Chargement des fiches"
+    },
+    "fileDrop": {
+      "dropFiles": "Déposez des fichiers pour les importer"
+    },
+    "vaultSetup": {
+      "title": "Préparation de votre coffre",
+      "steps": {
+        "starterCards": "Ajout de quelques fiches de départ",
+        "photoColors": "Extraction des couleurs d’une photo",
+        "voiceMemo": "Transcription d’un mémo vocal",
+        "searchCheatSheet": "Lecture d’un aide-mémoire de recherche",
+        "moodboard": "Création d’un moodboard pour vous"
+      }
+    }
+  },
+  "providers": {
+    "authUnavailable": {
+      "message": "Nous n’avons pas pu vérifier votre session. Veuillez réessayer."
+    },
+    "auth": {
+      "signIn": "Se connecter",
+      "signInAgain": "Veuillez vous reconnecter.",
+      "sessionChanged": "Votre session a changé. Veuillez vous reconnecter.",
+      "signOut": "Se déconnecter",
+      "blocked": {
+        "verifyEmail": "Vérifiez votre e-mail pour ouvrir Teak.",
+        "frozen": "Les inscriptions sont suspendues. Votre compte n’a pas été créé.",
+        "quarantined": "Votre compte n’est pas encore prêt. Réessayez ou contactez l’assistance."
+      }
+    },
+    "fileDrop": {
+      "uploaded": "{count, plural, one {Fichier importé} other {# fichiers importés}}",
+      "uploadedSentence": "{count, plural, one {Fichier importé.} other {# fichiers importés.}}",
+      "cardLimitReached": "Limite de fiches gratuites atteinte",
+      "upgrade": "Passer à Pro",
+      "rateLimited": "Trop de fiches créées. Veuillez patienter un instant.",
+      "uploadFailed": "Échec de l’importation",
+      "uploadFailedMany": "Impossible d’importer {count, plural, one {# fichier} other {# fichiers}}. {reason}",
+      "uploading": "Importation…",
+      "foldersNotSupported": "Impossible d’importer des dossiers. Déposez plutôt les fichiers un par un.",
+      "offline": "Vous êtes hors ligne. Reconnectez-vous et réessayez."
+    }
+  },
+  "appShell": {
+    "skeleton": {
+      "tags": "Tags",
+      "folder": "Dossier"
+    }
+  },
+  "errors": {
+    "folders": {
+      "DUPLICATE_NAME": "Un dossier portant ce nom existe déjà",
+      "EMPTY_NAME": "Nommez le dossier",
+      "NAME_TOO_LONG": "Le nom d’un dossier ne peut pas dépasser {max} caractères",
+      "TOO_MANY_FOLDERS": "Vous pouvez avoir jusqu’à {max} dossiers",
+      "TOO_MANY_FOLDERS_ON_CARD": "Une fiche peut figurer dans {max} dossiers au maximum",
+      "NOT_FOUND": "Dossier introuvable",
+      "EMPTY_QUERY": "Ajoutez une recherche pour le dossier intelligent",
+      "QUERY_TOO_LONG": "La recherche d’un dossier intelligent ne peut pas dépasser {max} caractères",
+      "SMART_FOLDER_IN_QUERY": "La recherche d’un dossier intelligent ne peut pas utiliser un autre dossier intelligent",
+      "SMART_FOLDER_MEMBERSHIP": "Impossible d’ajouter des fiches à un dossier intelligent ; il affiche les fiches correspondant à sa recherche",
+      "QUERY_ON_MANUAL_FOLDER": "Seuls les dossiers intelligents ont une recherche",
+      "SMART_FOLDER_TRASH": "Les dossiers intelligents n’affichent pas la corbeille. Pour rechercher ce mot, mettez-le entre guillemets"
+    },
+    "tags": {
+      "EMPTY_NAME": "Nommez le tag",
+      "NAME_TOO_LONG": "Un tag ne peut pas dépasser {max} caractères",
+      "NOT_FOUND": "Tag introuvable",
+      "SAME_TAG": "Choisissez un autre tag à fusionner",
+      "OPERATION_RUNNING": "Une autre modification de tag est encore en cours",
+      "OPERATION_NOT_FOUND": "Opération sur le tag introuvable",
+      "TAG_EXISTS": "Un tag nommé « {name} » existe déjà. Fusionnez plutôt avec lui."
+    },
+    "thumbnails": {
+      "rateLimited": "Vous avez modifié beaucoup d’images. Réessayez dans une minute.",
+      "tooLarge": "Les images doivent faire moins de 20 Mo.",
+      "unreadable": "Impossible de lire cette image.",
+      "unsupported": "Utilisez une image JPEG, PNG, WebP, GIF ou AVIF."
+    },
+    "cards": {
+      "CARD_LIMIT_REACHED": "Limite de fiches atteinte. Passez à Pro pour des fiches illimitées.",
+      "CONTENT_TOO_LARGE": "Le contenu d’une fiche texte ne doit pas dépasser 512 Kio une fois encodé en UTF-8.",
+      "INVALID_UTF8": "Les fichiers Markdown importés doivent contenir du texte UTF-8 valide.",
+      "RATE_LIMITED": "Trop de fiches créées. Veuillez patienter un instant et réessayer.",
+      "FILE_TOO_LARGE": "Fichier trop volumineux. La taille maximale est de 100 Mo.",
+      "TOO_MANY_FILES": "Trop de fichiers sélectionnés. Vous pouvez importer jusqu’à {max} fichiers à la fois.",
+      "UNSUPPORTED_TYPE": "Type de fichier non pris en charge. Importez une image, une vidéo, un audio ou un document.",
+      "TYPE_MISMATCH": "Le fichier importé ne correspond pas au type sélectionné."
+    },
+    "pdfs": {
+      "IN_PROGRESS": "Ce PDF est déjà en cours d’enregistrement. Réessayez dans un instant.",
+      "NO_PDF": "Cette fiche n’a aucun PDF à enregistrer.",
+      "NOT_FOUND": "Fiche introuvable",
+      "RATE_LIMITED": "Vous enregistrez trop vite. Réessayez dans une minute.",
+      "TRASHED": "Restaurez cette fiche depuis la corbeille avant d’enregistrer son PDF."
+    },
+    "cardTags": {
+      "TAG_TOO_LONG": "Chaque tag doit faire au maximum {max} caractères",
+      "TOO_MANY_TAGS": "Une fiche peut avoir {max} tags au maximum"
+    },
+    "settings": {
+      "UNSUPPORTED_LOCALE": "Cette langue n’est pas disponible."
+    }
+  },
+  "revisit": {
+    "deck": {
+      "title": "Revoir",
+      "description": "Une fiche à la fois. La flèche gauche l’archive, la flèche droite la conserve, Espace ouvre ses détails, Z annule le dernier archivage et Échap permet de quitter.",
+      "close": "Fermer Revoir",
+      "progress": "{position} sur {total}",
+      "loadingCards": "Chargement des fiches",
+      "loadFailed": "Impossible de charger les fiches",
+      "empty": "Rien à revoir ici",
+      "allCaughtUp": "Vous êtes à jour",
+      "summary": "{archived} archivées · {kept} conservées",
+      "startOver": "Recommencer",
+      "revisitMore": "En revoir {count} de plus",
+      "undoHint": "<kbd>Z</kbd> annule le dernier archivage",
+      "openDetails": "Ouvrir les détails : {type}",
+      "saved": "Enregistrée le {date}",
+      "inTrash": "Dans la corbeille",
+      "archived": "Archivée",
+      "releaseToArchive": "Relâchez pour archiver",
+      "releaseToKeep": "Relâchez pour conserver",
+      "archive": "Archiver",
+      "keep": "Conserver",
+      "keyHints": "<kbd>Espace</kbd> détails · <kbd>Z</kbd> annuler · <kbd>Esc</kbd> quitter",
+      "swipeHint": "Balayez vers la gauche pour archiver, vers la droite pour conserver"
+    }
+  },
+  "folders": {
+    "nameDialog": {
+      "titleNew": "Nouveau dossier",
+      "titleNewSmart": "Enregistrer comme dossier intelligent",
+      "titleEdit": "Modifier le dossier",
+      "titleEditSmart": "Modifier le dossier intelligent",
+      "descriptionSmart": "Affiche toutes les fiches qui correspondent à la recherche, y compris celles que vous enregistrerez plus tard.",
+      "descriptionEdit": "Modifiez le nom ou la couleur du dossier.",
+      "descriptionNew": "Nommez le dossier et choisissez une couleur.",
+      "nameLabel": "Nom",
+      "namePlaceholder": "À lire",
+      "searchLabel": "Recherche",
+      "colorLegend": "Couleur",
+      "submitCreate": "Créer le dossier",
+      "submitSmart": "Enregistrer le dossier intelligent",
+      "saveFailed": "Impossible d’enregistrer le dossier",
+      "createFailed": "Impossible de créer le dossier"
+    },
+    "list": {
+      "searchLabel": "Rechercher des dossiers",
+      "searchPlaceholder": "Trouver ou créer un dossier",
+      "listLabel": "Dossiers",
+      "loading": "Chargement des dossiers…",
+      "noMatch": "Aucun dossier ne porte ce nom.",
+      "noFolders": "Aucun dossier pour l’instant. Saisissez un nom pour en créer un.",
+      "createNamed": "Créer le dossier « {name} »",
+      "createFailed": "Impossible de créer le dossier"
+    },
+    "picker": {
+      "addTitle": "Ajouter {count, plural, one {# fiche} other {# fiches}} à un dossier",
+      "moveTitle": "Déplacer {count, plural, one {# fiche} other {# fiches}} vers un dossier",
+      "description": "Recherchez parmi vos dossiers ou saisissez un nouveau nom."
+    },
+    "cardFolders": {
+      "title": "Dossiers",
+      "notInFolder": "Cette fiche n’est dans aucun dossier.",
+      "inFolders": "Dans {count, plural, one {# dossier} other {# dossiers}}.",
+      "changeFailed": "Impossible de modifier les dossiers de la fiche"
+    },
+    "smartQuery": {
+      "label": "Recherche : {query}",
+      "noFolderNamed": "Aucun dossier nommé {name}",
+      "excluded": "sauf"
+    }
+  },
+  "sidebar": {
+    "nav": {
+      "home": "Accueil Teak",
+      "keepOpen": "Garder la barre latérale ouverte",
+      "collapse": "Réduire la barre latérale",
+      "tags": "Tags",
+      "settings": "Réglages"
+    },
+    "toggle": "Afficher ou masquer la barre latérale",
+    "folders": {
+      "title": "Dossiers",
+      "newFolder": "Nouveau dossier",
+      "emptyHint": "Regroupez des fiches liées. Créez un dossier, puis faites-y glisser des fiches.",
+      "moreFor": "Plus d’options pour {name}",
+      "renameItem": "Renommer…",
+      "editSearch": "Modifier la recherche…",
+      "color": "Couleur",
+      "colorFailed": "Impossible de modifier la couleur",
+      "restoreFailed": "Impossible de restaurer le dossier",
+      "deleteFailed": "Impossible de supprimer le dossier",
+      "deleted": "« {name} » supprimé",
+      "deletedDescription": "Ses fiches sont toujours dans votre bibliothèque."
+    },
+    "newFolder": {
+      "nameLabel": "Nom du nouveau dossier",
+      "placeholder": "Nom du dossier",
+      "createFailed": "Impossible de créer le dossier"
+    }
+  },
+  "modals": {
+    "shortcuts": {
+      "title": "Raccourcis clavier",
+      "description": "Les raccourcis fonctionnent partout dans votre bibliothèque, sauf pendant la saisie.",
+      "then": "puis",
+      "typeKeys": "Tapez {keys}",
+      "comboSeparator": " plus ",
+      "sequenceSeparator": " puis ",
+      "alternativeSeparator": " ou ",
+      "keyNames": {
+        "leftArrow": "Flèche gauche",
+        "upArrow": "Flèche haut",
+        "rightArrow": "Flèche droite",
+        "downArrow": "Flèche bas",
+        "slash": "Barre oblique",
+        "questionMark": "Point d’interrogation",
+        "option": "Option",
+        "command": "Commande",
+        "shift": "Shift",
+        "return": "Retour"
+      }
+    },
+    "tagManagement": {
+      "title": "Gérer les tags",
+      "addLabel": "Ajouter un tag",
+      "placeholder": "Saisissez le nom du tag",
+      "addTag": "Ajouter le tag",
+      "yourTags": "Vos tags",
+      "removeUserTag": "Retirer le tag {tag}",
+      "teakTags": "Tags de Teak",
+      "removeTeakTag": "Retirer le tag Teak {tag}",
+      "empty": "Aucun tag pour l’instant. Ajoutez votre premier tag ci-dessus !"
+    },
+    "tagManager": {
+      "renameTitle": "Renommer le tag",
+      "mergeTitle": "Fusionner « {name} » avec…",
+      "deleteTitle": "Supprimer « {name} » ?",
+      "renameDescription": "Renomme « {name} » sur {count, plural, one {# fiche} other {# fiches}}, ainsi que sur celles des Archives ou de la corbeille.",
+      "mergeDescription": "Les fiches portant le tag « {name} » reçoivent à la place le tag que vous choisissez. Une fiche qui a les deux n’en garde qu’un.",
+      "deleteDescription": "Retire « {name} » de {count, plural, one {# fiche} other {# fiches}}, ainsi que de celles des Archives ou de la corbeille. Les fiches sont conservées. Cette action est irréversible.",
+      "merge": "Fusionner",
+      "mergeInto": "Fusionner avec « {name} »",
+      "mergeIntoInstead": "Fusionner plutôt avec « {name} »",
+      "deleteTag": "Supprimer le tag",
+      "newName": "Nouveau nom",
+      "findTag": "Trouver un tag",
+      "tagsLabel": "Tags",
+      "noMatch": "Aucun tag ne porte ce nom.",
+      "noOtherTags": "Aucun autre tag pour l’instant.",
+      "typeToFindMore": "Saisissez du texte pour trouver d’autres tags.",
+      "nameTaken": "Un tag nommé « {name} » existe déjà.",
+      "startFailed": "Impossible de lancer la modification du tag"
+    }
+  },
+  "cardModal": {
+    "header": {
+      "actionsLabel": "Actions de la fiche",
+      "contentLabel": "{type, select, text {Contenu du texte} link {Contenu du lien} image {Contenu de l’image} video {Contenu de la vidéo} audio {Contenu de l’audio} document {Contenu du document} palette {Contenu de la palette} quote {Contenu de la citation} other {Contenu de la fiche}}",
+      "detailsLabel": "Détails de la fiche",
+      "download": "Télécharger",
+      "downloadTooltip": "Télécharger le fichier",
+      "downloading": "Téléchargement…",
+      "loadingDescription": "Chargement des détails de la fiche",
+      "loadingTitle": "Chargement de la fiche",
+      "nextCard": "Fiche suivante",
+      "open": "Ouvrir",
+      "openingCard": "Ouverture de la fiche",
+      "openTooltip": "Ouvrir le lien",
+      "previousCard": "Fiche précédente",
+      "titleLabel": "Titre",
+      "titlePlaceholder": "Lien sans titre"
+    },
+    "saveState": {
+      "error": "Échec de l’enregistrement",
+      "saved": "Enregistré",
+      "unsaved": "Modifications non enregistrées"
+    },
+    "menu": {
+      "addToFolder": "Ajouter à un dossier…",
+      "archive": "Archiver",
+      "copyLink": "Copier le lien",
+      "copyText": "Copier le texte",
+      "download": "Télécharger",
+      "favorite": "Ajouter aux favoris",
+      "hideDetails": "Masquer les détails",
+      "moreActions": "Plus d’actions",
+      "moreLikeThis": "Plus de ce genre",
+      "refreshDetails": "Actualiser les détails",
+      "replaceImage": "Remplacer l’image",
+      "resetImage": "Revenir à l’image d’origine",
+      "savePdf": "Enregistrer le PDF",
+      "savingPdf": "Enregistrement du PDF…",
+      "shortcutsHint": "Appuyez sur <kbd>?</kbd> pour voir tous les raccourcis",
+      "showDetails": "Afficher les détails",
+      "unarchive": "Désarchiver",
+      "unfavorite": "Retirer des favoris"
+    },
+    "toasts": {
+      "copiedLink": "Lien copié",
+      "copiedText": "Texte copié",
+      "copyFailed": "Échec de la copie",
+      "emptyNote": "Les notes vides ne sont pas enregistrées. La note garde son dernier texte.",
+      "emptyQuote": "Les citations vides ne sont pas enregistrées. La citation garde son dernier texte."
+    },
+    "trash": {
+      "deleteForever": "Supprimer définitivement",
+      "inTrash": "Cette fiche est dans la corbeille",
+      "restore": "Restaurer"
+    },
+    "done": {
+      "markAs": "{verb, select, read {Marquer comme lue} watched {Marquer comme vue} listened {Marquer comme écoutée} bought {Marquer comme achetée} cooked {Marquer comme cuisinée} played {Marquer comme jouée} other {Marquer comme terminée}}",
+      "markAsNot": "{verb, select, read {Marquer comme non lue} watched {Marquer comme non vue} listened {Marquer comme non écoutée} bought {Marquer comme non achetée} cooked {Marquer comme non cuisinée} played {Marquer comme non jouée} other {Marquer comme non terminée}}",
+      "state": "{verb, select, read {Lue} watched {Vue} listened {Écoutée} bought {Achetée} cooked {Cuisinée} played {Jouée} other {Terminée}}"
+    },
+    "heading": {
+      "addedOn": "Ajoutée le {date}",
+      "addedToday": "Ajoutée aujourd’hui",
+      "addedYesterday": "Ajoutée hier",
+      "note": "Note"
+    },
+    "panel": {
+      "addTagLabel": "Ajouter un tag",
+      "addTagPlaceholder": "Ajouter un tag…",
+      "addToFolder": "Ajouter à un dossier",
+      "andMore": "et plus",
+      "colors": "Couleurs",
+      "copyColor": "Copier {hex}",
+      "folderOverflow": "{name} +{count}",
+      "hidden": "Masquée",
+      "hiddenHint": "Seule une recherche de #secret ou #hidden affiche cette fiche",
+      "inFolders": "Dans {folders}",
+      "inFoldersChange": "Dans {folders}. Modifier les dossiers",
+      "keepTag": "Garder le tag {tag}",
+      "keepTagHint": "Garder {tag} parmi vos tags",
+      "linkedFrom": "Liée depuis",
+      "noNotes": "Aucune note",
+      "notes": "Notes",
+      "notesPlaceholder": "Ajouter une note…",
+      "removeTag": "Retirer le tag {tag}",
+      "removeTeakTag": "Retirer le tag Teak {tag}",
+      "showLess": "Afficher moins",
+      "showMore": "Afficher plus",
+      "showTagged": "Afficher les fiches avec le tag {tag}",
+      "suggestedTags": "{count, plural, one {# tag suggéré} other {# tags suggérés}}",
+      "summary": "Résumé",
+      "tags": "Tags",
+      "teakTagHint": "Tag ajouté par Teak. Afficher les fiches avec le tag {tag}"
+    },
+    "details": {
+      "added": "Ajoutée",
+      "author": "Auteur",
+      "edited": "Modifiée",
+      "extractedText": "{count, plural, one {# caractère extrait} other {# caractères extraits}}",
+      "fewerDetails": "Moins de détails",
+      "fileName": "Nom du fichier",
+      "fileSize": "Taille du fichier",
+      "fileType": "Type de fichier",
+      "from": "Source",
+      "moreDetails": "Plus de détails",
+      "published": "Publication",
+      "publisher": "Éditeur",
+      "showAllOfType": "{type, select, text {Afficher toutes les fiches texte} link {Afficher toutes les fiches lien} image {Afficher toutes les fiches image} video {Afficher toutes les fiches vidéo} audio {Afficher toutes les fiches audio} document {Afficher toutes les fiches document} palette {Afficher toutes les fiches palette} quote {Afficher toutes les fiches citation} other {Afficher toutes les fiches}}",
+      "text": "Texte",
+      "title": "Détails",
+      "url": "URL"
+    }
+  },
+  "cardPreviews": {
+    "audio": {
+      "loadFailed": "Impossible de charger cet enregistrement. Essayez plutôt de le télécharger.",
+      "pause": "Pause",
+      "play": "Lire",
+      "seek": "Position de lecture",
+      "seekPosition": "{current} sur {duration}",
+      "transcript": "Transcription"
+    },
+    "document": {
+      "facts": {
+        "colorVariables": "{count, plural, one {# variable de couleur} other {# variables de couleur}}",
+        "files": "{count, plural, one {# fichier} other {# fichiers}}",
+        "folders": "{count, plural, one {# dossier} other {# dossiers}}",
+        "headings": "{count, plural, one {# titre} other {# titres}}",
+        "lines": "{count, plural, one {# ligne} other {# lignes}}",
+        "slides": "{count, plural, one {# diapositive} other {# diapositives}}",
+        "words": "{count, plural, one {# mot} other {# mots}}"
+      },
+      "file": "Fichier",
+      "openFile": "Ouvrir le fichier",
+      "untitled": "Document"
+    },
+    "fileText": {
+      "loading": "Chargement de l’aperçu du fichier"
+    },
+    "image": {
+      "alt": "Image",
+      "unavailable": "Aperçu de l’image indisponible"
+    },
+    "link": {
+      "addImage": "Ajouter une image",
+      "attachedMedia": "Média joint à la publication {number}",
+      "attachedVideo": "Vidéo jointe {number}",
+      "imageAlt": "Image du lien",
+      "openGraphAlt": "Aperçu Open Graph",
+      "screenshotAlt": "Capture d’écran de la page web",
+      "uploadingAlt": "Importation du nouvel aperçu du lien"
+    },
+    "palette": {
+      "copy": "Copier {hex}",
+      "empty": "Aucune couleur détectée dans cette palette"
+    },
+    "quote": {
+      "placeholder": "Saisissez votre citation…"
+    },
+    "text": {
+      "focus": "Concentration",
+      "placeholder": "Écrivez une note…",
+      "tooLarge": "Les notes peuvent contenir jusqu’à 512 Kio de texte UTF-8"
+    },
+    "video": {
+      "gifAlt": "GIF animé",
+      "unsupported": "Votre navigateur ne prend pas en charge la balise vidéo."
+    }
+  },
+  "cards": {
+    "types": {
+      "text": "Texte",
+      "link": "Lien",
+      "image": "Image",
+      "video": "Vidéo",
+      "audio": "Audio",
+      "document": "Document",
+      "palette": "Palette",
+      "quote": "Citation",
+      "card": "Fiche"
+    },
+    "accessibleLabel": {
+      "titled": "{type, select, text {Texte : {title}} link {Lien : {title}} image {Image : {title}} video {Vidéo : {title}} audio {Audio : {title}} document {Document : {title}} palette {Palette : {title}} quote {Citation : {title}} other {Fiche : {title}}}",
+      "untitled": "{type, select, text {Fiche texte} link {Fiche lien} image {Fiche image} video {Fiche vidéo} audio {Fiche audio} document {Fiche document} palette {Fiche palette} quote {Fiche citation} other {Fiche}}"
+    },
+    "menu": {
+      "addTags": "Ajouter des tags…",
+      "archive": "Archiver",
+      "copyImage": "Copier l’image",
+      "copyLink": "Copier le lien",
+      "copyText": "Copier le texte",
+      "deleteForever": "Supprimer définitivement",
+      "deselect": "Désélectionner",
+      "favorite": "Ajouter aux favoris",
+      "folders": "Dossiers…",
+      "moreActions": "Plus d’actions",
+      "openLink": "Ouvrir le lien",
+      "refreshDetails": "Actualiser les détails",
+      "restore": "Restaurer",
+      "select": "Sélectionner",
+      "unarchive": "Désarchiver",
+      "unfavorite": "Retirer des favoris"
+    },
+    "copyImageFailed": "Impossible de copier l’image",
+    "deleteForeverDialog": {
+      "confirm": "Supprimer définitivement",
+      "description": "Cette action supprime définitivement la fiche et ses fichiers. Elle est irréversible.",
+      "title": "Supprimer définitivement cette fiche ?"
+    },
+    "body": {
+      "emptyNote": "Note vide",
+      "recording": "Enregistrement"
+    },
+    "link": {
+      "markedAs": "{verb, select, read {Marquée comme lue} watched {Marquée comme vue} listened {Marquée comme écoutée} bought {Marquée comme achetée} cooked {Marquée comme cuisinée} played {Marquée comme jouée} other {Marquée comme terminée}}"
+    },
+    "previews": {
+      "documentPreview": "Aperçu du document",
+      "documentPreviewOf": "Aperçu de {fileName}",
+      "gifPreview": "Aperçu du GIF",
+      "imageAlt": "Image",
+      "videoThumbnail": "Miniature de la vidéo"
+    }
+  },
+  "grids": {
+    "masonry": {
+      "copiedLinks": "{count, plural, one {# lien copié} other {# liens copiés}}",
+      "copyLinksFailed": "Impossible de copier les liens",
+      "noLinks": "Aucune de ces fiches n’a de lien"
+    }
+  },
+  "textEditor": {
+    "formatting": {
+      "toolbar": "Mise en forme du texte",
+      "bold": "Gras",
+      "italic": "Italique",
+      "strikethrough": "Barré",
+      "inlineCode": "Code en ligne",
+      "editLink": "Modifier le lien"
+    },
+    "linkEditor": {
+      "url": "URL du lien",
+      "apply": "Appliquer",
+      "invalidUrl": "Utilisez un lien http ou https."
+    },
+    "note": {
+      "ariaLabel": "Note Markdown",
+      "contentLabel": "Contenu Markdown",
+      "editorLabel": "Éditeur {label}",
+      "placeholder": "Écrivez une note…",
+      "tooLarge": "Les notes peuvent contenir jusqu’à 512 Kio de texte UTF-8",
+      "unsafeChange": "Cette modification ne peut pas être enregistrée en Markdown.",
+      "dropUnsupported": "Collez du texte ou du Markdown dans cette note.",
+      "pasteUnsupported": "Collez du texte brut ou du Markdown."
+    },
+    "focus": {
+      "description": "Mode concentration : seule la note est à l’écran. Appuyez sur Échap pour quitter.",
+      "wordCount": "{count, plural, one {# mot} other {# mots}}"
+    },
+    "noteCapture": {
+      "linkSaved": "Lien enregistré",
+      "saved": "Enregistrée"
+    },
+    "cardLinkMenu": {
+      "label": "Lier une fiche",
+      "searching": "Recherche de fiches…",
+      "searchFailed": "Impossible de rechercher les fiches",
+      "noMatches": "Aucune fiche correspondante",
+      "noCards": "Aucune fiche pour l’instant"
+    },
+    "cardLink": {
+      "missing": "Fiche manquante",
+      "missingHint": "Cette fiche est dans la corbeille, a été supprimée ou ne vous appartient pas",
+      "fallbackTitle": "Fiche"
+    },
+    "slashMenu": {
+      "label": "Commandes de mise en forme",
+      "commands": {
+        "text": "Texte",
+        "h1": "Titre 1",
+        "h2": "Titre 2",
+        "h3": "Titre 3",
+        "bulletList": "Liste à puces",
+        "orderedList": "Liste numérotée",
+        "taskList": "Liste de tâches",
+        "blockquote": "Citation",
+        "codeBlock": "Code",
+        "divider": "Séparateur",
+        "table": "Tableau"
+      }
+    },
+    "table": {
+      "options": "Options du tableau",
+      "headerPlaceholder": "En-tête",
+      "addRowAbove": "Ajouter une ligne au-dessus",
+      "addRowBelow": "Ajouter une ligne en dessous",
+      "addColumnLeft": "Ajouter une colonne à gauche",
+      "addColumnRight": "Ajouter une colonne à droite",
+      "deleteRow": "Supprimer la ligne",
+      "deleteColumn": "Supprimer la colonne",
+      "deleteTable": "Supprimer le tableau",
+      "rowLimit": "Un tableau peut avoir jusqu’à {max} lignes",
+      "columnLimit": "Un tableau peut avoir jusqu’à {max} colonnes",
+      "headerRowFirst": "La ligne d’en-tête reste la première ligne",
+      "headerRowKept": "La ligne d’en-tête ne peut pas être supprimée",
+      "lastColumn": "Supprimez le tableau pour retirer sa dernière colonne"
+    }
+  },
+  "forms": {
+    "limits": {
+      "cardLimitReached": "Limite de fiches gratuites atteinte",
+      "upgrade": "Passer à Pro",
+      "rateLimited": "Trop de fiches créées. Veuillez patienter un instant."
+    },
+    "addCard": {
+      "placeholder": "Écrivez une note…",
+      "upgradePlaceholder": "Passez à Pro pour ajouter d’autres fiches…",
+      "saveFailed": "Impossible d’enregistrer la note",
+      "focus": "Concentration"
+    },
+    "addCardActions": {
+      "new": "Nouveau",
+      "noteOrLink": "Note ou lien",
+      "uploadFiles": "Importer des fichiers",
+      "recordAudio": "Enregistrer de l’audio",
+      "savingRecording": "Enregistrement de l’audio…",
+      "recordingSaved": "Enregistrement audio sauvegardé",
+      "recordingSaveFailed": "Impossible de sauvegarder l’enregistrement audio",
+      "microphoneUnsupported": "L’enregistrement par micro n’est pas pris en charge dans cette application.",
+      "microphoneDenied": "L’accès au micro a été refusé. Autorisez-le et réessayez.",
+      "microphoneMissing": "Aucun micro détecté. Branchez-en un et réessayez.",
+      "recordingStartFailed": "Impossible de démarrer l’enregistrement. Vérifiez la configuration de votre micro.",
+      "uploading": "Importation de {name}…",
+      "uploaded": "{name} importé",
+      "uploadFailed": "Impossible d’importer {name} : {error}",
+      "uploadFailedReason": "Échec de l’importation",
+      "startingMicrophone": "Démarrage du micro…",
+      "savingRecordingStatus": "Sauvegarde de l’enregistrement…",
+      "recordingHint": "Parlez naturellement. Teak enregistrera ceci comme fiche audio.",
+      "recordingTitle": "Enregistrement audio",
+      "stopAndSave": "Arrêter et enregistrer"
+    },
+    "emptyState": {
+      "title": "Ajoutons votre première fiche !",
+      "description": "Commencez à capturer vos idées, liens et médias ci-dessus"
+    }
+  },
+  "selection": {
+    "bar": {
+      "archive": "Archiver",
+      "unarchive": "Désarchiver",
+      "restore": "Restaurer",
+      "addToNamedFolder": "Ajouter à {folder}",
+      "chooseCards": "Choisissez les fiches à ajouter",
+      "selectedCount": "{count, plural, one {# fiche sélectionnée} other {# fiches sélectionnées}}",
+      "moreActions": "Plus d’actions",
+      "favorite": "Ajouter aux favoris",
+      "unfavorite": "Retirer des favoris",
+      "addTags": "Ajouter des tags…",
+      "removeTags": "Retirer des tags…",
+      "copyLinks": "Copier les liens",
+      "addToFolder": "Ajouter à un dossier…",
+      "moveToFolder": "Déplacer vers un dossier…",
+      "removeFromFolder": "Retirer de {folder}",
+      "moveToTrash": "Placer dans la corbeille",
+      "cancelSelection": "Annuler la sélection"
+    },
+    "tagsDialog": {
+      "tagTooLong": "Un tag ne peut pas dépasser {max} caractères.",
+      "tooManyTags": "Choisissez au maximum {max} tags à la fois.",
+      "addTitle": "Ajouter des tags à {count, plural, one {# fiche} other {# fiches}}",
+      "removeTitle": "Retirer des tags de {count, plural, one {# fiche} other {# fiches}}",
+      "addDescription": "Séparez les tags par des virgules.",
+      "removeDescription": "Choisissez des tags ci-dessous ou saisissez-les, séparés par des virgules.",
+      "label": "Tags",
+      "addPlaceholder": "design, inspiration",
+      "removePlaceholder": "Noms des tags",
+      "addSubmit": "Ajouter les tags",
+      "removeSubmit": "Retirer les tags"
+    }
+  },
+  "search": {
+    "visualStyles": {
+      "abstract": "Abstrait",
+      "cinematic": "Cinématographique",
+      "dark": "Sombre",
+      "illustrative": "Illustratif",
+      "minimal": "Minimaliste",
+      "monochrome": "Monochrome",
+      "moody": "Atmosphérique",
+      "pastel": "Pastel",
+      "photographic": "Photographique",
+      "retro": "Rétro",
+      "surreal": "Surréaliste",
+      "vintage": "Vintage",
+      "vibrant": "Éclatant",
+      "typographic": "Typographique",
+      "threeD": "3D",
+      "flat": "Flat design",
+      "geometric": "Géométrique",
+      "handDrawn": "Dessiné à la main",
+      "futuristic": "Futuriste"
+    },
+    "colorHues": {
+      "red": "Rouge",
+      "orange": "Orange",
+      "yellow": "Jaune",
+      "green": "Vert",
+      "teal": "Bleu canard",
+      "cyan": "Cyan",
+      "blue": "Bleu",
+      "purple": "Violet",
+      "pink": "Rose",
+      "brown": "Marron",
+      "neutral": "Neutre"
+    },
+    "bar": {
+      "placeholder": "Rechercher partout",
+      "open": "Rechercher",
+      "formLabel": "Rechercher des fiches",
+      "clearAll": "Tout effacer",
+      "suggestions": "Suggestions de recherche",
+      "moreFilters": "{count, plural, one {# filtre de plus} other {# filtres de plus}}",
+      "chipTitle": "{prefix} {label}",
+      "chipTitleExcluded": "{prefix} sauf {label}",
+      "chipTitleExcludedNoPrefix": "sauf {label}",
+      "remove": "Retirer {label}",
+      "removeExcluded": "Retirer l’exclusion de {label}",
+      "removeTagFilter": "Retirer le filtre de tag {tag}",
+      "removeType": "Retirer le type {type}",
+      "removeQualifier": "Retirer le filtre {kind, select, tag {tag} type {type} is {affichage} site {site} folder {dossier} like {similaire à} mood {ambiance} price {prix} text {texte dans l’image} other {de recherche}} {label}",
+      "removeExcludedQualifier": "Retirer l’exclusion {kind, select, tag {du tag} type {du type} is {de l’affichage} site {du site} folder {du dossier} like {similaire à} mood {de l’ambiance} price {du prix} text {du texte dans l’image} other {du filtre}} {label}",
+      "removeUnknownFolder": "Retirer {chip} : aucun dossier nommé {folder}",
+      "unknownFolder": "Aucun dossier nommé {folder}"
+    },
+    "chips": {
+      "titles": {
+        "tag": "Tag",
+        "type": "Type",
+        "is": "Afficher",
+        "site": "Site",
+        "folder": "Dossier",
+        "like": "Similaire à",
+        "mood": "Ambiance",
+        "price": "Prix",
+        "text": "Texte dans l’image"
+      },
+      "anyCard": "une fiche",
+      "moodValue": "« {value} »"
+    },
+    "suggestions": {
+      "groups": {
+        "combine": "Combiner",
+        "exclude": "Exclure",
+        "filters": "Filtres",
+        "tags": "Tags",
+        "types": "Types",
+        "folders": "Dossiers",
+        "sites": "Sites",
+        "show": "Afficher"
+      },
+      "hints": {
+        "tag": "Fiches avec un tag",
+        "type": "Liens, images, notes…",
+        "site": "Liens d’un site web",
+        "folder": "Fiches d’un dossier",
+        "is": "Favoris, archivées, terminées ou à faire",
+        "mood": "Images par ambiance",
+        "price": "Prix inférieur ou supérieur",
+        "text": "Mots dans les images et numérisations"
+      },
+      "excludeHints": {
+        "tag": "Exclure les fiches avec un tag",
+        "type": "Exclure les liens, images, notes…",
+        "site": "Exclure les liens d’un site web",
+        "folder": "Exclure les fiches d’un dossier",
+        "is": "Exclure les favoris, archivées, terminées…"
+      },
+      "orDetail": "L’un ou l’autre correspond",
+      "isOptions": {
+        "fav": "Favoris",
+        "archived": "Archivées",
+        "done": "Terminées",
+        "todo": "À faire"
+      },
+      "hiddenTagCount": "Affiche les fiches masquées · {count}"
+    },
+    "viewMenu": {
+      "label": "Affichage",
+      "labelWithState": "Affichage : {state}",
+      "oldestFirstState": "plus anciennes d’abord",
+      "shuffledState": "aléatoire",
+      "revisitingState": "révision",
+      "show": "Afficher",
+      "showAllTypes": "Afficher tous les types",
+      "sort": "Trier",
+      "sorts": {
+        "relevance": "Pertinence",
+        "newest": "Plus récentes d’abord",
+        "oldest": "Plus anciennes d’abord",
+        "shuffle": "Aléatoire",
+        "revisit": "Revoir"
+      },
+      "nothingToRevisit": "Rien à revoir ici",
+      "saveAsSmartFolder": "Enregistrer comme dossier intelligent…",
+      "reshuffle": "Mélanger à nouveau"
+    },
+    "dates": {
+      "today": "Aujourd’hui",
+      "yesterday": "Hier",
+      "thisWeek": "Cette semaine",
+      "lastWeek": "La semaine dernière",
+      "thisMonth": "Ce mois-ci",
+      "lastMonth": "Le mois dernier",
+      "thisYear": "Cette année",
+      "lastYear": "L’année dernière",
+      "lastWeekday": "{day} dernier"
+    }
+  },
+  "commandPalette": {
+    "title": "Palette de commandes",
+    "description": "Accédez à une vue ou à un dossier, trouvez une fiche ou lancez une action",
+    "inputLabel": "Rechercher des commandes, dossiers et fiches",
+    "placeholder": "Saisissez une commande ou une recherche…",
+    "noResults": "Aucun résultat",
+    "smartFolder": "Dossier intelligent",
+    "groups": {
+      "navigate": "Naviguer",
+      "cards": "Fiches",
+      "actions": "Actions",
+      "folders": "Dossiers"
+    },
+    "views": {
+      "tags": "Tags",
+      "settings": "Réglages"
+    },
+    "actions": {
+      "newNote": "Nouvelle note",
+      "upload": "Importer des fichiers",
+      "import": "Importer",
+      "export": "Exporter",
+      "toggleTheme": "Changer de thème",
+      "shuffle": "Aléatoire",
+      "shortcuts": "Raccourcis clavier",
+      "signOut": "Se déconnecter"
+    },
+    "cards": {
+      "searching": "Recherche de fiches",
+      "searchFailed": "Impossible de rechercher les fiches",
+      "searchAll": "Tout rechercher pour « {query} »",
+      "untitled": "Fiche sans titre"
+    },
+    "resultsLabel": "Suggestions"
+  },
+  "shortcuts": {
+    "groups": {
+      "cards": "Fiches",
+      "openCard": "Fiche ouverte",
+      "goTo": "Aller à",
+      "search": "Recherche",
+      "anywhere": "Partout"
+    },
+    "rows": {
+      "moveBetweenCards": "Passer d’une fiche à l’autre",
+      "nextOrPreviousCard": "Fiche suivante ou précédente",
+      "openCard": "Ouvrir la fiche",
+      "favorite": "Ajouter aux favoris ou les retirer",
+      "addTags": "Ajouter des tags",
+      "archive": "Archiver ou désarchiver",
+      "moveToTrash": "Placer dans la corbeille",
+      "select": "Sélectionner ou désélectionner",
+      "copy": "Copier le texte, le lien ou l’image",
+      "clearSelection": "Effacer la sélection",
+      "previousOrNextCard": "Fiche précédente ou suivante",
+      "addTag": "Ajouter un tag",
+      "writeNote": "Écrire une note",
+      "focusNote": "Se concentrer sur la note",
+      "openOrDownload": "Ouvrir le lien ou télécharger le fichier",
+      "openLink": "Ouvrir le lien",
+      "markLinkDone": "Marquer un lien comme terminé",
+      "copyLinkOrText": "Copier le lien ou le texte",
+      "toggleDetails": "Afficher ou masquer les détails",
+      "goToEverything": "Tout",
+      "goToFavorites": "Favoris",
+      "goToArchive": "Archives",
+      "goToTrash": "Corbeille",
+      "excludeWord": "Exclure un mot",
+      "excludeFilter": "Exclure un tag, un type, un site ou un dossier",
+      "eitherOne": "L’un ou l’autre",
+      "group": "Grouper",
+      "exactWords": "Mots exacts",
+      "commandPalette": "Palette de commandes",
+      "search": "Rechercher",
+      "newNote": "Nouvelle note",
+      "uploadFiles": "Importer des fichiers",
+      "notifications": "Aller aux notifications (Annuler)",
+      "keyboardShortcuts": "Raccourcis clavier"
+    }
+  },
+  "extension": {
+    "popup": {
+      "loading": "Chargement",
+      "loadAccountFailed": "Nous n’avons pas pu charger votre compte.",
+      "somethingWentWrong": "Une erreur s’est produite",
+      "tryAgain": "Réessayer",
+      "privateSession": "Firefox est en navigation privée : Teak oublie donc votre connexion et les enregistrements non envoyés à sa fermeture.",
+      "pendingSaves": "{count, plural, one {# enregistrement n’a pas abouti} other {# enregistrements n’ont pas abouti}}",
+      "discard": "Ignorer",
+      "retry": "Réessayer",
+      "pendingSavesFailed": "Impossible de mettre à jour les enregistrements en attente.",
+      "headline": "Enregistrez tout, partout",
+      "signInPrompt": "Connectez-vous pour enregistrer des pages, des images et du texte dans votre Teak.",
+      "signIn": "Se connecter",
+      "finishingSignIn": "Finalisation de la connexion…",
+      "signInFailed": "Impossible de se connecter. Veuillez réessayer.",
+      "openTeak": "Ouvrir Teak",
+      "upgrade": "Passer à Pro",
+      "signOut": "Se déconnecter",
+      "signOutFailed": "Impossible de se déconnecter. Veuillez réessayer.",
+      "uploadFile": "Importer un fichier",
+      "fileInvalid": "Le fichier est vide ou trop volumineux.",
+      "fileSaveFailed": "Impossible d’enregistrer le fichier. Veuillez réessayer.",
+      "reconnectForUpload": "Reconnectez-vous pour terminer l’importation en attente.",
+      "pseudoLocale": "Pseudo-langue (en-XA)",
+      "status": {
+        "chooseFile": "Choisissez un fichier à enregistrer",
+        "fileSizeLimit": "Jusqu’à 100 Mo",
+        "freeLimitReached": "Vous avez atteint la limite gratuite",
+        "upgradeForUnlimited": "Passez à Pro pour des fiches illimitées.",
+        "alreadySaved": "Déjà dans votre Teak",
+        "uploadingFile": "Importation du fichier",
+        "fileSaved": "Fichier enregistré",
+        "uploadFailed": "Impossible d’importer le fichier",
+        "savingToTeak": "Enregistrement dans Teak",
+        "savedToTeak": "Enregistré dans Teak",
+        "pageSaved": "Page enregistrée",
+        "textSaved": "Texte enregistré",
+        "saveFailed": "Échec de l’enregistrement",
+        "savingPage": "Enregistrement de la page",
+        "pageSaveFailed": "Impossible d’enregistrer cette page",
+        "cantSavePage": "Impossible d’enregistrer cette page",
+        "cantSavePageDetail": "Ouvrez une page web pour l’enregistrer, ou importez un fichier."
+      },
+      "details": {
+        "loadingTags": "Chargement des tags",
+        "loadFailed": "Impossible de charger les tags de cette fiche.",
+        "retry": "Réessayer",
+        "tags": "Tags",
+        "addTags": "Ajouter des tags",
+        "removeTag": "Retirer le tag {tag}",
+        "suggestedTags": "Tags suggérés",
+        "note": "Note",
+        "addNote": "Ajouter une note",
+        "saved": "Enregistré",
+        "tagTooLong": "Un tag ne peut pas dépasser {max} caractères.",
+        "tooManyTags": "Une fiche peut avoir {max} tags au maximum ici.",
+        "signInAgain": "Reconnectez-vous pour enregistrer vos modifications.",
+        "tagsFailed": "Impossible d’enregistrer les tags.",
+        "noteFailed": "Impossible d’enregistrer la note."
+      }
+    },
+    "contextMenu": {
+      "savePage": "Enregistrer la page dans Teak",
+      "saveAsset": "Enregistrer le média dans Teak",
+      "saveText": "Enregistrer le texte dans Teak"
+    },
+    "omnibox": {
+      "search": "Rechercher dans Teak",
+      "searchFor": "Rechercher <match>{query}</match> dans Teak",
+      "signIn": "Connectez-vous à Teak pour rechercher",
+      "noMatches": "Aucune fiche correspondante",
+      "unreachable": "Impossible de joindre Teak",
+      "rateLimited": "Trop de recherches, ralentissez",
+      "cardType": "{type, select, text {texte} link {lien} image {image} video {vidéo} audio {audio} document {document} palette {palette} quote {citation} other {{type}}}",
+      "untitled": "{type, select, text {Texte sans titre} link {Lien sans titre} image {Image sans titre} video {Vidéo sans titre} audio {Audio sans titre} document {Document sans titre} palette {Palette sans titre} quote {Citation sans titre} other {{type} sans titre}}"
+    },
+    "inline": {
+      "idle": "Enregistrer dans Teak",
+      "saving": "Enregistrement dans Teak",
+      "saved": "Enregistré dans Teak",
+      "duplicate": "Déjà enregistré dans Teak",
+      "error": "Échec de l’enregistrement. Réessayer",
+      "errorWithReason": "Échec de l’enregistrement. Réessayer : {reason}",
+      "invalidPost": "Données de publication non valides",
+      "signIn": "Connectez-vous à Teak pour enregistrer",
+      "saveFailed": "Impossible d’enregistrer la publication"
+    }
+  },
+  "screens": {
+    "cards": {
+      "emptyFavorites": "Aucun favori pour l’instant. Ajoutez une fiche aux favoris pour la retrouver ici.",
+      "emptyArchive": "Rien d’archivé. Archivez une fiche pour la sortir de votre bibliothèque.",
+      "emptyTrash": "La corbeille est vide.",
+      "hiddenCardsHint": "Certaines fiches sont masquées. Recherchez #secret ou #hidden pour les voir.",
+      "cardNotFound": "Fiche introuvable",
+      "folderNotFound": "Dossier introuvable",
+      "folderMayBeDeleted": "Il a peut-être été supprimé.",
+      "goToEverything": "Aller à Tout",
+      "nothingLeftToDo": "Plus rien à faire.",
+      "noSmartFolderMatches": "Aucune fiche ne correspond à ce dossier intelligent.",
+      "editSearch": "Modifier la recherche",
+      "noCardsInFolder": "Aucune fiche dans ce dossier pour l’instant.",
+      "addCards": "Ajouter des fiches",
+      "nothingSimilar": "Rien de similaire pour l’instant",
+      "noMoodMatches": "Aucune image ne correspond encore à cette ambiance",
+      "stillLearning": "Analyse de cette fiche en cours. Réessayez dans un instant.",
+      "tooManySearches": "Trop de recherches. Réessayez dans une minute.",
+      "semanticUnavailable": "La recherche par le sens est indisponible pour le moment.",
+      "noFilterMatches": "Aucun résultat ne correspond à vos filtres",
+      "clearFilters": "Effacer les filtres",
+      "smartFolderSuffix": " (dossier intelligent)",
+      "folderCardCountSuffix": "{count, plural, one { fiche} other { fiches}}",
+      "folderTitle": "Dossier",
+      "searchFolder": "Rechercher dans {folder}",
+      "savedSmartFolder": "« {name} » enregistré",
+      "savedSmartFolderDescription": "Il affiche toutes les fiches correspondantes, au fur et à mesure que vous les enregistrez.",
+      "open": "Ouvrir",
+      "unsavableFilters": "Les couleurs, styles et dates ne sont pas enregistrés dans un dossier intelligent.",
+      "loadFailed": "Impossible de charger vos fiches."
+    },
+    "tags": {
+      "sortMostUsed": "Plus utilisés",
+      "sortName": "Nom",
+      "sortLabel": "Tri : {sort}",
+      "sortBy": "Trier les tags par",
+      "moreFor": "Plus d’options pour {tag}",
+      "rowLabel": "{tag}, {count, plural, one {# fiche} other {# fiches}}",
+      "rename": "Renommer…",
+      "mergeInto": "Fusionner avec…",
+      "delete": "Supprimer…",
+      "matchCount": "{matches, number} sur {total, number}",
+      "topCount": "{total, number} premiers",
+      "tagsSuffix": " tags",
+      "title": "Tags",
+      "findTag": "Trouver un tag",
+      "loading": "Chargement des tags",
+      "noTags": "Aucun tag pour l’instant",
+      "noTagsDescription": "Les tags que vous ajoutez aux fiches, et ceux que Teak suggère, apparaissent ici.",
+      "noMatches": "Aucun tag ne correspond à « {query} ».",
+      "list": "Tags",
+      "showMore": "Afficher {count, number} de plus"
+    },
+    "logo": {
+      "earlyAccess": "Accès anticipé"
+    }
+  },
+  "hooks": {
+    "cardActions": {
+      "deletedFindInTrash": "Fiche supprimée. Retrouvez-la en recherchant « trash »",
+      "cardDeleted": "Fiche supprimée",
+      "cardRestored": "Fiche restaurée",
+      "cardPermanentlyDeleted": "Fiche supprimée définitivement",
+      "deleteFailed": "Impossible de supprimer la fiche",
+      "restoreFailed": "Impossible de restaurer la fiche",
+      "permanentDeleteFailed": "Impossible de supprimer définitivement la fiche",
+      "changesSaved": "Modifications enregistrées",
+      "markedDone": "Marquée comme {verb, select, read {lue} watched {vue} listened {écoutée} bought {achetée} cooked {cuisinée} played {jouée} other {terminée}}",
+      "markedNotDone": "Marquée comme non {verb, select, read {lue} watched {vue} listened {écoutée} bought {achetée} cooked {cuisinée} played {jouée} other {terminée}}",
+      "doneUpdateFailed": "Impossible de mettre à jour. Réessayez.",
+      "alreadyTagged": "Déjà taguée #{tag}",
+      "hiddenByTag": "Masquée. Recherchez #{tag} pour la voir.",
+      "unsafeLink": "Impossible d’ouvrir ce lien, car il utilise une adresse non sécurisée",
+      "failed": {
+        "delete": "Échec de la suppression",
+        "restore": "Échec de la restauration",
+        "permanentDelete": "Échec de la suppression définitive",
+        "toggleFavorite": "Impossible de modifier les favoris",
+        "saveChanges": "Impossible d’enregistrer les modifications",
+        "downloadFile": "Impossible de télécharger le fichier",
+        "removeTag": "Impossible de retirer le tag",
+        "update": "Impossible de mettre à jour {field}",
+        "other": "Échec de l’opération : {operation}"
+      }
+    },
+    "clipboard": {
+      "copyingImage": "Copie de l’image…",
+      "imageCopied": "Image copiée dans le presse-papiers",
+      "copied": "Copié dans le presse-papiers",
+      "linkCopied": "Lien copié dans le presse-papiers",
+      "copyFailed": "Impossible de copier dans le presse-papiers"
+    },
+    "deviceSessions": {
+      "loadFailed": "Impossible de charger les appareils. Veuillez réessayer."
+    },
+    "linkThumbnail": {
+      "replaced": "Image remplacée",
+      "reset": "Image d’origine rétablie",
+      "undoExpired": "Il est trop tard pour annuler cette modification."
+    },
+    "reprocess": {
+      "started": "Actualisation des détails. Le résumé et les tags seront bientôt mis à jour."
+    },
+    "savePdf": {
+      "saved": "PDF enregistré",
+      "alreadySaved": "Déjà enregistré",
+      "open": "Ouvrir",
+      "cardLimitReached": "Limite de fiches gratuites atteinte",
+      "tooLarge": "Ce PDF est trop volumineux. Teak conserve les fichiers jusqu’à 100 Mo.",
+      "notPdf": "arXiv n’a pas envoyé de PDF pour cet article.",
+      "failed": "Impossible d’enregistrer le PDF. Réessayez."
+    },
+    "settings": {
+      "openingPortal": "Ouverture du portail client…",
+      "portalOpened": "Portail client ouvert",
+      "portalFailed": "Impossible d’ouvrir le portail",
+      "deleteAccountFailed": "Une erreur s’est produite lors de la suppression de votre compte.",
+      "signOutFailed": "Impossible de se déconnecter. Veuillez réessayer."
+    },
+    "tagOperations": {
+      "startFailed": "Impossible de lancer la modification du tag"
+    },
+    "upload": {
+      "failed": "Échec de l’importation",
+      "failedWithStatus": "Échec de l’importation (statut {status})",
+      "unsupportedType": "Type de fichier non pris en charge",
+      "prepareFailed": "Impossible de préparer l’importation",
+      "createFailed": "Impossible de créer la fiche",
+      "cancelled": "Importation annulée",
+      "timedOut": "L’importation ne répond plus. Vérifiez votre connexion et réessayez."
+    }
+  },
+  "lib": {
+    "bulkCardActions": {
+      "progress": {
+        "favorite": "Ajout aux favoris : {done} sur {total}…",
+        "unfavorite": "Retrait des favoris : {done} sur {total}…",
+        "archive": "Archivage : {done} sur {total}…",
+        "unarchive": "Retour dans la bibliothèque : {done} sur {total}…",
+        "addTags": "Ajout de tags : {done} sur {total}…",
+        "removeTags": "Retrait de tags : {done} sur {total}…",
+        "delete": "Placement dans la corbeille : {done} sur {total}…",
+        "restore": "Restauration : {done} sur {total}…",
+        "addToFolder": "Ajout au dossier : {done} sur {total}…",
+        "removeFromFolder": "Retrait du dossier : {done} sur {total}…",
+        "moveToFolder": "Déplacement : {done} sur {total}…"
+      },
+      "done": {
+        "favorite": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} aux favoris",
+        "unfavorite": "{count, plural, one {# fiche retirée} other {# fiches retirées}} des favoris",
+        "archive": "{count, plural, one {# fiche archivée} other {# fiches archivées}}",
+        "unarchive": "{count, plural, one {# fiche remise} other {# fiches remises}} dans la bibliothèque",
+        "addTags": "Tags ajoutés à {count, plural, one {# fiche} other {# fiches}}",
+        "removeTags": "Tags retirés de {count, plural, one {# fiche} other {# fiches}}",
+        "delete": "{count, plural, one {# fiche placée} other {# fiches placées}} dans la corbeille",
+        "restore": "{count, plural, one {# fiche restaurée} other {# fiches restaurées}}",
+        "addToFolder": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} à {folder}",
+        "removeFromFolder": "{count, plural, one {# fiche retirée} other {# fiches retirées}} de {folder}",
+        "moveToFolder": "{count, plural, one {# fiche déplacée} other {# fiches déplacées}} vers {folder}",
+        "addToUnnamedFolder": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} au dossier",
+        "removeFromUnnamedFolder": "{count, plural, one {# fiche retirée} other {# fiches retirées}} du dossier",
+        "moveToUnnamedFolder": "{count, plural, one {# fiche déplacée} other {# fiches déplacées}} vers le dossier"
+      },
+      "partial": "{done}. {failed} n’ont pas pu être modifiées.",
+      "failed": {
+        "favorite": "Impossible d’ajouter ces fiches aux favoris",
+        "unfavorite": "Impossible de retirer ces fiches des favoris",
+        "archive": "Impossible d’archiver ces fiches",
+        "unarchive": "Impossible de désarchiver ces fiches",
+        "addTags": "Impossible d’ajouter des tags à ces fiches",
+        "removeTags": "Impossible de retirer des tags de ces fiches",
+        "delete": "Impossible de placer ces fiches dans la corbeille",
+        "restore": "Impossible de restaurer ces fiches",
+        "addToFolder": "Impossible d’ajouter ces fiches au dossier",
+        "removeFromFolder": "Impossible de retirer ces fiches du dossier",
+        "moveToFolder": "Impossible de déplacer ces fiches"
+      }
+    },
+    "clipboard": {
+      "copiedColor": "{hex} copié",
+      "copyFailed": "Échec de la copie"
+    },
+    "exif": {
+      "camera": "Appareil photo",
+      "taken": "Prise de vue",
+      "exposure": "Exposition",
+      "aperture": "Ouverture",
+      "focalLength": "Focale",
+      "iso": "ISO"
+    },
+    "folders": {
+      "colors": {
+        "none": "Aucune couleur",
+        "gray": "Gris",
+        "red": "Rouge",
+        "orange": "Orange",
+        "amber": "Ambre",
+        "green": "Vert",
+        "teal": "Bleu canard",
+        "blue": "Bleu",
+        "violet": "Violet",
+        "pink": "Rose"
+      },
+      "suggestedName": {
+        "type": "{type, select, text {Textes} link {Liens} image {Images} video {Vidéos} audio {Audios} document {Documents} palette {Palettes} quote {Citations} other {{type}}}",
+        "favorites": "Favoris",
+        "archived": "Archivées",
+        "price": "Prix {bound}",
+        "text": "Texte « {text} »"
+      }
+    },
+    "libraryViews": {
+      "labels": {
+        "all": "Tout",
+        "favorites": "Favoris",
+        "archive": "Archives",
+        "trash": "Corbeille"
+      },
+      "searchPlaceholders": {
+        "all": "Rechercher partout",
+        "favorites": "Rechercher dans les favoris",
+        "archive": "Rechercher dans les archives",
+        "trash": "Rechercher dans la corbeille"
+      }
+    },
+    "linkByline": {
+      "byAuthor": "Par {author}"
+    },
+    "linkThumbnail": {
+      "changeFailed": "Impossible de modifier l’image. Réessayez."
+    },
+    "linkTitle": {
+      "fallback": "Lien"
+    },
+    "reprocess": {
+      "failed": "Impossible d’actualiser cette fiche. Réessayez dans un instant."
+    },
+    "tags": {
+      "progress": "{changed, number} sur {total, plural, one {# fiche} other {# fiches}}",
+      "completed": {
+        "rename": "« {from} » renommé en « {to} »",
+        "merge": "« {from} » fusionné avec « {to} »",
+        "delete": "« {from} » supprimé"
+      },
+      "running": {
+        "rename": "Renommage de « {from} » en « {to} »…",
+        "merge": "Fusion de « {from} » avec « {to} »…",
+        "delete": "Suppression de « {from} »…"
+      },
+      "failed": {
+        "rename": "Impossible de terminer le renommage. {changed, number} sur {total, plural, one {# fiche} other {# fiches}} modifiées.",
+        "merge": "Impossible de terminer la fusion. {changed, number} sur {total, plural, one {# fiche} other {# fiches}} modifiées.",
+        "delete": "Impossible de terminer la suppression. {changed, number} sur {total, plural, one {# fiche} other {# fiches}} modifiées."
+      },
+      "changedDescription": "{count, plural, one {# fiche modifiée} other {# fiches modifiées}}",
+      "runningDescription": "{changed, number} sur {total, plural, one {# fiche} other {# fiches}} modifiées",
+      "failedDescription": "Réessayez pour modifier le reste."
+    },
+    "upload": {
+      "partialFailure": "{successCount} fichiers sur {total} importés.",
+      "partialFailureWithReason": "{successCount} fichiers sur {total} importés. Premier échec : {file} — {reason}",
+      "skippedNote": "{count, plural, one {# fichier a été ignoré} other {# fichiers ont été ignorés}}. Vous pouvez en importer jusqu’à {max} à la fois."
+    }
+  }
+}

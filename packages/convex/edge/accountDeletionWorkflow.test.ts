@@ -585,6 +585,11 @@ describe("durable deletion admission and tombstones", () => {
         toCardId: card,
         createdAt: 1,
       });
+      await ctx.db.insert("userPreferences", {
+        userId: "permanent-owner",
+        locale: "de",
+        updatedAt: 1,
+      });
       await ctx.db.insert("userTagSummaries", {
         userId: "permanent-owner",
         items: [{ name: "private", count: 1 }],
@@ -743,6 +748,7 @@ describe("durable deletion admission and tombstones", () => {
       "cardTextContents",
       "linkedPdfs",
       "cardLinks",
+      "userPreferences",
       "userTagSummaries",
       "tagSummaryRefreshes",
       "userTagCounts",

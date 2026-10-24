@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { useTranslations } from "@teak/i18n/react";
 import { ConfigProvider, Masonry, type ThemeConfig } from "antd";
 import type { FocusEvent, KeyboardEvent, ReactNode, Ref } from "react";
 import {
@@ -172,6 +173,8 @@ export const MasonryGrid = memo(function MasonryGrid({
   gutter = 24,
   toastIdPrefix = "masonry",
 }: MasonryGridProps) {
+  const t = useTranslations("grids.masonry");
+  const tDialog = useTranslations("cards.deleteForeverDialog");
   const resolvedResetKey = resetKey ?? showTrashOnly;
   const normalizedInitialBatchSize = Math.max(1, initialBatchSize);
   const normalizedBatchSize = Math.max(1, batchSize);
@@ -671,7 +674,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       if (action === "copyLinks") {
         const links = collectCardLinks(selectedCards);
         if (links.length === 0) {
-          toast("None of these cards have a link", {
+          toast(t("noLinks"), {
             id: `${toastIdPrefix}-copy-links`,
           });
           return;
@@ -679,13 +682,12 @@ export const MasonryGrid = memo(function MasonryGrid({
         navigator.clipboard
           .writeText(links.join("\n"))
           .then(() =>
-            toast.success(
-              `Copied ${links.length} link${links.length === 1 ? "" : "s"}`,
-              { id: `${toastIdPrefix}-copy-links` }
-            )
+            toast.success(t("copiedLinks", { count: links.length }), {
+              id: `${toastIdPrefix}-copy-links`,
+            })
           )
           .catch(() =>
-            toast.error("Couldn't copy the links", {
+            toast.error(t("copyLinksFailed"), {
               id: `${toastIdPrefix}-copy-links`,
             })
           );
@@ -693,7 +695,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       }
       runBulk(action).catch(() => undefined);
     },
-    [addToFolder, folder, runBulk, selectedCards, toastIdPrefix]
+    [addToFolder, folder, runBulk, selectedCards, t, toastIdPrefix]
   );
 
   const requestPermanentDelete = useMemo(
@@ -973,8 +975,8 @@ export const MasonryGrid = memo(function MasonryGrid({
         open={foldersCardId !== null}
       />
       <ConfirmDialog
-        confirmLabel="Delete Forever"
-        description="This permanently deletes the card and its files. This can’t be undone."
+        confirmLabel={tDialog("confirm")}
+        description={tDialog("description")}
         onConfirm={confirmPermanentDelete}
         onOpenChange={(open) => {
           if (!open) {
@@ -982,7 +984,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           }
         }}
         open={pendingPermanentDeleteId !== null}
-        title="Delete this card forever?"
+        title={tDialog("title")}
       />
     </>
   );

@@ -1,3 +1,5 @@
+import type { TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
 import {
@@ -5,7 +7,6 @@ import {
   PRO_YEARLY_PRICE_CENTS,
   yearlySavingsPercent,
 } from "../../constants/billing";
-import { PRO_FEATURES } from "../../constants/settings";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { PlanOption } from "./PlanOption";
@@ -23,20 +24,34 @@ interface SubscriptionDialogProps extends SubscriptionSectionProps {
   open: boolean;
 }
 
-function planOptions(monthlyPlanId: string, yearlyPlanId: string) {
+const PRO_FEATURE_KEYS = [
+  "unlimitedCards",
+  "unlimitedStorage",
+  "summaryAndTags",
+  "audioTranscription",
+  "browserExtensions",
+  "apps",
+  "apiAndMcp",
+] as const;
+
+function planOptions(
+  t: TeakTranslator<"settings.subscription">,
+  monthlyPlanId: string,
+  yearlyPlanId: string
+) {
   return [
     {
       planId: monthlyPlanId,
-      title: "Monthly",
+      title: t("monthly"),
       priceAmount: PRO_MONTHLY_PRICE_CENTS,
-      intervalLabel: "/ month",
+      intervalLabel: t("perMonth"),
     },
     {
       planId: yearlyPlanId,
-      title: "Yearly",
+      title: t("yearly"),
       priceAmount: PRO_YEARLY_PRICE_CENTS,
-      intervalLabel: "/ year",
-      badge: `Best Value • Save ${yearlySavingsPercent()}%`,
+      intervalLabel: t("perYear"),
+      badge: t("bestValue", { percent: yearlySavingsPercent() }),
     },
   ];
 }
@@ -52,12 +67,13 @@ export function SubscriptionSection({
   onSelect: (planId: string) => void;
   selectedPlanId: string;
 }) {
-  const plans = planOptions(monthlyPlanId, yearlyPlanId);
+  const t = useTranslations("settings.subscription");
+  const plans = planOptions(t, monthlyPlanId, yearlyPlanId);
 
   return (
     <div className="space-y-6">
       <fieldset className="grid grid-cols-2 gap-3">
-        <legend className="sr-only">Choose a plan</legend>
+        <legend className="sr-only">{t("choosePlan")}</legend>
         {plans.map((plan) => (
           <PlanOption
             key={plan.planId}
@@ -70,9 +86,9 @@ export function SubscriptionSection({
       </fieldset>
 
       <div className="space-y-3">
-        <p className="font-medium text-sm">Everything in Pro</p>
+        <p className="font-medium text-sm">{t("everythingInPro")}</p>
         <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
-          {PRO_FEATURES.map((feature) => (
+          {PRO_FEATURE_KEYS.map((feature) => (
             <li
               className="flex items-center gap-2 text-muted-foreground text-sm"
               key={feature}
@@ -80,7 +96,7 @@ export function SubscriptionSection({
               <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Check className="size-2.5" strokeWidth={3} />
               </span>
-              <span>{feature}</span>
+              <span>{t(`features.${feature}`)}</span>
             </li>
           ))}
         </ul>
@@ -97,13 +113,14 @@ export function SubscriptionDialog({
   open,
   yearlyPlanId,
 }: SubscriptionDialogProps) {
+  const t = useTranslations("settings.subscription");
   const [selectedPlanId, setSelectedPlanId] = useState(yearlyPlanId);
   const loading = loadingPlanId !== null;
 
   return (
     <SettingsDialog
       className="sm:max-w-lg"
-      description="Unlock all features and remove limits."
+      description={t("description")}
       footer={
         <>
           <Button
@@ -111,14 +128,14 @@ export function SubscriptionDialog({
             type="button"
             variant="outline"
           >
-            Maybe later
+            {t("maybeLater")}
           </Button>
           <Button
             disabled={loading}
             onClick={() => onCheckout(selectedPlanId)}
             type="button"
           >
-            {loading ? <Spinner /> : "Continue to checkout"}
+            {loading ? <Spinner /> : t("continueToCheckout")}
           </Button>
         </>
       }
@@ -130,7 +147,7 @@ export function SubscriptionDialog({
       }}
       onOpenChange={onOpenChange}
       open={open}
-      title="Upgrade to Pro"
+      title={t("title")}
     >
       <SettingsDialogBody>
         <SubscriptionSection

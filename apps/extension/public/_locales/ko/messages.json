@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Teak",
+    "description": "The extension's name. Keep it as Teak in every language."
+  },
+  "extDescription": {
+    "message": "나만의 지식 허브입니다. 웹 콘텐츠를 손쉽게 저장하고 정리하며 다시 찾아볼 수 있습니다.",
+    "description": "The extension's description in the browser's extension list and store."
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { useTranslations } from "@teak/i18n/react";
 import { defaultFilter } from "cmdk";
 import { useQueries } from "convex-helpers/react/cache/hooks";
 import {
@@ -39,9 +40,9 @@ import {
 } from "../../lib/folders";
 import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
 import {
-  LIBRARY_VIEW_LABELS,
   LIBRARY_VIEW_PATHS,
   LIBRARY_VIEWS,
+  libraryViewLabel,
 } from "../../lib/libraryViews";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { FolderDot } from "../folders/FolderDot";
@@ -114,6 +115,8 @@ export function CommandPaletteResults({
   onSelect,
   query,
 }: CommandPaletteResultsProps) {
+  const t = useTranslations("commandPalette");
+  const tViews = useTranslations("lib.libraryViews");
   const trimmed = query.trim();
   return (
     <>
@@ -121,28 +124,29 @@ export function CommandPaletteResults({
       {(cards.status === "idle" ||
         (cards.status === "ready" && cards.cards.length === 0)) && (
         <CommandEmpty className="py-4 text-center text-[13px] text-muted-foreground">
-          No results
+          {t("noResults")}
         </CommandEmpty>
       )}
-      <CommandGroup heading="Navigate">
+      <CommandGroup heading={t("groups.navigate")}>
         {LIBRARY_VIEWS.map((view) => {
           const Icon = LIBRARY_VIEW_ICONS[view];
+          const label = libraryViewLabel(view, tViews);
           return (
             <CommandItem
               key={view}
-              keywords={[LIBRARY_VIEW_LABELS[view], "go to", "view"]}
+              keywords={[label, "go to", "view"]}
               onSelect={() =>
                 onSelect({ kind: "navigate", href: LIBRARY_VIEW_PATHS[view] })
               }
               value={`view:${view}`}
             >
               <Icon />
-              <span className="truncate">{LIBRARY_VIEW_LABELS[view]}</span>
+              <span className="truncate">{label}</span>
               <span aria-hidden="true" className="ml-auto">
                 <ShortcutHint
                   row={{
                     keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
-                    label: LIBRARY_VIEW_LABELS[view],
+                    label,
                     sequence: true,
                   }}
                 />
@@ -151,25 +155,25 @@ export function CommandPaletteResults({
           );
         })}
         <CommandItem
-          keywords={["Tags", "labels"]}
+          keywords={[t("views.tags"), "labels"]}
           onSelect={() => onSelect({ kind: "navigate", href: "/tags" })}
           value="view:tags"
         >
           <Hash />
-          <span>Tags</span>
+          <span>{t("views.tags")}</span>
         </CommandItem>
         <CommandItem
-          keywords={["Settings", "account", "preferences", "billing"]}
+          keywords={[t("views.settings"), "account", "preferences", "billing"]}
           onSelect={() => onSelect({ kind: "navigate", href: "/settings" })}
           value="view:settings"
         >
           <Settings />
-          <span>Settings</span>
+          <span>{t("views.settings")}</span>
         </CommandItem>
       </CommandGroup>
       {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH &&
         !(cards.status === "ready" && cards.cards.length === 0) && (
-          <CommandGroup forceMount heading="Cards">
+          <CommandGroup forceMount heading={t("groups.cards")}>
             <PaletteCardRows
               cards={cards}
               onSelect={onSelect}
@@ -177,23 +181,22 @@ export function CommandPaletteResults({
             />
           </CommandGroup>
         )}
-      <CommandGroup heading="Actions">
+      <CommandGroup heading={t("groups.actions")}>
         {COMMAND_PALETTE_ACTIONS.map((action) => {
           const Icon = ACTION_ICONS[action.id];
+          const label = t(`actions.${action.labelKey}`);
           return (
             <CommandItem
               key={action.id}
-              keywords={[action.label, ...action.keywords]}
+              keywords={[label, ...action.keywords]}
               onSelect={() => onSelect({ kind: "action", id: action.id })}
               value={`action:${action.id}`}
             >
               <Icon />
-              <span className="truncate">{action.label}</span>
+              <span className="truncate">{label}</span>
               {action.keys ? (
                 <span aria-hidden="true" className="ml-auto">
-                  <ShortcutHint
-                    row={{ keys: action.keys, label: action.label }}
-                  />
+                  <ShortcutHint row={{ keys: action.keys, label }} />
                 </span>
               ) : null}
             </CommandItem>
@@ -201,7 +204,7 @@ export function CommandPaletteResults({
         })}
       </CommandGroup>
       {folders && folders.length > 0 && (
-        <CommandGroup heading="Folders">
+        <CommandGroup heading={t("groups.folders")}>
           {folders.map((folder) => (
             <CommandItem
               key={folder._id}
@@ -217,7 +220,7 @@ export function CommandPaletteResults({
             >
               {folder.kind === "smart" ? (
                 <FolderSearch
-                  aria-label="Smart folder"
+                  aria-label={t("smartFolder")}
                   className={
                     folder.color ? FOLDER_ICON_CLASSES[folder.color] : undefined
                   }
@@ -247,10 +250,12 @@ function PaletteCardRows({
   onSelect: (command: CommandPaletteCommand) => void;
   query: string;
 }) {
+  const t = useTranslations("commandPalette");
+  const tLinkTitle = useTranslations("lib.linkTitle");
   if (cards.status === "loading" || cards.status === "idle") {
     return (
       <div
-        aria-label="Searching cards"
+        aria-label={t("cards.searching")}
         className="space-y-1 px-2 py-1"
         role="status"
       >
@@ -266,7 +271,7 @@ function PaletteCardRows({
   if (cards.status === "error") {
     return (
       <p className="px-2 py-1 text-[13px] text-muted-foreground" role="status">
-        Couldn’t search cards
+        {t("cards.searchFailed")}
       </p>
     );
   }
@@ -274,7 +279,7 @@ function PaletteCardRows({
     <>
       {cards.cards.map((card) => {
         const Icon = getCardTypeIconComponent(card.type);
-        const title = paletteCardTitle(card);
+        const title = paletteCardTitle(card, t, tLinkTitle);
         const host = paletteCardHost(card);
         return (
           <CommandItem
@@ -303,7 +308,7 @@ function PaletteCardRows({
       >
         <Search />
         <span className="min-w-0 truncate" dir="auto">
-          Search all for “{query}”
+          {t("cards.searchAll", { query })}
         </span>
       </CommandItem>
     </>
@@ -370,6 +375,7 @@ export function CommandPalette({
   open,
   pathname,
 }: CommandPaletteProps) {
+  const t = useTranslations("commandPalette");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -412,19 +418,23 @@ export function CommandPalette({
         value: selected,
         vimBindings: false,
       }}
-      description="Go to a view or folder, find a card, or run an action"
+      description={t("description")}
       onCloseAutoFocus={onCloseAutoFocus}
       onOpenChange={onOpenChange}
       open={open}
-      title="Command palette"
+      title={t("title")}
     >
       <CommandInput
-        aria-label="Search commands, folders and cards"
+        aria-label={t("inputLabel")}
         onValueChange={setQuery}
-        placeholder="Type a command or search…"
+        placeholder={t("placeholder")}
         value={query}
       />
-      <CommandList className="max-h-[min(50vh,360px)] pb-1" ref={listRef}>
+      <CommandList
+        aria-label={t("resultsLabel")}
+        className="max-h-[min(50vh,360px)] pb-1"
+        ref={listRef}
+      >
         <CommandPaletteResults
           cards={cards}
           folders={folders}

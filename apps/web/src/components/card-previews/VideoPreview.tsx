@@ -1,5 +1,6 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
+import { useTranslations } from "@teak/i18n/react";
 
 type CardWithUrls = Doc<"cards"> & {
   fileUrl?: string;
@@ -11,6 +12,7 @@ interface VideoPreviewProps {
 }
 
 export function VideoPreview({ card }: VideoPreviewProps) {
+  const t = useTranslations("cardPreviews.video");
   const fileUrl = card.fileUrl;
 
   if (!fileUrl) {
@@ -27,7 +29,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
   if (format?.id === "gif") {
     return (
       <img
-        alt={card.fileMetadata?.fileName || card.content || "Animated GIF"}
+        alt={card.fileMetadata?.fileName || card.content || t("gifAlt")}
         className="h-full w-full rounded-xl object-contain"
         height={480}
         src={fileUrl}
@@ -45,7 +47,7 @@ export function VideoPreview({ card }: VideoPreviewProps) {
     >
       <source src={fileUrl} type={card.fileMetadata?.mimeType} />
       <track kind="captions" />
-      Your browser does not support the video tag.
+      {t("unsupported")}
     </video>
   );
 }

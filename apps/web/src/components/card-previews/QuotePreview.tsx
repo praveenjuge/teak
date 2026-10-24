@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { useTranslations } from "@teak/i18n/react";
 import { Textarea } from "@/components/ui/textarea";
 import type { GetCurrentValue } from "../card-modal/types";
 
@@ -21,6 +22,7 @@ export function QuotePreview({
   getCurrentValue,
   readOnly = false,
 }: QuotePreviewProps) {
+  const t = useTranslations("cardPreviews.quote");
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
@@ -41,7 +43,7 @@ export function QuotePreview({
             const newContent = e.target.value;
             onContentChange(newContent);
           }}
-          placeholder="Enter your quote..."
+          placeholder={t("placeholder")}
           readOnly={readOnly}
           value={currentContent || ""}
         />

@@ -7,13 +7,20 @@ import {
   parsePriceBound,
   parseSearchQuery,
 } from "@teak/convex/shared";
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import type { CardType } from "@teak/convex/shared/constants";
 import {
   type FolderColor,
   type FolderKind,
   MAX_FOLDER_NAME_LENGTH,
 } from "@teak/convex/shared/folders";
+import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
+import { englishErrors, englishTranslator } from "./englishTranslators";
+import { type ErrorsTranslator, translateServerMessage } from "./serverErrors";
+
+export type FoldersTranslator = TeakTranslator<"lib.folders">;
+
+const englishFolders: FoldersTranslator = englishTranslator("lib.folders");
 
 export interface FolderSummary {
   _id: Id<"folders">;
@@ -66,17 +73,10 @@ export const FOLDER_ICON_CLASSES: Record<FolderColor, string> = {
   pink: "text-pink-500 fill-pink-500/15",
 };
 
-export const FOLDER_COLOR_LABELS: Record<FolderColor, string> = {
-  gray: "Gray",
-  red: "Red",
-  orange: "Orange",
-  amber: "Amber",
-  green: "Green",
-  teal: "Teal",
-  blue: "Blue",
-  violet: "Violet",
-  pink: "Pink",
-};
+export const folderColorLabel = (
+  color: FolderColor,
+  t: FoldersTranslator = englishFolders
+) => t(`colors.${color}`);
 
 export const CARD_DRAG_TYPE = "application/x-teak-card";
 
@@ -124,11 +124,16 @@ export const hasFolderNamed = (
   );
 };
 
-export const folderErrorMessage = (error: unknown, fallback: string) => {
+/** The server's message, translated when the catalog knows it. */
+export const folderErrorMessage = (
+  error: unknown,
+  fallback: string,
+  t: ErrorsTranslator = englishErrors
+) => {
   if (error instanceof ConvexError) {
     const message = (error.data as { message?: unknown } | undefined)?.message;
     if (typeof message === "string") {
-      return message;
+      return translateServerMessage(t, message);
     }
   }
   return fallback;
@@ -175,25 +180,32 @@ export const buildSmartFolderQuery = ({
 const capitalize = (text: string) =>
   text ? `${text[0]?.toUpperCase() ?? ""}${text.slice(1)}` : text;
 
-export const suggestSmartFolderName = (query: string): string => {
+export const suggestSmartFolderName = (
+  query: string,
+  t: FoldersTranslator = englishFolders
+): string => {
   const parsed = parseSearchQuery(query);
   const parts = [
     ...parsed.qualifiers.map((qualifier) => {
       switch (qualifier.key) {
         case "type":
-          return `${CARD_TYPE_LABELS[qualifier.value]}s`;
+          return t("suggestedName.type", { type: qualifier.value });
         case "site":
           return hostForDisplay(qualifier.value);
         case "is":
-          return qualifier.value === "fav" ? "Favorites" : "Archived";
+          return qualifier.value === "fav"
+            ? t("suggestedName.favorites")
+            : t("suggestedName.archived");
         case "price": {
           const bound = parsePriceBound(qualifier.value);
           return bound
-            ? `Price ${describePriceBound(bound).toLowerCase()}`
+            ? t("suggestedName.price", {
+                bound: describePriceBound(bound).toLowerCase(),
+              })
             : "";
         }
         case "text":
-          return `Text “${qualifier.value}”`;
+          return t("suggestedName.text", { text: qualifier.value });
         default:
           return qualifier.value;
       }

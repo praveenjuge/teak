@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
+import { useTranslations } from "@teak/i18n/react";
 import type { OptimisticLocalStore } from "convex/browser";
 import { useMutation } from "convex/react";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
@@ -26,6 +27,7 @@ function updateSingleCardQuery(
 
 export function useCardActions(config: UiCardActionsConfig = {}) {
   const { onCardUpdate, ...cardActionsConfig } = config;
+  const t = useTranslations("hooks.cardActions");
   const permanentDeleteCard = useMutation(
     api.cards.permanentDeleteCard
   ).withOptimisticUpdate((localStore, { id }) => {
@@ -141,7 +143,8 @@ export function useCardActions(config: UiCardActionsConfig = {}) {
 
   const cardActions = createCardActions(
     { permanentDeleteCard, updateCardField },
-    cardActionsConfig
+    cardActionsConfig,
+    t
   );
 
   return {

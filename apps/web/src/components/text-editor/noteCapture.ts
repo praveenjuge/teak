@@ -1,5 +1,16 @@
 import { extractUrlFromContent } from "@teak/convex/shared/utils/linkDetection";
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
 import { Marked, type Token, type Tokens } from "marked";
+
+const englishTextEditor = createTeakTranslator(
+  "en",
+  englishMessages,
+  "textEditor"
+);
 
 const lexer = new Marked({ gfm: true });
 
@@ -86,8 +97,11 @@ export function prepareNoteCapture(source: string): NoteCapture {
  * at save time; whether a note becomes a quote or a palette is decided later,
  * so anything else is just "Saved".
  */
-export function noteCaptureSavedMessage(capture: NoteCapture): string {
+export function noteCaptureSavedMessage(
+  capture: NoteCapture,
+  t: TeakTranslator<"textEditor"> = englishTextEditor
+): string {
   return capture.type !== "text" && extractUrlFromContent(capture.content).url
-    ? "Link saved"
-    : "Saved";
+    ? t("noteCapture.linkSaved")
+    : t("noteCapture.saved");
 }

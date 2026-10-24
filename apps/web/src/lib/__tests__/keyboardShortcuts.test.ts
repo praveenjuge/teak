@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
   ariaKeyShortcut,
-  KEYBOARD_SHORTCUT_GROUPS,
+  keyboardShortcutGroups,
   platformKey,
   pressUploadFiles,
   registerUploadFiles,
@@ -61,7 +61,7 @@ describe("pressUploadFiles", () => {
 
 describe("the Search group", () => {
   test("teaches the search operators", () => {
-    const search = KEYBOARD_SHORTCUT_GROUPS.find(
+    const search = keyboardShortcutGroups().find(
       (group) => group.title === "Search"
     );
     expect(search?.rows.map((row) => [row.keys.join(" "), row.label])).toEqual([

@@ -1,7 +1,8 @@
 "use client";
 
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { Copy, Mail } from "lucide-react";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -26,13 +27,13 @@ export interface InboundEmailPanelProps {
   state: InboundEmailState | null | undefined;
 }
 
-const GENERIC_ERROR = "Couldn't update Save by email. Try again.";
-const RATE_LIMITED_ERROR = "Too many changes. Try again in a minute.";
+const isRateLimited = (error: unknown) =>
+  (error as { data?: { code?: unknown } } | null)?.data?.code ===
+  "RATE_LIMITED";
 
-const errorMessage = (error: unknown) =>
-  (error as { data?: { code?: unknown } } | null)?.data?.code === "RATE_LIMITED"
-    ? RATE_LIMITED_ERROR
-    : GENERIC_ERROR;
+const senderName = (chunks: ReactNode) => (
+  <span className="font-medium">{chunks}</span>
+);
 
 /**
  * The address cut before its `@` on narrow screens: the name gives way to an
@@ -58,6 +59,10 @@ export function InboundEmailPanel({
   onEnable,
   state,
 }: InboundEmailPanelProps) {
+  const t = useTranslations("settings.inboundEmail");
+  const tc = useTranslations("common");
+  const tFormat = useTranslations("settings.format");
+  const locale = useIntlLocale();
   const [busy, setBusy] = useState<"enable" | "disable" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inFlight = useRef<boolean>(false);
@@ -75,7 +80,7 @@ export function InboundEmailPanel({
     try {
       await change();
     } catch (caught) {
-      setError(errorMessage(caught));
+      setError(t(isRateLimited(caught) ? "rateLimited" : "genericError"));
     } finally {
       inFlight.current = false;
       setBusy(null);
@@ -85,16 +90,16 @@ export function InboundEmailPanel({
   const copy = async (address: string) => {
     try {
       await navigator.clipboard.writeText(address);
-      toast.success("Address copied");
+      toast.success(t("addressCopied"));
     } catch {
-      toast.error("Couldn't copy the address. Select and copy it manually.");
+      toast.error(t("copyFailed"));
     }
   };
 
   if (state === undefined) {
     return (
       <div aria-busy="true" className="space-y-3" role="status">
-        <span className="sr-only">Loading Save by email…</span>
+        <span className="sr-only">{t("loading")}</span>
         <div aria-hidden className="flex gap-2">
           <span className="h-9 flex-1 animate-pulse rounded-md bg-muted" />
           <span className="h-9 w-20 animate-pulse rounded-md bg-muted" />
@@ -117,14 +122,13 @@ export function InboundEmailPanel({
     const unverified = state ? !state.senderVerified : false;
     return (
       <div className="space-y-4">
-        <p className="text-muted-foreground text-sm leading-5">
-          Send or forward email to Teak, and it's saved as cards.
-        </p>
+        <p className="text-muted-foreground text-sm leading-5">{t("intro")}</p>
         {unverified ? (
           <p className="text-sm leading-5">
-            Verify your sign-in email,{" "}
-            <span className="font-medium">{state?.sender}</span>, to turn this
-            on.
+            {t.rich("verifyToTurnOn", {
+              sender: state?.sender ?? "",
+              strong: senderName,
+            })}
           </p>
         ) : null}
         {errorLine}
@@ -133,7 +137,8 @@ export function InboundEmailPanel({
           disabled={state === null || unverified || busy !== null}
           onClick={() => void run("enable", onEnable)}
         >
-          {busy === "enable" ? <Spinner /> : null}Turn on
+          {busy === "enable" ? <Spinner /> : null}
+          {t("turnOn")}
         </Button>
       </div>
     );
@@ -144,33 +149,36 @@ export function InboundEmailPanel({
       <div className="flex min-w-0 gap-2">
         <MiddleTruncatedAddress address={state.address} />
         <Button
-          aria-label="Copy address"
+          aria-label={t("copyAddress")}
           onClick={() => void copy(state.address)}
           variant="outline"
         >
           <Copy />
-          Copy
+          {tc("copy")}
         </Button>
       </div>
       {state.senderVerified ? (
         <p className="text-sm leading-5">
-          Send from <span className="font-medium">{state.sender}</span>. Mail
-          from other addresses isn't saved.
+          {t.rich("sendFrom", { sender: state.sender, strong: senderName })}
         </p>
       ) : (
         <p className="text-sm leading-5">
-          Mail isn't saved until you verify your sign-in email,{" "}
-          <span className="font-medium">{state.sender}</span>.
+          {t.rich("unverified", { sender: state.sender, strong: senderName })}
         </p>
       )}
       <p className="text-muted-foreground text-sm leading-5">
-        Forward or send anything. An email with a single link becomes a link
-        card, everything else becomes a note, and attachments become their own
-        cards. All are tagged email.
+        {t("howItWorks")}
       </p>
       {state.lastReceivedAt === null ? null : (
         <p className="text-muted-foreground text-xs leading-5">
-          Last email received {formatRelativeTime(state.lastReceivedAt)}
+          {t("lastReceived", {
+            when: formatRelativeTime(
+              state.lastReceivedAt,
+              Date.now(),
+              tFormat,
+              locale
+            ),
+          })}
         </p>
       )}
       {errorLine}
@@ -182,7 +190,8 @@ export function InboundEmailPanel({
           size="sm"
           variant="ghost"
         >
-          {busy === "disable" ? <Spinner /> : null}Turn off
+          {busy === "disable" ? <Spinner /> : null}
+          {t("turnOff")}
         </Button>
       </div>
     </div>
@@ -197,12 +206,13 @@ export function InboundEmailDialog({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
+  const t = useTranslations("settings.inboundEmail");
   return (
     <SettingsDialog
       icon={Mail}
       onOpenChange={onOpenChange}
       open={open}
-      title="Save by email"
+      title={t("title")}
     >
       <SettingsDialogBody>
         <InboundEmailPanel {...panel} />
@@ -213,21 +223,25 @@ export function InboundEmailDialog({
 
 /** The Settings row: whether Save by email is on, and its dialog. */
 export function InboundEmailSection(props: InboundEmailPanelProps) {
+  const t = useTranslations("settings.inboundEmail");
+  const tRows = useTranslations("settings.rows");
   const [open, setOpen] = useState(false);
   return (
     <>
-      <SettingRow title="Save by email">
+      <SettingRow title={tRows("saveByEmail")}>
         {props.state === undefined ? (
           <SettingValueSkeleton className="w-10" />
         ) : (
           <Button
-            aria-label={`Save by email: ${props.state?.enabled ? "On" : "Off"}`}
+            aria-label={t(
+              props.state?.enabled ? "statusOnLabel" : "statusOffLabel"
+            )}
             disabled={props.state === null}
             onClick={() => setOpen(true)}
             size="sm"
             variant="link"
           >
-            {props.state?.enabled ? "On" : "Off"}
+            {t(props.state?.enabled ? "on" : "off")}
           </Button>
         )}
       </SettingRow>

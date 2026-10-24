@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import {
   Archive,
   Hash,
@@ -27,9 +28,9 @@ import {
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
 import { ariaKeyShortcut, GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
 import {
-  LIBRARY_VIEW_LABELS,
   LIBRARY_VIEW_PATHS,
   type LibraryView,
+  libraryViewLabel,
 } from "../../lib/libraryViews";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
 import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -68,13 +69,15 @@ export interface AppSidebarProps {
 }
 
 function ViewTooltip({ view }: { view: LibraryView }) {
+  const t = useTranslations("lib.libraryViews");
+  const label = libraryViewLabel(view, t);
   return (
     <>
-      {LIBRARY_VIEW_LABELS[view]}
+      {label}
       <ShortcutHint
         row={{
           keys: ["G", GO_TO_VIEW_KEYS[view].toUpperCase()],
-          label: LIBRARY_VIEW_LABELS[view],
+          label,
           sequence: true,
         }}
       />
@@ -93,6 +96,8 @@ export function AppSidebar({
   settingsHref = "/settings",
   tagsHref = "/tags",
 }: AppSidebarProps) {
+  const t = useTranslations("sidebar.nav");
+  const tViews = useTranslations("lib.libraryViews");
   const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
   const apple = useIsApplePlatform();
 
@@ -122,7 +127,7 @@ export function AppSidebar({
             onClick={handleNavigate}
           >
             <Icon />
-            <span>{LIBRARY_VIEW_LABELS[view]}</span>
+            <span>{libraryViewLabel(view, tViews)}</span>
           </LinkComponent>
         </SidebarMenuButton>
         <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">
@@ -143,7 +148,7 @@ export function AppSidebar({
               tooltip="Teak"
             >
               <LinkComponent
-                aria-label="Teak home"
+                aria-label={t("home")}
                 href={LIBRARY_VIEW_PATHS.all}
                 onClick={handleNavigate}
               >
@@ -155,15 +160,11 @@ export function AppSidebar({
         <span className="flex-1 group-data-[collapsible=icon]:hidden" />
         <ShortcutTooltip
           keys={TOGGLE_SIDEBAR_KEYS}
-          label={
-            state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
-          }
+          label={state === "collapsed" ? t("keepOpen") : t("collapse")}
         >
           <button
             aria-keyshortcuts={ariaKeyShortcut(TOGGLE_SIDEBAR_KEYS, apple)}
-            aria-label={
-              state === "collapsed" ? "Keep sidebar open" : "Collapse sidebar"
-            }
+            aria-label={state === "collapsed" ? t("keepOpen") : t("collapse")}
             className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden [&>svg]:opacity-55 [&>svg]:transition-opacity hover:[&>svg]:opacity-100"
             onClick={toggleSidebar}
             type="button"
@@ -179,14 +180,18 @@ export function AppSidebar({
           <SidebarMenu>
             {PRIMARY_VIEWS.map(viewItem)}
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isTagsActive} tooltip="Tags">
+              <SidebarMenuButton
+                asChild
+                isActive={isTagsActive}
+                tooltip={t("tags")}
+              >
                 <LinkComponent
                   aria-current={isTagsActive ? "page" : undefined}
                   href={tagsHref}
                   onClick={handleNavigate}
                 >
                   <Hash />
-                  <span>Tags</span>
+                  <span>{t("tags")}</span>
                 </LinkComponent>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -195,16 +200,16 @@ export function AppSidebar({
               <SidebarMenuButton
                 asChild
                 isActive={isSettingsActive}
-                tooltip="Settings"
+                tooltip={t("settings")}
               >
                 <LinkComponent
                   aria-current={isSettingsActive ? "page" : undefined}
-                  aria-label="Settings"
+                  aria-label={t("settings")}
                   href={settingsHref}
                   onClick={handleNavigate}
                 >
                   <Settings />
-                  <span>Settings</span>
+                  <span>{t("settings")}</span>
                 </LinkComponent>
               </SidebarMenuButton>
             </SidebarMenuItem>

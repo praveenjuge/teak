@@ -4,6 +4,7 @@ import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import {
 import { getPolarPlanIds } from "@/constants/billing";
 import { TOAST_IDS } from "@/constants/toast";
 import { useSettingsController } from "@/hooks";
+import { useLanguageSetting } from "@/hooks/useLanguageSetting";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { parseSettingsDialogParam } from "@/lib/commandPalette";
 import { useQuery } from "@/lib/convexQueryHooks";
@@ -39,6 +41,7 @@ function useConsumeDialogParam() {
 }
 
 export function SettingsPageClient() {
+  const t = useTranslations("app.settings");
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const checkoutOpenedRef = useRef(false);
@@ -48,11 +51,12 @@ export function SettingsPageClient() {
   const enableInboundEmail = useMutation(api.inbound.settings.enable);
   const disableInboundEmail = useMutation(api.inbound.settings.disable);
   const importExportRequest = useConsumeDialogParam();
+  const language = useLanguageSetting();
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
       await deleteMyAccount({});
-      toast.success("Account deletion requested. You’re being signed out.");
+      toast.success(t("deletionRequested"));
       await signOut();
     },
     onOpenExternal: (url) => {
@@ -82,8 +86,8 @@ export function SettingsPageClient() {
       return;
     }
     checkoutOpenedRef.current = false;
-    toast.success("Welcome to Pro! Your subscription has been activated.");
-  }, [settings.hasPremium]);
+    toast.success(t("welcomePro"));
+  }, [settings.hasPremium, t]);
 
   const handleCheckout = async (planId: string) => {
     const checkoutTab = reserveCheckoutTab({
@@ -92,7 +96,7 @@ export function SettingsPageClient() {
     });
     captureEvent("checkout_started");
     setLoadingPlanId(planId);
-    const toastId = toast.loading("Opening checkout...", {
+    const toastId = toast.loading(t("openingCheckout"), {
       id: TOAST_IDS.checkoutOpen,
     });
 
@@ -104,7 +108,7 @@ export function SettingsPageClient() {
       checkoutOpenedRef.current = true;
       setSubscriptionOpen(false);
       if (openedIn === "new-tab") {
-        toast.success("Checkout opened in a new tab", { id: toastId });
+        toast.success(t("checkoutNewTab"), { id: toastId });
       } else {
         toast.dismiss(toastId);
       }
@@ -112,7 +116,7 @@ export function SettingsPageClient() {
       captureClientException(error, {
         operation: "billing.create_checkout_link",
       });
-      toast.error("Failed to start checkout. Please try again.", {
+      toast.error(t("checkoutFailed"), {
         id: toastId,
       });
     }
@@ -141,6 +145,7 @@ export function SettingsPageClient() {
         state: inboundEmail,
       }}
       keys={settings.keys}
+      language={language}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}
       onCreateCustomerPortal={settings.handleCreateCustomerPortal}

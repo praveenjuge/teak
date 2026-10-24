@@ -1,6 +1,7 @@
 "use client";
 
 import type { FileFormat } from "@teak/convex/shared/fileFormats";
+import { useTranslations } from "@teak/i18n/react";
 import { Highlight, type Language, themes } from "prism-react-renderer";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
@@ -113,9 +114,10 @@ interface FileTextPreviewProps {
 }
 
 function MarkdownPreviewSkeleton() {
+  const t = useTranslations("cardPreviews.fileText");
   return (
     <div
-      aria-label="Loading file preview"
+      aria-label={t("loading")}
       className="flex max-w-[37em] flex-col gap-3 pb-6"
       role="status"
     >

@@ -14,6 +14,19 @@ import {
   cardTypes,
 } from "@teak/convex/shared/constants";
 import { isHiddenTagList } from "@teak/convex/shared/tags";
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import {
+  type CardTypesTranslator,
+  englishCardTypes,
+} from "../cards/cardTypeLabel";
+
+type SearchTranslator = TeakTranslator<"search">;
+
+const englishSearch = createTeakTranslator("en", englishMessages, "search");
 
 export interface SearchSuggestionSources {
   folders?: readonly { name: string }[];
@@ -30,6 +43,23 @@ export type SearchSuggestionGroup =
   | "Folders"
   | "Sites"
   | "Show";
+
+const GROUP_MESSAGE_KEYS = {
+  Combine: "combine",
+  Exclude: "exclude",
+  Filters: "filters",
+  Tags: "tags",
+  Types: "types",
+  Folders: "folders",
+  Sites: "sites",
+  Show: "show",
+} as const satisfies Record<SearchSuggestionGroup, string>;
+
+/** A suggestion group's heading in the UI language. */
+export const searchSuggestionGroupLabel = (
+  group: SearchSuggestionGroup,
+  t: SearchTranslator = englishSearch
+): string => t(`suggestions.groups.${GROUP_MESSAGE_KEYS[group]}`);
 
 export interface SearchSuggestion {
   complete: boolean;
@@ -51,46 +81,50 @@ export interface SearchSuggestionResult {
 export const SEARCH_SUGGESTION_GROUP_LIMIT = 8;
 const WORD_GROUP_LIMIT = 4;
 
-const QUALIFIER_HINTS: { key: SearchQualifierKey; hint: string }[] = [
-  { key: "tag", hint: "Cards with a tag" },
-  { key: "type", hint: "Links, images, notes…" },
-  { key: "site", hint: "Links from a website" },
-  { key: "folder", hint: "Cards in a folder" },
-  { key: "is", hint: "Favorites, archived, done or to do" },
-  { key: "mood", hint: "Images by mood" },
-  { key: "price", hint: "Price under or over" },
-  { key: "text", hint: "Words in images and scans" },
-];
+// Qualifier keys are search syntax and stay English; their hints are
+// translated.
+const QUALIFIER_HINTS = [
+  "tag",
+  "type",
+  "site",
+  "folder",
+  "is",
+  "mood",
+  "price",
+  "text",
+] as const satisfies readonly SearchQualifierKey[];
 
 /** The filters a `-` can leave out; `like:` and `mood:` can't be excluded. */
-const EXCLUDE_HINTS: { key: SearchQualifierKey; hint: string }[] = [
-  { key: "tag", hint: "Leave out cards with a tag" },
-  { key: "type", hint: "Leave out links, images, notes…" },
-  { key: "site", hint: "Leave out links from a website" },
-  { key: "folder", hint: "Leave out cards in a folder" },
-  { key: "is", hint: "Leave out favorites, archived, done…" },
-];
+const EXCLUDE_HINTS = [
+  "tag",
+  "type",
+  "site",
+  "folder",
+  "is",
+] as const satisfies readonly SearchQualifierKey[];
 
-const OR_SUGGESTION: SearchSuggestion = {
+const orSuggestion = (t: SearchTranslator): SearchSuggestion => ({
   complete: false,
-  detail: "Either side matches",
+  detail: t("suggestions.orDetail"),
   group: "Combine",
   id: "Combine:OR",
   insert: "OR ",
   key: "OR",
   label: "OR",
-};
+});
 
+// `words` are what people type after `is:`, so they stay English.
 const IS_OPTIONS = [
-  { value: "fav", label: "Favorites", words: ["fav", "favorites", "starred"] },
-  { value: "archived", label: "Archived", words: ["archived", "archive"] },
-  {
-    value: "done",
-    label: "Done",
-    words: ["done", "completed", "finished"],
-  },
-  { value: "todo", label: "To do", words: ["todo", "to-do"] },
+  { value: "fav", words: ["fav", "favorites", "starred"] },
+  { value: "archived", words: ["archived", "archive"] },
+  { value: "done", words: ["done", "completed", "finished"] },
+  { value: "todo", words: ["todo", "to-do"] },
 ] as const;
+
+const isOptionLabel = (t: SearchTranslator, value: string): string => {
+  const option = IS_OPTIONS.find((candidate) => candidate.value === value);
+  return option ? t(`suggestions.isOptions.${option.value}`) : value;
+};
 
 const QUOTES = new Set(['"', "“", "”"]);
 
@@ -208,13 +242,22 @@ const complete = (
   };
 };
 
-const countLabel = (count: number) => count.toLocaleString();
+interface SuggestionText {
+  /** The locale for counts; undefined is the browser's. */
+  locale?: string;
+  t: SearchTranslator;
+  types: CardTypesTranslator;
+}
+
+const countLabel = (count: number, locale?: string) =>
+  count.toLocaleString(locale);
 
 const valueSuggestions = (
   key: SearchQualifierKey,
   value: string,
   sources: SearchSuggestionSources,
-  limit: number
+  limit: number,
+  { locale, t, types }: SuggestionText
 ): SearchSuggestion[] => {
   switch (key) {
     case "tag":
@@ -230,8 +273,10 @@ const valueSuggestions = (
           "Tags",
           tag.name,
           isHiddenTagList([tag.name])
-            ? `Shows hidden cards · ${countLabel(tag.count)}`
-            : countLabel(tag.count)
+            ? t("suggestions.hiddenTagCount", {
+                count: countLabel(tag.count, locale),
+              })
+            : countLabel(tag.count, locale)
         )
       );
     case "type":
@@ -241,7 +286,7 @@ const valueSuggestions = (
         (type) => `${type} ${CARD_TYPE_LABELS[type]}`,
         limit
       ).map((type) =>
-        complete({ key: "type", value: type }, "Types", CARD_TYPE_LABELS[type])
+        complete({ key: "type", value: type }, "Types", types(type))
       );
     case "is": {
       const needle = value.trim().toLowerCase();
@@ -249,7 +294,11 @@ const valueSuggestions = (
         (option) =>
           !needle || option.words.some((word) => word.startsWith(needle))
       ).map((option) =>
-        complete({ key: "is", value: option.value }, "Show", option.label)
+        complete(
+          { key: "is", value: option.value },
+          "Show",
+          isOptionLabel(t, option.value)
+        )
       );
     }
     case "site":
@@ -264,7 +313,7 @@ const valueSuggestions = (
           { key: "site", value: site.host },
           "Sites",
           site.label || hostForDisplay(site.host),
-          countLabel(site.count)
+          countLabel(site.count, locale)
         )
       );
     case "folder":
@@ -291,14 +340,15 @@ const excluded = (suggestion: SearchSuggestion): SearchSuggestion => ({
 /** Suggestions for a token after a `-`: the filters to leave out. */
 const excludeSuggestions = (
   token: string,
-  sources: SearchSuggestionSources
+  sources: SearchSuggestionSources,
+  text: SuggestionText
 ): SearchSuggestionResult => {
-  const result = buildSearchSuggestions(token, sources);
+  const result = buildSearchSuggestions(token, sources, text);
   const word = token.toLowerCase();
-  const keys = EXCLUDE_HINTS.filter(({ key }) => key.startsWith(word)).map(
-    ({ key, hint }): SearchSuggestion => ({
+  const keys = EXCLUDE_HINTS.filter((key) => key.startsWith(word)).map(
+    (key): SearchSuggestion => ({
       complete: false,
-      detail: hint,
+      detail: text.t(`suggestions.excludeHints.${key}`),
       group: "Exclude",
       id: `Exclude:-${key}`,
       insert: `-${key}:`,
@@ -309,7 +359,7 @@ const excludeSuggestions = (
   const isKeyHint = (suggestion: SearchSuggestion) =>
     suggestion.group === "Filters";
   const allowed = (suggestion: SearchSuggestion) =>
-    EXCLUDE_HINTS.some(({ key }) => key === suggestion.key);
+    EXCLUDE_HINTS.some((key) => key === suggestion.key);
   return {
     completingValue: result.completingValue,
     suggestions: [
@@ -324,23 +374,34 @@ const excludeSuggestions = (
 export function buildSearchSuggestions(
   token: string,
   sources: SearchSuggestionSources,
-  { afterWord = false }: { afterWord?: boolean } = {}
+  {
+    afterWord = false,
+    locale,
+    t = englishSearch,
+    types = englishCardTypes,
+  }: {
+    afterWord?: boolean;
+    locale?: string;
+    t?: SearchTranslator;
+    types?: CardTypesTranslator;
+  } = {}
 ): SearchSuggestionResult {
+  const text: SuggestionText = { locale, t, types };
   const none = { completingValue: false, suggestions: [] };
   if (!token.trim()) {
     return none;
   }
 
   if (token.startsWith("-") && !token.startsWith("--")) {
-    return excludeSuggestions(token.slice(1), sources);
+    return excludeSuggestions(token.slice(1), sources, text);
   }
 
   // `OR` joins two words or filters, so it is offered only after one.
   if (afterWord && /^or?$/i.test(token)) {
-    const positive = buildSearchSuggestions(token, sources);
+    const positive = buildSearchSuggestions(token, sources, text);
     return {
       completingValue: false,
-      suggestions: [OR_SUGGESTION, ...positive.suggestions],
+      suggestions: [orSuggestion(t), ...positive.suggestions],
     };
   }
 
@@ -353,7 +414,8 @@ export function buildSearchSuggestions(
         "tag",
         value,
         sources,
-        SEARCH_SUGGESTION_GROUP_LIMIT
+        SEARCH_SUGGESTION_GROUP_LIMIT,
+        text
       ),
     };
   }
@@ -366,7 +428,8 @@ export function buildSearchSuggestions(
       key,
       value,
       sources,
-      SEARCH_SUGGESTION_GROUP_LIMIT
+      SEARCH_SUGGESTION_GROUP_LIMIT,
+      text
     );
     const typed = parseSearchQuery(token).qualifiers[0];
     const exact =
@@ -377,11 +440,11 @@ export function buildSearchSuggestions(
   }
 
   const word = token.toLowerCase();
-  const keys: SearchSuggestion[] = QUALIFIER_HINTS.filter(({ key }) =>
+  const keys: SearchSuggestion[] = QUALIFIER_HINTS.filter((key) =>
     key.startsWith(word)
-  ).map(({ key, hint }) => ({
+  ).map((key) => ({
     complete: false,
-    detail: hint,
+    detail: t(`suggestions.hints.${key}`),
     group: "Filters",
     id: `Filters:${key}`,
     insert: `${key}:`,
@@ -395,9 +458,9 @@ export function buildSearchSuggestions(
     completingValue: false,
     suggestions: [
       ...keys,
-      ...valueSuggestions("tag", word, sources, WORD_GROUP_LIMIT),
-      ...valueSuggestions("folder", word, sources, WORD_GROUP_LIMIT),
-      ...valueSuggestions("site", word, sources, WORD_GROUP_LIMIT),
+      ...valueSuggestions("tag", word, sources, WORD_GROUP_LIMIT, text),
+      ...valueSuggestions("folder", word, sources, WORD_GROUP_LIMIT, text),
+      ...valueSuggestions("site", word, sources, WORD_GROUP_LIMIT, text),
     ],
   };
 }
@@ -412,16 +475,18 @@ export interface QualifierChipDescription {
 
 export function describeQualifierChip(
   chip: string,
-  anchorTitle?: string
+  anchorTitle?: string,
+  t: SearchTranslator = englishSearch,
+  types: CardTypesTranslator = englishCardTypes
 ): QualifierChipDescription | null {
   const parsed = parseSearchQuery(chip);
   const [qualifier] = parsed.qualifiers;
   if (qualifier) {
-    return describeQualifier(qualifier, anchorTitle);
+    return describeQualifier(qualifier, t, types, anchorTitle);
   }
   const { expression } = parsed;
   if (expression?.op === "not" && expression.item.op === "qualifier") {
-    const described = describeQualifier(expression.item.qualifier);
+    const described = describeQualifier(expression.item.qualifier, t, types);
     return described ? { ...described, excluded: true } : null;
   }
   return null;
@@ -454,49 +519,69 @@ export function describeKeywordChip(chip: string): {
 
 function describeQualifier(
   qualifier: SearchQualifier,
+  t: SearchTranslator,
+  types: CardTypesTranslator,
   anchorTitle?: string
 ): QualifierChipDescription | null {
   switch (qualifier.key) {
     case "tag":
-      return { qualifier, title: "Tag", label: qualifier.value };
+      return {
+        qualifier,
+        title: t("chips.titles.tag"),
+        label: qualifier.value,
+      };
     case "type":
       return {
         qualifier,
-        title: "Type",
-        label: CARD_TYPE_LABELS[qualifier.value],
+        title: t("chips.titles.type"),
+        label: types(qualifier.value),
       };
     case "is":
       return {
         qualifier,
-        title: "Show",
-        label:
-          IS_OPTIONS.find((option) => option.value === qualifier.value)
-            ?.label ?? qualifier.value,
+        title: t("chips.titles.is"),
+        label: isOptionLabel(t, qualifier.value),
       };
     case "site":
       return {
         qualifier,
-        title: "Site",
+        title: t("chips.titles.site"),
         label: hostForDisplay(qualifier.value),
       };
     case "folder":
-      return { qualifier, title: "Folder", label: qualifier.value };
+      return {
+        qualifier,
+        title: t("chips.titles.folder"),
+        label: qualifier.value,
+      };
     case "like":
       return {
         qualifier,
-        title: "Similar to",
-        label: anchorTitle ?? "a card",
+        title: t("chips.titles.like"),
+        label: anchorTitle ?? t("chips.anyCard"),
       };
     case "mood":
-      return { qualifier, title: "Mood", label: `“${qualifier.value}”` };
+      return {
+        qualifier,
+        title: t("chips.titles.mood"),
+        label: t("chips.moodValue", { value: qualifier.value }),
+      };
     case "price": {
       const bound = parsePriceBound(qualifier.value);
       return bound
-        ? { qualifier, title: "Price", label: describePriceBound(bound) }
+        ? {
+            qualifier,
+            title: t("chips.titles.price"),
+            label: describePriceBound(bound),
+          }
         : null;
     }
     case "text":
-      return { qualifier, title: "Text in image", label: qualifier.value };
+      return {
+        qualifier,
+        title: t("chips.titles.text"),
+        label: qualifier.value,
+      };
     default:
       return null;
   }

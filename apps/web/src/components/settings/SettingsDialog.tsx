@@ -1,6 +1,7 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useTranslations } from "@teak/i18n/react";
 import { type LucideIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "../../lib/utils";
@@ -63,6 +64,7 @@ export function SettingsDialog({
   title,
   tone = "default",
 }: SettingsDialogProps) {
+  const tc = useTranslations("common");
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
@@ -95,7 +97,7 @@ export function SettingsDialog({
         ) : null}
         <DialogPrimitive.Close className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
           <XIcon className="size-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{tc("close")}</span>
         </DialogPrimitive.Close>
       </DialogContent>
     </Dialog>

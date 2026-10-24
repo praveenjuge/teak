@@ -6,14 +6,15 @@ import {
   FOLDER_ERROR_MESSAGES,
   MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useId, useState } from "react";
 import { SidebarMenuItem } from "@/components/ui/sidebar";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderSummary,
-  folderErrorMessage,
   hasFolderNamed,
 } from "../../lib/folders";
 import { FolderDot } from "../folders/FolderDot";
@@ -24,6 +25,8 @@ interface SidebarNewFolderProps {
 }
 
 export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
+  const t = useTranslations("sidebar.newFolder");
+  const errors = useServerErrors();
   const errorId = useId();
   const createFolder = useMutation(api.folders.createFolder);
   const [name, setName] = useState("");
@@ -33,7 +36,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
       await createFolder({ name: folderName });
       onDone();
     } catch (caught) {
-      setServerError(folderErrorMessage(caught, "Couldn't create the folder"));
+      setServerError(errors.message(caught, t("createFailed")));
     }
   });
 
@@ -48,7 +51,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
   } else if (trimmed) {
     problem = explainInvalidFolderName(trimmed);
   }
-  const error = problem ?? serverError;
+  const error = problem ? errors.byEnglishMessage(problem) : serverError;
 
   const submit = async () => {
     if (!trimmed) {
@@ -75,7 +78,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
         <input
           aria-describedby={error ? errorId : undefined}
           aria-invalid={error ? true : undefined}
-          aria-label="New folder name"
+          aria-label={t("nameLabel")}
           autoComplete="off"
           autoFocus
           className="min-w-0 flex-1 bg-transparent text-[13px] text-sidebar-foreground outline-none placeholder:text-sidebar-foreground/40"
@@ -100,7 +103,7 @@ export function SidebarNewFolder({ folders, onDone }: SidebarNewFolderProps) {
               onDone();
             }
           }}
-          placeholder="Folder name"
+          placeholder={t("placeholder")}
           value={name}
         />
       </form>

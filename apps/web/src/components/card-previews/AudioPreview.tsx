@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { useTranslations } from "@teak/i18n/react";
 import { Pause, Play, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function formatAudioTime(seconds: number) {
 }
 
 export function AudioPreview({ card }: AudioPreviewProps) {
+  const t = useTranslations("cardPreviews.audio");
   const fileUrl = card.fileUrl;
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -89,7 +91,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
         {fileUrl ? (
           <div className="flex h-16 items-center gap-3 rounded-full border bg-card py-2 pr-5 pl-2.5">
             <Button
-              aria-label={isPlaying ? "Pause" : "Play"}
+              aria-label={isPlaying ? t("pause") : t("play")}
               className="size-11"
               disabled={loadFailed}
               onClick={togglePlayback}
@@ -125,8 +127,11 @@ export function AudioPreview({ card }: AudioPreviewProps) {
                 />
               ))}
               <input
-                aria-label="Seek"
-                aria-valuetext={`${formatAudioTime(currentTime)} of ${formatAudioTime(duration)}`}
+                aria-label={t("seek")}
+                aria-valuetext={t("seekPosition", {
+                  current: formatAudioTime(currentTime),
+                  duration: formatAudioTime(duration),
+                })}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
                 disabled={loadFailed || duration <= 0}
                 max={duration || 0}
@@ -176,7 +181,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
 
         {loadFailed ? (
           <p className="px-3 text-muted-foreground text-sm" role="status">
-            This recording couldn't be loaded. Try downloading it instead.
+            {t("loadFailed")}
           </p>
         ) : (
           card.fileMetadata?.fileName && (
@@ -191,7 +196,7 @@ export function AudioPreview({ card }: AudioPreviewProps) {
         <div className="w-full max-w-xl rounded-xl border bg-background">
           <div className="flex w-full items-center gap-2 px-3 pt-3 text-left">
             <Sparkles className="h-4 w-4 text-primary" />
-            <span className="font-medium">Transcript</span>
+            <span className="font-medium">{t("transcript")}</span>
           </div>
 
           <div className="max-h-64 overflow-y-auto p-3">

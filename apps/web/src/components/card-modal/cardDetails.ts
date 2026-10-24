@@ -1,9 +1,33 @@
-import { formatExifFields, type ImageExif } from "../../lib/exif";
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import {
+  englishTranslator,
+  US_ENGLISH_LOCALE,
+} from "../../lib/englishTranslators";
+import {
+  type ExifTranslator,
+  formatExifFields,
+  type ImageExif,
+} from "../../lib/exif";
 import { formatPublishedDate } from "../../lib/linkByline";
 import { formatBytes } from "../settings/importExportFormat";
 
-export function formatCardDate(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString("en-US", {
+export type CardDetailsTranslator = TeakTranslator<"cardModal.details">;
+
+const englishDetails: CardDetailsTranslator = createTeakTranslator(
+  "en",
+  englishMessages,
+  "cardModal.details"
+);
+
+export function formatCardDate(
+  timestamp: number,
+  locale: string | undefined = US_ENGLISH_LOCALE
+) {
+  return new Date(timestamp).toLocaleDateString(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -52,7 +76,18 @@ const present = (fields: Array<{ label: string; value?: string | null }>) =>
     Boolean(field.value?.trim())
   );
 
-export function getCardDetailSections(card: CardDetailsSource) {
+/** The labels of the rows Details shows before "More details". */
+export const keyDetailLabels = (t: CardDetailsTranslator = englishDetails) =>
+  new Set([t("added"), t("fileSize")]);
+
+export function getCardDetailSections(
+  card: CardDetailsSource,
+  {
+    exif = englishTranslator("lib.exif"),
+    locale = US_ENGLISH_LOCALE,
+    t = englishDetails,
+  }: { exif?: ExifTranslator; locale?: string; t?: CardDetailsTranslator } = {}
+) {
   const file = card.fileMetadata;
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
@@ -60,34 +95,39 @@ export function getCardDetailSections(card: CardDetailsSource) {
       : undefined;
   return {
     details: present([
-      { label: "Added", value: formatCardDate(card.createdAt) },
+      { label: t("added"), value: formatCardDate(card.createdAt, locale) },
       {
-        label: "Edited",
+        label: t("edited"),
         value: editedAfterProcessing(card)
-          ? formatCardDate(card.updatedAt)
+          ? formatCardDate(card.updatedAt, locale)
           : undefined,
       },
-      { label: "File name", value: file?.fileName },
+      { label: t("fileName"), value: file?.fileName },
       {
-        label: "File size",
-        value: file?.fileSize ? formatBytes(file.fileSize) : undefined,
+        label: t("fileSize"),
+        value: file?.fileSize ? formatBytes(file.fileSize, locale) : undefined,
       },
-      { label: "File type", value: file?.mimeType },
+      { label: t("fileType"), value: file?.mimeType },
       {
-        label: "Text",
+        label: t("text"),
         value: card.extractedTextCharCount
-          ? `${card.extractedTextCharCount.toLocaleString("en-US")} ${card.extractedTextCharCount === 1 ? "character" : "characters"} extracted`
+          ? t("extractedText", { count: card.extractedTextCharCount })
           : undefined,
       },
     ]),
     source: present([
-      { label: "Author", value: linkPreview?.author },
-      { label: "Publisher", value: linkPreview?.publisher },
+      { label: t("author"), value: linkPreview?.author },
+      { label: t("publisher"), value: linkPreview?.publisher },
       {
-        label: "Published",
-        value: formatPublishedDate(linkPreview?.publishedAt),
+        label: t("published"),
+        value: formatPublishedDate(
+          linkPreview?.publishedAt,
+          Date.now(),
+          locale
+        ),
       },
     ]),
-    camera: card.type === "image" ? formatExifFields(file?.exif) : [],
+    camera:
+      card.type === "image" ? formatExifFields(file?.exif, exif, locale) : [],
   };
 }

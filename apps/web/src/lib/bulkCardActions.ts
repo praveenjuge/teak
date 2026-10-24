@@ -1,5 +1,13 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import type { TeakTranslator } from "@teak/i18n";
 import { clipFolderName } from "./clipFolderName";
+import { englishTranslator } from "./englishTranslators";
+
+export type BulkCopyTranslator = TeakTranslator<"lib.bulkCardActions">;
+
+const englishBulkCopy: BulkCopyTranslator = englishTranslator(
+  "lib.bulkCardActions"
+);
 
 export type BulkCardAction =
   | "favorite"
@@ -22,9 +30,6 @@ export interface BulkFolderTarget {
 }
 
 export const BULK_CHUNK_SIZE = 100;
-
-export const cardCountLabel = (count: number) =>
-  `${count} card${count === 1 ? "" : "s"}`;
 
 export const UNDO_BULK_ACTION: Partial<Record<BulkCardAction, BulkCardAction>> =
   {
@@ -81,7 +86,8 @@ export const folderUndoSteps = (
         cardIds: updatedIds.filter((id) => had(id, source)),
         folder: {
           folderId: source,
-          folderName: target.fromFolderName ?? "the folder",
+          // Without a name, the toast says "the folder".
+          folderName: target.fromFolderName ?? "",
         },
       },
     ];
@@ -91,84 +97,57 @@ export const folderUndoSteps = (
   return steps.filter((step) => step.cardIds.length > 0);
 };
 
-const COPY: Record<
-  BulkCardAction,
-  {
-    running: string;
-    done: (cards: string, folder: string) => string;
-    failed: string;
+type FolderAction = "addToFolder" | "removeFromFolder" | "moveToFolder";
+
+const UNNAMED_FOLDER_DONE = {
+  addToFolder: "addToUnnamedFolder",
+  removeFromFolder: "removeFromUnnamedFolder",
+  moveToFolder: "moveToUnnamedFolder",
+} as const satisfies Record<FolderAction, string>;
+
+const isFolderAction = (action: BulkCardAction): action is FolderAction =>
+  action in UNNAMED_FOLDER_DONE;
+
+const doneMessage = (
+  action: BulkCardAction,
+  count: number,
+  folder: string | undefined,
+  t: BulkCopyTranslator
+) => {
+  if (!isFolderAction(action)) {
+    return t(`done.${action}`, { count });
   }
-> = {
-  favorite: {
-    running: "Adding to favorites",
-    done: (cards) => `Added ${cards} to favorites`,
-    failed: "add these cards to favorites",
-  },
-  unfavorite: {
-    running: "Removing from favorites",
-    done: (cards) => `Removed ${cards} from favorites`,
-    failed: "remove these cards from favorites",
-  },
-  archive: {
-    running: "Archiving",
-    done: (cards) => `Archived ${cards}`,
-    failed: "archive these cards",
-  },
-  unarchive: {
-    running: "Returning to the library",
-    done: (cards) => `Returned ${cards} to the library`,
-    failed: "unarchive these cards",
-  },
-  addTags: {
-    running: "Adding tags to",
-    done: (cards) => `Added tags to ${cards}`,
-    failed: "add tags to these cards",
-  },
-  removeTags: {
-    running: "Removing tags from",
-    done: (cards) => `Removed tags from ${cards}`,
-    failed: "remove tags from these cards",
-  },
-  delete: {
-    running: "Moving to Trash",
-    done: (cards) => `Moved ${cards} to Trash`,
-    failed: "move these cards to Trash",
-  },
-  restore: {
-    running: "Restoring",
-    done: (cards) => `Restored ${cards}`,
-    failed: "restore these cards",
-  },
-  addToFolder: {
-    running: "Adding to the folder",
-    done: (cards, folder) => `Added ${cards} to ${folder}`,
-    failed: "add these cards to the folder",
-  },
-  removeFromFolder: {
-    running: "Removing from the folder",
-    done: (cards, folder) => `Removed ${cards} from ${folder}`,
-    failed: "remove these cards from the folder",
-  },
-  moveToFolder: {
-    running: "Moving",
-    done: (cards, folder) => `Moved ${cards} to ${folder}`,
-    failed: "move these cards",
-  },
+  return folder
+    ? t(`done.${action}`, { count, folder: clipFolderName(folder) })
+    : t(`done.${UNNAMED_FOLDER_DONE[action]}`, { count });
 };
 
+/**
+ * Toast text for a bulk action. A folder action without a folder name says
+ * "the folder".
+ */
 export const bulkActionCopy = {
-  progress: (action: BulkCardAction, done: number, total: number) =>
-    `${COPY[action].running} ${done} of ${total}…`,
-  done: (action: BulkCardAction, count: number, folder = "the folder") =>
-    COPY[action].done(cardCountLabel(count), clipFolderName(folder)),
+  progress: (
+    action: BulkCardAction,
+    done: number,
+    total: number,
+    t: BulkCopyTranslator = englishBulkCopy
+  ) => t(`progress.${action}`, { done, total }),
+  done: (
+    action: BulkCardAction,
+    count: number,
+    folder?: string,
+    t: BulkCopyTranslator = englishBulkCopy
+  ) => doneMessage(action, count, folder, t),
   partial: (
     action: BulkCardAction,
     updated: number,
     failed: number,
-    folder = "the folder"
-  ) =>
-    `${COPY[action].done(cardCountLabel(updated), clipFolderName(folder))}. ${failed} couldn't be changed.`,
-  failed: (action: BulkCardAction) => `Couldn't ${COPY[action].failed}`,
+    folder?: string,
+    t: BulkCopyTranslator = englishBulkCopy
+  ) => t("partial", { done: doneMessage(action, updated, folder, t), failed }),
+  failed: (action: BulkCardAction, t: BulkCopyTranslator = englishBulkCopy) =>
+    t(`failed.${action}`),
 };
 
 const hasTag = (list: readonly string[], tag: string) =>

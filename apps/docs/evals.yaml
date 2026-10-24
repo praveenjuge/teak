@@ -76,3 +76,10 @@ questions:
     expected:
       - npx skills add praveenjuge/teak --skill teak
     routes: /docs/ai-agents
+
+  - id: change-language
+    question: Can I use Teak in German, and does search still work with is:fav?
+    expected:
+      - Choose Deutsch in Settings → Language; the choice is saved to the account
+      - Search qualifiers such as is:fav stay in English in every language
+    routes: /docs/features

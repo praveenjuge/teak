@@ -6,9 +6,24 @@ import {
   offset,
   shift,
 } from "@floating-ui/dom";
+import { englishMessages, type TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import type { SuggestionProps } from "@tiptap/suggestion";
 import { useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
+
+type SlashCommandId =
+  keyof (typeof englishMessages)["textEditor"]["slashMenu"]["commands"];
+
+const isSlashCommandId = (id: string): id is SlashCommandId =>
+  Object.hasOwn(englishMessages.textEditor.slashMenu.commands, id);
+
+/** A slash command's name in the UI language; unknown commands keep theirs. */
+export const slashCommandTitle = (
+  t: TeakTranslator<"textEditor">,
+  item: Pick<SlashCommandSuggestionItem, "id" | "title">
+): string =>
+  isSlashCommandId(item.id) ? t(`slashMenu.commands.${item.id}`) : item.title;
 
 export function SlashMenu({
   menu,
@@ -17,6 +32,7 @@ export function SlashMenu({
   menu: SuggestionProps<SlashCommandSuggestionItem>;
   selected: number;
 }) {
+  const t = useTranslations("textEditor");
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
   useEffect(() => {
@@ -58,8 +74,9 @@ export function SlashMenu({
   }
   return (
     <div
-      aria-label="Formatting commands"
+      aria-label={t("slashMenu.label")}
       className="fixed z-50 max-h-64 w-64 max-w-[calc(100vw-2rem)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      data-editor-popup=""
       id={id}
       ref={ref}
       role="listbox"
@@ -77,7 +94,7 @@ export function SlashMenu({
           variant={selected === index ? "secondary" : "ghost"}
         >
           {item.icon}
-          {item.title}
+          {slashCommandTitle(t, item)}
         </Button>
       ))}
     </div>

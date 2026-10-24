@@ -1,8 +1,25 @@
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
 import type { LibraryView } from "./libraryViews";
 import { isApplePlatform } from "./platform";
 
+type ShortcutsTranslator = TeakTranslator<"shortcuts">;
+type ShortcutGroupId = keyof (typeof englishMessages)["shortcuts"]["groups"];
+type ShortcutRowId = keyof (typeof englishMessages)["shortcuts"]["rows"];
+
+const englishShortcuts = createTeakTranslator(
+  "en",
+  englishMessages,
+  "shortcuts"
+);
+
 export interface ShortcutRow {
   combo?: boolean;
+  /** Stable id of a row in the shortcuts list. */
+  id?: ShortcutRowId;
   keys: string[];
   label: string;
   sequence?: boolean;
@@ -11,9 +28,14 @@ export interface ShortcutRow {
 }
 
 export interface ShortcutGroup {
+  id: ShortcutGroupId;
   rows: ShortcutRow[];
   title: string;
 }
+
+type ShortcutRowDefinition = Omit<ShortcutRow, "id" | "label"> & {
+  id: ShortcutRowId;
+};
 
 export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
   all: "e",
@@ -22,74 +44,84 @@ export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
   trash: "t",
 };
 
-export const KEYBOARD_SHORTCUT_GROUPS: ShortcutGroup[] = [
+// Keys and search syntax stay as typed; titles and labels are translated.
+const SHORTCUT_GROUPS: {
+  id: ShortcutGroupId;
+  rows: ShortcutRowDefinition[];
+}[] = [
   {
-    title: "Cards",
+    id: "cards",
     rows: [
-      { keys: ["←", "↑", "→", "↓"], label: "Move between cards" },
-      { keys: ["J", "K"], label: "Next or previous card" },
-      { keys: ["Enter"], label: "Open the card" },
-      { keys: ["F"], label: "Favorite or unfavorite" },
-      { keys: ["T"], label: "Add tags" },
-      { keys: ["E"], label: "Archive or unarchive" },
-      { keys: ["Delete"], label: "Move to Trash" },
-      { keys: ["X"], label: "Select or deselect" },
-      { keys: ["Mod", "C"], label: "Copy text, link, or image", combo: true },
-      { keys: ["Esc"], label: "Clear the selection" },
+      { id: "moveBetweenCards", keys: ["←", "↑", "→", "↓"] },
+      { id: "nextOrPreviousCard", keys: ["J", "K"] },
+      { id: "openCard", keys: ["Enter"] },
+      { id: "favorite", keys: ["F"] },
+      { id: "addTags", keys: ["T"] },
+      { id: "archive", keys: ["E"] },
+      { id: "moveToTrash", keys: ["Delete"] },
+      { id: "select", keys: ["X"] },
+      { id: "copy", keys: ["Mod", "C"], combo: true },
+      { id: "clearSelection", keys: ["Esc"] },
     ],
   },
   {
-    title: "Open card",
+    id: "openCard",
     rows: [
-      { keys: ["←", "→"], label: "Previous or next card" },
-      { keys: ["F"], label: "Favorite or unfavorite" },
-      { keys: ["T"], label: "Add a tag" },
-      { keys: ["N"], label: "Write a note" },
-      { keys: ["Mod", "E"], label: "Focus on the note", combo: true },
-      { keys: ["O"], label: "Open the link or download the file" },
-      { keys: ["Mod", "Enter"], label: "Open the link", combo: true },
-      { keys: ["D"], label: "Mark a link done" },
-      { keys: ["C"], label: "Copy the link or text" },
-      { keys: ["I"], label: "Show or hide details" },
-      { keys: ["E"], label: "Archive or unarchive" },
-      { keys: ["Delete"], label: "Move to Trash" },
+      { id: "previousOrNextCard", keys: ["←", "→"] },
+      { id: "favorite", keys: ["F"] },
+      { id: "addTag", keys: ["T"] },
+      { id: "writeNote", keys: ["N"] },
+      { id: "focusNote", keys: ["Mod", "E"], combo: true },
+      { id: "openOrDownload", keys: ["O"] },
+      { id: "openLink", keys: ["Mod", "Enter"], combo: true },
+      { id: "markLinkDone", keys: ["D"] },
+      { id: "copyLinkOrText", keys: ["C"] },
+      { id: "toggleDetails", keys: ["I"] },
+      { id: "archive", keys: ["E"] },
+      { id: "moveToTrash", keys: ["Delete"] },
     ],
   },
   {
-    title: "Go to",
+    id: "goTo",
     rows: [
-      { keys: ["G", "E"], label: "Everything", sequence: true },
-      { keys: ["G", "F"], label: "Favorites", sequence: true },
-      { keys: ["G", "A"], label: "Archive", sequence: true },
-      { keys: ["G", "T"], label: "Trash", sequence: true },
+      { id: "goToEverything", keys: ["G", "E"], sequence: true },
+      { id: "goToFavorites", keys: ["G", "F"], sequence: true },
+      { id: "goToArchive", keys: ["G", "A"], sequence: true },
+      { id: "goToTrash", keys: ["G", "T"], sequence: true },
     ],
   },
   {
-    title: "Search",
+    id: "search",
     rows: [
-      { keys: ["-word"], label: "Exclude a word", syntax: true },
-      {
-        keys: ["-tag:x"],
-        label: "Exclude a tag, type, site or folder",
-        syntax: true,
-      },
-      { keys: ["a OR b"], label: "Either one", syntax: true },
-      { keys: ["( … )"], label: "Group", syntax: true },
-      { keys: ['"phrase"'], label: "Exact words", syntax: true },
+      { id: "excludeWord", keys: ["-word"], syntax: true },
+      { id: "excludeFilter", keys: ["-tag:x"], syntax: true },
+      { id: "eitherOne", keys: ["a OR b"], syntax: true },
+      { id: "group", keys: ["( … )"], syntax: true },
+      { id: "exactWords", keys: ['"phrase"'], syntax: true },
     ],
   },
   {
-    title: "Anywhere",
+    id: "anywhere",
     rows: [
-      { keys: ["Mod", "K"], label: "Command palette", combo: true },
-      { keys: ["/"], label: "Search" },
-      { keys: ["N"], label: "New note" },
-      { keys: ["U"], label: "Upload files" },
-      { keys: ["Alt", "T"], label: "Go to notifications (Undo)", combo: true },
-      { keys: ["?"], label: "Keyboard shortcuts" },
+      { id: "commandPalette", keys: ["Mod", "K"], combo: true },
+      { id: "search", keys: ["/"] },
+      { id: "newNote", keys: ["N"] },
+      { id: "uploadFiles", keys: ["U"] },
+      { id: "notifications", keys: ["Alt", "T"], combo: true },
+      { id: "keyboardShortcuts", keys: ["?"] },
     ],
   },
 ];
+
+/** The shortcuts list, titled and labelled in the translator's language. */
+export const keyboardShortcutGroups = (
+  t: ShortcutsTranslator = englishShortcuts
+): ShortcutGroup[] =>
+  SHORTCUT_GROUPS.map((group) => ({
+    id: group.id,
+    title: t(`groups.${group.id}`),
+    rows: group.rows.map((row) => ({ ...row, label: t(`rows.${row.id}`) })),
+  }));
 
 export function platformKey(key: string, apple = isApplePlatform()): string {
   if (key === "Mod") {

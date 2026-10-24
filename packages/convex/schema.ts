@@ -574,6 +574,14 @@ export default defineSchema({
     updatedAt: v.number(),
     lastReceivedAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
+  // Account display preferences (settings/preferences.ts), kept off `users`,
+  // which stays identity-only. `locale` is a code from @teak/i18n's
+  // SUPPORTED_LOCALES; readers treat any other value as English.
+  userPreferences: defineTable({
+    userId: v.string(),
+    locale: v.string(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
   // One per email delivered, so a redelivery never saves twice. Attachments
   // are uploaded by the Email Worker and finalized one by one.
   inboundEmailReceipts: defineTable({

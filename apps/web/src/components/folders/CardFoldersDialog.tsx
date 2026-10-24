@@ -4,9 +4,9 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import {
   explainInvalidFolderName,
-  FOLDER_ERROR_MESSAGES,
   MAX_FOLDERS_PER_CARD,
 } from "@teak/convex/shared/folders";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { Check, Plus, Search } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -18,13 +18,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import { updateCardsInSearchQueries } from "../../lib/cardQueryOptimisticUpdates";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   filterFolders,
-  folderErrorMessage,
   hasFolderNamed,
   manualFolders,
 } from "../../lib/folders";
@@ -60,6 +60,9 @@ function CardFoldersChecklist({
   cardId: string | null;
   initialFolderIds: readonly string[];
 }) {
+  const t = useTranslations("folders.cardFolders");
+  const tList = useTranslations("folders.list");
+  const errors = useServerErrors();
   const folders = useFolders();
   const createFolder = useMutation(api.folders.createFolder);
   const setCardFolders = useMutation(
@@ -105,9 +108,7 @@ function CardFoldersChecklist({
       });
     } catch (caught) {
       setChecked(previous);
-      setError(
-        folderErrorMessage(caught, "Couldn't change the card's folders")
-      );
+      setError(errors.message(caught, t("changeFailed")));
     }
   };
 
@@ -118,7 +119,7 @@ function CardFoldersChecklist({
       return;
     }
     if (current.length >= MAX_FOLDERS_PER_CARD) {
-      setError(FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS_ON_CARD);
+      setError(errors.byKey("folders.TOO_MANY_FOLDERS_ON_CARD"));
       return;
     }
     save([...current, folderId]).catch(() => undefined);
@@ -129,7 +130,7 @@ function CardFoldersChecklist({
       return;
     }
     if (checkedRef.current.length >= MAX_FOLDERS_PER_CARD) {
-      setError(FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS_ON_CARD);
+      setError(errors.byKey("folders.TOO_MANY_FOLDERS_ON_CARD"));
       return;
     }
     try {
@@ -137,18 +138,18 @@ function CardFoldersChecklist({
       setQuery("");
       await save([...checkedRef.current, folder._id]);
     } catch (caught) {
-      setError(folderErrorMessage(caught, "Couldn't create the folder"));
+      setError(errors.message(caught, tList("createFailed")));
     }
   });
 
   return (
     <>
       <DialogHeader className="px-5 pt-5 pb-3">
-        <DialogTitle>Folders</DialogTitle>
+        <DialogTitle>{t("title")}</DialogTitle>
         <DialogDescription>
           {checked.length === 0
-            ? "This card isn't in a folder."
-            : `In ${checked.length} ${checked.length === 1 ? "folder" : "folders"}.`}
+            ? t("notInFolder")
+            : t("inFolders", { count: checked.length })}
         </DialogDescription>
       </DialogHeader>
       <div className="relative border-y">
@@ -157,7 +158,7 @@ function CardFoldersChecklist({
           className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground"
         />
         <Input
-          aria-label="Search folders"
+          aria-label={tList("searchLabel")}
           autoFocus
           className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
           maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
@@ -176,21 +177,22 @@ function CardFoldersChecklist({
               create().catch(() => undefined);
             }
           }}
-          placeholder="Find or create a folder"
+          placeholder={tList("searchPlaceholder")}
           value={query}
         />
       </div>
-      <ul aria-label="Folders" className="max-h-72 overflow-y-auto p-1.5">
+      <ul
+        aria-label={tList("listLabel")}
+        className="max-h-72 overflow-y-auto p-1.5"
+      >
         {folders === undefined && (
           <li className="px-3 py-6 text-center text-muted-foreground text-sm">
-            Loading folders…
+            {tList("loading")}
           </li>
         )}
         {folders !== undefined && visible.length === 0 && !canCreate && (
           <li className="px-3 py-6 text-center text-muted-foreground text-sm">
-            {trimmed
-              ? "No folder by that name."
-              : "No folders yet. Type a name to create one."}
+            {trimmed ? tList("noMatch") : tList("noFolders")}
           </li>
         )}
         {visible.map((folder) => {
@@ -234,7 +236,7 @@ function CardFoldersChecklist({
                 className="size-4 text-muted-foreground"
               />
               <span className="min-w-0 flex-1 truncate">
-                Create folder “{trimmed}”
+                {tList("createNamed", { name: trimmed })}
               </span>
             </button>
           </li>

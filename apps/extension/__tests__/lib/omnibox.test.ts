@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { describe, expect, mock, test } from "bun:test";
+import { createTeakTranslator, englishMessages } from "@teak/i18n";
 import {
   buildSuggestions,
   cardUrlFrom,
@@ -17,6 +18,7 @@ import {
 } from "../../lib/omnibox";
 
 const APP = "https://app.teakvault.com";
+const t = createTeakTranslator("en", englishMessages, "extension.omnibox");
 
 const fakeClock = () => {
   let now = 0;
@@ -71,17 +73,17 @@ describe("suggestion text", () => {
     "escapes %s for Chromium and leaves Firefox's plain text alone",
     (_label, xml, plain) => {
       const item = card({ metadataTitle: plain });
-      expect(buildSuggestions([item], "chromium")[0]?.description).toBe(
+      expect(buildSuggestions([item], "chromium", t)[0]?.description).toBe(
         `${xml} <dim>link · example.com</dim>`
       );
-      expect(buildSuggestions([item], "firefox")[0]?.description).toBe(
+      expect(buildSuggestions([item], "firefox", t)[0]?.description).toBe(
         `${plain} — link · example.com`
       );
     }
   );
 
   test("a suggestion opens its card", () => {
-    expect(buildSuggestions([card()], "chromium")[0]?.content).toBe(
+    expect(buildSuggestions([card()], "chromium", t)[0]?.content).toBe(
       `${APP}/?card=card_1`
     );
   });
@@ -90,13 +92,15 @@ describe("suggestion text", () => {
     const long = `${"a".repeat(78)}🧪🧪🧪`;
     const title = buildSuggestions(
       [card({ metadataTitle: long })],
-      "firefox"
+      "firefox",
+      t
     )[0]?.description.split(" — ")[0];
     expect(Array.from(title ?? "")).toHaveLength(80);
     expect(title).toBe(`${"a".repeat(78)}🧪…`);
     const cut = buildSuggestions(
       [card({ metadataTitle: "x".repeat(300) })],
-      "chromium"
+      "chromium",
+      t
     )[0]?.description;
     expect(cut).toStartWith(`${"x".repeat(79)}…`);
   });
@@ -106,16 +110,17 @@ describe("suggestion text", () => {
     ["CJK", "東京の小さな喫茶店"],
   ])("keeps %s titles as they are", (_label, title) => {
     expect(
-      buildSuggestions([card({ metadataTitle: title })], "chromium")[0]
+      buildSuggestions([card({ metadataTitle: title })], "chromium", t)[0]
         ?.description
     ).toStartWith(title);
   });
 
   test("names a card by its title, its first words, its site, then its type", () => {
-    expect(omniboxCardTitle(card())).toBe("A post");
+    expect(omniboxCardTitle(card(), t)).toBe("A post");
     expect(
       omniboxCardTitle(
-        card({ metadataTitle: null, content: "  Line one\n\nline two\u0007" })
+        card({ metadataTitle: null, content: "  Line one\n\nline two\u0007" }),
+        t
       )
     ).toBe("Line one line two");
     expect(
@@ -126,19 +131,21 @@ describe("suggestion text", () => {
           content: "",
           url: null,
           sourceUrl: "https://xn--bcher-kva.example/page",
-        })
+        }),
+        t
       )
     ).toBe("bücher.example");
-    expect(omniboxCardTitle({ appUrl: `${APP}/?card=c`, type: "image" })).toBe(
-      "Untitled image"
-    );
+    expect(
+      omniboxCardTitle({ appUrl: `${APP}/?card=c`, type: "image" }, t)
+    ).toBe("Untitled image");
     expect(
       omniboxCardTitle(
         card({
           metadataTitle: "",
           content: "https://www.example.com/post",
           url: "https://www.example.com/post",
-        })
+        }),
+        t
       )
     ).toBe("example.com");
   });
@@ -147,7 +154,8 @@ describe("suggestion text", () => {
     expect(
       buildSuggestions(
         [card({ metadataTitle: null, content: "https://example.com/post" })],
-        "chromium"
+        "chromium",
+        t
       )[0]?.description
     ).toBe("example.com <dim>link</dim>");
   });
@@ -164,7 +172,8 @@ describe("suggestion text", () => {
             content: "A quote",
           }),
         ],
-        "chromium"
+        "chromium",
+        t
       )[0]?.description
     ).toBe("A quote <dim>text · example.org</dim>");
   });
@@ -186,13 +195,15 @@ describe("default suggestion", () => {
     ["signedOut", "Sign in to Teak to search"],
   ])("%s", (kind, description) => {
     expect(
-      defaultSuggestion({ kind, cards: [] } as OmniboxOutcome, "chromium")
+      defaultSuggestion({ kind, cards: [] } as OmniboxOutcome, "chromium", t)
     ).toBe(description);
   });
 
   test("Firefox, which fills in no %s, reads Search Teak", () => {
-    expect(defaultSuggestion({ kind: "empty" }, "firefox")).toBe("Search Teak");
-    expect(defaultSuggestion({ kind: "signedOut" }, "firefox")).toBe(
+    expect(defaultSuggestion({ kind: "empty" }, "firefox", t)).toBe(
+      "Search Teak"
+    );
+    expect(defaultSuggestion({ kind: "signedOut" }, "firefox", t)).toBe(
       "Sign in to Teak to search"
     );
   });
@@ -208,17 +219,17 @@ describe("noticeRow", () => {
     ["results", null],
   ])("Firefox shows %s as a row that searches the text", (kind, notice) => {
     const outcome = { kind, cards: [] } as OmniboxOutcome;
-    expect(noticeRow(outcome, " design ", "firefox")).toEqual(
+    expect(noticeRow(outcome, " design ", "firefox", t)).toEqual(
       notice ? { content: "design ", description: notice } : null
     );
   });
 
   test("Chromium keeps notices on the default row", () => {
-    expect(noticeRow({ kind: "empty" }, "design", "chromium")).toBeNull();
+    expect(noticeRow({ kind: "empty" }, "design", "chromium", t)).toBeNull();
   });
 
   test("no text, no row", () => {
-    expect(noticeRow({ kind: "empty" }, "  ", "firefox")).toBeNull();
+    expect(noticeRow({ kind: "empty" }, "  ", "firefox", t)).toBeNull();
   });
 });
 
