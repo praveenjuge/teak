@@ -70,7 +70,7 @@ describe("signed text/link metadata", () => {
   test.each([
     ["a language", "ja", { language: "ja" }],
     ["a region form", "zh-CN", { language: "zh" }],
-    ["a country code", "jp", {}],
+    ["a country code", "us", {}],
     ["no language", undefined, {}],
   ])(
     "passes on %s from the model as its language",

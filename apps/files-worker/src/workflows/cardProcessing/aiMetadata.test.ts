@@ -90,7 +90,7 @@ describe("AI metadata generation", () => {
   test.each([
     ["ko", "ko"],
     ["zh-CN", "zh"],
-    ["jp", undefined],
+    ["us", undefined],
     [undefined, undefined],
   ])(
     "the op's language %p arrives as aiLanguage %p",

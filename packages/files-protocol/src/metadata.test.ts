@@ -51,7 +51,7 @@ describe("AI tags and summary in the content's language", () => {
   });
 
   test.each([
-    ["a country code", "jp"],
+    ["a country code", "us"],
     ["a language name", "Japanese"],
     ["a number", 7],
     ["null", null],
@@ -78,6 +78,9 @@ describe("AI tags and summary in the content's language", () => {
     ["eng", "en"],
     ["fil", "fil"],
     ["iw", "he"],
+    ["kr", "ko"],
+    ["JP", "ja"],
+    ["cn", "zh"],
   ])("normalizes %p to %p", (input, expected) => {
     expect(normalizeAiLanguage(input)).toBe(expected);
   });

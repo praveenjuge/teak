@@ -122,11 +122,15 @@ export interface LanguageScore {
   scriptMatches: number;
 }
 
-/** Accuracy per expected language, over cards processing has finished. */
+/**
+ * Accuracy per expected language, over every card in the pack. A card with
+ * no summary yet (unfinished, failed or out of time) counts as a miss, so
+ * failures can't lift a language over the bar.
+ */
 export const scoreRows = (rows: readonly ReportRow[]): LanguageScore[] => {
   const scores = new Map<string, LanguageScore>();
   for (const row of rows) {
-    if (!(row.expected && row.aiSummary)) {
+    if (!row.expected) {
       continue;
     }
     const score = scores.get(row.expected) ?? {
@@ -139,7 +143,10 @@ export const scoreRows = (rows: readonly ReportRow[]): LanguageScore[] => {
     if (row.aiLanguage === row.expected) {
       score.languageMatches += 1;
     }
-    if (summaryScript(row.aiSummary) === expectedScript(row.expected)) {
+    if (
+      row.aiSummary &&
+      summaryScript(row.aiSummary) === expectedScript(row.expected)
+    ) {
       score.scriptMatches += 1;
     }
     scores.set(row.expected, score);

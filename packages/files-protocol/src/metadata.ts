@@ -94,7 +94,7 @@ ${url ? `URL: ${url}` : ""}
 
 Generate tags and summary that will help the user rediscover and understand the value of this content.`);
 // ISO 639-1: the only two-letter language codes. A model often answers with
-// a country code instead (`jp`, `cn`, `kr`), which is not a language.
+// a country code instead, which other countries' codes leave out.
 const ISO_639_1 = new Set(
   (
     "aa ab ae af ak am an ar as av ay az ba be bg bi bm bn bo br bs ca ce ch " +
@@ -107,6 +107,9 @@ const ISO_639_1 = new Set(
     "ug uk ur uz ve vi vo wa wo xh yi yo za zh zu"
   ).split(" ")
 );
+// Country codes models give for these languages. `kr` is also Kanuri, which
+// a card is far less likely to be in than Korean.
+const COUNTRY_CODES: Record<string, string> = { cn: "zh", jp: "ja", kr: "ko" };
 const LANGUAGE_TAG = /^([a-z]{2,3})(?:-[a-z0-9]{1,8})*$/u;
 // Not a language: undetermined, multiple, uncoded, no content, private use.
 const NOT_A_LANGUAGE = /^(?:und|mul|mis|zxx|q[a-t][a-z])$/u;
@@ -137,7 +140,7 @@ export const normalizeAiLanguage = (value: unknown): string | undefined => {
   if (!primary) {
     return;
   }
-  const code = canonicalLanguage(primary);
+  const code = COUNTRY_CODES[primary] ?? canonicalLanguage(primary);
   if (code.length === 2) {
     return ISO_639_1.has(code) ? code : undefined;
   }

@@ -58,8 +58,9 @@ describe("scoring the pack", () => {
     row({ expected: "fr", label: "fr-1", metadataStatus: "pending" }),
   ];
 
-  test("counts language and script matches per language, finished cards only", () => {
+  test("counts language and script matches per language, unfinished cards as misses", () => {
     expect(scoreRows(rows)).toEqual([
+      { cards: 1, language: "fr", languageMatches: 0, scriptMatches: 0 },
       { cards: 2, language: "ja", languageMatches: 1, scriptMatches: 1 },
     ]);
   });
@@ -70,10 +71,26 @@ describe("scoring the pack", () => {
     expect(failures).toContain("fr");
   });
 
+  test("a card that failed without a summary pulls its language under the bar", () => {
+    const scores = scoreRows([
+      row({
+        aiLanguage: "es",
+        aiSummary: "Notas de la reunión.",
+        expected: "es",
+      }),
+      row({ expected: "es", metadataStatus: "failed" }),
+    ]);
+    expect(scores).toEqual([
+      { cards: 2, language: "es", languageMatches: 1, scriptMatches: 1 },
+    ]);
+    expect(gateFailures(scores)).toContain("es");
+  });
+
   test("the table marks the miss and the card still processing", () => {
     const report = formatReport(rows);
     expect(report).toMatch(/ja-2\s+text\s+ja\s+en\s+latin\s+NO/u);
     expect(report).toMatch(/fr-1\s+text\s+fr\s+-\s+-\s+-\s+pending/u);
     expect(report).toMatch(/ja\s+2\s+50%\s+50%\s+yes/u);
+    expect(report).toMatch(/fr\s+1\s+0%\s+0%\s+yes/u);
   });
 });

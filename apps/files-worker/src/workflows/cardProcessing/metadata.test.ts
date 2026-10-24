@@ -287,7 +287,7 @@ describe("generating metadata", () => {
 
   test.each([
     ["no language", undefined],
-    ["a country code", "jp"],
+    ["a country code", "us"],
   ])("an answer with %s saves no language", async (_name, language) => {
     aiResult = {
       summary: "A note.",

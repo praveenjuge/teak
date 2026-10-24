@@ -64,7 +64,7 @@ test.each([
   ],
   [
     "a language that is a country code, dropped",
-    '{"tags":["sign"],"summary":"A sign.","text":"東京駅 出口","language":"jp"}',
+    '{"tags":["sign"],"summary":"A sign.","text":"東京駅 出口","language":"us"}',
     { summary: "A sign.", tags: ["sign"], text: "東京駅 出口" },
   ],
   ["text that is a number", '{"tags":["red"],"summary":"A.","text":42}', null],
