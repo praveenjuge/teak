@@ -1,0 +1,51 @@
+---
+title: TypeScript SDK
+description: Call the Teak API from TypeScript with the typed teak-sdk client
+---
+
+`teak-sdk` is the typed client for the [Teak API](/docs/api). It is one bundle with no runtime dependencies, published to npm with the same version as the other Teak apps. The [CLI](/docs/cli), the browser extension and Raycast use it too.
+
+## Install
+
+```package-install
+npm i teak-sdk
+```
+
+## Create a client
+
+```ts
+import { createTeakClient, staticTokenProvider } from "teak-sdk";
+
+const client = createTeakClient({
+  baseUrl: "https://teakvault.com/api",
+  tokenProvider: staticTokenProvider(process.env.TEAK_API_KEY!),
+});
+
+await client.cards.create({ content: "A note from my script", tags: ["research"] });
+const page = await client.cards.search({ query: "typography" });
+```
+
+`baseUrl` defaults to `https://teakvault.com/api`, and requests time out after 10 seconds unless you pass `timeoutMs`. Use an API key from **Settings → Security → API keys**, or an OAuth access token from [sign-in](#sign-in-with-workos-connect).
+
+## What the client covers
+
+The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `archived`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`), `setFavorite`, `setArchived`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `refresh`, `content`, `duplicate`, `bulk`, `changes`, `setThumbnail` (bytes and a MIME type, or `{ fileKey }` from `createThumbnailUpload`), and `resetThumbnail` (with a `folder` filter on the listings, and `folderIds` on `update`), plus `folders.list`, `get`, `create`, `update`, `delete`, `addCards`, and `removeCards`, `tags.list`, `rename`, `merge`, `delete`, and `operation`, `uploads`, `me`, and `exports.start` / `exports.latest`.
+
+- Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe.
+- Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`. `ERROR_CODES` lists every code.
+- `formatBytes(card.fileSize)` turns a file size into the label Teak shows, such as `4.6 MB` or `50 MB`.
+
+## Token providers
+
+A `TokenProvider` has `getAccessToken()`, which returns the token for each request, and an optional `onUnauthorized(rejectedToken: string)`. When a request returns a retry-eligible 401, `onUnauthorized` receives the access token that request used. Return a refreshed or newer stored token to retry the request once, or `null` to stop. Compare the rejected token with the current session before refreshing: a late response may refer to an older token, and refreshing for it could replace newer credentials.
+
+## Sign in with WorkOS Connect
+
+The SDK includes the WorkOS Connect sign-in steps that the CLI, Raycast, and the browser extension use:
+
+- `discoverAuthServer("https://teakvault.com/api")` returns the deployment's sign-in endpoints and the client ID for your surface. Discover again after a sign-in or refresh failure.
+- `randomBase64Url` and `createPkceChallenge` for PKCE, and `createConnectAuthorizeUrl` for the browser step.
+- `requestConnectTokens` for code and refresh grants. It returns `refresh_token_rejected` only when WorkOS says the refresh token is no longer valid; treat other failures as temporary and keep the saved sign-in.
+- `fetchConnectOwnerId` binds the tokens to an account, and `disconnectConnectGrant` signs the surface out.
+
+The SDK never stores credentials or opens a browser. Keep tokens in your platform's secure storage.

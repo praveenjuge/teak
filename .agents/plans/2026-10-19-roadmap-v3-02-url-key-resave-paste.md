@@ -181,7 +181,7 @@ Readers can't switch to `savedAt`, and variant matching can't be relied on, unti
   - `cards.savedAt: v.optional(v.number())`.
   - The copies: `folderCards.cardSavedAt` and `cardSearchTags.cardSavedAt`.
   - Readers use `savedAt ?? createdAt` until the backfill finishes.
-- **New indexes go beside the old ones** (`.agents/feature-conventions.md`): 6 on `cards`, 2 on `folderCards` and 5 on `cardSearchTags`. Each has the same fields with `savedAt` in place of `createdAt`. The old ones are dropped in a later PR.
+- **New indexes go beside the old ones** (`adding-a-feature.mdx`): 6 on `cards`, 2 on `folderCards` and 5 on `cardSearchTags`. Each has the same fields with `savedAt` in place of `createdAt`. The old ones are dropped in a later PR.
 - **Import keeps skipping duplicates.** An import doesn't bump a card, so importing an old export never reshuffles the library.
 - **When the rule applies:**
   - Only when the save would produce a `link` card from a bare URL: the `url` field, or content that is only a URL.

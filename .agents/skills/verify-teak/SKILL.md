@@ -20,7 +20,7 @@ It sets up the checkout, starts the web app against the shared dev deployment (`
 - The account and its password are in `.agents/.state/stack.json` (`account.email`, `account.password`). A cloud session gets its own account, seeded with about 30 sample cards (`packages/convex/devSeed.ts`).
 - When the change touches `packages/convex`, the backend you test must be this checkout's. Start with `bun run dev --detach --push` to take over the push lease, and confirm with the doctor.
 - Don't start plain `bun run dev` as a background command: the agent tool stops it after 30 minutes.
-- For a run that must not share a backend (destructive or schema-changing work), use the E2E stack instead: `bun run dev --stop`, then `bun run --cwd packages/tests e2e:stack` (a local Convex backend and the WorkOS emulator, `packages/tests/README.md`). Its accounts come from the emulator, not `stack.json`.
+- For a run that must not share a backend (destructive or schema-changing work), use the E2E stack instead: `bun run dev --stop`, then `bun run --cwd packages/tests e2e:stack` (a local Convex backend and the WorkOS emulator; `testing.mdx`, "End-to-end suite"). Its accounts come from the emulator, not `stack.json`.
 
 ## Doctor
 

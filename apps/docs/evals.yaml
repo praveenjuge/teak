@@ -90,3 +90,45 @@ questions:
       - No, summaries and AI tags are written in the language of the saved content, so Japanese
       - Items with no text, such as a photo without words, get English tags
     routes: /docs/features
+
+  - id: sdk-typescript-client
+    question: How do I call the Teak API from TypeScript?
+    expected:
+      - Install the teak-sdk package
+      - Create a client with createTeakClient and a token provider, such as an API key
+    routes: /docs/sdk
+
+  - id: run-from-source
+    question: How do I run Teak locally from its source code?
+    expected:
+      - Run bunx convex login, then bun run dev
+      - It runs against Teak's shared development deployment, which needs access from the repository owner
+    routes: /docs/development
+
+  - id: tests-without-access
+    question: Can I run Teak's tests without access to its development deployment?
+    expected:
+      - The unit tests run with bun run test
+      - The end-to-end suite runs with bun run --cwd packages/tests e2e on its own local stack and needs no secrets
+    routes: /docs/testing
+
+  - id: new-api-operation
+    question: What else ships with a new public API operation in Teak?
+    expected:
+      - The MCP tool, the SDK method and the CLI command, in the same pull request
+      - A row in scripts/public-parity.ts
+    routes: /docs/adding-a-feature
+
+  - id: add-ui-text
+    question: I added English text to Teak's web app. What else do I need to do?
+    expected:
+      - Add the same key to all seven other language catalogs in the same pull request
+      - Run bun test scripts/i18n-catalog.test.ts
+    routes: /docs/translating
+
+  - id: self-hosted-cards-not-processed
+    question: My self-hosted Teak saves cards but never processes them. What's missing?
+    expected:
+      - Put WORKFLOW_RPC_ROOT_SECRET on the Files Worker
+      - Set the derived WORKFLOW_RPC_SECRET on the Convex deployment; until then background work stays queued
+    routes: /docs/self-hosting

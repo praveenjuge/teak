@@ -66,7 +66,7 @@ Keep a private, self-contained copy of every saved link's page, and open it when
   - "emit completion" (393)
   - "transcribe podcast" (447, after completion; a failure never fails the card)
 
-  New steps go at the end (`.agents/feature-conventions.md`).
+  New steps go at the end (`adding-a-feature.mdx`).
 - **Page HTML today:**
   - `fetchLinkPage` (`apps/files-worker/src/media/linkPage.ts:159-221`) asks the fetcher container for the static HTML. The fetcher caps a page at `MAX_PAGE_BYTES = 2 MiB` (`apps/files-worker/fetcher/src/fetchPage.ts:17`).
   - It returns `htmlGzipBase64` and caches the result for 24 hours in KV `LINK_PAGE_CACHE` (`LINK_PAGE_CACHE_TTL_SECONDS`, line 25) when the page is cacheable.

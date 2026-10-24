@@ -85,7 +85,7 @@
     },
     {
       // Every word people read comes from the @teak/i18n catalog
-      // (.agents/i18n.md). Props are checked by no-ui-string.grit.
+      // (apps/docs/content/docs/(open-source)/translating.mdx). Props are checked by no-ui-string.grit.
       "includes": [
         "apps/web/src/**/*.tsx",
         "apps/extension/entrypoints/**/*.tsx",

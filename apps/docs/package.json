@@ -4,7 +4,7 @@
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
     "audit:live": "blume audit --url https://teakvault.com --fail-on error",
-    "build": "bun run build:site && blume audit --fail-on error",
+    "build": "bun run build:site && blume audit --fail-on error && bun run scripts/check-header-visibility.ts",
     "build:site": "bun run generate && blume build --budget-js=850 --budget-css=220",
     "dev": "bun run generate && blume dev --port ${DOCS_PORT:-3001} --host 127.0.0.1",
     "eval": "bun run generate && blume eval --agent claude",

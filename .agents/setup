@@ -170,7 +170,7 @@ install_e2e_browsers() {
 
 bootstrap_development() {
   if [[ "${CONVEX_DEPLOY_KEY:-}" != dev:* ]]; then
-    printf 'Skipped: add CONVEX_DEPLOY_KEY (a dev deploy key for the shared dev deployment) to this environment'"'"'s secrets to run bun run dev. See .agents/development.md.\n'
+    printf 'Skipped: add CONVEX_DEPLOY_KEY (a dev deploy key for the shared dev deployment) to this environment'"'"'s secrets to run bun run dev. See apps/docs/content/docs/(open-source)/development.mdx.\n'
     return
   fi
   TURBO_UI=false bun run setup

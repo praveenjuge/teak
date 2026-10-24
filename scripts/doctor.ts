@@ -318,7 +318,7 @@ export const checkConvexSiteUrl = async (): Promise<DoctorCheck> => {
       id: "convex-site-url",
       ok: false,
       remediation: [
-        "The repository owner sets SITE_URL on the dev deployment (see .agents/development.md)",
+        "The repository owner sets SITE_URL on the dev deployment (see teakvault.com/docs/development#maintainer-setup)",
       ],
       severity: "error",
     };
@@ -357,7 +357,7 @@ export const checkDevVars = async (): Promise<DoctorCheck> => {
         id: "convex-dev-vars",
         ok: true,
         remediation: [
-          "The repository owner sets them once (see .agents/development.md)",
+          "The repository owner sets them once (see teakvault.com/docs/development#maintainer-setup)",
         ],
         severity: "warn",
       };

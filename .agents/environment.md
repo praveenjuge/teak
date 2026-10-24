@@ -1,23 +1,15 @@
-# Environment sources, precedence, and ownership
+# Environment ownership and Teak's own credentials
 
 Every environment value in Teak has one owner and one classification. Names and
 metadata live in `scripts/env-contract.ts`; values are never committed,
 printed, or pasted into docs.
 
-## Sources
-
-Supported commands (`setup`, `doctor`, `dev`, `audit:env`) run with Bun's
-automatic dotenv loading disabled (`--no-env-file`). They read only:
-
-1. Explicit shell exports (CI, `export`, command prefix).
-2. The dotenv files declared for the command's target in
-   `scripts/env-targets.ts`, read through `scripts/env-loader.ts`.
-3. Provider stores: Convex dashboard, Vercel, Wrangler, GitHub.
-4. Generated files written by setup from canonical facts (never hand-edited).
-
-Precedence is top-down: an explicit shell export wins over a dotenv file, and a
-dotenv file wins over a generated default. Setup never overwrites a value a
-human set.
+Where values come from, their precedence, the generated aliases,
+classifications, the runtime version pins and the diagnostics commands are
+public: `apps/docs/content/docs/(open-source)/development.mdx`, "Environment
+and configuration". Self-hosted deployments are in
+`apps/docs/content/docs/(open-source)/self-hosting.mdx`. This file keeps what
+is specific to Teak's own production and development deployments.
 
 ## Ownership
 
@@ -54,58 +46,13 @@ vars `CONVEX_SITE_URL` and `INBOUND_EMAIL_DOMAIN` name the deployment it posts
 to and the domain it accepts mail for; Convex dev sets `INBOUND_EMAIL_DOMAIN`
 to `in-dev.teakvault.com`. See `apps/email-worker/README.md`.
 
-## Canonical facts and generated aliases
-
-`CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts;
-`SITE_URL` is the canonical app origin. Framework aliases
-(`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by
-setup (see `scripts/env-aliases.ts`). Frameworks require the aliases at build
-time, so they stay compatible — but humans never maintain them by hand.
-
-## Legacy root dotenv files
-
-Root `.env*` files are legacy. Supported commands ignore them; the name-only
-`scripts/dotenv-audit.ts` still scans them for production selectors because
-other tools (editors, ad-hoc CLIs) may load them ambiently. Prefer shell
-exports or the target's declared file for new values. Teak never deletes or
-rewrites a developer's dotenv files.
-
-## Classifications
-
-- `secret`: credential; name- and shape-validated, never logged.
-- `public-config`: non-secret operator value with one provider owner.
-- `generated`: derived from a canonical fact or the active deployment.
-- `build-metadata`: derived from provider metadata (commit SHA, version).
-- `platform-binding`: provisioned by the platform, not operator-supplied.
-
-Classification is derived from contract metadata (see
-`scripts/env-classify.ts`) so it cannot drift from the declared fields.
-
-## Runtime versions: exact pin, patch drift warns
-
-Bun (`packageManager`) and Node (`engines.node`) follow one policy: the
-pinned version is exact, patch drift warns, and minor/major drift fails.
-Setup and doctor enforce it locally; the CLI release workflow enforces the
-same pins via `bun-version-file: package.json` and
-`node-version-file: package.json`, so local and CI never disagree about the
-toolchain.
-
-Convex Node actions execute under the system Node runtime, which is why Node
-is pinned alongside Bun. Bun's `process.version` reports compatibility, not
-the toolchain, so the version probes shell out to `node --version`.
-
 ## The shared dev deployment and worktrees
 
 `bun run dev` and `bun run setup` connect every checkout to the shared cloud
-dev deployment (`scripts/dev-deployment.ts`; see `.agents/development.md`):
-through the developer's Convex login on a Mac, or a cloud session's
-`CONVEX_DEPLOY_KEY`, which must be a dev deploy key for that deployment. Setup
-and doctor refuse any other key or selection. The deployment's variables are
-owner-managed in the Convex dashboard; setup only reads them (the WorkOS
-staging client ID and API key for `apps/web/.env.local`) and never writes them,
-so checkouts can't overwrite each other's values. Worktrees get their own web
-ports (`scripts/worktree-env.ts`); only the push-lease holder pushes backend
-code (`packages/convex/devPushLease.ts`).
+dev deployment (`scripts/dev-deployment.ts`; see `development.mdx`). The
+deployment's variables are owner-managed in the Convex dashboard; setup only
+reads them and never writes them, so checkouts can't overwrite each other's
+values.
 
 `WORKOS_RESOURCE_ORIGIN` sets a deployment's WorkOS token audiences,
 `<origin>/api` and `<origin>/mcp` (`packages/convex/env.ts`). Production leaves
@@ -114,23 +61,6 @@ its own `convex.site` origin, so the MCP resource matches the URL clients
 connect to (RFC 9728). Both resources must be registered as resource indicators
 in that deployment's WorkOS environment before the value changes, or Connect
 sign-in fails. The owner sets the value and registers the resources.
-
-Setup never overwrites a value a person set. It does refresh generated values:
-loopback URLs left by an earlier E2E run or other ports, and the WorkOS
-credentials it syncs from the deployment.
-
-There is no local backend for development. The E2E suite alone runs one, with
-the WorkOS emulator, and owns all of its configuration
-(`packages/tests/README.md`).
-
-## Stable values live in code, not configuration
-
-Values that do not vary by deployment are typed code with an environment
-override, not required inputs. The pattern is a code default plus an optional
-override: `scripts/build-metadata.ts` derives release IDs from provider
-metadata with a `GIT_SHA` override. The E2E suite's WorkOS emulator values are
-plain constants in `packages/tests/src/stack/config.ts`. Do not add a contract entry
-for a value that is constant across deployments.
 
 ## Rules set outside the repository
 
@@ -148,15 +78,6 @@ for a value that is constant across deployments.
 - Web deploys through the Vercel Git integration with no repository
   credential; App Store and Chrome Web Store credentials are vendor JWT/OAuth
   flows without an OIDC alternative.
-
-## Diagnostics
-
-- `bun run audit:env`: contract-vs-repo audit plus the dotenv audit.
-- `bun run scripts/dotenv-audit.ts [--json]`: local dotenv state, names only.
-- `bun run doctor --target <t> --json`: readiness with stable
-  check IDs, remediations, and redacted output safe to attach to bug reports.
-- `bun run scripts/env-contract-report.ts [--json]`: baseline metrics and
-  per-target manual-supply counts.
 
 ## WorkOS agent tooling
 

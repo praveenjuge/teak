@@ -8,8 +8,20 @@ Keep user documentation synchronized in the same change:
 - MCP behavior under `packages/convex/mcp` -> `content/docs/(developers)/mcp.mdx`
 - Apple app behavior under `apps/apple` -> `content/docs/(apps)/mac.mdx` (Mac) and `content/docs/(apps)/mobile.mdx` (iPhone and iPad)
 - Raycast commands or authentication -> `content/docs/(apps)/raycast.mdx`
-- CLI or public SDK behavior under `apps/cli` or `packages/sdk/src` -> `content/docs/(apps)/cli.mdx`
+- CLI behavior under `apps/cli` -> `content/docs/(apps)/cli.mdx`
+- Public SDK behavior under `packages/sdk/src` -> `content/docs/(developers)/sdk.mdx`
 - Public skills under `.agents/skills` -> `content/docs/(developers)/ai-agents.mdx` and `pages/apps.astro` (`/docs/skills` redirects to `/docs/ai-agents`)
+
+The Open Source group is the source of truth for how Teak is built, run and tested; root `AGENTS.md` points agents at these files instead of repeating them:
+
+- Running, setup, doctor, the push lease, worktrees, cloud VMs, or how commands read env values (`scripts/dev*.ts`, `scripts/setup*.ts`, `scripts/doctor.ts`, `scripts/env-*.ts`, `.agents/setup`) -> `content/docs/(open-source)/development.mdx`
+- Workspace layout, or how the apps, Convex and the Workers connect -> `content/docs/(open-source)/architecture.mdx`
+- Where tests go, testing rules, or the end-to-end stack and suites (`packages/tests`) -> `content/docs/(open-source)/testing.mdx`
+- The steps to ship a feature on every surface (`scripts/public-parity.ts`), data, index, backfill, deploy or UI rules -> `content/docs/(open-source)/adding-a-feature.mdx`
+- Locales, catalog rules, the glossary, or the i18n lint (`packages/i18n`) -> `content/docs/(open-source)/translating.mdx`
+- Worker bindings, vars and secrets (`apps/files-worker/wrangler.jsonc`, `apps/email-worker/wrangler.jsonc`) or backend env vars (`packages/convex/convex.config.ts`) -> `content/docs/(open-source)/self-hosting.mdx`
+
+Write these pages for contributors and self-hosters. Put notes only agents need inside `<Visibility for="agents">`, which keeps them out of the website but in the `.md` mirrors and `llms.txt`. Teak's own deployments, credentials and runbooks stay in `.agents`.
 
 For a notable, shipped product change, update its calendar month's entry in `content/changelog`. Keep one changelog entry per month. Internal maintenance and marketing page changes need no public entry.
 

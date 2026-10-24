@@ -15,12 +15,13 @@ export const SIGN_IN_ORIGINS = [
 ];
 
 /**
- * Runs in <head> before the page paints, so a signed-in visitor never sees
- * Login and Register flash before "Open Teak". The app keeps the cookie on
- * teakvault.com; it is a hint only, and a stale one costs one redirect.
+ * Runs just before the site header (components/Header.astro), so a signed-in
+ * visitor never sees Login and Register flash before "Open Teak". The app
+ * keeps the cookie on teakvault.com; it is a hint only, and a stale one costs
+ * one redirect.
  *
- * - Marks <html data-signed-in> for CSS (`[data-signed-in-only]` and
- *   `[data-signed-out-only]` in styles/marketing.css).
+ * - Marks <html data-signed-in> for the header's own CSS, which hides
+ *   `[data-signed-out-only]` or `[data-signed-in-only]`.
  * - Points sign-up and sign-in links (`a[data-app-entry]`) at the app itself.
  * - Opens connections to the sign-in hosts when a pointer or focus reaches
  *   one of those links, so the click doesn't wait on DNS and TLS.

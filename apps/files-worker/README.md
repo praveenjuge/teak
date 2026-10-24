@@ -50,6 +50,11 @@ Link screenshots and browser scrapes run on Browser Run (`BROWSER`); video,
 audio and PDF work runs in the media renderer Container (`MEDIA_RENDERER`; see
 "Rendering and media" and "Media renderer Container").
 
+To run a Files Worker of your own, follow the public self-hosting guide
+(`apps/docs/content/docs/(open-source)/self-hosting.mdx`, "Files Worker"):
+the resources to create, the vars to change and the secrets to put. This file
+covers how Teak's own Workers behave and are operated.
+
 ## Source layout
 
 `src/index.ts` is the entry: file delivery, signed uploads and the routes below. The root of `src/` keeps only it and the plumbing every area shares (`ops.ts`, the internal ops router; `lib.ts`; `telemetry.ts`; `convexRpc.ts`; `opFailure.ts`; `deletionGate.ts`). Everything else sits in the folder for its area, and a module's tests sit next to it as `*.test.ts`:

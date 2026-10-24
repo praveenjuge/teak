@@ -9,4 +9,4 @@ The public TypeScript client for the Teak API, published to npm as `teak-sdk`.
   - `package.json` points `exports` at `src/` so the CLI, extension, docs and e2e tests use the source with no build step.
   - `build.ts` writes the published manifest into `dist/`, which `SDK Release` packs (`.agents/releases.md`).
 - `scripts/sdk-package.test.ts` packs `dist/`, installs it outside the monorepo and type-checks it. Run it after changing `build.ts` or the public types.
-- A new public API operation adds its method here. Follow `.agents/feature-conventions.md`, which keeps the API, MCP, SDK and CLI in step.
+- A new public API operation adds its method here. Follow `apps/docs/content/docs/(open-source)/adding-a-feature.mdx`, which keeps the API, MCP, SDK and CLI in step.

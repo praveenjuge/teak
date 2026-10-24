@@ -4,39 +4,33 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 ## Start here
 
+The public docs in `apps/docs/content/docs` are the source for how Teak is built, run and tested. Read the page for your task from this checkout (not teakvault.com), so you read your branch's version. Sections marked `<Visibility for="agents">` are written for you.
+
+| Before you | Read |
+| --- | --- |
+| run the app, push backend code, or work in a worktree or cloud VM | `apps/docs/content/docs/(open-source)/development.mdx` |
+| change how apps, the backend and the Workers connect | `apps/docs/content/docs/(open-source)/architecture.mdx` |
+| add, change or delete a test, or run the end-to-end suite | `apps/docs/content/docs/(open-source)/testing.mdx` |
+| add a field, table, index, public API operation, backfill or workflow step | `apps/docs/content/docs/(open-source)/adding-a-feature.mdx` |
+| add or change text people read in the web app or extension | `apps/docs/content/docs/(open-source)/translating.mdx` |
+| touch deployment config, Worker bindings or secrets | `apps/docs/content/docs/(open-source)/self-hosting.mdx`, then `.agents/environment.md` for Teak's own deployments |
+
+- Before your first change in a session, read "Rules every change keeps" in `architecture.mdx`: they hold for every change, whatever its size.
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
 - Read the nearest nested `AGENTS.md` before changing a workspace.
-- To run the app, run `bun run dev --detach` (it returns once the app is ready and keeps running in the background). It sets up this checkout and starts the web app on this worktree's own port against the shared cloud dev deployment, signed in through WorkOS staging as a seeded account. It needs a Convex login on a Mac or `CONVEX_DEPLOY_KEY` (a dev deploy key) in a cloud session. `bun run dev --status` prints the URLs and sign-in; `bun run dev --stop` stops it. Read `.agents/development.md` for the push lease, worktrees and cloud VMs. Never bind production credentials locally.
-- Environment sources, precedence, and ownership live in `.agents/environment.md`; read it before adding env vars or debugging config.
+- Run the app with `bun run dev --detach`; `bun run dev --status` prints the URLs and sign-in, and `bun run dev --stop` stops it. Never bind production credentials locally.
 - Product analytics and error reporting (PostHog) live in `.agents/analytics.md`; read it before adding an event or touching telemetry.
-- The web app and browser extension are translated into seven languages from `packages/i18n`. Read `.agents/i18n.md` before adding or changing any text people read there: new English keys go into all seven catalogs in the same PR.
+- New English text goes into all seven other catalogs in the same PR.
 - `.agents/README.md` lists every guide, plan and skill in `.agents`. Plans in `.agents/plans` are for unshipped work; delete a plan in the PR that finishes it.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
 - Keep changes focused. Preserve unrelated work already in the tree.
 
-## Architecture invariants
-
-- This is a Turborepo monorepo. Applications live in `apps/*`. Packages:
-  - `packages/convex`: the backend, plus the pure helpers in `shared/` that other surfaces import.
-  - `packages/files-protocol`: the contract between Convex and the Files Worker.
-  - `packages/sdk`: the public `teak-sdk` client. The CLI, extension, docs and e2e tests use it from source.
-  - `packages/tests`: the end-to-end suite.
-- Client reads use the cached Convex query hooks. Writes use Convex mutations or actions. WorkOS AuthKit sessions provide Convex identity; WorkOS is the only sign-in provider in every environment.
-- Import backend APIs from `@teak/convex`, generated data types from `@teak/convex/_generated/dataModel`, and shared constants from `@teak/convex/shared/constants`.
-- The web app owns its UI in `apps/web/src`; read its `AGENTS.md` for where each kind of file goes. The browser extension keeps its own small copies of the button, wordmark and theme tokens. Pure helpers that several surfaces share (web, docs, extension, native ports) go in `packages/convex/shared`.
-- Card processing is orchestrated by the Files Worker's Cloudflare Workflow (`apps/files-worker/src/workflows/cardProcessing/run.ts`), started from Convex with `queueCardProcessing` (`packages/convex/workflowDispatch.ts`). Preserve workflow retries, the processing-revision guard on every write, and `processingStatus` consistency.
-- Supported card types are text, link, image, video, audio, document, palette, and quote.
-- `teakvault.com/api`, `/mcp` and the OAuth discovery documents reach Convex only through the Files Worker's edge proxy (`apps/files-worker/src/edge/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them.
-
 ## Convex work
 
-Read `packages/convex/AGENTS.md` before editing backend code.
-
-Read `.agents/feature-conventions.md` before adding a field, table, index, public API operation, backfill or workflow step. It covers shipping a feature on the API, MCP, SDK and CLI together (`scripts/public-parity.ts`), search sync, account deletion coverage, index replacement and deploy order.
+Read `packages/convex/AGENTS.md` before editing backend code, and `adding-a-feature.mdx` (above) before changing the schema or the public API.
 
 ## Verification
 
-- Read `.agents/testing.md` before adding, changing, or deleting tests. It covers where tests go, which layer to use, and what makes a test worth keeping.
 Every change ends with proof, every time. These rules are not optional and not "when practical":
 
 - **Prove it works.** Before you call any task done, follow `.agents/skills/principle-prove-it-works/SKILL.md`: check the real artifact (run the feature, read the stored value, inspect the diff), not a proxy. A passing build, typecheck or test run alone is not proof.
@@ -46,9 +40,9 @@ Every change ends with proof, every time. These rules are not optional and not "
 
 - Add or update deterministic tests for changed behavior. Run the narrowest relevant checks first, then the repository checks warranted by the change.
 - Test user-observable behavior rather than implementation details.
-- End-to-end tests (web, API, CLI, MCP) belong in `packages/tests` and run against a local stack with the WorkOS emulator; read `packages/tests/README.md` before changing or running them.
+- End-to-end tests (web, API, CLI, MCP) belong in `packages/tests` and run against a local stack with the WorkOS emulator (`testing.mdx`, "End-to-end suite").
 - Never bypass git hooks with `--no-verify`. Fix the failing check.
-- The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both, but never run its `e2e feedback`; see `.agents/testing.md`).
+- The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both, but never run its `e2e feedback`; see `testing.mdx`).
 
 ## Pull requests
 

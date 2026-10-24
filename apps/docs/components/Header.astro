@@ -1,5 +1,10 @@
 ---
-import { SIGN_IN_URL, SIGN_UP_URL, WEB_APP_URL } from "../lib/app-entry";
+import {
+  appEntryScript,
+  SIGN_IN_URL,
+  SIGN_UP_URL,
+  WEB_APP_URL,
+} from "../lib/app-entry";
 import Logo from "./Logo.astro";
 
 const navLinks = [
@@ -8,7 +13,14 @@ const navLinks = [
   { name: "Changelog", href: "/changelog" },
   { name: "Docs", href: "/docs" },
 ];
+
+// The header carries its own script and hide rule: docs pages use Blume's
+// layout, which loads neither BaseLayout nor styles/marketing.css. Placed
+// before the header, the script marks signed-in visitors before it paints.
+// scripts/check-header-visibility.ts checks every built page.
 ---
+
+<script is:inline set:html={appEntryScript()} />
 
 <header class="fixed top-0 left-0 z-50 w-full md:top-4 md:left-1/2 md:w-auto md:-translate-x-1/2">
   <nav
@@ -105,3 +117,10 @@ const navLinks = [
     }
   });
 </script>
+
+<style is:global>
+  html[data-signed-in] [data-signed-out-only],
+  html:not([data-signed-in]) [data-signed-in-only] {
+    display: none;
+  }
+</style>
