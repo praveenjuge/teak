@@ -585,6 +585,14 @@ describe("durable deletion admission and tombstones", () => {
         toCardId: card,
         createdAt: 1,
       });
+      await ctx.db.insert("linkChecks", {
+        userId: "permanent-owner",
+        cardId: card,
+        outcome: "dead",
+        httpStatus: 404,
+        reason: "http_404",
+        checkedAt: 1,
+      });
       await ctx.db.insert("userPreferences", {
         userId: "permanent-owner",
         locale: "de",
@@ -769,6 +777,7 @@ describe("durable deletion admission and tombstones", () => {
       "cardTextContents",
       "linkedPdfs",
       "cardLinks",
+      "linkChecks",
       "linkPasteJobs",
       "userPreferences",
       "userTagSummaries",

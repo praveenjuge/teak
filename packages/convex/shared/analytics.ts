@@ -48,7 +48,20 @@ export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
 type NoProperties = Record<string, never>;
 
+/**
+ * What opening a link card with an archived copy found: a fresh check's
+ * outcome, or the cached one (alive for 24 hours, dead for 6).
+ */
+export type DeadLinkCheckOutcome =
+  | "alive"
+  | "dead"
+  | "unsure"
+  | "cached_alive"
+  | "cached_dead";
+
 export interface ClientEventCatalog {
+  /** The archived copy of a link whose page is gone was shown. */
+  archived_copy_opened: { surface: "open_page" };
   card_backlink_opened: NoProperties;
   card_create_submitted: {
     card_type: string;
@@ -60,6 +73,12 @@ export interface ClientEventCatalog {
   card_thumbnail_reset: NoProperties;
   checkout_opened: NoProperties;
   checkout_started: NoProperties;
+  /**
+   * Opening a link card with an archived copy checked its page. `reason` is
+   * the check's short code (`http_404`, `dns`, `timeout`, `rate_limited`…),
+   * never the URL.
+   */
+  dead_link_checked: { outcome: DeadLinkCheckOutcome; reason?: string };
   export_completed: NoProperties;
   export_failed: { error_class?: string };
   export_started: NoProperties;

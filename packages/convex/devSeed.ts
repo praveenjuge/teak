@@ -40,6 +40,7 @@ import {
   SAVE_DETAILS_SAVED_URL,
   saveDetailsPack,
 } from "./devSeed/contentPacks";
+import { deadLinksOrigin, seedDeadLinks } from "./devSeed/deadLinks";
 import {
   cardIn50FoldersPack,
   exportUglyPack,
@@ -332,6 +333,7 @@ const seedFolderScenario = async (
 
 type ScenarioPack = { description: string } & (
   | { cards: (page: number) => DevScenarioCardDef[] }
+  | { deadLinks: true }
   | { folders: () => FolderScenarioPack }
   | { fillTo: number; lead?: DevScenarioCardDef[] }
   | { links: CardLinkScenario }
@@ -601,6 +603,11 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     fillTo: PASTE_LINKS_LIBRARY_SIZE,
     lead: PASTE_LINKS_KNOWN,
   },
+  "dead-links": {
+    description:
+      "Link cards with archived copies whose pages are gone or not: 404, 410, a domain that no longer exists (opens the copy), 403, 500, a page that answers after 6 seconds and a live one (open the original), plus a 404 with no copy (opens directly), one in Trash and a text-only copy. They point at httpbin.org unless `origin` names a server that answers `/status/<code>` and `/delay/<s>`. The copies are small pages written through the Files Worker. Search `#scenario-dead-links`.",
+    deadLinks: true,
+  },
   "locale-switch": {
     description:
       "No cards: sets the account's language to German (de), as Settings → Language would. Set the browser's teak-locale cookie to ja first to see the account win on the next load; seed again with `en` restored from Settings to undo.",
@@ -654,13 +661,15 @@ export const seedScenario = internalMutation({
     workosUserId: v.string(),
     scenario: v.string(),
     page: v.optional(v.number()),
+    /** `dead-links` only: the server its links point at. */
+    origin: v.optional(v.string()),
   },
   returns: v.object({
     status: v.union(v.literal("seeded"), v.literal("already_seeded")),
     cards: v.number(),
     folders: v.optional(v.number()),
   }),
-  handler: async (ctx, { workosUserId, scenario, page = 0 }) => {
+  handler: async (ctx, { workosUserId, scenario, page = 0, origin }) => {
     if (!readIsDevDeployment() && isWorkosProductionApi(workosApiBase())) {
       throw new Error(
         "devSeed runs only on the dev deployment (TEAK_DEV_DEPLOYMENT=true) or a local backend wired to the WorkOS emulator."
@@ -683,6 +692,13 @@ export const seedScenario = internalMutation({
     }
     if ("links" in pack) {
       return await seedCardLinkScenario(ctx, owner.teakUserId, pack.links);
+    }
+    if ("deadLinks" in pack) {
+      return await seedDeadLinks(
+        ctx,
+        owner.teakUserId,
+        deadLinksOrigin(origin)
+      );
     }
     if ("folders" in pack) {
       if (scenario === "email-in") {

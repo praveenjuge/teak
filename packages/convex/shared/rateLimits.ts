@@ -70,6 +70,14 @@ export const RATE_LIMIT_CONFIG = {
     period: HOUR,
     capacity: 20,
   },
+  // Link checks when a link card with an archived copy is opened. Past it,
+  // the original opens without a check.
+  linkChecks: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 30,
+  },
   // Save by email: mail one account saves an hour (past it, mail is dropped
   // silently), and how often its Settings switch can change.
   inboundEmailPerAccount: {

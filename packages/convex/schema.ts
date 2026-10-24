@@ -649,6 +649,21 @@ export default defineSchema({
     .index("by_cardId", ["cardId"])
     .index("by_userId", ["userId"])
     .index("by_status", ["status"]),
+  // The last answer to "is this link's page still there?", checked when a
+  // link card with an archived copy is opened (card/linkCheck.ts). Only alive
+  // and dead are kept; `checkingUntil` claims a check in flight, so a second
+  // open waits for it instead of checking again. One row per card.
+  linkChecks: defineTable({
+    cardId: v.id("cards"),
+    userId: v.string(),
+    outcome: v.optional(v.union(v.literal("alive"), v.literal("dead"))),
+    httpStatus: v.optional(v.number()),
+    reason: v.optional(v.string()),
+    checkedAt: v.optional(v.number()),
+    checkingUntil: v.optional(v.number()),
+  })
+    .index("by_cardId", ["cardId"])
+    .index("by_userId", ["userId"]),
   // A list of links pasted into the web composer, saved in the background as
   // one link card each (card/pasteLinks.ts). The counts are stored at start,
   // so every toast reads the normalized numbers. Removed 7 days after it

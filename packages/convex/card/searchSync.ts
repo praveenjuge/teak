@@ -29,6 +29,7 @@ import {
   scheduleDeletedCardLinkCleanup,
 } from "./cardLinks";
 import { withHiddenFlag } from "./hiddenCards";
+import { deleteLinkCheckRows } from "./linkCheckRows";
 import {
   deleteLinkedPdfRowsAsDocument,
   deleteLinkedPdfRowsAsLink,
@@ -312,6 +313,7 @@ export const syncCardSearchDocumentHandler = async (
     }
     if (!previousCard || previousCard.type === "link") {
       await deleteLinkedPdfRowsAsLink(ctx, cardId);
+      await deleteLinkCheckRows(ctx, cardId);
     }
     if (!previousCard || previousCard.type === "document") {
       await deleteLinkedPdfRowsAsDocument(ctx, cardId);

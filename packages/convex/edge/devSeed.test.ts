@@ -21,6 +21,11 @@ import {
   SAVE_DETAILS_SAVED_URL,
 } from "../devSeed/contentPacks";
 import {
+  DEAD_LINK_CASES,
+  DEAD_LINKS_CAPTURED_AT,
+  DEAD_LINKS_NXDOMAIN_URL,
+} from "../devSeed/deadLinks";
+import {
   EXPORT_UGLY_FOLDER_NAMES,
   type FolderScenario,
   PALETTE_MIXED_SMART_FOLDERS,
@@ -377,6 +382,83 @@ describe("devSeed.seedScenario", () => {
     );
     expect(error).toContain("  shuffle-partial: 400 cards");
     expect(await cardsOf(t)).toHaveLength(0);
+  });
+});
+
+describe("devSeed dead-links pack", () => {
+  test("seeds links with copies at the given origin, and writes each copy", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const puts = new Map<string, { body: string; type: string | null }>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = new URL(String(input));
+        puts.set(
+          decodeURIComponent(url.pathname.replace(/^\/__upload\/v1\//u, "")),
+          {
+            body: new TextDecoder().decode(init?.body as Uint8Array),
+            type: new Headers(init?.headers).get("content-type"),
+          }
+        );
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r",
+            data: { etag: "e", key: "k", size: 1 },
+          })
+        );
+      })
+    );
+    const t = await setup();
+    const args = {
+      workosUserId: WORKOS_USER_ID,
+      scenario: "dead-links",
+      origin: "http://127.0.0.1:4555/",
+    };
+
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "seeded",
+      cards: DEAD_LINK_CASES.length,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "already_seeded",
+      cards: 0,
+    });
+
+    const cards = await cardsOf(t);
+    const byUrl = (url: string) => cards.find((card) => card.url === url);
+    expect(
+      byUrl("http://127.0.0.1:4555/status/404")?.pageArchive
+    ).toMatchObject({ kind: "full", capturedAt: DEAD_LINKS_CAPTURED_AT });
+    expect(
+      byUrl("http://127.0.0.1:4555/status/410?copy=text")?.pageArchive
+    ).toMatchObject({ kind: "text_only" });
+    expect(
+      byUrl("http://127.0.0.1:4555/status/404?copy=none")?.pageArchive
+    ).toBeUndefined();
+    expect(byUrl("http://127.0.0.1:4555/status/404?in=trash")?.isDeleted).toBe(
+      true
+    );
+    expect(byUrl(DEAD_LINKS_NXDOMAIN_URL)?.pageArchive).toBeDefined();
+
+    const archiveKeys = cards.flatMap((card) =>
+      card.pageArchive ? [card.pageArchive.storageKey] : []
+    );
+    expect([...puts.keys()].sort()).toEqual(archiveKeys.sort());
+    for (const card of cards) {
+      if (card.pageArchive) {
+        const put = puts.get(card.pageArchive.storageKey);
+        expect(put?.type).toBe("text/html; charset=utf-8");
+        expect(new TextEncoder().encode(put?.body).byteLength).toBe(
+          card.pageArchive.bytes
+        );
+      }
+    }
+    vi.unstubAllGlobals();
   });
 });
 

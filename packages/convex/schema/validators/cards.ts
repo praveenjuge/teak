@@ -330,6 +330,20 @@ export const cardValidator = v.object({
   colorHues: v.optional(v.array(v.string())),
   processingStatus: processingStatusValidator,
   processingRev: v.optional(v.number()),
+  /**
+   * A link's single-file HTML copy of its page, kept so it can open when the
+   * original is gone.
+   */
+  pageArchive: v.optional(
+    v.object({
+      storageKey: r2KeyValidator,
+      bytes: v.number(),
+      kind: v.union(v.literal("full"), v.literal("text_only")),
+      source: v.union(v.literal("server"), v.literal("extension")),
+      capturedAt: v.number(),
+      sourceUrl: v.string(),
+    })
+  ),
   onboarding: v.optional(v.string()),
   createdAt: v.number(),
   // When the card was last saved: `createdAt` until the same link is saved
