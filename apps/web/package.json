@@ -1,6 +1,6 @@
 {
   "name": "@teak/web",
-  "version": "1.0.88",
+  "version": "1.0.89",
   "private": true,
   "scripts": {
     "build": "next build",
