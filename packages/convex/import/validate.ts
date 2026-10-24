@@ -47,6 +47,8 @@ export interface ImportCardInput {
   isFavorited?: boolean;
   metadataTitle?: string;
   notes?: string;
+  /** When the card was last saved; exports before re-saves have none. */
+  savedAt?: number;
   tags?: string[];
   type: ImportCardType;
   url?: string;
@@ -261,6 +263,7 @@ export function validateImportCard(raw: unknown): ImportCardInput {
     folders: importFolderNames(value.folders),
     colors: rawColors as ImportCardInput["colors"],
     createdAt: parseImportedTimestamp(value.createdAt),
+    savedAt: parseImportedTimestamp(value.savedAt),
     completedAt:
       type === "link" ? parseImportedTimestamp(value.completedAt) : undefined,
     file,

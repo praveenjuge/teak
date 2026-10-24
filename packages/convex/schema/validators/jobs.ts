@@ -184,6 +184,7 @@ export const importJobItemValidator = v.object({
   folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
+  importedSavedAt: v.optional(v.number()),
   importedCompletedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),

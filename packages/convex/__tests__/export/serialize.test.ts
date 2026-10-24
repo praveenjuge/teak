@@ -156,8 +156,15 @@ describe("serializeCard", () => {
         duration: 12,
       },
       createdAt: toDualTimestamp(1_700_000_000_000),
+      savedAt: toDualTimestamp(1_700_000_000_000),
       updatedAt: toDualTimestamp(1_700_000_500_000),
     });
+  });
+
+  test("writes when a card was saved again, beside when it was first saved", () => {
+    const out = serializeCard({ ...baseCard, savedAt: 1_700_000_900_000 });
+    expect(out.createdAt).toEqual(toDualTimestamp(1_700_000_000_000));
+    expect(out.savedAt).toEqual(toDualTimestamp(1_700_000_900_000));
   });
 
   test("excludes transcripts, scraped, account, source, thumbnail fields", () => {

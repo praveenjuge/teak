@@ -231,6 +231,11 @@ const cardProperties = {
       "48px loading-placeholder rendition URL; present for image uploads.",
     type: ["string", "null"],
   },
+  savedAt: {
+    description:
+      "When the card was last saved. It starts equal to `createdAt` and moves to the time of the save when you save the same link again (POST /v1/cards answers `resaved: true`). `sort=newest` and `sort=oldest` order by it. `createdAt` stays the date the card was first saved.",
+    type: "number",
+  },
   screenshotUrl: { type: ["string", "null"] },
   sourceTitle: {
     description:
@@ -376,6 +381,7 @@ export const components = {
         },
         metadataStatus: cardProperties.metadataStatus,
         processingStatus: cardProperties.processingStatus,
+        savedAt: cardProperties.savedAt,
         screenshotUrl: { type: ["string", "null"] },
         sourceTitle: cardProperties.sourceTitle,
         sourceUrl: cardProperties.sourceUrl,
@@ -460,7 +466,23 @@ export const components = {
         appUrl: { format: "uri", type: "string" },
         card: { $ref: "#/components/schemas/Card" },
         cardId: { type: "string" },
-        status: { enum: ["created"], type: "string" },
+        resaved: {
+          description:
+            "Present and true when the link was already in Teak: no card was made, and the card that has it moved to the top of `sort=newest` (its `savedAt` is now). `cardId` and `card` are that card. Tags, notes and content sent with the save were not applied; PATCH /v1/cards/{cardId} to add them.",
+          enum: [true],
+          type: "boolean",
+        },
+        status: {
+          description: "Always `created`, also for a re-save: check `resaved`.",
+          enum: ["created"],
+          type: "string",
+        },
+        wasArchived: {
+          description:
+            "Present and true when the re-saved card was archived; it is back in the library.",
+          enum: [true],
+          type: "boolean",
+        },
       },
       required: ["appUrl", "cardId", "status"],
       type: "object",
@@ -531,7 +553,7 @@ export const components = {
         },
         results: {
           description:
-            'One result per item, in order: { index, status: "success", cardId } or { index, status: "error", code, error }. An item that fails changes nothing.',
+            'One result per item, in order: { index, status: "success", cardId } or { index, status: "error", code, error }. A `create` item whose link was already in Teak adds `resaved: true` (and `wasArchived: true` when that card was archived): no card was made, and `cardId` is the existing card, moved to the top. The same link twice in one request makes one card, and the second item re-saves it. An item that fails changes nothing.',
           items: { additionalProperties: true, type: "object" },
           type: "array",
         },

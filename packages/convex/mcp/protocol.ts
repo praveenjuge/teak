@@ -205,7 +205,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_create_card",
     description:
-      "Create a card from text, a URL, or a completed file upload. cardType is optional and inferred when omitted; Teak detects links, quotes and palettes. sourceUrl and sourceTitle record the page a text or quote came from without making it a link. Pass idempotencyKey to make retries safe.",
+      "Create a card from text, a URL, or a completed file upload. cardType is optional and inferred when omitted; Teak detects links, quotes and palettes. sourceUrl and sourceTitle record the page a text or quote came from without making it a link. Saving a link that's already in Teak (ignoring http/https, www., a trailing slash, a #fragment and utm_*/fbclid/gclid parameters) makes no second card: that card moves to the top and comes back from Archive, and the result has resaved: true (wasArchived: true when it was archived). Tags and notes sent with a re-save are ignored; use teak_v1_update_card to add them. Pass idempotencyKey to make retries safe.",
     annotations: { title: "Create card", ...WRITES },
     inputSchema: inputSchema({
       cardType: { enum: MCP_CARD_TYPES },

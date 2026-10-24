@@ -112,6 +112,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -146,6 +147,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -210,6 +212,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -270,6 +273,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -342,6 +346,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -385,6 +390,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -427,6 +433,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -516,6 +523,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -557,6 +565,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -595,6 +604,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -636,6 +646,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -675,6 +686,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -721,6 +733,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -770,6 +783,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),
@@ -830,6 +844,7 @@ describe("card/createCard.ts", () => {
         query: mock().mockReturnValue({
           withIndex: mock().mockReturnValue({
             collect: mock().mockResolvedValue([]),
+            order: () => ({ first: mock().mockResolvedValue(null) }),
             take: mock().mockResolvedValue([]),
             unique: mock().mockResolvedValue(null),
           }),

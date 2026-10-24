@@ -24,6 +24,8 @@ export const importItemFields = {
   folders: v.optional(v.array(v.string())),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
+  // A Teak archive's `savedAt`, only when it is later than `createdAt`.
+  importedSavedAt: v.optional(v.number()),
   importedCompletedAt: v.optional(v.number()),
   filePath: v.optional(v.string()),
   fileName: v.optional(v.string()),
@@ -48,6 +50,7 @@ export type ImportCardItem = Pick<
   | "height"
   | "importedCompletedAt"
   | "importedCreatedAt"
+  | "importedSavedAt"
   | "isArchived"
   | "isFavorited"
   | "metadataTitle"
@@ -108,7 +111,7 @@ export async function createImportedCard(
     return { kind: "duplicate" };
   }
   try {
-    const cardId = await createCardForUserHandler(
+    const { cardId } = await createCardForUserHandler(
       ctx,
       userId,
       {
@@ -133,6 +136,7 @@ export async function createImportedCard(
       {
         importedVisibleFields: {
           createdAt: item.importedCreatedAt,
+          savedAt: item.importedSavedAt,
           completedAt: item.importedCompletedAt,
           isFavorited: item.isFavorited,
           isArchived: item.isArchived === true,
@@ -147,6 +151,9 @@ export async function createImportedCard(
                 folderCache
               )
           : undefined,
+        // An import never moves a card already in Teak: duplicates are
+        // skipped above, and a card made here keeps the archive's order.
+        skipResave: true,
         source: "import",
       }
     );

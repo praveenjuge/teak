@@ -32,6 +32,15 @@ import {
   ORDERING_SAVED_HOST,
 } from "../devSeed/orderingSaved";
 import {
+  RESAVE_ARCHIVED_EVERY,
+  RESAVE_FOLDERS,
+  RESAVE_LINK_COUNT,
+  RESAVE_READING_URL,
+  RESAVE_TRASHED_COUNT,
+  RESAVE_UTM_URL,
+  resaveLinkUrl,
+} from "../devSeed/resave";
+import {
   SEARCH_OPERATOR_ARCHIVED,
   SEARCH_OPERATOR_COUNTS,
   SEARCH_OPERATOR_TOTAL,
@@ -1407,6 +1416,80 @@ describe("devSeed folder packs", () => {
     expect(await seed()).toEqual({ status: "seeded", cards: 199 - before });
     expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
     expect(await active()).toHaveLength(199);
+  });
+
+  test("resave seeds 300 links over three years, their archived and trashed matches, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const total = RESAVE_LINK_COUNT + RESAVE_TRASHED_COUNT + 2;
+    expect(await seedFolders(t, "resave")).toEqual({
+      status: "seeded",
+      cards: total,
+      folders: RESAVE_FOLDERS.length,
+    });
+    expect(await seedFolders(t, "resave")).toEqual({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(cards).toHaveLength(total);
+    expect(cards.filter((card) => card.isArchived)).toHaveLength(
+      RESAVE_LINK_COUNT / RESAVE_ARCHIVED_EVERY
+    );
+    expect(cards.filter((card) => card.isDeleted)).toHaveLength(
+      RESAVE_TRASHED_COUNT
+    );
+    const first = cards.find((card) => card.url === resaveLinkUrl(1));
+    const last = cards.find(
+      (card) => card.url === resaveLinkUrl(RESAVE_LINK_COUNT)
+    );
+    expect(first?.urlKey).toBe("example.com/resave/001");
+    expect(first?.savedAt).toBe(first?.createdAt);
+    expect(
+      ((last?.createdAt ?? 0) - (first?.createdAt ?? 0)) / 86_400_000
+    ).toBeGreaterThan(2.9 * 365);
+    const reading = cards.find((card) => card.url === RESAVE_READING_URL);
+    expect(reading?.folderIds).toHaveLength(3);
+    expect(reading?.tags).toContain("reading");
+    expect(cards.find((card) => card.url === RESAVE_UTM_URL)?.urlKey).toBe(
+      "example.com/resave/utm-variant"
+    );
+  });
+
+  test("resave-at-limit fills a free library to the limit around five links to save again", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
+    const active = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted_created", (q) =>
+            q.eq("userId", "teak_dev").eq("isDeleted", undefined)
+          )
+          .take(300)
+      );
+    const before = (await active()).length;
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "resave-at-limit",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 200 - before });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = await active();
+    expect(cards).toHaveLength(200);
+    const links = cards.filter((card) =>
+      card.url?.startsWith("https://example.com/resave-limit/")
+    );
+    expect(links).toHaveLength(5);
+    expect(links.filter((card) => card.isArchived)).toHaveLength(1);
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {

@@ -54,7 +54,7 @@ export const cardPaths = {
           in: "query",
           name: "sort",
           description:
-            "Order by the date each card was saved (`createdAt`, which keeps an imported card's original date): `newest` (default) or `oldest`. Or `shuffle`: a stable random order picked by `shuffleSeed`. A search, tag or folder shuffles its matches (a search its best 400, a tag or folder its newest 2,000). Or `relevance` (Best match), with `q`: the search's top 64 results by how well they match its words, then the rest in search order. Without `q` it is `newest`. The response's `relevanceRanked` says whether the top results were scored; the first page decides, and every later page keeps its order.",
+            "Order by the date each card was last saved (`savedAt`): `newest` (default) or `oldest`. Saving a link that's already in Teak moves its card to the top of `newest`; an imported card keeps its original date. Or `shuffle`: a stable random order picked by `shuffleSeed`. A search, tag or folder shuffles its matches (a search its best 400, a tag or folder its newest 2,000). Or `relevance` (Best match), with `q`: the search's top 64 results by how well they match its words, then the rest in search order. Without `q` it is `newest`. The response's `relevanceRanked` says whether the top results were scored; the first page decides, and every later page keeps its order.",
           schema: { enum: CARD_SORTS, type: "string" },
         },
         {
@@ -138,6 +138,8 @@ export const cardPaths = {
       summary: "List cards",
     },
     post: {
+      description:
+        "Saves a card. Saving a link that's already in Teak makes no second card: when the save is just the link (`url`, or `content` that is only the link) and a card outside Trash has the same link, ignoring `http`/`https`, `www.`, a trailing slash, a `#fragment` and `utm_*`/`fbclid`/`gclid` parameters, that card moves to the top of `sort=newest` and comes back from Archive. The response is still `status: \"created\"` with code 200, plus `resaved: true` (and `wasArchived: true` when it was archived). Tags and notes sent with a re-save are ignored; PATCH the card to add them. A re-save counts toward the rate limit but not the free plan's card limit. A link with other text in `content` always makes a new card. Replaying an `Idempotency-Key` returns the first response.",
       requestBody: {
         content: {
           "application/json": {

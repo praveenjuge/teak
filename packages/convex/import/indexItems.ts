@@ -58,6 +58,14 @@ export function normalizeIndexItem(
       folders: card.folders,
       colors: card.colors,
       importedCreatedAt: card.createdAt,
+      // Only a card saved again carries it. The Worker deploys before Convex
+      // accepts the field, and no archive made before re-saves existed has
+      // one, so those imports still pass in between.
+      ...(card.savedAt !== undefined &&
+      card.createdAt !== undefined &&
+      card.savedAt > card.createdAt
+        ? { importedSavedAt: card.savedAt }
+        : {}),
       importedCompletedAt: card.completedAt,
       filePath: card.file?.path,
       fileName: card.file?.fileName,

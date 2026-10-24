@@ -15,6 +15,7 @@ const card = (overrides: Partial<SerializedCard> = {}): SerializedCard => ({
   isArchived: false,
   isHidden: false,
   createdAt: toDualTimestamp(Date.UTC(2026, 9, 1)),
+  savedAt: toDualTimestamp(Date.UTC(2026, 9, 1)),
   updatedAt: toDualTimestamp(Date.UTC(2026, 9, 2)),
   ...overrides,
 });
