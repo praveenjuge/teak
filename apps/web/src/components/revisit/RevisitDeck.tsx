@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import {
   Archive,
@@ -10,8 +11,8 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import type { KeyboardEvent, PointerEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,9 +22,10 @@ import {
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
 import { isTypingTarget } from "@/hooks/useKeyboardShortcuts";
-import type {
-  RevisitCard,
-  RevisitDeck as RevisitDeckState,
+import {
+  REVISIT_DECK_SIZE,
+  type RevisitCard,
+  type RevisitDeck as RevisitDeckState,
 } from "../../hooks/useRevisitDeck";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { cn } from "../../lib/utils";
@@ -91,8 +93,6 @@ export function focusRevisitDeck(): boolean {
   return deck !== null;
 }
 
-const savedDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
-
 const mediaWidth = (card: CardWithUrls): string | undefined => {
   const isMedia =
     card.type === "image" || card.type === "video" || card.type === "document";
@@ -134,6 +134,7 @@ function DeckProgress({
   position: number;
   total: number;
 }) {
+  const t = useTranslations("revisit.deck");
   return (
     <div className="flex items-center gap-3">
       <div
@@ -146,7 +147,7 @@ function DeckProgress({
         />
       </div>
       <span className="text-muted-foreground text-sm tabular-nums">
-        {position} of {total}
+        {t("progress", { position, total })}
       </span>
     </div>
   );
@@ -172,6 +173,14 @@ export function RevisitDeck({
   onStartOver,
   open,
 }: RevisitDeckProps) {
+  const t = useTranslations("revisit.deck");
+  const tc = useTranslations("common");
+  const intlLocale = useIntlLocale();
+  const savedDate = useMemo(
+    () => new Intl.DateTimeFormat(intlLocale, { dateStyle: "medium" }),
+    [intlLocale]
+  );
+  const kbd = (chunks: ReactNode) => <Kbd>{chunks}</Kbd>;
   const snapshot = deck.current;
   const live = useQuery(
     api.cards.getCard,
@@ -273,7 +282,7 @@ export function RevisitDeck({
     if (deck.status === "loading") {
       return (
         <div
-          aria-label="Loading cards"
+          aria-label={t("loadingCards")}
           className="flex w-full max-w-md flex-col items-center gap-6"
           role="status"
         >
@@ -284,10 +293,10 @@ export function RevisitDeck({
     if (deck.status === "error") {
       return (
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="font-medium">Couldn't load cards</p>
+          <p className="font-medium">{t("loadFailed")}</p>
           <Button onClick={deck.retry} variant="outline">
             <RotateCcw />
-            Retry
+            {tc("retry")}
           </Button>
         </div>
       );
@@ -295,9 +304,9 @@ export function RevisitDeck({
     if (deck.total === 0) {
       return (
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="font-medium">Nothing to revisit here</p>
+          <p className="font-medium">{t("empty")}</p>
           <Button onClick={onExit} variant="outline">
-            Done
+            {tc("done")}
           </Button>
         </div>
       );
@@ -309,9 +318,9 @@ export function RevisitDeck({
             <Check aria-hidden="true" className="size-5" />
           </span>
           <div className="space-y-1">
-            <p className="font-semibold text-xl">All caught up</p>
+            <p className="font-semibold text-xl">{t("allCaughtUp")}</p>
             <p className="text-muted-foreground text-sm">
-              {deck.archived} archived · {deck.kept} kept
+              {t("summary", { archived: deck.archived, kept: deck.kept })}
             </p>
           </div>
           <div className="flex flex-wrap justify-center gap-2">
@@ -319,15 +328,17 @@ export function RevisitDeck({
               autoFocus
               onClick={deck.exhausted ? onStartOver : deck.more}
             >
-              {deck.exhausted ? "Start over" : "Revisit 20 more"}
+              {deck.exhausted
+                ? t("startOver")
+                : t("revisitMore", { count: REVISIT_DECK_SIZE })}
             </Button>
             <Button onClick={onExit} variant="outline">
-              Done
+              {tc("done")}
             </Button>
           </div>
           {deck.canUndo ? (
             <p className="text-muted-foreground text-xs">
-              <Kbd>Z</Kbd> undoes the last archive
+              {t.rich("undoHint", { kbd })}
             </p>
           ) : null}
         </div>
@@ -336,7 +347,8 @@ export function RevisitDeck({
     if (!card) {
       return null;
     }
-    const typeLabel = CARD_TYPE_LABELS[card.type as CardType] ?? "Card";
+    const typeLabel =
+      CARD_TYPE_LABELS[card.type as CardType] ?? t("cardFallback");
     return (
       <div className="relative flex w-full max-w-md flex-col items-center">
         {leaving ? (
@@ -379,7 +391,7 @@ export function RevisitDeck({
           }}
         >
           <button
-            aria-label={`Open details: ${typeLabel}`}
+            aria-label={t("openDetails", { type: typeLabel })}
             className="w-full cursor-pointer rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => onOpenCard(card._id)}
             type="button"
@@ -392,22 +404,22 @@ export function RevisitDeck({
         <div className="mt-3 flex min-h-6 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
           <span>{typeLabel}</span>
           <span aria-hidden="true">·</span>
-          <span>Saved {savedDate.format(card.createdAt)}</span>
+          <span>{t("saved", { date: savedDate.format(card.createdAt) })}</span>
           {live?.isDeleted ? (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-              In Trash
+              {t("inTrash")}
             </span>
           ) : null}
           {!live?.isDeleted && live?.isArchived && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-              Archived
+              {t("archived")}
             </span>
           )}
           {swipeHint ? (
             <span className="font-medium text-foreground">
               {swipeHint === "archive"
-                ? "Release to archive"
-                : "Release to keep"}
+                ? t("releaseToArchive")
+                : t("releaseToKeep")}
             </span>
           ) : null}
         </div>
@@ -437,21 +449,20 @@ export function RevisitDeck({
         ref={contentRef}
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">Revisit</DialogTitle>
+        <DialogTitle className="sr-only">{t("title")}</DialogTitle>
         <DialogDescription className="sr-only">
-          One card at a time. Left arrow archives it, right arrow keeps it,
-          Space opens its details, Z undoes the last archive and Escape leaves.
+          {t("description")}
         </DialogDescription>
         <div className="flex h-dvh w-full flex-col overflow-hidden">
           <header className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <span className="font-medium">Revisit</span>
+            <span className="font-medium">{t("title")}</span>
             {deck.status === "ready" && deck.total > 0 && !deck.done ? (
               <DeckProgress position={deck.position} total={deck.total} />
             ) : (
               <span />
             )}
             <Button
-              aria-label="Close Revisit"
+              aria-label={t("close")}
               className="size-9 text-muted-foreground"
               onClick={onExit}
               size="icon"
@@ -478,7 +489,7 @@ export function RevisitDeck({
                     ) : (
                       <Archive />
                     )}
-                    Archive
+                    {t("archive")}
                     <Kbd className="border-transparent bg-primary-foreground/20 text-primary-foreground max-sm:hidden">
                       <ArrowLeft />
                     </Kbd>
@@ -489,18 +500,17 @@ export function RevisitDeck({
                     size="lg"
                     variant="outline"
                   >
-                    Keep
+                    {t("keep")}
                     <Kbd className="max-sm:hidden">
                       <ArrowRight />
                     </Kbd>
                   </Button>
                 </div>
                 <p className="text-muted-foreground text-xs max-sm:hidden">
-                  <Kbd>Space</Kbd> details · <Kbd>Z</Kbd> undo · <Kbd>Esc</Kbd>{" "}
-                  exit
+                  {t.rich("keyHints", { kbd })}
                 </p>
                 <p className="text-muted-foreground text-xs sm:hidden">
-                  Swipe left to archive, right to keep
+                  {t("swipeHint")}
                 </p>
               </div>
             ) : null}

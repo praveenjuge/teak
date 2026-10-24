@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { Fragment } from "react";
 import {
   Dialog,
@@ -29,6 +35,7 @@ export function KeyboardShortcutsDialog({
   onCloseAutoFocus,
   onOpenChange,
 }: KeyboardShortcutsDialogProps) {
+  const t = useTranslations("modals.shortcuts");
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
@@ -37,9 +44,9 @@ export function KeyboardShortcutsDialog({
         {...{ [SHORTCUTS_DIALOG_ATTRIBUTE]: "" }}
       >
         <DialogHeader className="gap-1 border-b px-5 pt-5 pb-3 text-left">
-          <DialogTitle className="text-base">Keyboard shortcuts</DialogTitle>
+          <DialogTitle className="text-base">{t("title")}</DialogTitle>
           <DialogDescription className="text-xs">
-            Shortcuts work anywhere in your library, except while you type.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
         {/* One list, each group's name staying in view while its rows scroll. */}
@@ -79,6 +86,7 @@ export function KeyboardShortcutsDialog({
 }
 
 function ShortcutKeys({ row }: { row: ShortcutRow }) {
+  const t = useTranslations("modals.shortcuts");
   const apple = isApplePlatform();
   const shown = {
     ...row,
@@ -86,12 +94,12 @@ function ShortcutKeys({ row }: { row: ShortcutRow }) {
   };
   return (
     <KbdGroup>
-      <span className="sr-only">{shortcutAccessibleLabel(shown)}</span>
+      <span className="sr-only">{shortcutAccessibleLabel(shown, t)}</span>
       {shown.keys.map((key, index) => (
         <Fragment key={key}>
           {row.sequence && index > 0 && (
             <span aria-hidden="true" className="text-muted-foreground text-xs">
-              then
+              {t("then")}
             </span>
           )}
           <Kbd
@@ -106,28 +114,45 @@ function ShortcutKeys({ row }: { row: ShortcutRow }) {
   );
 }
 
-const KEY_NAMES: Record<string, string> = {
-  "←": "Left arrow",
-  "↑": "Up arrow",
-  "→": "Right arrow",
-  "↓": "Down arrow",
-  "/": "Slash",
-  "?": "Question mark",
-  "⌥": "Option",
-  "⌘": "Command",
-  "⇧": "Shift",
-  "↩": "Return",
+type ShortcutsTranslator = TeakTranslator<"modals.shortcuts">;
+type KeyName = keyof typeof englishMessages.modals.shortcuts.keyNames;
+
+const KEY_NAMES: Record<string, KeyName> = {
+  "←": "leftArrow",
+  "↑": "upArrow",
+  "→": "rightArrow",
+  "↓": "downArrow",
+  "/": "slash",
+  "?": "questionMark",
+  "⌥": "option",
+  "⌘": "command",
+  "⇧": "shift",
+  "↩": "return",
 };
 
-export function shortcutAccessibleLabel(row: ShortcutRow): string {
+const englishShortcuts: ShortcutsTranslator = createTeakTranslator(
+  "en",
+  englishMessages,
+  "modals.shortcuts"
+);
+
+export function shortcutAccessibleLabel(
+  row: ShortcutRow,
+  t: ShortcutsTranslator = englishShortcuts
+): string {
   if (row.syntax) {
-    return `Type ${row.keys.join(" ")}`;
+    return t("typeKeys", { keys: row.keys.join(" ") });
   }
-  const names = row.keys.map((key) => KEY_NAMES[key] ?? key);
+  const names = row.keys.map((key) => {
+    const name = KEY_NAMES[key];
+    return name ? t(`keyNames.${name}`) : key;
+  });
   if (row.combo) {
-    return names.join(" plus ");
+    return names.join(t("comboSeparator"));
   }
-  return names.join(row.sequence ? " then " : " or ");
+  return names.join(
+    row.sequence ? t("sequenceSeparator") : t("alternativeSeparator")
+  );
 }
 
 export function ShortcutHint({ row }: { row: ShortcutRow }) {

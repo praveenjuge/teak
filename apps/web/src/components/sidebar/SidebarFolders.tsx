@@ -2,7 +2,7 @@
 
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { FOLDER_ERROR_MESSAGES } from "@teak/convex/shared/folders";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import {
   FolderPlus,
@@ -40,17 +40,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { UNDO_TOAST_DURATION_MS } from "@/constants/toast";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { clipFolderName } from "@/lib/clipFolderName";
 import { useFolders } from "../../hooks/useFolders";
-import { bulkActionCopy } from "../../lib/bulkCardActions";
 import {
   CARD_DRAG_TYPE,
-  FOLDER_COLOR_LABELS,
   FOLDER_COLORS,
   FOLDER_ICON_CLASSES,
   type FolderColor,
   type FolderSummary,
-  folderErrorMessage,
   folderPath,
   isCardDrag,
 } from "../../lib/folders";
@@ -69,9 +67,10 @@ const folderSkeletonRows = SKELETON_WIDTHS.map((width) => (
 ));
 
 export function SidebarFoldersSkeleton() {
+  const t = useTranslations("sidebar.folders");
   return (
     <SidebarGroup className="pt-3">
-      <SidebarGroupLabel>Folders</SidebarGroupLabel>
+      <SidebarGroupLabel>{t("title")}</SidebarGroupLabel>
       <SidebarMenu>{folderSkeletonRows}</SidebarMenu>
     </SidebarGroup>
   );
@@ -90,6 +89,10 @@ export function SidebarFolders({
   onActiveFolderDeleted,
   onNavigate,
 }: SidebarFoldersProps) {
+  const t = useTranslations("sidebar.folders");
+  const tColors = useTranslations("folders.colors");
+  const tc = useTranslations("common");
+  const errors = useServerErrors();
   const { isMobile, setOpenMobile } = useSidebar();
   const folders = useFolders();
   const [dialog, setDialog] = useState<{
@@ -138,18 +141,14 @@ export function SidebarFolders({
         cardIds: [cardId as Id<"cards">],
       });
       if (result.folderLimitIds.length > 0) {
-        toast.error(FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS_ON_CARD);
+        toast.error(errors.byKey("folders.TOO_MANY_FOLDERS_ON_CARD"));
       } else if (result.failedIds.length > 0) {
-        toast.error(bulkActionCopy.failed("addToFolder"));
+        toast.error(t("addFailed"));
       } else {
-        toast.success(
-          bulkActionCopy.done("addToFolder", 1, clipFolderName(folder.name))
-        );
+        toast.success(t("addedCard", { folder: clipFolderName(folder.name) }));
       }
     } catch (error) {
-      toast.error(
-        folderErrorMessage(error, bulkActionCopy.failed("addToFolder"))
-      );
+      toast.error(errors.message(error, t("addFailed")));
     }
   };
 
@@ -162,13 +161,13 @@ export function SidebarFolders({
 
   const setColor = (folder: FolderSummary, color: FolderColor | null) => {
     updateFolder({ folderId: folder._id, color }).catch((error) =>
-      toast.error(folderErrorMessage(error, "Couldn't change the color"))
+      toast.error(errors.message(error, t("colorFailed")))
     );
   };
 
   const restore = (folder: FolderSummary) => {
     restoreFolder({ folderId: folder._id as Id<"folders"> }).catch((error) =>
-      toast.error(folderErrorMessage(error, "Couldn't restore the folder"))
+      toast.error(errors.message(error, t("restoreFailed")))
     );
   };
 
@@ -176,14 +175,14 @@ export function SidebarFolders({
     try {
       await deleteFolder({ folderId: folder._id });
     } catch (error) {
-      toast.error(folderErrorMessage(error, "Couldn't delete the folder"));
+      toast.error(errors.message(error, t("deleteFailed")));
       return;
     }
-    toast.success(`Deleted “${clipFolderName(folder.name)}”`, {
-      description: "Its cards are still in your library.",
+    toast.success(t("deleted", { name: clipFolderName(folder.name) }), {
+      description: t("deletedDescription"),
       duration: UNDO_TOAST_DURATION_MS,
       id: `folder-delete-${folder._id}`,
-      action: { label: "Undo", onClick: () => restore(folder) },
+      action: { label: tc("undo"), onClick: () => restore(folder) },
     });
   };
 
@@ -211,15 +210,15 @@ export function SidebarFolders({
 
   return (
     <SidebarGroup className="pt-3">
-      <SidebarGroupLabel>Folders</SidebarGroupLabel>
+      <SidebarGroupLabel>{t("title")}</SidebarGroupLabel>
       {folders?.length !== 0 && (
         <SidebarGroupAction
           className="top-3.5"
           onClick={openCreate}
-          title="New folder"
+          title={t("newFolder")}
         >
           <Plus />
-          <span className="sr-only">New folder</span>
+          <span className="sr-only">{t("newFolder")}</span>
         </SidebarGroupAction>
       )}
       <SidebarMenu>
@@ -228,7 +227,7 @@ export function SidebarFolders({
           <SidebarMenuItem>
             <div className="mt-0.5 rounded-lg border border-sidebar-border border-dashed px-3 pt-2.5 pb-3 group-data-[collapsible=icon]:hidden">
               <p className="text-balance text-[12px] text-sidebar-foreground/55 leading-snug">
-                Group related cards. Make a folder, then drag cards onto it.
+                {t("emptyHint")}
               </p>
               <button
                 className="mt-2.5 inline-flex h-7 items-center gap-1.5 rounded-md bg-sidebar-accent px-2.5 font-medium text-[12px] text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-border focus-visible:ring-2 [&>svg]:size-3.5"
@@ -236,14 +235,14 @@ export function SidebarFolders({
                 type="button"
               >
                 <FolderPlus aria-hidden="true" />
-                New folder
+                {t("newFolder")}
               </button>
             </div>
             <SidebarMenuButton
-              aria-label="New folder"
+              aria-label={t("newFolder")}
               className="hidden group-data-[collapsible=icon]:flex"
               onClick={openCreate}
-              tooltip="New folder"
+              tooltip={t("newFolder")}
             >
               <FolderPlus />
             </SidebarMenuButton>
@@ -330,7 +329,7 @@ export function SidebarFolders({
               >
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuAction
-                    aria-label={`More for ${folder.name}`}
+                    aria-label={t("moreFor", { name: folder.name })}
                     showOnHover
                   >
                     <MoreHorizontal />
@@ -343,20 +342,20 @@ export function SidebarFolders({
                 >
                   <DropdownMenuItem onSelect={() => setDialog({ folder })}>
                     <Pencil />
-                    Rename…
+                    {t("renameItem")}
                   </DropdownMenuItem>
                   {isSmart && (
                     <DropdownMenuItem
                       onSelect={() => setDialog({ folder, focusQuery: true })}
                     >
                       <FolderSearch />
-                      Edit search…
+                      {t("editSearch")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <Palette />
-                      Color
+                      {t("color")}
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="w-40">
                       <DropdownMenuRadioGroup
@@ -370,12 +369,12 @@ export function SidebarFolders({
                       >
                         <DropdownMenuRadioItem value="none">
                           <FolderDot />
-                          No color
+                          {tColors("none")}
                         </DropdownMenuRadioItem>
                         {FOLDER_COLORS.map((color) => (
                           <DropdownMenuRadioItem key={color} value={color}>
                             <FolderDot color={color} />
-                            {FOLDER_COLOR_LABELS[color]}
+                            {tColors(color)}
                           </DropdownMenuRadioItem>
                         ))}
                       </DropdownMenuRadioGroup>
@@ -389,7 +388,7 @@ export function SidebarFolders({
                     variant="destructive"
                   >
                     <Trash2 />
-                    Delete
+                    {tc("delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

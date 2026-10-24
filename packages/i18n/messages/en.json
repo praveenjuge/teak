@@ -72,5 +72,180 @@
       "RATE_LIMITED": "You're saving quickly. Try again in a minute.",
       "TRASHED": "Restore this card from Trash before saving its PDF."
     }
+  },
+  "revisit": {
+    "deck": {
+      "title": "Revisit",
+      "description": "One card at a time. Left arrow archives it, right arrow keeps it, Space opens its details, Z undoes the last archive and Escape leaves.",
+      "close": "Close Revisit",
+      "progress": "{position} of {total}",
+      "loadingCards": "Loading cards",
+      "loadFailed": "Couldn't load cards",
+      "empty": "Nothing to revisit here",
+      "allCaughtUp": "All caught up",
+      "summary": "{archived} archived · {kept} kept",
+      "startOver": "Start over",
+      "revisitMore": "Revisit {count} more",
+      "undoHint": "<kbd>Z</kbd> undoes the last archive",
+      "cardFallback": "Card",
+      "openDetails": "Open details: {type}",
+      "saved": "Saved {date}",
+      "inTrash": "In Trash",
+      "archived": "Archived",
+      "releaseToArchive": "Release to archive",
+      "releaseToKeep": "Release to keep",
+      "archive": "Archive",
+      "keep": "Keep",
+      "keyHints": "<kbd>Space</kbd> details · <kbd>Z</kbd> undo · <kbd>Esc</kbd> exit",
+      "swipeHint": "Swipe left to archive, right to keep"
+    }
+  },
+  "folders": {
+    "colors": {
+      "none": "No color",
+      "gray": "Gray",
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "green": "Green",
+      "teal": "Teal",
+      "blue": "Blue",
+      "violet": "Violet",
+      "pink": "Pink"
+    },
+    "nameDialog": {
+      "titleNew": "New folder",
+      "titleNewSmart": "Save as smart folder",
+      "titleEdit": "Edit folder",
+      "titleEditSmart": "Edit smart folder",
+      "descriptionSmart": "Shows every card that matches the search, including cards you save later.",
+      "descriptionEdit": "Change the folder's name or color.",
+      "descriptionNew": "Name the folder and pick a color.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Reading list",
+      "searchLabel": "Search",
+      "colorLegend": "Color",
+      "submitCreate": "Create folder",
+      "submitSmart": "Save smart folder",
+      "saveFailed": "Couldn't save the folder",
+      "createFailed": "Couldn't create the folder"
+    },
+    "list": {
+      "searchLabel": "Search folders",
+      "searchPlaceholder": "Find or create a folder",
+      "listLabel": "Folders",
+      "loading": "Loading folders…",
+      "noMatch": "No folder by that name.",
+      "noFolders": "No folders yet. Type a name to create one.",
+      "createNamed": "Create folder “{name}”",
+      "createFailed": "Couldn't create the folder"
+    },
+    "picker": {
+      "addTitle": "Add {count, plural, one {# card} other {# cards}} to a folder",
+      "moveTitle": "Move {count, plural, one {# card} other {# cards}} to a folder",
+      "description": "Search your folders or type a new name."
+    },
+    "cardFolders": {
+      "title": "Folders",
+      "notInFolder": "This card isn't in a folder.",
+      "inFolders": "In {count, plural, one {# folder} other {# folders}}.",
+      "changeFailed": "Couldn't change the card's folders"
+    },
+    "smartQuery": {
+      "label": "Search: {query}",
+      "noFolderNamed": "No folder named {name}",
+      "excluded": "not"
+    }
+  },
+  "sidebar": {
+    "nav": {
+      "views": {
+        "all": "Everything",
+        "favorites": "Favorites",
+        "archive": "Archive",
+        "trash": "Trash"
+      },
+      "home": "Teak home",
+      "keepOpen": "Keep sidebar open",
+      "collapse": "Collapse sidebar",
+      "tags": "Tags",
+      "settings": "Settings"
+    },
+    "toggle": "Toggle sidebar",
+    "folders": {
+      "title": "Folders",
+      "newFolder": "New folder",
+      "emptyHint": "Group related cards. Make a folder, then drag cards onto it.",
+      "moreFor": "More for {name}",
+      "renameItem": "Rename…",
+      "editSearch": "Edit search…",
+      "color": "Color",
+      "addedCard": "Added 1 card to {folder}",
+      "addFailed": "Couldn't add these cards to the folder",
+      "colorFailed": "Couldn't change the color",
+      "restoreFailed": "Couldn't restore the folder",
+      "deleteFailed": "Couldn't delete the folder",
+      "deleted": "Deleted “{name}”",
+      "deletedDescription": "Its cards are still in your library."
+    },
+    "newFolder": {
+      "nameLabel": "New folder name",
+      "placeholder": "Folder name",
+      "createFailed": "Couldn't create the folder"
+    }
+  },
+  "modals": {
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "description": "Shortcuts work anywhere in your library, except while you type.",
+      "then": "then",
+      "typeKeys": "Type {keys}",
+      "comboSeparator": " plus ",
+      "sequenceSeparator": " then ",
+      "alternativeSeparator": " or ",
+      "keyNames": {
+        "leftArrow": "Left arrow",
+        "upArrow": "Up arrow",
+        "rightArrow": "Right arrow",
+        "downArrow": "Down arrow",
+        "slash": "Slash",
+        "questionMark": "Question mark",
+        "option": "Option",
+        "command": "Command",
+        "shift": "Shift",
+        "return": "Return"
+      }
+    },
+    "tagManagement": {
+      "title": "Manage Tags",
+      "addLabel": "Add New Tag",
+      "placeholder": "Enter tag name",
+      "addTag": "Add tag",
+      "yourTags": "Your Tags",
+      "removeUserTag": "Remove user tag {tag}",
+      "teakTags": "Tags by Teak",
+      "removeTeakTag": "Remove Teak tag {tag}",
+      "empty": "No tags yet. Add your first tag above!"
+    },
+    "tagManager": {
+      "renameTitle": "Rename tag",
+      "mergeTitle": "Merge “{name}” into…",
+      "deleteTitle": "Delete “{name}”?",
+      "renameDescription": "Renames “{name}” on {count, plural, one {# card} other {# cards}}, plus any in Archive or Trash.",
+      "mergeDescription": "Cards tagged “{name}” get the tag you pick instead. A card with both keeps one.",
+      "deleteDescription": "Removes “{name}” from {count, plural, one {# card} other {# cards}}, plus any in Archive or Trash. The cards are kept. This can't be undone.",
+      "merge": "Merge",
+      "mergeInto": "Merge into “{name}”",
+      "mergeIntoInstead": "Merge into “{name}” instead",
+      "deleteTag": "Delete tag",
+      "newName": "New name",
+      "findTag": "Find a tag",
+      "tagsLabel": "Tags",
+      "noMatch": "No tag by that name.",
+      "noOtherTags": "No other tags yet.",
+      "typeToFindMore": "Type to find more tags.",
+      "nameTaken": "A tag named “{name}” already exists.",
+      "startFailed": "Couldn't start the tag change"
+    }
   }
 }

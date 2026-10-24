@@ -3,9 +3,9 @@
 import { api } from "@teak/convex";
 import {
   explainInvalidFolderName,
-  FOLDER_ERROR_MESSAGES,
   MAX_FOLDERS_PER_USER,
 } from "@teak/convex/shared/folders";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { Plus, Search } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -17,14 +17,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { useFolders } from "../../hooks/useFolders";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
-import { cardCountLabel } from "../../lib/bulkCardActions";
 import {
   FOLDER_NAME_INPUT_MAX_LENGTH,
   type FolderSummary,
   filterFolders,
-  folderErrorMessage,
   hasFolderNamed,
   manualFolders,
 } from "../../lib/folders";
@@ -49,6 +48,9 @@ export function FolderPickerDialog({
   onPick,
   selectedCount,
 }: FolderPickerDialogProps) {
+  const t = useTranslations("folders.picker");
+  const tList = useTranslations("folders.list");
+  const errors = useServerErrors();
   const listId = useId();
   const folders = useFolders();
   const createFolder = useMutation(api.folders.createFolder);
@@ -94,7 +96,7 @@ export function FolderPickerDialog({
     try {
       pick(await createFolder({ name: trimmed }));
     } catch (caught) {
-      setError(folderErrorMessage(caught, "Couldn't create the folder"));
+      setError(errors.message(caught, tList("createFailed")));
     }
   });
 
@@ -114,8 +116,6 @@ export function FolderPickerDialog({
     }
   }, [activeIndex, listId, open]);
 
-  const verb = mode === "add" ? "Add" : "Move";
-  const cards = cardCountLabel(selectedCount);
   const optionId = (index: number) => `${listId}-option-${index}`;
 
   return (
@@ -123,10 +123,12 @@ export function FolderPickerDialog({
       <DialogContent className="gap-0 p-0 sm:max-w-sm">
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle>
-            {verb} {cards} to a folder
+            {mode === "add"
+              ? t("addTitle", { count: selectedCount })
+              : t("moveTitle", { count: selectedCount })}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Search your folders or type a new name.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
         <div className="relative border-y">
@@ -141,7 +143,7 @@ export function FolderPickerDialog({
             aria-autocomplete="list"
             aria-controls={listId}
             aria-expanded="true"
-            aria-label="Search folders"
+            aria-label={tList("searchLabel")}
             autoFocus
             className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
             maxLength={FOLDER_NAME_INPUT_MAX_LENGTH}
@@ -167,27 +169,25 @@ export function FolderPickerDialog({
                 choose(activeIndex);
               }
             }}
-            placeholder="Find or create a folder"
+            placeholder={tList("searchPlaceholder")}
             role="combobox"
             value={query}
           />
         </div>
         <div
-          aria-label="Folders"
+          aria-label={tList("listLabel")}
           className="max-h-72 overflow-y-auto p-1.5"
           id={listId}
           role="listbox"
         >
           {folders === undefined && (
             <p className="px-3 py-6 text-center text-muted-foreground text-sm">
-              Loading folders…
+              {tList("loading")}
             </p>
           )}
           {folders !== undefined && optionCount === 0 && (
             <p className="px-3 py-6 text-center text-muted-foreground text-sm">
-              {trimmed
-                ? "No folder by that name."
-                : "No folders yet. Type a name to create one."}
+              {trimmed ? tList("noMatch") : tList("noFolders")}
             </p>
           )}
           {matches.map((folder, index) => (
@@ -235,7 +235,7 @@ export function FolderPickerDialog({
                 className="size-4 text-muted-foreground"
               />
               <span className="min-w-0 flex-1 truncate">
-                Create folder “{trimmed}”
+                {tList("createNamed", { name: trimmed })}
               </span>
             </button>
           ) : null}
@@ -245,7 +245,7 @@ export function FolderPickerDialog({
             className="border-t px-5 py-3 text-destructive text-sm"
             role="alert"
           >
-            {error ?? FOLDER_ERROR_MESSAGES.TOO_MANY_FOLDERS}
+            {error ?? errors.byKey("folders.TOO_MANY_FOLDERS")}
           </p>
         ) : null}
       </DialogContent>

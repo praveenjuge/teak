@@ -1,5 +1,6 @@
 "use client";
 
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { Check, Search, Tag } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useServerErrors } from "@/hooks/useServerErrors";
 import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useSingleFlight } from "../../hooks/useSingleFlight";
 import type { StartTagOperationInput } from "../../hooks/useTagOperations";
@@ -21,7 +23,6 @@ import {
   MAX_TAG_NAME_LENGTH,
   type TagSummaryItem,
   tagErrorCode,
-  tagErrorMessage,
   tagKey,
 } from "../../lib/tags";
 import { cn } from "../../lib/utils";
@@ -40,9 +41,6 @@ interface TagManagerDialogProps {
   tag: TagSummaryItem | null;
   tags: readonly TagSummaryItem[];
 }
-
-const cardsLabel = (count: number) =>
-  `${count.toLocaleString()} card${count === 1 ? "" : "s"}`;
 
 export function TagManagerDialog({
   mode,
@@ -96,6 +94,10 @@ function TagManagerForm({
   mode: TagManagerMode;
   tag: TagSummaryItem;
 }) {
+  const t = useTranslations("modals.tagManager");
+  const tc = useTranslations("common");
+  const errors = useServerErrors();
+  const intlLocale = useIntlLocale();
   const inputId = useId();
   const listId = useId();
   const [name, setName] = useState(tag.name);
@@ -115,7 +117,7 @@ function TagManagerForm({
       } catch (caught) {
         setServerError({
           code: tagErrorCode(caught),
-          message: tagErrorMessage(caught, "Couldn't start the tag change"),
+          message: errors.message(caught, t("startFailed")),
         });
       }
     }
@@ -137,9 +139,10 @@ function TagManagerForm({
 
   let problem: string | null = null;
   if (mode === "rename") {
-    problem = trimmed ? explainTagNameInput(trimmed) : null;
+    const invalid = trimmed ? explainTagNameInput(trimmed) : null;
+    problem = invalid ? errors.byEnglishMessage(invalid) : null;
     if (!problem && existing) {
-      problem = `A tag named “${existing.name}” already exists.`;
+      problem = t("nameTaken", { name: existing.name });
     }
   }
   const canSubmit =
@@ -153,21 +156,20 @@ function TagManagerForm({
     (serverError?.code === "TAG_EXISTS" ? tagKey(trimmed) : undefined);
   const errorText = problem ?? serverError?.message ?? null;
 
-  const scope = `${cardsLabel(tag.count)}, plus any in Archive or Trash`;
   const titles: Record<TagManagerMode, string> = {
-    rename: "Rename tag",
-    merge: `Merge “${tag.name}” into…`,
-    delete: `Delete “${tag.name}”?`,
+    rename: t("renameTitle"),
+    merge: t("mergeTitle", { name: tag.name }),
+    delete: t("deleteTitle", { name: tag.name }),
   };
   const descriptions: Record<TagManagerMode, string> = {
-    rename: `Renames “${tag.name}” on ${scope}.`,
-    merge: `Cards tagged “${tag.name}” get the tag you pick instead. A card with both keeps one.`,
-    delete: `Removes “${tag.name}” from ${scope}. The cards are kept. This can't be undone.`,
+    rename: t("renameDescription", { name: tag.name, count: tag.count }),
+    merge: t("mergeDescription", { name: tag.name }),
+    delete: t("deleteDescription", { name: tag.name, count: tag.count }),
   };
   const submitLabels: Record<TagManagerMode, string> = {
-    rename: "Rename",
-    merge: target ? `Merge into “${target}”` : "Merge",
-    delete: "Delete tag",
+    rename: tc("rename"),
+    merge: target ? t("mergeInto", { name: target }) : t("merge"),
+    delete: t("deleteTag"),
   };
 
   return (
@@ -199,7 +201,7 @@ function TagManagerForm({
       >
         {mode === "rename" && (
           <div className="space-y-2">
-            <Label htmlFor={inputId}>New name</Label>
+            <Label htmlFor={inputId}>{t("newName")}</Label>
             <Input
               aria-describedby={errorText ? `${inputId}-error` : undefined}
               aria-invalid={errorText ? true : undefined}
@@ -227,23 +229,23 @@ function TagManagerForm({
               />
               <Input
                 aria-controls={listId}
-                aria-label="Find a tag"
+                aria-label={t("findTag")}
                 autoFocus
                 className="h-11 rounded-none border-0 pl-11 shadow-none focus-visible:ring-0"
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Find a tag"
+                placeholder={t("findTag")}
                 value={query}
               />
             </div>
             <div
-              aria-label="Tags"
+              aria-label={t("tagsLabel")}
               className="max-h-64 overflow-y-auto p-1.5"
               id={listId}
               role="listbox"
             >
               {mergeTargets.length === 0 && (
                 <p className="px-3 py-6 text-center text-muted-foreground text-sm">
-                  {query.trim() ? "No tag by that name." : "No other tags yet."}
+                  {query.trim() ? t("noMatch") : t("noOtherTags")}
                 </p>
               )}
               {mergeTargets.slice(0, MERGE_LIST_LIMIT).map((item) => {
@@ -278,7 +280,7 @@ function TagManagerForm({
                       <Check aria-hidden="true" className="size-4" />
                     ) : (
                       <span className="text-muted-foreground text-xs tabular-nums">
-                        {item.count.toLocaleString()}
+                        {item.count.toLocaleString(intlLocale)}
                       </span>
                     )}
                   </button>
@@ -286,7 +288,7 @@ function TagManagerForm({
               })}
               {mergeTargets.length > MERGE_LIST_LIMIT && (
                 <p className="px-3 py-2 text-muted-foreground text-xs">
-                  Type to find more tags.
+                  {t("typeToFindMore")}
                 </p>
               )}
             </div>
@@ -310,7 +312,7 @@ function TagManagerForm({
                 type="button"
                 variant="link"
               >
-                Merge into “{mergeSuggestion}” instead
+                {t("mergeIntoInstead", { name: mergeSuggestion })}
               </Button>
             )}
           </div>
@@ -322,7 +324,7 @@ function TagManagerForm({
             type="button"
             variant="outline"
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             className="max-w-full"
