@@ -423,21 +423,21 @@ const collectPage = async (
         const srcset =
           readAttribute(element, "srcset") ??
           (inPicture ? (pictureSources[0] ?? null) : null);
+        // A lazy image's real source wins over an inline placeholder in
+        // `src`; the placeholder stays only when there is nothing else.
         page.images.push(
-          isInlineImage(src)
-            ? null
-            : pickImageCandidate(
-                {
-                  dataSrc:
-                    readAttribute(element, "data-src") ??
-                    readAttribute(element, "data-lazy-src") ??
-                    readAttribute(element, "data-original"),
-                  dataSrcset: readAttribute(element, "data-srcset"),
-                  src,
-                  srcset,
-                },
-                page.baseUrl
-              )
+          pickImageCandidate(
+            {
+              dataSrc:
+                readAttribute(element, "data-src") ??
+                readAttribute(element, "data-lazy-src") ??
+                readAttribute(element, "data-original"),
+              dataSrcset: readAttribute(element, "data-srcset"),
+              src: isInlineImage(src) ? null : src,
+              srcset,
+            },
+            page.baseUrl
+          )
         );
       },
     })

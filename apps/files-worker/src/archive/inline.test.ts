@@ -560,6 +560,21 @@ describe("buildPageArchive: images", () => {
     expect(result.html).toContain('src="data:image/webp;base64,');
   });
 
+  test("a lazy image's real source wins over its inline placeholder", async () => {
+    const deps = fakeDeps();
+    const placeholder =
+      "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+    const result = await archive(
+      `<img src="${placeholder}" data-src="/photo.jpg"><img src="${placeholder}">`,
+      deps
+    );
+    expect(deps.recorded.assets.map(({ url }) => url)).toEqual([
+      "https://example.com/photo.jpg",
+    ]);
+    expect(result.html.split(placeholder)).toHaveLength(2);
+    expect(result.html).toContain('src="data:image/png;base64,');
+  });
+
   test("keeps an image already inlined in the page and counts it", async () => {
     const inline = `data:image/png;base64,${"A".repeat(2 * 1024 * 1024)}`;
     const deps = fakeDeps();
