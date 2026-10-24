@@ -141,15 +141,19 @@ export const articleWordsBucket = (wordCount: number): string => {
 
 const MARKDOWN_IMAGE = /!\[([^\]]*)\]\([^)]*\)/gu;
 const MARKDOWN_LINK = /\[([^\]]*)\]\((?:[^()]|\([^)]*\))*\)/gu;
-const FENCE = /^\s*(```|~~~).*$/gmu;
-const HEADING = /^\s{0,3}#{1,6}\s+/gmu;
-const QUOTE = /^\s{0,3}>\s?/gmu;
-const LIST_MARKER = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/gmu;
-const TABLE_RULE = /^\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)*\|?\s*$/gmu;
-const TABLE_PIPE = /\s*\|\s*/gu;
+// The line patterns match spaces and tabs, never `\s`: a pattern that can
+// cross line breaks backtracks over every blank line after it, and a long
+// run of them (a code block of empty lines) takes minutes.
+const FENCE = /^[ \t]*(```|~~~).*$/gmu;
+const HEADING = /^[ \t]{0,3}#{1,6}[ \t]+/gmu;
+const QUOTE = /^[ \t]{0,3}>[ \t]?/gmu;
+const LIST_MARKER = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?/gmu;
+const TABLE_RULE =
+  /^[ \t]*(?:\|[ \t]*)?:?-{2,}:?[ \t]*(?:\|[ \t]*:?-{2,}:?[ \t]*)*(?:\|[ \t]*)?$/gmu;
+const TABLE_PIPE = /[ \t]*\|[ \t]*/gu;
 const EMPHASIS = /(\*\*|__|~~|\*|_|`)(?=\S)([^\n]*?\S)\1/gu;
 const ESCAPE = /\\([\\`*_{}[\]()#+\-.!|>~])/gu;
-const HORIZONTAL_RULE = /^\s*(?:[-*_]\s*){3,}$/gmu;
+const HORIZONTAL_RULE = /^[ \t]*(?:[-*_][ \t]*){3,}$/gmu;
 
 /**
  * An article's Markdown as plain text, for search and embeddings: images
