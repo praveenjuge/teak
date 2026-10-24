@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { ShieldCheck } from "lucide-react";
 import { type ComponentProps, useState } from "react";
 import { Button } from "../ui/button";
@@ -31,26 +32,28 @@ export function SecuritySection({
 }: SecurityConnectionsProps & {
   apiKeys: ComponentProps<typeof ApiKeysPanel>;
 }) {
+  const t = useTranslations("settings.security");
+  const tRows = useTranslations("settings.rows");
   const [open, setOpen] = useState(false);
   return (
     <>
-      <SettingRow title="Security">
+      <SettingRow title={tRows("security")}>
         <Button
-          aria-label="Manage security"
+          aria-label={t("manageLabel")}
           onClick={() => setOpen(true)}
           size="sm"
           variant="link"
         >
-          Manage
+          {t("manage")}
         </Button>
       </SettingRow>
       <SettingsDialog
         className="sm:h-[min(88dvh,40rem)] sm:max-w-xl"
-        description="Manage the devices, apps and keys that can access your Teak account."
+        description={t("description")}
         icon={ShieldCheck}
         onOpenChange={setOpen}
         open={open}
-        title="Security"
+        title={t("title")}
       >
         <SecurityTabs apiKeys={apiKeys} {...connections} />
       </SettingsDialog>
@@ -64,6 +67,7 @@ function SecurityTabs({
 }: SecurityConnectionsProps & {
   apiKeys: ComponentProps<typeof ApiKeysPanel>;
 }) {
+  const t = useTranslations("settings.security");
   return (
     <Tabs className={settingsTabsClassName} defaultValue="connections">
       <TabsList className={settingsTabsListClassName}>
@@ -71,10 +75,10 @@ function SecurityTabs({
           className={settingsTabsTriggerClassName}
           value="connections"
         >
-          Connections
+          {t("connectionsTab")}
         </TabsTrigger>
         <TabsTrigger className={settingsTabsTriggerClassName} value="keys">
-          API keys
+          {t("apiKeysTab")}
         </TabsTrigger>
       </TabsList>
       <TabsContent className={settingsTabsContentClassName} value="connections">

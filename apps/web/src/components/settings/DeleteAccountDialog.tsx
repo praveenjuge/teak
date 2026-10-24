@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { Trash2 } from "lucide-react";
 import { type ChangeEvent, type FormEvent, useState } from "react";
 import { Button } from "../ui/button";
@@ -24,6 +25,9 @@ export function DeleteAccountDialog({
   error,
   loading,
 }: DeleteAccountDialogProps) {
+  const t = useTranslations("settings.deleteAccount");
+  const tc = useTranslations("common");
+  const confirmPhrase = t("confirmPhrase");
   const [confirmation, setConfirmation] = useState("");
   const [wasOpen, setWasOpen] = useState(open);
   // Every open starts empty, however the last one closed (Cancel, Escape,
@@ -36,7 +40,7 @@ export function DeleteAccountDialog({
   }
 
   const confirmationMatches =
-    confirmation.trim().toLowerCase() === "delete account";
+    confirmation.trim().toLowerCase() === confirmPhrase.toLowerCase();
 
   const handleDelete = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,7 +55,7 @@ export function DeleteAccountDialog({
 
   return (
     <SettingsDialog
-      description="This permanently deletes your account, cards, tags, and uploaded files. This can’t be undone."
+      description={t("description")}
       footer={
         <>
           <Button
@@ -59,7 +63,7 @@ export function DeleteAccountDialog({
             type="button"
             variant="outline"
           >
-            Cancel
+            {tc("cancel")}
           </Button>
           <Button
             disabled={!confirmationMatches || loading}
@@ -67,14 +71,14 @@ export function DeleteAccountDialog({
             type="submit"
             variant="destructive"
           >
-            {loading ? <Spinner /> : "Delete account"}
+            {loading ? <Spinner /> : t("submit")}
           </Button>
         </>
       }
       icon={Trash2}
       onOpenChange={onOpenChange}
       open={open}
-      title="Delete account"
+      title={t("title")}
       tone="destructive"
     >
       <SettingsDialogBody className="space-y-4 pb-5">
@@ -85,11 +89,12 @@ export function DeleteAccountDialog({
             htmlFor="deleteConfirm"
           >
             <span>
-              Type &quot;
-              <span className="font-medium text-foreground">
-                delete account
-              </span>
-              &quot; to proceed
+              {t.rich("confirmPrompt", {
+                phrase: confirmPhrase,
+                strong: (chunks) => (
+                  <span className="font-medium text-foreground">{chunks}</span>
+                ),
+              })}
             </span>
           </Label>
           <Input

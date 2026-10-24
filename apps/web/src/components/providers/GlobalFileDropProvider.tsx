@@ -5,6 +5,7 @@ import {
   MAX_FILES_PER_UPLOAD,
   type UploadMultipleFilesResultItem,
 } from "@teak/convex/shared";
+import { useTranslations } from "@teak/i18n/react";
 import {
   createContext,
   type ReactNode,
@@ -19,7 +20,6 @@ import {
 import { toast } from "sonner";
 import { GlobalFileDropOverlay } from "@/components/feedback/GlobalFileDropOverlay";
 import {
-  CARD_LIMIT_TOAST_MESSAGE,
   TOAST_IDS,
   UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
   UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
@@ -28,6 +28,7 @@ import {
 } from "../../constants/toast";
 import { useFileUpload } from "../../hooks/useFileUpload";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import { useServerErrors } from "../../hooks/useServerErrors";
 import {
   dataTransferHasFiles,
   extractFilesFromDataTransfer,
@@ -65,6 +66,8 @@ export function GlobalFileDropProvider({
   onUpgrade,
   upgradeUrl,
 }: GlobalFileDropProviderProps) {
+  const t = useTranslations("providers.fileDrop");
+  const serverErrors = useServerErrors();
   const [isDragActive, setIsDragActive] = useState(false);
   const { isOnline } = useNetworkStatus();
   const { uploadMultipleFiles } = useFileUpload();
@@ -104,18 +107,17 @@ export function GlobalFileDropProvider({
         skippedNote ? `${message} ${skippedNote}` : message;
 
       if (summary.failures.length === 0) {
-        const uploaded =
-          summary.total === 1
-            ? "File uploaded"
-            : `Uploaded ${summary.total} files`;
         if (skippedNote) {
-          toast.warning(withSkippedNote(`${uploaded}.`), {
-            ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
-            id: TOAST_IDS.uploadQueue,
-          });
+          toast.warning(
+            withSkippedNote(t("uploadedSentence", { count: summary.total })),
+            {
+              ...UPLOAD_QUEUE_NOTICE_TOAST_OPTIONS,
+              id: TOAST_IDS.uploadQueue,
+            }
+          );
           return;
         }
-        toast.success(uploaded, {
+        toast.success(t("uploaded", { count: summary.total }), {
           ...UPLOAD_QUEUE_SUCCESS_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         });
@@ -128,11 +130,11 @@ export function GlobalFileDropProvider({
           failure.errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED
       );
       if (limitFailure) {
-        toast.error(withSkippedNote(CARD_LIMIT_TOAST_MESSAGE), {
+        toast.error(withSkippedNote(t("cardLimitReached")), {
           ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
           action: {
-            label: "Upgrade",
+            label: t("upgrade"),
             onClick: handleUpgrade,
           },
         });
@@ -145,24 +147,24 @@ export function GlobalFileDropProvider({
           failure.errorCode === CARD_ERROR_CODES.RATE_LIMITED
       );
       if (rateLimited) {
-        toast.error(
-          withSkippedNote("Too many cards created. Please wait a moment."),
-          {
-            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-            id: TOAST_IDS.uploadQueue,
-          }
-        );
+        toast.error(withSkippedNote(t("rateLimited")), {
+          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          id: TOAST_IDS.uploadQueue,
+        });
         return;
       }
 
       if (summary.successCount === 0) {
         const first = summary.firstFailure;
-        const reason = first && !first.success ? first.error : "Upload failed";
+        const reason =
+          first && !first.success
+            ? serverErrors.byEnglishMessage(first.error)
+            : t("uploadFailed");
         toast.error(
           withSkippedNote(
             summary.total === 1
               ? reason
-              : `Failed to upload ${summary.total} files. ${reason}`
+              : t("uploadFailedMany", { count: summary.total, reason })
           ),
           {
             ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
@@ -177,7 +179,7 @@ export function GlobalFileDropProvider({
         id: TOAST_IDS.uploadQueue,
       });
     },
-    [handleUpgrade]
+    [handleUpgrade, serverErrors, t]
   );
 
   const handlersRef = useRef<UploadQueueHandlers | null>(null);
@@ -190,13 +192,13 @@ export function GlobalFileDropProvider({
           id: TOAST_IDS.uploadQueue,
         }),
       onStart: () =>
-        toast.loading("Uploading…", {
+        toast.loading(t("uploading"), {
           ...UPLOAD_QUEUE_LOADING_TOAST_OPTIONS,
           id: TOAST_IDS.uploadQueue,
         }),
       upload: uploadMultipleFiles,
     };
-  }, [resolveResultToast, uploadMultipleFiles]);
+  }, [resolveResultToast, t, uploadMultipleFiles]);
   const [queue] = useState(() =>
     createUploadQueue(MAX_FILES_PER_UPLOAD, () => {
       if (!handlersRef.current) {
@@ -285,13 +287,10 @@ export function GlobalFileDropProvider({
       );
 
       if (rejectedFolder) {
-        toast.error(
-          "Folders can't be uploaded. Drop individual files instead.",
-          {
-            ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
-            id: "upload-queue-folder",
-          }
-        );
+        toast.error(t("foldersNotSupported"), {
+          ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
+          id: "upload-queue-folder",
+        });
         if (files.length === 0) {
           return;
         }
@@ -302,7 +301,7 @@ export function GlobalFileDropProvider({
       }
 
       if (!isOnline) {
-        toast.error("You're offline. Reconnect and try again.", {
+        toast.error(t("offline"), {
           ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
           id: "upload-queue-offline",
         });
@@ -331,7 +330,7 @@ export function GlobalFileDropProvider({
 
       event.preventDefault();
       if (!isOnline) {
-        toast.error("You're offline. Reconnect and try again.", {
+        toast.error(t("offline"), {
           ...UPLOAD_QUEUE_CRITICAL_TOAST_OPTIONS,
           id: "upload-queue-offline",
         });
@@ -360,7 +359,7 @@ export function GlobalFileDropProvider({
       document.removeEventListener("paste", handlePaste);
       document.removeEventListener("dragend", handleDragEnd);
     };
-  }, [enqueueValidatedFiles, isOnline]);
+  }, [enqueueValidatedFiles, isOnline, t]);
 
   const contextValue = useMemo<GlobalFileDropContextValue>(
     () => ({

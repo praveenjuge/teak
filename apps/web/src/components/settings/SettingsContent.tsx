@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "../ui/badge";
@@ -112,50 +113,52 @@ export function SettingsContent({
   signOutLoading,
   subscriptionDialog,
 }: SettingsContentProps) {
+  const t = useTranslations("settings.content");
+  const tRows = useTranslations("settings.rows");
   const planRowContent = hasPremium ? (
     <span className={LOADED_GROUP}>
-      <Badge>Pro</Badge>
+      <Badge>{t("pro")}</Badge>
       <CustomerPortalButton
-        aria-label="Manage subscription"
+        aria-label={t("manageSubscription")}
         className="inline-flex items-center gap-1 font-medium text-primary text-sm hover:underline"
         onCreatePortal={onCreateCustomerPortal}
       >
-        Manage
+        {t("manage")}
         <ExternalLink className="size-4" />
       </CustomerPortalButton>
     </span>
   ) : (
     <span className={LOADED_GROUP}>
-      <Badge variant="outline">Free Plan</Badge>
+      <Badge variant="outline">{t("freePlan")}</Badge>
       <Button onClick={onUpgrade} size="sm" variant="link">
-        Upgrade
+        {t("upgrade")}
       </Button>
     </span>
   );
 
   return (
     <>
-      <SettingRow title="Email">
+      <SettingRow title={tRows("email")}>
         {accountLoading ? (
           <SettingValueSkeleton className="w-44" />
         ) : (
           <span className={`${LOADED_VALUE} ${SETTING_TEXT}`}>
-            {email ?? "Not available"}
+            {email ?? t("notAvailable")}
           </span>
         )}
       </SettingRow>
 
-      <SettingRow title="Usage">
+      <SettingRow title={tRows("usage")}>
         {accountLoading ? (
           <SettingValueSkeleton className="w-16" />
         ) : (
           <span className={`${LOADED_VALUE} ${SETTING_TEXT}`}>
-            {`${cardCount} Cards`}
+            {t("cardCount", { count: cardCount })}
           </span>
         )}
       </SettingRow>
 
-      <SettingRow title="Plan">
+      <SettingRow title={tRows("plan")}>
         {accountLoading ? (
           <SettingValueSkeleton className="w-28" />
         ) : (
@@ -194,11 +197,11 @@ export function SettingsContent({
         openRequest={importExportRequest}
       />
 
-      <SettingRow title="Theme">
+      <SettingRow title={tRows("theme")}>
         <ThemeToggle onThemeChange={onThemeChange} />
       </SettingRow>
 
-      <SettingRow title="Sign out">
+      <SettingRow title={tRows("signOut")}>
         <Button
           disabled={signOutLoading}
           onClick={() => {
@@ -207,7 +210,7 @@ export function SettingsContent({
           size="sm"
           variant="link"
         >
-          {signOutLoading ? <Spinner /> : "Sign out"}
+          {signOutLoading ? <Spinner /> : t("signOut")}
         </Button>
       </SettingRow>
 

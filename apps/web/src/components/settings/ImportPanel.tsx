@@ -4,7 +4,7 @@ import { api } from "@teak/convex";
 import { captureEvent, resolveSizeBucket } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import {
-  describeImportFailure,
+  IMPORT_FAILURE,
   IMPORT_MODES,
   IMPORT_SOURCES,
   type ImportMode,
@@ -12,10 +12,13 @@ import {
   importMaxBytes,
 } from "@teak/convex/shared/importSources";
 import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
+import type { englishMessages, TeakTranslator } from "@teak/i18n";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { Copy, Download, FileText, Upload, X } from "lucide-react";
 import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useServerErrors } from "../../hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
@@ -27,7 +30,11 @@ import {
   SelectValue,
 } from "../ui/select";
 import { Spinner } from "../ui/spinner";
-import { formatBytes, formatRelativeTime } from "./importExportFormat";
+import {
+  type FormatTranslator,
+  formatBytes,
+  formatRelativeTime,
+} from "./importExportFormat";
 import { putParts, type UploadPlan } from "./importUpload";
 import { SettingsIconTile } from "./SettingsDialog";
 
@@ -58,6 +65,29 @@ interface ImportPanelProps {
   onActiveChange?: (active: boolean) => void;
 }
 
+type ImportTranslator = TeakTranslator<"settings.import">;
+
+// The server writes each phase in English; these are the ones it writes.
+const PHASE_KEYS: Record<
+  string,
+  keyof typeof englishMessages.settings.import.phases
+> = {
+  Uploading: "uploading",
+  "Waiting to parse": "waitingToParse",
+  "Parsing import file": "parsing",
+  "Importing cards": "importing",
+  "Waiting for card rate limit": "waitingForRateLimit",
+  "Canceling import": "canceling",
+  "Import complete": "complete",
+  "Import failed": "failed",
+  "Import canceled": "canceled",
+};
+
+const phaseLabel = (t: ImportTranslator, phase: string) => {
+  const key = PHASE_KEYS[phase];
+  return key ? t(`phases.${key}`) : phase;
+};
+
 const acceptFor = (mode: ImportMode) =>
   IMPORT_SOURCES[mode].extensions.join(",");
 
@@ -74,35 +104,75 @@ function isActive(status: ImportJob["status"] | undefined) {
   );
 }
 
-function validateFile(file: File, mode: ImportMode): string | null {
-  const { extensions, title } = IMPORT_SOURCES[mode];
+function validateFile(
+  file: File,
+  mode: ImportMode,
+  t: ImportTranslator
+): string | null {
   if (!importFileMatches(mode, file.name)) {
-    return `Choose a ${extensions.join(" or ")} file from ${title}.`;
+    return t("wrongFile", {
+      extensions: IMPORT_SOURCES[mode].extensions.join(t("extensionSeparator")),
+      source: t(`sources.${mode}.title`),
+    });
   }
   const maxBytes = importMaxBytes(mode, file.name);
   if (file.size > maxBytes) {
-    return `That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.`;
+    return t("fileTooLarge", {
+      size: formatBytes(file.size),
+      limit: formatBytes(maxBytes),
+    });
   }
   if (file.size === 0) {
-    return "That file is empty.";
+    return t("fileEmpty");
   }
   return null;
 }
 
-function describeImport(job: ImportJob): string {
-  const parts = [`${job.createdCount} created`, `${job.skippedCount} skipped`];
-  if (job.failedCount > 0) {
-    parts.push(`${job.failedCount} failed`);
-  }
-  const when = formatRelativeTime(job.completedAt ?? job.updatedAt);
-  return `Last import: ${parts.join(", ")} — ${when}`;
+function describeImport(
+  job: ImportJob,
+  t: ImportTranslator,
+  tFormat: FormatTranslator,
+  locale: string | undefined
+): string {
+  return t("lastImport", {
+    created: job.createdCount,
+    skipped: job.skippedCount,
+    failed: job.failedCount,
+    when: formatRelativeTime(
+      job.completedAt ?? job.updatedAt,
+      Date.now(),
+      tFormat,
+      locale
+    ),
+  });
 }
 
-function describeFailure(job: ImportJob): string | null {
+/**
+ * What to tell someone whose import failed, as `describeImportFailure` words
+ * it: failure classes that are codes get a sentence, ones already written
+ * for people pass through.
+ */
+function describeFailure(job: ImportJob, t: ImportTranslator): string | null {
   if (job.status !== "failed") {
     return null;
   }
-  return describeImportFailure(job.mode, job.failureClass);
+  const { failureClass, mode } = job;
+  if (failureClass === IMPORT_FAILURE.INVALID_SOURCE) {
+    if (mode === "archive") {
+      return t("failure.invalidArchive");
+    }
+    return t("failure.invalidSource", {
+      article: /^[aeiou]/i.test(IMPORT_SOURCES[mode].name) ? "an" : "a",
+      source: t(`sources.${mode}.name`),
+    });
+  }
+  if (failureClass === IMPORT_FAILURE.TOO_MANY_ITEMS) {
+    return t("failure.tooManyItems");
+  }
+  if (failureClass && /\s/.test(failureClass)) {
+    return failureClass;
+  }
+  return t("failure.generic");
 }
 
 function progressPercent(job: ImportJob, uploadPercent?: number): number {
@@ -131,16 +201,19 @@ export function ImportProgressSummary({
   job: ImportJob | null;
   uploadPercent?: number;
 }) {
+  const t = useTranslations("settings.import");
   if (!job) {
     return null;
   }
   const active = isActive(job.status);
   const showBar = job.status !== "failed" && job.status !== "canceled";
-  const counts = [
-    { destructive: false, label: "created", value: job.createdCount },
-    { destructive: false, label: "skipped", value: job.skippedCount },
-    { destructive: true, label: "failed", value: job.failedCount },
-  ].filter((count) => count.value > 0);
+  const counts = (
+    [
+      { destructive: false, label: "created", value: job.createdCount },
+      { destructive: false, label: "skipped", value: job.skippedCount },
+      { destructive: true, label: "failed", value: job.failedCount },
+    ] as const
+  ).filter((count) => count.value > 0);
 
   return (
     <div
@@ -149,7 +222,7 @@ export function ImportProgressSummary({
     >
       <div className="flex items-center gap-2">
         {active ? <Spinner className="size-4" /> : null}
-        <span className="font-medium">{job.phase}</span>
+        <span className="font-medium">{phaseLabel(t, job.phase)}</span>
         {job.status === "uploading" && uploadPercent !== undefined ? (
           <span className="ml-auto text-muted-foreground">
             {uploadPercent}%
@@ -171,16 +244,13 @@ export function ImportProgressSummary({
               className={count.destructive ? "text-destructive" : undefined}
               key={count.label}
             >
-              {count.value} {count.label}
+              {t(count.label, { count: count.value })}
             </span>
           ))}
         </div>
       ) : null}
       {active && job.status !== "uploading" ? (
-        <p className="text-muted-foreground">
-          You can close this and come back later. Importing continues in the
-          background.
-        </p>
+        <p className="text-muted-foreground">{t("continuesInBackground")}</p>
       ) : null}
     </div>
   );
@@ -237,17 +307,18 @@ export function importPanelState(
   return { kind: "idle" };
 }
 
-function errorMessage(error: unknown, fallback = "Import could not start") {
-  if (error && typeof error === "object" && "data" in error) {
-    const data = (error as { data?: { message?: unknown } }).data;
-    if (typeof data?.message === "string") {
-      return data.message;
-    }
-  }
-  return error instanceof Error ? error.message : fallback;
-}
-
 export function ImportPanel({ onActiveChange }: ImportPanelProps) {
+  const t = useTranslations("settings.import");
+  const tc = useTranslations("common");
+  const tFormat = useTranslations("settings.format");
+  const locale = useIntlLocale();
+  const serverErrors = useServerErrors();
+  // The server's message, else a thrown error's own, else the fallback.
+  const errorMessage = (error: unknown, fallback = t("startFailed")) =>
+    serverErrors.message(
+      error,
+      error instanceof Error ? error.message : fallback
+    );
   const createUpload = useAction(api.importUpload.createImportUpload);
   const resumeUpload = useAction(api.importUpload.resumeImportUpload);
   const completeUpload = useAction(api.importUpload.completeImportUpload);
@@ -275,7 +346,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   const state = importPanelState(job, transporting, pending);
   const running = state.kind === "running";
   const finishedJob = !running && job && !isActive(job.status) ? job : null;
-  const terminalFailure = finishedJob ? describeFailure(finishedJob) : null;
+  const terminalFailure = finishedJob ? describeFailure(finishedJob, t) : null;
 
   const failureSamples = useQuery(
     api.dataImport.getImportFailureSamples,
@@ -350,7 +421,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   const stageFile = (file: File, mode: ImportMode) => {
-    const error = validateFile(file, mode);
+    const error = validateFile(file, mode, t);
     if (error) {
       toast.error(error);
       return;
@@ -396,7 +467,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
         await cancelImport({ jobId: job.id as never });
       }
     } catch (error) {
-      toast.error(errorMessage(error, "Import could not be canceled."));
+      toast.error(errorMessage(error, t("cancelFailed")));
     } finally {
       setTransporting(false);
       onActiveChange?.(false);
@@ -411,12 +482,12 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       const url = await getReportUrl({ jobId: job.id as never });
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error("Import report could not be loaded");
+        throw new Error(t("reportLoadFailed"));
       }
       await navigator.clipboard.writeText(await response.text());
-      toast.success("Import report copied.");
+      toast.success(t("reportCopied"));
     } catch (error) {
-      toast.error(errorMessage(error, "Import report could not be copied."));
+      toast.error(errorMessage(error, t("reportCopyFailed")));
     }
   };
 
@@ -431,18 +502,16 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       anchor.download = "teak-import-report.txt";
       anchor.click();
     } catch (error) {
-      toast.error(
-        errorMessage(error, "Import report could not be downloaded.")
-      );
+      toast.error(errorMessage(error, t("reportDownloadFailed")));
     }
   };
 
   const lastLoading = latest === undefined;
-  let lastText = "No imports yet.";
+  let lastText = t("noImports");
   if (lastLoading) {
-    lastText = "Loading last import details…";
+    lastText = t("loadingLast");
   } else if (latest) {
-    lastText = describeImport(latest);
+    lastText = describeImport(latest, t, tFormat, locale);
   }
 
   return (
@@ -456,7 +525,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
                 {state.pending.file.name}
               </div>
               <div className="text-muted-foreground text-xs leading-5">
-                {IMPORT_SOURCES[state.pending.mode].title} ·{" "}
+                {t(`sources.${state.pending.mode}.title`)} ·{" "}
                 {formatBytes(state.pending.file.size)}
               </div>
             </div>
@@ -467,10 +536,10 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               size="sm"
               variant="outline"
             >
-              Cancel
+              {tc("cancel")}
             </Button>
             <Button onClick={confirmPending} size="sm">
-              {state.resume ? "Resume upload" : "Start import"}
+              {state.resume ? t("resumeUpload") : t("startImport")}
             </Button>
           </div>
         </div>
@@ -479,7 +548,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       {state.kind === "idle" ? (
         <div className="space-y-3 rounded-xl border p-4">
           <div className="space-y-1.5">
-            <Label htmlFor="import-source">Import from</Label>
+            <Label htmlFor="import-source">{t("importFrom")}</Label>
             <Select
               onValueChange={(value) => setSource(value as ImportMode)}
               value={source}
@@ -490,29 +559,32 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               <SelectContent>
                 {IMPORT_MODES.map((mode) => (
                   <SelectItem key={mode} value={mode}>
-                    {IMPORT_SOURCES[mode].title}
+                    {t(`sources.${mode}.title`)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-muted-foreground text-xs leading-5">
-              {IMPORT_SOURCES[source].hint} Up to{" "}
-              {formatBytes(IMPORT_SOURCES[source].maxBytes)}.
+              {t(`sources.${source}.hint`)}{" "}
+              {t("upTo", {
+                size: formatBytes(IMPORT_SOURCES[source].maxBytes),
+              })}
             </p>
           </div>
           <Button onClick={() => fileInput.current?.click()} size="sm">
             <Upload />
-            Choose file
+            {t("chooseFile")}
           </Button>
         </div>
       ) : null}
 
       {state.kind === "interrupted" ? (
         <div className="space-y-2 rounded-xl border p-4">
-          <div className="font-medium">Upload interrupted</div>
+          <div className="font-medium">{t("uploadInterrupted")}</div>
           <div className="text-muted-foreground">
-            Choose the same {IMPORT_SOURCES[state.job.mode].title} file to
-            resume where it left off.
+            {t("resumeHint", {
+              source: t(`sources.${state.job.mode}.title`),
+            })}
           </div>
           <Button
             onClick={() => resumeInput.current?.click()}
@@ -520,14 +592,16 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             variant="outline"
           >
             <Upload />
-            Resume upload
+            {t("resumeUpload")}
           </Button>
         </div>
       ) : null}
 
       <input
         accept={acceptFor(source)}
-        aria-label={`Choose a file from ${IMPORT_SOURCES[source].title}`}
+        aria-label={t("chooseFileFrom", {
+          source: t(`sources.${source}.title`),
+        })}
         className="hidden"
         onChange={(event) => handleInputChange(event, source)}
         ref={fileInput}
@@ -535,7 +609,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       />
       <input
         accept={ALL_EXTENSIONS}
-        aria-label="Choose a file to resume the interrupted upload"
+        aria-label={t("chooseResumeFile")}
         className="hidden"
         onChange={handleResumeInput}
         ref={resumeInput}
@@ -550,7 +624,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
       state.kind === "interrupted" ||
       (state.kind === "confirming" && state.resume) ? (
         <Button onClick={() => void cancel()} size="sm" variant="outline">
-          Cancel import
+          {t("cancelImport")}
         </Button>
       ) : null}
 
@@ -563,14 +637,14 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
 
       {terminalFailure ? (
         <div className="min-w-0 rounded-xl border border-destructive/35 bg-destructive/10 p-3 text-destructive">
-          <div className="font-medium">Import stopped</div>
+          <div className="font-medium">{t("importStopped")}</div>
           <p className="mt-1 break-words">{terminalFailure}</p>
         </div>
       ) : null}
 
       {finishedJob && failureSamples && failureSamples.length > 0 ? (
         <div className="min-w-0 space-y-1.5">
-          <div className="font-medium">Items that couldn't be imported</div>
+          <div className="font-medium">{t("failedItems")}</div>
           <ul className="max-h-40 space-y-1.5 overflow-y-auto pr-1">
             {failureSamples.map((sample) => (
               <li
@@ -599,7 +673,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             variant="outline"
           >
             <Copy />
-            Copy error report
+            {t("copyReport")}
           </Button>
           <Button
             className="min-w-0"
@@ -608,7 +682,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             variant="outline"
           >
             <Download />
-            Download error report
+            {t("downloadReport")}
           </Button>
         </div>
       ) : null}

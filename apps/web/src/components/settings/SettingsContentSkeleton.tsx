@@ -1,25 +1,30 @@
+import type { englishMessages } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { SettingRow, SettingValueSkeleton } from "./SettingRow";
 import { SettingsFooter } from "./SettingsFooter";
 
-const SKELETON_ROWS: [title: string, width: string][] = [
-  ["Email", "w-44"],
-  ["Usage", "w-16"],
-  ["Plan", "w-28"],
-  ["Save by email", "w-10"],
-  ["Security", "w-16"],
-  ["Import/Export Data", "w-16"],
-  ["Theme", "w-24"],
-  ["Sign out", "w-16"],
+type SettingsRowKey = keyof typeof englishMessages.settings.rows;
+
+const SKELETON_ROWS: [row: SettingsRowKey, width: string][] = [
+  ["email", "w-44"],
+  ["usage", "w-16"],
+  ["plan", "w-28"],
+  ["saveByEmail", "w-10"],
+  ["security", "w-16"],
+  ["importExport", "w-16"],
+  ["theme", "w-24"],
+  ["signOut", "w-16"],
 ];
 
 export function SettingsContentSkeleton() {
+  const t = useTranslations("settings");
   return (
     <>
       <span className="sr-only" role="status">
-        Loading settings…
+        {t("skeleton.loading")}
       </span>
-      {SKELETON_ROWS.map(([title, width]) => (
-        <SettingRow key={title} title={title}>
+      {SKELETON_ROWS.map(([row, width]) => (
+        <SettingRow key={row} title={t(`rows.${row}`)}>
           <SettingValueSkeleton className={width} />
         </SettingRow>
       ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -42,6 +43,7 @@ function getPreviousHomeEntry(): NavigationEntry | null {
 }
 
 export function SettingsBackLink() {
+  const tc = useTranslations("common");
   const router = useRouter();
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -76,11 +78,11 @@ export function SettingsBackLink() {
 
   return (
     <Link
-      aria-label="Back"
+      aria-label={tc("back")}
       className="-ml-1.5 flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       href="/"
       onClick={handleClick}
-      title="Back"
+      title={tc("back")}
     >
       <ArrowLeft className="size-4" />
     </Link>
@@ -88,10 +90,11 @@ export function SettingsBackLink() {
 }
 
 export function SettingsHeader() {
+  const t = useTranslations("settings.header");
   return (
     <PageHeader
       leading={<SidebarToggle className="-ml-2" />}
-      title={<PageTitle icon={<SettingsBackLink />}>Settings</PageTitle>}
+      title={<PageTitle icon={<SettingsBackLink />}>{t("title")}</PageTitle>}
     />
   );
 }

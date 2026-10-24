@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -36,9 +37,10 @@ const SKELETON_OPACITIES = [
 ];
 
 export function CardsGridSkeleton() {
+  const t = useTranslations("feedback.cardsGrid");
   return (
     <div
-      aria-label="Loading cards"
+      aria-label={t("loading")}
       className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5"
       role="status"
     >

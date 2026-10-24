@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@teak/convex";
+import { useTranslations } from "@teak/i18n/react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useAction, useConvexAuth } from "convex/react";
 import {
@@ -30,11 +31,11 @@ const PENDING_PROFILE_RETRY_MS = [1000, 2000, 3000];
 const isPendingProfile = (result: Bootstrap) =>
   result.status === "quarantined" && result.reason === "profile_pending";
 
-const blockedMessages = {
-  verify_email: "Verify your email to open Teak.",
-  frozen: "Signups are paused. Your account hasn't been created.",
-  quarantined: "Your account isn't ready yet. Try again or contact support.",
-};
+const BLOCKED_MESSAGE_KEYS = {
+  verify_email: "verifyEmail",
+  frozen: "frozen",
+  quarantined: "quarantined",
+} as const;
 
 // These screens show while the server may still hold the session the app
 // rejected, so `renew` asks AuthKit for a fresh one instead of going straight
@@ -52,6 +53,8 @@ export function WorkosAuthBoundary({
   children: ReactNode;
   loading?: ReactNode;
 }) {
+  const t = useTranslations("providers.auth");
+  const tc = useTranslations("common");
   const { user, sessionId, loading } = useAuth();
   const { error: tokenError, refresh } = useAccessToken();
   const auth = useConvexAuth();
@@ -176,8 +179,8 @@ export function WorkosAuthBoundary({
   if (!(user && auth.isAuthenticated)) {
     return (
       <AuthUnavailable
-        action="Sign in"
-        message="Please sign in again."
+        action={t("signIn")}
+        message={t("signInAgain")}
         retry={signInHere}
       />
     );
@@ -188,8 +191,8 @@ export function WorkosAuthBoundary({
   if (ownerId !== null && profile?._id !== ownerId) {
     return (
       <AuthUnavailable
-        action="Sign in"
-        message="Your session changed. Please sign in again."
+        action={t("signIn")}
+        message={t("sessionChanged")}
         retry={signIn}
       />
     );
@@ -210,13 +213,13 @@ export function WorkosAuthBoundary({
   }
   return (
     <StatusScreen
-      action="Try again"
-      message={blockedMessages[blocked]}
+      action={tc("tryAgain")}
+      message={t(`blocked.${BLOCKED_MESSAGE_KEYS[blocked]}`)}
       onAction={retryBootstrap}
       role="status"
     >
       <Button onClick={() => void signOut()} variant="ghost">
-        Sign out
+        {t("signOut")}
       </Button>
     </StatusScreen>
   );

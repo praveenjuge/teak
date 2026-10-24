@@ -24,6 +24,377 @@
     "footer": {
       "feedback": "Let me know <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> if you have any feedback. If you ever want to leave, you can <deleteAccount>delete your account</deleteAccount>. Hope you enjoy using Teak as much as I enjoyed creating it.",
       "signature": "Praveen Juge Signature"
+    },
+    "header": {
+      "title": "Settings"
+    },
+    "rows": {
+      "email": "Email",
+      "usage": "Usage",
+      "plan": "Plan",
+      "saveByEmail": "Save by email",
+      "security": "Security",
+      "importExport": "Import/Export Data",
+      "theme": "Theme",
+      "signOut": "Sign out"
+    },
+    "skeleton": {
+      "loading": "Loading settings…"
+    },
+    "errorAlert": {
+      "title": "Error"
+    },
+    "content": {
+      "notAvailable": "Not available",
+      "cardCount": "{count, plural, other {# Cards}}",
+      "pro": "Pro",
+      "freePlan": "Free Plan",
+      "manage": "Manage",
+      "manageSubscription": "Manage subscription",
+      "upgrade": "Upgrade",
+      "signOut": "Sign out"
+    },
+    "theme": {
+      "useSystem": "Use system theme",
+      "useLight": "Use light theme",
+      "useDark": "Use dark theme"
+    },
+    "importExport": {
+      "manage": "Manage",
+      "manageLabel": "Manage import and export",
+      "title": "Manage data",
+      "description": "Bring cards in from other tools, or take a full copy with you.",
+      "importTab": "Import",
+      "exportTab": "Export"
+    },
+    "security": {
+      "manage": "Manage",
+      "manageLabel": "Manage security",
+      "title": "Security",
+      "description": "Manage the devices, apps and keys that can access your Teak account.",
+      "connectionsTab": "Connections",
+      "apiKeysTab": "API keys"
+    },
+    "connections": {
+      "devicesTitle": "Devices",
+      "devicesDescription": "Browsers and devices signed in to your account.",
+      "appsTitle": "Connected apps",
+      "appsDescription": "Disconnecting signs an app out across all its installations.",
+      "loadingDevices": "Loading devices…",
+      "loadingApps": "Loading apps…",
+      "devicesLoadFailed": "Could not load devices. Please try again.",
+      "appsLoadFailed": "Could not load apps. Please try again.",
+      "noDevices": "No devices.",
+      "noApps": "No apps are connected.",
+      "showMoreDevices": "Show more devices",
+      "showMoreApps": "Show more apps",
+      "thisDevice": "This device",
+      "signedIn": "Signed in {date}",
+      "connected": "Connected {date}",
+      "lastUsed": "Last used {date}",
+      "signOut": "Sign out",
+      "signOutLabel": "Sign out {name}",
+      "signOutCurrentLabel": "Sign out {name} (this device)",
+      "disconnect": "Disconnect",
+      "disconnectLabel": "Disconnect {name}",
+      "updateFailed": "Could not update this connection. Please try again.",
+      "signOutCurrentTitle": "Sign out of this device?",
+      "signOutCurrentDescription": "You’ll be signed out of Teak in this browser ({name}) and need to sign in again.",
+      "signOutTitle": "Sign out {name}?",
+      "signOutDescription": "The {name} session that signed in {date} is signed out of Teak and needs to sign in again.",
+      "disconnectTitle": "Disconnect {name}?",
+      "disconnectDescription": "{name} loses access to your Teak library on every installation until you connect it again."
+    },
+    "apiKeys": {
+      "title": "API keys",
+      "revokeAllTitle": "Revoke all API keys?",
+      "revokeAllDescription": "Every API key stops working right away, including keys used by the CLI, Raycast and MCP clients. This can’t be undone.",
+      "revokeAllConfirm": "Revoke all keys",
+      "revokeTitle": "Revoke this API key?",
+      "revokeDescription": "{key} stops working right away. Anything that uses it loses access to your library. This can’t be undone.",
+      "revokeConfirm": "Revoke key",
+      "regenerateTitle": "Regenerate this API key?",
+      "regenerateDescription": "{key} stops working right away and is replaced by a new key. Update anything that uses it with the new key.",
+      "regenerateConfirm": "Regenerate key",
+      "identityCreated": "created {date}",
+      "regenerateLabel": "Regenerate {identity}",
+      "revokeLabel": "Revoke {identity}",
+      "regenerateKey": "Regenerate key",
+      "revokeKey": "Revoke key",
+      "created": "Created {date}",
+      "copyNewKey": "Copy your new key now",
+      "newKeyLabel": "New API key",
+      "updateFailed": "Could not update your API keys. Please try again.",
+      "keyCreated": "API key created. Copy it now; it is only shown once.",
+      "revokingRemaining": "Revoking remaining keys in the background.",
+      "allRevoked": "All API keys revoked.",
+      "keyRevoked": "API key revoked.",
+      "keyRegenerated": "API key regenerated. Copy the new key now.",
+      "keyCopied": "API key copied.",
+      "copyFailed": "Could not copy the key. Select and copy it manually.",
+      "limitNote": "Keys have full access to your library. You can keep up to 10 active keys.",
+      "createKey": "Create key",
+      "loading": "Loading API keys…",
+      "empty": "Create your first API key to connect external tools.",
+      "revokeAll": "Revoke all keys"
+    },
+    "deleteAccount": {
+      "title": "Delete account",
+      "description": "This permanently deletes your account, cards, tags, and uploaded files. This can’t be undone.",
+      "submit": "Delete account",
+      "confirmPhrase": "delete account",
+      "confirmPrompt": "Type \"<strong>{phrase}</strong>\" to proceed"
+    },
+    "subscription": {
+      "title": "Upgrade to Pro",
+      "description": "Unlock all features and remove limits.",
+      "maybeLater": "Maybe later",
+      "continueToCheckout": "Continue to checkout",
+      "choosePlan": "Choose a plan",
+      "everythingInPro": "Everything in Pro",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "bestValue": "Best Value • Save {percent}%",
+      "features": {
+        "unlimitedCards": "Unlimited Cards",
+        "unlimitedStorage": "Unlimited Storage",
+        "summaryAndTags": "Automatic Summary and Tags",
+        "audioTranscription": "Automatic Audio Transcription",
+        "browserExtensions": "Browser Extensions",
+        "apps": "iOS, Mac & Android Apps",
+        "apiAndMcp": "API & MCP Access"
+      }
+    },
+    "inboundEmail": {
+      "title": "Save by email",
+      "genericError": "Couldn't update Save by email. Try again.",
+      "rateLimited": "Too many changes. Try again in a minute.",
+      "addressCopied": "Address copied",
+      "copyFailed": "Couldn't copy the address. Select and copy it manually.",
+      "loading": "Loading Save by email…",
+      "intro": "Send or forward email to Teak, and it's saved as cards.",
+      "verifyToTurnOn": "Verify your sign-in email, <strong>{sender}</strong>, to turn this on.",
+      "turnOn": "Turn on",
+      "copyAddress": "Copy address",
+      "sendFrom": "Send from <strong>{sender}</strong>. Mail from other addresses isn't saved.",
+      "unverified": "Mail isn't saved until you verify your sign-in email, <strong>{sender}</strong>.",
+      "howItWorks": "Forward or send anything. An email with a single link becomes a link card, everything else becomes a note, and attachments become their own cards. All are tagged email.",
+      "lastReceived": "Last email received {when}",
+      "turnOff": "Turn off",
+      "on": "On",
+      "off": "Off",
+      "statusOnLabel": "Save by email: On",
+      "statusOffLabel": "Save by email: Off"
+    },
+    "export": {
+      "starting": "Starting export…",
+      "started": "Export started. We'll prepare your archive in the background.",
+      "startFailed": "Could not start export.",
+      "canceling": "Canceling export…",
+      "canceled": "Export canceled.",
+      "cancelFailed": "Could not cancel export.",
+      "preparingDownload": "Preparing download…",
+      "downloadReady": "Your download is ready.",
+      "downloadFailed": "Could not prepare download.",
+      "preparing": "Preparing your export…",
+      "runsInBackground": "This keeps running in the background.",
+      "snapshotting": "Snapshotting your cards",
+      "snapshotProgress": "{count, plural, one {# card captured so far} other {# cards captured so far}}",
+      "archiving": "Building your archive…",
+      "zipping": "Zipping your cards and files.",
+      "quotaCaption": "One export per week, available for 7 days after it's ready.",
+      "lastFailed": "Last export failed. You can try again.",
+      "quotaUsed": "You've used this week's export.",
+      "cancelExport": "Cancel export",
+      "ready": "Your export is ready",
+      "cardCount": "{count, plural, other {# cards}}",
+      "filesOmittedTitle": "Some original files couldn't be read at export time and were left out of the archive.",
+      "filesUnavailable": "{count, plural, one {# file unavailable} other {# files unavailable}}",
+      "availableUntil": "available until {date}",
+      "downloadArchive": "Download archive",
+      "title": "Export your data",
+      "description": "A ZIP of every card outside Trash with its original files, plus a bookmarks file for your browser and a spreadsheet.",
+      "startExport": "Start export",
+      "nextAvailable": "Next export available {date}",
+      "availableIn": "Available in {countdown}"
+    },
+    "import": {
+      "wrongFile": "Choose a {extensions} file from {source}.",
+      "extensionSeparator": " or ",
+      "fileTooLarge": "That file is {size}. The limit is {limit}.",
+      "fileEmpty": "That file is empty.",
+      "lastImport": "Last import: {created} created, {skipped} skipped{failed, plural, =0 {} other {, # failed}} — {when}",
+      "created": "{count} created",
+      "skipped": "{count} skipped",
+      "failed": "{count} failed",
+      "continuesInBackground": "You can close this and come back later. Importing continues in the background.",
+      "startFailed": "Import could not start",
+      "cancelFailed": "Import could not be canceled.",
+      "reportLoadFailed": "Import report could not be loaded",
+      "reportCopied": "Import report copied.",
+      "reportCopyFailed": "Import report could not be copied.",
+      "reportDownloadFailed": "Import report could not be downloaded.",
+      "noImports": "No imports yet.",
+      "loadingLast": "Loading last import details…",
+      "resumeUpload": "Resume upload",
+      "startImport": "Start import",
+      "importFrom": "Import from",
+      "upTo": "Up to {size}.",
+      "chooseFile": "Choose file",
+      "uploadInterrupted": "Upload interrupted",
+      "resumeHint": "Choose the same {source} file to resume where it left off.",
+      "chooseFileFrom": "Choose a file from {source}",
+      "chooseResumeFile": "Choose a file to resume the interrupted upload",
+      "cancelImport": "Cancel import",
+      "importStopped": "Import stopped",
+      "failedItems": "Items that couldn't be imported",
+      "copyReport": "Copy error report",
+      "downloadReport": "Download error report",
+      "failure": {
+        "invalidArchive": "This doesn't look like a Teak archive. Choose a ZIP from Export your data.",
+        "invalidSource": "This doesn't look like {article, select, an {an} other {a}} {source} export. Check the source and choose the file it describes.",
+        "tooManyItems": "This file has more than 10,000 items. Split it and import each part.",
+        "generic": "Import failed. Please try again."
+      },
+      "phases": {
+        "uploading": "Uploading",
+        "waitingToParse": "Waiting to parse",
+        "parsing": "Parsing import file",
+        "importing": "Importing cards",
+        "waitingForRateLimit": "Waiting for card rate limit",
+        "canceling": "Canceling import",
+        "complete": "Import complete",
+        "failed": "Import failed",
+        "canceled": "Import canceled"
+      },
+      "sources": {
+        "bookmarks": {
+          "title": "Browser bookmarks",
+          "name": "browser bookmarks",
+          "hint": "The bookmarks HTML file from your browser's Export bookmarks."
+        },
+        "pocket": {
+          "title": "Pocket",
+          "name": "Pocket",
+          "hint": "The CSV from Pocket's export, or its older HTML export."
+        },
+        "raindrop": {
+          "title": "Raindrop.io",
+          "name": "Raindrop",
+          "hint": "The CSV from Raindrop's Settings → Backups → Export."
+        },
+        "instapaper": {
+          "title": "Instapaper",
+          "name": "Instapaper",
+          "hint": "The CSV from Instapaper's Settings → Export."
+        },
+        "readwise": {
+          "title": "Readwise Reader",
+          "name": "Readwise Reader",
+          "hint": "The CSV from Reader's Export library as CSV."
+        },
+        "omnivore": {
+          "title": "Omnivore",
+          "name": "Omnivore",
+          "hint": "The ZIP from Omnivore's export, as you downloaded it."
+        },
+        "linkwarden": {
+          "title": "Linkwarden",
+          "name": "Linkwarden",
+          "hint": "The JSON backup from Linkwarden's Settings → Data → Export."
+        },
+        "mymind": {
+          "title": "mymind",
+          "name": "mymind",
+          "hint": "The CSV from mymind's Settings → Export."
+        },
+        "onetab": {
+          "title": "OneTab",
+          "name": "OneTab",
+          "hint": "OneTab's Export URLs text, saved as a .txt file."
+        },
+        "archive": {
+          "title": "Teak archive",
+          "name": "Teak",
+          "hint": "A ZIP from Export your data in Teak."
+        }
+      }
+    },
+    "format": {
+      "justNow": "just now",
+      "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+      "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+      "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+      "now": "now",
+      "underAMinute": "under a minute",
+      "days": "{days}d",
+      "daysHours": "{days}d {hours}h",
+      "hours": "{hours}h",
+      "hoursMinutes": "{hours}h {minutes}m",
+      "minutes": "{minutes}m"
+    }
+  },
+  "app": {
+    "settings": {
+      "deletionRequested": "Account deletion requested. You’re being signed out.",
+      "welcomePro": "Welcome to Pro! Your subscription has been activated.",
+      "openingCheckout": "Opening checkout...",
+      "checkoutNewTab": "Checkout opened in a new tab",
+      "checkoutFailed": "Failed to start checkout. Please try again."
+    }
+  },
+  "feedback": {
+    "cardsGrid": {
+      "loading": "Loading cards"
+    },
+    "fileDrop": {
+      "dropFiles": "Drop files to upload"
+    },
+    "vaultSetup": {
+      "title": "Setting up your vault",
+      "steps": {
+        "starterCards": "Adding a few starter cards",
+        "photoColors": "Pulling colors from a photo",
+        "voiceMemo": "Writing out a voice memo",
+        "searchCheatSheet": "Reading a search cheat sheet",
+        "moodboard": "Making you a moodboard"
+      }
+    }
+  },
+  "providers": {
+    "authUnavailable": {
+      "message": "We couldn't check your session. Please try again."
+    },
+    "auth": {
+      "signIn": "Sign in",
+      "signInAgain": "Please sign in again.",
+      "sessionChanged": "Your session changed. Please sign in again.",
+      "signOut": "Sign out",
+      "blocked": {
+        "verifyEmail": "Verify your email to open Teak.",
+        "frozen": "Signups are paused. Your account hasn't been created.",
+        "quarantined": "Your account isn't ready yet. Try again or contact support."
+      }
+    },
+    "fileDrop": {
+      "uploaded": "{count, plural, one {File uploaded} other {Uploaded # files}}",
+      "uploadedSentence": "{count, plural, one {File uploaded.} other {Uploaded # files.}}",
+      "cardLimitReached": "Free card limit reached",
+      "upgrade": "Upgrade",
+      "rateLimited": "Too many cards created. Please wait a moment.",
+      "uploadFailed": "Upload failed",
+      "uploadFailedMany": "Failed to upload {count, plural, other {# files}}. {reason}",
+      "uploading": "Uploading…",
+      "foldersNotSupported": "Folders can't be uploaded. Drop individual files instead.",
+      "offline": "You're offline. Reconnect and try again."
+    }
+  },
+  "appShell": {
+    "skeleton": {
+      "tags": "Tags",
+      "folder": "Folder"
     }
   },
   "errors": {

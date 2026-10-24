@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { Upload } from "lucide-react";
 
 interface GlobalFileDropOverlayProps {
@@ -7,6 +8,7 @@ interface GlobalFileDropOverlayProps {
 export function GlobalFileDropOverlay({
   isDragActive,
 }: GlobalFileDropOverlayProps) {
+  const t = useTranslations("feedback.fileDrop");
   if (!isDragActive) {
     return null;
   }
@@ -20,7 +22,7 @@ export function GlobalFileDropOverlay({
       <div className="absolute inset-2 rounded-xl border-2 border-primary/60 border-dashed" />
       <div className="absolute top-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-primary px-4 py-1.5 text-primary-foreground text-xs shadow-sm">
         <Upload className="size-3.5" />
-        <span className="font-medium">Drop files to upload</span>
+        <span className="font-medium">{t("dropFiles")}</span>
       </div>
     </div>
   );

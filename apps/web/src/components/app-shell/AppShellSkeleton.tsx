@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NewMenuPlaceholder } from "@/components/forms";
@@ -21,6 +22,7 @@ export function AppShellSkeleton({
   defaultOpen: boolean;
   defaultWidth: number;
 }) {
+  const t = useTranslations("appShell.skeleton");
   const pathname = usePathname();
   const view = libraryViewForPath(pathname);
   const isSettings = pathname.startsWith("/settings");
@@ -29,9 +31,9 @@ export function AppShellSkeleton({
   if (view) {
     title = LIBRARY_VIEW_LABELS[view];
   } else if (isTags) {
-    title = "Tags";
+    title = t("tags");
   } else if (folderIdForPath(pathname)) {
-    title = "Folder";
+    title = t("folder");
   }
   let content = (
     <LibraryPageSkeleton

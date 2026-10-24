@@ -1,5 +1,6 @@
 "use client";
 
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { CircleCheck, Download } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -48,16 +49,14 @@ interface ExportPanelProps {
 
 const ACTIVE_STATUSES: ExportJobStatus[] = ["pending", "running"];
 
-const expiryDateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatExpiry(expiresAt?: number): string {
+function formatExpiry(locale: string | undefined, expiresAt?: number): string {
   if (!expiresAt) {
     return "";
   }
-  return expiryDateFormatter.format(new Date(expiresAt));
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(expiresAt));
 }
 
 export function ExportPanel({
@@ -67,6 +66,9 @@ export function ExportPanel({
   onDownloadExport,
   onStartExport,
 }: ExportPanelProps) {
+  const t = useTranslations("settings.export");
+  const tFormat = useTranslations("settings.format");
+  const locale = useIntlLocale();
   const [isBusy, setIsBusy] = useState(false);
   const busyRef = useRef<boolean>(false);
   const [now, setNow] = useState(() => Date.now());
@@ -113,12 +115,7 @@ export function ExportPanel({
   };
 
   const handleStart = () =>
-    runAction(
-      onStartExport,
-      "Starting export…",
-      "Export started. We'll prepare your archive in the background.",
-      "Could not start export."
-    );
+    runAction(onStartExport, t("starting"), t("started"), t("startFailed"));
 
   const handleCancel = () => {
     if (!job) {
@@ -126,9 +123,9 @@ export function ExportPanel({
     }
     return runAction(
       () => onCancelExport(job.id),
-      "Canceling export…",
-      "Export canceled.",
-      "Could not cancel export."
+      t("canceling"),
+      t("canceled"),
+      t("cancelFailed")
     );
   };
 
@@ -138,31 +135,30 @@ export function ExportPanel({
     }
     return runAction(
       () => onDownloadExport(job.id),
-      "Preparing download…",
-      "Your download is ready.",
-      "Could not prepare download."
+      t("preparingDownload"),
+      t("downloadReady"),
+      t("downloadFailed")
     );
   };
 
   const avatarClass =
     "flex size-9 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground shadow-xs";
 
-  let activeTitle = "Preparing your export…";
-  let activeSubtitle = "This keeps running in the background.";
+  let activeTitle = t("preparing");
+  let activeSubtitle = t("runsInBackground");
   if (job?.stage === "snapshotting" && typeof job.processedCount === "number") {
-    activeTitle = "Snapshotting your cards";
-    activeSubtitle = `${job.processedCount} card${job.processedCount === 1 ? "" : "s"} captured so far`;
+    activeTitle = t("snapshotting");
+    activeSubtitle = t("snapshotProgress", { count: job.processedCount });
   } else if (job?.stage === "archiving") {
-    activeTitle = "Building your archive…";
-    activeSubtitle = "Zipping your cards and files.";
+    activeTitle = t("archiving");
+    activeSubtitle = t("zipping");
   }
 
-  let idleCaption =
-    "One export per week, available for 7 days after it's ready.";
+  let idleCaption = t("quotaCaption");
   if (job?.status === "failed") {
-    idleCaption = "Last export failed. You can try again.";
+    idleCaption = t("lastFailed");
   } else if (!canStartNew) {
-    idleCaption = "You've used this week's export.";
+    idleCaption = t("quotaUsed");
   }
 
   let body: ReactNode;
@@ -191,7 +187,7 @@ export function ExportPanel({
             size="sm"
             variant="outline"
           >
-            {isBusy ? <Spinner /> : "Cancel export"}
+            {isBusy ? <Spinner /> : t("cancelExport")}
           </Button>
         </div>
       </div>
@@ -204,26 +200,31 @@ export function ExportPanel({
         </span>
         <div className="min-w-0 flex-1 space-y-2.5">
           <div className="space-y-0.5">
-            <div className="font-medium">Your export is ready</div>
+            <div className="font-medium">{t("ready")}</div>
             <div className="text-muted-foreground text-xs leading-5">
-              <span>{job.cardCount ?? 0} cards</span>
+              <span>{t("cardCount", { count: job.cardCount ?? 0 })}</span>
               {typeof job.artifactBytes === "number" ? (
                 <span> · {formatBytes(job.artifactBytes)}</span>
               ) : null}
               {job.filesOmitted ? (
-                <span title="Some original files couldn't be read at export time and were left out of the archive.">
+                <span title={t("filesOmittedTitle")}>
                   {" "}
-                  · {job.filesOmitted} file{job.filesOmitted === 1 ? "" : "s"}{" "}
-                  unavailable
+                  · {t("filesUnavailable", { count: job.filesOmitted })}
                 </span>
               ) : null}
               {job.expiresAt ? (
-                <span> · available until {formatExpiry(job.expiresAt)}</span>
+                <span>
+                  {" "}
+                  ·{" "}
+                  {t("availableUntil", {
+                    date: formatExpiry(locale, job.expiresAt),
+                  })}
+                </span>
               ) : null}
             </div>
           </div>
           <Button disabled={isBusy} onClick={handleDownload} size="sm">
-            {isBusy ? <Spinner /> : "Download archive"}
+            {isBusy ? <Spinner /> : t("downloadArchive")}
           </Button>
         </div>
       </div>
@@ -236,25 +237,28 @@ export function ExportPanel({
         </span>
         <div className="min-w-0 flex-1 space-y-2.5">
           <div className="space-y-0.5">
-            <div className="font-medium">Export your data</div>
+            <div className="font-medium">{t("title")}</div>
             <p className="text-muted-foreground text-xs leading-5">
-              A ZIP of every card outside Trash with its original files, plus a
-              bookmarks file for your browser and a spreadsheet.
+              {t("description")}
             </p>
           </div>
           <div className="space-y-2">
             {canStartNew ? (
               <Button disabled={isBusy} onClick={handleStart} size="sm">
-                {isBusy ? <Spinner /> : "Start export"}
+                {isBusy ? <Spinner /> : t("startExport")}
               </Button>
             ) : (
               <Button
                 disabled
                 size="sm"
-                title={`Next export available ${formatExpiry(resetAt)}`}
+                title={t("nextAvailable", {
+                  date: formatExpiry(locale, resetAt),
+                })}
                 variant="secondary"
               >
-                Available in {formatCountdown(remainingMs)}
+                {t("availableIn", {
+                  countdown: formatCountdown(remainingMs, tFormat),
+                })}
               </Button>
             )}
             <p className="text-muted-foreground text-xs leading-5">

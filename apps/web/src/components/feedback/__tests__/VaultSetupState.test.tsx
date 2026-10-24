@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { VAULT_SETUP_STEPS, VaultSetupState } from "../VaultSetupState";
+import { VaultSetupState } from "../VaultSetupState";
 
 test("tells a new account its vault is being set up, as a live status", () => {
   const html = renderToStaticMarkup(<VaultSetupState />);
@@ -8,5 +8,5 @@ test("tells a new account its vault is being set up, as a live status", () => {
   expect(html).toContain('role="status"');
   expect(html).toContain('aria-live="polite"');
   expect(html).toContain("Setting up your vault");
-  expect(html).toContain(VAULT_SETUP_STEPS[0]);
+  expect(html).toContain("Adding a few starter cards");
 });

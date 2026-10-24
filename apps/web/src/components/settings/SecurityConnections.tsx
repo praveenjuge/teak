@@ -1,6 +1,8 @@
 "use client";
 
 import { api } from "@teak/convex";
+import type { TeakTranslator } from "@teak/i18n";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { AppWindow, Laptop, type LucideIcon, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { usePaginatedQuery } from "../../lib/convexQueryHooks";
@@ -43,14 +45,16 @@ export interface SecurityConnectionsProps {
   sessionsLoadingMore: boolean;
 }
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-});
+type ConnectionsTranslator = TeakTranslator<"settings.connections">;
+
+const formatDate = (locale: string | undefined, date: number) =>
+  new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
 // Devices often share a browser name; the sign-in time tells them apart.
-const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+const formatDateTime = (locale: string | undefined, date: number) =>
+  new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 
 interface ConnectionConfirm {
   confirmLabel: string;
@@ -60,41 +64,51 @@ interface ConnectionConfirm {
 
 interface ConnectionRow {
   action: () => Promise<void>;
+  actionLabel: string;
   confirm: ConnectionConfirm;
   current?: boolean;
-  date: number;
+  /** When it signed in or connected, already worded. */
   detail: string;
   id: string;
   lastUsedAt?: number;
   name: string;
-  showTime?: boolean;
 }
 
 /** What signing out a device asks before it acts. */
-export function deviceSignOutConfirm(session: {
-  current: boolean;
-  name: string;
-  signedInAt: number;
-}): ConnectionConfirm {
+export function deviceSignOutConfirm(
+  session: {
+    current: boolean;
+    name: string;
+    signedInAt: number;
+  },
+  t: ConnectionsTranslator,
+  locale: string | undefined
+): ConnectionConfirm {
   return session.current
     ? {
-        title: "Sign out of this device?",
-        description: `You’ll be signed out of Teak in this browser (${session.name}) and need to sign in again.`,
-        confirmLabel: "Sign out",
+        title: t("signOutCurrentTitle"),
+        description: t("signOutCurrentDescription", { name: session.name }),
+        confirmLabel: t("signOut"),
       }
     : {
-        title: `Sign out ${session.name}?`,
-        description: `The ${session.name} session that signed in ${dateTimeFormatter.format(session.signedInAt)} is signed out of Teak and needs to sign in again.`,
-        confirmLabel: "Sign out",
+        title: t("signOutTitle", { name: session.name }),
+        description: t("signOutDescription", {
+          name: session.name,
+          date: formatDateTime(locale, session.signedInAt),
+        }),
+        confirmLabel: t("signOut"),
       };
 }
 
 /** What disconnecting an app asks before it acts. */
-export function appDisconnectConfirm(name: string): ConnectionConfirm {
+export function appDisconnectConfirm(
+  name: string,
+  t: ConnectionsTranslator
+): ConnectionConfirm {
   return {
-    title: `Disconnect ${name}?`,
-    description: `${name} loses access to your Teak library on every installation until you connect it again.`,
-    confirmLabel: "Disconnect",
+    title: t("disconnectTitle", { name }),
+    description: t("disconnectDescription", { name }),
+    confirmLabel: t("disconnect"),
   };
 }
 
@@ -107,6 +121,8 @@ function ConnectionList({
   rows: ConnectionRow[];
   verb: string;
 }) {
+  const t = useTranslations("settings.connections");
+  const locale = useIntlLocale();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<ConnectionRow | null>(null);
@@ -117,7 +133,7 @@ function ConnectionList({
     try {
       await row.action();
     } catch {
-      setError("Could not update this connection. Please try again.");
+      setError(t("updateFailed"));
     } finally {
       setBusy(null);
     }
@@ -148,22 +164,19 @@ function ConnectionList({
                 {row.current ? (
                   <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium text-[11px] text-muted-foreground leading-4">
                     <span className="size-1.5 rounded-full bg-emerald-500" />
-                    This device
+                    {t("thisDevice")}
                   </span>
                 ) : null}
               </div>
               <p className="text-muted-foreground text-xs leading-5">
-                {row.detail}{" "}
-                {(row.showTime ? dateTimeFormatter : dateFormatter).format(
-                  row.date
-                )}
+                {row.detail}
                 {row.lastUsedAt
-                  ? ` · Last used ${dateFormatter.format(row.lastUsedAt)}`
+                  ? ` · ${t("lastUsed", { date: formatDate(locale, row.lastUsedAt) })}`
                   : null}
               </p>
             </div>
             <Button
-              aria-label={`${verb} ${row.name}${row.current ? " (this device)" : ""}`}
+              aria-label={row.actionLabel}
               className="text-muted-foreground hover:text-foreground"
               disabled={busy !== null}
               onClick={() => {
@@ -190,17 +203,22 @@ function ConnectionList({
   );
 }
 
-function ReadError({ label, retry }: { label: string; retry?: () => void }) {
+function ReadError({
+  message,
+  retry,
+}: {
+  message: string;
+  retry?: () => void;
+}) {
+  const tc = useTranslations("common");
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm"
       role="alert"
     >
-      <p className="text-destructive">
-        Could not load {label}. Please try again.
-      </p>
+      <p className="text-destructive">{message}</p>
       <Button onClick={retry} size="sm" variant="outline">
-        Try again
+        {tc("tryAgain")}
       </Button>
     </div>
   );
@@ -213,30 +231,43 @@ function deviceIcon(row: ConnectionRow): LucideIcon {
 const MOBILE_DEVICE = /iphone|ipad|android|ios|mobile/i;
 
 function DeviceList(props: SecurityConnectionsProps) {
+  const t = useTranslations("settings.connections");
+  const locale = useIntlLocale();
   if (!props.sessions && props.sessionsError) {
-    return <ReadError label="devices" retry={props.onRetrySessions} />;
+    return (
+      <ReadError
+        message={t("devicesLoadFailed")}
+        retry={props.onRetrySessions}
+      />
+    );
   }
   if (!props.sessions) {
-    return <SettingsListSkeleton label="Loading devices…" rows={1} />;
+    return <SettingsListSkeleton label={t("loadingDevices")} rows={1} />;
   }
   const rows = props.sessions.map((session) => ({
     id: session.id,
     name: session.name,
-    date: session.signedInAt,
     current: session.current,
-    detail: "Signed in",
-    showTime: true,
-    confirm: deviceSignOutConfirm(session),
+    detail: t("signedIn", {
+      date: formatDateTime(locale, session.signedInAt),
+    }),
+    actionLabel: t(session.current ? "signOutCurrentLabel" : "signOutLabel", {
+      name: session.name,
+    }),
+    confirm: deviceSignOutConfirm(session, t, locale),
     action: () => props.onRevokeSession(session.id, session.current),
   }));
   return (
     <div className="space-y-2">
       {props.sessionsError ? (
-        <ReadError label="devices" retry={props.onRetrySessions} />
+        <ReadError
+          message={t("devicesLoadFailed")}
+          retry={props.onRetrySessions}
+        />
       ) : null}
-      <ConnectionList icon={deviceIcon} rows={rows} verb="Sign out" />
+      <ConnectionList icon={deviceIcon} rows={rows} verb={t("signOut")} />
       {rows.length === 0 ? (
-        <SettingsEmptyState>No devices.</SettingsEmptyState>
+        <SettingsEmptyState>{t("noDevices")}</SettingsEmptyState>
       ) : null}
       {props.sessionsHasMore || props.sessionsLoadingMore ? (
         <Button
@@ -246,7 +277,7 @@ function DeviceList(props: SecurityConnectionsProps) {
           size="sm"
           variant="outline"
         >
-          {props.sessionsLoadingMore ? <Spinner /> : "Show more devices"}
+          {props.sessionsLoadingMore ? <Spinner /> : t("showMoreDevices")}
         </Button>
       ) : null}
     </div>
@@ -259,28 +290,36 @@ function WorkosApps({
 }: Pick<SecurityConnectionsProps, "onRevokeConnection"> & {
   retryKey?: string;
 }) {
+  const t = useTranslations("settings.connections");
+  const locale = useIntlLocale();
   const connections = usePaginatedQuery(
     api.workosConsents.listConnections,
     retryKey ? { retryKey } : {},
     { initialNumItems: 25 }
   );
   if (connections.status === "LoadingFirstPage") {
-    return <SettingsListSkeleton label="Loading apps…" rows={1} />;
+    return <SettingsListSkeleton label={t("loadingApps")} rows={1} />;
   }
   const rows = connections.results.map((connection) => ({
     id: connection.consentId,
     name: connection.name,
-    date: connection.connectedAt,
-    detail: "Connected",
+    detail: t("connected", {
+      date: formatDate(locale, connection.connectedAt),
+    }),
+    actionLabel: t("disconnectLabel", { name: connection.name }),
     lastUsedAt: connection.lastUsedAt,
-    confirm: appDisconnectConfirm(connection.name),
+    confirm: appDisconnectConfirm(connection.name, t),
     action: () => onRevokeConnection({ consentId: connection.consentId }),
   }));
   return (
     <div className="space-y-2">
-      <ConnectionList icon={() => AppWindow} rows={rows} verb="Disconnect" />
+      <ConnectionList
+        icon={() => AppWindow}
+        rows={rows}
+        verb={t("disconnect")}
+      />
       {rows.length === 0 && connections.status === "Exhausted" ? (
-        <SettingsEmptyState>No apps are connected.</SettingsEmptyState>
+        <SettingsEmptyState>{t("noApps")}</SettingsEmptyState>
       ) : null}
       {connections.status === "Exhausted" ? null : (
         <Button
@@ -293,7 +332,7 @@ function WorkosApps({
           {connections.status === "LoadingMore" ? (
             <Spinner />
           ) : (
-            "Show more apps"
+            t("showMoreApps")
           )}
         </Button>
       )}
@@ -317,24 +356,27 @@ function SectionHeading({
 }
 
 export function SecurityConnections(props: SecurityConnectionsProps) {
+  const t = useTranslations("settings.connections");
   const identity = props.connectionIdentity;
   return (
     <div className="space-y-7" key={identity?.key}>
-      <section aria-label="Devices">
+      <section aria-label={t("devicesTitle")}>
         <SectionHeading
-          description="Browsers and devices signed in to your account."
-          title="Devices"
+          description={t("devicesDescription")}
+          title={t("devicesTitle")}
         />
         <DeviceList {...props} />
       </section>
-      <section aria-label="Connected apps">
+      <section aria-label={t("appsTitle")}>
         <SectionHeading
-          description="Disconnecting signs an app out across all its installations."
-          title="Connected apps"
+          description={t("appsDescription")}
+          title={t("appsTitle")}
         />
         {identity ? (
           <RetryableQueryBoundary
-            fallback={(retry) => <ReadError label="apps" retry={retry} />}
+            fallback={(retry) => (
+              <ReadError message={t("appsLoadFailed")} retry={retry} />
+            )}
             initialKey={identity.cacheKey}
             key={identity.key}
           >
@@ -346,7 +388,7 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
             )}
           </RetryableQueryBoundary>
         ) : (
-          <SettingsListSkeleton label="Loading apps…" rows={1} />
+          <SettingsListSkeleton label={t("loadingApps")} rows={1} />
         )}
       </section>
     </div>

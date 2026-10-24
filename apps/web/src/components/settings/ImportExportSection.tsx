@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useState } from "react";
 import type { SettingsDialogTab } from "../../lib/commandPalette";
 import { Button } from "../ui/button";
@@ -29,6 +30,8 @@ export function ImportExportSection({
   onStartExport,
   openRequest,
 }: ImportExportSectionProps) {
+  const t = useTranslations("settings.importExport");
+  const tRows = useTranslations("settings.rows");
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<SettingsDialogTab>("import");
   const [, setImportActive] = useState(false);
@@ -42,9 +45,9 @@ export function ImportExportSection({
 
   return (
     <>
-      <SettingRow title="Import/Export Data">
+      <SettingRow title={tRows("importExport")}>
         <Button
-          aria-label="Manage import and export"
+          aria-label={t("manageLabel")}
           onClick={() => {
             setTab("import");
             setOpen(true);
@@ -52,7 +55,7 @@ export function ImportExportSection({
           size="sm"
           variant="link"
         >
-          Manage
+          {t("manage")}
         </Button>
       </SettingRow>
 

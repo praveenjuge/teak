@@ -1,19 +1,21 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useState } from "react";
 import { LogoMark } from "../Logo";
 
-export const VAULT_SETUP_STEPS = [
-  "Adding a few starter cards",
-  "Pulling colors from a photo",
-  "Writing out a voice memo",
-  "Reading a search cheat sheet",
-  "Making you a moodboard",
+const VAULT_SETUP_STEPS = [
+  "starterCards",
+  "photoColors",
+  "voiceMemo",
+  "searchCheatSheet",
+  "moodboard",
 ] as const;
 
 const STEP_MS = 1600;
 
 export function VaultSetupState() {
+  const t = useTranslations("feedback.vaultSetup");
   const [step, setStep] = useState(0);
   useEffect(() => {
     const timer = setInterval(
@@ -37,13 +39,13 @@ export function VaultSetupState() {
         <span className="absolute inset-y-0 left-0 w-2/5 animate-progress-slide rounded-full bg-foreground motion-reduce:translate-x-3/4 motion-reduce:animate-none" />
       </div>
       <div className="space-y-1">
-        <h3 className="font-medium">Setting up your vault</h3>
+        <h3 className="font-medium">{t("title")}</h3>
         <p
           aria-hidden="true"
           className="fade-in slide-in-from-bottom-1 animate-in text-balance text-muted-foreground duration-300 motion-reduce:animate-none"
           key={step}
         >
-          {VAULT_SETUP_STEPS[step]}…
+          {t(`steps.${VAULT_SETUP_STEPS[step]}`)}…
         </p>
       </div>
     </div>
