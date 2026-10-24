@@ -83,3 +83,10 @@ questions:
       - Choose Deutsch in Settings → Language; the choice is saved to the account
       - Search qualifiers such as is:fav stay in English in every language
     routes: /docs/features
+
+  - id: ai-tags-language
+    question: I saved a Japanese article. Will Teak's AI summary and tags be in English?
+    expected:
+      - No, summaries and AI tags are written in the language of the saved content, so Japanese
+      - Items with no text, such as a photo without words, get English tags
+    routes: /docs/features
