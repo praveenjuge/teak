@@ -383,9 +383,11 @@ export function ArticleReader({
   ].filter((fact): fact is string => Boolean(fact));
 
   return (
+    // The title and the body each take their own text's direction: the
+    // header's site name is Latin, so one `dir="auto"` on the whole article
+    // would read an Arabic article left to right.
     <article
       className={cn(READING_COLUMN, "relative")}
-      dir="auto"
       lang={article.lang}
       ref={rootRef}
       {...{ [ARTICLE_READER_ATTRIBUTE]: card._id }}
@@ -400,12 +402,16 @@ export function ArticleReader({
         ))}
       </header>
       {title ? (
-        <h1 className="mt-4 text-balance font-semibold text-2xl leading-tight tracking-tight md:text-3xl">
+        <h1
+          className="mt-4 text-balance font-semibold text-2xl leading-tight tracking-tight md:text-3xl"
+          dir="auto"
+        >
           {title}
         </h1>
       ) : null}
       <div
         className="typeset typeset-reader mt-6"
+        dir="auto"
         ref={bodyRef}
         {...{ [ARTICLE_BODY_ATTRIBUTE]: "" }}
       >

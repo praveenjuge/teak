@@ -42,10 +42,15 @@ describe("Reading a saved article", () => {
     await expect(read).toHaveAttribute("aria-checked", "true", {
       timeout: 15_000,
     });
-    await expect(screen.getByRole("heading", LONG_READ)).toBeVisible({
+    // The dialog's own title is a hidden heading with the same name, so the
+    // reader's heading is looked for inside the article.
+    const reader = screen.getByRole("article");
+    await expect(reader.getByRole("heading", LONG_READ)).toBeVisible({
       timeout: 15_000,
     });
-    await expect(screen.getByText("Planting calendar")).toBeVisible();
+    await expect(reader.getByText("Planting calendar")).toBeVisible();
+    // A table, not rows of pipe text.
+    await expect(reader.getByRole("cell", "Tomato")).toBeVisible();
     await expect(
       screen.getByRole("link", "Open original ↗", { exact: false })
     ).toBeVisible();
@@ -56,6 +61,6 @@ describe("Reading a saved article", () => {
 
     await browser.keyboard.press("r");
     await expect(read).toHaveAttribute("aria-checked", "true");
-    await expect(screen.getByRole("heading", LONG_READ)).toBeVisible();
+    await expect(reader.getByRole("heading", LONG_READ)).toBeVisible();
   });
 });

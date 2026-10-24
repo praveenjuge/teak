@@ -3,6 +3,7 @@ import { ConvexError } from "convex/values";
 import {
   type CardHighlight,
   highlightProblem,
+  undoRemovalInput,
   withNewHighlight,
 } from "../cardHighlights";
 
@@ -113,5 +114,35 @@ describe("highlightProblem", () => {
 
   test("anything else failed", () => {
     expect(highlightProblem(new Error("offline"))).toBe("failed");
+  });
+});
+
+describe("undoRemovalInput", () => {
+  test("makes the passage again in the article it was made in, note and all", () => {
+    expect(
+      undoRemovalInput(
+        row("h1", 2, 5, {
+          articleKey: "users/u/cards/card_1/article-text/r1-a.md",
+          note: "why",
+          prefix: "ab",
+          suffix: "fg",
+        })
+      )
+    ).toEqual({
+      articleKey: "users/u/cards/card_1/article-text/r1-a.md",
+      end: 5,
+      note: "why",
+      prefix: "ab",
+      quote: "cde",
+      start: 2,
+      suffix: "fg",
+    });
+  });
+
+  test("a highlight waiting for its article, or with no article, can't come back", () => {
+    expect(
+      undoRemovalInput(row("h1", 2, 5, { articleKey: "key", unanchored: true }))
+    ).toBeNull();
+    expect(undoRemovalInput(row("h2", 2, 5))).toBeNull();
   });
 });

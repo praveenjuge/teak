@@ -226,6 +226,21 @@ describe("making highlights", () => {
     expect((await card(cardId)).highlightCount).toBe(1);
   });
 
+  test("the same passage again takes the note sent only when it has none", async () => {
+    const { link, create, rows } = await setup();
+    const cardId = await link();
+
+    await create(cardId, "Plant marigolds");
+    const noted = await create(cardId, "Plant marigolds", { note: "First" });
+    expect(noted).toMatchObject({ created: false, merged: false });
+    expect(noted.highlight.note).toBe("First");
+
+    await create(cardId, "Plant marigolds", { note: "Second" });
+    const stored = await rows(cardId);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]?.note).toBe("First");
+  });
+
   test("overlapping highlights merge into one spanning all of them, keeping the oldest note", async () => {
     const { link, card, create, rows } = await setup();
     const cardId = await link();

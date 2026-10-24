@@ -14,6 +14,7 @@ import {
   type CardHighlight,
   highlightProblem,
   type NewHighlight,
+  undoRemovalInput,
   withNewHighlight,
 } from "./cardHighlights";
 
@@ -180,27 +181,14 @@ export function useCardHighlights(
         showProblem(error);
         return;
       }
-      const { end, start } = highlight;
-      // Undo makes it again from what it pointed at; a highlight still
-      // waiting for its article has nothing to point at yet.
-      const undo =
-        start !== undefined && end !== undefined && !highlight.unanchored
-          ? () => {
-              createHighlight({
-                cardId: highlight.cardId,
-                quote: highlight.quote,
-                start,
-                end,
-                ...(highlight.prefix === undefined
-                  ? {}
-                  : { prefix: highlight.prefix }),
-                ...(highlight.suffix === undefined
-                  ? {}
-                  : { suffix: highlight.suffix }),
-                ...(highlight.note ? { note: highlight.note } : {}),
-              }).catch(showProblem);
-            }
-          : undefined;
+      const input = undoRemovalInput(highlight);
+      const undo = input
+        ? () => {
+            createHighlight({ cardId: highlight.cardId, ...input }).catch(
+              showProblem
+            );
+          }
+        : undefined;
       toast(t("removed"), {
         id: HIGHLIGHT_TOAST_ID,
         ...(undo ? { action: { label: tc("undo"), onClick: undo } } : {}),

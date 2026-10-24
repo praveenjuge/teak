@@ -358,7 +358,26 @@ export const createHighlightForUser = async (
     (row) => isAnchored(row) && row.start === args.start && row.end === args.end
   );
   if (same) {
-    return { created: false, highlight: same, merged: false };
+    // The passage again: it keeps its note, as a merge keeps the oldest one,
+    // and takes the one sent only when it has none.
+    if (note === undefined || cleanHighlightNote(same.note) !== undefined) {
+      return { created: false, highlight: same, merged: false };
+    }
+    const now = Date.now();
+    await ctx.db.patch("highlights", same._id, { note, updatedAt: now });
+    await patchCardWithSearchSync(ctx, card._id, { updatedAt: now });
+    await queueBackendEvent(ctx, "highlight_note_saved", userId, {
+      cleared: false,
+      source,
+    });
+    return {
+      created: false,
+      highlight: (await ctx.db.get(
+        "highlights",
+        same._id
+      )) as Doc<"highlights">,
+      merged: false,
+    };
   }
   const span: HighlightSpan = {
     start: args.start,

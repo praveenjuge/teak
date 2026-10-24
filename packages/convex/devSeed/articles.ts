@@ -63,14 +63,17 @@ const longForm = (): string => {
       parts.push('![Rows of tulips in spring](teak-image:0 "Tulips in April")');
     }
     if (index === 12) {
+      // A table's rows sit on consecutive lines: the parts are joined by
+      // blank lines, so the table is one part.
       parts.push(
         "## Planting calendar",
-        "",
-        "| Plant | Sow | Harvest |",
-        "| --- | --- | --- |",
-        "| Tomato | March | August |",
-        "| Garlic | October | July |",
-        "| A plant with a very long name that makes the table wider than a phone | May | September |"
+        [
+          "| Plant | Sow | Harvest |",
+          "| --- | --- | --- |",
+          "| Tomato | March | August |",
+          "| Garlic | October | July |",
+          "| A plant with a very long name that makes the table wider than a phone | May | September |",
+        ].join("\n")
       );
     }
     if (index === 20) {
@@ -81,11 +84,12 @@ const longForm = (): string => {
     if (index === 28) {
       parts.push(
         "## Watering by the numbers",
-        "",
-        "```ts",
-        "const litresPerWeek = (area: number, rain: number) =>",
-        "  Math.max(0, area * 25 - rain);",
-        "```"
+        [
+          "```ts",
+          "const litresPerWeek = (area: number, rain: number) =>",
+          "  Math.max(0, area * 25 - rain);",
+          "```",
+        ].join("\n")
       );
     }
     if (index === 36) {

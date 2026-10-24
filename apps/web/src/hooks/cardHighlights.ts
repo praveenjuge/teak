@@ -133,3 +133,31 @@ export const highlightProblem = (error: unknown): HighlightProblem => {
       return "failed";
   }
 };
+
+/**
+ * What Undo makes again after a highlight is removed: the same passage in the
+ * article it was made in. A highlight still waiting for its article has
+ * nothing to point at, so it can't come back that way.
+ */
+export const undoRemovalInput = (
+  highlight: CardHighlight
+): NewHighlight | null => {
+  const { articleKey, end, start } = highlight;
+  if (
+    highlight.unanchored ||
+    start === undefined ||
+    end === undefined ||
+    !articleKey
+  ) {
+    return null;
+  }
+  return {
+    articleKey,
+    quote: highlight.quote,
+    start,
+    end,
+    ...(highlight.prefix === undefined ? {} : { prefix: highlight.prefix }),
+    ...(highlight.suffix === undefined ? {} : { suffix: highlight.suffix }),
+    ...(highlight.note ? { note: highlight.note } : {}),
+  };
+};

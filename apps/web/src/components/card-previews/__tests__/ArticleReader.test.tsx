@@ -93,7 +93,10 @@ describe("ArticleReader", () => {
     const html = render();
 
     expect(html).toContain(`${ARTICLE_READER_ATTRIBUTE}="card_1"`);
-    expect(html).toContain('dir="auto"');
+    // The title and the body take their own direction, never the header's.
+    expect(html).not.toMatch(/<article[^>]*\sdir=/u);
+    expect(html).toMatch(/<h1[^>]*\sdir="auto"/u);
+    expect(html).toMatch(/<div[^>]*\sdir="auto"[^>]*data-article-body/u);
     expect(html).toContain('lang="en"');
     expect(html).toContain(">example.com<");
     expect(html).toContain(">Ada Writer<");
