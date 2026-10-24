@@ -98,7 +98,7 @@
         "rules": {
           "style": {
             "noJsxLiterals": {
-              "level": "warn",
+              "level": "error",
               "options": {
                 "ignoreProps": true,
                 "allowedStrings": [
