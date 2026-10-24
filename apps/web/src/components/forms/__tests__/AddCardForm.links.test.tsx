@@ -56,13 +56,24 @@ mock.module("sonner", () => ({ toast }));
 const realTextEditor = await import("@/components/text-editor");
 mock.module("@/components/text-editor", () => ({
   ...realTextEditor,
-  MarkdownTextEditor: ({ ariaLabel, onChange, onSaveShortcut, value }: any) =>
+  MarkdownTextEditor: ({
+    ariaLabel,
+    onChange,
+    onSaveShortcut,
+    value,
+  }: {
+    ariaLabel?: string;
+    onChange: (value: string) => void;
+    onSaveShortcut?: () => void;
+    value: string;
+  }) =>
     React.createElement(
       "div",
       null,
       React.createElement("textarea", {
         "aria-label": ariaLabel,
-        onChange: (event: any) => onChange(event.target.value),
+        onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
+          onChange(event.target.value),
         value,
       }),
       React.createElement(
@@ -306,7 +317,9 @@ describe("pasting a list of links", () => {
 
   test("keeps the draft when the last paste is still saving", async () => {
     pasteResult = () =>
-      Promise.reject({ data: { code: "PASTE_ACTIVE" }, message: "busy" });
+      Promise.reject(
+        Object.assign(new Error("busy"), { data: { code: "PASTE_ACTIVE" } })
+      );
     await render();
     const draft = links(3).join("\n");
     await type(draft);

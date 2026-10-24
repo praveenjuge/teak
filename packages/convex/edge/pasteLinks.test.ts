@@ -176,7 +176,9 @@ describe("pasting a list of links", () => {
     expect(paused.created).toBe(paused.nextIndex);
     expect(paused.failed).toBe(0);
     // The bucket refills 30 a minute, so the wait is under a minute.
-    expect(waiting!.scheduledTime - Date.now()).toBeLessThanOrEqual(60_000);
+    expect(
+      (waiting?.scheduledTime ?? Number.POSITIVE_INFINITY) - Date.now()
+    ).toBeLessThanOrEqual(60_000);
 
     await runAll();
     expect(await job(jobId)).toMatchObject({
