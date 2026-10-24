@@ -125,6 +125,10 @@ async function render(props: Record<string, unknown> = {}) {
   await act(() => root?.render(<AddCardForm {...props} />));
 }
 
+// A paste's toast is let go a tick after its last composer unmounts.
+const nextTick = () =>
+  act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+
 async function rerender(props: Record<string, unknown> = {}) {
   await act(() => root?.render(<AddCardForm {...props} />));
 }
@@ -347,16 +351,20 @@ describe("pasting a list of links", () => {
     );
   });
 
-  test("stays savable at the card limit, where a note is not", async () => {
+  test("stays savable at the card limit, where a note offers the upgrade", async () => {
     canCreateCard = false;
     await render();
     // The editor stays open at the limit, so a list can be pasted into it.
     expect(textarea()?.disabled).toBeFalsy();
     await type("A note");
-    expect(submitButton()?.disabled).toBe(true);
+    expect(submitButton()?.disabled).toBe(false);
+    const toastsBefore = limitToasts().length;
+    await pressSaveShortcut();
+    expect(createCard).not.toHaveBeenCalled();
+    expect(limitToasts()).toHaveLength(toastsBefore + 1);
+    expect(textarea()?.value).toBe("A note");
 
     await type(links(2).join("\n"));
-    expect(submitButton()?.disabled).toBe(false);
     await pressSaveShortcut();
     expect(startLinkPaste).toHaveBeenCalledTimes(1);
     expect(createCard).not.toHaveBeenCalled();
@@ -371,6 +379,8 @@ describe("pasting a list of links", () => {
     // The first cards in an empty library swap the empty state's composer
     // for the grid's.
     await act(() => root?.unmount());
+    await nextTick();
+    // With no composer on the page, no spinner is left behind.
     expect(toast.dismiss).toHaveBeenCalledWith("toast-id");
     pasteProgress = {
       status: "done",
@@ -387,6 +397,49 @@ describe("pasting a list of links", () => {
     expect(toast.success).toHaveBeenLastCalledWith("Saved 3 links", {
       id: "toast-id",
     });
+  });
+
+  test("keeps the paste's toast when React mounts the composer twice", async () => {
+    // Development's double effect unmounts and remounts the tracker. Sonner
+    // drops the next message shown under a toast id just dismissed, so the
+    // toast must stay live across the remount.
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() =>
+      root?.render(
+        <React.StrictMode>
+          <AddCardForm />
+        </React.StrictMode>
+      )
+    );
+    await type(links(3).join("\n"));
+    await pressSaveShortcut();
+    await nextTick();
+    expect(toast.dismiss).not.toHaveBeenCalled();
+
+    pasteProgress = {
+      status: "done",
+      total: 3,
+      processed: 3,
+      created: 3,
+      resaved: 0,
+      failed: 0,
+      omittedOverLimit: 0,
+      omittedRepeats: 0,
+    };
+    await act(() =>
+      root?.render(
+        <React.StrictMode>
+          <AddCardForm />
+        </React.StrictMode>
+      )
+    );
+    await nextTick();
+    expect(toast.success).toHaveBeenLastCalledWith("Saved 3 links", {
+      id: "toast-id",
+    });
+    expect(toast.dismiss).not.toHaveBeenCalled();
   });
 
   test("leaves the limit to the paste's own toast", async () => {
