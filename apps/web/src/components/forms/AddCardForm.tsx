@@ -107,7 +107,8 @@ function LinkPasteProgressToast({
   onUpgrade,
 }: {
   job: PasteJob;
-  onFinished: (jobId: Id<"linkPasteJobs">) => void;
+  /** `reachedLimit`: the job's last toast already offered the upgrade. */
+  onFinished: (jobId: Id<"linkPasteJobs">, reachedLimit: boolean) => void;
   onUpgrade: () => void;
 }) {
   const t = useTranslations("forms.pasteLinks");
@@ -124,7 +125,7 @@ function LinkPasteProgressToast({
     if (progress === null) {
       finishedRef.current = true;
       toast.dismiss(job.toastId);
-      onFinished(job.jobId);
+      onFinished(job.jobId, false);
       return;
     }
     const { kind, message } = linkPasteToast(progress, job.extraOmitted, t);
@@ -144,7 +145,7 @@ function LinkPasteProgressToast({
       toast.error(message, { id: job.toastId });
     }
     finishedRef.current = true;
-    onFinished(job.jobId);
+    onFinished(job.jobId, kind === "limit");
   }, [job, onFinished, onUpgrade, progress, t, tLimits]);
 
   // A composer that goes away mid-job leaves no spinner behind; the job
@@ -267,13 +268,23 @@ export function AddCardForm({
   const pasteJobs = useLinkPasteJobs();
   const pasteInProgress = pasteJobs.length > 0;
 
+  // A paste that stops at the limit says so in its own toast; one that saves
+  // every link but lands on the limit leaves it to the upgrade toast.
+  const handlePasteFinished = useCallback(
+    (jobId: Id<"linkPasteJobs">, reachedLimit: boolean) => {
+      if (reachedLimit) {
+        hasShownBlockedToastRef.current = true;
+      }
+      finishLinkPasteJob(jobId);
+    },
+    []
+  );
+
   useEffect(() => {
     if (cardCreationStatus?.canCreateCard === false) {
-      if (!hasShownBlockedToastRef.current) {
-        // A paste that reaches the limit says so in its own toast.
-        if (!pasteInProgress) {
-          showUpgradeToast();
-        }
+      // Wait for a paste to finish, so its toast can say it first.
+      if (!(hasShownBlockedToastRef.current || pasteInProgress)) {
+        showUpgradeToast();
         hasShownBlockedToastRef.current = true;
       }
       return;
@@ -442,7 +453,7 @@ export function AddCardForm({
         <LinkPasteProgressToast
           job={job}
           key={job.jobId}
-          onFinished={finishLinkPasteJob}
+          onFinished={handlePasteFinished}
           onUpgrade={handleUpgrade}
         />
       ))}

@@ -419,6 +419,35 @@ describe("pasting a list of links", () => {
     expect(limitToasts()).toHaveLength(0);
   });
 
+  test("offers the upgrade once a paste that saved every link lands on the limit", async () => {
+    await render();
+    await type(links(10).join("\n"));
+    await pressSaveShortcut();
+
+    canCreateCard = false;
+    await rerender();
+    expect(limitToasts()).toHaveLength(0);
+
+    pasteProgress = {
+      status: "done",
+      total: 10,
+      processed: 10,
+      created: 10,
+      resaved: 0,
+      failed: 0,
+      omittedOverLimit: 0,
+      omittedRepeats: 0,
+    };
+    await rerender();
+    expect(toast.success).toHaveBeenLastCalledWith("Saved 10 links", {
+      id: "toast-id",
+    });
+    expect(limitToasts()).toHaveLength(1);
+
+    await rerender();
+    expect(limitToasts()).toHaveLength(1);
+  });
+
   test("offers the upgrade when the limit arrives without a paste", async () => {
     await render();
     canCreateCard = false;
