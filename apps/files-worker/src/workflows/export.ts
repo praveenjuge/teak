@@ -132,7 +132,44 @@ const readArchiveCards = async (
       })
     );
   }
+  await readHighlights(convex, jobId, inputs);
   return inputs;
+};
+
+/**
+ * Adds their highlights to the cards that have some. Convex reads as many
+ * cards' highlights as fit one query and says how far it got.
+ */
+const readHighlights = async (
+  convex: ConvexRpc,
+  jobId: Id<"exportJobs">,
+  inputs: ArchiveCard[]
+) => {
+  const highlighted = inputs.filter((input) => input.card.hasHighlights);
+  let start = 0;
+  while (start < highlighted.length) {
+    const batch = highlighted.slice(start, start + CARDS_PAGE_SIZE);
+    const result: {
+      cards: Array<{
+        cardId: string;
+        highlights: NonNullable<ExportableCard["highlights"]>;
+      }>;
+      read: number;
+    } = await convex.query(internal.dataExport.getExportHighlights, {
+      cardIds: batch.map((input) => input.card._id as Id<"cards">),
+      jobId,
+    });
+    const byCard = new Map(
+      result.cards.map((entry) => [entry.cardId, entry.highlights])
+    );
+    for (const input of batch.slice(0, result.read)) {
+      const highlights = byCard.get(input.card._id);
+      if (highlights) {
+        input.card = { ...input.card, highlights };
+      }
+    }
+    start += Math.max(1, result.read);
+  }
 };
 
 export const buildExportManifest = (args: {

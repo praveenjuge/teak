@@ -449,6 +449,71 @@ describe("export snapshot", () => {
     expect(byId[1].fileKey).toBeUndefined();
   });
 
+  test("a card's highlights are read on their own, a bounded batch at a time", async () => {
+    const t = convexTest(schema, modules);
+    const { cards, jobId } = await seedExport(t);
+    // Rows near the document size limit, so two cards' worth pass one read.
+    const long = (letter: string) => letter.repeat(900_000);
+    await t.run(async (ctx) => {
+      const highlight = (
+        cardId: Id<"cards">,
+        userId: string,
+        quote: string,
+        createdAt: number,
+        note?: string
+      ) =>
+        ctx.db.insert("highlights", {
+          cardId,
+          createdAt,
+          quote,
+          source: "reader",
+          start: 0,
+          end: quote.length,
+          updatedAt: createdAt,
+          userId,
+          ...(note ? { note } : {}),
+        });
+      for (const id of [cards.link, cards.oldest, cards.otherUser]) {
+        await ctx.db.patch(id, { hasHighlights: true });
+      }
+      await highlight(cards.link, "export-user", "Second", 2);
+      await highlight(cards.link, "export-user", "First", 1, "why");
+      for (const [index, letter] of ["a", "b", "c"].entries()) {
+        await highlight(cards.oldest, "export-user", long(letter), index);
+      }
+      await highlight(cards.otherUser, "someone-else", "Not yours", 1);
+    });
+
+    const rows = await t.query(internal.dataExport.getExportCardsByIds, {
+      cardIds: [cards.link, cards.file],
+      jobId,
+    });
+    expect(rows[0]).toMatchObject({ hasHighlights: true });
+    expect(rows[0]).not.toHaveProperty("highlights");
+    expect(rows[1]).not.toHaveProperty("hasHighlights");
+
+    const first = await t.query(internal.dataExport.getExportHighlights, {
+      cardIds: [cards.otherUser, cards.link, cards.oldest, cards.file],
+      jobId,
+    });
+    // Another account's card is skipped; the long one fills the read.
+    expect(first.read).toBe(3);
+    expect(
+      first.cards.map((card: { cardId: Id<"cards"> }) => card.cardId)
+    ).toEqual([cards.link, cards.oldest]);
+    expect(first.cards[0]?.highlights).toEqual([
+      { anchored: true, createdAt: 1, note: "why", quote: "First" },
+      { anchored: true, createdAt: 2, quote: "Second" },
+    ]);
+    expect(first.cards[1]?.highlights).toHaveLength(3);
+
+    const rest = await t.query(internal.dataExport.getExportHighlights, {
+      cardIds: [cards.file],
+      jobId,
+    });
+    expect(rest).toEqual({ cards: [], read: 1 });
+  });
+
   test("cards read by id leave out ones deleted since and other accounts' cards", async () => {
     const t = convexTest(schema, modules);
     const { cards, jobId } = await seedExport(t);

@@ -42,6 +42,7 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "dataExport:getExportCardsByIds",
   "dataExport:getExportCardsPage",
   "dataExport:getExportFolderNames",
+  "dataExport:getExportHighlights",
   "dataExport:getExportSnapshotPage",
   "dataExport:isCancelRequested",
   "dataExport:markRunning",

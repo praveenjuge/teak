@@ -36,6 +36,8 @@ export interface ExportableCard {
     recordingTimestamp?: number;
   };
   folderIds?: string[];
+  /** Set when the card has highlights to read before it is serialized. */
+  hasHighlights?: boolean;
   /** A link's highlights, oldest first, when it has any. */
   highlights?: Array<{
     anchored: boolean;

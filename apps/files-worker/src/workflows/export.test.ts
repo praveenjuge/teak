@@ -19,6 +19,7 @@ interface FakeCard {
   fileKey?: string;
   fileMetadata?: { fileName: string; fileSize: number; mimeType?: string };
   folderIds?: string[];
+  hasHighlights?: boolean;
   isDeleted?: boolean;
   isFavorited?: boolean;
   notes?: string;
@@ -56,6 +57,16 @@ const exportBackend = (
   options: {
     cancelRequested?: boolean;
     folders?: Array<{ id: string; name: string }>;
+    /** Each card's highlights, read apart from the card as Convex does. */
+    highlights?: Record<
+      string,
+      Array<{
+        anchored: boolean;
+        createdAt: number;
+        note?: string;
+        quote: string;
+      }>
+    >;
     pageSize?: number;
   } = {}
 ) => {
@@ -116,6 +127,15 @@ const exportBackend = (
       };
     },
     "dataExport:getExportFolderNames": () => options.folders ?? [],
+    // One card a read, as when each card's highlights fill a query.
+    "dataExport:getExportHighlights": ({ cardIds }) => {
+      const [first] = cardIds as string[];
+      const highlights = first ? options.highlights?.[first] : undefined;
+      return {
+        cards: highlights ? [{ cardId: first, highlights }] : [],
+        read: first ? 1 : 0,
+      };
+    },
     "dataExport:getExportSnapshotPage": ({ cursor, numItems }) => {
       const { page, ...rest } = pageOf(cursor, numItems);
       return { ...rest, cardIds: page.map((entry) => entry._id) };
@@ -308,6 +328,61 @@ describe("runExport", () => {
     ]);
     expect(test.bucket.objects.has(MANIFEST_KEY)).toBe(false);
     expect(completionReports(test.callsTo)).toEqual(["complete"]);
+  });
+
+  test("highlights are read apart from their cards and land in the archive", async () => {
+    const backend = exportBackend(
+      [
+        { ...card("c1"), hasHighlights: true, type: "link" },
+        card("c2"),
+        { ...card("c3"), hasHighlights: true, type: "link" },
+      ],
+      {
+        highlights: {
+          c1: [{ anchored: true, createdAt: 5, note: "why", quote: "One" }],
+          c3: [
+            { anchored: true, createdAt: 6, quote: "Two" },
+            { anchored: false, createdAt: 7, quote: "Three" },
+          ],
+        },
+      }
+    );
+    const test = setup(backend);
+
+    expect(await runExport(test.run, { convex: test.convex })).toEqual({
+      status: "ready",
+    });
+
+    const archive = archiveCards(
+      test.bucket.storedBytes(ARTIFACT_KEY) as Uint8Array
+    ) as {
+      cards: Array<{
+        highlights?: Array<{ anchored: boolean; note?: string; quote: string }>;
+        id: string;
+      }>;
+    };
+    expect(
+      archive.cards.map((entry) => [
+        entry.id,
+        entry.highlights?.map((highlight) => highlight.quote) ?? null,
+      ])
+    ).toEqual([
+      ["c1", ["One"]],
+      ["c2", null],
+      ["c3", ["Two", "Three"]],
+    ]);
+    expect(archive.cards[0]?.highlights?.[0]).toMatchObject({
+      anchored: true,
+      note: "why",
+    });
+    expect(archive.cards[0]).not.toHaveProperty("hasHighlights");
+    // Only the highlighted cards are asked about, from where the last read
+    // stopped.
+    expect(
+      test
+        .callsTo("dataExport:getExportHighlights")
+        .map((call) => call.args.cardIds)
+    ).toEqual([["c1", "c3"], ["c3"]]);
   });
 
   test("a snapshot page retried after a lost reply exports each card once", async () => {
