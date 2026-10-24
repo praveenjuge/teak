@@ -1195,6 +1195,87 @@ describe("teak batch and fallback behavior", () => {
     );
   });
 
+  test("highlights list, add, note and rm, each with --json", async () => {
+    const highlight = (overrides: Record<string, unknown> = {}) => ({
+      anchored: true,
+      cardId: "card_a",
+      createdAt: 1,
+      id: "h_1",
+      note: null,
+      quote: "Plant marigolds\naround tomatoes",
+      source: "api",
+      updatedAt: 1,
+      ...overrides,
+    });
+    routes.set("GET /v1/cards/card_a/highlights", () =>
+      json({
+        items: [
+          highlight({ note: "Spring\nand summer" }),
+          highlight({ id: "h_2", quote: "Never found", anchored: false }),
+        ],
+      })
+    );
+    routes.set("POST /v1/cards/card_a/highlights", () =>
+      json(highlight(), 201)
+    );
+    routes.set("PATCH /v1/highlights/h_1", async (request) =>
+      json(highlight(await request.json()))
+    );
+    routes.set(
+      "DELETE /v1/highlights/h_1",
+      () => new Response(null, { status: 204 })
+    );
+    routes.set("POST /v1/cards/card_b/highlights", () =>
+      json({ code: "QUOTE_NOT_FOUND", error: "The quote isn't there" }, 422)
+    );
+
+    const listed = await teak("highlights", "list", "card_a");
+    expect(listed.code).toBe(0);
+    expect(listed.stdout).toBe(
+      [
+        "h_1  Plant marigolds around tomatoes",
+        "    Spring",
+        "    and summer",
+        "h_2  Never found  (not found in the saved article yet)",
+        "",
+      ].join("\n")
+    );
+    const listedJson = await teak("--json", "highlights", "ls", "card_a");
+    expect(JSON.parse(listedJson.stdout).items).toHaveLength(2);
+
+    const added = await teak(
+      "highlights",
+      "add",
+      "card_a",
+      "Plant marigolds",
+      "--note",
+      "Spring",
+      "--suffix",
+      " around"
+    );
+    expect(added.code).toBe(0);
+    expect(JSON.parse(requests.at(-1)?.body ?? "{}")).toEqual({
+      quote: "Plant marigolds",
+      note: "Spring",
+      suffix: " around",
+    });
+
+    const noted = await teak("--json", "highlights", "note", "h_1", "Later");
+    expect(JSON.parse(noted.stdout).note).toBe("Later");
+    const cleared = await teak("highlights", "note", "h_1", "--clear");
+    expect(cleared.code).toBe(0);
+    expect(JSON.parse(requests.at(-1)?.body ?? "{}")).toEqual({ note: null });
+    const neither = await teak("highlights", "note", "h_1");
+    expect(neither.code).not.toBe(0);
+
+    const removed = await teak("highlights", "rm", "h_1");
+    expect(removed.stdout).toBe("Removed highlight h_1\n");
+
+    const notFound = await teak("highlights", "add", "card_b", "tulips");
+    expect(notFound.code).not.toBe(0);
+    expect(notFound.stderr).toContain("The quote isn't there");
+  });
+
   test("links lists links then backlinks, says when there are none, and --json the lists", async () => {
     routes.set("GET /v1/cards/card_a", () =>
       json(

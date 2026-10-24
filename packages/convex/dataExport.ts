@@ -29,6 +29,7 @@ import {
   quotaResetInMs,
 } from "./export/serialize";
 import { readLiveFolders } from "./folder/folders";
+import { loadCardHighlights } from "./highlight/highlights";
 import { requireSessionUserId } from "./securitySessions";
 import { getR2Url } from "./storage/fileUrls";
 import { enqueueObjectDeletion, queueExportWorkflow } from "./workflowDispatch";
@@ -68,7 +69,14 @@ const startResultValidator = v.object({
   job: v.optional(exportSummaryValidator),
 });
 
-type ExportCardRow = Pick<
+type ExportCardRow = {
+  highlights?: Array<{
+    anchored: boolean;
+    createdAt: number;
+    note?: string;
+    quote: string;
+  }>;
+} & Pick<
   Doc<"cards">,
   | "_id"
   | "aiLanguage"
@@ -451,6 +459,34 @@ export const recordSnapshotPage = internalMutation({
   },
 });
 
+/** A highlighted card's highlights for its export row, oldest first. */
+const exportHighlights = async (
+  ctx: Pick<QueryCtx, "db">,
+  card: Doc<"cards">
+): Promise<ExportCardRow["highlights"]> => {
+  if (!card.hasHighlights) {
+    return;
+  }
+  const rows = await loadCardHighlights(ctx, card._id);
+  return rows.map((row) => ({
+    quote: row.quote,
+    ...(row.note ? { note: row.note } : {}),
+    createdAt: row.createdAt,
+    anchored: row.unanchored !== true,
+  }));
+};
+
+const exportCardRow = async (
+  ctx: Pick<QueryCtx, "db">,
+  card: Doc<"cards">
+): Promise<ExportCardRow> => {
+  const highlights = await exportHighlights(ctx, card);
+  return {
+    ...toExportCardRow(card),
+    ...(highlights?.length ? { highlights } : {}),
+  };
+};
+
 const toExportCardRow = (card: Doc<"cards">): ExportCardRow => ({
   _id: card._id,
   type: card.type,
@@ -548,7 +584,7 @@ export const getExportCardsByIds = internalQuery({
     );
     for (const card of fetched) {
       if (card && card.userId === job.userId && isActiveCard(card)) {
-        cards.push(toExportCardRow(card));
+        cards.push(await exportCardRow(ctx, card));
       }
     }
     return cards;
@@ -584,7 +620,7 @@ export const getExportCardsPage = internalQuery({
       if (!(card && isActiveCard(card))) {
         continue;
       }
-      cards.push(toExportCardRow(card));
+      cards.push(await exportCardRow(ctx, card));
     }
 
     return {

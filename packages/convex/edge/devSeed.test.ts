@@ -1,3 +1,4 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -2014,6 +2015,86 @@ describe("devSeed reader packs", () => {
       )
     );
     expect(owned).toEqual(expect.arrayContaining(written));
+    vi.unstubAllGlobals();
+  });
+
+  test("highlights-mix highlights the reader-mix articles once, waiting for reader-mix first", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const stored = new Map<string, string>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = new URL(String(input));
+        if (url.pathname.startsWith("/__upload/v1/")) {
+          stored.set(
+            decodeURIComponent(url.pathname.replace(/^\/__upload\/v1\//u, "")),
+            new TextDecoder().decode(init?.body as Uint8Array)
+          );
+          return Promise.resolve(
+            Response.json({
+              ok: true,
+              version: 1,
+              requestId: "r",
+              data: { etag: "e", key: "k", size: 1 },
+            })
+          );
+        }
+        return Promise.resolve(
+          new Response(stored.get(url.pathname.slice(1)) ?? "", {
+            status: stored.has(url.pathname.slice(1)) ? 200 : 404,
+          })
+        );
+      })
+    );
+    const t = await setup();
+    rateLimiterTest.register(t, "rateLimiterV2");
+    const seed = (scenario: string) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario,
+      });
+    await expect(seed("highlights-mix")).rejects.toThrow("reader-mix");
+    await seed("reader-mix");
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    expect(await seed("highlights-mix")).toEqual({
+      status: "seeded",
+      cards: 7,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await seed("highlights-mix")).toEqual({
+      status: "already_seeded",
+      cards: 0,
+    });
+
+    const cards = await cardsOf(t);
+    const bySlug = new Map(
+      cards.map((card) => [
+        new URL(card.url as string).pathname.split("/").pop(),
+        card,
+      ])
+    );
+    const rows = await t.run((ctx) => ctx.db.query("highlights").collect());
+    const of = (slug: string) =>
+      rows.filter((row) => row.cardId === bySlug.get(slug)?._id);
+    expect(bySlug.get("long-form")?.highlightCount).toBe(200);
+    expect(of("long-form")).toHaveLength(200);
+    expect(of("news")).toHaveLength(12);
+    expect(of("news").some((row) => row.note?.length === 2000)).toBe(true);
+    expect(of("research")).toHaveLength(1);
+    expect(of("japanese")).toHaveLength(1);
+    expect(of("japanese")[0]?.quote).toBe(
+      "庭は手をかける人の忍耐に季節ごとに応えてくれます"
+    );
+    // The imported ones were found, all but the one no article has.
+    const textOnly = of("text-only");
+    expect(textOnly).toHaveLength(4);
+    expect(
+      textOnly.filter((row) => row.unanchored).map((row) => row.quote)
+    ).toEqual(["A sentence that is in no article at all"]);
+    expect(bySlug.get("podcast")?.hasHighlights).toBe(true);
     vi.unstubAllGlobals();
   });
 

@@ -1,5 +1,7 @@
+import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { CardType } from "../schema";
+import { pageArchiveSkipReason } from "../shared/pageArchive";
 import type { Id } from "../shared/types";
 import { queueCardProcessingFailed } from "../telemetry/schedule";
 import {
@@ -61,15 +63,20 @@ export const initializeCardProcessingState = async (
 /**
  * A reset keeps the archive and article stages, since a run that has nothing to archive
  * leaves it alone. Refresh details archives the page again, so for a link it
- * starts over as pending.
+ * starts over as pending, except on a highlighted link, whose copy stays.
  */
 const archiveStageAfterReset = (
-  card: { processingStatus?: ProcessingStatus },
+  card: Doc<"cards">,
   cardType: CardType,
   options: { refresh?: boolean }
 ): Pick<ProcessingStatus, "archive" | "article"> => {
-  // The article is taken from the copy again with it.
-  if (options.refresh === true && shouldRunArchiveStage(cardType)) {
+  // The article is taken from the copy again with it, unless highlights
+  // froze them both.
+  if (
+    options.refresh === true &&
+    shouldRunArchiveStage(cardType) &&
+    pageArchiveSkipReason(card, { refresh: true }) !== "frozen"
+  ) {
     return { archive: stagePending(), article: stagePending() };
   }
   const { archive, article } = card.processingStatus ?? {};

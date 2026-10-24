@@ -627,6 +627,17 @@ describe("durable deletion admission and tombstones", () => {
         reason: "http_404",
         checkedAt: 1,
       });
+      for (let index = 0; index < 120; index += 1) {
+        await ctx.db.insert("highlights", {
+          userId: "permanent-owner",
+          cardId: card,
+          quote: `Passage ${index}`,
+          unanchored: true,
+          source: "import",
+          createdAt: index,
+          updatedAt: index,
+        });
+      }
       await ctx.db.insert("userPreferences", {
         userId: "permanent-owner",
         locale: "de",
@@ -812,6 +823,7 @@ describe("durable deletion admission and tombstones", () => {
       "linkedPdfs",
       "cardLinks",
       "linkChecks",
+      "highlights",
       "linkPasteJobs",
       "userPreferences",
       "userTagSummaries",

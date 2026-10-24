@@ -207,6 +207,35 @@ export const articleValidator = v.union(
   v.object({ status: v.literal("none"), extractedAt: v.number() })
 );
 
+export const highlightSourceValidator = v.union(
+  v.literal("reader"),
+  v.literal("api"),
+  v.literal("import")
+);
+
+/**
+ * A passage someone highlighted in a link's article, with an optional note.
+ * `quote` with `prefix` and `suffix` find it again (a W3C TextQuote
+ * selector); `start` and `end` are offsets into the article as the reader
+ * shows it, and `articleKey` the article text they point into. An imported
+ * highlight is `unanchored` until the card's article is there to find it in.
+ */
+export const highlightValidator = v.object({
+  userId: v.string(),
+  cardId: v.id("cards"),
+  quote: v.string(),
+  prefix: v.optional(v.string()),
+  suffix: v.optional(v.string()),
+  start: v.optional(v.number()),
+  end: v.optional(v.number()),
+  articleKey: v.optional(r2KeyValidator),
+  note: v.optional(v.string()),
+  unanchored: v.optional(v.literal(true)),
+  source: highlightSourceValidator,
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
 export const thumbnailOverrideValidator = v.object({
   storageKey: r2KeyValidator,
   width: v.number(),
@@ -376,6 +405,13 @@ export const cardValidator = v.object({
   pendingPageSnapshotAt: v.optional(v.number()),
   /** Links only: the article in the saved copy, for the reader. */
   article: v.optional(articleValidator),
+  /**
+   * Set while the card has rows in `highlights`, with their count; kept in
+   * step by every highlight write. A highlighted link's saved copy and
+   * article are frozen: nothing replaces them.
+   */
+  hasHighlights: v.optional(v.literal(true)),
+  highlightCount: v.optional(v.number()),
   hasExtractedText: v.optional(v.literal(true)),
   extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),

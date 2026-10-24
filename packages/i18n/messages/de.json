@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, one {# vorgeschlagener Tag} other {# vorgeschlagene Tags}}",
       "summary": "Zusammenfassung",
       "tags": "Tags",
-      "teakTagHint": "Von Teak hinzugefügter Tag. Karten mit dem Tag {tag} anzeigen"
+      "teakTagHint": "Von Teak hinzugefügter Tag. Karten mit dem Tag {tag} anzeigen",
+      "highlights": "Markierungen · {count, number}",
+      "highlightNotFound": "Im gespeicherten Artikel nicht gefunden",
+      "highlightWaiting": "Warten auf den Artikel…",
+      "highlightActions": "Aktionen für die Markierung"
     },
     "details": {
       "added": "Hinzugefügt",
@@ -841,6 +845,20 @@
       "preparing": "Artikel wird vorbereitet…",
       "savedFrom": "Gespeichert von {host} · {date} · <link>Original öffnen ↗</link>",
       "shortened": "Artikel gekürzt, damit er passt."
+    },
+    "highlights": {
+      "highlight": "Markieren",
+      "limitReached": "Diese Karte hat {max, number} Markierungen, mehr sind nicht möglich",
+      "merged": "Mit einer vorhandenen Markierung zusammengeführt",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Notiz zur Markierung",
+      "notePlaceholder": "Notiz hinzufügen",
+      "rateLimited": "Zu viele Änderungen. Versuchen Sie es gleich noch einmal.",
+      "remove": "Markierung entfernen",
+      "removed": "Markierung entfernt",
+      "saveFailed": "Die Markierung konnte nicht gespeichert werden. Versuchen Sie es erneut.",
+      "tooLong": "Markierungen können bis zu {max, number} Zeichen lang sein",
+      "unsupported": "Ihr Browser kann Markierungen im Text nicht anzeigen"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "Link oder Text kopieren",
       "toggleDetails": "Details ein- oder ausblenden",
       "readOrPreview": "Lesen oder Vorschau",
+      "highlightSelection": "Auswahl markieren",
       "goToEverything": "Alles",
       "goToFavorites": "Favoriten",
       "goToArchive": "Archiv",

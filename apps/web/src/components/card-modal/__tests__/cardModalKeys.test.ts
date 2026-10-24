@@ -47,6 +47,9 @@ describe("cardModalKeyAction", () => {
     ["o", "open"],
     ["c", "copy"],
     ["i", "toggleDetails"],
+    ["r", "toggleReader"],
+    ["h", "highlight"],
+    ["H", "highlight"],
     ["Delete", "delete"],
   ])("%s does %s", (key, action) => {
     expect(press(key, plain)).toBe(action as never);

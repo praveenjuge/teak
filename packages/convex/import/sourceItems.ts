@@ -2,13 +2,20 @@ import {
   MAX_FOLDER_NAME_LENGTH,
   MAX_FOLDERS_PER_CARD,
 } from "../shared/folders";
+import {
+  highlightLength,
+  MAX_HIGHLIGHT_NOTE_CHARS,
+  MAX_HIGHLIGHT_QUOTE_CHARS,
+  MAX_HIGHLIGHTS_PER_CARD,
+} from "../shared/highlights/constants";
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { parseImportedTimestamp } from "./validate";
+import { type ImportHighlightInput, parseImportedTimestamp } from "./validate";
 
 export interface SourceLink {
   createdAt?: number;
   folders?: string[];
+  highlights?: ImportHighlightInput[];
   isArchived?: boolean;
   isFavorited?: boolean;
   notes?: string;
@@ -78,6 +85,31 @@ export function parseSourceDate(
   );
 }
 
+/**
+ * A source's highlights within Teak's limits: the first 200 with text, a
+ * quote past 5,000 characters left out, and a note cut at 2,000.
+ */
+export function cleanHighlights(
+  highlights: Iterable<ImportHighlightInput>
+): ImportHighlightInput[] | undefined {
+  const kept: ImportHighlightInput[] = [];
+  for (const highlight of highlights) {
+    const quote = highlight.quote.trim();
+    if (!quote || highlightLength(quote) > MAX_HIGHLIGHT_QUOTE_CHARS) {
+      continue;
+    }
+    const note = Array.from(highlight.note?.trim() ?? "")
+      .slice(0, MAX_HIGHLIGHT_NOTE_CHARS)
+      .join("")
+      .trim();
+    kept.push(note ? { quote, note } : { quote });
+    if (kept.length === MAX_HIGHLIGHTS_PER_CARD) {
+      break;
+    }
+  }
+  return kept.length ? kept : undefined;
+}
+
 export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
   const rawUrl = link.url.trim();
   const url = sanitizeExternalUrl(rawUrl);
@@ -102,6 +134,7 @@ export function linkItem(source: string, link: SourceLink): ParsedBookmarkItem {
       url,
       tags: cleanTags(link.tags ?? []),
       notes: notes || undefined,
+      highlights: cleanHighlights(link.highlights ?? []),
       folders: folders.length ? folders : undefined,
       isFavorited: link.isFavorited === true || undefined,
       isArchived: link.isArchived === true || undefined,

@@ -3,8 +3,8 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import type { ReactNode, RefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Markdown, { type Options as MarkdownOptions } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -14,9 +14,15 @@ import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaI
 import { SiteFavicon } from "@/components/cards/SiteFavicon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { cn } from "@/lib/utils";
+import {
+  ArticleHighlights,
+  type HighlightJump,
+  type ReaderHighlightControls,
+} from "./ArticleHighlights";
 import { ARTICLE_SANITIZE_SCHEMA, rehypeArticle } from "./articleMarkdown";
 import {
   cachedFileTextPreview,
@@ -173,6 +179,12 @@ const useArticleMarkdown = (
 
 interface ArticleReaderProps {
   card: CardModalCard;
+  /** Filled with the selection's `H` and `Esc` while the article shows. */
+  highlightControlsRef?: RefObject<ReaderHighlightControls | null>;
+  /** A highlight to scroll to and flash, from the details panel. */
+  highlightJump?: HighlightJump | null;
+  /** The card's highlights and the reader's writes to them. */
+  highlights?: CardHighlightsControl;
   /** Refresh details, for an article that couldn't be prepared. */
   onRetry?: () => void;
   retrying?: boolean;
@@ -187,6 +199,9 @@ interface ArticleReaderProps {
  */
 export function ArticleReader({
   card,
+  highlights,
+  highlightControlsRef,
+  highlightJump,
   onRetry,
   retrying,
   title: fallbackTitle,
@@ -199,6 +214,8 @@ export function ArticleReader({
   const loaded = useArticleMarkdown(article?.textKey, card.articleUrl);
   const imageUrls = card.articleImageUrls ?? [];
   const title = article?.title ?? fallbackTitle;
+  const rootRef = useRef<HTMLElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const category = card.metadata?.linkCategory?.category ?? "none";
   const wordCount = article?.wordCount;
@@ -284,9 +301,10 @@ export function ArticleReader({
 
   return (
     <article
-      className={READING_COLUMN}
+      className={cn(READING_COLUMN, "relative")}
       dir="auto"
       lang={article.lang}
+      ref={rootRef}
       {...{ [ARTICLE_READER_ATTRIBUTE]: card._id }}
     >
       <header className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground text-sm">
@@ -305,6 +323,7 @@ export function ArticleReader({
       ) : null}
       <div
         className="typeset typeset-reader mt-6"
+        ref={bodyRef}
         {...{ [ARTICLE_BODY_ATTRIBUTE]: "" }}
       >
         <Markdown
@@ -349,6 +368,16 @@ export function ArticleReader({
           {loaded.markdown}
         </Markdown>
       </div>
+      {highlights ? (
+        <ArticleHighlights
+          bodyRef={bodyRef}
+          control={highlights}
+          controlsRef={highlightControlsRef}
+          jump={highlightJump}
+          rootRef={rootRef}
+          version={`${article.textKey}:${imageUrls.length}:${title ?? ""}`}
+        />
+      ) : null}
       <footer className="mt-12 flex flex-col gap-1 border-border/70 border-t pt-4 text-muted-foreground text-sm">
         {article.truncated ? <p>{t("shortened")}</p> : null}
         <p>

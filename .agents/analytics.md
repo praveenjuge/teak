@@ -59,6 +59,9 @@ Server events (`captureBackendEvent`):
 - `card_processing_failed` {stage, error_class, card_type}
 - `page_archived` {kind, source, bytes_bucket, duration_ms_bucket}: a link's page was saved as a copy (`workflows/steps/archive/mutations.ts`). `kind` is `full` or `text_only`; `source` is `extension` (the page as the browser showed it) or `server`; `duration_ms_bucket` is `<5s`, `5-30s`, `30s-2m` or `>2m`
 - `article_extracted` {outcome, words_bucket}: "extract article" finished for a link (`card/articleText.ts`). `outcome` is `article`, `none` (the page has too little text to be an article) or `failed`; `words_bucket` is `reader_opened`'s. It never fails the card
+- `highlight_created` {source, merged, count?}: a passage of a link's article was highlighted (`highlight/highlights.ts`). `source` is `reader` (the web app's Read tab), `api` (the public API, and so MCP, the SDK and the CLI) or `import`; `merged` is true when it joined a highlight it overlapped. An import sends one event per card, with `count` its highlights
+- `highlight_note_saved` {source, cleared}: a highlight's note was written or changed, or (`cleared`) emptied; `source` is `reader` or `api`
+- `highlight_removed` {source}: a highlight was removed; `source` is `reader` or `api`
 - `page_archive_failed` {reason, source}: a link's page couldn't be saved. `reason` is the archive stage's: `blocked_url`, `too_large`, `http_error`, `not_html`, `unreachable` or `archive_error`. Neither event fails the card
 - `checkout_completed` (Polar `subscription.created`, sets `plan: pro`), `subscription_ended` (Polar `subscription.revoked`, sets `plan: free`), `checkout_failed` {error_class}
 - `billing_portal_opened`

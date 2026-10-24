@@ -1657,6 +1657,86 @@ describe("article steps", () => {
     expect(third.ops.opsCalled()).toEqual(["extract-article"]);
   });
 
+  test("a highlighted link keeps its copy and article on Refresh details and on a re-save", async () => {
+    const extracted = {
+      extractedAt: CAPTURED_AT + 1000,
+      imageKeys: [],
+      readingMinutes: 3,
+      status: "ready",
+      textKey: "users/x/cards/k/article-text/r1-old.md",
+      wordCount: 640,
+    };
+    const refreshed = archivedLink({
+      article: extracted,
+      hasHighlights: true,
+      highlightCount: 2,
+      processingRev: 2,
+    });
+    const refresh = setup(
+      refreshed,
+      {},
+      { archiveOnly: true, refresh: true, rev: 2 }
+    );
+    expect(await refresh.run()).toEqual({
+      archive: "skipped:frozen",
+      article: "skipped:frozen",
+      mode: "archive_only",
+    });
+    expect(refresh.ops.opsCalled()).toEqual([]);
+    expect(refreshed.pageArchive).toMatchObject({ storageKey: ARCHIVE_KEY });
+    expect(refreshed.article).toEqual(extracted);
+
+    // The extension sent the page again after the copy was taken.
+    const resaved = archivedLink({
+      article: extracted,
+      hasHighlights: true,
+      highlightCount: 1,
+      pendingPageSnapshotAt: CAPTURED_AT + 5000,
+      pendingPageSnapshotKey: `users/x/cards/upload-pending-v2/page-snapshot/${"b".repeat(8)}`,
+    });
+    const resave = setup(resaved, {}, { archiveOnly: true });
+    expect(await resave.run()).toEqual({
+      archive: "skipped:frozen",
+      article: "skipped:frozen",
+      mode: "archive_only",
+    });
+    expect(resave.ops.opsCalled()).toEqual([]);
+    expect(resaved.pageArchive).toMatchObject({ storageKey: ARCHIVE_KEY });
+
+    // Without highlights, the same refresh takes both again.
+    const plain = archivedLink({ article: extracted, processingRev: 2 });
+    const unfrozen = setup(
+      plain,
+      { "extract-article": anArticle(150) },
+      { archiveOnly: true, refresh: true, rev: 2 }
+    );
+    await unfrozen.run();
+    expect(unfrozen.ops.opsCalled()).toContain("archive-page");
+  });
+
+  test("an imported highlight's link still gets its first copy and article", async () => {
+    const card = archivedLink({
+      hasHighlights: true,
+      highlightCount: 1,
+      pageArchive: undefined,
+      processingStatus: {
+        archive: { status: "pending" },
+        article: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+    });
+    const { ops, run } = setup(
+      card,
+      { "extract-article": anArticle(150) },
+      { archiveOnly: true }
+    );
+    expect(await run()).toMatchObject({ article: "article" });
+    expect(ops.opsCalled()).toEqual(["archive-page", "extract-article"]);
+  });
+
   test("a link without a saved copy closes its article stage", async () => {
     const card = archivedLink({ pageArchive: undefined });
     const { convex, ops, run } = setup(card, {}, { articleOnly: true });

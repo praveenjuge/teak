@@ -7,6 +7,7 @@ import {
   getOrCreateImportFolderIds,
   type ImportFolderCache,
 } from "../folder/folders";
+import { insertImportedHighlights } from "../highlight/highlights";
 import { cardTypeValidator, colorValidator } from "../schema";
 import type { TeakUserId } from "../securitySessions";
 
@@ -22,6 +23,10 @@ export const importItemFields = {
   isArchived: v.optional(v.boolean()),
   metadataTitle: v.optional(v.string()),
   folders: v.optional(v.array(v.string())),
+  /** A link's highlights in the source; never stored on the item. */
+  highlights: v.optional(
+    v.array(v.object({ quote: v.string(), note: v.optional(v.string()) }))
+  ),
   colors: v.optional(v.array(colorValidator)),
   importedCreatedAt: v.optional(v.number()),
   // A Teak archive's `savedAt`, only when it is later than `createdAt`.
@@ -38,7 +43,9 @@ export const importItemFields = {
   failureReason: v.optional(v.string()),
 };
 
-export type ImportCardItem = Pick<
+export type ImportCardItem = {
+  highlights?: Array<{ note?: string; quote: string }>;
+} & Pick<
   Doc<"importJobItems">,
   | "colors"
   | "content"
@@ -157,6 +164,13 @@ export async function createImportedCard(
         source: "import",
       }
     );
+    if (item.highlights?.length) {
+      await insertImportedHighlights(
+        ctx,
+        { _id: cardId, userId },
+        item.highlights
+      );
+    }
     return { kind: "created", cardId };
   } catch (error) {
     return { kind: "error", ...errorData(error) };

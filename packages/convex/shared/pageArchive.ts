@@ -37,11 +37,13 @@ export const toPageArchiveFailureReason = (
 
 export type PageArchiveSkip =
   | "already_archived"
+  | "frozen"
   | "no_url"
   | "not_link"
   | "trashed";
 
 export interface PageArchiveCandidate {
+  hasHighlights?: boolean;
   isDeleted?: boolean;
   pageArchive?: { capturedAt: number };
   pendingPageSnapshotAt?: number;
@@ -53,8 +55,10 @@ export interface PageArchiveCandidate {
 /**
  * Why the "archive page" step leaves a card alone, or null to archive it.
  * A card keeps the copy it has, unless Refresh details asked for a new one or
- * the extension sent the page again since. Phase 8 adds: a card with
- * highlights keeps its copy.
+ * the extension sent the page again since. A card with highlights keeps its
+ * copy whatever asks (`frozen`): its highlights were made in the article
+ * taken from it. Its first copy is still made, for highlights an import
+ * brought before there was one.
  */
 export const pageArchiveSkipReason = (
   card: PageArchiveCandidate,
@@ -70,6 +74,9 @@ export const pageArchiveSkipReason = (
     return "trashed";
   }
   const archive = card.pageArchive;
+  if (archive && card.hasHighlights) {
+    return "frozen";
+  }
   if (!archive || options.refresh === true) {
     return null;
   }

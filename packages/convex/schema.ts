@@ -9,6 +9,7 @@ import {
   cardTypeValidator,
   cardValidator,
   folderColorValidator,
+  highlightValidator,
   r2KeyValidator,
 } from "./schema/validators/cards";
 import {
@@ -640,6 +641,11 @@ export default defineSchema({
   })
     .index("by_fromCardId_and_toCardId", ["fromCardId", "toCardId"])
     .index("by_toCardId", ["toCardId"])
+    .index("by_userId", ["userId"]),
+  // Passages highlighted in a link's article (highlight/highlights.ts), at
+  // most 200 per card. `cards.hasHighlights` and `highlightCount` follow them.
+  highlights: defineTable(highlightValidator)
+    .index("by_cardId_and_createdAt", ["cardId", "createdAt"])
     .index("by_userId", ["userId"]),
   linkedPdfs: defineTable({
     userId: v.string(),

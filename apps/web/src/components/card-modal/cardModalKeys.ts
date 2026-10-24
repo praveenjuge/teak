@@ -13,7 +13,8 @@ export type CardModalKeyAction =
   | "open"
   | "copy"
   | "toggleDetails"
-  | "toggleReader";
+  | "toggleReader"
+  | "highlight";
 
 const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   ArrowLeft: "previous",
@@ -29,6 +30,7 @@ const KEY_ACTIONS: Record<string, CardModalKeyAction> = {
   c: "copy",
   i: "toggleDetails",
   r: "toggleReader",
+  h: "highlight",
   Delete: "delete",
 };
 

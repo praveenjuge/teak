@@ -413,8 +413,8 @@ export const createCardForUserHandler = async (
  * Moves a saved card to the top of "Newest first" and back from Archive. The
  * search sync carries the new `savedAt` to its folder and tag rows. Nothing
  * else changes, and the card isn't processed again, except that a page the
- * extension sent replaces the saved copy: at once, unless a run is in flight,
- * which picks the page up when it ends. Stages a run left pending, like AI
+ * extension sent replaces the saved copy (unless the card has highlights):
+ * at once, unless a run is in flight, which picks the page up when it ends. Stages a run left pending, like AI
  * metadata waiting for its backfill, don't hold the page back.
  */
 const resaveCard = async (
@@ -427,9 +427,17 @@ const resaveCard = async (
   }: { now: number; pageSnapshotKey?: string; source: CardCreationSource }
 ): Promise<CreateCardOutcome> => {
   const wasArchived = card.isArchived === true;
-  const snapshot = pageSnapshotKey
-    ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
-    : null;
+  // A highlighted link keeps its copy: the page sent with the save is
+  // dropped.
+  const frozen =
+    pageSnapshotKey !== undefined && pageArchiveSkipReason(card) === "frozen";
+  if (frozen) {
+    await queueObjectDeletion(ctx, pageSnapshotKey);
+  }
+  const snapshot =
+    pageSnapshotKey && !frozen
+      ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
+      : null;
   if (
     snapshot &&
     card.pendingPageSnapshotKey &&

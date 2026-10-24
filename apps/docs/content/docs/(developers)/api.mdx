@@ -183,6 +183,9 @@ for processing again, which each card does at most once a minute; changing both
 in one request counts once. Changes within the minute still save right away,
 and one more processing run follows when the minute is up.
 
+A link with [highlights](#highlights) keeps the URL its saved copy came from: changing its `url` returns
+`409 CONFLICT` until the highlights are removed.
+
 `tags` replaces your own tags; each can be up to 64 characters. To drop tags Teak added, send them in
 `removeAiTags`, for example `{ "removeAiTags": ["inspiration"] }`. They match
 ignoring case, and tags Teak didn't add are ignored. The response is the updated card, including its
@@ -267,6 +270,8 @@ and replace your local copy.
 | `/v1/cards/:cardId/favorite` | Favorite or unfavorite one card |
 | `/v1/cards/:cardId/done` | Mark a link done with POST, or not done with DELETE |
 | `/v1/cards/:cardId/save-pdf` | Save an arXiv link's PDF as a document card with POST |
+| `/v1/cards/:cardId/highlights` | List a link's highlights, or highlight a passage by its text with POST |
+| `/v1/highlights/:highlightId` | Change a highlight's note with PATCH, or remove it with DELETE |
 | `/v1/cards/duplicate` | Check whether a URL is already saved |
 | `/v1/exports` | Start a ZIP export of your cards with POST |
 | `/v1/exports/latest` | Read the latest export and its download link |
@@ -580,7 +585,7 @@ The text is Markdown: headings, lists, tables, code and quotes, with the article
 
 ## Refresh a card's details
 
-`POST /v1/cards/:cardId/refresh` clears the card's summary, tags Teak added, and transcript and processes the card again, including its link preview. It returns `202` with `{ "cardId": "...", "status": "queued", "requestedAt": 1760284800000 }`; processing finishes in the background, so poll `GET /v1/cards/:cardId` and watch `processingStatus`. The card's own tags and notes are kept.
+`POST /v1/cards/:cardId/refresh` clears the card's summary, tags Teak added, and transcript and processes the card again, including its link preview. A link with [highlights](#highlights) keeps its saved copy and article. It returns `202` with `{ "cardId": "...", "status": "queued", "requestedAt": 1760284800000 }`; processing finishes in the background, so poll `GET /v1/cards/:cardId` and watch `processingStatus`. The card's own tags and notes are kept.
 
 You can refresh a card once a minute and up to six cards a minute. Past that, the API answers `429 RATE_LIMITED` with `retryAt` and a `Retry-After` header. A card in Trash returns `409 CONFLICT`; restore it first.
 
@@ -640,13 +645,48 @@ A browser extension can send the page as the person sees it, including pages beh
 2. `PUT` the gzipped HTML to `uploadUrl` with `Content-Type: application/gzip` and exactly `bytes` bytes, within `expiresIn` seconds.
 3. Pass `fileKey` as `pageSnapshotKey` in `POST /v1/cards` (or a bulk `create` item) with the link's `url`.
 
-A `pageSnapshotKey` that isn't one of your snapshot uploads is ignored, and the card is still saved. Saving a link you already have with a new snapshot replaces its copy.
+A `pageSnapshotKey` that isn't one of your snapshot uploads is ignored, and the card is still saved. Saving a link you already have with a new snapshot replaces its copy, unless the link has [highlights](#highlights).
 
 | Status | Code | When |
 | --- | --- | --- |
 | `400` | `INVALID_INPUT` | `bytes` is missing or not a whole number |
 | `413` | `PAGE_SNAPSHOT_TOO_LARGE` | The gzipped page is over 20 MiB |
 | `429` | `RATE_LIMITED` | More than 60 snapshots in a minute; see `retryAt` |
+
+## Highlights
+
+People highlight passages while reading a link's article in Teak, each with an optional note. Cards include `highlightCount` (0 for cards without highlights). A highlight is:
+
+```json
+{
+  "id": "...",
+  "cardId": "...",
+  "quote": "Plant marigolds around the tomatoes.",
+  "note": "Try this in spring",
+  "anchored": true,
+  "source": "reader",
+  "createdAt": 1760284800000,
+  "updatedAt": 1760284800000
+}
+```
+
+`anchored` is `false` while Teak hasn't found the quote in the link's saved article: an imported highlight waiting for the article, or one the article doesn't have. `source` is `reader`, `api` or `import`; accept values you don't know.
+
+- `GET /v1/cards/:cardId/highlights` returns `{ items }` in the order they appear in the article, with ones not found last.
+- `POST /v1/cards/:cardId/highlights` with `{ "quote": "...", "note": "..." }` finds the quote in the article (whitespace, curly quotes, dash styles and case needn't match) and highlights the first match; send `prefix` or `suffix`, the text just before or after it, to pick a later one. It returns `201` with the highlight. A passage that is highlighted already returns it with `200`, and one that overlaps a highlight merges with it (keeping the older note) and returns the merged highlight with `200`. Quotes are up to 5,000 characters, notes up to 2,000, and a card holds up to 200 highlights.
+- `PATCH /v1/highlights/:highlightId` with `{ "note": "..." }` changes the note; `{ "note": null }` clears it.
+- `DELETE /v1/highlights/:highlightId` removes it and returns `204`.
+
+A link with highlights keeps its saved copy and article: refreshing it, or saving it again with a new page snapshot, no longer replaces them, and its `url` can't change until the highlights are removed. Highlight writes count toward a limit of 120 a minute.
+
+| Status | Code | When |
+| --- | --- | --- |
+| `400` | `INVALID_INPUT` | No quote, or a quote or note too long |
+| `404` | `NOT_FOUND` | Another account's card or highlight |
+| `409` | `NO_ARTICLE` | The card isn't a link with a saved article, or is in Trash |
+| `409` | `HIGHLIGHT_LIMIT` | The card has 200 highlights |
+| `422` | `QUOTE_NOT_FOUND` | The article doesn't have the quote |
+| `429` | `RATE_LIMITED` | More than 120 highlight changes in a minute; see `retryAt` |
 
 ## Archive cards
 

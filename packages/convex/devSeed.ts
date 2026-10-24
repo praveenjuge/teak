@@ -59,6 +59,7 @@ import {
   smartFoldersPack,
 } from "./devSeed/folderPacks";
 import { link, palette } from "./devSeed/helpers";
+import { seedHighlightsMix } from "./devSeed/highlights";
 import {
   CARD_LINK_SCENARIO_DESCRIPTIONS,
   type CardLinkScenario,
@@ -649,6 +650,10 @@ const SCENARIOS: Record<string, ScenarioPack> = {
   "reader-mix": {
     description: `Links for the Read tab in every state: a 3,000-word article with images, code, a wide table and a quote, a news story, a research abstract, a product page that isn't an article, a text-only copy's article, Arabic and Japanese articles, an article cut at 512 KiB characters, one still being prepared, one that failed, and a podcast with an article and a transcript. Copies, Markdown and images are written through the Files Worker. Search \`#${READER_MIX_TAG}\`.`,
     seed: seedReaderMix,
+  },
+  "highlights-mix": {
+    description: `Highlights on the reader-mix articles (seed reader-mix first and wait for its articles): the long read at the cap of 200, the news story with 12 (some with notes, one of 2,000 characters), the research abstract with 1, a quote repeated in every paragraph highlighted the third time, three imported highlights on the text-only article waiting for their article (one never matches), Arabic and Japanese highlights (the Japanese one merged from two overlapping requests), and a highlighted podcast episode to refresh, whose saved copy must stay. Search \`#${READER_MIX_TAG}\`.`,
+    seed: seedHighlightsMix,
   },
   "reader-search-1000": {
     description: `1,000 links with articles titled "Field note 1" to "Field note 1000". Only their body text has "${READER_SEARCH_SHARED_PHRASE}" (all of them) and lantern0 to lantern999 (one each), so search finds them by article text alone. Their Markdown isn't written, so the Read tab can't load it. 200 per page.`,

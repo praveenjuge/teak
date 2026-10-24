@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, other {추천 태그 #개}}",
       "summary": "요약",
       "tags": "태그",
-      "teakTagHint": "Teak이 추가한 태그입니다. {tag} 태그가 붙은 카드 보기"
+      "teakTagHint": "Teak이 추가한 태그입니다. {tag} 태그가 붙은 카드 보기",
+      "highlights": "하이라이트 · {count, number}",
+      "highlightNotFound": "저장된 글에서 찾을 수 없습니다",
+      "highlightWaiting": "글을 기다리는 중…",
+      "highlightActions": "하이라이트 작업"
     },
     "details": {
       "added": "추가됨",
@@ -841,6 +845,20 @@
       "preparing": "글을 준비하는 중…",
       "savedFrom": "{host}에서 저장 · {date} · <link>원본 열기 ↗</link>",
       "shortened": "길이에 맞게 글을 줄였습니다."
+    },
+    "highlights": {
+      "highlight": "하이라이트",
+      "limitReached": "이 카드에는 하이라이트가 {max, number}개 있어 더 추가할 수 없습니다",
+      "merged": "기존 하이라이트와 합쳤습니다",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "하이라이트 메모",
+      "notePlaceholder": "메모 추가",
+      "rateLimited": "변경이 너무 많습니다. 잠시 후 다시 시도하세요.",
+      "remove": "하이라이트 삭제",
+      "removed": "하이라이트를 삭제했습니다",
+      "saveFailed": "하이라이트를 저장하지 못했습니다. 다시 시도하세요.",
+      "tooLong": "하이라이트는 최대 {max, number}자까지 가능합니다",
+      "unsupported": "이 브라우저에서는 본문에 하이라이트를 표시할 수 없습니다"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "링크 또는 텍스트 복사",
       "toggleDetails": "세부 정보 보기 또는 숨기기",
       "readOrPreview": "읽기 또는 미리보기",
+      "highlightSelection": "선택한 부분 하이라이트",
       "goToEverything": "전체",
       "goToFavorites": "즐겨찾기",
       "goToArchive": "보관함",

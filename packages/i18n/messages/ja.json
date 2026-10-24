@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, other {# 件のおすすめタグ}}",
       "summary": "要約",
       "tags": "タグ",
-      "teakTagHint": "Teak が付けたタグです。タグ {tag} の付いたカードを表示"
+      "teakTagHint": "Teak が付けたタグです。タグ {tag} の付いたカードを表示",
+      "highlights": "ハイライト · {count, number}",
+      "highlightNotFound": "保存した記事に見つかりません",
+      "highlightWaiting": "記事を待っています…",
+      "highlightActions": "ハイライトの操作"
     },
     "details": {
       "added": "追加日",
@@ -841,6 +845,20 @@
       "preparing": "記事を準備しています…",
       "savedFrom": "{host} から保存 · {date} · <link>元のページを開く ↗</link>",
       "shortened": "収まるように記事を短くしました。"
+    },
+    "highlights": {
+      "highlight": "ハイライト",
+      "limitReached": "このカードには{max, number}件のハイライトがあり、これ以上追加できません",
+      "merged": "既存のハイライトと結合しました",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "ハイライトのメモ",
+      "notePlaceholder": "メモを追加",
+      "rateLimited": "変更が多すぎます。しばらくしてからもう一度お試しください。",
+      "remove": "ハイライトを削除",
+      "removed": "ハイライトを削除しました",
+      "saveFailed": "ハイライトを保存できませんでした。もう一度お試しください。",
+      "tooLong": "ハイライトは{max, number}文字までです",
+      "unsupported": "お使いのブラウザでは本文にハイライトを表示できません"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "リンクまたはテキストをコピー",
       "toggleDetails": "詳細の表示/非表示",
       "readOrPreview": "読む/プレビュー",
+      "highlightSelection": "選択範囲をハイライト",
       "goToEverything": "すべて",
       "goToFavorites": "お気に入り",
       "goToArchive": "アーカイブ",

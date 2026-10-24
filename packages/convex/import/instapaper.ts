@@ -30,7 +30,8 @@ function parseTags(raw: string): string[] {
 /**
  * Instapaper's CSV export: `URL, Title, Selection, Folder, Timestamp` and,
  * in newer exports, `Tags`. Folder is "Unread", "Archive", "Starred" or a
- * folder of the user's. Selection is the highlighted passage.
+ * folder of the user's. Selection is the highlighted passage, which becomes
+ * the link's highlight.
  */
 export function parseInstapaperCsv(csv: string): ParsedBookmarkItem[] {
   const table = readCsvTable(csv);
@@ -46,7 +47,9 @@ export function parseInstapaperCsv(csv: string): ParsedBookmarkItem[] {
     return linkItem(SOURCE, {
       url: table.cell(row, "url"),
       title: table.cell(row, "title"),
-      notes: table.cell(row, "selection"),
+      // The highlighted passage: a highlight, found once Teak has the
+      // article.
+      highlights: [{ quote: table.cell(row, "selection") }],
       tags: parseTags(table.cell(row, "tags")),
       folders: name ? [name] : undefined,
       isArchived: kind === "archive",

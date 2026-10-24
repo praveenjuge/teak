@@ -105,6 +105,15 @@ teak tags delete draft           # cards are kept
 
 Smart folders show the cards matching their search and refuse cards added by hand. Tag renames, merges, and deletes run in the background; `--wait` waits, and `teak tags status <operationId>` reports progress.
 
+Highlights are passages marked in a link's saved article, each with an optional note (needs a link whose article Teak has prepared; a highlighted link keeps its saved copy):
+
+```bash
+teak highlights list <card-id>   # in article order, notes indented
+teak highlights add <card-id> "a passage from the article" --note "why"   # found by its text
+teak highlights note <highlight-id> "new note"   # --clear removes it
+teak highlights rm <highlight-id>
+```
+
 Change up to 100 cards at once from a JSON file: `teak cards bulk archive --input items.json` (`create`, `update`, `favorite`, `delete`, `restore`, `archive`, `unarchive`, `addTags`, `removeTags`).
 
 Export everything as a ZIP (one export every 7 days):
@@ -161,6 +170,10 @@ PATCH  /v1/folders/:folderId      name, color, query
 DELETE /v1/folders/:folderId      cards are kept
 POST   /v1/folders/:folderId/cards
 DELETE /v1/folders/:folderId/cards
+GET    /v1/cards/:cardId/highlights   a link's highlights
+POST   /v1/cards/:cardId/highlights   { quote, note?, prefix?, suffix? }
+PATCH  /v1/highlights/:highlightId    { note } (null clears)
+DELETE /v1/highlights/:highlightId
 POST   /v1/exports                start a ZIP export
 GET    /v1/exports/latest         progress and download URL
 ```

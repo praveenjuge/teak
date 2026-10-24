@@ -20,6 +20,7 @@ import {
   createUploadV1,
   folderByIdV1,
   foldersV1,
+  highlightByIdV1,
   listCardsV1,
   pageSnapshotUploadV1,
   tagOperationsV1,
@@ -121,6 +122,12 @@ http.route({
 });
 
 http.route({
+  pathPrefix: "/v1/highlights/",
+  method: "OPTIONS",
+  handler: v1CorsPreflight,
+});
+
+http.route({
   pathPrefix: "/v1/tags/operations/",
   method: "OPTIONS",
   handler: v1CorsPreflight,
@@ -210,6 +217,14 @@ for (const method of ["GET", "POST"] as const) {
 
 for (const method of ["GET", "PATCH", "POST", "DELETE"] as const) {
   http.route({ pathPrefix: "/v1/folders/", method, handler: folderByIdV1 });
+}
+
+for (const method of ["PATCH", "DELETE"] as const) {
+  http.route({
+    pathPrefix: "/v1/highlights/",
+    method,
+    handler: highlightByIdV1,
+  });
 }
 
 http.route({

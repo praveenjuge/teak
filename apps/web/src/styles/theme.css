@@ -223,6 +223,26 @@
   --teak-toast-error: oklch(0.704 0.191 22.216);
 }
 
+/* Highlights in the reader: one calm color, a step stronger for the one
+   flashed or open. Body text keeps AA contrast on both, in both themes. */
+:root {
+  --highlight: oklch(0.94 0.11 95);
+  --highlight-active: oklch(0.87 0.15 92);
+}
+
+.dark {
+  --highlight: oklch(0.42 0.08 85 / 0.6);
+  --highlight-active: oklch(0.5 0.1 85 / 0.8);
+}
+
+::highlight(teak-highlight) {
+  background-color: var(--highlight);
+}
+
+::highlight(teak-highlight-active) {
+  background-color: var(--highlight-active);
+}
+
 .dark {
   --teak-toast-bg: oklch(0.278 0.033 256.848);
   --teak-toast-text: var(--foreground);
