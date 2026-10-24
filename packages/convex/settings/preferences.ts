@@ -41,6 +41,29 @@ export const readAccountLocale = async (
   return isSupportedLocale(stored) ? stored : DEFAULT_LOCALE;
 };
 
+/** Saves the account's language; writes nothing when it's unchanged. */
+export const writeAccountLocale = async (
+  ctx: MutationCtx,
+  userId: string,
+  locale: Locale
+) => {
+  const existing = await readPreferencesRow(ctx, userId);
+  if (existing) {
+    if (existing.locale !== locale) {
+      await ctx.db.patch("userPreferences", existing._id, {
+        locale,
+        updatedAt: Date.now(),
+      });
+    }
+    return;
+  }
+  await ctx.db.insert("userPreferences", {
+    userId,
+    locale,
+    updatedAt: Date.now(),
+  });
+};
+
 /** The signed-in account's preferences, or null when signed out. */
 export const getPreferences = query({
   args: {},
@@ -62,21 +85,7 @@ export const setLocale = mutation({
     if (!isSupportedLocale(locale)) {
       throw new ConvexError(UNSUPPORTED_LOCALE_ERROR);
     }
-    const existing = await readPreferencesRow(ctx, userId);
-    if (existing) {
-      if (existing.locale !== locale) {
-        await ctx.db.patch("userPreferences", existing._id, {
-          locale,
-          updatedAt: Date.now(),
-        });
-      }
-    } else {
-      await ctx.db.insert("userPreferences", {
-        userId,
-        locale,
-        updatedAt: Date.now(),
-      });
-    }
+    await writeAccountLocale(ctx, userId, locale);
     return { locale };
   },
 });
