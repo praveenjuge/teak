@@ -22,7 +22,7 @@ const totalsValidator = v.object({
   aiOff: v.number(),
   skippedDeletingAccounts: v.number(),
   /** Cards to reprocess, by card type. */
-  byType: v.record(v.string(), v.number()),
+  byType: v.array(v.object({ type: v.string(), count: v.number() })),
 });
 
 type Totals = typeof totalsValidator.type;
@@ -33,13 +33,22 @@ const emptyTotals = (): Totals => ({
   trashed: 0,
   aiOff: 0,
   skippedDeletingAccounts: 0,
-  byType: {},
+  byType: [],
 });
 
+const countType = (byType: Totals["byType"], type: string, count = 1) => {
+  const entry = byType.find((row) => row.type === type);
+  if (entry) {
+    entry.count += count;
+  } else {
+    byType.push({ type, count });
+  }
+};
+
 const addTotals = (left: Totals, right: Totals): Totals => {
-  const byType = new Map(Object.entries(left.byType));
-  for (const [type, count] of Object.entries(right.byType)) {
-    byType.set(type, (byType.get(type) ?? 0) + count);
+  const byType = left.byType.map((row) => ({ ...row }));
+  for (const row of right.byType) {
+    countType(byType, row.type, row.count);
   }
   return {
     examined: left.examined + right.examined,
@@ -48,7 +57,7 @@ const addTotals = (left: Totals, right: Totals): Totals => {
     aiOff: left.aiOff + right.aiOff,
     skippedDeletingAccounts:
       left.skippedDeletingAccounts + right.skippedDeletingAccounts,
-    byType: Object.fromEntries(byType),
+    byType,
   };
 };
 
@@ -162,7 +171,7 @@ export const reprocessStaleCards = internalMutation({
         continue;
       }
       batch.toQueue += 1;
-      batch.byType[card.type] = (batch.byType[card.type] ?? 0) + 1;
+      countType(batch.byType, card.type);
       if (!dryRun) {
         await queueCardProcessing(ctx, card._id, {
           refresh: true,

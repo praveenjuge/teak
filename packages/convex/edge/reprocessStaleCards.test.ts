@@ -122,7 +122,10 @@ describe("reprocessStaleCards", () => {
       isDone: true,
       totals: {
         aiOff: 1,
-        byType: { link: 1, text: 1 },
+        byType: [
+          { count: 1, type: "link" },
+          { count: 1, type: "text" },
+        ],
         examined: 7,
         toQueue: 2,
         trashed: 1,
