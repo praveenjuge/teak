@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "コマンドパレット",
       "description": "実行するコマンドを検索します"
-    }
+    },
+    "resizeSidebar": "サイドバーのサイズを変更",
+    "expandSidebar": "サイドバーを展開",
+    "resizeSidebarHint": "ドラッグでサイズ変更、ダブルクリックでリセット"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "振り返るカードはありません",
       "saveAsSmartFolder": "スマートフォルダとして保存…",
       "reshuffle": "もう一度シャッフル"
+    },
+    "dates": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "thisWeek": "今週",
+      "lastWeek": "先週",
+      "thisMonth": "今月",
+      "lastMonth": "先月",
+      "thisYear": "今年",
+      "lastYear": "昨年",
+      "lastWeekday": "先週の{day}"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "カードを検索できませんでした",
       "searchAll": "すべてから「{query}」を検索",
       "untitled": "無題のカード"
-    }
+    },
+    "resultsLabel": "候補"
   },
   "shortcuts": {
     "groups": {

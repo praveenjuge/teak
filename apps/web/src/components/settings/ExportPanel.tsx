@@ -204,7 +204,7 @@ export function ExportPanel({
             <div className="text-muted-foreground text-xs leading-5">
               <span>{t("cardCount", { count: job.cardCount ?? 0 })}</span>
               {typeof job.artifactBytes === "number" ? (
-                <span> · {formatBytes(job.artifactBytes)}</span>
+                <span> · {formatBytes(job.artifactBytes, locale)}</span>
               ) : null}
               {job.filesOmitted ? (
                 <span title={t("filesOmittedTitle")}>

@@ -5,7 +5,7 @@ import {
   getCardTypeIcon,
   type VisualStyle,
 } from "@teak/convex/shared/constants";
-import { useIntlLocale, useTranslations } from "@teak/i18n/react";
+import { useIntlLocale, useTranslations, useUiLocale } from "@teak/i18n/react";
 import {
   Aperture,
   Archive,
@@ -55,6 +55,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
+import { timeFilterLabel } from "@/lib/timeFilterLabel";
 import { cn } from "@/lib/utils";
 import {
   type LibrarySort,
@@ -303,7 +304,9 @@ export function SearchBar({
   const t = useTranslations("search");
   const tc = useTranslations("common");
   const types = useTranslations("cards.types");
+  const tDates = useTranslations("search.dates");
   const locale = useIntlLocale();
+  const uiLocale = useUiLocale();
   const placeholder = placeholderProp ?? t("bar.placeholder");
   const hasAnyFilters =
     qualifierChips.length > 0 ||
@@ -500,11 +503,15 @@ export function SearchBar({
     });
   }
   if (timeFilter) {
+    const timeLabel = timeFilterLabel(timeFilter, tDates, {
+      english: uiLocale === "en",
+      locale,
+    });
     chips.push({
-      ariaLabel: t("bar.remove", { label: timeFilter.label }),
+      ariaLabel: t("bar.remove", { label: timeLabel }),
       icon: <Clock />,
       key: "time-filter",
-      label: timeFilter.label,
+      label: timeLabel,
       onRemove: onRemoveTimeFilter,
     });
   }
@@ -814,7 +821,7 @@ export function SearchBar({
                         {suggestion.label}
                       </span>
                       {suggestion.detail ? (
-                        <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
+                        <span className="min-w-0 shrink truncate text-muted-foreground text-xs tabular-nums">
                           {suggestion.detail}
                         </span>
                       ) : null}

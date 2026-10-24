@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "명령 팔레트",
       "description": "실행할 명령을 검색합니다"
-    }
+    },
+    "resizeSidebar": "사이드바 크기 조정",
+    "expandSidebar": "사이드바 펼치기",
+    "resizeSidebarHint": "드래그하여 크기 조정, 더블클릭하여 재설정"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "다시 볼 카드가 없습니다",
       "saveAsSmartFolder": "스마트 폴더로 저장…",
       "reshuffle": "다시 셔플"
+    },
+    "dates": {
+      "today": "오늘",
+      "yesterday": "어제",
+      "thisWeek": "이번 주",
+      "lastWeek": "지난주",
+      "thisMonth": "이번 달",
+      "lastMonth": "지난달",
+      "thisYear": "올해",
+      "lastYear": "작년",
+      "lastWeekday": "지난 {day}"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "카드를 검색하지 못했습니다",
       "searchAll": "“{query}” 전체 검색",
       "untitled": "제목 없는 카드"
-    }
+    },
+    "resultsLabel": "제안"
   },
   "shortcuts": {
     "groups": {

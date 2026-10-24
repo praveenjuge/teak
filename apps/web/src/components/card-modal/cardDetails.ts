@@ -105,7 +105,7 @@ export function getCardDetailSections(
       { label: t("fileName"), value: file?.fileName },
       {
         label: t("fileSize"),
-        value: file?.fileSize ? formatBytes(file.fileSize) : undefined,
+        value: file?.fileSize ? formatBytes(file.fileSize, locale) : undefined,
       },
       { label: t("fileType"), value: file?.mimeType },
       {

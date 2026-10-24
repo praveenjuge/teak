@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "Command palette",
       "description": "Search for a command to run"
-    }
+    },
+    "resizeSidebar": "Resize sidebar",
+    "expandSidebar": "Expand sidebar",
+    "resizeSidebarHint": "Drag to resize, double-click to reset"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "Nothing to revisit here",
       "saveAsSmartFolder": "Save as smart folder…",
       "reshuffle": "Reshuffle"
+    },
+    "dates": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "thisYear": "This Year",
+      "lastYear": "Last Year",
+      "lastWeekday": "Last {day}"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "Couldn’t search cards",
       "searchAll": "Search all for “{query}”",
       "untitled": "Untitled card"
-    }
+    },
+    "resultsLabel": "Suggestions"
   },
   "shortcuts": {
     "groups": {

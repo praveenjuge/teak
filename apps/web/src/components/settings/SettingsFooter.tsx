@@ -18,7 +18,7 @@ export function SettingsFooter({
   return (
     <div className="relative mt-12 flex flex-col items-start gap-5">
       <Logo variant="primary" />
-      <div className="text-muted-foreground">
+      <div className="break-words text-muted-foreground">
         {t.rich("feedback", {
           email,
           handle: "@praveenjuge",

@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "Befehlspalette",
       "description": "Nach einem Befehl suchen, der ausgeführt werden soll"
-    }
+    },
+    "resizeSidebar": "Seitenleiste anpassen",
+    "expandSidebar": "Seitenleiste einblenden",
+    "resizeSidebarHint": "Zum Anpassen ziehen, zum Zurücksetzen doppelklicken"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "Hier gibt es nichts wiederzusehen",
       "saveAsSmartFolder": "Als intelligenten Ordner speichern…",
       "reshuffle": "Neu mischen"
+    },
+    "dates": {
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "thisWeek": "Diese Woche",
+      "lastWeek": "Letzte Woche",
+      "thisMonth": "Dieser Monat",
+      "lastMonth": "Letzter Monat",
+      "thisYear": "Dieses Jahr",
+      "lastYear": "Letztes Jahr",
+      "lastWeekday": "Letzten {day}"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "Karten konnten nicht durchsucht werden",
       "searchAll": "Überall nach „{query}“ suchen",
       "untitled": "Karte ohne Titel"
-    }
+    },
+    "resultsLabel": "Vorschläge"
   },
   "shortcuts": {
     "groups": {

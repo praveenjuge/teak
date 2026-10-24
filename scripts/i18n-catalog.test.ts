@@ -81,9 +81,9 @@ describe("pseudo-locale", () => {
     expect(pseudoLocalize("Save")).toBe("[Šávé ~~]");
     expect(
       pseudoLocalize("{count, plural, one {# card} other {# cards}}")
-    ).toBe("[{count,plural,one{# çáŕð} other{# çáŕðš}} ~~~~~~~~~~~~~~~~~~]");
+    ).toBe("[{count,plural,one{# çáŕð} other{# çáŕðš}} ~~]");
     expect(pseudoLocalize("Read the <link>docs</link>")).toBe(
-      "[Réáð ţĥé <link>ðöçš</link> ~~~~~~~~~~]"
+      "[Réáð ţĥé <link>ðöçš</link> ~~~~~]"
     );
   });
 

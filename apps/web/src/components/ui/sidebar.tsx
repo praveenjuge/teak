@@ -439,10 +439,11 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
     width: number;
   } | null>(null);
   const isCollapsed = state === "collapsed";
+  const t = useTranslations("ui");
 
   return (
     <button
-      aria-label={isCollapsed ? "Expand sidebar" : "Resize sidebar"}
+      aria-label={isCollapsed ? t("expandSidebar") : t("resizeSidebar")}
       className={cn(
         "absolute inset-y-0 z-20 hidden w-3 -translate-x-1/2 touch-none transition-colors ease-out after:absolute after:inset-y-0 after:left-1/2 after:w-px after:transition-colors hover:after:bg-sidebar-border group-data-[side=left]:-right-3 group-data-[side=right]:left-0 sm:flex",
         "in-data-[side=left]:cursor-col-resize in-data-[side=right]:cursor-col-resize",
@@ -499,9 +500,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
         }
       }}
       tabIndex={-1}
-      title={
-        isCollapsed ? "Expand sidebar" : "Drag to resize, double-click to reset"
-      }
+      title={isCollapsed ? t("expandSidebar") : t("resizeSidebarHint")}
       type="button"
       {...props}
     />

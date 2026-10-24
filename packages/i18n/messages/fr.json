@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "Palette de commandes",
       "description": "Recherchez une commande à exécuter"
-    }
+    },
+    "resizeSidebar": "Redimensionner la barre latérale",
+    "expandSidebar": "Développer la barre latérale",
+    "resizeSidebarHint": "Faites glisser pour redimensionner, double-cliquez pour réinitialiser"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "Rien à revoir ici",
       "saveAsSmartFolder": "Enregistrer comme dossier intelligent…",
       "reshuffle": "Mélanger à nouveau"
+    },
+    "dates": {
+      "today": "Aujourd’hui",
+      "yesterday": "Hier",
+      "thisWeek": "Cette semaine",
+      "lastWeek": "La semaine dernière",
+      "thisMonth": "Ce mois-ci",
+      "lastMonth": "Le mois dernier",
+      "thisYear": "Cette année",
+      "lastYear": "L’année dernière",
+      "lastWeekday": "{day} dernier"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "Impossible de rechercher les fiches",
       "searchAll": "Tout rechercher pour « {query} »",
       "untitled": "Fiche sans titre"
-    }
+    },
+    "resultsLabel": "Suggestions"
   },
   "shortcuts": {
     "groups": {

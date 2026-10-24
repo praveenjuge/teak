@@ -430,7 +430,11 @@ export function CommandPalette({
         placeholder={t("placeholder")}
         value={query}
       />
-      <CommandList className="max-h-[min(50vh,360px)] pb-1" ref={listRef}>
+      <CommandList
+        aria-label={t("resultsLabel")}
+        className="max-h-[min(50vh,360px)] pb-1"
+        ref={listRef}
+      >
         <CommandPaletteResults
           cards={cards}
           folders={folders}

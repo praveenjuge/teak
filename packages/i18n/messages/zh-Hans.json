@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "命令面板",
       "description": "搜索要运行的命令"
-    }
+    },
+    "resizeSidebar": "调整侧边栏大小",
+    "expandSidebar": "展开侧边栏",
+    "resizeSidebarHint": "拖动以调整大小，双击以重置"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "这里没有可回顾的内容",
       "saveAsSmartFolder": "保存为智能文件夹…",
       "reshuffle": "重新随机"
+    },
+    "dates": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "thisWeek": "本周",
+      "lastWeek": "上周",
+      "thisMonth": "本月",
+      "lastMonth": "上个月",
+      "thisYear": "今年",
+      "lastYear": "去年",
+      "lastWeekday": "上{day}"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "无法搜索卡片",
       "searchAll": "在全部内容中搜索“{query}”",
       "untitled": "无标题卡片"
-    }
+    },
+    "resultsLabel": "建议"
   },
   "shortcuts": {
     "groups": {

@@ -107,7 +107,8 @@ function isActive(status: ImportJob["status"] | undefined) {
 function validateFile(
   file: File,
   mode: ImportMode,
-  t: ImportTranslator
+  t: ImportTranslator,
+  locale?: string
 ): string | null {
   if (!importFileMatches(mode, file.name)) {
     return t("wrongFile", {
@@ -118,8 +119,8 @@ function validateFile(
   const maxBytes = importMaxBytes(mode, file.name);
   if (file.size > maxBytes) {
     return t("fileTooLarge", {
-      size: formatBytes(file.size),
-      limit: formatBytes(maxBytes),
+      size: formatBytes(file.size, locale),
+      limit: formatBytes(maxBytes, locale),
     });
   }
   if (file.size === 0) {
@@ -421,7 +422,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
   };
 
   const stageFile = (file: File, mode: ImportMode) => {
-    const error = validateFile(file, mode, t);
+    const error = validateFile(file, mode, t, locale);
     if (error) {
       toast.error(error);
       return;
@@ -526,7 +527,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
               </div>
               <div className="text-muted-foreground text-xs leading-5">
                 {t(`sources.${state.pending.mode}.title`)} ·{" "}
-                {formatBytes(state.pending.file.size)}
+                {formatBytes(state.pending.file.size, locale)}
               </div>
             </div>
           </div>
@@ -567,7 +568,7 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
             <p className="text-muted-foreground text-xs leading-5">
               {t(`sources.${source}.hint`)}{" "}
               {t("upTo", {
-                size: formatBytes(IMPORT_SOURCES[source].maxBytes),
+                size: formatBytes(IMPORT_SOURCES[source].maxBytes, locale),
               })}
             </p>
           </div>

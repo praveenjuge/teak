@@ -27,7 +27,10 @@
     "commandDialog": {
       "title": "Paleta de comandos",
       "description": "Busque un comando para ejecutarlo"
-    }
+    },
+    "resizeSidebar": "Cambiar el tamaño de la barra lateral",
+    "expandSidebar": "Expandir barra lateral",
+    "resizeSidebarHint": "Arrastre para cambiar el tamaño; doble clic para restablecerlo"
   },
   "settings": {
     "footer": {
@@ -1138,6 +1141,17 @@
       "nothingToRevisit": "No hay nada que repasar aquí",
       "saveAsSmartFolder": "Guardar como carpeta inteligente…",
       "reshuffle": "Volver a mezclar"
+    },
+    "dates": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "thisWeek": "Esta semana",
+      "lastWeek": "La semana pasada",
+      "thisMonth": "Este mes",
+      "lastMonth": "El mes pasado",
+      "thisYear": "Este año",
+      "lastYear": "El año pasado",
+      "lastWeekday": "El {day} pasado"
     }
   },
   "commandPalette": {
@@ -1172,7 +1186,8 @@
       "searchFailed": "No se pudieron buscar tarjetas",
       "searchAll": "Buscar «{query}» en todo",
       "untitled": "Tarjeta sin título"
-    }
+    },
+    "resultsLabel": "Sugerencias"
   },
   "shortcuts": {
     "groups": {

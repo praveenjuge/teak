@@ -70,6 +70,23 @@ const pseudoElements = (
     return element;
   });
 
+// The text a reader sees: literals, tag contents, and one branch of each
+// plural or select (`other`), not the ICU syntax around them.
+const visibleLength = (elements: MessageFormatElement[]): number =>
+  elements.reduce((length, element) => {
+    if (element.type === TYPE.literal) {
+      return length + element.value.length;
+    }
+    if (element.type === TYPE.tag) {
+      return length + visibleLength(element.children);
+    }
+    if (element.type === TYPE.plural || element.type === TYPE.select) {
+      const branch = element.options.other ?? Object.values(element.options)[0];
+      return length + (branch ? visibleLength(branch.value) : 0);
+    }
+    return length;
+  }, 0);
+
 /**
  * One message in the pseudo-locale: letters accented, about 40% longer, and
  * wrapped in brackets, so text that skipped the catalog stands out.
@@ -78,7 +95,7 @@ const pseudoElements = (
 export const pseudoLocalize = (message: string): string => {
   const ast = parse(message, { ignoreTag: false });
   const printed = printAST(pseudoElements(ast));
-  const padding = "~".repeat(Math.max(1, Math.round(message.length * 0.4)));
+  const padding = "~".repeat(Math.max(1, Math.round(visibleLength(ast) * 0.4)));
   return `[${printed} ${padding}]`;
 };
 

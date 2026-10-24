@@ -21,8 +21,10 @@ const isLocale = (value: string): value is Locale =>
  */
 export function LanguageRow({ locale, onChange, pending }: LanguageSetting) {
   const t = useTranslations("settings.language");
-  // The development pseudo-locale isn't a choice; show English for it.
-  const value = isLocale(locale) ? locale : "en";
+  // The development pseudo-locale isn't a choice: it reads as English, and
+  // nothing is selected, so picking English turns it off.
+  const selected = isLocale(locale) ? locale : "";
+  const value = selected || "en";
   return (
     <div className="flex min-w-0 flex-col items-end gap-1">
       <div className="flex items-center gap-2 px-2.5">
@@ -34,10 +36,12 @@ export function LanguageRow({ locale, onChange, pending }: LanguageSetting) {
               onChange(next);
             }
           }}
-          value={value}
+          value={selected}
         >
           <SelectTrigger aria-label={t("label")} size="sm">
-            <SelectValue>{LOCALE_NAMES[value].native}</SelectValue>
+            <SelectValue placeholder={LOCALE_NAMES.en.native}>
+              {LOCALE_NAMES[value].native}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent align="end">
             {SUPPORTED_LOCALES.map((option) => (
