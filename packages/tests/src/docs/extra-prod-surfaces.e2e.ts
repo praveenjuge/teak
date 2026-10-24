@@ -208,6 +208,27 @@ for (const [index, probe] of probes.entries()) {
   });
 }
 
+interface AmoAddon {
+  current_version?: { version: string };
+  guid: string;
+  slug: string;
+  status: string;
+}
+
+// The listing page answers scripted requests with a bot challenge, so this
+// reads AMO's public API. It answers 401 until the add-on has a public version.
+test("extra Firefox add-on is listed on AMO at the slug the docs link to", async () => {
+  const response = await fetchWithNetworkRetry(
+    "https://addons.mozilla.org/api/v5/addons/addon/teak/"
+  );
+  expect(response.status, "the listing is public").toBe(200);
+  const addon = (await response.json()) as AmoAddon;
+  expect(addon.guid).toBe("teak@teakvault.com");
+  expect(addon.slug).toBe("teak");
+  expect(addon.status).toBe("public");
+  expect(addon.current_version?.version ?? "").toMatch(/^\d+\.\d+\.\d+$/);
+});
+
 interface SkillsIndex {
   skills: { digest: string; name: string; type: string; url: string }[];
 }
