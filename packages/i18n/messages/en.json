@@ -1,0 +1,76 @@
+{
+  "common": {
+    "add": "Add",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "continue": "Continue",
+    "copy": "Copy",
+    "copied": "Copied",
+    "delete": "Delete",
+    "done": "Done",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "more": "More",
+    "remove": "Remove",
+    "rename": "Rename",
+    "retry": "Retry",
+    "save": "Save",
+    "saving": "Saving…",
+    "tryAgain": "Try again",
+    "undo": "Undo"
+  },
+  "settings": {
+    "footer": {
+      "feedback": "Let me know <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> if you have any feedback. If you ever want to leave, you can <deleteAccount>delete your account</deleteAccount>. Hope you enjoy using Teak as much as I enjoyed creating it.",
+      "signature": "Praveen Juge Signature"
+    }
+  },
+  "errors": {
+    "folders": {
+      "DUPLICATE_NAME": "A folder with this name already exists",
+      "EMPTY_NAME": "Name the folder",
+      "NAME_TOO_LONG": "Folder names can be at most {max} characters",
+      "TOO_MANY_FOLDERS": "You can have up to {max} folders",
+      "TOO_MANY_FOLDERS_ON_CARD": "A card can be in up to {max} folders",
+      "NOT_FOUND": "Folder not found",
+      "EMPTY_QUERY": "Add a search for the smart folder",
+      "QUERY_TOO_LONG": "Smart folder searches can be at most {max} characters",
+      "SMART_FOLDER_IN_QUERY": "A smart folder's search can't use another smart folder",
+      "SMART_FOLDER_MEMBERSHIP": "Cards can't be added to a smart folder; it shows the cards that match its search",
+      "QUERY_ON_MANUAL_FOLDER": "Only smart folders have a search",
+      "SMART_FOLDER_TRASH": "Smart folders don't show Trash. To search for the word, put it in quotes"
+    },
+    "tags": {
+      "EMPTY_NAME": "Name the tag",
+      "NAME_TOO_LONG": "Tags can be at most {max} characters",
+      "NOT_FOUND": "Tag not found",
+      "SAME_TAG": "Choose a different tag to merge into",
+      "OPERATION_RUNNING": "Another tag change is still running",
+      "OPERATION_NOT_FOUND": "Tag operation not found"
+    },
+    "thumbnails": {
+      "rateLimited": "You've changed a lot of images. Try again in a minute.",
+      "tooLarge": "Images must be under 20 MB.",
+      "unreadable": "This image couldn't be read.",
+      "unsupported": "Use a JPEG, PNG, WebP, GIF or AVIF image."
+    },
+    "cards": {
+      "CARD_LIMIT_REACHED": "Card limit reached. Please upgrade to Pro for unlimited cards.",
+      "CONTENT_TOO_LARGE": "Text card content must not exceed 512 KiB when encoded as UTF-8.",
+      "INVALID_UTF8": "Markdown uploads must contain valid UTF-8 text.",
+      "RATE_LIMITED": "Too many cards created. Please wait a moment and try again.",
+      "FILE_TOO_LARGE": "File is too large. Maximum file size is 100MB.",
+      "TOO_MANY_FILES": "Too many files selected. You can upload up to {max} files at a time.",
+      "UNSUPPORTED_TYPE": "Unsupported file type. Please upload an image, video, audio, or document.",
+      "TYPE_MISMATCH": "Uploaded file does not match the selected type."
+    },
+    "pdfs": {
+      "IN_PROGRESS": "This PDF is already being saved. Try again in a moment.",
+      "NO_PDF": "This card has no PDF to save.",
+      "NOT_FOUND": "Card not found",
+      "RATE_LIMITED": "You're saving quickly. Try again in a minute.",
+      "TRASHED": "Restore this card from Trash before saving its PDF."
+    }
+  }
+}

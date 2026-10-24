@@ -1,16 +1,20 @@
+import { LOCALE_COOKIE, loadMessages } from "@teak/i18n";
 import {
   type NoUserInfo,
   type UserInfo,
   withAuth,
 } from "@workos-inc/authkit-nextjs";
+import { cookies } from "next/headers";
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { GlobalFileDropProvider } from "@/components/providers/GlobalFileDropProvider";
+import { localeFromCookie } from "@/lib/locale";
 import { readSidebarCookies } from "../app-shell/AppShellFrame";
 import { AppShellSkeleton } from "../app-shell/AppShellSkeleton";
 import { WebMcpTools } from "../app-shell/WebMcpTools";
 import { AuthUnavailable } from "./AuthUnavailable";
 import ConvexClientProvider from "./ConvexClientProvider";
+import { LocaleProvider } from "./LocaleProvider";
 import { WorkosAuthBoundary } from "./WorkosAuthBoundary";
 
 export default async function AuthenticatedAppProvider({
@@ -28,14 +32,18 @@ export default async function AuthenticatedAppProvider({
   }
 
   const sidebar = await readSidebarCookies();
+  const locale = localeFromCookie((await cookies()).get(LOCALE_COOKIE)?.value);
+  const messages = await loadMessages(locale);
   return (
-    <ConvexClientProvider initialAuth={initialAuth}>
-      <WorkosAuthBoundary loading={<AppShellSkeleton {...sidebar} />}>
-        <WebMcpTools />
-        <GlobalFileDropProvider upgradeUrl="/settings">
-          {children}
-        </GlobalFileDropProvider>
-      </WorkosAuthBoundary>
-    </ConvexClientProvider>
+    <LocaleProvider initialLocale={locale} initialMessages={messages}>
+      <ConvexClientProvider initialAuth={initialAuth}>
+        <WorkosAuthBoundary loading={<AppShellSkeleton {...sidebar} />}>
+          <WebMcpTools />
+          <GlobalFileDropProvider upgradeUrl="/settings">
+            {children}
+          </GlobalFileDropProvider>
+        </WorkosAuthBoundary>
+      </ConvexClientProvider>
+    </LocaleProvider>
   );
 }

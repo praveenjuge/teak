@@ -1,0 +1,51 @@
+engine biome(1.0)
+language js(typescript, jsx)
+
+// Words people read come from the @teak/i18n catalog (.agents/i18n.md).
+// noJsxLiterals covers text between tags; this covers the attributes,
+// toasts and locale literals it can't see.
+
+// "Teak" is the product's name in every language.
+pattern words() {
+  and { r"(?s).*[A-Za-z]{2,}.*", not r"[\x22'`]?Teak[\x22'`]?" }
+}
+
+pattern read_aloud_attribute() {
+  or { `aria-label`, `aria-description`, `placeholder`, `title`, `alt` }
+}
+
+pattern string_with_words() {
+  or {
+    JsxString() as $s where { $s <: words() },
+    JsStringLiteralExpression() as $s where { $s <: words() },
+    JsTemplateExpression() as $s where { $s <: words() }
+  }
+}
+
+pattern attribute_with_words() {
+  JsxAttribute(name=$name, initializer=$value) where {
+    $name <: read_aloud_attribute(),
+    $value <: contains string_with_words()
+  }
+}
+
+pattern toast_with_words() {
+  or {
+    `toast($message)`,
+    `toast($message, $_)`,
+    `toast.$method($message)`,
+    `toast.$method($message, $_)`
+  } where { $message <: string_with_words() }
+}
+
+pattern fixed_locale() {
+  JsStringLiteralExpression() as $s where { $s <: r"[\x22']en-US[\x22']" }
+}
+
+or {
+  attribute_with_words(),
+  toast_with_words(),
+  fixed_locale()
+} as $match where {
+  register_diagnostic(span=$match, message="Text people read comes from the @teak/i18n catalog: use t() from useTranslations (see .agents/i18n.md). For dates and numbers, pass useIntlLocale() to Intl instead of a fixed locale.", severity="warn")
+}
