@@ -274,11 +274,14 @@ function SuggestedTags({
                   type="button"
                 >
                   <Plus aria-hidden="true" className="size-3 shrink-0" />
-                  <span className="truncate">{tag}</span>
+                  <span className="truncate" dir="auto">
+                    {tag}
+                  </span>
                 </button>
               ) : (
                 <button
                   className="truncate hover:text-foreground hover:underline hover:underline-offset-2"
+                  dir="auto"
                   onClick={() => onTagClick?.(tag)}
                   title={t("teakTagHint", { tag })}
                   type="button"

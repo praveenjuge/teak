@@ -2,8 +2,10 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { readCardTranscript } from "../card/textContents";
 import { DEV_SEED_CARDS } from "../devSeed";
+import { AI_LANGUAGE_CASES, AI_LANGUAGES_TAG } from "../devSeed/aiLanguages";
 import {
   CARD_DETAILS_SCENARIO_CARDS,
   TAGS_CASE_SCENARIO_CARDS,
@@ -1179,6 +1181,60 @@ describe("devSeed folder packs", () => {
         rssOnly?.url ?? ""
       )
     ).toBe("https://shows.example.com/field-notes/feed.xml");
+  });
+
+  test("ai-languages seeds notes and links to process, once, and reports them", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const args = { workosUserId: WORKOS_USER_ID, scenario: "ai-languages" };
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "seeded",
+      cards: AI_LANGUAGE_CASES.length,
+    });
+    expect(await t.mutation(internal.devSeed.seedScenario, args)).toEqual({
+      status: "already_seeded",
+      cards: 0,
+    });
+    const cards = (await cardsOf(t)).filter((card) =>
+      card.tags?.includes(AI_LANGUAGES_TAG)
+    );
+    expect(cards).toHaveLength(AI_LANGUAGE_CASES.length);
+    // Every card waits for real AI processing, with no AI output yet.
+    for (const card of cards) {
+      expect(card.processingStatus?.metadata?.status).toBe("pending");
+      expect(card.aiSummary).toBeUndefined();
+      expect(card.aiLanguage).toBeUndefined();
+    }
+    expect(new Set(AI_LANGUAGE_CASES.map((entry) => entry.expected))).toEqual(
+      new Set(["ja", "es", "de", "ko", "zh", "hi", "ar", "en", "fr", "pt"])
+    );
+
+    // Once processing has written a language, the report pairs it with
+    // the language the card should have.
+    const japanese = cards.find((card) => card.content.startsWith("来週"));
+    await t.run((ctx) =>
+      ctx.db.patch("cards", japanese?._id as Id<"cards">, {
+        aiLanguage: "ja",
+        aiSummary: "京都の町歩きの予定。",
+      })
+    );
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    const report: { label: string }[] = await t.query(
+      internal.devSeed.aiLanguages.report,
+      { workosUserId: WORKOS_USER_ID }
+    );
+    expect(report).toHaveLength(AI_LANGUAGE_CASES.length);
+    expect(report.find((row) => row.label === "ja-kyoto")).toMatchObject({
+      aiLanguage: "ja",
+      aiSummary: "京都の町歩きの予定。",
+      expected: "ja",
+      type: "text",
+    });
+    expect(report.find((row) => row.label === "fr-eiffel")).toMatchObject({
+      aiLanguage: null,
+      expected: "fr",
+      type: "link",
+    });
   });
 
   test("locale-switch sets the account's language to German", async () => {

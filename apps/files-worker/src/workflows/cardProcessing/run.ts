@@ -114,7 +114,12 @@ export type CardProcessingResult =
       classification: { confidence: number; type: string };
       metadata: Pick<
         MetadataResult,
-        "aiTagsCount" | "hasSummary" | "hasTranscript" | "mode"
+        | "aiLanguage"
+        | "aiPromptVersion"
+        | "aiTagsCount"
+        | "hasSummary"
+        | "hasTranscript"
+        | "mode"
       >;
       mode: "completed";
       renderables?: { thumbnailGenerated: boolean };
@@ -406,6 +411,7 @@ const processCard = async (
   await step
     .do("emit completion", NO_RETRY("1 minute"), async () => {
       await emitCardProcessingCompleted(job.env, {
+        ...(metadata?.aiLanguage ? { aiLanguage: metadata.aiLanguage } : {}),
         cardType,
         durationMs: Math.max(0, Date.now() - initial.creationTime),
       });
@@ -439,6 +445,10 @@ const completedResult = (
     type: cardType,
   },
   metadata: {
+    ...(metadata?.aiLanguage ? { aiLanguage: metadata.aiLanguage } : {}),
+    ...(metadata?.aiPromptVersion
+      ? { aiPromptVersion: metadata.aiPromptVersion }
+      : {}),
     aiTagsCount: metadata?.aiTagsCount ?? 0,
     hasSummary: metadata?.hasSummary ?? false,
     hasTranscript: metadata?.hasTranscript ?? false,

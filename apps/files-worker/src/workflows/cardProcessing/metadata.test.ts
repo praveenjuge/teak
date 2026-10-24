@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
+  AI_METADATA_PROMPT_VERSION,
   buildLinkMetadataPrompt,
   type FilesOp,
   MAX_AI_METADATA_INPUT_CHARS,
@@ -51,7 +52,7 @@ const processedAudio = (text: string, durationSeconds = 3) => ({
   },
 });
 
-let aiResult: { summary: string; tags: string[] };
+let aiResult: { language?: string; summary: string; tags: string[] };
 let aiError: "capacity" | "invalid" | null;
 let aiPrompts: string[];
 let dataPoints: AnalyticsEngineDataPoint[];
@@ -249,6 +250,7 @@ describe("generating metadata", () => {
     const result = await generate("text");
 
     expect(result).toEqual({
+      aiPromptVersion: AI_METADATA_PROMPT_VERSION,
       aiTagsCount: 2,
       cardType: "text",
       confidence: 0.95,
@@ -261,6 +263,87 @@ describe("generating metadata", () => {
       aiTags: ["word", "design"],
       processingStatus: { metadata: { status: "completed" } },
     });
+  });
+
+  test("a Japanese note saves its language beside its tags and summary", async () => {
+    aiResult = {
+      language: "ja",
+      summary: "東京のデザイン展についてのメモ。",
+      tags: ["デザイン", "東京", "展覧会"],
+    };
+    const { generate, saved } = setup({
+      content: "来週、東京でデザイン展を見に行く。",
+    });
+    expect(await generate("text")).toMatchObject({
+      aiLanguage: "ja",
+      aiPromptVersion: AI_METADATA_PROMPT_VERSION,
+    });
+    expect(saved()).toMatchObject({
+      aiLanguage: "ja",
+      aiSummary: "東京のデザイン展についてのメモ。",
+      aiTags: ["デザイン", "東京", "展覧会"],
+    });
+  });
+
+  test.each([
+    ["no language", undefined],
+    ["a country code", "us"],
+  ])("an answer with %s saves no language", async (_name, language) => {
+    aiResult = {
+      summary: "A note.",
+      tags: ["note"],
+      ...(language ? { language } : {}),
+    };
+    const { generate, saved } = setup({ content: "A note." });
+    expect(await generate("text")).not.toHaveProperty("aiLanguage");
+    expect(saved()).toMatchObject({ aiSummary: "A note." });
+    expect(saved()).not.toHaveProperty("aiLanguage");
+  });
+
+  test("a Convex from before aiLanguage still gets the tags and summary", async () => {
+    aiResult = { language: "es", summary: "Una nota.", tags: ["nota"] };
+    const writes: Record<string, unknown>[] = [];
+    const { generate } = setup(
+      { content: "Una nota." },
+      {},
+      {},
+      {
+        "workflows/aiMetadata/mutations:updateCardAI": (args) => {
+          writes.push(args);
+          if ("aiLanguage" in args) {
+            throw new Error(
+              "ArgumentValidationError: Object contains extra field `aiLanguage` that is not in the validator."
+            );
+          }
+          return true;
+        },
+      }
+    );
+    expect((await generate("text")).mode).toBe("completed");
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toMatchObject({
+      aiSummary: "Una nota.",
+      aiTags: ["nota"],
+    });
+    expect(writes[1]).not.toHaveProperty("aiLanguage");
+  });
+
+  test("any other refused write is not sent again", async () => {
+    aiResult = { language: "es", summary: "Una nota.", tags: ["nota"] };
+    let calls = 0;
+    const { generate } = setup(
+      { content: "Una nota." },
+      {},
+      {},
+      {
+        "workflows/aiMetadata/mutations:updateCardAI": () => {
+          calls += 1;
+          throw new Error("Server busy");
+        },
+      }
+    );
+    await expect(generate("text")).rejects.toThrow("Server busy");
+    expect(calls).toBe(1);
   });
 
   test("a note's [[…]] links reach the model as their titles", async () => {
@@ -557,6 +640,45 @@ describe("generating metadata", () => {
         expect(saved()?.visualStyles).toEqual(["abstract"]);
       });
 
+      test("an image's language comes from the op, checked again", async () => {
+        const answer = (language: string): OpAnswer => ({
+          data: {
+            language,
+            summary: "駅の出口の看板。",
+            tags: ["駅", "看板"],
+            text: "東京駅 出口",
+          },
+        });
+        const signage = setup(imageCard, {
+          "generate-image-metadata": answer("ja"),
+        });
+        await signage.generate("image");
+        expect(signage.saved()).toMatchObject({
+          aiLanguage: "ja",
+          aiTags: ["駅", "看板"],
+        });
+        const odd = setup(imageCard, {
+          "generate-image-metadata": answer("Japanese"),
+        });
+        await odd.generate("image");
+        expect(odd.saved()).not.toHaveProperty("aiLanguage");
+      });
+
+      test("styles alone carry no language", async () => {
+        const { generate, saved } = setup(imageCard, {
+          "generate-image-metadata": {
+            data: {
+              language: "en",
+              summary: "",
+              tags: [],
+              visualStyles: clefStyles(["abstract"]),
+            },
+          },
+        });
+        expect(await generate("image")).not.toHaveProperty("aiLanguage");
+        expect(saved()).not.toHaveProperty("aiLanguage");
+      });
+
       test("videos keep styles from their thumbnail", async () => {
         const { fakes, generate, saved } = setup(
           { thumbnailKey: "t1" },
@@ -658,7 +780,11 @@ describe("generating metadata", () => {
   describe("audio", () => {
     test("its transcript is stored and described; the step returns facts only", async () => {
       const transcript = "spoken text ".repeat(4000);
-      aiResult = { summary: "Audio content", tags: ["speech"] };
+      aiResult = {
+        language: "es",
+        summary: "Una nota de voz.",
+        tags: ["reunión"],
+      };
       const { fakes, generate, saved } = setup(
         {
           fileKey: "users/x/cards/c/file/a.mp3",
@@ -668,11 +794,14 @@ describe("generating metadata", () => {
       );
       const result = await generate("audio");
       expect(saved()).toMatchObject({
-        aiSummary: "Audio content",
-        aiTags: ["speech"],
+        aiLanguage: "es",
+        aiSummary: "Una nota de voz.",
+        aiTags: ["reunión"],
         aiTranscript: transcript,
       });
       expect(result).toEqual({
+        aiLanguage: "es",
+        aiPromptVersion: AI_METADATA_PROMPT_VERSION,
         aiTagsCount: 1,
         cardType: "audio",
         confidence: 0.85,
@@ -795,6 +924,29 @@ describe("generating metadata", () => {
       expect(aiPrompts[0]).toContain("Title: Example Site");
       expect(aiPrompts[0]).toContain("URL: https://example.com");
       expect(saved()).toMatchObject({ aiTags: ["website"] });
+    });
+
+    test("a French page is summarized with its language", async () => {
+      aiResult = {
+        language: "fr",
+        summary: "Une page sur la tour Eiffel.",
+        tags: ["paris", "monument"],
+      };
+      const { generate, saved } = setup({
+        metadata: {
+          linkPreview: {
+            description: "La tour Eiffel est une tour de fer puddlé.",
+            status: "success",
+            title: "Tour Eiffel",
+          },
+        },
+        url: "https://fr.wikipedia.org/wiki/Tour_Eiffel",
+      });
+      expect((await generate("link")).aiLanguage).toBe("fr");
+      expect(saved()).toMatchObject({
+        aiLanguage: "fr",
+        aiSummary: "Une page sur la tour Eiffel.",
+      });
     });
 
     test("reads the site's summary that categorization kept", async () => {

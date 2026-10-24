@@ -237,6 +237,14 @@ Operation request bodies are limited to 1 MiB before signature verification.
   Workers AI (Gemma multimodal) with the same system prompt, JSON output
   shape, and bounded validation retries as the pipeline it replaced; image
   bytes never leave the worker (`src/images/imageMetadata.ts`).
+- `generate-text-metadata`, `generate-link-metadata` and
+  `generate-image-metadata` write the tags and summary in the content's main
+  language (an image's: the language of its text, or English when it has
+  none) and answer that `language` as a BCP 47 primary tag, normalized by
+  `normalizeAiLanguage` (`packages/files-protocol/src/metadata.ts`); a
+  missing or invalid one is dropped, never retried. Card processing saves it
+  as `cards.aiLanguage` with the tags and summary, and records it and
+  `AI_METADATA_PROMPT_VERSION` in the `generate metadata` step's result.
 - `store-onboarding-files` copies a new account's getting-started files into
   R2 at the keys Convex names (at most 32), with the content type Convex gives,
   and answers each object's size (`src/storage/onboardingFiles.ts`). The files ship

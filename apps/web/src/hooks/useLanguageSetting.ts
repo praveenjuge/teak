@@ -13,11 +13,13 @@ import {
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocaleSwitch } from "@/components/providers/LocaleProvider";
 import { TOAST_IDS, UNDO_TOAST_DURATION_MS } from "@/constants/toast";
 import { setPostHogPersonProperties } from "@/lib/posthog-client";
+
+const languageToastId = (count: number) => `${TOAST_IDS.language}-${count}`;
 
 export interface LanguageSetting {
   locale: UiLocale;
@@ -35,6 +37,9 @@ export function useLanguageSetting(): LanguageSetting | null {
   const setLocale = useMutation(api.settings.preferences.setLocale);
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  // Undo dismisses its own toast, so each change gets a fresh id; reusing
+  // the dismissed one would hide the confirmation.
+  const toastCount = useRef(0);
 
   const change = useCallback(
     async (next: Locale, from: UiLocale) => {
@@ -62,8 +67,10 @@ export function useLanguageSetting(): LanguageSetting | null {
         withEnglishFallback(await loadMessages(next))
       );
       const undoTo = isSupportedLocale(from) ? from : null;
+      toast.dismiss(languageToastId(toastCount.current));
+      toastCount.current += 1;
       toast.success(tNext("settings.language.changed"), {
-        id: TOAST_IDS.language,
+        id: languageToastId(toastCount.current),
         duration: UNDO_TOAST_DURATION_MS,
         action: undoTo
           ? {

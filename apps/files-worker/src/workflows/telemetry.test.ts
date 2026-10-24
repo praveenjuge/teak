@@ -45,6 +45,23 @@ describe("card processing completion", () => {
     ]);
   });
 
+  test("adds the language AI wrote in, when there is one", async () => {
+    const events = capturePostHog();
+    await emitCardProcessingCompleted(ENV, {
+      aiLanguage: "ja",
+      cardType: "text",
+      durationMs: 900,
+    });
+    await emitCardProcessingCompleted(ENV, {
+      cardType: "image",
+      durationMs: 1,
+    });
+    expect(events.map((event) => event.properties.ai_language)).toEqual([
+      "ja",
+      undefined,
+    ]);
+  });
+
   test("sends nothing without a project token", async () => {
     const events = capturePostHog();
     await emitCardProcessingCompleted({}, { cardType: "text", durationMs: 1 });

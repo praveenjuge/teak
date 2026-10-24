@@ -12,6 +12,7 @@ import {
 
 export interface ExportableCard {
   _id: string;
+  aiLanguage?: string;
   aiSummary?: string;
   aiTags?: string[];
   colors?: Array<{
@@ -66,6 +67,8 @@ export interface SerializedCardFile {
 }
 
 export interface SerializedCard {
+  /** The language AI wrote `aiSummary` and `aiTags` in (`ja`, `es`), when known. */
+  aiLanguage?: string;
   /** Present when AI wrote a summary (schema v2). */
   aiSummary?: string;
   /** Tags AI added, apart from the user's own `tags` (schema v2). */
@@ -185,6 +188,10 @@ export function serializeCard(
   const summary = nonEmpty(card.aiSummary);
   if (summary !== undefined) {
     serialized.aiSummary = summary;
+  }
+  const aiLanguage = nonEmpty(card.aiLanguage);
+  if (aiLanguage !== undefined) {
+    serialized.aiLanguage = aiLanguage;
   }
 
   if (Array.isArray(card.colors) && card.colors.length > 0) {

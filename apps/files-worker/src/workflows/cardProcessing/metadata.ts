@@ -15,6 +15,7 @@ import {
   type VideoCaptions,
 } from "@teak/convex/workflows/steps/captions/index";
 import {
+  AI_METADATA_PROMPT_VERSION,
   buildLinkMetadataPrompt,
   isScannedPdf,
   MAX_AI_METADATA_INPUT_CHARS,
@@ -27,6 +28,7 @@ import {
   generateTextMetadata,
   isAiMetadataDeferredError,
   isAiProviderCapacityError,
+  saveCardAi,
 } from "./aiMetadata";
 import {
   type CardDoc,
@@ -149,6 +151,10 @@ const linkSiteSummary = async (
 };
 
 export interface MetadataResult {
+  /** The language of the saved tags and summary, when the model gave one. */
+  aiLanguage?: string;
+  /** `AI_METADATA_PROMPT_VERSION` of the prompts that wrote them. */
+  aiPromptVersion?: number;
   aiTagsCount: number;
   cardType?: string;
   confidence: number;
@@ -172,6 +178,7 @@ export interface MetadataOptions {
 }
 
 interface Generated {
+  aiLanguage?: string;
   aiOcrText?: string;
   aiSummary: string;
   aiTags: string[];
@@ -525,6 +532,7 @@ export const generateCardMetadata = async (
         return await deferToBackfill(job, options);
       }
       const {
+        aiLanguage,
         aiOcrText,
         aiSummary,
         aiTags,
@@ -541,28 +549,29 @@ export const generateCardMetadata = async (
       ) {
         return await completeWithoutAi(job, { aiOcrText, ocrChecked });
       }
-      const saved = await job.deps.convex.mutation(
-        internal.workflows.aiMetadata.mutations.updateCardAI,
-        {
-          cardId: job.cardId,
-          processingStatus: {
-            metadata: stageCompleted(Date.now(), confidence),
-          },
-          ...(aiTags.length > 0 ? { aiTags } : {}),
-          ...(aiSummary ? { aiSummary } : {}),
-          ...(aiTranscript ? { aiTranscript } : {}),
-          ...(aiOcrText ? { aiOcrText } : {}),
-          ...(ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
-          ...(isVisualStyleCardType(type) && visualStyles?.length
-            ? { visualStyles }
-            : {}),
+      const writesText = aiTags.length > 0 || Boolean(aiSummary);
+      const language = writesText && aiLanguage ? { aiLanguage } : {};
+      const saved = await saveCardAi(job, {
+        cardId: job.cardId,
+        processingStatus: {
+          metadata: stageCompleted(Date.now(), confidence),
         },
-        guardOf(job)
-      );
+        ...(aiTags.length > 0 ? { aiTags } : {}),
+        ...(aiSummary ? { aiSummary } : {}),
+        ...language,
+        ...(aiTranscript ? { aiTranscript } : {}),
+        ...(aiOcrText ? { aiOcrText } : {}),
+        ...(ocrChecked ? { ocrCheckedAt: Date.now() } : {}),
+        ...(isVisualStyleCardType(type) && visualStyles?.length
+          ? { visualStyles }
+          : {}),
+      });
       if (saved === false) {
         return nothing("skipped");
       }
       return {
+        ...language,
+        aiPromptVersion: AI_METADATA_PROMPT_VERSION,
         aiTagsCount: aiTags.length,
         cardType: type,
         confidence,

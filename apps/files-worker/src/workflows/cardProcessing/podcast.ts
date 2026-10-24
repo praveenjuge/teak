@@ -4,7 +4,12 @@ import { resolveEnclosure } from "@teak/convex/workflows/steps/podcast/resolveEn
 import { runWithAiUsage } from "../../ai/aiUsage";
 import { gatedEnv } from "../filesOps";
 import type { WorkflowTelemetry } from "../telemetry";
-import { generateLinkMetadata, sanitizeTranscript } from "./aiMetadata";
+import {
+  type GeneratedMetadata,
+  generateLinkMetadata,
+  sanitizeTranscript,
+  saveCardAi,
+} from "./aiMetadata";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -226,7 +231,7 @@ export const transcribeFoundEpisode = async (
         if (!transcript) {
           return miss("no_speech");
         }
-        let generated: { aiSummary?: string; aiTags?: string[] } = {};
+        let generated: Partial<GeneratedMetadata> = {};
         try {
           const content = buildLinkContentParts(card, undefined, transcript);
           const result = await generateLinkMetadata(
@@ -235,7 +240,7 @@ export const transcribeFoundEpisode = async (
             content.join("\n"),
             url
           );
-          generated = { aiSummary: result.aiSummary, aiTags: result.aiTags };
+          generated = result;
         } catch (error) {
           // The transcript is kept; the summary from the page stays.
           console.warn("[cardProcessing/podcast] summary not regenerated", {
@@ -243,16 +248,18 @@ export const transcribeFoundEpisode = async (
             message: error instanceof Error ? error.message : String(error),
           });
         }
-        await job.deps.convex.mutation(
-          internal.workflows.aiMetadata.mutations.updateCardAI,
-          {
-            aiTranscript: transcript,
-            cardId: job.cardId,
-            ...(generated.aiSummary ? { aiSummary: generated.aiSummary } : {}),
-            ...(generated.aiTags?.length ? { aiTags: generated.aiTags } : {}),
-          },
-          guardOf(job)
+        const writesText = Boolean(
+          generated.aiSummary || generated.aiTags?.length
         );
+        await saveCardAi(job, {
+          aiTranscript: transcript,
+          cardId: job.cardId,
+          ...(generated.aiSummary ? { aiSummary: generated.aiSummary } : {}),
+          ...(generated.aiTags?.length ? { aiTags: generated.aiTags } : {}),
+          ...(writesText && generated.aiLanguage
+            ? { aiLanguage: generated.aiLanguage }
+            : {}),
+        });
         return { transcribed: true } as const;
       }
     );
