@@ -5,7 +5,7 @@
 
 import { cardProcessingInstanceId } from "@teak/files-protocol";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { mergeProcessingStages, stagePending } from "./processingStatus";
 import { patchCardWithSearchSync } from "./searchSync";
