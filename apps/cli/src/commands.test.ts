@@ -954,9 +954,9 @@ describe("teak batch and fallback behavior", () => {
     );
     const again = await teak("cards", "get", "card_a");
     expect(again.stdout).toContain("created: 2026-01-02T03:04:05.000Z");
-    expect(again.stdout).toContain("Saved again 2026-05-06T07:08:09.000Z");
+    expect(again.stdout).toContain("saved again: 2026-05-06T07:08:09.000Z");
     const once = await teak("cards", "get", "card_b");
-    expect(once.stdout).not.toContain("Saved again");
+    expect(once.stdout).not.toContain("saved again");
   });
 
   test("add with only a URL argument sends no duplicate content", async () => {
