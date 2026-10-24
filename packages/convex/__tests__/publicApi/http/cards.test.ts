@@ -1324,7 +1324,7 @@ describe("publicApiHttp card endpoints", () => {
       const originalSecret = process.env.FILES_SIGNING_SECRET;
       process.env.FILES_BASE = "https://files.test";
       process.env.FILES_SIGNING_SECRET = "test-secret";
-      const key = `users/u1/cards/card1/article-text/${await sha256(markdown)}.md`;
+      const key = `users/u1/cards/card1/article-text/r1-${await sha256(markdown)}.md`;
       const imageKey = "users/u1/cards/card1/article-image/rose.webp";
       global.fetch = mock(() => Promise.resolve(new Response(markdown))) as any;
       try {

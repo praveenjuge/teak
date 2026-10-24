@@ -183,34 +183,57 @@ export const articlePlainText = (markdown: string): string =>
 
 const DIGEST = /^[a-f0-9]{64}$/u;
 const CARD_ID = /^[a-z0-9]+$/iu;
+/** `r<rev>-<sha256>`: the run that wrote it, then its content's digest. */
+const OBJECT_NAME = /^r[1-9]\d*-[a-f0-9]{64}$/u;
 
 const contentKey = (
   userKeyPrefix: string,
   cardId: string,
   role: string,
+  rev: number,
   digest: string,
   extension: string
 ): string => {
-  if (!(DIGEST.test(digest) && CARD_ID.test(cardId))) {
+  if (
+    !(
+      DIGEST.test(digest) &&
+      CARD_ID.test(cardId) &&
+      Number.isSafeInteger(rev) &&
+      rev > 0
+    )
+  ) {
     throw new Error("article_invalid_key");
   }
-  return `${userKeyPrefix}/${cardId}/${role}/${digest}.${extension}`;
+  return `${userKeyPrefix}/${cardId}/${role}/r${rev}-${digest}.${extension}`;
 };
 
-/** `<user prefix>/<card>/article-text/<sha256>.md`, named by its content. */
+/**
+ * `<user prefix>/<card>/article-text/r<rev>-<sha256>.md`. The run's number
+ * keeps a name from coming back once it is queued for deletion: the Files
+ * Worker refuses every write to a deleted key.
+ */
 export const articleTextObjectKey = (
   userKeyPrefix: string,
   cardId: string,
+  rev: number,
   digest: string
-): string => contentKey(userKeyPrefix, cardId, ARTICLE_TEXT_ROLE, digest, "md");
+): string =>
+  contentKey(userKeyPrefix, cardId, ARTICLE_TEXT_ROLE, rev, digest, "md");
 
-/** `<user prefix>/<card>/article-image/<sha256>.webp`, named by its content. */
+/** `<user prefix>/<card>/article-image/r<rev>-<sha256>.webp`. */
 export const articleImageObjectKey = (
   userKeyPrefix: string,
   cardId: string,
+  rev: number,
   digest: string
 ): string =>
-  contentKey(userKeyPrefix, cardId, ARTICLE_IMAGE_ROLE, digest, "webp");
+  contentKey(userKeyPrefix, cardId, ARTICLE_IMAGE_ROLE, rev, digest, "webp");
+
+/** The content digest an article object's name carries, or null. */
+export const articleObjectDigest = (key: string): string | null =>
+  /\/article-(?:text|image)\/r[1-9]\d*-([a-f0-9]{64})\.(?:md|webp)$/u.exec(
+    key
+  )?.[1] ?? null;
 
 /** Whether `key` is an article object of `cardId` under `userKeyPrefix`. */
 export const isArticleObjectKey = (
@@ -226,7 +249,8 @@ export const isArticleObjectKey = (
   const name = key.slice(root.length);
   const extension = role === ARTICLE_TEXT_ROLE ? ".md" : ".webp";
   return (
-    name.endsWith(extension) && DIGEST.test(name.slice(0, -extension.length))
+    name.endsWith(extension) &&
+    OBJECT_NAME.test(name.slice(0, -extension.length))
   );
 };
 

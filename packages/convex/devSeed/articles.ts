@@ -379,12 +379,18 @@ export const writeReaderMixObjects = internalAction({
       const textKey = articleTextObjectKey(
         prefix,
         cardId,
+        1,
         await sha256Hex(markdown)
       );
       const imageKeys: string[] = [];
       for (let image = 0; image < (setup.images ?? 0); image += 1) {
         const svg = svgImage(image * 110 + 20, `Image ${image + 1}`);
-        const key = articleImageObjectKey(prefix, cardId, await sha256Hex(svg));
+        const key = articleImageObjectKey(
+          prefix,
+          cardId,
+          1,
+          await sha256Hex(svg)
+        );
         await ctx.runMutation(internal.devSeed.articles.registerSeedObject, {
           key,
           userId,
@@ -510,6 +516,7 @@ export const seedReaderSearchPage = async (
     const textKey = articleTextObjectKey(
       prefix,
       cardId,
+      1,
       index.toString(16).padStart(64, "0")
     );
     const wordCount = countWords(text);

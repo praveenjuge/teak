@@ -1450,11 +1450,13 @@ describe("article steps", () => {
     });
     const [saved] = convex.callsTo("card/articleText:saveArticleText");
     const textKey = saved?.args.textKey as string;
-    expect(textKey).toMatch(/\/k57card0+1\/article-text\/[a-f0-9]{64}\.md$/u);
+    expect(textKey).toMatch(
+      /\/k57card0+1\/article-text\/r1-[a-f0-9]{64}\.md$/u
+    );
     const article = saved?.args.article as { imageKeys: string[] };
     const imageKeys = article.imageKeys;
     expect(imageKeys).toHaveLength(1);
-    expect(imageKeys[0]).toMatch(/\/article-image\/[a-f0-9]{64}\.webp$/u);
+    expect(imageKeys[0]).toMatch(/\/article-image\/r1-[a-f0-9]{64}\.webp$/u);
     expect(saved?.args).toMatchObject({
       article: { byline: "Ada", lang: "en", title: "Gardens", wordCount: 640 },
       charCount: Array.from("Gardens\n\nPlant in spring. A rose").length,
@@ -1559,6 +1561,50 @@ describe("article steps", () => {
       article: "article",
       mode: "archive_only",
     });
+  });
+
+  test("a new run keeps the keys of content it already stored, and names new content for itself", async () => {
+    const card = archivedLink({ processingRev: 1 });
+    const bucket = new FakeBucket();
+    const keysOf = (convex: ReturnType<typeof setup>["convex"]) => {
+      const [saved] = convex.callsTo("card/articleText:saveArticleText");
+      return {
+        image: (saved?.args.article as { imageKeys?: string[] } | undefined)
+          ?.imageKeys?.[0],
+        text: saved?.args.textKey as string,
+      };
+    };
+    const first = setup(
+      card,
+      { "extract-article": anArticle(640) },
+      { articleOnly: true, bucket }
+    );
+    await first.run();
+    const stored = keysOf(first.convex);
+
+    card.processingRev = 2;
+    const same = setup(
+      card,
+      { "extract-article": anArticle(640) },
+      { articleOnly: true, bucket, refresh: true, rev: 2 }
+    );
+    await same.run();
+    expect(keysOf(same.convex)).toEqual(stored);
+    expect(bucket.puts).toHaveLength(2);
+
+    card.processingRev = 3;
+    const changed = anArticle(640) as { data: { markdown: string } };
+    changed.data.markdown = "## Gardens\n\nPlant in autumn.";
+    const edited = setup(
+      card,
+      { "extract-article": changed as OpAnswer },
+      { articleOnly: true, bucket, refresh: true, rev: 3 }
+    );
+    await edited.run();
+    const next = keysOf(edited.convex);
+    expect(next.image).toBe(stored.image);
+    expect(next.text).not.toBe(stored.text);
+    expect(next.text).toMatch(/\/article-text\/r3-[a-f0-9]{64}\.md$/u);
   });
 
   test("a page that isn't an article is recorded as none", async () => {

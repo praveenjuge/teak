@@ -101,9 +101,9 @@ const setup = async () => {
         .collect()
     );
   const textKey = (cardId: Id<"cards">, fill = "a") =>
-    articleTextObjectKey(buildR2UserPrefix("owner"), cardId, digest(fill));
+    articleTextObjectKey(buildR2UserPrefix("owner"), cardId, 1, digest(fill));
   const imageKey = (cardId: Id<"cards">, fill: string) =>
-    articleImageObjectKey(buildR2UserPrefix("owner"), cardId, digest(fill));
+    articleImageObjectKey(buildR2UserPrefix("owner"), cardId, 1, digest(fill));
   const save = async (
     cardId: Id<"cards">,
     {
@@ -234,7 +234,12 @@ describe("saveArticleText", () => {
     ).rejects.toThrow("outside the card's storage");
     await expect(
       attempt(
-        articleTextObjectKey(buildR2UserPrefix("stranger"), link, digest("a"))
+        articleTextObjectKey(
+          buildR2UserPrefix("stranger"),
+          link,
+          1,
+          digest("a")
+        )
       )
     ).rejects.toThrow("outside the card's storage");
   });

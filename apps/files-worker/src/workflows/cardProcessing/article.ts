@@ -6,6 +6,7 @@ import {
   type ArticleFailureReason,
   type ArticleSkip,
   articleImageObjectKey,
+  articleObjectDigest,
   articlePlainText,
   articleSkipReason,
   articleTextObjectKey,
@@ -122,28 +123,30 @@ export const extractArticle = async (job: CardJob): Promise<ArticleOutcome> => {
   }
 
   const prefix = filesCardKeyPrefix(loaded.keyPrefix, card.userId);
-  const textKey = articleTextObjectKey(
-    prefix,
-    card._id,
-    await sha256Hex(result.markdown)
-  );
+  // Content the current article already stored keeps its key and isn't
+  // written again. New content gets a key named for this run, so it never
+  // reuses one an earlier run queued for deletion.
+  const current = card.article?.status === "ready" ? card.article : null;
+  const storedKey = (keys: string[], digest: string) =>
+    keys.find((key) => articleObjectDigest(key) === digest);
+  const textDigest = await sha256Hex(result.markdown);
+  const textKey =
+    storedKey(current ? [current.textKey] : [], textDigest) ??
+    articleTextObjectKey(prefix, card._id, job.rev, textDigest);
   const images = await Promise.all(
     result.images.map(async (image) => {
       const body = fromBase64(image.base64);
+      const digest = await sha256Hex(body.buffer as ArrayBuffer);
       return {
         body,
-        key: articleImageObjectKey(
-          prefix,
-          card._id,
-          await sha256Hex(body.buffer as ArrayBuffer)
-        ),
+        key:
+          storedKey(current?.imageKeys ?? [], digest) ??
+          articleImageObjectKey(prefix, card._id, job.rev, digest),
       };
     })
   );
   const stored = new Set(
-    card.article?.status === "ready"
-      ? [card.article.textKey, ...card.article.imageKeys]
-      : []
+    current ? [current.textKey, ...current.imageKeys] : []
   );
   const bucket = gatedEnv(job.env).BUCKET;
   for (const image of images) {

@@ -11,6 +11,7 @@ import {
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
 import { readBodyWithLimit } from "../linkMetadata/ssrf";
+import { articleObjectDigest } from "../shared/article";
 import { codePointLength } from "../shared/utils/codePoints";
 import { putObjectViaFilesWorker } from "../storage/filesWorkerClient";
 import { getR2Url } from "../storage/fileUrls";
@@ -49,9 +50,7 @@ const digestOfKey = (key: string): string | null =>
 
 /** A document's text or an article's Markdown: both are named by their digest. */
 const digestOfStoredTextKey = (key: string): string | null =>
-  digestOfKey(key) ??
-  /\/article-text\/([a-f0-9]{64})\.md$/.exec(key)?.[1] ??
-  null;
+  digestOfKey(key) ?? articleObjectDigest(key);
 
 export const storeDocumentText = async (
   ctx: Pick<ActionCtx, "runMutation">,
