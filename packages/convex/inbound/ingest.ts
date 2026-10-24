@@ -166,7 +166,12 @@ const createBodyCard = async (
             tags: [EMAIL_TAG],
             type: "text",
           },
-      { source: "email" }
+      // An email with words around its link keeps them as a new card's
+      // notes; only a bare link moves an existing card to the top.
+      {
+        source: "email",
+        ...(plan.kind === "link" && plan.notes ? { skipResave: true } : {}),
+      }
     )
   ).cardId;
 

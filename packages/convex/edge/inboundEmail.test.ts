@@ -329,6 +329,44 @@ describe("POST /inbound/email", () => {
     ]);
   });
 
+  test("a link already in Teak, emailed with a sentence, makes a new card that keeps it", async () => {
+    const { cards, owner, send } = await setup();
+    await owner.mutation(api.inbound.settings.enable, {});
+
+    await send(email({ text: "https://example.com/article" }));
+    await send(
+      email({
+        messageId: "<two@mail.example.test>",
+        text: "Worth a read: https://example.com/article",
+      })
+    );
+
+    const saved = await cards();
+    expect(saved).toHaveLength(2);
+    expect(saved).toContainEqual(
+      expect.objectContaining({ notes: "Worth a read:", type: "link" })
+    );
+  });
+
+  test("a bare link already in Teak, emailed again, moves that card to the top", async () => {
+    const { cards, owner, send } = await setup();
+    await owner.mutation(api.inbound.settings.enable, {});
+
+    await send(email({ text: "https://example.com/article" }));
+    const [first] = await cards();
+    await send(
+      email({
+        messageId: "<two@mail.example.test>",
+        text: "https://example.com/article?utm_source=mail",
+      })
+    );
+
+    const saved = await cards();
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.savedAt).toBeGreaterThanOrEqual(first?.savedAt ?? 0);
+    expect(saved[0]?.updatedAt).toBeGreaterThanOrEqual(first?.updatedAt ?? 0);
+  });
+
   test("mail from an account whose WorkOS identity was deleted is rejected", async () => {
     const { cards, owner, send, t } = await setup();
     await owner.mutation(api.inbound.settings.enable, {});
