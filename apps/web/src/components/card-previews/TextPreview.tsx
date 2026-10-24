@@ -1,8 +1,8 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
-import { Maximize2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { Maximize2 } from "vadivam-react";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import {
   ariaKeyShortcut,

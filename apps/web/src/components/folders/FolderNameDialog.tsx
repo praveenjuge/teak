@@ -12,8 +12,8 @@ import {
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { Check } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { Check } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

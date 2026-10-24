@@ -1,4 +1,12 @@
 import {
+  BookmarkCheck,
+  Check,
+  createElement,
+  type IconNode,
+  LoaderCircle,
+  X,
+} from "vadivam";
+import {
   ENGLISH_INLINE_LABELS,
   type InlineLabels,
   isInlineLabels,
@@ -222,11 +230,11 @@ const PLATFORM_BINDINGS: PlatformBinding[] = [
   },
 ];
 
-const ICONS: Record<Exclude<ButtonState, "idle">, string> = {
-  saving: `<svg class="teak-spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>`,
-  saved: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>`,
-  duplicate: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12l4 4L18 8"/><path d="M4 4h10a1 1 0 0 1 1 1v3" /></svg>`,
-  error: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>`,
+const ICONS: Record<Exclude<ButtonState, "idle">, IconNode> = {
+  saving: LoaderCircle,
+  saved: Check,
+  duplicate: BookmarkCheck,
+  error: X,
 };
 
 // English until the background answers with the UI language's labels.
@@ -405,17 +413,20 @@ const injectStyleTag = () => {
   document.documentElement.append(style);
 };
 
-const getIconMarkup = (state: ButtonState): string => {
+const iconNodes = (state: ButtonState): Node[] => {
   if (state === "idle") {
-    return `<span class="teak-brand-icon" aria-hidden="true">${TEAK_INLINE_SVG_MARKUP}</span>`;
+    const markup = `<span class="teak-brand-icon" aria-hidden="true">${TEAK_INLINE_SVG_MARKUP}</span>`;
+    return [
+      ...new DOMParser().parseFromString(markup, "text/html").body.childNodes,
+    ];
   }
 
-  return ICONS[state];
+  const icon = createElement(ICONS[state], { "aria-hidden": "true" });
+  if (state === "saving") {
+    icon.classList.add("teak-spin");
+  }
+  return [icon];
 };
-
-const iconNodes = (markup: string): Node[] => [
-  ...new DOMParser().parseFromString(markup, "text/html").body.childNodes,
-];
 
 const labelButton = (button: HTMLButtonElement, label: string) => {
   button.setAttribute("aria-label", label);
@@ -428,7 +439,7 @@ const setButtonState = (
   errorMessage?: string
 ) => {
   button.dataset.state = state;
-  button.replaceChildren(...iconNodes(getIconMarkup(state)));
+  button.replaceChildren(...iconNodes(state));
   labelButton(
     button,
     state === "error" && errorMessage

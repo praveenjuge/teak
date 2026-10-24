@@ -1,9 +1,9 @@
 "use client";
 
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { CircleCheck, Download } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { CircleCheck, Download } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatCountdown } from "./importExportFormat";

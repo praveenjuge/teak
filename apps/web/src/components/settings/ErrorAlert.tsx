@@ -1,10 +1,10 @@
 import { useTranslations } from "@teak/i18n/react";
-import type { LucideIcon } from "lucide-react";
-import { AlertCircle } from "lucide-react";
+import type { VadivamIcon } from "vadivam-react";
+import { CircleAlert } from "vadivam-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 interface ErrorAlertProps {
-  icon?: LucideIcon;
+  icon?: VadivamIcon;
   message?: string | null;
   title?: string;
 }
@@ -12,7 +12,7 @@ interface ErrorAlertProps {
 export function ErrorAlert({
   message,
   title,
-  icon: Icon = AlertCircle,
+  icon: Icon = CircleAlert,
 }: ErrorAlertProps) {
   const t = useTranslations("settings.errorAlert");
   if (!message) {

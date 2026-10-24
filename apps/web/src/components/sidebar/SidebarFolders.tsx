@@ -4,17 +4,17 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
+  Ellipsis,
   FolderPlus,
   FolderSearch,
-  MoreHorizontal,
   Palette,
   Pencil,
   Plus,
-  Trash2,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+  Trash,
+} from "vadivam-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -339,7 +339,7 @@ export function SidebarFolders({
                     aria-label={t("moreFor", { name: folder.name })}
                     showOnHover
                   >
-                    <MoreHorizontal />
+                    <Ellipsis />
                   </SidebarMenuAction>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -394,7 +394,7 @@ export function SidebarFolders({
                     }}
                     variant="destructive"
                   >
-                    <Trash2 />
+                    <Trash />
                     {tc("delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>

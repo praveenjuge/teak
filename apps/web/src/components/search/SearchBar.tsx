@@ -7,6 +7,15 @@ import {
 } from "@teak/convex/shared/constants";
 import { useIntlLocale, useTranslations, useUiLocale } from "@teak/i18n/react";
 import {
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
   Aperture,
   Archive,
   Banknote,
@@ -35,16 +44,7 @@ import {
   Video,
   Volume2,
   X,
-} from "lucide-react";
-import {
-  type FormEvent,
-  type KeyboardEvent,
-  type ReactNode,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+} from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

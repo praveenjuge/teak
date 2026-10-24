@@ -4,7 +4,7 @@ import type { Doc } from "@teak/convex/_generated/dataModel";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
-import { Archive, Code, ExternalLink, File, FileText } from "lucide-react";
+import { Archive, Code, ExternalLink, File, FileText } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { FileTextPreview } from "./FileTextPreview";
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
-import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
+import { ExternalLink } from "vadivam-react";
 import type { LanguageSetting } from "@/hooks/useLanguageSetting";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";

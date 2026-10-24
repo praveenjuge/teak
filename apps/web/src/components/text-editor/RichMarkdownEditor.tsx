@@ -26,9 +26,9 @@ import Suggestion, {
   exitSuggestion,
   type SuggestionProps,
 } from "@tiptap/suggestion";
-import { Table as TableIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Table as TableIcon } from "vadivam-react";
 import { extractFilesFromDataTransfer } from "@/lib/upload/fileDrop";
 import { CardLinkMenu, type CardLinkMenuState } from "./CardLinkMenu";
 import { CardLinkPillNode, CardLinkViewContext } from "./CardLinkPill";

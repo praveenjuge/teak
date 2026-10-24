@@ -9,9 +9,9 @@ import {
 } from "@teak/convex/shared/constants";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Maximize2 } from "vadivam-react";
 import { MarkdownTextEditor } from "@/components/text-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
