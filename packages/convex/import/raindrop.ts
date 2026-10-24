@@ -1,7 +1,8 @@
 import { sanitizeExternalUrl } from "../shared/utils/safeUrl";
 import type { ParsedBookmarkItem } from "./bookmarks";
 import { isEmptyRow, parseCsvRows } from "./csv";
-import { cleanTags, folderPath } from "./sourceItems";
+import { parseRaindropHighlights } from "./highlightText";
+import { cleanHighlights, cleanTags, folderPath } from "./sourceItems";
 import { parseImportedTimestamp } from "./validate";
 
 function parseRaindropCreated(raw: string): number | undefined {
@@ -26,7 +27,7 @@ function isTruthyFavorite(raw: string): boolean {
 /**
  * Raindrop.io's CSV export: the full export (`id, title, note, excerpt, url,
  * folder, tags, created, cover, highlights, favorite`) or its
- * import-compatible subset.
+ * import-compatible subset. The `highlights` column becomes highlights.
  */
 export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
   const normalized = csv.charCodeAt(0) === 0xfe_ff ? csv.slice(1) : csv;
@@ -76,6 +77,9 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
     // Raindrop nests collections as "Parent/Child"; one Teak folder each.
     const folder = folderPath(cell(row, "folder").split("/"));
     const notes = cell(row, "note");
+    const highlights = cleanHighlights(
+      parseRaindropHighlights(cell(row, "highlights"))
+    );
     output.push({
       label: title || url,
       card: {
@@ -85,6 +89,7 @@ export function parseRaindropCsv(csv: string): ParsedBookmarkItem[] {
         tags,
         folders: folder ? [folder] : undefined,
         notes: notes || undefined,
+        highlights,
         isFavorited: isTruthyFavorite(cell(row, "favorite")) || undefined,
         createdAt: parseRaindropCreated(cell(row, "created")),
       },

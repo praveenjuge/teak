@@ -56,6 +56,9 @@ export function normalizeIndexItem(
       isArchived: card.isArchived,
       metadataTitle: card.metadataTitle,
       folders: card.folders,
+      // Only a link with highlights carries them, so other imports pass
+      // while the Worker runs ahead of Convex.
+      ...(card.highlights ? { highlights: card.highlights } : {}),
       colors: card.colors,
       importedCreatedAt: card.createdAt,
       // Only a card saved again carries it. The Worker deploys before Convex

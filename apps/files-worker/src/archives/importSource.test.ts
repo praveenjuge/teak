@@ -179,7 +179,7 @@ describe("worker import source", () => {
       "invalid_bookmark_count"
     );
   });
-  test("pages an Omnivore ZIP by its metadata file names, with highlights as notes", async () => {
+  test("pages an Omnivore ZIP by its metadata file names, with its highlights", async () => {
     const item = (index: number) => ({
       slug: `item-${index}`,
       title: `Item ${index}`,
@@ -208,7 +208,7 @@ describe("worker import source", () => {
     expect(first.items[0]?.card).toMatchObject({
       content: "Item 0",
       isArchived: true,
-      notes: "> First highlight",
+      highlights: [{ quote: "First highlight" }],
     });
     expect(first.items[1]?.card).toMatchObject({ tags: ["odd"] });
     const rest = await indexImportSource(bucket, {
@@ -237,7 +237,9 @@ describe("worker import source", () => {
     };
     const { bucket, params } = upload("omnivore", zipSync(files));
     const page = await indexImportSource(bucket, params);
-    expect(page.items[0]?.card?.notes).toBe("> Wrapped highlight");
+    expect(page.items[0]?.card?.highlights).toEqual([
+      { quote: "Wrapped highlight" },
+    ]);
   });
   test("an Omnivore ZIP without metadata files is not an Omnivore export", async () => {
     const { bucket, params } = upload(

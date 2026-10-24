@@ -84,4 +84,21 @@ describe("backend raindrop CSV parser", () => {
       "missing a url column"
     );
   });
+
+  test("the highlights column becomes highlights with their notes", () => {
+    const csv = [
+      "id,title,note,excerpt,url,folder,tags,created,cover,highlights,favorite",
+      `1,Read,,,https://example.com/r,,,,,"Highlight:First passage\nNote:Why it matters\n\nHighlight:Second passage",false`,
+      `2,Plain,,,https://example.com/p,,,,,"One paragraph\n\nAnother paragraph",false`,
+    ].join("\n");
+    const [labelled, plain] = parseRaindropCsv(csv);
+    expect(labelled?.card?.highlights).toEqual([
+      { quote: "First passage", note: "Why it matters" },
+      { quote: "Second passage" },
+    ]);
+    expect(plain?.card?.highlights).toEqual([
+      { quote: "One paragraph" },
+      { quote: "Another paragraph" },
+    ]);
+  });
 });

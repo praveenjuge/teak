@@ -85,6 +85,13 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 30,
   },
+  // Highlights made, noted and removed, across the reader and the API.
+  highlightWrites: {
+    kind: "token bucket",
+    rate: 120,
+    period: MINUTE,
+    capacity: 120,
+  },
   // Save by email: mail one account saves an hour (past it, mail is dropped
   // silently), and how often its Settings switch can change.
   inboundEmailPerAccount: {

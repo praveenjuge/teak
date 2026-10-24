@@ -12,6 +12,7 @@ import {
 import { addCard, readStdin } from "./files";
 import { formatCardLine, formatCreated, formatDetail } from "./format";
 import {
+  addHighlight,
   authStatus,
   CONTENT_KINDS,
   changeFolderCards,
@@ -25,8 +26,11 @@ import {
   exportStatus,
   findDuplicateCard,
   listFolders,
+  listHighlights,
+  noteHighlight,
   openCard,
   refreshCards,
+  removeHighlights,
   resolveFolder,
   restoreCards,
   setCardsArchived,
@@ -713,6 +717,46 @@ folders
   .action(async (folder, ids) =>
     changeFolderCards(folder, ids, "remove", program.opts())
   );
+
+const highlights = program
+  .command("highlights")
+  .description("List, add, note and remove highlights in a link's article");
+highlights
+  .command("list")
+  .alias("ls")
+  .argument("<cardId>")
+  .description(
+    "List a link's highlights in article order, with their ids and notes"
+  )
+  .action(async (cardId) => listHighlights(cardId, program.opts()));
+highlights
+  .command("add")
+  .argument("<cardId>")
+  .argument("<quote>", "text from the link's saved article")
+  .description(
+    "Highlight a passage of a link's saved article, found by its text (the first match unless --prefix or --suffix points at another)"
+  )
+  .option("--note <text>", "a note on the highlight")
+  .option("--prefix <text>", "text just before the quote")
+  .option("--suffix <text>", "text just after the quote")
+  .action(async (cardId, quote, options) =>
+    addHighlight(cardId, quote, { ...program.opts(), ...options })
+  );
+highlights
+  .command("note")
+  .argument("<id>", "highlight id")
+  .argument("[text]", "the note")
+  .description("Write or change a highlight's note, or clear it with --clear")
+  .option("--clear", "remove the note")
+  .action(async (id, text, options) =>
+    noteHighlight(id, text, { ...program.opts(), ...options })
+  );
+highlights
+  .command("rm")
+  .alias("delete")
+  .argument("<ids...>", "highlight ids")
+  .description("Remove highlights and their notes")
+  .action(async (ids) => removeHighlights(ids, program.opts()));
 
 const exportCommand = program
   .command("export")

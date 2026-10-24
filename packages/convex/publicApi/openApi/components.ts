@@ -10,6 +10,12 @@ import {
   MAX_FOLDERS_PER_CARD,
   MAX_SMART_FOLDER_QUERY_LENGTH,
 } from "../../shared/folders";
+import {
+  HIGHLIGHT_SOURCES,
+  MAX_HIGHLIGHT_NOTE_CHARS,
+  MAX_HIGHLIGHT_QUOTE_CHARS,
+  MAX_HIGHLIGHTS_PER_CARD,
+} from "../../shared/highlights/constants";
 import { PUBLIC_API_MAX_BULK_ITEMS } from "../../shared/publicApiLimits";
 import { SEARCH_MODES } from "../../shared/search/semantic";
 import { TAG_OPERATION_COUNT_LIMIT } from "../../shared/tags";
@@ -126,6 +132,10 @@ const cardProperties = {
     type: ["string", "null"],
   },
   content: { type: "string" },
+  highlightCount: {
+    description: `Passages highlighted in a link's article, up to ${MAX_HIGHLIGHTS_PER_CARD}; 0 for other cards. List them with \`GET /v1/cards/{cardId}/highlights\`.`,
+    type: "number",
+  },
   isDeleted: { type: "boolean" },
   metadataStatus: { type: ["string", "null"] },
   processingStatus: {
@@ -361,6 +371,7 @@ export const components = {
         appUrl: { format: "uri", type: "string" },
         archive: cardProperties.archive,
         article: cardProperties.article,
+        highlightCount: cardProperties.highlightCount,
         compactUrl: {
           description:
             "256px rendition URL for small cards; present for image uploads.",
@@ -724,6 +735,73 @@ export const components = {
           type: "object",
         },
       ],
+    },
+    Highlight: {
+      description:
+        "A passage highlighted in a link's article, with an optional note.",
+      properties: {
+        id: { type: "string" },
+        cardId: { type: "string" },
+        quote: { description: "The highlighted text.", type: "string" },
+        note: { type: ["string", "null"] },
+        anchored: {
+          description:
+            "False while Teak hasn't found the quote in the card's saved article: an imported highlight waiting for the article, or one the article doesn't have.",
+          type: "boolean",
+        },
+        source: {
+          description:
+            "Where it was made: in Teak's reader, through this API, or by an import. Clients should accept values they don't know.",
+          enum: [...HIGHLIGHT_SOURCES],
+          type: "string",
+        },
+        createdAt: { type: "number" },
+        updatedAt: { type: "number" },
+      },
+      required: [
+        "id",
+        "cardId",
+        "quote",
+        "note",
+        "anchored",
+        "source",
+        "createdAt",
+        "updatedAt",
+      ],
+      type: "object",
+    },
+    HighlightCreateRequest: {
+      properties: {
+        quote: {
+          description: `Text from the card's article, at most ${MAX_HIGHLIGHT_QUOTE_CHARS.toLocaleString("en")} characters. Whitespace, curly quotes, dash styles and case don't need to match.`,
+          type: "string",
+        },
+        note: {
+          description: `At most ${MAX_HIGHLIGHT_NOTE_CHARS.toLocaleString("en")} characters.`,
+          type: "string",
+        },
+        prefix: {
+          description:
+            "Text just before the quote, to pick one of its repeats. Without it, or `suffix`, the first match is highlighted.",
+          type: "string",
+        },
+        suffix: {
+          description: "Text just after the quote, to pick one of its repeats.",
+          type: "string",
+        },
+      },
+      required: ["quote"],
+      type: "object",
+    },
+    HighlightUpdateRequest: {
+      properties: {
+        note: {
+          description: `The new note, at most ${MAX_HIGHLIGHT_NOTE_CHARS.toLocaleString("en")} characters, or null to clear it.`,
+          type: ["string", "null"],
+        },
+      },
+      required: ["note"],
+      type: "object",
     },
     Folder: {
       properties: {

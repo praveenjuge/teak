@@ -371,6 +371,10 @@ export const cardPaths = {
           },
           description: "Updated card",
         },
+        409: {
+          description:
+            "CONFLICT: the link has highlights, so its `url` can't change until they are removed",
+        },
       },
       security: apiKeySecurity,
       operationId: "updateCard",

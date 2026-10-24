@@ -119,6 +119,7 @@ export const serializeCard = (
   fileSize: card.fileMetadata?.fileSize ?? null,
   id: card._id,
   archivedAt: card.archivedAt ?? null,
+  highlightCount: card.highlightCount ?? 0,
   completedAt: card.completedAt ?? null,
   folderIds: card.folderIds ?? [],
   isArchived: Boolean(card.isArchived),
@@ -156,6 +157,7 @@ export const serializeListCard = (
     completedAt: card.completedAt ?? null,
     createdAt: card.createdAt,
     folderIds: card.folderIds ?? [],
+    highlightCount: card.highlightCount ?? 0,
     id: card._id,
     isArchived: Boolean(card.isArchived),
     isFavorited: Boolean(card.isFavorited),
@@ -254,4 +256,25 @@ export const serializeFolder = (folder: {
   cardCount: folder.kind === "smart" ? null : folder.activeCardCount,
   createdAt: folder.createdAt,
   updatedAt: folder.updatedAt,
+});
+
+/** A highlight as the public API returns it. */
+export const serializeHighlight = (highlight: {
+  _id: string;
+  cardId: string;
+  createdAt: number;
+  note?: string;
+  quote: string;
+  source: string;
+  unanchored?: boolean;
+  updatedAt: number;
+}) => ({
+  anchored: highlight.unanchored !== true,
+  cardId: highlight.cardId,
+  createdAt: highlight.createdAt,
+  id: highlight._id,
+  note: highlight.note ?? null,
+  quote: highlight.quote,
+  source: highlight.source,
+  updatedAt: highlight.updatedAt,
 });

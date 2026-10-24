@@ -5,6 +5,7 @@ import { cardPaths } from "./cards";
 import { components } from "./components";
 import { exportPaths } from "./exports";
 import { folderPaths } from "./folders";
+import { highlightPaths } from "./highlights";
 import { metaPaths } from "./meta";
 import { tagPaths } from "./tags";
 
@@ -27,6 +28,7 @@ export const openApiSpec = {
     ...cardPaths,
     ...tagPaths,
     ...folderPaths,
+    ...highlightPaths,
     ...exportPaths,
   },
 } as const;

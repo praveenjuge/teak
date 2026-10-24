@@ -13,6 +13,12 @@ import {
 import { handleDuplicateCardRequest } from "./duplicate";
 import { handleLatestExportRequest, handleStartExportRequest } from "./exports";
 import { handleFolderByIdRequest, handleFoldersRequest } from "./folders";
+import {
+  handleCardHighlightsRequest,
+  handleHighlightRequest,
+  isCardHighlightsPath,
+  isHighlightPath,
+} from "./highlights";
 import { withPublicApiGatewayHeaders } from "./meta";
 import { handleCreatePageSnapshotUploadRequest } from "./pageSnapshots";
 import { errorResponse, type PublicApiOperation } from "./shared";
@@ -113,6 +119,12 @@ export const executePublicApiOperation = (
   if (request.method === "POST" && pathname === "/v1/exports") {
     return handleStartExportRequest(ctx, request, resource);
   }
+  if (isCardHighlightsPath(pathname)) {
+    return handleCardHighlightsRequest(ctx, request, resource);
+  }
+  if (isHighlightPath(pathname)) {
+    return handleHighlightRequest(ctx, request, resource);
+  }
   if (
     pathname.startsWith("/v1/cards/") &&
     (request.method === "DELETE" ||
@@ -192,8 +204,15 @@ export const cardByIdV1 = withGatewayHeaders((ctx, request) => {
     );
   }
 
+  if (isCardHighlightsPath(new URL(request.url).pathname)) {
+    return handleCardHighlightsRequest(ctx, request);
+  }
   return handleCardsByIdV1Request(ctx, request);
 });
+
+export const highlightByIdV1 = withGatewayHeaders((ctx, request) =>
+  handleHighlightRequest(ctx, request)
+);
 
 export const bulkCardsV1 = withGatewayHeaders((ctx, request) => {
   if (request.method !== "POST") {

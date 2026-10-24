@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
@@ -9,6 +10,8 @@ import {
   ARTICLE_IMAGE_ROLE,
   ARTICLE_MAX_IMAGES,
   ARTICLE_TEXT_ROLE,
+  articleObjectDigest,
+  articleSkipReason,
   articleWordsBucket,
   isArticleObjectKey,
   readingMinutes,
@@ -124,6 +127,26 @@ export const saveArticleTextHandler = async (
     return false;
   }
   assertOwnArticleKeys(card, args.textKey, args.article.imageKeys);
+  const current = readyArticle(card);
+  if (
+    current &&
+    articleSkipReason(card) === "frozen" &&
+    articleObjectDigest(current.textKey) !== articleObjectDigest(args.textKey)
+  ) {
+    // Highlighted while this run extracted the article: the article they
+    // were made in stays, and the new objects it doesn't use go.
+    await queueReplacedKeys(
+      ctx,
+      [args.textKey, ...args.article.imageKeys],
+      articleKeys(current)
+    );
+    await patchCardWithSearchSync(ctx, card._id, {
+      processingStatus: mergeProcessingStages(card.processingStatus, {
+        article: stageCompleted(Date.now()),
+      }),
+    });
+    return false;
+  }
   const now = Date.now();
   const row = {
     cardId: card._id,
@@ -180,6 +203,14 @@ export const saveArticleTextHandler = async (
   });
   // The embedding reads the article's opening; the search text may not change.
   await markCardForEmbedding(ctx, card._id, card.userId);
+  if (card.hasHighlights) {
+    // Highlights an import brought are found in the article now.
+    await ctx.scheduler.runAfter(
+      0,
+      internal.highlight.anchorPending.anchorPendingHighlights,
+      { cardId: card._id }
+    );
+  }
   await queueBackendEvent(ctx, "article_extracted", card.userId, {
     outcome: "article",
     words_bucket: articleWordsBucket(wordCount),
@@ -224,6 +255,15 @@ export const recordNoArticle = internalMutation({
       return false;
     }
     const previous = readyArticle(card);
+    if (previous && articleSkipReason(card) === "frozen") {
+      // Highlighted while this run read the page: their article stays.
+      await patchCardWithSearchSync(ctx, card._id, {
+        processingStatus: mergeProcessingStages(card.processingStatus, {
+          article: stageCompleted(Date.now()),
+        }),
+      });
+      return false;
+    }
     if (previous) {
       await deleteArticleRow(ctx, card._id);
       await queueReplacedKeys(ctx, articleKeys(previous), []);

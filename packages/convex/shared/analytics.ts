@@ -174,6 +174,20 @@ export interface ServerEventCatalog {
   /** Save by email turned on or off in Settings. */
   email_save_toggled: { enabled: boolean };
   /**
+   * A passage of a link's article was highlighted: in the reader, through
+   * the public API, or by an import (one event per card, with `count`).
+   * `merged` says it joined a highlight it overlapped.
+   */
+  highlight_created: {
+    count?: number;
+    merged: boolean;
+    source: "reader" | "api" | "import";
+  };
+  /** A highlight's note was written, changed or (`cleared`) emptied. */
+  highlight_note_saved: { cleared: boolean; source: "reader" | "api" };
+  /** A highlight was removed. */
+  highlight_removed: { source: "reader" | "api" };
+  /**
    * A list of links pasted into the web composer finished saving. `count` is
    * the links the job kept (at most 100); `created` and `resaved` split the
    * ones saved; `stopped_at_limit` says the free card limit ended it early.

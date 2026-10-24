@@ -12,6 +12,7 @@ import {
   deletedCardMayHaveFolderRows,
   syncCardFolderRows,
 } from "../folder/folderRows";
+import { deleteCardHighlightRows } from "../highlight/highlightRows";
 import { cardLinkTokensToText } from "../shared/cardLinks";
 import { isHiddenTagList } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
@@ -314,6 +315,9 @@ export const syncCardSearchDocumentHandler = async (
     if (!previousCard || previousCard.type === "link") {
       await deleteLinkedPdfRowsAsLink(ctx, cardId);
       await deleteLinkCheckRows(ctx, cardId);
+    }
+    if (!previousCard || previousCard.hasHighlights) {
+      await deleteCardHighlightRows(ctx, cardId);
     }
     if (!previousCard || previousCard.type === "document") {
       await deleteLinkedPdfRowsAsDocument(ctx, cardId);

@@ -11,6 +11,7 @@ import { pageArchiveValidator, r2KeyValidator } from "../../../schema";
 import { resolveSizeBucket } from "../../../shared/analytics";
 import {
   PAGE_ARCHIVE_FAILURE_REASONS,
+  pageArchiveSkipReason,
   toPageArchiveFailureReason,
 } from "../../../shared/pageArchive";
 import { buildR2UserPrefix, queueObjectDeletion } from "../../../storage/r2";
@@ -33,7 +34,8 @@ const durationBucket = (ms: number): string => {
 /**
  * Records a link's saved copy: the single write path for `pageArchive`. The
  * copy it replaces is deleted unless it is the same object, and so is the
- * extension's snapshot the copy was made from. A snapshot sent after this run
+ * extension's snapshot the copy was made from. A card highlighted since the
+ * run began keeps its copy, and the new one is deleted. A snapshot sent after this run
  * read the card stays, and gets a run of its own.
  */
 export const recordPageArchive = internalMutation({
@@ -55,6 +57,20 @@ export const recordPageArchive = internalMutation({
         code: "INVALID_STORAGE_KEY",
         message: "The archive is outside the card owner's storage",
       });
+    }
+    if (
+      pageArchiveSkipReason(card) === "frozen" &&
+      card.pageArchive?.storageKey !== archive.storageKey
+    ) {
+      // Highlighted while this run archived the page: the copy they were
+      // made against stays, and this one goes.
+      await queueObjectDeletion(ctx, archive.storageKey);
+      await patchCardWithSearchSync(ctx, cardId, {
+        processingStatus: mergeProcessingStages(card.processingStatus, {
+          archive: stageCompleted(Date.now()),
+        }),
+      });
+      return false;
     }
     const previous = card.pageArchive?.storageKey;
     if (previous && previous !== archive.storageKey) {

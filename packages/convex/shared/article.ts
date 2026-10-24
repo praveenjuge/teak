@@ -256,12 +256,14 @@ export const isArticleObjectKey = (
 
 export type ArticleSkip =
   | "already_extracted"
+  | "frozen"
   | "no_archive"
   | "not_link"
   | "trashed";
 
 export interface ArticleCandidate {
-  article?: { extractedAt: number };
+  article?: { extractedAt: number; status?: string };
+  hasHighlights?: boolean;
   isDeleted?: boolean;
   pageArchive?: { capturedAt: number };
   type: string;
@@ -270,11 +272,10 @@ export interface ArticleCandidate {
 /**
  * Why the "extract article" step leaves a card alone, or null to extract its
  * article from the saved copy. A card keeps an article made from the copy it
- * has, unless Refresh details asked for it again.
- *
- * Phase 8 hooks the freeze in here: a card with highlights keeps its article
- * on a refresh or a re-save, the same way `pageArchiveSkipReason` keeps its
- * copy.
+ * has, unless Refresh details asked for it again. A card with highlights
+ * keeps the article they were made in whatever asks (`frozen`), the same way
+ * `pageArchiveSkipReason` keeps its copy; an imported highlight's card still
+ * gets its first article.
  */
 export const articleSkipReason = (
   card: ArticleCandidate,
@@ -291,6 +292,9 @@ export const articleSkipReason = (
     return "no_archive";
   }
   const article = card.article;
+  if (card.hasHighlights && article?.status === "ready") {
+    return "frozen";
+  }
   if (!article || options.refresh === true) {
     return null;
   }

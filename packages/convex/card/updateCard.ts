@@ -326,6 +326,10 @@ export interface CardFieldEdit {
   value?: unknown;
 }
 
+/** A URL edit refused because the link has highlights. */
+export const HIGHLIGHTED_URL_MESSAGE =
+  "Remove this link's highlights before changing its URL";
+
 const EDITABLE_CARD_FIELDS = new Set<string>([
   "content",
   "url",
@@ -389,6 +393,14 @@ const applyCardFieldEdit = (
         typeof value === "string" ? assertSafeExternalUrl(value) : value;
       if (nextUrl === card.url) {
         return false;
+      }
+      if (card.hasHighlights) {
+        // Its highlights were made in the saved copy of this URL's page,
+        // which a new URL would replace: they go first, by choice.
+        throw new ConvexError({
+          code: "CONFLICT",
+          message: HIGHLIGHTED_URL_MESSAGE,
+        });
       }
       state.updateData.url = nextUrl;
       const baseStatus = state.processingStatus

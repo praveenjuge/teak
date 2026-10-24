@@ -23,6 +23,7 @@ import {
   serializeCard,
   toDualTimestamp,
 } from "../../export/serialize";
+import { validateImportCard } from "../../import/validate";
 
 const baseCard = {
   _id: "card_1",
@@ -111,6 +112,44 @@ const folderNames = new Map([
 ]);
 
 describe("serializeCard", () => {
+  test("carries a link's highlights, and an import reads them back", () => {
+    const out = serializeCard({
+      _id: "card_h",
+      content: "Gardens",
+      createdAt: 1,
+      highlights: [
+        {
+          quote: "Plant marigolds",
+          note: "Spring",
+          createdAt: 5,
+          anchored: true,
+        },
+        { quote: "Never found", createdAt: 6, anchored: false },
+      ],
+      type: "link",
+      updatedAt: 1,
+      url: "https://example.com/gardens",
+    });
+    expect(out.highlights).toEqual([
+      {
+        quote: "Plant marigolds",
+        note: "Spring",
+        createdAt: toDualTimestamp(5),
+        anchored: true,
+      },
+      { quote: "Never found", createdAt: toDualTimestamp(6), anchored: false },
+    ]);
+    expect(
+      validateImportCard(JSON.parse(JSON.stringify(out))).highlights
+    ).toEqual([
+      { quote: "Plant marigolds", note: "Spring" },
+      { quote: "Never found" },
+    ]);
+    expect(
+      serializeCard({ ...baseCard, type: "link", highlights: [] })
+    ).not.toHaveProperty("highlights");
+  });
+
   test("keeps the page a text card was saved from", () => {
     const out = serializeCard({
       _id: "card_q",

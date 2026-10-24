@@ -46,6 +46,7 @@ export const ERROR_CODES = [
   "FILE_TOO_LARGE",
   "FOLDER_LIMIT",
   "FORBIDDEN",
+  "HIGHLIGHT_LIMIT",
   "IN_PROGRESS",
   "INTERNAL_ERROR",
   "INVALID_API_KEY",
@@ -56,10 +57,12 @@ export const ERROR_CODES = [
   "METHOD_NOT_ALLOWED",
   "NETWORK_ERROR",
   "NOT_FOUND",
+  "NO_ARTICLE",
   "NO_CONTENT",
   "NOT_IN_TRASH",
   "PAGE_SNAPSHOT_TOO_LARGE",
   "PARSE_ERROR",
+  "QUOTE_NOT_FOUND",
   "RATE_LIMITED",
   "REQUEST_FAILED",
   "SERVICE_UNAVAILABLE",
@@ -139,6 +142,11 @@ export interface Card {
   fileUrl: string | null;
   /** Ids of the folders the card is in. */
   folderIds: string[];
+  /**
+   * Passages highlighted in a link's article; 0 for other cards. Servers
+   * that predate highlights leave it out.
+   */
+  highlightCount?: number;
   id: string;
   /** Archived cards are hidden from the library but still count. */
   isArchived: boolean;
@@ -311,6 +319,30 @@ export interface TagOperation {
   total: number;
   updatedAt: number;
 }
+/** A passage highlighted in a link's article, with an optional note. */
+export interface Highlight {
+  /** False until the quote is found in the card's saved article. */
+  anchored: boolean;
+  cardId: string;
+  createdAt: number;
+  id: string;
+  note: string | null;
+  quote: string;
+  /** `reader`, `api` or `import`; accept values this SDK doesn't know. */
+  source: string;
+  updatedAt: number;
+}
+
+export interface CreateHighlightInput {
+  note?: string;
+  /** Text just before the quote, to pick one of its repeats. */
+  prefix?: string;
+  /** Text from the article; whitespace, curly quotes and case needn't match. */
+  quote: string;
+  /** Text just after the quote, to pick one of its repeats. */
+  suffix?: string;
+}
+
 export interface FolderCardsResult {
   failedIds: string[];
   /** Failed cards that are already in the most folders a card can be in. */
@@ -778,6 +810,25 @@ const asFolders = (value: unknown): { items: Folder[] } => {
   }
   return { items: value.items.map(asFolder) };
 };
+const asHighlight = (value: unknown): Highlight => {
+  if (
+    !isObject(value) ||
+    typeof value.id !== "string" ||
+    typeof value.quote !== "string"
+  ) {
+    throw new TeakApiError(
+      "PARSE_ERROR",
+      "Teak returned an unexpected highlight payload."
+    );
+  }
+  return value as unknown as Highlight;
+};
+const asHighlights = (value: unknown): { items: Highlight[] } => {
+  if (!(isObject(value) && Array.isArray(value.items))) {
+    throw new TeakApiError("PARSE_ERROR");
+  }
+  return { items: value.items.map(asHighlight) };
+};
 const asFolderCards = (value: unknown): FolderCardsResult => {
   if (
     !(
@@ -994,6 +1045,8 @@ export const createTeakClient = (options: {
       : {};
   const cardPath = (id: string) => `/v1/cards/${encodeURIComponent(id)}`;
   const folderPath = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
+  const highlightPath = (id: string) =>
+    `/v1/highlights/${encodeURIComponent(id)}`;
   const putFile = async (
     uploadUrl: string,
     bytes: BodyInit,
@@ -1270,6 +1323,37 @@ export const createTeakClient = (options: {
           folderPath(id),
           { body: JSON.stringify(input), method: "PATCH" },
           asFolder
+        ),
+    },
+    highlights: {
+      /**
+       * Highlights a passage of a link's saved article, found by its text:
+       * the first match unless `prefix` or `suffix` points at another. An
+       * overlapping highlight merges with it. 409 NO_ARTICLE without a saved
+       * article, 422 QUOTE_NOT_FOUND, 409 HIGHLIGHT_LIMIT past 200.
+       */
+      create: (cardId: string, input: CreateHighlightInput) =>
+        request(
+          `${cardPath(cardId)}/highlights`,
+          { body: JSON.stringify(input), method: "POST" },
+          asHighlight
+        ),
+      /** Removes a highlight and its note. */
+      delete: (id: string) =>
+        request(highlightPath(id), { method: "DELETE" }, () => null),
+      /** A card's highlights, in the order they appear in its article. */
+      list: (cardId: string) =>
+        request(
+          `${cardPath(cardId)}/highlights`,
+          { method: "GET" },
+          asHighlights
+        ),
+      /** Writes or changes a highlight's note; `note: null` clears it. */
+      update: (id: string, input: { note: string | null }) =>
+        request(
+          highlightPath(id),
+          { body: JSON.stringify(input), method: "PATCH" },
+          asHighlight
         ),
     },
     me: () => request("/v1/me", { method: "GET" }, asMe),

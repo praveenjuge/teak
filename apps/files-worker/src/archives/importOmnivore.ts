@@ -65,7 +65,7 @@ async function inBatches<T, R>(
  * page reads only the files it overlaps; when the names don't chain from 0
  * every file is read to place the items. Each item's
  * `highlights/<slug>.md`, beside its metadata file (the ZIP may wrap the
- * export in a folder), becomes its note.
+ * export in a folder), becomes its highlights: `omnivoreItem` splits it.
  */
 export async function indexOmnivoreZip(
   bucket: R2Bucket,
