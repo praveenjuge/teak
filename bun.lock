@@ -15,7 +15,7 @@
     },
     "apps/cli": {
       "name": "teak-cli",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "bin": {
         "teak": "./dist/index.js",
       },
@@ -32,7 +32,7 @@
     },
     "apps/docs": {
       "name": "@teak/docs",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@teak/convex": "workspace:*",
         "@vercel/functions": "^3.7.6",
@@ -46,7 +46,7 @@
     },
     "apps/email-worker": {
       "name": "@teak/email-worker",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "postal-mime": "2.7.3",
       },
@@ -58,7 +58,7 @@
     },
     "apps/extension": {
       "name": "@teak/extension",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@radix-ui/react-slot": "^1.5.0",
         "@teak/convex": "workspace:*",
@@ -86,7 +86,7 @@
     },
     "apps/files-worker": {
       "name": "@teak/files-worker",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "@cloudflare/puppeteer": "1.4.0",
@@ -113,7 +113,7 @@
     },
     "apps/raycast": {
       "name": "teak-raycast",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@raycast/api": "^1.104.24",
         "teak-sdk": "1.0.87",
@@ -130,7 +130,7 @@
     },
     "apps/web": {
       "name": "@teak/web",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@base-ui/react": "1.9.0",
         "@editorcn/block-editor": "0.2.0",
@@ -207,7 +207,7 @@
     },
     "packages/convex": {
       "name": "@teak/convex",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@cf-wasm/photon": "^0.4.0",
         "@convex-dev/better-auth": "0.12.5",
@@ -244,14 +244,14 @@
     },
     "packages/files-protocol": {
       "name": "@teak/files-protocol",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "devDependencies": {
         "typescript": "^6.0.3",
       },
     },
     "packages/i18n": {
       "name": "@teak/i18n",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@formatjs/icu-messageformat-parser": "3.5.22",
         "use-intl": "4.14.9",
@@ -266,7 +266,7 @@
     },
     "packages/sdk": {
       "name": "teak-sdk",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "devDependencies": {
         "@teak/convex": "workspace:*",
         "@types/bun": "^1.4.0",
@@ -276,7 +276,7 @@
     },
     "packages/tests": {
       "name": "@teak/tests",
-      "version": "1.0.89",
+      "version": "1.0.90",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.1",
         "@teak/convex": "workspace:*",

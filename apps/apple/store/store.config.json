@@ -35,6 +35,6 @@
     "promotionalText": "Your library of ideas, now a native app for iPhone and iPad. Save from any app or from Safari in a tap, and find anything again in seconds.",
     "supportUrl": "https://teakvault.com/docs",
     "marketingUrl": "https://teakvault.com",
-    "whatsNew": "Small fixes and improvements.\n\n• A photo's Taken time now matches the camera's clock, wherever you are\n• Summaries and tags now come in the language of what you saved"
+    "whatsNew": "Small fixes and improvements.\n\n• Saving a link you already have, from Safari or any app, moves it back to the top instead of making a copy"
   }
 }
