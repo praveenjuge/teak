@@ -13,6 +13,7 @@ when to read each guide; this is the full list.
 | `feature-conventions.md` | add a field, table, index, API operation, backfill or workflow step |
 | `testing.md` | add, change or delete a test |
 | `analytics.md` | add an event or touch PostHog telemetry |
+| `i18n.md` | add or change text people read in the web app or browser extension |
 | `semantic-search.md` | touch embeddings, Vectorize, or search by meaning |
 | `pull-requests.md` | open a PR or post on GitHub |
 | `releases.md` | prepare any release |

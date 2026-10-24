@@ -31,6 +31,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | `apps/cli`, `apps/files-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |
 | `apps/extension` | `__tests__/**` |
+| `packages/i18n` | `src/__tests__/**` (locales, translator, pseudo-locale). The catalog check, `scripts/i18n-catalog.test.ts`, runs with the repo scripts: every language has English's keys, placeholders, plurals and tags in valid ICU. |
 | `apps/docs` | `lib/**` |
 | `apps/apple` | `tests/*.test.ts` (run by the root `bun run test`) and Swift Testing in `Packages/TeakKit/Tests` |
 | `apps/android` | `tests/*.test.ts` (run by the root `bun run test`) and JUnit in each module's `src/test` |
