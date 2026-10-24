@@ -1,9 +1,14 @@
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import {
   Archive,
@@ -107,15 +112,23 @@ export function cardCopyText(
 
 const MAX_ACCESSIBLE_LABEL_LENGTH = 120;
 
+type AccessibleLabelTranslator = TeakTranslator<"cards.accessibleLabel">;
+
+const englishAccessibleLabel: AccessibleLabelTranslator = createTeakTranslator(
+  "en",
+  englishMessages,
+  "cards.accessibleLabel"
+);
+
 export function getCardAccessibleLabel(
   card: Pick<
     CardWithUrls,
     "content" | "fileMetadata" | "metadataTitle" | "type" | "url"
   >,
-  linkTitle?: string
+  linkTitle?: string,
+  t: AccessibleLabelTranslator = englishAccessibleLabel
 ): string {
-  const typeLabel =
-    (card.type && CARD_TYPE_LABELS[card.type as CardType]) || "Card";
+  const type = card.type || "card";
   const isFileCard =
     card.type === "image" ||
     card.type === "video" ||
@@ -129,13 +142,13 @@ export function getCardAccessibleLabel(
     card.fileMetadata?.fileName ||
     "";
   if (!title) {
-    return `${typeLabel} card`;
+    return t("untitled", { type });
   }
   const clipped =
     title.length > MAX_ACCESSIBLE_LABEL_LENGTH
       ? `${title.slice(0, MAX_ACCESSIBLE_LABEL_LENGTH - 1)}…`
       : title;
-  return `${typeLabel}: ${clipped}`;
+  return t("titled", { title: clipped, type });
 }
 
 export const Card = memo(function Card({
@@ -156,6 +169,9 @@ export const Card = memo(function Card({
   onEnterSelectionMode,
   onToggleSelection,
 }: CardProps) {
+  const t = useTranslations("cards");
+  const tc = useTranslations("common");
+  const tLabel = useTranslations("cards.accessibleLabel");
   const refreshCardMediaUrl = useAction(
     api.card.getFileUrl.refreshCardMediaUrl
   );
@@ -298,7 +314,7 @@ export const Card = memo(function Card({
           refresh: refreshCardMediaUrl,
         });
       } catch {
-        toast.error("Failed to copy image");
+        toast.error(t("copyImageFailed"));
         return;
       }
     } else {
@@ -345,19 +361,27 @@ export const Card = memo(function Card({
   };
 
   const copyLinkOrImageLabel =
-    card.type === "link" ? "Copy link" : "Copy image";
+    card.type === "link" ? t("menu.copyLink") : t("menu.copyImage");
   const copyMenuLabel =
-    card.type === "text" ? "Copy text" : copyLinkOrImageLabel;
+    card.type === "text" ? t("menu.copyText") : copyLinkOrImageLabel;
 
   const shortcuts = focusedCardShortcuts(Boolean(isSelectionMode));
   const menuItems: CardMenuEntry[] = [
     ...(card.url && !card.isDeleted
-      ? [{ icon: ExternalLink, label: "Open link", onSelect: openLink }]
+      ? [
+          {
+            icon: ExternalLink,
+            id: "openLink",
+            label: t("menu.openLink"),
+            onSelect: openLink,
+          },
+        ]
       : []),
     ...(canCopy
       ? [
           {
             icon: Copy,
+            id: "copy",
             label: copyMenuLabel,
             onSelect: () => void handleCopyImage(),
             shortcut: shortcuts.copy,
@@ -366,12 +390,18 @@ export const Card = memo(function Card({
       : []),
     ...(card.isDeleted
       ? [
-          { icon: RotateCcw, label: "Restore", onSelect: handleRestore },
+          {
+            icon: RotateCcw,
+            id: "restore",
+            label: t("menu.restore"),
+            onSelect: handleRestore,
+          },
           { separator: "before-delete-forever" },
           {
             destructive: true,
             icon: Trash,
-            label: "Delete Forever",
+            id: "deleteForever",
+            label: t("menu.deleteForever"),
             onSelect: handlePermanentDelete,
             shortcut: shortcuts.delete,
           },
@@ -380,19 +410,22 @@ export const Card = memo(function Card({
           isSelectionMode
             ? {
                 icon: CheckSquare,
-                label: isSelected ? "Deselect" : "Select",
+                id: "select",
+                label: isSelected ? t("menu.deselect") : t("menu.select"),
                 onSelect: () => onToggleSelection?.(card._id),
                 shortcut: shortcuts.select,
               }
             : {
                 icon: CheckSquare,
-                label: "Select",
+                id: "select",
+                label: t("menu.select"),
                 onSelect: handleSelect,
                 shortcut: shortcuts.select,
               },
           {
             icon: Tag,
-            label: "Add tags…",
+            id: "addTags",
+            label: t("menu.addTags"),
             onSelect: handleAddTags,
             shortcut: shortcuts.addTags,
           },
@@ -400,7 +433,8 @@ export const Card = memo(function Card({
             ? [
                 {
                   icon: FolderIcon,
-                  label: "Folders…",
+                  id: "folders",
+                  label: t("menu.folders"),
                   onSelect: () => {
                     if (!isOptimistic) {
                       onEditFolders(card._id);
@@ -414,21 +448,26 @@ export const Card = memo(function Card({
             iconClassName: card.isFavorited
               ? "fill-destructive text-destructive"
               : undefined,
-            label: card.isFavorited ? "Unfavorite" : "Favorite",
+            id: "favorite",
+            label: card.isFavorited ? t("menu.unfavorite") : t("menu.favorite"),
             onSelect: handleToggleFavorite,
             shortcut: shortcuts.favorite,
           },
           {
             disabled: reprocessingCardId === card._id,
             icon: RefreshCw,
-            label: "Refresh details",
+            id: "refreshDetails",
+            label: t("menu.refreshDetails"),
             onSelect: handleReprocess,
           },
           ...(onToggleArchive
             ? [
                 {
                   icon: card.isArchived ? ArchiveRestore : Archive,
-                  label: card.isArchived ? "Unarchive" : "Archive",
+                  id: "archive",
+                  label: card.isArchived
+                    ? t("menu.unarchive")
+                    : t("menu.archive"),
                   onSelect: handleToggleArchive,
                   shortcut: shortcuts.archive,
                 },
@@ -437,7 +476,8 @@ export const Card = memo(function Card({
           { separator: "before-delete" },
           {
             icon: Trash2,
-            label: "Delete",
+            id: "delete",
+            label: tc("delete"),
             onSelect: handleDelete,
             shortcut: shortcuts.delete,
           },
@@ -461,7 +501,7 @@ export const Card = memo(function Card({
         <div className="group/card relative" data-card-shell="">
           <UICard
             aria-disabled={isOptimistic || undefined}
-            aria-label={getCardAccessibleLabel(card, linkCardTitle)}
+            aria-label={getCardAccessibleLabel(card, linkCardTitle, tLabel)}
             aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
             className={cn(
               "relative scroll-my-20 overflow-hidden rounded-2xl border-0 bg-transparent p-0 outline-none contain-content focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -521,10 +561,10 @@ export const Card = memo(function Card({
           )}
 
           {showHoverSelect ? (
-            <ShortcutTooltip keys={["X"]} label="Select" side="top">
+            <ShortcutTooltip keys={["X"]} label={t("menu.select")} side="top">
               <button
                 aria-keyshortcuts="X"
-                aria-label="Select"
+                aria-label={t("menu.select")}
                 className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100"
                 onClick={handleSelect}
                 tabIndex={-1}
@@ -552,13 +592,18 @@ export const Card = memo(function Card({
           {showQuickActions && (
             <div className="pointer-events-none absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100">
               {card.url && !card.isDeleted && (
-                <QuickActionButton label="Open link" onClick={openLink}>
+                <QuickActionButton
+                  label={t("menu.openLink")}
+                  onClick={openLink}
+                >
                   <ArrowUpRight />
                 </QuickActionButton>
               )}
               {!card.isDeleted && (
                 <QuickActionButton
-                  label={card.isFavorited ? "Unfavorite" : "Favorite"}
+                  label={
+                    card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")
+                  }
                   onClick={handleToggleFavorite}
                   pressed={Boolean(card.isFavorited)}
                   shortcut={["F"]}
@@ -572,7 +617,7 @@ export const Card = memo(function Card({
               )}
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
-                  <QuickActionButton label="More actions">
+                  <QuickActionButton label={t("menu.moreActions")}>
                     <MoreHorizontal />
                   </QuickActionButton>
                 </DropdownMenuTrigger>

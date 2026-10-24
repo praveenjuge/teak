@@ -1,5 +1,23 @@
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
+import {
+  createTeakTranslator,
+  englishMessages,
+  type TeakTranslator,
+} from "@teak/i18n";
 import { resolveLinkTitle } from "../../lib/linkTitle";
+import {
+  type CardTypesTranslator,
+  cardTypeLabel,
+  englishCardTypes,
+} from "../cards/cardTypeLabel";
+import { ENGLISH_DATE_LOCALE } from "./cardDetails";
+
+export type CardHeadingTranslator = TeakTranslator<"cardModal.heading">;
+
+const englishHeading: CardHeadingTranslator = createTeakTranslator(
+  "en",
+  englishMessages,
+  "cardModal.heading"
+);
 
 interface HeadingSource {
   fileMetadata?: { fileName?: string };
@@ -10,11 +28,17 @@ interface HeadingSource {
   url?: string;
 }
 
-export function getCardHeading(card: HeadingSource): {
+export function getCardHeading(
+  card: HeadingSource,
+  {
+    t = englishHeading,
+    types = englishCardTypes,
+  }: { t?: CardHeadingTranslator; types?: CardTypesTranslator } = {}
+): {
   editable: boolean;
   title: string;
 } {
-  const typeLabel = CARD_TYPE_LABELS[card.type as CardType] ?? "Card";
+  const typeLabel = cardTypeLabel(card.type, types);
   if (card.type === "link") {
     const preview =
       card.metadata?.linkPreview?.status === "success"
@@ -41,10 +65,20 @@ export function getCardHeading(card: HeadingSource): {
       title: card.metadataTitle || card.fileMetadata?.fileName || typeLabel,
     };
   }
-  return { editable: false, title: typeLabel === "Text" ? "Note" : typeLabel };
+  return {
+    editable: false,
+    title: card.type === "text" ? t("note") : typeLabel,
+  };
 }
 
-export function formatAddedDate(timestamp: number, now = Date.now()): string {
+export function formatAddedDate(
+  timestamp: number,
+  now = Date.now(),
+  {
+    locale = ENGLISH_DATE_LOCALE,
+    t = englishHeading,
+  }: { locale?: string; t?: CardHeadingTranslator } = {}
+): string {
   const saved = new Date(timestamp);
   const today = new Date(now);
   const startOfToday = new Date(
@@ -60,14 +94,18 @@ export function formatAddedDate(timestamp: number, now = Date.now()): string {
     today.getDate() - 1
   ).getTime();
   if (timestamp >= startOfToday) {
-    return "Added today";
+    return t("addedToday");
   }
   if (timestamp >= startOfYesterday) {
-    return "Added yesterday";
+    return t("addedYesterday");
   }
-  return `Added ${saved.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(saved.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }),
-  })}`;
+  return t("addedOn", {
+    date: saved.toLocaleDateString(locale, {
+      month: "short",
+      day: "numeric",
+      ...(saved.getFullYear() === today.getFullYear()
+        ? {}
+        : { year: "numeric" }),
+    }),
+  });
 }

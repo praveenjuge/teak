@@ -1,4 +1,5 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
+import { useTranslations } from "@teak/i18n/react";
 import { Maximize2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ export function TextPreview({
   onSaveShortcut,
   readOnly = false,
 }: TextPreviewProps) {
+  const t = useTranslations("cardPreviews.text");
   const currentContent = getCurrentValue
     ? getCurrentValue("content")
     : card.content;
@@ -85,10 +87,10 @@ export function TextPreview({
   return (
     <div className="group/text-preview relative h-full" ref={wrapperRef}>
       {readOnly ? null : (
-        <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label="Focus" side="left">
+        <ShortcutTooltip keys={FOCUS_NOTE_KEYS} label={t("focus")} side="left">
           <Button
             aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
-            aria-label="Focus"
+            aria-label={t("focus")}
             className="absolute top-2 right-2 z-10 size-8 text-muted-foreground"
             onClick={openFocus}
             ref={focusButtonRef}
@@ -101,18 +103,16 @@ export function TextPreview({
         </ShortcutTooltip>
       )}
       <MarkdownTextEditor
-        ariaLabel="Markdown content"
+        ariaLabel={t("editorLabel")}
         cardLinks={cardLinks}
         className="h-full"
         disabled={readOnly}
         minHeight="55vh"
         onChange={onContentChange}
-        onLimitExceeded={() =>
-          toast.error("Notes can be up to 512 KiB of UTF-8 text")
-        }
+        onLimitExceeded={() => toast.error(t("tooLarge"))}
         onOpenFullScreen={readOnly ? undefined : openFocus}
         onSaveShortcut={onSaveShortcut}
-        placeholder="Write a note..."
+        placeholder={t("placeholder")}
         value={inlineEditorValue}
         variant="modal"
       />
@@ -124,8 +124,8 @@ export function TextPreview({
         onRequestClose={closeFocus}
         onSave={() => onSaveShortcut?.()}
         open={isFocusOpen}
-        placeholder="Write a note…"
-        title="Focus"
+        placeholder={t("focusPlaceholder")}
+        title={t("focus")}
         value={currentContent || ""}
       />
     </div>

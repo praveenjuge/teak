@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@teak/i18n/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { onDemand } from "../../lib/lazyWithPreload";
 import { preloadMarkdownTextEditor } from "../text-editor/MarkdownTextEditor";
@@ -36,6 +37,7 @@ function CardModalLoading({
   open: boolean;
   type?: string;
 }) {
+  const t = useTranslations("cardModal.header");
   return (
     <Dialog
       onOpenChange={(nextOpen) => {
@@ -52,7 +54,7 @@ function CardModalLoading({
         overlayClassName={CARD_MODAL_OVERLAY_CLASS}
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">Opening card</DialogTitle>
+        <DialogTitle className="sr-only">{t("openingCard")}</DialogTitle>
         <CardModalSkeleton />
       </DialogContent>
     </Dialog>

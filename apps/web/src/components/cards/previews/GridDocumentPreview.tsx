@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { File } from "lucide-react";
 import { CARD_SURFACE } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
@@ -48,6 +49,7 @@ export function GridDocumentPreview({
   isPriority = false,
   thumbnailKey,
 }: GridDocumentPreviewProps) {
+  const t = useTranslations("cards.previews");
   if (thumbnailUrl) {
     return (
       <div className={`overflow-hidden ${CARD_SURFACE}`}>
@@ -59,7 +61,11 @@ export function GridDocumentPreview({
           }}
         >
           <ResilientMediaImage
-            alt={`Preview of ${fileName || "document"}`}
+            alt={
+              fileName
+                ? t("documentPreviewOf", { fileName })
+                : t("documentPreview")
+            }
             cardId={cardId}
             className="h-full w-full object-contain"
             decoding="async"

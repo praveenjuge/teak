@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { CARD_SURFACE } from "../cardDisplay";
 import { ResilientMediaImage } from "./ResilientMediaImage";
 
@@ -24,6 +25,7 @@ export function GridImagePreview({
   placeholderColor,
   storageKey,
 }: GridImagePreviewProps) {
+  const t = useTranslations("cards.previews");
   return (
     <div
       className={`relative h-full w-full overflow-hidden ${CARD_SURFACE}`}
@@ -34,7 +36,7 @@ export function GridImagePreview({
     >
       {imageUrl ? (
         <ResilientMediaImage
-          alt={altText ?? "Image"}
+          alt={altText ?? t("imageAlt")}
           cardId={cardId}
           className="h-full w-full object-cover"
           decoding="async"

@@ -1,5 +1,6 @@
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
+import { useTranslations } from "@teak/i18n/react";
 import { CircleCheck } from "lucide-react";
 import type { SyntheticEvent } from "react";
 import { linkNoteText } from "../../lib/markdownToPlainText";
@@ -35,6 +36,7 @@ export function LinkCardBody({
   textInsets: string;
   title: string;
 }) {
+  const t = useTranslations("cards.link");
   const hostname = getDisplayHostname(card.url);
   const storedPrice = card.metadata?.linkCategory?.price;
   const priceLabel = isLinkPrice(storedPrice)
@@ -51,7 +53,9 @@ export function LinkCardBody({
   ) : null;
   const doneMark = card.completedAt !== undefined && (
     <CircleCheck
-      aria-label={`Marked as ${doneActionLabel(card.metadata?.linkCategory?.category)}`}
+      aria-label={t("markedAs", {
+        verb: doneActionLabel(card.metadata?.linkCategory?.category),
+      })}
       className="size-4 shrink-0 text-muted-foreground"
       role="img"
     />

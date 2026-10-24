@@ -1,7 +1,7 @@
 import { cardLinkTokensToText } from "@teak/convex/shared/cardLinks";
-import { CARD_TYPE_LABELS, type CardType } from "@teak/convex/shared/constants";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import {
   Archive,
   ArchiveRestore,
@@ -58,10 +58,7 @@ import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
-import {
-  ariaKeyShortcut,
-  cardMenuShortcuts,
-} from "../../lib/keyboardShortcuts";
+import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
   imageFromClipboard,
@@ -78,6 +75,7 @@ import { QuotePreview } from "../card-previews/QuotePreview";
 import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
+import { cardTypeLabel } from "../cards/cardTypeLabel";
 import { SiteFavicon } from "../cards/SiteFavicon";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { useGlobalFileDrop } from "../providers/GlobalFileDropProvider";
@@ -91,6 +89,7 @@ import {
   type SavePdfControl,
 } from "./CardMetadataPanel";
 import { CardModalSkeleton } from "./CardModalSkeleton";
+import { ENGLISH_DATE_LOCALE } from "./cardDetails";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -101,12 +100,17 @@ import {
   isFullBleedType,
 } from "./cardModalFrame";
 import { cardModalKeyAction } from "./cardModalKeys";
+import { emptiedContentNotice, saveStateLabel } from "./cardModalText";
+import { HeaderIconButton } from "./HeaderIconButton";
 import type { CardModalCard, GetCurrentValue } from "./types";
 import { useCardSteps } from "./useCardSteps";
 import { EMPTY_CONTENT_TOAST_ID, useLeaveGuard } from "./useLeaveGuard";
 import { useSaveStatus } from "./useSaveStatus";
 
 export const AUTOSAVE_DELAY_MS = 800;
+
+// Tests and callers read it from here, beside the dialog.
+export { emptiedContentNotice } from "./cardModalText";
 
 export const DETAILS_HIDDEN_KEY = "teak.cardModal.detailsHidden";
 
@@ -202,14 +206,6 @@ function stageContentClass(card: CardModalCard): string {
   }
 }
 
-const SAVE_STATE_LABELS: Record<CardSaveState, string> = {
-  idle: "",
-  unsaved: "Unsaved changes",
-  saving: "Saving…",
-  saved: "Saved",
-  error: "Couldn't save",
-};
-
 /** The header's one main action, in ink rather than the brand color. */
 const PRIMARY_ACTION_CLASS =
   "h-8 rounded-full bg-foreground px-3.5 text-background hover:bg-foreground/85";
@@ -296,6 +292,12 @@ export function CardModal({
   onReprocess,
   returnFocus,
 }: CardModalProps) {
+  const t = useTranslations("cardModal");
+  const tc = useTranslations("common");
+  const tHeading = useTranslations("cardModal.heading");
+  const types = useTranslations("cards.types");
+  const tDialog = useTranslations("cards.deleteForeverDialog");
+  const dateLocale = useIntlLocale(ENGLISH_DATE_LOCALE);
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
   const [isFoldersOpen, setIsFoldersOpen] = useState(false);
@@ -376,7 +378,7 @@ export function CardModal({
     }
   };
 
-  const discardNotice = emptiedContentNotice(card, getCurrentValue);
+  const discardNotice = emptiedContentNotice(card, getCurrentValue, t);
   const { noteEdit, readyToLeave } = useLeaveGuard({
     cardId,
     discardNotice,
@@ -468,8 +470,8 @@ export function CardModal({
   const isDone = card?.completedAt !== undefined;
   const doneVerb = doneActionLabel(card?.metadata?.linkCategory?.category);
   const doneMenuLabel = isDone
-    ? `Mark as not ${doneVerb}`
-    : `Mark as ${doneVerb}`;
+    ? t("done.markAsNot", { verb: doneVerb })
+    : t("done.markAs", { verb: doneVerb });
 
   const archive = () => {
     if (toggleArchive && !isDeleted) {
@@ -487,11 +489,12 @@ export function CardModal({
     }
   };
 
+  const copyFailed = t("toasts.copyFailed");
   const copyCard = () => {
     if (card?.url) {
-      void copyToClipboard(card.url, "Copied link");
+      void copyToClipboard(card.url, t("toasts.copiedLink"), copyFailed);
     } else if (copyableText) {
-      void copyToClipboard(copyableText, "Copied text");
+      void copyToClipboard(copyableText, t("toasts.copiedText"), copyFailed);
     }
   };
 
@@ -606,12 +609,10 @@ export function CardModal({
   };
 
   const menuShortcuts = cardMenuShortcuts();
-  const heading = card ? getCardHeading(card) : null;
+  const heading = card ? getCardHeading(card, { t: tHeading, types }) : null;
   const hostname =
     card?.type === "link" ? getDisplayHostname(card.url) : undefined;
-  const typeLabel = card
-    ? (CARD_TYPE_LABELS[card.type as CardType] ?? "Card")
-    : "Card";
+  const typeLabel = cardTypeLabel(card?.type, types);
   const editedTitle = getCurrentValue("metadataTitle");
   const titleValue =
     card && editedTitle !== card.metadataTitle
@@ -629,21 +630,21 @@ export function CardModal({
   let primaryButton: ReactNode = null;
   if (card?.url && !isDeleted) {
     primaryButton = (
-      <ShortcutTooltip keys={["O"]} label="Open the link">
+      <ShortcutTooltip keys={["O"]} label={t("header.openTooltip")}>
         <Button
           aria-keyshortcuts="O"
           className={PRIMARY_ACTION_CLASS}
           onClick={openLink}
           size="sm"
         >
-          Open
+          {t("header.open")}
           <ArrowUpRight />
         </Button>
       </ShortcutTooltip>
     );
   } else if (canDownload && !card?.url) {
     primaryButton = (
-      <ShortcutTooltip keys={["O"]} label="Download the file">
+      <ShortcutTooltip keys={["O"]} label={t("header.downloadTooltip")}>
         <Button
           aria-busy={isDownloading}
           aria-keyshortcuts="O"
@@ -653,7 +654,7 @@ export function CardModal({
           size="sm"
         >
           {isDownloading ? <Spinner /> : <Download />}
-          {isDownloading ? "Downloading…" : "Download"}
+          {isDownloading ? t("header.downloading") : t("header.download")}
         </Button>
       </ShortcutTooltip>
     );
@@ -662,7 +663,7 @@ export function CardModal({
   const favoriteButton =
     card && !isDeleted ? (
       <HeaderIconButton
-        label={card.isFavorited ? "Unfavorite" : "Favorite"}
+        label={card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")}
         onClick={toggleFavorite}
         pressed={Boolean(card.isFavorited)}
         shortcut={["F"]}
@@ -678,7 +679,7 @@ export function CardModal({
   const menu = card ? (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <HeaderIconButton label="More actions">
+        <HeaderIconButton label={t("menu.moreActions")}>
           <MoreHorizontal />
         </HeaderIconButton>
       </DropdownMenuTrigger>
@@ -694,7 +695,7 @@ export function CardModal({
               onClick={toggleFavorite}
             >
               <Heart />
-              {card.isFavorited ? "Unfavorite" : "Favorite"}
+              {card.isFavorited ? t("menu.unfavorite") : t("menu.favorite")}
               <DropdownMenuShortcut aria-hidden>
                 {DIALOG_KEYS.favorite.label}
               </DropdownMenuShortcut>
@@ -713,7 +714,7 @@ export function CardModal({
             ) : null}
             <DropdownMenuItem onClick={openFoldersFromMenu}>
               <FolderPlus />
-              Add to folder…
+              {t("menu.addToFolder")}
             </DropdownMenuItem>
             {toggleArchive ? (
               <DropdownMenuItem
@@ -721,7 +722,7 @@ export function CardModal({
                 onClick={archive}
               >
                 {card.isArchived ? <ArchiveRestore /> : <Archive />}
-                {card.isArchived ? "Unarchive" : "Archive"}
+                {card.isArchived ? t("menu.unarchive") : t("menu.archive")}
                 <DropdownMenuShortcut aria-hidden>
                   {menuShortcuts.archive.label}
                 </DropdownMenuShortcut>
@@ -737,11 +738,15 @@ export function CardModal({
                 <DropdownMenuItem
                   aria-keyshortcuts={DIALOG_KEYS.copy.keys}
                   onClick={() =>
-                    void copyToClipboard(card.url as string, "Copied link")
+                    void copyToClipboard(
+                      card.url as string,
+                      t("toasts.copiedLink"),
+                      copyFailed
+                    )
                   }
                 >
                   <Copy />
-                  Copy Link
+                  {t("menu.copyLink")}
                   <DropdownMenuShortcut aria-hidden>
                     {DIALOG_KEYS.copy.label}
                   </DropdownMenuShortcut>
@@ -753,11 +758,15 @@ export function CardModal({
                     card.url ? undefined : DIALOG_KEYS.copy.keys
                   }
                   onClick={() =>
-                    void copyToClipboard(copyableText, "Copied text")
+                    void copyToClipboard(
+                      copyableText,
+                      t("toasts.copiedText"),
+                      copyFailed
+                    )
                   }
                 >
                   <Copy />
-                  Copy Text
+                  {t("menu.copyText")}
                   {card.url ? null : (
                     <DropdownMenuShortcut aria-hidden>
                       {DIALOG_KEYS.copy.label}
@@ -780,7 +789,7 @@ export function CardModal({
                   onClick={downloadFile}
                 >
                   <Download />
-                  Download
+                  {t("menu.download")}
                 </DropdownMenuItem>
               ) : null}
               {savePdf && !isDeleted ? (
@@ -790,7 +799,7 @@ export function CardModal({
                   onClick={savePdf.save}
                 >
                   {savePdf.isSaving ? <Spinner /> : <FileDown />}
-                  {savePdf.isSaving ? "Saving PDF…" : "Save PDF"}
+                  {savePdf.isSaving ? t("menu.savingPdf") : t("menu.savePdf")}
                 </DropdownMenuItem>
               ) : null}
               {imageControl ? (
@@ -799,7 +808,7 @@ export function CardModal({
                   onClick={() => imageInputRef.current?.click()}
                 >
                   {imageControl.isBusy ? <Spinner /> : <ImageUp />}
-                  Replace image
+                  {t("menu.replaceImage")}
                 </DropdownMenuItem>
               ) : null}
               {imageControl && card.thumbnailOverride ? (
@@ -808,7 +817,7 @@ export function CardModal({
                   onClick={imageControl.reset}
                 >
                   <Undo2 />
-                  Reset to original image
+                  {t("menu.resetImage")}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuGroup>
@@ -821,7 +830,7 @@ export function CardModal({
               {onMoreLikeThis ? (
                 <DropdownMenuItem onClick={() => onMoreLikeThis(card._id)}>
                   <Sparkles />
-                  More like this
+                  {t("menu.moreLikeThis")}
                 </DropdownMenuItem>
               ) : null}
               {onReprocess ? (
@@ -830,7 +839,7 @@ export function CardModal({
                   onClick={onReprocess}
                 >
                   {isReprocessing ? <Spinner /> : <RefreshCw />}
-                  Refresh details
+                  {t("menu.refreshDetails")}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuGroup>
@@ -844,7 +853,7 @@ export function CardModal({
               onClick={toggleDetails}
             >
               {detailsHidden ? <PanelRightOpen /> : <PanelRightClose />}
-              {detailsHidden ? "Show details" : "Hide details"}
+              {detailsHidden ? t("menu.showDetails") : t("menu.hideDetails")}
               <DropdownMenuShortcut aria-hidden>
                 {DIALOG_KEYS.details.label}
               </DropdownMenuShortcut>
@@ -860,7 +869,7 @@ export function CardModal({
               variant="destructive"
             >
               <Trash2 />
-              Delete
+              {tc("delete")}
               <DropdownMenuShortcut aria-hidden>
                 {menuShortcuts.delete.label}
               </DropdownMenuShortcut>
@@ -869,7 +878,9 @@ export function CardModal({
         )}
         {isMobile ? null : (
           <DropdownMenuLabel className="border-t pt-2 font-normal text-muted-foreground text-xs">
-            Press <kbd className="font-sans">?</kbd> for all shortcuts
+            {t.rich("menu.shortcutsHint", {
+              kbd: (chunks) => <kbd className="font-sans">{chunks}</kbd>,
+            })}
           </DropdownMenuLabel>
         )}
       </DropdownMenuContent>
@@ -883,7 +894,7 @@ export function CardModal({
           !isMobile &&
             "absolute size-9 bg-background/90 text-foreground shadow-md ring-1 ring-border/60 hover:bg-background"
         )}
-        label="Close"
+        label={tc("close")}
         shortcut={["Esc"]}
         style={isMobile ? undefined : GUTTER_CLOSE_STYLE}
       >
@@ -910,7 +921,7 @@ export function CardModal({
             <div className="group/title relative min-w-0 flex-1">
               <DialogTitle className="sr-only">{heading.title}</DialogTitle>
               <input
-                aria-label="Title"
+                aria-label={t("header.titleLabel")}
                 className="-mx-1.5 block w-[calc(100%+0.75rem)] truncate rounded-md bg-transparent py-0.5 pr-7 pl-1.5 font-medium text-sm outline-none transition-colors hover:bg-muted/70 focus-visible:bg-muted/70"
                 dir="auto"
                 maxLength={512}
@@ -928,7 +939,7 @@ export function CardModal({
                     event.currentTarget.blur();
                   }
                 }}
-                placeholder="Untitled link"
+                placeholder={t("header.titlePlaceholder")}
                 value={titleValue}
               />
               <Pencil
@@ -949,7 +960,10 @@ export function CardModal({
             </DialogTitle>
           )}
           <DialogDescription className="sr-only">
-            {formatAddedDate(card.createdAt)}
+            {formatAddedDate(card.createdAt, undefined, {
+              locale: dateLocale,
+              t: tHeading,
+            })}
           </DialogDescription>
         </div>
 
@@ -961,7 +975,7 @@ export function CardModal({
                 saveStatus === "error" && "text-destructive"
               )}
             >
-              {SAVE_STATE_LABELS[saveStatus]}
+              {saveStateLabel(saveStatus, t, tc)}
             </span>
           ) : null}
           {isMobile ? null : (
@@ -991,7 +1005,11 @@ export function CardModal({
           "absolute top-1/2 size-10 -translate-y-1/2 bg-background/90 text-foreground shadow-md ring-1 ring-border/60 hover:bg-background disabled:pointer-events-auto disabled:cursor-default disabled:opacity-0 [&_svg]:size-5"
         )}
         disabled={!show}
-        label={direction === "previous" ? "Previous card" : "Next card"}
+        label={
+          direction === "previous"
+            ? t("header.previousCard")
+            : t("header.nextCard")
+        }
         onClick={() => step(direction === "previous" ? -1 : 1)}
         shortcut={[direction === "previous" ? "←" : "→"]}
         style={gutterNavStyle(direction === "previous" ? "left" : "right")}
@@ -1063,7 +1081,7 @@ export function CardModal({
                   >
                     <p className="flex items-center gap-2 text-muted-foreground text-sm">
                       <Trash2 aria-hidden="true" className="size-3.5" />
-                      This card is in Trash
+                      {t("trash.inTrash")}
                     </p>
                     <div className="flex gap-1">
                       <Button
@@ -1073,7 +1091,7 @@ export function CardModal({
                         variant="ghost"
                       >
                         <RotateCcw />
-                        Restore
+                        {t("trash.restore")}
                       </Button>
                       <Button
                         className="h-7 px-2.5 text-destructive hover:text-destructive"
@@ -1082,7 +1100,7 @@ export function CardModal({
                         variant="ghost"
                       >
                         <Trash />
-                        Delete Forever
+                        {t("trash.deleteForever")}
                       </Button>
                     </div>
                   </div>
@@ -1094,7 +1112,7 @@ export function CardModal({
                   <div className="group/stage relative flex min-w-0 flex-col md:min-h-0 md:flex-1">
                     {desktopHeader}
                     <main
-                      aria-label={`${typeLabel} content`}
+                      aria-label={t("header.contentLabel", { type: card.type })}
                       className={cn(
                         "relative min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto",
                         card.type === "image" && "bg-muted/40",
@@ -1118,7 +1136,7 @@ export function CardModal({
                   </div>
 
                   <aside
-                    aria-label="Card details"
+                    aria-label={t("header.detailsLabel")}
                     className={cn(
                       "shrink-0 border-border/60 max-md:border-t md:w-72 md:overflow-y-auto md:border-l lg:w-80 xl:w-[21rem]",
                       detailsHidden && "md:hidden"
@@ -1154,21 +1172,21 @@ export function CardModal({
 
                 {isMobile ? (
                   <nav
-                    aria-label="Card actions"
+                    aria-label={t("header.actionsLabel")}
                     className="flex shrink-0 items-center gap-1 border-t bg-background px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
                   >
                     {onPrevious || onNext ? (
                       <>
                         <HeaderIconButton
                           disabled={!onPrevious}
-                          label="Previous card"
+                          label={t("header.previousCard")}
                           onClick={() => step(-1)}
                         >
                           <ChevronLeft />
                         </HeaderIconButton>
                         <HeaderIconButton
                           disabled={!onNext}
-                          label="Next card"
+                          label={t("header.nextCard")}
                           onClick={() => step(1)}
                         >
                           <ChevronRight />
@@ -1197,9 +1215,11 @@ export function CardModal({
             </>
           ) : (
             <>
-              <DialogTitle className="sr-only">Loading card</DialogTitle>
+              <DialogTitle className="sr-only">
+                {t("header.loadingTitle")}
+              </DialogTitle>
               <DialogDescription className="sr-only">
-                Loading card details
+                {t("header.loadingDescription")}
               </DialogDescription>
               <CardModalSkeleton />
             </>
@@ -1217,81 +1237,24 @@ export function CardModal({
       ) : null}
 
       <ConfirmDialog
-        confirmLabel="Delete Forever"
-        description="This permanently deletes the card and its files. This can’t be undone."
+        confirmLabel={tDialog("confirm")}
+        description={tDialog("description")}
         onConfirm={() => {
           void handlePermanentDelete(closeAfterAction);
         }}
         onOpenChange={setIsPermanentDeleteConfirmOpen}
         open={isPermanentDeleteConfirmOpen}
-        title="Delete this card forever?"
+        title={tDialog("title")}
       />
     </>
   );
 }
 
-/**
- * What to say when a note or quote is left emptied: an empty one isn't
- * saved (the composer won't make one either), so it keeps its last text.
- */
-export function emptiedContentNotice(
-  card: CardModalCard | null | undefined,
-  getCurrentValue: GetCurrentValue
-): string | null {
-  if (
-    !(card && (card.type === "text" || card.type === "quote")) ||
-    card.isDeleted ||
-    !card.content?.trim() ||
-    (getCurrentValue("content") ?? "").trim()
-  ) {
-    return null;
-  }
-  return card.type === "quote"
-    ? "Empty quotes aren't saved. The quote keeps its last text."
-    : "Empty notes aren't saved. The note keeps its last text.";
-}
-
-async function copyToClipboard(text: string, message: string) {
+async function copyToClipboard(text: string, message: string, failed: string) {
   try {
     await navigator.clipboard.writeText(text);
     toast.success(message);
   } catch {
-    toast.error("Failed to copy");
+    toast.error(failed);
   }
-}
-
-function HeaderIconButton({
-  children,
-  className,
-  label,
-  pressed,
-  shortcut,
-  tooltipSide,
-  ref,
-  ...props
-}: React.ComponentProps<"button"> & {
-  children: ReactNode;
-  label: string;
-  pressed?: boolean;
-  shortcut?: readonly string[];
-  tooltipSide?: "top" | "right" | "bottom" | "left";
-}) {
-  return (
-    <ShortcutTooltip keys={shortcut} label={label} side={tooltipSide}>
-      <button
-        aria-keyshortcuts={shortcut ? ariaKeyShortcut(shortcut) : undefined}
-        aria-label={label}
-        aria-pressed={pressed}
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-muted data-[state=open]:text-foreground [&_svg]:size-4",
-          className
-        )}
-        ref={ref}
-        type="button"
-        {...props}
-      >
-        {children}
-      </button>
-    </ShortcutTooltip>
-  );
 }

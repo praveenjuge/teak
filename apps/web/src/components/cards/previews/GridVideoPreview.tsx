@@ -1,3 +1,4 @@
+import { useTranslations } from "@teak/i18n/react";
 import { Play } from "lucide-react";
 import type { PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -63,6 +64,7 @@ function ScrubPreview({
   thumbnailKey?: string;
   thumbnailUrl?: string;
 }) {
+  const t = useTranslations("cards.previews");
   const [hasHovered, setHasHovered] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [isSpriteLoaded, setIsSpriteLoaded] = useState(false);
@@ -103,7 +105,7 @@ function ScrubPreview({
     >
       {thumbnailUrl ? (
         <ResilientMediaImage
-          alt="Video thumbnail"
+          alt={t("videoThumbnail")}
           cardId={cardId}
           className="h-full w-full object-cover"
           decoding="async"
@@ -152,6 +154,7 @@ function HoverVideoPreview({
   thumbnailUrl?: string;
   videoUrl: string;
 }) {
+  const t = useTranslations("cards.previews");
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
@@ -188,7 +191,7 @@ function HoverVideoPreview({
       {thumbnailUrl ? (
         <div className={isHovering ? "invisible" : undefined}>
           <ResilientMediaImage
-            alt="Video thumbnail"
+            alt={t("videoThumbnail")}
             cardId={cardId}
             className="h-full w-full object-cover"
             decoding="async"
@@ -238,6 +241,7 @@ export function GridVideoPreview({
   videoUrl,
   width,
 }: GridVideoPreviewProps) {
+  const t = useTranslations("cards.previews");
   const aspectRatio = width && height ? width / height : 16 / 9;
 
   if (isGif && videoUrl) {
@@ -247,7 +251,7 @@ export function GridVideoPreview({
         style={{ aspectRatio }}
       >
         <ResilientMediaImage
-          alt="GIF preview"
+          alt={t("gifPreview")}
           cardId={cardId}
           className="h-full w-full object-cover"
           decoding="async"
@@ -297,7 +301,7 @@ export function GridVideoPreview({
         style={{ aspectRatio }}
       >
         <ResilientMediaImage
-          alt="Video thumbnail"
+          alt={t("videoThumbnail")}
           cardId={cardId}
           className="h-full w-full object-cover"
           decoding="async"

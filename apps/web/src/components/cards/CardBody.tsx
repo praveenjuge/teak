@@ -2,6 +2,7 @@ import {
   hostForDisplay,
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
+import { useTranslations } from "@teak/i18n/react";
 import type { SyntheticEvent } from "react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
@@ -77,11 +78,12 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
   const { heading, body } = splitNotePreview(card.content);
   const headingText = markdownToPlainText(heading);
   const bodyText = markdownToPlainText(body) || card.fileMetadata?.fileName;
+  const t = useTranslations("cards.body");
   if (!(headingText || bodyText)) {
     return (
       <div className={cn(CARD_SURFACE, "p-4", textInsets)}>
         <p className="text-muted-foreground italic leading-relaxed">
-          Empty note
+          {t("emptyNote")}
         </p>
         <SourceFooter sourceUrl={card.sourceUrl} />
       </div>

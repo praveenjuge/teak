@@ -3,6 +3,7 @@ import {
   getSafeUrlHostname,
   sanitizeExternalUrl,
 } from "@teak/convex/shared/utils/safeUrl";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { ArrowUpRight, ImagePlus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,10 +15,10 @@ import { cn } from "../../lib/utils";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 import { SiteFavicon } from "../cards/SiteFavicon";
 
-function formatFactValue(value: string) {
+function formatFactValue(value: string, locale: string | undefined) {
   const trimmed = value.trim();
   if (/^\d{5,}$/.test(trimmed)) {
-    return Number(trimmed).toLocaleString();
+    return Number(trimmed).toLocaleString(locale);
   }
   return value;
 }
@@ -150,6 +151,8 @@ export function LinkPreview({
   LinkComponent,
   thumbnail,
 }: LinkPreviewProps) {
+  const t = useTranslations("cardPreviews.link");
+  const locale = useIntlLocale();
   const linkPreview =
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
@@ -184,12 +187,12 @@ export function LinkPreview({
   const screenshotUrl = showScreenshot ? card.screenshotUrl : undefined;
   const previewImages = [
     {
-      alt: "Open Graph preview",
+      alt: t("openGraphAlt"),
       storageKey: card.metadata?.linkPreview?.imageStorageKey,
       url: linkImage,
     },
     {
-      alt: "Rendered webpage screenshot",
+      alt: t("screenshotAlt"),
       storageKey: card.metadata?.linkPreview?.screenshotStorageKey,
       url: screenshotUrl,
     },
@@ -211,7 +214,7 @@ export function LinkPreview({
       >
         {/* biome-ignore lint/correctness/useImageSize: a local file of unknown size */}
         <img
-          alt="Uploading the new link preview"
+          alt={t("uploadingAlt")}
           className={imageClassName}
           src={uploadingPreviewUrl}
         />
@@ -224,7 +227,7 @@ export function LinkPreview({
   } else if (previewImage) {
     image = (
       <ResilientMediaImage
-        alt={card.hasThumbnailOverride ? "Link image" : previewImage.alt}
+        alt={card.hasThumbnailOverride ? t("imageAlt") : previewImage.alt}
         cardId={card._id}
         className={imageClassName}
         height={630}
@@ -248,7 +251,7 @@ export function LinkPreview({
       <ThumbnailDropZone onFile={thumbnail.onFile}>
         <div className="flex h-32 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed text-muted-foreground text-sm">
           <ImagePlus aria-hidden="true" className="size-5" />
-          Add an image
+          {t("addImage")}
         </div>
       </ThumbnailDropZone>
     ) : null;
@@ -323,7 +326,7 @@ export function LinkPreview({
                 {fact.label}
               </dt>
               <dd className="break-words font-semibold text-foreground text-sm">
-                {formatFactValue(fact.value)}
+                {formatFactValue(fact.value, locale)}
               </dd>
             </div>
           ))}
@@ -354,7 +357,7 @@ export function LinkPreview({
             {linkMedia.map((media, index) =>
               media.type === "video" ? (
                 <video
-                  aria-label={`Attached video ${index + 1}`}
+                  aria-label={t("attachedVideo", { number: index + 1 })}
                   className="w-full rounded-xl border bg-black"
                   controls
                   key={`${media.type}-${media.url}`}
@@ -367,7 +370,7 @@ export function LinkPreview({
                 </video>
               ) : (
                 <img
-                  alt={`Attached post media ${index + 1}`}
+                  alt={t("attachedMedia", { number: index + 1 })}
                   className="w-full rounded-xl border object-contain"
                   height={media.height}
                   key={`${media.type}-${media.url}`}
@@ -403,7 +406,7 @@ export function LinkPreview({
           {linkMedia.map((media, index) =>
             media.type === "video" ? (
               <video
-                aria-label={`Attached video ${index + 1}`}
+                aria-label={t("attachedVideo", { number: index + 1 })}
                 className="w-full rounded-xl border bg-black"
                 controls
                 key={`${media.type}-${media.url}`}
@@ -416,7 +419,7 @@ export function LinkPreview({
               </video>
             ) : (
               <img
-                alt={`Attached post media ${index + 1}`}
+                alt={t("attachedMedia", { number: index + 1 })}
                 className="w-full rounded-xl border object-contain"
                 height={media.height}
                 key={`${media.type}-${media.url}`}

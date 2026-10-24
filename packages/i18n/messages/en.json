@@ -618,5 +618,240 @@
       "nameTaken": "A tag named “{name}” already exists.",
       "startFailed": "Couldn't start the tag change"
     }
+  },
+  "cardModal": {
+    "header": {
+      "actionsLabel": "Card actions",
+      "contentLabel": "{type, select, text {Text content} link {Link content} image {Image content} video {Video content} audio {Audio content} document {Document content} palette {Palette content} quote {Quote content} other {Card content}}",
+      "detailsLabel": "Card details",
+      "download": "Download",
+      "downloadTooltip": "Download the file",
+      "downloading": "Downloading…",
+      "loadingDescription": "Loading card details",
+      "loadingTitle": "Loading card",
+      "nextCard": "Next card",
+      "open": "Open",
+      "openingCard": "Opening card",
+      "openTooltip": "Open the link",
+      "previousCard": "Previous card",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Untitled link"
+    },
+    "saveState": {
+      "error": "Couldn't save",
+      "saved": "Saved",
+      "unsaved": "Unsaved changes"
+    },
+    "menu": {
+      "addToFolder": "Add to folder…",
+      "archive": "Archive",
+      "copyLink": "Copy Link",
+      "copyText": "Copy Text",
+      "download": "Download",
+      "favorite": "Favorite",
+      "hideDetails": "Hide details",
+      "moreActions": "More actions",
+      "moreLikeThis": "More like this",
+      "refreshDetails": "Refresh details",
+      "replaceImage": "Replace image",
+      "resetImage": "Reset to original image",
+      "savePdf": "Save PDF",
+      "savingPdf": "Saving PDF…",
+      "shortcutsHint": "Press <kbd>?</kbd> for all shortcuts",
+      "showDetails": "Show details",
+      "unarchive": "Unarchive",
+      "unfavorite": "Unfavorite"
+    },
+    "toasts": {
+      "copiedLink": "Copied link",
+      "copiedText": "Copied text",
+      "copyFailed": "Failed to copy",
+      "emptyNote": "Empty notes aren't saved. The note keeps its last text.",
+      "emptyQuote": "Empty quotes aren't saved. The quote keeps its last text."
+    },
+    "trash": {
+      "deleteForever": "Delete Forever",
+      "inTrash": "This card is in Trash",
+      "restore": "Restore"
+    },
+    "done": {
+      "markAs": "{verb, select, read {Mark as read} watched {Mark as watched} listened {Mark as listened} bought {Mark as bought} cooked {Mark as cooked} played {Mark as played} other {Mark as done}}",
+      "markAsNot": "{verb, select, read {Mark as not read} watched {Mark as not watched} listened {Mark as not listened} bought {Mark as not bought} cooked {Mark as not cooked} played {Mark as not played} other {Mark as not done}}",
+      "state": "{verb, select, read {Read} watched {Watched} listened {Listened} bought {Bought} cooked {Cooked} played {Played} other {Done}}"
+    },
+    "heading": {
+      "addedOn": "Added {date}",
+      "addedToday": "Added today",
+      "addedYesterday": "Added yesterday",
+      "note": "Note"
+    },
+    "panel": {
+      "addTagLabel": "Add a tag",
+      "addTagPlaceholder": "Add tag…",
+      "addToFolder": "Add to a folder",
+      "andMore": "and more",
+      "colors": "Colors",
+      "copyColor": "Copy {hex}",
+      "folderOverflow": "{name} +{count}",
+      "hidden": "Hidden",
+      "hiddenHint": "Only a search for #secret or #hidden shows this card",
+      "inFolders": "In {folders}",
+      "inFoldersChange": "In {folders}. Change folders",
+      "keepTag": "Keep tag {tag}",
+      "keepTagHint": "Keep {tag} as one of your tags",
+      "linkedFrom": "Linked from",
+      "noNotes": "No notes",
+      "notes": "Notes",
+      "notesPlaceholder": "Add a note…",
+      "removeTag": "Remove tag {tag}",
+      "removeTeakTag": "Remove Teak tag {tag}",
+      "showLess": "Show less",
+      "showMore": "Show more",
+      "showTagged": "Show cards tagged {tag}",
+      "suggestedTags": "{count, plural, one {# suggested tag} other {# suggested tags}}",
+      "summary": "Summary",
+      "tags": "Tags",
+      "teakTagHint": "Tag added by Teak. Show cards tagged {tag}"
+    },
+    "details": {
+      "added": "Added",
+      "author": "Author",
+      "edited": "Edited",
+      "extractedText": "{count, plural, one {# character extracted} other {# characters extracted}}",
+      "fewerDetails": "Fewer details",
+      "fileName": "File name",
+      "fileSize": "File size",
+      "fileType": "File type",
+      "from": "From",
+      "moreDetails": "More details",
+      "published": "Published",
+      "publisher": "Publisher",
+      "showAllOfType": "{type, select, text {Show all Text cards} link {Show all Link cards} image {Show all Image cards} video {Show all Video cards} audio {Show all Audio cards} document {Show all Document cards} palette {Show all Palette cards} quote {Show all Quote cards} other {Show all Card cards}}",
+      "text": "Text",
+      "title": "Details",
+      "url": "URL"
+    }
+  },
+  "cardPreviews": {
+    "audio": {
+      "loadFailed": "This recording couldn't be loaded. Try downloading it instead.",
+      "pause": "Pause",
+      "play": "Play",
+      "seek": "Seek",
+      "seekPosition": "{current} of {duration}",
+      "transcript": "Transcript"
+    },
+    "document": {
+      "facts": {
+        "colorVariables": "{count, plural, other {# color variables}}",
+        "files": "{count, plural, other {# files}}",
+        "folders": "{count, plural, other {# folders}}",
+        "headings": "{count, plural, other {# headings}}",
+        "lines": "{count, plural, other {# lines}}",
+        "slides": "{count, plural, other {# slides}}",
+        "words": "{count, plural, other {# words}}"
+      },
+      "file": "File",
+      "openFile": "Open file",
+      "untitled": "Document"
+    },
+    "fileText": {
+      "loading": "Loading file preview"
+    },
+    "image": {
+      "alt": "Image",
+      "unavailable": "Image preview unavailable"
+    },
+    "link": {
+      "addImage": "Add an image",
+      "attachedMedia": "Attached post media {number}",
+      "attachedVideo": "Attached video {number}",
+      "imageAlt": "Link image",
+      "openGraphAlt": "Open Graph preview",
+      "screenshotAlt": "Rendered webpage screenshot",
+      "uploadingAlt": "Uploading the new link preview"
+    },
+    "palette": {
+      "copied": "Copied {hex}",
+      "copy": "Copy {hex}",
+      "copyFailed": "Failed to copy",
+      "empty": "No colors detected in this palette"
+    },
+    "quote": {
+      "placeholder": "Enter your quote..."
+    },
+    "text": {
+      "editorLabel": "Markdown content",
+      "focus": "Focus",
+      "focusPlaceholder": "Write a note…",
+      "placeholder": "Write a note...",
+      "tooLarge": "Notes can be up to 512 KiB of UTF-8 text"
+    },
+    "video": {
+      "gifAlt": "Animated GIF",
+      "unsupported": "Your browser does not support the video tag."
+    }
+  },
+  "cards": {
+    "types": {
+      "text": "Text",
+      "link": "Link",
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio",
+      "document": "Document",
+      "palette": "Palette",
+      "quote": "Quote",
+      "card": "Card"
+    },
+    "accessibleLabel": {
+      "titled": "{type, select, text {Text: {title}} link {Link: {title}} image {Image: {title}} video {Video: {title}} audio {Audio: {title}} document {Document: {title}} palette {Palette: {title}} quote {Quote: {title}} other {Card: {title}}}",
+      "untitled": "{type, select, text {Text card} link {Link card} image {Image card} video {Video card} audio {Audio card} document {Document card} palette {Palette card} quote {Quote card} other {Card card}}"
+    },
+    "menu": {
+      "addTags": "Add tags…",
+      "archive": "Archive",
+      "copyImage": "Copy image",
+      "copyLink": "Copy link",
+      "copyText": "Copy text",
+      "deleteForever": "Delete Forever",
+      "deselect": "Deselect",
+      "favorite": "Favorite",
+      "folders": "Folders…",
+      "moreActions": "More actions",
+      "openLink": "Open link",
+      "refreshDetails": "Refresh details",
+      "restore": "Restore",
+      "select": "Select",
+      "unarchive": "Unarchive",
+      "unfavorite": "Unfavorite"
+    },
+    "copyImageFailed": "Failed to copy image",
+    "deleteForeverDialog": {
+      "confirm": "Delete Forever",
+      "description": "This permanently deletes the card and its files. This can’t be undone.",
+      "title": "Delete this card forever?"
+    },
+    "body": {
+      "emptyNote": "Empty note",
+      "recording": "Recording"
+    },
+    "link": {
+      "markedAs": "{verb, select, read {Marked as read} watched {Marked as watched} listened {Marked as listened} bought {Marked as bought} cooked {Marked as cooked} played {Marked as played} other {Marked as done}}"
+    },
+    "previews": {
+      "documentPreview": "Preview of document",
+      "documentPreviewOf": "Preview of {fileName}",
+      "gifPreview": "GIF preview",
+      "imageAlt": "Image",
+      "videoThumbnail": "Video thumbnail"
+    }
+  },
+  "grids": {
+    "masonry": {
+      "copiedLinks": "{count, plural, one {Copied # link} other {Copied # links}}",
+      "copyLinksFailed": "Couldn't copy the links",
+      "noLinks": "None of these cards have a link"
+    }
   }
 }
