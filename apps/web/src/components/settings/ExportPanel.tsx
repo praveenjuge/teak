@@ -3,10 +3,11 @@
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CircleCheck, Download } from "vadivam-react";
+import { CircleCheck } from "vadivam-react";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { formatBytes, formatCountdown } from "./importExportFormat";
+import { SettingsSection } from "./SettingsSection";
 
 export type ExportJobStatus =
   | "pending"
@@ -67,6 +68,7 @@ export function ExportPanel({
   onStartExport,
 }: ExportPanelProps) {
   const t = useTranslations("settings.export");
+  const tData = useTranslations("settings.data");
   const tFormat = useTranslations("settings.format");
   const locale = useIntlLocale();
   const [isBusy, setIsBusy] = useState(false);
@@ -141,9 +143,6 @@ export function ExportPanel({
     );
   };
 
-  const avatarClass =
-    "flex size-9 shrink-0 items-center justify-center rounded-xl border bg-background text-muted-foreground shadow-xs";
-
   let activeTitle = t("preparing");
   let activeSubtitle = t("runsInBackground");
   if (job?.stage === "snapshotting" && typeof job.processedCount === "number") {
@@ -161,114 +160,94 @@ export function ExportPanel({
     idleCaption = t("quotaUsed");
   }
 
-  let body: ReactNode;
+  let action: ReactNode;
+  let status: ReactNode;
   if (isLoading) {
-    body = (
-      <div className="flex min-h-24 items-center justify-center">
-        <Spinner className="text-muted-foreground" />
-      </div>
-    );
+    action = <Spinner className="text-muted-foreground" />;
+    status = null;
   } else if (isActive) {
-    body = (
-      <div className="flex items-start gap-3">
-        <span className={avatarClass}>
-          <Spinner className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-2.5">
-          <div className="space-y-0.5">
-            <div className="font-medium">{activeTitle}</div>
-            <div className="text-muted-foreground text-xs leading-5">
-              {activeSubtitle}
-            </div>
-          </div>
-          <Button
-            disabled={isBusy}
-            onClick={handleCancel}
-            size="sm"
-            variant="outline"
-          >
-            {isBusy ? <Spinner /> : t("cancelExport")}
-          </Button>
-        </div>
-      </div>
+    action = (
+      <Button
+        disabled={isBusy}
+        onClick={handleCancel}
+        size="sm"
+        variant="outline"
+      >
+        {isBusy ? <Spinner /> : t("cancelExport")}
+      </Button>
+    );
+    status = (
+      <>
+        <Spinner className="size-4 shrink-0" />
+        <span className="font-medium text-foreground">{activeTitle}</span>
+        <span>{activeSubtitle}</span>
+      </>
     );
   } else if (canDownload && job) {
-    body = (
-      <div className="flex items-start gap-3">
-        <span className={avatarClass}>
-          <CircleCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-2.5">
-          <div className="space-y-0.5">
-            <div className="font-medium">{t("ready")}</div>
-            <div className="text-muted-foreground text-xs leading-5">
-              <span>{t("cardCount", { count: job.cardCount ?? 0 })}</span>
-              {typeof job.artifactBytes === "number" ? (
-                <span> · {formatBytes(job.artifactBytes, locale)}</span>
-              ) : null}
-              {job.filesOmitted ? (
-                <span title={t("filesOmittedTitle")}>
-                  {" "}
-                  · {t("filesUnavailable", { count: job.filesOmitted })}
-                </span>
-              ) : null}
-              {job.expiresAt ? (
-                <span>
-                  {" "}
-                  ·{" "}
-                  {t("availableUntil", {
-                    date: formatExpiry(locale, job.expiresAt),
-                  })}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          <Button disabled={isBusy} onClick={handleDownload} size="sm">
-            {isBusy ? <Spinner /> : t("downloadArchive")}
-          </Button>
-        </div>
-      </div>
+    action = (
+      <Button disabled={isBusy} onClick={handleDownload} size="sm">
+        {isBusy ? <Spinner /> : t("downloadArchive")}
+      </Button>
+    );
+    status = (
+      <>
+        <CircleCheck className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <span className="font-medium text-foreground">{t("ready")}</span>
+        <span>{t("cardCount", { count: job.cardCount ?? 0 })}</span>
+        {typeof job.artifactBytes === "number" ? (
+          <span>{formatBytes(job.artifactBytes, locale)}</span>
+        ) : null}
+        {job.filesOmitted ? (
+          <span title={t("filesOmittedTitle")}>
+            {t("filesUnavailable", { count: job.filesOmitted })}
+          </span>
+        ) : null}
+        {job.expiresAt ? (
+          <span>
+            {t("availableUntil", {
+              date: formatExpiry(locale, job.expiresAt),
+            })}
+          </span>
+        ) : null}
+      </>
     );
   } else {
-    body = (
-      <div className="flex items-start gap-3">
-        <span className={avatarClass}>
-          <Download className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-2.5">
-          <div className="space-y-0.5">
-            <div className="font-medium">{t("title")}</div>
-            <p className="text-muted-foreground text-xs leading-5">
-              {t("description")}
-            </p>
-          </div>
-          <div className="space-y-2">
-            {canStartNew ? (
-              <Button disabled={isBusy} onClick={handleStart} size="sm">
-                {isBusy ? <Spinner /> : t("startExport")}
-              </Button>
-            ) : (
-              <Button
-                disabled
-                size="sm"
-                title={t("nextAvailable", {
-                  date: formatExpiry(locale, resetAt),
-                })}
-                variant="secondary"
-              >
-                {t("availableIn", {
-                  countdown: formatCountdown(remainingMs, tFormat),
-                })}
-              </Button>
-            )}
-            <p className="text-muted-foreground text-xs leading-5">
-              {idleCaption}
-            </p>
-          </div>
-        </div>
-      </div>
+    action = canStartNew ? (
+      <Button disabled={isBusy} onClick={handleStart} size="sm">
+        {isBusy ? <Spinner /> : t("startExport")}
+      </Button>
+    ) : (
+      <Button
+        disabled
+        size="sm"
+        title={t("nextAvailable", {
+          date: formatExpiry(locale, resetAt),
+        })}
+        variant="secondary"
+      >
+        {t("availableIn", {
+          countdown: formatCountdown(remainingMs, tFormat),
+        })}
+      </Button>
     );
+    status = <span>{idleCaption}</span>;
   }
 
-  return <div className="rounded-xl border p-4 text-sm">{body}</div>;
+  return (
+    <SettingsSection
+      action={action}
+      description={tData("exportDescription")}
+      id="export"
+      title={tData("exportTitle")}
+    >
+      {status ? (
+        <p
+          aria-live="polite"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground leading-5 [&>span+span]:before:mr-2 [&>span+span]:before:content-['·']"
+        >
+          {status}
+        </p>
+      ) : null}
+    </SettingsSection>
+  );
 }

@@ -10,18 +10,13 @@ import {
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { PlanOption } from "./PlanOption";
-import { SettingsDialog, SettingsDialogBody } from "./SettingsDialog";
+import { SettingsSection } from "./SettingsSection";
 
 interface SubscriptionSectionProps {
   loadingPlanId: string | null;
   monthlyPlanId: string;
   onCheckout: (planId: string) => void;
   yearlyPlanId: string;
-}
-
-interface SubscriptionDialogProps extends SubscriptionSectionProps {
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
 }
 
 const PRO_FEATURE_KEYS = [
@@ -85,51 +80,54 @@ export function SubscriptionSection({
         ))}
       </fieldset>
 
-      <div className="space-y-3">
-        <p className="font-medium text-sm">{t("everythingInPro")}</p>
-        <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
-          {PRO_FEATURE_KEYS.map((feature) => (
-            <li
-              className="flex items-center gap-2 text-muted-foreground text-sm"
-              key={feature}
-            >
-              <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Check className="size-2.5" strokeWidth={3} />
-              </span>
-              <span>{t(`features.${feature}`)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ProFeatureList />
     </div>
   );
 }
 
-export function SubscriptionDialog({
+/** What Pro includes, as a checklist. */
+export function ProFeatureList({ title }: { title?: string }) {
+  const t = useTranslations("settings.subscription");
+  return (
+    <div className="space-y-3">
+      <p className="font-medium text-sm">{title ?? t("everythingInPro")}</p>
+      <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
+        {PRO_FEATURE_KEYS.map((feature) => (
+          <li
+            className="flex items-center gap-2 text-muted-foreground text-sm"
+            key={feature}
+          >
+            <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Check className="size-2.5" strokeWidth={3} />
+            </span>
+            <span>{t(`features.${feature}`)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Settings → Plan, on the free plan: pick monthly or yearly and check out. */
+export function UpgradeCard({
   loadingPlanId,
   monthlyPlanId,
   onCheckout,
-  onOpenChange,
-  open,
   yearlyPlanId,
-}: SubscriptionDialogProps) {
+}: SubscriptionSectionProps) {
   const t = useTranslations("settings.subscription");
   const [selectedPlanId, setSelectedPlanId] = useState(yearlyPlanId);
   const loading = loadingPlanId !== null;
 
   return (
-    <SettingsDialog
-      className="sm:max-w-lg"
+    <SettingsSection
       description={t("description")}
       footer={
         <>
-          <Button
-            onClick={() => onOpenChange(false)}
-            type="button"
-            variant="outline"
-          >
-            {t("maybeLater")}
-          </Button>
+          <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <Sparkles className="size-3.5" />
+            {t("cancelAnytime")}
+          </span>
           <Button
             disabled={loading}
             onClick={() => onCheckout(selectedPlanId)}
@@ -139,25 +137,16 @@ export function SubscriptionDialog({
           </Button>
         </>
       }
-      icon={Sparkles}
-      onOpenAutoFocus={(event) => {
-        // Radix would focus the first (unselected) plan; start on the panel.
-        event.preventDefault();
-        (event.currentTarget as HTMLElement | null)?.focus();
-      }}
-      onOpenChange={onOpenChange}
-      open={open}
+      id="upgrade"
       title={t("title")}
     >
-      <SettingsDialogBody>
-        <SubscriptionSection
-          disabled={loading}
-          monthlyPlanId={monthlyPlanId}
-          onSelect={setSelectedPlanId}
-          selectedPlanId={selectedPlanId}
-          yearlyPlanId={yearlyPlanId}
-        />
-      </SettingsDialogBody>
-    </SettingsDialog>
+      <SubscriptionSection
+        disabled={loading}
+        monthlyPlanId={monthlyPlanId}
+        onSelect={setSelectedPlanId}
+        selectedPlanId={selectedPlanId}
+        yearlyPlanId={yearlyPlanId}
+      />
+    </SettingsSection>
   );
 }

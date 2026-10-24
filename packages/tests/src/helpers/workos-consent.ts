@@ -236,9 +236,9 @@ export async function verifyWorkosConsentJourney(
     expect(mcpCard.isError).not.toBe(true);
     expect(mcpCard.structuredContent).toMatchObject({ content: marker });
     expect((await mcp.listTools()).tools.length).toBeGreaterThan(0);
-    const dialog = await openSecurity(surface);
-    const apiRow = dialog.getByTestId(`connection-${apiGrant.consentId}`);
-    const mcpRow = dialog.getByTestId(`connection-${mcpGrant.consentId}`);
+    const security = await openSecurity(surface);
+    const apiRow = security.getByTestId(`connection-${apiGrant.consentId}`);
+    const mcpRow = security.getByTestId(`connection-${mcpGrant.consentId}`);
     await expect(apiRow).toBeVisible();
     await expect(mcpRow).toBeVisible();
     await apiRow.getByRole("button", "Disconnect", { exact: false }).click();

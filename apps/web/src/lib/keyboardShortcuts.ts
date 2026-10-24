@@ -44,6 +44,8 @@ export const GO_TO_VIEW_KEYS: Record<LibraryView, string> = {
   trash: "t",
 };
 
+export const GO_TO_SETTINGS_KEY = "s";
+
 // Keys and search syntax stay as typed; titles and labels are translated.
 const SHORTCUT_GROUPS: {
   id: ShortcutGroupId;
@@ -90,6 +92,7 @@ const SHORTCUT_GROUPS: {
       { id: "goToFavorites", keys: ["G", "F"], sequence: true },
       { id: "goToArchive", keys: ["G", "A"], sequence: true },
       { id: "goToTrash", keys: ["G", "T"], sequence: true },
+      { id: "goToSettings", keys: ["G", "S"], sequence: true },
     ],
   },
   {

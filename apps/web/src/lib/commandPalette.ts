@@ -160,14 +160,16 @@ export function paletteShuffleHref(
 
 export type SettingsDialogTab = "import" | "export";
 
+/** The tab an old `/settings?dialog=` link asked for. */
 export function parseSettingsDialogParam(
   value: string | null | undefined
 ): SettingsDialogTab | null {
   return value === "import" || value === "export" ? value : null;
 }
 
-export const settingsDialogHref = (dialog: SettingsDialogTab) =>
-  `/settings?dialog=${dialog}`;
+/** Settings → Import & export, scrolled to its import or export card. */
+export const settingsDataHref = (tab: SettingsDialogTab) =>
+  `/settings/data#${tab}`;
 
 export function paletteCardSearchArgs(
   query: string,

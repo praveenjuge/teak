@@ -1,50 +1,26 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
 
 interface SettingsShellProps {
   children: ReactNode;
-  contentClassName?: string;
   header?: ReactNode;
-  sectionClassName?: string;
-  withMain?: boolean;
+  /** The list of Settings pages, shown beside the content on wide screens. */
+  nav?: ReactNode;
 }
 
-function SettingsShellContent({
-  children,
-  contentClassName,
-  header,
-  sectionClassName,
-}: Omit<SettingsShellProps, "withMain">) {
+export function SettingsShell({ children, header, nav }: SettingsShellProps) {
   return (
     <>
       {header}
-      <section
-        className={cn("mt-2 mb-10 w-full max-w-md space-y-5", sectionClassName)}
-      >
-        <div
-          className={cn(
-            "space-y-5 rounded-2xl border bg-background p-7",
-            contentClassName
-          )}
-        >
+      <div className="mt-2 mb-10 flex w-full max-w-5xl gap-10">
+        {nav ? (
+          <aside className="hidden w-52 shrink-0 md:block">
+            <div className="sticky top-16">{nav}</div>
+          </aside>
+        ) : null}
+        <div className="min-w-0 max-w-2xl flex-1" data-slot="settings-content">
           {children}
         </div>
-      </section>
+      </div>
     </>
-  );
-}
-
-export function SettingsShell({
-  withMain = false,
-  ...contentProps
-}: SettingsShellProps) {
-  if (!withMain) {
-    return <SettingsShellContent {...contentProps} />;
-  }
-
-  return (
-    <main className="min-h-screen">
-      <SettingsShellContent {...contentProps} />
-    </main>
   );
 }

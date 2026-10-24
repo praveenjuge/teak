@@ -294,6 +294,7 @@ Anywhere in your library:
 | `N` | Write a new note (opens **Everything** first if needed) |
 | `U` | Upload files |
 | `G` then `E`, `F`, `A`, or `T` | Go to **Everything**, **Favorites**, **Archive**, or **Trash** |
+| `G` then `S` | Go to **Settings** |
 | `Alt` `T` (`⌥` `T` on a Mac) | Go to notifications, for example to **Undo** |
 | `⌘K` (`Ctrl+K` on Windows and Linux) | Open the command palette |
 | `?` | Show the keyboard shortcuts |
@@ -304,7 +305,7 @@ Outside Trash, with cards selected, `F`, `T`, `E`, and `Delete` act on all of th
 
 Press `⌘K` (`Ctrl+K` on Windows and Linux) on any page to jump anywhere without the mouse. Type to filter, use the arrow keys to move, and press `Enter` to choose:
 
-- **Go to** Everything, Favorites, Archive, Trash, Tags, Settings, or any folder or smart folder by name.
+- **Go to** Everything, Favorites, Archive, Trash, Tags, Settings, any Settings page (Plan, Appearance, Integrations, Security, Import & export), or any folder or smart folder by name.
 - **Find a card:** after two characters, the palette lists up to 8 cards from your search, qualifiers included (`#design`, `type:link`, `site:github.com`). Choose one to open it, or choose **Search all** to see every match. From Archive it searches your archive, and **Search all** stays there; it never shows cards in Trash.
 - **Run an action:** New note, Upload files, Import, Export, Toggle theme, Shuffle, Keyboard shortcuts, and Sign out.
 
@@ -374,21 +375,20 @@ If a site is down or slow, the card keeps the details it had. Links you saved be
 
 Everything syncs in real time — pick your apps on the [Apps page](/apps).
 
-Sign in with your browser, or create a long-lived key under **Settings → Security → API keys**.
+Sign in with your browser, or create a long-lived key under **Settings → Integrations → API keys**.
 
 ### Language
 
-Teak's web app and browser extension are available in English, Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 and 简体中文. Choose one in **Settings → Language**. The app switches right away, without reloading, and your choice is saved to your account, so it follows you to every browser you sign in on. Teak starts in English for every account and never guesses from your browser's language.
+Teak's web app and browser extension are available in English, Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 and 简体中文. Choose one in **Settings → Appearance → Language**. The app switches right away, without reloading, and your choice is saved to your account, so it follows you to every browser you sign in on. Teak starts in English for every account and never guesses from your browser's language.
 
 - The browser extension's popup, right-click menu, address bar suggestions and save buttons follow the language once you sign in. Its name in your browser's extensions list follows your browser's language.
 - Search words stay in English in every language: qualifiers such as `is:fav`, `type:image` and `tag:`, `OR`, and date words such as `today`.
 - Some details Teak adds to cards stay in English: link facts, bylines, price labels and import errors. So do the API, MCP, CLI and these docs.
 - The Mac, iPhone, iPad, Android and Raycast apps are in English for now.
-- **Help improve translations** under the setting opens an email to us, to report a word that reads wrong.
 
 ### Save by email
 
-Turn on **Settings → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email address you sign in to Teak with.
+Turn on **Settings → Integrations → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email address you sign in to Teak with.
 
 - An email that's just a link, with at most a sentence or two, becomes a link card, and the sentence becomes its note. A link you already have, emailed on its own, moves that card to the top instead; with a sentence around it, it makes a new card. Anything else becomes a note, headed with the subject. Tracking images and redirect wrappers are removed, and a forwarded email's "Fwd:" and forwarding header are dropped.
 - Attachments become their own cards, with the same formats as uploads. An email can carry about 18 MB of attachments in total.

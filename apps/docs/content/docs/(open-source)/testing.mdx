@@ -144,7 +144,7 @@ Each config runs its own directories and writes to its own `.e2e/<suite>/`:
 | `e2e.config.ts` | `src/journey/`, `src/web/`, `src/matrix/` in Chromium | the local stack |
 | `e2e.webkit.config.ts` | `src/matrix/` in WebKit | the local stack |
 | `e2e.docs.config.ts` | `src/docs/`: read-only checks of the published site and Teak's public production endpoints (`bun run --cwd packages/tests e2e:docs`); the `E2E` workflow runs it daily | production, no stack |
-| `e2e.hermetic.config.ts` | `src/auth-runtime/` and `src/extension/`: the WorkOS consent and Security dialog flows and the extension's OAuth module, with every request answered by fixtures (`bun run --cwd packages/tests e2e:hermetic`) | nothing; `TEAK_E2E_HERMETIC=1` |
+| `e2e.hermetic.config.ts` | `src/auth-runtime/` and `src/extension/`: the WorkOS consent flow and the extension's OAuth module, with every request answered by fixtures (`bun run --cwd packages/tests e2e:hermetic`) | nothing; `TEAK_E2E_HERMETIC=1` |
 
 Files in a suite run in parallel and share nothing: every spec makes its own accounts. Tests inside a file run in order on one worker, and a `describe(..., { serial: true })` group shares one browser and its module state, for flows such as sign-up, sign-out and account deletion.
 

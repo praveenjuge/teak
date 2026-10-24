@@ -93,7 +93,7 @@ test("the command palette goes to folders and cards, and leaves the editor its â
   await expect(palette).toBeHidden();
 });
 
-test("Export in the palette opens the Export tab in Settings", async ({
+test("Export in the palette opens Settings at its Export section", async ({
   browser,
   screen,
   webAccount: _signedIn,
@@ -109,11 +109,25 @@ test("Export in the palette opens the Export tab in Settings", async ({
   );
   await input.pressSequentially("export");
   await browser.keyboard.press("Enter");
-  const dialog = screen.getByRole("dialog", "Manage data");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("tab", "Export")).toHaveAttribute(
-    "aria-selected",
-    "true"
-  );
-  await expect.poll(async () => new URL(await browser.url()).search).toBe("");
+  await expect(screen.getByRole("region", "Export")).toBeVisible();
+  await expect
+    .poll(async () => {
+      const url = new URL(await browser.url());
+      return `${url.pathname}${url.search}${url.hash}`;
+    })
+    .toBe("/settings/data#export");
+});
+
+test("an old Settings dialog link opens the page that replaced it", async ({
+  browser,
+  screen,
+  webAccount: _signedIn,
+}) => {
+  await gotoApp(browser, "/settings?dialog=import");
+  await expect(screen.getByRole("region", "Import")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect
+    .poll(async () => new URL(await browser.url()).pathname)
+    .toBe("/settings/data");
 });

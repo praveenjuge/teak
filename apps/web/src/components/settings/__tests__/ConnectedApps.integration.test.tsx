@@ -108,7 +108,13 @@ async function mount() {
   );
 }
 function region(name: string) {
-  const element = container.querySelector(`section[aria-label="${name}"]`);
+  const element = [
+    ...container.querySelectorAll("section[aria-labelledby]"),
+  ].find(
+    (section) =>
+      container.querySelector(`#${section.getAttribute("aria-labelledby")}`)
+        ?.textContent === name
+  );
   if (!element) {
     throw new Error(`Missing ${name} region`);
   }

@@ -25,4 +25,16 @@ test("signed-in routes and backend modules are warm", {
   await expect(
     screen.getByRole("heading", "Settings", { level: 1 })
   ).toBeVisible();
+  for (const [path, title] of [
+    ["/settings/plan", "Plan"],
+    ["/settings/appearance", "Appearance"],
+    ["/settings/integrations", "Integrations"],
+    ["/settings/security", "Security"],
+    ["/settings/data", "Import & export"],
+  ]) {
+    await gotoApp(browser, path);
+    await expect(
+      screen.getByRole("heading", title, { level: 2 })
+    ).toBeVisible();
+  }
 });

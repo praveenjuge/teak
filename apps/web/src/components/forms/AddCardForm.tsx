@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import { useServerErrors } from "@/hooks/useServerErrors";
+import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { cn } from "@/lib/utils";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useWarnBeforeUnload } from "../../hooks/useWarnBeforeUnload";
@@ -180,7 +181,7 @@ export function AddCardForm({
   onFocus,
   onOpenCard,
   onUpgrade,
-  upgradeUrl = "/settings",
+  upgradeUrl = SETTINGS_PLAN_HREF,
 }: AddCardFormProps) {
   const t = useTranslations("forms.addCard");
   const tLimits = useTranslations("forms.limits");

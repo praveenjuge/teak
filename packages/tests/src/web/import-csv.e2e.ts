@@ -22,14 +22,13 @@ const importCsv = async (
   screen: Screen,
   fileName: string
 ) => {
-  await gotoApp(browser, "/settings");
-  await screen.getByRole("button", "Manage import and export").click();
-  const dialog = screen.getByRole("dialog", "Manage data");
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("combobox", "Import from").click();
+  await gotoApp(browser, "/settings/data");
+  const panel = screen.getByRole("region", "Import");
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await panel.getByRole("combobox", "Import from").click();
   await screen.getByRole("option", "CSV file").click();
   await expect(
-    dialog.getByText(
+    panel.getByText(
       "A CSV with a header row. Teak reads url, title, tags, folder, note and created columns.",
       { exact: false }
     )
@@ -37,9 +36,9 @@ const importCsv = async (
   await browser
     .locator('input[type="file"][accept=".csv"]')
     .setInputFiles(`${FIXTURES}/${fileName}`);
-  await expect(dialog.getByText(fileName)).toBeVisible();
-  await dialog.getByRole("button", "Start import").click();
-  return dialog;
+  await expect(panel.getByText(fileName)).toBeVisible();
+  await panel.getByRole("button", "Start import").click();
+  return panel;
 };
 
 describe("Importing a CSV file", () => {
@@ -48,9 +47,9 @@ describe("Importing a CSV file", () => {
     screen,
     library,
   }) => {
-    const dialog = await importCsv(browser, screen, "full.csv");
+    const panel = await importCsv(browser, screen, "full.csv");
     await expect(
-      dialog.getByText("Last import: 4 created, 0 skipped", { exact: false })
+      panel.getByText("Last import: 4 created, 0 skipped", { exact: false })
     ).toBeVisible({ timeout: 120_000 });
 
     const imported = (
@@ -82,12 +81,12 @@ describe("Importing a CSV file", () => {
     screen,
     webAccount: _signedIn,
   }) => {
-    const dialog = await importCsv(browser, screen, "no-url.csv");
-    await expect(dialog.getByText("Import stopped")).toBeVisible({
+    const panel = await importCsv(browser, screen, "no-url.csv");
+    await expect(panel.getByText("Import stopped")).toBeVisible({
       timeout: 120_000,
     });
     await expect(
-      dialog.getByText(
+      panel.getByText(
         "This CSV has no url column. Add a header row with a url (or link) column."
       )
     ).toBeVisible();

@@ -7,7 +7,6 @@ import { LibraryShortcuts } from "@/components/shortcuts";
 import { AppSidebar, SidebarFolders } from "@/components/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { folderIdForPath } from "@/lib/folders";
-import { rememberHomeScroll } from "@/lib/homeScroll";
 import { focusNewNoteComposer } from "@/lib/keyboardShortcuts";
 import {
   type GoToViewOptions,
@@ -15,6 +14,7 @@ import {
   libraryViewForPath,
   libraryViewHref,
 } from "@/lib/libraryViews";
+import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { signOut } from "@/lib/sign-out-client";
 import { IntentLink } from "./IntentLink";
 
@@ -31,16 +31,12 @@ export function AppShell({
   const router = useRouter();
   const view = libraryViewForPath(pathname);
   const folderId = folderIdForPath(pathname);
-  const isCardsPage = view !== null || folderId !== null;
 
   const handleGoToView = useCallback(
     (target: LibraryView, options?: GoToViewOptions) => {
-      if (isCardsPage) {
-        rememberHomeScroll();
-      }
       router.push(libraryViewHref(target, options));
     },
-    [isCardsPage, router]
+    [router]
   );
 
   const handleNewNote = useCallback(() => {
@@ -51,13 +47,10 @@ export function AppShell({
 
   const handleNavigate = useCallback(
     (href: string) => {
-      if (isCardsPage) {
-        rememberHomeScroll();
-      }
       const samePage = href.startsWith(`${pathname}?`);
       router.push(href, samePage ? { scroll: false } : undefined);
     },
-    [isCardsPage, pathname, router]
+    [pathname, router]
   );
 
   const signingOutRef = useRef<boolean>(false);
@@ -72,8 +65,7 @@ export function AppShell({
   }, []);
 
   const handleUpgrade = () => {
-    rememberHomeScroll();
-    router.push("/settings");
+    router.push(SETTINGS_PLAN_HREF);
   };
 
   return (
@@ -90,7 +82,7 @@ export function AppShell({
           <AddCardActions
             onNewNote={handleNewNote}
             onUpgrade={handleUpgrade}
-            upgradeUrl="/settings"
+            upgradeUrl={SETTINGS_PLAN_HREF}
             variant="header"
           />
         }
@@ -99,13 +91,11 @@ export function AppShell({
             activeFolderId={folderId}
             LinkComponent={IntentLink}
             onActiveFolderDeleted={() => router.push("/")}
-            onNavigate={isCardsPage ? rememberHomeScroll : undefined}
           />
         }
         isSettingsActive={pathname.startsWith("/settings")}
         isTagsActive={pathname === "/tags"}
         LinkComponent={IntentLink}
-        onNavigate={isCardsPage ? rememberHomeScroll : undefined}
       />
       <SidebarInset className="min-w-0">
         <div className="mx-auto w-full max-w-7xl px-4 pb-10">{children}</div>

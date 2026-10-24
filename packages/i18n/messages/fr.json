@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "Écrivez-moi sur <twitterLink>{handle}</twitterLink> ou à <emailLink>{email}</emailLink> si vous avez des remarques. Si vous souhaitez partir un jour, vous pouvez <deleteAccount>supprimer votre compte</deleteAccount>. J’espère que vous aurez autant de plaisir à utiliser Teak que j’en ai eu à le créer.",
-      "signature": "Signature de Praveen Juge"
+      "feedback": "Écrivez-moi sur <twitterLink>{handle}</twitterLink> ou à <emailLink>{email}</emailLink> si vous avez des remarques. J’espère que vous aurez autant de plaisir à utiliser Teak que j’en ai eu à le créer.",
+      "signature": "Signature de Praveen Juge",
+      "linksLabel": "Aide et ressources",
+      "docs": "Documentation",
+      "changelog": "Nouveautés",
+      "support": "Aide",
+      "version": "Version {version}"
     },
     "header": {
       "title": "Réglages"
-    },
-    "rows": {
-      "email": "E-mail",
-      "usage": "Utilisation",
-      "plan": "Formule",
-      "saveByEmail": "Enregistrer par e-mail",
-      "security": "Sécurité",
-      "importExport": "Importer/exporter des données",
-      "theme": "Thème",
-      "signOut": "Se déconnecter",
-      "language": "Langue"
     },
     "skeleton": {
       "loading": "Chargement des réglages…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "Non disponible",
-      "cardCount": "{count, plural, one {# fiche} other {# fiches}}",
       "pro": "Pro",
       "freePlan": "Formule gratuite",
-      "manage": "Gérer",
       "manageSubscription": "Gérer l’abonnement",
-      "upgrade": "Passer à Pro",
       "signOut": "Se déconnecter"
     },
     "theme": {
       "useSystem": "Utiliser le thème du système",
       "useLight": "Utiliser le thème clair",
-      "useDark": "Utiliser le thème sombre"
-    },
-    "importExport": {
-      "manage": "Gérer",
-      "manageLabel": "Gérer l’importation et l’exportation",
-      "title": "Gérer les données",
-      "description": "Importez des fiches depuis d’autres outils, ou emportez une copie complète.",
-      "importTab": "Importer",
-      "exportTab": "Exporter"
-    },
-    "security": {
-      "manage": "Gérer",
-      "manageLabel": "Gérer la sécurité",
-      "title": "Sécurité",
-      "description": "Gérez les appareils, applications et clés qui peuvent accéder à votre compte Teak.",
-      "connectionsTab": "Connexions",
-      "apiKeysTab": "Clés d’API"
+      "useDark": "Utiliser le thème sombre",
+      "system": "Système",
+      "light": "Clair",
+      "dark": "Sombre"
     },
     "connections": {
       "devicesTitle": "Appareils",
@@ -119,7 +97,6 @@
       "disconnectDescription": "{name} perd l’accès à votre bibliothèque Teak sur toutes ses installations jusqu’à ce que vous la reconnectiez."
     },
     "apiKeys": {
-      "title": "Clés d’API",
       "revokeAllTitle": "Révoquer toutes les clés d’API ?",
       "revokeAllDescription": "Toutes les clés d’API cessent immédiatement de fonctionner, y compris celles utilisées par le CLI, Raycast et les clients MCP. Cette action est irréversible.",
       "revokeAllConfirm": "Révoquer toutes les clés",
@@ -145,10 +122,8 @@
       "keyRegenerated": "Clé d’API régénérée. Copiez la nouvelle clé maintenant.",
       "keyCopied": "Clé d’API copiée.",
       "copyFailed": "Impossible de copier la clé. Sélectionnez-la et copiez-la manuellement.",
-      "limitNote": "Les clés ont un accès complet à votre bibliothèque. Vous pouvez avoir jusqu’à 10 clés actives.",
       "createKey": "Créer une clé",
       "loading": "Chargement des clés d’API…",
-      "empty": "Créez votre première clé d’API pour connecter des outils externes.",
       "revokeAll": "Révoquer toutes les clés"
     },
     "deleteAccount": {
@@ -161,7 +136,6 @@
     "subscription": {
       "title": "Passer à Pro",
       "description": "Débloquez toutes les fonctionnalités et supprimez les limites.",
-      "maybeLater": "Plus tard",
       "continueToCheckout": "Passer au paiement",
       "choosePlan": "Choisissez une formule",
       "everythingInPro": "Tout ce qu’inclut Pro",
@@ -178,10 +152,10 @@
         "browserExtensions": "Extensions de navigateur",
         "apps": "Applications iOS, Mac et Android",
         "apiAndMcp": "Accès API et MCP"
-      }
+      },
+      "cancelAnytime": "Résiliable à tout moment."
     },
     "inboundEmail": {
-      "title": "Enregistrer par e-mail",
       "genericError": "Impossible de mettre à jour Enregistrer par e-mail. Réessayez.",
       "rateLimited": "Trop de modifications. Réessayez dans une minute.",
       "addressCopied": "Adresse copiée",
@@ -193,13 +167,8 @@
       "copyAddress": "Copier l’adresse",
       "sendFrom": "Envoyez depuis <strong>{sender}</strong>. Les messages provenant d’autres adresses ne sont pas enregistrés.",
       "unverified": "Les messages ne sont pas enregistrés tant que vous n’avez pas vérifié votre e-mail de connexion, <strong>{sender}</strong>.",
-      "howItWorks": "Transférez ou envoyez n’importe quoi. Un e-mail contenant un seul lien devient une fiche lien, tout le reste devient une note, et les pièces jointes deviennent des fiches à part entière. Toutes reçoivent le tag email.",
       "lastReceived": "Dernier e-mail reçu {when}",
-      "turnOff": "Désactiver",
-      "on": "Activé",
-      "off": "Désactivé",
-      "statusOnLabel": "Enregistrer par e-mail : activé",
-      "statusOffLabel": "Enregistrer par e-mail : désactivé"
+      "turnOff": "Désactiver"
     },
     "export": {
       "starting": "Démarrage de l’exportation…",
@@ -249,7 +218,6 @@
       "reportCopied": "Rapport d’importation copié.",
       "reportCopyFailed": "Impossible de copier le rapport d’importation.",
       "reportDownloadFailed": "Impossible de télécharger le rapport d’importation.",
-      "noImports": "Aucune importation pour l’instant.",
       "loadingLast": "Chargement des détails de la dernière importation…",
       "resumeUpload": "Reprendre l’importation",
       "startImport": "Lancer l’importation",
@@ -346,7 +314,8 @@
           "name": "Teak",
           "hint": "Un ZIP issu de Exporter vos données dans Teak."
         }
-      }
+      },
+      "orDrop": "ou déposez-le ici"
     },
     "format": {
       "justNow": "à l’instant",
@@ -365,9 +334,99 @@
       "label": "Langue",
       "saving": "Changement de langue",
       "changed": "Langue modifiée",
-      "changeFailed": "Impossible de changer la langue. Réessayez.",
-      "feedback": "Aidez à améliorer les traductions",
-      "feedbackSubject": "Remarques sur la traduction ({locale})"
+      "changeFailed": "Impossible de changer la langue. Réessayez."
+    },
+    "nav": {
+      "label": "Pages des réglages",
+      "account": "Compte",
+      "plan": "Formule",
+      "appearance": "Apparence",
+      "integrations": "Intégrations",
+      "security": "Sécurité",
+      "data": "Importer et exporter"
+    },
+    "pages": {
+      "account": {
+        "description": "Le compte avec lequel vous êtes connecté, et tous vos réglages en un coup d’œil."
+      },
+      "plan": {
+        "title": "Formule",
+        "description": "Votre formule, le nombre de fiches enregistrées et la facturation."
+      },
+      "appearance": {
+        "title": "Apparence",
+        "description": "L’apparence de Teak et la langue qu’il utilise."
+      },
+      "integrations": {
+        "title": "Intégrations",
+        "description": "Enregistrez dans Teak depuis votre messagerie, votre navigateur, vos appareils et vos propres outils."
+      },
+      "security": {
+        "title": "Sécurité",
+        "description": "Les appareils et applications qui peuvent accéder à votre compte Teak."
+      },
+      "data": {
+        "title": "Importer et exporter",
+        "description": "Importez des fiches depuis d’autres outils, ou emportez une copie complète."
+      }
+    },
+    "overview": {
+      "sectionsLabel": "Tous les réglages",
+      "planFree": "Formule gratuite · {count} fiches sur {limit}",
+      "planPro": "Pro · {count, plural, one {# fiche} other {# fiches}}",
+      "appearance": "{theme, select, light {Thème clair} dark {Thème sombre} other {Thème du système}} · {language}",
+      "integrations": "{email, select, on {Enregistrer par e-mail activé} other {Enregistrer par e-mail désactivé}} · {keys, plural, =0 {aucune clé d’API} one {# clé d’API} other {# clés d’API}}",
+      "devices": "{count, plural, =0 {Aucun appareil connecté} one {# appareil connecté} other {# appareils connectés}}",
+      "devicesMore": "Plus de {count} appareils connectés",
+      "exportRunning": "Exportation en cours",
+      "exportReady": "Exportation prête à télécharger",
+      "exportLast": "Dernière exportation : {date}",
+      "dataIdle": "Importez vos fiches, ou emportez-les",
+      "signedInAs": "Connecté en tant que"
+    },
+    "dangerZone": {
+      "title": "Supprimer le compte",
+      "description": "Supprimez définitivement votre compte, vos fiches et vos fichiers. Cette action est irréversible.",
+      "action": "Supprimer votre compte"
+    },
+    "plan": {
+      "currentTitle": "Formule actuelle",
+      "freeDescription": "Enregistrez jusqu’à {limit} fiches.",
+      "proDescription": "Fiches et stockage illimités, dans toutes les applications.",
+      "usageLabel": "Fiches utilisées",
+      "usage": "{count} fiches sur {limit}",
+      "remaining": "{count, plural, one {# fiche restante} other {# fiches restantes}}",
+      "limitReachedShort": "Limite atteinte",
+      "limitReached": "Vous avez atteint la limite de fiches de la formule gratuite. Passez à Pro pour continuer à enregistrer.",
+      "unlimited": "{count, plural, one {# fiche enregistrée} other {# fiches enregistrées}}, sans limite.",
+      "manageDescription": "Modifiez ou résiliez votre formule, et consultez vos factures.",
+      "includedTitle": "Inclus dans votre formule"
+    },
+    "appearance": {
+      "themeTitle": "Thème",
+      "themeDescription": "Suivez le système, ou utilisez toujours le thème clair ou sombre. Enregistré dans ce navigateur.",
+      "languageTitle": "Langue",
+      "languageDescription": "Enregistrée dans votre compte, elle vous suit dans tous vos navigateurs."
+    },
+    "integrations": {
+      "saveByEmailTitle": "Enregistrer par e-mail",
+      "appsTitle": "Applications et extensions",
+      "apiTitle": "Clés d’API",
+      "apiDescription": "Pour l’API, la CLI et les clients MCP, avec un accès complet à votre bibliothèque. Jusqu’à 10 clés. <link>Documentation de l’API</link>",
+      "opensInNewTab": "{name} (s’ouvre dans un nouvel onglet)",
+      "apps": {
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone et Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "Toutes les applications"
+    },
+    "data": {
+      "importTitle": "Importer",
+      "importDescription": "Importez des liens et des notes depuis votre navigateur ou une autre application.",
+      "exportTitle": "Exporter",
+      "exportDescription": "Toutes vos fiches et leurs fichiers dans un ZIP, avec un fichier de favoris et une feuille de calcul."
     }
   },
   "app": {
@@ -1234,7 +1293,8 @@
       "navigate": "Naviguer",
       "cards": "Fiches",
       "actions": "Actions",
-      "folders": "Dossiers"
+      "folders": "Dossiers",
+      "settings": "Réglages"
     },
     "views": {
       "tags": "Tags",
@@ -1256,7 +1316,8 @@
       "searchAll": "Tout rechercher pour « {query} »",
       "untitled": "Fiche sans titre"
     },
-    "resultsLabel": "Suggestions"
+    "resultsLabel": "Suggestions",
+    "settingsSection": "Réglages : {section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1363,8 @@
       "newNote": "Nouvelle note",
       "uploadFiles": "Importer des fichiers",
       "notifications": "Aller aux notifications (Annuler)",
-      "keyboardShortcuts": "Raccourcis clavier"
+      "keyboardShortcuts": "Raccourcis clavier",
+      "goToSettings": "Réglages"
     }
   },
   "extension": {
