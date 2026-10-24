@@ -13,6 +13,6 @@ Teak ist Ihre persönliche Wissenszentrale, um Ideen und Inspiration zu sammeln,
 - Drücken Sie Alt+Umschalt+S, um die aktuelle Seite zu speichern, ohne das Pop-up zu öffnen. Das Symbol in der Symbolleiste zeigt, wenn eine Seite bereits in Teak ist.
 - Laden Sie im Pop-up eine Datei mit bis zu 100 MB hoch.
 - Durchsuchen Sie Ihre Bibliothek über die Adressleiste: Geben Sie „teak“, ein Leerzeichen und Ihren Suchbegriff ein.
-- Speichern Sie Beiträge von Instagram, Pinterest, X, Hacker News, Sidebar und HeyDesigner über eine Schaltfläche an jedem Beitrag.
+- Speichern Sie Beiträge auf unterstützten Social-Media- und Design-Websites über eine Schaltfläche an jedem Beitrag.
 
 Melden Sie sich mit Ihrem Teak-Konto an, um zu beginnen. Der kostenlose Tarif umfasst 200 Karten; Teak Pro bietet unbegrenzt viele Karten.

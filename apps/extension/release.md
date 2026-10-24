@@ -15,7 +15,9 @@ The release is complete when the exact zips are attached to the GitHub Release a
 
 ## Store listing text
 
-The listing's summary and description live in `store-listing/<locale>.md`: English and the seven languages the extension is translated into, named like the `_locales` folders (`pt_BR`, `zh_CN`). The stores don't read them from the upload, so in a release that changes any of them, paste each changed language into the Chrome Web Store dashboard (**Store listing**, per language) and the AMO Developer Hub (**Edit Product Page**, per locale). The manifest's own name and description come from `public/_locales/<locale>/messages.json` and ship with the build.
+The listing's summary and description live in `store-listing/<locale>.md`: English and the seven languages the extension is translated into, named like the `_locales` folders (`pt_BR`, `zh_CN`). The stores don't read them from the upload, so in a release that changes any of them, paste each changed language into the Chrome Web Store dashboard (**Store listing**, per language) and the AMO Developer Hub (**Edit Product Page**, per locale). The manifest's own name and description come from `public/_locales/<locale>/messages.json` and ship with the build. Chrome only takes the description per language; the summary comes from the package.
+
+Keep the description free of lists of site or brand names. The Chrome Web Store rejects them as keyword spam, which is what happened to the first 1.0.89 submission.
 
 ## Store privacy disclosures
 

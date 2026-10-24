@@ -13,6 +13,6 @@ Teak es su centro de conocimiento personal para reunir, recordar y redescubrir i
 - Pulse Alt+Mayús+S para guardar la página actual sin abrir la ventana. El icono de la barra de herramientas indica cuándo una página ya está en Teak.
 - Suba un archivo de hasta 100 MB desde la ventana.
 - Busque en su biblioteca desde la barra de direcciones: escriba «teak», un espacio y lo que busca.
-- Guarde publicaciones de Instagram, Pinterest, X, Hacker News, Sidebar y HeyDesigner con un botón en cada publicación.
+- Guarde publicaciones de redes sociales y sitios de diseño compatibles con un botón en cada publicación.
 
 Inicie sesión con su cuenta de Teak para empezar. El plan gratuito incluye 200 tarjetas; Teak Pro tiene tarjetas ilimitadas.
