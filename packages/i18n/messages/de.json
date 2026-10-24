@@ -1,1 +1,1576 @@
-{}
+{
+  "common": {
+    "add": "Hinzufügen",
+    "back": "Zurück",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "copy": "Kopieren",
+    "delete": "Löschen",
+    "done": "Fertig",
+    "edit": "Bearbeiten",
+    "loading": "Wird geladen…",
+    "more": "Mehr",
+    "remove": "Entfernen",
+    "rename": "Umbenennen",
+    "retry": "Erneut versuchen",
+    "save": "Speichern",
+    "saving": "Wird gespeichert…",
+    "tryAgain": "Erneut versuchen",
+    "undo": "Rückgängig"
+  },
+  "ui": {
+    "loading": "Wird geladen",
+    "close": "Schließen",
+    "menu": "Menü",
+    "menuDescription": "Bibliotheksansichten, Kartentypen und Einstellungen.",
+    "toggleSidebar": "Seitenleiste ein-/ausblenden",
+    "commandDialog": {
+      "title": "Befehlspalette",
+      "description": "Nach einem Befehl suchen, der ausgeführt werden soll"
+    }
+  },
+  "settings": {
+    "footer": {
+      "feedback": "Schreiben Sie mir gern unter <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink>, wenn Sie Feedback haben. Falls Sie Teak einmal verlassen möchten, können Sie <deleteAccount>Ihr Konto löschen</deleteAccount>. Ich hoffe, Sie nutzen Teak so gern, wie ich es entwickelt habe.",
+      "signature": "Unterschrift von Praveen Juge"
+    },
+    "header": {
+      "title": "Einstellungen"
+    },
+    "rows": {
+      "email": "E-Mail",
+      "usage": "Nutzung",
+      "plan": "Tarif",
+      "saveByEmail": "Per E-Mail speichern",
+      "security": "Sicherheit",
+      "importExport": "Daten importieren/exportieren",
+      "theme": "Design",
+      "signOut": "Abmelden",
+      "language": "Sprache"
+    },
+    "skeleton": {
+      "loading": "Einstellungen werden geladen…"
+    },
+    "errorAlert": {
+      "title": "Fehler"
+    },
+    "content": {
+      "notAvailable": "Nicht verfügbar",
+      "cardCount": "{count, plural, one {# Karte} other {# Karten}}",
+      "pro": "Pro",
+      "freePlan": "Kostenloser Tarif",
+      "manage": "Verwalten",
+      "manageSubscription": "Abo verwalten",
+      "upgrade": "Upgraden",
+      "signOut": "Abmelden"
+    },
+    "theme": {
+      "useSystem": "Systemdesign verwenden",
+      "useLight": "Helles Design verwenden",
+      "useDark": "Dunkles Design verwenden"
+    },
+    "importExport": {
+      "manage": "Verwalten",
+      "manageLabel": "Import und Export verwalten",
+      "title": "Daten verwalten",
+      "description": "Holen Sie Karten aus anderen Tools oder nehmen Sie eine vollständige Kopie mit.",
+      "importTab": "Importieren",
+      "exportTab": "Exportieren"
+    },
+    "security": {
+      "manage": "Verwalten",
+      "manageLabel": "Sicherheit verwalten",
+      "title": "Sicherheit",
+      "description": "Verwalten Sie die Geräte, Apps und Schlüssel, die auf Ihr Teak-Konto zugreifen können.",
+      "connectionsTab": "Verbindungen",
+      "apiKeysTab": "API-Schlüssel"
+    },
+    "connections": {
+      "devicesTitle": "Geräte",
+      "devicesDescription": "Browser und Geräte, die bei Ihrem Konto angemeldet sind.",
+      "appsTitle": "Verbundene Apps",
+      "appsDescription": "Beim Trennen wird eine App auf allen ihren Installationen abgemeldet.",
+      "loadingDevices": "Geräte werden geladen…",
+      "loadingApps": "Apps werden geladen…",
+      "devicesLoadFailed": "Geräte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "appsLoadFailed": "Apps konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "noDevices": "Keine Geräte.",
+      "noApps": "Keine Apps verbunden.",
+      "showMoreDevices": "Weitere Geräte anzeigen",
+      "showMoreApps": "Weitere Apps anzeigen",
+      "thisDevice": "Dieses Gerät",
+      "signedIn": "Angemeldet: {date}",
+      "connected": "Verbunden: {date}",
+      "lastUsed": "Zuletzt verwendet: {date}",
+      "signOut": "Abmelden",
+      "signOutLabel": "{name} abmelden",
+      "signOutCurrentLabel": "{name} abmelden (dieses Gerät)",
+      "disconnect": "Trennen",
+      "disconnectLabel": "{name} trennen",
+      "updateFailed": "Diese Verbindung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+      "signOutCurrentTitle": "Von diesem Gerät abmelden?",
+      "signOutCurrentDescription": "Sie werden in diesem Browser ({name}) von Teak abgemeldet und müssen sich erneut anmelden.",
+      "signOutTitle": "{name} abmelden?",
+      "signOutDescription": "Die Sitzung {name} (angemeldet: {date}) wird von Teak abgemeldet und muss sich erneut anmelden.",
+      "disconnectTitle": "{name} trennen?",
+      "disconnectDescription": "{name} verliert auf allen Installationen den Zugriff auf Ihre Teak-Bibliothek, bis Sie es erneut verbinden."
+    },
+    "apiKeys": {
+      "title": "API-Schlüssel",
+      "revokeAllTitle": "Alle API-Schlüssel widerrufen?",
+      "revokeAllDescription": "Alle API-Schlüssel funktionieren sofort nicht mehr, auch die von CLI, Raycast und MCP-Clients. Dies kann nicht rückgängig gemacht werden.",
+      "revokeAllConfirm": "Alle Schlüssel widerrufen",
+      "revokeTitle": "Diesen API-Schlüssel widerrufen?",
+      "revokeDescription": "{key} funktioniert sofort nicht mehr. Alles, was ihn verwendet, verliert den Zugriff auf Ihre Bibliothek. Dies kann nicht rückgängig gemacht werden.",
+      "revokeConfirm": "Schlüssel widerrufen",
+      "regenerateTitle": "Diesen API-Schlüssel neu generieren?",
+      "regenerateDescription": "{key} funktioniert sofort nicht mehr und wird durch einen neuen Schlüssel ersetzt. Aktualisieren Sie alles, was ihn verwendet, mit dem neuen Schlüssel.",
+      "regenerateConfirm": "Schlüssel neu generieren",
+      "identityCreated": "erstellt am {date}",
+      "regenerateLabel": "{identity} neu generieren",
+      "revokeLabel": "{identity} widerrufen",
+      "regenerateKey": "Schlüssel neu generieren",
+      "revokeKey": "Schlüssel widerrufen",
+      "created": "Erstellt am {date}",
+      "copyNewKey": "Kopieren Sie jetzt Ihren neuen Schlüssel",
+      "newKeyLabel": "Neuer API-Schlüssel",
+      "updateFailed": "Ihre API-Schlüssel konnten nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+      "keyCreated": "API-Schlüssel erstellt. Kopieren Sie ihn jetzt; er wird nur einmal angezeigt.",
+      "revokingRemaining": "Die übrigen Schlüssel werden im Hintergrund widerrufen.",
+      "allRevoked": "Alle API-Schlüssel widerrufen.",
+      "keyRevoked": "API-Schlüssel widerrufen.",
+      "keyRegenerated": "API-Schlüssel neu generiert. Kopieren Sie jetzt den neuen Schlüssel.",
+      "keyCopied": "API-Schlüssel kopiert.",
+      "copyFailed": "Der Schlüssel konnte nicht kopiert werden. Markieren und kopieren Sie ihn manuell.",
+      "limitNote": "Schlüssel haben vollen Zugriff auf Ihre Bibliothek. Sie können bis zu 10 aktive Schlüssel haben.",
+      "createKey": "Schlüssel erstellen",
+      "loading": "API-Schlüssel werden geladen…",
+      "empty": "Erstellen Sie Ihren ersten API-Schlüssel, um externe Tools zu verbinden.",
+      "revokeAll": "Alle Schlüssel widerrufen"
+    },
+    "deleteAccount": {
+      "title": "Konto löschen",
+      "description": "Dadurch werden Ihr Konto, Ihre Karten, Tags und hochgeladenen Dateien dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+      "submit": "Konto löschen",
+      "confirmPhrase": "Konto löschen",
+      "confirmPrompt": "Geben Sie „<strong>{phrase}</strong>“ ein, um fortzufahren"
+    },
+    "subscription": {
+      "title": "Auf Pro upgraden",
+      "description": "Schalten Sie alle Funktionen frei und entfernen Sie alle Limits.",
+      "maybeLater": "Vielleicht später",
+      "continueToCheckout": "Weiter zur Kasse",
+      "choosePlan": "Tarif wählen",
+      "everythingInPro": "Alles in Pro",
+      "monthly": "Monatlich",
+      "yearly": "Jährlich",
+      "perMonth": "/ Monat",
+      "perYear": "/ Jahr",
+      "bestValue": "Bestes Angebot • {percent} % sparen",
+      "features": {
+        "unlimitedCards": "Unbegrenzte Karten",
+        "unlimitedStorage": "Unbegrenzter Speicher",
+        "summaryAndTags": "Automatische Zusammenfassung und Tags",
+        "audioTranscription": "Automatische Audiotranskription",
+        "browserExtensions": "Browsererweiterungen",
+        "apps": "Apps für iOS, Mac & Android",
+        "apiAndMcp": "Zugriff auf API & MCP"
+      }
+    },
+    "inboundEmail": {
+      "title": "Per E-Mail speichern",
+      "genericError": "„Per E-Mail speichern“ konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
+      "rateLimited": "Zu viele Änderungen. Versuchen Sie es in einer Minute erneut.",
+      "addressCopied": "Adresse kopiert",
+      "copyFailed": "Die Adresse konnte nicht kopiert werden. Markieren und kopieren Sie sie manuell.",
+      "loading": "„Per E-Mail speichern“ wird geladen…",
+      "intro": "Senden Sie E-Mails an Teak oder leiten Sie sie weiter, und sie werden als Karten gespeichert.",
+      "verifyToTurnOn": "Bestätigen Sie Ihre Anmelde-E-Mail-Adresse <strong>{sender}</strong>, um dies zu aktivieren.",
+      "turnOn": "Aktivieren",
+      "copyAddress": "Adresse kopieren",
+      "sendFrom": "Senden Sie von <strong>{sender}</strong>. E-Mails von anderen Adressen werden nicht gespeichert.",
+      "unverified": "E-Mails werden erst gespeichert, wenn Sie Ihre Anmelde-E-Mail-Adresse <strong>{sender}</strong> bestätigen.",
+      "howItWorks": "Leiten Sie alles weiter oder senden Sie es direkt. Eine E-Mail mit nur einem Link wird zu einer Linkkarte, alles andere zu einer Notiz, und Anhänge werden zu eigenen Karten. Alle erhalten den Tag „email“.",
+      "lastReceived": "Letzte E-Mail erhalten: {when}",
+      "turnOff": "Deaktivieren",
+      "on": "An",
+      "off": "Aus",
+      "statusOnLabel": "Per E-Mail speichern: An",
+      "statusOffLabel": "Per E-Mail speichern: Aus"
+    },
+    "export": {
+      "starting": "Export wird gestartet…",
+      "started": "Export gestartet. Wir bereiten Ihr Archiv im Hintergrund vor.",
+      "startFailed": "Der Export konnte nicht gestartet werden.",
+      "canceling": "Export wird abgebrochen…",
+      "canceled": "Export abgebrochen.",
+      "cancelFailed": "Der Export konnte nicht abgebrochen werden.",
+      "preparingDownload": "Download wird vorbereitet…",
+      "downloadReady": "Ihr Download ist bereit.",
+      "downloadFailed": "Der Download konnte nicht vorbereitet werden.",
+      "preparing": "Ihr Export wird vorbereitet…",
+      "runsInBackground": "Dies läuft im Hintergrund weiter.",
+      "snapshotting": "Ihre Karten werden erfasst",
+      "snapshotProgress": "{count, plural, one {# Karte bisher erfasst} other {# Karten bisher erfasst}}",
+      "archiving": "Ihr Archiv wird erstellt…",
+      "zipping": "Ihre Karten und Dateien werden gepackt.",
+      "quotaCaption": "Ein Export pro Woche, verfügbar für 7 Tage, sobald er fertig ist.",
+      "lastFailed": "Der letzte Export ist fehlgeschlagen. Sie können es erneut versuchen.",
+      "quotaUsed": "Sie haben den Export dieser Woche bereits genutzt.",
+      "cancelExport": "Export abbrechen",
+      "ready": "Ihr Export ist fertig",
+      "cardCount": "{count, plural, one {# Karte} other {# Karten}}",
+      "filesOmittedTitle": "Einige Originaldateien konnten beim Export nicht gelesen werden und fehlen im Archiv.",
+      "filesUnavailable": "{count, plural, one {# Datei nicht verfügbar} other {# Dateien nicht verfügbar}}",
+      "availableUntil": "verfügbar bis {date}",
+      "downloadArchive": "Archiv herunterladen",
+      "title": "Ihre Daten exportieren",
+      "description": "Eine ZIP-Datei mit jeder Karte außerhalb des Papierkorbs samt Originaldateien, dazu eine Lesezeichendatei für Ihren Browser und eine Tabelle.",
+      "startExport": "Export starten",
+      "nextAvailable": "Nächster Export möglich: {date}",
+      "availableIn": "Verfügbar in {countdown}"
+    },
+    "import": {
+      "wrongFile": "Wählen Sie eine Datei vom Typ {extensions} aus {source}.",
+      "extensionSeparator": " oder ",
+      "fileTooLarge": "Diese Datei ist {size} groß. Das Limit liegt bei {limit}.",
+      "fileEmpty": "Diese Datei ist leer.",
+      "lastImport": "Letzter Import: {created} erstellt, {skipped} übersprungen{failed, plural, =0 {} other {, # fehlgeschlagen}} – {when}",
+      "created": "{count} erstellt",
+      "skipped": "{count} übersprungen",
+      "failed": "{count} fehlgeschlagen",
+      "continuesInBackground": "Sie können dieses Fenster schließen und später zurückkommen. Der Import läuft im Hintergrund weiter.",
+      "startFailed": "Der Import konnte nicht gestartet werden",
+      "cancelFailed": "Der Import konnte nicht abgebrochen werden.",
+      "reportLoadFailed": "Der Importbericht konnte nicht geladen werden",
+      "reportCopied": "Importbericht kopiert.",
+      "reportCopyFailed": "Der Importbericht konnte nicht kopiert werden.",
+      "reportDownloadFailed": "Der Importbericht konnte nicht heruntergeladen werden.",
+      "noImports": "Noch keine Importe.",
+      "loadingLast": "Details zum letzten Import werden geladen…",
+      "resumeUpload": "Upload fortsetzen",
+      "startImport": "Import starten",
+      "importFrom": "Importieren aus",
+      "upTo": "Bis zu {size}.",
+      "chooseFile": "Datei auswählen",
+      "uploadInterrupted": "Upload unterbrochen",
+      "resumeHint": "Wählen Sie dieselbe Datei aus {source}, um dort fortzufahren, wo der Upload unterbrochen wurde.",
+      "chooseFileFrom": "Datei aus {source} auswählen",
+      "chooseResumeFile": "Datei auswählen, um den unterbrochenen Upload fortzusetzen",
+      "cancelImport": "Import abbrechen",
+      "importStopped": "Import gestoppt",
+      "failedItems": "Elemente, die nicht importiert werden konnten",
+      "copyReport": "Fehlerbericht kopieren",
+      "downloadReport": "Fehlerbericht herunterladen",
+      "failure": {
+        "invalidArchive": "Das sieht nicht nach einem Teak-Archiv aus. Wählen Sie eine ZIP-Datei aus „Ihre Daten exportieren“.",
+        "invalidSource": "Das sieht nicht nach {article, select, an {einem} other {einem}} Export aus {source} aus. Prüfen Sie die Quelle und wählen Sie die dort beschriebene Datei.",
+        "tooManyItems": "Diese Datei enthält mehr als 10.000 Elemente. Teilen Sie sie auf und importieren Sie jeden Teil einzeln.",
+        "generic": "Import fehlgeschlagen. Bitte versuchen Sie es erneut."
+      },
+      "phases": {
+        "uploading": "Wird hochgeladen",
+        "waitingToParse": "Warten auf Verarbeitung",
+        "parsing": "Importdatei wird verarbeitet",
+        "importing": "Karten werden importiert",
+        "waitingForRateLimit": "Warten auf das Kartenlimit pro Zeit",
+        "canceling": "Import wird abgebrochen",
+        "complete": "Import abgeschlossen",
+        "failed": "Import fehlgeschlagen",
+        "canceled": "Import abgebrochen"
+      },
+      "sources": {
+        "bookmarks": {
+          "title": "Browser-Lesezeichen",
+          "name": "Browser-Lesezeichen",
+          "hint": "Die Lesezeichen-HTML-Datei aus der Funktion „Lesezeichen exportieren“ Ihres Browsers."
+        },
+        "pocket": {
+          "title": "Pocket",
+          "name": "Pocket",
+          "hint": "Die CSV-Datei aus dem Pocket-Export oder dessen älterer HTML-Export."
+        },
+        "raindrop": {
+          "title": "Raindrop.io",
+          "name": "Raindrop",
+          "hint": "Die CSV-Datei aus Raindrop unter Settings → Backups → Export."
+        },
+        "instapaper": {
+          "title": "Instapaper",
+          "name": "Instapaper",
+          "hint": "Die CSV-Datei aus Instapaper unter Settings → Export."
+        },
+        "readwise": {
+          "title": "Readwise Reader",
+          "name": "Readwise Reader",
+          "hint": "Die CSV-Datei aus Reader über „Export library as CSV“."
+        },
+        "omnivore": {
+          "title": "Omnivore",
+          "name": "Omnivore",
+          "hint": "Die ZIP-Datei aus dem Omnivore-Export, so wie Sie sie heruntergeladen haben."
+        },
+        "linkwarden": {
+          "title": "Linkwarden",
+          "name": "Linkwarden",
+          "hint": "Das JSON-Backup aus Linkwarden unter Settings → Data → Export."
+        },
+        "mymind": {
+          "title": "mymind",
+          "name": "mymind",
+          "hint": "Die CSV-Datei aus mymind unter Settings → Export."
+        },
+        "onetab": {
+          "title": "OneTab",
+          "name": "OneTab",
+          "hint": "Der Text aus „Export URLs“ in OneTab, gespeichert als .txt-Datei."
+        },
+        "archive": {
+          "title": "Teak-Archiv",
+          "name": "Teak",
+          "hint": "Eine ZIP-Datei aus „Ihre Daten exportieren“ in Teak."
+        }
+      }
+    },
+    "format": {
+      "justNow": "gerade eben",
+      "minutesAgo": "{count, plural, one {vor # Minute} other {vor # Minuten}}",
+      "hoursAgo": "{count, plural, one {vor # Stunde} other {vor # Stunden}}",
+      "daysAgo": "{count, plural, one {vor # Tag} other {vor # Tagen}}",
+      "now": "jetzt",
+      "underAMinute": "weniger als einer Minute",
+      "days": "{days} T.",
+      "daysHours": "{days} T. {hours} Std.",
+      "hours": "{hours} Std.",
+      "hoursMinutes": "{hours} Std. {minutes} Min.",
+      "minutes": "{minutes} Min."
+    },
+    "language": {
+      "label": "Sprache",
+      "saving": "Sprache wird geändert",
+      "changed": "Sprache geändert",
+      "changeFailed": "Die Sprache konnte nicht geändert werden. Versuchen Sie es erneut.",
+      "feedback": "Übersetzungen verbessern",
+      "feedbackSubject": "Feedback zur Übersetzung ({locale})"
+    }
+  },
+  "app": {
+    "settings": {
+      "deletionRequested": "Kontolöschung angefordert. Sie werden abgemeldet.",
+      "welcomePro": "Willkommen bei Pro! Ihr Abo wurde aktiviert.",
+      "openingCheckout": "Bezahlvorgang wird geöffnet…",
+      "checkoutNewTab": "Bezahlvorgang in neuem Tab geöffnet",
+      "checkoutFailed": "Der Bezahlvorgang konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
+    },
+    "globalError": {
+      "message": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut."
+    },
+    "notFound": {
+      "title": "Seite nicht gefunden",
+      "body": "Diese Seite existiert nicht oder wurde verschoben.",
+      "goHome": "Zu Ihren Karten"
+    }
+  },
+  "feedback": {
+    "cardsGrid": {
+      "loading": "Karten werden geladen"
+    },
+    "fileDrop": {
+      "dropFiles": "Dateien zum Hochladen ablegen"
+    },
+    "vaultSetup": {
+      "title": "Ihr Tresor wird eingerichtet",
+      "steps": {
+        "starterCards": "Ein paar Startkarten werden hinzugefügt",
+        "photoColors": "Farben aus einem Foto werden ermittelt",
+        "voiceMemo": "Ein Sprachmemo wird abgetippt",
+        "searchCheatSheet": "Ein Spickzettel für die Suche wird gelesen",
+        "moodboard": "Ein Moodboard wird für Sie erstellt"
+      }
+    }
+  },
+  "providers": {
+    "authUnavailable": {
+      "message": "Ihre Sitzung konnte nicht überprüft werden. Bitte versuchen Sie es erneut."
+    },
+    "auth": {
+      "signIn": "Anmelden",
+      "signInAgain": "Bitte melden Sie sich erneut an.",
+      "sessionChanged": "Ihre Sitzung hat sich geändert. Bitte melden Sie sich erneut an.",
+      "signOut": "Abmelden",
+      "blocked": {
+        "verifyEmail": "Bestätigen Sie Ihre E-Mail-Adresse, um Teak zu öffnen.",
+        "frozen": "Registrierungen sind pausiert. Ihr Konto wurde nicht erstellt.",
+        "quarantined": "Ihr Konto ist noch nicht bereit. Versuchen Sie es erneut oder wenden Sie sich an den Support."
+      }
+    },
+    "fileDrop": {
+      "uploaded": "{count, plural, one {Datei hochgeladen} other {# Dateien hochgeladen}}",
+      "uploadedSentence": "{count, plural, one {Datei hochgeladen.} other {# Dateien hochgeladen.}}",
+      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
+      "upgrade": "Upgraden",
+      "rateLimited": "Zu viele Karten erstellt. Bitte warten Sie einen Moment.",
+      "uploadFailed": "Upload fehlgeschlagen",
+      "uploadFailedMany": "{count, plural, one {# Datei konnte} other {# Dateien konnten}} nicht hochgeladen werden. {reason}",
+      "uploading": "Wird hochgeladen…",
+      "foldersNotSupported": "Ordner können nicht hochgeladen werden. Legen Sie stattdessen einzelne Dateien ab.",
+      "offline": "Sie sind offline. Stellen Sie die Verbindung wieder her und versuchen Sie es erneut."
+    }
+  },
+  "appShell": {
+    "skeleton": {
+      "tags": "Tags",
+      "folder": "Ordner"
+    }
+  },
+  "errors": {
+    "folders": {
+      "DUPLICATE_NAME": "Ein Ordner mit diesem Namen existiert bereits",
+      "EMPTY_NAME": "Geben Sie dem Ordner einen Namen",
+      "NAME_TOO_LONG": "Ordnernamen dürfen höchstens {max} Zeichen lang sein",
+      "TOO_MANY_FOLDERS": "Sie können bis zu {max} Ordner haben",
+      "TOO_MANY_FOLDERS_ON_CARD": "Eine Karte kann in bis zu {max} Ordnern sein",
+      "NOT_FOUND": "Ordner nicht gefunden",
+      "EMPTY_QUERY": "Fügen Sie eine Suche für den intelligenten Ordner hinzu",
+      "QUERY_TOO_LONG": "Suchen intelligenter Ordner dürfen höchstens {max} Zeichen lang sein",
+      "SMART_FOLDER_IN_QUERY": "Die Suche eines intelligenten Ordners kann keinen anderen intelligenten Ordner verwenden",
+      "SMART_FOLDER_MEMBERSHIP": "Karten können nicht zu einem intelligenten Ordner hinzugefügt werden; er zeigt die Karten, die zu seiner Suche passen",
+      "QUERY_ON_MANUAL_FOLDER": "Nur intelligente Ordner haben eine Suche",
+      "SMART_FOLDER_TRASH": "Intelligente Ordner zeigen den Papierkorb nicht. Um nach dem Wort zu suchen, setzen Sie es in Anführungszeichen"
+    },
+    "tags": {
+      "EMPTY_NAME": "Geben Sie dem Tag einen Namen",
+      "NAME_TOO_LONG": "Tags dürfen höchstens {max} Zeichen lang sein",
+      "NOT_FOUND": "Tag nicht gefunden",
+      "SAME_TAG": "Wählen Sie einen anderen Tag zum Zusammenführen",
+      "OPERATION_RUNNING": "Eine andere Tag-Änderung läuft noch",
+      "OPERATION_NOT_FOUND": "Tag-Vorgang nicht gefunden",
+      "TAG_EXISTS": "Ein Tag namens „{name}“ existiert bereits. Führen Sie ihn stattdessen damit zusammen."
+    },
+    "thumbnails": {
+      "rateLimited": "Sie haben viele Bilder geändert. Versuchen Sie es in einer Minute erneut.",
+      "tooLarge": "Bilder müssen kleiner als 20 MB sein.",
+      "unreadable": "Dieses Bild konnte nicht gelesen werden.",
+      "unsupported": "Verwenden Sie ein JPEG-, PNG-, WebP-, GIF- oder AVIF-Bild."
+    },
+    "cards": {
+      "CARD_LIMIT_REACHED": "Kartenlimit erreicht. Bitte upgraden Sie auf Pro für unbegrenzte Karten.",
+      "CONTENT_TOO_LARGE": "Der Inhalt einer Textkarte darf in UTF-8 kodiert höchstens 512 KiB groß sein.",
+      "INVALID_UTF8": "Markdown-Uploads müssen gültigen UTF-8-Text enthalten.",
+      "RATE_LIMITED": "Zu viele Karten erstellt. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
+      "FILE_TOO_LARGE": "Die Datei ist zu groß. Die maximale Dateigröße beträgt 100 MB.",
+      "TOO_MANY_FILES": "Zu viele Dateien ausgewählt. Sie können bis zu {max} Dateien gleichzeitig hochladen.",
+      "UNSUPPORTED_TYPE": "Nicht unterstützter Dateityp. Bitte laden Sie ein Bild, Video, Audio oder Dokument hoch.",
+      "TYPE_MISMATCH": "Die hochgeladene Datei entspricht nicht dem ausgewählten Typ."
+    },
+    "pdfs": {
+      "IN_PROGRESS": "Dieses PDF wird bereits gespeichert. Versuchen Sie es gleich noch einmal.",
+      "NO_PDF": "Diese Karte hat kein PDF zum Speichern.",
+      "NOT_FOUND": "Karte nicht gefunden",
+      "RATE_LIMITED": "Sie speichern sehr schnell. Versuchen Sie es in einer Minute erneut.",
+      "TRASHED": "Stellen Sie diese Karte aus dem Papierkorb wieder her, bevor Sie ihr PDF speichern."
+    },
+    "cardTags": {
+      "TAG_TOO_LONG": "Jeder Tag darf höchstens {max} Zeichen lang sein",
+      "TOO_MANY_TAGS": "Eine Karte kann höchstens {max} Tags haben"
+    },
+    "settings": {
+      "UNSUPPORTED_LOCALE": "Diese Sprache ist nicht verfügbar."
+    }
+  },
+  "revisit": {
+    "deck": {
+      "title": "Wiedersehen",
+      "description": "Eine Karte nach der anderen. Pfeil nach links archiviert sie, Pfeil nach rechts behält sie, die Leertaste öffnet ihre Details, Z macht das letzte Archivieren rückgängig und Esc beendet.",
+      "close": "Wiedersehen schließen",
+      "progress": "{position} von {total}",
+      "loadingCards": "Karten werden geladen",
+      "loadFailed": "Karten konnten nicht geladen werden",
+      "empty": "Hier gibt es nichts wiederzusehen",
+      "allCaughtUp": "Alles erledigt",
+      "summary": "{archived} archiviert · {kept} behalten",
+      "startOver": "Von vorn beginnen",
+      "revisitMore": "{count} weitere wiedersehen",
+      "undoHint": "<kbd>Z</kbd> macht das letzte Archivieren rückgängig",
+      "openDetails": "Details öffnen: {type}",
+      "saved": "Gespeichert am {date}",
+      "inTrash": "Im Papierkorb",
+      "archived": "Archiviert",
+      "releaseToArchive": "Loslassen zum Archivieren",
+      "releaseToKeep": "Loslassen zum Behalten",
+      "archive": "Archivieren",
+      "keep": "Behalten",
+      "keyHints": "<kbd>Leertaste</kbd> Details · <kbd>Z</kbd> rückgängig · <kbd>Esc</kbd> beenden",
+      "swipeHint": "Nach links wischen zum Archivieren, nach rechts zum Behalten"
+    }
+  },
+  "folders": {
+    "nameDialog": {
+      "titleNew": "Neuer Ordner",
+      "titleNewSmart": "Als intelligenten Ordner speichern",
+      "titleEdit": "Ordner bearbeiten",
+      "titleEditSmart": "Intelligenten Ordner bearbeiten",
+      "descriptionSmart": "Zeigt jede Karte, die zur Suche passt, auch Karten, die Sie später speichern.",
+      "descriptionEdit": "Ändern Sie Name oder Farbe des Ordners.",
+      "descriptionNew": "Geben Sie dem Ordner einen Namen und wählen Sie eine Farbe.",
+      "nameLabel": "Name",
+      "namePlaceholder": "Leseliste",
+      "searchLabel": "Suche",
+      "colorLegend": "Farbe",
+      "submitCreate": "Ordner erstellen",
+      "submitSmart": "Intelligenten Ordner speichern",
+      "saveFailed": "Der Ordner konnte nicht gespeichert werden",
+      "createFailed": "Der Ordner konnte nicht erstellt werden"
+    },
+    "list": {
+      "searchLabel": "Ordner durchsuchen",
+      "searchPlaceholder": "Ordner suchen oder erstellen",
+      "listLabel": "Ordner",
+      "loading": "Ordner werden geladen…",
+      "noMatch": "Kein Ordner mit diesem Namen.",
+      "noFolders": "Noch keine Ordner. Geben Sie einen Namen ein, um einen zu erstellen.",
+      "createNamed": "Ordner „{name}“ erstellen",
+      "createFailed": "Der Ordner konnte nicht erstellt werden"
+    },
+    "picker": {
+      "addTitle": "{count, plural, one {# Karte} other {# Karten}} zu einem Ordner hinzufügen",
+      "moveTitle": "{count, plural, one {# Karte} other {# Karten}} in einen Ordner verschieben",
+      "description": "Durchsuchen Sie Ihre Ordner oder geben Sie einen neuen Namen ein."
+    },
+    "cardFolders": {
+      "title": "Ordner",
+      "notInFolder": "Diese Karte ist in keinem Ordner.",
+      "inFolders": "In {count, plural, one {# Ordner} other {# Ordnern}}.",
+      "changeFailed": "Die Ordner der Karte konnten nicht geändert werden"
+    },
+    "smartQuery": {
+      "label": "Suche: {query}",
+      "noFolderNamed": "Kein Ordner namens {name}",
+      "excluded": "nicht"
+    }
+  },
+  "sidebar": {
+    "nav": {
+      "home": "Teak-Startseite",
+      "keepOpen": "Seitenleiste geöffnet lassen",
+      "collapse": "Seitenleiste einklappen",
+      "tags": "Tags",
+      "settings": "Einstellungen"
+    },
+    "toggle": "Seitenleiste ein-/ausblenden",
+    "folders": {
+      "title": "Ordner",
+      "newFolder": "Neuer Ordner",
+      "emptyHint": "Gruppieren Sie zusammengehörige Karten. Erstellen Sie einen Ordner und ziehen Sie Karten darauf.",
+      "moreFor": "Mehr für {name}",
+      "renameItem": "Umbenennen…",
+      "editSearch": "Suche bearbeiten…",
+      "color": "Farbe",
+      "colorFailed": "Die Farbe konnte nicht geändert werden",
+      "restoreFailed": "Der Ordner konnte nicht wiederhergestellt werden",
+      "deleteFailed": "Der Ordner konnte nicht gelöscht werden",
+      "deleted": "„{name}“ gelöscht",
+      "deletedDescription": "Seine Karten sind weiterhin in Ihrer Bibliothek."
+    },
+    "newFolder": {
+      "nameLabel": "Name des neuen Ordners",
+      "placeholder": "Ordnername",
+      "createFailed": "Der Ordner konnte nicht erstellt werden"
+    }
+  },
+  "modals": {
+    "shortcuts": {
+      "title": "Tastenkürzel",
+      "description": "Tastenkürzel funktionieren überall in Ihrer Bibliothek, außer während Sie tippen.",
+      "then": "dann",
+      "typeKeys": "{keys} eingeben",
+      "comboSeparator": " plus ",
+      "sequenceSeparator": " dann ",
+      "alternativeSeparator": " oder ",
+      "keyNames": {
+        "leftArrow": "Pfeil nach links",
+        "upArrow": "Pfeil nach oben",
+        "rightArrow": "Pfeil nach rechts",
+        "downArrow": "Pfeil nach unten",
+        "slash": "Schrägstrich",
+        "questionMark": "Fragezeichen",
+        "option": "Option",
+        "command": "Command",
+        "shift": "Shift",
+        "return": "Return"
+      }
+    },
+    "tagManagement": {
+      "title": "Tags verwalten",
+      "addLabel": "Neuen Tag hinzufügen",
+      "placeholder": "Tag-Namen eingeben",
+      "addTag": "Tag hinzufügen",
+      "yourTags": "Ihre Tags",
+      "removeUserTag": "Eigenen Tag {tag} entfernen",
+      "teakTags": "Tags von Teak",
+      "removeTeakTag": "Teak-Tag {tag} entfernen",
+      "empty": "Noch keine Tags. Fügen Sie oben Ihren ersten Tag hinzu!"
+    },
+    "tagManager": {
+      "renameTitle": "Tag umbenennen",
+      "mergeTitle": "„{name}“ zusammenführen mit…",
+      "deleteTitle": "„{name}“ löschen?",
+      "renameDescription": "Benennt „{name}“ auf {count, plural, one {# Karte} other {# Karten}} um, auch auf Karten im Archiv oder Papierkorb.",
+      "mergeDescription": "Karten mit dem Tag „{name}“ erhalten stattdessen den gewählten Tag. Hat eine Karte beide, bleibt einer erhalten.",
+      "deleteDescription": "Entfernt „{name}“ von {count, plural, one {# Karte} other {# Karten}}, auch von Karten im Archiv oder Papierkorb. Die Karten bleiben erhalten. Dies kann nicht rückgängig gemacht werden.",
+      "merge": "Zusammenführen",
+      "mergeInto": "Mit „{name}“ zusammenführen",
+      "mergeIntoInstead": "Stattdessen mit „{name}“ zusammenführen",
+      "deleteTag": "Tag löschen",
+      "newName": "Neuer Name",
+      "findTag": "Tag suchen",
+      "tagsLabel": "Tags",
+      "noMatch": "Kein Tag mit diesem Namen.",
+      "noOtherTags": "Noch keine anderen Tags.",
+      "typeToFindMore": "Tippen Sie, um weitere Tags zu finden.",
+      "nameTaken": "Ein Tag namens „{name}“ existiert bereits.",
+      "startFailed": "Die Tag-Änderung konnte nicht gestartet werden"
+    }
+  },
+  "cardModal": {
+    "header": {
+      "actionsLabel": "Kartenaktionen",
+      "contentLabel": "{type, select, text {Textinhalt} link {Linkinhalt} image {Bildinhalt} video {Videoinhalt} audio {Audioinhalt} document {Dokumentinhalt} palette {Paletteninhalt} quote {Zitatinhalt} other {Karteninhalt}}",
+      "detailsLabel": "Kartendetails",
+      "download": "Herunterladen",
+      "downloadTooltip": "Datei herunterladen",
+      "downloading": "Wird heruntergeladen…",
+      "loadingDescription": "Kartendetails werden geladen",
+      "loadingTitle": "Karte wird geladen",
+      "nextCard": "Nächste Karte",
+      "open": "Öffnen",
+      "openingCard": "Karte wird geöffnet",
+      "openTooltip": "Link öffnen",
+      "previousCard": "Vorherige Karte",
+      "titleLabel": "Titel",
+      "titlePlaceholder": "Link ohne Titel"
+    },
+    "saveState": {
+      "error": "Speichern fehlgeschlagen",
+      "saved": "Gespeichert",
+      "unsaved": "Nicht gespeicherte Änderungen"
+    },
+    "menu": {
+      "addToFolder": "Zu Ordner hinzufügen…",
+      "archive": "Archivieren",
+      "copyLink": "Link kopieren",
+      "copyText": "Text kopieren",
+      "download": "Herunterladen",
+      "favorite": "Als Favorit markieren",
+      "hideDetails": "Details ausblenden",
+      "moreActions": "Weitere Aktionen",
+      "moreLikeThis": "Ähnliche Karten",
+      "refreshDetails": "Details aktualisieren",
+      "replaceImage": "Bild ersetzen",
+      "resetImage": "Originalbild wiederherstellen",
+      "savePdf": "PDF speichern",
+      "savingPdf": "PDF wird gespeichert…",
+      "shortcutsHint": "Drücken Sie <kbd>?</kbd> für alle Tastenkürzel",
+      "showDetails": "Details anzeigen",
+      "unarchive": "Dearchivieren",
+      "unfavorite": "Aus Favoriten entfernen"
+    },
+    "toasts": {
+      "copiedLink": "Link kopiert",
+      "copiedText": "Text kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen",
+      "emptyNote": "Leere Notizen werden nicht gespeichert. Die Notiz behält ihren letzten Text.",
+      "emptyQuote": "Leere Zitate werden nicht gespeichert. Das Zitat behält seinen letzten Text."
+    },
+    "trash": {
+      "deleteForever": "Endgültig löschen",
+      "inTrash": "Diese Karte ist im Papierkorb",
+      "restore": "Wiederherstellen"
+    },
+    "done": {
+      "markAs": "{verb, select, read {Als gelesen markieren} watched {Als gesehen markieren} listened {Als gehört markieren} bought {Als gekauft markieren} cooked {Als gekocht markieren} played {Als gespielt markieren} other {Als erledigt markieren}}",
+      "markAsNot": "{verb, select, read {Als ungelesen markieren} watched {Als nicht gesehen markieren} listened {Als nicht gehört markieren} bought {Als nicht gekauft markieren} cooked {Als nicht gekocht markieren} played {Als nicht gespielt markieren} other {Als nicht erledigt markieren}}",
+      "state": "{verb, select, read {Gelesen} watched {Gesehen} listened {Gehört} bought {Gekauft} cooked {Gekocht} played {Gespielt} other {Erledigt}}"
+    },
+    "heading": {
+      "addedOn": "Hinzugefügt am {date}",
+      "addedToday": "Heute hinzugefügt",
+      "addedYesterday": "Gestern hinzugefügt",
+      "note": "Notiz"
+    },
+    "panel": {
+      "addTagLabel": "Tag hinzufügen",
+      "addTagPlaceholder": "Tag hinzufügen…",
+      "addToFolder": "Zu einem Ordner hinzufügen",
+      "andMore": "und mehr",
+      "colors": "Farben",
+      "copyColor": "{hex} kopieren",
+      "folderOverflow": "{name} +{count}",
+      "hidden": "Ausgeblendet",
+      "hiddenHint": "Nur eine Suche nach #secret oder #hidden zeigt diese Karte",
+      "inFolders": "In {folders}",
+      "inFoldersChange": "In {folders}. Ordner ändern",
+      "keepTag": "Tag {tag} behalten",
+      "keepTagHint": "{tag} als einen Ihrer Tags behalten",
+      "linkedFrom": "Verlinkt von",
+      "noNotes": "Keine Notizen",
+      "notes": "Notizen",
+      "notesPlaceholder": "Notiz hinzufügen…",
+      "removeTag": "Tag {tag} entfernen",
+      "removeTeakTag": "Teak-Tag {tag} entfernen",
+      "showLess": "Weniger anzeigen",
+      "showMore": "Mehr anzeigen",
+      "showTagged": "Karten mit dem Tag {tag} anzeigen",
+      "suggestedTags": "{count, plural, one {# vorgeschlagener Tag} other {# vorgeschlagene Tags}}",
+      "summary": "Zusammenfassung",
+      "tags": "Tags",
+      "teakTagHint": "Von Teak hinzugefügter Tag. Karten mit dem Tag {tag} anzeigen"
+    },
+    "details": {
+      "added": "Hinzugefügt",
+      "author": "Autor",
+      "edited": "Bearbeitet",
+      "extractedText": "{count, plural, one {# Zeichen extrahiert} other {# Zeichen extrahiert}}",
+      "fewerDetails": "Weniger Details",
+      "fileName": "Dateiname",
+      "fileSize": "Dateigröße",
+      "fileType": "Dateityp",
+      "from": "Von",
+      "moreDetails": "Mehr Details",
+      "published": "Veröffentlicht",
+      "publisher": "Herausgeber",
+      "showAllOfType": "{type, select, text {Alle Textkarten anzeigen} link {Alle Linkkarten anzeigen} image {Alle Bildkarten anzeigen} video {Alle Videokarten anzeigen} audio {Alle Audiokarten anzeigen} document {Alle Dokumentkarten anzeigen} palette {Alle Palettenkarten anzeigen} quote {Alle Zitatkarten anzeigen} other {Alle Karten anzeigen}}",
+      "text": "Text",
+      "title": "Details",
+      "url": "URL"
+    }
+  },
+  "cardPreviews": {
+    "audio": {
+      "loadFailed": "Diese Aufnahme konnte nicht geladen werden. Laden Sie sie stattdessen herunter.",
+      "pause": "Pause",
+      "play": "Abspielen",
+      "seek": "Spulen",
+      "seekPosition": "{current} von {duration}",
+      "transcript": "Transkript"
+    },
+    "document": {
+      "facts": {
+        "colorVariables": "{count, plural, one {# Farbvariable} other {# Farbvariablen}}",
+        "files": "{count, plural, one {# Datei} other {# Dateien}}",
+        "folders": "{count, plural, one {# Ordner} other {# Ordner}}",
+        "headings": "{count, plural, one {# Überschrift} other {# Überschriften}}",
+        "lines": "{count, plural, one {# Zeile} other {# Zeilen}}",
+        "slides": "{count, plural, one {# Folie} other {# Folien}}",
+        "words": "{count, plural, one {# Wort} other {# Wörter}}"
+      },
+      "file": "Datei",
+      "openFile": "Datei öffnen",
+      "untitled": "Dokument"
+    },
+    "fileText": {
+      "loading": "Dateivorschau wird geladen"
+    },
+    "image": {
+      "alt": "Bild",
+      "unavailable": "Bildvorschau nicht verfügbar"
+    },
+    "link": {
+      "addImage": "Bild hinzufügen",
+      "attachedMedia": "Angehängte Beitragsmedien {number}",
+      "attachedVideo": "Angehängtes Video {number}",
+      "imageAlt": "Linkbild",
+      "openGraphAlt": "Open-Graph-Vorschau",
+      "screenshotAlt": "Screenshot der gerenderten Webseite",
+      "uploadingAlt": "Die neue Linkvorschau wird hochgeladen"
+    },
+    "palette": {
+      "copy": "{hex} kopieren",
+      "empty": "In dieser Palette wurden keine Farben erkannt"
+    },
+    "quote": {
+      "placeholder": "Zitat eingeben…"
+    },
+    "text": {
+      "focus": "Fokus",
+      "placeholder": "Notiz schreiben…",
+      "tooLarge": "Notizen können bis zu 512 KiB UTF-8-Text enthalten"
+    },
+    "video": {
+      "gifAlt": "Animiertes GIF",
+      "unsupported": "Ihr Browser unterstützt das Video-Tag nicht."
+    }
+  },
+  "cards": {
+    "types": {
+      "text": "Text",
+      "link": "Link",
+      "image": "Bild",
+      "video": "Video",
+      "audio": "Audio",
+      "document": "Dokument",
+      "palette": "Palette",
+      "quote": "Zitat",
+      "card": "Karte"
+    },
+    "accessibleLabel": {
+      "titled": "{type, select, text {Text: {title}} link {Link: {title}} image {Bild: {title}} video {Video: {title}} audio {Audio: {title}} document {Dokument: {title}} palette {Palette: {title}} quote {Zitat: {title}} other {Karte: {title}}}",
+      "untitled": "{type, select, text {Textkarte} link {Linkkarte} image {Bildkarte} video {Videokarte} audio {Audiokarte} document {Dokumentkarte} palette {Palettenkarte} quote {Zitatkarte} other {Karte}}"
+    },
+    "menu": {
+      "addTags": "Tags hinzufügen…",
+      "archive": "Archivieren",
+      "copyImage": "Bild kopieren",
+      "copyLink": "Link kopieren",
+      "copyText": "Text kopieren",
+      "deleteForever": "Endgültig löschen",
+      "deselect": "Auswahl aufheben",
+      "favorite": "Als Favorit markieren",
+      "folders": "Ordner…",
+      "moreActions": "Weitere Aktionen",
+      "openLink": "Link öffnen",
+      "refreshDetails": "Details aktualisieren",
+      "restore": "Wiederherstellen",
+      "select": "Auswählen",
+      "unarchive": "Dearchivieren",
+      "unfavorite": "Aus Favoriten entfernen"
+    },
+    "copyImageFailed": "Das Bild konnte nicht kopiert werden",
+    "deleteForeverDialog": {
+      "confirm": "Endgültig löschen",
+      "description": "Dadurch werden die Karte und ihre Dateien dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
+      "title": "Diese Karte endgültig löschen?"
+    },
+    "body": {
+      "emptyNote": "Leere Notiz",
+      "recording": "Aufnahme"
+    },
+    "link": {
+      "markedAs": "{verb, select, read {Als gelesen markiert} watched {Als gesehen markiert} listened {Als gehört markiert} bought {Als gekauft markiert} cooked {Als gekocht markiert} played {Als gespielt markiert} other {Als erledigt markiert}}"
+    },
+    "previews": {
+      "documentPreview": "Vorschau des Dokuments",
+      "documentPreviewOf": "Vorschau von {fileName}",
+      "gifPreview": "GIF-Vorschau",
+      "imageAlt": "Bild",
+      "videoThumbnail": "Video-Miniaturansicht"
+    }
+  },
+  "grids": {
+    "masonry": {
+      "copiedLinks": "{count, plural, one {# Link kopiert} other {# Links kopiert}}",
+      "copyLinksFailed": "Die Links konnten nicht kopiert werden",
+      "noLinks": "Keine dieser Karten hat einen Link"
+    }
+  },
+  "textEditor": {
+    "formatting": {
+      "toolbar": "Textformatierung",
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "strikethrough": "Durchgestrichen",
+      "inlineCode": "Inline-Code",
+      "editLink": "Link bearbeiten"
+    },
+    "linkEditor": {
+      "url": "Link-URL",
+      "apply": "Anwenden",
+      "invalidUrl": "Verwenden Sie einen http- oder https-Link."
+    },
+    "note": {
+      "ariaLabel": "Markdown-Notiz",
+      "contentLabel": "Markdown-Inhalt",
+      "editorLabel": "{label}-Editor",
+      "placeholder": "Notiz schreiben…",
+      "tooLarge": "Notizen können bis zu 512 KiB UTF-8-Text enthalten",
+      "unsafeChange": "Diese Änderung kann nicht als Markdown gespeichert werden.",
+      "dropUnsupported": "Fügen Sie Text oder Markdown in diese Notiz ein.",
+      "pasteUnsupported": "Fügen Sie reinen Text oder Markdown ein."
+    },
+    "focus": {
+      "description": "Fokusmodus: Nur die Notiz ist auf dem Bildschirm. Drücken Sie Esc, um ihn zu verlassen.",
+      "wordCount": "{count, plural, one {# Wort} other {# Wörter}}"
+    },
+    "noteCapture": {
+      "linkSaved": "Link gespeichert",
+      "saved": "Gespeichert"
+    },
+    "cardLinkMenu": {
+      "label": "Karte verlinken",
+      "searching": "Karten werden gesucht…",
+      "searchFailed": "Karten konnten nicht durchsucht werden",
+      "noMatches": "Keine passenden Karten",
+      "noCards": "Noch keine Karten"
+    },
+    "cardLink": {
+      "missing": "Fehlende Karte",
+      "missingHint": "Diese Karte ist im Papierkorb, gelöscht oder gehört nicht Ihnen",
+      "fallbackTitle": "Karte"
+    },
+    "slashMenu": {
+      "label": "Formatierungsbefehle",
+      "commands": {
+        "text": "Text",
+        "h1": "Überschrift 1",
+        "h2": "Überschrift 2",
+        "h3": "Überschrift 3",
+        "bulletList": "Aufzählung",
+        "orderedList": "Nummerierte Liste",
+        "taskList": "Aufgabenliste",
+        "blockquote": "Zitat",
+        "codeBlock": "Code",
+        "divider": "Trennlinie",
+        "table": "Tabelle"
+      }
+    },
+    "table": {
+      "options": "Tabellenoptionen",
+      "headerPlaceholder": "Kopfzeile",
+      "addRowAbove": "Zeile oberhalb einfügen",
+      "addRowBelow": "Zeile unterhalb einfügen",
+      "addColumnLeft": "Spalte links einfügen",
+      "addColumnRight": "Spalte rechts einfügen",
+      "deleteRow": "Zeile löschen",
+      "deleteColumn": "Spalte löschen",
+      "deleteTable": "Tabelle löschen",
+      "rowLimit": "Tabellen können bis zu {max} Zeilen haben",
+      "columnLimit": "Tabellen können bis zu {max} Spalten haben",
+      "headerRowFirst": "Die Kopfzeile bleibt die erste Zeile",
+      "headerRowKept": "Die Kopfzeile kann nicht gelöscht werden",
+      "lastColumn": "Löschen Sie die Tabelle, um ihre letzte Spalte zu entfernen"
+    }
+  },
+  "forms": {
+    "limits": {
+      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
+      "upgrade": "Upgraden",
+      "rateLimited": "Zu viele Karten erstellt. Bitte warten Sie einen Moment."
+    },
+    "addCard": {
+      "placeholder": "Notiz schreiben…",
+      "upgradePlaceholder": "Upgraden Sie auf Pro, um weitere Karten hinzuzufügen…",
+      "saveFailed": "Die Notiz konnte nicht gespeichert werden",
+      "focus": "Fokus"
+    },
+    "addCardActions": {
+      "new": "Neu",
+      "noteOrLink": "Notiz oder Link",
+      "uploadFiles": "Dateien hochladen",
+      "recordAudio": "Audio aufnehmen",
+      "savingRecording": "Audioaufnahme wird gespeichert…",
+      "recordingSaved": "Audioaufnahme gespeichert",
+      "recordingSaveFailed": "Die Audioaufnahme konnte nicht gespeichert werden",
+      "microphoneUnsupported": "Mikrofonaufnahmen werden in dieser App nicht unterstützt.",
+      "microphoneDenied": "Der Mikrofonzugriff wurde verweigert. Erlauben Sie ihn und versuchen Sie es erneut.",
+      "microphoneMissing": "Kein Mikrofon erkannt. Schließen Sie eines an und versuchen Sie es erneut.",
+      "recordingStartFailed": "Die Aufnahme konnte nicht gestartet werden. Prüfen Sie Ihre Mikrofoneinstellungen.",
+      "uploading": "{name} wird hochgeladen…",
+      "uploaded": "{name} hochgeladen",
+      "uploadFailed": "{name} konnte nicht hochgeladen werden: {error}",
+      "uploadFailedReason": "Upload fehlgeschlagen",
+      "startingMicrophone": "Mikrofon wird gestartet…",
+      "savingRecordingStatus": "Aufnahme wird gespeichert…",
+      "recordingHint": "Sprechen Sie ganz natürlich. Teak speichert dies als Audiokarte.",
+      "recordingTitle": "Audio wird aufgenommen",
+      "stopAndSave": "Stoppen und speichern"
+    },
+    "emptyState": {
+      "title": "Fügen Sie Ihre erste Karte hinzu!",
+      "description": "Halten Sie oben Ihre Gedanken, Links und Medien fest"
+    }
+  },
+  "selection": {
+    "bar": {
+      "archive": "Archivieren",
+      "unarchive": "Dearchivieren",
+      "restore": "Wiederherstellen",
+      "addToNamedFolder": "Zu {folder} hinzufügen",
+      "chooseCards": "Karten zum Hinzufügen auswählen",
+      "selectedCount": "{count, plural, one {# Karte} other {# Karten}} ausgewählt",
+      "moreActions": "Weitere Aktionen",
+      "favorite": "Zu Favoriten hinzufügen",
+      "unfavorite": "Aus Favoriten entfernen",
+      "addTags": "Tags hinzufügen…",
+      "removeTags": "Tags entfernen…",
+      "copyLinks": "Links kopieren",
+      "addToFolder": "Zu Ordner hinzufügen…",
+      "moveToFolder": "In Ordner verschieben…",
+      "removeFromFolder": "Aus {folder} entfernen",
+      "moveToTrash": "In den Papierkorb legen",
+      "cancelSelection": "Auswahl abbrechen"
+    },
+    "tagsDialog": {
+      "tagTooLong": "Tags dürfen höchstens {max} Zeichen lang sein.",
+      "tooManyTags": "Wählen Sie höchstens {max} Tags auf einmal.",
+      "addTitle": "Tags zu {count, plural, one {# Karte} other {# Karten}} hinzufügen",
+      "removeTitle": "Tags von {count, plural, one {# Karte} other {# Karten}} entfernen",
+      "addDescription": "Trennen Sie Tags durch Kommas.",
+      "removeDescription": "Wählen Sie unten Tags aus oder geben Sie sie durch Kommas getrennt ein.",
+      "label": "Tags",
+      "addPlaceholder": "Design, Inspiration",
+      "removePlaceholder": "Tag-Namen",
+      "addSubmit": "Tags hinzufügen",
+      "removeSubmit": "Tags entfernen"
+    }
+  },
+  "search": {
+    "visualStyles": {
+      "abstract": "Abstrakt",
+      "cinematic": "Filmisch",
+      "dark": "Dunkel",
+      "illustrative": "Illustrativ",
+      "minimal": "Minimalistisch",
+      "monochrome": "Monochrom",
+      "moody": "Stimmungsvoll",
+      "pastel": "Pastell",
+      "photographic": "Fotografisch",
+      "retro": "Retro",
+      "surreal": "Surreal",
+      "vintage": "Vintage",
+      "vibrant": "Farbenfroh",
+      "typographic": "Typografisch",
+      "threeD": "3D",
+      "flat": "Flach",
+      "geometric": "Geometrisch",
+      "handDrawn": "Handgezeichnet",
+      "futuristic": "Futuristisch"
+    },
+    "colorHues": {
+      "red": "Rot",
+      "orange": "Orange",
+      "yellow": "Gelb",
+      "green": "Grün",
+      "teal": "Petrol",
+      "cyan": "Cyan",
+      "blue": "Blau",
+      "purple": "Lila",
+      "pink": "Rosa",
+      "brown": "Braun",
+      "neutral": "Neutral"
+    },
+    "bar": {
+      "placeholder": "Alles durchsuchen",
+      "open": "Suchen",
+      "formLabel": "Karten durchsuchen",
+      "clearAll": "Alle entfernen",
+      "suggestions": "Suchvorschläge",
+      "moreFilters": "{count, plural, one {# weiterer Filter} other {# weitere Filter}}",
+      "chipTitle": "{prefix} {label}",
+      "chipTitleExcluded": "{prefix} nicht {label}",
+      "chipTitleExcludedNoPrefix": "nicht {label}",
+      "remove": "{label} entfernen",
+      "removeExcluded": "Ausschluss von {label} entfernen",
+      "removeTagFilter": "Tag-Filter {tag} entfernen",
+      "removeType": "Typ {type} entfernen",
+      "removeQualifier": "{kind, select, tag {Tag} type {Typ} is {Anzeige} site {Website} folder {Ordner} like {Ähnlich wie} mood {Stimmung} price {Preis} text {Text im Bild} other {Filter}} {label} entfernen",
+      "removeExcludedQualifier": "Ausschluss {kind, select, tag {Tag} type {Typ} is {Anzeige} site {Website} folder {Ordner} like {Ähnlich wie} mood {Stimmung} price {Preis} text {Text im Bild} other {Filter}} {label} entfernen",
+      "removeUnknownFolder": "{chip} entfernen: kein Ordner namens {folder}",
+      "unknownFolder": "Kein Ordner namens {folder}"
+    },
+    "chips": {
+      "titles": {
+        "tag": "Tag",
+        "type": "Typ",
+        "is": "Anzeigen",
+        "site": "Website",
+        "folder": "Ordner",
+        "like": "Ähnlich wie",
+        "mood": "Stimmung",
+        "price": "Preis",
+        "text": "Text im Bild"
+      },
+      "anyCard": "eine Karte",
+      "moodValue": "„{value}“"
+    },
+    "suggestions": {
+      "groups": {
+        "combine": "Kombinieren",
+        "exclude": "Ausschließen",
+        "filters": "Filter",
+        "tags": "Tags",
+        "types": "Typen",
+        "folders": "Ordner",
+        "sites": "Websites",
+        "show": "Anzeigen"
+      },
+      "hints": {
+        "tag": "Karten mit einem Tag",
+        "type": "Links, Bilder, Notizen…",
+        "site": "Links von einer Website",
+        "folder": "Karten in einem Ordner",
+        "is": "Favoriten, archiviert, erledigt oder offen",
+        "mood": "Bilder nach Stimmung",
+        "price": "Preis unter oder über",
+        "text": "Wörter in Bildern und Scans"
+      },
+      "excludeHints": {
+        "tag": "Karten mit einem Tag ausschließen",
+        "type": "Links, Bilder, Notizen… ausschließen",
+        "site": "Links von einer Website ausschließen",
+        "folder": "Karten in einem Ordner ausschließen",
+        "is": "Favoriten, Archiviertes, Erledigtes… ausschließen"
+      },
+      "orDetail": "Eine der beiden Seiten passt",
+      "isOptions": {
+        "fav": "Favoriten",
+        "archived": "Archiviert",
+        "done": "Erledigt",
+        "todo": "Offen"
+      },
+      "hiddenTagCount": "Zeigt ausgeblendete Karten · {count}"
+    },
+    "viewMenu": {
+      "label": "Ansicht",
+      "labelWithState": "Ansicht: {state}",
+      "oldestFirstState": "älteste zuerst",
+      "shuffledState": "zufällig",
+      "revisitingState": "Wiedersehen",
+      "show": "Anzeigen",
+      "showAllTypes": "Alle Typen anzeigen",
+      "sort": "Sortieren",
+      "sorts": {
+        "relevance": "Beste Übereinstimmung",
+        "newest": "Neueste zuerst",
+        "oldest": "Älteste zuerst",
+        "shuffle": "Zufällig",
+        "revisit": "Wiedersehen"
+      },
+      "nothingToRevisit": "Hier gibt es nichts wiederzusehen",
+      "saveAsSmartFolder": "Als intelligenten Ordner speichern…",
+      "reshuffle": "Neu mischen"
+    }
+  },
+  "commandPalette": {
+    "title": "Befehlspalette",
+    "description": "Zu einer Ansicht oder einem Ordner wechseln, eine Karte finden oder eine Aktion ausführen",
+    "inputLabel": "Befehle, Ordner und Karten durchsuchen",
+    "placeholder": "Befehl eingeben oder suchen…",
+    "noResults": "Keine Ergebnisse",
+    "smartFolder": "Intelligenter Ordner",
+    "groups": {
+      "navigate": "Navigieren",
+      "cards": "Karten",
+      "actions": "Aktionen",
+      "folders": "Ordner"
+    },
+    "views": {
+      "tags": "Tags",
+      "settings": "Einstellungen"
+    },
+    "actions": {
+      "newNote": "Neue Notiz",
+      "upload": "Dateien hochladen",
+      "import": "Importieren",
+      "export": "Exportieren",
+      "toggleTheme": "Design wechseln",
+      "shuffle": "Zufällig",
+      "shortcuts": "Tastenkürzel",
+      "signOut": "Abmelden"
+    },
+    "cards": {
+      "searching": "Karten werden gesucht",
+      "searchFailed": "Karten konnten nicht durchsucht werden",
+      "searchAll": "Überall nach „{query}“ suchen",
+      "untitled": "Karte ohne Titel"
+    }
+  },
+  "shortcuts": {
+    "groups": {
+      "cards": "Karten",
+      "openCard": "Geöffnete Karte",
+      "goTo": "Gehe zu",
+      "search": "Suche",
+      "anywhere": "Überall"
+    },
+    "rows": {
+      "moveBetweenCards": "Zwischen Karten wechseln",
+      "nextOrPreviousCard": "Nächste oder vorherige Karte",
+      "openCard": "Karte öffnen",
+      "favorite": "Als Favorit markieren oder entfernen",
+      "addTags": "Tags hinzufügen",
+      "archive": "Archivieren oder dearchivieren",
+      "moveToTrash": "In den Papierkorb legen",
+      "select": "Auswählen oder abwählen",
+      "copy": "Text, Link oder Bild kopieren",
+      "clearSelection": "Auswahl aufheben",
+      "previousOrNextCard": "Vorherige oder nächste Karte",
+      "addTag": "Tag hinzufügen",
+      "writeNote": "Notiz schreiben",
+      "focusNote": "Notiz fokussieren",
+      "openOrDownload": "Link öffnen oder Datei herunterladen",
+      "openLink": "Link öffnen",
+      "markLinkDone": "Link als erledigt markieren",
+      "copyLinkOrText": "Link oder Text kopieren",
+      "toggleDetails": "Details ein- oder ausblenden",
+      "goToEverything": "Alles",
+      "goToFavorites": "Favoriten",
+      "goToArchive": "Archiv",
+      "goToTrash": "Papierkorb",
+      "excludeWord": "Ein Wort ausschließen",
+      "excludeFilter": "Tag, Typ, Website oder Ordner ausschließen",
+      "eitherOne": "Eines von beiden",
+      "group": "Gruppieren",
+      "exactWords": "Exakte Wörter",
+      "commandPalette": "Befehlspalette",
+      "search": "Suchen",
+      "newNote": "Neue Notiz",
+      "uploadFiles": "Dateien hochladen",
+      "notifications": "Zu Benachrichtigungen (Rückgängig)",
+      "keyboardShortcuts": "Tastenkürzel"
+    }
+  },
+  "extension": {
+    "popup": {
+      "loading": "Wird geladen",
+      "loadAccountFailed": "Ihr Konto konnte nicht geladen werden.",
+      "somethingWentWrong": "Etwas ist schiefgelaufen",
+      "tryAgain": "Erneut versuchen",
+      "privateSession": "Firefox ist im privaten Modus, daher vergisst Teak beim Schließen Ihre Anmeldung und nicht gesendete Speicherungen.",
+      "pendingSaves": "{count, plural, one {# Speicherung wurde} other {# Speicherungen wurden}} nicht abgeschlossen",
+      "discard": "Verwerfen",
+      "retry": "Erneut versuchen",
+      "pendingSavesFailed": "Ausstehende Speicherungen konnten nicht aktualisiert werden.",
+      "headline": "Alles speichern, überall",
+      "signInPrompt": "Melden Sie sich an, um Seiten, Bilder und Text in Ihrem Teak zu speichern.",
+      "signIn": "Anmelden",
+      "finishingSignIn": "Anmeldung wird abgeschlossen…",
+      "signInFailed": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "openTeak": "Teak öffnen",
+      "upgrade": "Auf Pro upgraden",
+      "signOut": "Abmelden",
+      "signOutFailed": "Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "uploadFile": "Datei hochladen",
+      "fileInvalid": "Die Datei ist leer oder zu groß.",
+      "fileSaveFailed": "Die Datei konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "reconnectForUpload": "Stellen Sie die Verbindung wieder her, um den ausstehenden Upload abzuschließen.",
+      "pseudoLocale": "Pseudo-Sprache (en-XA)",
+      "status": {
+        "chooseFile": "Datei zum Speichern auswählen",
+        "fileSizeLimit": "Bis zu 100 MB",
+        "freeLimitReached": "Sie haben das kostenlose Limit erreicht",
+        "upgradeForUnlimited": "Upgraden Sie auf Pro für unbegrenzte Karten.",
+        "alreadySaved": "Bereits in Ihrem Teak",
+        "uploadingFile": "Datei wird hochgeladen",
+        "fileSaved": "Datei gespeichert",
+        "uploadFailed": "Datei konnte nicht hochgeladen werden",
+        "savingToTeak": "Wird in Teak gespeichert",
+        "savedToTeak": "In Teak gespeichert",
+        "pageSaved": "Seite gespeichert",
+        "textSaved": "Text gespeichert",
+        "saveFailed": "Speichern fehlgeschlagen",
+        "savingPage": "Seite wird gespeichert",
+        "pageSaveFailed": "Diese Seite konnte nicht gespeichert werden",
+        "cantSavePage": "Diese Seite kann nicht gespeichert werden",
+        "cantSavePageDetail": "Öffnen Sie eine Webseite, um sie zu speichern, oder laden Sie eine Datei hoch."
+      },
+      "details": {
+        "loadingTags": "Tags werden geladen",
+        "loadFailed": "Die Tags dieser Karte konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "tags": "Tags",
+        "addTags": "Tags hinzufügen",
+        "removeTag": "Tag {tag} entfernen",
+        "suggestedTags": "Vorgeschlagene Tags",
+        "note": "Notiz",
+        "addNote": "Notiz hinzufügen",
+        "saved": "Gespeichert",
+        "tagTooLong": "Tags dürfen höchstens {max} Zeichen lang sein.",
+        "tooManyTags": "Eine Karte kann hier höchstens {max} Tags haben.",
+        "signInAgain": "Melden Sie sich erneut an, um Ihre Änderungen zu speichern.",
+        "tagsFailed": "Die Tags konnten nicht gespeichert werden.",
+        "noteFailed": "Die Notiz konnte nicht gespeichert werden."
+      }
+    },
+    "contextMenu": {
+      "savePage": "Seite in Teak speichern",
+      "saveAsset": "Medium in Teak speichern",
+      "saveText": "Text in Teak speichern"
+    },
+    "omnibox": {
+      "search": "Teak durchsuchen",
+      "searchFor": "Teak nach <match>{query}</match> durchsuchen",
+      "signIn": "Bei Teak anmelden, um zu suchen",
+      "noMatches": "Keine passenden Karten",
+      "unreachable": "Teak ist nicht erreichbar",
+      "rateLimited": "Zu viele Suchen, bitte etwas langsamer",
+      "cardType": "{type, select, text {Text} link {Link} image {Bild} video {Video} audio {Audio} document {Dokument} palette {Palette} quote {Zitat} other {{type}}}",
+      "untitled": "{type, select, text {Text ohne Titel} link {Link ohne Titel} image {Bild ohne Titel} video {Video ohne Titel} audio {Audio ohne Titel} document {Dokument ohne Titel} palette {Palette ohne Titel} quote {Zitat ohne Titel} other {{type} ohne Titel}}"
+    },
+    "inline": {
+      "idle": "In Teak speichern",
+      "saving": "Wird in Teak gespeichert",
+      "saved": "In Teak gespeichert",
+      "duplicate": "Bereits in Teak gespeichert",
+      "error": "Speichern fehlgeschlagen. Erneut versuchen",
+      "errorWithReason": "Speichern fehlgeschlagen. Erneut versuchen: {reason}",
+      "invalidPost": "Ungültige Beitragsdaten",
+      "signIn": "Bei Teak anmelden, um zu speichern",
+      "saveFailed": "Der Beitrag konnte nicht gespeichert werden"
+    }
+  },
+  "screens": {
+    "cards": {
+      "emptyFavorites": "Noch keine Favoriten. Markieren Sie eine Karte als Favorit, um sie hier zu finden.",
+      "emptyArchive": "Nichts archiviert. Archivieren Sie eine Karte, um sie aus Ihrer Bibliothek herauszuhalten.",
+      "emptyTrash": "Der Papierkorb ist leer.",
+      "hiddenCardsHint": "Einige Karten sind ausgeblendet. Suchen Sie nach #secret oder #hidden, um sie zu sehen.",
+      "cardNotFound": "Karte nicht gefunden",
+      "folderNotFound": "Ordner nicht gefunden",
+      "folderMayBeDeleted": "Er wurde möglicherweise gelöscht.",
+      "goToEverything": "Zu „Alles“ wechseln",
+      "nothingLeftToDo": "Nichts mehr zu erledigen.",
+      "noSmartFolderMatches": "Keine Karten passen zu diesem intelligenten Ordner.",
+      "editSearch": "Suche bearbeiten",
+      "noCardsInFolder": "Noch keine Karten in diesem Ordner.",
+      "addCards": "Karten hinzufügen",
+      "nothingSimilar": "Noch nichts Ähnliches",
+      "noMoodMatches": "Noch keine Bilder mit dieser Stimmung",
+      "stillLearning": "Teak lernt diese Karte noch kennen. Versuchen Sie es gleich noch einmal.",
+      "tooManySearches": "Zu viele Suchen. Versuchen Sie es in einer Minute erneut.",
+      "semanticUnavailable": "Die Suche nach Bedeutung ist gerade nicht möglich.",
+      "noFilterMatches": "Nichts gefunden, das Ihren Filtern entspricht",
+      "clearFilters": "Filter zurücksetzen",
+      "smartFolderSuffix": " (intelligenter Ordner)",
+      "folderCardCountSuffix": "{count, plural, one { Karte} other { Karten}}",
+      "folderTitle": "Ordner",
+      "searchFolder": "{folder} durchsuchen",
+      "savedSmartFolder": "„{name}“ gespeichert",
+      "savedSmartFolderDescription": "Er zeigt jede passende Karte, sobald Sie sie speichern.",
+      "open": "Öffnen",
+      "unsavableFilters": "Farben, Stile und Datumsangaben werden in einem intelligenten Ordner nicht gespeichert.",
+      "loadFailed": "Ihre Karten konnten nicht geladen werden."
+    },
+    "tags": {
+      "sortMostUsed": "Meistverwendet",
+      "sortName": "Name",
+      "sortLabel": "Sortierung: {sort}",
+      "sortBy": "Tags sortieren nach",
+      "moreFor": "Mehr für {tag}",
+      "rowLabel": "{tag}, {count, plural, one {# Karte} other {# Karten}}",
+      "rename": "Umbenennen…",
+      "mergeInto": "Zusammenführen mit…",
+      "delete": "Löschen…",
+      "matchCount": "{matches, number} von {total, number}",
+      "topCount": "Top {total, number}",
+      "tagsSuffix": " Tags",
+      "title": "Tags",
+      "findTag": "Tag suchen",
+      "loading": "Tags werden geladen",
+      "noTags": "Noch keine Tags",
+      "noTagsDescription": "Tags, die Sie Karten hinzufügen, und die Vorschläge von Teak erscheinen hier.",
+      "noMatches": "Keine Tags passen zu „{query}“.",
+      "list": "Tags",
+      "showMore": "{count, number} weitere anzeigen"
+    },
+    "logo": {
+      "earlyAccess": "Vorabzugang"
+    }
+  },
+  "hooks": {
+    "cardActions": {
+      "deletedFindInTrash": "Karte gelöscht. Sie finden sie mit einer Suche nach „trash“.",
+      "cardDeleted": "Karte gelöscht",
+      "cardRestored": "Karte wiederhergestellt",
+      "cardPermanentlyDeleted": "Karte endgültig gelöscht",
+      "deleteFailed": "Die Karte konnte nicht gelöscht werden",
+      "restoreFailed": "Die Karte konnte nicht wiederhergestellt werden",
+      "permanentDeleteFailed": "Die Karte konnte nicht endgültig gelöscht werden",
+      "changesSaved": "Änderungen gespeichert",
+      "markedDone": "Als {verb, select, read {gelesen} watched {gesehen} listened {gehört} bought {gekauft} cooked {gekocht} played {gespielt} other {erledigt}} markiert",
+      "markedNotDone": "Als nicht {verb, select, read {gelesen} watched {gesehen} listened {gehört} bought {gekauft} cooked {gekocht} played {gespielt} other {erledigt}} markiert",
+      "doneUpdateFailed": "Aktualisierung fehlgeschlagen. Versuchen Sie es erneut.",
+      "alreadyTagged": "Bereits mit #{tag} getaggt",
+      "hiddenByTag": "Ausgeblendet. Suchen Sie nach #{tag}, um sie zu sehen.",
+      "unsafeLink": "Dieser Link kann nicht geöffnet werden, weil er eine unsichere Adresse verwendet",
+      "failed": {
+        "delete": "Löschen fehlgeschlagen",
+        "restore": "Wiederherstellen fehlgeschlagen",
+        "permanentDelete": "Endgültiges Löschen fehlgeschlagen",
+        "toggleFavorite": "Favorit konnte nicht geändert werden",
+        "saveChanges": "Die Änderungen konnten nicht gespeichert werden",
+        "downloadFile": "Die Datei konnte nicht heruntergeladen werden",
+        "removeTag": "Der Tag konnte nicht entfernt werden",
+        "update": "{field} konnte nicht aktualisiert werden",
+        "other": "Fehlgeschlagen: {operation}"
+      }
+    },
+    "clipboard": {
+      "copyingImage": "Bild wird kopiert…",
+      "imageCopied": "Bild in die Zwischenablage kopiert",
+      "copied": "In die Zwischenablage kopiert",
+      "linkCopied": "Link in die Zwischenablage kopiert",
+      "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen"
+    },
+    "deviceSessions": {
+      "loadFailed": "Geräte konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    },
+    "linkThumbnail": {
+      "replaced": "Bild ersetzt",
+      "reset": "Zurück zum Originalbild",
+      "undoExpired": "Diese Änderung kann nicht mehr rückgängig gemacht werden."
+    },
+    "reprocess": {
+      "started": "Details werden aktualisiert. Zusammenfassung und Tags folgen in Kürze."
+    },
+    "savePdf": {
+      "saved": "PDF gespeichert",
+      "alreadySaved": "Bereits gespeichert",
+      "open": "Öffnen",
+      "cardLimitReached": "Kostenloses Kartenlimit erreicht",
+      "tooLarge": "Dieses PDF ist zu groß. Teak speichert Dateien bis 100 MB.",
+      "notPdf": "arXiv hat für dieses Paper kein PDF geliefert.",
+      "failed": "Das PDF konnte nicht gespeichert werden. Versuchen Sie es erneut."
+    },
+    "settings": {
+      "openingPortal": "Kundenportal wird geöffnet…",
+      "portalOpened": "Kundenportal geöffnet",
+      "portalFailed": "Das Portal konnte nicht geöffnet werden",
+      "deleteAccountFailed": "Beim Löschen Ihres Kontos ist etwas schiefgelaufen.",
+      "signOutFailed": "Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut."
+    },
+    "tagOperations": {
+      "startFailed": "Die Tag-Änderung konnte nicht gestartet werden"
+    },
+    "upload": {
+      "failed": "Upload fehlgeschlagen",
+      "failedWithStatus": "Upload fehlgeschlagen mit Status {status}",
+      "unsupportedType": "Nicht unterstützter Dateityp",
+      "prepareFailed": "Der Upload konnte nicht vorbereitet werden",
+      "createFailed": "Die Karte konnte nicht erstellt werden",
+      "cancelled": "Upload abgebrochen",
+      "timedOut": "Der Upload reagiert nicht mehr. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+    }
+  },
+  "lib": {
+    "bulkCardActions": {
+      "progress": {
+        "favorite": "Zu Favoriten hinzufügen: {done} von {total}…",
+        "unfavorite": "Aus Favoriten entfernen: {done} von {total}…",
+        "archive": "Archivieren: {done} von {total}…",
+        "unarchive": "Zurück in die Bibliothek: {done} von {total}…",
+        "addTags": "Tags hinzufügen: {done} von {total}…",
+        "removeTags": "Tags entfernen: {done} von {total}…",
+        "delete": "In den Papierkorb legen: {done} von {total}…",
+        "restore": "Wiederherstellen: {done} von {total}…",
+        "addToFolder": "Zum Ordner hinzufügen: {done} von {total}…",
+        "removeFromFolder": "Aus dem Ordner entfernen: {done} von {total}…",
+        "moveToFolder": "Verschieben: {done} von {total}…"
+      },
+      "done": {
+        "favorite": "{count, plural, one {# Karte} other {# Karten}} zu Favoriten hinzugefügt",
+        "unfavorite": "{count, plural, one {# Karte} other {# Karten}} aus Favoriten entfernt",
+        "archive": "{count, plural, one {# Karte} other {# Karten}} archiviert",
+        "unarchive": "{count, plural, one {# Karte} other {# Karten}} zurück in die Bibliothek gebracht",
+        "addTags": "Tags zu {count, plural, one {# Karte} other {# Karten}} hinzugefügt",
+        "removeTags": "Tags von {count, plural, one {# Karte} other {# Karten}} entfernt",
+        "delete": "{count, plural, one {# Karte} other {# Karten}} in den Papierkorb gelegt",
+        "restore": "{count, plural, one {# Karte} other {# Karten}} wiederhergestellt",
+        "addToFolder": "{count, plural, one {# Karte} other {# Karten}} zu {folder} hinzugefügt",
+        "removeFromFolder": "{count, plural, one {# Karte} other {# Karten}} aus {folder} entfernt",
+        "moveToFolder": "{count, plural, one {# Karte} other {# Karten}} nach {folder} verschoben",
+        "addToUnnamedFolder": "{count, plural, one {# Karte} other {# Karten}} zum Ordner hinzugefügt",
+        "removeFromUnnamedFolder": "{count, plural, one {# Karte} other {# Karten}} aus dem Ordner entfernt",
+        "moveToUnnamedFolder": "{count, plural, one {# Karte} other {# Karten}} in den Ordner verschoben"
+      },
+      "partial": "{done}. Nicht geändert: {failed}.",
+      "failed": {
+        "favorite": "Diese Karten konnten nicht zu Favoriten hinzugefügt werden",
+        "unfavorite": "Diese Karten konnten nicht aus Favoriten entfernt werden",
+        "archive": "Diese Karten konnten nicht archiviert werden",
+        "unarchive": "Diese Karten konnten nicht dearchiviert werden",
+        "addTags": "Den Karten konnten keine Tags hinzugefügt werden",
+        "removeTags": "Die Tags konnten nicht von diesen Karten entfernt werden",
+        "delete": "Diese Karten konnten nicht in den Papierkorb gelegt werden",
+        "restore": "Diese Karten konnten nicht wiederhergestellt werden",
+        "addToFolder": "Diese Karten konnten nicht zum Ordner hinzugefügt werden",
+        "removeFromFolder": "Diese Karten konnten nicht aus dem Ordner entfernt werden",
+        "moveToFolder": "Diese Karten konnten nicht verschoben werden"
+      }
+    },
+    "clipboard": {
+      "copiedColor": "{hex} kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen"
+    },
+    "exif": {
+      "camera": "Kamera",
+      "taken": "Aufgenommen",
+      "exposure": "Belichtung",
+      "aperture": "Blende",
+      "focalLength": "Brennweite",
+      "iso": "ISO"
+    },
+    "folders": {
+      "colors": {
+        "none": "Keine Farbe",
+        "gray": "Grau",
+        "red": "Rot",
+        "orange": "Orange",
+        "amber": "Bernstein",
+        "green": "Grün",
+        "teal": "Petrol",
+        "blue": "Blau",
+        "violet": "Violett",
+        "pink": "Rosa"
+      },
+      "suggestedName": {
+        "type": "{type, select, text {Texte} link {Links} image {Bilder} video {Videos} audio {Audios} document {Dokumente} palette {Paletten} quote {Zitate} other {{type}}}",
+        "favorites": "Favoriten",
+        "archived": "Archiviert",
+        "price": "Preis {bound}",
+        "text": "Text „{text}“"
+      }
+    },
+    "libraryViews": {
+      "labels": {
+        "all": "Alles",
+        "favorites": "Favoriten",
+        "archive": "Archiv",
+        "trash": "Papierkorb"
+      },
+      "searchPlaceholders": {
+        "all": "Alles durchsuchen",
+        "favorites": "Favoriten durchsuchen",
+        "archive": "Archiv durchsuchen",
+        "trash": "Papierkorb durchsuchen"
+      }
+    },
+    "linkByline": {
+      "byAuthor": "Von {author}"
+    },
+    "linkThumbnail": {
+      "changeFailed": "Das Bild konnte nicht geändert werden. Versuchen Sie es erneut."
+    },
+    "linkTitle": {
+      "fallback": "Link"
+    },
+    "reprocess": {
+      "failed": "Diese Karte konnte nicht aktualisiert werden. Versuchen Sie es gleich noch einmal."
+    },
+    "tags": {
+      "progress": "{changed, number} von {total, plural, one {# Karte} other {# Karten}}",
+      "completed": {
+        "rename": "„{from}“ in „{to}“ umbenannt",
+        "merge": "„{from}“ mit „{to}“ zusammengeführt",
+        "delete": "„{from}“ gelöscht"
+      },
+      "running": {
+        "rename": "„{from}“ wird in „{to}“ umbenannt…",
+        "merge": "„{from}“ wird mit „{to}“ zusammengeführt…",
+        "delete": "„{from}“ wird gelöscht…"
+      },
+      "failed": {
+        "rename": "Umbenennen konnte nicht abgeschlossen werden. {changed, number} von {total, plural, one {# Karte} other {# Karten}} geändert.",
+        "merge": "Zusammenführen konnte nicht abgeschlossen werden. {changed, number} von {total, plural, one {# Karte} other {# Karten}} geändert.",
+        "delete": "Löschen konnte nicht abgeschlossen werden. {changed, number} von {total, plural, one {# Karte} other {# Karten}} geändert."
+      },
+      "changedDescription": "{count, plural, one {# Karte} other {# Karten}} geändert",
+      "runningDescription": "{changed, number} von {total, plural, one {# Karte} other {# Karten}} geändert",
+      "failedDescription": "Versuchen Sie es erneut, um den Rest zu ändern."
+    },
+    "upload": {
+      "partialFailure": "{successCount} von {total} Dateien hochgeladen.",
+      "partialFailureWithReason": "{successCount} von {total} Dateien hochgeladen. Erster Fehler: {file} – {reason}",
+      "skippedNote": "{count, plural, one {# Datei wurde} other {# Dateien wurden}} übersprungen. Sie können bis zu {max} gleichzeitig hochladen."
+    }
+  }
+}
