@@ -83,6 +83,16 @@ export const workflowDispatchWatchdog = internalAction({
     }),
 });
 
+// Deletes pasted link jobs a week after they finished.
+export const cleanupFinishedLinkPastes = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx) =>
+    monitored(ctx, CRONS.cleanupFinishedLinkPastes.name, () =>
+      ctx.runMutation(internal.card.pasteLinks.sweepFinishedLinkPastes, {})
+    ),
+});
+
 // The Files Worker runs the snapshot now; this only catches a Convex cron
 // firing queued before that deploy (.agents/sunset.md).
 export const adminDailySnapshot = internalAction({

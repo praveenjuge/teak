@@ -32,6 +32,7 @@ import {
   ORDERING_SAVED_HOST,
 } from "../devSeed/orderingSaved";
 import {
+  pasteLinksKnownUrl,
   RESAVE_ARCHIVED_EVERY,
   RESAVE_FOLDERS,
   RESAVE_LINK_COUNT,
@@ -1490,6 +1491,46 @@ describe("devSeed folder packs", () => {
     );
     expect(links).toHaveLength(5);
     expect(links.filter((card) => card.isArchived)).toHaveLength(1);
+  });
+
+  test("paste-links fills a free library to five under the limit around ten links to paste again", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
+    const active = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted_saved", (q) =>
+            q.eq("userId", "teak_dev").eq("isDeleted", undefined)
+          )
+          .take(300)
+      );
+    const before = (await active()).length;
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "paste-links",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 195 - before });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = await active();
+    expect(cards).toHaveLength(195);
+    const links = cards.filter((card) =>
+      card.url?.startsWith("https://example.com/paste-links/")
+    );
+    expect(links.map((card) => card.url).sort()).toEqual(
+      Array.from({ length: 10 }, (_, index) =>
+        pasteLinksKnownUrl(index + 1)
+      ).sort()
+    );
+    expect(
+      links
+        .filter((card) => card.isArchived)
+        .map((card) => card.url)
+        .sort()
+    ).toEqual([pasteLinksKnownUrl(3), pasteLinksKnownUrl(7)]);
+    expect(links.every((card) => card.urlKey && card.savedAt)).toBe(true);
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {

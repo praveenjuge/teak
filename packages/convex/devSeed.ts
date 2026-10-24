@@ -65,7 +65,12 @@ import {
   videoCaptionsPack,
 } from "./devSeed/mediaPacks";
 import { orderingSavedPack } from "./devSeed/orderingSaved";
-import { RESAVE_AT_LIMIT_LINKS, resavePack } from "./devSeed/resave";
+import {
+  PASTE_LINKS_KNOWN,
+  PASTE_LINKS_LIBRARY_SIZE,
+  RESAVE_AT_LIMIT_LINKS,
+  resavePack,
+} from "./devSeed/resave";
 import { searchOperatorsPack } from "./devSeed/searchOperators";
 import { urlVariantsScenarioPage } from "./devSeed/urlVariants";
 import {
@@ -589,6 +594,12 @@ const SCENARIOS: Record<string, ScenarioPack> = {
       "A free account at the card limit (200 of 200) whose cards include five links to save again (example.com/resave-limit/1 to /5, the fifth archived): saving one moves it to the top, and a new link is refused. Search `#scenario-resave-at-limit`.",
     fillTo: FREE_TIER_LIMIT,
     lead: RESAVE_AT_LIMIT_LINKS,
+  },
+  "paste-links": {
+    description:
+      "A free account with 195 cards, five under the limit, among them ten links (example.com/paste-links/1 to /10, the 3rd and 7th archived) that the composer's fixture paste lists repeat. Paste twelve links that start with known ones: the known links move to the top, five new ones are saved, and the job stops at the limit. Search `#scenario-paste-links`.",
+    fillTo: PASTE_LINKS_LIBRARY_SIZE,
+    lead: PASTE_LINKS_KNOWN,
   },
   "locale-switch": {
     description:

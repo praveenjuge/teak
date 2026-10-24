@@ -96,3 +96,32 @@ export const RESAVE_AT_LIMIT_LINKS: DevScenarioCardDef[] = [1, 2, 3, 4, 5].map(
     ...(n === 5 ? { isArchived: true } : {}),
   })
 );
+
+/** The free library the `paste-links` pack fills: 5 cards under the limit. */
+export const PASTE_LINKS_LIBRARY_SIZE = 195;
+
+/** A link the `paste-links` pack saves, which the fixture paste lists repeat. */
+export const pasteLinksKnownUrl = (n: number) =>
+  `https://example.com/paste-links/${n}`;
+
+/**
+ * Ten links already saved, the 3rd and 7th archived, among the 195 cards of
+ * the `paste-links` pack. Pasting them again moves them to the top without
+ * counting toward the limit; the five new links after them fill it.
+ */
+export const PASTE_LINKS_KNOWN: DevScenarioCardDef[] = Array.from(
+  { length: 10 },
+  (_, index) => {
+    const n = index + 1;
+    const archived = n === 3 || n === 7;
+    return {
+      type: "link",
+      content: pasteLinksKnownUrl(n),
+      url: pasteLinksKnownUrl(n),
+      metadataTitle: `Paste links ${n}${archived ? " (archived)" : ""}`,
+      createdAt: START + n * DAY,
+      tags: ["scenario-paste-links"],
+      ...(archived ? { isArchived: true } : {}),
+    };
+  }
+);

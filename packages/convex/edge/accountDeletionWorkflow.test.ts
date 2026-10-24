@@ -590,6 +590,27 @@ describe("durable deletion admission and tombstones", () => {
         locale: "de",
         updatedAt: 1,
       });
+      // More pages of pasted link jobs than of any other table, so the stage
+      // keeps paging for these rows alone.
+      for (let index = 0; index < 230; index += 1) {
+        await ctx.db.insert("linkPasteJobs", {
+          userId: "permanent-owner",
+          urls: [`https://example.com/pasted/${index}`],
+          total: 1,
+          omittedOverLimit: 0,
+          omittedRepeats: 0,
+          omittedUnsafe: 0,
+          nextIndex: 1,
+          created: 1,
+          resaved: 0,
+          failed: 0,
+          attempts: 0,
+          status: index === 0 ? "running" : "done",
+          createdAt: 1,
+          updatedAt: 1,
+          ...(index === 0 ? {} : { finishedAt: 1 }),
+        });
+      }
       await ctx.db.insert("userTagSummaries", {
         userId: "permanent-owner",
         items: [{ name: "private", count: 1 }],
@@ -748,6 +769,7 @@ describe("durable deletion admission and tombstones", () => {
       "cardTextContents",
       "linkedPdfs",
       "cardLinks",
+      "linkPasteJobs",
       "userPreferences",
       "userTagSummaries",
       "tagSummaryRefreshes",

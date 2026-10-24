@@ -214,7 +214,15 @@ export const ancillaryPage = internalMutation({
     for (const row of cardLinks) {
       await ctx.db.delete(row._id);
     }
+    const linkPasteJobs = await ctx.db
+      .query("linkPasteJobs")
+      .withIndex("by_user_status", (q) => q.eq("userId", userId))
+      .take(100);
+    for (const row of linkPasteJobs) {
+      await ctx.db.delete(row._id);
+    }
     return (
+      linkPasteJobs.length > 0 ||
       cardLinks.length > 0 ||
       preferences.length > 0 ||
       inboundSettings.length > 0 ||
