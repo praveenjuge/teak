@@ -162,9 +162,3 @@
 :is(.dark, [data-theme="dark"]) .meadow-band {
   opacity: 0.16;
 }
-
-/* lib/app-entry.ts marks signed-in visitors before the page paints. */
-html[data-signed-in] [data-signed-out-only],
-html:not([data-signed-in]) [data-signed-in-only] {
-  display: none;
-}

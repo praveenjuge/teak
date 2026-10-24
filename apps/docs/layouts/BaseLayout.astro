@@ -1,6 +1,5 @@
 ---
 import { serializeJsonLd } from "@teak/convex/shared/utils/jsonLd";
-import { appEntryScript } from "../lib/app-entry";
 import "../theme.css";
 import "../styles/marketing.css";
 
@@ -40,7 +39,6 @@ const fullTitle = title.includes("| Teak") ? title : `${title} | Teak`;
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script is:inline set:html={appEntryScript()} />
     <link
       rel="preload"
       href="/fonts/SNPro-VariableRegular.woff2"
