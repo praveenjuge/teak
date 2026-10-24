@@ -31,6 +31,10 @@ import {
   markUnfinishedCardStagesFailed,
 } from "./card/processingLifecycle";
 import {
+  pendingRunToTakeOver,
+  takeSnapshotWaitingAfterRun,
+} from "./card/processingRuns";
+import {
   ACTIVE_EXPORT_STATUSES,
   EXPORT_FAILURE_CLASS,
 } from "./export/constants";
@@ -118,23 +122,6 @@ const insertDispatch = async (
   return id;
 };
 
-const pendingRunToTakeOver = async (
-  ctx: MutationCtx,
-  card: Doc<"cards">
-): Promise<Doc<"workflowDispatches"> | null> => {
-  const currentRev = card.processingRev;
-  if (!currentRev) {
-    return null;
-  }
-  const currentRun = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_instanceId", (q) =>
-      q.eq("instanceId", cardProcessingInstanceId(card._id, currentRev))
-    )
-    .first();
-  return currentRun?.state === "pending" ? currentRun : null;
-};
-
 export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
@@ -200,28 +187,6 @@ export const queueCardProcessing = async (
     ...(reset ? { reset: true as const } : {}),
   });
   return { instanceId, rev };
-};
-
-/**
- * Background runs waiting or in flight, counted up to `limit`: how busy the
- * dispatcher is, so a backfill can wait instead of crowding out new saves.
- */
-export const readDispatchQueueDepth = async (
-  ctx: QueryCtx,
-  limit: number
-): Promise<number> => {
-  const pending = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
-    .take(limit);
-  if (pending.length >= limit) {
-    return pending.length;
-  }
-  const sent = await ctx.db
-    .query("workflowDispatches")
-    .withIndex("by_state_and_sentAt", (q) => q.eq("state", "sent"))
-    .take(limit - pending.length);
-  return pending.length + sent.length;
 };
 
 export const queueExportWorkflow = async (
@@ -844,6 +809,11 @@ export const complete = internalMutation({
     });
     if (status === "errored") {
       await handleRunFailure(ctx, row, "workflow_failed");
+    } else {
+      const waiting = await takeSnapshotWaitingAfterRun(ctx, row);
+      if (waiting) {
+        await queueCardProcessing(ctx, waiting, { archiveOnly: true });
+      }
     }
     return null;
   },

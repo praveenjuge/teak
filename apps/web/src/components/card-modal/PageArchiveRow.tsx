@@ -6,14 +6,14 @@ import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import { Info } from "vadivam-react";
-import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../ui/tooltip";
+} from "@/components/ui/tooltip";
+import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardModalCard } from "./types";
 
 export type PageArchiveRowState =

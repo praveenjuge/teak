@@ -579,9 +579,6 @@ export const updateCardFieldsForUserHandler = async (
       })
     )
   );
-  if ("url" in state.updateData) {
-    await discardArticleObjects(ctx, card);
-  }
   if (!options.deferSearchSync) {
     await syncCardSearch(ctx, cardId, userId, card);
   }
@@ -589,6 +586,8 @@ export const updateCardFieldsForUserHandler = async (
     await queueObjectDeletion(ctx, card.pageArchive?.storageKey);
     await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
     await deleteLinkCheckRows(ctx, cardId);
+    // The old page's article: its text row and objects.
+    await discardArticleObjects(ctx, card);
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {

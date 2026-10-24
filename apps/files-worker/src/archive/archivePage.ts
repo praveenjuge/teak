@@ -180,7 +180,7 @@ export const createArchiveFetchers = (
     accept: string
   ): Promise<FetchedAsset | null> => {
     try {
-      const { response } = await safeFetch(
+      const { finalUrl, response } = await safeFetch(
         url,
         resolveDns,
         {
@@ -200,6 +200,7 @@ export const createArchiveFetchers = (
       return {
         body,
         contentType: response.headers.get("content-type") ?? "",
+        finalUrl,
       };
     } catch {
       // A refused address (SsrfError), a timeout or a network error: the

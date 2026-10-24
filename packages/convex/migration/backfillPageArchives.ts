@@ -2,13 +2,11 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { createAccountDeletionGate } from "../accountDeletion";
+import { readDispatchQueueDepth } from "../card/processingRuns";
 import { mergeProcessingStages, stagePending } from "../card/processingStatus";
 import { patchCardWithSearchSync } from "../card/searchSync";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
-import {
-  queueCardProcessing,
-  readDispatchQueueDepth,
-} from "../workflowDispatch";
+import { queueCardProcessing } from "../workflowDispatch";
 
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 100;

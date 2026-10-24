@@ -1,7 +1,7 @@
 import { api } from "@teak/convex";
 import type { ComponentProps } from "react";
+import { LinkPreview } from "@/components/card-previews";
 import { useQuery } from "@/lib/convexQueryHooks";
-import { LinkPreview } from "../card-previews/LinkPreview";
 
 /**
  * A link with an archived copy: the preview shows an "Archived copy" chip

@@ -24,6 +24,8 @@ const fakeDeps = (
   options: {
     assets?: Record<string, FetchedAsset | null>;
     defaultAsset?: (url: string, kind: "font" | "image") => FetchedAsset | null;
+    /** Where a stylesheet request ends up, by the URL asked for. */
+    redirects?: Record<string, string>;
     sheets?: Record<string, string | Uint8Array>;
     sheetType?: string;
   } = {}
@@ -53,6 +55,7 @@ const fakeDeps = (
       return Promise.resolve({
         body: typeof sheet === "string" ? encode(sheet) : sheet,
         contentType: options.sheetType ?? "text/css",
+        finalUrl: options.redirects?.[url],
       });
     },
     recorded,
@@ -306,6 +309,43 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     expect(result.html).toContain(".plain{color:red}");
     expect(result.html).not.toContain("@media all");
     expect(result.html).not.toContain("@import");
+  });
+
+  test("keeps url(#id) references into the page's own SVG, in sheets and style attributes", async () => {
+    const result = await archive(
+      `<head><style>.photo{clip-path:url(#crop)}.card{filter:url( "#shadow" )}</style></head>
+      <body><svg><defs><clipPath id="crop"><circle r="5"/></clipPath><linearGradient id="g"/></defs>
+      <rect style="fill:url('#g')"/></svg><p class="photo">x</p></body>`
+    );
+    expect(result.html).toContain('clip-path:url("#crop")');
+    expect(result.html).toContain('filter:url("#shadow")');
+    expect(result.html).toContain("fill:url(&quot;#g&quot;)");
+    expect(result.html).not.toContain("url(data:,)");
+  });
+
+  test("resolves a redirected stylesheet's imports and assets against where it was served from", async () => {
+    const deps = fakeDeps({
+      redirects: {
+        "https://example.com/theme.css": "https://cdn.example/v2/theme.css",
+      },
+      sheets: {
+        "https://cdn.example/v2/parts.css": ".p{background:url(p.png)}",
+        "https://example.com/theme.css": `@import "parts.css"; @font-face{font-family:A;src:url(font.woff2)} .a{background:url(bg.png)}`,
+      },
+    });
+    await archive(
+      `<head><link rel="stylesheet" href="/theme.css"></head><p class="a p">x</p>`,
+      deps
+    );
+    expect(deps.recorded.sheets).toEqual([
+      "https://example.com/theme.css",
+      "https://cdn.example/v2/parts.css",
+    ]);
+    expect(deps.recorded.assets.map(({ url }) => url).sort()).toEqual([
+      "https://cdn.example/v2/bg.png",
+      "https://cdn.example/v2/font.woff2",
+      "https://cdn.example/v2/p.png",
+    ]);
   });
 
   test("drops a stylesheet over 4 MiB", async () => {
