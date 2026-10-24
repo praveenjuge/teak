@@ -31,7 +31,7 @@ Order: phase 1 first, because phases 2–4 add native text and that text goes in
 
 ## Corrections to the 2026-10-24 idea list
 
-The facts were checked after the Q&A. Two ideas in the list were wrong about today's code:
+The facts were checked after the Q&A. Four ideas in the list were wrong about today's code:
 
 - **Empty Trash isn't on the web.** "Trash is empty." is only the empty-state text (`apps/web/src/screens/CardsScreen.tsx:110`). No such action or mutation exists; Apple and Android delete selected cards one by one. Phase 3 adds it to all three as one new feature. The owner can drop it from phase 3 without affecting the rest.
 - **Android already searches with `-`, `OR` and parentheses.** It sends the typed text as `searchQuery`, and the backend parses it. Only Apple strips them. Android drops the whole query when it contains a date word. Phase 2 fixes both.
