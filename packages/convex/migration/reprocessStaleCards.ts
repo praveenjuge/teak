@@ -37,9 +37,9 @@ const emptyTotals = (): Totals => ({
 });
 
 const addTotals = (left: Totals, right: Totals): Totals => {
-  const byType = { ...left.byType };
+  const byType = new Map(Object.entries(left.byType));
   for (const [type, count] of Object.entries(right.byType)) {
-    byType[type] = (byType[type] ?? 0) + count;
+    byType.set(type, (byType.get(type) ?? 0) + count);
   }
   return {
     examined: left.examined + right.examined,
@@ -48,7 +48,7 @@ const addTotals = (left: Totals, right: Totals): Totals => {
     aiOff: left.aiOff + right.aiOff,
     skippedDeletingAccounts:
       left.skippedDeletingAccounts + right.skippedDeletingAccounts,
-    byType,
+    byType: Object.fromEntries(byType),
   };
 };
 
