@@ -1,17 +1,17 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
+import type { ComponentType, MouseEvent, ReactNode } from "react";
 import {
   Archive,
   Hash,
   Heart,
   LayoutGrid,
-  type LucideIcon,
   PanelLeft,
   Settings,
-  Trash2,
-} from "lucide-react";
-import type { ComponentType, MouseEvent, ReactNode } from "react";
+  Trash,
+  type VadivamIcon,
+} from "vadivam-react";
 import { LogoMark } from "@/components/Logo";
 import {
   Sidebar,
@@ -37,11 +37,11 @@ import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 const TOGGLE_SIDEBAR_KEYS = ["Mod", "B"] as const;
 
-export const LIBRARY_VIEW_ICONS: Record<LibraryView, LucideIcon> = {
+export const LIBRARY_VIEW_ICONS: Record<LibraryView, VadivamIcon> = {
   all: LayoutGrid,
   favorites: Heart,
   archive: Archive,
-  trash: Trash2,
+  trash: Trash,
 };
 
 const PRIMARY_VIEWS = ["all", "favorites"] as const;

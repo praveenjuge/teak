@@ -1,5 +1,5 @@
 import { useTranslations } from "@teak/i18n/react";
-import { Upload } from "lucide-react";
+import { Upload } from "vadivam-react";
 
 interface GlobalFileDropOverlayProps {
   isDragActive: boolean;

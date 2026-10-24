@@ -20,6 +20,7 @@ import {
   tagKey,
 } from "../shared/tags";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
+import { queueObjectDeletion } from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
 import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
@@ -29,6 +30,7 @@ import {
   restoreCountedCard,
 } from "./cardUsage";
 import { withHiddenFlag } from "./hiddenCards";
+import { deleteLinkCheckRows } from "./linkCheckRows";
 import { validateTextCardContent } from "./markdown";
 import {
   buildInitialProcessingStatus,
@@ -401,6 +403,19 @@ const applyCardFieldEdit = (
         "categorize",
         stagePending()
       );
+      // The saved copy and the last link check were of the old page: drop
+      // them so the run archives the new one and an old "dead" answer can't
+      // open the old copy.
+      state.updateData.pageArchive = undefined;
+      state.updateData.pendingPageSnapshotKey = undefined;
+      state.updateData.pendingPageSnapshotAt = undefined;
+      if (card.type === "link") {
+        state.processingStatus = withStageStatus(
+          state.processingStatus,
+          "archive",
+          stagePending()
+        );
+      }
       state.shouldSchedulePipeline = true;
 
       const nextMetadata = { ...(card.metadata ?? {}) };
@@ -569,6 +584,11 @@ export const updateCardFieldsForUserHandler = async (
   }
   if (!options.deferSearchSync) {
     await syncCardSearch(ctx, cardId, userId, card);
+  }
+  if ("url" in state.updateData) {
+    await queueObjectDeletion(ctx, card.pageArchive?.storageKey);
+    await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
+    await deleteLinkCheckRows(ctx, cardId);
   }
 
   if (pipelineDelayMs !== null && !options.deferPipelineSchedule) {

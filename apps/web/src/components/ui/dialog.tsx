@@ -2,8 +2,8 @@
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "@teak/i18n/react";
-import { XIcon } from "lucide-react";
 import * as React from "react";
+import { XIcon } from "vadivam-react";
 
 import { cn } from "../../lib/utils";
 

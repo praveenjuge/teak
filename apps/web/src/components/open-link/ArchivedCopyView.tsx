@@ -1,9 +1,9 @@
 "use client";
 
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { Archive, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Archive, Ellipsis } from "vadivam-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -79,7 +79,7 @@ export function ArchivedCopyBar({
             size="icon"
             variant="ghost"
           >
-            <MoreHorizontal aria-hidden="true" className="size-4" />
+            <Ellipsis aria-hidden="true" className="size-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

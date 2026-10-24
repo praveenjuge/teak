@@ -4,7 +4,6 @@ import { captureEvent } from "@teak/convex/shared/analytics";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
-import { Mic, PenLine, Plus, Square, Upload } from "lucide-react";
 import {
   type ComponentProps,
   useCallback,
@@ -14,6 +13,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

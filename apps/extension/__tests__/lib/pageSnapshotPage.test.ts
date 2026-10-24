@@ -31,8 +31,24 @@ const PAGE = `
   </form>
 </body>`;
 
-const parse = (html: string) =>
-  new DOMParser().parseFromString(html, "text/html");
+// The serialized page is checked as text: it is the page's own markup, and
+// reading it back as HTML is what the archive does later, not this test.
+const openingTag = (html: string, id: string) =>
+  html.match(new RegExp(`<[a-z]+\\b[^>]*\\bid="${id}"[^>]*>`, "u"))?.[0] ?? "";
+const attribute = (html: string, id: string, name: string) => {
+  const tag = openingTag(html, id);
+  if (!tag) {
+    return;
+  }
+  const match = tag.match(
+    new RegExp(`\\s${name}(?:="([^"]*)")?(?=[\\s>])`, "u")
+  );
+  return match ? (match[1] ?? "") : null;
+};
+const textareaText = (html: string, id: string) =>
+  html.match(
+    new RegExp(`<textarea\\b[^>]*\\bid="${id}"[^>]*>([^<]*)</textarea>`, "u")
+  )?.[1];
 
 describe("serializeRenderedPage", () => {
   beforeEach(() => {
@@ -42,9 +58,8 @@ describe("serializeRenderedPage", () => {
   test("keeps the page as shown, without scripts, noscript or templates", () => {
     const { html, url } = serializeRenderedPage();
     expect(url).toBe("https://mail.example.com/inbox?id=7");
-    const page = parse(html);
-    expect(page.querySelector("h1")?.textContent).toBe("Signed in as Ada");
-    expect(page.querySelectorAll("script, noscript, template")).toHaveLength(0);
+    expect(html).toContain("<h1>Signed in as Ada</h1>");
+    expect(html).not.toMatch(/<(?:script|noscript|template)\b/iu);
     expect(html).not.toContain("window.secret");
   });
 
@@ -63,24 +78,22 @@ describe("serializeRenderedPage", () => {
     (document.getElementById("folder") as HTMLSelectElement).value = "b";
 
     const { html } = serializeRenderedPage();
-    const page = parse(html);
-    const attribute = (id: string, name: string) =>
-      page.getElementById(id)?.getAttribute(name);
 
-    expect(attribute("search", "value")).toBe("teak");
-    expect(attribute("password", "value")).toBeNull();
-    expect(attribute("token", "value")).toBeNull();
-    expect(attribute("otp", "value")).toBeNull();
-    expect(attribute("card", "value")).toBeNull();
-    expect(attribute("remember", "checked")).toBe("");
-    expect(attribute("plan-a", "checked")).toBeNull();
-    expect(attribute("plan-b", "checked")).toBe("");
-    expect(page.getElementById("draft")?.textContent).toBe("new draft");
-    expect(page.getElementById("new-password")?.textContent).toBe("");
+    expect(attribute(html, "search", "value")).toBe("teak");
+    expect(attribute(html, "password", "value")).toBeNull();
+    expect(attribute(html, "token", "value")).toBeNull();
+    expect(attribute(html, "otp", "value")).toBeNull();
+    expect(attribute(html, "card", "value")).toBeNull();
+    expect(attribute(html, "remember", "checked")).toBe("");
+    expect(attribute(html, "plan-a", "checked")).toBeNull();
+    expect(attribute(html, "plan-b", "checked")).toBe("");
+    expect(textareaText(html, "draft")).toBe("new draft");
+    expect(textareaText(html, "new-password")).toBe("");
     expect(
-      Array.from(page.querySelectorAll("#folder option")).map((option) =>
-        option.hasAttribute("selected")
-      )
+      html
+        .match(/<select\b[^>]*\bid="folder"[^>]*>(.*?)<\/select>/su)?.[1]
+        ?.match(/<option\b[^>]*>/gu)
+        ?.map((option) => /\sselected\b/u.test(option))
     ).toEqual([false, true]);
     for (const secret of [
       "hunter2",
@@ -95,17 +108,15 @@ describe("serializeRenderedPage", () => {
   });
 
   test("names the page with a base element, keeping the page's own", () => {
-    const first = parse(serializeRenderedPage().html);
-    expect(first.querySelector("head base")?.getAttribute("href")).toBe(
-      "https://mail.example.com/inbox?id=7"
-    );
+    const bases = (html: string) =>
+      Array.from(html.matchAll(/<base\b[^>]*\bhref="([^"]*)"/gu), (m) => m[1]);
+    const first = serializeRenderedPage().html;
+    expect(bases(first)).toEqual(["https://mail.example.com/inbox?id=7"]);
+    expect(first.match(/<head>(.*?)<\/head>/su)?.[1]).toContain("<base ");
 
     document.head.insertAdjacentHTML("afterbegin", '<base href="/static/">');
-    const second = parse(serializeRenderedPage().html);
-    expect(
-      Array.from(second.querySelectorAll("base")).map((base) =>
-        base.getAttribute("href")
-      )
-    ).toEqual(["https://mail.example.com/static/"]);
+    expect(bases(serializeRenderedPage().html)).toEqual([
+      "https://mail.example.com/static/",
+    ]);
   });
 });

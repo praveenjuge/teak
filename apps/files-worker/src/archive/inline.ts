@@ -8,11 +8,13 @@ import {
   selectFontSources,
   stripCharsetRule,
   stripCssImports,
+  wrapImportedCss,
 } from "./css";
 import {
   atEndTag,
   byteLength,
   createRewriter,
+  decodeHtmlText,
   escapeHtmlAttribute,
   htmlResponse,
 } from "./html";
@@ -52,9 +54,11 @@ export const PAGE_ARCHIVE_CSP =
 /**
  * The header a stored archive is served with: wherever it opens, someone
  * else's HTML runs in an opaque origin with no scripts and loads nothing.
+ * Its links open in a new tab outside the sandbox; a frame's own `sandbox`
+ * can't loosen this header, so the popup tokens live here too.
  */
 export const PAGE_ARCHIVE_CONTENT_SECURITY_POLICY =
-  "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:";
+  "sandbox allow-popups allow-popups-to-escape-sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:";
 
 export type PageArchiveKind = "full" | "text_only";
 export type PageArchiveSource = "extension" | "server";
@@ -440,7 +444,7 @@ const collectPage = async (
   page.stylesheets = linkHrefs
     .map((href) => resolveHttpUrl(href, page.baseUrl))
     .filter((url): url is string => url !== null);
-  page.title = page.title.replace(/\s+/gu, " ").trim();
+  page.title = decodeHtmlText(page.title).replace(/\s+/gu, " ").trim();
   return page;
 };
 
@@ -590,7 +594,8 @@ const loadStylesheets = async (
 
 /**
  * Replaces each `@import` with the imported stylesheet, one level deep: the
- * imported sheet's own imports are dropped, so a loop ends at once.
+ * imported sheet's own imports are dropped, so a loop ends at once. The
+ * import's media, `supports()` and `layer` conditions wrap what it brings in.
  */
 const resolveImports = async (
   css: string,
@@ -598,12 +603,15 @@ const resolveImports = async (
   fetchSheet: (url: string) => Promise<string | null>
 ): Promise<string> => {
   let resolved = css;
-  for (const { rule, url } of cssImports(css, base)) {
+  for (const { conditions, rule, url } of cssImports(css, base)) {
     const imported = url ? await fetchSheet(url) : null;
     const inlined = imported
-      ? rewriteCssUrls(stripCssImports(imported), url, ({ url: ref }) => ref)
-      : "";
-    resolved = resolved.replace(rule, () => inlined);
+      ? wrapImportedCss(
+          rewriteCssUrls(stripCssImports(imported), url, ({ url: ref }) => ref),
+          conditions
+        )
+      : null;
+    resolved = resolved.replace(rule, () => inlined ?? "");
   }
   return resolved;
 };

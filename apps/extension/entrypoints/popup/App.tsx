@@ -1,17 +1,17 @@
 import { MAX_FILE_SIZE } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
+import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
 import {
   ArrowUpRight,
   BookmarkCheck,
   Check,
   Info,
-  Loader2,
-  type LucideIcon,
+  LoaderCircle,
   Sparkles,
   Upload,
+  type VadivamIcon,
   X,
-} from "lucide-react";
-import { type ChangeEvent, type ReactNode, useEffect, useState } from "react";
+} from "vadivam-react";
 import { Button } from "../../components/ui/button";
 import { Wordmark } from "../../components/Wordmark";
 import { useAutoSaveUrl } from "../../hooks/useAutoSaveUrl";
@@ -49,7 +49,7 @@ const openUploadWindow = async () => {
   window.close();
 };
 
-const TONES: Record<PopupTone, { className: string; icon: LucideIcon }> = {
+const TONES: Record<PopupTone, { className: string; icon: VadivamIcon }> = {
   error: { className: "bg-destructive/10 text-destructive", icon: X },
   existing: {
     className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -58,7 +58,7 @@ const TONES: Record<PopupTone, { className: string; icon: LucideIcon }> = {
   info: { className: "bg-muted text-muted-foreground", icon: Info },
   loading: {
     className: "bg-primary/10 text-primary [&>svg]:animate-spin",
-    icon: Loader2,
+    icon: LoaderCircle,
   },
   success: {
     className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -93,7 +93,7 @@ function App() {
   if (isPending) {
     return (
       <div className="flex min-h-80 items-center justify-center">
-        <Loader2
+        <LoaderCircle
           aria-label={t("loading")}
           className="size-5 animate-spin text-primary"
         />
@@ -311,7 +311,7 @@ function AuthPanel({
       >
         {isFinishingSignIn ? (
           <>
-            <Loader2 className="animate-spin" />
+            <LoaderCircle className="animate-spin" />
             {t("finishingSignIn")}
           </>
         ) : (

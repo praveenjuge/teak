@@ -3,6 +3,7 @@ import {
   atEndTag,
   byteLength,
   createRewriter,
+  decodeHtmlText,
   escapeHtmlAttribute,
   escapeHtmlText,
   htmlResponse,
@@ -143,10 +144,10 @@ export const buildTextOnlyDocument = async (
   const render = (block: TextBlock) => {
     const inner = block.runs
       .map((run) => {
-        const text =
-          block.tag === "pre"
-            ? escapeHtmlText(run.text)
-            : escapeHtmlText(run.text.replace(/\s+/gu, " "));
+        const decoded = decodeHtmlText(run.text);
+        const text = escapeHtmlText(
+          block.tag === "pre" ? decoded : decoded.replace(/\s+/gu, " ")
+        );
         return run.href
           ? `<a href="${escapeHtmlAttribute(run.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`
           : text;

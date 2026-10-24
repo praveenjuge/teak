@@ -8,7 +8,7 @@ import {
   Quote,
   Video,
   Volume2,
-} from "lucide-react";
+} from "vadivam-react";
 
 const iconComponentMap = {
   FileText,

@@ -9,6 +9,7 @@ import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { createCardForUserHandler } from "../card/createCard";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
+import { updateCardFieldForUserHandler } from "../card/updateCard";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
 import {
@@ -266,6 +267,82 @@ describe("pageSnapshotKey on a re-save", () => {
 
     expect((await card(t, existing)).pendingPageSnapshotKey).toBe(second);
     expect(await deletedKeys(t)).toEqual([first]);
+  });
+});
+
+describe("editing a link's URL", () => {
+  test("drops the old page's copy, snapshot and link check, and archives the new page", async () => {
+    const t = newBackend();
+    await seedWorkosOwner(t, OWNER);
+    const pending = snapshotKey(OWNER);
+    const cardId = await insertCard(t, {
+      pendingPageSnapshotAt: NOW - 1000,
+      pendingPageSnapshotKey: pending,
+    });
+    const old = archiveOf(cardId);
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, { pageArchive: old });
+      await ctx.db.insert("linkChecks", {
+        cardId,
+        checkedAt: NOW - 1000,
+        outcome: "dead",
+        userId: OWNER,
+      });
+    });
+
+    await t.run((ctx) =>
+      updateCardFieldForUserHandler(ctx, {
+        cardId,
+        field: "url",
+        userId: OWNER,
+        value: "https://example.org/moved",
+      })
+    );
+
+    const saved = await card(t, cardId);
+    expect(saved.url).toBe("https://example.org/moved");
+    expect(saved.pageArchive).toBeUndefined();
+    expect(saved.pendingPageSnapshotKey).toBeUndefined();
+    expect(saved.pendingPageSnapshotAt).toBeUndefined();
+    expect(saved.processingStatus?.archive?.status).toBe("pending");
+    expect((await deletedKeys(t)).sort()).toEqual(
+      [old.storageKey, pending].sort()
+    );
+    expect(
+      await t.run((ctx) => ctx.db.query("linkChecks").collect())
+    ).toHaveLength(0);
+    expect(await cardRuns(t, cardId)).toHaveLength(1);
+  });
+
+  test("other edits keep the copy and the link check", async () => {
+    const t = newBackend();
+    await seedWorkosOwner(t, OWNER);
+    const cardId = await insertCard(t);
+    const old = archiveOf(cardId);
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, { pageArchive: old });
+      await ctx.db.insert("linkChecks", {
+        cardId,
+        checkedAt: NOW - 1000,
+        outcome: "alive",
+        userId: OWNER,
+      });
+    });
+
+    await t.run((ctx) =>
+      updateCardFieldForUserHandler(ctx, {
+        cardId,
+        field: "notes",
+        userId: OWNER,
+        value: "A note",
+      })
+    );
+
+    expect((await card(t, cardId)).pageArchive).toEqual(old);
+    expect(await deletedKeys(t)).toEqual([]);
+    expect(
+      await t.run((ctx) => ctx.db.query("linkChecks").collect())
+    ).toHaveLength(1);
   });
 });
 

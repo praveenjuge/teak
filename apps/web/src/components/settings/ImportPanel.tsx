@@ -16,6 +16,8 @@ import { normalizeErrorClass } from "@teak/convex/shared/telemetry";
 import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
+import { type ChangeEvent, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   ChevronRight,
   Copy,
@@ -23,9 +25,7 @@ import {
   FileText,
   Upload,
   X,
-} from "lucide-react";
-import { type ChangeEvent, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+} from "vadivam-react";
 import { useServerErrors } from "../../hooks/useServerErrors";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { Button } from "../ui/button";

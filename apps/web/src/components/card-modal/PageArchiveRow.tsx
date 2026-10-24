@@ -4,8 +4,8 @@ import {
 } from "@teak/convex/shared/pageArchive";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { Info } from "lucide-react";
 import type { ReactNode } from "react";
+import { Info } from "vadivam-react";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { Skeleton } from "../ui/skeleton";
 import {

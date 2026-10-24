@@ -1,8 +1,8 @@
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { useTranslations } from "@teak/i18n/react";
-import { CircleCheck } from "lucide-react";
 import type { SyntheticEvent } from "react";
+import { CircleCheck } from "vadivam-react";
 import { linkNoteText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
 import { CARD_SURFACE, getDisplayHostname } from "./cardDisplay";

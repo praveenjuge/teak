@@ -3,8 +3,8 @@
 import { api } from "@teak/convex";
 import type { TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { AppWindow, Laptop, type LucideIcon, Smartphone } from "lucide-react";
 import { useState } from "react";
+import { AppWindow, Laptop, Smartphone, type VadivamIcon } from "vadivam-react";
 import { usePaginatedQuery } from "../../lib/convexQueryHooks";
 import { RetryableQueryBoundary } from "../feedback/RetryableQueryBoundary";
 import { Button } from "../ui/button";
@@ -117,7 +117,7 @@ function ConnectionList({
   rows,
   verb,
 }: {
-  icon: (row: ConnectionRow) => LucideIcon;
+  icon: (row: ConnectionRow) => VadivamIcon;
   rows: ConnectionRow[];
   verb: string;
 }) {
@@ -224,7 +224,7 @@ function ReadError({
   );
 }
 
-function deviceIcon(row: ConnectionRow): LucideIcon {
+function deviceIcon(row: ConnectionRow): VadivamIcon {
   return MOBILE_DEVICE.test(row.name) ? Smartphone : Laptop;
 }
 

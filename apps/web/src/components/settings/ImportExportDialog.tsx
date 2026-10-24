@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "@teak/i18n/react";
-import { ArrowDownUp } from "lucide-react";
+import { ArrowDownUp } from "vadivam-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ExportPanel, type ExportState } from "./ExportPanel";
 import { ImportPanel } from "./ImportPanel";

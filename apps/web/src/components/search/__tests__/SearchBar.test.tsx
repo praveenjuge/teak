@@ -110,7 +110,7 @@ describe("SearchBar filter chips", () => {
     });
     const icons = [
       ...markup.matchAll(
-        /aria-label="Remove ([^"]+)"[\s\S]*?lucide-([a-z-]+)/g
+        /aria-label="Remove ([^"]+)"[\s\S]*?vadivam-([a-z-]+)/g
       ),
     ].map((match) => [match[1], match[2]]);
     expect(icons).toEqual([

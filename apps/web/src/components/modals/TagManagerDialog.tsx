@@ -1,8 +1,8 @@
 "use client";
 
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import { Check, Search, Tag } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { Check, Search, Tag } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

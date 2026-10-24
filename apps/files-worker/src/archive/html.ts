@@ -1,5 +1,7 @@
 /** Small HTML helpers the archive's passes share. */
 
+import { Parser } from "htmlparser2";
+
 const encoder = new TextEncoder();
 export const byteLength = (text: string) => encoder.encode(text).byteLength;
 
@@ -17,6 +19,25 @@ export const escapeHtmlText = (value: string): string =>
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+
+/**
+ * Text as a page shows it: the rewriter hands over text with its character
+ * references (`&amp;`, `&#8217;`) still written out.
+ */
+export const decodeHtmlText = (value: string): string => {
+  if (!value.includes("&")) {
+    return value;
+  }
+  let decoded = "";
+  const parser = new Parser({
+    ontext(text) {
+      decoded += text;
+    },
+  });
+  parser.write(value.replaceAll("<", "&lt;"));
+  parser.end();
+  return decoded;
+};
 
 export const htmlResponse = (html: string) =>
   new Response(html, {

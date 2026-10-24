@@ -1,8 +1,8 @@
 import { autoUpdate } from "@floating-ui/dom";
 import { useTranslations } from "@teak/i18n/react";
 import type { Editor } from "@tiptap/core";
-import { Ellipsis } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Ellipsis } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

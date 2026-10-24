@@ -180,6 +180,8 @@ export const rewriteCssUrls = (
 };
 
 export interface CssImport {
+  /** What follows the URL: `layer`, `supports()` and a media query list. */
+  conditions: string;
   /** The whole rule, as it appears in the stylesheet. */
   rule: string;
   url: string;
@@ -188,9 +190,78 @@ export interface CssImport {
 /** The `@import` rules of a stylesheet, resolved against `base`. */
 export const cssImports = (css: string, base: string): CssImport[] =>
   Array.from(css.matchAll(IMPORT_PATTERN), (match) => ({
+    conditions: (match[4] ?? "").trim(),
     rule: match[0],
     url: resolveHttpUrl(urlOf(match), base) ?? "",
   }));
+
+/** The text inside the parentheses that open `text`, or null. */
+const parenthesized = (text: string): string | null => {
+  let depth = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === "(") {
+      depth += 1;
+    } else if (text[index] === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(1, index);
+      }
+    }
+  }
+  return null;
+};
+
+/**
+ * An imported stylesheet inside its `@import` conditions, so a print-only
+ * or `supports()` import stays conditional once inlined. Null when the
+ * conditions can't be read; the import is then dropped.
+ */
+export const wrapImportedCss = (
+  css: string,
+  conditions: string
+): string | null => {
+  if (/[{}]/u.test(conditions)) {
+    return null;
+  }
+  let rest = conditions;
+  let layer: string | null = null;
+  const layerMatch = /^layer\b/iu.exec(rest);
+  if (layerMatch) {
+    rest = rest.slice(layerMatch[0].length);
+    if (rest.startsWith("(")) {
+      const name = parenthesized(rest);
+      if (name === null) {
+        return null;
+      }
+      layer = name.trim();
+      rest = rest.slice(name.length + 2);
+    } else {
+      layer = "";
+    }
+    rest = rest.trim();
+  }
+  let supports: string | null = null;
+  const supportsMatch = /^supports\s*(?=\()/iu.exec(rest);
+  if (supportsMatch) {
+    rest = rest.slice(supportsMatch[0].length);
+    supports = parenthesized(rest);
+    if (supports === null) {
+      return null;
+    }
+    rest = rest.slice(supports.length + 2).trim();
+  }
+  let wrapped = css;
+  if (rest) {
+    wrapped = `@media ${rest}{${wrapped}}`;
+  }
+  if (supports !== null) {
+    wrapped = `@supports (${supports}){${wrapped}}`;
+  }
+  if (layer !== null) {
+    wrapped = layer ? `@layer ${layer}{${wrapped}}` : `@layer{${wrapped}}`;
+  }
+  return wrapped;
+};
 
 /** Drops every `@import` rule, so a nested import is never followed. */
 export const stripCssImports = (css: string): string =>
