@@ -794,6 +794,8 @@
     },
     "link": {
       "addImage": "Add an image",
+      "archivedCopy": "Archived copy",
+      "archivedCopyTooltip": "The original page was gone when last checked on {date}",
       "attachedMedia": "Attached post media {number}",
       "attachedVideo": "Attached video {number}",
       "imageAlt": "Link image",
@@ -1405,6 +1407,20 @@
     },
     "logo": {
       "earlyAccess": "Early Access"
+    },
+    "openLink": {
+      "archiveMissing": "Teak’s copy couldn’t be loaded.",
+      "archivedCopy": "Archived copy",
+      "backToTeak": "Back to Teak",
+      "checking": "Opening {host}…",
+      "frameTitle": "Archived copy of {host}",
+      "moreActions": "More actions",
+      "noLongerAvailable": "This page is no longer available · Saved {date} from {host}",
+      "noLongerAvailableShort": "No longer available",
+      "openInTeak": "Open in Teak",
+      "openOriginalNow": "Open the original now",
+      "tryOriginal": "Try the original ↗",
+      "unavailable": "This card isn’t available."
     }
   },
   "hooks": {

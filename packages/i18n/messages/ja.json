@@ -794,6 +794,8 @@
     },
     "link": {
       "addImage": "画像を追加",
+      "archivedCopy": "保存されたコピー",
+      "archivedCopyTooltip": "{date} の前回の確認時点で、元のページはなくなっていました",
       "attachedMedia": "投稿に添付されたメディア {number}",
       "attachedVideo": "添付された動画 {number}",
       "imageAlt": "リンクの画像",
@@ -1405,6 +1407,20 @@
     },
     "logo": {
       "earlyAccess": "アーリーアクセス"
+    },
+    "openLink": {
+      "archiveMissing": "Teak のコピーを読み込めませんでした。",
+      "archivedCopy": "保存されたコピー",
+      "backToTeak": "Teak に戻る",
+      "checking": "{host} を開いています…",
+      "frameTitle": "{host} の保存されたコピー",
+      "moreActions": "その他の操作",
+      "noLongerAvailable": "このページは利用できなくなりました · {date} に {host} から保存",
+      "noLongerAvailableShort": "利用できなくなりました",
+      "openInTeak": "Teak で開く",
+      "openOriginalNow": "今すぐ元のページを開く",
+      "tryOriginal": "元のページを試す ↗",
+      "unavailable": "このカードは利用できません。"
     }
   },
   "hooks": {

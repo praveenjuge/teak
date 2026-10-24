@@ -1,5 +1,12 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import type { Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+
+if (!GlobalRegistrator.isRegistered) {
+  GlobalRegistrator.register({ url: "https://app.teakvault.com/" });
+}
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
@@ -8,6 +15,8 @@ mock.module("convex/react", () => ({
 }));
 
 const { LinkPreview } = await import("../LinkPreview");
+const { act } = await import("react");
+const { createRoot } = await import("react-dom/client");
 
 const createLinkCard = (overrides?: Record<string, unknown>) => ({
   _id: "card_123",
@@ -225,5 +234,126 @@ describe("LinkPreview in the card dialog", () => {
     expect(markup).toContain('src="blob:local-file"');
     expect(markup).toContain('aria-busy="true"');
     expect(markup).not.toContain("og.png");
+  });
+});
+
+const ARCHIVE = {
+  storageKey: "users/u/cards/card_123/page-archive/a-archive.html",
+  bytes: 40_000,
+  kind: "full",
+  source: "server",
+  capturedAt: Date.UTC(2026, 9, 19),
+  sourceUrl: "https://x.com/teak/status/123",
+};
+const DEAD = { checkedAt: Date.UTC(2026, 9, 24), outcome: "dead" as const };
+
+describe("LinkPreview and the archived copy", () => {
+  test("shows the Archived copy chip beside the site when the last check found the page gone", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={createLinkCard({ pageArchive: ARCHIVE }) as any}
+        linkState={DEAD}
+      />
+    );
+    expect(markup).toContain(">x.com<");
+    expect(markup).toContain(">Archived copy<");
+    expect(markup.indexOf(">Archived copy<")).toBeGreaterThan(
+      markup.indexOf(">x.com<")
+    );
+  });
+
+  test.each([
+    ["no check yet", undefined],
+    ["a check that found nothing gone", null],
+  ])("shows no chip with %s", (_name, linkState) => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={createLinkCard({ pageArchive: ARCHIVE }) as any}
+        linkState={linkState}
+      />
+    );
+    expect(markup).not.toContain("Archived copy");
+  });
+
+  test("keeps the page's own address on the link, so middle-click and Copy link address use it", () => {
+    const markup = renderToStaticMarkup(
+      <LinkPreview
+        card={createLinkCard({ pageArchive: ARCHIVE }) as any}
+        linkState={DEAD}
+      />
+    );
+    expect(markup).toContain('href="https://x.com/teak/status/123"');
+    expect(markup).not.toContain("/open/");
+  });
+});
+
+describe("clicking a link with an archived copy", () => {
+  let root: Root | undefined;
+  const opened: string[] = [];
+  const realOpen = window.open;
+
+  afterEach(async () => {
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+    opened.length = 0;
+    window.open = realOpen;
+  });
+
+  const renderLink = async (card: Record<string, unknown>) => {
+    window.open = ((url: string) => {
+      opened.push(String(url));
+      return null;
+    }) as typeof window.open;
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(() => root?.render(<LinkPreview card={card as any} />));
+    const anchor = container.querySelector("a");
+    if (!anchor) {
+      throw new Error("the link has no anchor");
+    }
+    return anchor;
+  };
+
+  const click = (anchor: HTMLAnchorElement, init: MouseEventInit = {}) => {
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      button: 0,
+      cancelable: true,
+      ...init,
+    });
+    anchor.dispatchEvent(event);
+    return event;
+  };
+
+  test.each([
+    ["a click", {}],
+    ["a ⌘-click", { metaKey: true }],
+    ["a Ctrl-click", { ctrlKey: true }],
+  ])(
+    "%s opens the check in a new tab instead of the page",
+    async (_name, init) => {
+      const anchor = await renderLink(createLinkCard({ pageArchive: ARCHIVE }));
+      const event = click(anchor, init);
+      expect(event.defaultPrevented).toBe(true);
+      expect(opened).toEqual(["https://app.teakvault.com/open/card_123"]);
+    }
+  );
+
+  test("a Shift-click is left to the browser", async () => {
+    const anchor = await renderLink(createLinkCard({ pageArchive: ARCHIVE }));
+    const event = click(anchor, { shiftKey: true });
+    expect(event.defaultPrevented).toBe(false);
+    expect(opened).toEqual([]);
+  });
+
+  test("a link without a copy opens through its own anchor", async () => {
+    const anchor = await renderLink(createLinkCard());
+    const event = click(anchor);
+    expect(event.defaultPrevented).toBe(false);
+    expect(opened).toEqual([]);
+    expect(anchor.getAttribute("href")).toBe("https://x.com/teak/status/123");
+    expect(anchor.getAttribute("target")).toBe("_blank");
   });
 });

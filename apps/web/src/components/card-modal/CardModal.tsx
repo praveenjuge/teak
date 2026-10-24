@@ -90,6 +90,7 @@ import {
   type SavePdfControl,
 } from "./CardMetadataPanel";
 import { CardModalSkeleton } from "./CardModalSkeleton";
+import { CheckedLinkPreview } from "./CheckedLinkPreview";
 import { formatAddedDate, getCardHeading } from "./cardHeading";
 import {
   CARD_MODAL_OVERLAY_CLASS,
@@ -150,21 +151,25 @@ function CardPreview({
           readOnly={Boolean(card.isDeleted)}
         />
       );
-    case "link":
-      return (
-        <LinkPreview
+    case "link": {
+      const linkThumbnail =
+        thumbnail && !card.isDeleted
+          ? {
+              onFile: (file: File) => thumbnail.replace(file, "drop"),
+              uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
+            }
+          : undefined;
+      // Only a link with an archived copy is ever checked.
+      return card.pageArchive && !card.isDeleted ? (
+        <CheckedLinkPreview
           card={card}
           showScreenshot
-          thumbnail={
-            thumbnail && !card.isDeleted
-              ? {
-                  onFile: (file) => thumbnail.replace(file, "drop"),
-                  uploadingPreviewUrl: thumbnail.uploadingPreviewUrl,
-                }
-              : undefined
-          }
+          thumbnail={linkThumbnail}
         />
+      ) : (
+        <LinkPreview card={card} showScreenshot thumbnail={linkThumbnail} />
       );
+    }
     case "image":
       return <ImagePreview card={card} />;
     case "video":

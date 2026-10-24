@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
+import { openCardLink } from "../lib/openCardLink";
 import { cardActionFailedMessage } from "./cardActions";
 import { useServerErrors } from "./useServerErrors";
 import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
@@ -676,16 +677,16 @@ export function useCardModal(
 
   const openLink = useCallback(() => {
     const safeUrl = sanitizeExternalUrl(card?.url);
-    if (safeUrl) {
+    if (safeUrl && card) {
       if (config.onOpenLink) {
         config.onOpenLink(safeUrl);
       } else if (typeof window !== "undefined") {
-        window.open(safeUrl, "_blank", "noopener,noreferrer");
+        openCardLink(card);
       }
     } else if (card?.url) {
       toast.error(t("unsafeLink"));
     }
-  }, [card?.url, config.onOpenLink, t]);
+  }, [card, config.onOpenLink, t]);
 
   const hasFileObject = Boolean(card?.fileKey);
 

@@ -794,6 +794,8 @@
     },
     "link": {
       "addImage": "添加图片",
+      "archivedCopy": "已保存的副本",
+      "archivedCopyTooltip": "上次于 {date} 检查时，原网页已不存在",
       "attachedMedia": "帖子附带的媒体 {number}",
       "attachedVideo": "附带的视频 {number}",
       "imageAlt": "链接图片",
@@ -1405,6 +1407,20 @@
     },
     "logo": {
       "earlyAccess": "抢先体验"
+    },
+    "openLink": {
+      "archiveMissing": "无法加载 Teak 保存的副本。",
+      "archivedCopy": "已保存的副本",
+      "backToTeak": "返回 Teak",
+      "checking": "正在打开 {host}…",
+      "frameTitle": "{host} 的已保存副本",
+      "moreActions": "更多操作",
+      "noLongerAvailable": "此网页已无法访问 · 于 {date} 保存自 {host}",
+      "noLongerAvailableShort": "已无法访问",
+      "openInTeak": "在 Teak 中打开",
+      "openOriginalNow": "立即打开原网页",
+      "tryOriginal": "尝试打开原网页 ↗",
+      "unavailable": "此卡片不可用。"
     }
   },
   "hooks": {

@@ -12,9 +12,17 @@ import { formatLinkByline } from "../../lib/linkByline";
 import { firstFile } from "../../lib/linkThumbnail";
 import { resolveLinkTitle } from "../../lib/linkTitle";
 import { linkNoteText } from "../../lib/markdownToPlainText";
+import { handleCardLinkClick } from "../../lib/openCardLink";
 import { cn } from "../../lib/utils";
 import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
 import { SiteFavicon } from "../cards/SiteFavicon";
+import { Badge } from "../ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 
 function formatFactValue(value: string, locale: string | undefined) {
   const trimmed = value.trim();
@@ -133,6 +141,12 @@ function ThumbnailDropZone({
 /** A link's note shows in full here, unlike the grid's three lines. */
 const NOTE_MAX_LENGTH = 4000;
 
+/** The latest link check, when it found the page gone (`getLinkCheck`). */
+export interface LinkPreviewLinkState {
+  checkedAt: number;
+  outcome: "dead";
+}
+
 interface LinkPreviewProps {
   card: CardWithUrls;
   LinkComponent?: React.ComponentType<{
@@ -140,14 +154,39 @@ interface LinkPreviewProps {
     className?: string;
     target?: string;
     rel?: string;
+    onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
     children: React.ReactNode;
   }>;
+  linkState?: LinkPreviewLinkState | null;
   showScreenshot?: boolean;
   thumbnail?: LinkPreviewThumbnail;
 }
 
+function ArchivedCopyChip({ checkedAt }: { checkedAt: number }) {
+  const t = useTranslations("cardPreviews.link");
+  const locale = useIntlLocale();
+  const date = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(checkedAt);
+  return (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge className="shrink-0" variant="outline">
+            {t("archivedCopy")}
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>{t("archivedCopyTooltip", { date })}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export function LinkPreview({
   card,
+  linkState,
   showScreenshot = false,
   LinkComponent,
   thumbnail,
@@ -183,6 +222,10 @@ export function LinkPreview({
   const categoryMetadata = card.metadata?.linkCategory;
 
   const safeUrl = useMemo(() => sanitizeExternalUrl(card.url), [card.url]);
+  // The anchor keeps the page's own address for middle-click and "Copy link
+  // address"; a click on a link with an archived copy checks it first.
+  const openThroughCheck = (event: React.MouseEvent<HTMLAnchorElement>) =>
+    handleCardLinkClick(event, card);
 
   const hostname = getSafeUrlHostname(card.url)?.replace(/^www\./, "");
   const byline = formatLinkByline(
@@ -306,6 +349,9 @@ export function LinkPreview({
                   {hostname}
                 </span>
               )}
+              {linkState?.outcome === "dead" ? (
+                <ArchivedCopyChip checkedAt={linkState.checkedAt} />
+              ) : null}
               {hostname && byline ? (
                 <span aria-hidden="true" className="shrink-0">
                   ·
@@ -355,6 +401,7 @@ export function LinkPreview({
           <LinkComponent
             className="group block"
             href={safeUrl}
+            onClick={openThroughCheck}
             rel="noopener noreferrer"
             target="_blank"
           >
@@ -404,6 +451,7 @@ export function LinkPreview({
         <a
           className="group block"
           href={safeUrl}
+          onClick={openThroughCheck}
           rel="noopener noreferrer"
           target="_blank"
         >

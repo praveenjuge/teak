@@ -794,6 +794,8 @@
     },
     "link": {
       "addImage": "Bild hinzufügen",
+      "archivedCopy": "Gespeicherte Kopie",
+      "archivedCopyTooltip": "Die Originalseite war bei der letzten Prüfung am {date} nicht mehr verfügbar",
       "attachedMedia": "Angehängte Beitragsmedien {number}",
       "attachedVideo": "Angehängtes Video {number}",
       "imageAlt": "Linkbild",
@@ -1405,6 +1407,20 @@
     },
     "logo": {
       "earlyAccess": "Vorabzugang"
+    },
+    "openLink": {
+      "archiveMissing": "Die Kopie von Teak konnte nicht geladen werden.",
+      "archivedCopy": "Gespeicherte Kopie",
+      "backToTeak": "Zurück zu Teak",
+      "checking": "{host} wird geöffnet …",
+      "frameTitle": "Gespeicherte Kopie von {host}",
+      "moreActions": "Weitere Aktionen",
+      "noLongerAvailable": "Diese Seite ist nicht mehr verfügbar · Gespeichert am {date} von {host}",
+      "noLongerAvailableShort": "Nicht mehr verfügbar",
+      "openInTeak": "In Teak öffnen",
+      "openOriginalNow": "Original jetzt öffnen",
+      "tryOriginal": "Original versuchen ↗",
+      "unavailable": "Diese Karte ist nicht verfügbar."
     }
   },
   "hooks": {

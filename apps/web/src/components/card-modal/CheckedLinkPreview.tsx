@@ -1,0 +1,17 @@
+import { api } from "@teak/convex";
+import type { ComponentProps } from "react";
+import { useQuery } from "@/lib/convexQueryHooks";
+import { LinkPreview } from "../card-previews/LinkPreview";
+
+/**
+ * A link with an archived copy: the preview shows an "Archived copy" chip
+ * when the last check found its page gone.
+ */
+export function CheckedLinkPreview(
+  props: Omit<ComponentProps<typeof LinkPreview>, "linkState">
+) {
+  const linkState = useQuery(api.card.linkCheck.getLinkCheck, {
+    cardId: props.card._id,
+  });
+  return <LinkPreview {...props} linkState={linkState} />;
+}

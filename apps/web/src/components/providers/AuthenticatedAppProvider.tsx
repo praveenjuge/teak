@@ -20,8 +20,11 @@ import { WorkosAuthBoundary } from "./WorkosAuthBoundary";
 
 export default async function AuthenticatedAppProvider({
   children,
+  loading,
 }: {
   children: ReactNode;
+  /** What shows while the session loads; the app shell's skeleton by default. */
+  loading?: ReactNode;
 }) {
   await connection();
   let initialAuth: Omit<UserInfo | NoUserInfo, "accessToken">;
@@ -38,7 +41,9 @@ export default async function AuthenticatedAppProvider({
   return (
     <LocaleProvider initialLocale={locale} initialMessages={messages}>
       <ConvexClientProvider initialAuth={initialAuth}>
-        <WorkosAuthBoundary loading={<AppShellSkeleton {...sidebar} />}>
+        <WorkosAuthBoundary
+          loading={loading ?? <AppShellSkeleton {...sidebar} />}
+        >
           <AccountLocaleSync />
           <WebMcpTools />
           <GlobalFileDropProvider upgradeUrl="/settings">
