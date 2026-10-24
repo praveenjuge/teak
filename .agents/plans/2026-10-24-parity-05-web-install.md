@@ -67,8 +67,8 @@ Roadmap: [parity roadmap](./2026-10-24-parity-00-roadmap.md), phase 5. One PR, i
     - it stores the form's files in Cache Storage under a one-time id;
     - it redirects (303) to `/?compose=1&share=<id>&text=…&url=…&title=…`.
   - It has no `fetch` handling for anything else, no precache, and no offline page.
-  - It is registered from the authenticated app shell only, after load.
-  - A GET to `/share` (no worker yet, or a browser without it) redirects to the same library URL with the text params.
+  - It is registered from the root layout on every page, signed in or not, after load. Installing happens from a page, so the worker is in place before the first share; since it only handles `/share`, registering it everywhere costs nothing.
+  - A POST to `/share` that no worker intercepts (the worker failed to install, or the browser evicted it) reaches a `/share` route handler. The handler is added to `publicInfrastructureRoutes` in `src/proxy.ts`, so it isn't redirected to sign-in first. It reads the form's text fields and 303-redirects to the same library URL with the text params. Files can't survive that redirect, so it adds `share=missing`, and the library shows the "Shared files couldn't be found" message when the form had files.
 - **Prefill:**
   - A new `?text`, `?url` and `?title` read in `HomePageClient` seeds `draftContentRef`:
     - a lone URL becomes just the URL;
@@ -88,7 +88,7 @@ Roadmap: [parity roadmap](./2026-10-24-parity-00-roadmap.md), phase 5. One PR, i
 
 1. `src/app/manifest.ts`, the icons and the icon script, and the `viewport` export.
 2. `src/app/sw.js` served as `/sw.js` (a route handler with `Content-Type: text/javascript` and `Service-Worker-Allowed: /`), plus registration in the app shell.
-3. A `/share` GET route handler (the fallback redirect).
+3. A `/share` POST route handler (the fallback redirect when no worker answered), exempted from the proxy's sign-in redirect.
 4. Prefill in `HomePageClient`/`CardsScreen`, and the shared-files hand-off to `enqueueFiles`.
 5. Catalogs: the missing-files message and any new aria text, in all 8.
 6. Docs: a short "Install the web app" section in `features.mdx` (Apps and access), plus a note in `(apps)/mobile.mdx` that Android's native app is the better share target where it's installed.
@@ -101,6 +101,7 @@ Roadmap: [parity roadmap](./2026-10-24-parity-00-roadmap.md), phase 5. One PR, i
   - The prefill rules: a lone link; text plus a link without repeating it; title plus text.
   - Param stripping.
   - The missing-cache message.
+  - The `/share` POST handler with no worker: signed out it isn't redirected to sign-in first, text fields reach the library URL, and a form with files adds `share=missing`.
 - **Security headers:** the policy still passes with the worker and the manifest.
 - **E2E (`packages/tests/src/web/install.e2e.ts`, Chromium):**
   - `/manifest.webmanifest` is valid and the app is installable (via the `navigator`/CDP installability check).
