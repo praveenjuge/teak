@@ -162,6 +162,28 @@ describe("parseGenericCsv", () => {
     expect(items[2]?.label).toBe("Row 4");
   });
 
+  test("row numbers count blank lines and keep a multi-line cell as one row", () => {
+    const items = parseGenericCsv(
+      [
+        "url,title",
+        "https://example.com/one,One",
+        "",
+        '"https://example.com/two","Two',
+        'lines"',
+        "",
+        "",
+        "javascript:alert(1),Bad",
+        ",No url",
+      ].join("\r\n")
+    );
+    expect(items.map((item) => item.error ?? item.card?.url)).toEqual([
+      "https://example.com/one",
+      "https://example.com/two",
+      "Row 7: CSV link is unsafe: only http and https links can be imported",
+      "Row 8 has no url",
+    ]);
+  });
+
   test("variants of one link parse as separate rows that share a URL key", () => {
     const items = parse("variants.csv");
     expect(items).toHaveLength(3);

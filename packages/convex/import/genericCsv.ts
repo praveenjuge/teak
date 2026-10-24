@@ -1,6 +1,6 @@
 import { IMPORT_FAILURE } from "../shared/importSources";
 import type { ParsedBookmarkItem } from "./bookmarks";
-import { parseCsvRows } from "./csv";
+import { parseCsvRecords } from "./csv";
 import {
   folderPath,
   linkItem,
@@ -68,11 +68,14 @@ export function splitCsvTags(cell: string): string[] {
  * Any comma-separated CSV with a header row naming its columns (see
  * `CSV_HEADER_ALIASES`). Unknown columns are ignored; every row becomes a
  * link. Rows are numbered as a spreadsheet shows them, the header being
- * row 1.
+ * row 1 and blank lines counting.
  */
 export function parseGenericCsv(csv: string): ParsedBookmarkItem[] {
   const text = csv.charCodeAt(0) === 0xfe_ff ? csv.slice(1) : csv;
-  const [header, ...rows] = parseCsvRows(text);
+  const {
+    numbers,
+    rows: [header, ...rows],
+  } = parseCsvRecords(text);
   if (!header || header.every((name) => name.trim() === "")) {
     notAnExport(SOURCE);
   }
@@ -97,7 +100,7 @@ export function parseGenericCsv(csv: string): ParsedBookmarkItem[] {
   };
 
   return rows.map((row, index) => {
-    const label = `Row ${index + 2}`;
+    const label = `Row ${numbers[index + 1]}`;
     const url = cell(row, "url");
     if (!url) {
       return { label, error: `${label} has no url` };
