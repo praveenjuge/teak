@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
+import { searchCardsByDocument } from "../card/searchReads";
 import { readCardTranscript } from "../card/textContents";
 import { DEV_SEED_CARDS } from "../devSeed";
 import { AI_LANGUAGE_CASES, AI_LANGUAGES_TAG } from "../devSeed/aiLanguages";
@@ -1929,4 +1930,114 @@ describe("devSeed page archive packs", () => {
       links.every((card) => card.type === "link" && !card.pageArchive)
     ).toBe(true);
   }, 60_000);
+});
+
+describe("devSeed reader packs", () => {
+  test("reader-mix seeds every Read tab state once, and records the ready articles after writing them", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-secret");
+    const puts = new Map<string, string | null>();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: unknown, init?: RequestInit) => {
+        const url = new URL(String(input));
+        puts.set(
+          decodeURIComponent(url.pathname.replace(/^\/__upload\/v1\//u, "")),
+          new Headers(init?.headers).get("content-type")
+        );
+        return Promise.resolve(
+          Response.json({
+            ok: true,
+            version: 1,
+            requestId: "r",
+            data: { etag: "e", key: "k", size: 1 },
+          })
+        );
+      })
+    );
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "reader-mix",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 11 });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+
+    const cards = await cardsOf(t);
+    const bySlug = new Map(
+      cards.map((card) => [
+        new URL(card.url as string).pathname.split("/").pop(),
+        card,
+      ])
+    );
+    const longForm = bySlug.get("long-form");
+    expect(longForm?.article).toMatchObject({
+      status: "ready",
+      byline: "Ada Gardener",
+    });
+    expect(
+      longForm?.article?.status === "ready" && longForm.article.imageKeys
+    ).toHaveLength(3);
+    expect(
+      longForm?.article?.status === "ready" && longForm.article.wordCount
+    ).toBeGreaterThan(2500);
+    expect(bySlug.get("product")?.article).toMatchObject({ status: "none" });
+    expect(bySlug.get("arabic")?.article).toMatchObject({ lang: "ar" });
+    expect(bySlug.get("japanese")?.article).toMatchObject({ lang: "ja" });
+    expect(bySlug.get("truncated")?.article).toMatchObject({ truncated: true });
+    expect(bySlug.get("text-only")?.pageArchive?.kind).toBe("text_only");
+    expect(bySlug.get("pending")?.processingStatus?.article?.status).toBe(
+      "pending"
+    );
+    expect(bySlug.get("failed")?.processingStatus?.article).toMatchObject({
+      error: "extract_error",
+      status: "failed",
+    });
+    expect(bySlug.get("podcast")?.article?.status).toBe("ready");
+    expect(bySlug.get("podcast")?.aiTranscriptCharCount).toBeGreaterThan(0);
+    // Each ready article's Markdown and images were written, and are owned.
+    const written = cards.flatMap((card) =>
+      card.article?.status === "ready"
+        ? [card.article.textKey, ...card.article.imageKeys]
+        : []
+    );
+    expect(written).toHaveLength(8 + 3);
+    for (const key of written) {
+      expect(puts.has(key)).toBe(true);
+    }
+    const owned = await t.run(async (ctx) =>
+      (await ctx.db.query("accountStorageObjects").collect()).map(
+        (row) => row.key
+      )
+    );
+    expect(owned).toEqual(expect.arrayContaining(written));
+    vi.unstubAllGlobals();
+  });
+
+  test("reader-search-1000 makes articles only their body text finds, 200 a page", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = (page: number) =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "reader-search-1000",
+        page,
+      });
+    expect(await seed(0)).toEqual({ status: "seeded", cards: 200 });
+    expect(await seed(0)).toEqual({ status: "already_seeded", cards: 0 });
+    expect(await seed(5)).toEqual({ status: "already_seeded", cards: 0 });
+
+    const found = await t.run((ctx) =>
+      searchCardsByDocument(ctx, {
+        userId: "teak_dev",
+        searchQuery: "lantern137",
+        type: "link",
+        limit: 20,
+      })
+    );
+    expect(found.map((card) => card.metadataTitle)).toEqual(["Field note 138"]);
+  });
 });
