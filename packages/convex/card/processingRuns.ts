@@ -75,19 +75,15 @@ export const readDispatchQueueDepth = async (
  * A page the extension sent while a run was going gets its saved copy once
  * that run ends, when the run didn't make the copy from it: a metadata-only
  * run never archives, and a full run may have read the card before the page
- * arrived. Archive-only runs queue their own follow-up. Returns the card to
- * queue an archive-only run for, with its archive stage set back to pending.
+ * arrived. An archive-only run gets one too when the page came after it was
+ * sent, between recording its copy and ending. Returns the card to queue an
+ * archive-only run for, with its archive stage set back to pending.
  */
 export const takeSnapshotWaitingAfterRun = async (
   ctx: MutationCtx,
   row: Doc<"workflowDispatches">
 ): Promise<Id<"cards"> | null> => {
-  const params = (row.params ?? {}) as Record<string, unknown>;
-  if (
-    row.kind !== "cardProcessing" ||
-    !row.cardId ||
-    params.archiveOnly === true
-  ) {
+  if (row.kind !== "cardProcessing" || !row.cardId) {
     return null;
   }
   const card = await ctx.db.get("cards", row.cardId);
@@ -96,6 +92,16 @@ export const takeSnapshotWaitingAfterRun = async (
     (card.processingRev ?? 0) !== row.rev ||
     card.pendingPageSnapshotKey === undefined ||
     pageArchiveSkipReason(card) !== null
+  ) {
+    return null;
+  }
+  // An archive-only run already tried every page that came before it was
+  // sent; only one that came later gets another run, so a page that can't
+  // be saved isn't retried forever.
+  const params = (row.params ?? {}) as Record<string, unknown>;
+  if (
+    params.archiveOnly === true &&
+    (card.pendingPageSnapshotAt ?? 0) <= (row.sentAt ?? row._creationTime)
   ) {
     return null;
   }

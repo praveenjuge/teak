@@ -291,6 +291,33 @@ describe("pageSnapshotKey on a re-save", () => {
     ]);
   });
 
+  test("a page re-saved while an archive-only run finishes gets a run of its own", async () => {
+    const t = newBackend();
+    const existing = await insertCard(t, {
+      pageArchive: archiveOf("k0"),
+      processingStatus: { ...IDLE_STAGES, archive: { status: "pending" } },
+    });
+    const queued = await t.run((ctx) =>
+      queueCardProcessing(ctx, existing, { archiveOnly: true })
+    );
+    await t.mutation(internal.workflowDispatch.claim, {});
+    vi.setSystemTime(NOW + 60_000);
+    const key = snapshotKey(OWNER);
+    await registerKey(t, OWNER, key);
+
+    await create(t, { content: LINK, pageSnapshotKey: key });
+    expect(await cardRuns(t, existing)).toHaveLength(1);
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: queued?.instanceId as string,
+      status: "complete",
+    });
+
+    expect((await cardRuns(t, existing)).map((row) => row.params)).toEqual([
+      { archiveOnly: true, cardId: existing, rev: 1 },
+      { archiveOnly: true, cardId: existing, rev: 2 },
+    ]);
+  });
+
   test("a run that ends with no new snapshot, or an archive-only run, queues nothing", async () => {
     const t = newBackend();
     const plain = await insertCard(t, { pageArchive: archiveOf("k0") });

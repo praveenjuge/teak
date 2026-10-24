@@ -66,6 +66,8 @@ export type PageArchiveSource = "extension" | "server";
 export interface FetchedAsset {
   body: Uint8Array;
   contentType: string;
+  /** Where the request ended up after redirects, when it moved. */
+  finalUrl?: string;
   height?: number;
   width?: number;
 }
@@ -548,7 +550,7 @@ const loadStylesheets = async (
   deps: PageArchiveDeps
 ): Promise<PageStylesheets> => {
   let count = 0;
-  const fetchSheet = async (url: string): Promise<string | null> => {
+  const fetchSheet = async (url: string): Promise<FetchedSheet | null> => {
     if (count >= PAGE_ARCHIVE_MAX_STYLESHEETS || !budget.take()) {
       return null;
     }
@@ -562,7 +564,11 @@ const loadStylesheets = async (
       ) {
         return null;
       }
-      return stripCharsetRule(decodeCssText(fetched.body, fetched.contentType));
+      return {
+        css: stripCharsetRule(decodeCssText(fetched.body, fetched.contentType)),
+        // A sheet's own references are relative to where it was served from.
+        url: fetched.finalUrl ?? url,
+      };
     } catch {
       return null;
     }
@@ -572,12 +578,15 @@ const loadStylesheets = async (
     if (linked.has(url)) {
       continue;
     }
-    const css = await fetchSheet(url);
+    const sheet = await fetchSheet(url);
     linked.set(
       url,
-      css === null
+      sheet === null
         ? ""
-        : absolutizeCss(await resolveImports(css, url, fetchSheet), url)
+        : absolutizeCss(
+            await resolveImports(sheet.css, sheet.url, fetchSheet),
+            sheet.url
+          )
     );
   }
   const blocks: string[] = [];
@@ -597,17 +606,27 @@ const loadStylesheets = async (
  * imported sheet's own imports are dropped, so a loop ends at once. The
  * import's media, `supports()` and `layer` conditions wrap what it brings in.
  */
+interface FetchedSheet {
+  css: string;
+  /** The URL it was served from, after redirects. */
+  url: string;
+}
+
 const resolveImports = async (
   css: string,
   base: string,
-  fetchSheet: (url: string) => Promise<string | null>
+  fetchSheet: (url: string) => Promise<FetchedSheet | null>
 ): Promise<string> => {
   let resolved = css;
   for (const { conditions, rule, url } of cssImports(css, base)) {
     const imported = url ? await fetchSheet(url) : null;
     const inlined = imported
       ? wrapImportedCss(
-          rewriteCssUrls(stripCssImports(imported), url, ({ url: ref }) => ref),
+          rewriteCssUrls(
+            stripCssImports(imported.css),
+            imported.url,
+            ({ url: ref }) => ref
+          ),
           conditions
         )
       : null;
