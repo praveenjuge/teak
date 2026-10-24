@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, one {# etiqueta sugerida} other {# etiquetas sugeridas}}",
       "summary": "Resumen",
       "tags": "Etiquetas",
-      "teakTagHint": "Etiqueta añadida por Teak. Mostrar las tarjetas con la etiqueta {tag}"
+      "teakTagHint": "Etiqueta añadida por Teak. Mostrar las tarjetas con la etiqueta {tag}",
+      "highlights": "Resaltados · {count, number}",
+      "highlightNotFound": "No se encuentra en el artículo guardado",
+      "highlightWaiting": "Esperando el artículo…",
+      "highlightActions": "Acciones del resaltado"
     },
     "details": {
       "added": "Añadida",
@@ -841,6 +845,20 @@
       "preparing": "Preparando el artículo…",
       "savedFrom": "Guardado de {host} · {date} · <link>Abrir el original ↗</link>",
       "shortened": "Artículo acortado para que quepa."
+    },
+    "highlights": {
+      "highlight": "Resaltar",
+      "limitReached": "Esta tarjeta tiene {max, number} resaltados, el máximo que admite",
+      "merged": "Combinado con un resaltado existente",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Nota del resaltado",
+      "notePlaceholder": "Añadir una nota",
+      "rateLimited": "Demasiados cambios. Inténtelo de nuevo en un momento.",
+      "remove": "Quitar resaltado",
+      "removed": "Resaltado quitado",
+      "saveFailed": "No se pudo guardar el resaltado. Inténtelo de nuevo.",
+      "tooLong": "Los resaltados pueden tener hasta {max, number} caracteres",
+      "unsupported": "Su navegador no puede mostrar resaltados en el texto"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "Copiar el enlace o el texto",
       "toggleDetails": "Mostrar u ocultar detalles",
       "readOrPreview": "Leer o ver la vista previa",
+      "highlightSelection": "Resaltar la selección",
       "goToEverything": "Todo",
       "goToFavorites": "Favoritas",
       "goToArchive": "Archivo",

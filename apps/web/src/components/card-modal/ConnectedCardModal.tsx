@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import { useConvexAuth } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { useBulkCardActions } from "../../hooks/useBulkCardActions";
+import { useCardHighlights } from "../../hooks/useCardHighlights";
 import { useCardLinkEditor } from "../../hooks/useCardLinkEditor";
 import { useCardModal } from "../../hooks/useCardModal";
 import { useLinkThumbnail } from "../../hooks/useLinkThumbnail";
@@ -96,6 +97,15 @@ export function ConnectedCardModal({
     canHydrateCard && hydratedCard?._id ? { cardId: hydratedCard._id } : "skip"
   );
 
+  // A link with an article, or with highlights an import brought: only a
+  // server-confirmed card, as with backlinks.
+  const highlights = useCardHighlights(
+    hydratedCard?._id,
+    canHydrateCard &&
+      hydratedCard?.type === "link" &&
+      (hydratedCard.hasHighlights === true ||
+        hydratedCard.article?.status === "ready")
+  );
   const linkThumbnail = useLinkThumbnail(card?._id);
   const { isSaving: isSavingPdf, save: savePdf } = useSaveLinkedPdf(onOpenCard);
 
@@ -144,6 +154,7 @@ export function ConnectedCardModal({
       handlePermanentDelete={handlePermanentDelete}
       handleRestore={handleRestore}
       hasUnsavedChanges={hasUnsavedChanges}
+      highlights={card?.type === "link" ? highlights : undefined}
       isDownloading={isDownloading}
       isReprocessing={Boolean(cardId && reprocessingCardId === cardId)}
       linkThumbnail={card?.type === "link" ? linkThumbnail : undefined}

@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, one {# suggested tag} other {# suggested tags}}",
       "summary": "Summary",
       "tags": "Tags",
-      "teakTagHint": "Tag added by Teak. Show cards tagged {tag}"
+      "teakTagHint": "Tag added by Teak. Show cards tagged {tag}",
+      "highlights": "Highlights · {count, number}",
+      "highlightNotFound": "Not found in the saved article",
+      "highlightWaiting": "Waiting for the article…",
+      "highlightActions": "Highlight actions"
     },
     "details": {
       "added": "Added",
@@ -841,6 +845,20 @@
       "preparing": "Preparing the article…",
       "savedFrom": "Saved from {host} · {date} · <link>Open original ↗</link>",
       "shortened": "Article shortened to fit."
+    },
+    "highlights": {
+      "highlight": "Highlight",
+      "limitReached": "This card has {max, number} highlights, the most it can hold",
+      "merged": "Merged with an existing highlight",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Note on this highlight",
+      "notePlaceholder": "Add a note",
+      "rateLimited": "Too many changes. Try again in a moment.",
+      "remove": "Remove highlight",
+      "removed": "Highlight removed",
+      "saveFailed": "Couldn't save the highlight. Try again.",
+      "tooLong": "Highlights can be up to {max, number} characters",
+      "unsupported": "Your browser can't show highlights in the text"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "Copy the link or text",
       "toggleDetails": "Show or hide details",
       "readOrPreview": "Read or preview",
+      "highlightSelection": "Highlight the selection",
       "goToEverything": "Everything",
       "goToFavorites": "Favorites",
       "goToArchive": "Archive",

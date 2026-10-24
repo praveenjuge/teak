@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, one {# tag suggéré} other {# tags suggérés}}",
       "summary": "Résumé",
       "tags": "Tags",
-      "teakTagHint": "Tag ajouté par Teak. Afficher les fiches avec le tag {tag}"
+      "teakTagHint": "Tag ajouté par Teak. Afficher les fiches avec le tag {tag}",
+      "highlights": "Surlignages · {count, number}",
+      "highlightNotFound": "Introuvable dans l’article enregistré",
+      "highlightWaiting": "En attente de l’article…",
+      "highlightActions": "Actions du surlignage"
     },
     "details": {
       "added": "Ajoutée",
@@ -841,6 +845,20 @@
       "preparing": "Préparation de l’article…",
       "savedFrom": "Enregistré depuis {host} · {date} · <link>Ouvrir l’original ↗</link>",
       "shortened": "Article raccourci pour tenir."
+    },
+    "highlights": {
+      "highlight": "Surligner",
+      "limitReached": "Cette fiche compte {max, number} surlignages, le maximum possible",
+      "merged": "Fusionné avec un surlignage existant",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Note du surlignage",
+      "notePlaceholder": "Ajouter une note",
+      "rateLimited": "Trop de modifications. Réessayez dans un instant.",
+      "remove": "Retirer le surlignage",
+      "removed": "Surlignage retiré",
+      "saveFailed": "Impossible d’enregistrer le surlignage. Veuillez réessayer.",
+      "tooLong": "Un surlignage peut compter jusqu’à {max, number} caractères",
+      "unsupported": "Votre navigateur ne peut pas afficher les surlignages dans le texte"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "Copier le lien ou le texte",
       "toggleDetails": "Afficher ou masquer les détails",
       "readOrPreview": "Lire ou afficher l’aperçu",
+      "highlightSelection": "Surligner la sélection",
       "goToEverything": "Tout",
       "goToFavorites": "Favoris",
       "goToArchive": "Archives",

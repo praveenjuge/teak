@@ -740,7 +740,11 @@
       "suggestedTags": "{count, plural, one {# tag sugerida} other {# tags sugeridas}}",
       "summary": "Resumo",
       "tags": "Tags",
-      "teakTagHint": "Tag adicionada pelo Teak. Mostrar cards com a tag {tag}"
+      "teakTagHint": "Tag adicionada pelo Teak. Mostrar cards com a tag {tag}",
+      "highlights": "Destaques · {count, number}",
+      "highlightNotFound": "Não encontrado no artigo salvo",
+      "highlightWaiting": "Aguardando o artigo…",
+      "highlightActions": "Ações do destaque"
     },
     "details": {
       "added": "Adicionado",
@@ -841,6 +845,20 @@
       "preparing": "Preparando o artigo…",
       "savedFrom": "Salvo de {host} · {date} · <link>Abrir o original ↗</link>",
       "shortened": "Artigo encurtado para caber."
+    },
+    "highlights": {
+      "highlight": "Destacar",
+      "limitReached": "Este card tem {max, number} destaques, o máximo que comporta",
+      "merged": "Combinado com um destaque existente",
+      "noteCount": "{count, number} / {max, number}",
+      "noteLabel": "Nota do destaque",
+      "notePlaceholder": "Adicionar uma nota",
+      "rateLimited": "Muitas alterações. Tente novamente em instantes.",
+      "remove": "Remover destaque",
+      "removed": "Destaque removido",
+      "saveFailed": "Não foi possível salvar o destaque. Tente novamente.",
+      "tooLong": "Destaques podem ter até {max, number} caracteres",
+      "unsupported": "Seu navegador não consegue mostrar destaques no texto"
     }
   },
   "cards": {
@@ -1269,6 +1287,7 @@
       "copyLinkOrText": "Copiar o link ou o texto",
       "toggleDetails": "Mostrar ou ocultar detalhes",
       "readOrPreview": "Ler ou ver a prévia",
+      "highlightSelection": "Destacar a seleção",
       "goToEverything": "Tudo",
       "goToFavorites": "Favoritos",
       "goToArchive": "Arquivo",

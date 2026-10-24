@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
@@ -68,6 +69,10 @@ import {
   LINK_THUMBNAIL_ACCEPT,
 } from "../../lib/linkThumbnail";
 import { cn } from "../../lib/utils";
+import type {
+  HighlightJump,
+  ReaderHighlightControls,
+} from "../card-previews/ArticleHighlights";
 import {
   ArticleReader,
   articleReaderState,
@@ -320,6 +325,8 @@ interface CardModalProps {
   handlePermanentDelete: (onClose?: () => void) => Promise<void>;
   handleRestore: (onClose?: () => void) => Promise<void>;
   hasUnsavedChanges: boolean;
+  /** A link's highlights, read and written in the Read tab and the panel. */
+  highlights?: CardHighlightsControl;
   isDownloading?: boolean;
   isReprocessing?: boolean;
   linkThumbnail?: LinkThumbnailControl;
@@ -370,6 +377,7 @@ export function CardModal({
   handleDelete,
   handleRestore,
   handlePermanentDelete,
+  highlights,
   openLink,
   downloadFile,
   saveChanges,
@@ -405,6 +413,24 @@ export function CardModal({
   const pendingFocus = useRef<"notes" | "tags" | null>(null);
   const saveStatus = useSaveStatus(saveState);
   const stage = useStageView(card, open);
+  const readerControls = useRef<ReaderHighlightControls | null>(null);
+  const [highlightJump, setHighlightJump] = useState<HighlightJump | null>(
+    null
+  );
+  // A jump is shown once: leaving the Read tab, or the card, forgets it.
+  const readingCard = stage.view === "read" ? card?._id : undefined;
+  useEffect(() => {
+    if (!readingCard) {
+      setHighlightJump(null);
+    }
+  }, [readingCard]);
+  const jumpToHighlight = (highlightId: string) => {
+    stage.setView("read");
+    setHighlightJump((last) => ({
+      id: highlightId,
+      seq: (last?.seq ?? 0) + 1,
+    }));
+  };
 
   const originRef = useRef<{ open: boolean; value?: string }>({ open: false });
   if (originRef.current.open !== open) {
@@ -698,6 +724,11 @@ export function CardModal({
       case "toggleReader":
         if (stage.available) {
           stage.toggle();
+        }
+        break;
+      case "highlight":
+        if (stage.view === "read") {
+          readerControls.current?.highlightSelection();
         }
         break;
       default:
@@ -1141,6 +1172,12 @@ export function CardModal({
               event.preventDefault();
             }
           }}
+          onEscapeKeyDown={(event) => {
+            // Esc first lets go of a selection in the reader.
+            if (readerControls.current?.dismiss()) {
+              event.preventDefault();
+            }
+          }}
           onKeyDown={handleKeyDown}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
@@ -1255,6 +1292,16 @@ export function CardModal({
                         <div className={READ_STAGE_CLASS}>
                           <ArticleReader
                             card={card}
+                            highlightControlsRef={readerControls}
+                            highlightJump={
+                              highlightJump?.id &&
+                              highlights?.highlights?.some(
+                                (item) => item._id === highlightJump.id
+                              )
+                                ? highlightJump
+                                : null
+                            }
+                            highlights={isDeleted ? undefined : highlights}
                             key={card._id}
                             onRetry={isDeleted ? undefined : onReprocess}
                             retrying={isReprocessing}
@@ -1300,6 +1347,19 @@ export function CardModal({
                           : undefined
                       }
                       getCurrentValue={getCurrentValue}
+                      highlights={
+                        highlights?.highlights
+                          ? {
+                              items: highlights.highlights,
+                              onJump: stage.available
+                                ? jumpToHighlight
+                                : undefined,
+                              onRemove: (highlight) => {
+                                void highlights.remove(highlight);
+                              },
+                            }
+                          : undefined
+                      }
                       notesRef={notesRef}
                       onCardTypeClick={() => onCardTypeClick?.(card.type)}
                       onCommit={commit}
