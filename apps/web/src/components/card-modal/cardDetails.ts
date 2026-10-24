@@ -54,6 +54,8 @@ export interface CardDetailsSource {
       status?: string;
     };
   };
+  /** When the card was last saved: `createdAt`, or later when the same link was saved again. */
+  savedAt?: number;
   type?: string;
   updatedAt: number;
   url?: string;
@@ -65,6 +67,32 @@ const editedAfterProcessing = (card: {
   createdAt: number;
   updatedAt: number;
 }) => card.updatedAt - card.createdAt > PROCESSING_WINDOW_MS;
+
+/** Saving a link you already have moves `savedAt` (and `updatedAt`) to now. */
+const savedAgainAt = (card: { createdAt: number; savedAt?: number }) =>
+  card.savedAt !== undefined &&
+  card.savedAt - card.createdAt > PROCESSING_WINDOW_MS
+    ? card.savedAt
+    : undefined;
+
+/** An edit date that is only the save again's own write isn't an edit. */
+const editedAt = (card: {
+  createdAt: number;
+  savedAt?: number;
+  updatedAt: number;
+}) => {
+  if (!editedAfterProcessing(card)) {
+    return;
+  }
+  const savedAgain = savedAgainAt(card);
+  if (
+    savedAgain !== undefined &&
+    Math.abs(card.updatedAt - savedAgain) <= PROCESSING_WINDOW_MS
+  ) {
+    return;
+  }
+  return card.updatedAt;
+};
 
 export interface CardDetailField {
   label: string;
@@ -78,7 +106,7 @@ const present = (fields: Array<{ label: string; value?: string | null }>) =>
 
 /** The labels of the rows Details shows before "More details". */
 export const keyDetailLabels = (t: CardDetailsTranslator = englishDetails) =>
-  new Set([t("added"), t("fileSize")]);
+  new Set([t("added"), t("savedAgain"), t("fileSize")]);
 
 export function getCardDetailSections(
   card: CardDetailsSource,
@@ -93,14 +121,22 @@ export function getCardDetailSections(
     card.metadata?.linkPreview?.status === "success"
       ? card.metadata.linkPreview
       : undefined;
+  const savedAgain = savedAgainAt(card);
+  const edited = editedAt(card);
   return {
     details: present([
       { label: t("added"), value: formatCardDate(card.createdAt, locale) },
       {
+        label: t("savedAgain"),
+        value:
+          savedAgain === undefined
+            ? undefined
+            : formatCardDate(savedAgain, locale),
+      },
+      {
         label: t("edited"),
-        value: editedAfterProcessing(card)
-          ? formatCardDate(card.updatedAt, locale)
-          : undefined,
+        value:
+          edited === undefined ? undefined : formatCardDate(edited, locale),
       },
       { label: t("fileName"), value: file?.fileName },
       {

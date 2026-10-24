@@ -742,6 +742,7 @@
       "moreDetails": "세부 정보 더 보기",
       "published": "게시일",
       "publisher": "게시자",
+      "savedAgain": "다시 저장됨",
       "showAllOfType": "{type, select, text {모든 텍스트 카드 보기} link {모든 링크 카드 보기} image {모든 이미지 카드 보기} video {모든 동영상 카드 보기} audio {모든 오디오 카드 보기} document {모든 문서 카드 보기} palette {모든 팔레트 카드 보기} quote {모든 인용 카드 보기} other {모든 카드 보기}}",
       "text": "텍스트",
       "title": "세부 정보",
