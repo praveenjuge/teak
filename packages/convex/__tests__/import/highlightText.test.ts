@@ -102,16 +102,31 @@ describe("validateImportCard highlights", () => {
     ).toEqual([{ quote: "A passage", note: "why" }, { quote: "B" }]);
   });
 
-  test("refuses more than 200, a long quote or note, and bad shapes", () => {
+  test("refuses more than 200 and bad shapes", () => {
     expect(() =>
       link(Array.from({ length: 201 }, () => ({ quote: "x" })))
     ).toThrow("highlights");
-    expect(() => link([{ quote: "x".repeat(5001) }])).toThrow("5,000");
-    expect(() => link([{ quote: "x", note: "n".repeat(2001) }])).toThrow(
-      "2,000"
-    );
     expect(() => link([{ note: "no quote" }])).toThrow("highlights");
+    expect(() => link([{ quote: 42 }])).toThrow("highlights");
     expect(() => link("not a list")).toThrow("highlights");
+  });
+
+  test("cuts a long quote or note to fit instead of refusing the card", () => {
+    // Overlapping highlights merge into one quote that can run past 5,000
+    // characters, and Teak's export writes it out as it is.
+    expect(
+      link([
+        {
+          quote: `${"é".repeat(4999)}😀 tail`,
+          note: `  ${"n".repeat(2005)}  `,
+        },
+        { quote: "Short one" },
+        { quote: "   " },
+      ]).highlights
+    ).toEqual([
+      { quote: `${"é".repeat(4999)}😀`, note: "n".repeat(2000) },
+      { quote: "Short one" },
+    ]);
   });
 
   test("only a link keeps highlights", () => {

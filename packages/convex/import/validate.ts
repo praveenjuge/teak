@@ -164,8 +164,21 @@ function importFolderNames(raw: unknown): string[] | undefined {
 }
 
 /**
+ * `text` trimmed, then cut to `max` characters. Overlapping highlights merge
+ * into one that can run past the quote limit, and Teak's export writes it as
+ * it is: the passage's start still finds it in the article.
+ */
+const clipHighlightText = (text: string, max: number): string => {
+  const trimmed = text.trim();
+  return highlightLength(trimmed) > max
+    ? Array.from(trimmed).slice(0, max).join("").trim()
+    : trimmed;
+};
+
+/**
  * A link's highlights: at most 200, each a quote of at most 5,000 characters
- * with a note of at most 2,000. Empty quotes are skipped.
+ * with a note of at most 2,000, longer ones cut to fit. Empty quotes are
+ * skipped.
  */
 export function importHighlights(
   raw: unknown
@@ -190,14 +203,11 @@ export function importHighlights(
     ) {
       throw new Error("Card highlights are invalid");
     }
-    const quote = entry.quote.trim();
-    const note = typeof entry.note === "string" ? entry.note.trim() : "";
-    if (highlightLength(quote) > MAX_HIGHLIGHT_QUOTE_CHARS) {
-      throw new Error("A highlight is longer than 5,000 characters");
-    }
-    if (highlightLength(note) > MAX_HIGHLIGHT_NOTE_CHARS) {
-      throw new Error("A highlight's note is longer than 2,000 characters");
-    }
+    const quote = clipHighlightText(entry.quote, MAX_HIGHLIGHT_QUOTE_CHARS);
+    const note =
+      typeof entry.note === "string"
+        ? clipHighlightText(entry.note, MAX_HIGHLIGHT_NOTE_CHARS)
+        : "";
     if (quote) {
       highlights.push(note ? { quote, note } : { quote });
     }
