@@ -295,7 +295,49 @@ export function provenanceReceipt(report, artifact, commit) {
   };
 }
 
-export function verifyProvenance(artifact, metadataPath) {
+// The per-version endpoint that waitForPublished reads can show a new version
+// before the CDN-cached package document that `npm install` resolves from.
+// Only that ETARGET gap is retried; every other install failure stops at once.
+export async function installWhenResolvable(
+  install,
+  {
+    attempts = 24,
+    intervalMs = 5000,
+    timeoutMs = 120_000,
+    now = Date.now,
+    wait = (ms) => new Promise((done) => setTimeout(done, ms)),
+  } = {}
+) {
+  if (
+    !Number.isInteger(attempts) ||
+    attempts < 1 ||
+    attempts > 24 ||
+    !Number.isInteger(intervalMs) ||
+    intervalMs < 0 ||
+    intervalMs > 5000 ||
+    !Number.isInteger(timeoutMs) ||
+    timeoutMs < 1 ||
+    timeoutMs > 120_000
+  ) {
+    throw new Error("Invalid SDK install resolution window.");
+  }
+  const deadline = now() + timeoutMs;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return install();
+    } catch (error) {
+      const unresolved = /npm error code ETARGET\b/.test(
+        String(error.stderr ?? "")
+      );
+      if (!unresolved || attempt >= attempts || now() >= deadline) {
+        throw error;
+      }
+    }
+    await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
+  }
+}
+
+export async function verifyProvenance(artifact, metadataPath) {
   const directory = mkdtempSync(
     join(process.env.RUNNER_TEMP ?? tmpdir(), "sdk-provenance-")
   );
@@ -319,22 +361,25 @@ export function verifyProvenance(artifact, metadataPath) {
     `--globalconfig=${globalConfig}`,
     `--registry=${registry}`,
   ];
-  execFileSync(
-    "npm",
-    [
-      "install",
-      `${artifact.name}@${artifact.version}`,
-      "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
-      ...flags,
-    ],
-    {
-      cwd: directory,
-      env: environment,
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: 60_000,
-    }
+  await installWhenResolvable(() =>
+    execFileSync(
+      "npm",
+      [
+        "install",
+        `${artifact.name}@${artifact.version}`,
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--prefer-online",
+        ...flags,
+      ],
+      {
+        cwd: directory,
+        env: environment,
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 60_000,
+      }
+    )
   );
   const report = JSON.parse(
     execFileSync(
@@ -387,7 +432,7 @@ async function main() {
   if (command === "check") {
     const published = await inspectPublished(artifact);
     if (published) {
-      verifyProvenance(artifact, metadataPath);
+      await verifyProvenance(artifact, metadataPath);
     }
     if (!process.env.GITHUB_OUTPUT) {
       throw new Error(
@@ -410,7 +455,7 @@ async function main() {
     );
     const environment = publisherEnvironment(process.env);
     if (await inspectPublished(artifact)) {
-      verifyProvenance(artifact, metadataPath);
+      await verifyProvenance(artifact, metadataPath);
       console.log(
         "Existing SDK artifact and provenance verified; publication is unnecessary."
       );
@@ -432,7 +477,7 @@ async function main() {
     return;
   }
   if (await waitForPublished(artifact)) {
-    verifyProvenance(artifact, metadataPath);
+    await verifyProvenance(artifact, metadataPath);
     console.log(
       "Published SDK metadata, tarball integrity and provenance verified."
     );

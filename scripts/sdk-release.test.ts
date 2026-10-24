@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { serve, spawn } from "bun";
 import {
   inspectPublished,
+  installWhenResolvable,
   provenanceReceipt,
   publicationInvocation,
   publicationMode,
@@ -240,6 +241,73 @@ test("registry processing stops at its elapsed-time deadline", async () => {
       },
     })
   ).toBe(false);
+});
+
+const installFailure = (code: string) =>
+  Object.assign(new Error("Command failed: npm install"), {
+    stderr: Buffer.from(
+      `npm error code ${code}\nnpm error notarget No matching version found for teak-sdk@1.0.1.\n`
+    ),
+  });
+
+test("provenance install waits out npm's stale package document, and only that", async () => {
+  let calls = 0;
+  expect(
+    await installWhenResolvable(
+      () => {
+        calls++;
+        if (calls < 3) {
+          throw installFailure("ETARGET");
+        }
+        return "installed";
+      },
+      { intervalMs: 0 }
+    )
+  ).toBe("installed");
+  expect(calls).toBe(3);
+
+  for (const code of ["E404", "EINTEGRITY", "E401"]) {
+    let attempts = 0;
+    await expect(
+      installWhenResolvable(
+        () => {
+          attempts++;
+          throw installFailure(code);
+        },
+        { intervalMs: 0 }
+      )
+    ).rejects.toThrow("npm install");
+    expect(attempts).toBe(1);
+  }
+});
+
+test("provenance install retries are bounded by attempts and elapsed time", async () => {
+  let attempts = 0;
+  const alwaysStale = () => {
+    attempts++;
+    throw installFailure("ETARGET");
+  };
+  await expect(
+    installWhenResolvable(alwaysStale, { attempts: 3, intervalMs: 0 })
+  ).rejects.toThrow("npm install");
+  expect(attempts).toBe(3);
+
+  attempts = 0;
+  let elapsed = 0;
+  await expect(
+    installWhenResolvable(alwaysStale, {
+      now: () => elapsed,
+      wait: () => {
+        elapsed = 120_001;
+        return Promise.resolve();
+      },
+    })
+  ).rejects.toThrow("npm install");
+  expect(attempts).toBe(2);
+
+  await expect(
+    installWhenResolvable(() => "installed", { attempts: 25 })
+  ).rejects.toThrow("Invalid SDK install resolution");
 });
 
 test("repeat publication accepts only identical registry metadata and bytes", async () => {
