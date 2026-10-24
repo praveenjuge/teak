@@ -52,6 +52,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-results
+          # The results live under the hidden .e2e folder, which upload-artifact
+          # skips unless asked: without this the artifact held only stack.log.
+          include-hidden-files: true
           path: |
             packages/tests/.e2e
             .agents/.state/stack.log
