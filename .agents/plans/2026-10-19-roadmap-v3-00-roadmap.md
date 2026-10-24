@@ -146,7 +146,7 @@ Every phase plan has a **Scenario seed packs**, a **Break-it checklist** and a *
 | 7 | [Reader view and article search](2026-10-19-roadmap-v3-07-reader-view.md) | Archive & reading | 6 |
 | 8 | [Highlights](2026-10-19-roadmap-v3-08-highlights.md) | Archive & reading | 7 |
 | 9 | Localization: foundation and seven languages (shipped; its plan is in git history) | Localization | — |
-| 10 | [AI output in the content's language](2026-10-19-roadmap-v3-10-ai-content-language.md) | Localization | — |
+| 10 | AI output in the content's language (shipped; its plan is in git history. The owner runs `scripts/ai-language-check.ts` once the dev Files Worker is deployed; target 90% or more for ja, es, de, ko, zh and fr) | Localization | — |
 
 **Why this order.**
 - The owner chose quick wins first.
