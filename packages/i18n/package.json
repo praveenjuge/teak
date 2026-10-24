@@ -1,6 +1,6 @@
 {
   "name": "@teak/i18n",
-  "version": "1.0.88",
+  "version": "1.0.89",
   "private": true,
   "type": "module",
   "exports": {
