@@ -1,1 +1,1576 @@
-{}
+{
+  "common": {
+    "add": "添加",
+    "back": "返回",
+    "cancel": "取消",
+    "close": "关闭",
+    "copy": "复制",
+    "delete": "删除",
+    "done": "完成",
+    "edit": "编辑",
+    "loading": "正在加载…",
+    "more": "更多",
+    "remove": "移除",
+    "rename": "重命名",
+    "retry": "重试",
+    "save": "保存",
+    "saving": "正在保存…",
+    "tryAgain": "再试一次",
+    "undo": "撤销"
+  },
+  "ui": {
+    "loading": "正在加载",
+    "close": "关闭",
+    "menu": "菜单",
+    "menuDescription": "资料库视图、卡片类型和设置。",
+    "toggleSidebar": "切换侧边栏",
+    "commandDialog": {
+      "title": "命令面板",
+      "description": "搜索要运行的命令"
+    }
+  },
+  "settings": {
+    "footer": {
+      "feedback": "如有任何反馈，请通过 <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> 告诉我。如果你想离开，随时可以<deleteAccount>删除账户</deleteAccount>。希望你喜欢使用 Teak，就像我喜欢创造它一样。",
+      "signature": "Praveen Juge 的签名"
+    },
+    "header": {
+      "title": "设置"
+    },
+    "rows": {
+      "email": "电子邮件",
+      "usage": "用量",
+      "plan": "方案",
+      "saveByEmail": "通过邮件保存",
+      "security": "安全",
+      "importExport": "导入/导出数据",
+      "theme": "主题",
+      "signOut": "退出登录",
+      "language": "语言"
+    },
+    "skeleton": {
+      "loading": "正在加载设置…"
+    },
+    "errorAlert": {
+      "title": "错误"
+    },
+    "content": {
+      "notAvailable": "不可用",
+      "cardCount": "{count, plural, other {# 张卡片}}",
+      "pro": "Pro",
+      "freePlan": "免费方案",
+      "manage": "管理",
+      "manageSubscription": "管理订阅",
+      "upgrade": "升级",
+      "signOut": "退出登录"
+    },
+    "theme": {
+      "useSystem": "使用系统主题",
+      "useLight": "使用浅色主题",
+      "useDark": "使用深色主题"
+    },
+    "importExport": {
+      "manage": "管理",
+      "manageLabel": "管理导入和导出",
+      "title": "管理数据",
+      "description": "从其他工具导入卡片，或导出一份完整副本带走。",
+      "importTab": "导入",
+      "exportTab": "导出"
+    },
+    "security": {
+      "manage": "管理",
+      "manageLabel": "管理安全",
+      "title": "安全",
+      "description": "管理可以访问你的 Teak 账户的设备、应用和密钥。",
+      "connectionsTab": "连接",
+      "apiKeysTab": "API 密钥"
+    },
+    "connections": {
+      "devicesTitle": "设备",
+      "devicesDescription": "已登录你的账户的浏览器和设备。",
+      "appsTitle": "已连接的应用",
+      "appsDescription": "断开连接后，该应用的所有安装都会退出登录。",
+      "loadingDevices": "正在加载设备…",
+      "loadingApps": "正在加载应用…",
+      "devicesLoadFailed": "无法加载设备，请重试。",
+      "appsLoadFailed": "无法加载应用，请重试。",
+      "noDevices": "没有设备。",
+      "noApps": "没有已连接的应用。",
+      "showMoreDevices": "显示更多设备",
+      "showMoreApps": "显示更多应用",
+      "thisDevice": "此设备",
+      "signedIn": "登录于 {date}",
+      "connected": "连接于 {date}",
+      "lastUsed": "上次使用于 {date}",
+      "signOut": "退出登录",
+      "signOutLabel": "退出登录 {name}",
+      "signOutCurrentLabel": "退出登录 {name}（此设备）",
+      "disconnect": "断开连接",
+      "disconnectLabel": "断开 {name}",
+      "updateFailed": "无法更新此连接，请重试。",
+      "signOutCurrentTitle": "要在此设备上退出登录吗？",
+      "signOutCurrentDescription": "你将在此浏览器（{name}）中退出 Teak，之后需要重新登录。",
+      "signOutTitle": "要退出登录 {name} 吗？",
+      "signOutDescription": "于 {date} 登录的 {name} 会话将退出 Teak，需要重新登录。",
+      "disconnectTitle": "要断开 {name} 吗？",
+      "disconnectDescription": "{name} 将在所有安装上失去对你的 Teak 资料库的访问权限，直到你重新连接。"
+    },
+    "apiKeys": {
+      "title": "API 密钥",
+      "revokeAllTitle": "要吊销所有 API 密钥吗？",
+      "revokeAllDescription": "所有 API 密钥会立即失效，包括 CLI、Raycast 和 MCP 客户端使用的密钥。此操作无法撤销。",
+      "revokeAllConfirm": "吊销所有密钥",
+      "revokeTitle": "要吊销此 API 密钥吗？",
+      "revokeDescription": "{key} 会立即失效，所有使用它的工具都将失去对你的资料库的访问权限。此操作无法撤销。",
+      "revokeConfirm": "吊销密钥",
+      "regenerateTitle": "要重新生成此 API 密钥吗？",
+      "regenerateDescription": "{key} 会立即失效，并由新密钥替换。请在所有使用它的地方换成新密钥。",
+      "regenerateConfirm": "重新生成密钥",
+      "identityCreated": "创建于 {date}",
+      "regenerateLabel": "重新生成 {identity}",
+      "revokeLabel": "吊销 {identity}",
+      "regenerateKey": "重新生成密钥",
+      "revokeKey": "吊销密钥",
+      "created": "创建于 {date}",
+      "copyNewKey": "请立即复制你的新密钥",
+      "newKeyLabel": "新的 API 密钥",
+      "updateFailed": "无法更新你的 API 密钥，请重试。",
+      "keyCreated": "API 密钥已创建。请立即复制，它只会显示一次。",
+      "revokingRemaining": "正在后台吊销其余密钥。",
+      "allRevoked": "所有 API 密钥已吊销。",
+      "keyRevoked": "API 密钥已吊销。",
+      "keyRegenerated": "API 密钥已重新生成。请立即复制新密钥。",
+      "keyCopied": "API 密钥已复制。",
+      "copyFailed": "无法复制密钥。请手动选择并复制。",
+      "limitNote": "密钥拥有对你的资料库的完全访问权限。最多可保留 10 个有效密钥。",
+      "createKey": "创建密钥",
+      "loading": "正在加载 API 密钥…",
+      "empty": "创建你的第一个 API 密钥，以连接外部工具。",
+      "revokeAll": "吊销所有密钥"
+    },
+    "deleteAccount": {
+      "title": "删除账户",
+      "description": "这将永久删除你的账户、卡片、标签和上传的文件。此操作无法撤销。",
+      "submit": "删除账户",
+      "confirmPhrase": "删除账户",
+      "confirmPrompt": "输入“<strong>{phrase}</strong>”以继续"
+    },
+    "subscription": {
+      "title": "升级到 Pro",
+      "description": "解锁全部功能，移除所有限制。",
+      "maybeLater": "以后再说",
+      "continueToCheckout": "继续结账",
+      "choosePlan": "选择方案",
+      "everythingInPro": "Pro 包含的全部功能",
+      "monthly": "按月",
+      "yearly": "按年",
+      "perMonth": "/ 月",
+      "perYear": "/ 年",
+      "bestValue": "最划算 • 节省 {percent}%",
+      "features": {
+        "unlimitedCards": "无限卡片",
+        "unlimitedStorage": "无限存储空间",
+        "summaryAndTags": "自动摘要和标签",
+        "audioTranscription": "自动音频转写",
+        "browserExtensions": "浏览器扩展",
+        "apps": "iOS、Mac 和 Android 应用",
+        "apiAndMcp": "API 和 MCP 访问权限"
+      }
+    },
+    "inboundEmail": {
+      "title": "通过邮件保存",
+      "genericError": "无法更新“通过邮件保存”，请重试。",
+      "rateLimited": "更改过于频繁，请一分钟后重试。",
+      "addressCopied": "地址已复制",
+      "copyFailed": "无法复制地址。请手动选择并复制。",
+      "loading": "正在加载“通过邮件保存”…",
+      "intro": "将邮件发送或转发到 Teak，即可保存为卡片。",
+      "verifyToTurnOn": "验证你的登录邮箱 <strong>{sender}</strong> 后即可开启此功能。",
+      "turnOn": "开启",
+      "copyAddress": "复制地址",
+      "sendFrom": "请从 <strong>{sender}</strong> 发送。来自其他地址的邮件不会被保存。",
+      "unverified": "验证你的登录邮箱 <strong>{sender}</strong> 之前，邮件不会被保存。",
+      "howItWorks": "转发或发送任何内容。只含一个链接的邮件会成为链接卡片，其他邮件会成为笔记，附件会各自成为独立的卡片。所有卡片都会加上 email 标签。",
+      "lastReceived": "上次收到邮件：{when}",
+      "turnOff": "关闭",
+      "on": "已开启",
+      "off": "已关闭",
+      "statusOnLabel": "通过邮件保存：已开启",
+      "statusOffLabel": "通过邮件保存：已关闭"
+    },
+    "export": {
+      "starting": "正在开始导出…",
+      "started": "导出已开始。我们会在后台准备你的存档。",
+      "startFailed": "无法开始导出。",
+      "canceling": "正在取消导出…",
+      "canceled": "导出已取消。",
+      "cancelFailed": "无法取消导出。",
+      "preparingDownload": "正在准备下载…",
+      "downloadReady": "你的下载已准备就绪。",
+      "downloadFailed": "无法准备下载。",
+      "preparing": "正在准备你的导出…",
+      "runsInBackground": "此操作会在后台持续运行。",
+      "snapshotting": "正在为你的卡片创建快照",
+      "snapshotProgress": "{count, plural, other {目前已记录 # 张卡片}}",
+      "archiving": "正在生成你的存档…",
+      "zipping": "正在压缩你的卡片和文件。",
+      "quotaCaption": "每周可导出一次，导出完成后 7 天内可下载。",
+      "lastFailed": "上次导出失败。你可以重试。",
+      "quotaUsed": "你已用完本周的导出次数。",
+      "cancelExport": "取消导出",
+      "ready": "你的导出已准备就绪",
+      "cardCount": "{count, plural, other {# 张卡片}}",
+      "filesOmittedTitle": "导出时有些原始文件无法读取，因此未包含在存档中。",
+      "filesUnavailable": "{count, plural, other {# 个文件不可用}}",
+      "availableUntil": "可下载至 {date}",
+      "downloadArchive": "下载存档",
+      "title": "导出数据",
+      "description": "一个 ZIP 文件，包含废纸篓以外的所有卡片及其原始文件，另附一个可导入浏览器的书签文件和一个电子表格。",
+      "startExport": "开始导出",
+      "nextAvailable": "下次可导出时间：{date}",
+      "availableIn": "{countdown}后可用"
+    },
+    "import": {
+      "wrongFile": "请选择来自 {source} 的 {extensions} 文件。",
+      "extensionSeparator": " 或 ",
+      "fileTooLarge": "该文件大小为 {size}，上限为 {limit}。",
+      "fileEmpty": "该文件为空。",
+      "lastImport": "上次导入：已创建 {created}，已跳过 {skipped}{failed, plural, =0 {} other {，失败 #}} — {when}",
+      "created": "已创建 {count}",
+      "skipped": "已跳过 {count}",
+      "failed": "失败 {count}",
+      "continuesInBackground": "你可以关闭此窗口，稍后再回来。导入会在后台继续进行。",
+      "startFailed": "无法开始导入",
+      "cancelFailed": "无法取消导入。",
+      "reportLoadFailed": "无法加载导入报告",
+      "reportCopied": "导入报告已复制。",
+      "reportCopyFailed": "无法复制导入报告。",
+      "reportDownloadFailed": "无法下载导入报告。",
+      "noImports": "尚无导入记录。",
+      "loadingLast": "正在加载上次导入的详情…",
+      "resumeUpload": "继续上传",
+      "startImport": "开始导入",
+      "importFrom": "导入来源",
+      "upTo": "最大 {size}。",
+      "chooseFile": "选择文件",
+      "uploadInterrupted": "上传已中断",
+      "resumeHint": "选择同一个 {source} 文件，从中断处继续。",
+      "chooseFileFrom": "选择来自 {source} 的文件",
+      "chooseResumeFile": "选择一个文件以继续中断的上传",
+      "cancelImport": "取消导入",
+      "importStopped": "导入已停止",
+      "failedItems": "无法导入的项目",
+      "copyReport": "复制错误报告",
+      "downloadReport": "下载错误报告",
+      "failure": {
+        "invalidArchive": "这看起来不像 Teak 存档。请选择通过“导出数据”生成的 ZIP 文件。",
+        "invalidSource": "这看起来不像 {source} 的导出文件{article, select, an {} other {}}。请检查来源，并选择其说明中提到的文件。",
+        "tooManyItems": "此文件包含超过 10,000 个项目。请将其拆分后分别导入。",
+        "generic": "导入失败，请重试。"
+      },
+      "phases": {
+        "uploading": "正在上传",
+        "waitingToParse": "正在等待解析",
+        "parsing": "正在解析导入文件",
+        "importing": "正在导入卡片",
+        "waitingForRateLimit": "正在等待卡片创建频率限制解除",
+        "canceling": "正在取消导入",
+        "complete": "导入完成",
+        "failed": "导入失败",
+        "canceled": "导入已取消"
+      },
+      "sources": {
+        "bookmarks": {
+          "title": "浏览器书签",
+          "name": "浏览器书签",
+          "hint": "通过浏览器的“导出书签”功能得到的书签 HTML 文件。"
+        },
+        "pocket": {
+          "title": "Pocket",
+          "name": "Pocket",
+          "hint": "Pocket 导出的 CSV 文件，或其旧版导出的 HTML 文件。"
+        },
+        "raindrop": {
+          "title": "Raindrop.io",
+          "name": "Raindrop",
+          "hint": "通过 Raindrop 的 Settings → Backups → Export 导出的 CSV 文件。"
+        },
+        "instapaper": {
+          "title": "Instapaper",
+          "name": "Instapaper",
+          "hint": "通过 Instapaper 的 Settings → Export 导出的 CSV 文件。"
+        },
+        "readwise": {
+          "title": "Readwise Reader",
+          "name": "Readwise Reader",
+          "hint": "通过 Reader 的 Export library as CSV 导出的 CSV 文件。"
+        },
+        "omnivore": {
+          "title": "Omnivore",
+          "name": "Omnivore",
+          "hint": "Omnivore 导出的 ZIP 文件，保持下载时的原样。"
+        },
+        "linkwarden": {
+          "title": "Linkwarden",
+          "name": "Linkwarden",
+          "hint": "通过 Linkwarden 的 Settings → Data → Export 导出的 JSON 备份。"
+        },
+        "mymind": {
+          "title": "mymind",
+          "name": "mymind",
+          "hint": "通过 mymind 的 Settings → Export 导出的 CSV 文件。"
+        },
+        "onetab": {
+          "title": "OneTab",
+          "name": "OneTab",
+          "hint": "OneTab 的 Export URLs 文本，保存为 .txt 文件。"
+        },
+        "archive": {
+          "title": "Teak 存档",
+          "name": "Teak",
+          "hint": "在 Teak 中通过“导出数据”生成的 ZIP 文件。"
+        }
+      }
+    },
+    "format": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count, plural, other {# 分钟前}}",
+      "hoursAgo": "{count, plural, other {# 小时前}}",
+      "daysAgo": "{count, plural, other {# 天前}}",
+      "now": "现在",
+      "underAMinute": "不到一分钟",
+      "days": "{days} 天",
+      "daysHours": "{days} 天 {hours} 小时",
+      "hours": "{hours} 小时",
+      "hoursMinutes": "{hours} 小时 {minutes} 分钟",
+      "minutes": "{minutes} 分钟"
+    },
+    "language": {
+      "label": "语言",
+      "saving": "正在更改语言",
+      "changed": "语言已更改",
+      "changeFailed": "无法更改语言，请重试。",
+      "feedback": "帮助改进翻译",
+      "feedbackSubject": "翻译反馈（{locale}）"
+    }
+  },
+  "app": {
+    "settings": {
+      "deletionRequested": "已申请删除账户。正在为你退出登录。",
+      "welcomePro": "欢迎使用 Pro！你的订阅已激活。",
+      "openingCheckout": "正在打开结账页面…",
+      "checkoutNewTab": "已在新标签页中打开结账页面",
+      "checkoutFailed": "无法开始结账，请重试。"
+    },
+    "globalError": {
+      "message": "出了点问题，请重试。"
+    },
+    "notFound": {
+      "title": "找不到页面",
+      "body": "此页面不存在或已移动。",
+      "goHome": "前往你的卡片"
+    }
+  },
+  "feedback": {
+    "cardsGrid": {
+      "loading": "正在加载卡片"
+    },
+    "fileDrop": {
+      "dropFiles": "拖放文件以上传"
+    },
+    "vaultSetup": {
+      "title": "正在设置你的资料库",
+      "steps": {
+        "starterCards": "正在添加几张入门卡片",
+        "photoColors": "正在从照片中提取颜色",
+        "voiceMemo": "正在转写一段语音备忘录",
+        "searchCheatSheet": "正在阅读搜索速查表",
+        "moodboard": "正在为你制作情绪板"
+      }
+    }
+  },
+  "providers": {
+    "authUnavailable": {
+      "message": "无法验证你的会话，请重试。"
+    },
+    "auth": {
+      "signIn": "登录",
+      "signInAgain": "请重新登录。",
+      "sessionChanged": "你的会话已更改，请重新登录。",
+      "signOut": "退出登录",
+      "blocked": {
+        "verifyEmail": "请验证你的邮箱以打开 Teak。",
+        "frozen": "注册已暂停，你的账户尚未创建。",
+        "quarantined": "你的账户尚未就绪。请重试或联系支持人员。"
+      }
+    },
+    "fileDrop": {
+      "uploaded": "{count, plural, other {已上传 # 个文件}}",
+      "uploadedSentence": "{count, plural, other {已上传 # 个文件。}}",
+      "cardLimitReached": "已达到免费卡片上限",
+      "upgrade": "升级",
+      "rateLimited": "创建的卡片过多，请稍候。",
+      "uploadFailed": "上传失败",
+      "uploadFailedMany": "{count, plural, other {# 个文件}}上传失败。{reason}",
+      "uploading": "正在上传…",
+      "foldersNotSupported": "无法上传文件夹，请改为拖放单个文件。",
+      "offline": "你已离线。请重新连接后重试。"
+    }
+  },
+  "appShell": {
+    "skeleton": {
+      "tags": "标签",
+      "folder": "文件夹"
+    }
+  },
+  "errors": {
+    "folders": {
+      "DUPLICATE_NAME": "已存在同名文件夹",
+      "EMPTY_NAME": "请为文件夹命名",
+      "NAME_TOO_LONG": "文件夹名称最多 {max} 个字符",
+      "TOO_MANY_FOLDERS": "最多可以有 {max} 个文件夹",
+      "TOO_MANY_FOLDERS_ON_CARD": "一张卡片最多可以位于 {max} 个文件夹中",
+      "NOT_FOUND": "找不到文件夹",
+      "EMPTY_QUERY": "请为智能文件夹添加搜索条件",
+      "QUERY_TOO_LONG": "智能文件夹的搜索条件最多 {max} 个字符",
+      "SMART_FOLDER_IN_QUERY": "智能文件夹的搜索条件不能引用其他智能文件夹",
+      "SMART_FOLDER_MEMBERSHIP": "无法将卡片添加到智能文件夹；它会显示符合其搜索条件的卡片",
+      "QUERY_ON_MANUAL_FOLDER": "只有智能文件夹才有搜索条件",
+      "SMART_FOLDER_TRASH": "智能文件夹不显示废纸篓中的卡片。若要搜索这个词，请将其放在引号中"
+    },
+    "tags": {
+      "EMPTY_NAME": "请为标签命名",
+      "NAME_TOO_LONG": "标签最多 {max} 个字符",
+      "NOT_FOUND": "找不到标签",
+      "SAME_TAG": "请选择另一个要合并到的标签",
+      "OPERATION_RUNNING": "另一项标签更改仍在进行中",
+      "OPERATION_NOT_FOUND": "找不到标签操作",
+      "TAG_EXISTS": "名为“{name}”的标签已存在。请改为合并到该标签。"
+    },
+    "thumbnails": {
+      "rateLimited": "你更换图片的次数过多，请一分钟后重试。",
+      "tooLarge": "图片必须小于 20 MB。",
+      "unreadable": "无法读取此图片。",
+      "unsupported": "请使用 JPEG、PNG、WebP、GIF 或 AVIF 图片。"
+    },
+    "cards": {
+      "CARD_LIMIT_REACHED": "已达到卡片上限。请升级到 Pro 以获得无限卡片。",
+      "CONTENT_TOO_LARGE": "文本卡片内容按 UTF-8 编码后不能超过 512 KiB。",
+      "INVALID_UTF8": "上传的 Markdown 必须是有效的 UTF-8 文本。",
+      "RATE_LIMITED": "创建的卡片过多，请稍候再试。",
+      "FILE_TOO_LARGE": "文件过大。文件大小上限为 100MB。",
+      "TOO_MANY_FILES": "选择的文件过多。一次最多可以上传 {max} 个文件。",
+      "UNSUPPORTED_TYPE": "不支持的文件类型。请上传图片、视频、音频或文档。",
+      "TYPE_MISMATCH": "上传的文件与所选类型不符。"
+    },
+    "pdfs": {
+      "IN_PROGRESS": "此 PDF 正在保存中，请稍后再试。",
+      "NO_PDF": "此卡片没有可保存的 PDF。",
+      "NOT_FOUND": "找不到卡片",
+      "RATE_LIMITED": "你保存得太快了，请一分钟后重试。",
+      "TRASHED": "请先从废纸篓中恢复此卡片，再保存其 PDF。"
+    },
+    "cardTags": {
+      "TAG_TOO_LONG": "每个标签最多 {max} 个字符",
+      "TOO_MANY_TAGS": "一张卡片最多可以有 {max} 个标签"
+    },
+    "settings": {
+      "UNSUPPORTED_LOCALE": "该语言不可用。"
+    }
+  },
+  "revisit": {
+    "deck": {
+      "title": "回顾",
+      "description": "一次一张卡片。按左箭头归档，按右箭头保留，按空格键打开详情，按 Z 撤销上次归档，按 Escape 退出。",
+      "close": "关闭回顾",
+      "progress": "{position} / {total}",
+      "loadingCards": "正在加载卡片",
+      "loadFailed": "无法加载卡片",
+      "empty": "这里没有可回顾的内容",
+      "allCaughtUp": "已全部看完",
+      "summary": "已归档 {archived} · 已保留 {kept}",
+      "startOver": "重新开始",
+      "revisitMore": "再回顾 {count} 张",
+      "undoHint": "按 <kbd>Z</kbd> 撤销上次归档",
+      "openDetails": "打开详情：{type}",
+      "saved": "保存于 {date}",
+      "inTrash": "在废纸篓中",
+      "archived": "已归档",
+      "releaseToArchive": "松开以归档",
+      "releaseToKeep": "松开以保留",
+      "archive": "归档",
+      "keep": "保留",
+      "keyHints": "<kbd>Space</kbd> 详情 · <kbd>Z</kbd> 撤销 · <kbd>Esc</kbd> 退出",
+      "swipeHint": "向左轻扫以归档，向右轻扫以保留"
+    }
+  },
+  "folders": {
+    "nameDialog": {
+      "titleNew": "新建文件夹",
+      "titleNewSmart": "保存为智能文件夹",
+      "titleEdit": "编辑文件夹",
+      "titleEditSmart": "编辑智能文件夹",
+      "descriptionSmart": "显示符合搜索条件的所有卡片，包括你以后保存的卡片。",
+      "descriptionEdit": "更改文件夹的名称或颜色。",
+      "descriptionNew": "为文件夹命名并选择颜色。",
+      "nameLabel": "名称",
+      "namePlaceholder": "阅读清单",
+      "searchLabel": "搜索",
+      "colorLegend": "颜色",
+      "submitCreate": "创建文件夹",
+      "submitSmart": "保存智能文件夹",
+      "saveFailed": "无法保存文件夹",
+      "createFailed": "无法创建文件夹"
+    },
+    "list": {
+      "searchLabel": "搜索文件夹",
+      "searchPlaceholder": "查找或创建文件夹",
+      "listLabel": "文件夹",
+      "loading": "正在加载文件夹…",
+      "noMatch": "没有该名称的文件夹。",
+      "noFolders": "还没有文件夹。输入名称即可创建。",
+      "createNamed": "创建文件夹“{name}”",
+      "createFailed": "无法创建文件夹"
+    },
+    "picker": {
+      "addTitle": "将 {count, plural, other {# 张卡片}}添加到文件夹",
+      "moveTitle": "将 {count, plural, other {# 张卡片}}移到文件夹",
+      "description": "搜索你的文件夹或输入新名称。"
+    },
+    "cardFolders": {
+      "title": "文件夹",
+      "notInFolder": "此卡片不在任何文件夹中。",
+      "inFolders": "位于 {count, plural, other {# 个文件夹}}中。",
+      "changeFailed": "无法更改卡片所在的文件夹"
+    },
+    "smartQuery": {
+      "label": "搜索：{query}",
+      "noFolderNamed": "没有名为 {name} 的文件夹",
+      "excluded": "排除"
+    }
+  },
+  "sidebar": {
+    "nav": {
+      "home": "Teak 首页",
+      "keepOpen": "保持侧边栏打开",
+      "collapse": "收起侧边栏",
+      "tags": "标签",
+      "settings": "设置"
+    },
+    "toggle": "切换侧边栏",
+    "folders": {
+      "title": "文件夹",
+      "newFolder": "新建文件夹",
+      "emptyHint": "将相关卡片归为一组。创建文件夹，然后把卡片拖到上面。",
+      "moreFor": "“{name}”的更多操作",
+      "renameItem": "重命名…",
+      "editSearch": "编辑搜索条件…",
+      "color": "颜色",
+      "colorFailed": "无法更改颜色",
+      "restoreFailed": "无法恢复文件夹",
+      "deleteFailed": "无法删除文件夹",
+      "deleted": "已删除“{name}”",
+      "deletedDescription": "其中的卡片仍在你的资料库中。"
+    },
+    "newFolder": {
+      "nameLabel": "新文件夹名称",
+      "placeholder": "文件夹名称",
+      "createFailed": "无法创建文件夹"
+    }
+  },
+  "modals": {
+    "shortcuts": {
+      "title": "键盘快捷键",
+      "description": "快捷键在资料库中的任何位置都可使用，输入文字时除外。",
+      "then": "然后",
+      "typeKeys": "输入 {keys}",
+      "comboSeparator": " 加 ",
+      "sequenceSeparator": " 然后 ",
+      "alternativeSeparator": " 或 ",
+      "keyNames": {
+        "leftArrow": "左箭头",
+        "upArrow": "上箭头",
+        "rightArrow": "右箭头",
+        "downArrow": "下箭头",
+        "slash": "斜杠",
+        "questionMark": "问号",
+        "option": "Option",
+        "command": "Command",
+        "shift": "Shift",
+        "return": "Return"
+      }
+    },
+    "tagManagement": {
+      "title": "管理标签",
+      "addLabel": "添加新标签",
+      "placeholder": "输入标签名称",
+      "addTag": "添加标签",
+      "yourTags": "你的标签",
+      "removeUserTag": "移除用户标签 {tag}",
+      "teakTags": "Teak 添加的标签",
+      "removeTeakTag": "移除 Teak 标签 {tag}",
+      "empty": "还没有标签。在上方添加你的第一个标签吧！"
+    },
+    "tagManager": {
+      "renameTitle": "重命名标签",
+      "mergeTitle": "将“{name}”合并到…",
+      "deleteTitle": "要删除“{name}”吗？",
+      "renameDescription": "在 {count, plural, other {# 张卡片}}上重命名“{name}”，归档和废纸篓中的卡片也包括在内。",
+      "mergeDescription": "带有“{name}”标签的卡片将改用你选择的标签。同时带有两个标签的卡片只保留一个。",
+      "deleteDescription": "从 {count, plural, other {# 张卡片}}上移除“{name}”，归档和废纸篓中的卡片也包括在内。卡片会被保留。此操作无法撤销。",
+      "merge": "合并",
+      "mergeInto": "合并到“{name}”",
+      "mergeIntoInstead": "改为合并到“{name}”",
+      "deleteTag": "删除标签",
+      "newName": "新名称",
+      "findTag": "查找标签",
+      "tagsLabel": "标签",
+      "noMatch": "没有该名称的标签。",
+      "noOtherTags": "还没有其他标签。",
+      "typeToFindMore": "输入以查找更多标签。",
+      "nameTaken": "名为“{name}”的标签已存在。",
+      "startFailed": "无法开始更改标签"
+    }
+  },
+  "cardModal": {
+    "header": {
+      "actionsLabel": "卡片操作",
+      "contentLabel": "{type, select, text {文本内容} link {链接内容} image {图片内容} video {视频内容} audio {音频内容} document {文档内容} palette {调色板内容} quote {引用内容} other {卡片内容}}",
+      "detailsLabel": "卡片详情",
+      "download": "下载",
+      "downloadTooltip": "下载文件",
+      "downloading": "正在下载…",
+      "loadingDescription": "正在加载卡片详情",
+      "loadingTitle": "正在加载卡片",
+      "nextCard": "下一张卡片",
+      "open": "打开",
+      "openingCard": "正在打开卡片",
+      "openTooltip": "打开链接",
+      "previousCard": "上一张卡片",
+      "titleLabel": "标题",
+      "titlePlaceholder": "无标题链接"
+    },
+    "saveState": {
+      "error": "无法保存",
+      "saved": "已保存",
+      "unsaved": "有未保存的更改"
+    },
+    "menu": {
+      "addToFolder": "添加到文件夹…",
+      "archive": "归档",
+      "copyLink": "复制链接",
+      "copyText": "复制文本",
+      "download": "下载",
+      "favorite": "收藏",
+      "hideDetails": "隐藏详情",
+      "moreActions": "更多操作",
+      "moreLikeThis": "更多类似内容",
+      "refreshDetails": "刷新详情",
+      "replaceImage": "替换图片",
+      "resetImage": "恢复为原始图片",
+      "savePdf": "保存 PDF",
+      "savingPdf": "正在保存 PDF…",
+      "shortcutsHint": "按 <kbd>?</kbd> 查看所有快捷键",
+      "showDetails": "显示详情",
+      "unarchive": "取消归档",
+      "unfavorite": "取消收藏"
+    },
+    "toasts": {
+      "copiedLink": "已复制链接",
+      "copiedText": "已复制文本",
+      "copyFailed": "复制失败",
+      "emptyNote": "空笔记不会被保存。笔记将保留上次的文本。",
+      "emptyQuote": "空引用不会被保存。引用将保留上次的文本。"
+    },
+    "trash": {
+      "deleteForever": "永久删除",
+      "inTrash": "此卡片在废纸篓中",
+      "restore": "恢复"
+    },
+    "done": {
+      "markAs": "{verb, select, read {标为已读} watched {标为已看} listened {标为已听} bought {标为已买} cooked {标为已做} played {标为已玩} other {标为已完成}}",
+      "markAsNot": "{verb, select, read {标为未读} watched {标为未看} listened {标为未听} bought {标为未买} cooked {标为未做} played {标为未玩} other {标为未完成}}",
+      "state": "{verb, select, read {已读} watched {已看} listened {已听} bought {已买} cooked {已做} played {已玩} other {已完成}}"
+    },
+    "heading": {
+      "addedOn": "添加于 {date}",
+      "addedToday": "今天添加",
+      "addedYesterday": "昨天添加",
+      "note": "笔记"
+    },
+    "panel": {
+      "addTagLabel": "添加标签",
+      "addTagPlaceholder": "添加标签…",
+      "addToFolder": "添加到文件夹",
+      "andMore": "等",
+      "colors": "颜色",
+      "copyColor": "复制 {hex}",
+      "folderOverflow": "{name} +{count}",
+      "hidden": "已隐藏",
+      "hiddenHint": "只有搜索 #secret 或 #hidden 时才会显示此卡片",
+      "inFolders": "位于 {folders}",
+      "inFoldersChange": "位于 {folders}。更改文件夹",
+      "keepTag": "保留标签 {tag}",
+      "keepTagHint": "将 {tag} 保留为你的标签",
+      "linkedFrom": "链接来源",
+      "noNotes": "没有笔记",
+      "notes": "笔记",
+      "notesPlaceholder": "添加笔记…",
+      "removeTag": "移除标签 {tag}",
+      "removeTeakTag": "移除 Teak 标签 {tag}",
+      "showLess": "收起",
+      "showMore": "显示更多",
+      "showTagged": "显示带有 {tag} 标签的卡片",
+      "suggestedTags": "{count, plural, other {# 个建议标签}}",
+      "summary": "摘要",
+      "tags": "标签",
+      "teakTagHint": "由 Teak 添加的标签。显示带有 {tag} 标签的卡片"
+    },
+    "details": {
+      "added": "添加时间",
+      "author": "作者",
+      "edited": "编辑时间",
+      "extractedText": "{count, plural, other {已提取 # 个字符}}",
+      "fewerDetails": "收起详情",
+      "fileName": "文件名",
+      "fileSize": "文件大小",
+      "fileType": "文件类型",
+      "from": "来源",
+      "moreDetails": "更多详情",
+      "published": "发布时间",
+      "publisher": "发布者",
+      "showAllOfType": "{type, select, text {显示所有文本卡片} link {显示所有链接卡片} image {显示所有图片卡片} video {显示所有视频卡片} audio {显示所有音频卡片} document {显示所有文档卡片} palette {显示所有调色板卡片} quote {显示所有引用卡片} other {显示所有卡片}}",
+      "text": "文本",
+      "title": "详情",
+      "url": "URL"
+    }
+  },
+  "cardPreviews": {
+    "audio": {
+      "loadFailed": "无法加载此录音。请尝试下载。",
+      "pause": "暂停",
+      "play": "播放",
+      "seek": "跳转",
+      "seekPosition": "{current} / {duration}",
+      "transcript": "转写文本"
+    },
+    "document": {
+      "facts": {
+        "colorVariables": "{count, plural, other {# 个颜色变量}}",
+        "files": "{count, plural, other {# 个文件}}",
+        "folders": "{count, plural, other {# 个文件夹}}",
+        "headings": "{count, plural, other {# 个标题}}",
+        "lines": "{count, plural, other {# 行}}",
+        "slides": "{count, plural, other {# 张幻灯片}}",
+        "words": "{count, plural, other {# 个字}}"
+      },
+      "file": "文件",
+      "openFile": "打开文件",
+      "untitled": "文档"
+    },
+    "fileText": {
+      "loading": "正在加载文件预览"
+    },
+    "image": {
+      "alt": "图片",
+      "unavailable": "图片预览不可用"
+    },
+    "link": {
+      "addImage": "添加图片",
+      "attachedMedia": "帖子附带的媒体 {number}",
+      "attachedVideo": "附带的视频 {number}",
+      "imageAlt": "链接图片",
+      "openGraphAlt": "Open Graph 预览",
+      "screenshotAlt": "网页渲染截图",
+      "uploadingAlt": "正在上传新的链接预览"
+    },
+    "palette": {
+      "copy": "复制 {hex}",
+      "empty": "此调色板中未检测到颜色"
+    },
+    "quote": {
+      "placeholder": "输入引用内容…"
+    },
+    "text": {
+      "focus": "专注",
+      "placeholder": "写笔记…",
+      "tooLarge": "笔记最多可包含 512 KiB 的 UTF-8 文本"
+    },
+    "video": {
+      "gifAlt": "GIF 动图",
+      "unsupported": "你的浏览器不支持 video 标签。"
+    }
+  },
+  "cards": {
+    "types": {
+      "text": "文本",
+      "link": "链接",
+      "image": "图片",
+      "video": "视频",
+      "audio": "音频",
+      "document": "文档",
+      "palette": "调色板",
+      "quote": "引用",
+      "card": "卡片"
+    },
+    "accessibleLabel": {
+      "titled": "{type, select, text {文本：{title}} link {链接：{title}} image {图片：{title}} video {视频：{title}} audio {音频：{title}} document {文档：{title}} palette {调色板：{title}} quote {引用：{title}} other {卡片：{title}}}",
+      "untitled": "{type, select, text {文本卡片} link {链接卡片} image {图片卡片} video {视频卡片} audio {音频卡片} document {文档卡片} palette {调色板卡片} quote {引用卡片} other {卡片}}"
+    },
+    "menu": {
+      "addTags": "添加标签…",
+      "archive": "归档",
+      "copyImage": "复制图片",
+      "copyLink": "复制链接",
+      "copyText": "复制文本",
+      "deleteForever": "永久删除",
+      "deselect": "取消选择",
+      "favorite": "收藏",
+      "folders": "文件夹…",
+      "moreActions": "更多操作",
+      "openLink": "打开链接",
+      "refreshDetails": "刷新详情",
+      "restore": "恢复",
+      "select": "选择",
+      "unarchive": "取消归档",
+      "unfavorite": "取消收藏"
+    },
+    "copyImageFailed": "无法复制图片",
+    "deleteForeverDialog": {
+      "confirm": "永久删除",
+      "description": "这将永久删除此卡片及其文件。此操作无法撤销。",
+      "title": "要永久删除此卡片吗？"
+    },
+    "body": {
+      "emptyNote": "空笔记",
+      "recording": "录音"
+    },
+    "link": {
+      "markedAs": "{verb, select, read {已标为已读} watched {已标为已看} listened {已标为已听} bought {已标为已买} cooked {已标为已做} played {已标为已玩} other {已标为已完成}}"
+    },
+    "previews": {
+      "documentPreview": "文档预览",
+      "documentPreviewOf": "{fileName} 的预览",
+      "gifPreview": "GIF 预览",
+      "imageAlt": "图片",
+      "videoThumbnail": "视频缩略图"
+    }
+  },
+  "grids": {
+    "masonry": {
+      "copiedLinks": "{count, plural, other {已复制 # 个链接}}",
+      "copyLinksFailed": "无法复制链接",
+      "noLinks": "这些卡片都没有链接"
+    }
+  },
+  "textEditor": {
+    "formatting": {
+      "toolbar": "文本格式",
+      "bold": "粗体",
+      "italic": "斜体",
+      "strikethrough": "删除线",
+      "inlineCode": "行内代码",
+      "editLink": "编辑链接"
+    },
+    "linkEditor": {
+      "url": "链接 URL",
+      "apply": "应用",
+      "invalidUrl": "请使用 http 或 https 链接。"
+    },
+    "note": {
+      "ariaLabel": "Markdown 笔记",
+      "contentLabel": "Markdown 内容",
+      "editorLabel": "{label}编辑器",
+      "placeholder": "写笔记…",
+      "tooLarge": "笔记最多可包含 512 KiB 的 UTF-8 文本",
+      "unsafeChange": "此更改无法保存为 Markdown。",
+      "dropUnsupported": "请将文本或 Markdown 粘贴到此笔记中。",
+      "pasteUnsupported": "请粘贴纯文本或 Markdown。"
+    },
+    "focus": {
+      "description": "专注模式：屏幕上只显示笔记。按 Escape 退出。",
+      "wordCount": "{count, plural, other {# 个字}}"
+    },
+    "noteCapture": {
+      "linkSaved": "链接已保存",
+      "saved": "已保存"
+    },
+    "cardLinkMenu": {
+      "label": "链接卡片",
+      "searching": "正在搜索卡片…",
+      "searchFailed": "无法搜索卡片",
+      "noMatches": "没有匹配的卡片",
+      "noCards": "还没有卡片"
+    },
+    "cardLink": {
+      "missing": "卡片不存在",
+      "missingHint": "此卡片在废纸篓中、已被删除或不属于你",
+      "fallbackTitle": "卡片"
+    },
+    "slashMenu": {
+      "label": "格式命令",
+      "commands": {
+        "text": "文本",
+        "h1": "标题 1",
+        "h2": "标题 2",
+        "h3": "标题 3",
+        "bulletList": "项目符号列表",
+        "orderedList": "编号列表",
+        "taskList": "任务列表",
+        "blockquote": "引用",
+        "codeBlock": "代码",
+        "divider": "分隔线",
+        "table": "表格"
+      }
+    },
+    "table": {
+      "options": "表格选项",
+      "headerPlaceholder": "表头",
+      "addRowAbove": "在上方添加行",
+      "addRowBelow": "在下方添加行",
+      "addColumnLeft": "在左侧添加列",
+      "addColumnRight": "在右侧添加列",
+      "deleteRow": "删除行",
+      "deleteColumn": "删除列",
+      "deleteTable": "删除表格",
+      "rowLimit": "表格最多可以有 {max} 行",
+      "columnLimit": "表格最多可以有 {max} 列",
+      "headerRowFirst": "表头行始终是第一行",
+      "headerRowKept": "无法删除表头行",
+      "lastColumn": "若要移除最后一列，请删除整个表格"
+    }
+  },
+  "forms": {
+    "limits": {
+      "cardLimitReached": "已达到免费卡片上限",
+      "upgrade": "升级",
+      "rateLimited": "创建的卡片过多，请稍候。"
+    },
+    "addCard": {
+      "placeholder": "写笔记…",
+      "upgradePlaceholder": "升级到 Pro 以添加更多卡片…",
+      "saveFailed": "无法保存笔记",
+      "focus": "专注"
+    },
+    "addCardActions": {
+      "new": "新建",
+      "noteOrLink": "笔记或链接",
+      "uploadFiles": "上传文件",
+      "recordAudio": "录制音频",
+      "savingRecording": "正在保存录音…",
+      "recordingSaved": "录音已保存",
+      "recordingSaveFailed": "无法保存录音",
+      "microphoneUnsupported": "此应用不支持麦克风录音。",
+      "microphoneDenied": "麦克风权限被拒绝。请允许后重试。",
+      "microphoneMissing": "未检测到麦克风。请连接麦克风后重试。",
+      "recordingStartFailed": "无法开始录音。请检查你的麦克风设置。",
+      "uploading": "正在上传 {name}…",
+      "uploaded": "{name} 已上传",
+      "uploadFailed": "无法上传 {name}：{error}",
+      "uploadFailedReason": "上传失败",
+      "startingMicrophone": "正在启动麦克风…",
+      "savingRecordingStatus": "正在保存录音…",
+      "recordingHint": "自然地说话即可。Teak 会将其保存为音频卡片。",
+      "recordingTitle": "正在录制音频",
+      "stopAndSave": "停止并保存"
+    },
+    "emptyState": {
+      "title": "来添加你的第一张卡片吧！",
+      "description": "在上方开始记录你的想法、链接和媒体"
+    }
+  },
+  "selection": {
+    "bar": {
+      "archive": "归档",
+      "unarchive": "取消归档",
+      "restore": "恢复",
+      "addToNamedFolder": "添加到 {folder}",
+      "chooseCards": "选择要添加的卡片",
+      "selectedCount": "已选择 {count, plural, other {# 张卡片}}",
+      "moreActions": "更多操作",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "addTags": "添加标签…",
+      "removeTags": "移除标签…",
+      "copyLinks": "复制链接",
+      "addToFolder": "添加到文件夹…",
+      "moveToFolder": "移到文件夹…",
+      "removeFromFolder": "从 {folder} 中移除",
+      "moveToTrash": "移到废纸篓",
+      "cancelSelection": "取消选择"
+    },
+    "tagsDialog": {
+      "tagTooLong": "标签最多 {max} 个字符。",
+      "tooManyTags": "一次最多选择 {max} 个标签。",
+      "addTitle": "为 {count, plural, other {# 张卡片}}添加标签",
+      "removeTitle": "从 {count, plural, other {# 张卡片}}中移除标签",
+      "addDescription": "用逗号分隔标签。",
+      "removeDescription": "在下方选择标签，或输入标签并用逗号分隔。",
+      "label": "标签",
+      "addPlaceholder": "设计, 灵感",
+      "removePlaceholder": "标签名称",
+      "addSubmit": "添加标签",
+      "removeSubmit": "移除标签"
+    }
+  },
+  "search": {
+    "visualStyles": {
+      "abstract": "抽象",
+      "cinematic": "电影感",
+      "dark": "暗色",
+      "illustrative": "插画",
+      "minimal": "极简",
+      "monochrome": "单色",
+      "moody": "氛围感",
+      "pastel": "柔和",
+      "photographic": "摄影",
+      "retro": "复古",
+      "surreal": "超现实",
+      "vintage": "怀旧",
+      "vibrant": "鲜艳",
+      "typographic": "字体设计",
+      "threeD": "3D",
+      "flat": "扁平",
+      "geometric": "几何",
+      "handDrawn": "手绘",
+      "futuristic": "未来感"
+    },
+    "colorHues": {
+      "red": "红色",
+      "orange": "橙色",
+      "yellow": "黄色",
+      "green": "绿色",
+      "teal": "青绿色",
+      "cyan": "青色",
+      "blue": "蓝色",
+      "purple": "紫色",
+      "pink": "粉色",
+      "brown": "棕色",
+      "neutral": "中性色"
+    },
+    "bar": {
+      "placeholder": "搜索全部内容",
+      "open": "搜索",
+      "formLabel": "搜索卡片",
+      "clearAll": "全部清除",
+      "suggestions": "搜索建议",
+      "moreFilters": "{count, plural, other {另有 # 个筛选条件}}",
+      "chipTitle": "{prefix}：{label}",
+      "chipTitleExcluded": "{prefix}：不含 {label}",
+      "chipTitleExcludedNoPrefix": "不含 {label}",
+      "remove": "移除 {label}",
+      "removeExcluded": "移除排除条件 {label}",
+      "removeTagFilter": "移除标签筛选条件 {tag}",
+      "removeType": "移除类型 {type}",
+      "removeQualifier": "移除{kind, select, tag {标签} type {类型} is {显示} site {网站} folder {文件夹} like {相似于} mood {氛围} price {价格} text {图中文字} other {筛选条件}} {label}",
+      "removeExcludedQualifier": "移除排除的{kind, select, tag {标签} type {类型} is {显示} site {网站} folder {文件夹} like {相似于} mood {氛围} price {价格} text {图中文字} other {筛选条件}} {label}",
+      "removeUnknownFolder": "移除 {chip}：没有名为 {folder} 的文件夹",
+      "unknownFolder": "没有名为 {folder} 的文件夹"
+    },
+    "chips": {
+      "titles": {
+        "tag": "标签",
+        "type": "类型",
+        "is": "显示",
+        "site": "网站",
+        "folder": "文件夹",
+        "like": "相似于",
+        "mood": "氛围",
+        "price": "价格",
+        "text": "图中文字"
+      },
+      "anyCard": "某张卡片",
+      "moodValue": "“{value}”"
+    },
+    "suggestions": {
+      "groups": {
+        "combine": "组合",
+        "exclude": "排除",
+        "filters": "筛选条件",
+        "tags": "标签",
+        "types": "类型",
+        "folders": "文件夹",
+        "sites": "网站",
+        "show": "显示"
+      },
+      "hints": {
+        "tag": "带有某个标签的卡片",
+        "type": "链接、图片、笔记…",
+        "site": "来自某个网站的链接",
+        "folder": "某个文件夹中的卡片",
+        "is": "收藏、已归档、已完成或待办",
+        "mood": "按氛围查找图片",
+        "price": "低于或高于某个价格",
+        "text": "图片和扫描件中的文字"
+      },
+      "excludeHints": {
+        "tag": "排除带有某个标签的卡片",
+        "type": "排除链接、图片、笔记…",
+        "site": "排除来自某个网站的链接",
+        "folder": "排除某个文件夹中的卡片",
+        "is": "排除收藏、已归档、已完成…"
+      },
+      "orDetail": "符合任意一侧即可",
+      "isOptions": {
+        "fav": "收藏",
+        "archived": "已归档",
+        "done": "已完成",
+        "todo": "待办"
+      },
+      "hiddenTagCount": "显示隐藏的卡片 · {count}"
+    },
+    "viewMenu": {
+      "label": "显示方式",
+      "labelWithState": "显示方式：{state}",
+      "oldestFirstState": "最早的在前",
+      "shuffledState": "随机",
+      "revisitingState": "回顾中",
+      "show": "显示",
+      "showAllTypes": "显示所有类型",
+      "sort": "排序",
+      "sorts": {
+        "relevance": "最佳匹配",
+        "newest": "最新的在前",
+        "oldest": "最早的在前",
+        "shuffle": "随机",
+        "revisit": "回顾"
+      },
+      "nothingToRevisit": "这里没有可回顾的内容",
+      "saveAsSmartFolder": "保存为智能文件夹…",
+      "reshuffle": "重新随机"
+    }
+  },
+  "commandPalette": {
+    "title": "命令面板",
+    "description": "前往某个视图或文件夹、查找卡片或执行操作",
+    "inputLabel": "搜索命令、文件夹和卡片",
+    "placeholder": "输入命令或搜索…",
+    "noResults": "没有结果",
+    "smartFolder": "智能文件夹",
+    "groups": {
+      "navigate": "导航",
+      "cards": "卡片",
+      "actions": "操作",
+      "folders": "文件夹"
+    },
+    "views": {
+      "tags": "标签",
+      "settings": "设置"
+    },
+    "actions": {
+      "newNote": "新建笔记",
+      "upload": "上传文件",
+      "import": "导入",
+      "export": "导出",
+      "toggleTheme": "切换主题",
+      "shuffle": "随机",
+      "shortcuts": "键盘快捷键",
+      "signOut": "退出登录"
+    },
+    "cards": {
+      "searching": "正在搜索卡片",
+      "searchFailed": "无法搜索卡片",
+      "searchAll": "在全部内容中搜索“{query}”",
+      "untitled": "无标题卡片"
+    }
+  },
+  "shortcuts": {
+    "groups": {
+      "cards": "卡片",
+      "openCard": "卡片打开时",
+      "goTo": "前往",
+      "search": "搜索",
+      "anywhere": "任意位置"
+    },
+    "rows": {
+      "moveBetweenCards": "在卡片之间移动",
+      "nextOrPreviousCard": "下一张或上一张卡片",
+      "openCard": "打开卡片",
+      "favorite": "收藏或取消收藏",
+      "addTags": "添加标签",
+      "archive": "归档或取消归档",
+      "moveToTrash": "移到废纸篓",
+      "select": "选择或取消选择",
+      "copy": "复制文本、链接或图片",
+      "clearSelection": "清除所选内容",
+      "previousOrNextCard": "上一张或下一张卡片",
+      "addTag": "添加标签",
+      "writeNote": "写笔记",
+      "focusNote": "专注于笔记",
+      "openOrDownload": "打开链接或下载文件",
+      "openLink": "打开链接",
+      "markLinkDone": "将链接标为已完成",
+      "copyLinkOrText": "复制链接或文本",
+      "toggleDetails": "显示或隐藏详情",
+      "goToEverything": "全部",
+      "goToFavorites": "收藏",
+      "goToArchive": "归档",
+      "goToTrash": "废纸篓",
+      "excludeWord": "排除某个词",
+      "excludeFilter": "排除标签、类型、网站或文件夹",
+      "eitherOne": "任意一个",
+      "group": "分组",
+      "exactWords": "精确匹配",
+      "commandPalette": "命令面板",
+      "search": "搜索",
+      "newNote": "新建笔记",
+      "uploadFiles": "上传文件",
+      "notifications": "前往通知（撤销）",
+      "keyboardShortcuts": "键盘快捷键"
+    }
+  },
+  "extension": {
+    "popup": {
+      "loading": "正在加载",
+      "loadAccountFailed": "无法加载你的账户。",
+      "somethingWentWrong": "出了点问题",
+      "tryAgain": "再试一次",
+      "privateSession": "Firefox 处于隐私浏览模式，因此关闭后 Teak 会忘记你的登录状态和未发送的保存内容。",
+      "pendingSaves": "{count, plural, other {# 项保存}}未完成",
+      "discard": "丢弃",
+      "retry": "重试",
+      "pendingSavesFailed": "无法更新待处理的保存内容。",
+      "headline": "随时随地保存一切",
+      "signInPrompt": "登录后即可将网页、图片和文本保存到你的 Teak。",
+      "signIn": "登录",
+      "finishingSignIn": "正在完成登录…",
+      "signInFailed": "无法登录，请重试。",
+      "openTeak": "打开 Teak",
+      "upgrade": "升级到 Pro",
+      "signOut": "退出登录",
+      "signOutFailed": "无法退出登录，请重试。",
+      "uploadFile": "上传文件",
+      "fileInvalid": "文件为空或过大。",
+      "fileSaveFailed": "无法保存文件，请重试。",
+      "reconnectForUpload": "请重新连接以完成待处理的上传。",
+      "pseudoLocale": "伪语言环境（en-XA）",
+      "status": {
+        "chooseFile": "选择要保存的文件",
+        "fileSizeLimit": "最大 100 MB",
+        "freeLimitReached": "你已达到免费上限",
+        "upgradeForUnlimited": "升级到 Pro 以获得无限卡片。",
+        "alreadySaved": "已在你的 Teak 中",
+        "uploadingFile": "正在上传文件",
+        "fileSaved": "文件已保存",
+        "uploadFailed": "无法上传文件",
+        "savingToTeak": "正在保存到 Teak",
+        "savedToTeak": "已保存到 Teak",
+        "pageSaved": "网页已保存",
+        "textSaved": "文本已保存",
+        "saveFailed": "无法保存",
+        "savingPage": "正在保存网页",
+        "pageSaveFailed": "无法保存此网页",
+        "cantSavePage": "无法保存此页面",
+        "cantSavePageDetail": "请打开一个网页进行保存，或上传文件。"
+      },
+      "details": {
+        "loadingTags": "正在加载标签",
+        "loadFailed": "无法加载此卡片的标签。",
+        "retry": "重试",
+        "tags": "标签",
+        "addTags": "添加标签",
+        "removeTag": "移除标签 {tag}",
+        "suggestedTags": "建议的标签",
+        "note": "笔记",
+        "addNote": "添加笔记",
+        "saved": "已保存",
+        "tagTooLong": "标签最多 {max} 个字符。",
+        "tooManyTags": "在此处一张卡片最多可以有 {max} 个标签。",
+        "signInAgain": "请重新登录以保存你的更改。",
+        "tagsFailed": "无法保存标签。",
+        "noteFailed": "无法保存笔记。"
+      }
+    },
+    "contextMenu": {
+      "savePage": "将网页保存到 Teak",
+      "saveAsset": "将资源保存到 Teak",
+      "saveText": "将文本保存到 Teak"
+    },
+    "omnibox": {
+      "search": "搜索 Teak",
+      "searchFor": "在 Teak 中搜索 <match>{query}</match>",
+      "signIn": "登录 Teak 以进行搜索",
+      "noMatches": "没有匹配的卡片",
+      "unreachable": "无法连接到 Teak",
+      "rateLimited": "搜索过于频繁，请放慢速度",
+      "cardType": "{type, select, text {文本} link {链接} image {图片} video {视频} audio {音频} document {文档} palette {调色板} quote {引用} other {{type}}}",
+      "untitled": "{type, select, text {无标题文本} link {无标题链接} image {无标题图片} video {无标题视频} audio {无标题音频} document {无标题文档} palette {无标题调色板} quote {无标题引用} other {无标题{type}}}"
+    },
+    "inline": {
+      "idle": "保存到 Teak",
+      "saving": "正在保存到 Teak",
+      "saved": "已保存到 Teak",
+      "duplicate": "已保存在 Teak 中",
+      "error": "保存失败，点击重试",
+      "errorWithReason": "保存失败，点击重试：{reason}",
+      "invalidPost": "帖子数据无效",
+      "signIn": "登录 Teak 以保存",
+      "saveFailed": "无法保存帖子"
+    }
+  },
+  "screens": {
+    "cards": {
+      "emptyFavorites": "还没有收藏。收藏卡片后即可在这里找到它。",
+      "emptyArchive": "没有已归档的内容。归档卡片可将其移出你的资料库。",
+      "emptyTrash": "废纸篓是空的。",
+      "hiddenCardsHint": "有些卡片已隐藏。搜索 #secret 或 #hidden 即可查看。",
+      "cardNotFound": "找不到卡片",
+      "folderNotFound": "找不到文件夹",
+      "folderMayBeDeleted": "它可能已被删除。",
+      "goToEverything": "前往“全部”",
+      "nothingLeftToDo": "没有待办事项了。",
+      "noSmartFolderMatches": "没有卡片符合此智能文件夹。",
+      "editSearch": "编辑搜索条件",
+      "noCardsInFolder": "此文件夹中还没有卡片。",
+      "addCards": "添加卡片",
+      "nothingSimilar": "暂无类似内容",
+      "noMoodMatches": "暂无符合此氛围的图片",
+      "stillLearning": "仍在分析此卡片，请稍后再试。",
+      "tooManySearches": "搜索过于频繁，请一分钟后重试。",
+      "semanticUnavailable": "暂时无法按语义搜索。",
+      "noFilterMatches": "没有符合筛选条件的内容",
+      "clearFilters": "清除筛选条件",
+      "smartFolderSuffix": "（智能文件夹）",
+      "folderCardCountSuffix": "{count, plural, other { 张卡片}}",
+      "folderTitle": "文件夹",
+      "searchFolder": "搜索 {folder}",
+      "savedSmartFolder": "已保存“{name}”",
+      "savedSmartFolderDescription": "它会显示所有符合条件的卡片，包括你之后保存的卡片。",
+      "open": "打开",
+      "unsavableFilters": "颜色、风格和日期不会保存在智能文件夹中。",
+      "loadFailed": "无法加载你的卡片。"
+    },
+    "tags": {
+      "sortMostUsed": "最常用",
+      "sortName": "名称",
+      "sortLabel": "排序：{sort}",
+      "sortBy": "标签排序方式",
+      "moreFor": "“{tag}”的更多操作",
+      "rowLabel": "{tag}，{count, plural, other {# 张卡片}}",
+      "rename": "重命名…",
+      "mergeInto": "合并到…",
+      "delete": "删除…",
+      "matchCount": "{matches, number} / {total, number}",
+      "topCount": "前 {total, number}",
+      "tagsSuffix": " 个标签",
+      "title": "标签",
+      "findTag": "查找标签",
+      "loading": "正在加载标签",
+      "noTags": "还没有标签",
+      "noTagsDescription": "你为卡片添加的标签以及 Teak 建议的标签都会显示在这里。",
+      "noMatches": "没有符合“{query}”的标签。",
+      "list": "标签",
+      "showMore": "再显示 {count, number} 个"
+    },
+    "logo": {
+      "earlyAccess": "抢先体验"
+    }
+  },
+  "hooks": {
+    "cardActions": {
+      "deletedFindInTrash": "卡片已删除。搜索“trash”即可找到它",
+      "cardDeleted": "卡片已删除",
+      "cardRestored": "卡片已恢复",
+      "cardPermanentlyDeleted": "卡片已永久删除",
+      "deleteFailed": "无法删除卡片",
+      "restoreFailed": "无法恢复卡片",
+      "permanentDeleteFailed": "无法永久删除卡片",
+      "changesSaved": "更改已保存",
+      "markedDone": "已标为{verb, select, read {已读} watched {已看} listened {已听} bought {已买} cooked {已做} played {已玩} other {已完成}}",
+      "markedNotDone": "已标为{verb, select, read {未读} watched {未看} listened {未听} bought {未买} cooked {未做} played {未玩} other {未完成}}",
+      "doneUpdateFailed": "无法更新，请重试。",
+      "alreadyTagged": "已带有标签 #{tag}",
+      "hiddenByTag": "已隐藏。搜索 #{tag} 即可查看。",
+      "unsafeLink": "无法打开此链接，因为它使用了不安全的地址",
+      "failed": {
+        "delete": "删除失败",
+        "restore": "恢复失败",
+        "permanentDelete": "永久删除失败",
+        "toggleFavorite": "无法更改收藏状态",
+        "saveChanges": "无法保存更改",
+        "downloadFile": "无法下载文件",
+        "removeTag": "无法移除标签",
+        "update": "无法更新{field}",
+        "other": "操作失败：{operation}"
+      }
+    },
+    "clipboard": {
+      "copyingImage": "正在复制图片…",
+      "imageCopied": "图片已复制到剪贴板",
+      "copied": "已复制到剪贴板",
+      "linkCopied": "链接已复制到剪贴板",
+      "copyFailed": "无法复制到剪贴板"
+    },
+    "deviceSessions": {
+      "loadFailed": "无法加载设备，请重试。"
+    },
+    "linkThumbnail": {
+      "replaced": "图片已替换",
+      "reset": "已恢复为原始图片",
+      "undoExpired": "已无法撤销该更改。"
+    },
+    "reprocess": {
+      "started": "正在刷新详情。摘要和标签稍后就会更新。"
+    },
+    "savePdf": {
+      "saved": "PDF 已保存",
+      "alreadySaved": "已保存过",
+      "open": "打开",
+      "cardLimitReached": "已达到免费卡片上限",
+      "tooLarge": "此 PDF 过大。Teak 可保存最大 100 MB 的文件。",
+      "notPdf": "arXiv 没有为这篇论文提供 PDF。",
+      "failed": "无法保存 PDF，请重试。"
+    },
+    "settings": {
+      "openingPortal": "正在打开客户门户…",
+      "portalOpened": "客户门户已打开",
+      "portalFailed": "无法打开门户",
+      "deleteAccountFailed": "删除账户时出了点问题。",
+      "signOutFailed": "无法退出登录，请重试。"
+    },
+    "tagOperations": {
+      "startFailed": "无法开始更改标签"
+    },
+    "upload": {
+      "failed": "上传失败",
+      "failedWithStatus": "上传失败，状态码 {status}",
+      "unsupportedType": "不支持的文件类型",
+      "prepareFailed": "无法准备上传",
+      "createFailed": "无法创建卡片",
+      "cancelled": "上传已取消",
+      "timedOut": "上传已停止响应。请检查你的网络连接后重试。"
+    }
+  },
+  "lib": {
+    "bulkCardActions": {
+      "progress": {
+        "favorite": "正在收藏 {done} / {total}…",
+        "unfavorite": "正在取消收藏 {done} / {total}…",
+        "archive": "正在归档 {done} / {total}…",
+        "unarchive": "正在移回资料库 {done} / {total}…",
+        "addTags": "正在添加标签 {done} / {total}…",
+        "removeTags": "正在移除标签 {done} / {total}…",
+        "delete": "正在移到废纸篓 {done} / {total}…",
+        "restore": "正在恢复 {done} / {total}…",
+        "addToFolder": "正在添加到文件夹 {done} / {total}…",
+        "removeFromFolder": "正在从文件夹中移除 {done} / {total}…",
+        "moveToFolder": "正在移动 {done} / {total}…"
+      },
+      "done": {
+        "favorite": "已收藏 {count, plural, other {# 张卡片}}",
+        "unfavorite": "已取消收藏 {count, plural, other {# 张卡片}}",
+        "archive": "已归档 {count, plural, other {# 张卡片}}",
+        "unarchive": "已将 {count, plural, other {# 张卡片}}移回资料库",
+        "addTags": "已为 {count, plural, other {# 张卡片}}添加标签",
+        "removeTags": "已从 {count, plural, other {# 张卡片}}中移除标签",
+        "delete": "已将 {count, plural, other {# 张卡片}}移到废纸篓",
+        "restore": "已恢复 {count, plural, other {# 张卡片}}",
+        "addToFolder": "已将 {count, plural, other {# 张卡片}}添加到 {folder}",
+        "removeFromFolder": "已从 {folder} 中移除 {count, plural, other {# 张卡片}}",
+        "moveToFolder": "已将 {count, plural, other {# 张卡片}}移到 {folder}",
+        "addToUnnamedFolder": "已将 {count, plural, other {# 张卡片}}添加到文件夹",
+        "removeFromUnnamedFolder": "已从文件夹中移除 {count, plural, other {# 张卡片}}",
+        "moveToUnnamedFolder": "已将 {count, plural, other {# 张卡片}}移到文件夹"
+      },
+      "partial": "{done}。{failed} 张无法更改。",
+      "failed": {
+        "favorite": "无法收藏这些卡片",
+        "unfavorite": "无法取消收藏这些卡片",
+        "archive": "无法归档这些卡片",
+        "unarchive": "无法取消归档这些卡片",
+        "addTags": "无法为这些卡片添加标签",
+        "removeTags": "无法从这些卡片中移除标签",
+        "delete": "无法将这些卡片移到废纸篓",
+        "restore": "无法恢复这些卡片",
+        "addToFolder": "无法将这些卡片添加到文件夹",
+        "removeFromFolder": "无法从文件夹中移除这些卡片",
+        "moveToFolder": "无法移动这些卡片"
+      }
+    },
+    "clipboard": {
+      "copiedColor": "已复制 {hex}",
+      "copyFailed": "复制失败"
+    },
+    "exif": {
+      "camera": "相机",
+      "taken": "拍摄时间",
+      "exposure": "曝光",
+      "aperture": "光圈",
+      "focalLength": "焦距",
+      "iso": "ISO"
+    },
+    "folders": {
+      "colors": {
+        "none": "无颜色",
+        "gray": "灰色",
+        "red": "红色",
+        "orange": "橙色",
+        "amber": "琥珀色",
+        "green": "绿色",
+        "teal": "青绿色",
+        "blue": "蓝色",
+        "violet": "紫罗兰色",
+        "pink": "粉色"
+      },
+      "suggestedName": {
+        "type": "{type, select, text {文本} link {链接} image {图片} video {视频} audio {音频} document {文档} palette {调色板} quote {引用} other {{type}}}",
+        "favorites": "收藏",
+        "archived": "已归档",
+        "price": "价格 {bound}",
+        "text": "文字“{text}”"
+      }
+    },
+    "libraryViews": {
+      "labels": {
+        "all": "全部",
+        "favorites": "收藏",
+        "archive": "归档",
+        "trash": "废纸篓"
+      },
+      "searchPlaceholders": {
+        "all": "搜索全部内容",
+        "favorites": "搜索收藏",
+        "archive": "搜索归档",
+        "trash": "搜索废纸篓"
+      }
+    },
+    "linkByline": {
+      "byAuthor": "作者：{author}"
+    },
+    "linkThumbnail": {
+      "changeFailed": "无法更换图片，请重试。"
+    },
+    "linkTitle": {
+      "fallback": "链接"
+    },
+    "reprocess": {
+      "failed": "无法刷新此卡片，请稍后再试。"
+    },
+    "tags": {
+      "progress": "{changed, number} / {total, plural, other {# 张卡片}}",
+      "completed": {
+        "rename": "已将“{from}”重命名为“{to}”",
+        "merge": "已将“{from}”合并到“{to}”",
+        "delete": "已删除“{from}”"
+      },
+      "running": {
+        "rename": "正在将“{from}”重命名为“{to}”…",
+        "merge": "正在将“{from}”合并到“{to}”…",
+        "delete": "正在删除“{from}”…"
+      },
+      "failed": {
+        "rename": "无法完成重命名。已更改 {changed, number} / {total, plural, other {# 张卡片}}。",
+        "merge": "无法完成合并。已更改 {changed, number} / {total, plural, other {# 张卡片}}。",
+        "delete": "无法完成删除。已更改 {changed, number} / {total, plural, other {# 张卡片}}。"
+      },
+      "changedDescription": "已更改 {count, plural, other {# 张卡片}}",
+      "runningDescription": "已更改 {changed, number} / {total, plural, other {# 张卡片}}",
+      "failedDescription": "请重试以更改其余卡片。"
+    },
+    "upload": {
+      "partialFailure": "已上传 {successCount} / {total} 个文件。",
+      "partialFailureWithReason": "已上传 {successCount} / {total} 个文件。首个失败项：{file} — {reason}",
+      "skippedNote": "已跳过 {count, plural, other {# 个文件}}。一次最多可以上传 {max} 个。"
+    }
+  }
+}
