@@ -234,27 +234,3 @@ export const writeStubArchives = internalAction({
     return null;
   },
 });
-
-export const ARCHIVE_BACKFILL_SIZE = 1000;
-export const ARCHIVE_BACKFILL_PAGE_SIZE = 200;
-const BACKFILL_START = Date.UTC(2024, 0, 1);
-
-/** 1,000 processed links without a saved copy, for the backfill. */
-export const archiveBackfillScenarioPage = (
-  page: number
-): DevScenarioCardDef[] =>
-  Array.from({ length: ARCHIVE_BACKFILL_PAGE_SIZE }, (_, offset) => {
-    const index = page * ARCHIVE_BACKFILL_PAGE_SIZE + offset;
-    const url = `https://example.com/archive-backfill/${index}#${SCENARIO_MARKER}-archive-backfill`;
-    return {
-      content: url,
-      createdAt: BACKFILL_START + index * 3_600_000,
-      metadataTitle: `Link ${index + 1} to archive`,
-      tags: ["scenario-archive-backfill"],
-      type: "link" as const,
-      url,
-    };
-  }).filter(
-    (_card, offset) =>
-      page * ARCHIVE_BACKFILL_PAGE_SIZE + offset < ARCHIVE_BACKFILL_SIZE
-  );

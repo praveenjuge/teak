@@ -11,7 +11,6 @@ A link with an article in its saved copy has a **Preview · Read** toggle in the
 - `reader-summary` rewrites `aiSummary` (not the tags) from an article of 200 words or more.
 - `reader-search` finds a link by a phrase only in its article, with or without `type:link`.
 - `reader-api` returns `article: { wordCount, readingMinutes }` on cards and the Markdown, with signed image URLs, from `GET /v1/cards/<id>/content?kind=article`; `teak cards content <id> --kind article`, MCP `teak_v1_get_card_content` with `kind`, and the SDK's `cards.content(id, { kind })`.
-- `reader-backfill` queues article-only runs for links with a copy and no article (`migration/backfillArticles`, dry run first).
 
 ## How to get to it (user POV)
 
@@ -35,7 +34,6 @@ Steps:
 - **Live save.** Save a long article through a page snapshot; the toggle shows "Preparing the article…", then the article without a reload. `GET /v1/cards/<id>` gains `article.wordCount`.
 - **Search.** Search `lantern137` and `"amber kestrel lantern" type:link`: the matches come from article text only (titles are "Field note N").
 - **API.** `GET /v1/cards/<id>/content?kind=article` returns `kind: "article"` and Markdown whose images are `https://…/article-image/…` URLs; without `kind` an article card answers `404 NO_CONTENT` (or its transcript, for the podcast); `?kind=video` is `400 INVALID_INPUT`. `bun apps/cli/src/index.ts cards content <id> --kind article` prints the same Markdown.
-- **Backfill.** `bunx convex run migration/backfillArticles:backfillArticles '{}'` (dry run) prints counts; `{"dryRun":false}` queues article-only runs.
 
 ## Gotchas
 

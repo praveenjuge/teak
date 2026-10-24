@@ -10,7 +10,6 @@ Every link a user saves gets a private copy of its page: one HTML file with its 
 - `archive-refresh` saves a new copy on "Refresh details".
 - `archive-api` returns `archive` on cards, takes `POST /v1/page-snapshots/upload` and `pageSnapshotKey` on `POST /v1/cards`.
 - `archive-object` serves the stored copy with a sandbox CSP, so it runs no script wherever it is opened.
-- `archive-backfill` gives links saved before the feature a copy (`migration/backfillPageArchives`, dry run first).
 
 ## How to get to it (user POV)
 
@@ -24,7 +23,6 @@ Preconditions:
 
 - Seed the pack on the signed-in account (local stack shown; on the dev deployment, drop the `env` prefix):
   `env -u CONVEX_DEPLOY_KEY CONVEX_AGENT_MODE=anonymous bunx convex run devSeed:seedScenario '{"workosUserId":"<id>","scenario":"page-archive-mix"}'`
-- For the backfill, seed `archive-backfill-1000` (pages 0 to 4) on a second account.
 - Server archives need the link-fetch Container, which the local E2E stack doesn't run (no Docker): a live save there ends "Couldn't save a copy" with "The page couldn't be reached". An extension save, or `POST /v1/page-snapshots/upload`, archives without it.
 
 Steps:
@@ -35,7 +33,6 @@ Steps:
 - **Extension.** With the extension signed in ([Browser extension](./extension.md)), type a word into a page's search box and a password into its password field, press ⌥⇧S, then open the card in Teak. Read the stored copy through a signed file URL (Local Explorer on the local stack): the search word is there, the password is not.
 - **Object.** Fetch the copy's signed URL: the response has `Content-Security-Policy: sandbox; default-src 'none'; …` and `Cross-Origin-Resource-Policy: cross-origin`; open it in a tab and DevTools shows scripts blocked.
 - **Refresh.** "Refresh details" on an archived card: `archive.capturedAt` moves forward and the old object is deleted.
-- **Backfill.** `bunx convex run migration/backfillPageArchives:backfillPageArchives '{}'` (dry run) prints counts per account; run with `{"dryRun":false}` and the seeded links get `archive` while new saves still finish at their usual speed.
 
 ## Gotchas
 
