@@ -590,7 +590,12 @@ describe("files worker handler", () => {
     );
     expect(archive.status).toBe(200);
     expect(archive.headers.get("content-security-policy")).toBe(
-      "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:"
+      "sandbox allow-popups allow-popups-to-escape-sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:"
+    );
+    // Its links may open new tabs, but it never runs scripts or reads the
+    // files origin.
+    expect(archive.headers.get("content-security-policy")).not.toMatch(
+      /allow-scripts|allow-same-origin/u
     );
     expect(archive.headers.get("cross-origin-resource-policy")).toBe(
       "cross-origin"

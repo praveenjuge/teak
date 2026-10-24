@@ -52,9 +52,11 @@ export const PAGE_ARCHIVE_CSP =
 /**
  * The header a stored archive is served with: wherever it opens, someone
  * else's HTML runs in an opaque origin with no scripts and loads nothing.
+ * Its links open in a new tab outside the sandbox; a frame's own `sandbox`
+ * can't loosen this header, so the popup tokens live here too.
  */
 export const PAGE_ARCHIVE_CONTENT_SECURITY_POLICY =
-  "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:";
+  "sandbox allow-popups allow-popups-to-escape-sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:";
 
 export type PageArchiveKind = "full" | "text_only";
 export type PageArchiveSource = "extension" | "server";
