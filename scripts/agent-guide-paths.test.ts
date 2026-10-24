@@ -12,7 +12,7 @@ const ROOT = join(import.meta.dir, "..");
 const ROOTED = /^(?:apps|packages|scripts|\.agents|\.claude|\.github)\//;
 // Placeholders, globs and files that only exist at runtime or after a build.
 const UNCHECKED =
-  /[*<>{}…]|\.\.\.|\.agents\/\.state\/|\/\.output\/|\/\.e2e\/|\/node_modules\/|\/dist\/|\.env|\.dev\.vars/;
+  /[*<>{}…]|\.\.\.|\.agents\/\.state\/|\/(?:\.output|\.e2e|node_modules|dist)(?:\/|$)|\.env|\.dev\.vars/;
 
 const trackedFiles = (pattern: string): string[] => {
   const result = spawnSync("git", ["ls-files", pattern], {
@@ -40,7 +40,7 @@ describe("agent guide paths", () => {
   test("finds rooted paths and skips placeholders", () => {
     expect(
       rootedPaths(
-        "Read `apps/docs/AGENTS.md`, `.agents/plans/<file>.md`, `src/index.ts` and `packages/tests/.e2e/x`."
+        "Read `apps/docs/AGENTS.md`, `.agents/plans/<file>.md`, `src/index.ts`, `packages/tests/.e2e/x` and `packages/sdk/dist`."
       )
     ).toEqual(["apps/docs/AGENTS.md"]);
   });
