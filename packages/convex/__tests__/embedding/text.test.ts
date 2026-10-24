@@ -50,3 +50,44 @@ describe("buildEmbeddingText", () => {
     ).toBe("See Garden plan");
   });
 });
+
+describe("buildEmbeddingText: a link's article", () => {
+  const article = `${"Opening words of the article. ".repeat(80)}LATE-TAIL`;
+
+  test("the article's opening is the body when the link's content is its URL", () => {
+    const text = buildEmbeddingText(
+      {
+        aiSummary: "How gardens grow",
+        content: "https://site.example/gardens",
+        metadata: { linkPreview: { status: "success", title: "Gardens" } },
+        url: "https://site.example/gardens",
+      },
+      article,
+      "article"
+    );
+    const lines = text.split("\n");
+    expect(lines[0]).toBe("Gardens");
+    expect(lines[1]).toBe("How gardens grow");
+    expect(text).not.toContain("https://site.example/gardens");
+    expect(lines.at(-1)).toHaveLength(1500);
+    expect(text).not.toContain("LATE-TAIL");
+  });
+
+  test("content that only repeats the title doesn't hide the article", () => {
+    const text = buildEmbeddingText(
+      {
+        content: "Gardens",
+        metadataTitle: "Gardens",
+        url: "https://site.example/gardens",
+      },
+      "The article body.",
+      "article"
+    );
+    expect(text).toBe("Gardens\nThe article body.");
+  });
+
+  test("a document's text still reads up to 2,000 characters", () => {
+    const text = buildEmbeddingText({ content: "" }, "d".repeat(5000));
+    expect(text).toHaveLength(2000);
+  });
+});

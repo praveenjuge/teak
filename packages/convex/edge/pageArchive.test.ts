@@ -470,6 +470,8 @@ describe("runs", () => {
     const t = newBackend();
     const cardId = await insertCard(t, {
       pageArchive: archiveOf("k0"),
+      // Its article is current too, so nothing is left to run.
+      article: { extractedAt: NOW, status: "none" },
       processingStatus: {
         ...IDLE_STAGES,
         archive: { status: "completed" },

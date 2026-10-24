@@ -12,6 +12,10 @@ export const WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "ai/backfill:claimAiBackfillCards",
   "ai/backfill:releaseAiBackfillCards",
   "ai/mutations:updateCardProcessing",
+  "card/articleText:markArticleStage",
+  "card/articleText:recordNoArticle",
+  "card/articleText:saveArticleSummary",
+  "card/articleText:saveArticleText",
   "card/documentText:saveDocumentText",
   "card/processingRpc:getCardForProcessing",
   "card/processingRpc:markStagesInProgress",
@@ -106,6 +110,10 @@ export const isWorkflowRpcFunction = (name: string): boolean =>
 // `guard: { cardId, rev }`, so a run a newer revision replaced never writes.
 const GUARDED_WORKFLOW_RPC_FUNCTIONS: ReadonlySet<string> = new Set<string>([
   "ai/mutations:updateCardProcessing",
+  "card/articleText:markArticleStage",
+  "card/articleText:recordNoArticle",
+  "card/articleText:saveArticleSummary",
+  "card/articleText:saveArticleText",
   "card/documentText:saveDocumentText",
   "card/processingRpc:markStagesInProgress",
   "linkMetadata:updateCardMetadata",

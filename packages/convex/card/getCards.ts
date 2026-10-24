@@ -63,6 +63,8 @@ export const cardReturnValidator = v.object({
   ...linkPreviewImageFields,
   matchedByMeaning: v.optional(v.literal(true)),
   hasOcrText: v.optional(v.literal(true)),
+  articleUrl: v.optional(v.string()),
+  articleImageUrls: v.optional(v.array(v.string())),
 });
 
 const paginationResultValidator = v.object({

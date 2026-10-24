@@ -47,6 +47,7 @@ Client events (`captureEvent`):
 - `locale_changed` {from, to}: the UI language changed in Settings → Language (codes such as `en`, `de`, `zh-Hans`)
 - `dead_link_checked` {outcome, reason?}: opening a link card with an archived copy checked its page on `/open/<cardId>`. `outcome` is `alive`, `dead` or `unsure` for a fresh check, `cached_alive` or `cached_dead` for a kept answer (alive for 24 hours, dead for 6); `reason` is the check's short code (`ok`, `http_404`, `http_410`, `dns`, `http_status`, `timeout`, `blocked`, `rate_limited`…), never the URL
 - `archived_copy_opened` {surface: `open_page`}: the archived copy of a link whose page is gone was shown
+- `reader_opened` {category, words_bucket, surface: `modal`}: the card dialog's Read tab showed a link's article. `category` is the link category, or `none`; `words_bucket` is the article's length (`<120`, `120-500`, `500-2k`, `2k-5k` or `>5k`)
 
 Server events (`captureBackendEvent`):
 
@@ -57,6 +58,7 @@ Server events (`captureBackendEvent`):
 - `card_processing_completed` {card_type, duration_ms, ai_language}, sent by the Files Worker when a card-processing run finishes. `ai_language` is the language code AI wrote the tags and summary in (`en`, `ja`, `es`…), only when the run wrote them and the model named a valid language
 - `card_processing_failed` {stage, error_class, card_type}
 - `page_archived` {kind, source, bytes_bucket, duration_ms_bucket}: a link's page was saved as a copy (`workflows/steps/archive/mutations.ts`). `kind` is `full` or `text_only`; `source` is `extension` (the page as the browser showed it) or `server`; `duration_ms_bucket` is `<5s`, `5-30s`, `30s-2m` or `>2m`
+- `article_extracted` {outcome, words_bucket}: "extract article" finished for a link (`card/articleText.ts`). `outcome` is `article`, `none` (the page has too little text to be an article) or `failed`; `words_bucket` is `reader_opened`'s. It never fails the card
 - `page_archive_failed` {reason, source}: a link's page couldn't be saved. `reason` is the archive stage's: `blocked_url`, `too_large`, `http_error`, `not_html`, `unreachable` or `archive_error`. Neither event fails the card
 - `checkout_completed` (Polar `subscription.created`, sets `plan: pro`), `subscription_ended` (Polar `subscription.revoked`, sets `plan: free`), `checkout_failed` {error_class}
 - `billing_portal_opened`

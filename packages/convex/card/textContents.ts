@@ -72,6 +72,14 @@ export const getDocumentTextRow = async (
   (await cardTextRows(ctx, cardId)).find((row) => row.kind === "document") ??
   null;
 
+/** A link's article row: its plain text, for search and embeddings. */
+export const getArticleTextRow = async (
+  ctx: Pick<QueryCtx, "db">,
+  cardId: Id<"cards">
+): Promise<Doc<"cardTextContents"> | null> =>
+  (await cardTextRows(ctx, cardId)).find((row) => row.kind === "article") ??
+  null;
+
 const transcriptRows = async (
   ctx: Pick<QueryCtx, "db">,
   cardId: Id<"cards">

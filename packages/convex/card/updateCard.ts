@@ -21,6 +21,7 @@ import {
 } from "../shared/tags";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueCardProcessing } from "../workflowDispatch";
+import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
   ensureCardUsageShards,
   ensureCardUsageShardsForRemoval,
@@ -412,6 +413,16 @@ const applyCardFieldEdit = (
       state.updateData.metadata =
         Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
       state.updateData.metadataStatus = "pending";
+      // The article was the old page's: the new page's is taken from its
+      // copy once that is saved.
+      Object.assign(state.updateData, droppedArticleFields(state.card));
+      if (card.type === "link") {
+        state.processingStatus = withStageStatus(
+          state.processingStatus,
+          "article",
+          stagePending()
+        );
+      }
       return true;
     }
 
@@ -553,6 +564,9 @@ export const updateCardFieldsForUserHandler = async (
       })
     )
   );
+  if ("url" in state.updateData) {
+    await discardArticleObjects(ctx, card);
+  }
   if (!options.deferSearchSync) {
     await syncCardSearch(ctx, cardId, userId, card);
   }

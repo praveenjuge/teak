@@ -355,7 +355,10 @@ export const createCardForUserHandler = async (
         cardType,
         classificationStatus,
       }),
-      ...(shouldRunArchiveStage(cardType) ? { archive: stagePending() } : {}),
+      // A link's saved copy, then the article in it.
+      ...(shouldRunArchiveStage(cardType)
+        ? { archive: stagePending(), article: stagePending() }
+        : {}),
     },
     ...(pageSnapshotKey
       ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
@@ -448,7 +451,9 @@ const resaveCard = async (
     ...(archiveNow
       ? {
           processingStatus: mergeProcessingStages(card.processingStatus, {
+            // The new copy's article follows it.
             archive: stagePending(),
+            article: stagePending(),
           }),
         }
       : {}),

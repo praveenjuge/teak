@@ -22,7 +22,11 @@ import {
   searchPrefix,
 } from "./documentTextFormat";
 import { patchCardWithSearchSync } from "./searchSync";
-import { getDocumentTextRow, readCardTranscript } from "./textContents";
+import {
+  getArticleTextRow,
+  getDocumentTextRow,
+  readCardTranscript,
+} from "./textContents";
 
 export {
   isExtractedTextTruncated,
@@ -42,6 +46,12 @@ export const documentTextKey = (
 
 const digestOfKey = (key: string): string | null =>
   /\/document-text\/([a-f0-9]{64})\.txt$/.exec(key)?.[1] ?? null;
+
+/** A document's text or an article's Markdown: both are named by their digest. */
+const digestOfStoredTextKey = (key: string): string | null =>
+  digestOfKey(key) ??
+  /\/article-text\/([a-f0-9]{64})\.md$/.exec(key)?.[1] ??
+  null;
 
 export const storeDocumentText = async (
   ctx: Pick<ActionCtx, "runMutation">,
@@ -141,31 +151,68 @@ export const saveDocumentText = internalMutation({
   handler: saveDocumentTextHandler,
 });
 
+export const CARD_TEXT_KINDS = [
+  "document",
+  "transcript",
+  "content",
+  "article",
+] as const;
+
+export type CardTextKind = (typeof CARD_TEXT_KINDS)[number];
+
+const cardTextKindValidator = v.union(
+  ...CARD_TEXT_KINDS.map((kind) => v.literal(kind))
+);
+
 const cardTextSourceValidator = v.union(
   v.null(),
   v.object({
     cardId: v.id("cards"),
-    kind: v.union(
-      v.literal("document"),
-      v.literal("transcript"),
-      v.literal("content")
-    ),
+    kind: cardTextKindValidator,
     text: v.string(),
     sourceKey: v.optional(v.string()),
+    /** An article's images, in `teak-image:<n>` order. */
+    imageKeys: v.optional(v.array(v.string())),
     charCount: v.number(),
     truncated: v.boolean(),
   })
 );
 
+/**
+ * A card's stored text. Without `kind` it is a document's text, then a
+ * transcript, then a note's content, as before articles existed: an article
+ * is returned only when asked for, because older SDKs and CLIs reject kinds
+ * they don't know. With `kind`, that kind or null.
+ */
 export const getCardTextSource = internalQuery({
-  args: { cardId: v.id("cards"), userId: v.string() },
+  args: {
+    cardId: v.id("cards"),
+    userId: v.string(),
+    kind: v.optional(cardTextKindValidator),
+  },
   returns: cardTextSourceValidator,
-  handler: async (ctx, { cardId, userId }) => {
+  handler: async (ctx, { cardId, userId, kind }) => {
     const card = await ctx.db.get("cards", cardId);
     if (!card || card.userId !== userId) {
       return null;
     }
-    if (card.hasExtractedText) {
+    const wants = (candidate: CardTextKind) =>
+      kind === undefined ? candidate !== "article" : kind === candidate;
+    if (wants("article") && card.article?.status === "ready") {
+      const row = await getArticleTextRow(ctx, cardId);
+      if (row) {
+        return {
+          cardId,
+          kind: "article" as const,
+          text: row.text,
+          sourceKey: card.article.textKey,
+          imageKeys: card.article.imageKeys,
+          charCount: row.charCount,
+          truncated: row.truncated,
+        };
+      }
+    }
+    if (wants("document") && card.hasExtractedText) {
       const row = await getDocumentTextRow(ctx, cardId);
       if (row) {
         return {
@@ -178,7 +225,9 @@ export const getCardTextSource = internalQuery({
         };
       }
     }
-    const transcript = await readCardTranscript(ctx, card);
+    const transcript = wants("transcript")
+      ? await readCardTranscript(ctx, card)
+      : undefined;
     if (transcript?.trim()) {
       return {
         cardId,
@@ -188,7 +237,11 @@ export const getCardTextSource = internalQuery({
         truncated: false,
       };
     }
-    if ((card.type === "text" || card.type === "quote") && card.content) {
+    if (
+      wants("content") &&
+      (card.type === "text" || card.type === "quote") &&
+      card.content
+    ) {
       return {
         cardId,
         kind: "content" as const,
@@ -205,7 +258,7 @@ const isLocalHost = (hostname: string) =>
   hostname === "localhost" || hostname === "127.0.0.1";
 
 export const readDocumentText = async (key: string): Promise<string> => {
-  const digest = digestOfKey(key);
+  const digest = digestOfStoredTextKey(key);
   if (!digest) {
     throw new Error("document_text_invalid_key");
   }

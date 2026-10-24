@@ -49,6 +49,11 @@ export const processingStatusObjectValidator = v.object({
    * nothing to archive leaves it as it was.
    */
   archive: v.optional(stageStatusValidator),
+  /**
+   * The article taken from the saved copy (`article`). Never fails the card:
+   * a link without a copy closes it with no article.
+   */
+  article: v.optional(stageStatusValidator),
 });
 
 export const processingStatusValidator = v.optional(
@@ -178,6 +183,29 @@ export const pageArchiveValidator = v.object({
   capturedAt: v.number(),
   sourceUrl: v.string(),
 });
+
+/**
+ * A link's article, taken from its saved copy for the reader: Markdown
+ * (role `article-text`) whose images are `teak-image:<n>` references to
+ * `imageKeys[n]` (role `article-image`, WebP). `none` is a page that isn't an
+ * article (too little text). Both are named by their content.
+ */
+export const articleValidator = v.union(
+  v.object({
+    status: v.literal("ready"),
+    textKey: r2KeyValidator,
+    imageKeys: v.array(r2KeyValidator),
+    wordCount: v.number(),
+    readingMinutes: v.number(),
+    title: v.optional(v.string()),
+    byline: v.optional(v.string()),
+    lang: v.optional(v.string()),
+    /** The Markdown was cut to fit 512 KiB characters. */
+    truncated: v.optional(v.literal(true)),
+    extractedAt: v.number(),
+  }),
+  v.object({ status: v.literal("none"), extractedAt: v.number() })
+);
 
 export const thumbnailOverrideValidator = v.object({
   storageKey: r2KeyValidator,
@@ -346,6 +374,8 @@ export const cardValidator = v.object({
    */
   pendingPageSnapshotKey: v.optional(r2KeyValidator),
   pendingPageSnapshotAt: v.optional(v.number()),
+  /** Links only: the article in the saved copy, for the reader. */
+  article: v.optional(articleValidator),
   hasExtractedText: v.optional(v.literal(true)),
   extractedTextCharCount: v.optional(v.number()),
   visualStyles: v.optional(v.array(v.string())),

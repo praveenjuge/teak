@@ -546,13 +546,18 @@ export default defineSchema({
   cardTextContents: defineTable({
     cardId: v.id("cards"),
     userId: v.string(),
-    kind: v.union(v.literal("document"), v.literal("transcript")),
+    kind: v.union(
+      v.literal("document"),
+      v.literal("transcript"),
+      v.literal("article")
+    ),
     /**
-     * A document's searchable start, or one part of a transcript: a
-     * transcript is split into parts of at most `SEARCH_PREFIX_MAX_BYTES`.
+     * A document's or a link's article's searchable start (plain text), or
+     * one part of a transcript: a transcript is split into parts of at most
+     * `SEARCH_PREFIX_MAX_BYTES`.
      */
     text: v.string(),
-    /** The R2 object holding a document's whole text. */
+    /** The R2 object holding a document's whole text, or an article's Markdown. */
     sourceKey: v.optional(r2KeyValidator),
     /** A transcript part's place, from 0. */
     part: v.optional(v.number()),
@@ -564,6 +569,12 @@ export default defineSchema({
     .searchIndex("search_text", {
       searchField: "text",
       filterFields: ["userId"],
+    })
+    // A search for one card type reads only its own kind of text, so
+    // documents never fill the read before a link's article is seen.
+    .searchIndex("search_text_by_kind", {
+      searchField: "text",
+      filterFields: ["userId", "kind"],
     }),
   // Save by email (inbound/): whether mail sent from an account's sign-in
   // email to the shared save@ address becomes cards. Off until turned on.

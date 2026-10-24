@@ -9,7 +9,11 @@ import {
   type QueryCtx,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
-import { getDocumentTextRow, readCardTranscript } from "../card/textContents";
+import {
+  getArticleTextRow,
+  getDocumentTextRow,
+  readCardTranscript,
+} from "../card/textContents";
 import { cardTypeValidator } from "../schema";
 import { isFilesWorkerConfigured } from "../storage/filesWorkerClient";
 import { buildEmbeddingText } from "./text";
@@ -268,9 +272,13 @@ export const loadForEmbedding = internalQuery({
       ) {
         continue;
       }
-      const extracted = card.hasExtractedText
-        ? await getDocumentTextRow(ctx, cardId)
-        : null;
+      const isArticle = card.article?.status === "ready";
+      let extracted: Doc<"cardTextContents"> | null = null;
+      if (card.hasExtractedText) {
+        extracted = isArticle
+          ? await getArticleTextRow(ctx, cardId)
+          : await getDocumentTextRow(ctx, cardId);
+      }
       const aiTranscript = await readCardTranscript(ctx, card, {
         maxParts: 1,
       });
@@ -282,7 +290,11 @@ export const loadForEmbedding = internalQuery({
         hash: row.hash,
         namespace: row.namespace,
         shard: row.shard,
-        text: buildEmbeddingText({ ...card, aiTranscript }, extracted?.text),
+        text: buildEmbeddingText(
+          { ...card, aiTranscript },
+          extracted?.text,
+          extracted?.kind === "article" ? "article" : undefined
+        ),
         type: card.type,
         userId: card.userId,
       });

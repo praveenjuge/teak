@@ -11,6 +11,8 @@ export interface ProcessingStageStatus {
 export interface ProcessingStatus {
   /** The link's saved copy; it never fails the card. */
   archive?: ProcessingStageStatus;
+  /** The article taken from the saved copy; it never fails the card. */
+  article?: ProcessingStageStatus;
   categorize?: ProcessingStageStatus;
   classify?: ProcessingStageStatus;
   metadata?: ProcessingStageStatus;
