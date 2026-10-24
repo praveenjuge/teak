@@ -31,6 +31,7 @@ import {
   Undo2,
   X,
 } from "vadivam-react";
+import { ArticleReader, articleReaderState } from "@/components/card-previews";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -68,10 +69,6 @@ import {
   LINK_THUMBNAIL_ACCEPT,
 } from "../../lib/linkThumbnail";
 import { cn } from "../../lib/utils";
-import {
-  ArticleReader,
-  articleReaderState,
-} from "../card-previews/ArticleReader";
 import { AudioPreview } from "../card-previews/AudioPreview";
 import { DocumentPreview } from "../card-previews/DocumentPreview";
 import { ImagePreview } from "../card-previews/ImagePreview";

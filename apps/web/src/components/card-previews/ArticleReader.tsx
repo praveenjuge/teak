@@ -8,15 +8,15 @@ import { useEffect, useMemo, useState } from "react";
 import Markdown, { type Options as MarkdownOptions } from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import type { CardModalCard } from "@/components/card-modal";
+import { getDisplayHostname } from "@/components/cards/cardDisplay";
+import { ResilientMediaImage } from "@/components/cards/previews/ResilientMediaImage";
+import { SiteFavicon } from "@/components/cards/SiteFavicon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import { handleCardLinkClick } from "@/lib/openCardLink";
 import { cn } from "@/lib/utils";
-import type { CardModalCard } from "../card-modal/types";
-import { getDisplayHostname } from "../cards/cardDisplay";
-import { ResilientMediaImage } from "../cards/previews/ResilientMediaImage";
-import { SiteFavicon } from "../cards/SiteFavicon";
 import { ARTICLE_SANITIZE_SCHEMA, rehypeArticle } from "./articleMarkdown";
 import {
   cachedFileTextPreview,
