@@ -37,6 +37,8 @@ const createCardForUserArgs = {
   source: v.optional(v.string()),
   sourceUrl: v.optional(v.string()),
   sourceTitle: v.optional(v.string()),
+  /** The extension's page snapshot; ignored unless it is the caller's. */
+  pageSnapshotKey: v.optional(v.string()),
 } as const;
 
 const patchCardForUserArgs = {
@@ -123,6 +125,9 @@ export const quickSaveForUser = internalMutation({
       content,
       metadata: normalizedSource ? { source: normalizedSource } : undefined,
       notes: normalizedNotes,
+      ...(args.pageSnapshotKey
+        ? { pageSnapshotKey: args.pageSnapshotKey }
+        : {}),
       ...normalizeCardSource(args),
       tags: normalizedTags,
       type: args.cardType ?? (normalizedUrl ? "link" : undefined),

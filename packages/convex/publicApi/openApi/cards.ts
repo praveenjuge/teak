@@ -186,6 +186,49 @@ export const cardPaths = {
       summary: "Create a presigned upload",
     },
   },
+  "/v1/page-snapshots/upload": {
+    post: {
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/CreatePageSnapshotUploadRequest",
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateUploadResponse" },
+            },
+          },
+          description:
+            "A signed URL. PUT the gzipped page to uploadUrl with Content-Type: application/gzip and exactly `bytes` bytes, then pass fileKey as pageSnapshotKey to POST /v1/cards",
+        },
+        400: {
+          content: apiErrorContent,
+          description:
+            "INVALID_INPUT: `bytes` is missing or not a whole number",
+        },
+        413: {
+          content: apiErrorContent,
+          description: "PAGE_SNAPSHOT_TOO_LARGE: over 20 MiB gzipped",
+        },
+        429: {
+          content: apiErrorContent,
+          description:
+            "RATE_LIMITED: 60 snapshots a minute; `retryAt` and Retry-After say when to try again",
+        },
+      },
+      security: apiKeySecurity,
+      operationId: "createPageSnapshotUpload",
+      summary: "Upload the page a link was saved from",
+      description:
+        "For a browser extension saving the page someone is looking at: the rendered HTML, gzipped, becomes the link's saved copy, so pages behind a sign-in or built by scripts are kept as they were seen. Teak keeps a private copy of each link's page either way; without a snapshot it fetches the page itself.",
+    },
+  },
   "/v1/cards/bulk": {
     post: {
       requestBody: {

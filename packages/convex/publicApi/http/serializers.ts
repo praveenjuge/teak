@@ -30,6 +30,18 @@ const serializeLinkPrice = (price: unknown) =>
     ? { amount: price.amount, currency: price.currency ?? null }
     : null;
 
+/**
+ * A link's saved copy: what it is, never where. The HTML stays in the app.
+ */
+const serializeArchive = (card: CardWithUrls) =>
+  card.pageArchive
+    ? {
+        bytes: card.pageArchive.bytes,
+        capturedAt: card.pageArchive.capturedAt,
+        kind: card.pageArchive.kind,
+      }
+    : null;
+
 const serializeDisplayMetadata = (card: CardWithUrls) => ({
   audioWaveform: card.fileMetadata?.waveform ?? null,
   isDeleted: Boolean(card.isDeleted),
@@ -82,6 +94,7 @@ export const serializeCard = (
   aiTags: card.aiTags ?? [],
   aiTranscript: card.aiTranscript ?? null,
   appUrl: getCardAppUrl(requestUrl, card._id),
+  archive: serializeArchive(card),
   compactUrl: card.compactUrl ?? null,
   content: card.content,
   ...serializeDisplayMetadata(card),
@@ -167,6 +180,7 @@ export const serializeListCard = (
           fileLanguage: card.fileMetadata?.language ?? null,
           filePreview: card.fileMetadata?.preview ?? null,
           ...serializeDisplayMetadata(card),
+          archive: serializeArchive(card),
           compactUrl: card.compactUrl ?? null,
           detailUrl: card.detailUrl ?? null,
           fileUrl: card.fileUrl ?? null,

@@ -21,6 +21,7 @@ import {
   folderByIdV1,
   foldersV1,
   listCardsV1,
+  pageSnapshotUploadV1,
   tagOperationsV1,
   tagsV1,
 } from "./publicApi/http/routes";
@@ -89,6 +90,7 @@ for (const path of [
   "/v1/me",
   "/v1/cards",
   "/v1/uploads",
+  "/v1/page-snapshots/upload",
   "/v1/cards/bulk",
   "/v1/cards/changes",
   "/v1/tags",
@@ -166,6 +168,12 @@ http.route({
   path: "/v1/uploads",
   method: "POST",
   handler: createUploadV1,
+});
+
+http.route({
+  path: "/v1/page-snapshots/upload",
+  method: "POST",
+  handler: pageSnapshotUploadV1,
 });
 
 http.route({

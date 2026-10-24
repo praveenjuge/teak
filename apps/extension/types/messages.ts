@@ -35,6 +35,8 @@ export interface SaveContentRequest {
   payload: {
     content: string;
     source: SaveContentSource;
+    /** The tab the popup saves, whose page becomes the link's saved copy. */
+    tabId?: number;
   };
   type: typeof MESSAGE_TYPES.SAVE_CONTENT;
 }

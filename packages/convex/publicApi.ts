@@ -797,6 +797,7 @@ const BULK_CREATE_FIELDS = new Set([
   "notes",
   "tags",
   "cardType",
+  "pageSnapshotKey",
   "sourceUrl",
   "sourceTitle",
 ]);
@@ -857,7 +858,7 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
     });
   }
 
-  for (const key of ["sourceUrl", "sourceTitle"] as const) {
+  for (const key of ["pageSnapshotKey", "sourceUrl", "sourceTitle"] as const) {
     if (payload[key] !== undefined && typeof payload[key] !== "string") {
       throw new ConvexError({
         code: "INVALID_INPUT",
@@ -1007,6 +1008,9 @@ export const executeBulkCardsForUser = internalMutation({
                       ? payload.notes.trim() || undefined
                       : undefined,
                   ...normalizeCardSource(bulkCardSource(payload)),
+                  ...(typeof payload.pageSnapshotKey === "string"
+                    ? { pageSnapshotKey: payload.pageSnapshotKey }
+                    : {}),
                   tags: bulkItemTags(payload),
                   type: requestedType,
                 },

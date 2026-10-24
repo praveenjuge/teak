@@ -19,6 +19,7 @@ function setup(
 ) {
   const painted: { state: BadgeState; tabId: number; title?: string }[] = [];
   const saved: string[] = [];
+  const savedFrom: number[] = [];
   const waits: number[] = [];
   const refreshed: { tabId: number; url?: string }[] = [];
   let held = 0;
@@ -46,8 +47,9 @@ function setup(
       refreshed.push({ tabId: tab.id ?? -1, url: tab.url });
       return Promise.resolve();
     },
-    save: (url) => {
+    save: (url, tabId) => {
       saved.push(url);
+      savedFrom.push(tabId);
       return save(url);
     },
     wait: (ms) => {
@@ -61,6 +63,7 @@ function setup(
     popups: () => popups,
     refreshed,
     saved,
+    savedFrom,
     shortcut: (target: chrome.tabs.Tab | undefined) => {
       lastTab = target;
       return shortcut(target);
@@ -76,6 +79,8 @@ describe("the save shortcut", () => {
     const run = setup(async () => ({ status: "saved", cardId: "c1" }));
     await run.shortcut(tab(PAGE));
     expect(run.saved).toEqual([PAGE]);
+    // The tab's page becomes the link's saved copy.
+    expect(run.savedFrom).toEqual([7]);
     expect(run.painted).toEqual([
       { state: "saving", tabId: 7, title: undefined },
       { state: "saved", tabId: 7, title: "Saved to Teak" },

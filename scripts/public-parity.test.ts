@@ -141,6 +141,8 @@ const SDK_SAMPLES = new Map<string, SdkCall>(
     "cards.bulk": (c) => c.cards.bulk("create", [{ content: "x" }]),
     "cards.changes": (c) => c.cards.changes({ since: 1 }),
     "cards.content": (c) => c.cards.content("card_1"),
+    "pageSnapshots.createUpload": (c) =>
+      c.pageSnapshots.createUpload({ bytes: 1024 }),
     "cards.createThumbnailUpload": (c) =>
       c.cards.createThumbnailUpload("card_1", {
         fileSize: 1,

@@ -11,7 +11,11 @@ import { createCardForUserHandler } from "../card/createCard";
 import { initializeCardProcessingState } from "../card/processingLifecycle";
 import schema from "../schema";
 import type { TeakUserId } from "../securitySessions";
-import { buildR2ObjectKey, PENDING_UPLOAD_CARD_ID } from "../storage/r2";
+import {
+  buildR2ObjectKey,
+  buildR2UserPrefix,
+  PENDING_UPLOAD_CARD_ID,
+} from "../storage/r2";
 import { queueCardProcessing } from "../workflowDispatch";
 
 const modules = import.meta.glob("../**/*.ts");
@@ -622,5 +626,95 @@ describe("backfillPageArchives", () => {
       totals: { examined: 0 },
     });
     expect(await cardRuns(t)).toEqual([]);
+  });
+});
+
+describe("createPageSnapshotUploadForUser", () => {
+  const signUp = async () => {
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "secret");
+    const t = newBackend();
+    await seedWorkosOwner(t, OWNER);
+    const mint = (bytes: number) =>
+      t.mutation(
+        internal.publicApiPageSnapshots.createPageSnapshotUploadForUser,
+        { bytes, userId: OWNER }
+      );
+    return { mint, t };
+  };
+
+  test("signs a PUT of exactly that size under the owner's pending snapshots, claimed first", async () => {
+    const { mint, t } = await signUp();
+
+    const upload = await mint(4096);
+
+    expect(upload).toMatchObject({
+      maxFileSize: 20 * 1024 * 1024,
+      method: "PUT",
+    });
+    expect(
+      upload.fileKey.startsWith(
+        `${buildR2UserPrefix(OWNER)}/${PENDING_UPLOAD_CARD_ID}/page-snapshot/`
+      )
+    ).toBe(true);
+    const signed = new URL(upload.uploadUrl);
+    expect(signed.searchParams.get("sz")).toBe("4096");
+    expect(signed.searchParams.get("ct")).toBe("application/gzip");
+    const owners = await t.run((ctx) =>
+      ctx.db
+        .query("accountStorageObjects")
+        .withIndex("by_key", (q) => q.eq("key", upload.fileKey))
+        .collect()
+    );
+    expect(owners.map((row) => row.userId)).toEqual([OWNER]);
+    // The key it mints is one a save accepts.
+    const { cardId } = await create(t, {
+      content: LINK,
+      pageSnapshotKey: upload.fileKey,
+    });
+    expect((await card(t, cardId)).pendingPageSnapshotKey).toBe(upload.fileKey);
+  });
+
+  test("refuses more than 20 MiB", async () => {
+    const { mint } = await signUp();
+    await expect(mint(20 * 1024 * 1024 + 1)).rejects.toThrow(
+      "PAGE_SNAPSHOT_TOO_LARGE"
+    );
+  });
+
+  test("allows 60 a minute", async () => {
+    const { mint } = await signUp();
+    for (let index = 0; index < 60; index += 1) {
+      await mint(100);
+    }
+    await expect(mint(100)).rejects.toThrow("RATE_LIMITED");
+  });
+});
+
+describe("pageSnapshotKey through the public API", () => {
+  test("POST /v1/cards and a bulk create keep the caller's snapshot", async () => {
+    const t = newBackend();
+    await seedWorkosOwner(t, OWNER);
+    const single = snapshotKey(OWNER, "single");
+    const bulk = snapshotKey(OWNER, "bulk");
+    await registerKey(t, OWNER, single);
+    await registerKey(t, OWNER, bulk);
+
+    const saved = await t.mutation(
+      internal.publicApi.cardsForUser.quickSaveForUser,
+      { pageSnapshotKey: single, url: LINK, userId: OWNER }
+    );
+    const result = await t.mutation(
+      internal.publicApi.executeBulkCardsForUser,
+      {
+        items: [{ pageSnapshotKey: bulk, url: "https://example.com/other" }],
+        operation: "create",
+        userId: OWNER,
+      }
+    );
+
+    expect((await card(t, saved.cardId)).pendingPageSnapshotKey).toBe(single);
+    const bulkCard = (result.results[0] as { cardId: Id<"cards"> }).cardId;
+    expect((await card(t, bulkCard)).pendingPageSnapshotKey).toBe(bulk);
   });
 });
