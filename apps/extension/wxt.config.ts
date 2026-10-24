@@ -30,9 +30,10 @@ export default defineConfig({
   // Firefox gets no Chrome `key` or object `author` (it accepts only a
   // string), and declares the data it sends for its install prompt.
   manifest: ({ browser }) => ({
-    name: "Teak",
-    description:
-      "Your personal knowledge hub. Save, organize, and rediscover web content effortlessly.",
+    // From `public/_locales/<locale>/messages.json`, in the browser's language.
+    name: "__MSG_extName__",
+    description: "__MSG_extDescription__",
+    default_locale: "en",
     // version intentionally omitted. WXT reads it from package.json so the
     // monorepo version bump drives extension releases.
     ...(browser === "firefox"
@@ -98,6 +99,7 @@ export default defineConfig({
       "apps/extension/**",
       "packages/convex/**",
       "packages/files-protocol/**",
+      "packages/i18n/**",
       "packages/sdk/**",
     ],
     excludeSources: [

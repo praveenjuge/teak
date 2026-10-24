@@ -12,6 +12,9 @@ import {
   pickSelectedText,
   savesLinkInstead,
 } from "../lib/contextMenuContent";
+import { createContextMenuBuilder } from "../lib/contextMenus";
+import { inlineLabels } from "../lib/inlineLabels";
+import { createBackgroundLocale } from "../lib/locale";
 import {
   beginOAuthSignIn,
   getOAuthState,
@@ -59,6 +62,7 @@ import type { ContextMenuAction } from "../types/contextMenu";
 import {
   type AuthStateResponse,
   type CardPatchResponse,
+  type InlineLabelsResponse,
   MESSAGE_TYPES,
   type PatchCardPayload,
   SAVE_DETAILS_PORT,
@@ -372,6 +376,7 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
   if (
     [
       MESSAGE_TYPES.GET_AUTH_STATE,
+      MESSAGE_TYPES.GET_INLINE_LABELS,
       MESSAGE_TYPES.SIGN_IN,
       MESSAGE_TYPES.SIGN_OUT,
       MESSAGE_TYPES.RETRY_PENDING,
@@ -421,6 +426,12 @@ const isRuntimeRequest = (message: unknown): message is TeakRuntimeRequest => {
 
 export default defineBackground(() => {
   reportUncaughtErrors(self, "background");
+  const buildContextMenus = createContextMenuBuilder();
+  // The menus and omnibox follow the account's language, and rebuild when
+  // it changes.
+  const locale = createBackgroundLocale({
+    onChange: (strings) => void buildContextMenus(strings),
+  });
   void initializeAuth()
     .then(resumePendingSaves)
     .catch(() => undefined);
@@ -512,7 +523,8 @@ export default defineBackground(() => {
       chrome.omnibox.setDefaultSuggestion({
         description: defaultSuggestion(
           signedOut ? { kind: "signedOut" } : outcome,
-          flavor
+          flavor,
+          locale.current.omnibox
         ),
       });
     const search = createOmniboxSearch({
@@ -522,13 +534,16 @@ export default defineBackground(() => {
         signedOut = stillSignedOut(signedOut, outcome);
         showDefault(outcome);
         if (outcome.kind === "results") {
-          suggest?.(buildSuggestions(outcome.cards, flavor));
+          suggest?.(
+            buildSuggestions(outcome.cards, flavor, locale.current.omnibox)
+          );
           return;
         }
         const notice = noticeRow(
           signedOut ? { kind: "signedOut" } : outcome,
           text,
-          flavor
+          flavor,
+          locale.current.omnibox
         );
         suggest?.(notice ? [notice] : []);
       },
@@ -538,6 +553,8 @@ export default defineBackground(() => {
       search.reset();
       signedOut = false;
       showDefault({ kind: "short" });
+      // A background that just woke shows English until its language loads.
+      void locale.ready().then(() => showDefault({ kind: "short" }));
       void getOAuthState()
         .then((state) => {
           if (!state.authenticated) {
@@ -595,25 +612,7 @@ export default defineBackground(() => {
   }
 
   function createContextMenus() {
-    chrome.contextMenus.removeAll(() => {
-      chrome.contextMenus.create({
-        id: "save-page",
-        title: "Save Page to Teak",
-        contexts: ["page"],
-      });
-
-      chrome.contextMenus.create({
-        id: "save-asset",
-        title: "Save Asset to Teak",
-        contexts: ["image", "video", "audio", "link"],
-      });
-
-      chrome.contextMenus.create({
-        id: "save-text",
-        title: "Save Text to Teak",
-        contexts: ["selection"],
-      });
-    });
+    return locale.ready().then(buildContextMenus);
   }
 
   async function handleContextMenuClick(
@@ -696,6 +695,7 @@ export default defineBackground(() => {
       response?:
         | AuthStateResponse
         | CardPatchResponse
+        | InlineLabelsResponse
         | SaveDetailsResponse
         | TeakSaveResponse
     ) => void
@@ -716,13 +716,23 @@ export default defineBackground(() => {
         trustedPopup ||
         (ownPage &&
           (message.type === MESSAGE_TYPES.SAVE_POST ||
-            message.type === MESSAGE_TYPES.GET_AUTH_STATE))
+            message.type === MESSAGE_TYPES.GET_AUTH_STATE ||
+            message.type === MESSAGE_TYPES.GET_INLINE_LABELS))
       )
     ) {
       sendResponse(
         buildSaveError("This action is only available in the Teak popup.")
       );
       return;
+    }
+
+    if (message.type === MESSAGE_TYPES.GET_INLINE_LABELS) {
+      void locale
+        .ready()
+        .then((strings) =>
+          sendResponse({ labels: inlineLabels(strings.inline) })
+        );
+      return true;
     }
 
     void (async () => {

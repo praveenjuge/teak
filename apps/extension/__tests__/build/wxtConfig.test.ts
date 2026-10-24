@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { extensionLocaleDir, SUPPORTED_LOCALES } from "@teak/i18n";
 import { SAVE_PAGE_COMMAND } from "../../lib/saveShortcut";
 import config from "../../wxt.config";
 
@@ -70,9 +72,22 @@ type Manifest = {
     string,
     { description?: string; suggested_key?: Record<string, string> }
   >;
+  default_locale?: string;
+  description?: string;
   key?: string;
+  name?: string;
   omnibox?: { keyword?: string };
 };
+
+type LocaleMessages = Record<string, { message: string }>;
+
+const localeMessages = (dir: string): LocaleMessages =>
+  JSON.parse(
+    readFileSync(
+      new URL(`../../public/_locales/${dir}/messages.json`, import.meta.url),
+      "utf8"
+    )
+  );
 
 const manifestFor = (browser: "chrome" | "firefox"): Manifest => {
   const manifest = config.manifest;
@@ -119,5 +134,40 @@ describe("manifest", () => {
         required: ["websiteContent", "browsingActivity", "searchTerms"],
       },
     });
+  });
+
+  test.each(["chrome", "firefox"] as const)(
+    "%s takes its name and description from _locales, English by default",
+    (browser) => {
+      const manifest = manifestFor(browser);
+      expect(manifest.name).toBe("__MSG_extName__");
+      expect(manifest.description).toBe("__MSG_extDescription__");
+      expect(manifest.default_locale).toBe("en");
+    }
+  );
+
+  test("English keeps the name and description the stores already show", () => {
+    expect(localeMessages("en").extName?.message).toBe("Teak");
+    expect(localeMessages("en").extDescription?.message).toBe(
+      "Your personal knowledge hub. Save, organize, and rediscover web content effortlessly."
+    );
+  });
+
+  test.each([...SUPPORTED_LOCALES])(
+    "%s has a name and a description of at most 132 characters",
+    (locale) => {
+      const messages = localeMessages(extensionLocaleDir(locale));
+      expect(messages.extName?.message).toBe("Teak");
+      const description = messages.extDescription?.message ?? "";
+      expect(description.length).toBeGreaterThan(0);
+      // The Chrome Web Store's limit for a manifest description.
+      expect(description.length).toBeLessThanOrEqual(132);
+    }
+  );
+});
+
+describe("AMO sources", () => {
+  test("include the shared catalog the bundle imports", () => {
+    expect(config.zip?.includeSources).toContain("packages/i18n/**");
   });
 });

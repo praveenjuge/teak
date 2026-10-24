@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { createTeakTranslator, englishMessages } from "@teak/i18n";
 import {
   getPopupStatus,
   type PopupStatusInput,
   toContextMenuStatus,
 } from "../../lib/popupStatus";
+
+const t = createTeakTranslator("en", englishMessages, "extension.popup.status");
 
 const IDLE: PopupStatusInput = {
   autoSave: { state: "idle" },
@@ -11,7 +14,7 @@ const IDLE: PopupStatusInput = {
 };
 
 const status = (input: Partial<PopupStatusInput>) =>
-  getPopupStatus({ ...IDLE, ...input });
+  getPopupStatus({ ...IDLE, ...input }, t);
 
 describe("getPopupStatus", () => {
   test("stays open once someone starts adding tags or a note", () => {

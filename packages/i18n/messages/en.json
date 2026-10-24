@@ -1223,5 +1223,94 @@
       "notifications": "Go to notifications (Undo)",
       "keyboardShortcuts": "Keyboard shortcuts"
     }
+  },
+  "extension": {
+    "popup": {
+      "loading": "Loading",
+      "loadAccountFailed": "We couldn't load your account.",
+      "somethingWentWrong": "Something went wrong",
+      "tryAgain": "Try again",
+      "privateSession": "Firefox is in private browsing mode, so Teak forgets your sign-in and unsent saves when it closes.",
+      "pendingSaves": "{count, plural, one {# save} other {# saves}} didn't finish",
+      "discard": "Discard",
+      "retry": "Retry",
+      "pendingSavesFailed": "Could not update pending saves.",
+      "headline": "Save anything, anywhere",
+      "signInPrompt": "Sign in to save pages, images, and text to your Teak.",
+      "signIn": "Sign in",
+      "finishingSignIn": "Finishing sign-in…",
+      "signInFailed": "Could not sign in. Please try again.",
+      "openTeak": "Open Teak",
+      "upgrade": "Upgrade to Pro",
+      "signOut": "Sign out",
+      "signOutFailed": "Could not sign out. Please try again.",
+      "uploadFile": "Upload file",
+      "fileInvalid": "File is empty or too large.",
+      "fileSaveFailed": "Could not save the file. Please try again.",
+      "reconnectForUpload": "Reconnect to finish your pending upload.",
+      "pseudoLocale": "Pseudo-locale (en-XA)",
+      "status": {
+        "chooseFile": "Choose a file to save",
+        "fileSizeLimit": "Up to 100 MB",
+        "freeLimitReached": "You've reached the free limit",
+        "upgradeForUnlimited": "Upgrade to Pro for unlimited cards.",
+        "alreadySaved": "Already in your Teak",
+        "uploadingFile": "Uploading file",
+        "fileSaved": "File saved",
+        "uploadFailed": "Couldn't upload file",
+        "savingToTeak": "Saving to Teak",
+        "savedToTeak": "Saved to Teak",
+        "pageSaved": "Page saved",
+        "textSaved": "Text saved",
+        "saveFailed": "Couldn't save",
+        "savingPage": "Saving page",
+        "pageSaveFailed": "Couldn't save this page",
+        "cantSavePage": "Can't save this page",
+        "cantSavePageDetail": "Open a web page to save it, or upload a file."
+      },
+      "details": {
+        "loadingTags": "Loading tags",
+        "loadFailed": "Couldn't load this card's tags.",
+        "retry": "Retry",
+        "tags": "Tags",
+        "addTags": "Add tags",
+        "removeTag": "Remove tag {tag}",
+        "suggestedTags": "Suggested tags",
+        "note": "Note",
+        "addNote": "Add a note",
+        "saved": "Saved",
+        "tagTooLong": "Tags can be at most {max} characters.",
+        "tooManyTags": "A card can have at most {max} tags here.",
+        "signInAgain": "Sign in again to save your changes.",
+        "tagsFailed": "Couldn't save tags.",
+        "noteFailed": "Couldn't save the note."
+      }
+    },
+    "contextMenu": {
+      "savePage": "Save Page to Teak",
+      "saveAsset": "Save Asset to Teak",
+      "saveText": "Save Text to Teak"
+    },
+    "omnibox": {
+      "search": "Search Teak",
+      "searchFor": "Search Teak for <match>{query}</match>",
+      "signIn": "Sign in to Teak to search",
+      "noMatches": "No matching cards",
+      "unreachable": "Couldn't reach Teak",
+      "rateLimited": "Too many searches, slow down",
+      "cardType": "{type, select, text {text} link {link} image {image} video {video} audio {audio} document {document} palette {palette} quote {quote} other {{type}}}",
+      "untitled": "{type, select, text {Untitled text} link {Untitled link} image {Untitled image} video {Untitled video} audio {Untitled audio} document {Untitled document} palette {Untitled palette} quote {Untitled quote} other {Untitled {type}}}"
+    },
+    "inline": {
+      "idle": "Save to Teak",
+      "saving": "Saving to Teak",
+      "saved": "Saved to Teak",
+      "duplicate": "Already saved in Teak",
+      "error": "Save failed. Retry",
+      "errorWithReason": "Save failed. Retry: {reason}",
+      "invalidPost": "Invalid post data",
+      "signIn": "Sign in to Teak to save",
+      "saveFailed": "Failed to save post"
+    }
   }
 }

@@ -19,6 +19,7 @@
   "dependencies": {
     "@radix-ui/react-slot": "^1.5.0",
     "@teak/convex": "workspace:*",
+    "@teak/i18n": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.46.0",

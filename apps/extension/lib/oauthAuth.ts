@@ -16,6 +16,7 @@ import {
   validateOAuthUrl,
 } from "teak-sdk";
 import { captureOwnerKey, siteStorageKey, teakSite } from "./captureOwner";
+import { rememberAccountLocale } from "./locale";
 import { isPrivateSession } from "./privateSession";
 import { recordApiRequest } from "./requestBudget";
 import { captureExtensionEvent } from "./telemetry";
@@ -481,6 +482,8 @@ export async function getOAuthState() {
   if (!user || typeof user.id !== "string" || !user.id) {
     throw new Error("Invalid account response.");
   }
+  // The popup, menus and omnibox follow the account's language.
+  await rememberAccountLocale(user.locale).catch(() => undefined);
   return {
     authenticated: true,
     pending: Boolean(login),
