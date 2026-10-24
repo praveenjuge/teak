@@ -1,4 +1,6 @@
 import type { UploadMultipleFilesResultItem } from "@teak/convex/shared";
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "../englishTranslators";
 import { CARD_DRAG_TYPE } from "../folders";
 
 export type DropRejectionReason = "folder" | "offline" | "empty" | "over-limit";
@@ -172,29 +174,35 @@ export function summarizeBatchResults(
   };
 }
 
-export function formatPartialFailureMessage(summary: BatchSummary): string {
+export type UploadMessagesTranslator = TeakTranslator<"lib.upload">;
+
+const englishUpload: UploadMessagesTranslator = englishTranslator("lib.upload");
+
+export function formatPartialFailureMessage(
+  summary: BatchSummary,
+  t: UploadMessagesTranslator = englishUpload
+): string {
   const { total, successCount, firstFailure } = summary;
-  const base = `Uploaded ${successCount} of ${total} files.`;
-  if (!firstFailure) {
-    return base;
+  const reason =
+    firstFailure && !firstFailure.success ? firstFailure.error : undefined;
+  if (!(firstFailure && reason)) {
+    return t("partialFailure", { successCount, total });
   }
-
-  const reason = firstFailure.success ? undefined : firstFailure.error;
-  if (!reason) {
-    return base;
-  }
-
-  return `${base} First failure: ${firstFailure.file} — ${reason}`;
+  return t("partialFailureWithReason", {
+    successCount,
+    total,
+    file: firstFailure.file,
+    reason,
+  });
 }
 
 export function formatSkippedNote(
   skippedCount: number,
-  maxFiles: number
+  maxFiles: number,
+  t: UploadMessagesTranslator = englishUpload
 ): string {
   if (skippedCount <= 0) {
     return "";
   }
-  const files =
-    skippedCount === 1 ? "1 file was" : `${skippedCount} files were`;
-  return `${files} skipped. You can upload up to ${maxFiles} at a time.`;
+  return t("skippedNote", { count: skippedCount, max: maxFiles });
 }

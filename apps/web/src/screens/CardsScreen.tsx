@@ -9,6 +9,8 @@ import {
   searchOperatorsUsed,
 } from "@teak/convex/shared";
 import { captureEvent } from "@teak/convex/shared/analytics";
+import type { Messages } from "@teak/i18n";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { Authenticated, AuthLoading } from "convex/react";
 import { usePaginatedQuery, useQuery } from "convex-helpers/react/cache/hooks";
 import {
@@ -57,6 +59,7 @@ import {
 } from "../components/lazyDialogs";
 import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
 import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
+import { cardActionFailedMessage } from "../hooks/cardActions";
 import type { CloseCardOptions } from "../hooks/useCardQueryParamState";
 import { useFolders } from "../hooks/useFolders";
 import { useLoadUntilMatches } from "../hooks/useLoadUntilMatches";
@@ -74,9 +77,9 @@ import {
 } from "../lib/folders";
 import { whenIdle } from "../lib/lazyWithPreload";
 import {
-  LIBRARY_VIEW_LABELS,
-  LIBRARY_VIEW_SEARCH_PLACEHOLDERS,
   type LibraryView,
+  libraryViewLabel,
+  libraryViewSearchPlaceholder,
 } from "../lib/libraryViews";
 import {
   parseSearchUrlState,
@@ -90,19 +93,21 @@ import {
 import { tagsAfterAdding, tagsAfterRemoving } from "../lib/tagManagement";
 import { PageTitle } from "./PageHeader";
 
+type CardsScreenMessage = keyof Messages["screens"]["cards"];
+
 const EMPTY_VIEW_COPY: Record<
   Exclude<LibraryView, "all">,
-  { icon: LucideIcon; text: string }
+  { icon: LucideIcon; text: CardsScreenMessage }
 > = {
   favorites: {
     icon: Heart,
-    text: "No favorites yet. Favorite a card to find it here.",
+    text: "emptyFavorites",
   },
   archive: {
     icon: Archive,
-    text: "Nothing archived. Archive a card to keep it out of your library.",
+    text: "emptyArchive",
   },
-  trash: { icon: Trash2, text: "Trash is empty." },
+  trash: { icon: Trash2, text: "emptyTrash" },
 };
 
 export type { SearchUrlChange } from "../lib/searchUrlSync";
@@ -163,6 +168,11 @@ export function CardsScreen({
   onSwitchCard,
   onVisualFiltersChange,
 }: CardsScreenProps) {
+  const t = useTranslations("screens.cards");
+  const tc = useTranslations("common");
+  const tv = useTranslations("lib.libraryViews");
+  const tActions = useTranslations("hooks.cardActions");
+  const intlLocale = useIntlLocale();
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
@@ -366,9 +376,7 @@ export function CardsScreen({
     view: (view ?? "all") === "all" && showArchivedOnly ? "archive" : view,
   });
   const hiddenCardsHint = viewHasHiddenCards ? (
-    <p className="text-muted-foreground text-xs">
-      Some cards are hidden. Search #secret or #hidden to see them.
-    </p>
+    <p className="text-muted-foreground text-xs">{t("hiddenCardsHint")}</p>
   ) : null;
   const showVaultSetup =
     vaultSetup === "settingUp" &&
@@ -512,7 +520,9 @@ export function CardsScreen({
     onPermanentDeleteSuccess: (message?: string) => message && toast(message),
     onError: (_error: Error, operation: string) => {
       toast.error(
-        `Failed to ${operation === "update removeAiTag" ? "remove tag" : operation}`
+        operation === "update removeAiTag"
+          ? tActions("failed.removeTag")
+          : cardActionFailedMessage(operation, tActions)
       );
     },
     onCardUpdate: updateCachedCard,
@@ -648,8 +658,8 @@ export function CardsScreen({
 
   const handleInvalidSelectedCard = useCallback(() => {
     onCloseCard();
-    toast.error("Card not found");
-  }, [onCloseCard]);
+    toast.error(t("cardNotFound"));
+  }, [onCloseCard, t]);
 
   const composerHandlers = useStableHandlers({ onOpenCard });
   const gridHandlers = useStableHandlers({
@@ -705,14 +715,14 @@ export function CardsScreen({
             <FolderX aria-hidden="true" className="size-4" />
           </span>
           <div className="space-y-1">
-            <p className="font-medium">Folder not found</p>
+            <p className="font-medium">{t("folderNotFound")}</p>
             <p className="text-muted-foreground text-sm">
-              It may have been deleted.
+              {t("folderMayBeDeleted")}
             </p>
           </div>
           {onNavigateView ? (
             <Button onClick={() => onNavigateView("all")} variant="outline">
-              Go to Everything
+              {t("goToEverything")}
             </Button>
           ) : null}
         </div>
@@ -735,14 +745,10 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted">
             <FolderSearch aria-hidden="true" className="size-4" />
           </span>
-          <p>
-            {listsTodo
-              ? "Nothing left to do."
-              : "No cards match this smart folder."}
-          </p>
+          <p>{listsTodo ? t("nothingLeftToDo") : t("noSmartFolderMatches")}</p>
           <Button onClick={editSmartFolder} variant="outline">
             <Pencil />
-            Edit search
+            {t("editSearch")}
           </Button>
         </div>
       );
@@ -754,7 +760,7 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted">
             <Folder aria-hidden="true" className="size-4" />
           </span>
-          <p>No cards in this folder yet.</p>
+          <p>{t("noCardsInFolder")}</p>
           {hiddenCardsHint}
           {onAddCardsToFolder ? (
             <Button
@@ -762,7 +768,7 @@ export function CardsScreen({
               variant="outline"
             >
               <Plus />
-              Add cards
+              {t("addCards")}
             </Button>
           ) : null}
         </div>
@@ -782,7 +788,7 @@ export function CardsScreen({
           <span className="flex size-10 items-center justify-center rounded-full bg-muted">
             <Icon aria-hidden="true" className="size-4" />
           </span>
-          <p>{text}</p>
+          <p>{t(text)}</p>
           {hiddenCardsHint}
         </div>
       );
@@ -809,17 +815,15 @@ export function CardsScreen({
     if (displayCards.length === 0 && similarity) {
       const outcome = semanticSearch.outcome;
       let message =
-        similarity.kind === "like"
-          ? "Nothing similar yet"
-          : "No images match this mood yet";
+        similarity.kind === "like" ? t("nothingSimilar") : t("noMoodMatches");
       let canRetry = false;
       if (outcome === "pending" || similarAnchor?.status === "pending") {
-        message = "Still learning about this card. Try again in a moment.";
+        message = t("stillLearning");
         canRetry = true;
       } else if (outcome === "rate_limited") {
-        message = "Too many searches. Try again in a minute.";
+        message = t("tooManySearches");
       } else if (outcome === "unavailable") {
-        message = "Couldn't search by meaning right now.";
+        message = t("semanticUnavailable");
         canRetry = true;
       }
       return (
@@ -827,7 +831,7 @@ export function CardsScreen({
           <p className="text-muted-foreground">{message}</p>
           {canRetry && (
             <Button onClick={semanticSearch.retry} variant="ghost">
-              Try again
+              {tc("tryAgain")}
             </Button>
           )}
         </div>
@@ -838,12 +842,10 @@ export function CardsScreen({
       return (
         <div className="space-y-4 py-12 text-center">
           <p className="text-muted-foreground">
-            {listsTodo
-              ? "Nothing left to do."
-              : "Nothing found matching your filters"}
+            {listsTodo ? t("nothingLeftToDo") : t("noFilterMatches")}
           </p>
           <Button onClick={clearAllFilters} variant="outline">
-            Clear filters
+            {t("clearFilters")}
           </Button>
         </div>
       );
@@ -853,7 +855,7 @@ export function CardsScreen({
   };
 
   let title: ReactNode = (
-    <PageTitle>{LIBRARY_VIEW_LABELS[view ?? "all"]}</PageTitle>
+    <PageTitle>{libraryViewLabel(view ?? "all", tv)}</PageTitle>
   );
   if (isFolderView) {
     if (folder && isSmartFolder) {
@@ -871,11 +873,11 @@ export function CardsScreen({
           }
           trailing={
             <Button
-              aria-label="Edit search"
+              aria-label={t("editSearch")}
               className="size-7 shrink-0 text-muted-foreground"
               onClick={editSmartFolder}
               size="icon"
-              title="Edit search"
+              title={t("editSearch")}
               variant="ghost"
             >
               <Pencil className="size-3.5" />
@@ -883,7 +885,7 @@ export function CardsScreen({
           }
         >
           <span title={folder.name}>{folder.name}</span>
-          <span className="sr-only"> (smart folder)</span>
+          <span className="sr-only">{t("smartFolderSuffix")}</span>
         </PageTitle>
       );
     } else if (folder) {
@@ -891,9 +893,11 @@ export function CardsScreen({
         <PageTitle
           count={
             <>
-              {folder.activeCardCount.toLocaleString()}
+              {folder.activeCardCount.toLocaleString(intlLocale)}
               <span className="sr-only">
-                {folder.activeCardCount === 1 ? " card" : " cards"}
+                {t("folderCardCountSuffix", {
+                  count: folder.activeCardCount,
+                })}
               </span>
             </>
           }
@@ -903,7 +907,7 @@ export function CardsScreen({
         </PageTitle>
       );
     } else {
-      title = <PageTitle>Folder</PageTitle>;
+      title = <PageTitle>{t("folderTitle")}</PageTitle>;
     }
   }
 
@@ -930,8 +934,8 @@ export function CardsScreen({
         onSortChange={revisit.onSortChange}
         placeholder={
           folder
-            ? `Search ${clipFolderName(folder.name)}`
-            : LIBRARY_VIEW_SEARCH_PLACEHOLDERS[view ?? "all"]
+            ? t("searchFolder", { folder: clipFolderName(folder.name) })
+            : libraryViewSearchPlaceholder(view ?? "all", tv)
         }
         revisit={revisit.offer}
         similarAnchorTitle={similarAnchorTitle}
@@ -1026,23 +1030,26 @@ export function CardsScreen({
           if (folderDialog?.mode !== "save") {
             return;
           }
-          toast.success(`Saved “${clipFolderName(saved.name)}”`, {
-            description: "It shows every card that matches, as you save them.",
-            ...(onOpenFolder
-              ? {
-                  action: {
-                    label: "Open",
-                    onClick: () => onOpenFolder(saved._id),
-                  },
-                }
-              : {}),
-          });
+          toast.success(
+            t("savedSmartFolder", { name: clipFolderName(saved.name) }),
+            {
+              description: t("savedSmartFolderDescription"),
+              ...(onOpenFolder
+                ? {
+                    action: {
+                      label: t("open"),
+                      onClick: () => onOpenFolder(saved._id),
+                    },
+                  }
+                : {}),
+            }
+          );
         }}
         open={folderDialog !== null}
         query={folderDialog?.mode === "save" ? folderDialog.query : undefined}
         queryNote={
           folderDialog?.mode === "save" && hasUnsavableFilters
-            ? "Colors, styles and dates aren't saved in a smart folder."
+            ? t("unsavableFilters")
             : undefined
         }
       />

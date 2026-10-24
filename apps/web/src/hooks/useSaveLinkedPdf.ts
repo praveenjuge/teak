@@ -2,24 +2,38 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { CARD_ERROR_CODES } from "@teak/convex/shared/constants";
+import type { TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CARD_LIMIT_TOAST_MESSAGE } from "../constants/toast";
+import { englishErrors, englishTranslator } from "@/lib/englishTranslators";
+import { type ErrorsTranslator, translateErrorKey } from "@/lib/serverErrors";
 
-const SAVE_PDF_ERRORS: Record<string, string> = {
-  [CARD_ERROR_CODES.CARD_LIMIT_REACHED]: CARD_LIMIT_TOAST_MESSAGE,
-  [CARD_ERROR_CODES.RATE_LIMITED]:
-    "You're saving quickly. Try again in a minute.",
-  IN_PROGRESS: "This PDF is already being saved. Try again in a moment.",
-  FILE_TOO_LARGE: "This PDF is too large. Teak keeps files up to 100 MB.",
-  UNSUPPORTED_TYPE: "arXiv didn't send a PDF for this paper.",
-};
-const SAVE_PDF_FAILED = "Couldn't save the PDF. Try again.";
+export type SavePdfTranslator = TeakTranslator<"hooks.savePdf">;
 
-export const savePdfErrorMessage = (error: unknown): string => {
+const englishSavePdf: SavePdfTranslator = englishTranslator("hooks.savePdf");
+
+export const savePdfErrorMessage = (
+  error: unknown,
+  t: SavePdfTranslator = englishSavePdf,
+  errors: ErrorsTranslator = englishErrors
+): string => {
   const code = (error as { data?: { code?: unknown } } | null)?.data?.code;
-  return (typeof code === "string" && SAVE_PDF_ERRORS[code]) || SAVE_PDF_FAILED;
+  switch (code) {
+    case CARD_ERROR_CODES.CARD_LIMIT_REACHED:
+      return t("cardLimitReached");
+    case CARD_ERROR_CODES.RATE_LIMITED:
+      return translateErrorKey(errors, "pdfs.RATE_LIMITED");
+    case "IN_PROGRESS":
+      return translateErrorKey(errors, "pdfs.IN_PROGRESS");
+    case "FILE_TOO_LARGE":
+      return t("tooLarge");
+    case "UNSUPPORTED_TYPE":
+      return t("notPdf");
+    default:
+      return t("failed");
+  }
 };
 
 const withoutCard = (cardIds: ReadonlySet<string>, cardId: string) => {
@@ -29,6 +43,8 @@ const withoutCard = (cardIds: ReadonlySet<string>, cardId: string) => {
 };
 
 export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
+  const t = useTranslations("hooks.savePdf");
+  const errors = useTranslations("errors");
   const savePdf = useAction(api.card.saveLinkedPdf.saveLinkedPdf);
   const inFlight = useRef(new Set<string>());
   const [savingCardIds, setSavingCardIds] = useState<ReadonlySet<string>>(
@@ -47,24 +63,24 @@ export function useSaveLinkedPdf(onOpenCard?: (cardId: string) => void) {
         if (saved.created) {
           captureEvent("link_pdf_saved", { source: "panel" });
         }
-        toast.success(saved.created ? "PDF saved" : "Already saved", {
+        toast.success(saved.created ? t("saved") : t("alreadySaved"), {
           ...(onOpenCard
             ? {
                 action: {
-                  label: "Open",
+                  label: t("open"),
                   onClick: () => onOpenCard(saved.cardId),
                 },
               }
             : {}),
         });
       } catch (error) {
-        toast.error(savePdfErrorMessage(error));
+        toast.error(savePdfErrorMessage(error, t, errors));
       } finally {
         inFlight.current.delete(cardId);
         setSavingCardIds((current) => withoutCard(current, cardId));
       }
     },
-    [onOpenCard, savePdf]
+    [errors, onOpenCard, savePdf, t]
   );
 
   const isSaving = useCallback(

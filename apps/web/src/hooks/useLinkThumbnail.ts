@@ -2,6 +2,7 @@ import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { toThumbnailMimeType } from "@teak/convex/shared/thumbnails";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +24,10 @@ export interface LinkThumbnailControl {
 export function useLinkThumbnail(
   cardId: string | null | undefined
 ): LinkThumbnailControl {
+  const t = useTranslations("hooks.linkThumbnail");
+  const tl = useTranslations("lib.linkThumbnail");
+  const tc = useTranslations("common");
+  const errors = useTranslations("errors");
   const createUploadUrl = useMutation(
     api.card.thumbnailOverride.createThumbnailUploadUrl
   );
@@ -60,23 +65,23 @@ export function useLinkThumbnail(
         duration: undoUntil ? Math.max(undoUntil - Date.now(), 4000) : 4000,
         action: changeId
           ? {
-              label: "Undo",
+              label: tc("undo"),
               onClick: () => {
                 undoThumbnailChange({ cardId: id, changeId })
                   .then((result) => {
                     if (result.status === "expired") {
-                      toast.error("It's too late to undo that change.");
+                      toast.error(t("undoExpired"));
                     }
                   })
                   .catch((error: unknown) =>
-                    toast.error(linkThumbnailErrorMessage(error))
+                    toast.error(linkThumbnailErrorMessage(error, errors, tl))
                   );
               },
             }
           : undefined,
       });
     },
-    [undoThumbnailChange]
+    [errors, t, tc, tl, undoThumbnailChange]
   );
 
   const run = useCallback(
@@ -92,13 +97,13 @@ export function useLinkThumbnail(
       try {
         await work();
       } catch (error) {
-        toast.error(linkThumbnailErrorMessage(error));
+        toast.error(linkThumbnailErrorMessage(error, errors, tl));
       } finally {
         busy.current = false;
         setActive(null);
       }
     },
-    []
+    [errors, tl]
   );
 
   const replace = useCallback(
@@ -106,7 +111,7 @@ export function useLinkThumbnail(
       if (!cardId) {
         return;
       }
-      const problem = linkThumbnailFileProblem(file);
+      const problem = linkThumbnailFileProblem(file, errors);
       if (problem) {
         toast.error(problem);
         return;
@@ -138,12 +143,12 @@ export function useLinkThumbnail(
             fileKey: upload.fileKey,
           });
           captureEvent("card_thumbnail_replaced", { source });
-          offerUndo(id, "Image replaced", change);
+          offerUndo(id, t("replaced"), change);
         },
         file
       ).catch(() => undefined);
     },
-    [cardId, createUploadUrl, offerUndo, run, setLinkThumbnail]
+    [cardId, createUploadUrl, errors, offerUndo, run, setLinkThumbnail, t]
   );
 
   const reset = useCallback(() => {
@@ -156,9 +161,9 @@ export function useLinkThumbnail(
       if (change.changeId) {
         captureEvent("card_thumbnail_reset");
       }
-      offerUndo(id, "Back to the original image", change);
+      offerUndo(id, t("reset"), change);
     }).catch(() => undefined);
-  }, [cardId, offerUndo, resetLinkThumbnail, run]);
+  }, [cardId, offerUndo, resetLinkThumbnail, run, t]);
 
   const isActiveCard = Boolean(active && active.cardId === cardId);
   return {

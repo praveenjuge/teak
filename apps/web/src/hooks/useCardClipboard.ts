@@ -1,9 +1,19 @@
+import type { TeakTranslator } from "@teak/i18n";
+import { useTranslations } from "@teak/i18n/react";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { englishTranslator } from "@/lib/englishTranslators";
 import { sizeSvgRoot } from "@/lib/svgSize";
+
+export type ClipboardTranslator = TeakTranslator<"hooks.clipboard">;
+
+const englishClipboard: ClipboardTranslator =
+  englishTranslator("hooks.clipboard");
 
 export interface CopyCardContentOptions {
   copyImageToastId?: string;
+  /** The toasts' text; English without one. */
+  t?: ClipboardTranslator;
 }
 
 const DEFAULT_IMAGE_TOAST_ID = "copy-image";
@@ -80,9 +90,10 @@ export async function copyCardContentToClipboard(
   options: CopyCardContentOptions = {}
 ): Promise<void> {
   const imageToastId = options.copyImageToastId ?? DEFAULT_IMAGE_TOAST_ID;
+  const t = options.t ?? englishClipboard;
 
   if (isImage) {
-    toast.loading("Copying image...", { id: imageToastId });
+    toast.loading(t("copyingImage"), { id: imageToastId });
   }
 
   try {
@@ -94,7 +105,7 @@ export async function copyCardContentToClipboard(
         await navigator.clipboard.write([
           new ClipboardItem({ [blob.type]: blob }),
         ]);
-        toast.success("Image copied to clipboard", { id: imageToastId });
+        toast.success(t("imageCopied"), { id: imageToastId });
         return;
       } catch (originalError) {
         const errorName = getErrorName(originalError);
@@ -112,7 +123,7 @@ export async function copyCardContentToClipboard(
             await navigator.clipboard.write([
               new ClipboardItem({ "image/png": pngBlob }),
             ]);
-            toast.success("Image copied to clipboard", { id: imageToastId });
+            toast.success(t("imageCopied"), { id: imageToastId });
             return;
           }
 
@@ -120,7 +131,7 @@ export async function copyCardContentToClipboard(
           await navigator.clipboard.write([
             new ClipboardItem({ "image/png": pngBlob }),
           ]);
-          toast.success("Image copied to clipboard", { id: imageToastId });
+          toast.success(t("imageCopied"), { id: imageToastId });
           return;
         }
 
@@ -129,27 +140,31 @@ export async function copyCardContentToClipboard(
     }
 
     await navigator.clipboard.writeText(content);
-    toast.success("Copied to clipboard");
+    toast.success(t("copied"));
   } catch (error) {
     console.error("Failed to copy:", error);
 
     try {
       await navigator.clipboard.writeText(content);
-      toast.success("Link copied to clipboard", { id: imageToastId });
+      toast.success(t("linkCopied"), { id: imageToastId });
     } catch {
-      toast.error("Failed to copy to clipboard", { id: imageToastId });
+      toast.error(t("copyFailed"), { id: imageToastId });
     }
   }
 }
 
 export function useCardClipboard(options: CopyCardContentOptions = {}) {
   const { copyImageToastId } = options;
+  const t = useTranslations("hooks.clipboard");
 
   const handleCopyImage = useCallback(
     async (content: string, isImage: boolean) => {
-      await copyCardContentToClipboard(content, isImage, { copyImageToastId });
+      await copyCardContentToClipboard(content, isImage, {
+        copyImageToastId,
+        t,
+      });
     },
-    [copyImageToastId]
+    [copyImageToastId, t]
   );
 
   return { handleCopyImage };

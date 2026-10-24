@@ -1,3 +1,6 @@
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator, US_ENGLISH_LOCALE } from "./englishTranslators";
+
 export interface LinkBylineSource {
   author?: string;
   hostname?: string | null;
@@ -43,7 +46,8 @@ const namesHost = (key: string, hostname?: string | null) =>
 /** Date-only values parse as UTC midnight, so they're formatted in UTC. */
 export function formatPublishedDate(
   publishedAt?: string,
-  now = Date.now()
+  now = Date.now(),
+  locale: string | undefined = US_ENGLISH_LOCALE
 ): string | null {
   if (typeof publishedAt !== "string" || !publishedAt.trim()) {
     return null;
@@ -59,7 +63,7 @@ export function formatPublishedDate(
   ) {
     return null;
   }
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
     timeZone: "UTC",
@@ -67,9 +71,20 @@ export function formatPublishedDate(
   });
 }
 
+export type LinkBylineTranslator = TeakTranslator<"lib.linkByline">;
+
+const englishLinkByline: LinkBylineTranslator =
+  englishTranslator("lib.linkByline");
+
+/**
+ * "By {author} · Publisher · Date". The names are the card's stored text;
+ * only the "By" and the date format follow the UI language.
+ */
 export function formatLinkByline(
   source: LinkBylineSource,
-  now = Date.now()
+  now = Date.now(),
+  t: LinkBylineTranslator = englishLinkByline,
+  locale: string | undefined = US_ENGLISH_LOCALE
 ): string | null {
   const author = cleanName(source.author);
   let publisher = cleanName(source.publisher);
@@ -84,9 +99,9 @@ export function formatLinkByline(
     }
   }
   const parts = [
-    author ? `By ${author}` : null,
+    author ? t("byAuthor", { author }) : null,
     publisher,
-    formatPublishedDate(source.publishedAt, now),
+    formatPublishedDate(source.publishedAt, now, locale),
   ].filter((part): part is string => Boolean(part));
   return parts.length ? parts.join(" · ") : null;
 }

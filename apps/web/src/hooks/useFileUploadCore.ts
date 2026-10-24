@@ -3,7 +3,6 @@ import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import type { CardErrorCode, CardType } from "@teak/convex/shared/constants";
 import {
   CARD_ERROR_CODES,
-  CARD_ERROR_MESSAGES,
   MAX_FILE_SIZE,
   MAX_FILES_PER_UPLOAD,
   MULTIPART_UPLOAD_THRESHOLD,
@@ -17,8 +16,15 @@ import type {
   UploadFileResult,
   UploadMultipleFilesResultItem,
 } from "@teak/convex/shared/types";
+import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  englishErrors,
+  englishTranslator,
+  translateServerMessage,
+} from "@/lib/englishTranslators";
+import { type ErrorsTranslator, translateErrorKey } from "@/lib/serverErrors";
 import {
   type AdditionalFileMetadata,
   buildAdditionalFileMetadata,
@@ -32,6 +38,7 @@ import {
   getUploadEtag,
   isAbortError,
   throwIfAborted,
+  UPLOAD_TIMED_OUT_MESSAGE,
   uploadAttemptTimeoutMs,
   uploadWithTransientRetry,
 } from "@/lib/upload/transport";
@@ -118,12 +125,26 @@ export interface UploadFileFromUriArgs {
   uri: string;
 }
 
+export type UploadTranslator = TeakTranslator<"hooks.upload">;
+
+/** The upload messages' language. Without one, they're English. */
+export interface FileUploadTranslators {
+  errors?: ErrorsTranslator;
+  upload?: UploadTranslator;
+}
+
+const englishUpload: UploadTranslator = englishTranslator("hooks.upload");
+
 const shouldCaptureUploadError = (errorCode?: CardErrorCode) =>
   errorCode !== CARD_ERROR_CODES.FILE_TOO_LARGE;
 
 // A Convex function's ConvexError keeps its code and message in `data`; its
 // own message is the serialized data, which isn't fit for a toast.
-const toFileUploadError = (error: unknown): FileUploadError => {
+const toFileUploadError = (
+  error: unknown,
+  t: UploadTranslator,
+  errors: ErrorsTranslator
+): FileUploadError => {
   if (error instanceof ConvexError) {
     const data = error.data as { code?: unknown; message?: unknown } | null;
     return {
@@ -132,15 +153,24 @@ const toFileUploadError = (error: unknown): FileUploadError => {
           ? (data.code as CardErrorCode)
           : undefined,
       message:
-        typeof data?.message === "string" ? data.message : "Upload failed",
+        typeof data?.message === "string"
+          ? translateServerMessage(errors, data.message)
+          : t("failed"),
     };
+  }
+  let message = t("failed");
+  if (error instanceof Error) {
+    message =
+      error.message === UPLOAD_TIMED_OUT_MESSAGE
+        ? t("timedOut")
+        : error.message;
   }
   return {
     code:
       error instanceof Error && "code" in error
         ? (error as CodedUploadError).code
         : undefined,
-    message: error instanceof Error ? error.message : "Upload failed",
+    message,
   };
 };
 
@@ -160,8 +190,11 @@ export function useFileUploadCore(
     recordMultipartPart,
     uploadBinaryFromUri,
   }: FileUploadDependencies,
-  config: UnifiedFileUploadConfig = {}
+  config: UnifiedFileUploadConfig = {},
+  translators: FileUploadTranslators = {}
 ) {
+  const t = translators.upload ?? englishUpload;
+  const errors = translators.errors ?? englishErrors;
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<FileUploadError | null>(null);
@@ -231,7 +264,7 @@ export function useFileUploadCore(
       try {
         if (file.size > MAX_FILE_SIZE) {
           const errorInfo: FileUploadError = {
-            message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
+            message: translateErrorKey(errors, "cards.FILE_TOO_LARGE"),
             code: CARD_ERROR_CODES.FILE_TOO_LARGE,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -251,7 +284,7 @@ export function useFileUploadCore(
 
         if (!fileFormat) {
           const errorInfo: FileUploadError = {
-            message: "Unsupported file type",
+            message: t("unsupportedType"),
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -306,7 +339,9 @@ export function useFileUploadCore(
             )
           ) {
             const errorInfo: FileUploadError = {
-              message: uploadResult.error || "Failed to prepare upload",
+              message: uploadResult.error
+                ? translateServerMessage(errors, uploadResult.error)
+                : t("prepareFailed"),
               code: uploadResult.errorCode as CardErrorCode | undefined,
             };
             const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -329,7 +364,7 @@ export function useFileUploadCore(
           );
           if (!uploadResponse.ok) {
             throw new Error(
-              `Upload failed with status ${uploadResponse.status}`
+              t("failedWithStatus", { status: uploadResponse.status })
             );
           }
           fileEtag = getUploadEtag(uploadResponse.headers);
@@ -353,7 +388,9 @@ export function useFileUploadCore(
         throwIfAborted(signal);
         if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
-            message: finalizeResult.error || "Failed to create card",
+            message: finalizeResult.error
+              ? translateServerMessage(errors, finalizeResult.error)
+              : t("createFailed"),
             code: finalizeResult.errorCode as CardErrorCode | undefined,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -372,7 +409,7 @@ export function useFileUploadCore(
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
         if (isAbortError(error)) {
-          return { success: false, error: "Upload cancelled" };
+          return { success: false, error: t("cancelled") };
         }
 
         captureEvent("file_upload_failed", {
@@ -381,7 +418,7 @@ export function useFileUploadCore(
           size_bucket: resolveSizeBucket(file.size),
         });
 
-        const fileError = toFileUploadError(error);
+        const fileError = toFileUploadError(error, t, errors);
 
         if (shouldCaptureUploadError(fileError.code)) {
           captureClientException(error, {
@@ -411,6 +448,8 @@ export function useFileUploadCore(
       config,
       beginUpload,
       finishUpload,
+      t,
+      errors,
     ]
   );
 
@@ -443,7 +482,7 @@ export function useFileUploadCore(
 
         if (size > MAX_FILE_SIZE) {
           const errorInfo: FileUploadError = {
-            message: CARD_ERROR_MESSAGES.FILE_TOO_LARGE,
+            message: translateErrorKey(errors, "cards.FILE_TOO_LARGE"),
             code: CARD_ERROR_CODES.FILE_TOO_LARGE,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -454,7 +493,7 @@ export function useFileUploadCore(
         const fileFormat = inferFileFormat({ fileName: name, mimeType: type });
         if (!fileFormat) {
           const errorInfo: FileUploadError = {
-            message: "Unsupported file type",
+            message: t("unsupportedType"),
             code: CARD_ERROR_CODES.UNSUPPORTED_TYPE,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -482,7 +521,9 @@ export function useFileUploadCore(
           )
         ) {
           const errorInfo: FileUploadError = {
-            message: uploadResult.error || "Failed to prepare upload",
+            message: uploadResult.error
+              ? translateServerMessage(errors, uploadResult.error)
+              : t("prepareFailed"),
             code: uploadResult.errorCode as CardErrorCode | undefined,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -507,7 +548,9 @@ export function useFileUploadCore(
         );
 
         if (!uploadResponse.ok) {
-          throw new Error(`Upload failed with status ${uploadResponse.status}`);
+          throw new Error(
+            t("failedWithStatus", { status: uploadResponse.status })
+          );
         }
 
         throwIfAborted(signal);
@@ -528,7 +571,9 @@ export function useFileUploadCore(
         throwIfAborted(signal);
         if (!(finalizeResult.success && finalizeResult.cardId)) {
           const errorInfo: FileUploadError = {
-            message: finalizeResult.error || "Failed to create card",
+            message: finalizeResult.error
+              ? translateServerMessage(errors, finalizeResult.error)
+              : t("createFailed"),
             code: finalizeResult.errorCode as CardErrorCode | undefined,
           };
           const codedError = new Error(errorInfo.message) as CodedUploadError;
@@ -547,7 +592,7 @@ export function useFileUploadCore(
         return { success: true, cardId: finalizeResult.cardId };
       } catch (error) {
         if (isAbortError(error)) {
-          return { success: false, error: "Upload cancelled" };
+          return { success: false, error: t("cancelled") };
         }
 
         captureEvent("file_upload_failed", {
@@ -556,7 +601,7 @@ export function useFileUploadCore(
           size_bucket: resolveSizeBucket(size),
         });
 
-        const fileError = toFileUploadError(error);
+        const fileError = toFileUploadError(error, t, errors);
 
         if (shouldCaptureUploadError(fileError.code)) {
           captureClientException(error, {
@@ -584,6 +629,8 @@ export function useFileUploadCore(
       config,
       beginUpload,
       finishUpload,
+      t,
+      errors,
     ]
   );
 
@@ -597,7 +644,7 @@ export function useFileUploadCore(
     ): Promise<UploadMultipleFilesResultItem[]> => {
       if (files.length > MAX_FILES_PER_UPLOAD) {
         const errorInfo: FileUploadError = {
-          message: CARD_ERROR_MESSAGES.TOO_MANY_FILES,
+          message: translateErrorKey(errors, "cards.TOO_MANY_FILES"),
           code: CARD_ERROR_CODES.TOO_MANY_FILES,
         };
         setError(errorInfo);
@@ -618,7 +665,7 @@ export function useFileUploadCore(
 
       for (const file of files) {
         if (!stopped && isUnmountedRef.current) {
-          stopped = { success: false, error: "Upload cancelled" };
+          stopped = { success: false, error: t("cancelled") };
         }
         if (stopped) {
           results.push({ file: file.name, ...stopped });
@@ -638,7 +685,7 @@ export function useFileUploadCore(
 
       return results;
     },
-    [uploadFile, config.onError]
+    [uploadFile, config.onError, errors, t]
   );
 
   const state: FileUploadState = {

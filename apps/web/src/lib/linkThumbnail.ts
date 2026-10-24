@@ -1,9 +1,15 @@
 import {
-  THUMBNAIL_ERROR_MESSAGES,
   THUMBNAIL_MAX_BYTES,
   THUMBNAIL_MIME_TYPES,
   toThumbnailMimeType,
 } from "@teak/convex/shared/thumbnails";
+import type { TeakTranslator } from "@teak/i18n";
+import {
+  englishErrors,
+  englishTranslator,
+  translateServerMessage,
+} from "./englishTranslators";
+import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
 
 export const LINK_THUMBNAIL_ACCEPT = THUMBNAIL_MIME_TYPES.join(",");
 
@@ -30,37 +36,49 @@ export const imageFromClipboard = (
   }
 };
 
-export const linkThumbnailFileProblem = (file: {
-  size: number;
-  type: string;
-}): string | null => {
+export const linkThumbnailFileProblem = (
+  file: {
+    size: number;
+    type: string;
+  },
+  errors: ErrorsTranslator = englishErrors
+): string | null => {
   if (!toThumbnailMimeType(file.type)) {
-    return THUMBNAIL_ERROR_MESSAGES.unsupported;
+    return translateErrorKey(errors, "thumbnails.unsupported");
   }
   if (file.size > THUMBNAIL_MAX_BYTES) {
-    return THUMBNAIL_ERROR_MESSAGES.tooLarge;
+    return translateErrorKey(errors, "thumbnails.tooLarge");
   }
   return null;
 };
 
-export const linkThumbnailErrorMessage = (error: unknown): string => {
+export type LinkThumbnailTranslator = TeakTranslator<"lib.linkThumbnail">;
+
+const englishLinkThumbnail: LinkThumbnailTranslator =
+  englishTranslator("lib.linkThumbnail");
+
+export const linkThumbnailErrorMessage = (
+  error: unknown,
+  errors: ErrorsTranslator = englishErrors,
+  t: LinkThumbnailTranslator = englishLinkThumbnail
+): string => {
   const data =
     error && typeof error === "object" && "data" in error
       ? (error as { data?: { code?: unknown; message?: unknown } }).data
       : undefined;
   switch (data?.code) {
     case "UNSUPPORTED_TYPE":
-      return THUMBNAIL_ERROR_MESSAGES.unsupported;
+      return translateErrorKey(errors, "thumbnails.unsupported");
     case "FILE_TOO_LARGE":
-      return THUMBNAIL_ERROR_MESSAGES.tooLarge;
+      return translateErrorKey(errors, "thumbnails.tooLarge");
     case "INVALID_INPUT":
-      return THUMBNAIL_ERROR_MESSAGES.unreadable;
+      return translateErrorKey(errors, "thumbnails.unreadable");
     case "RATE_LIMITED":
-      return THUMBNAIL_ERROR_MESSAGES.rateLimited;
+      return translateErrorKey(errors, "thumbnails.rateLimited");
     default:
       return typeof data?.message === "string"
-        ? data.message
-        : "Couldn't change the image. Try again.";
+        ? translateServerMessage(errors, data.message)
+        : t("changeFailed");
   }
 };
 

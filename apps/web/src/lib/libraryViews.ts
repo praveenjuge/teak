@@ -1,3 +1,6 @@
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator } from "./englishTranslators";
+
 export type LibraryView = "all" | "favorites" | "archive" | "trash";
 
 export const LIBRARY_VIEWS: readonly LibraryView[] = [
@@ -28,18 +31,35 @@ export const libraryViewHref = (
     ? `${LIBRARY_VIEW_PATHS[view]}?${FOCUS_COMPOSER_PARAM}=1`
     : LIBRARY_VIEW_PATHS[view];
 
+export type LibraryViewsTranslator = TeakTranslator<"lib.libraryViews">;
+
+const englishLibraryViews: LibraryViewsTranslator =
+  englishTranslator("lib.libraryViews");
+
+export const libraryViewLabel = (
+  view: LibraryView,
+  t: LibraryViewsTranslator = englishLibraryViews
+) => t(`labels.${view}`);
+
+export const libraryViewSearchPlaceholder = (
+  view: LibraryView,
+  t: LibraryViewsTranslator = englishLibraryViews
+) => t(`searchPlaceholders.${view}`);
+
+/** English view names. Prefer libraryViewLabel, which translates. */
 export const LIBRARY_VIEW_LABELS: Record<LibraryView, string> = {
-  all: "Everything",
-  favorites: "Favorites",
-  archive: "Archive",
-  trash: "Trash",
+  all: libraryViewLabel("all"),
+  favorites: libraryViewLabel("favorites"),
+  archive: libraryViewLabel("archive"),
+  trash: libraryViewLabel("trash"),
 };
 
+/** English placeholders. Prefer libraryViewSearchPlaceholder. */
 export const LIBRARY_VIEW_SEARCH_PLACEHOLDERS: Record<LibraryView, string> = {
-  all: "Search everything",
-  favorites: "Search favorites",
-  archive: "Search archive",
-  trash: "Search Trash",
+  all: libraryViewSearchPlaceholder("all"),
+  favorites: libraryViewSearchPlaceholder("favorites"),
+  archive: libraryViewSearchPlaceholder("archive"),
+  trash: libraryViewSearchPlaceholder("trash"),
 };
 
 function trimTrailingSlashes(path: string): string {

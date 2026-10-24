@@ -8,11 +8,14 @@ import {
   isHiddenTagList,
 } from "@teak/convex/shared/tags";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
+import { useTranslations } from "@teak/i18n/react";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
+import { cardActionFailedMessage } from "./cardActions";
+import { useServerErrors } from "./useServerErrors";
 import { useWarnBeforeUnload } from "./useWarnBeforeUnload";
 
 export type CardWithUrls = Doc<"cards"> & {
@@ -98,6 +101,9 @@ export function useCardModal(
   options: CardModalOptions = {}
 ) {
   const { card: cardData = null, ...config } = options;
+  const t = useTranslations("hooks.cardActions");
+  const tc = useTranslations("common");
+  const serverErrors = useServerErrors();
   const [tagInput, setTagInput] = useState("");
   const [pendingChanges, setPendingChanges] = useState<PendingChanges>({});
   const [savedValues, setSavedValues] = useState<PendingChanges>({});
@@ -122,10 +128,10 @@ export function useCardModal(
 
   const notifyError = useCallback(
     (error: Error, operation: string) => {
-      toast.error(`Failed to ${operation}`);
+      toast.error(cardActionFailedMessage(operation, t));
       config.onError?.(error, operation);
     },
-    [config.onError]
+    [config.onError, t]
   );
 
   const card = cardData;
@@ -319,7 +325,7 @@ export function useCardModal(
         }
         setIsSaved(true);
         if (!silent) {
-          toast.success("Changes saved");
+          toast.success(t("changesSaved"));
         }
         setTimeout(() => {
           setIsSaved(false);
@@ -336,7 +342,7 @@ export function useCardModal(
         setSavesInFlight((count) => count - 1);
       }
     },
-    [cardId, unsavedUpdates, updateCardField, notifyError]
+    [cardId, unsavedUpdates, updateCardField, notifyError, t]
   );
 
   const saveBeforeLeaving = useCallback(() => {
@@ -449,10 +455,10 @@ export function useCardModal(
           source: "panel",
         });
         if (!isUndo) {
-          toast.success(done ? `Marked as ${verb}` : `Marked as not ${verb}`, {
+          toast.success(t(done ? "markedDone" : "markedNotDone", { verb }), {
             duration: UNDO_TOAST_DURATION_MS,
             action: {
-              label: "Undo",
+              label: tc("undo"),
               onClick: () => {
                 void setDone(!done, { isUndo: true });
               },
@@ -461,7 +467,7 @@ export function useCardModal(
         }
       } catch (error) {
         console.error("Failed to update done state:", error);
-        toast.error("Couldn't update. Try again.");
+        toast.error(t("doneUpdateFailed"));
         config.onError?.(error as Error, "update done state");
       } finally {
         doneInFlight.current.delete(cardId);
@@ -471,7 +477,7 @@ export function useCardModal(
         });
       }
     },
-    [card, cardId, config.onError, updateCardField]
+    [card, cardId, config.onError, t, tc, updateCardField]
   );
 
   const toggleDone = useCallback(() => {
@@ -538,23 +544,23 @@ export function useCardModal(
     const existing = tags.find((current) => tagKey(current) === tag);
     if (existing) {
       setTagInput("");
-      toast(`Already tagged #${existing}`);
+      toast(t("alreadyTagged", { tag: existing }));
       return;
     }
     const newTags = [...tags, tag];
     const invalid = explainInvalidCardTags(newTags, tags);
     if (invalid) {
-      toast.error(invalid);
+      toast.error(serverErrors.byEnglishMessage(invalid));
       return;
     }
     const hides = Boolean(card) && !isCardHidden(card as Doc<"cards">);
     setTagInput("");
     void writeTags(newTags).then((didUpdate) => {
       if (didUpdate && hides && isHiddenTagList([tag])) {
-        toast(`Hidden. Search #${tag} to see it.`, {
+        toast(t("hiddenByTag", { tag }), {
           duration: UNDO_TOAST_DURATION_MS,
           action: {
-            label: "Undo",
+            label: tc("undo"),
             onClick: () => {
               const without = (tags: string[]) =>
                 tags.filter((current) => current !== tag);
@@ -569,7 +575,17 @@ export function useCardModal(
         });
       }
     });
-  }, [card, cardId, currentTags, tagInput, updateField, writeTags]);
+  }, [
+    card,
+    cardId,
+    currentTags,
+    serverErrors,
+    t,
+    tagInput,
+    tc,
+    updateField,
+    writeTags,
+  ]);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
@@ -593,15 +609,15 @@ export function useCardModal(
           field: "delete",
         });
         const deletedId = cardId;
-        toast.success("Card deleted", {
+        toast.success(t("cardDeleted"), {
           duration: UNDO_TOAST_DURATION_MS,
           action: {
-            label: "Undo",
+            label: tc("undo"),
             onClick: () => {
               updateCardField({
                 cardId: deletedId as Id<"cards">,
                 field: "restore",
-              }).catch(() => toast.error("Failed to restore card"));
+              }).catch(() => toast.error(t("restoreFailed")));
             },
           },
         });
@@ -611,14 +627,14 @@ export function useCardModal(
         }
       } catch (error) {
         console.error("Failed to delete card:", error);
-        toast.error("Failed to delete card");
+        toast.error(t("deleteFailed"));
       } finally {
         if (deletingIdRef.current === cardId) {
           deletingIdRef.current = null;
         }
       }
     },
-    [cardId, updateCardField]
+    [cardId, t, tc, updateCardField]
   );
 
   const handleRestore = useCallback(
@@ -631,14 +647,14 @@ export function useCardModal(
           cardId: cardId as Id<"cards">,
           field: "restore",
         });
-        toast.success("Card restored");
+        toast.success(t("cardRestored"));
         onClose?.();
       } catch (error) {
         console.error("Failed to restore card:", error);
-        toast.error("Failed to restore card");
+        toast.error(t("restoreFailed"));
       }
     },
-    [cardId, updateCardField]
+    [cardId, t, updateCardField]
   );
 
   const handlePermanentDelete = useCallback(
@@ -648,14 +664,14 @@ export function useCardModal(
       }
       try {
         await permanentDeleteCard({ id: cardId as Id<"cards"> });
-        toast.success("Card permanently deleted");
+        toast.success(t("cardPermanentlyDeleted"));
         onClose?.();
       } catch (error) {
         console.error("Failed to permanently delete card:", error);
-        toast.error("Failed to permanently delete card");
+        toast.error(t("permanentDeleteFailed"));
       }
     },
-    [cardId, permanentDeleteCard]
+    [cardId, permanentDeleteCard, t]
   );
 
   const openLink = useCallback(() => {
@@ -667,11 +683,9 @@ export function useCardModal(
         window.open(safeUrl, "_blank", "noopener,noreferrer");
       }
     } else if (card?.url) {
-      toast.error(
-        "This link can't be opened because it uses an unsafe address"
-      );
+      toast.error(t("unsafeLink"));
     }
-  }, [card?.url, config.onOpenLink]);
+  }, [card?.url, config.onOpenLink, t]);
 
   const hasFileObject = Boolean(card?.fileKey);
 

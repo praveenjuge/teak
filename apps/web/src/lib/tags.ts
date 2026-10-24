@@ -5,7 +5,14 @@ import {
   type TagOperationStatus,
   tagKey,
 } from "@teak/convex/shared/tags";
+import type { TeakTranslator } from "@teak/i18n";
 import { ConvexError } from "convex/values";
+import {
+  englishErrors,
+  englishTranslator,
+  translateServerMessage,
+} from "./englishTranslators";
+import { type ErrorsTranslator, translateErrorKey } from "./serverErrors";
 
 export { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 
@@ -37,11 +44,20 @@ export const isTagOperationStalled = (
 
 export const TAG_OPERATION_OVERLAY_MS = 2 * 60_000;
 
-export const tagErrorMessage = (error: unknown, fallback: string) => {
+export type TagsTranslator = TeakTranslator<"lib.tags">;
+
+const englishTags: TagsTranslator = englishTranslator("lib.tags");
+
+/** The server's message, translated when the catalog knows it. */
+export const tagErrorMessage = (
+  error: unknown,
+  fallback: string,
+  t: ErrorsTranslator = englishErrors
+) => {
   if (error instanceof ConvexError) {
     const message = (error.data as { message?: unknown } | undefined)?.message;
     if (typeof message === "string") {
-      return message;
+      return translateServerMessage(t, message);
     }
   }
   return fallback;
@@ -55,43 +71,46 @@ export const tagErrorCode = (error: unknown): string | undefined => {
   return undefined;
 };
 
-const cardsLabel = (count: number) =>
-  `${count.toLocaleString()} card${count === 1 ? "" : "s"}`;
+export const tagOperationProgressLabel = (
+  operation: TagOperationView,
+  t: TagsTranslator = englishTags
+) =>
+  t("progress", {
+    changed: Math.min(operation.changed, operation.total),
+    total: operation.total,
+  });
 
-export const tagOperationProgressLabel = (operation: TagOperationView) =>
-  `${Math.min(operation.changed, operation.total).toLocaleString()} of ${cardsLabel(operation.total)}`;
-
-export const tagOperationTitle = (operation: TagOperationView) => {
-  const to = operation.to ?? "";
-  const { from } = operation;
+export const tagOperationTitle = (
+  operation: TagOperationView,
+  t: TagsTranslator = englishTags
+) => {
+  const values = { from: operation.from, to: operation.to ?? "" };
   if (operation.status === "completed") {
-    return {
-      rename: `Renamed “${from}” to “${to}”`,
-      merge: `Merged “${from}” into “${to}”`,
-      delete: `Deleted “${from}”`,
-    }[operation.kind];
+    return t(`completed.${operation.kind}`, values);
   }
   if (operation.status === "failed") {
-    const verb = { rename: "renaming", merge: "merging", delete: "deleting" }[
-      operation.kind
-    ];
-    return `Couldn't finish ${verb}. ${tagOperationProgressLabel(operation)} changed.`;
+    return t(`failed.${operation.kind}`, {
+      changed: Math.min(operation.changed, operation.total),
+      total: operation.total,
+    });
   }
-  return {
-    rename: `Renaming “${from}” to “${to}”…`,
-    merge: `Merging “${from}” into “${to}”…`,
-    delete: `Deleting “${from}”…`,
-  }[operation.kind];
+  return t(`running.${operation.kind}`, values);
 };
 
-export const tagOperationDescription = (operation: TagOperationView) => {
+export const tagOperationDescription = (
+  operation: TagOperationView,
+  t: TagsTranslator = englishTags
+) => {
   if (operation.status === "completed") {
-    return `${cardsLabel(operation.changed)} changed`;
+    return t("changedDescription", { count: operation.changed });
   }
   if (operation.status === "failed") {
-    return "Try again to change the rest.";
+    return t("failedDescription");
   }
-  return `${tagOperationProgressLabel(operation)} changed`;
+  return t("runningDescription", {
+    changed: Math.min(operation.changed, operation.total),
+    total: operation.total,
+  });
 };
 
 export const applyTagOperationToSummary = (
@@ -136,13 +155,16 @@ export const applyTagOperationToSummary = (
   );
 };
 
-export const explainTagNameInput = (name: string): string | null => {
+export const explainTagNameInput = (
+  name: string,
+  t: ErrorsTranslator = englishErrors
+): string | null => {
   const trimmed = name.trim();
   if (!trimmed) {
-    return "Name the tag";
+    return translateErrorKey(t, "tags.EMPTY_NAME");
   }
   if (trimmed.length > MAX_TAG_NAME_LENGTH) {
-    return `Tags can be at most ${MAX_TAG_NAME_LENGTH} characters`;
+    return translateErrorKey(t, "tags.NAME_TOO_LONG");
   }
   return null;
 };

@@ -1,5 +1,7 @@
 import { api } from "@teak/convex";
+import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
+import { useMemo } from "react";
 import {
   type FinalizeUploadedCardArgs,
   type UnifiedFileUploadConfig,
@@ -8,6 +10,9 @@ import {
 } from "./useFileUploadCore";
 
 export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
+  const upload = useTranslations("hooks.upload");
+  const errors = useTranslations("errors");
+  const translators = useMemo(() => ({ errors, upload }), [errors, upload]);
   const uploadAndCreateCardMutation = useMutation(
     api.cards.uploadAndCreateCard
   );
@@ -34,6 +39,7 @@ export function useFileUpload(config: UnifiedFileUploadConfig = {}) {
       recordMultipartPart,
       uploadAndCreateCard,
     },
-    config
+    config,
+    translators
   );
 }

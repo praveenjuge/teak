@@ -1,5 +1,6 @@
 import { api } from "@teak/convex";
 import type { TagOperationKind } from "@teak/convex/shared/tags";
+import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex-helpers/react/cache/hooks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +39,10 @@ const asStalled = <T extends TagOperationView | null | undefined>(
     : operation;
 
 export function useTagOperations(): UseTagOperationsResult {
+  const t = useTranslations("hooks.tagOperations");
+  const tl = useTranslations("lib.tags");
+  const tc = useTranslations("common");
+  const errors = useTranslations("errors");
   const startMutation = useMutation(api.tags.startTagOperation);
   const latest: TagOperationView | null | undefined = useQuery(
     api.tags.getLatestTagOperation,
@@ -112,8 +117,8 @@ export function useTagOperations(): UseTagOperationsResult {
     }
     const operation = shown;
     const id = toastId(operation._id);
-    const title = tagOperationTitle(operation);
-    const description = tagOperationDescription(operation);
+    const title = tagOperationTitle(operation, tl);
+    const description = tagOperationDescription(operation, tl);
     if (operation.status === "running") {
       toast.loading(title, { id, description });
       return;
@@ -128,15 +133,15 @@ export function useTagOperations(): UseTagOperationsResult {
       description,
       duration: 10_000,
       action: {
-        label: "Retry",
+        label: tc("retry"),
         onClick: () => {
           retry(operation).catch((error) =>
-            toast.error(tagErrorMessage(error, "Couldn't start the tag change"))
+            toast.error(tagErrorMessage(error, t("startFailed"), errors))
           );
         },
       },
     });
-  }, [retry, shown]);
+  }, [errors, retry, shown, t, tc, tl]);
 
   return { latest: shownLatest, operation: shown, start };
 }

@@ -1,3 +1,6 @@
+import type { TeakTranslator } from "@teak/i18n";
+import { englishTranslator, US_ENGLISH_LOCALE } from "./englishTranslators";
+
 export interface ImageExif {
   exposureTime?: number;
   fNumber?: number;
@@ -90,7 +93,8 @@ const TAKEN_AT_FORMAT: Intl.DateTimeFormatOptions = {
 
 const formatDate = (
   epochMs: unknown,
-  options: Intl.DateTimeFormatOptions
+  options: Intl.DateTimeFormatOptions,
+  locale: string | undefined
 ): string | null => {
   if (!isPositive(epochMs)) {
     return null;
@@ -98,43 +102,59 @@ const formatDate = (
   const date = new Date(epochMs);
   return Number.isNaN(date.getTime())
     ? null
-    : date.toLocaleDateString("en-US", options);
+    : date.toLocaleDateString(locale, options);
 };
 
-const formatTakenAt = (exif: ImageExif): string | null => {
+const formatTakenAt = (
+  exif: ImageExif,
+  locale: string | undefined
+): string | null => {
   // takenAtClock is the camera's clock time encoded as UTC, so it's formatted
   // in UTC: a photo taken at 09:00 reads 09:00 wherever it's viewed.
-  const clock = formatDate(exif.takenAtClock, {
-    ...TAKEN_AT_FORMAT,
-    timeZone: "UTC",
-  });
+  const clock = formatDate(
+    exif.takenAtClock,
+    { ...TAKEN_AT_FORMAT, timeZone: "UTC" },
+    locale
+  );
   if (clock) {
     const zone = formatUtcOffset(exif.takenAtOffset);
     return zone ? `${clock} ${zone}` : clock;
   }
   // Photos processed before takenAtClock existed keep their old reading.
-  return formatDate(exif.takenAt, TAKEN_AT_FORMAT);
+  return formatDate(exif.takenAt, TAKEN_AT_FORMAT, locale);
 };
 
-export function formatExifFields(exif?: ImageExif | null): ExifField[] {
+export type ExifTranslator = TeakTranslator<"lib.exif">;
+
+const englishExif: ExifTranslator = englishTranslator("lib.exif");
+
+/**
+ * The fields to show, labelled in the UI language. Dates use `locale`;
+ * units (s, mm, f/) stay as cameras write them.
+ */
+export function formatExifFields(
+  exif?: ImageExif | null,
+  t: ExifTranslator = englishExif,
+  locale: string | undefined = US_ENGLISH_LOCALE
+): ExifField[] {
   if (!exif) {
     return [];
   }
   const fields: [string, string | null][] = [
-    ["Camera", formatCamera(exif.make, exif.model)],
-    ["Taken", formatTakenAt(exif)],
-    ["Exposure", formatExposureTime(exif.exposureTime)],
+    [t("camera"), formatCamera(exif.make, exif.model)],
+    [t("taken"), formatTakenAt(exif, locale)],
+    [t("exposure"), formatExposureTime(exif.exposureTime)],
     [
-      "Aperture",
+      t("aperture"),
       isPositive(exif.fNumber) ? `f/${trimDecimal(exif.fNumber)}` : null,
     ],
     [
-      "Focal length",
+      t("focalLength"),
       isPositive(exif.focalLength)
         ? `${trimDecimal(exif.focalLength)} mm`
         : null,
     ],
-    ["ISO", isPositive(exif.iso) ? String(Math.round(exif.iso)) : null],
+    [t("iso"), isPositive(exif.iso) ? String(Math.round(exif.iso)) : null],
   ];
   return fields
     .filter((field): field is [string, string] => Boolean(field[1]))
