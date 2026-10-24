@@ -322,19 +322,20 @@ export async function installWhenResolvable(
     throw new Error("Invalid SDK install resolution window.");
   }
   const deadline = now() + timeoutMs;
-  for (let attempt = 1; ; attempt++) {
+  for (let attempt = 1; attempt < attempts; attempt++) {
     try {
       return install();
     } catch (error) {
       const unresolved = /npm error code ETARGET\b/.test(
         String(error.stderr ?? "")
       );
-      if (!unresolved || attempt >= attempts || now() >= deadline) {
+      if (!unresolved || now() >= deadline) {
         throw error;
       }
     }
     await wait(Math.max(0, Math.min(intervalMs, deadline - now())));
   }
+  return install();
 }
 
 export async function verifyProvenance(artifact, metadataPath) {
