@@ -31,9 +31,6 @@ goal, decisions and verification. Delete a plan in the PR that finishes it;
 git history keeps it. Before starting one, check its "facts" against the code,
 since they were true when it was written.
 
-- `2026-10-19-roadmap-v3-00-roadmap.md`: the current roadmap (10 phases,
-  closing gaps with comparable apps), with one file per phase.
-
 ## Skills
 
 `skills/` holds the skills agents load. The vendored ones are installed with
