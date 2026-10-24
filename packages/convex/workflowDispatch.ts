@@ -80,10 +80,6 @@ export const MAX_DISPATCH_ATTEMPTS = 20;
 export const DEAD_LETTER_RETRY_MS = 24 * 60 * 60 * 1000;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
-// A due row nobody has claimed yet means a flush is on its way, and it will
-// claim a new row too. A row that has waited longer than this means it isn't.
-const FLUSH_STALL_MS = 30_000;
-
 const flushScheduled = new WeakSet<object>();
 
 const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
@@ -96,25 +92,6 @@ const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   await ctx.scheduler.runAfter(delayMs, internal.workflowDispatch.flush, {});
 };
 
-/**
- * True when a flush already scheduled will claim a row queued now. Reading
- * the due range also makes two saves racing to be first conflict, so exactly
- * one of them schedules the flush.
- */
-const flushIsComing = async (ctx: MutationCtx, now: number) =>
-  flushScheduled.has(ctx.db) ||
-  (
-    await ctx.db
-      .query("workflowDispatches")
-      .withIndex("by_state_and_notBefore", (q) =>
-        q
-          .eq("state", "pending")
-          .gte("notBefore", now - FLUSH_STALL_MS)
-          .lte("notBefore", now)
-      )
-      .take(1)
-  ).length > 0;
-
 const insertDispatch = async (
   ctx: MutationCtx,
   row: Omit<
@@ -124,18 +101,18 @@ const insertDispatch = async (
 ): Promise<Id<"workflowDispatches">> => {
   const { delayMs = 0, ...fields } = row;
   const now = Date.now();
-  const coalesced = delayMs === 0 && (await flushIsComing(ctx, now));
   const id = await ctx.db.insert("workflowDispatches", {
     ...fields,
     createdAt: now,
     notBefore: now + delayMs,
     state: "pending",
   });
-  if (coalesced) {
-    flushScheduled.add(ctx.db);
-  } else {
-    await scheduleFlush(ctx, delayMs);
-  }
+  // Every row schedules its own flush rather than checking whether one is
+  // already coming: that check read the due range every concurrent save
+  // writes into, so parallel saves conflicted on it until one exhausted its
+  // OCC retries and the request failed. A duplicate flush claims nothing and
+  // exits, which is cheap next to a failed save.
+  await scheduleFlush(ctx, delayMs);
   return id;
 };
 

@@ -6,7 +6,7 @@ const FONT_SWAP_SHIFT_ALLOWANCE = 0.01;
 test("settings loads without shifting its layout", async ({
   browser,
   screen,
-  webAccount: _signedIn,
+  webAccount: email,
 }) => {
   await browser.addInitScript(() => {
     const target = window as unknown as { __settingsShift: number };
@@ -25,7 +25,7 @@ test("settings loads without shifting its layout", async ({
 
   await gotoApp(browser, "/settings");
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
-  await expect(screen.getByRole("button", /@/)).toBeVisible();
+  await expect(screen.getByText(email)).toBeVisible();
   await expect(screen.getByText("Free Plan")).toBeVisible();
 
   // Layout-shift entries are delivered after the frame that caused them.

@@ -6,6 +6,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
   browser,
   library,
   screen,
+  webAccount: email,
 }) => {
   const draft = browser
     .locator('form[data-card-creation-status="ready"]')
@@ -27,7 +28,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
   );
   await screen.getByRole("link", "Settings").click();
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
-  await expect(screen.getByRole("button", /@/i).first()).toBeVisible();
+  await expect(screen.getByText(email)).toBeVisible();
   await expect(browser.locator('[data-slot="page-loading"]')).toHaveCount(0);
   await library.create("Saved while settings was open");
   await screen.getByRole("link", /back/i).click();
