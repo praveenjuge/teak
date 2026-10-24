@@ -174,6 +174,25 @@ export interface ServerEventCatalog {
     status?: number;
     tool: string;
   };
+  /**
+   * A link's page couldn't be saved as a copy. `reason` is the stage's
+   * (`blocked_url`, `too_large`, `http_error`, `not_html`, `unreachable`,
+   * `archive_error`); `source` whether the extension sent the page.
+   */
+  page_archive_failed: {
+    reason: string;
+    source: "extension" | "server";
+  };
+  /**
+   * A link's page was saved as a copy: `kind` is `full` or `text_only`,
+   * `source` `extension` (the page as the browser showed it) or `server`.
+   */
+  page_archived: {
+    bytes_bucket: SizeBucket;
+    duration_ms_bucket: string;
+    kind: "full" | "text_only";
+    source: "extension" | "server";
+  };
   subscription_ended: NoProperties;
   user_signed_up: { source?: string };
 }

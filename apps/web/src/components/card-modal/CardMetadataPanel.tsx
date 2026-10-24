@@ -36,6 +36,7 @@ import {
   keyDetailLabels,
 } from "./cardDetails";
 import { getCardTypeIconComponent } from "./cardTypeIcon";
+import { PageArchiveRow } from "./PageArchiveRow";
 import type { CardModalCard, GetCurrentValue } from "./types";
 
 export interface CardTagsControl {
@@ -631,6 +632,7 @@ export function CardMetadataPanel({
               </a>
             </PropertyRow>
           ) : null}
+          <PageArchiveRow card={card} />
           <DetailRows fields={keyDetails} />
           {isDetailsOpen ? <DetailRows fields={moreDetails} /> : null}
         </dl>

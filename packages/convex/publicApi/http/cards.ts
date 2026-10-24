@@ -138,6 +138,9 @@ const handleCreateCardRequest = async (
             content: createPayload.content,
             notes:
               createPayload.notes === null ? undefined : createPayload.notes,
+            ...(createPayload.pageSnapshotKey
+              ? { pageSnapshotKey: createPayload.pageSnapshotKey }
+              : {}),
             source: createPayload.source,
             sourceTitle: createPayload.sourceTitle,
             sourceUrl: createPayload.sourceUrl,

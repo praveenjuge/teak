@@ -67,6 +67,11 @@ import {
 } from "./devSeed/mediaPacks";
 import { orderingSavedPack } from "./devSeed/orderingSaved";
 import {
+  archiveBackfillScenarioPage,
+  PAGE_ARCHIVE_MIX_TAG,
+  seedPageArchiveMix,
+} from "./devSeed/pageArchives";
+import {
   PASTE_LINKS_KNOWN,
   PASTE_LINKS_LIBRARY_SIZE,
   RESAVE_AT_LIMIT_LINKS,
@@ -334,6 +339,12 @@ const seedFolderScenario = async (
 type ScenarioPack = { description: string } & (
   | { cards: (page: number) => DevScenarioCardDef[] }
   | { deadLinks: true }
+  | {
+      seed: (
+        ctx: MutationCtx,
+        userId: string
+      ) => Promise<{ cards: number; status: "already_seeded" | "seeded" }>;
+    }
   | { folders: () => FolderScenarioPack }
   | { fillTo: number; lead?: DevScenarioCardDef[] }
   | { links: CardLinkScenario }
@@ -617,6 +628,15 @@ const SCENARIOS: Record<string, ScenarioPack> = {
     description: `Notes in Japanese, Spanish, German, Korean, Chinese, Hindi and Arabic, an English note with a Spanish quote, one with no words at all, and French and Portuguese Wikipedia links, all run through AI processing so their tags and summary come back in the content's language. Images, PDFs and audio need uploaded files, so they aren't seeded. Search \`#${AI_LANGUAGES_TAG}\`; \`bun --no-env-file run scripts/ai-language-check.ts\` scores it.`,
     cards: firstPageOnly(aiLanguagesScenarioCards()),
   },
+  "page-archive-mix": {
+    description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, two that failed (blocked_url, too_large), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Files Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
+    seed: seedPageArchiveMix,
+  },
+  "archive-backfill-1000": {
+    description:
+      "1,000 processed links with no saved copy, for backfillPageArchives (example.com/archive-backfill/0 to /999). 200 per page.",
+    cards: archiveBackfillScenarioPage,
+  },
   "shuffle-partial": {
     description:
       "400 cards, 300 without a Shuffle key as before its backfill; Shuffle must still show each card once. 200 per page.",
@@ -699,6 +719,9 @@ export const seedScenario = internalMutation({
         owner.teakUserId,
         deadLinksOrigin(origin)
       );
+    }
+    if ("seed" in pack) {
+      return await pack.seed(ctx, owner.teakUserId);
     }
     if ("folders" in pack) {
       if (scenario === "email-in") {

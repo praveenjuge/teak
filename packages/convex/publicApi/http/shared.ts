@@ -49,6 +49,7 @@ export const PUBLIC_API_ERROR_CODES = [
   "NOT_FOUND",
   "NO_CONTENT",
   "NOT_IN_TRASH",
+  "PAGE_SNAPSHOT_TOO_LARGE",
   "TAG_EXISTS",
   "TAG_OPERATION_RUNNING",
   "RATE_LIMITED",
@@ -116,6 +117,8 @@ interface CreateCardPayload {
   fileSize?: number;
   mimeType?: string;
   notes?: string | null;
+  /** From POST /v1/page-snapshots/upload: the page as the browser saw it. */
+  pageSnapshotKey?: string;
   source?: string;
   sourceTitle?: string;
   sourceUrl?: string;
@@ -286,6 +289,7 @@ const CONVEX_ERROR_STATUS: Partial<Record<string, number>> = {
   LIMIT_REACHED: 409,
   NOT_FOUND: 404,
   NOT_IN_TRASH: 409,
+  PAGE_SNAPSHOT_TOO_LARGE: 413,
   SMART_FOLDER: 409,
   TAG_EXISTS: 409,
   TAG_OPERATION_RUNNING: 409,

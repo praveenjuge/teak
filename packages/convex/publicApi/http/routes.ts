@@ -14,6 +14,7 @@ import { handleDuplicateCardRequest } from "./duplicate";
 import { handleLatestExportRequest, handleStartExportRequest } from "./exports";
 import { handleFolderByIdRequest, handleFoldersRequest } from "./folders";
 import { withPublicApiGatewayHeaders } from "./meta";
+import { handleCreatePageSnapshotUploadRequest } from "./pageSnapshots";
 import { errorResponse, type PublicApiOperation } from "./shared";
 import { handleTagOperationRequest, isTagOperationPath } from "./tags";
 
@@ -81,6 +82,9 @@ export const executePublicApiOperation = (
   }
   if (request.method === "POST" && pathname === "/v1/uploads") {
     return handleCreateUploadRequest(ctx, request, resource);
+  }
+  if (request.method === "POST" && pathname === "/v1/page-snapshots/upload") {
+    return handleCreatePageSnapshotUploadRequest(ctx, request, resource);
   }
   if (request.method === "POST" && pathname === "/v1/cards/bulk") {
     return handleBulkCardsRequest(ctx, request, resource);
@@ -151,6 +155,16 @@ export const createUploadV1 = withGatewayHeaders((ctx, request) => {
   }
 
   return handleCreateUploadRequest(ctx, request);
+});
+
+export const pageSnapshotUploadV1 = withGatewayHeaders((ctx, request) => {
+  if (request.method !== "POST") {
+    return Promise.resolve(
+      errorResponse(405, "METHOD_NOT_ALLOWED", "Method not allowed")
+    );
+  }
+
+  return handleCreatePageSnapshotUploadRequest(ctx, request);
 });
 
 export const listCardsV1 = withGatewayHeaders((ctx, request) => {

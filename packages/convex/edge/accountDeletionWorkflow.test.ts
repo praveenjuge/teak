@@ -468,6 +468,8 @@ describe("durable deletion admission and tombstones", () => {
       "users/exact/unclaimed.pdf",
       "users/exact/document-text/digest.txt",
       "users/exact/linked.pdf",
+      "users/exact/cards/k/page-archive/r1-archive.html",
+      "users/exact/cards/upload-pending-v2/page-snapshot/s1",
     ]) {
       bucket.objects.set(key, { bytes: new Uint8Array([1]) });
     }
@@ -501,6 +503,18 @@ describe("durable deletion admission and tombstones", () => {
         fileKey: "users/exact/file",
         documentTextKey: "users/exact/document-text/digest.txt",
         hasExtractedText: true,
+        // The saved copy of a page, and a snapshot the extension sent.
+        pageArchive: {
+          bytes: 1,
+          capturedAt: 1,
+          kind: "full",
+          source: "extension",
+          sourceUrl: "https://example.com/private",
+          storageKey: "users/exact/cards/k/page-archive/r1-archive.html",
+        },
+        pendingPageSnapshotAt: 1,
+        pendingPageSnapshotKey:
+          "users/exact/cards/upload-pending-v2/page-snapshot/s1",
         tags: ["private"],
         folderIds: [],
       });

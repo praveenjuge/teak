@@ -2,6 +2,7 @@ import { truncateCodePoints } from "@teak/convex/shared/utils/codePoints";
 import type { TeakSaveResponse } from "../types/messages";
 import { isSupportedInlineSaveHost } from "../types/social";
 import { oauthRequest } from "./oauthAuth";
+import { type PageSnapshot, uploadPageSnapshot } from "./pageSnapshot";
 
 export type SaveSource =
   | "context-menu"
@@ -14,12 +15,21 @@ export interface SaveToTeakInput {
   content: string;
   enforceAllowedHosts?: boolean;
   idempotencyKey?: string;
+  /**
+   * The snapshot an earlier attempt of this save uploaded, so a retry sends
+   * the same body under its idempotency key.
+   */
+  pageSnapshotKey?: string;
   source: SaveSource;
   sourceTitle?: string;
   sourceUrl?: string;
 }
 export interface SaveToTeakDependencies {
   fetchImpl?: typeof fetch;
+  /** Called once a snapshot is uploaded, to keep its key with the save. */
+  onPageSnapshotUploaded?: (pageSnapshotKey: string) => Promise<void>;
+  /** The page the link was saved from, as the browser shows it. */
+  pageSnapshot?: PageSnapshot | null;
   request?: typeof oauthRequest;
 }
 const isHttpUrl = (value: string) =>
@@ -119,6 +129,18 @@ export async function saveToTeak(
     // No duplicate check first: saving a link already in Teak moves that card
     // to the top, and the answer says `resaved: true`.
     const content = parsedUrl ? parsedUrl.toString() : input.content;
+    let pageSnapshotKey = parsedUrl ? input.pageSnapshotKey : undefined;
+    if (parsedUrl && !pageSnapshotKey && dependencies.pageSnapshot) {
+      // A snapshot that fails to upload is dropped; the link still saves.
+      pageSnapshotKey =
+        (await uploadPageSnapshot(dependencies.pageSnapshot, {
+          fetchImpl: dependencies.fetchImpl,
+          request,
+        })) ?? undefined;
+      if (pageSnapshotKey) {
+        await dependencies.onPageSnapshotUploaded?.(pageSnapshotKey);
+      }
+    }
     return await restResult(
       await request("/v1/cards", {
         method: "POST",
@@ -128,7 +150,7 @@ export async function saveToTeak(
         },
         body: JSON.stringify(
           parsedUrl
-            ? { url: content }
+            ? { url: content, ...(pageSnapshotKey ? { pageSnapshotKey } : {}) }
             : { content, cardType: "text", ...textSource(input) }
         ),
       })

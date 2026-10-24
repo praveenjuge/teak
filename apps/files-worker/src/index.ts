@@ -15,6 +15,7 @@ export {
   MaintenanceWorkflow,
 } from "./workflows/entrypoints";
 
+import { PAGE_ARCHIVE_ROLE } from "@teak/convex/shared/pageArchive";
 import {
   buildMultipartPartSigningPayload,
   FILES_EDGE_CACHE_CONTROL,
@@ -23,7 +24,9 @@ import {
   FILES_PRIVATE_CACHE_CONTROL,
   FILES_PROTOCOL_VERSION,
   type FilesErrorCode,
+  parseCardObjectKey,
 } from "@teak/files-protocol";
+import { PAGE_ARCHIVE_CONTENT_SECURITY_POLICY } from "./archive/inline";
 import { handleApiProxyRequest } from "./edge/apiProxy";
 import {
   applyEdgeRateLimit,
@@ -279,6 +282,7 @@ const etagMatches = (ifNoneMatch: string | null, httpEtag: string): boolean => {
 const applyObjectHeaders = (
   headers: Headers,
   request: Request,
+  key: string,
   objectHttpMetadata: R2HTTPMetadata | undefined,
   httpEtag: string,
   contentLength: number | null
@@ -301,6 +305,13 @@ const applyObjectHeaders = (
     url.searchParams.get("cd") || objectHttpMetadata?.contentDisposition;
   if (contentDisposition) {
     headers.set("Content-Disposition", contentDisposition);
+  }
+  if (parseCardObjectKey(key).role === PAGE_ARCHIVE_ROLE) {
+    headers.set(
+      "Content-Security-Policy",
+      PAGE_ARCHIVE_CONTENT_SECURITY_POLICY
+    );
+    headers.set("Cross-Origin-Resource-Policy", "cross-origin");
   }
   allowAnyOriginForSignedUrl(headers);
 };
@@ -463,6 +474,7 @@ const handler = {
         applyObjectHeaders(
           notModifiedHeaders,
           request,
+          key,
           object.httpMetadata,
           object.httpEtag,
           null
@@ -474,6 +486,7 @@ const handler = {
       applyObjectHeaders(
         headers,
         request,
+        key,
         object.httpMetadata,
         object.httpEtag,
         object.size
@@ -544,6 +557,7 @@ const handler = {
     applyObjectHeaders(
       headers,
       request,
+      key,
       object.httpMetadata,
       object.httpEtag,
       length

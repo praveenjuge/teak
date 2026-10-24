@@ -64,6 +64,13 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 10,
   },
+  // The browser extension uploads the page it saves, one per save.
+  pageSnapshotUploads: {
+    kind: "token bucket",
+    rate: 60,
+    period: MINUTE,
+    capacity: 60,
+  },
   podcastTranscription: {
     kind: "token bucket",
     rate: 20,

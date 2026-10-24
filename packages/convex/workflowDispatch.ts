@@ -36,6 +36,7 @@ import {
 } from "./export/constants";
 import { ACTIVE_IMPORT_STATUSES } from "./import/constants";
 import { importStagedPartKeys } from "./import/indexItems";
+import { pageArchiveSkipReason } from "./shared/pageArchive";
 import {
   callFilesWorkerJson,
   isFilesWorkerConfigured,
@@ -137,6 +138,8 @@ export const queueCardProcessing = async (
   ctx: MutationCtx,
   cardId: Id<"cards">,
   options: {
+    /** Only "load card" and "archive page" run: a link's saved copy. */
+    archiveOnly?: boolean;
     delayMs?: number;
     metadataOnly?: boolean;
     refresh?: boolean;
@@ -155,6 +158,12 @@ export const queueCardProcessing = async (
     !refresh &&
     options.metadataOnly === true &&
     (!replaced || replaced.params?.metadataOnly === true);
+  // A run that takes over a whole pending run keeps its work: it narrows to
+  // the archive only when the run it replaces did too.
+  const archiveOnly =
+    !(reset || metadataOnly) &&
+    options.archiveOnly === true &&
+    (!replaced || replaced.params?.archiveOnly === true);
   const rev = (card.processingRev ?? 0) + 1;
   await ctx.db.patch("cards", cardId, { processingRev: rev });
   const instanceId = cardProcessingInstanceId(cardId, rev);
@@ -167,6 +176,7 @@ export const queueCardProcessing = async (
     params: {
       cardId,
       rev,
+      ...(archiveOnly ? { archiveOnly: true } : {}),
       ...(metadataOnly ? { metadataOnly: true } : {}),
       ...(refresh ? { refresh: true } : {}),
     },
@@ -174,6 +184,28 @@ export const queueCardProcessing = async (
     ...(reset ? { reset: true as const } : {}),
   });
   return { instanceId, rev };
+};
+
+/**
+ * Background runs waiting or in flight, counted up to `limit`: how busy the
+ * dispatcher is, so a backfill can wait instead of crowding out new saves.
+ */
+export const readDispatchQueueDepth = async (
+  ctx: QueryCtx,
+  limit: number
+): Promise<number> => {
+  const pending = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
+    .take(limit);
+  if (pending.length >= limit) {
+    return pending.length;
+  }
+  const sent = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_sentAt", (q) => q.eq("state", "sent"))
+    .take(limit - pending.length);
+  return pending.length + sent.length;
 };
 
 export const queueExportWorkflow = async (
@@ -617,11 +649,29 @@ const handleRunFailure = async (
       if (!card || (card.processingRev ?? 0) !== row.rev) {
         return;
       }
+      // A link whose run ended before its last step still gets its saved
+      // copy, from a run of its own: a page that can't be fetched then fails
+      // only that stage. An archive-only run that fails just fails the stage.
+      const refresh = params.refresh === true;
+      const archiveSeparately =
+        params.archiveOnly !== true &&
+        pageArchiveSkipReason(card, { refresh }) === null;
       await markUnfinishedCardStagesFailed(
         ctx,
-        { cardId: row.cardId, stages: CARD_PROCESSING_STAGES },
+        {
+          cardId: row.cardId,
+          stages: archiveSeparately
+            ? CARD_PROCESSING_STAGES
+            : [...CARD_PROCESSING_STAGES, "archive"],
+        },
         error
       );
+      if (archiveSeparately) {
+        await queueCardProcessing(ctx, row.cardId, {
+          archiveOnly: true,
+          ...(refresh ? { refresh: true } : {}),
+        });
+      }
       return;
     }
     case "export": {

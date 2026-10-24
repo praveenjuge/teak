@@ -49,7 +49,22 @@ const clefAnswer = (decision: null) => ({
   data: { decision, model: "@cf/cloudflare/clef", version: 1 },
 });
 
-const NO_DECISIONS: Partial<Record<FilesOp, OpAnswer>> = {
+/** A link's saved copy, written where the step asked. */
+const archivedPage = (params: Record<string, unknown>): OpAnswer => ({
+  data: {
+    bytes: 2048,
+    kind: "full",
+    pageUrl: params.url,
+    source: params.snapshotKey ? "extension" : "server",
+    storageKey: params.destinationKey,
+    stored: true,
+  },
+});
+
+const NO_DECISIONS: Partial<
+  Record<FilesOp, OpAnswer | ((params: Record<string, unknown>) => OpAnswer)>
+> = {
+  "archive-page": archivedPage,
   "decide-card-type": clefAnswer(null),
   "decide-link-category": clefAnswer(null),
 };
@@ -61,6 +76,7 @@ const setup = (
     /** Podcast audio needs a bucket with multipart uploads. */
     bucket?: FakeBucket;
     deps?: Partial<CardProcessingDeps>;
+    archiveOnly?: boolean;
     handlers?: Parameters<typeof createCardConvex>[1];
     metadataOnly?: boolean;
     refresh?: boolean;
@@ -82,6 +98,7 @@ const setup = (
         params: {
           cardId: CARD_ID,
           convexSiteUrl: TEST_CONVEX_SITE_URL,
+          ...(options.archiveOnly ? { archiveOnly: true } : {}),
           ...(options.metadataOnly ? { metadataOnly: true } : {}),
           ...(options.refresh ? { refresh: true } : {}),
           rev: options.rev ?? 1,
@@ -214,6 +231,7 @@ describe("card processing", () => {
       "capture screenshot",
       "read link image text",
       "emit completion",
+      "archive page",
       "report complete",
     ]);
     const screenshotKey = (
@@ -347,13 +365,14 @@ describe("card processing", () => {
       "emit completion",
       "find podcast episode",
       "transcribe podcast",
+      "archive page",
       "report complete",
     ]);
     // No stage waits on it: the card was complete before it started.
     expect(
       Object.values(card.processingStatus ?? {}).map((stage) => stage.status)
     ).not.toContain("in_progress");
-    expect(fakeStep.records.at(-2)).toMatchObject({
+    expect(fakeStep.records.at(-3)).toMatchObject({
       name: "transcribe podcast",
       outcome: "ok",
     });
@@ -452,7 +471,7 @@ describe("card processing", () => {
 
     const result = await run();
 
-    expect(fakeStep.records.at(-2)).toMatchObject({
+    expect(fakeStep.records.at(-3)).toMatchObject({
       name: "transcribe podcast",
       outcome: "error",
     });
@@ -1032,5 +1051,290 @@ describe("card processing", () => {
 
     await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable");
     expect(reported(convex)).toEqual(["errored"]);
+  });
+});
+
+describe("archive page", () => {
+  const ARCHIVED_AT = Date.UTC(2026, 9, 1);
+  const SNAPSHOT_KEY = `users/x/cards/upload-pending-v2/page-snapshot/${"a".repeat(8)}`;
+
+  /** A link whose AI processing is done, so only the archive is left. */
+  const processedLink = (fields: Partial<FakeCard> = {}) =>
+    makeCard({
+      content: "https://example.com/article",
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "A good article",
+          url: "https://example.com/article",
+        },
+      },
+      metadataStatus: "completed",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+      type: "link",
+      url: "https://example.com/article",
+      ...fields,
+    });
+
+  const archiveCalls = (ops: ReturnType<typeof setup>["ops"]) =>
+    ops.calls.filter((call) => call.op === "archive-page");
+
+  test("is a link's last step, and records the copy under a key registered first", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const { convex, fakeStep, ops, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "" } },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    await run();
+
+    expect(fakeStep.names().slice(-2)).toEqual([
+      "archive page",
+      "report complete",
+    ]);
+    const [call] = archiveCalls(ops);
+    const key = call?.params.destinationKey as string;
+    expect(key).toEndWith("/page-archive/r1-archive.html");
+    expect(call?.params).toMatchObject({ url: "https://example.com/article" });
+    expect(call?.params.snapshotKey).toBeUndefined();
+    expect(
+      convex
+        .callsTo("storage/ownership:registerObject")
+        .map((registered) => registered.args.key)
+    ).toContain(key);
+    expect(card.pageArchive).toMatchObject({
+      bytes: 2048,
+      kind: "full",
+      source: "server",
+      sourceUrl: "https://example.com/article",
+      storageKey: key,
+    });
+    expect(stageHistory(convex.stageWrites, "archive")).toEqual([
+      "in_progress",
+      "completed",
+    ]);
+  });
+
+  test("an archive-only run loads the card and archives it, nothing else", async () => {
+    const card = processedLink();
+    const { fakeStep, ops, run } = setup(card, {}, { archiveOnly: true });
+
+    const result = await run();
+
+    expect(fakeStep.names()).toEqual([
+      "load card",
+      "archive page",
+      "report complete",
+    ]);
+    expect(ops.opsCalled()).toEqual(["archive-page"]);
+    expect(result).toEqual({ archive: "full", mode: "archive_only" });
+    expect(card.processingStatus?.archive?.status).toBe("completed");
+  });
+
+  test("uses the extension's snapshot, then lets it go", async () => {
+    const card = processedLink({
+      pendingPageSnapshotAt: ARCHIVED_AT,
+      pendingPageSnapshotKey: SNAPSHOT_KEY,
+    });
+    const { ops, run } = setup(card, {}, { archiveOnly: true });
+
+    await run();
+
+    expect(archiveCalls(ops)[0]?.params.snapshotKey).toBe(SNAPSHOT_KEY);
+    expect(card.pageArchive).toMatchObject({ source: "extension" });
+    expect(card.pendingPageSnapshotKey).toBeUndefined();
+  });
+
+  test.each([
+    {
+      name: "a card that already has a copy",
+      card: () =>
+        processedLink({
+          pageArchive: {
+            bytes: 1,
+            capturedAt: ARCHIVED_AT,
+            kind: "full",
+            source: "server",
+            sourceUrl: "https://example.com/article",
+            storageKey: "users/x/cards/k/page-archive/r0-archive.html",
+          },
+        }),
+    },
+    {
+      name: "a card in Trash",
+      card: () => processedLink({ isDeleted: true }),
+    },
+    {
+      name: "a note",
+      card: () =>
+        makeCard({ content: "Not a link", processingStatus: {}, type: "text" }),
+    },
+  ])("skips $name", async ({ card }) => {
+    const target = card();
+    const before = target.processingStatus?.archive;
+    const { ops, run } = setup(target, {}, { archiveOnly: true });
+
+    await run();
+
+    expect(archiveCalls(ops)).toEqual([]);
+    expect(target.processingStatus?.archive).toEqual(before);
+  });
+
+  test("Refresh details archives a page that already has a copy, fetching it fresh", async () => {
+    const card = processedLink({
+      pageArchive: {
+        bytes: 1,
+        capturedAt: ARCHIVED_AT,
+        kind: "full",
+        source: "server",
+        sourceUrl: "https://example.com/article",
+        storageKey: "users/x/cards/k/page-archive/r0-archive.html",
+      },
+      processingRev: 2,
+    });
+    const { ops, run } = setup(
+      card,
+      {},
+      { archiveOnly: true, refresh: true, rev: 2 }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)[0]?.params).toMatchObject({ fresh: true });
+    expect(card.pageArchive?.storageKey).toEndWith(
+      "/page-archive/r2-archive.html"
+    );
+  });
+
+  test("a snapshot sent after the copy was taken is archived again", async () => {
+    const card = processedLink({
+      pageArchive: {
+        bytes: 1,
+        capturedAt: ARCHIVED_AT,
+        kind: "full",
+        source: "server",
+        sourceUrl: "https://example.com/article",
+        storageKey: "users/x/cards/k/page-archive/r0-archive.html",
+      },
+      pendingPageSnapshotAt: ARCHIVED_AT + 1,
+      pendingPageSnapshotKey: SNAPSHOT_KEY,
+    });
+    const { ops, run } = setup(card, {}, { archiveOnly: true });
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(1);
+    expect(card.pageArchive).toMatchObject({ source: "extension" });
+  });
+
+  test("a page the fetcher can't have fails the stage at once, and the run completes", async () => {
+    const card = processedLink();
+    const { convex, ops, run } = setup(
+      card,
+      { "archive-page": { data: { reason: "blocked_url", stored: false } } },
+      { archiveOnly: true }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(1);
+    expect(card.processingStatus?.archive).toMatchObject({
+      error: "blocked_url",
+      status: "failed",
+    });
+    expect(card.pageArchive).toBeUndefined();
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a busy fetcher is retried three times, then the stage fails and the card completes", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "pending" },
+        classify: { status: "pending" },
+        metadata: { status: "pending" },
+        renderables: { status: "completed" },
+      },
+      metadataStatus: "pending",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    const { convex, fakeStep, ops, run } = setup(card, {
+      "archive-page": {
+        throws: new Error("files_worker_error:RENDERER_UNAVAILABLE:503:wf"),
+      },
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
+      "extract-image-text": { data: { text: "" } },
+      "fetch-link-page": await linkPage(),
+      "generate-link-metadata": textMetadataAnswer(["article"]),
+    });
+
+    const result = await run();
+
+    expect(archiveCalls(ops)).toHaveLength(4);
+    expect(
+      fakeStep.delays
+        .filter((delay) => delay.name === "archive page")
+        .map((delay) => delay.delay)
+    ).toEqual(["30 seconds", "30 seconds", "30 seconds"]);
+    expect(fakeStep.names().slice(-3)).toEqual([
+      "archive page",
+      "mark archive failed",
+      "report complete",
+    ]);
+    expect(card.processingStatus?.archive).toMatchObject({
+      error: "unreachable",
+      status: "failed",
+    });
+    expect(card.processingStatus?.metadata?.status).toBe("completed");
+    expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("a card edited while it archives: the copy is deleted and the run ends as replaced", async () => {
+    const card = processedLink();
+    const { ops, run } = setup(
+      card,
+      {
+        "archive-page": (params) => {
+          card.processingRev = 2;
+          return archivedPage(params);
+        },
+        "delete-object": { data: { deleted: true } },
+      },
+      { archiveOnly: true }
+    );
+
+    const result = await run();
+
+    const written = archiveCalls(ops)[0]?.params.destinationKey;
+    expect(
+      ops.calls
+        .filter((call) => call.op === "delete-object")
+        .map((call) => call.params.key)
+    ).toEqual([written]);
+    expect(card.pageArchive).toBeUndefined();
+    expect(result).toEqual({ mode: "skipped", reason: "superseded" });
   });
 });

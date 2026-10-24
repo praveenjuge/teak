@@ -16,6 +16,7 @@ import {
   withWorkflowTelemetry,
 } from "../telemetry";
 import { isAiProviderCapacityError } from "./aiMetadata";
+import { ARCHIVE_STEP, archivePage, markArchiveFailed } from "./archive";
 import { categorizeLink } from "./categorization";
 import { type CompletedClassification, classifyCard } from "./classification";
 import {
@@ -49,6 +50,8 @@ import { captureScreenshotStep, SCREENSHOT_STEP } from "./screenshot";
 // the existing ones.
 
 export interface CardProcessingParams {
+  /** Only "load card" and "archive page": a link's saved copy. */
+  archiveOnly?: boolean;
   cardId: string;
   metadataOnly?: boolean;
   refresh?: boolean;
@@ -124,6 +127,7 @@ export type CardProcessingResult =
       mode: "completed";
       renderables?: { thumbnailGenerated: boolean };
     }
+  | { mode: "archive_only"; archive: string }
   | { mode: "skipped"; reason: "card_missing" | "superseded" };
 
 export const runCardProcessing = (
@@ -140,6 +144,7 @@ export const runCardProcessing = (
     rev: params.rev,
   };
   const metadataOnly = params.metadataOnly === true;
+  const archiveOnly = params.archiveOnly === true;
   return runReported(
     run,
     async () => {
@@ -156,7 +161,10 @@ export const runCardProcessing = (
         );
 
       try {
-        return await processCard(job, step, reported, metadataOnly);
+        return await processCard(job, step, reported, {
+          archiveOnly,
+          metadataOnly,
+        });
       } catch (error) {
         if (isSuperseded(error)) {
           return {
@@ -184,7 +192,7 @@ const processCard = async (
   job: CardJob,
   step: WorkflowRun<CardProcessingParams>["step"],
   reported: Reported,
-  metadataOnly: boolean
+  { archiveOnly, metadataOnly }: { archiveOnly: boolean; metadataOnly: boolean }
 ): Promise<CardProcessingResult> => {
   const initial = await step.do(
     "load card",
@@ -228,6 +236,10 @@ const processCard = async (
   }
   if (initial.rev !== job.rev) {
     return { mode: "skipped", reason: "superseded" };
+  }
+
+  if (archiveOnly) {
+    return { archive: await archivePageStep(job, step), mode: "archive_only" };
   }
 
   const classified =
@@ -428,6 +440,12 @@ const processCard = async (
     await transcribePodcastStep(job, step);
   }
 
+  // The last step, whether or not AI metadata finished: the page's saved
+  // copy. A failure fails only its own stage.
+  if (cardType === "link") {
+    await archivePageStep(job, step);
+  }
+
   return {
     ...completedResult(classified, cardType, metadata, renderables),
     ...(categorization ? { categorization } : {}),
@@ -459,6 +477,37 @@ const completedResult = (
     ? { renderables: { thumbnailGenerated: renderables.thumbnailGenerated } }
     : {}),
 });
+
+/**
+ * "archive page", and "mark archive failed" once its retries are spent; only
+ * a superseded run's error escapes. Says what happened, for the run's result.
+ */
+const archivePageStep = async (
+  job: CardJob,
+  step: WorkflowRun<CardProcessingParams>["step"]
+): Promise<string> => {
+  try {
+    const outcome = await step.do("archive page", ARCHIVE_STEP, () =>
+      archivePage(job)
+    );
+    return outcome.status === "archived"
+      ? outcome.kind
+      : `${outcome.status}:${outcome.reason}`;
+  } catch (error) {
+    rethrowSuperseded(error);
+    console.warn("[cardProcessing] Page archive failed", {
+      cardId: job.cardId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await step
+      .do("mark archive failed", CONVEX_STEP, () => markArchiveFailed(job))
+      .catch((markError: unknown) => {
+        rethrowSuperseded(markError);
+        return null;
+      });
+    return "failed:unreachable";
+  }
+};
 
 /**
  * The podcast transcript, logged; only a superseded run's error escapes. The

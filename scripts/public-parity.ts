@@ -15,6 +15,9 @@ export interface PublicParityRow {
 const INFRASTRUCTURE: IntentionalGap = {
   none: "infrastructure endpoint for monitors and API clients, not a feature",
 };
+const BROWSER_CAPTURE_ONLY: IntentionalGap = {
+  none: "browser capture only",
+};
 const NO_AGENT_EXPORTS: IntentionalGap = {
   none: "a full-account ZIP is for people; agents read cards one page at a time",
 };
@@ -170,6 +173,13 @@ export const PUBLIC_PARITY: readonly PublicParityRow[] = [
     mcp: ["teak_v1_create_thumbnail_upload"],
     sdk: ["cards.createThumbnailUpload"],
     cli: ["cards thumbnail"],
+  },
+  {
+    operationId: "createPageSnapshotUpload",
+    feature: "Upload the page a link was saved from",
+    mcp: BROWSER_CAPTURE_ONLY,
+    sdk: ["pageSnapshots.createUpload"],
+    cli: BROWSER_CAPTURE_ONLY,
   },
   {
     operationId: "setCardThumbnail",

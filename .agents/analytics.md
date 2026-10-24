@@ -56,6 +56,8 @@ Server events (`captureBackendEvent`):
 - `link_paste_saved` {count, created, resaved, stopped_at_limit}: a list of links pasted into the web composer finished saving in the background (`card/pasteLinks.ts`). `count` is the links the job kept after dropping repeats and lines past 100; `created` and `resaved` split the ones saved (a link already in Teak moves to the top, like `card_resaved`); `stopped_at_limit` is true when the free card limit ended it early
 - `card_processing_completed` {card_type, duration_ms, ai_language}, sent by the Files Worker when a card-processing run finishes. `ai_language` is the language code AI wrote the tags and summary in (`en`, `ja`, `es`…), only when the run wrote them and the model named a valid language
 - `card_processing_failed` {stage, error_class, card_type}
+- `page_archived` {kind, source, bytes_bucket, duration_ms_bucket}: a link's page was saved as a copy (`workflows/steps/archive/mutations.ts`). `kind` is `full` or `text_only`; `source` is `extension` (the page as the browser showed it) or `server`; `duration_ms_bucket` is `<5s`, `5-30s`, `30s-2m` or `>2m`
+- `page_archive_failed` {reason, source}: a link's page couldn't be saved. `reason` is the archive stage's: `blocked_url`, `too_large`, `http_error`, `not_html`, `unreachable` or `archive_error`. Neither event fails the card
 - `checkout_completed` (Polar `subscription.created`, sets `plan: pro`), `subscription_ended` (Polar `subscription.revoked`, sets `plan: free`), `checkout_failed` {error_class}
 - `billing_portal_opened`
 - `mcp_tool_called` {tool, outcome, status, duration_ms}

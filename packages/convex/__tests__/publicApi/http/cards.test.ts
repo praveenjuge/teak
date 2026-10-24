@@ -9,6 +9,7 @@ import {
   listCardsV1,
   tagsV1,
 } from "../../../publicApi/http/routes";
+import { serializeCard } from "../../../publicApi/http/serializers";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
@@ -2257,5 +2258,150 @@ describe("link image routes", () => {
       })
     );
     expect(response.status).toBe(200);
+  });
+});
+
+describe("page snapshots", () => {
+  const AUTH = {
+    Authorization: `Bearer teakapi_secret_live_a1b2c3d4_${"f".repeat(64)}`,
+  };
+  const upload = {
+    expiresIn: 600,
+    fileKey: "users/u/cards/upload-pending-v2/page-snapshot/s1",
+    maxFileSize: 20 * 1024 * 1024,
+    method: "PUT",
+    uploadUrl: "https://files.example.com/__upload/v1/s1",
+  };
+  const post = (body: unknown, runMutation = buildAuthorizedMutationMock()) =>
+    executePublicApiOperation(
+      withMappedOwner({
+        runMutation,
+        runQuery: mock().mockResolvedValue(null),
+      } as any),
+      { body, headers: AUTH, method: "POST", path: "/v1/page-snapshots/upload" }
+    );
+
+  test("signs an upload for the page's gzipped size", async () => {
+    const runMutation =
+      buildAuthorizedMutationMock().mockResolvedValueOnce(upload);
+    const response = await post({ bytes: 4096 }, runMutation);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(upload);
+    expect(getFunctionName(runMutation.mock.calls[1][0])).toBe(
+      "publicApiPageSnapshots:createPageSnapshotUploadForUser"
+    );
+    expect(runMutation.mock.calls[1][1]).toEqual({
+      bytes: 4096,
+      userId: "user_1",
+    });
+  });
+
+  test("refuses more than 20 MiB with 413 before signing anything", async () => {
+    const runMutation = buildAuthorizedMutationMock();
+    const response = await post({ bytes: 20 * 1024 * 1024 + 1 }, runMutation);
+    expect(response.status).toBe(413);
+    expect(await response.json()).toMatchObject({
+      code: "PAGE_SNAPSHOT_TOO_LARGE",
+    });
+    expect(
+      runMutation.mock.calls.map((call: unknown[]) =>
+        getFunctionName(call[0] as never)
+      )
+    ).not.toContain("publicApiPageSnapshots:createPageSnapshotUploadForUser");
+  });
+
+  test.each([
+    [{}, "`bytes` must be a positive whole number"],
+    [{ bytes: 1.5 }, "`bytes` must be a positive whole number"],
+    [{ bytes: 10, fileName: "page.html" }, "Unknown field `fileName`"],
+  ])("refuses %j", async (body, error) => {
+    const response = await post(body);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ code: "INVALID_INPUT", error });
+  });
+
+  test("a spent rate limit answers 429 with when to retry", async () => {
+    const retryAt = Date.now() + 30_000;
+    const runMutation = buildAuthorizedMutationMock().mockRejectedValueOnce(
+      new ConvexError({
+        code: "RATE_LIMITED",
+        limit: 60,
+        message: "Too many page snapshots. Try again in a minute.",
+        retryAt,
+      })
+    );
+    const response = await post({ bytes: 4096 }, runMutation);
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(await response.json()).toMatchObject({
+      code: "RATE_LIMITED",
+      retryAt,
+    });
+  });
+
+  test("POST /v1/cards hands the snapshot key to the save", async () => {
+    const runMutation = buildAuthorizedMutationMock().mockResolvedValue({
+      cardId: "card_1",
+      status: "created",
+    });
+    const response = await executePublicApiOperation(
+      withMappedOwner({
+        runMutation,
+        runQuery: mock().mockResolvedValue(null),
+      } as any),
+      {
+        body: {
+          pageSnapshotKey: upload.fileKey,
+          url: "https://example.com/post",
+        },
+        headers: AUTH,
+        method: "POST",
+        path: "/v1/cards",
+      }
+    );
+    expect(response.status).toBe(200);
+    const save = runMutation.mock.calls.find(
+      (call: unknown[]) =>
+        getFunctionName(call[0] as never) ===
+        "publicApi/cardsForUser:quickSaveForUser"
+    );
+    expect(save?.[1]).toMatchObject({
+      pageSnapshotKey: upload.fileKey,
+      url: "https://example.com/post",
+    });
+  });
+
+  test("a card says what its saved copy is, never where it is", () => {
+    const card = {
+      _creationTime: 1,
+      _id: "card_1",
+      content: "https://example.com/post",
+      createdAt: 1,
+      pageArchive: {
+        bytes: 2_400_000,
+        capturedAt: 1_792_368_000_000,
+        kind: "full",
+        source: "extension",
+        sourceUrl: "https://example.com/post",
+        storageKey: "users/u/cards/card_1/page-archive/r1-archive.html",
+      },
+      type: "link",
+      updatedAt: 2,
+      url: "https://example.com/post",
+      userId: "user_1",
+    };
+    const serialized = serializeCard(card as never, "https://example.com/v1");
+    expect(serialized.archive).toEqual({
+      bytes: 2_400_000,
+      capturedAt: 1_792_368_000_000,
+      kind: "full",
+    });
+    expect(JSON.stringify(serialized)).not.toContain("page-archive");
+    expect(
+      serializeCard(
+        { ...card, pageArchive: undefined } as never,
+        "https://example.com/v1"
+      ).archive
+    ).toBeNull();
   });
 });

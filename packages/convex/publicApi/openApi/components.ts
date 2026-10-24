@@ -89,6 +89,22 @@ const cardProperties = {
     type: ["string", "null"],
   },
   appUrl: { format: "uri", type: "string" },
+  archive: {
+    description:
+      "A link's saved copy of its page, which Teak keeps privately and opens when the original is gone: `full` (text, styles and images, up to 20 MB) or `text_only` (the page was too large), its size in bytes and when it was taken. Null until the copy is saved, and for other cards. The copy itself stays in the app.",
+    oneOf: [
+      {
+        properties: {
+          bytes: { type: "number" },
+          capturedAt: { type: "number" },
+          kind: { enum: ["full", "text_only"], type: "string" },
+        },
+        required: ["kind", "bytes", "capturedAt"],
+        type: "object",
+      },
+      { type: "null" },
+    ],
+  },
   compactUrl: {
     description:
       "256px rendition URL for small cards; present for image uploads.",
@@ -328,6 +344,7 @@ export const components = {
         aiTags: { items: { type: "string" }, type: "array" },
         aiTranscript: cardProperties.aiTranscript,
         appUrl: { format: "uri", type: "string" },
+        archive: cardProperties.archive,
         compactUrl: {
           description:
             "256px rendition URL for small cards; present for image uploads.",
@@ -442,6 +459,11 @@ export const components = {
         fileSize: { type: "number" },
         mimeType: { type: "string" },
         notes: { type: ["string", "null"] },
+        pageSnapshotKey: {
+          description:
+            "From POST /v1/page-snapshots/upload: the page as the browser showed it, gzipped, which becomes the link's saved copy instead of the page Teak fetches. Only for links; a key that isn't one of your snapshot uploads is ignored, and the card is still saved. Not allowed with `fileKey`.",
+          type: "string",
+        },
         source: {
           description:
             "A free label for what saved the card, kept in its metadata. To record the page a card came from, use `sourceUrl`.",
@@ -496,6 +518,18 @@ export const components = {
       required: ["fileName", "fileSize", "mimeType"],
       type: "object",
     },
+    CreatePageSnapshotUploadRequest: {
+      additionalProperties: false,
+      properties: {
+        bytes: {
+          description:
+            "The gzipped page's exact size in bytes; at most 20971520 (20 MiB).",
+          type: "integer",
+        },
+      },
+      required: ["bytes"],
+      type: "object",
+    },
     CreateUploadResponse: {
       properties: {
         expiresIn: { type: "number" },
@@ -512,7 +546,7 @@ export const components = {
         "Bulk operations do not accept `permanent`; permanently delete cards in Trash one at a time with DELETE /v1/cards/{cardId}?permanent=true.",
       properties: {
         items: {
-          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
+          description: `Up to ${PUBLIC_API_MAX_BULK_ITEMS} items. \`create\` items take content, url, notes, tags, cardType, pageSnapshotKey, sourceUrl and sourceTitle; \`update\` items take cardId plus content, url, notes or tags; \`favorite\` items take cardId and isFavorited. \`delete\`, \`restore\`, \`archive\` and \`unarchive\` items take cardId. \`addTags\` and \`removeTags\` items take cardId and tags (up to 20, each at most ${MAX_TAG_LENGTH} characters); tags are matched ignoring case, and removeTags also clears tags Teak added. Repeating an operation on a card already in that state succeeds without changing it.`,
           items: { additionalProperties: true, type: "object" },
           maxItems: PUBLIC_API_MAX_BULK_ITEMS,
           type: "array",

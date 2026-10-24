@@ -9,6 +9,8 @@ export interface ProcessingStageStatus {
 }
 
 export interface ProcessingStatus {
+  /** The link's saved copy; it never fails the card. */
+  archive?: ProcessingStageStatus;
   categorize?: ProcessingStageStatus;
   classify?: ProcessingStageStatus;
   metadata?: ProcessingStageStatus;
@@ -70,6 +72,10 @@ export const shouldRunRenderablesStage = (cardType: CardType): boolean =>
   cardType === "image" || cardType === "video" || cardType === "document";
 
 export const shouldRunCategorizeStage = (cardType: CardType): boolean =>
+  cardType === "link";
+
+/** Links get a saved copy of their page. */
+export const shouldRunArchiveStage = (cardType: CardType): boolean =>
   cardType === "link";
 
 export const buildInitialProcessingStatus = (params: {

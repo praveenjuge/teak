@@ -247,6 +247,7 @@ and replace your local copy.
 | `/v1/me` | Read your authenticated Teak identity |
 | `/v1/cards` | Create or list cards |
 | `/v1/uploads` | Start a direct file upload |
+| `/v1/page-snapshots/upload` | Start uploading the page a link was saved from, for its saved copy, with POST |
 | `/v1/cards/bulk` | Create, update, favorite, archive, tag, delete, or restore up to 100 cards |
 | `/v1/cards/changes` | Read incremental card changes |
 | `/v1/tags` | List tags |
@@ -273,7 +274,7 @@ and replace your local copy.
 
 See the OpenAPI document at `https://teakvault.com/api/openapi.json` or the [API Reference](/reference) for methods, parameters, schemas, and response examples.
 
-Every card, tag, folder, and account endpoint is also a tool in the [MCP server](/docs/mcp), a method in the TypeScript SDK, and a command in the [CLI](/docs/cli), with the same filters and error codes. Exports are the exception for MCP: an export is a ZIP of your whole library for you to download, so agents read cards a page at a time instead.
+Every card, tag, folder, and account endpoint is also a tool in the [MCP server](/docs/mcp), a method in the TypeScript SDK, and a command in the [CLI](/docs/cli), with the same filters and error codes. Exports are the exception for MCP: an export is a ZIP of your whole library for you to download, so agents read cards a page at a time instead. Page snapshots are SDK-only (`pageSnapshots.createUpload`): they carry the page a browser shows, which only a browser extension has.
 
 ## Search and favorites
 
@@ -606,6 +607,24 @@ Accepted images are JPEG, PNG, WebP, GIF (the grid shows its first frame), and A
 | `413` | `FILE_TOO_LARGE` | The image is 20 MB or more |
 | `429` | `RATE_LIMITED` | More than 20 image changes in a minute; see `retryAt` |
 
+## Saved copies of pages
+
+Teak keeps a private copy of each link's page, so the page outlives the site. Every link card gets one automatically after it is saved: one HTML file with the page's text, styles, fonts and images, up to 20 MB, without scripts, video or audio. A page too large to keep whole is kept as text only. Cards include `archive`: `{ kind, bytes, capturedAt }`, where `kind` is `full` or `text_only`, or `null` until the copy is saved and for other cards. The copy itself stays in Teak; the API never returns it. When you open a link in Teak and its page is gone, Teak shows its copy instead.
+
+A browser extension can send the page as the person sees it, including pages behind a sign-in or built by scripts, and that becomes the copy:
+
+1. `POST /v1/page-snapshots/upload` with `{ "bytes": 48213 }`, the size of the page's HTML after gzip, returns `{ uploadUrl, fileKey, method: "PUT", maxFileSize, expiresIn }`.
+2. `PUT` the gzipped HTML to `uploadUrl` with `Content-Type: application/gzip` and exactly `bytes` bytes, within `expiresIn` seconds.
+3. Pass `fileKey` as `pageSnapshotKey` in `POST /v1/cards` (or a bulk `create` item) with the link's `url`.
+
+A `pageSnapshotKey` that isn't one of your snapshot uploads is ignored, and the card is still saved. Saving a link you already have with a new snapshot replaces its copy.
+
+| Status | Code | When |
+| --- | --- | --- |
+| `400` | `INVALID_INPUT` | `bytes` is missing or not a whole number |
+| `413` | `PAGE_SNAPSHOT_TOO_LARGE` | The gzipped page is over 20 MiB |
+| `429` | `RATE_LIMITED` | More than 60 snapshots in a minute; see `retryAt` |
+
 ## Archive cards
 
 Archiving hides a card from listings and search without deleting it; it still counts toward your card limit. Send `PATCH /v1/cards/:cardId` with `{ "isArchived": true }` to archive a card and `{ "isArchived": false }` to return it. Cards include `isArchived` and `archivedAt`. List archived cards with `GET /v1/cards?archived=only`. `GET /v1/tags` counts only cards outside Trash and Archive.
@@ -659,7 +678,7 @@ the change finishes.
 
 ## Bulk actions
 
-`POST /v1/cards/bulk` takes an `operation` and up to 100 `items`. Besides `create`, `update`, `favorite` (`{ cardId, isFavorited }`) and `delete`, it accepts `archive`, `unarchive`, and `restore` (each item `{ cardId }`) and `addTags` and `removeTags` (each item `{ cardId, tags }`, up to 20 tags). Tags match ignoring case, and `removeTags` also clears tags Teak added. `create` items take `content`, `url`, `notes`, `tags`, `cardType`, `sourceUrl` and `sourceTitle`, and `update` items take `cardId` plus at least one of `content`, `url`, `notes` or `tags`; an item with any other field fails with `INVALID_INPUT`. Repeating an operation on a card already in that state succeeds without changing it, so retries are safe. The response lists each item's result and a `failedIds` array of the cards to retry.
+`POST /v1/cards/bulk` takes an `operation` and up to 100 `items`. Besides `create`, `update`, `favorite` (`{ cardId, isFavorited }`) and `delete`, it accepts `archive`, `unarchive`, and `restore` (each item `{ cardId }`) and `addTags` and `removeTags` (each item `{ cardId, tags }`, up to 20 tags). Tags match ignoring case, and `removeTags` also clears tags Teak added. `create` items take `content`, `url`, `notes`, `tags`, `cardType`, `pageSnapshotKey`, `sourceUrl` and `sourceTitle`, and `update` items take `cardId` plus at least one of `content`, `url`, `notes` or `tags`; an item with any other field fails with `INVALID_INPUT`. Repeating an operation on a card already in that state succeeds without changing it, so retries are safe. The response lists each item's result and a `failedIds` array of the cards to retry.
 
 ## Delete and restore cards
 

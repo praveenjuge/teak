@@ -46,6 +46,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Language](./language.md) covers Settings → Language, switching in place with Undo, the account's choice beating the cookie, formats and plurals per language, translated server errors, the `en-XA` pseudo-locale break-it pass, and `locale` in `/v1/me` and `teak whoami`.
 - [Opening links](./open-links.md) covers opening a link card's page through `/open/<cardId>`: the check, the archived copy when the page is gone (its bar, sandboxed frame, ⋯ menu at 390 px and missing state), "This card isn’t available", and the card dialog's "Archived copy" chip.
 - [Import](./import.md) covers Settings → Manage data → Import: the source picker, CSV files with their header aliases and the missing url column error, text files of links, duplicates skipped by URL key, and the failed-rows report.
+- [Saved copies of pages](./page-archive.md) covers a link's saved copy: the side panel's Details row in every state, server and extension copies, Refresh details, `archive` and `POST /v1/page-snapshots/upload` in the API, the sandboxed object, and the backfill.
 - [Docs site](./docs.md) covers the sidebar's groups and order, page rendering in light, dark and 390px, agent-only text kept to the `.md` mirrors, and link checks.
 
 - [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.

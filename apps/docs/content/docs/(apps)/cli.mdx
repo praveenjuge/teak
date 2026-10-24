@@ -116,7 +116,7 @@ Like the web composer, Teak works out the card type from what you add: a URL bec
 
 `teak cards duplicate <url>` prints the ID of the card that saves that link, and exits with the not-found code when none does, so a script can check before saving. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.
 
-`teak cards get` shows when the card was created and, when its link was saved again later, a `saved again: <date>` line, plus the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
+`teak cards get` shows when the card was created and, when its link was saved again later, a `saved again: <date>` line, plus the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file). With `--json`, `teak cards get` also includes `archive`: a link's saved copy of its page (`kind` is `full` or `text_only`, with `bytes` and `capturedAt`), or `null` until it is saved.
 
 `teak cards save-pdf` saves an arXiv link's paper as its own document card and prints its ID; for a paper you already saved it prints that card's ID. `--json` prints `{ cardId, created }`.
 

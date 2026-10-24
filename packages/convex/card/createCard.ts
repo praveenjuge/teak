@@ -10,19 +10,23 @@ import { requireSessionUser, type TeakUserId } from "../securitySessions";
 import type { CardCreationSource } from "../shared/analytics";
 import { normalizeCardSource } from "../shared/cardSource";
 import { MAX_CARD_TITLE_LENGTH } from "../shared/cardTitle";
+import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { normalizeErrorClass } from "../shared/telemetry";
 import type { FileMetadata } from "../shared/types";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { normalizeUrlHost } from "../shared/utils/urlHost";
 import { urlKey } from "../shared/utils/urlKey";
-import { buildR2UserPrefix } from "../storage/r2";
+import { buildR2UserPrefix, queueObjectDeletion } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
 import { queueCardProcessing } from "../workflowDispatch";
 import { insertCountedCard } from "./cardUsage";
 import { findLiveCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
+import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import {
   buildInitialProcessingStatus,
+  mergeProcessingStages,
+  shouldRunArchiveStage,
   stageCompleted,
   stagePending,
 } from "./processingStatus";
@@ -111,6 +115,11 @@ interface CreateCardArgs {
   fileKey?: string;
   metadata?: unknown;
   notes?: string;
+  /**
+   * A link's page as the browser extension saw it: one of the caller's
+   * pending snapshot uploads. Ignored when it isn't.
+   */
+  pageSnapshotKey?: string;
   sourceTitle?: string;
   sourceUrl?: string;
   tags?: string[];
@@ -274,6 +283,11 @@ export const createCardForUserHandler = async (
     finalContent = validateTextCardContent(finalContent);
   }
 
+  const pageSnapshotKey =
+    cardType === "link"
+      ? await acceptPendingPageSnapshot(ctx, userId, args.pageSnapshotKey)
+      : undefined;
+
   // Saving a link that's already in Teak moves that card to the top instead
   // of making a second one. The rate-limit token is spent above, and only the
   // insert below checks the free plan's cap, so a re-save at the cap works.
@@ -288,6 +302,7 @@ export const createCardForUserHandler = async (
     if (existing) {
       return await resaveCard(ctx, existing, {
         now,
+        pageSnapshotKey,
         source: options.source ?? "unknown",
       });
     }
@@ -334,11 +349,17 @@ export const createCardForUserHandler = async (
     colors: resolvedColors,
     colorHexes,
     colorHues,
-    processingStatus: buildInitialProcessingStatus({
-      now,
-      cardType,
-      classificationStatus,
-    }),
+    processingStatus: {
+      ...buildInitialProcessingStatus({
+        now,
+        cardType,
+        classificationStatus,
+      }),
+      ...(shouldRunArchiveStage(cardType) ? { archive: stagePending() } : {}),
+    },
+    ...(pageSnapshotKey
+      ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
+      : {}),
     createdAt: options.importedVisibleFields?.createdAt ?? now,
     ...(options.importedVisibleFields?.savedAt === undefined
       ? {}
@@ -384,22 +405,57 @@ export const createCardForUserHandler = async (
   return { cardId, outcome: "created" };
 };
 
+const UNFINISHED_STAGES = new Set(["pending", "in_progress"]);
+
 /**
  * Moves a saved card to the top of "Newest first" and back from Archive. The
  * search sync carries the new `savedAt` to its folder and tag rows. Nothing
- * else changes, and the card isn't processed again.
+ * else changes, and the card isn't processed again, except that a page the
+ * extension sent replaces the saved copy: by itself when the card is idle,
+ * or at the end of the run already going.
  */
 const resaveCard = async (
   ctx: MutationCtx,
   card: Doc<"cards">,
-  { now, source }: { now: number; source: CardCreationSource }
+  {
+    now,
+    pageSnapshotKey,
+    source,
+  }: { now: number; pageSnapshotKey?: string; source: CardCreationSource }
 ): Promise<CreateCardOutcome> => {
   const wasArchived = card.isArchived === true;
+  const snapshot = pageSnapshotKey
+    ? { pendingPageSnapshotKey: pageSnapshotKey, pendingPageSnapshotAt: now }
+    : null;
+  if (
+    snapshot &&
+    card.pendingPageSnapshotKey &&
+    card.pendingPageSnapshotKey !== pageSnapshotKey
+  ) {
+    await queueObjectDeletion(ctx, card.pendingPageSnapshotKey);
+  }
+  const archiveNow =
+    snapshot !== null &&
+    pageArchiveSkipReason({ ...card, ...snapshot }) === null &&
+    !Object.values(card.processingStatus ?? {}).some(
+      (stage) => stage && UNFINISHED_STAGES.has(stage.status)
+    );
   await patchCardWithSearchSync(ctx, card._id, {
     savedAt: now,
     updatedAt: now,
     ...(wasArchived ? { isArchived: undefined, archivedAt: undefined } : {}),
+    ...(snapshot ?? {}),
+    ...(archiveNow
+      ? {
+          processingStatus: mergeProcessingStages(card.processingStatus, {
+            archive: stagePending(),
+          }),
+        }
+      : {}),
   });
+  if (archiveNow) {
+    await queueCardProcessing(ctx, card._id, { archiveOnly: true });
+  }
   await queueBackendEvent(ctx, "card_resaved", card.userId, {
     source,
     was_archived: wasArchived,

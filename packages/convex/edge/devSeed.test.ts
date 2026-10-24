@@ -1839,3 +1839,94 @@ describe("devSeed ordering-saved pack", () => {
     ]);
   });
 });
+
+describe("devSeed page archive packs", () => {
+  test("page-archive-mix seeds every saved-copy state once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "page-archive-mix",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 8 });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    const bySlug = new Map(
+      cards.map((card) => [
+        new URL(card.url as string).pathname.split("/").pop(),
+        card,
+      ])
+    );
+    expect(bySlug.get("full")?.pageArchive).toMatchObject({
+      kind: "full",
+      source: "server",
+    });
+    expect(bySlug.get("full")?.pageArchive?.bytes ?? 0).toBeGreaterThanOrEqual(
+      35_000
+    );
+    expect(bySlug.get("text-only")?.pageArchive?.kind).toBe("text_only");
+    expect(bySlug.get("extension")?.pageArchive?.source).toBe("extension");
+    expect(bySlug.get("blocked")?.processingStatus?.archive).toMatchObject({
+      error: "blocked_url",
+      status: "failed",
+    });
+    expect(bySlug.get("too-large")?.processingStatus?.archive?.error).toBe(
+      "too_large"
+    );
+    expect(bySlug.get("pending")?.processingStatus?.archive?.status).toBe(
+      "pending"
+    );
+    expect(bySlug.get("trashed")).toMatchObject({ isDeleted: true });
+    expect(bySlug.get("trashed")?.pageArchive).toBeDefined();
+    expect(bySlug.get("podcast")?.aiTranscriptCharCount).toBeGreaterThan(0);
+    // Every stub is owned by the account, so deleting it removes them.
+    const owned = await t.run((ctx) =>
+      ctx.db.query("accountStorageObjects").collect()
+    );
+    expect(owned.map((row) => row.key).sort()).toEqual(
+      cards
+        .flatMap((card) =>
+          card.pageArchive ? [card.pageArchive.storageKey] : []
+        )
+        .sort()
+    );
+  });
+
+  test("archive-backfill-1000 seeds 1,000 links with no copy, 200 a page", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    for (let page = 0; page < 5; page += 1) {
+      expect(
+        await t.mutation(internal.devSeed.seedScenario, {
+          workosUserId: WORKOS_USER_ID,
+          scenario: "archive-backfill-1000",
+          page,
+        })
+      ).toEqual({ status: "seeded", cards: 200 });
+    }
+    expect(
+      await t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "archive-backfill-1000",
+        page: 5,
+      })
+    ).toEqual({ status: "already_seeded", cards: 0 });
+    const links = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(links).toHaveLength(1000);
+    expect(
+      links.every((card) => card.type === "link" && !card.pageArchive)
+    ).toBe(true);
+  }, 60_000);
+});

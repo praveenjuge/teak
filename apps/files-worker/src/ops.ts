@@ -45,6 +45,7 @@ import {
   vectorQuery,
   vectorSimilar,
 } from "./ai/vectors";
+import { parseArchivePageParams, runArchivePage } from "./archive/archivePage";
 import {
   buildExportIntoBucket,
   ExportManifestInvalid,
@@ -754,6 +755,11 @@ const dispatch = async (
         storedContentType: "image/jpeg",
       });
     }
+    case "archive-page":
+      return success(
+        requestId,
+        await runArchivePage(env, parseArchivePageParams(params))
+      );
     case "store-remote-asset":
       return success(
         requestId,

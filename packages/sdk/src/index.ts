@@ -58,6 +58,7 @@ export const ERROR_CODES = [
   "NOT_FOUND",
   "NO_CONTENT",
   "NOT_IN_TRASH",
+  "PAGE_SNAPSHOT_TOO_LARGE",
   "PARSE_ERROR",
   "RATE_LIMITED",
   "REQUEST_FAILED",
@@ -86,11 +87,24 @@ export interface TokenProvider {
   ) => Promise<string | null> | string | null;
 }
 
+/** A link's saved copy of its page. The HTML itself stays in Teak. */
+export interface CardArchive {
+  bytes: number;
+  capturedAt: number;
+  kind: "full" | "text_only";
+}
+
 export interface Card {
   aiSummary: string | null;
   aiTags: string[];
   aiTranscript: string | null;
   appUrl: string;
+  /**
+   * A link's saved copy of its page: `full`, or `text_only` when the page
+   * was too large; null until it is saved and for other cards. Servers that
+   * predate saved copies leave it out.
+   */
+  archive?: CardArchive | null;
   /** When the card was archived, or null. */
   archivedAt: number | null;
   /** Bar heights 0-100: 45 for a grid card, 200 for a player. */
@@ -321,6 +335,12 @@ export interface CreateCardInput {
   /** Free-form notes attached to the card. */
   notes?: string | null;
   /**
+   * The `fileKey` from `pageSnapshots.createUpload`: the page as the browser
+   * showed it, which becomes a link's saved copy. Ignored when it isn't one
+   * of your snapshot uploads.
+   */
+  pageSnapshotKey?: string;
+  /**
    * A free label for what saved the card (extension, CLI, API, and so on),
    * kept in its metadata. For the page the card came from, use `sourceUrl`.
    */
@@ -400,6 +420,10 @@ export interface CreateUploadInput {
   mimeType: string;
 }
 /** A link image upload: JPEG, PNG, WebP, GIF or AVIF, under 20 MB. */
+export interface CreatePageSnapshotUploadInput {
+  /** The gzipped page's exact size; at most 20 MiB. */
+  bytes: number;
+}
 export interface CreateThumbnailUploadInput {
   fileSize: number;
   mimeType: string;
@@ -1257,6 +1281,19 @@ export const createTeakClient = (options: {
           "/v1/tags/rename",
           { body: JSON.stringify({ from, to }), method: "POST" },
           asTagOperation
+        ),
+    },
+    pageSnapshots: {
+      /**
+       * A signed URL for the page a browser extension saw, gzipped: `PUT`
+       * it with `Content-Type: application/gzip`, then pass the `fileKey`
+       * to `cards.create` as `pageSnapshotKey`.
+       */
+      createUpload: (input: CreatePageSnapshotUploadInput) =>
+        request(
+          "/v1/page-snapshots/upload",
+          { body: JSON.stringify(input), method: "POST" },
+          asUpload
         ),
     },
     uploads: {
