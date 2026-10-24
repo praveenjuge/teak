@@ -26,9 +26,12 @@ function useLegacyDialogRedirect() {
       return;
     }
     const tab = parseSettingsDialogParam(dialogParam);
-    router.replace(tab ? settingsDataHref(tab) : "/settings", {
-      scroll: false,
-    });
+    if (tab) {
+      // Let the router scroll to the section the link named.
+      router.replace(settingsDataHref(tab));
+    } else {
+      router.replace("/settings", { scroll: false });
+    }
   }, [dialogParam, router]);
 }
 
