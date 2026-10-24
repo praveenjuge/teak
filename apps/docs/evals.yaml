@@ -64,6 +64,14 @@ questions:
       - Text, link, image, video, audio, document, palette, and quote cards
     routes: /docs/features
 
+  - id: resave-link
+    question: What happens if I save a link that's already in Teak, maybe with new tags?
+    expected:
+      - Teak makes no second card; the existing card moves to the top of the library and comes back from Archive if it was archived
+      - Tags and notes sent with it aren't added to the existing card
+      - The card's details keep Added as the first save date and show Saved again with the latest save
+    routes: /docs/features
+
   - id: free-plan-limit
     question: How many cards can I save on the free plan, and what happens when I hit the limit in the Chrome extension?
     expected:

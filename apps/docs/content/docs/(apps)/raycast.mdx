@@ -35,7 +35,7 @@ Prefer an API key? Paste one from **Teak Settings → Security → API keys** in
 - **Save to Teak**: Save any text or URL in one step. Accepts optional content, tags and note arguments, and works as a [Raycast fallback command](https://manual.raycast.com/fallback-commands), so pressing Enter on a root search with no results can save that query straight to Teak.
 - **Save Clipboard**: Save the current clipboard contents to Teak with no prompt. A copied file or image is uploaded as a file card.
 - **Save Selected Text**: Save the text currently highlighted in any app. Ideal paired with a global hotkey.
-- **Save Current Browser Tab**: Save the active browser tab directly from Raycast. If the page is already in Teak, it says **Already saved** and offers to open the card instead. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
+- **Save Current Browser Tab**: Save the active browser tab directly from Raycast. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
 - **Save Finder Selection**: Upload the files selected in Finder, up to 100 MB each, the same as dropping them on the web app.
 - **Search Cards**: Find and open cards instantly. Results keep loading as you scroll.
 - **Favorites**: Jump to your starred cards.
@@ -45,6 +45,8 @@ Prefer an API key? Paste one from **Teak Settings → Security → API keys** in
 - **Find Similar Cards**: Paste a card ID or a Teak link to see the cards closest to it in meaning.
 
 Like the web, Teak works out the card type from what you save: a URL becomes a link, text in quotation marks becomes a quote, and a list of colors becomes a palette. Structured Markdown stays a text card exactly as entered.
+
+Saving a link that's already in Teak doesn't make a second card. Raycast says **Already saved** with **Moved to the top** (or **Moved back from Archive**), and that card moves to the top of your library; **Open Card** opens it. Tags and a note sent with it aren't added to the card. See [Saving something again](/docs/features#saving-something-again).
 
 ### Search filters
 

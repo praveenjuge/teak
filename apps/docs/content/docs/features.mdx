@@ -24,6 +24,19 @@ Teak picks the type when you save a note: a quotation with who said it becomes a
 Ordinary file uploads (images, video, audio, documents, source files, Markdown, ZIP archives, and design files) are supported up to 100 MB. For [Teak archive imports](/docs/import#limits), the archive itself can be up to 5 GiB (exempt from the 100 MB upload limit), while each attached file inside is limited to 20 MiB. `.md` and `.markdown` files become editable text cards limited to 512 KiB of valid UTF-8.
 :::
 
+### Saving links
+
+Paste a link on the home page to save it as a link card. Paste a list of links, one per line, and Teak saves each as its own card (up to 100 at a time).
+
+### Saving something again
+
+Saving a link you already have doesn't make a second card. Teak moves that card to the top of your library and brings it back from Archive if it was there. This works wherever you save: the web, the browser extension, Raycast, the Mac, iPhone, iPad and Android apps, email, the API, MCP and the CLI. Teak treats two addresses as the same link when they differ only by `http` or `https`, `www.`, a trailing slash, a `#fragment` or tracking parameters (`utm_*`, `fbclid`, `gclid`).
+
+- Only a link saved on its own counts. A link with words around it, a note or a file is saved as a new card, and so is an emailed link with a sentence or two around it.
+- Tags and notes sent with it aren't added to the card you already have. Add them to that card instead.
+- A card in Trash doesn't count: saving its link again makes a new card.
+- The card's **Details** keep **Added**, the date you first saved it, and show **Saved again** with the last time you saved it.
+
 ## Search and organization
 
 ### Sidebar
@@ -57,7 +70,7 @@ Special tokens work automatically:
 | **Color name** | `red`, `blue`, `teal` | Dominant palette color |
 | **Visual style** | `minimal`, `dark`, `cinematic`, `typographic`, `3d`, `hand-drawn` | Images and videos with that look |
 | **Hex color** | `#FF5733`, `#3B82F6` | Exact color match |
-| **Date** | `today`, `this week`, `january`, `last year` | Creation date |
+| **Date** | `today`, `this week`, `january`, `last year` | Date saved (or saved again) |
 | **Quick view** | `favorites` / `fav`, `archive`, `trash` / `bin` / `deleted` | Opens that page; type it again to go back to Everything |
 | **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
 | **Type** | `type:link`, `type:images` | Cards of that type |
@@ -184,7 +197,7 @@ Cards show in a masonry grid that adapts to different sizes and aspect ratios. L
 
 Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`) for everything else in its right-click menu.
 
-Click a card to open it. The top holds only its title, favorite, **More** (`⋯`), and one main action: **Open** for a link, **Download** for a file. A note or quote has no title bar, so its content leads. Beside the card are its notes, tags and folders, summary, colors, and details, all editable in place: a note saves on its own as you type (the top shows **Saved** for a moment), and a tag is added when you press `Enter`. Tags Teak added fold under **suggested tags**; open it to keep one as your own tag or remove it. **Details** shows when you added the card and its size, with **More details** for the rest. For a link, click its title to rename it.
+Click a card to open it. The top holds only its title, favorite, **More** (`⋯`), and one main action: **Open** for a link, **Download** for a file. A note or quote has no title bar, so its content leads. Beside the card are its notes, tags and folders, summary, colors, and details, all editable in place: a note saves on its own as you type (the top shows **Saved** for a moment), and a tag is added when you press `Enter`. Tags Teak added fold under **suggested tags**; open it to keep one as your own tag or remove it. **Details** shows when you added the card, when you saved it again if you did, and its size, with **More details** for the rest. For a link, click its title to rename it.
 
 **More** holds everything else: favorite, mark as done, add to a folder, archive, copy, download, Save PDF, replace the image, More like this, Refresh details, hide or show the details panel, and Delete. Deleting a card shows **Undo**. A card in Trash says so above it, with **Restore** and **Delete Forever**.
 
@@ -264,7 +277,7 @@ Press `⌘K` again or `Esc` to close it, and focus goes back where it was. While
 
 ### Sort and share a search
 
-Cards are ordered by the date you saved them, newest first. Choose **Oldest first** from the **View** menu beside the search bar to start from the beginning.
+Cards are ordered by the date you saved them, newest first; [saving a link again](#saving-something-again) moves it to the top. Choose **Oldest first** from the **View** menu beside the search bar to start from the beginning.
 
 A search with words starts in **Best match**: the cards that best match what you typed come first. Teak scores your search's top results the moment you search; if that takes more than a moment, the results stay in their usual order instead of moving while you look at them. Choose **Newest first** from the **View** menu to see your matches by date instead. Imported bookmarks keep their original dates, so they land where they were first saved.
 
@@ -342,7 +355,7 @@ Teak's web app and browser extension are available in English, Español, Portugu
 
 Turn on **Settings → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email address you sign in to Teak with.
 
-- An email that's just a link, with at most a sentence or two, becomes a link card, and the sentence becomes its note. Anything else becomes a note, headed with the subject. Tracking images and redirect wrappers are removed, and a forwarded email's "Fwd:" and forwarding header are dropped.
+- An email that's just a link, with at most a sentence or two, becomes a link card, and the sentence becomes its note. A link you already have, emailed on its own, moves that card to the top instead; with a sentence around it, it makes a new card. Anything else becomes a note, headed with the subject. Tracking images and redirect wrappers are removed, and a forwarded email's "Fwd:" and forwarding header are dropped.
 - Attachments become their own cards, with the same formats as uploads. An email can carry about 18 MB of attachments in total.
 - Every card is tagged `email`.
 - Mail from any other address isn't saved, and neither is mail that fails its domain's sender checks (DMARC); your mail app shows it was refused. Forwarding from a work account only works if that's the email you sign in with.
