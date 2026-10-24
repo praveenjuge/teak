@@ -320,7 +320,7 @@ export const searchCardLinkSuggestions = query({
       ? await searchSuggestionCards(ctx, userId, text, includeHidden)
       : await ctx.db
           .query("cards")
-          .withIndex("by_user_deleted_archived_created", (q) =>
+          .withIndex("by_user_deleted_archived_saved", (q) =>
             q
               .eq("userId", userId)
               .eq("isDeleted", undefined)

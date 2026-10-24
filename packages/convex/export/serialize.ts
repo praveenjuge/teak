@@ -42,6 +42,7 @@ export interface ExportableCard {
   isHidden?: boolean;
   metadataTitle?: string;
   notes?: string;
+  savedAt?: number;
   sourceTitle?: string;
   sourceUrl?: string;
   tags?: string[];
@@ -89,6 +90,11 @@ export interface SerializedCard {
   /** The card's title, when it has one (schema v2). */
   metadataTitle?: string;
   notes?: string;
+  /**
+   * When the card was last saved: its `createdAt`, or later when the link was
+   * saved again. Lists order by it. Archives before it was added leave it out.
+   */
+  savedAt: DualTimestamp;
   /** The page's title, beside `sourceUrl`, when it had one. */
   sourceTitle?: string;
   /** The page a text card was saved from. */
@@ -161,6 +167,7 @@ export function serializeCard(
     isArchived: card.isArchived === true,
     isHidden: card.isHidden === true || isHiddenTagList(card.tags),
     createdAt: toDualTimestamp(card.createdAt),
+    savedAt: toDualTimestamp(card.savedAt ?? card.createdAt),
     updatedAt: toDualTimestamp(card.updatedAt),
   };
 

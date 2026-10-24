@@ -70,10 +70,15 @@ export const linkPreviewImageFields = {
   hasThumbnailOverride: v.optional(v.literal(true)),
 };
 
-export const isCreatedAtInRange = (
-  createdAt: number,
+/**
+ * Whether a date word's range (`createdAtRange`, named so for clients) holds
+ * a card's saved date: pass `savedAtOf(card)`, or a search row's
+ * `cardSavedAt ?? cardCreatedAt`.
+ */
+export const isSavedAtInRange = (
+  savedAt: number,
   range?: CreatedAtRange
-): boolean => !range || (createdAt >= range.start && createdAt < range.end);
+): boolean => !range || (savedAt >= range.start && savedAt < range.end);
 
 export const ensureValidRange = (range?: CreatedAtRange) => {
   if (!range) {

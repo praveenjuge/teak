@@ -32,15 +32,16 @@ import {
   type CardListSort,
   cardListScope,
   cardListSortWithShuffleValidator,
-  compareCardsByCreatedAt,
+  compareCardsBySavedAt,
   normalizeCardListSort,
+  savedAtOf,
 } from "./listQuery";
 import {
   attachCardSummaryUrls,
   attachFileUrls,
   attachGridFileUrls,
   ensureValidRange,
-  isCreatedAtInRange,
+  isSavedAtInRange,
 } from "./queryUtils";
 import { applyQuoteFormattingToList } from "./quoteFormatting";
 import {
@@ -199,7 +200,9 @@ export const searchCardsPaginatedHandler = async (
     hueFilters,
     hexFilters,
   });
-  const createdAtBounds = createdAtRange
+  // Date words keep the `createdAtRange` name for clients and bound the
+  // saved date.
+  const savedAtBounds = createdAtRange
     ? { gte: createdAtRange.start, lt: createdAtRange.end }
     : undefined;
 
@@ -240,7 +243,7 @@ export const searchCardsPaginatedHandler = async (
       keep ||
         walk.favoritesOnly ||
         walk.types?.length ||
-        walk.createdAt ||
+        walk.savedAt ||
         !includeHidden
     );
     const result = await pageShuffleWalk(
@@ -303,14 +306,14 @@ export const searchCardsPaginatedHandler = async (
       keep: (card, searchableText) =>
         inView(card) &&
         resolved.matches(card, searchableText) &&
-        isCreatedAtInRange(card.createdAt, createdAtRange) &&
+        isSavedAtInRange(savedAtOf(card), createdAtRange) &&
         doesCardMatchVisualFilters(card, visualFilters),
       text: parsed.text,
       readText: readExpressionText,
     });
     const ordered = shuffle
       ? shuffleBySeed(similar, seed, (card) => card._id)
-      : similar.sort((a, b) => compareCardsByCreatedAt(a, b, sort));
+      : similar.sort((a, b) => compareCardsBySavedAt(a, b, sort));
     return offsetPage(ordered, (cards) =>
       Promise.resolve(
         cards.map((card) => ({ ...card, matchedByMeaning: true as const }))
@@ -405,7 +408,7 @@ export const searchCardsPaginatedHandler = async (
     const hasMultiTypeFilter = typesSet.size > 1;
     const matchesFilters = (card: Doc<"cards">, searchableText?: string) =>
       resolved.matches(card, searchableText) &&
-      isCreatedAtInRange(card.createdAt, createdAtRange) &&
+      isSavedAtInRange(savedAtOf(card), createdAtRange) &&
       (!hasMultiTypeFilter || typesSet.has(card.type)) &&
       doesCardMatchVisualFilters(card, visualFilters);
     const searchArgs = {
@@ -466,14 +469,14 @@ export const searchCardsPaginatedHandler = async (
     ) {
       const keepDocument = (
         document: Doc<"cardSearchDocuments">,
-        createdAt: number
+        savedAt: number
       ) =>
         matchesDocument(document) &&
-        isCreatedAtInRange(createdAt, createdAtRange) &&
+        isSavedAtInRange(savedAt, createdAtRange) &&
         (!hasMultiTypeFilter || typesSet.has(document.type));
       const keeps = (candidate: SearchCandidate) =>
         candidate.document
-          ? keepDocument(candidate.document, candidate.createdAt)
+          ? keepDocument(candidate.document, candidate.savedAt)
           : candidate.card !== undefined &&
             matchesFilters(candidate.card, candidate.searchableText);
       let candidates: SearchCandidate[] = [];
@@ -542,9 +545,17 @@ export const searchCardsPaginatedHandler = async (
         ordered = shuffleBySeed(ordered, seed, (candidate) => candidate.cardId);
       } else if (!relevanceText) {
         ordered.sort((left, right) =>
-          compareCardsByCreatedAt(
-            { createdAt: left.createdAt, _creationTime: left.creationTime },
-            { createdAt: right.createdAt, _creationTime: right.creationTime },
+          compareCardsBySavedAt(
+            {
+              createdAt: left.savedAt,
+              savedAt: left.savedAt,
+              _creationTime: left.creationTime,
+            },
+            {
+              createdAt: right.savedAt,
+              savedAt: right.savedAt,
+              _creationTime: right.creationTime,
+            },
             sort
           )
         );
@@ -638,7 +649,7 @@ export const searchCardsPaginatedHandler = async (
         : filteredResults;
     } else {
       sortedResults = filteredResults.sort((a, b) =>
-        compareCardsByCreatedAt(a, b, sort)
+        compareCardsBySavedAt(a, b, sort)
       );
     }
     const page = sortedResults
@@ -688,7 +699,7 @@ export const searchCardsPaginatedHandler = async (
         scope,
         types,
         favoritesOnly,
-        createdAt: createdAtBounds,
+        savedAt: savedAtBounds,
       })
         .order("desc")
         .take(SHUFFLE_ROW_LIMIT);
@@ -708,7 +719,7 @@ export const searchCardsPaginatedHandler = async (
       scope,
       types,
       favoritesOnly,
-      createdAt: createdAtBounds,
+      savedAt: savedAtBounds,
     })
       .order(order)
       .paginate({
@@ -739,7 +750,7 @@ export const searchCardsPaginatedHandler = async (
       folderId,
       scope,
       types,
-      createdAt: createdAtBounds,
+      savedAt: savedAtBounds,
     })
       .order("desc")
       .take(SHUFFLE_ROW_LIMIT);
@@ -765,7 +776,7 @@ export const searchCardsPaginatedHandler = async (
       folderId,
       scope,
       types,
-      createdAt: createdAtBounds,
+      savedAt: savedAtBounds,
     })
       .order(order)
       .paginate({
@@ -818,7 +829,7 @@ export const searchCardsPaginatedHandler = async (
           scope,
           favoritesOnly,
           types: scanTypes,
-          createdAt: createdAtBounds,
+          savedAt: savedAtBounds,
         },
         keepMatches
       );
@@ -829,7 +840,7 @@ export const searchCardsPaginatedHandler = async (
           host,
           includeHidden,
           scope: archived === "only" ? "archive" : "library",
-          createdAt: createdAtBounds,
+          savedAt: savedAtBounds,
         })
       : buildCardListQuery(ctx, {
           userId: user.teakUserId,
@@ -837,7 +848,7 @@ export const searchCardsPaginatedHandler = async (
           favoritesOnly,
           includeHidden,
           types: scanTypes,
-          createdAt: createdAtBounds,
+          savedAt: savedAtBounds,
         });
     const exact =
       host !== undefined &&
@@ -871,7 +882,7 @@ export const searchCardsPaginatedHandler = async (
       folderId,
       scope,
       types,
-      createdAt: createdAtBounds,
+      savedAt: savedAtBounds,
     })
       .order(order)
       .paginate(paginationOpts);
@@ -891,7 +902,7 @@ export const searchCardsPaginatedHandler = async (
       scope,
       favoritesOnly,
       types,
-      createdAt: createdAtBounds,
+      savedAt: savedAtBounds,
     });
   }
 
@@ -900,7 +911,7 @@ export const searchCardsPaginatedHandler = async (
     scope,
     favoritesOnly,
     types,
-    createdAt: createdAtBounds,
+    savedAt: savedAtBounds,
   })
     .order(order)
     .paginate(paginationOpts);

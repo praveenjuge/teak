@@ -138,7 +138,7 @@ const reconcileInexactShards = async (
 ) => {
   const remaining = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted_created", (query) =>
+    .withIndex("by_user_deleted_saved", (query) =>
       query.eq("userId", usage.userId).eq("isDeleted", undefined)
     )
     .take(FREE_TIER_LIMIT);
@@ -219,7 +219,7 @@ export const getActiveCardCount = async (
   return (
     await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted_created", (query) =>
+      .withIndex("by_user_deleted_saved", (query) =>
         query.eq("userId", userId).eq("isDeleted", undefined)
       )
       .take(CARD_USAGE_SCAN_LIMIT)
@@ -340,7 +340,7 @@ export const getOrInitializeCardUsage = async (
 
   const activeCards = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted_created", (query) =>
+    .withIndex("by_user_deleted_saved", (query) =>
       query.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(CARD_USAGE_SCAN_LIMIT);
@@ -477,7 +477,7 @@ export const recordActiveCardRemoved = async (
 
   const remaining = await ctx.db
     .query("cards")
-    .withIndex("by_user_deleted_created", (query) =>
+    .withIndex("by_user_deleted_saved", (query) =>
       query.eq("userId", userId).eq("isDeleted", undefined)
     )
     .take(CARD_USAGE_SCAN_LIMIT);

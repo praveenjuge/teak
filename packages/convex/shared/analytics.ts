@@ -119,6 +119,12 @@ export interface ServerEventCatalog {
     error_class: string;
     stage: string;
   };
+  /**
+   * A link saved again: the card already in Teak moved to the top instead of
+   * a second card. `source` is `card_created`'s; `was_archived` says it also
+   * came back from Archive.
+   */
+  card_resaved: { source: string; was_archived: boolean };
   card_thumbnail_replaced: { source: ThumbnailReplaceSource };
   card_thumbnail_reset: NoProperties;
   checkout_completed: NoProperties;

@@ -72,7 +72,7 @@ const setup = async () => {
       ctx.db
         .query("folderCards")
         .withIndex(
-          "by_folderId_and_isDeleted_and_isArchived_and_cardCreatedAt",
+          "by_folderId_and_isDeleted_and_isArchived_and_cardSavedAt",
           (q) => q.eq("folderId", folderId)
         )
         .collect()

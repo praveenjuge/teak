@@ -55,6 +55,7 @@ async function setup() {
       notes: "Original notes",
       tags: ["original"],
       createdAt: 1,
+      savedAt: 1,
       updatedAt: 1,
     })
   );
@@ -225,6 +226,7 @@ describe("Public API Trash and visual filters", () => {
         colorHues: ["blue"],
         colorHexes: ["#112233"],
         createdAt: 1,
+        savedAt: 1,
         updatedAt: 1,
       });
     });
@@ -268,6 +270,7 @@ describe("Public API Trash and visual filters", () => {
             tags: ["coastal"],
             visualStyles: [isMatch ? "minimal" : "vibrant"],
             createdAt: index + 2,
+            savedAt: index + 2,
             updatedAt: index + 2,
           });
           await syncCardSearchDocumentHandler(ctx, id);
@@ -385,6 +388,7 @@ describe("Search scan budget", () => {
           tags: ["budget"],
           visualStyles: ["vibrant"],
           createdAt: index + 2,
+          savedAt: index + 2,
           updatedAt: index + 2,
         });
         await ctx.db.insert("cardSearchTags", {
@@ -393,6 +397,7 @@ describe("Search scan budget", () => {
           tag: "budget",
           type: types[index % types.length],
           cardCreatedAt: index + 2,
+          cardSavedAt: index + 2,
           sourceUpdatedAt: index + 2,
           syncGeneration: 1,
         });
@@ -418,6 +423,7 @@ describe("Search scan budget", () => {
           type: "text",
           content: "deepsearch inspiration",
           createdAt: index + 2,
+          savedAt: index + 2,
           updatedAt: index + 2,
         });
         await syncCardSearchDocumentHandler(ctx, id);
@@ -494,6 +500,7 @@ describe("Search scan budget", () => {
           content: "Original second",
           tags: ["original"],
           createdAt: 2,
+          savedAt: 2,
           updatedAt: 2,
         });
         await syncCardSearchTagsBatchHandler(ctx, second);
@@ -512,6 +519,7 @@ describe("Search scan budget", () => {
         content: "Original second",
         tags: ["original"],
         createdAt: 2,
+        savedAt: 2,
         updatedAt: 2,
       });
       await syncCardSearchTagsBatchHandler(ctx, cardId);
@@ -641,6 +649,7 @@ describe("Multi-field edits", () => {
           type: "text",
           content: `Card ${index}`,
           createdAt: index,
+          savedAt: index,
           updatedAt: index,
         })
       );
@@ -892,6 +901,7 @@ describe("Editing many cards in a minute", () => {
             type: "text",
             content: `Note ${index}`,
             createdAt: index,
+            savedAt: index,
             updatedAt: index,
           })
         )
@@ -930,6 +940,7 @@ describe("Editing many cards in a minute", () => {
           type: "text",
           content: `Note ${index}`,
           createdAt: index,
+          savedAt: index,
           updatedAt: index,
         })
       );
@@ -1019,6 +1030,7 @@ describe("Refresh details", () => {
             type: "text",
             content: `Card ${index}`,
             createdAt: index,
+            savedAt: index,
             updatedAt: index,
           })
         )
@@ -1090,6 +1102,7 @@ describe("Refresh details", () => {
             type: "text",
             content: `Card ${index}`,
             createdAt: index,
+            savedAt: index,
             updatedAt: index,
           })
         )
@@ -1180,6 +1193,7 @@ describe("Card changes feed", () => {
             isDeleted: true,
             deletedAt: 1,
             createdAt: 1,
+            savedAt: 1,
             updatedAt: 1,
           })
         );
@@ -1232,6 +1246,7 @@ describe("Card changes feed", () => {
         type: "text",
         content: "second",
         createdAt: 1,
+        savedAt: 1,
         updatedAt: 1,
       });
     });
@@ -1266,6 +1281,7 @@ describe("Stable pagination", () => {
           content,
           tags: ["paging"],
           createdAt: firstCreatedAt + index,
+          savedAt: firstCreatedAt + index,
           updatedAt: firstCreatedAt + index,
         });
         await syncCardSearchDocumentHandler(ctx, id);
@@ -1507,6 +1523,7 @@ describe("Tag listing", () => {
           tags: ["design"],
           isDeleted,
           createdAt: 2,
+          savedAt: 2,
           updatedAt: 2,
         });
         await syncCardSearchTagsBatchHandler(ctx, id);
@@ -1517,6 +1534,7 @@ describe("Tag listing", () => {
         content: "foreign",
         tags: ["design", "secret"],
         createdAt: 2,
+        savedAt: 2,
         updatedAt: 2,
       });
       await syncCardSearchTagsBatchHandler(ctx, foreign);

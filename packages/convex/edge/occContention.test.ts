@@ -920,7 +920,7 @@ describe("OCC contention behavior", () => {
       expect(
         await ctx.db
           .query("cards")
-          .withIndex("by_user_deleted_created", (query) =>
+          .withIndex("by_user_deleted_saved", (query) =>
             query.eq("userId", "user-delete")
           )
           .collect()

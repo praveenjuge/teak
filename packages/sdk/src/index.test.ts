@@ -181,7 +181,7 @@ describe("teak-sdk", () => {
       baseUrl: "https://api.example",
       timeoutMs: 5,
       tokenProvider: { getAccessToken: () => "token" },
-      fetch: (() =>
+      fetch: ((_input: unknown) =>
         Promise.resolve(
           new Response(
             new ReadableStream({
@@ -247,7 +247,7 @@ describe("teak-sdk", () => {
     const client = createTeakClient({
       baseUrl: "https://api.example",
       tokenProvider: { getAccessToken: () => "token" },
-      fetch: (() =>
+      fetch: ((_input: unknown) =>
         Promise.resolve(
           Response.json({
             expiresIn: 600,
@@ -298,6 +298,48 @@ describe("teak-sdk", () => {
       fileSize: 12,
       mimeType: "text/markdown",
     });
+  });
+
+  test("create reads a re-save: still created, with resaved and the card's savedAt", async () => {
+    // A re-save keeps `status: "created"`, which is all `cards.create` checks,
+    // so SDKs and CLIs released before re-saves parse it as a plain create.
+    const body = {
+      appUrl: "https://app.example/?card=card_1",
+      card: { createdAt: 1, id: "card_1", savedAt: 2 },
+      cardId: "card_1",
+      resaved: true,
+      status: "created",
+      wasArchived: true,
+    };
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((_input: unknown) =>
+        Promise.resolve(Response.json(body))) as typeof fetch,
+    });
+
+    const created = await client.cards.create({
+      url: "https://example.com/post?utm_source=x",
+    });
+    expect(created).toEqual(body as typeof created);
+    expect(created.resaved).toBe(true);
+    expect(created.wasArchived).toBe(true);
+    expect(created.card?.savedAt).toBe(2);
+  });
+
+  test("create still refuses an answer that isn't created", async () => {
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      tokenProvider: { getAccessToken: () => "token" },
+      fetch: ((_input: unknown) =>
+        Promise.resolve(
+          Response.json({ cardId: "card_1", status: "resaved" })
+        )) as typeof fetch,
+    });
+
+    await expect(
+      client.cards.create({ url: "https://example.com" })
+    ).rejects.toMatchObject({ code: "PARSE_ERROR" });
   });
 
   test("create sends a text card's sourceUrl and sourceTitle", async () => {
@@ -543,7 +585,7 @@ describe("teak-sdk", () => {
     const client = createTeakClient({
       baseUrl: "https://api.example",
       tokenProvider: { getAccessToken: () => "token" },
-      fetch: (() =>
+      fetch: ((_input: unknown) =>
         Promise.resolve(
           Response.json(
             { code: "IN_PROGRESS", error: "This PDF is already being saved." },

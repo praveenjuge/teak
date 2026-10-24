@@ -2,7 +2,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { readCardTranscript } from "../card/textContents";
 import { DEV_SEED_CARDS } from "../devSeed";
 import { AI_LANGUAGE_CASES, AI_LANGUAGES_TAG } from "../devSeed/aiLanguages";
@@ -27,6 +27,19 @@ import {
   SEARCH_QUALIFIER_HOSTS,
   UGLY_FOLDER_NAMES,
 } from "../devSeed/folderPacks";
+import {
+  ORDERING_SAVED_CARDS,
+  ORDERING_SAVED_HOST,
+} from "../devSeed/orderingSaved";
+import {
+  RESAVE_ARCHIVED_EVERY,
+  RESAVE_FOLDERS,
+  RESAVE_LINK_COUNT,
+  RESAVE_READING_URL,
+  RESAVE_TRASHED_COUNT,
+  RESAVE_UTM_URL,
+  resaveLinkUrl,
+} from "../devSeed/resave";
 import {
   SEARCH_OPERATOR_ARCHIVED,
   SEARCH_OPERATOR_COUNTS,
@@ -84,7 +97,7 @@ const cardsOf = (t: Awaited<ReturnType<typeof setup>>) =>
   t.run(async (ctx) => {
     const cards = await ctx.db
       .query("cards")
-      .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+      .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
       .take(100);
     return await Promise.all(
       cards.map(async (card) => ({
@@ -441,7 +454,7 @@ describe("devSeed ordering pack", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(seeded).toHaveLength(ORDERING_SCENARIO_PAGE_SIZE);
@@ -485,7 +498,7 @@ describe("devSeed archive-mix pack", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     const archived = seeded.filter((card) => card.isArchived);
@@ -510,7 +523,7 @@ describe("devSeed keyboard-mixed pack", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     const pack = seeded.filter((card) =>
@@ -549,9 +562,7 @@ describe("devSeed shuffle-partial pack", () => {
       await t.run((ctx) =>
         ctx.db
           .query("cards")
-          .withIndex("by_user_deleted_created", (q) =>
-            q.eq("userId", "teak_dev")
-          )
+          .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
           .collect()
       )
     ).filter((card) => card.tags?.includes("scenario-shuffle-partial"));
@@ -592,7 +603,7 @@ describe("devSeed tag packs", () => {
     const seeded = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     const variants = new Set(
@@ -739,7 +750,7 @@ describe("devSeed folder packs", () => {
       const counts = new Map<string, number>();
       for (const card of await ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()) {
         if (card.urlHost) {
           counts.set(card.urlHost, (counts.get(card.urlHost) ?? 0) + 1);
@@ -819,7 +830,7 @@ describe("devSeed folder packs", () => {
     const cards = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(cards).toHaveLength(SEARCH_OPERATOR_TOTAL);
@@ -1342,7 +1353,7 @@ describe("devSeed folder packs", () => {
     const cards = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(cards.filter((card) => card.type === "image")).toHaveLength(1000);
@@ -1391,7 +1402,7 @@ describe("devSeed folder packs", () => {
       t.run((ctx) =>
         ctx.db
           .query("cards")
-          .withIndex("by_user_deleted_created", (q) =>
+          .withIndex("by_user_deleted_saved", (q) =>
             q.eq("userId", "teak_dev").eq("isDeleted", undefined)
           )
           .take(300)
@@ -1405,6 +1416,80 @@ describe("devSeed folder packs", () => {
     expect(await seed()).toEqual({ status: "seeded", cards: 199 - before });
     expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
     expect(await active()).toHaveLength(199);
+  });
+
+  test("resave seeds 300 links over three years, their archived and trashed matches, once", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const total = RESAVE_LINK_COUNT + RESAVE_TRASHED_COUNT + 2;
+    expect(await seedFolders(t, "resave")).toEqual({
+      status: "seeded",
+      cards: total,
+      folders: RESAVE_FOLDERS.length,
+    });
+    expect(await seedFolders(t, "resave")).toEqual({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    const cards = await t.run((ctx) =>
+      ctx.db
+        .query("cards")
+        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .collect()
+    );
+    expect(cards).toHaveLength(total);
+    expect(cards.filter((card) => card.isArchived)).toHaveLength(
+      RESAVE_LINK_COUNT / RESAVE_ARCHIVED_EVERY
+    );
+    expect(cards.filter((card) => card.isDeleted)).toHaveLength(
+      RESAVE_TRASHED_COUNT
+    );
+    const first = cards.find((card) => card.url === resaveLinkUrl(1));
+    const last = cards.find(
+      (card) => card.url === resaveLinkUrl(RESAVE_LINK_COUNT)
+    );
+    expect(first?.urlKey).toBe("example.com/resave/001");
+    expect(first?.savedAt).toBe(first?.createdAt);
+    expect(
+      ((last?.createdAt ?? 0) - (first?.createdAt ?? 0)) / 86_400_000
+    ).toBeGreaterThan(2.9 * 365);
+    const reading = cards.find((card) => card.url === RESAVE_READING_URL);
+    expect(reading?.folderIds).toHaveLength(3);
+    expect(reading?.tags).toContain("reading");
+    expect(cards.find((card) => card.url === RESAVE_UTM_URL)?.urlKey).toBe(
+      "example.com/resave/utm-variant"
+    );
+  });
+
+  test("resave-at-limit fills a free library to the limit around five links to save again", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    await t.mutation(internal.devSeed.seed, { workosUserId: WORKOS_USER_ID });
+    const active = () =>
+      t.run((ctx) =>
+        ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted_created", (q) =>
+            q.eq("userId", "teak_dev").eq("isDeleted", undefined)
+          )
+          .take(300)
+      );
+    const before = (await active()).length;
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "resave-at-limit",
+      });
+    expect(await seed()).toEqual({ status: "seeded", cards: 200 - before });
+    expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
+    const cards = await active();
+    expect(cards).toHaveLength(200);
+    const links = cards.filter((card) =>
+      card.url?.startsWith("https://example.com/resave-limit/")
+    );
+    expect(links).toHaveLength(5);
+    expect(links.filter((card) => card.isArchived)).toHaveLength(1);
   });
 
   test("palette-mixed seeds 50 folders and 10 smart folders once", async () => {
@@ -1480,7 +1565,7 @@ describe("devSeed folder packs", () => {
     const cards = await t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "teak_dev"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
         .collect()
     );
     expect(
@@ -1534,5 +1619,100 @@ describe("devSeed folder packs", () => {
     expect(
       cards.filter((card) => card.url?.includes("//noise.example/"))
     ).toHaveLength(900);
+  });
+});
+
+describe("devSeed ordering-saved pack", () => {
+  const label = (card: Doc<"cards">) => card.metadataTitle ?? card.content;
+
+  test("seeds cards saved again once, with folder and tag rows on the saved date", async () => {
+    vi.stubEnv("WORKOS_API_BASE_URL", "http://localhost:4100");
+    const t = await setup();
+    const seed = () =>
+      t.mutation(internal.devSeed.seedScenario, {
+        workosUserId: WORKOS_USER_ID,
+        scenario: "ordering-saved",
+      });
+    expect(await seed()).toEqual({
+      status: "seeded",
+      cards: ORDERING_SAVED_CARDS.length,
+      folders: 1,
+    });
+    expect(await seed()).toEqual({
+      status: "already_seeded",
+      cards: 0,
+      folders: 0,
+    });
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const { library, folderRows, tagRows, cards } = await t.run(async (ctx) => {
+      const folder = await ctx.db
+        .query("folders")
+        .withIndex("by_userId_and_createdAt", (q) => q.eq("userId", "teak_dev"))
+        .unique();
+      return {
+        cards: await ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "teak_dev"))
+          .collect(),
+        library: await ctx.db
+          .query("cards")
+          .withIndex("by_user_deleted_archived_saved", (q) =>
+            q
+              .eq("userId", "teak_dev")
+              .eq("isDeleted", undefined)
+              .eq("isArchived", undefined)
+          )
+          .order("desc")
+          .collect(),
+        folderRows: await ctx.db
+          .query("folderCards")
+          .withIndex("by_folderId_and_isDeleted_and_cardSavedAt", (q) =>
+            q.eq("folderId", folder?._id as Id<"folders">)
+          )
+          .collect(),
+        tagRows: await ctx.db
+          .query("cardSearchTags")
+          .withIndex("by_user_tag_deleted_saved", (q) =>
+            q.eq("userId", "teak_dev").eq("tag", "scenario-ordering-saved")
+          )
+          .collect(),
+      };
+    });
+
+    expect(library.map(label)).toEqual([
+      "Resaved: first saved 400 days ago, saved again yesterday",
+      "Two days: saved 2 days ago, never again",
+      "Last month: saved 30 days ago, never again",
+      "Two years: saved 730 days ago, never again",
+    ]);
+    const resaved = cards.filter(
+      (card) => (card.savedAt ?? card.createdAt) > card.createdAt
+    );
+    expect(resaved).toHaveLength(3);
+    expect(resaved.filter((card) => card.isArchived)).toHaveLength(1);
+    expect(resaved.filter((card) => card.isDeleted)).toHaveLength(1);
+    expect(resaved.every((card) => card.updatedAt === card.savedAt)).toBe(true);
+    const savedAtById = new Map(cards.map((card) => [card._id, card.savedAt]));
+    expect(folderRows).toHaveLength(ORDERING_SAVED_CARDS.length);
+    expect(tagRows).toHaveLength(ORDERING_SAVED_CARDS.length);
+    for (const row of [...folderRows, ...tagRows]) {
+      expect(row.cardSavedAt).toBe(savedAtById.get(row.cardId));
+    }
+    expect(
+      cards
+        .filter((card) => card.url)
+        .every((card) => card.urlHost === ORDERING_SAVED_HOST)
+    ).toBe(true);
+
+    const now = Date.now();
+    expect(
+      filterLocalCards(library, {
+        createdAtRange: { start: now - 7 * 86_400_000, end: now + 1 },
+      }).map(label)
+    ).toEqual([
+      "Resaved: first saved 400 days ago, saved again yesterday",
+      "Two days: saved 2 days ago, never again",
+    ]);
   });
 });

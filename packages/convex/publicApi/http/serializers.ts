@@ -108,6 +108,7 @@ export const serializeCard = (
   mimeType: card.fileMetadata?.mimeType ?? null,
   notes: card.notes ?? null,
   processingStatus: card.processingStatus ?? null,
+  savedAt: card.savedAt ?? card.createdAt,
   screenshotUrl: card.screenshotUrl ?? null,
   sourceTitle: card.sourceTitle ?? null,
   sourceUrl: card.sourceUrl ?? null,
@@ -138,6 +139,7 @@ export const serializeListCard = (
     isHidden: isCardHidden(card),
     metadataDescription: card.metadataDescription ?? null,
     metadataTitle: card.metadataTitle ?? null,
+    savedAt: card.savedAt ?? card.createdAt,
     sourceTitle: card.sourceTitle ?? null,
     sourceUrl: card.sourceUrl ?? null,
     tags: card.tags ?? [],
@@ -186,7 +188,13 @@ export const serializeListCard = (
 };
 
 export const buildCreateCardResponse = (
-  result: { card?: CardWithUrls; cardId: string; status: "created" },
+  result: {
+    card?: CardWithUrls;
+    cardId: string;
+    resaved?: true;
+    status: "created";
+    wasArchived?: true;
+  },
   requestUrl: string,
   links?: CardLinks
 ) => {
@@ -198,6 +206,8 @@ export const buildCreateCardResponse = (
     card,
     cardId: result.cardId,
     status: result.status,
+    ...(result.resaved ? { resaved: true as const } : {}),
+    ...(result.wasArchived ? { wasArchived: true as const } : {}),
   };
 };
 

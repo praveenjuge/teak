@@ -669,7 +669,9 @@ const toolConfigs: Record<string, ToolRun> = {
       headers: idempotencyHeaders(idempotencyKey),
     }),
     summary: (payload) =>
-      `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
+      payload.resaved === true
+        ? `Already in Teak, moved to the top: ${String(payload.cardId)}${payload.wasArchived === true ? " (back from Archive)" : ""}`
+        : `Card ${typeof payload.status === "string" ? payload.status : "created"}`,
   }),
   teak_v1_search_cards: queryTool({}),
   teak_v1_find_similar_cards: defineTool({

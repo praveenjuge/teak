@@ -97,7 +97,16 @@ example `teak add https://example.com`) — the CLI detects whether it's text,
 a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
 scripting. Text given with `--url` (for example
 `teak add "Read before Friday" --url https://example.com`) is saved with the
-link as the card's content. `--source-url` and `--source-title` keep the page
+link as the card's content.
+
+Saving a link that's already in Teak makes no second card: `teak add <url>`
+moves that card to the top of `teak ls` (and out of Archive) and prints
+`Already in Teak, moved to the top: <card-id>`. Tags and notes passed with it
+are ignored; change them with `teak cards update`. `--json` prints the API's
+response, with `resaved: true`. A link with other text, such as
+`teak add "Read before Friday" --url https://example.com`, always makes a new
+card. In `teak cards bulk create`, a re-saved item reads
+`(already in Teak, moved to the top)`. `--source-url` and `--source-title` keep the page
 a text came from without making it a link; `teak cards get` shows it as
 `from:`, and `site:` searches find it.
 
@@ -107,7 +116,7 @@ Like the web composer, Teak works out the card type from what you add: a URL bec
 
 `teak cards duplicate <url>` prints the ID of the card that saves that link, and exits with the not-found code when none does, so a script can check before saving. It matches the same link even with `http` instead of `https`, `www.`, a trailing slash, a `#fragment` (but not a `#/` or `#!` route), or `utm_*`, `fbclid` and `gclid` parameters.
 
-`teak cards get` shows the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
+`teak cards get` shows when the card was created and, when its link was saved again later, a `Saved again <date>` line, plus the card's title, a product link's price, notes, tags, Teak's AI tags and summary, colors, file, transcript, and a link to open it on the web. `teak open` opens that link in your browser (on a machine without one, it prints the link instead), and `teak download` saves a file card's original file (`--force` replaces an existing file).
 
 `teak cards save-pdf` saves an arXiv link's paper as its own document card and prints its ID; for a paper you already saved it prints that card's ID. `--json` prints `{ cardId, created }`.
 

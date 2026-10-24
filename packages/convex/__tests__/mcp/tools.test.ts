@@ -1031,4 +1031,38 @@ describe("link image tools", () => {
       expect(captured).toEqual([]);
     }
   );
+
+  test("create card says when the link was already in Teak and moved to the top", async () => {
+    const card = { id: "card_1", savedAt: 1_760_000_000_000 };
+    const executor = respondWith(() =>
+      Response.json({
+        appUrl: "https://app.teakvault.com/?card=card_1",
+        card,
+        cardId: "card_1",
+        resaved: true,
+        status: "created",
+        wasArchived: true,
+      })
+    );
+    const result = await callTeakV1Tool(
+      "teak_v1_create_card",
+      { url: "https://example.com/post?utm_source=x" },
+      mcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.content[0]?.text).toBe(
+      "Already in Teak, moved to the top: card_1 (back from Archive)"
+    );
+    expect(result.structuredContent).toMatchObject({
+      card,
+      resaved: true,
+      status: "created",
+      wasArchived: true,
+    });
+    const tool = TEAK_V1_TOOLS.find(
+      (entry) => entry.name === "teak_v1_create_card"
+    );
+    expect(tool?.description).toContain("resaved: true");
+  });
 });

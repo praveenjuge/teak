@@ -3,15 +3,19 @@ import type { Doc } from "../_generated/dataModel";
 import type { ShuffleWalkPosition } from "../card/shuffle";
 import type { TombstoneCursor } from "../publicApiTombstones";
 import { shuffleRank } from "../shared/search/shuffle";
+import { savedAtOf } from "../shared/search/sort";
 
+// An anchor holds the card's `savedAt ?? createdAt`, the date lists order
+// by. Cursors issued before lists moved to `savedAt` name it `createdAt`;
+// `anchorDate` reads either.
 export interface ListAnchor {
-  createdAt: number;
   creationTime: number;
+  savedAt: number;
 }
 
 export interface MatchAnchor {
-  createdAt: number;
   id: string;
+  savedAt: number;
 }
 
 export type ApiCursor =
@@ -28,6 +32,16 @@ export const invalidCursorError = () =>
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
+
+/** The anchor's date: `savedAt`, or an older cursor's `createdAt`. */
+const anchorDate = (
+  anchor: Record<string, unknown> | undefined
+): number | undefined => {
+  if (isFiniteNumber(anchor?.savedAt)) {
+    return anchor.savedAt;
+  }
+  return isFiniteNumber(anchor?.createdAt) ? anchor.createdAt : undefined;
+};
 
 export const encodeCursor = (cursor: ApiCursor): string =>
   btoa(JSON.stringify(cursor));
@@ -50,36 +64,43 @@ export const decodeCursor = (cursor?: string): ApiCursor => {
   switch (parsed.mode) {
     case "list": {
       const anchor = parsed.anchor as Record<string, unknown> | undefined;
+      const savedAt = anchorDate(anchor);
       const page = parsed.page;
       if (
         (anchor !== undefined &&
-          !(
-            isFiniteNumber(anchor?.createdAt) &&
-            isFiniteNumber(anchor.creationTime)
-          )) ||
+          !(savedAt !== undefined && isFiniteNumber(anchor.creationTime))) ||
         (page !== undefined && typeof page !== "string")
       ) {
         break;
       }
+      // A cursor from before the `savedAt` order has a `createdAt` anchor,
+      // and its `page` belongs to the `…_created` index the list read then,
+      // which the `…_saved` index refuses. It resumes from its anchor
+      // instead: every card has `savedAt` (its `createdAt` until saved
+      // again), so nothing is skipped, though the rows the old page had
+      // already passed are read again.
+      const legacyPage =
+        anchor !== undefined && !isFiniteNumber(anchor.savedAt);
       return {
         mode: "list",
-        ...(anchor
+        ...(anchor && savedAt !== undefined
           ? {
               anchor: {
-                createdAt: anchor.createdAt as number,
                 creationTime: anchor.creationTime as number,
+                savedAt,
               },
             }
           : {}),
-        ...(typeof page === "string" ? { page } : {}),
+        ...(typeof page === "string" && !legacyPage ? { page } : {}),
       };
     }
     case "match": {
       const anchor = parsed.anchor as Record<string, unknown> | undefined;
-      if (isFiniteNumber(anchor?.createdAt) && typeof anchor.id === "string") {
+      const savedAt = anchorDate(anchor);
+      if (savedAt !== undefined && typeof anchor?.id === "string") {
         return {
           mode: "match",
-          anchor: { createdAt: anchor.createdAt, id: anchor.id },
+          anchor: { id: anchor.id, savedAt },
         };
       }
       break;
@@ -100,13 +121,13 @@ export const decodeCursor = (cursor?: string): ApiCursor => {
 };
 
 export const matchAnchorOf = (card: Doc<"cards">): MatchAnchor => ({
-  createdAt: card.createdAt,
   id: String(card._id),
+  savedAt: savedAtOf(card),
 });
 
 export const listAnchorOf = (card: Doc<"cards">): ListAnchor => ({
-  createdAt: card.createdAt,
   creationTime: card._creationTime,
+  savedAt: savedAtOf(card),
 });
 
 export const relevanceCursorRanked = (

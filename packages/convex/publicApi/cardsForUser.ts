@@ -21,6 +21,10 @@ const quickSaveResultValidator = v.object({
   status: v.literal("created"),
   cardId: v.id("cards"),
   card: v.optional(cardReturnValidator),
+  // The link was already saved: that card moved to the top instead.
+  resaved: v.optional(v.literal(true)),
+  // The re-saved card also came back from Archive.
+  wasArchived: v.optional(v.literal(true)),
 });
 
 const createCardForUserArgs = {
@@ -125,15 +129,20 @@ export const quickSaveForUser = internalMutation({
       url: normalizedUrl,
     };
 
-    const cardId = await createCardForUserHandler(ctx, userId, createArgs, {
-      source: "raycast",
-    });
+    const { cardId, outcome, wasArchived } = await createCardForUserHandler(
+      ctx,
+      userId,
+      createArgs,
+      { source: "raycast" }
+    );
     const card = await getCardForUserHandler(ctx, userId, cardId);
 
     return {
       status: "created" as const,
       card: card ?? undefined,
       cardId,
+      ...(outcome === "resaved" ? { resaved: true as const } : {}),
+      ...(wasArchived ? { wasArchived: true as const } : {}),
     };
   },
 });

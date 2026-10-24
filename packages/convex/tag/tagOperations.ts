@@ -1,3 +1,4 @@
+import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -114,7 +115,7 @@ const hasTagRow = async (
 ): Promise<boolean> =>
   (await ctx.db
     .query("cardSearchTags")
-    .withIndex("by_user_tag_deleted_created", (q) =>
+    .withIndex("by_user_tag_deleted_saved", (q) =>
       q.eq("userId", userId).eq("tag", key)
     )
     .first()) !== null;
@@ -194,7 +195,7 @@ export const startTagOperationForUser = async (
   let total = 0;
   for await (const _row of ctx.db
     .query("cardSearchTags")
-    .withIndex("by_user_tag_deleted_created", (q) =>
+    .withIndex("by_user_tag_deleted_saved", (q) =>
       q.eq("userId", userId).eq("tag", from)
     )) {
     total += 1;
@@ -253,15 +254,33 @@ export const runTagOperationBatchHandler = async (
   if (await accountDeletionOwnsRows(ctx, operation.userId)) {
     return { done: true };
   }
-  const page = await ctx.db
-    .query("cardSearchTags")
-    .withIndex("by_user_tag_deleted_created", (q) =>
-      q.eq("userId", operation.userId).eq("tag", operation.from)
-    )
-    .paginate({
-      numItems: TAG_OPERATION_BATCH_SIZE,
-      cursor: operation.cursor ?? null,
-    });
+  let page: PaginationResult<Doc<"cardSearchTags">>;
+  try {
+    page = await ctx.db
+      .query("cardSearchTags")
+      .withIndex("by_user_tag_deleted_saved", (q) =>
+        q.eq("userId", operation.userId).eq("tag", operation.from)
+      )
+      .paginate({
+        numItems: TAG_OPERATION_BATCH_SIZE,
+        cursor: operation.cursor ?? null,
+      });
+  } catch (error) {
+    if (!operation.cursor) {
+      throw error;
+    }
+    // A cursor saved before this read moved to `…_saved` belongs to the
+    // `…_created` index, which refuses it here. Rewriting a tag is safe to
+    // repeat, so the pass starts again from its first row in the next run
+    // (one function may paginate only once).
+    await ctx.db.patch("tagOperations", operationId, { cursor: undefined });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.tag.tagOperations.runTagOperationBatch,
+      { operationId }
+    );
+    return { done: false };
+  }
 
   const rewrite: TagRewrite =
     operation.kind === "delete" || operation.to === undefined

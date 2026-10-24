@@ -82,7 +82,7 @@ const setup = async (mode: "archive" | "bookmarks" | "pocket" = "archive") => {
     t.run((ctx) =>
       ctx.db
         .query("cards")
-        .withIndex("by_user_deleted_created", (q) => q.eq("userId", "owner"))
+        .withIndex("by_user_deleted_saved", (q) => q.eq("userId", "owner"))
         .collect()
     );
   const folders = () =>

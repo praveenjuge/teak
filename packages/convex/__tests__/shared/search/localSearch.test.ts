@@ -53,6 +53,72 @@ describe("shared search helpers", () => {
     ]);
   });
 
+  it("orders a card saved again by when it was saved again", () => {
+    const cards = [
+      makeCard({ _id: "recent", _creationTime: 1, createdAt: 5000 }),
+      makeCard({
+        _id: "resaved",
+        _creationTime: 2,
+        createdAt: 1000,
+        savedAt: 9000,
+      }),
+      // A card from before `savedAt` sorts by its `createdAt`.
+      makeCard({ _id: "legacy", _creationTime: 3, createdAt: 3000 }),
+    ];
+    const ids = (sort: "newest" | "oldest") =>
+      filterLocalCards([...cards], { sort }).map((card): string => card._id);
+    expect(ids("newest")).toEqual(["resaved", "recent", "legacy"]);
+    expect(ids("oldest")).toEqual(["legacy", "recent", "resaved"]);
+    expect(
+      mergeLocalAndRemoteSearchResults(cards, [], false, "newest").map(
+        (card): string => card._id
+      )
+    ).toEqual(["resaved", "recent", "legacy"]);
+  });
+
+  it("finds a card first saved last year but saved again yesterday by a date word", () => {
+    const day = 86_400_000;
+    const now = Date.UTC(2026, 9, 24);
+    const lastWeek = { start: now - 7 * day, end: now };
+    const cards = [
+      makeCard({
+        _id: "resaved",
+        createdAt: now - 400 * day,
+        savedAt: now - day,
+      }),
+      makeCard({ _id: "old", createdAt: now - 400 * day }),
+      makeCard({ _id: "legacy-recent", createdAt: now - 2 * day }),
+      makeCard({
+        _id: "created-recently-saved-later",
+        createdAt: now - 3 * day,
+        savedAt: now + day,
+      }),
+    ];
+    expect(
+      filterLocalCards(cards, { createdAtRange: lastWeek }).map(
+        (card): string => card._id
+      )
+    ).toEqual(["resaved", "legacy-recent"]);
+  });
+
+  it("keeps the most recently saved cards when the cache is trimmed", () => {
+    const cached = [
+      makeCard({ _id: "new", createdAt: 5000, updatedAt: 5000 }),
+      makeCard({ _id: "old", createdAt: 1000, updatedAt: 1000 }),
+    ];
+    const resaved = makeCard({
+      _id: "resaved",
+      createdAt: 500,
+      savedAt: 9000,
+      updatedAt: 9000,
+    });
+    expect(
+      mergeCardsIntoLocalSearchCache(cached, [resaved], 2)
+        .map((card): string => card._id)
+        .sort()
+    ).toEqual(["new", "resaved"]);
+  });
+
   it("merges local and remote hits in saved-date order", () => {
     const local = [
       makeCard({ _id: "cached-old", createdAt: 1000 }),

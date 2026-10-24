@@ -29,8 +29,9 @@ import {
 } from "./qualifiers";
 import {
   type CardListSort,
-  compareCardsByCreatedAt,
+  compareCardsBySavedAt,
   keepsServerOrder,
+  savedAtOf,
 } from "./sort";
 import { tokenizeSearchInput } from "./tokenization";
 
@@ -284,10 +285,11 @@ export const filterLocalCards = (
         return false;
       }
 
+      // Date words bound when the card was last saved.
       if (
         createdAtRange &&
-        (card.createdAt < createdAtRange.start ||
-          card.createdAt >= createdAtRange.end)
+        (savedAtOf(card) < createdAtRange.start ||
+          savedAtOf(card) >= createdAtRange.end)
       ) {
         return false;
       }
@@ -332,7 +334,7 @@ export const filterLocalCards = (
       );
     })
     .sort((a, b) =>
-      keepsServerOrder(sort) ? 0 : compareCardsByCreatedAt(a, b, sort)
+      keepsServerOrder(sort) ? 0 : compareCardsBySavedAt(a, b, sort)
     );
 };
 
@@ -365,7 +367,9 @@ export function mergeCardsIntoLocalSearchCache(
     return merged;
   }
 
-  return merged.sort((a, b) => b.createdAt - a.createdAt).slice(0, cacheLimit);
+  return merged
+    .sort((a, b) => savedAtOf(b) - savedAtOf(a))
+    .slice(0, cacheLimit);
 }
 
 export function pruneCardsMissingFromRemote(
@@ -406,7 +410,7 @@ export function mergeLocalAndRemoteSearchResults(
   const ordered = (cards: Doc<"cards">[]) =>
     sort
       ? [...cards].sort((left, right) =>
-          compareCardsByCreatedAt(left, right, sort)
+          compareCardsBySavedAt(left, right, sort)
         )
       : cards;
 
