@@ -1,7 +1,7 @@
 # Teak in cloud sessions
 
 What runs in a Claude Code on the web session (and similar Linux cloud VMs),
-what doesn't, and the fixes for each. `.agents/development.md` covers the
+what doesn't, and the fixes for each. `apps/docs/content/docs/(open-source)/development.mdx` covers the
 stack itself; this is the cloud-specific checklist. Last verified 2026-10-13
 on a 4-vCPU, 16 GB VM, by driving every web feature in headless Chromium and
 running the API, CLI, MCP and repository checks.
@@ -10,7 +10,7 @@ running the API, CLI, MCP and repository checks.
 
 - **Secrets:** only `CONVEX_DEPLOY_KEY` (a dev deploy key). Don't export
   `CONVEX_DEPLOYMENT`, `WORKOS_*` or `NEXT_PUBLIC_*`: shell exports win over the
-  dotenv files `bun run dev` writes (`.agents/environment.md`). A stale
+  dotenv files `bun run dev` writes (`development.mdx`, "Environment and configuration"). A stale
   `WORKOS_COOKIE_PASSWORD` makes the server reject the sessions
   `bun run smoke:web` seals, and the E2E suite refuses to start while
   `CONVEX_DEPLOYMENT` names the dev deployment. The SessionStart hook warns
@@ -104,7 +104,7 @@ It works against the shared dev deployment for all of these:
 - theme and devices in Settings, API keys, and import and export
 - the REST API, MCP and the CLI with `--api-key`
 - "Upgrade to Pro": Polar's sandbox checkout opens in a new tab, for the
-  seeded accounts too (`.agents/development.md`)
+  seeded accounts too (`development.mdx`, "Signing in")
 
 Also `bun run smoke:web`, `bun run test`, `typecheck`, `lint`, the CLI and
 Raycast builds, the web production build and the docs site.

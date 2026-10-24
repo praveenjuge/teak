@@ -68,7 +68,7 @@ The roadmap first had 18 phases. On 2026-10-23 the owner dropped four (folder ex
 
 ## Rules every phase follows
 
-`.agents/feature-conventions.md` applies, as in v2:
+`apps/docs/content/docs/(open-source)/adding-a-feature.mdx` applies, as in v2:
 - Search-affecting writes go through `patchCardWithSearchSync`.
 - New boolean flags are `v.optional(v.literal(true))`.
 - New indexes are added next to the old ones.

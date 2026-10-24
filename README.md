@@ -33,28 +33,29 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 ```text
 teak/
 ├── apps/
-│   ├── web/        # Next.js app
-│   ├── apple/      # Native iPhone, iPad and Mac app with its Safari extension
-│   ├── android/    # Native Android app
-│   ├── extension/  # Browser extension (Wxt)
-│   ├── raycast/    # Raycast extension
-│   ├── cli/        # npm command line client
-│   ├── docs/       # Documentation site (Blume)
-│   └── files-worker/ # Cloudflare Worker for file delivery and processing
-├── .agents/
-│   └── skills/     # Agent Skills published through skills.sh-compatible repos
+│   ├── web/           # Next.js web app
+│   ├── apple/         # Native iPhone, iPad and Mac app with its Safari extension
+│   ├── android/       # Native Android app
+│   ├── extension/     # Chrome and Firefox extension (WXT)
+│   ├── raycast/       # Raycast extension
+│   ├── cli/           # npm command line client
+│   ├── docs/          # Website and documentation (Blume)
+│   ├── files-worker/  # Cloudflare Worker for files, card processing and the API edge proxy
+│   └── email-worker/  # Cloudflare Email Worker for Save by email
 ├── packages/
-│   ├── convex/     # Convex backend, public API, MCP, and SDK
-│   ├── files-protocol/ # Shared Worker operation contracts
-│   ├── tests/      # Cross-surface Playwright journeys
-│   └── ui/         # Shared UI package
-├── turbo.json      # Turborepo pipeline config
-└── package.json
+│   ├── convex/        # Convex backend, public API and MCP server
+│   ├── files-protocol/ # Contract between Convex and the Files Worker
+│   ├── sdk/           # teak-sdk, the public TypeScript client
+│   ├── i18n/          # Message catalogs for the web app and extension
+│   └── tests/         # End-to-end suite
+└── .agents/           # Guides and skills for coding agents
 ```
+
+How the pieces fit together: [Architecture](https://teakvault.com/docs/architecture).
 
 ## Docs
 
-[View docs →](https://teakvault.com/docs/) · [Local development →](https://teakvault.com/docs/development)
+[View docs →](https://teakvault.com/docs/) · [Local development →](https://teakvault.com/docs/development) · [Testing →](https://teakvault.com/docs/testing) · [Self-hosting →](https://teakvault.com/docs/self-hosting)
 
 ## License
 

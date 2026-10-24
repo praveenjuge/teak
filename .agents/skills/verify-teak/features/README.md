@@ -44,6 +44,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Card processing](./card-processing.md) covers the background work after a save (stages, AI tags and summary), read through the local Files Worker's Workflow runs, logs, stored files and crons in Cloudflare's Local Explorer.
 - [Save by email](./save-by-email.md) covers the Settings switch, mail from the sign-in email becoming link and note cards tagged email, attachments as their own cards, and what's refused or dropped.
 - [Language](./language.md) covers Settings → Language, switching in place with Undo, the account's choice beating the cookie, formats and plurals per language, translated server errors, the `en-XA` pseudo-locale break-it pass, and `locale` in `/v1/me` and `teak whoami`.
+- [Docs site](./docs.md) covers the sidebar's groups and order, page rendering in light, dark and 390px, agent-only text kept to the `.md` mirrors, and link checks.
 
 - [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.
 - [Android app](./android.md) covers the Android app on the phone and tablet emulators against the local E2E stack: archive, folders, tags, Revisit, done toggles, link pills, search chips and the share sheet's tags and note.
@@ -52,4 +53,4 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 ## Not mapped yet
 
-Add a file here when a change touches one of these: import and export (Settings), the extension's popup, context menu and inline buttons (their language follows the account, see [Language](./language.md)), the docs site, and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.
+Add a file here when a change touches one of these: import and export (Settings), the extension's popup, context menu and inline buttons (their language follows the account, see [Language](./language.md)), and billing ("Upgrade to Pro" with Polar's sandbox). The Apple and Android apps need a Mac with Xcode or the Android SDK; cloud sessions have neither.

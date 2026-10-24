@@ -26,7 +26,7 @@ Native Kotlin and Jetpack Compose. The app matches the Apple app (`apps/apple`):
 
 ## Tests
 
-- Follow `/.agents/testing.md`. Put ViewModel tests with the fakes from `core:testing` and Robolectric Compose tests in each module's `src/test`.
+- Follow `apps/docs/content/docs/(open-source)/testing.mdx`. Put ViewModel tests with the fakes from `core:testing` and Robolectric Compose tests in each module's `src/test`.
 - Build ViewModels inside the test, not in a field initializer, so `MainDispatcherRule` applies.
 
 ## Releases

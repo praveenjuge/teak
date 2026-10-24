@@ -1,30 +1,23 @@
 # Teak SDK
 
-Typed API client and OAuth discovery for Teak. The source lives in `src/`, and
-`bun run build` writes the npm package to `dist/`: one bundle with no runtime
-dependencies, so it works without the Teak monorepo.
+Typed API client and OAuth discovery for [Teak](https://teakvault.com). One
+bundle with no runtime dependencies.
 
-```ts
-import { createTeakClient, discoverAuthServer } from "teak-sdk";
-
-const auth = await discoverAuthServer("https://teakvault.com/api");
-const client = createTeakClient({
-  baseUrl: "https://teakvault.com/api",
-  tokenProvider: { getAccessToken: () => yourStoredAccessToken },
-});
+```bash
+npm i teak-sdk
 ```
 
-Use the discovered endpoints and client ID for your OAuth surface. The WorkOS
-Connect helpers (`createPkceChallenge`, `createConnectAuthorizeUrl`,
-`requestConnectTokens`, `fetchConnectOwnerId`, `disconnectConnectGrant`) cover
-PKCE sign-in, refresh, account binding and disconnect. Refresh
-discovery after sign-in or refresh failures. Keep tokens in your platform's secure
-storage; this package does not store credentials or open a browser.
+```ts
+import { createTeakClient, staticTokenProvider } from "teak-sdk";
 
-The optional `TokenProvider.onUnauthorized(rejectedToken: string)` callback receives
-the token used by a retry-eligible 401 response. Return a new or already-refreshed
-token to retry once, or `null` to stop. Check the rejected token against the current
-session before refreshing so an older response cannot invalidate newer credentials.
+const client = createTeakClient({
+  baseUrl: "https://teakvault.com/api",
+  tokenProvider: staticTokenProvider(process.env.TEAK_API_KEY!),
+});
 
-Install it from npm as `teak-sdk`. Each release shares the lockstep version of
-the other Teak products and is published by the `SDK Release` workflow.
+await client.cards.create({ content: "A note from my script" });
+```
+
+The guide, with token providers and WorkOS Connect sign-in, is at
+[teakvault.com/docs/sdk](https://teakvault.com/docs/sdk). Each release shares
+the lockstep version of the other Teak products.

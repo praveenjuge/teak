@@ -75,23 +75,36 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all four client IDs. If any 
 
 ## Quickstart (local)
 
+Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against Teak's shared development deployment and refuse any other (see the [Development guide](/docs/development)). On your own deployment, run Convex and the web app directly.
+
 <Steps>
-  <Step title="Clone and run setup">
-    Clone the repo, then run the idempotent bootstrap with your WorkOS staging credentials:
+  <Step title="Clone and install">
+    ```bash
+    git clone https://github.com/praveenjuge/teak.git
+    cd teak
+    bun install
+    ```
+  </Step>
+  <Step title="Create your Convex deployment">
+    From `packages/convex`, sign in to your own Convex account and start a development deployment:
 
     ```bash
-    export WORKOS_CLIENT_ID=client_...
-    export WORKOS_API_KEY=sk_test_...
-    bun run setup
+    cd packages/convex
+    bunx convex login
+    bunx convex dev
     ```
 
-    Setup installs dependencies, provisions an isolated Convex development deployment, sets the local `SITE_URL` and the WorkOS client ID and API key on it, pushes backend code, and writes the local env files with the Convex URLs for the target you set up (including the AuthKit callback and cookie password for `apps/web`). No billing or production credentials are required. Verify with `bun run doctor`.
+    Choose to create a new project. `convex dev` pushes the backend, keeps watching for changes, and records the deployment in `packages/convex/.env.local`. It prints the deployment's `CONVEX_URL` and `CONVEX_SITE_URL`.
   </Step>
-  <Step title="Configure the rest of WorkOS and optional services">
-    Add the webhook settings from [Set up WorkOS](#set-up-workos) and any features you want. Run these from `packages/convex`:
+  <Step title="Configure the backend">
+    Set `SITE_URL` (`http://localhost:3000` locally), your WorkOS staging values from [Set up WorkOS](#set-up-workos), and any features you want. Run these from `packages/convex`:
 
     ```bash
-    # Sign-in: webhook and optional sign-up Action
+    bunx convex env set SITE_URL http://localhost:3000
+
+    # Sign-in: client, webhook and optional sign-up Action
+    bunx convex env set WORKOS_CLIENT_ID client_...
+    bunx convex env set WORKOS_API_KEY
     bunx convex env set WORKOS_ENVIRONMENT_ID environment_...
     bunx convex env set WORKOS_WEBHOOK_SECRET
     bunx convex env set WORKOS_ACTION_SECRET
@@ -99,13 +112,16 @@ Sign-in discovery needs `WORKOS_AUTHKIT_DOMAIN` and all four client IDs. If any 
     # Optional: files and AI card processing, through your Files Worker
     bunx convex env set FILES_BASE https://files.yourdomain.com
     bunx convex env set FILES_SIGNING_SECRET
+    bunx convex env set WORKFLOW_RPC_SECRET
     ```
 
     Leaving the value off makes `convex env set` prompt for it, which keeps secrets out of your shell history. See [Detailed Environment Reference](#detailed-environment-reference) for the full variable list.
   </Step>
-  <Step title="Start the stack">
+  <Step title="Start the web app">
+    Write `apps/web/.env.local` with the web values in [Detailed Environment Reference](#detailed-environment-reference), including a `WORKOS_COOKIE_PASSWORD` of at least 32 random characters, then:
+
     ```bash
-    bun run dev
+    bun run --cwd apps/web dev
     ```
   </Step>
 </Steps>
@@ -177,6 +193,9 @@ WORKOS_RESOURCE_ORIGIN=https://yourdomain.com # Optional: token audiences <origi
 WORKOS_CONNECT_CLI_CLIENT_ID=client_...      # Plus the RAYCAST, CHROME, and FIREFOX client IDs
 FILES_BASE=https://files.yourdomain.com
 FILES_SIGNING_SECRET=shared-secret
+WORKFLOW_RPC_SECRET=derived-secret           # Derived from the Files Worker's WORKFLOW_RPC_ROOT_SECRET
+EMAIL_INBOUND_SIGNING_SECRET=secret          # Optional: Save by email
+INBOUND_EMAIL_DOMAIN=in.yourdomain.com       # Optional: Save by email (default in.teakvault.com)
 POLAR_ACCESS_TOKEN=token
 POLAR_ORGANIZATION_TOKEN=token
 POLAR_SERVER=sandbox
@@ -193,13 +212,80 @@ Deploy it on Workers Paid. Exports stream every file into one ZIP in a single re
 
 The media renderer runs ffmpeg and poppler in a Container built from `apps/files-worker/container/Dockerfile`. It makes video thumbnails and hover previews, audio waveforms, PDF thumbnails and PDF text, and converts audio for transcription. `wrangler deploy` builds the image, so the machine or CI runner that deploys needs Docker. The Container uses the `basic` instance type (1/4 vCPU, 1 GiB memory) with up to 4 instances (`max_instances`; keep `MEDIA_RENDERER_INSTANCES` in `vars` equal to it). Workers Paid includes 375 vCPU-minutes and 25 GiB-hours of Containers a month, enough for tens of thousands of media jobs. Each instance takes one job at a time, has no internet access, and reads only the file the Worker sends it, up to 100 MB. When the renderer is busy, Teak retries with backoff.
 
-Set the signing secret:
+The link fetcher, a second Container built from `apps/files-worker/fetcher/Dockerfile`, downloads remote preview images and media straight into R2 under the same SSRF rules Convex uses. The Worker also runs Teak's background work: card processing, imports, exports and account deletion as Cloudflare Workflows, plus Queues and Cron Triggers.
+
+#### Resources to create
+
+`wrangler deploy` creates the Workflows, Durable Objects, Containers and the Analytics Engine dataset. Create these yourself first, and put your names and IDs in `wrangler.jsonc`:
+
+- **An R2 bucket** (`r2_buckets`), with an event notification that sends new objects under `users/` to the `teak-r2-events` queue, so abandoned uploads are deleted after a day:
+
+  ```bash
+  bunx wrangler r2 bucket notification create <bucket> --event-type object-create --queue teak-r2-events --prefix users/
+  ```
+
+- **Queues:** `teak-object-deletions`, `teak-object-deletions-dlq`, `teak-ai-backfill` and `teak-r2-events`.
+- **KV namespaces** for the `EDGE_IDENTITY` and `LINK_PAGE_CACHE` bindings.
+- **A Vectorize index** for search by meaning, 768 dimensions and cosine, with a `type` metadata index created before its first vector:
+
+  ```bash
+  bunx wrangler vectorize create teak-cards-0 --dimensions=768 --metric=cosine
+  bunx wrangler vectorize create-metadata-index teak-cards-0 --property-name=type --type=string
+  ```
+
+- **An AI Gateway** named by the `AI_GATEWAY_ID` var. It must exist before a deploy that names it.
+
+#### Vars
+
+Change these in `wrangler.jsonc`'s `vars`:
+
+| Var | Value |
+| --- | --- |
+| `CONVEX_SITE_URLS` | Your deployment's `CONVEX_SITE_URL`. The Worker serves only the deployments listed here |
+| `FILES_PUBLIC_ORIGIN` | The Worker's public origin, the same as `FILES_BASE` |
+| `API_PUBLIC_HOST`, `API_UPSTREAM_ORIGIN` | Your public host and your deployment's `CONVEX_SITE_URL`, for the [API and MCP edge proxy](#public-api-and-mcp). Remove both to proxy nothing |
+| `API_WORKOS_ISSUER` | Your `WORKOS_AUTHKIT_DOMAIN` |
+| `ANALYTICS_ACCOUNT_ID` | Your Cloudflare account ID, for the hourly AI usage rollup |
+| `POSTHOG_PROJECT_TOKEN` | Your own PostHog project token, or remove it to send nothing |
+
+The Cron Trigger schedules in `triggers.crons` must equal the Cloudflare schedules in `packages/convex/cronSchedules.ts`; a Convex test checks them.
+
+#### Secrets
+
+Put each with `bunx wrangler secret put <NAME>` from `apps/files-worker`. `wrangler deploy` fails while either required one is missing.
 
 ```bash
-FILES_SIGNING_SECRET=shared-secret           # Must match the Convex value
+FILES_SIGNING_SECRET=shared-secret           # Required. Must match the Convex value
+WORKFLOW_RPC_ROOT_SECRET=root-secret         # Required. Worker only; never copy it to Convex
+ANALYTICS_API_TOKEN=token                    # Optional. Account Analytics: Read, for the AI usage rollup
 ```
 
+Each Convex deployment the Worker serves holds its own `WORKFLOW_RPC_SECRET`, derived from the root secret and the deployment's origin. Derive it and set it on the deployment:
+
+```bash
+WORKFLOW_RPC_ROOT_SECRET=… bun scripts/workflow-rpc-secret.ts https://<deployment>.convex.site
+bunx convex env set WORKFLOW_RPC_SECRET <output>   # from packages/convex
+```
+
+Until a deployment has it, its background work stays queued.
+
 Deploy it as described in [Production basics](#production-basics), then point `FILES_BASE` in the backend env at the worker's public origin.
+
+### Save by email (`apps/email-worker`, optional)
+
+Save by email needs the Email Worker and Cloudflare Email Routing on a subdomain of a domain on Cloudflare, such as `in.yourdomain.com`.
+
+1. Generate a signing secret (`openssl rand -hex 32`). Set it on the Convex deployment as `EMAIL_INBOUND_SIGNING_SECRET`, and set `INBOUND_EMAIL_DOMAIN` there to your subdomain.
+2. In `apps/email-worker/wrangler.jsonc`, set `CONVEX_SITE_URL` to your deployment's site URL and `INBOUND_EMAIL_DOMAIN` to the same subdomain. Then, from `apps/email-worker`, put the same secret and deploy:
+
+   ```bash
+   bunx wrangler secret put EMAIL_INBOUND_SIGNING_SECRET
+   bun run deploy
+   ```
+
+3. In the Cloudflare dashboard, open Email Routing for your domain and add the subdomain under **Settings → Subdomains**; Cloudflare adds its MX and SPF records. Catch-all rules work only on the apex domain, so add a literal routing rule for `save@<subdomain>` with the action **Send to a Worker** and your Email Worker. Turn on **Subaddressing**, so `save+anything@` reaches the same rule.
+
+Mail is accepted only from an account's sign-in address and only when it passes DMARC; see [Save by email](/docs/features#save-by-email) for what becomes a card.
 
 ### Web (`apps/web/.env.local`)
 
@@ -237,7 +323,7 @@ PUBLIC_ORIGIN=https://yourdomain.com            # Required to expose self-hosted
 TEAK_DEV_API_URL=https://deployment.convex.site # Optional local override
 ```
 
-Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, Teak's Cloudflare edge forwards `https://teakvault.com/api` and `{{mcp-url}}` to them. For self-hosted setups, configure your reverse proxy or DNS to route `/api` and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
+Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/healthz`, `/openapi.json`, and OAuth protected-resource metadata. In production, the Files Worker's edge proxy forwards `https://teakvault.com/api`, `{{mcp-url}}` and the discovery documents to them and rate-limits them. To do the same, set `API_PUBLIC_HOST` and `API_UPSTREAM_ORIGIN` on your Files Worker and add zone routes for `/api*`, `/mcp*`, `/.well-known/oauth-protected-resource*` and `/.well-known/teak-oauth-clients.json*` on your domain, as `apps/files-worker/wrangler.jsonc` does. Or configure your own reverse proxy to route `/api` (to `/v1`) and `/mcp` to the Convex deployment's `.convex.site` domain. The protected-resource metadata advertises your `WORKOS_AUTHKIT_DOMAIN` as the OAuth issuer.
 
 ## Where to get the values
 

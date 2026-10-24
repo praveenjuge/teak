@@ -28,7 +28,7 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 
 ## Tests
 
-- Follow `/.agents/testing.md`. Swift Testing in `Packages/TeakKit/Tests`.
+- Follow `apps/docs/content/docs/(open-source)/testing.mdx`. Swift Testing in `Packages/TeakKit/Tests`.
 - UI flows run against this checkout's local E2E stack: start `bun run --cwd packages/tests e2e:stack`, then `scripts/ui-tests.sh ios|ipad|mac`. Each test signs in as a fresh WorkOS emulator user; Debug builds read the stack's URLs and a test session from launch environment variables (compiled out of Release).
 - For a manual run against the stack, `bun --no-env-file run apps/apple/scripts/e2e-session.ts` prints that launch environment.
 - Mac UI tests need UI automation allowed on the machine (`automationmodetool`), so CI runs iPhone and iPad.

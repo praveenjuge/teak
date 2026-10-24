@@ -54,24 +54,7 @@ teak logout
 
 Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in. With `--api-url` or `TEAK_API_URL`, `teak login` asks for the resources that deployment advertises: `https://teakvault.com/api` in production, or the deployment's own `/api` resource, such as `https://<deployment>.convex.site/api` for development.
 
-## SDK token providers
-
-The `teak-sdk` package's `TokenProvider.onUnauthorized(rejectedToken: string)` receives the access token
-used by the request that returned 401. Return a refreshed or newer stored token
-to retry that request once, or `null` to stop. Compare the rejected token with
-the current session before refreshing; a late response may refer to an older token.
-
-The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favorites` (with `trashed`, `archived`, `style`, `hue`, and `hex` filters), `get`, `create`, `update` (including `removeAiTags`), `setFavorite`, `setArchived`, `delete` (pass `{ permanent: true }` to skip Trash), `restore`, `refresh`, `content`, `duplicate`, `bulk`, `changes`, `setThumbnail` (bytes and a MIME type, or `{ fileKey }` from `createThumbnailUpload`), and `resetThumbnail` (with a `folder` filter on the listings, and `folderIds` on `update`), plus `folders.list`, `get`, `create`, `update`, `delete`, `addCards`, and `removeCards`, `tags.list`, `rename`, `merge`, `delete`, and `operation`, `uploads`, `me`, and `exports.start` / `exports.latest`. Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe. Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`.
-
-`formatBytes(card.fileSize)` turns a file size into the label Teak shows, such as `4.6 MB` or `50 MB`.
-
-The SDK also includes the WorkOS Connect sign-in steps that the CLI, Raycast, and
-browser extension use: `randomBase64Url` and `createPkceChallenge` for PKCE,
-`createConnectAuthorizeUrl`, `requestConnectTokens` for code and refresh grants,
-`fetchConnectOwnerId`, and `disconnectConnectGrant`. Use the client ID that
-`discoverAuthServer` returns for your surface. `requestConnectTokens` returns
-`refresh_token_rejected` only when WorkOS says the refresh token is no longer valid;
-treat other failures as temporary and keep the saved sign-in.
+The CLI is built on [`teak-sdk`](/docs/sdk), the typed TypeScript client for the same API.
 
 ## Commands
 

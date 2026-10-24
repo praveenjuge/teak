@@ -124,6 +124,33 @@ In Chrome and Firefox, choose **Sign in** in the extension popup and approve Tea
 
 Manage access in Teak **Settings → Security → Connected apps**. Signing out disconnects the extension across all its installations; reconnecting can take about five minutes. If the saved connection has already expired, sign-out clears only this device and says so. If the network fails, credentials stay saved so you can retry. In Chrome and Firefox, interrupted saves stay pending so you can retry them after reconnecting, or discard them from the popup.
 
+## Build from source
+
+The extension is open source, and the store packages are built from the repository's release tags. To build the same package yourself:
+
+<Steps>
+  <Step title="Install the toolchain">
+    Install Git, and Bun and Node.js at the versions pinned in the repository's `package.json` (`packageManager` and `engines.node`).
+  </Step>
+  <Step title="Check out a release">
+    ```bash
+    git clone https://github.com/praveenjuge/teak.git
+    cd teak
+    git checkout v<version>
+    bun install --frozen-lockfile
+    ```
+  </Step>
+  <Step title="Build against production">
+    ```bash
+    export VITE_PUBLIC_CONVEX_URL=https://uncommon-ladybug-882.convex.cloud
+    export VITE_PUBLIC_CONVEX_SITE_URL=https://uncommon-ladybug-882.convex.site
+    bun run --cwd apps/extension build:firefox   # or: build, for Chrome
+    ```
+
+    The Firefox build lands in `apps/extension/.output/firefox-mv3` and matches the package on Firefox Add-ons file for file. Each GitHub release also attaches the Firefox package and a sources archive, `teak-extension-<version>-sources.zip`.
+  </Step>
+</Steps>
+
 ## Troubleshooting
 
 <Accordion>

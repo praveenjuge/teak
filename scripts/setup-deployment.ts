@@ -136,7 +136,7 @@ export const setupDevDeployment = async (
         "setup-convex-access",
         `the dev deployment is missing ${missing.join(", ")}`,
         [
-          "The repository owner sets them from WorkOS staging in the Convex dashboard (see .agents/development.md)",
+          "The repository owner sets them from WorkOS staging in the Convex dashboard (see teakvault.com/docs/development#maintainer-setup)",
         ]
       )
     );
@@ -155,7 +155,7 @@ export const setupDevDeployment = async (
           severity: "warn",
           detail: `the dev deployment is reachable but doesn't set ${unset.join(", ")}`,
           remediation: [
-            "The repository owner sets them once (see .agents/development.md); until then seeding and the push lease are off",
+            "The repository owner sets them once (see teakvault.com/docs/development#maintainer-setup); until then seeding and the push lease are off",
           ],
         }
   );

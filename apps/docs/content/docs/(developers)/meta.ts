@@ -2,13 +2,6 @@ import { defineMeta } from "blume";
 
 export default defineMeta({
   title: "Developers",
-  pages: [
-    "api",
-    "api-quickstart",
-    "mcp",
-    "webmcp",
-    "ai-agents",
-    "development",
-    "self-hosting",
-  ],
+  order: 30,
+  pages: ["api", "api-quickstart", "sdk", "mcp", "webmcp", "ai-agents"],
 });

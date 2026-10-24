@@ -3,17 +3,19 @@
 Guides, plans and skills for agents working in Teak. Root `AGENTS.md` says
 when to read each guide; this is the full list.
 
+How Teak is built, run, tested and translated is public, in
+`apps/docs/content/docs/(open-source)/`: `development.mdx`,
+`architecture.mdx`, `testing.mdx`, `adding-a-feature.mdx`, `translating.mdx`
+and `self-hosting.mdx`. A guide here holds only what isn't for the public site:
+Teak's own deployments, credentials, runbooks and records.
+
 ## Guides
 
 | File | Read it when you |
 | --- | --- |
-| `development.md` | run the app, push backend code, or work in a worktree |
 | `cloud.md` | work in a cloud session (Claude Code on the web, Codex, Amp) |
-| `environment.md` | add or debug an env var, a credential, or Files storage |
-| `feature-conventions.md` | add a field, table, index, API operation, backfill or workflow step |
-| `testing.md` | add, change or delete a test |
+| `environment.md` | add or debug a credential or Files storage on Teak's own deployments |
 | `analytics.md` | add an event or touch PostHog telemetry |
-| `i18n.md` | add or change text people read in the web app or browser extension |
 | `semantic-search.md` | touch embeddings, Vectorize, or search by meaning |
 | `pull-requests.md` | open a PR or post on GitHub |
 | `releases.md` | prepare any release |
@@ -64,7 +66,7 @@ Verification (root `AGENTS.md`, "Verification"):
 
 ## Other files
 
-- `setup`: prepares a fresh Linux VM (`development.md`, Cloud agents).
+- `setup`: prepares a fresh Linux VM (`development.mdx`, "Cloud agents").
 - `resume`: restores the toolchain PATH when Amp resumes a VM.
 - `hooks/session-start.sh`: the Claude Code SessionStart hook.
 - `hooks/start-docker.sh`: starts Docker in a cloud session; the

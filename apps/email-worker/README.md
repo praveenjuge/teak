@@ -3,6 +3,10 @@
 `teak-email-prod` receives mail sent to `save@in.teakvault.com` through
 Cloudflare Email Routing and turns it into cards. It has no HTTP routes.
 
+Setting up Save by email on a deployment of your own is in the public
+self-hosting guide (`apps/docs/content/docs/(open-source)/self-hosting.mdx`,
+"Save by email"). This file covers Teak's own Workers.
+
 ## How a message is handled
 
 1. **Address.** The envelope recipient must be `save@<INBOUND_EMAIL_DOMAIN>`;
@@ -85,7 +89,7 @@ Do these in order. Until step 4 no mail reaches the Worker, and nothing is publi
 2. **Deploy the Workers.** `bun run deploy` (production, `teak-email-prod`)
    and `bun run deploy:development` (`teak-email-dev`).
 3. **This code on the dev deployment.** Push the branch's Convex functions
-   to the shared dev deployment (`bun run dev`; see `.agents/development.md`
+   to the shared dev deployment (`bun run dev`; see `apps/docs/content/docs/(open-source)/development.mdx`
    for the push lease). Production stays as it is until step 6.
 4. **Email Routing on the subdomain.** In the Cloudflare dashboard for
    `teakvault.com`: Email Service → Email Routing → Settings → Subdomains,

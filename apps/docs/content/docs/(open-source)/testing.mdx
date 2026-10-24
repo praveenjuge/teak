@@ -1,0 +1,212 @@
+---
+title: Testing
+description: Where Teak's tests live, which layer to use, the rules that make a test worth keeping, and how to run the end-to-end suite
+---
+
+How to write tests in Teak that fail when behavior breaks, and pass when it does not. Read this before adding, changing, or deleting a test.
+
+## The one rule
+
+A test earns its place only if it fails when the behavior it names is broken. Before you finish, ask: "If I deleted or broke the code under test, would this test fail?" If not, it is not a test. Delete it or rewrite it.
+
+## Pick the layer
+
+| What changed | Test with | Where it lives | Run it |
+| --- | --- | --- | --- |
+| Pure function (parsers, formatters, URL rules) | `bun test` | the workspace's test directory ([table below](#where-files-go)) | `bun test <path>` |
+| Convex query, mutation, action, or workflow step logic | `bun test` with the helpers in `packages/convex/__tests__/helpers/` | `packages/convex/__tests__/<mirrors source path>` | `bun run --cwd packages/convex test:unit` |
+| Convex behavior that depends on the real database, auth sessions, or components | `convex-test` on Vitest (edge runtime) | `packages/convex/edge/*.test.ts` (`packages/convex/vitest.config.ts` runs every file there) | `bun run --cwd packages/convex test:edge` |
+| Files Worker Workflow behavior only the real engine decides (retries, a `NonRetryableError` ending a step, what reaches `run()` after a step fails) | `bun test` with Wrangler's `createTestHarness` (Miniflare's Workflows engine) and a local server standing in for Convex | `apps/files-worker/src/**`, like `src/workflows/cardProcessing/engine.test.ts` | `bun test <path>` in `apps/files-worker` |
+| Web React UI (components, hooks, screens, lib) | `bun test` + `renderToStaticMarkup` | a `__tests__` folder beside the code, e.g. `apps/web/src/components/cards/__tests__/` | `bun run --cwd apps/web test` |
+| A real browser flow or a cross-surface journey (web, API, CLI, MCP) | [e2e](https://e2e.tester.army/docs) against the local stack and the WorkOS emulator | `packages/tests/src/web/` for web surfaces, `packages/tests/src/journey/` for journeys | `bun run --cwd packages/tests e2e` ([End-to-end suite](#end-to-end-suite)) |
+
+Prefer the lowest layer that can observe the behavior. Move up a layer only when the behavior lives in the integration: a query index, an auth session, a browser API.
+
+## Where files go
+
+Each workspace script runs only the files it matches. A test file outside these paths never runs, and that is a bug.
+
+| Workspace | Test files |
+| --- | --- |
+| `packages/convex` | `__tests__/**/*.test.ts` (Bun). `edge/**/*.test.ts` (Vitest, `convex-test`), whose module map is `import.meta.glob("../**/*.ts")` so function paths stay rooted at `packages/convex`. Don't colocate Bun tests next to source files. |
+| `apps/web` | `src/**/*.test.{ts,tsx}` (Bun, one process per file). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. |
+| `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
+| `apps/cli`, `apps/files-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
+| `apps/raycast` | `src/__tests__/**` |
+| `apps/extension` | `__tests__/**` |
+| `packages/i18n` | `src/__tests__/**` (locales, translator, pseudo-locale). The catalog check, `scripts/i18n-catalog.test.ts`, runs with the repo scripts: every language has English's keys, placeholders, plurals and tags in valid ICU. |
+| `apps/docs` | `lib/**` |
+| `apps/apple` | `tests/*.test.ts` (run by the root `bun run test`) and Swift Testing in `Packages/TeakKit/Tests` |
+| `apps/android` | `tests/*.test.ts` (run by the root `bun run test`) and JUnit in each module's `src/test` |
+| repo scripts | `scripts/**/*.test.ts`, run by the root `bun run test` |
+
+`bun run test` at the root runs all of it, and the `Unit Tests` workflow runs it on every pull request.
+
+## Rules
+
+**Assert outcomes, not implementation.**
+- Assert returned values, database state, rendered text, roles, `href` and `src`, HTTP status and body, and CLI stdout and exit codes.
+- Don't assert that a mock was called with a query-builder chain (`withIndex`, `eq`, `take`). Seed data and assert the result.
+- Don't assert CSS class names or DOM nesting.
+
+**Never test the source text.** Don't `readFileSync` a source file and `toContain` a string. Extract the logic into a function and call it. If a regression truly can't be reached any other way, keep at most one such assertion and name the bug in a comment.
+
+**Mock only boundaries you don't own.** That means network, AI providers, R2 storage, Polar, email, time, and native modules. Never mock the module under test or its sibling modules to reach a branch.
+
+**Never re-implement the code in the test.** Copying a regex list or an `if` chain into the test and asserting on the copy proves nothing. Export the function and call it (see `apps/extension/lib/restrictedUrl.ts`).
+
+**Always await async assertions.** `await expect(p).rejects.toThrow()`. An unawaited `.rejects` or `.resolves` passes even when the promise does the wrong thing.
+
+**No filler.** None of these count as tests:
+- `expect(true).toBe(true)`
+- `expect(module).toBeDefined()`
+- asserting a constant equals its own literal
+- building an object in the test and asserting its own fields
+
+**Keep tests hermetic.**
+- Restore any `process.env` keys you change.
+- Clear variables that other modules set at import time. For example, `next.config.ts` sets `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` whenever a commit SHA is present, as it is in CI.
+- Don't depend on test order. Check with `bun test --randomize` and `bun test --seed=<n>`.
+
+**One behavior per test, named as the behavior.** Write "refuses to auto-save chrome:// pages", not "test isValidUrl 3". Use `test.each` for tables of inputs.
+
+**Browser tests:**
+- Use `getByRole` and `getByLabel` locators, and web-first `expect` assertions. e2e matches names exactly and case-sensitively; pass `{ exact: false }` only when a fragment is the point.
+- No agent steps (`agent.act`, `agent.assert`): the suite configures no model, so every step is a locator or an exact `expect`.
+- Never `waitForTimeout`, and never wait for `networkidle`.
+- Never `test.skip` when an element is missing. A missing element is a failure.
+- Credential-gated skips are the only allowed skip.
+
+**Data against real backends:**
+- Use unique markers per run (`generateTestContent` in `packages/tests/src/web/fixtures.ts`).
+- End-to-end accounts are WorkOS emulator users that exist only for the run. Each spec file makes its own (`createAccount` or `createApiAccount` in `packages/tests/src/helpers/app.ts`), and web specs get one per test from `packages/tests/src/web/fixtures.ts`. Files share nothing, so they can run in any order.
+- Never point a test at production or staging accounts.
+
+## Reuse before you write
+
+- **Convex:**
+  - `packages/convex/__tests__/helpers/` provides `withTestSession`, R2 mocks and public API HTTP helpers.
+  - `packages/convex/edge/occContention.test.ts` has `insertCard` and search sync fixtures.
+  - `packages/convex/edge/workosSessions.test.ts` shows WorkOS-backed sessions with `t.withIdentity`.
+- **End-to-end:** `packages/tests/src/helpers/app.ts` (sign-up, hosted sign-in, API keys, deletion), `emulator.ts` (WorkOS users, emailed codes, session tokens), `page-hooks.ts` (page errors, blocked requests, Convex socket routing), `test.ts` (`retry`, `firstVisible`), `api.ts`, `cli.ts` and `mcp.ts`. Headless WorkOS sessions against staging: `scripts/lib/workos-test-session.ts`.
+- **Raycast:** `createRaycastApiMock` in `apps/raycast/src/__tests__/raycastApiMock.ts`.
+
+## Before you finish
+
+1. For a bug fix, write the failing test first and watch it fail for the right reason.
+2. Run the narrowest test, then `bun run --cwd <workspace> test`, then `bun run test` if the change crosses workspaces.
+3. Break the code on purpose (flip a condition, delete a line) and confirm the new test fails. Then restore it.
+4. Re-read the diff for skipped tests, unawaited assertions, and deleted assertions. Never delete or loosen an assertion just to make a test pass.
+
+## End-to-end suite
+
+`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack that exists only for this suite and the clean-container smoke; development always uses the [shared development deployment](/docs/development#the-shared-development-deployment), which the suite never touches. The stack is:
+
+- the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
+- a local Convex backend (API and webhooks on the next port),
+- the Files Worker under `wrangler dev` in local mode (`src/stack/filesWorker.ts`), which serves files and runs background work on Workflows, Queues, R2, KV and Analytics Engine as Miniflare emulates them,
+- the web app.
+
+It needs no secrets, so you can run it without access to the development deployment. Every WorkOS value is a test-only constant in `src/stack/config.ts`, and the emulator keeps everything in memory; the Files Worker's signing secret is a test-only constant too. The main checkout uses web 3000, Convex 3210/3211, the emulator 4100/4101 and the Files Worker 4102 (its inspector on 4103); each linked worktree uses its own ports.
+
+The specs drive the browser with locators and exact `expect` assertions only. They run no agent steps, so the suite needs no model or API key.
+
+### Run it
+
+From the repo root, with this checkout's dev stack stopped (`bun run dev --stop`):
+
+```bash
+bun install
+(cd packages/tests && bunx e2e-web install chromium webkit)   # once
+bun run --cwd packages/tests e2e
+```
+
+`e2e` checks the pinned runtimes and packages, sets up the local backend (`src/stack/backend.ts`), starts the stack, warms it up (`e2e.warmup.config.ts`), runs the Chromium suite (`e2e.config.ts`) and the WebKit half of the browser matrix (`e2e.webkit.config.ts`), and stops everything. Pass `e2e run` arguments to run something narrower, for example `bun run --cwd packages/tests e2e src/journey/03-api.e2e.ts` or `bun run --cwd packages/tests e2e -- --grep editor`.
+
+To iterate, keep the stack up in one terminal and run e2e in another:
+
+```bash
+bun run --cwd packages/tests e2e:stack
+cd packages/tests && E2E_TELEMETRY_DISABLED=1 bunx e2e run src/web/markdown-editor.e2e.ts:42
+```
+
+A running stack records its URLs in `.agents/.state/stack.json`, which the configs and helpers read, and logs to `.agents/.state/stack.log`. While it runs it takes over `packages/convex/.env.local`; the next `bun run dev` selects the development deployment again. A failed test prints the path of its trace page (`.e2e/<suite>/results/<test>/trace.md`): every step with what it hit, the app's console errors and failed requests, and the screen at the failure. Read it before re-running. Add `--headed` to watch a run, `--video on` to record every attempt, and `--trace on` to keep traces for passing tests too. `--last-failed`, `--repeat-each=<n>`, `--grep`, `--max-failures` and `path:line` selection also work.
+
+The `E2E` workflow (`.github/workflows/e2e.yml`) runs the same command daily and on demand (not on pull requests or pushes), and uploads `.e2e/` and the stack log. The `Clean Container Smoke` workflow runs `src/matrix` in Chromium from a clean checkout on every pull request and posts the result on it.
+
+### Suites
+
+Each config runs its own directories and writes to its own `.e2e/<suite>/`:
+
+| Config | Runs | Against |
+| --- | --- | --- |
+| `e2e.warmup.config.ts` | `src/warmup/`: compiles the signed-in routes and loads the backend modules once | the local stack |
+| `e2e.config.ts` | `src/journey/`, `src/web/`, `src/matrix/` in Chromium | the local stack |
+| `e2e.webkit.config.ts` | `src/matrix/` in WebKit | the local stack |
+| `e2e.docs.config.ts` | `src/docs/`: read-only checks of the published site and Teak's public production endpoints (`bun run --cwd packages/tests e2e:docs`); the `E2E` workflow runs it daily | production, no stack |
+| `e2e.hermetic.config.ts` | `src/auth-runtime/` and `src/extension/`: the WorkOS consent and Security dialog flows and the extension's OAuth module, with every request answered by fixtures (`bun run --cwd packages/tests e2e:hermetic`) | nothing; `TEAK_E2E_HERMETIC=1` |
+
+Files in a suite run in parallel and share nothing: every spec makes its own accounts. Tests inside a file run in order on one worker, and a `describe(..., { serial: true })` group shares one browser and its module state, for flows such as sign-up, sign-out and account deletion.
+
+| Directory | Covers |
+| --- | --- |
+| `src/journey/` | Sign-up through the verification code; cards, search, filters, favorites, tags, trash and restore, bulk actions, the editor, deep links, link metadata; the REST API with OpenAPI checks, the CLI from this checkout, every public MCP tool, contention; cross-tenant access, revoked keys, hostile input, security headers, the session cookie; axe scans of `/` and `/settings`; password reset, sign-out, account deletion and dead credentials afterward |
+| `src/web/` | Markdown editor, WebMCP, sign-in entry routing, settings navigation and layout, composer save shortcut, Settings → Language and the pseudo-locale |
+| `src/matrix/` | Sign-up, create and search in each engine |
+
+### How the stack is wired
+
+`src/stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY`, `WORKOS_API_BASE_URL`, `WORKOS_ENVIRONMENT_ID` and `WORKOS_WEBHOOK_SECRET` on it. The stack passes the web app its emulator settings, including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
+
+The emulator runs with:
+
+- the interactive login pages, with the password step, like hosted AuthKit,
+- `https://api.workos.com` as the token issuer, which the backend requires,
+- a JWT template that adds `email` and `email_verified` to session tokens, like Teak's WorkOS environment,
+- a webhook endpoint for `user.*` events at the backend's `/workos/webhook`, signed with the pinned test secret.
+
+A small proxy in front of the emulator adds hosted AuthKit's 30-second refresh-token grace window ([session resilience](https://workos.com/docs/authkit/session-resilience)). The web client refreshes its session on every page load, and without the window a navigation that interrupts that refresh would end the session. The backend runs with `convex dev --once --start`, so the suite's own file writes never trigger a push.
+
+### Accounts
+
+Accounts are real WorkOS users in the emulator. Creating one through the emulator API sends a signed `user.created` webhook, which gives the address a Teak vault. Browser specs then sign in through the hosted login page (`signIn` and `createAccount` in `src/helpers/app.ts`); the sign-up journey's account starts unverified, so its first sign-in goes through the emailed verification code. The emulator never sends email: codes and reset tokens are read from its `/events` API (`src/helpers/emulator.ts`). API keys come from Settings, the way people create them, except in the API, CLI and MCP specs, which never open a browser: `createApiAccount` calls the same mutation Settings does, signed in with the emulator's password grant. Tests sign in fresh instead of reusing saved cookies, which go stale once the client refreshes its session.
+
+### What e2e doesn't do, and the stand-ins
+
+`src/helpers/page-hooks.ts` covers the Playwright features the specs need that e2e doesn't have, with init scripts in the page:
+
+- `capturePageErrors` records uncaught errors and unhandled rejections (Playwright's `pageerror`).
+- `blockAndRecordRequests` records and aborts requests to a URL pattern (the `request` event, for "never fetched" checks).
+- `routeConvexSocket` routes the browser's Convex sync socket through interceptors that run in the page: a backend that can't be reached, an injected mutation failure, a rewritten query result (`routeWebSocket`).
+
+`retry` and `firstVisible` in `src/helpers/test.ts` stand in for `expect(...).toPass()` and `locator.or()`. Each test has one page: a second user signs in after `app.clearState()`, or the check runs at the API.
+
+### What the local stack doesn't cover
+
+- **Workers AI, Browser Run, Vectorize and the two Containers.** They need a Cloudflare account or Docker. The Worker's `AI` binding is a service binding to a deterministic fake (`apps/files-worker/e2e/fakeAi.ts`), so text and image cards get tags and summaries; link fetching, link screenshots, video and PDF rendering, audio transcripts and embeddings fail the way they do when those services are down, and their stages end `failed`. Uploads, image analysis (Images is emulated), exports, imports and account deletion run for real.
+- **AuthKit Actions** (the sign-up freeze registration action). The emulator doesn't run Actions; `packages/convex/edge/workosAuthKit.test.ts` covers it.
+- **WorkOS Connect OAuth** for the CLI, extensions, Raycast and MCP. The emulator's Connect flow has no PKCE or refresh tokens. The API, CLI and MCP journeys use Teak API keys, and the browser OAuth flows have hermetic checks: `bun run --cwd packages/tests e2e:hermetic`, and the `Extension OAuth Runtime` workflow.
+- **Billing.** Polar checkout needs Polar credentials.
+- **The browser extension.** It signs in with WorkOS Connect, and e2e can't load a browser extension.
+
+## Bun test options
+
+`bun test` (Bun 1.4) has options that help when a test misbehaves:
+
+- `--changed[=<ref>]` runs only test files affected by changed files.
+- `--only-failures`, `--bail`, and `--rerun-each=20` confirm a flake is really fixed.
+- `--randomize` with `--seed=<n>` finds and replays order dependence.
+- `--isolate` gives each file a fresh global, which shows whether a failure is a leak from another file.
+- `--parallel=<n>`, `--shard=<i>/<n>`, and `--coverage --coverage-reporter=lcov` are also available.
+
+<Visibility for="agents">
+
+## Notes for agents
+
+- `bun test` switches to failures-only output when it detects an agent (`CLAUDECODE=1` or `AGENT=1`), so there's no need to set this in scripts.
+- The e2e skill (`.agents/skills/e2e/`) covers writing and running specs; the full docs ship in `node_modules/e2e/docs`.
+- Never run `e2e feedback`, even though the skill suggests it: it sends a report to the e2e maintainers. Tell the person what got in your way instead, and let them decide whether to report it. Keep `E2E_TELEMETRY_DISABLED=1` set, as the package scripts and `.mcp.json` do.
+- The `e2e` MCP server in `.mcp.json` opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build. Pass `packages/tests/e2e.config.ts` as `open_session`'s `config`; in a cloud session it drives the image's Chromium against the dev stack (`.agents/cloud.md`). Its `locate` tool checks a `screen.getBy…` locator against the current page and returns the exact line to put in a spec. It doesn't run specs; use `E2E_TELEMETRY_DISABLED=1 bunx e2e run <file>` in `packages/tests` with the end-to-end stack up (`bun run --cwd packages/tests e2e:stack`).
+- In a cloud session, stop the dev stack before running the suite, and run one Chromium at a time on a 4-vCPU VM (`.agents/cloud.md`).
+
+</Visibility>

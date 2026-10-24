@@ -1,6 +1,60 @@
-# Translation glossary
+---
+title: Translating
+description: How Teak's web app and browser extension are translated, how to add or change text, and the glossary every language uses
+---
 
-Use these terms in every catalog, so a word means the same thing on every screen. `.agents/i18n.md` covers how to add and translate messages.
+The web app (`apps/web`) and the browser extension (`apps/extension`) are translated into Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Simplified Chinese. Every word people read comes from one catalog in `packages/i18n` (`@teak/i18n`). The native apps, Raycast, the Safari extension, these docs and emails are in English. To choose a language in the app, see [Language](/docs/features#language).
+
+## Where things live
+
+| What | Where |
+|---|---|
+| Locales, cookie name, `intlLocale` | `packages/i18n/src/locales.ts` |
+| The English catalog (the source) | `packages/i18n/messages/en.json` |
+| One catalog per language | `packages/i18n/messages/<locale>.json` |
+| Hooks: `useTranslations`, `useUiLocale`, `useIntlLocale` | `@teak/i18n/react` |
+| A translator outside React | `createTeakTranslator` from `@teak/i18n` |
+| Term glossary | [Glossary](#glossary) on this page |
+| Server error messages | `errors.*` keys, `apps/web/src/lib/serverErrors.ts`, `hooks/useServerErrors.ts` |
+
+The signed-in web app gets its locale from the `teak-locale` cookie (read in `AuthenticatedAppProvider`), which mirrors the account's Language setting. Without a provider, for example in tests or a screen outside the app shell, components render English.
+
+## Adding or changing text
+
+1. Add the English text to `en.json` under the component's namespace, for example `cardModal.menu.replaceImage`. Namespaces follow the component or area (`settings.footer`, `sidebar`, `cardModal.menu`). Reuse a `common.*` key only when the word means the same everywhere (Cancel, Close, Undo).
+2. Read it with `const t = useTranslations("cardModal.menu")` and `t("replaceImage")`.
+3. Add the same key to all seven other catalogs in the same pull request, translated with the [glossary](#glossary). `scripts/i18n-catalog.test.ts` fails when a catalog lacks a key or its placeholders differ from English.
+4. Run `bun test scripts/i18n-catalog.test.ts`, then look at the screen in the language (Settings → Language), and in the pseudo-locale (`?__locale=en-XA`, development only).
+
+## Writing messages
+
+- **Whole sentences, never concatenated.** Put values in placeholders: `"Moved {count, plural, one {# card} other {# cards}} to {folder}"`.
+- **Plurals** use ICU: `{count, plural, one {# card} other {# cards}}`. Japanese, Korean and Chinese only use `other`.
+- **Markup inside a sentence** uses tags and `t.rich`: `"Read the <link>docs</link>"` with `t.rich("key", { link: (chunks) => <a href="…">{chunks}</a> })`.
+- **Attributes and toasts** count too: `aria-label`, `title`, `placeholder`, `alt`, and the text of `toast(...)`, `toast.success(...)` and `toast.error(...)`.
+- **Data arrays** (menu items, options, shortcut lists) keep a stable `id` and a message key, not an English `label`. Build the visible label with `t` where it renders.
+- **Helpers outside React** (in `lib/`) that return text take a translator argument, typed `TeakTranslator<"namespace">`, instead of returning English.
+- **Server errors:** show `useServerErrors().message(error, fallback)`. It translates every known server message and card code and falls back to the server's English text.
+
+## What stays English
+
+- "Teak", plan names where the glossary says so, and search syntax: qualifiers (`is:fav`, `type:image`, `tag:`) and date words, which people type.
+- Text the server stores on cards: link facts, bylines, price labels, import errors.
+- Developer surfaces: the public API, MCP tool descriptions and CLI output.
+
+## Dates and numbers
+
+Format with `Intl`, passing `useIntlLocale()` as the locale (or `intlLocale(locale, …)` outside React). In English it returns the locale the code used before translation: `useIntlLocale()` gives `undefined` (the browser's locale) and `useIntlLocale("en-US")` gives `"en-US"`, so English output doesn't change. Never write a fixed `"en-US"`; lint flags it.
+
+## Lint
+
+- Biome `noJsxLiterals` flags text between JSX tags in `apps/web/src` and the extension's `entrypoints` and `components`.
+- `scripts/lint/no-ui-string.grit` flags words in `aria-label`, `title`, `placeholder`, `alt` and toast calls, plus fixed `"en-US"` locales.
+- Tests and `apps/web/src/components/ui/**` (shadcn primitives) are exempt. Punctuation and "Teak" are allowed.
+
+## Glossary
+
+Use these terms in every catalog, so a word means the same thing on every screen.
 
 Never translate:
 
@@ -9,7 +63,7 @@ Never translate:
 - Search syntax people type: qualifiers (`is:fav`, `type:image`, `tag:`, `folder:`), `OR`, and date words (`today`, `last week`).
 - Key names in shortcuts (⌘, Shift, Esc, Enter).
 
-Register:
+Translate meaning, not words: short UI labels stay short. Keep ICU placeholders, tag names and plural categories exactly. Use sentence case where the language has case, and the language's own punctuation.
 
 | Language | Register |
 |---|---|
@@ -21,9 +75,7 @@ Register:
 | Korean (ko) | 합니다 style for sentences; plain nouns for buttons and menu items |
 | Chinese, Simplified (zh-Hans) | neutral; full-width punctuation |
 
-Use sentence case where the language has case. Keep labels as short as English.
-
-## Terms
+### Terms
 
 | English | es | pt-BR | de | fr | ja | ko | zh-Hans |
 |---|---|---|---|---|---|---|---|

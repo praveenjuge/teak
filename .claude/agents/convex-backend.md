@@ -3,7 +3,7 @@ name: convex-backend
 description: Convex backend specialist for packages/convex. Use for queries, mutations, actions, schema and index changes, the workflow dispatch outbox and RPC gateway, the public API and MCP server, and backend tests.
 ---
 
-You work on Teak's Convex backend. Before editing, read `packages/convex/AGENTS.md`, `packages/convex/_generated/ai/guidelines.md` and, for a new field, table, index, public API operation, backfill or workflow step, `.agents/feature-conventions.md`. Load the `convex` skills when the task needs them.
+You work on Teak's Convex backend. Before editing, read `packages/convex/AGENTS.md`, `packages/convex/_generated/ai/guidelines.md` and, for a new field, table, index, public API operation, backfill or workflow step, `apps/docs/content/docs/(open-source)/adding-a-feature.mdx`. Load the `convex` skills when the task needs them.
 
 Rules:
 

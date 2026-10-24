@@ -1,0 +1,276 @@
+---
+title: Development Guide
+description: Set up a Teak checkout, run the app against the shared development deployment, and work in worktrees and cloud VMs
+---
+
+**Prerequisites:** Git plus Bun and Node.js at the versions pinned in `package.json` (`packageManager` and `engines.node`). The pins are exact: setup and doctor warn on a different patch version and refuse a different minor or major one. CI reads the same pins (`bun-version-file` and `node-version-file`), so local and CI never disagree. Node is pinned beside Bun because Convex Node actions run on the system Node.
+
+To see how the pieces fit together first, read [Architecture](/docs/architecture).
+
+## Quick Start (local)
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/praveenjuge/teak.git
+    ```
+  </Step>
+  <Step title="Move into the project">
+    ```bash
+    cd teak
+    ```
+  </Step>
+  <Step title="Start the app">
+    ```bash
+    bunx convex login
+    bun run dev
+    ```
+
+    The first run installs dependencies and writes the local env files. It then starts the web app against Teak's shared Convex development deployment, signed in through WorkOS staging, and creates a sign-in account for this checkout seeded with sample cards. Uploads, previews, AI metadata and the other backend features work as they do on that deployment. When it's ready it prints the URL and the sign-in. It needs access to the Teak Convex project; without it, see [Without access to the development deployment](#without-access-to-the-development-deployment).
+  </Step>
+  <Step title="Check the setup">
+    ```bash
+    bun run doctor
+    ```
+  </Step>
+</Steps>
+
+<Visibility for="agents">
+
+Agents start the stack with `bun run dev --detach`, which runs it in its own session, returns once the app is ready (about 50 seconds cold, 10 warm), and keeps it up until `bun run dev --stop`. Don't start plain `bun run dev` as a background command: the tool's background time limit (30 minutes in Claude Code) stops it. A running stack writes its URLs, ports and sign-in to `.agents/.state/stack.json` and logs to `.agents/.state/stack.log`. To prove a change in the running app, follow `.agents/skills/verify-teak/SKILL.md`.
+
+</Visibility>
+
+## Access Points
+
+- Web app: http://localhost:3000 (each git worktree gets its own ports; `bun run dev --status` prints them)
+- Docs (proxies `/api` and `/mcp` to the development deployment): http://localhost:3001
+- iPhone, iPad and Mac app with its Safari extension: Xcode (`apps/apple`)
+- Android app: Gradle (`apps/android`)
+
+See [Architecture](/docs/architecture) for the monorepo layout.
+
+## Core Commands
+
+```bash
+bun run dev              # Set up, then start the web app on the development deployment, seeded
+bun run dev --push       # Same, and push this checkout's backend code
+bun run dev --detach     # Start in the background and return once ready (combine with --push)
+bun run dev --status     # This checkout's ports, URLs and sign-in, and whether it pushes
+bun run dev --stop       # Stop this checkout's stack
+bun run setup            # Set up only (--target for other surfaces)
+bun run doctor           # Validate the environment (--json --target for agents)
+bun run dev --all        # All services
+bun run smoke:web        # Headless sign-in check against the running stack
+bun run audit:env        # Environment contract + local dotenv audit
+
+bun run dev convex       # Convex backend only
+bun run dev extension    # Chrome extension
+open apps/apple/Teak.xcodeproj # iPhone, iPad and Mac app, Safari extension
+bun run dev raycast      # Raycast extension
+bun run dev docs         # Docs site
+
+bun run build            # Production build (all)
+bun run build:extension  # Package Chrome extension
+bun run build:raycast    # Build Raycast extension
+
+bun run lint && bun run typecheck
+bun run test             # Unit tests (turbo; test:unit / test:edge for Convex splits)
+bun run verify           # typecheck + lint + test (affected)
+bun run --cwd packages/tests e2e # The end-to-end suite, on its own local stack
+
+bun run check            # Quality report (Ultracite)
+bun run fix              # Auto-fix issues
+
+bun run pre-commit       # Pre-commit checks
+bun run publish:raycast  # Publish to Raycast store
+bun run clean            # Clear Turborepo caches
+```
+
+[Testing](/docs/testing) covers which tests to write and how to run each suite.
+
+## The shared development deployment
+
+Every checkout, worktree and cloud VM runs against one Convex development deployment, `dev:reminiscent-kangaroo-59`, with its own WorkOS staging environment, Files Worker and storage. Files, previews, AI metadata, screenshots, imports and exports, WorkOS Connect, and Polar sandbox checkout all work there. There is no local backend for development; only the [end-to-end suite](/docs/testing#end-to-end-suite) runs one.
+
+### Reaching it
+
+- **Mac checkouts** (the main checkout and every worktree) use your Convex login: run `bunx convex login` once. Setup selects the development deployment in `packages/convex/.env.local`.
+- **Cloud sessions** (Claude Code on the web, Codex, Amp) have no login. Their environment's secrets hold `CONVEX_DEPLOY_KEY`, a dev deploy key scoped to the development deployment. It is the only secret a cloud environment needs.
+
+Setup and doctor refuse every other key or selection (production, preview, project and admin keys, other deployments), so development never touches production. The WorkOS staging client ID and API key the web app needs are read from the development deployment into `apps/web/.env.local`; nobody exports them by hand.
+
+### One backend, one pusher
+
+Every checkout shares the deployment's code and data, so only one checkout at a time runs `convex dev`. It holds the **push lease**, stored in the deployment (`packages/convex/devPushLease.ts`) and renewed every 30 seconds.
+
+- `bun run dev` takes the lease when it is free. Otherwise it runs the web app only, against whatever backend code is live, and says which branch pushed it.
+- `bun run dev --push` takes the lease over. The previous holder stops pushing at its next heartbeat and says why.
+- A holder that stops (Ctrl-C, crash, closed laptop) frees the lease within two minutes.
+
+Backend changes on a branch are live for every checkout while that branch holds the lease, so push a branch's backend only while you work on it. `bunx convex run devPushLease:status` in `packages/convex` shows which branch and commit are live.
+
+### Signing in
+
+Each checkout gets its own WorkOS staging account, `dev+<machine>-<checkout>@example.org`, with a random password kept in the ignored `.agents/.state/dev-account.json`. Its vault is seeded once with about 30 sample cards (`packages/convex/devSeed.ts`). `bun run dev --status` prints the email and password. For a session without a browser, use `scripts/lib/workos-test-session.ts`, as `bun run smoke:web` does.
+
+A Claude Code cloud session uses `dev+cloud-<hash>-main@example.org` instead, named after its session ID, so each session starts with a fresh vault. Those accounts are deleted two weeks after their last sign-in.
+
+**Upgrade to Pro** opens a Polar sandbox checkout in a new tab for these accounts too. Polar refuses `example.org` addresses, so on the development deployment the Polar customer is created as `teak-dev+<teakUserId>@teakvault.com`, with the real address in its metadata (`packages/convex/billing.ts`). Subscriptions still reach the account because Polar customers map to users by customer ID, not email. Production always uses the account's own email.
+
+### Worktrees
+
+Every linked worktree leases its own block of ports the first time it runs, recorded in the repository's git directory (`scripts/worktree-env.ts`), so web apps in different worktrees run side by side. The main checkout keeps web 3000, docs 3001 and extension 3003. `bun run dev --status` prints the ports.
+
+`packages/convex/convex.json` registers `http://localhost:*/callback`, which covers every one of those web ports, as a sign-in callback on the development deployment's WorkOS environment, and lists each port as a CORS origin. The deployment's API and MCP links (`appUrl`, `settingsUrl`) point at `TEAK_DEV_APP_URL` (port 3000), so links from a worktree's API responses open the main checkout's web app.
+
+## Supported Targets and Limitations
+
+`bun run setup --target <name>` provisions one surface. Every surface uses the
+shared development deployment and its WorkOS staging environment; setup reads
+the WorkOS client ID and API key from the deployment, so nothing is copied by
+hand.
+
+| Target | Needs | Limitations |
+| --- | --- | --- |
+| `web` | Access to the development deployment | Only one checkout at a time pushes backend code (see [One backend, one pusher](#one-backend-one-pusher)) |
+| `docs`, `cli` | Nothing beyond install | No Convex provisioning |
+| `extension` | Access to the development deployment | Env files derive `VITE_*` aliases automatically |
+| `files-worker` | `bun run sync:cloudflare-dev --isolated` afterwards | Worker secrets are owned by the sync command, not setup |
+
+iOS simulators, device builds, the Mac app, Xcode, and Safari stay on macOS. The Android app needs the Android SDK.
+
+### Without access to the development deployment
+
+`bun run setup` and `bun run dev` work only against the development deployment;
+they refuse any other deployment, so ask the repository owner for access. Until
+then you can still run the unit tests (`bun run test`) and the
+[end-to-end suite](/docs/testing#end-to-end-suite)
+(`bun run --cwd packages/tests e2e`), which needs no credentials and runs its
+own throwaway stack. Running Teak on a deployment of your own is
+[Self-Hosting](/docs/self-hosting), which the development commands don't configure.
+
+## Cloud agents
+
+`.agents/setup` prepares a fresh Linux VM: the pinned Node and Bun, packages, the end-to-end suite's browsers and, when `CONVEX_DEPLOY_KEY` is present, the wiring to the development deployment. Without the key it still prepares the VM for unit tests and the end-to-end suite.
+
+- **Claude Code on the web:** set the environment's setup script to `bash .agents/setup` so the result is cached. The SessionStart hook in `.claude/settings.json` also runs it when a VM isn't ready, and prints `bun run dev --status` at the start of every session.
+- **Codex cloud:** set the environment's setup script to `bash .agents/setup`.
+- **Amp:** runs `.agents/setup` as the orb setup script and `.agents/resume` on resume.
+
+Give the environment network access to Convex, WorkOS and Polar (and Playwright's download host for setup), then run `bun run dev --detach`.
+
+<Visibility for="agents">
+
+`.agents/cloud.md` lists the environment settings a cloud session needs, what does and doesn't run there (the browser to drive the app with, Docker builds, the end-to-end suite), and the fix for each.
+
+</Visibility>
+
+## Environment and configuration
+
+Every environment value has one owner and one classification. Names and metadata live in `scripts/env-contract.ts`; values are never committed, printed, or pasted into docs.
+
+### Where values come from
+
+`setup`, `doctor`, `dev` and `audit:env` run with Bun's automatic dotenv loading turned off (`--no-env-file`). They read only:
+
+1. Explicit shell exports (CI, `export`, a command prefix).
+2. The dotenv files declared for the command's target in `scripts/env-targets.ts`, read through `scripts/env-loader.ts`.
+3. Provider stores: the Convex dashboard, Vercel, Wrangler, GitHub.
+4. Files setup writes from canonical facts, which are never edited by hand.
+
+Precedence is top-down: a shell export wins over a dotenv file, and a dotenv file wins over a generated default. Setup never overwrites a value a person set. It does refresh what it generated: loopback URLs left by an earlier end-to-end run or other ports, and the WorkOS credentials it syncs from the deployment. Because shell exports win, don't export `CONVEX_DEPLOYMENT`, `WORKOS_*` or `NEXT_PUBLIC_*` in your shell.
+
+### Canonical facts and generated aliases
+
+`CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts, and `SITE_URL` is the canonical app origin. Framework aliases (`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by setup (`scripts/env-aliases.ts`). Frameworks need the aliases at build time, but nobody maintains them by hand.
+
+Root `.env*` files are legacy: supported commands ignore them. `scripts/dotenv-audit.ts` still scans their names for production selectors, because editors and other tools may load them. Put new values in a shell export or the target's declared file. Teak never deletes or rewrites your dotenv files.
+
+### Classifications
+
+- `secret`: a credential; its name and shape are validated, and it is never logged.
+- `public-config`: a non-secret operator value with one provider owner.
+- `generated`: derived from a canonical fact or the active deployment.
+- `build-metadata`: derived from provider metadata, such as the commit SHA or version.
+- `platform-binding`: provisioned by the platform, not supplied by an operator.
+
+Classification is derived from the contract's metadata (`scripts/env-classify.ts`), so it can't drift from the declared fields. Values that are the same in every deployment are typed code with an optional override, not configuration.
+
+### Diagnostics
+
+- `bun run audit:env`: the contract-versus-repository audit plus the dotenv audit.
+- `bun run scripts/dotenv-audit.ts [--json]`: local dotenv state, names only.
+- `bun run doctor --target <t> --json`: readiness with stable check IDs, remediations, and redacted output safe to attach to a bug report.
+- `bun run scripts/env-contract-report.ts [--json]`: baseline metrics and per-target manual-supply counts.
+
+## Reporting Setup Problems
+
+`bun run dev` prints the failing setup check and how to fix it. When you report a problem, paste the redacted JSON report. It contains check names and remediations but never secret values:
+
+```bash
+bun run doctor --target web --json
+```
+
+## Setup Checklist
+
+### Convex and sign-in
+
+Teak signs in with WorkOS AuthKit everywhere: production, local development, CI, and self-hosted deployments. There is no other provider and no switch.
+
+Locally, the web app signs in through the WorkOS staging environment that the development deployment uses, never production. Setup reads `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` from the deployment and writes them into `apps/web/.env.local`, alongside `NEXT_PUBLIC_WORKOS_REDIRECT_URI` (the app origin plus `/callback`) and a generated `WORKOS_COOKIE_PASSWORD`. It refuses production keys, and it stops if a shell export disagrees with the deployment. The end-to-end suite signs in through the local WorkOS emulator instead.
+
+`convex.json` declares the AuthKit redirect URIs and CORS origins. One wildcard redirect URI, `http://localhost:*/callback`, covers every worktree web port; CORS origins can't use wildcards, so each port is listed. For cloud development deployments, Convex applies them to the deployment's WorkOS environment. The sign-out redirect, JWT template, and webhook are not in `convex.json`; set them once per environment as in [Set up WorkOS](/docs/self-hosting#set-up-workos), which also lists the [WorkOS CLI](/docs/self-hosting#use-the-workos-cli) commands for them.
+
+The CLI, browser extensions, Raycast, and MCP sign in through WorkOS Connect; the native apps use AuthKit directly. To sign them in against your development deployment, configure Connect and set `WORKOS_AUTHKIT_DOMAIN` and the `WORKOS_CONNECT_*_CLIENT_ID` values as in [Connect](/docs/self-hosting#connect-cli-browser-extensions-raycast-and-mcp). Set `WORKOS_RESOURCE_ORIGIN` to the deployment's site URL, such as `https://<deployment>.convex.site`, and register `<origin>/api` and `<origin>/mcp` as resource indicators in its WorkOS environment. Token audiences then match the deployment's own MCP URL instead of production's.
+
+`bun run doctor` fails until the deployment and the web app both have the client ID and API key, checks that the client, key, cookie password, and callback fit together, and warns about development settings the deployment's owner hasn't set yet.
+
+Social sign-in, such as Google or Apple, is configured inside WorkOS, not in Teak.
+
+### Public API and MCP
+
+The public REST API, MCP endpoint, discovery routes, OpenAPI spec, and SDK live in `packages/convex`. The development deployment serves the HTTP routes; push this checkout's backend first if you changed them, then use the docs dev proxy for local API and MCP URLs.
+
+Example:
+
+```bash
+bun run dev convex
+```
+
+The docs dev server proxies `/api`, `/mcp`, and OAuth protected-resource metadata to the Convex dev deployment. That gives local docs, examples, and smoke tests the same path shape as production: `/api/v1` and `/mcp`.
+
+The CLI, browser extensions, and Raycast sign in through WorkOS Connect and disconnect with `POST /v1/oauth/disconnect` (see [Disconnect an OAuth connection](/docs/api#disconnect-an-oauth-connection)).
+
+A change to the public API ships on MCP, the SDK and the CLI in the same pull request; see [Adding a Feature](/docs/adding-a-feature).
+
+### MCP Registry
+
+The repo includes `server.json` for the MCP registry under the `com.teakvault/mcp` namespace. Publishing is manual because the namespace requires DNS verification for `teakvault.com`:
+
+```bash
+npm install -g mcp-publisher
+mcp-publisher login dns
+mcp-publisher publish
+```
+
+Follow the CLI prompt to add the DNS TXT record, then publish once verification passes.
+
+### Environment Variables
+
+See **[Self-Hosting → Environment settings](/docs/self-hosting#detailed-environment-reference)** for every env var required across web, mobile, extension, and the Convex backend.
+
+Development URLs on the deployment: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (default: the development deployment's site URL), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`).
+
+## Maintainer setup
+
+The repository owner does these once on the development deployment; nobody else needs to:
+
+1. Set these on the development deployment (`bunx convex env set NAME value` in `packages/convex`, or the Convex dashboard):
+   - `TEAK_DEV_DEPLOYMENT=true` turns on seeding and the push lease.
+   - `TEAK_DEV_APP_URL=http://localhost:3000`
+   - `TEAK_DEV_DOCS_URL=http://localhost:3001`
+   - `TEAK_DEV_API_URL=https://reminiscent-kangaroo-59.convex.site`
+2. For cloud sessions, create a dev deploy key for the development deployment (`bunx convex deployment token create cloud-agents --deployment dev`, or the deployment's settings in the dashboard) and add it to each cloud environment's secrets as `CONVEX_DEPLOY_KEY`. The key has full access to the development deployment, including its variables (the shared Files and WorkOS staging credentials), so keep it out of untrusted environments.
+
+`bun run doctor` warns about any of the first group that are missing; until they are set, `bun run dev` still runs the web app but doesn't seed or push.
