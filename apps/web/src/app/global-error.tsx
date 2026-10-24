@@ -3,6 +3,8 @@
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { useEffect } from "react";
 import "./globals.css";
+import { useTranslations } from "@teak/i18n/react";
+import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { StatusScreen } from "@/components/StatusScreen";
 
 // global-error replaces the root layout, so next-themes isn't running. Apply
@@ -25,6 +27,17 @@ const applySavedTheme = () => {
   document.documentElement.style.colorScheme = dark ? "dark" : "light";
 };
 
+function GlobalErrorScreen({ retry }: { retry: () => void }) {
+  const t = useTranslations();
+  return (
+    <StatusScreen
+      action={t("common.tryAgain")}
+      message={t("app.globalError.message")}
+      onAction={() => retry()}
+    />
+  );
+}
+
 export default function GlobalError({
   error,
   retry,
@@ -37,14 +50,13 @@ export default function GlobalError({
   }, [error]);
   useEffect(applySavedTheme, []);
   return (
-    // global-error must include html and body tags
+    // global-error must include html and body tags. CookieLocaleProvider
+    // sets lang once it knows the language.
     <html lang="en">
       <body className="font-sans text-sm antialiased">
-        <StatusScreen
-          action="Try again"
-          message="Something went wrong. Please try again."
-          onAction={() => retry()}
-        />
+        <CookieLocaleProvider>
+          <GlobalErrorScreen retry={retry} />
+        </CookieLocaleProvider>
       </body>
     </html>
   );

@@ -6,7 +6,7 @@ Teak sends product analytics, error reports, web session replays, feedback and A
 
 - PostHog project **Teak** (id `660923`) in the **Teak** organization, US Cloud: <https://us.posthog.com/project/660923>
 - Public project token: `phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn`. It is public (it ships in client bundles), but only production builds use it, so development, preview, CI and test builds send nothing.
-- People are identified by the canonical Teak user id (`teak_…`): `getAuthUser._id` on web, the WorkOS `external_id` on Apple and Android, `userId` on the backend. Person properties: `email`, `plan` (`free` or `pro`), `signed_up_at`.
+- People are identified by the canonical Teak user id (`teak_…`): `getAuthUser._id` on web, the WorkOS `external_id` on Apple and Android, `userId` on the backend. Person properties: `email`, `plan` (`free` or `pro`), `signed_up_at`, and `locale` (the account's UI language, set by the web app).
 - Test accounts (cohort "Internal / Test users", and email containing `e2e-`) are excluded by default in every insight.
 
 ## Surfaces
@@ -44,6 +44,7 @@ Client events (`captureEvent`):
 - `checkout_started`, `checkout_opened`
 - `signed_in`, `extension_card_saved` {via}
 - `extension_omnibox_used` {result: `card` or `search`}: Enter in the address bar's Teak mode opened a suggested card or the web search. The query text is never sent
+- `locale_changed` {from, to}: the UI language changed in Settings → Language (codes such as `en`, `de`, `zh-Hans`)
 
 Server events (`captureBackendEvent`):
 

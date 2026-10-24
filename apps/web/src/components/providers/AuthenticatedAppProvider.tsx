@@ -12,6 +12,7 @@ import { localeFromCookie } from "@/lib/locale";
 import { readSidebarCookies } from "../app-shell/AppShellFrame";
 import { AppShellSkeleton } from "../app-shell/AppShellSkeleton";
 import { WebMcpTools } from "../app-shell/WebMcpTools";
+import { AccountLocaleSync } from "./AccountLocaleSync";
 import { AuthUnavailable } from "./AuthUnavailable";
 import ConvexClientProvider from "./ConvexClientProvider";
 import { LocaleProvider } from "./LocaleProvider";
@@ -38,6 +39,7 @@ export default async function AuthenticatedAppProvider({
     <LocaleProvider initialLocale={locale} initialMessages={messages}>
       <ConvexClientProvider initialAuth={initialAuth}>
         <WorkosAuthBoundary loading={<AppShellSkeleton {...sidebar} />}>
+          <AccountLocaleSync />
           <WebMcpTools />
           <GlobalFileDropProvider upgradeUrl="/settings">
             {children}

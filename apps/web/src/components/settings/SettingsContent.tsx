@@ -3,6 +3,7 @@
 import { useTranslations } from "@teak/i18n/react";
 import { ExternalLink } from "lucide-react";
 import type { ReactNode } from "react";
+import type { LanguageSetting } from "@/hooks/useLanguageSetting";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
@@ -18,6 +19,7 @@ import {
   type InboundEmailPanelProps,
   InboundEmailSection,
 } from "./InboundEmailDialog";
+import { LanguageRow } from "./LanguageRow";
 import {
   type ConnectionIdentity,
   type ConnectionTarget,
@@ -50,6 +52,8 @@ interface SettingsContentProps {
   /** Save by email's state and switch; the row is left out without it. */
   inboundEmail?: InboundEmailPanelProps;
   keys: ApiKeyListItem[] | undefined;
+  /** The Language row; left out where there is no locale provider. */
+  language?: LanguageSetting | null;
   onCancelExport: (jobId: string) => Promise<void>;
   onCreateApiKey: () => Promise<CreatedApiKey>;
   onCreateCustomerPortal: () => Promise<void>;
@@ -109,6 +113,7 @@ export function SettingsContent({
   onSignOut,
   onStartExport,
   onThemeChange,
+  language,
   onUpgrade,
   signOutLoading,
   subscriptionDialog,
@@ -200,6 +205,12 @@ export function SettingsContent({
       <SettingRow title={tRows("theme")}>
         <ThemeToggle onThemeChange={onThemeChange} />
       </SettingRow>
+
+      {language ? (
+        <SettingRow title={tRows("language")}>
+          <LanguageRow {...language} />
+        </SettingRow>
+      ) : null}
 
       <SettingRow title={tRows("signOut")}>
         <Button

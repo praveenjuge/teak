@@ -17,6 +17,7 @@ import {
 import { getPolarPlanIds } from "@/constants/billing";
 import { TOAST_IDS } from "@/constants/toast";
 import { useSettingsController } from "@/hooks";
+import { useLanguageSetting } from "@/hooks/useLanguageSetting";
 import { reserveCheckoutTab } from "@/lib/checkout-tab";
 import { parseSettingsDialogParam } from "@/lib/commandPalette";
 import { useQuery } from "@/lib/convexQueryHooks";
@@ -50,6 +51,7 @@ export function SettingsPageClient() {
   const enableInboundEmail = useMutation(api.inbound.settings.enable);
   const disableInboundEmail = useMutation(api.inbound.settings.disable);
   const importExportRequest = useConsumeDialogParam();
+  const language = useLanguageSetting();
 
   const settings = useSettingsController({
     onDeleteAccount: async () => {
@@ -143,6 +145,7 @@ export function SettingsPageClient() {
         state: inboundEmail,
       }}
       keys={settings.keys}
+      language={language}
       onCancelExport={settings.handleCancelExport}
       onCreateApiKey={settings.handleCreateApiKey}
       onCreateCustomerPortal={settings.handleCreateCustomerPortal}

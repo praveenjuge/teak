@@ -15,6 +15,15 @@ export const writeLocaleCookie = (locale: UiLocale) => {
   document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; samesite=lax`;
 };
 
+/** The locale the cookie asks for, read in the browser. */
+export const readLocaleCookie = (): UiLocale => {
+  const prefix = `${LOCALE_COOKIE}=`;
+  const entry = document.cookie
+    .split("; ")
+    .find((part) => part.startsWith(prefix));
+  return localeFromCookie(entry?.slice(prefix.length));
+};
+
 /** Forgets the locale, as on sign-out. Client only. */
 export const clearLocaleCookie = () => {
   // biome-ignore lint/suspicious/noDocumentCookie: see writeLocaleCookie.

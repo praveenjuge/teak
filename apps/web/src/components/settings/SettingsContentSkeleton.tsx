@@ -13,6 +13,7 @@ const SKELETON_ROWS: [row: SettingsRowKey, width: string][] = [
   ["security", "w-16"],
   ["importExport", "w-16"],
   ["theme", "w-24"],
+  ["language", "w-28"],
   ["signOut", "w-16"],
 ];
 

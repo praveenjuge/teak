@@ -100,6 +100,14 @@ export const identifyPostHogUser = (
     localStorage.setItem(IDENTITY_KEY, identity);
   });
 
+/** Person properties that describe the account, such as its UI language. */
+export const setPostHogPersonProperties = (
+  properties: Record<string, string>
+): void =>
+  withPostHog((posthog) => {
+    posthog.setPersonProperties(properties);
+  });
+
 export const resetPostHogUser = (): void =>
   withPostHog((posthog) => {
     posthog.reset();

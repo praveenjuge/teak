@@ -1,6 +1,7 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useTranslations } from "@teak/i18n/react";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 
@@ -66,6 +67,7 @@ function DialogContent({
   overlayClassName?: string;
   showCloseButton?: boolean;
 }) {
+  const t = useTranslations("ui");
   // Radix returns focus to a `DialogTrigger`, and most dialogs here open
   // from state without one, which left focus on <body>. Return it to
   // whatever had focus when the dialog opened instead.
@@ -125,7 +127,7 @@ function DialogContent({
             className="sr-only rounded-full focus-visible:not-sr-only focus-visible:absolute focus-visible:top-3 focus-visible:right-3 focus-visible:bg-accent focus-visible:px-3 focus-visible:py-1 focus-visible:text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
             data-slot="dialog-close"
           >
-            Close
+            {t("close")}
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>

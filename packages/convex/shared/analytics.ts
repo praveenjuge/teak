@@ -75,6 +75,7 @@ export interface ClientEventCatalog {
   import_failed: { error_class?: string };
   import_started: NoProperties;
   link_pdf_saved: { source: LinkPdfSaveSource };
+  locale_changed: { from: string; to: string };
   revisit_finished: { archived: number; completed: boolean; kept: number };
   revisit_started: NoProperties;
   search_operator_used: { groups: boolean; negation: boolean; or: boolean };

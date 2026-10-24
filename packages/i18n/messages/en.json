@@ -20,6 +20,17 @@
     "tryAgain": "Try again",
     "undo": "Undo"
   },
+  "ui": {
+    "loading": "Loading",
+    "close": "Close",
+    "menu": "Menu",
+    "menuDescription": "Library views, card types and settings.",
+    "toggleSidebar": "Toggle Sidebar",
+    "commandDialog": {
+      "title": "Command palette",
+      "description": "Search for a command to run"
+    }
+  },
   "settings": {
     "footer": {
       "feedback": "Let me know <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> if you have any feedback. If you ever want to leave, you can <deleteAccount>delete your account</deleteAccount>. Hope you enjoy using Teak as much as I enjoyed creating it.",
@@ -36,7 +47,8 @@
       "security": "Security",
       "importExport": "Import/Export Data",
       "theme": "Theme",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "language": "Language"
     },
     "skeleton": {
       "loading": "Loading settings…"
@@ -334,6 +346,14 @@
       "hours": "{hours}h",
       "hoursMinutes": "{hours}h {minutes}m",
       "minutes": "{minutes}m"
+    },
+    "language": {
+      "label": "Language",
+      "saving": "Changing the language",
+      "changed": "Language changed",
+      "changeFailed": "Couldn't change the language. Try again.",
+      "feedback": "Help improve translations",
+      "feedbackSubject": "Translation feedback ({locale})"
     }
   },
   "app": {
@@ -343,6 +363,14 @@
       "openingCheckout": "Opening checkout...",
       "checkoutNewTab": "Checkout opened in a new tab",
       "checkoutFailed": "Failed to start checkout. Please try again."
+    },
+    "globalError": {
+      "message": "Something went wrong. Please try again."
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "This page doesn’t exist or has moved.",
+      "goHome": "Go to your cards"
     }
   },
   "feedback": {
