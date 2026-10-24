@@ -55,18 +55,26 @@ const DROPPED_ELEMENTS =
   "body > header, script, style, link, template, iframe, frame, frameset, object, embed, canvas, video, audio, picture > source, form, button, input, select, textarea, svg, math, dialog";
 const SAFE_LINK = /^(?:https?:|mailto:)/iu;
 /**
- * A task list's checkboxes, as private-use characters: form controls go
- * before Readability, and these survive it to become `[x]` and `[ ]`.
+ * A task list's checkboxes, as words made up for this run: form controls go
+ * before Readability, and these survive it to become `[x]` and `[ ]`. A
+ * random token can't already be in the page, as a fixed character could.
  */
-const TASK_DONE = "\uE000";
-const TASK_OPEN = "\uE001";
-const TASK_MARK = /([\uE000\uE001])[ \t]*/gu;
+const taskMarks = () => {
+  const token = crypto.randomUUID().replaceAll("-", "");
+  return {
+    done: `teaktask${token}done`,
+    open: `teaktask${token}open`,
+    pattern: new RegExp(`teaktask${token}(done|open)[ \\t]*`, "gu"),
+  };
+};
+type TaskMarks = ReturnType<typeof taskMarks>;
 
 interface SlimPage {
   candidates: string[];
   dir?: string;
   html: string;
   lang?: string;
+  tasks: TaskMarks;
 }
 
 /**
@@ -81,12 +89,13 @@ const slimArchive = async (
 ): Promise<SlimPage> => {
   const candidates: string[] = [];
   const indexes = new Map<string, number>();
-  const page: SlimPage = { candidates, html: "" };
+  const tasks = taskMarks();
+  const page: SlimPage = { candidates, html: "", tasks };
   const rewritten = await createRewriter()
     .on('li input[type="checkbox"]', {
       element(element) {
         element.replace(
-          `${element.hasAttribute("checked") ? TASK_DONE : TASK_OPEN} `
+          `${element.hasAttribute("checked") ? tasks.done : tasks.open} `
         );
       },
     })
@@ -475,8 +484,8 @@ export const extractArticle = async (
   prepareArticle(content);
   const converted = createTurndown()
     .turndown(content as unknown as TurndownInput)
-    .replace(TASK_MARK, (_mark, task: string) =>
-      task === TASK_DONE ? "[x] " : "[ ] "
+    .replace(slim.tasks.pattern, (_mark, task: string) =>
+      task === "done" ? "[x] " : "[ ] "
     )
     .trim();
   const { markdown: cut, truncated } = truncateMarkdown(

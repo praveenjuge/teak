@@ -86,7 +86,7 @@ console.log(answer);</code></pre>
 
   test("keeps a task list's checked and open items, and drops other form controls", async () => {
     const html = page(
-      `<article><h1>Packing</h1><p>${sentences(20)}</p><ul><li><input type="checkbox" checked disabled> Pack the tent</li><li><input type="checkbox" disabled> Buy the stove</li></ul><p><input type="text" value="search"> ${sentences(4, 20)}</p></article>`
+      `<article><h1>Packing</h1><p>${sentences(20)}</p><ul><li><input type="checkbox" checked disabled> Pack the tent</li><li><input type="checkbox" disabled> Buy the stove</li><li>&#xE000; \uE001 Check the map</li></ul><p><input type="text" value="search"> ${sentences(4, 20)}</p></article>`
     );
     const result = await extractArticle(html, PAGE_URL, {});
     if (result.kind !== "article") {
@@ -94,7 +94,9 @@ console.log(answer);</code></pre>
     }
     expect(result.markdown).toContain("- [x] Pack the tent");
     expect(result.markdown).toContain("- [ ] Buy the stove");
-    expect(result.markdown).not.toMatch(/[\uE000\uE001]|search/u);
+    // An icon font's private-use glyphs in the page stay as they are.
+    expect(result.markdown).toContain("- \uE000 \uE001 Check the map");
+    expect(result.markdown).not.toMatch(/teaktask|search/u);
   });
 
   test("numbers the archive's images in reading order as teak-image:<n>, with captions", async () => {
