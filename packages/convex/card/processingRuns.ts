@@ -5,7 +5,7 @@
 
 import { cardProcessingInstanceId } from "@teak/files-protocol";
 import type { Doc, Id } from "../_generated/dataModel";
-import type { MutationCtx } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { pageArchiveSkipReason } from "../shared/pageArchive";
 import { mergeProcessingStages, stagePending } from "./processingStatus";
 import { patchCardWithSearchSync } from "./searchSync";
@@ -47,6 +47,28 @@ export const isCardRunInFlight = async (
     )
     .first();
   return currentRun?.state === "sent";
+};
+
+/**
+ * Background runs waiting or in flight, counted up to `limit`: how busy the
+ * dispatcher is, so a backfill can wait instead of crowding out new saves.
+ */
+export const readDispatchQueueDepth = async (
+  ctx: QueryCtx,
+  limit: number
+): Promise<number> => {
+  const pending = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_notBefore", (q) => q.eq("state", "pending"))
+    .take(limit);
+  if (pending.length >= limit) {
+    return pending.length;
+  }
+  const sent = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_state_and_sentAt", (q) => q.eq("state", "sent"))
+    .take(limit - pending.length);
+  return pending.length + sent.length;
 };
 
 /**
