@@ -25,7 +25,11 @@ pattern string_with_words() {
 pattern attribute_with_words() {
   JsxAttribute(name=$name, initializer=$value) where {
     $name <: read_aloud_attribute(),
-    $value <: contains string_with_words()
+    // A t("key") call or a comparison inside the value isn't text.
+    $value <: contains string_with_words() until or {
+      JsCallExpression(),
+      JsBinaryExpression()
+    }
   }
 }
 
