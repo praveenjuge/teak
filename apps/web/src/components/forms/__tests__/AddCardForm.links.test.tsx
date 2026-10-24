@@ -58,11 +58,13 @@ mock.module("@/components/text-editor", () => ({
   ...realTextEditor,
   MarkdownTextEditor: ({
     ariaLabel,
+    disabled,
     onChange,
     onSaveShortcut,
     value,
   }: {
     ariaLabel?: string;
+    disabled?: boolean;
     onChange: (value: string) => void;
     onSaveShortcut?: () => void;
     value: string;
@@ -72,6 +74,7 @@ mock.module("@/components/text-editor", () => ({
       null,
       React.createElement("textarea", {
         "aria-label": ariaLabel,
+        disabled,
         onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
           onChange(event.target.value),
         value,
@@ -86,6 +89,7 @@ mock.module("@/components/text-editor", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { AddCardForm } = await import("../AddCardForm");
+const { finishLinkPasteJob } = await import("../linkPasteJobs");
 
 const KNOWN = "https://www.example.com/post/";
 const links = (count: number) =>
@@ -109,6 +113,8 @@ beforeEach(() => {
 afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
+  // Paste jobs outlive a composer, so one test's job must not reach the next.
+  finishLinkPasteJob("job-1" as Id<"linkPasteJobs">);
   document.body.innerHTML = "";
 });
 
@@ -118,6 +124,15 @@ async function render(props: Record<string, unknown> = {}) {
   root = createRoot(container);
   await act(() => root?.render(<AddCardForm {...props} />));
 }
+
+async function rerender(props: Record<string, unknown> = {}) {
+  await act(() => root?.render(<AddCardForm {...props} />));
+}
+
+const limitToasts = () =>
+  toast.error.mock.calls.filter(
+    ([message]) => (message as string) === "Free card limit reached"
+  );
 
 const textarea = () =>
   document.querySelector<HTMLTextAreaElement>(
@@ -335,6 +350,8 @@ describe("pasting a list of links", () => {
   test("stays savable at the card limit, where a note is not", async () => {
     canCreateCard = false;
     await render();
+    // The editor stays open at the limit, so a list can be pasted into it.
+    expect(textarea()?.disabled).toBeFalsy();
     await type("A note");
     expect(submitButton()?.disabled).toBe(true);
 
@@ -342,5 +359,70 @@ describe("pasting a list of links", () => {
     expect(submitButton()?.disabled).toBe(false);
     await pressSaveShortcut();
     expect(startLinkPaste).toHaveBeenCalledTimes(1);
+    expect(createCard).not.toHaveBeenCalled();
+  });
+
+  test("keeps tracking a paste after the composer is replaced", async () => {
+    await render();
+    await type(links(3).join("\n"));
+    await pressSaveShortcut();
+    expect(toast.loading).toHaveBeenCalledWith("Saving links · 0 of 3");
+
+    // The first cards in an empty library swap the empty state's composer
+    // for the grid's.
+    await act(() => root?.unmount());
+    expect(toast.dismiss).toHaveBeenCalledWith("toast-id");
+    pasteProgress = {
+      status: "done",
+      total: 3,
+      processed: 3,
+      created: 3,
+      resaved: 0,
+      failed: 0,
+      omittedOverLimit: 0,
+      omittedRepeats: 0,
+    };
+    await render();
+
+    expect(toast.success).toHaveBeenLastCalledWith("Saved 3 links", {
+      id: "toast-id",
+    });
+  });
+
+  test("leaves the limit to the paste's own toast", async () => {
+    await render();
+    await type(links(12).join("\n"));
+    await pressSaveShortcut();
+
+    // The paste reaches the limit before its job reports back.
+    canCreateCard = false;
+    await rerender();
+    expect(limitToasts()).toHaveLength(0);
+
+    pasteProgress = {
+      status: "stopped_at_limit",
+      total: 12,
+      processed: 7,
+      created: 4,
+      resaved: 0,
+      failed: 0,
+      omittedOverLimit: 0,
+      omittedRepeats: 0,
+    };
+    await rerender();
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error.mock.calls[0]?.[0]).toBe(
+      "Saved 4 of 12 links · You've reached 200 cards"
+    );
+
+    await rerender();
+    expect(limitToasts()).toHaveLength(0);
+  });
+
+  test("offers the upgrade when the limit arrives without a paste", async () => {
+    await render();
+    canCreateCard = false;
+    await rerender();
+    expect(limitToasts()).toHaveLength(1);
   });
 });

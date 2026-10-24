@@ -40,6 +40,12 @@ import {
   prepareNoteCapture,
 } from "../text-editor/noteCapture";
 import { useFocusMode } from "../text-editor/useFocusMode";
+import {
+  addLinkPasteJob,
+  finishLinkPasteJob,
+  type PasteJob,
+  useLinkPasteJobs,
+} from "./linkPasteJobs";
 import { linkPasteToast } from "./linkPasteToast";
 
 function getCardErrorCode(err: unknown): string | null {
@@ -89,13 +95,6 @@ function isPasteActiveError(err: unknown): boolean {
     err !== null &&
     (err as { data?: { code?: unknown } }).data?.code === LINK_PASTE_ACTIVE_CODE
   );
-}
-
-interface PasteJob {
-  /** Lines the composer never sent, past the most one paste may send. */
-  extraOmitted: number;
-  jobId: Id<"linkPasteJobs">;
-  toastId: string | number;
 }
 
 /**
@@ -149,7 +148,7 @@ function LinkPasteProgressToast({
   }, [job, onFinished, onUpgrade, progress, t, tLimits]);
 
   // A composer that goes away mid-job leaves no spinner behind; the job
-  // carries on, and its cards still arrive.
+  // carries on, its cards still arrive, and the next composer picks it up.
   useEffect(
     () => () => {
       if (!finishedRef.current) {
@@ -265,17 +264,23 @@ export function AddCardForm({
     [handleUpgrade, tLimits]
   );
 
+  const pasteJobs = useLinkPasteJobs();
+  const pasteInProgress = pasteJobs.length > 0;
+
   useEffect(() => {
     if (cardCreationStatus?.canCreateCard === false) {
       if (!hasShownBlockedToastRef.current) {
-        showUpgradeToast();
+        // A paste that reaches the limit says so in its own toast.
+        if (!pasteInProgress) {
+          showUpgradeToast();
+        }
         hasShownBlockedToastRef.current = true;
       }
       return;
     }
 
     hasShownBlockedToastRef.current = false;
-  }, [cardCreationStatus?.canCreateCard, showUpgradeToast]);
+  }, [cardCreationStatus?.canCreateCard, pasteInProgress, showUpgradeToast]);
 
   const createCard = useMutation(
     api.cards.createCardWithOutcome
@@ -287,10 +292,6 @@ export function AddCardForm({
     });
   });
   const startLinkPaste = useMutation(api.card.pasteLinks.startLinkPaste);
-  const [pasteJob, setPasteJob] = useState<PasteJob | null>(null);
-  const finishPasteJob = useCallback((jobId: Id<"linkPasteJobs">) => {
-    setPasteJob((current) => (current?.jobId === jobId ? null : current));
-  }, []);
 
   const resetDraft = () => {
     setContent("");
@@ -333,7 +334,7 @@ export function AddCardForm({
     try {
       const { jobId } = await startLinkPaste({ urls });
       onSuccess?.();
-      setPasteJob({
+      addLinkPasteJob({
         extraOmitted: links.length - urls.length,
         jobId,
         toastId,
@@ -362,6 +363,7 @@ export function AddCardForm({
       return await submitLinkList(submittedContent, links);
     }
     if (!canCreateCard) {
+      showUpgradeToast();
       return false;
     }
 
@@ -436,18 +438,17 @@ export function AddCardForm({
 
   return (
     <>
-      {pasteJob !== null && (
+      {pasteJobs.map((job) => (
         <LinkPasteProgressToast
-          job={pasteJob}
-          key={pasteJob.jobId}
-          onFinished={finishPasteJob}
+          job={job}
+          key={job.jobId}
+          onFinished={finishLinkPasteJob}
           onUpgrade={handleUpgrade}
         />
-      )}
+      ))}
       <FocusEditor
         canSave={Boolean(content.trim() && canSubmit)}
         cardLinks={cardLinks}
-        disabled={!canCreateCard}
         onChange={setContent}
         onRequestClose={closeFocus}
         onSave={handleFocusSave}
@@ -484,15 +485,10 @@ export function AddCardForm({
                 "h-full min-h-20 flex-1 p-2",
                 hasContent && "pb-12"
               )}
-              disabled={!canCreateCard}
               minHeight="5rem"
               onChange={setContent}
               onLimitExceeded={() => toast.error(tEditor("note.tooLarge"))}
-              onOpenFullScreen={() => {
-                if (canCreateCard) {
-                  openFocus();
-                }
-              }}
+              onOpenFullScreen={openFocus}
               onPasteFiles={globalFileDrop?.enqueueFiles}
               onSaveShortcut={() => {
                 if (hasContent && canSubmit) {
@@ -512,7 +508,6 @@ export function AddCardForm({
                       aria-keyshortcuts={ariaKeyShortcut(FOCUS_NOTE_KEYS)}
                       aria-label={t("focus")}
                       className="w-8 px-0"
-                      disabled={!canCreateCard}
                       onClick={openFocus}
                       size="sm"
                       type="button"
