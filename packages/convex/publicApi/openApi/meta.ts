@@ -40,7 +40,7 @@ export const metaPaths = {
                 properties: {
                   data: {
                     type: "object",
-                    required: ["id", "email"],
+                    required: ["id", "email", "locale"],
                     properties: {
                       id: {
                         type: "string",
@@ -57,6 +57,11 @@ export const metaPaths = {
                         description: "Free plan card limit; null on Pro",
                       },
                       plan: { enum: ["free", "pro"], type: "string" },
+                      locale: {
+                        type: "string",
+                        description:
+                          "The account's Teak language, chosen in Settings: a BCP 47 code such as en, de or pt-BR. More languages may be added, so treat an unknown code as English.",
+                      },
                       settingsUrl: {
                         type: "string",
                         format: "uri",

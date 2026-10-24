@@ -380,6 +380,7 @@ describe("MCP tools", () => {
               plan: "free",
               cardCount: 3,
               cardLimit: 200,
+              locale: "de",
             },
           })
         );
@@ -428,7 +429,11 @@ describe("MCP tools", () => {
     });
 
     const me = await call("teak_v1_get_me", {});
-    expect(me.structuredContent).toMatchObject({ plan: "free", cardCount: 3 });
+    expect(me.structuredContent).toMatchObject({
+      plan: "free",
+      cardCount: 3,
+      locale: "de",
+    });
 
     await call("teak_v1_update_card", {
       cardId: "card_1",

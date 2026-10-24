@@ -200,6 +200,13 @@ export const ancillaryPage = internalMutation({
     for (const row of inboundReceipts) {
       await ctx.db.delete(row._id);
     }
+    const preferences = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(10);
+    for (const row of preferences) {
+      await ctx.db.delete(row._id);
+    }
     const cardLinks = await ctx.db
       .query("cardLinks")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -209,6 +216,7 @@ export const ancillaryPage = internalMutation({
     }
     return (
       cardLinks.length > 0 ||
+      preferences.length > 0 ||
       inboundSettings.length > 0 ||
       inboundReceipts.length > 0 ||
       linkedPdfs.length > 0 ||

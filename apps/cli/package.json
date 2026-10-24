@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@teak/convex": "workspace:*",
+    "@teak/i18n": "workspace:*",
     "@types/node": "^26.6.5",
     "teak-sdk": "workspace:*",
     "typescript": "^6.0.3"

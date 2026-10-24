@@ -261,6 +261,7 @@ describe("WorkOS REST and MCP token boundary", () => {
         cardCount: 1,
         cardLimit: 200,
         plan: "free",
+        locale: "en",
         settingsUrl: "https://app.teakvault.com/settings",
       },
     });

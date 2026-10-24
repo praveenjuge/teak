@@ -8,6 +8,7 @@ import { withPublicApiGatewayHeaders } from "./publicApi/http/meta";
 import { getAppBaseUrl } from "./publicApi/http/serializers";
 import { errorResponse, json } from "./publicApi/http/shared";
 import { readWorkosProfile } from "./securitySessions";
+import { readAccountLocale } from "./settings/preferences";
 import { FREE_TIER_LIMIT } from "./shared/constants";
 import type { WorkosResource } from "./workos/tokens";
 
@@ -21,6 +22,7 @@ export const profileForOwner = internalQuery({
       cardCount: v.optional(v.number()),
       cardLimit: v.optional(v.union(v.number(), v.null())),
       plan: v.optional(v.union(v.literal("free"), v.literal("pro"))),
+      locale: v.string(),
     }),
     v.null()
   ),
@@ -55,6 +57,7 @@ export const profileForOwner = internalQuery({
       email: provider.email,
       ...(name ? { name } : {}),
       ...usage,
+      locale: await readAccountLocale(ctx, teakUserId),
     };
   },
 });

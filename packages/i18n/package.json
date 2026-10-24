@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./locales": "./src/locales.ts",
     "./react": "./src/react.tsx",
     "./messages/*": "./messages/*"
   },

@@ -69,6 +69,7 @@ test("me returns the permanent owner for an API key and rejects it once revoked"
       cardCount: 0,
       cardLimit: 200,
       plan: "free",
+      locale: "en",
       settingsUrl: "https://app.teakvault.com/settings",
     },
   });
@@ -96,9 +97,35 @@ test("me reads the email and name from the WorkOS profile without exposing provi
       cardCount: 0,
       cardLimit: 200,
       plan: "free",
+      locale: "en",
       settingsUrl: "https://app.teakvault.com/settings",
     },
   });
+});
+
+test("me reports the language chosen in Settings, and English for a code it doesn't support", async () => {
+  const { t, workosUserId, request } = await setup();
+  const owner = t.withIdentity({
+    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+    subject: workosUserId,
+    sid: "session_settings",
+    email_verified: true,
+    external_id: OWNER,
+  });
+  await owner.mutation(api.settings.preferences.setLocale, { locale: "pt-BR" });
+  expect((await (await request()).json()).data.locale).toBe("pt-BR");
+
+  await t.run(async (ctx) => {
+    const row = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", OWNER))
+      .unique();
+    if (!row) {
+      throw new Error("Missing preferences fixture");
+    }
+    await ctx.db.patch("userPreferences", row._id, { locale: "xx" });
+  });
+  expect((await (await request()).json()).data.locale).toBe("en");
 });
 
 test("me reports active cards against the free limit, not trashed ones", async () => {

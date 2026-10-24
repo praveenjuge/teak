@@ -15,6 +15,7 @@ import {
   ERROR_CODES,
 } from "../packages/sdk/src/index";
 import {
+  APP_ONLY_CHANGES,
   CLI_LOCAL_COMMANDS,
   PUBLIC_PARITY,
   type PublicParityRow,
@@ -304,6 +305,36 @@ describe("public surface parity", () => {
       }
     }
     expect(rowFor("listCards")).toBeDefined();
+  });
+
+  test("an app-only change names its session function, why, and what reads it", async () => {
+    for (const change of APP_ONLY_CHANGES) {
+      expect(change.reason.length).toBeGreaterThan(10);
+      const [modulePath, exportName] = change.convex.split(":");
+      const module = (await import(
+        `../packages/convex/${modulePath}.ts`
+      )) as Record<string, unknown>;
+      expect({ change: change.convex, exported: exportName in module }).toEqual(
+        { change: change.convex, exported: true }
+      );
+      if (change.readBy) {
+        expect(rowFor(change.readBy)).toBeDefined();
+      }
+    }
+  });
+
+  test("no public operation, tool, method or command sets the account language", () => {
+    const setter = /locale|language|preference/i;
+    expect(
+      operations.map((op) => op.operationId).filter((id) => setter.test(id))
+    ).toEqual([]);
+    expect(
+      TEAK_V1_TOOLS.map((tool) => tool.name).filter((name) => setter.test(name))
+    ).toEqual([]);
+    expect(sdkMembers().filter((member) => setter.test(member))).toEqual([]);
+    expect(cliCommands(program).filter((name) => setter.test(name))).toEqual(
+      []
+    );
   });
 
   test("the SDK knows every error code the API returns", () => {

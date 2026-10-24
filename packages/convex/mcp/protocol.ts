@@ -172,7 +172,7 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_get_me",
     description:
-      "Get the signed-in account: email, plan, card count and the free plan's card limit.",
+      "Get the signed-in account: email, plan, card count, the free plan's card limit and the language chosen in Teak's Settings (locale, a code such as en or de).",
     annotations: { title: "Get account", ...READ_ONLY },
     inputSchema: inputSchema({}),
   },
