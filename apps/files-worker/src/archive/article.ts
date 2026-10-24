@@ -54,6 +54,13 @@ const RASTER_DATA_URI =
 const DROPPED_ELEMENTS =
   "body > header, script, style, link, template, iframe, frame, frameset, object, embed, canvas, video, audio, picture > source, form, button, input, select, textarea, svg, math, dialog";
 const SAFE_LINK = /^(?:https?:|mailto:)/iu;
+/**
+ * A task list's checkboxes, as private-use characters: form controls go
+ * before Readability, and these survive it to become `[x]` and `[ ]`.
+ */
+const TASK_DONE = "\uE000";
+const TASK_OPEN = "\uE001";
+const TASK_MARK = /([\uE000\uE001])[ \t]*/gu;
 
 interface SlimPage {
   candidates: string[];
@@ -76,9 +83,18 @@ const slimArchive = async (
   const indexes = new Map<string, number>();
   const page: SlimPage = { candidates, html: "" };
   const rewritten = await createRewriter()
+    .on('li input[type="checkbox"]', {
+      element(element) {
+        element.replace(
+          `${element.hasAttribute("checked") ? TASK_DONE : TASK_OPEN} `
+        );
+      },
+    })
     .on(DROPPED_ELEMENTS, {
       element(element) {
-        element.remove();
+        if (!element.removed) {
+          element.remove();
+        }
       },
     })
     .on("html", {
@@ -273,14 +289,6 @@ const createTurndown = () => {
     filter: ["del", "s"],
     replacement: (content) => (content.trim() ? `~~${content}~~` : ""),
   });
-  service.addRule("taskListItem", {
-    filter: (node) =>
-      node.nodeName === "INPUT" &&
-      (node as unknown as DomElement).getAttribute("type") === "checkbox" &&
-      node.parentNode?.nodeName === "LI",
-    replacement: (_content, node) =>
-      `${(node as unknown as DomElement).hasAttribute("checked") ? "[x]" : "[ ]"} `,
-  });
   service.addRule("table", {
     filter: "table",
     replacement: (_content, node) => {
@@ -467,6 +475,9 @@ export const extractArticle = async (
   prepareArticle(content);
   const converted = createTurndown()
     .turndown(content as unknown as TurndownInput)
+    .replace(TASK_MARK, (_mark, task: string) =>
+      task === TASK_DONE ? "[x] " : "[ ] "
+    )
     .trim();
   const { markdown: cut, truncated } = truncateMarkdown(
     converted,
