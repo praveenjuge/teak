@@ -339,7 +339,7 @@
         "links": {
           "title": "Fichier texte de liens",
           "name": "fichier texte",
-          "hint": "Un lien par ligne, éventuellement suivi de « | Titre ». Export URLs de OneTab fonctionne aussi."
+          "hint": "Un lien par ligne, éventuellement suivi de « | Titre ». Export URLs de OneTab fonctionne aussi."
         },
         "archive": {
           "title": "Archive Teak",
