@@ -97,13 +97,16 @@ jobs:
         run: |
           swift build --build-tests --package-path Packages/TeakKit
           failed=0
-          for run in $(seq 15); do
-            echo "::group::Run $run"
-            swift test --skip-build --package-path Packages/TeakKit 2>&1 | tail -40 || true
-            [ "${PIPESTATUS[0]}" -eq 0 ] || failed=$((failed + 1))
-            echo "::endgroup::"
+          for run in $(seq 50); do
+            if swift test --skip-build --package-path Packages/TeakKit > "$RUNNER_TEMP/teakkit.log" 2>&1; then
+              echo "Run $run passed"
+            else
+              failed=$((failed + 1))
+              echo "Run $run failed:"
+              grep -E '✘' "$RUNNER_TEMP/teakkit.log" || tail -20 "$RUNNER_TEMP/teakkit.log"
+            fi
           done
-          echo "$failed of 15 runs failed"
+          echo "$failed of 50 runs failed"
           [ "$failed" -eq 0 ]
 
   renderer:
