@@ -233,10 +233,10 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
 @Suite struct EmptyTrashTests {
     @Test func confirmationCountsTheCards() {
-        #expect(EmptyTrash.message(count: 1) == "This permanently deletes 1 card and its files. This can't be undone.")
-        #expect(EmptyTrash.message(count: 3) == "This permanently deletes 3 cards and their files. This can't be undone.")
+        #expect(EmptyTrash.message(count: 1) == "This permanently deletes 1 card and their files. This can’t be undone.")
+        #expect(EmptyTrash.message(count: 3) == "This permanently deletes 3 cards and their files. This can’t be undone.")
         #expect(EmptyTrash.message(count: 500)
-            == "This permanently deletes at least 500 cards and their files. This can't be undone.")
+            == "This permanently deletes 500 or more cards and their files. This can’t be undone.")
     }
 
     @Test func saysWhatTheServerWillDelete() {
@@ -249,7 +249,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         let limited = TeakError(code: "RATE_LIMITED", message: "Trash was emptied a few times just now. Try again in a minute.")
         #expect(EmptyTrash.failure(limited) == "Trash was emptied a few times just now. Try again in a minute.")
         #expect(EmptyTrash.failure(TeakError(code: nil, message: "Offline")) == "Offline")
-        #expect(EmptyTrash.failure(CancellationError()) == "Couldn't empty Trash. Try again.")
+        #expect(EmptyTrash.failure(CancellationError()) == "Couldn’t empty Trash. Try again.")
     }
 }
 

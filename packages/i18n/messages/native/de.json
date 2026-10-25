@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, one {# Karte konnte nicht geändert werden.} other {# Karten konnten nicht geändert werden.}}"
     },
+    "trash": {
+      "empty": "Papierkorb leeren",
+      "emptyTitle": "Papierkorb leeren?",
+      "emptyMessage": "Damit werden {count, plural, one {# Karte} other {# Karten}} und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+      "emptyMessageMore": "Damit werden {count, plural, one {# oder mehr Karten} other {# oder mehr Karten}} und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+      "emptying": "{count, plural, one {# Karte wird endgültig gelöscht} other {# Karten werden endgültig gelöscht}}",
+      "emptyingMore": "{count, plural, one {Mindestens # Karte wird endgültig gelöscht} other {Mindestens # Karten werden endgültig gelöscht}}",
+      "alreadyEmpty": "Der Papierkorb ist bereits leer",
+      "emptyFailed": "Der Papierkorb konnte nicht geleert werden. Versuchen Sie es erneut.",
+      "rateLimited": "Der Papierkorb wurde gerade mehrmals geleert. Versuchen Sie es in einer Minute erneut."
+    },
     "similar": {
       "emptyMessage": "Versuchen Sie es mit einer anderen Karte.",
       "pending": "Teak lernt diese Karte noch kennen. Versuchen Sie es gleich noch einmal.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "Ausgeblendet. Suchen Sie nach #{tag}, um sie zu sehen.",
         "hiddenCards": "Einige Karten sind ausgeblendet. Suchen Sie nach #secret oder #hidden, um sie zu sehen."
-      }
+      },
+      "suggested": "Von Teak vorgeschlagen",
+      "keep": "Behalten",
+      "keepTag": "{tag} behalten"
     },
     "card": {
       "note": "Notiz",
@@ -563,7 +577,9 @@
         "delete": "Diese Karte konnte nicht gelöscht werden.",
         "restore": "Diese Karte konnte nicht wiederhergestellt werden.",
         "saveFile": "Diese Datei konnte nicht gespeichert werden.",
-        "download": "Diese Datei konnte nicht heruntergeladen werden."
+        "download": "Diese Datei konnte nicht heruntergeladen werden.",
+        "title": "Der Titel konnte nicht gespeichert werden.",
+        "editLink": "Der Link konnte nicht geändert werden."
       },
       "share": {
         "nothing": "Nichts zu speichern."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "Kostenlos"
       },
-      "usage": "{used} von {count, plural, one {# Karte} other {# Karten}}"
+      "usage": "{used} von {count, plural, one {# Karte} other {# Karten}}",
+      "titleField": {
+        "label": "Titel",
+        "placeholder": "Link ohne Titel"
+      },
+      "editLink": {
+        "menu": "Link bearbeiten…",
+        "title": "Link bearbeiten",
+        "label": "Adresse",
+        "message": "Wenn Sie eine neue Adresse speichern, wird die Vorschau der Karte aktualisiert.",
+        "invalid": "Verwenden Sie einen http- oder https-Link.",
+        "saved": "Link gespeichert. Die Vorschau wird gleich aktualisiert."
+      }
     },
     "linkPicker": {
       "label": "Karte verlinken",
@@ -747,6 +775,13 @@
       "checked": "Abgehakt",
       "unchecked": "Nicht abgehakt",
       "table": "Tabelle, {count, plural, one {# Zeile} other {# Zeilen}}"
+    },
+    "media": {
+      "seek": "Spulen",
+      "seekPosition": "{current} von {duration}",
+      "pdfPage": "Seite {page} von {total}",
+      "pdfLoading": "PDF wird geöffnet…",
+      "pdfFailed": "Dieses PDF konnte nicht geöffnet werden."
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "Dieses Aufnahmeformat kann auf dem Mac nicht abgespielt werden",
       "audioUnplayableIPhone": "Dieses Aufnahmeformat kann auf dem iPhone nicht abgespielt werden"
+    },
+    "media": {
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "zoomToFit": "Auf Fenstergröße zoomen"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "Dieses Video kann auf diesem Gerät nicht abgespielt werden.",
       "openInAnotherApp": "In anderer App öffnen",
       "noAppForLink": "Keine App kann diesen Link öffnen."
+    },
+    "settings": {
+      "wallpaperColors": "Hintergrundfarben",
+      "wallpaperColorsDescription": "Die App in den Farben Ihres Hintergrunds statt in Teak-Rot einfärben."
     }
   }
 }

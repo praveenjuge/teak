@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, one {No se pudo cambiar #.} other {No se pudieron cambiar #.}}"
     },
+    "trash": {
+      "empty": "Vaciar la papelera",
+      "emptyTitle": "¿Vaciar la papelera?",
+      "emptyMessage": "Esto elimina de forma permanente {count, plural, one {# tarjeta} other {# tarjetas}} y sus archivos. Esta acción no se puede deshacer.",
+      "emptyMessageMore": "Esto elimina de forma permanente {count, plural, one {# tarjetas o más} other {# tarjetas o más}} y sus archivos. Esta acción no se puede deshacer.",
+      "emptying": "{count, plural, one {Eliminando # tarjeta definitivamente} other {Eliminando # tarjetas definitivamente}}",
+      "emptyingMore": "{count, plural, one {Eliminando al menos # tarjeta definitivamente} other {Eliminando al menos # tarjetas definitivamente}}",
+      "alreadyEmpty": "La papelera ya está vacía",
+      "emptyFailed": "No se pudo vaciar la papelera. Inténtelo de nuevo.",
+      "rateLimited": "La papelera se vació varias veces hace un momento. Inténtelo de nuevo en un minuto."
+    },
     "similar": {
       "emptyMessage": "Pruebe con otra tarjeta.",
       "pending": "Todavía estamos analizando esta tarjeta. Vuelva a intentarlo en un momento.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "Oculta. Busque #{tag} para verla.",
         "hiddenCards": "Algunas tarjetas están ocultas. Busque #secret o #hidden para verlas."
-      }
+      },
+      "suggested": "Sugeridas por Teak",
+      "keep": "Conservar",
+      "keepTag": "Conservar {tag}"
     },
     "card": {
       "note": "Nota",
@@ -563,7 +577,9 @@
         "delete": "No se pudo eliminar esta tarjeta.",
         "restore": "No se pudo restaurar esta tarjeta.",
         "saveFile": "No se pudo guardar este archivo.",
-        "download": "No se pudo descargar este archivo."
+        "download": "No se pudo descargar este archivo.",
+        "title": "No se pudo guardar el título.",
+        "editLink": "No se pudo cambiar el enlace."
       },
       "share": {
         "nothing": "Nada que guardar."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "Gratis"
       },
-      "usage": "{used} de {count, plural, one {# tarjeta} other {# tarjetas}}"
+      "usage": "{used} de {count, plural, one {# tarjeta} other {# tarjetas}}",
+      "titleField": {
+        "label": "Título",
+        "placeholder": "Enlace sin título"
+      },
+      "editLink": {
+        "menu": "Editar enlace…",
+        "title": "Editar enlace",
+        "label": "Dirección",
+        "message": "Al guardar una dirección nueva se actualiza la vista previa de la tarjeta.",
+        "invalid": "Use un enlace http o https.",
+        "saved": "Enlace guardado. Su vista previa se actualizará en un momento."
+      }
     },
     "linkPicker": {
       "label": "Enlazar una tarjeta",
@@ -747,6 +775,13 @@
       "checked": "Marcado",
       "unchecked": "Sin marcar",
       "table": "Tabla, {count, plural, one {# fila} other {# filas}}"
+    },
+    "media": {
+      "seek": "Buscar",
+      "seekPosition": "{current} de {duration}",
+      "pdfPage": "Página {page} de {total}",
+      "pdfLoading": "Abriendo el PDF…",
+      "pdfFailed": "No se pudo abrir este PDF."
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "Este formato de grabación no se puede reproducir en el Mac",
       "audioUnplayableIPhone": "Este formato de grabación no se puede reproducir en el iPhone"
+    },
+    "media": {
+      "zoomIn": "Ampliar",
+      "zoomOut": "Reducir",
+      "zoomToFit": "Ajustar a la ventana"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "Este vídeo no se puede reproducir en este dispositivo.",
       "openInAnotherApp": "Abrir en otra app",
       "noAppForLink": "Ninguna app puede abrir este enlace."
+    },
+    "settings": {
+      "wallpaperColors": "Colores del fondo de pantalla",
+      "wallpaperColorsDescription": "Usar los colores del fondo de pantalla en lugar del rojo de Teak."
     }
   }
 }

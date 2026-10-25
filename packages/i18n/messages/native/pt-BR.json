@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, one {# não pôde ser alterado.} other {# não puderam ser alterados.}}"
     },
+    "trash": {
+      "empty": "Esvaziar lixeira",
+      "emptyTitle": "Esvaziar a lixeira?",
+      "emptyMessage": "Isso exclui permanentemente {count, plural, one {# card} other {# cards}} e seus arquivos. Não é possível desfazer.",
+      "emptyMessageMore": "Isso exclui permanentemente {count, plural, one {# cards ou mais} other {# cards ou mais}} e seus arquivos. Não é possível desfazer.",
+      "emptying": "{count, plural, one {Excluindo # card permanentemente} other {Excluindo # cards permanentemente}}",
+      "emptyingMore": "{count, plural, one {Excluindo pelo menos # card permanentemente} other {Excluindo pelo menos # cards permanentemente}}",
+      "alreadyEmpty": "A lixeira já está vazia",
+      "emptyFailed": "Não foi possível esvaziar a lixeira. Tente de novo.",
+      "rateLimited": "A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto."
+    },
     "similar": {
       "emptyMessage": "Tente outro card.",
       "pending": "Ainda estamos analisando este card. Tente novamente em instantes.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "Oculto. Pesquise #{tag} para vê-lo.",
         "hiddenCards": "Alguns cards estão ocultos. Pesquise #secret ou #hidden para vê-los."
-      }
+      },
+      "suggested": "Sugeridas pelo Teak",
+      "keep": "Manter",
+      "keepTag": "Manter {tag}"
     },
     "card": {
       "note": "Nota",
@@ -563,7 +577,9 @@
         "delete": "Não foi possível excluir este card.",
         "restore": "Não foi possível restaurar este card.",
         "saveFile": "Não foi possível salvar este arquivo.",
-        "download": "Não foi possível baixar este arquivo."
+        "download": "Não foi possível baixar este arquivo.",
+        "title": "Não foi possível salvar o título.",
+        "editLink": "Não foi possível alterar o link."
       },
       "share": {
         "nothing": "Nada para salvar."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "Grátis"
       },
-      "usage": "{used} de {count, plural, one {# card} other {# cards}}"
+      "usage": "{used} de {count, plural, one {# card} other {# cards}}",
+      "titleField": {
+        "label": "Título",
+        "placeholder": "Link sem título"
+      },
+      "editLink": {
+        "menu": "Editar link…",
+        "title": "Editar link",
+        "label": "Endereço",
+        "message": "Ao salvar um novo endereço, a prévia do card é atualizada.",
+        "invalid": "Use um link http ou https.",
+        "saved": "Link salvo. A prévia será atualizada em instantes."
+      }
     },
     "linkPicker": {
       "label": "Vincular um card",
@@ -747,6 +775,13 @@
       "checked": "Marcado",
       "unchecked": "Não marcado",
       "table": "Tabela, {count, plural, one {# linha} other {# linhas}}"
+    },
+    "media": {
+      "seek": "Buscar posição",
+      "seekPosition": "{current} de {duration}",
+      "pdfPage": "Página {page} de {total}",
+      "pdfLoading": "Abrindo o PDF…",
+      "pdfFailed": "Não foi possível abrir este PDF."
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "Este formato de gravação não pode ser reproduzido no Mac",
       "audioUnplayableIPhone": "Este formato de gravação não pode ser reproduzido no iPhone"
+    },
+    "media": {
+      "zoomIn": "Ampliar",
+      "zoomOut": "Reduzir",
+      "zoomToFit": "Ajustar à Janela"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "Este vídeo não pode ser reproduzido neste dispositivo.",
       "openInAnotherApp": "Abrir em outro app",
       "noAppForLink": "Nenhum app consegue abrir este link."
+    },
+    "settings": {
+      "wallpaperColors": "Cores do plano de fundo",
+      "wallpaperColorsDescription": "Usar as cores do plano de fundo em vez do vermelho do Teak."
     }
   }
 }

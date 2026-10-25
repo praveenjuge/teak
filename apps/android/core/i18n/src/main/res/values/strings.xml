@@ -823,14 +823,14 @@
     <string name="native_time_yesterday">Yesterday</string>
     <string name="native_trash_alreadyEmpty">Trash is already empty</string>
     <string name="native_trash_empty">Empty Trash</string>
-    <string name="native_trash_emptyFailed">Couldn\'t empty Trash. Try again.</string>
+    <string name="native_trash_emptyFailed">Couldn’t empty Trash. Try again.</string>
     <plurals name="native_trash_emptyMessage">
-        <item quantity="one">This permanently deletes %1$d card and its files. This can\'t be undone.</item>
-        <item quantity="other">This permanently deletes %1$d cards and their files. This can\'t be undone.</item>
+        <item quantity="one">This permanently deletes %1$d card and their files. This can’t be undone.</item>
+        <item quantity="other">This permanently deletes %1$d cards and their files. This can’t be undone.</item>
     </plurals>
     <plurals name="native_trash_emptyMessageMore">
-        <item quantity="one">This permanently deletes at least %1$d card and its files. This can\'t be undone.</item>
-        <item quantity="other">This permanently deletes at least %1$d cards and their files. This can\'t be undone.</item>
+        <item quantity="one">This permanently deletes %1$d or more cards and their files. This can’t be undone.</item>
+        <item quantity="other">This permanently deletes %1$d or more cards and their files. This can’t be undone.</item>
     </plurals>
     <string name="native_trash_emptyTitle">Empty Trash?</string>
     <plurals name="native_trash_emptying">

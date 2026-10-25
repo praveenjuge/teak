@@ -2816,7 +2816,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "Vergrößern"
           }
         },
         "en" : {
@@ -2828,37 +2828,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "Ampliar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "Zoom avant"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "拡大"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "확대"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "Ampliar"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom In"
+            "value" : "放大"
           }
         }
       }
@@ -2869,7 +2869,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "Verkleinern"
           }
         },
         "en" : {
@@ -2881,37 +2881,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "Reducir"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "Zoom arrière"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "縮小"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "축소"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "Reduzir"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom Out"
+            "value" : "缩小"
           }
         }
       }
@@ -2922,7 +2922,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "Auf Fenstergröße zoomen"
           }
         },
         "en" : {
@@ -2934,37 +2934,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "Ajustar a la ventana"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "Zoom à la taille de la fenêtre"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "ウインドウに合わせる"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "윈도우에 맞게 확대/축소"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "Ajustar à Janela"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zoom to Fit"
+            "value" : "缩放至适合大小"
           }
         }
       }
@@ -17102,7 +17102,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "Verwenden Sie einen http- oder https-Link."
           }
         },
         "en" : {
@@ -17114,37 +17114,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "Use un enlace http o https."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "Utilisez un lien http ou https."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "http または https のリンクを使用してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "http 또는 https 링크를 사용하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "Use um link http ou https."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an http or https link."
+            "value" : "请使用 http 或 https 链接。"
           }
         }
       }
@@ -17155,7 +17155,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "Adresse"
           }
         },
         "en" : {
@@ -17167,37 +17167,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "Dirección"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "Adresse"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "アドレス"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "주소"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "Endereço"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address"
+            "value" : "地址"
           }
         }
       }
@@ -17208,7 +17208,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "Link bearbeiten…"
           }
         },
         "en" : {
@@ -17220,37 +17220,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "Editar enlace…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "Modifier le lien…"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "リンクを編集…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "링크 편집…"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "Editar link…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link…"
+            "value" : "编辑链接…"
           }
         }
       }
@@ -17261,7 +17261,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "Wenn Sie eine neue Adresse speichern, wird die Vorschau der Karte aktualisiert."
           }
         },
         "en" : {
@@ -17273,37 +17273,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "Al guardar una dirección nueva se actualiza la vista previa de la tarjeta."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "Enregistrer une nouvelle adresse actualise l’aperçu de la fiche."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "新しいアドレスを保存すると、カードのプレビューが更新されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "새 주소를 저장하면 카드 미리 보기가 새로 고쳐집니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "Ao salvar um novo endereço, a prévia do card é atualizada."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving a new address refreshes the card’s preview."
+            "value" : "保存新地址后，卡片的预览会刷新。"
           }
         }
       }
@@ -17314,7 +17314,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "Link gespeichert. Die Vorschau wird gleich aktualisiert."
           }
         },
         "en" : {
@@ -17326,37 +17326,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "Enlace guardado. Su vista previa se actualizará en un momento."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "Lien enregistré. Son aperçu sera actualisé dans un instant."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "リンクを保存しました。まもなくプレビューが更新されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "링크를 저장했습니다. 곧 미리 보기가 새로 고쳐집니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "Link salvo. A prévia será atualizada em instantes."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. Its preview will refresh in a moment."
+            "value" : "链接已保存。预览稍后会刷新。"
           }
         }
       }
@@ -17367,7 +17367,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "Link bearbeiten"
           }
         },
         "en" : {
@@ -17379,37 +17379,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "Editar enlace"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "Modifier le lien"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "リンクを編集"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "링크 편집"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "Editar link"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit link"
+            "value" : "编辑链接"
           }
         }
       }
@@ -17579,7 +17579,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "Der Link konnte nicht geändert werden."
           }
         },
         "en" : {
@@ -17591,37 +17591,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "No se pudo cambiar el enlace."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "Impossible de modifier le lien."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "リンクを変更できませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "링크를 변경하지 못했습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "Não foi possível alterar o link."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't change the link."
+            "value" : "无法更改链接。"
           }
         }
       }
@@ -17950,7 +17950,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "Der Titel konnte nicht gespeichert werden."
           }
         },
         "en" : {
@@ -17962,37 +17962,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "No se pudo guardar el título."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "Impossible d’enregistrer le titre."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "タイトルを保存できませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "제목을 저장하지 못했습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "Não foi possível salvar o título."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the title."
+            "value" : "无法保存标题。"
           }
         }
       }
@@ -20996,7 +20996,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Titel"
           }
         },
         "en" : {
@@ -21008,37 +21008,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Título"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Titre"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "タイトル"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "제목"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Título"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "标题"
           }
         }
       }
@@ -21049,7 +21049,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "Link ohne Titel"
           }
         },
         "en" : {
@@ -21061,37 +21061,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "Enlace sin título"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "Lien sans titre"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "無題のリンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "제목 없는 링크"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "Link sem título"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Untitled link"
+            "value" : "无标题链接"
           }
         }
       }
@@ -34630,7 +34630,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "Dieses PDF konnte nicht geöffnet werden."
           }
         },
         "en" : {
@@ -34642,37 +34642,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "No se pudo abrir este PDF."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "Impossible d’ouvrir ce PDF."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "この PDF を開けませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "이 PDF를 열지 못했습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "Não foi possível abrir este PDF."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't open this PDF."
+            "value" : "无法打开此 PDF。"
           }
         }
       }
@@ -34683,7 +34683,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "PDF wird geöffnet…"
           }
         },
         "en" : {
@@ -34695,37 +34695,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "Abriendo el PDF…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "Ouverture du PDF…"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "PDF を開いています…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "PDF를 여는 중…"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "Abrindo o PDF…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opening the PDF…"
+            "value" : "正在打开 PDF…"
           }
         }
       }
@@ -34736,7 +34736,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "Seite %1$@ von %2$@"
           }
         },
         "en" : {
@@ -34748,37 +34748,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "Página %1$@ de %2$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "Page %1$@ sur %2$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "%1$@ / %2$@ ページ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "%1$@/%2$@페이지"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "Página %1$@ de %2$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Page %1$@ of %2$@"
+            "value" : "第 %1$@ 页，共 %2$@ 页"
           }
         }
       }
@@ -34789,7 +34789,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "Spulen"
           }
         },
         "en" : {
@@ -34801,37 +34801,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "Buscar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "Avancer"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "再生位置"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "탐색"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "Buscar posição"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seek"
+            "value" : "跳转"
           }
         }
       }
@@ -34842,7 +34842,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ von %2$@"
           }
         },
         "en" : {
@@ -34854,37 +34854,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ de %2$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ sur %2$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ / %2$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ / %2$@"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ de %2$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@"
+            "value" : "%1$@ / %2$@"
           }
         }
       }
@@ -40638,7 +40638,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "Behalten"
           }
         },
         "en" : {
@@ -40650,37 +40650,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "Conservar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "Conserver"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "残す"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "유지"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "Manter"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep"
+            "value" : "保留"
           }
         }
       }
@@ -40691,7 +40691,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "%1$@ behalten"
           }
         },
         "en" : {
@@ -40703,37 +40703,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "Conservar %1$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "Conserver %1$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "%1$@ を残す"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "%1$@ 유지"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "Manter %1$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep %1$@"
+            "value" : "保留 %1$@"
           }
         }
       }
@@ -42353,7 +42353,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Von Teak vorgeschlagen"
           }
         },
         "en" : {
@@ -42365,37 +42365,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Sugeridas por Teak"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Suggérés par Teak"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Teak のおすすめ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Teak 추천"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Sugeridas pelo Teak"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suggested by Teak"
+            "value" : "Teak 建议"
           }
         }
       }
@@ -43042,7 +43042,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "Der Papierkorb ist bereits leer"
           }
         },
         "en" : {
@@ -43054,37 +43054,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "La papelera ya está vacía"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "La corbeille est déjà vide"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "ゴミ箱はすでに空です"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "휴지통이 이미 비어 있습니다"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "A lixeira já está vazia"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash is already empty"
+            "value" : "废纸篓已经是空的"
           }
         }
       }
@@ -43095,7 +43095,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "Papierkorb leeren"
           }
         },
         "en" : {
@@ -43107,37 +43107,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "Vaciar la papelera"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "Vider la corbeille"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "ゴミ箱を空にする"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "휴지통 비우기"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "Esvaziar lixeira"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "清空废纸篓"
           }
         }
       }
@@ -43148,49 +43148,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "Der Papierkorb konnte nicht geleert werden. Versuchen Sie es erneut."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "Couldn’t empty Trash. Try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "No se pudo vaciar la papelera. Inténtelo de nuevo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "Impossible de vider la corbeille. Réessayez."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "ゴミ箱を空にできませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "휴지통을 비우지 못했습니다. 다시 시도하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "Não foi possível esvaziar a lixeira. Tente de novo."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't empty Trash. Try again."
+            "value" : "无法清空废纸篓。请重试。"
           }
         }
       }
@@ -43204,13 +43204,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
+                  "value" : "Damit werden %1$lld Karte und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "Damit werden %1$lld Karten und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen."
                 }
               }
             }
@@ -43222,13 +43222,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
+                  "value" : "This permanently deletes %1$lld card and their files. This can’t be undone."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "This permanently deletes %1$lld cards and their files. This can’t be undone."
                 }
               }
             }
@@ -43240,13 +43240,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
+                  "value" : "Esto elimina de forma permanente %1$lld tarjeta y sus archivos. Esta acción no se puede deshacer."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "Esto elimina de forma permanente %1$lld tarjetas y sus archivos. Esta acción no se puede deshacer."
                 }
               }
             }
@@ -43258,13 +43258,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
+                  "value" : "Cette action supprime définitivement %1$lld fiche et leurs fichiers. Elle est irréversible."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "Cette action supprime définitivement %1$lld fiches et leurs fichiers. Elle est irréversible."
                 }
               }
             }
@@ -43273,16 +43273,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "%1$lld 枚のカードとそのファイルが完全に削除されます。この操作は元に戻せません。"
                 }
               }
             }
@@ -43291,16 +43285,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "카드 %1$lld개와 해당 파일이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
                 }
               }
             }
@@ -43312,13 +43300,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
+                  "value" : "Isso exclui permanentemente %1$lld card e seus arquivos. Não é possível desfazer."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "Isso exclui permanentemente %1$lld cards e seus arquivos. Não é possível desfazer."
                 }
               }
             }
@@ -43327,16 +43315,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "This permanently deletes %1$lld card and its files. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes %1$lld cards and their files. This can't be undone."
+                  "value" : "这将永久删除 %1$lld 张卡片及其文件。此操作无法撤销。"
                 }
               }
             }
@@ -43353,13 +43335,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
+                  "value" : "Damit werden %1$lld oder mehr Karten und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "Damit werden %1$lld oder mehr Karten und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen."
                 }
               }
             }
@@ -43371,13 +43353,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
+                  "value" : "This permanently deletes %1$lld or more cards and their files. This can’t be undone."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "This permanently deletes %1$lld or more cards and their files. This can’t be undone."
                 }
               }
             }
@@ -43389,13 +43371,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
+                  "value" : "Esto elimina de forma permanente %1$lld tarjetas o más y sus archivos. Esta acción no se puede deshacer."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "Esto elimina de forma permanente %1$lld tarjetas o más y sus archivos. Esta acción no se puede deshacer."
                 }
               }
             }
@@ -43407,13 +43389,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
+                  "value" : "Cette action supprime définitivement %1$lld fiches ou plus et leurs fichiers. Elle est irréversible."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "Cette action supprime définitivement %1$lld fiches ou plus et leurs fichiers. Elle est irréversible."
                 }
               }
             }
@@ -43422,16 +43404,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "%1$lld 枚以上のカードとそのファイルが完全に削除されます。この操作は元に戻せません。"
                 }
               }
             }
@@ -43440,16 +43416,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "카드 %1$lld개 이상과 해당 파일이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
                 }
               }
             }
@@ -43461,13 +43431,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
+                  "value" : "Isso exclui permanentemente %1$lld cards ou mais e seus arquivos. Não é possível desfazer."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "Isso exclui permanentemente %1$lld cards ou mais e seus arquivos. Não é possível desfazer."
                 }
               }
             }
@@ -43476,16 +43446,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld card and its files. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "This permanently deletes at least %1$lld cards and their files. This can't be undone."
+                  "value" : "这将永久删除 %1$lld 张或更多卡片及其文件。此操作无法撤销。"
                 }
               }
             }
@@ -43499,7 +43463,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "Papierkorb leeren?"
           }
         },
         "en" : {
@@ -43511,37 +43475,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "¿Vaciar la papelera?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "Vider la corbeille ?"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "ゴミ箱を空にしますか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "휴지통을 비우시겠습니까?"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "Esvaziar a lixeira?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash?"
+            "value" : "清空废纸篓？"
           }
         }
       }
@@ -43555,13 +43519,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
+                  "value" : "%1$lld Karte wird endgültig gelöscht"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "%1$lld Karten werden endgültig gelöscht"
                 }
               }
             }
@@ -43591,13 +43555,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
+                  "value" : "Eliminando %1$lld tarjeta definitivamente"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "Eliminando %1$lld tarjetas definitivamente"
                 }
               }
             }
@@ -43609,13 +43573,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
+                  "value" : "Suppression définitive de %1$lld fiche"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "Suppression définitive de %1$lld fiches"
                 }
               }
             }
@@ -43624,16 +43588,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "%1$lld 枚のカードを完全に削除しています"
                 }
               }
             }
@@ -43642,16 +43600,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "카드 %1$lld개를 영구 삭제하는 중"
                 }
               }
             }
@@ -43663,13 +43615,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
+                  "value" : "Excluindo %1$lld card permanentemente"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "Excluindo %1$lld cards permanentemente"
                 }
               }
             }
@@ -43678,16 +43630,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleting %1$lld card forever"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting %1$lld cards forever"
+                  "value" : "正在永久删除 %1$lld 张卡片"
                 }
               }
             }
@@ -43704,13 +43650,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
+                  "value" : "Mindestens %1$lld Karte wird endgültig gelöscht"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "Mindestens %1$lld Karten werden endgültig gelöscht"
                 }
               }
             }
@@ -43740,13 +43686,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
+                  "value" : "Eliminando al menos %1$lld tarjeta definitivamente"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "Eliminando al menos %1$lld tarjetas definitivamente"
                 }
               }
             }
@@ -43758,13 +43704,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
+                  "value" : "Suppression définitive d’au moins %1$lld fiche"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "Suppression définitive d’au moins %1$lld fiches"
                 }
               }
             }
@@ -43773,16 +43719,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "%1$lld 枚以上のカードを完全に削除しています"
                 }
               }
             }
@@ -43791,16 +43731,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "카드 %1$lld개 이상을 영구 삭제하는 중"
                 }
               }
             }
@@ -43812,13 +43746,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
+                  "value" : "Excluindo pelo menos %1$lld card permanentemente"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "Excluindo pelo menos %1$lld cards permanentemente"
                 }
               }
             }
@@ -43827,16 +43761,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleting at least %1$lld card forever"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Deleting at least %1$lld cards forever"
+                  "value" : "正在永久删除至少 %1$lld 张卡片"
                 }
               }
             }
@@ -43850,7 +43778,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "Der Papierkorb wurde gerade mehrmals geleert. Versuchen Sie es in einer Minute erneut."
           }
         },
         "en" : {
@@ -43862,37 +43790,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "La papelera se vació varias veces hace un momento. Inténtelo de nuevo en un minuto."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "La corbeille a été vidée plusieurs fois à l’instant. Réessayez dans une minute."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "ゴミ箱を短時間に何度も空にしました。1 分後にもう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "방금 휴지통을 여러 번 비웠습니다. 1분 후에 다시 시도하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash was emptied a few times just now. Try again in a minute."
+            "value" : "刚才已多次清空废纸篓。请一分钟后再试。"
           }
         }
       }

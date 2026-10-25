@@ -254,6 +254,17 @@
       },
       "partial": "{message}。{count, plural, other {# 张无法更改。}}"
     },
+    "trash": {
+      "empty": "清空废纸篓",
+      "emptyTitle": "清空废纸篓？",
+      "emptyMessage": "这将永久删除 {count, plural, other {# 张卡片}}及其文件。此操作无法撤销。",
+      "emptyMessageMore": "这将永久删除 {count, plural, other {# 张或更多卡片}}及其文件。此操作无法撤销。",
+      "emptying": "{count, plural, other {正在永久删除 # 张卡片}}",
+      "emptyingMore": "{count, plural, other {正在永久删除至少 # 张卡片}}",
+      "alreadyEmpty": "废纸篓已经是空的",
+      "emptyFailed": "无法清空废纸篓。请重试。",
+      "rateLimited": "刚才已多次清空废纸篓。请一分钟后再试。"
+    },
     "similar": {
       "emptyMessage": "试试其他卡片。",
       "pending": "仍在分析此卡片，请稍后再试。",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "已隐藏。搜索 #{tag} 即可查看。",
         "hiddenCards": "部分卡片已隐藏。搜索 #secret 或 #hidden 即可查看。"
-      }
+      },
+      "suggested": "Teak 建议",
+      "keep": "保留",
+      "keepTag": "保留 {tag}"
     },
     "card": {
       "note": "笔记",
@@ -563,7 +577,9 @@
         "delete": "无法删除此卡片。",
         "restore": "无法恢复此卡片。",
         "saveFile": "无法保存此文件。",
-        "download": "无法下载此文件。"
+        "download": "无法下载此文件。",
+        "title": "无法保存标题。",
+        "editLink": "无法更改链接。"
       },
       "share": {
         "nothing": "没有可保存的内容。"
@@ -571,7 +587,19 @@
       "plan": {
         "free": "免费"
       },
-      "usage": "{used} / {count, plural, other {# 张卡片}}"
+      "usage": "{used} / {count, plural, other {# 张卡片}}",
+      "titleField": {
+        "label": "标题",
+        "placeholder": "无标题链接"
+      },
+      "editLink": {
+        "menu": "编辑链接…",
+        "title": "编辑链接",
+        "label": "地址",
+        "message": "保存新地址后，卡片的预览会刷新。",
+        "invalid": "请使用 http 或 https 链接。",
+        "saved": "链接已保存。预览稍后会刷新。"
+      }
     },
     "linkPicker": {
       "label": "链接卡片",
@@ -747,6 +775,13 @@
       "checked": "已勾选",
       "unchecked": "未勾选",
       "table": "表格，{count, plural, other {# 行}}"
+    },
+    "media": {
+      "seek": "跳转",
+      "seekPosition": "{current} / {duration}",
+      "pdfPage": "第 {page} 页，共 {total} 页",
+      "pdfLoading": "正在打开 PDF…",
+      "pdfFailed": "无法打开此 PDF。"
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "此录音格式无法在 Mac 上播放",
       "audioUnplayableIPhone": "此录音格式无法在 iPhone 上播放"
+    },
+    "media": {
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomToFit": "缩放至适合大小"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "此视频无法在此设备上播放。",
       "openInAnotherApp": "在其他应用中打开",
       "noAppForLink": "没有可以打开此链接的应用。"
+    },
+    "settings": {
+      "wallpaperColors": "壁纸颜色",
+      "wallpaperColorsDescription": "使用壁纸颜色代替 Teak 红为应用配色。"
     }
   }
 }
