@@ -1,9 +1,17 @@
 ---
 title: Development Guide
 description: Set up a Teak checkout, run the app against the shared development deployment, and work in worktrees and cloud VMs
+icon: hammer
+sidebar:
+  label: Development
+related:
+  - /docs/architecture
+  - /docs/testing
 ---
 
 **Prerequisites:** Git plus Bun and Node.js at the versions pinned in `package.json` (`packageManager` and `engines.node`). The pins are exact: setup and doctor warn on a different patch version and refuse a different minor or major one. CI reads the same pins (`bun-version-file` and `node-version-file`), so local and CI never disagree. Node is pinned beside Bun because Convex Node actions run on the system Node.
+
+![A terminal running bun run dev --detach, then bun run dev --status with the ports, URLs and sign-in](../images/development.webp)
 
 To see how the pieces fit together first, read [Architecture](/docs/architecture).
 

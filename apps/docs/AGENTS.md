@@ -40,3 +40,7 @@ For a notable, shipped product change, update its calendar month's entry in `con
 - Use product language. Names users recognize, such as web, desktop, mobile, browser extension, Raycast, API, MCP, Settings, and sign-in, are appropriate. Avoid implementation details, claims not verified in the shipped product, and repeated release-note boilerplate.
 
 An entry is complete when its month is unique, every item is useful to a Teak user, and required actions are clear.
+
+## Images
+
+Every docs page shows at least one image, and every image comes from `scripts/docs-assets` (its README has the steps). Don't add a screenshot by hand: add a shot to `scripts/docs-assets/shots.ts` and render it, and use the shot's alt text on the page. `scripts/docs-assets/shots.test.ts` fails when a page has no image or an image drifts from the list. The legal pages, and the Mac and mobile pages until there are fresh native captures, are the exceptions it names.

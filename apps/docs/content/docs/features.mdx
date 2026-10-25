@@ -1,6 +1,10 @@
 ---
 title: Features
 description: Card types, search, AI enrichment, and sync in Teak
+icon: sparkles
+related:
+  - /docs/import
+  - /docs/extension
 ---
 
 ## Card types
@@ -94,7 +98,7 @@ Teak reads the text of PDFs, Word and PowerPoint files, and text and code files 
 
 Teak also reads the words in images and in a video's thumbnail when you save them: a receipt, a screenshot of code, a sign, a slide. Search then finds the receipt by its invoice number. Teak uses these words only to find your cards; it doesn't show them.
 
-![Searching "typography" finds a font site, type notes, and a typewriter photo tagged by AI](./images/search.webp)
+![Searching "architecture" finds buildings, stairs and interiors by their AI tags, and saved links by their words](./images/search.webp)
 
 Special tokens work automatically:
 
@@ -303,6 +307,8 @@ Outside Trash, with cards selected, `F`, `T`, `E`, and `Delete` act on all of th
 
 #### Command palette
 
+![The command palette, with Navigate, Actions and their keyboard shortcuts](./images/command-palette.webp)
+
 Press `⌘K` (`Ctrl+K` on Windows and Linux) on any page to jump anywhere without the mouse. Type to filter, use the arrow keys to move, and press `Enter` to choose:
 
 - **Go to** Everything, Favorites, Archive, Trash, Tags, Settings, any Settings page (Plan, Appearance, Integrations, Security, Import & export), or any folder or smart folder by name.
@@ -327,7 +333,11 @@ Your search, sort (including the shuffled order and Revisit), and card types sta
 
 Each card is processed automatically:
 
-![An image card with an AI summary, AI tags, and colors extracted from the photo](./images/card-detail.webp)
+![An open image card with its AI summary, tags, extracted colors and details](./images/card-detail.webp)
+
+1. **Tags** you added, plus the ones Teak suggests from what it sees.
+2. **Summary**: a short description Teak writes, so you can scan without opening the card.
+3. **Colors** pulled from the image, which color search uses.
 
 | Feature | Description |
 | --- | --- |

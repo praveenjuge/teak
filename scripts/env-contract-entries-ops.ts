@@ -554,6 +554,16 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Optional Chromium executable for the store images renderer.",
   }),
+  spec("DOCS_ASSETS_BROWSER", {
+    owners: ["teak-repo"],
+    targets: ["repo"],
+    profiles: ["local"],
+    secret: false,
+    validation: "path",
+    providers: ["shell"],
+    required: false,
+    note: "Optional Chromium executable for the docs images (scripts/docs-assets); defaults to TEAK_CLOUD_CHROMIUM, then Playwright's own.",
+  }),
   spec("TEAK_STORE_SIMULATOR", {
     owners: ["teak-repo"],
     targets: ["repo"],
