@@ -8,6 +8,7 @@ import AppKit
 
 final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {
+        AppLanguage.reload()
         let request = context.inputItems.first as? NSExtensionItem
         let message = request?.userInfo?[SFExtensionMessageKey]
         let payload = message as? [String: Any]

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import os
 
 /// The language Teak's own text is in: the account's Language setting, or the
@@ -51,10 +52,19 @@ public enum AppLanguage {
     }
 
     /// Switches every later lookup to `code` and shares it with the extensions.
+    /// Views that read text through `tr` update in place, keeping their state.
     public static func use(_ code: String) {
         guard let code = supported(code) else { return }
         state.withLock { $0 = code }
         defaults.set(code, forKey: storageKey)
+        LanguageObservation.shared.changed()
+    }
+
+    /// Reads the shared language again: an extension calls this as each request starts,
+    /// since its process can outlive a change the app made.
+    public static func reload() {
+        state.withLock { $0 = nil }
+        LanguageObservation.shared.changed()
     }
 
     /// One of Teak's codes for a stored or system value, or nil.
@@ -86,7 +96,25 @@ public enum AppLanguage {
 /// A message with a plural takes its `count`; other placeholders take strings,
 /// in the order the English message first uses them.
 public func tr(_ key: String, count: Int? = nil, _ args: String...) -> String {
-    tr(key, count: count, args, in: AppLanguage.current)
+    LanguageObservation.shared.track()
+    return tr(key, count: count, args, in: AppLanguage.current)
+}
+
+/// What SwiftUI observes for `tr`: a view whose body reads text depends on the language,
+/// so a new language re-renders it without rebuilding it, and drafts in `@State` survive.
+final class LanguageObservation: Observable, Sendable {
+    static let shared = LanguageObservation()
+    private let registrar = ObservationRegistrar()
+
+    var language: String { AppLanguage.current }
+
+    func track() {
+        registrar.access(self, keyPath: \.language)
+    }
+
+    func changed() {
+        registrar.withMutation(of: self, keyPath: \.language) {}
+    }
 }
 
 /// `tr` in a given language, for tests and previews.

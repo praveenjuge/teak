@@ -75,15 +75,14 @@ struct TeakApp: App {
 }
 
 extension View {
-    /// The app's models, and its language: a new language rebuilds the views, so
-    /// every `tr` reads it again.
+    /// The app's models, and its language for formatting. Text read with `tr`
+    /// updates in place when the language changes, so drafts being typed survive.
     func environments(_ services: AppServices) -> some View {
         environment(services.app)
             .environment(services.router)
             .environment(services.capture)
             .environment(services.language)
             .environment(\.locale, services.language.locale)
-            .id(services.language.code)
             .fontDesign(.rounded)
     }
 }

@@ -1,4 +1,6 @@
 import Foundation
+import Observation
+import Synchronization
 import Testing
 @testable import TeakCore
 
@@ -39,5 +41,28 @@ import Testing
     @Test func readsWithoutTheAppsConfig() {
         #expect(AppLanguage.codes.contains(AppLanguage.current))
         #expect(!tr("settings.language.label").isEmpty)
+    }
+}
+
+@Suite(.serialized) struct LanguageChangeTests {
+    @Test func textReadThroughTrIsObservedForLanguageChanges() {
+        let before = AppLanguage.current
+        defer { AppLanguage.use(before) }
+        let changed = Mutex(false)
+        withObservationTracking {
+            _ = tr("settings.language.label")
+        } onChange: {
+            changed.withLock { $0 = true }
+        }
+        AppLanguage.use(before == "de" ? "fr" : "de")
+        #expect(changed.withLock { $0 })
+    }
+
+    @Test func reloadReadsTheSharedLanguageAgain() {
+        let before = AppLanguage.current
+        defer { AppLanguage.use(before) }
+        AppLanguage.use("ja")
+        AppLanguage.reload()
+        #expect(AppLanguage.current == "ja")
     }
 }

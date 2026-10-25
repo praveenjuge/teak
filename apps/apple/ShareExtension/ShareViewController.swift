@@ -6,6 +6,7 @@ import AppKit
 
 final class ShareViewController: NSViewController {
     override func loadView() {
+        AppLanguage.reload()
         let model = ShareModel(providers: inputProviders)
         view = NSHostingView(rootView: ShareView(
             model: model,
@@ -27,6 +28,7 @@ import UIKit
 final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
+        AppLanguage.reload()
         let model = ShareModel(providers: inputProviders)
         let host = UIHostingController(rootView: ShareView(
             model: model,
