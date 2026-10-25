@@ -13,16 +13,14 @@ public enum HiddenTags {
     /// hidden tag added, as the web's toast words it.
     public static func addedHint(before: [String]?, after: [String]) -> String? {
         guard !isHiddenTagList(before), let tag = after.first(where: isHidden) else { return nil }
-        return "Hidden. Search #\(SearchQualifiers.tagKey(tag)) to see it."
+        return tr("native.tags.card.hiddenAdded", SearchQualifiers.tagKey(tag))
     }
 
     /// The note above results when the search names a hidden tag.
-    public static let searchHint = "Shows hidden cards"
+    public static var searchHint: String { tr("native.tags.card.searchHint") }
 
-    /// Under an empty view whose cards are all hidden.
-    public static var emptyViewHint: String {
-        "Some cards are hidden. Search \(keys.map { "#\($0)" }.joined(separator: " or ")) to see them."
-    }
+    /// Under an empty view whose cards are all hidden. It names #secret and #hidden, the hidden tags.
+    public static var emptyViewHint: String { tr("native.tags.card.hiddenCards") }
 }
 
 /// Renaming, merging and deleting a tag across every card. Ports
@@ -32,7 +30,18 @@ public enum TagOperations {
 
     public static var maxNameLength: Int { SharedConstants.shared.limits.maxTagNameLength }
 
-    public static func message(_ code: String) -> String? { SharedConstants.shared.tagErrorMessages[code] }
+    /// The web's text for a tag error code, or nil for one it doesn't word.
+    public static func message(_ code: String) -> String? {
+        switch code {
+        case "EMPTY_NAME": tr("errors.tags.EMPTY_NAME")
+        case "NAME_TOO_LONG": tr("errors.tags.NAME_TOO_LONG", String(maxNameLength))
+        case "NOT_FOUND": tr("errors.tags.NOT_FOUND")
+        case "SAME_TAG": tr("errors.tags.SAME_TAG")
+        case "OPERATION_RUNNING": tr("errors.tags.OPERATION_RUNNING")
+        case "OPERATION_NOT_FOUND": tr("errors.tags.OPERATION_NOT_FOUND")
+        default: nil
+        }
+    }
 
     public static func invalidName(_ name: String) -> String? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -40,32 +49,30 @@ public enum TagOperations {
         return trimmed.utf16.count > maxNameLength ? message("NAME_TOO_LONG") : nil
     }
 
-    static func cards(_ count: Int) -> String {
-        "\(count.formatted(.number.locale(Locale(identifier: "en_US")))) \(count == 1 ? "card" : "cards")"
-    }
+    private static func number(_ value: Int) -> String { value.formatted(.number.locale(AppLanguage.locale)) }
 
     public static func running(_ kind: Kind, from: String, to: String?) -> String {
         switch kind {
-        case .rename: "Renaming \u{201C}\(from)\u{201D} to \u{201C}\(to ?? "")\u{201D}…"
-        case .merge: "Merging \u{201C}\(from)\u{201D} into \u{201C}\(to ?? "")\u{201D}…"
-        case .delete: "Deleting \u{201C}\(from)\u{201D}…"
+        case .rename: tr("native.tags.card.renaming", from, to ?? "")
+        case .merge: tr("native.tags.card.merging", from, to ?? "")
+        case .delete: tr("native.tags.card.deleting", from)
         }
     }
 
     public static func progress(changed: Int, total: Int) -> String {
         let total = max(total, 0)
-        return "\(min(changed, total).formatted(.number.locale(Locale(identifier: "en_US")))) of \(cards(total)) changed"
+        return tr("native.tags.card.progress", count: total, number(min(changed, total)))
     }
 
     public static func completed(_ kind: Kind, from: String, to: String?) -> String {
         switch kind {
-        case .rename: "Renamed \u{201C}\(from)\u{201D} to \u{201C}\(to ?? "")\u{201D}"
-        case .merge: "Merged \u{201C}\(from)\u{201D} into \u{201C}\(to ?? "")\u{201D}"
-        case .delete: "Deleted \u{201C}\(from)\u{201D}"
+        case .rename: tr("native.tags.card.renamed", from, to ?? "")
+        case .merge: tr("native.tags.card.merged", from, to ?? "")
+        case .delete: tr("native.tags.card.deleted", from)
         }
     }
 
-    public static func changed(_ count: Int) -> String { "\(cards(count)) changed" }
+    public static func changed(_ count: Int) -> String { tr("native.tags.card.changed", count: count) }
 
     /// The tag list as it will read once the summary catches up with a
     /// finished change, so the list doesn't show the old name meanwhile.
@@ -84,12 +91,13 @@ public enum TagOperations {
     }
 
     public static func failed(_ kind: Kind, changed: Int, total: Int) -> String {
-        let verb = switch kind {
-        case .rename: "renaming"
-        case .merge: "merging"
-        case .delete: "deleting"
+        let total = max(total, 0)
+        let changed = number(min(changed, total))
+        return switch kind {
+        case .rename: tr("native.tags.card.renameFailed", count: total, changed)
+        case .merge: tr("native.tags.card.mergeFailed", count: total, changed)
+        case .delete: tr("native.tags.card.deleteFailed", count: total, changed)
         }
-        return "Couldn't finish \(verb). \(progress(changed: changed, total: total))."
     }
 }
 

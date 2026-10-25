@@ -1,5 +1,8 @@
 package com.praveenjuge.teak.core.data.convex
 
+import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
+import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
+import com.praveenjuge.teak.core.model.UiText
 import dev.convex.android.ConvexClient
 import dev.convex.android.ConvexError
 import dev.convex.android.ServerError
@@ -57,13 +60,54 @@ private fun Any?.numbersAsDoubles(): Any? = when (this) {
     else -> this
 }
 
-class TeakException(val code: String?, message: String, cause: Throwable? = null) : Exception(message, cause) {
+/**
+ * A failure to show a person. [message] stays English for logs; [text] is what to show: the catalog's
+ * words for a known [code], else the server's message as it is.
+ */
+class TeakException(
+    val code: String?,
+    message: String,
+    cause: Throwable? = null,
+    val text: UiText = code?.let(::textFor) ?: UiText.verbatim(message),
+) : Exception(message, cause) {
     companion object {
         const val CARD_LIMIT_REACHED = "CARD_LIMIT_REACHED"
         const val FILE_TOO_LARGE = "FILE_TOO_LARGE"
         const val RATE_LIMITED = "RATE_LIMITED"
         const val UNSUPPORTED_TYPE = "UNSUPPORTED_TYPE"
         const val OFFLINE = "OFFLINE"
+
+        /**
+         * The web's text for a code the backend throws (`errors.<group>.<CODE>`), as Apple's
+         * `TeakError.localizedMessage` maps them. Codes more than one group throws with different words
+         * (`NOT_FOUND`, `RATE_LIMITED`, `EMPTY_NAME`, `NAME_TOO_LONG`), and ones whose limit the app
+         * doesn't know, keep the server's message.
+         */
+        fun textFor(code: String): UiText? = when (code) {
+            OFFLINE -> UiText.of("native.errors.offline")
+            CARD_LIMIT_REACHED -> UiText.of("errors.cards.CARD_LIMIT_REACHED")
+            "CONTENT_TOO_LARGE" -> UiText.of("errors.cards.CONTENT_TOO_LARGE")
+            "INVALID_UTF8" -> UiText.of("errors.cards.INVALID_UTF8")
+            FILE_TOO_LARGE -> UiText.of("errors.cards.FILE_TOO_LARGE")
+            "TOO_MANY_FILES" -> UiText.of("errors.cards.TOO_MANY_FILES", MAX_FILES_PER_UPLOAD.toString())
+            UNSUPPORTED_TYPE -> UiText.of("errors.cards.UNSUPPORTED_TYPE")
+            "TYPE_MISMATCH" -> UiText.of("errors.cards.TYPE_MISMATCH")
+            "DUPLICATE_NAME" -> UiText.of("errors.folders.DUPLICATE_NAME")
+            "EMPTY_QUERY" -> UiText.of("errors.folders.EMPTY_QUERY")
+            "SMART_FOLDER_IN_QUERY" -> UiText.of("errors.folders.SMART_FOLDER_IN_QUERY")
+            "SMART_FOLDER_MEMBERSHIP" -> UiText.of("errors.folders.SMART_FOLDER_MEMBERSHIP")
+            "QUERY_ON_MANUAL_FOLDER" -> UiText.of("errors.folders.QUERY_ON_MANUAL_FOLDER")
+            "SMART_FOLDER_TRASH" -> UiText.of("errors.folders.SMART_FOLDER_TRASH")
+            "SAME_TAG" -> UiText.of("errors.tags.SAME_TAG")
+            "OPERATION_RUNNING" -> UiText.of("errors.tags.OPERATION_RUNNING")
+            "OPERATION_NOT_FOUND" -> UiText.of("errors.tags.OPERATION_NOT_FOUND")
+            "TAG_TOO_LONG" -> UiText.of("errors.cardTags.TAG_TOO_LONG", MAX_TAG_NAME_LENGTH.toString())
+            "IN_PROGRESS" -> UiText.of("errors.pdfs.IN_PROGRESS")
+            "NO_PDF" -> UiText.of("errors.pdfs.NO_PDF")
+            "TRASHED" -> UiText.of("errors.pdfs.TRASHED")
+            "UNSUPPORTED_LOCALE" -> UiText.of("errors.settings.UNSUPPORTED_LOCALE")
+            else -> null
+        }
     }
 }
 
@@ -73,6 +117,11 @@ internal val teakJson = Json {
     coerceInputValues = true
 }
 
+private const val GENERIC_FAILURE = "Something went wrong. Please try again."
+
+/** What to show for this failure: a [TeakException]'s text, else [fallback]. */
+fun Throwable.teakText(fallback: UiText): UiText = (this as? TeakException)?.text ?: fallback
+
 fun Throwable.toTeakException(): Throwable = when (this) {
     is TeakException -> this
     is ConvexError -> {
@@ -81,10 +130,12 @@ fun Throwable.toTeakException(): Throwable = when (this) {
         val code = obj?.get("code")?.jsonPrimitive?.contentOrNull
         val message = obj?.get("message")?.jsonPrimitive?.contentOrNull
             ?: (data?.let { runCatching { it.jsonPrimitive.contentOrNull }.getOrNull() })
-            ?: "Something went wrong. Please try again."
-        TeakException(code, message, this)
+        when {
+            message != null -> TeakException(code, message, this)
+            else -> TeakException(code, GENERIC_FAILURE, this, code?.let(TeakException::textFor) ?: UiText.of("native.errors.generic"))
+        }
     }
-    is ServerError -> TeakException(null, "Something went wrong. Please try again.", this)
+    is ServerError -> TeakException(null, GENERIC_FAILURE, this, UiText.of("native.errors.generic"))
     is IOException -> TeakException(TeakException.OFFLINE, "Check your connection and try again.", this)
     else -> this
 }

@@ -25,15 +25,15 @@ struct CardSections: View {
         VStack(alignment: .leading, spacing: 24) {
             linkDetails
             if let notes = card.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
-                section("Notes") { paragraph(notes) }
+                section(tr("native.card.sections.notes")) { paragraph(notes) }
             }
             let tags = (card.tags ?? []).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             if !tags.isEmpty {
-                section("Tags") { ChipRow(tags: tags, onTag: searchTag) }
+                section(tr("native.card.sections.tags")) { ChipRow(tags: tags, onTag: searchTag) }
             }
             summary
             if let transcript = card.aiTranscript?.trimmingCharacters(in: .whitespacesAndNewlines), !transcript.isEmpty {
-                section("Transcript") { paragraph(transcript) }
+                section(tr("native.card.sections.transcript")) { paragraph(transcript) }
             }
             linkedFrom
             info
@@ -59,11 +59,11 @@ struct CardSections: View {
         if card.type == .link {
             let facts = linkRows
             if !facts.isEmpty {
-                section("Details") { rows(facts) }
+                section(tr("native.card.sections.details")) { rows(facts) }
             }
             let media = CardSheet.linkMedia(card)
             if media.count > 1 {
-                section("Media") {
+                section(tr("native.card.sections.media")) {
                     VStack(spacing: 8) {
                         ForEach(media, id: \.url) { item in
                             RemoteImage(item.url, contentMode: .fit)
@@ -83,7 +83,7 @@ struct CardSections: View {
         let tags = (card.aiTags ?? []).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let colors = card.type.showsSummaryColors ? (card.colors ?? []).prefix(8).map(\.hex) : []
         if !text.isEmpty || !tags.isEmpty || !colors.isEmpty {
-            section("Summary") {
+            section(tr("native.card.sections.summary")) {
                 VStack(alignment: .leading, spacing: 10) {
                     if !text.isEmpty { paragraph(text) }
                     ChipRow(tags: tags, colors: colors, sparkles: true, onTag: searchTag)
@@ -95,16 +95,16 @@ struct CardSections: View {
     /// A product's price first, then the site's facts, then when it was published.
     private var linkRows: [DetailRow] {
         var rows = CardSheet.linkFacts(card)
-        if let price = card.metadata?.linkCategory?.price { rows.insert(DetailRow("Price", price.formatted()), at: 0) }
+        if let price = card.metadata?.linkCategory?.price { rows.insert(DetailRow(tr("native.details.price"), price.formatted()), at: 0) }
         if let published = PublishedDate.format(card.metadata?.linkPreview?.publishedAt) {
-            rows.append(DetailRow("Published", published))
+            rows.append(DetailRow(tr("native.details.published"), published))
         }
         return rows
     }
 
     @ViewBuilder private var linkedFrom: some View {
         if !backlinks.isEmpty {
-            section("Linked from") {
+            section(tr("native.card.sections.linkedFrom")) {
                 VStack(spacing: 0) {
                     ForEach(Array(backlinks.enumerated()), id: \.element.id) { index, linked in
                         if index > 0 { Divider().padding(.leading, 16) }
@@ -119,7 +119,7 @@ struct CardSections: View {
                     }
                     if hasMoreBacklinks {
                         Divider().padding(.leading, 16)
-                        Text("and more")
+                        Text(tr("native.card.backlinksMore"))
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 16)
@@ -138,7 +138,7 @@ struct CardSections: View {
                 if let url = SafeURL.sanitize(card.sourceUrl) { openSource(url) }
             } label: {
                 VStack(alignment: .leading, spacing: 2) {
-                    Label("From \(host)", systemImage: "arrow.up.right.square")
+                    Label(tr("native.card.source.from", host), systemImage: "arrow.up.right.square")
                         .font(.footnote.weight(.medium))
                     if let title = card.sourceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
                         Text(title).font(.footnote).foregroundStyle(Color.secondary).lineLimit(1)
@@ -155,16 +155,16 @@ struct CardSections: View {
 
     private var info: some View {
         let exif = card.type == .image ? ExifFacts.rows(card.fileMetadata?.exif) : []
-        let details = CardSheet.detailRows(card).filter { $0.label != "Type" } + exif
-            + [DetailRow("Created", CardSheet.formatTimestamp(card.createdAt)),
-               DetailRow("Updated", CardSheet.formatTimestamp(card.updatedAt))]
-        return section("Info") {
+        let details = CardSheet.detailRows(card).filter { $0.label != tr("native.details.type") } + exif
+            + [DetailRow(tr("native.details.created"), CardSheet.formatTimestamp(card.createdAt)),
+               DetailRow(tr("native.details.updated"), CardSheet.formatTimestamp(card.updatedAt))]
+        return section(tr("native.card.sections.info")) {
             VStack(spacing: 0) {
                 Button {
                     filterLibrary.type(card.type)
                     dismiss()
                 } label: {
-                    InfoRow(label: "Type") {
+                    InfoRow(label: tr("native.details.type")) {
                         HStack(spacing: 4) {
                             Image(systemName: card.type.symbol)
                             Text(card.type.label)
@@ -173,22 +173,22 @@ struct CardSections: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Shows every \(card.type.label.lowercased()) card")
+                .accessibilityHint(tr("native.card.showsType"))
                 if let editFolders {
                     Divider().padding(.leading, 16)
                     Button(action: editFolders) {
-                        InfoRow(label: "Folders") {
+                        InfoRow(label: tr("native.card.sections.folders")) {
                             Text(folderSummary).foregroundStyle(.tint)
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(folderNames.isEmpty ? "Add to a folder" : "In \(folderNames.joined(separator: ", ")). Change folders")
+                    .accessibilityLabel(folderNames.isEmpty ? tr("native.card.folderRow.addLabel") : tr("native.card.folderRow.inFolders", folderNames.formatted(.list(type: .and).locale(AppLanguage.locale))))
                 }
                 ForEach(details, id: \.self) { row in
                     Divider().padding(.leading, 16)
                     InfoRow(label: row.label) { Text(row.value) }
                         .contextMenu {
-                            Button("Copy \(row.label)", systemImage: "doc.on.doc") { Pasteboard.copy(row.value) }
+                            Button(tr("native.card.copyRow", row.label), systemImage: "doc.on.doc") { Pasteboard.copy(row.value) }
                         }
                 }
             }
@@ -197,8 +197,8 @@ struct CardSections: View {
     }
 
     private var folderSummary: String {
-        guard let first = folderNames.first else { return "Add…" }
-        return folderNames.count > 1 ? "\(first) +\(folderNames.count - 1)" : first
+        guard let first = folderNames.first else { return tr("native.card.folderRow.add") }
+        return folderNames.count > 1 ? tr("native.card.folderRow.summary", first, (folderNames.count - 1).formatted(.number.locale(AppLanguage.locale))) : first
     }
 
     private func rows(_ rows: [DetailRow]) -> some View {
@@ -275,7 +275,7 @@ struct ChipRow: View {
                         .background(.fill.tertiary, in: .capsule)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Search for \(tag)")
+                    .accessibilityLabel(tr("native.card.searchForTag", tag))
                 }
             }
         }

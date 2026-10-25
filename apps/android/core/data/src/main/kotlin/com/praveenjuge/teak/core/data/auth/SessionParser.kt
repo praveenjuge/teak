@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.data.auth
 
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -12,6 +13,12 @@ import java.util.Base64
 object SessionParser {
     private val json = Json { ignoreUnknownKeys = true }
 
+    private fun invalidToken(cause: Throwable? = null) =
+        SignInException("Invalid session token", cause, UiText.of("native.errors.invalidSessionToken"))
+
+    private fun invalidResponse(cause: Throwable? = null) =
+        SignInException("Invalid sign-in response", cause, UiText.of("native.errors.invalidSignInResponse"))
+
     data class TokenUser(
         val id: String,
         val email: String,
@@ -23,11 +30,11 @@ object SessionParser {
 
     fun parse(clientId: String, accessToken: String, refreshToken: String, user: TokenUser): AuthSession {
         val parts = accessToken.split('.')
-        if (parts.size != 3 || refreshToken.isEmpty()) throw SignInException("Invalid session token")
+        if (parts.size != 3 || refreshToken.isEmpty()) throw invalidToken()
         val claims = try {
             json.parseToJsonElement(String(Base64.getUrlDecoder().decode(parts[1].trimEnd('=')))).jsonObject
         } catch (e: IllegalArgumentException) {
-            throw SignInException("Invalid session token", e)
+            throw invalidToken(e)
         }
         val sid = claims.string("sid")
         val exp = (claims["exp"] as? JsonPrimitive)?.longOrNull
@@ -36,7 +43,7 @@ object SessionParser {
             sid == null || !sid.startsWith("session_") ||
             exp == null || exp <= 0 || exp > Long.MAX_VALUE / 1000
         ) {
-            throw SignInException("Invalid session token")
+            throw invalidToken()
         }
         return AuthSession(
             clientId = clientId,
@@ -58,18 +65,18 @@ object SessionParser {
         val root = try {
             json.parseToJsonElement(body).jsonObject
         } catch (e: IllegalArgumentException) {
-            throw SignInException("Invalid sign-in response", e)
+            throw invalidResponse(e)
         }
-        val user = root["user"] as? JsonObject ?: throw SignInException("Invalid sign-in response")
+        val user = root["user"] as? JsonObject ?: throw invalidResponse()
         return parse(
             clientId = clientId,
-            accessToken = root.string("access_token") ?: throw SignInException("Invalid sign-in response"),
-            refreshToken = root.string("refresh_token") ?: throw SignInException("Invalid sign-in response"),
+            accessToken = root.string("access_token") ?: throw invalidResponse(),
+            refreshToken = root.string("refresh_token") ?: throw invalidResponse(),
             user = TokenUser(
-                id = user.string("id") ?: throw SignInException("Invalid sign-in response"),
-                email = user.string("email") ?: throw SignInException("Invalid sign-in response"),
+                id = user.string("id") ?: throw invalidResponse(),
+                email = user.string("email") ?: throw invalidResponse(),
                 emailVerified = (user["email_verified"] as? JsonPrimitive)?.booleanOrNull
-                    ?: throw SignInException("Invalid sign-in response"),
+                    ?: throw invalidResponse(),
                 firstName = user.string("first_name"),
                 lastName = user.string("last_name"),
                 externalId = user.string("external_id"),

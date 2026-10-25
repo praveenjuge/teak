@@ -43,6 +43,9 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
 import com.praveenjuge.teak.core.model.CardDetails
@@ -51,7 +54,9 @@ import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.DetailRow
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.parseHexArgb
+import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -91,13 +96,13 @@ internal fun LinkDetailsSections(card: Card, onOpenImage: (String) -> Unit) {
     if (card.type != CardType.Link) return
     val facts = card.metadata?.linkCategory?.facts.orEmpty()
     if (facts.isNotEmpty()) {
-        DetailSection("Details") { DetailRows(facts.map { DetailRow(it.label, it.value) }) }
+        DetailSection(tr("native.card.sections.details")) { DetailRows(facts.map { DetailRow(UiText.verbatim(it.label), it.value) }) }
     }
     val media = card.linkPreviewMedia.orEmpty()
         .mapNotNull { item -> (if (item.type == "image") item.url else item.posterUrl)?.let { it to item } }
         .take(MAX_LINK_MEDIA)
     if (media.size > 1) {
-        DetailSection("Media") {
+        DetailSection(tr("native.card.sections.media")) {
             media.forEach { (url, item) ->
                 MediaImage(
                     primaryUrl = url,
@@ -105,7 +110,7 @@ internal fun LinkDetailsSections(card: Card, onOpenImage: (String) -> Unit) {
                     ratio = mediaRatio(item.width, item.height),
                     contentDescription = null,
                     placeholderIcon = Icons.Outlined.Image,
-                    placeholderLabel = "Media unavailable",
+                    placeholderLabel = tr("native.card.preview.mediaUnavailable"),
                     onOpen = onOpenImage,
                 )
             }
@@ -118,15 +123,15 @@ internal fun NotesAndTagsSections(card: Card, onSearchTag: (String) -> Unit) {
     val notes = card.notes?.trim().orEmpty()
     val tags = card.tags.orEmpty().map(String::trim).filter(String::isNotEmpty)
     if (notes.isNotEmpty()) {
-        DetailSection("Notes") { MarkdownText(notes) }
+        DetailSection(tr("native.card.sections.notes")) { MarkdownText(notes) }
     }
     if (tags.isNotEmpty()) {
-        DetailSection("Tags") {
+        DetailSection(tr("native.card.sections.tags")) {
             if (card.hidden) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     Text(
-                        "Hidden. Only a search for #secret or #hidden shows this card.",
+                        tr("native.card.hiddenCardHint"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -144,7 +149,7 @@ internal fun SummarySections(card: Card, onSearchTag: (String) -> Unit) {
     val colors = if (card.type.showsSummaryColors) card.colors.orEmpty().take(8).map { it.hex } else emptyList()
     val transcript = card.aiTranscript?.trim().orEmpty()
     if (summary.isNotEmpty() || tags.isNotEmpty() || colors.isNotEmpty()) {
-        DetailSection("Summary") {
+        DetailSection(tr("native.card.sections.summary")) {
             if (summary.isNotEmpty()) SelectableText(summary)
             if (tags.isNotEmpty() || colors.isNotEmpty()) {
                 ChipRow(tags = tags, colors = colors, sparkles = true, onPressTag = onSearchTag)
@@ -152,13 +157,14 @@ internal fun SummarySections(card: Card, onSearchTag: (String) -> Unit) {
         }
     }
     if (transcript.isNotEmpty()) {
-        DetailSection("Transcript") { SelectableText(transcript) }
+        DetailSection(tr("native.card.sections.transcript")) { SelectableText(transcript) }
     }
 }
 
 @Composable
 internal fun InfoSection(card: Card, folders: List<Folder>, onOpenSource: (String) -> Unit, onEditFolders: () -> Unit) {
-    DetailSection("Info") {
+    val locale = LocalConfiguration.current.locales[0]
+    DetailSection(tr("native.card.sections.info")) {
         CardDetails.source(card)?.let { source ->
             SourceRow(source, onOpenSource)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
@@ -168,9 +174,9 @@ internal fun InfoSection(card: Card, folders: List<Folder>, onOpenSource: (Strin
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
         DetailRows(
-            CardSheet.detailRows(card) + CardDetails.extraRows(card) + listOf(
-                DetailRow("Created", formatTimestamp(card.createdAt)),
-                DetailRow("Updated", formatTimestamp(card.updatedAt)),
+            CardSheet.detailRows(card, locale) + CardDetails.extraRows(card, locale = locale) + listOf(
+                DetailRow(UiText.of("native.details.created"), formatTimestamp(card.createdAt, locale)),
+                DetailRow(UiText.of("native.details.updated"), formatTimestamp(card.updatedAt, locale)),
             ),
         )
     }
@@ -182,10 +188,10 @@ private fun SourceRow(source: CardSource, onOpen: (String) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Open ${source.title ?: source.host}") { onOpen(source.url) },
+            .clickable(onClickLabel = tr("native.card.source.open", source.title ?: source.host)) { onOpen(source.url) },
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("From", style = MaterialTheme.typography.bodyLarge)
+        Text(tr("native.card.source.label"), style = MaterialTheme.typography.bodyLarge)
         Text(
             source.host,
             style = MaterialTheme.typography.bodyLarge,
@@ -199,17 +205,17 @@ private fun SourceRow(source: CardSource, onOpen: (String) -> Unit) {
 @Composable
 private fun FoldersRow(folders: List<Folder>, onEdit: () -> Unit) {
     val value = when {
-        folders.isEmpty() -> "Add…"
+        folders.isEmpty() -> tr("native.card.folderRow.add")
         folders.size == 1 -> folders.single().name
-        else -> "${folders.first().name} +${folders.size - 1}"
+        else -> tr("native.card.folderRow.summary", folders.first().name, NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(folders.size - 1))
     }
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = if (folders.isEmpty()) "Add to a folder" else "Change folders", onClick = onEdit),
+            .clickable(onClickLabel = if (folders.isEmpty()) tr("native.card.folderRow.addLabel") else tr("native.card.folderRow.change"), onClick = onEdit),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Folders", style = MaterialTheme.typography.bodyLarge)
+        Text(tr("native.card.sections.folders"), style = MaterialTheme.typography.bodyLarge)
         Text(
             value,
             style = MaterialTheme.typography.bodyLarge,
@@ -224,7 +230,7 @@ private fun FoldersRow(folders: List<Folder>, onEdit: () -> Unit) {
 @Composable
 internal fun LinkedFromSection(backlinks: CardBacklinks, onOpenCard: (String) -> Unit) {
     if (backlinks.backlinks.isEmpty()) return
-    DetailSection("Linked from") {
+    DetailSection(tr("native.card.sections.linkedFrom")) {
         backlinks.backlinks.forEach { linked ->
             Row(
                 Modifier.fillMaxWidth().clickable { onOpenCard(linked.id) },
@@ -235,7 +241,7 @@ internal fun LinkedFromSection(backlinks: CardBacklinks, onOpenCard: (String) ->
                 Text(linked.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        if (backlinks.hasMore) Text("and more", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (backlinks.hasMore) Text(tr("native.card.backlinksMore"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -261,10 +267,10 @@ private fun DetailRows(rows: List<DetailRow>) {
     rows.forEachIndexed { index, row ->
         if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(row.label, style = MaterialTheme.typography.bodyLarge)
+            Text(row.label.resolve(), style = MaterialTheme.typography.bodyLarge)
             SelectionContainer(Modifier.weight(1f)) {
                 Text(
-                    row.value,
+                    row.value.resolve(),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.End,

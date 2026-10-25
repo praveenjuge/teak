@@ -5,6 +5,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -47,6 +48,16 @@ class TimeSearchTest {
     @Test
     fun `parses ranges`() {
         assertRange("June 2024 to July 2025", "Jun 2024 – Jul 2025", LocalDate.of(2024, 6, 1), LocalDate.of(2025, 8, 1))
+    }
+
+    @Test
+    fun `labels follow the app's language`() {
+        fun text(query: String, locale: Locale = Locale.US) = TimeSearch.parse(query, tuesdayNoon, locale)!!.labelText
+        assertEquals(UiText.of("native.time.lastWeek"), text("last week"))
+        assertEquals(UiText.of("native.time.lastWeekday", "Monday"), text("last monday"))
+        assertEquals(UiText.verbatim("Montag"), text("monday", Locale.GERMANY))
+        assertEquals(UiText.verbatim("05.06.2024"), text("2024-06-05", Locale.GERMANY))
+        assertEquals(UiText.of("native.time.range", UiText.verbatim("Jun 2024"), UiText.verbatim("Jul 2025")), text("June 2024 to July 2025"))
     }
 
     @Test

@@ -169,6 +169,19 @@ object SearchQuery {
         }
     }
 
+    /** [describePriceBound] in the app's language, with the amount written the [locale]'s way. */
+    fun describePriceBoundText(bound: PriceBound, locale: Locale = Locale.getDefault()): UiText {
+        val format = DecimalFormat("#,##0.######", DecimalFormatSymbols(locale)).apply { roundingMode = RoundingMode.HALF_UP }
+        val amount = format.format(bound.amount)
+        return when (bound.op) {
+            PriceComparison.Less -> UiText.of("native.filters.price.under", amount)
+            PriceComparison.Greater -> UiText.of("native.filters.price.over", amount)
+            PriceComparison.AtMost -> UiText.of("native.filters.price.atMost", amount)
+            PriceComparison.AtLeast -> UiText.of("native.filters.price.atLeast", amount)
+            PriceComparison.Equal -> UiText.of("native.filters.price.exactly", amount)
+        }
+    }
+
     private fun parseQualifier(key: String, rawValue: String): SearchQualifier? {
         val value = rawValue.trim()
         if (value.isEmpty()) return null
@@ -391,8 +404,29 @@ object ColorText {
 }
 
 /** A filter written in the search, shown as a removable chip: "Show · Archived", "Price · Under 50". */
-data class QualifierChip(val qualifier: SearchQualifier, val title: String, val label: String) {
+data class QualifierChip(
+    val qualifier: SearchQualifier,
+    val title: String,
+    val label: String,
+    /** [title] and [label] in the app's language. */
+    val titleText: UiText = UiText.verbatim(title),
+    val labelText: UiText = UiText.verbatim(label),
+) {
     val removeLabel: String get() = "Remove ${title.lowercase()} $label"
+
+    /** The remove button's spoken label: "Remove tag design". */
+    val removeText: UiText
+        get() = when (qualifier) {
+            is SearchQualifier.Tag -> UiText.of("native.filters.removeChip.tag", labelText)
+            is SearchQualifier.Type -> UiText.of("native.filters.removeChip.type", labelText)
+            is SearchQualifier.Is -> UiText.of("native.filters.removeChip.is", labelText)
+            is SearchQualifier.Site -> UiText.of("native.filters.removeChip.site", labelText)
+            is SearchQualifier.Folder -> UiText.of("native.filters.removeChip.folder", labelText)
+            is SearchQualifier.Like -> UiText.of("native.filters.removeChip.like", labelText)
+            is SearchQualifier.Mood -> UiText.of("native.filters.removeChip.mood", labelText)
+            is SearchQualifier.Price -> UiText.of("native.filters.removeChip.price", labelText)
+            is SearchQualifier.Text -> UiText.of("native.filters.removeChip.text", labelText)
+        }
 }
 
 object QualifierChips {
@@ -400,9 +434,18 @@ object QualifierChips {
     fun of(search: String, anchorTitle: String? = null): List<QualifierChip> =
         SearchQuery.parse(search).qualifiers.mapNotNull { describe(it, anchorTitle) }
 
+    private fun isText(value: SearchIsValue): UiText = when (value) {
+        SearchIsValue.Favorite -> UiText.of("native.filters.is.fav")
+        SearchIsValue.Archived -> UiText.of("native.filters.is.archived")
+        SearchIsValue.Done -> UiText.of("native.filters.is.done")
+        SearchIsValue.Todo -> UiText.of("native.filters.is.todo")
+    }
+
     fun describe(qualifier: SearchQualifier, anchorTitle: String? = null): QualifierChip? = when (qualifier) {
-        is SearchQualifier.Tag -> QualifierChip(qualifier, "Tag", qualifier.value)
-        is SearchQualifier.Type -> QualifierChip(qualifier, "Type", qualifier.type.label)
+        is SearchQualifier.Tag -> QualifierChip(qualifier, "Tag", qualifier.value, UiText.of("native.filters.chips.tag"))
+        is SearchQualifier.Type -> QualifierChip(
+            qualifier, "Type", qualifier.type.label, UiText.of("native.filters.chips.type"), qualifier.type.labelText,
+        )
         is SearchQualifier.Is -> QualifierChip(
             qualifier,
             "Show",
@@ -412,14 +455,26 @@ object QualifierChips {
                 SearchIsValue.Done -> "Done"
                 SearchIsValue.Todo -> "To do"
             },
+            UiText.of("native.filters.chips.is"),
+            isText(qualifier.state),
         )
-        is SearchQualifier.Site -> QualifierChip(qualifier, "Site", UrlHost.forDisplay(qualifier.value))
-        is SearchQualifier.Folder -> QualifierChip(qualifier, "Folder", qualifier.value)
-        is SearchQualifier.Like -> QualifierChip(qualifier, "Similar to", anchorTitle ?: "a card")
-        is SearchQualifier.Mood -> QualifierChip(qualifier, "Mood", "“${qualifier.value}”")
-        is SearchQualifier.Price -> SearchQuery.parsePriceBound(qualifier.value)
-            ?.let { QualifierChip(qualifier, "Price", SearchQuery.describePriceBound(it)) }
-        is SearchQualifier.Text -> QualifierChip(qualifier, "Text in image", qualifier.value)
+        is SearchQualifier.Site -> QualifierChip(qualifier, "Site", UrlHost.forDisplay(qualifier.value), UiText.of("native.filters.chips.site"))
+        is SearchQualifier.Folder -> QualifierChip(qualifier, "Folder", qualifier.value, UiText.of("native.filters.chips.folder"))
+        is SearchQualifier.Like -> QualifierChip(
+            qualifier, "Similar to", anchorTitle ?: "a card", UiText.of("native.filters.chips.like"),
+            anchorTitle?.let(UiText::verbatim) ?: UiText.of("native.filters.chips.anyCard"),
+        )
+        is SearchQualifier.Mood -> QualifierChip(
+            qualifier, "Mood", "“${qualifier.value}”", UiText.of("native.filters.chips.mood"),
+            UiText.of("native.filters.chips.moodValue", qualifier.value),
+        )
+        is SearchQualifier.Price -> SearchQuery.parsePriceBound(qualifier.value)?.let {
+            QualifierChip(
+                qualifier, "Price", SearchQuery.describePriceBound(it), UiText.of("native.filters.chips.price"),
+                SearchQuery.describePriceBoundText(it),
+            )
+        }
+        is SearchQualifier.Text -> QualifierChip(qualifier, "Text in image", qualifier.value, UiText.of("native.filters.chips.text"))
     }
 
     /** [search] without [qualifier], in canonical form. */

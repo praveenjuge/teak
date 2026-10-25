@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardsRepository
-import com.praveenjuge.teak.core.data.repository.ConvexCardsRepository
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
@@ -18,6 +18,7 @@ import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.LinkState
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.ShareTarget
+import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -57,13 +58,13 @@ data class CardDetailUiState(
     /** Links can be marked done; a card in Trash has to come back first. */
     val canMarkDone: Boolean get() = card?.type == CardType.Link && card.deleted.not()
 
-    val doneLabel: String get() = LinkState.toggleLabel(card?.linkCategoryName, isDone)
+    val doneText: UiText get() = LinkState.toggleText(card?.linkCategoryName, isDone)
 
     val cardFolders: List<Folder> get() = card?.folderIds.orEmpty().mapNotNull { id -> folders.firstOrNull { it.id == id } }
 }
 
 sealed interface CardDetailEvent {
-    data class Message(val text: String, val undo: (() -> Unit)? = null) : CardDetailEvent
+    data class Message(val text: UiText, val undo: (() -> Unit)? = null) : CardDetailEvent
     data class ShareFile(val uri: Uri, val mimeType: String) : CardDetailEvent
     data object Close : CardDetailEvent
 }
@@ -118,7 +119,7 @@ class CardDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             catchingFailures { repository.setFavorite(card.id, next) }.onFailure {
                 _uiState.update { it.copy(favoriteOverride = !next) }
-                _events.send(CardDetailEvent.Message("Couldn't update this favorite."))
+                _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.favorite")))
             }
         }
     }
@@ -134,12 +135,12 @@ class CardDetailViewModel @AssistedInject constructor(
             catchingFailures { repository.setDone(card.id, next) }
                 .onSuccess {
                     _events.send(
-                        CardDetailEvent.Message(LinkState.toggledMessage(card.linkCategoryName, next)) {
+                        CardDetailEvent.Message(LinkState.toggledText(card.linkCategoryName, next)) {
                             _uiState.update { it.copy(doneOverride = !next) }
                             viewModelScope.launch {
                                 catchingFailures { repository.setDone(card.id, !next) }.onFailure {
                                     _uiState.update { it.copy(doneOverride = next) }
-                                    _events.send(CardDetailEvent.Message("Couldn't undo. Try again."))
+                                    _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.undo")))
                                 }
                             }
                         },
@@ -147,7 +148,7 @@ class CardDetailViewModel @AssistedInject constructor(
                 }
                 .onFailure {
                     _uiState.update { it.copy(doneOverride = !next) }
-                    _events.send(CardDetailEvent.Message("Couldn't update. Try again."))
+                    _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.update")))
                 }
         }
     }
@@ -158,17 +159,17 @@ class CardDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             catchingFailures { repository.setArchived(card.id, archive) }
                 .onSuccess {
-                    val text = if (archive) "Archived 1 card" else "Returned 1 card to the library"
+                    val text = if (archive) UiText.of("native.card.notice.archived") else UiText.of("native.card.notice.unarchived")
                     _events.send(
                         CardDetailEvent.Message(text) {
                             viewModelScope.launch {
                                 catchingFailures { repository.setArchived(card.id, !archive) }
-                                    .onFailure { _events.send(CardDetailEvent.Message("Couldn't undo. Try again.")) }
+                                    .onFailure { _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.undo"))) }
                             }
                         },
                     )
                 }
-                .onFailure { _events.send(CardDetailEvent.Message(if (archive) "Couldn't archive this card" else "Couldn't unarchive this card")) }
+                .onFailure { _events.send(CardDetailEvent.Message(if (archive) UiText.of("native.card.failed.archive") else UiText.of("native.card.failed.unarchive"))) }
         }
     }
 
@@ -180,11 +181,11 @@ class CardDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             val text = catchingFailures {
                 when (val outcome = repository.refresh(card.id)) {
-                    RefreshOutcome.Queued -> "Refreshing details. The summary and tags update shortly."
-                    is RefreshOutcome.Refused -> outcome.message
+                    RefreshOutcome.Queued -> UiText.of("native.card.notice.refreshing")
+                    is RefreshOutcome.Refused -> outcome.message?.let(UiText::verbatim) ?: UiText.of("native.card.failed.refresh")
                 }
             }.getOrElse { e ->
-                (e as? TeakException)?.takeIf { it.code in REFUSAL_CODES }?.message ?: ConvexCardsRepository.REFRESH_FAILED
+                (e as? TeakException)?.takeIf { it.code in REFUSAL_CODES }?.text ?: UiText.of("native.card.failed.refresh")
             }
             _uiState.update { it.copy(isRefreshing = false) }
             _events.send(CardDetailEvent.Message(text))
@@ -195,7 +196,7 @@ class CardDetailViewModel @AssistedInject constructor(
         val card = _uiState.value.card ?: return
         viewModelScope.launch {
             catchingFailures { folders.setCardFolders(card.id, folderIds) }.onFailure { error ->
-                _events.send(CardDetailEvent.Message((error as? TeakException)?.message ?: "Couldn't change the card's folders"))
+                _events.send(CardDetailEvent.Message(error.teakText(UiText.of("native.card.failed.folders"))))
             }
         }
     }
@@ -204,19 +205,19 @@ class CardDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             catchingFailures { folders.create(name) }
                 .onSuccess(then)
-                .onFailure { error -> _events.send(CardDetailEvent.Message((error as? TeakException)?.message ?: "Couldn't create the folder")) }
+                .onFailure { error -> _events.send(CardDetailEvent.Message(error.teakText(UiText.of("native.card.failed.createFolder")))) }
         }
     }
 
-    fun moveToTrash() = run("Couldn't delete this card.") { repository.moveToTrash(it.id) }
+    fun moveToTrash() = run(UiText.of("native.card.failed.moveToTrash")) { repository.moveToTrash(it.id) }
 
-    fun restore() = run("Couldn't restore this card.") { repository.restore(it.id) }
+    fun restore() = run(UiText.of("native.card.failed.restore")) { repository.restore(it.id) }
 
-    fun deleteForever() = run("Couldn't delete this card.") { repository.deleteForever(it.id) }
+    fun deleteForever() = run(UiText.of("native.card.failed.delete")) { repository.deleteForever(it.id) }
 
     fun shareFile() {
         val target = _uiState.value.card?.let(CardSheet::shareTarget) as? ShareTarget.File ?: return
-        transfer("Couldn't share this file.") {
+        transfer(UiText.of("native.actions.shareFailed")) {
             val uri = files.shareableUri(target.url, target.fileName)
             _events.send(CardDetailEvent.ShareFile(uri, target.mimeType ?: mimeTypeFor(target.fileName)))
         }
@@ -226,13 +227,13 @@ class CardDetailViewModel @AssistedInject constructor(
         val card = _uiState.value.card ?: return
         val url = card.fileUrl ?: return
         val fileName = CardSheet.downloadFileName(url, card.fileMetadata?.fileName, card.fileMetadata?.extension)
-        transfer("Couldn't save this file.") {
+        transfer(UiText.of("native.card.failed.saveFile")) {
             files.saveToDownloads(url, fileName, card.fileMetadata?.mimeType)
-            _events.send(CardDetailEvent.Message("Saved to Downloads"))
+            _events.send(CardDetailEvent.Message(UiText.of("android.card.savedToDownloads")))
         }
     }
 
-    private fun run(failure: String, action: suspend (Card) -> Unit) {
+    private fun run(failure: UiText, action: suspend (Card) -> Unit) {
         val card = _uiState.value.card ?: return
         viewModelScope.launch {
             catchingFailures { action(card) }
@@ -241,7 +242,7 @@ class CardDetailViewModel @AssistedInject constructor(
         }
     }
 
-    private fun transfer(failure: String, action: suspend () -> Unit) {
+    private fun transfer(failure: UiText, action: suspend () -> Unit) {
         if (_uiState.value.isTransferring) return
         _uiState.update { it.copy(isTransferring = true) }
         viewModelScope.launch {

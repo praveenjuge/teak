@@ -26,6 +26,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardLinks
 import androidx.compose.material3.HorizontalDivider
@@ -149,7 +150,8 @@ private fun InlineText(text: String, style: TextStyle, inline: InlineStyles, mod
 @Composable
 private fun CardLinkPill(match: CardLinks.Match, target: CardLinkTarget?, onOpen: (String) -> Unit) {
     val missing = target?.missing == true
-    val title = if (missing) "Missing card" else target?.title ?: match.title.ifBlank { "Card" }
+    val title = if (missing) tr("native.card.preview.missingCard") else target?.title ?: match.title.ifBlank { tr("cards.types.card") }
+    val description = if (missing) tr("native.card.preview.missingCardLabel") else tr("native.card.preview.linkedCard", title)
     AssistChip(
         onClick = { onOpen(match.id) },
         enabled = !missing,
@@ -162,7 +164,7 @@ private fun CardLinkPill(match: CardLinks.Match, target: CardLinkTarget?, onOpen
             )
         },
         modifier = Modifier.padding(horizontal = 2.dp).semantics {
-            contentDescription = if (missing) "Missing card. This card is in Trash, deleted or not yours" else "Linked card: $title"
+            contentDescription = description
         },
     )
 }

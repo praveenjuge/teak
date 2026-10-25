@@ -17,7 +17,7 @@ struct CardPreview: View {
         case .palette: PalettePreview(card: card)
         case .link: LinkPreviewView(card: card)
         case .quote: QuotePreview(card: card)
-        case .text: MarkdownView(markdown: card.content.isEmpty ? "No content" : card.content, cardLinks: linkTargets)
+        case .text: MarkdownView(markdown: card.content.isEmpty ? tr("native.card.noContent") : card.content, cardLinks: linkTargets)
         }
     }
 }
@@ -42,7 +42,7 @@ struct ImagePreview: View {
     var body: some View {
         let urls = CardSheet.imageURLs(card)
         if urls.isEmpty {
-            Unavailable(label: "Image unavailable")
+            Unavailable(label: tr("native.card.preview.imageUnavailable"))
         } else if CardSheet.isAnimatedGIF(card), let url = SafeURL.sanitize(card.fileUrl) {
             AnimatedImage(url: url, fallback: urls)
                 .aspectRatio(ratio, contentMode: .fit)
@@ -53,7 +53,7 @@ struct ImagePreview: View {
                 .aspectRatio(ratio, contentMode: .fit)
                 .frame(maxHeight: Self.maxHeight)
                 .clipShape(.rect(cornerRadius: 16))
-                .accessibilityLabel(card.metadataTitle ?? card.fileMetadata?.fileName ?? "Image")
+                .accessibilityLabel(card.metadataTitle ?? card.fileMetadata?.fileName ?? tr("native.card.preview.image"))
         }
     }
 
@@ -135,7 +135,7 @@ struct VideoPreview: View {
                     .aspectRatio(ratio, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: 16))
             } else {
-                Unavailable(label: "Video preview unavailable", symbol: "play.rectangle")
+                Unavailable(label: tr("native.card.preview.videoUnavailable"), symbol: "play.rectangle")
             }
         }
     }
@@ -231,7 +231,7 @@ struct AudioPreview: View {
                 }
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
-                .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+                .accessibilityLabel(playback.isPlaying ? tr("native.card.preview.pause") : tr("native.card.preview.play"))
                 WaveformView(seed: card.id, progress: playback.progress)
                     .frame(height: 56)
                 Text(timeLabel)
@@ -242,15 +242,15 @@ struct AudioPreview: View {
             .background(.fill.quaternary, in: .rect(cornerRadius: 20))
             .onDisappear { playback.stop() }
         } else {
-            Unavailable(label: "Audio unavailable", symbol: "waveform")
+            Unavailable(label: tr("native.card.preview.audioUnavailable"), symbol: "waveform")
         }
     }
 
     private var unplayableLabel: String {
         #if os(macOS)
-        "This recording format can't play on Mac"
+        tr("apple.card.audioUnplayableMac")
         #else
-        "This recording format can't play on iPhone"
+        tr("apple.card.audioUnplayableIPhone")
         #endif
     }
 
@@ -280,7 +280,7 @@ struct DocumentPreview: View {
             HStack(spacing: 10) {
                 Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(card.fileMetadata?.fileName ?? card.metadataTitle ?? "Attachment").font(.headline)
+                    Text(card.fileMetadata?.fileName ?? card.metadataTitle ?? tr("native.card.preview.attachment")).font(.headline)
                     if let summary = CardSheet.documentSummary(card) {
                         Text(summary).font(.subheadline).foregroundStyle(.secondary)
                     }
@@ -298,7 +298,7 @@ struct DocumentPreview: View {
                 }
             }
             if let url = SafeURL.sanitize(card.fileUrl) {
-                Button("View Document", systemImage: "doc.viewfinder") { openURL(url) }
+                Button(tr("native.card.preview.viewDocument"), systemImage: "doc.viewfinder") { openURL(url) }
                     .buttonStyle(.glass)
             }
         }
@@ -345,7 +345,7 @@ struct PalettePreview: View {
     var body: some View {
         let colors = card.colors ?? []
         if colors.isEmpty {
-            Unavailable(label: "No colors saved", symbol: "paintpalette")
+            Unavailable(label: tr("native.card.preview.noColors"), symbol: "paintpalette")
         } else {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 16) {
                 ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
@@ -362,7 +362,7 @@ struct PalettePreview: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Copy \(color.name ?? color.hex)")
+                    .accessibilityLabel(tr("native.card.copyColor", color.name ?? color.hex))
                 }
             }
             .sensoryFeedback(.success, trigger: copied)
@@ -404,7 +404,7 @@ struct QuotePreview: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "quote.opening").font(.title3).foregroundStyle(.tertiary)
-            Text(card.content.isEmpty ? "No content" : card.content)
+            Text(card.content.isEmpty ? tr("native.card.noContent") : card.content)
                 .font(.title2.weight(.medium))
                 .multilineTextAlignment(.center)
                 .textSelection(.enabled)

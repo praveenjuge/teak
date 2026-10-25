@@ -2,7 +2,6 @@ package com.praveenjuge.teak.core.data.auth
 
 import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.convex.ConvexFunctions
-import com.praveenjuge.teak.core.model.SIGNUPS_PAUSED_MESSAGE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -37,14 +36,14 @@ class ConvexUserBootstrap @Inject constructor(
             val reason = result["reason"]?.jsonPrimitive?.content
             when {
                 status == "ok" -> return
-                status == "verify_email" -> throw SignInException("Verify your email before opening your vault.")
-                status == "frozen" -> throw SignInException(SIGNUPS_PAUSED_MESSAGE)
+                status == "verify_email" -> throw SignInException.verifyEmail()
+                status == "frozen" -> throw SignInException.signupsPaused()
                 status == "quarantined" && reason == "profile_pending" && attempt < PROFILE_PENDING_RETRIES ->
                     delay(PROFILE_PENDING_DELAY_MS)
-                else -> throw SignInException(UNABLE_TO_OPEN_VAULT)
+                else -> throw SignInException.vaultUnavailable()
             }
         }
-        throw SignInException(UNABLE_TO_OPEN_VAULT)
+        throw SignInException.vaultUnavailable()
     }
 
     private suspend fun call(accessToken: String): JsonObject = withContext(Dispatchers.IO) {
@@ -61,13 +60,13 @@ class ConvexUserBootstrap @Inject constructor(
         try {
             httpClient.newCall(request).execute().use { response ->
                 val root = Json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject
-                if (root["status"]?.jsonPrimitive?.content != "success") throw SignInException(UNABLE_TO_OPEN_VAULT)
-                root["value"]?.jsonObject ?: throw SignInException(UNABLE_TO_OPEN_VAULT)
+                if (root["status"]?.jsonPrimitive?.content != "success") throw SignInException.vaultUnavailable()
+                root["value"]?.jsonObject ?: throw SignInException.vaultUnavailable()
             }
         } catch (e: IOException) {
-            throw SignInException("Unable to connect. Please try again.", e)
+            throw SignInException.connectFailed(e)
         } catch (e: IllegalArgumentException) {
-            throw SignInException(UNABLE_TO_OPEN_VAULT, e)
+            throw SignInException.vaultUnavailable(e)
         }
     }
 

@@ -107,7 +107,7 @@ public actor TeakSession {
     /// before anything is saved, so a failed bootstrap leaves the app signed out.
     public func exchangeCode(_ code: String, request: AuthKitRequest, attempt: Int) async throws -> SignInOutcome {
         guard !code.isEmpty, request.verifier.wholeMatch(of: /[A-Za-z0-9._~-]{43,128}/) != nil else {
-            throw TeakError(message: "Invalid sign-in callback")
+            throw TeakError(message: tr("native.errors.invalidSignInCallback"))
         }
         let epoch = lock.epoch()
         guard attempt == signInAttempt else { return .superseded }
@@ -115,7 +115,7 @@ public actor TeakSession {
             "grant_type": "authorization_code", "code": code, "code_verifier": request.verifier,
         ])
         let next = try SessionParser.parseResponse(data, clientId: request.clientId)
-        guard next.expiresAt > now() else { throw TeakError(message: "Expired session token") }
+        guard next.expiresAt > now() else { throw TeakError(message: tr("native.errors.expiredSessionToken")) }
         guard attempt == signInAttempt else { return .superseded }
         try await bootstrap?(next.accessToken)
         guard attempt == signInAttempt else { return .superseded }
@@ -272,7 +272,7 @@ public actor TeakSession {
                response.statusCode == 401 || code == "invalid_grant" || code == "invalid_refresh_token" {
                 throw InvalidRefreshToken()
             }
-            throw TeakError(message: "Unable to complete sign-in")
+            throw TeakError(message: tr("native.errors.signInFailed"))
         }
         return data
     }

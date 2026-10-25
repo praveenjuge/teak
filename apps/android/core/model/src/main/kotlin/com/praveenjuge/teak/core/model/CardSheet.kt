@@ -3,12 +3,16 @@ package com.praveenjuge.teak.core.model
 import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.text.NumberFormat
+import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.min
 import kotlin.math.roundToLong
 
-data class DetailRow(val label: String, val value: String)
+data class DetailRow(val label: UiText, val value: UiText) {
+    constructor(label: UiText, value: String) : this(label, UiText.verbatim(value))
+}
 
 sealed interface ShareTarget {
     data object None : ShareTarget
@@ -19,17 +23,16 @@ sealed interface ShareTarget {
 object CardSheet {
     private val sizeUnits = listOf("B", "KB", "MB", "GB")
 
-    fun formatFileSize(bytes: Double): String {
+    fun formatFileSize(bytes: Double, locale: Locale = Locale.getDefault()): String {
         if (!(bytes > 0)) return "0 B"
         val exponent = min(floor(ln(bytes) / ln(1024.0)).toInt(), sizeUnits.size - 1)
         val scaled = bytes / Math.pow(1024.0, exponent.toDouble())
-        val rounded = if (exponent == 0) {
-            scaled.roundToLong().toString()
-        } else {
-            val tenths = (scaled * 10).roundToLong() / 10.0
-            if (tenths % 1.0 == 0.0) tenths.toLong().toString() else tenths.toString()
-        }
-        return "$rounded ${sizeUnits[exponent]}"
+        val rounded = if (exponent == 0) scaled.roundToLong().toDouble() else (scaled * 10).roundToLong() / 10.0
+        val number = NumberFormat.getNumberInstance(locale).apply {
+            maximumFractionDigits = 1
+            isGroupingUsed = false
+        }.format(rounded)
+        return "$number ${sizeUnits[exponent]}"
     }
 
     fun formatDuration(seconds: Double): String {
@@ -60,34 +63,35 @@ object CardSheet {
         return "download-$now${extension?.let { ".$it" }.orEmpty()}"
     }
 
-    fun fileFacts(card: Card): List<String> {
+    /** A file's language and kind as the server writes them, then counts: "12 slides", "1 folder". */
+    fun fileFacts(card: Card): List<UiText> {
         val file = card.fileMetadata ?: return emptyList()
         val preview = file.preview
-        val facts = listOfNotNull(
-            file.language,
-            file.kind,
-            preview?.slideCount?.let { "${it.toLong()} slides" },
-            preview?.wordCount?.let { "%,d words".format(it.toLong()) },
-            preview?.archiveFileCount?.let { "${it.toLong()} files" },
-            preview?.archiveDirectoryCount?.let { "${it.toLong()} folders" },
-        ).filter { it.isNotEmpty() }
-        val typeLabel = card.type.label.lowercase()
-        return facts.filter { it.lowercase() != typeLabel }
+        // The server writes `kind` in English, so it's compared with the type's English name.
+        val written = listOfNotNull(file.language, file.kind).filter { it.isNotEmpty() && it.lowercase() != card.type.wireName }
+        return written.map(UiText::verbatim) + listOfNotNull(
+            preview?.slideCount?.let { UiText.of("native.details.slides", count = it.toInt()) },
+            preview?.wordCount?.let { UiText.of("native.details.words", count = it.toInt()) },
+            preview?.archiveFileCount?.let { UiText.of("native.details.files", count = it.toInt()) },
+            preview?.archiveDirectoryCount?.let { UiText.of("native.details.folders", count = it.toInt()) },
+        )
     }
 
-    fun detailRows(card: Card): List<DetailRow> = buildList {
-        add(DetailRow("Type", card.type.label))
+    fun detailRows(card: Card, locale: Locale = Locale.getDefault()): List<DetailRow> = buildList {
+        add(DetailRow(UiText.of("native.details.type"), card.type.labelText))
         val file = card.fileMetadata
-        if (card.type == CardType.Link) hostname(card.url)?.let { add(DetailRow("Website", it)) }
-        file?.fileName?.let { add(DetailRow("File", it)) }
-        file?.mimeType?.let { add(DetailRow("Format", it)) }
-        file?.fileSize?.let { add(DetailRow("Size", formatFileSize(it))) }
+        if (card.type == CardType.Link) hostname(card.url)?.let { add(DetailRow(UiText.of("native.details.website"), it)) }
+        file?.fileName?.let { add(DetailRow(UiText.of("native.details.file"), it)) }
+        file?.mimeType?.let { add(DetailRow(UiText.of("native.details.format"), it)) }
+        file?.fileSize?.let { add(DetailRow(UiText.of("native.details.size"), formatFileSize(it, locale))) }
         if (file?.width != null && file.height != null) {
-            add(DetailRow("Dimensions", "${file.width.toLong()} × ${file.height.toLong()}"))
+            add(DetailRow(UiText.of("native.details.dimensions"), "${file.width.toLong()} × ${file.height.toLong()}"))
         }
-        file?.duration?.let { add(DetailRow("Duration", formatDuration(it))) }
-        fileFacts(card).takeIf { it.isNotEmpty() }?.let { add(DetailRow("Details", it.joinToString(" · "))) }
-        card.metadataDescription?.trim()?.takeIf { it.isNotEmpty() }?.let { add(DetailRow("Description", it)) }
+        file?.duration?.let { add(DetailRow(UiText.of("native.details.duration"), formatDuration(it))) }
+        fileFacts(card).takeIf { it.isNotEmpty() }?.let { facts ->
+            add(DetailRow(UiText.of("native.details.details"), facts.reduceRight { fact, rest -> UiText.of("native.details.list", fact, rest) }))
+        }
+        card.metadataDescription?.trim()?.takeIf { it.isNotEmpty() }?.let { add(DetailRow(UiText.of("native.details.description"), it)) }
     }
 
     fun copyText(card: Card): String? {
@@ -119,13 +123,12 @@ object CardSheet {
         } ?: ShareTarget.None
     }
 
-    fun title(card: Card, fallback: String? = null): String = when (card.type) {
-        CardType.Text -> "Note"
-        CardType.Quote -> "Quote"
-        else -> card.metadataTitle?.takeIf { it.isNotBlank() }
-            ?: card.fileMetadata?.fileName?.takeIf { it.isNotBlank() }
-            ?: fallback
-            ?: card.type.label
+    fun title(card: Card, fallback: String? = null): UiText = when (card.type) {
+        CardType.Text -> UiText.of("native.card.note")
+        CardType.Quote -> UiText.of("cards.types.quote")
+        else -> (card.metadataTitle?.takeIf { it.isNotBlank() } ?: card.fileMetadata?.fileName?.takeIf { it.isNotBlank() } ?: fallback)
+            ?.let(UiText::verbatim)
+            ?: card.type.labelText
     }
 
     fun imagePrimaryUrl(card: Card): String? {

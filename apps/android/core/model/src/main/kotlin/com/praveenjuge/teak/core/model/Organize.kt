@@ -96,6 +96,38 @@ data class TagOperation(
             TagOperationStatus.Completed -> if (changed.toInt() == 1) "1 card changed" else "${changed.toInt()} cards changed"
             TagOperationStatus.Failed -> "Try again to change the rest."
         }
+
+    /** [title] in the app's language. */
+    val titleText: UiText
+        get() {
+            val target = to.orEmpty()
+            val count = total.toInt()
+            return when (status) {
+                TagOperationStatus.Running -> when (kind) {
+                    TagOperationKind.Rename -> UiText.of("native.tags.card.renaming", from, target)
+                    TagOperationKind.Merge -> UiText.of("native.tags.card.merging", from, target)
+                    TagOperationKind.Delete -> UiText.of("native.tags.card.deleting", from)
+                }
+                TagOperationStatus.Completed -> when (kind) {
+                    TagOperationKind.Rename -> UiText.of("native.tags.card.renamed", from, target)
+                    TagOperationKind.Merge -> UiText.of("native.tags.card.merged", from, target)
+                    TagOperationKind.Delete -> UiText.of("native.tags.card.deleted", from)
+                }
+                TagOperationStatus.Failed -> when (kind) {
+                    TagOperationKind.Rename -> UiText.of("native.tags.card.renameFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Merge -> UiText.of("native.tags.card.mergeFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Delete -> UiText.of("native.tags.card.deleteFailed", changedCount.toString(), count = count)
+                }
+            }
+        }
+
+    /** [detail] in the app's language. */
+    val detailText: UiText
+        get() = when (status) {
+            TagOperationStatus.Running -> UiText.of("native.tags.card.progress", changedCount.toString(), count = total.toInt())
+            TagOperationStatus.Completed -> UiText.of("native.tags.card.changed", count = changed.toInt())
+            TagOperationStatus.Failed -> UiText.of("native.tags.card.retryRest")
+        }
 }
 
 /** A `[[` link's target, with its current title, or `missing` when it's gone or not yours. */
@@ -113,7 +145,8 @@ data class SimilarAnchor(val status: String, val title: String? = null)
 
 sealed interface RefreshOutcome {
     data object Queued : RefreshOutcome
-    data class Refused(val message: String) : RefreshOutcome
+    /** The server's reason, or null when it gave none. */
+    data class Refused(val message: String?) : RefreshOutcome
 }
 
 @Serializable
@@ -134,4 +167,12 @@ enum class CardSort(val wireName: String, val label: String) {
     Newest("newest", "Newest first"),
     Oldest("oldest", "Oldest first"),
     Shuffle("shuffle", "Shuffle"),
+    ;
+
+    val labelText: UiText
+        get() = when (this) {
+            Newest -> UiText.of("native.filters.sort.newest")
+            Oldest -> UiText.of("native.filters.sort.oldest")
+            Shuffle -> UiText.of("native.filters.sort.shuffle")
+        }
 }
