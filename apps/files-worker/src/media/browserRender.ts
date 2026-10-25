@@ -103,7 +103,11 @@ export const captureHtmlScreenshot = async (
       timeout: PAGE_TIMEOUT_MS,
       waitUntil: "domcontentloaded",
     });
-    await page.addStyleTag({ content: SCREENSHOT_CLEANUP_CSS });
+    // Tidying is best effort: a page's Content-Security-Policy can refuse the
+    // style tag, and the screenshot is still worth taking without it.
+    await page
+      .addStyleTag({ content: SCREENSHOT_CLEANUP_CSS })
+      .catch(() => undefined);
     return new Uint8Array(await page.screenshot({ quality: 80, type: "jpeg" }));
   });
 

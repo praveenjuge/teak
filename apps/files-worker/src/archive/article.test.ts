@@ -34,6 +34,17 @@ const decoded = (base64: string) =>
   );
 
 describe("extractArticle", () => {
+  test("reads an article from a page with no <body> tag or content after it", async () => {
+    const paragraph = `<p>${sentences(12)}</p>`;
+    for (const html of [
+      `<!doctype html><html lang="en"><head><title>A guide</title></head><div><div>${paragraph}${paragraph}</div></div></html>`,
+      `<!doctype html><html lang="en"><body></body><article>${paragraph}${paragraph}</article></html>`,
+    ]) {
+      const result = await extractArticle(html, PAGE_URL);
+      expect(result.kind).toBe("article");
+    }
+  });
+
   test("turns headings, lists, tables, code, quotes and links into Markdown", async () => {
     const html = page(`<article>
       <h1>A careful guide to notes</h1>
