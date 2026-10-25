@@ -58,6 +58,7 @@ actor LanguageLock {
     private var waiting: [(exclusive: Bool, continuation: CheckedContinuation<Void, Never>)] = []
 
     func acquire(exclusive: Bool) async {
+        if waiting.isEmpty && readers == 0 && !writing { saved = Self.defaults?.string(forKey: Self.key) }
         if waiting.isEmpty && take(exclusive: exclusive) { return }
         await withCheckedContinuation { waiting.append((exclusive, $0)) }
     }
@@ -76,7 +77,6 @@ actor LanguageLock {
 
     private func take(exclusive: Bool) -> Bool {
         if writing || (exclusive && readers > 0) { return false }
-        if readers == 0 { saved = Self.defaults?.string(forKey: Self.key) }
         if exclusive { writing = true } else { readers += 1 }
         return true
     }
