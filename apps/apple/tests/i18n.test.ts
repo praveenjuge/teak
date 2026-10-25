@@ -41,10 +41,9 @@ describe("Apple string catalogs", () => {
       resolve(APPLE, "../../packages/i18n/messages"),
       "apple"
     );
-    const source = readFileSync(
-      join(APPLE, "Teak/Intents/SaveToTeakIntent.swift"),
-      "utf8"
-    );
+    const source = swiftFiles(join(APPLE, "Teak/Intents"))
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
     // The system finds these by their English text, so the Swift literal must match it.
     const missing = [...messages.en]
       .filter(([key]) => /^apple\.(appShortcuts|intentSummaries)\./.test(key))
