@@ -16,6 +16,7 @@ import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.CreatedAtRange
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.LinkDetection
+import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.MAX_BULK_CARD_IDS
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.SimilarAnchor
@@ -62,6 +63,9 @@ interface CardsRepository {
 
     fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>>
     fun backlinks(id: String): Flow<Result<CardBacklinks>>
+
+    /** Cards the `[[` picker offers for [query]: never Trash or [excludeCardId]; hidden ones only for a revealing tag. */
+    fun linkSuggestions(query: String, excludeCardId: String): Flow<Result<List<LinkedCard>>>
     fun similarAnchor(id: String): Flow<Result<SimilarAnchor>>
     fun viewHasHiddenCards(view: LibraryView, folderId: String?): Flow<Result<Boolean>>
 
@@ -163,6 +167,9 @@ class ConvexCardsRepository @Inject constructor(
 
     override fun backlinks(id: String): Flow<Result<CardBacklinks>> =
         convex.subscribe(ConvexFunctions.getCardBacklinks, mapOf("cardId" to id))
+
+    override fun linkSuggestions(query: String, excludeCardId: String): Flow<Result<List<LinkedCard>>> =
+        convex.subscribe(ConvexFunctions.searchCardLinkSuggestions, mapOf("query" to query, "excludeCardId" to excludeCardId))
 
     override fun similarAnchor(id: String): Flow<Result<SimilarAnchor>> =
         convex.subscribe(ConvexFunctions.similarAnchorSummary, mapOf("cardId" to id))

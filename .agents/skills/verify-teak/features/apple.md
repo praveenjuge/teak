@@ -20,6 +20,7 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 - `apple-share-details` adds tags and a note after a single shared item is saved.
 - `apple-safari-save` saves the Safari tab with `createCard` and no duplicate check first: a page already in Teak moves to the top (and out of Archive) and the popup reads "Saved to Teak", since `createCard` returns only the id.
 - `apple-commands` offers Card menu commands on Mac and iPad: Archive ⌃⌘A, Mark as Done ⇧⌘D, More Like This ⇧⌘L, Refresh Details ⌥⌘R, and View › Revisit ⌃⌘R.
+- `apple-card-link-picker` opens a "Link a card" list under a note's Edit field when `[[` is typed, searches as you type (`cards:searchCardLinkSuggestions`, as the web's menu: no Trash, not the note itself), and puts in `[[Title|teak:<id>]]` on a tap or ↑/↓ and Return; Escape or deleting the `[[` closes it.
 
 ## How to get to it (user POV)
 
@@ -51,6 +52,7 @@ Steps:
 - **Hidden hint.** Open a note → pencil → add tag `Secret`: "Hidden. Search #secret to see it." under Tags. Cancel → Discard changes.
 - **Revisit.** More › **Revisit**: "1 of 20" with a card, its type and "Saved <date>". Swipe right (Keep) → "2 of 20"; swipe left (Archive) → "3 of 20" and **Undo**; Undo → "2 of 20". On a view with fewer cards (`#rv1`) the deck ends with "All caught up" and "<n> archived · <n> kept". Revisit is greyed out in Archive and Trash.
 - **Card links.** Search `#scenario-backlinks hub`, open "Source 60": the pill "Hub with 60 backlinks"; tap it → the hub opens with **Linked from** rows. Search `"Broken links"` and open it: three "Missing card" pills, "Renamed after linking" live title, RTL, CJK and emoji titles.
+- **Card link picker.** Open any note → pencil → in the note field type " [[garden": the "Link a card" list shows "Garden plan" (seeded by `card-links`) and never the note itself. Tap it (Mac: ↓ then Return): the field reads `[[Garden plan|teak:<id>]] ` and the list closes. **Save**: the note shows a "Garden plan" pill, and "Garden plan" lists the note under **Linked from**. Type "[[" then Escape (hardware keyboard): the list closes and stays closed until the `[[` is deleted. `[[trash` offers no card from Trash.
 - **Card details.** Search `#scenario-save-details`, open "A selection from a page whose title runs to 300 characters.": "From example.org" and the page title at the bottom. Product links show **Price**, dated links **Published**, uploaded photos with EXIF the camera rows.
 - **Tags.** iPhone Settings › Tags (iPad and Mac sidebar Tags): every tag with counts, hidden tags with an eye-slash. Press and hold "design" → **Rename…** to "design-systems": the progress row, then "Renamed “design” to “design-systems”. 38 cards changed." Rename it back so seeded smart folders keep matching.
 - **Share.** Share a single link or text to Teak: "Saved", then **Add tags** and **Add a note** fields and **Done**/**Save**; it closes on its own after 3 seconds if untouched.

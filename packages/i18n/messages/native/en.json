@@ -573,6 +573,15 @@
       },
       "usage": "{used} of {count, plural, one {# card} other {# cards}}"
     },
+    "linkPicker": {
+      "label": "Link a card",
+      "hint": "Type [[ to link another card.",
+      "searching": "Searching cards…",
+      "failed": "Couldn't search cards",
+      "noMatches": "No matching cards",
+      "noCards": "No cards yet",
+      "option": "Link {title}"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "Type",

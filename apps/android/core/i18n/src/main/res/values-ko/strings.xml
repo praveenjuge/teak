@@ -602,6 +602,13 @@
     <string name="native_library_toast_deletedForever">카드가 영구 삭제되었습니다</string>
     <string name="native_library_toast_restored">카드가 복원되었습니다</string>
     <string name="native_library_toast_trashed">카드를 휴지통으로 이동했습니다</string>
+    <string name="native_linkPicker_failed">Couldn\'t search cards</string>
+    <string name="native_linkPicker_hint">Type [[ to link another card.</string>
+    <string name="native_linkPicker_label">Link a card</string>
+    <string name="native_linkPicker_noCards">No cards yet</string>
+    <string name="native_linkPicker_noMatches">No matching cards</string>
+    <string name="native_linkPicker_option">Link %1$s</string>
+    <string name="native_linkPicker_searching">Searching cards…</string>
     <string name="native_revisit_archived">보관됨</string>
     <string name="native_revisit_caption">%1$s · %2$s에 저장됨</string>
     <string name="native_revisit_close">다시 보기 닫기</string>

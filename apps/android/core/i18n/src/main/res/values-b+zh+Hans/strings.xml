@@ -602,6 +602,13 @@
     <string name="native_library_toast_deletedForever">卡片已永久删除</string>
     <string name="native_library_toast_restored">卡片已恢复</string>
     <string name="native_library_toast_trashed">卡片已移到废纸篓</string>
+    <string name="native_linkPicker_failed">Couldn\'t search cards</string>
+    <string name="native_linkPicker_hint">Type [[ to link another card.</string>
+    <string name="native_linkPicker_label">Link a card</string>
+    <string name="native_linkPicker_noCards">No cards yet</string>
+    <string name="native_linkPicker_noMatches">No matching cards</string>
+    <string name="native_linkPicker_option">Link %1$s</string>
+    <string name="native_linkPicker_searching">Searching cards…</string>
     <string name="native_revisit_archived">已归档</string>
     <string name="native_revisit_caption">%1$s · 保存于 %2$s</string>
     <string name="native_revisit_close">关闭回顾</string>

@@ -104,6 +104,8 @@ fun CardEditRoute(cardId: String, onDone: () -> Unit) {
             onClose = onDone,
             onSave = viewModel::save,
             onContentChange = viewModel::updateContent,
+            onPickLink = viewModel::pickLink,
+            onDismissLinkPicker = viewModel::dismissLinkPicker,
             onNotesChange = viewModel::updateNotes,
             onNewTagChange = viewModel::updateNewTag,
             onAddTag = viewModel::addTag,
