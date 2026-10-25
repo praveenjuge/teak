@@ -7,8 +7,23 @@ import TeakSync
 final class LibraryModel {
     let pager: CardPager
 
-    var text = "" { didSet { scheduleSearch() } }
-    var tokens: [SearchToken] = [] { didSet { reload() } }
+    var text = "" {
+        didSet {
+            if !text.isEmpty { typedText = text }
+            scheduleSearch()
+        }
+    }
+    var tokens: [SearchToken] = [] {
+        didSet {
+            // A picked hint (`-tag:`, `OR`) writes into the text instead of staying a token.
+            if let hint = tokens.first(where: { $0.kind == .hint }) {
+                tokens.removeAll { $0.kind == .hint }
+                applyHint(hint)
+                if tokens == oldValue { return }
+            }
+            reload()
+        }
+    }
     var filters = LibraryFilters.empty { didSet { reload() } }
     var sort = LibrarySort.newest { didSet { reload() } }
 
@@ -24,6 +39,8 @@ final class LibraryModel {
     private var hiddenIds: Set<String> = []
     @ObservationIgnored private let backend: TeakBackend
     @ObservationIgnored private var debouncedText = ""
+    /// The text as last typed, which picking a suggested token may clear.
+    @ObservationIgnored private var typedText = ""
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var statusTask: Task<Void, Never>?
     @ObservationIgnored private var semanticTask: Task<Void, Never>?
@@ -126,6 +143,14 @@ final class LibraryModel {
             guard !Task.isCancelled else { return }
             hasHiddenCards = hidden
         }
+    }
+
+    /// Puts a picked hint in place of the word being typed. The search field
+    /// may clear its text as it takes a token, so this works from the text as
+    /// last typed and writes it on the next turn, after the field's own change.
+    private func applyHint(_ hint: SearchToken) {
+        let next = SearchTokens.applying(hint, to: text.isEmpty ? typedText : text)
+        Task { @MainActor [weak self] in self?.text = next }
     }
 
     func commitText() {

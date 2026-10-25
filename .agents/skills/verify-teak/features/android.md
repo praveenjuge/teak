@@ -17,6 +17,7 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 - `android-revisit` deals up to 20 shuffled cards from the current view: swipe or ← to archive, → to keep, Z to undo, and "All caught up" at the end.
 - `android-tags` lists tags in Settings → Tags and renames, merges or deletes one, with progress.
 - `android-share` saves a shared link or text, then offers "Add tags and a note"; left alone the sheet closes itself.
+- `android-search-operators` sends `-`, `OR`, parentheses and `site:` as typed (no chips for a search with operators), lists suggestions under the search field ("Exclude" with `-tag:` … `-is:`, "Combine" with "OR · Either side matches", "Filters", "Types", "Show"), and searches the words beside a date ("figma last week" sends the date range and "figma"). See [search-operators](./search-operators.md).
 
 ## How to get to it (user POV)
 
@@ -51,6 +52,7 @@ Steps:
 - **Hidden.** `tag:secret`: header "Shows hidden cards"; a hidden card's Tags read "Hidden. Only a search for #secret or #hidden shows this card.". Edit a visible note → add tag "Secret" → "Hidden. Search #secret to see it." → Close → "Discard".
 - **Revisit.** Clear the search, tap "Revisit": "1 of 20". Swipe right (keep), press ← (archive: "Archived 1 card" with "Undo"), press Z (back one, card unarchived), press → until "All caught up" with "N archived · N kept", then "Done".
 - **Tags.** Settings → Tags → "Find a tag" → your run's tag → "More for …" → "Rename…" (card "Renamed “…” to “…” · N cards changed"), "Merge into…" (pick a tag → "Merge into “…”"), "Delete…" → "Delete tag" ("Deleted “…”"; "No tags match …"). Deleting the run's tags is also the cleanup for **Bulk**.
+- **Search operators.** Seed `search-operators` and search the rows of [search-operators](./search-operators.md)'s table (each after `#scenario-search-operators`, in parentheses): the counts match the web's, and no filter chips show. Type `design -`: under the field, "Exclude" lists `-tag:` "Leave out cards with a tag" … `-is:`; tap `-tag:` and the field reads `design -tag:`. Type `design o`: "Combine" with "OR" "Either side matches"; tap it and the field reads `design OR `. `#scenario-search-operators figma last week` lists only cards saved last week that match "figma".
 - **Share.** On the second account: `adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://example.com/verify-<run-id>" -n com.praveenjuge.teak.debug/com.praveenjuge.teak.feature.capture.share.ShareActivity` → "Saved" with "Add tags and a note"; tap it within 6 seconds, add tags and a note, "Save": the sheet closes and the card's detail shows both. Shared again without tapping, the sheet closes on its own.
 
 ## Gotchas

@@ -9,7 +9,7 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 - `apple-sort` sorts by Newest first, Oldest first or Shuffle from the More menu, with Reshuffle for a new order.
 - `apple-folders` lists folders and smart folders (sidebar on Mac and iPad, the **Folders** tab on iPhone), opens one, creates, renames and deletes with Undo, files a card from its Folders row or the selection bar, and saves the current search as a smart folder.
 - `apple-done` toggles "Mark as read/watched/bought…" or "Mark as done" on a link, shows a check on done tiles, and finds them with `is:done` and `is:todo`.
-- `apple-search` turns typed `is:archived`, `is:done`, `is:todo`, `price:<n>`, `text:"…"`, `mood:…`, `#tag` and quoted phrases into chips, searches by meaning, and shows "Shows hidden cards" for a `#secret` or `#hidden` search.
+- `apple-search` turns the filters with a search argument of their own (a type, favorites, `is:archived`, Trash, a color, a style, a date) into chips on Return and keeps the other words in one word chip as typed; picked suggestions (`is:todo`, `type:image`) become chips; it searches by meaning, and shows "Shows hidden cards" for a `#secret` or `#hidden` search.
 - `apple-more-like-this` opens the library with a "Similar to" chip from a card's More menu or context menu.
 - `apple-refresh` runs Refresh details and shows the queued message, or the refusal ("This card is already refreshing…").
 - `apple-hidden` shows "Hidden. Search #secret to see it." in Edit when a hidden tag is added.
@@ -20,6 +20,7 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 - `apple-share-details` adds tags and a note after a single shared item is saved.
 - `apple-safari-save` saves the Safari tab with `createCard` and no duplicate check first: a page already in Teak moves to the top (and out of Archive) and the popup reads "Saved to Teak", since `createCard` returns only the id.
 - `apple-commands` offers Card menu commands on Mac and iPad: Archive ⌃⌘A, Mark as Done ⇧⌘D, More Like This ⇧⌘L, Refresh Details ⌥⌘R, and View › Revisit ⌃⌘R.
+- `apple-search-operators` sends `-`, `OR`, parentheses and `site:` as typed (one word chip on Return), suggests "-tag: · Leave out cards with a tag"… after a `-` and "OR · Either side matches" after a word, and searches the words beside a date ("figma last week"). See [search-operators](./search-operators.md).
 
 ## How to get to it (user POV)
 
@@ -45,7 +46,8 @@ Steps:
 - **Sort.** More › **Shuffle**: the order changes and **Reshuffle** appears; **Newest first** restores it.
 - **Folders.** iPhone **Folders** tab (iPad and Mac sidebar) → "Design refs" pushes a page titled "Design refs" with its 12 cards and its own More menu; a card opened there stays in the Folders tab; "Design links" is a smart folder (`tag:design type:link`). Search `type:link is:fav` → More › **Save as smart folder…** → "Saved “…”". Press and hold a folder → **Rename…** / **Delete** (Undo restores it).
 - **Done.** Search `#scenario-done-states`; done links show a green check. Open "A tv link" → tap **Mark as watched**: "Marked as watched", the toggle reads "Watched"; tap again to undo. Type `is:todo` + Return: only actionable links that aren't done.
-- **Search.** Type `is:todo price:<100 text:"Total due" mood:calm` + Return: four chips ("To do", "Price: Under 100", "Text in image: Total due", "Mood: “calm”"). `#secret` + Return: the "Shows hidden cards" header and the hidden cards.
+- **Search.** Type `is:to` and pick "To do" from the suggestions: a "To do" chip. Type `type:image price:<100 text:"Total due"` + Return: an "Image" type chip and one word chip `price:<100 text:"Total due"`. `#secret` + Return: the "Shows hidden cards" header and the hidden cards.
+- **Search operators.** Seed `search-operators` and search the rows of [search-operators](./search-operators.md)'s table (each after `#scenario-search-operators`, in parentheses): the counts match the web's. Type `design -`: the suggestions list `-tag:` … `-is:` with "Leave out …"; pick "-tag:" and the field reads `design -tag:`. Type `design o`: "OR · Either side matches"; pick it and the field reads `design OR `. `#scenario-search-operators figma last week` lists only cards saved last week that match "figma".
 - **More like this.** Open a card → **More** → **More like this**: Home with a "Similar to: <title>" chip.
 - **Refresh.** Open a card → **More** → **Refresh details**: "Refreshing details. The summary and tags update shortly." Again at once: "This card is already refreshing. Try again in a minute."
 - **Hidden hint.** Open a note → pencil → add tag `Secret`: "Hidden. Search #secret to see it." under Tags. Cancel → Discard changes.

@@ -14,6 +14,29 @@ public struct SharedConstants: Decodable, Sendable {
         public let signupsPaused: String
     }
 
+    /// The search field's hints, from `packages/convex/shared/search/suggestionHints.ts`.
+    public struct SearchSuggestionHints: Decodable, Sendable {
+        public struct Hint: Decodable, Sendable {
+            public let id: String
+            public let group: String
+            public let key: String
+            public let insert: String
+            public let messageKey: String
+        }
+
+        public struct IsOption: Decodable, Sendable {
+            public let value: String
+            public let words: [String]
+            public let messageKey: String
+        }
+
+        public let qualifiers: [Hint]
+        public let exclude: [Hint]
+        public let or: Hint
+        public let isOptions: [IsOption]
+        public let groups: [String: String]
+    }
+
     public let cardTypes: [String]
     public let cardTypeLabels: [String: String]
     public let limits: Limits
@@ -30,6 +53,7 @@ public struct SharedConstants: Decodable, Sendable {
     public let colorHueLabels: [String: String]
     public let colorHueAliases: [String: String]
     public let genericMimeTypes: [String]
+    public let searchSuggestionHints: SearchSuggestionHints
     public let locales: [AppLanguage.Option]
     public let fileFormats: [FileFormat]
 

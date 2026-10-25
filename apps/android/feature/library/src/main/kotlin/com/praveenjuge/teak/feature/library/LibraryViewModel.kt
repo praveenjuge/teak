@@ -26,7 +26,6 @@ import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.core.model.SearchSimilarity
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.TimeFilter
-import com.praveenjuge.teak.core.model.TimeSearch
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -78,6 +77,8 @@ data class LibraryUiState(
     val filters: LibraryFilters = LibraryFilters.Empty,
     val search: String = "",
     val timeFilter: TimeFilter? = null,
+    /** The search without the date words [timeFilter] came from: "figma" for "figma last week". */
+    val searchWithoutDate: String = "",
     val paged: PagedCards = PagedCards(),
     val selection: Selection = Selection.None,
     val isRunningBulkAction: Boolean = false,
@@ -120,7 +121,7 @@ data class LibraryUiState(
 
     /** The view Revisit deals its deck from: this one, as it is now. */
     val revisitQuery: CardQuery
-        get() = timeFilter?.let { CardQuery(range = it.range, filters = filters, folderId = folderId) }
+        get() = timeFilter?.let { CardQuery(search = searchWithoutDate, range = it.range, filters = filters, folderId = folderId) }
             ?: CardQuery(search = search, filters = filters, folderId = folderId)
 
     /** What Save as smart folder would save: the typed search plus the filters it can keep. */
@@ -222,15 +223,12 @@ class LibraryViewModel @AssistedInject constructor(
             .map(String::trim)
             .distinctUntilChanged()
         val filters = _state.map { it.filters }.distinctUntilChanged()
-        // Date words read in the app's language, which on Android 12 isn't the process default.
+        // Date words read in the app's language, which on Android 12 isn't the process default. A date
+        // filters by when cards were saved, and the words beside it still search.
         combine(search, filters, language.current) { text, chips, code ->
-            val time = TimeSearch.parse(text, locale = Locale.forLanguageTag(code))
-            _state.update { it.copy(search = text, timeFilter = time) }
-            if (time != null) {
-                CardQuery(range = time.range, filters = chips, folderId = folderId)
-            } else {
-                CardQuery(search = text, filters = chips, folderId = folderId)
-            }
+            val date = SearchQuery.splitDate(text, locale = Locale.forLanguageTag(code))
+            _state.update { it.copy(search = text, timeFilter = date?.filter, searchWithoutDate = date?.rest.orEmpty()) }
+            CardQuery(search = date?.rest ?: text, range = date?.filter?.range, filters = chips, folderId = folderId)
         }
             .distinctUntilChanged()
             .onEach(pager::load)
@@ -274,10 +272,13 @@ class LibraryViewModel @AssistedInject constructor(
     private fun warmMeaningSearch() {
         combine(searchText.debounce(SEMANTIC_DEBOUNCE_MS).map(String::trim), _state.map { it.folder?.query }) { text, scope -> text to scope }
             .distinctUntilChanged()
-            .collectLatestIn { (text, scope) ->
+            .collectLatestIn { (typed, scope) ->
                 _state.update { it.copy(semanticOutcome = null) }
+                // The words beside a date search by meaning; the date filters the keyword results.
+                val text = SearchQuery.splitDate(typed, locale = Locale.forLanguageTag(language.current.value))?.rest ?: typed
+                if (text.isBlank()) return@collectLatestIn
                 val combined = if (scope != null) SearchQuery.combine(scope, text) else text
-                if (combined == null || TimeSearch.parse(text) != null) return@collectLatestIn
+                if (combined == null) return@collectLatestIn
                 if (SearchQuery.semanticRequest(SearchQuery.parse(combined)) == null) return@collectLatestIn
                 val outcome = catchingFailures { repository.requestSemanticResults(text, folderId) }.getOrDefault("unavailable")
                 _state.update { it.copy(semanticOutcome = outcome) }

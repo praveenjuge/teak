@@ -50,7 +50,8 @@ data class LibraryFilters(
         if (favoritesOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Favorite))
         if (archivedOnly) parts += SearchQuery.format(SearchQualifier.Is(SearchIsValue.Archived))
         search.trim().takeIf { it.isNotEmpty() }?.let { parts += it }
-        return parts.joinToString(" ").takeIf { it.isNotEmpty() }
+        // An OR in the search is grouped, so the filters apply to both sides.
+        return SearchQuery.join(parts).takeIf { it.isNotEmpty() }
     }
 
     fun toSearchArgs(): Map<String, Any> = buildMap {

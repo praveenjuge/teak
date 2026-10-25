@@ -1,6 +1,6 @@
 # Search operators
 
-A user types `-` before a word, a phrase or a filter to leave those cards out (`design -figma`, `#inspo -type:image`), uppercase `OR` to match either side (`tag:fonts OR tag:type`), and parentheses to group (`(site:github.com OR site:gitlab.com) -is:archived`). The same text works in the search box, smart folders, the API's `q`, MCP and the CLI. Typing `-` suggests what to leave out, `OR` is suggested after a word, an excluded filter shows as a pill with a "−" before its muted label (not struck through), and the `?` sheet has a "Search" group.
+A user types `-` before a word, a phrase or a filter to leave those cards out (`design -figma`, `#inspo -type:image`), uppercase `OR` to match either side (`tag:fonts OR tag:type`), and parentheses to group (`(site:github.com OR site:gitlab.com) -is:archived`). The same text works in the search box, smart folders, the API's `q`, MCP, the CLI, and the iPhone, iPad, Mac and Android apps, which send it as typed. Typing `-` suggests what to leave out, `OR` is suggested after a word, an excluded filter shows as a pill with a "−" before its muted label (not struck through), and the `?` sheet has a "Search" group.
 
 ## Sub-features
 
@@ -20,6 +20,9 @@ A user types `-` before a word, a phrase or a filter to leave those cards out (`
 - `?` (focus outside a text field) → "Search" group.
 - Sidebar → the pack's smart folders "Fonts or type", "Operators, not archived" and "GitHub or GitLab".
 - `teak search 'design -tag:old'`, `GET /v1/cards?q=…`, MCP `teak_v1_search_cards`.
+- Apple app: the library's search field (iPhone Home, iPad and Mac toolbar); suggestions appear as suggested tokens under it. See `apple-search-operators` in [apple](./apple.md).
+- Android app: Home's search field; suggestions list under it while it has focus. See `android-search-operators` in [android](./android.md).
+- The suggestion hints (filters, Exclude, OR, `is:` values) come from `packages/convex/shared/search/suggestionHints.ts` on every app.
 
 ## Driving it with e2e MCP
 

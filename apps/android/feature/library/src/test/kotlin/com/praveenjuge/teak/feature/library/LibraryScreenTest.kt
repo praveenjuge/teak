@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.longClick
@@ -36,6 +37,28 @@ class LibraryScreenTest {
                 LibraryScreen(state = state, searchState = TextFieldState(), selectedCardId = null, actions = actions)
             }
         }
+    }
+
+    @Test
+    fun `the search field suggests Exclude and OR, and a pick writes into the search`() {
+        val search = TextFieldState("design -")
+        composeRule.setContent {
+            TeakTheme {
+                LibraryScreen(state = LibraryUiState(paged = PagedCards(isLoading = false)), searchState = search, selectedCardId = null, actions = LibraryActions())
+            }
+        }
+        composeRule.onNode(hasSetTextAction()).performClick()
+
+        composeRule.onNodeWithText("Exclude").assertExists()
+        composeRule.onNodeWithText("Leave out cards with a tag").assertExists()
+        composeRule.onNodeWithText("-tag:").performClick()
+        composeRule.runOnIdle { assertEquals("design -tag:", search.text.toString()) }
+
+        composeRule.runOnIdle { search.edit { replace(0, length, "design o") } }
+        composeRule.onNodeWithText("Combine").assertExists()
+        composeRule.onNodeWithText("Either side matches").assertExists()
+        composeRule.onNodeWithText("OR").performClick()
+        composeRule.runOnIdle { assertEquals("design OR ", search.text.toString()) }
     }
 
     @Test

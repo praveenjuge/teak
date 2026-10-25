@@ -80,8 +80,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -95,6 +103,7 @@ import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.QualifierChip
 import com.praveenjuge.teak.core.model.SearchIsValue
 import com.praveenjuge.teak.core.model.SearchQualifier
+import com.praveenjuge.teak.core.model.SearchSuggestion
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -183,11 +192,11 @@ internal fun sortLabel(sort: CardSort): String = when (sort) {
 }
 
 @Composable
-internal fun LibrarySearchField(state: TextFieldState, modifier: Modifier = Modifier) {
+internal fun LibrarySearchField(state: TextFieldState, modifier: Modifier = Modifier, onFocusChange: (Boolean) -> Unit = {}) {
     val focusManager = LocalFocusManager.current
     TextField(
         state = state,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).onFocusChanged { onFocusChange(it.isFocused) },
         placeholder = { Text(tr("native.library.search")) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = if (state.text.isNotEmpty()) {
@@ -308,6 +317,49 @@ private fun ColorChip(hue: ColorHue?, onSelectHue: (ColorHue) -> Unit) {
                         onSelectHue(option)
                     },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Hints for the word being typed, under the search field, as the web offers them: filters to start or
+ * leave out ("Exclude"), `OR` ("Combine"), types and `is:` values. Picking one writes it into the search.
+ */
+@Composable
+internal fun SearchSuggestionList(suggestions: List<SearchSuggestion>, onPick: (SearchSuggestion) -> Unit, modifier: Modifier = Modifier) {
+    if (suggestions.isEmpty()) return
+    val title = tr("native.search.suggestions")
+    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp).semantics { paneTitle = title }) {
+        suggestions.forEachIndexed { index, suggestion ->
+            if (index == 0 || suggestions[index - 1].group != suggestion.group) {
+                Text(
+                    suggestion.groupText.resolve(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 2.dp).semantics { heading() },
+                )
+            }
+            Row(
+                Modifier.fillMaxWidth().clip(CircleShape).clickable { onPick(suggestion) }.padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    suggestion.label.resolve(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = if (suggestion.complete) null else FontFamily.Monospace,
+                    maxLines = 1,
+                )
+                suggestion.detail?.let { detail ->
+                    Text(
+                        detail.resolve(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
