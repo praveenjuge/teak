@@ -32,6 +32,8 @@ export const stackStatePath = (root: string): string =>
 export interface StackState {
   account?: { email: string; password: string };
   groups: number[];
+  /** The E2E stack run by `bun run dev --local`, recorded from its start. */
+  local?: boolean;
   logPath: string;
   mode: "dev" | "e2e";
   notes?: string[];

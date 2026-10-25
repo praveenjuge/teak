@@ -219,8 +219,10 @@ const stopStack = async (): Promise<number> => {
   return 0;
 };
 
+// Recorded when the stack starts, so a second `--local --detach` and
+// `--status` see it as local before its account is seeded.
 const isLocalDevStack = (running: StackState | null): boolean =>
-  running?.mode === "e2e" && Boolean(running.account);
+  running?.mode === "e2e" && running.local === true;
 
 const describeRunning = (running: StackState): string[] => {
   if (running.mode === "e2e" && !isLocalDevStack(running)) {

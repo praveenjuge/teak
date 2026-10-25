@@ -263,8 +263,16 @@ describe("describeStatus", () => {
     };
     const run = describeStatus(mainWorktreePorts(), state);
     expect(run).toContain("An E2E run is using this checkout's ports");
+    const starting = describeStatus(mainWorktreePorts(), {
+      ...state,
+      local: true,
+      ready: false,
+    });
+    expect(starting).toContain("on a local backend (bun run dev --local)");
+    expect(starting).toContain("Starting at http://localhost:3000 (pid 42)");
     const local = describeStatus(mainWorktreePorts(), {
       ...state,
+      local: true,
       account: { email: "dev+local-main@example.org", password: "pw-123" },
       notes: [
         "Sign in as dev+local-main@example.org / pw-123 (WorkOS emulator); its vault is seeded with sample cards.",

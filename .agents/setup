@@ -166,6 +166,8 @@ lock_hash() {
   sha256sum bun.lock | cut -c1-64
 }
 
+dependencies_changed=false
+
 install_dependencies() {
   if [[ -f "$install_stamp" && "$(cat "$install_stamp")" == "$(lock_hash)" ]]; then
     printf 'node_modules is already current with bun.lock.\n'
@@ -173,6 +175,7 @@ install_dependencies() {
   fi
   bun ci
   lock_hash | tr -d '\n' >"$install_stamp"
+  dependencies_changed=true
 }
 
 # The image's browsers in /opt/pw-browsers are an older build than the
@@ -232,6 +235,10 @@ fi
 if [[ "$session_only" == true ]]; then
   export PATH="$HOME/.local/bin:$PATH"
   step "Install workspace dependencies" install_dependencies
+  # A new bun.lock can pin another e2e browser build.
+  if [[ "$dependencies_changed" == true ]]; then
+    step "Install the E2E suite's browsers" install_e2e_browsers
+  fi
   step "Connect to the shared dev deployment" bootstrap_development
   exit 0
 fi

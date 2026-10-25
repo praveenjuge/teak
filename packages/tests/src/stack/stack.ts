@@ -134,6 +134,7 @@ export const startStack = async (
   }
 
   const { save: saveState, state } = recordStartingStack(ROOT, {
+    ...(options.watch ? { local: true } : {}),
     groups: [convex.pid, filesWorker.child.pid].filter(
       (pid): pid is number => pid !== undefined
     ),
