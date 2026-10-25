@@ -5,6 +5,7 @@ import { api } from "@teak/convex";
 import { ConvexHttpClient } from "convex/browser";
 import {
   recordStartingStack,
+  type StackState,
   type StackUrls,
   stackStatePath,
   stopGroup,
@@ -25,9 +26,21 @@ const STATE_PATH = stackStatePath(ROOT);
 export const STACK_LOG_PATH = join(dirname(STATE_PATH), "stack.log");
 
 export interface StackOptions {
+  /**
+   * Runs once the stack answers, before it is recorded as ready: the sign-in
+   * and notes it returns are what `bun run dev --status` prints.
+   */
+  beforeReady?: (
+    urls: StackUrls
+  ) => Promise<Pick<StackState, "account" | "notes">>;
   echo: boolean;
   env?: NodeJS.ProcessEnv;
   ports: WorktreePorts;
+  /**
+   * Keep pushing the backend as its files change, for `bun run dev --local`.
+   * The suite pushes it once.
+   */
+  watch?: boolean;
 }
 
 export interface RunningStack {
@@ -94,7 +107,7 @@ export const startStack = async (
       String(ports.convexSite),
       "--typecheck",
       "disable",
-      "--once",
+      ...(options.watch ? [] : ["--once"]),
       "--codegen",
       "disable",
       "--start",
@@ -121,6 +134,7 @@ export const startStack = async (
   }
 
   const { save: saveState, state } = recordStartingStack(ROOT, {
+    ...(options.watch ? { local: true } : {}),
     groups: [convex.pid, filesWorker.child.pid].filter(
       (pid): pid is number => pid !== undefined
     ),
@@ -156,6 +170,7 @@ export const startStack = async (
     await waitFor(`${urls.apiOrigin}/healthz`, convex, 180_000);
     await waitFor(urls.appOrigin, convex, 180_000);
     await warmBackend(urls.convexUrl);
+    Object.assign(state, await options.beforeReady?.(urls));
   } catch (error) {
     await stop();
     throw error;

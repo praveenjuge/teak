@@ -5,13 +5,18 @@ import { join } from "node:path";
 import type { WebConnectOptions } from "@e2e-dev/web";
 
 /**
- * Cloud sessions reach the shared dev deployment through an intercepting
- * HTTPS proxy that can't carry WebSocket upgrades. The image's Chromium
- * (`TEAK_CLOUD_CHROMIUM`) is passed through to Convex untouched, but the
- * proxy intercepts e2e's pinned Chromium and Convex refuses its sync socket
- * (`400 InvalidConnectionHeader`). So against the dev stack in a cloud
- * session, e2e attaches to the image's Chromium over CDP instead of
- * launching its own. The E2E stack is all on localhost and never needs this.
+ * In a cloud session, against the dev stack, e2e attaches over CDP to a
+ * Chromium this module starts instead of launching its own, so agents can
+ * attach to the same browser too: the "Upload files" button and the Settings
+ * import create or hide their file inputs where e2e's `upload` tool can't
+ * reach them, and a script drives the file chooser through this browser's
+ * DevTools port (`DevToolsActivePort` in its `/tmp/teak-cloud-chromium-`
+ * profile, `.agents/cloud.md`). It runs the image's Chromium, which is always there:
+ * MCP servers start before the SessionStart hook, so e2e's own browsers may
+ * not be linked in yet. Until October 2026 this was also the only browser
+ * whose Convex socket got through the session's HTTPS proxy; that no longer
+ * holds, and any Chromium now loads the app. The E2E stack is all on
+ * localhost and never needs this.
  */
 
 let running: Promise<string> | undefined;
@@ -83,15 +88,8 @@ const launch = (executablePath: string, signal: AbortSignal) => {
 
 const IMAGE_BROWSERS = "/opt/pw-browsers";
 
-/**
- * The image's Chromium in a cloud session. The SessionStart hook exports it as
- * `TEAK_CLOUD_CHROMIUM`, but only to shell commands; MCP servers start
- * without the hook's exports, so look in the image as the hook does.
- */
+/** The newest Chromium in the image of a Claude Code cloud session. */
 export const cloudChromiumPath = (): string | undefined => {
-  if (process.env.TEAK_CLOUD_CHROMIUM) {
-    return process.env.TEAK_CLOUD_CHROMIUM;
-  }
   if (
     process.env.CLAUDE_CODE_REMOTE !== "true" ||
     !existsSync(IMAGE_BROWSERS)
@@ -101,7 +99,12 @@ export const cloudChromiumPath = (): string | undefined => {
   return readdirSync(IMAGE_BROWSERS)
     .filter((name) => /^chromium-\d+$/.test(name))
     .sort((a, b) => Number(a.slice(9)) - Number(b.slice(9)))
-    .map((name) => join(IMAGE_BROWSERS, name, "chrome-linux", "chrome"))
+    .flatMap((name) =>
+      // Chrome for Testing builds name the directory chrome-linux64.
+      ["chrome-linux64", "chrome-linux"].map((dir) =>
+        join(IMAGE_BROWSERS, name, dir, "chrome")
+      )
+    )
     .filter((path) => existsSync(path))
     .at(-1);
 };

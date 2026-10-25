@@ -2,9 +2,11 @@
 
 What runs in a Claude Code on the web session (and similar Linux cloud VMs),
 what doesn't, and the fixes for each. `apps/docs/content/docs/(open-source)/development.mdx` covers the
-stack itself; this is the cloud-specific checklist. Last verified 2026-10-13
-on a 4-vCPU, 16 GB VM, by driving every web feature in headless Chromium and
-running the API, CLI, MCP and repository checks.
+stack itself; this is the cloud-specific checklist. Last verified 2026-10-25
+on a 4-vCPU, 16 GB VM (Chromium 153 in the image): sign-in and the seeded
+vault on both stacks, file upload over CDP, `wrangler dev` with both
+Containers, the Workflows engine tests, setup and the SessionStart hook; the
+rest of "Works" was last driven on 2026-10-13.
 
 ## Environment settings
 
@@ -25,11 +27,30 @@ running the API, CLI, MCP and repository checks.
   token can't run it. The local E2E stack runs the Worker without them
   (Workflows, Queues, R2 and KV in Miniflare), and Docker runs the two
   Containers (see "Containers" below).
-- **Setup script:** `bash .agents/setup`, so the toolchain, packages and the
-  E2E suite's Chromium land in the cached snapshot.
-- **Network:** the stack needs Convex, WorkOS and Polar (and Playwright's CDN
-  for setup), which aren't on the default "Trusted" list. Use "Full", or add
-  them under "Custom".
+- **Setup script:** `bash .agents/setup`, so the toolchain, packages, the E2E
+  suite's browsers and a warm Turbo cache land in the cached snapshot. The
+  snapshot is only kept when the script finishes in about five minutes, so
+  the Turbo step stops in time whatever happens (a cold typecheck takes about
+  two minutes; cached, one second). Claude Code doesn't pass the
+  environment's secrets to setup scripts, so its last step (connecting to the
+  dev deployment) always skips there. The SessionStart hook does it instead
+  with `.agents/setup --session` (about 15 seconds), and reinstalls packages
+  whenever `bun.lock` has moved past the snapshot (it compares the hash in
+  `node_modules/.teak-install`, the stamp `bun run doctor` checks).
+- **Network:** the stack reaches hosts the default "Trusted" list doesn't
+  have. Use "Full", or "Custom" with the default list plus: `*.convex.cloud`,
+  `*.convex.site`, `api.workos.com`, `*.authkit.app`, `*.polar.sh`,
+  `*.posthog.com`, `*.workers.dev`, `nodejs.org` and GitHub's release
+  downloads (Node, Bun and the Convex local backend), Playwright's download
+  hosts, `dl-cdn.alpinelinux.org` (Container builds), `fonts.gstatic.com`
+  (docs), `www.raycast.com` (`ray lint`), and `docs.mcp.cloudflare.com` (the
+  docs MCP server). The list comes from the code, not from a session on
+  "Custom"; if a host is refused, the proxy names it. `bun run dev --local`
+  needs none of the Convex, WorkOS, Polar or Workers hosts.
+- **Turbo remote cache (optional):** the setup snapshot warms the local Turbo
+  cache. To share one across sessions and CI, add `TURBO_TOKEN` and
+  `TURBO_TEAM` for a Vercel Remote Cache to the environment's variables;
+  Turbo reads them itself.
 - **`NODE_OPTIONS`:** nothing to set. The SessionStart hook adds
   `--use-openssl-ca` to the session's `NODE_OPTIONS`, so Node trusts the HTTPS
   proxy through the system store. Turbo's strict env mode drops
@@ -66,28 +87,36 @@ the app is ready (about 50 seconds cold, 10 seconds warm) and returns. Don't
 start plain `bun run dev` as a background command: Claude Code stops
 background commands after 30 minutes, and the stack goes with it.
 
+`bun run dev --local --detach` runs the app on a local backend instead: the
+E2E suite's stack (a local Convex backend that pushes this checkout's
+`packages/convex` as you edit it, the WorkOS emulator, and the Files Worker
+in Miniflare), with a seeded `dev+local-<checkout>@example.org` account whose
+new password `bun run dev --status` prints. It takes about 25 seconds, needs
+no secrets and no shared backend, so schema and destructive work can't clash
+with another session's push. What it leaves out is in `testing.mdx`, "What
+the local stack doesn't cover". The emulator's sign-in buttons are both
+"Continue". `bun run dev --stop`, then `bun run dev --detach`, goes back to
+the dev deployment.
+
+The first watch-mode `convex dev` downloads Convex's local dashboard, and that
+download sometimes crashes the CLI behind the session's proxy (an assertion
+in its HTTP parser). The local stack starts again by itself when that
+happens, up to twice; the finished download is cached.
+
 ## Driving the app in a browser
 
-Launch Playwright with the image's Chromium, which the SessionStart hook
-exports as `TEAK_CLOUD_CHROMIUM`:
+Any Chromium loads the app now, the e2e MCP server's and Playwright's own
+included. Until the image moved to Chromium 153 (October 2026), the proxy
+intercepted newer Chromium's TLS and dropped the Convex WebSocket's upgrade,
+so only the image's older Chromium could sign in; if "We couldn't check your
+session" comes back after a sign-in, check that first with a bare
+`new WebSocket("wss://reminiscent-kangaroo-59.convex.cloud/api/1.46.0/sync")`
+in the page.
 
-```js
-chromium.launch({ executablePath: process.env.TEAK_CLOUD_CHROMIUM })
-```
-
-The pinned Playwright's own Chromium (151, and e2e's 153) can't open the
-Convex WebSocket through the session's HTTPS proxy. The proxy intercepts
-newer Chromium's TLS with its own certificate, and its interception path
-doesn't carry WebSocket upgrades (`/root/.ccr/README.md` lists them as
-unsupported): Convex answers the handshake with `400 InvalidConnectionHeader`
-("Connection header did not include upgrade") even though Chromium sends a
-correct HTTP/1.1 upgrade, so after sign-in the app shows a spinner and then
-"We couldn't check your session". The proxy passes the image's Chromium 141
-in `/opt/pw-browsers` through to Convex untouched (it sees Convex's own
-certificate), and curl and Node's `ws` upgrade fine too. `--proxy-server`,
-`--disable-http2`, `--disable-features=WebSocketOverHttp2` and turning off
-Encrypted Client Hello don't help. The E2E suite is unaffected: its stack is
-on `localhost`, which bypasses the proxy.
+MCP servers start with the image's `PLAYWRIGHT_BROWSERS_PATH`
+(`/opt/pw-browsers`), not the session's, so the SessionStart hook links the
+E2E suite's pinned browsers into it; the e2e MCP server then finds them even
+when the image ships another build.
 
 ## Works
 
@@ -117,8 +146,8 @@ bun run setup --target extension   # .agents/setup already does this
 (cd apps/extension && bunx wxt build --mode development)
 ```
 
-Load `apps/extension/.output/chrome-mv3-dev` into `TEAK_CLOUD_CHROMIUM` with
-`launchPersistentContext(dir, { executablePath, args: ["--disable-extensions-except=<dir>", "--load-extension=<dir>"] })`,
+Load `apps/extension/.output/chrome-mv3-dev` into Playwright's Chromium with
+`launchPersistentContext(dir, { args: ["--disable-extensions-except=<dir>", "--load-extension=<dir>"] })`,
 open `chrome-extension://<id>/popup.html` and sign in through the AuthKit
 window it opens. A production build (`bun run build:extension`) signs in
 against production, so don't use it here.
@@ -134,9 +163,14 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   log is `/tmp/teak-dockerd.log`). Pulling and running images works, but a
   build step that downloads (`apk add`, `bun install`) fails with
   "certificate not trusted": the session's proxy re-signs TLS with a CA the
-  image doesn't trust (`/root/.ccr/README.md`). Build with
-  `scripts/cloud-docker-build.sh`, which adds that CA to every stage without
-  changing the Dockerfile, and never deploy what it builds:
+  image doesn't trust (`/root/.ccr/README.md`). The hook exports
+  `WRANGLER_DOCKER_BIN=scripts/cloud-docker.sh`, a `docker` that adds that CA
+  to every stage of the images `wrangler dev` builds (tagged
+  `cloudflare-dev/…`) without changing the Dockerfile, so `wrangler dev`
+  builds and runs both Containers. It leaves every other build alone, a
+  `wrangler deploy` included, so a deploy from a cloud session still fails
+  at the download step rather than shipping the proxy's CA. Build an image by
+  hand with `scripts/cloud-docker-build.sh`, and never deploy what it builds:
 
   ```bash
   scripts/cloud-docker-build.sh teak-renderer apps/files-worker/container
@@ -148,8 +182,7 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   RENDERER_TIMEOUT_SCALE=0.0001`, both `--cpus 0.25 --memory 1g`), and in
   `apps/files-worker` run `RENDERER_URL=http://localhost:18080
   RENDERER_TIMEOUT_URL=http://localhost:18081 bun test --timeout 60000
-  container/test`. `wrangler dev` builds images with plain `docker build`, so
-  it still fails at the download step here.
+  container/test`.
 
 - **E2E suite:** run it with the dev stack stopped. `.agents/setup` installs
   the Chromium and WebKit builds the e2e web engine pins. The Chromium suite
@@ -169,11 +202,12 @@ sessions have no port forwarding, so drive it with headless Chromium (the
 
 - **`e2e` MCP server:** `.mcp.json` registers `e2e mcp`, which opens headless
   sessions on `packages/tests/e2e.config.ts` (pass that as `open_session`'s
-  `config`). Against the E2E stack it runs e2e's pinned Chromium. While this
-  checkout runs the dev stack, the config instead starts the image's
-  Chromium and attaches to it over CDP (`src/config/cloud-chromium.ts`), so
-  the Convex socket gets through the proxy and the seeded vault loads. That
-  browser stays up for the MCP server's life and serves its later sessions.
+  `config`). Against the E2E stack (and `bun run dev --local`) it runs e2e's
+  pinned Chromium. While this checkout runs the dev stack, the config instead
+  starts the image's Chromium with a DevTools port and attaches to it over
+  CDP (`src/config/cloud-chromium.ts`), so a script can attach to the same
+  browser for file uploads (below). That browser stays up for the MCP
+  server's life and serves its later sessions.
 - **MP4 video:** Playwright's Chromium has no H.264 decoder, so MP4 cards
   don't play in it. Use a WebM (VP9) file to check video playback.
 - **The backend you test against is whatever was pushed last.** Every
@@ -204,6 +238,24 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   old build in memory and answers "Internal Server Error". Restart with
   `bun run dev --stop && bun run dev --detach`.
 
+- **Cloudflare from a session:** the session has no Cloudflare credentials,
+  so `bun run dev files` (remote bindings) and anything that deploys can't
+  run; `bun run dev --local` and the E2E stack run the Worker without them.
+  Two owner options, neither set up yet: connect Cloudflare's API MCP server
+  (`https://mcp.cloudflare.com/mcp`) as a claude.ai connector, which signs in
+  with OAuth and lets a session read `teak-files-dev`'s logs and
+  observability without a token in the VM (the older "Workers Bindings"
+  connector is deprecated); or, to give sessions a token at all, first move
+  `teak-files-dev` to its own Cloudflare account, since an account-scoped
+  token on today's account also reaches production.
+- **Worker Previews** (generally available 2026-09-22) can give each branch
+  its own Files Worker through Workers Builds with no token in the session,
+  with its own Durable Objects and Containers. Not set up: previews share the
+  dev Worker's Workflows, don't consume Queues, and Convex dev only talks to
+  `teak-files-dev`, so a preview can't run card processing end to end yet.
+  `preview_urls` stays `false` (version preview URLs don't support Durable
+  Objects anyway).
+
 ## Doesn't work
 
 - Browser sign-in for the CLI and Raycast (`teak login`, WorkOS Connect) from
@@ -214,3 +266,15 @@ sessions have no port forwarding, so drive it with headless Chromium (the
   and no `/dev/kvm` for an emulator).
 - Work in progress across a reclaimed VM: background processes, including the
   dev stack, don't survive it. Run `bun run dev --detach` again each session.
+
+## Keeping this page true
+
+The image, the proxy and the CLIs change under this page (the Chromium
+section above went stale within two weeks). To re-check it, start a fresh
+session on `main` and work through it: run `bun run doctor`, `bun run dev
+--detach` and sign in, `bun run dev --local --detach` and sign in,
+`bun test src/workflows/cardProcessing/engine.test.ts` in
+`apps/files-worker`, and `wrangler dev --local -c development/wrangler.jsonc`
+there until both Containers build. Update "Last verified" and fix what
+drifted in the same PR. A weekly scheduled task can run exactly that and open
+the PR; the owner creates it, since it runs on their account.

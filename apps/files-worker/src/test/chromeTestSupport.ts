@@ -22,11 +22,19 @@ const candidates = (): string[] => {
     if (!(root && existsSync(root))) {
       continue;
     }
+    // Chrome for Testing builds use the `*-linux64` layout; older Playwright
+    // builds use `chrome-linux`.
     for (const entry of readdirSync(root).sort().reverse()) {
       if (entry.startsWith("chromium_headless_shell-")) {
-        paths.push(`${root}/${entry}/chrome-linux/headless_shell`);
+        paths.push(
+          `${root}/${entry}/chrome-headless-shell-linux64/chrome-headless-shell`,
+          `${root}/${entry}/chrome-linux/headless_shell`
+        );
       } else if (entry.startsWith("chromium-")) {
-        paths.push(`${root}/${entry}/chrome-linux/chrome`);
+        paths.push(
+          `${root}/${entry}/chrome-linux64/chrome`,
+          `${root}/${entry}/chrome-linux/chrome`
+        );
       }
     }
   }

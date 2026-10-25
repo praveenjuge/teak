@@ -44,7 +44,9 @@ sessions too (plugins from a person's own settings don't load there).
 Cloudflare: `wrangler`, `workers-best-practices`, `durable-objects` and
 `cloudflare-email-service` are vendored from `cloudflare/skills`
 (`npx skills add cloudflare/skills -s <name> -a codex -y`). They tell agents
-to read current Cloudflare docs rather than trust memory.
+to read current Cloudflare docs rather than trust memory. `.mcp.json`
+registers Cloudflare's docs MCP server (`cloudflare-docs`, no sign-in) for
+that.
 
 Verification (root `AGENTS.md`, "Verification"):
 

@@ -20,7 +20,7 @@ It sets up the checkout, starts the web app against the shared dev deployment (`
 - The account and its password are in `.agents/.state/stack.json` (`account.email`, `account.password`). A cloud session gets its own account, seeded with about 30 sample cards (`packages/convex/devSeed.ts`).
 - When the change touches `packages/convex`, the backend you test must be this checkout's. Start with `bun run dev --detach --push` to take over the push lease, and confirm with the doctor.
 - Don't start plain `bun run dev` as a background command: the agent tool stops it after 30 minutes.
-- For a run that must not share a backend (destructive or schema-changing work), use the E2E stack instead: `bun run dev --stop`, then `bun run --cwd packages/tests e2e:stack` (a local Convex backend and the WorkOS emulator; `testing.mdx`, "End-to-end suite"). Its accounts come from the emulator, not `stack.json`.
+- For a run that must not share a backend (destructive or schema-changing work, or a session without `CONVEX_DEPLOY_KEY`), use a local backend instead: `bun run dev --stop`, then `bun run dev --local --detach` (a local Convex backend that pushes this checkout's backend as it changes, the WorkOS emulator and the Files Worker in Miniflare; `development.mdx`, "A local backend"). Its seeded account is in `stack.json` too, with a new password each start, and the emulator's sign-in buttons are both "Continue". Link previews, screenshots, transcripts and embeddings don't run there.
 
 ## Doctor
 
@@ -34,7 +34,7 @@ It is read-only. It checks that the recorded stack is alive and ready, that the 
 
 ## Drive
 
-**Web:** the `e2e` MCP server in `.mcp.json`. Open a session with `config: "packages/tests/e2e.config.ts"`. In a cloud session the config attaches to the image's Chromium (`TEAK_CLOUD_CHROMIUM`), the only one whose Convex socket gets through the proxy (`.agents/cloud.md`); on a Mac it launches e2e's own Chromium.
+**Web:** the `e2e` MCP server in `.mcp.json`. Open a session with `config: "packages/tests/e2e.config.ts"`. In a cloud session, against the dev stack, the config attaches to a Chromium it starts with a DevTools port, so a script can drive file choosers in the same browser (`.agents/cloud.md`, "File uploads"); elsewhere it launches e2e's own Chromium.
 
 - `observe` lists every node with its role and accessible name. Act with `tap`, `type`, `press`, `right_click`, `hover`, `select`, `upload`, `navigate`.
 - Target nodes by role and accessible name from the feature files. Never by coordinates unless a feature file says the control has no accessible node.

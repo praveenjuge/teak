@@ -1,4 +1,11 @@
-import { cpSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { collectSkills } from "blume/ai/skills.ts";
@@ -47,16 +54,31 @@ export const checkPublicSkills = async (
  * discovery index.
  */
 if (import.meta.main) {
-  rmSync(outDir, { force: true, recursive: true });
+  // Turbo runs the docs typecheck and build at once, and both generate. Copy
+  // into a staging directory and swap it in, so neither run reads or deletes
+  // a half-copied one; a run that loses the swap keeps the other's copy of
+  // the same files.
+  const staging = `${outDir}.tmp-${process.pid}`;
+  rmSync(staging, { force: true, recursive: true });
   for (const skill of PUBLIC_SKILLS) {
-    cpSync(join(sourceDir, skill), join(outDir, skill), { recursive: true });
+    cpSync(join(sourceDir, skill), join(staging, skill), { recursive: true });
   }
-  const errors = await checkPublicSkills(outDir, PUBLIC_SKILLS);
+  const errors = await checkPublicSkills(staging, PUBLIC_SKILLS);
   if (errors.length > 0) {
+    rmSync(staging, { force: true, recursive: true });
     console.error(
       ["Public skills can't be published:", ...errors].join("\n  ")
     );
     process.exit(1);
+  }
+  rmSync(outDir, { force: true, recursive: true });
+  try {
+    renameSync(staging, outDir);
+  } catch (error) {
+    rmSync(staging, { force: true, recursive: true });
+    if (!existsSync(join(outDir, PUBLIC_SKILLS[0], "SKILL.md"))) {
+      throw error;
+    }
   }
   console.log(`Copied ${PUBLIC_SKILLS.join(", ")} to ${outDir}`);
 }

@@ -106,7 +106,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 
 ## End-to-end suite
 
-`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack that exists only for this suite and the clean-container smoke; development always uses the [shared development deployment](/docs/development#the-shared-development-deployment), which the suite never touches. The stack is:
+`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack, which the suite never shares with the [shared development deployment](/docs/development#the-shared-development-deployment). Development uses that deployment by default; `bun run dev --local` runs this same stack for development instead. The stack is:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
@@ -135,6 +135,8 @@ To iterate, keep the stack up in one terminal and run e2e in another:
 bun run --cwd packages/tests e2e:stack
 cd packages/tests && E2E_TELEMETRY_DISABLED=1 bunx e2e run src/web/markdown-editor.e2e.ts:42
 ```
+
+`bun run dev --local` runs this same stack for development: Convex pushes the backend as it changes instead of once, and a seeded emulator account's sign-in is printed by `bun run dev --status` ([Development](/docs/development#a-local-backend)). Specs run against it too.
 
 A running stack records its URLs in `.agents/.state/stack.json`, which the configs and helpers read, and logs to `.agents/.state/stack.log`. While it runs it takes over `packages/convex/.env.local`; the next `bun run dev` selects the development deployment again. A failed test prints the path of its trace page (`.e2e/<suite>/results/<test>/trace.md`): every step with what it hit, the app's console errors and failed requests, and the screen at the failure. Read it before re-running. Add `--headed` to watch a run, `--video on` to record every attempt, and `--trace on` to keep traces for passing tests too. `--last-failed`, `--repeat-each=<n>`, `--grep`, `--max-failures` and `path:line` selection also work.
 
@@ -212,7 +214,7 @@ Accounts are real WorkOS users in the emulator. Creating one through the emulato
 - `bun test` switches to failures-only output when it detects an agent (`CLAUDECODE=1` or `AGENT=1`), so there's no need to set this in scripts.
 - The e2e skill (`.agents/skills/e2e/`) covers writing and running specs; the full docs ship in `node_modules/e2e/docs`.
 - Never run `e2e feedback`, even though the skill suggests it: it sends a report to the e2e maintainers. Tell the person what got in your way instead, and let them decide whether to report it. Keep `E2E_TELEMETRY_DISABLED=1` set, as the package scripts and `.mcp.json` do.
-- The `e2e` MCP server in `.mcp.json` opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build. Pass `packages/tests/e2e.config.ts` as `open_session`'s `config`; in a cloud session it drives the image's Chromium against the dev stack (`.agents/cloud.md`). Its `locate` tool checks a `screen.getBy…` locator against the current page and returns the exact line to put in a spec. It doesn't run specs; use `E2E_TELEMETRY_DISABLED=1 bunx e2e run <file>` in `packages/tests` with the end-to-end stack up (`bun run --cwd packages/tests e2e:stack`).
+- The `e2e` MCP server in `.mcp.json` opens live browser sessions on the running app (either stack), so you can check UI work at `http://localhost:3000` instead of relying on a passing build. Pass `packages/tests/e2e.config.ts` as `open_session`'s `config`; in a cloud session it starts that browser with a DevTools port, for file uploads (`.agents/cloud.md`). Its `locate` tool checks a `screen.getBy…` locator against the current page and returns the exact line to put in a spec. It doesn't run specs; use `E2E_TELEMETRY_DISABLED=1 bunx e2e run <file>` in `packages/tests` with the end-to-end stack up (`bun run --cwd packages/tests e2e:stack`).
 - In a cloud session, stop the dev stack before running the suite, and run one Chromium at a time on a 4-vCPU VM (`.agents/cloud.md`).
 
 </Visibility>

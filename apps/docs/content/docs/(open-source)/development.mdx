@@ -64,6 +64,7 @@ See [Architecture](/docs/architecture) for the monorepo layout.
 bun run dev              # Set up, then start the web app on the development deployment, seeded
 bun run dev --push       # Same, and push this checkout's backend code
 bun run dev --detach     # Start in the background and return once ready (combine with --push)
+bun run dev --local      # Same app on a local backend, WorkOS emulator and Files Worker (combine with --detach)
 bun run dev --status     # This checkout's ports, URLs and sign-in, and whether it pushes
 bun run dev --stop       # Stop this checkout's stack
 bun run setup            # Set up only (--target for other surfaces)
@@ -99,7 +100,7 @@ bun run clean            # Clear Turborepo caches
 
 ## The shared development deployment
 
-Every checkout, worktree and cloud VM runs against one Convex development deployment, `dev:reminiscent-kangaroo-59`, with its own WorkOS staging environment, Files Worker and storage. Files, previews, AI metadata, screenshots, imports and exports, WorkOS Connect, and Polar sandbox checkout all work there. There is no local backend for development; only the [end-to-end suite](/docs/testing#end-to-end-suite) runs one.
+Every checkout, worktree and cloud VM runs against one Convex development deployment, `dev:reminiscent-kangaroo-59`, with its own WorkOS staging environment, Files Worker and storage. Files, previews, AI metadata, screenshots, imports and exports, WorkOS Connect, and Polar sandbox checkout all work there. When you'd rather not share it, `bun run dev --local` runs the app on [a local backend](#a-local-backend) instead.
 
 ### Reaching it
 
@@ -132,6 +133,12 @@ Every linked worktree leases its own block of ports the first time it runs, reco
 
 `packages/convex/convex.json` registers `http://localhost:*/callback`, which covers every one of those web ports, as a sign-in callback on the development deployment's WorkOS environment, and lists each port as a CORS origin. The deployment's API and MCP links (`appUrl`, `settingsUrl`) point at `TEAK_DEV_APP_URL` (port 3000), so links from a worktree's API responses open the main checkout's web app.
 
+### A local backend
+
+`bun run dev --local` (add `--detach` to return once it's ready) runs the web app on the [end-to-end suite's stack](/docs/testing#end-to-end-suite) instead of the shared deployment: a local Convex backend that pushes this checkout's `packages/convex` as you edit it, the WorkOS emulator, and the Files Worker in Miniflare. It needs no Convex login or deploy key, and nothing you do there reaches another checkout, so it suits schema changes and destructive work, and checkouts without access to the development deployment.
+
+It creates `dev+local-<checkout>@example.org` on the emulator with a new password each time it starts, and seeds its vault with the same sample cards. `bun run dev --status` prints the sign-in. Link fetching, screenshots, transcripts, embeddings, WorkOS Connect and billing don't run there ([What the local stack doesn't cover](/docs/testing#what-the-local-stack-doesnt-cover)). It takes over `packages/convex/.env.local`; after `bun run dev --stop`, the next `bun run dev` selects the development deployment again.
+
 ## Supported Targets and Limitations
 
 `bun run setup --target <name>` provisions one surface. Every surface uses the
@@ -152,21 +159,21 @@ iOS simulators, device builds, the Mac app, Xcode, and Safari stay on macOS. The
 
 `bun run setup` and `bun run dev` work only against the development deployment;
 they refuse any other deployment, so ask the repository owner for access. Until
-then you can still run the unit tests (`bun run test`) and the
+then you can still run the app on [a local backend](#a-local-backend)
+(`bun run dev --local`), the unit tests (`bun run test`) and the
 [end-to-end suite](/docs/testing#end-to-end-suite)
-(`bun run --cwd packages/tests e2e`), which needs no credentials and runs its
-own throwaway stack. Running Teak on a deployment of your own is
+(`bun run --cwd packages/tests e2e`), none of which need credentials. Running Teak on a deployment of your own is
 [Self-Hosting](/docs/self-hosting), which the development commands don't configure.
 
 ## Cloud agents
 
-`.agents/setup` prepares a fresh Linux VM: the pinned Node and Bun, packages, the end-to-end suite's browsers and, when `CONVEX_DEPLOY_KEY` is present, the wiring to the development deployment. Without the key it still prepares the VM for unit tests and the end-to-end suite.
+`.agents/setup` prepares a fresh Linux VM: the pinned Node and Bun, packages, the end-to-end suite's browsers and, when `CONVEX_DEPLOY_KEY` is present, the wiring to the development deployment. Without the key it still prepares the VM for `bun run dev --local`, unit tests and the end-to-end suite.
 
-- **Claude Code on the web:** set the environment's setup script to `bash .agents/setup` so the result is cached. The SessionStart hook in `.claude/settings.json` also runs it when a VM isn't ready, and prints `bun run dev --status` at the start of every session.
+- **Claude Code on the web:** set the environment's setup script to `bash .agents/setup` so the result, a warm Turbo cache included, is cached. Setup scripts there don't receive the environment's secrets, so the SessionStart hook in `.claude/settings.json` finishes the job each session: it runs `.agents/setup` on a VM that isn't ready, connects the checkout to the development deployment, reinstalls packages when `bun.lock` has moved past the cached snapshot, and prints `bun run dev --status`.
 - **Codex cloud:** set the environment's setup script to `bash .agents/setup`.
 - **Amp:** runs `.agents/setup` as the orb setup script and `.agents/resume` on resume.
 
-Give the environment network access to Convex, WorkOS and Polar (and Playwright's download host for setup), then run `bun run dev --detach`.
+Give the environment network access to Convex, WorkOS and Polar (and Playwright's download host for setup), then run `bun run dev --detach`. `bun run dev --local --detach` needs neither the key nor those hosts.
 
 <Visibility for="agents">
 
