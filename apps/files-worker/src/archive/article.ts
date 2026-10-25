@@ -447,6 +447,29 @@ const languageTag = (value: string | null | undefined) => {
   return tag && /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/iu.test(tag) ? tag : undefined;
 };
 
+interface BodyDocument {
+  body: (DomElement & { appendChild: (node: DomNode) => void }) | null;
+  documentElement: { childNodes: Iterable<DomNode> };
+}
+
+/**
+ * linkedom keeps what a page puts outside `<body>` (a page without the tag,
+ * or content after `</body>`) beside it, and Readability walks up to `BODY`
+ * and past the document when it finds its article there. That content moves
+ * into the body.
+ */
+const moveStrandedIntoBody = (document: BodyDocument) => {
+  const { body } = document;
+  if (!body) {
+    return;
+  }
+  for (const node of [...document.documentElement.childNodes]) {
+    if (node.nodeName !== "HEAD" && node !== body) {
+      body.appendChild(node);
+    }
+  }
+};
+
 /**
  * The article in a link's saved copy: Readability over the archive, then
  * Markdown with `teak-image:<n>` images. A page without enough text, or one
@@ -459,6 +482,7 @@ export const extractArticle = async (
 ): Promise<FilesExtractArticleResult> => {
   const slim = await slimArchive(archiveHtml, pageUrl);
   const { document } = parseHTML(slim.html);
+  moveStrandedIntoBody(document as unknown as BodyDocument);
   // Readability reads these for relative links; the archive's are absolute.
   for (const name of ["baseURI", "documentURI"] as const) {
     if (!(document as unknown as Record<string, unknown>)[name]) {

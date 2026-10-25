@@ -77,3 +77,10 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Exceptions: 3 Android `channel closed` from the same API 30 device as before (fix #785 unreleased). One files-worker `Durable Object storage is no longer accessible.` (10-23 11:34 IST, single event; a Cloudflare DO reset). Watch for repeats before adding handling. `workflow_dispatch_stalled` and `setAccessLevel` did not recur.
 - Sentry, Vercel, Cloudflare connectors not queried this run. Nothing fixed; no PostHog improvement shipped (time-boxed).
 - Check tomorrow: DO "no longer accessible" recurrence; Unit Tests and Backend Deploy green on main.
+
+### 2026-10-25
+- Inbox empty. Unit Tests and Backend Deploy green on main (runs 40120391822, 40120391799). Product health (24h): 9 `card_created` (apple, raycast, web), ~206 `card_processing_completed` (reprocessing from #841), 1 `card_processing_failed` (link), no other failure events.
+- New files-worker exceptions: (1) 12 × `TypeError: Cannot read properties of null (reading 'tagName')` from `extractArticle`: Readability walks past the document when a page's content sits outside `<body>` (linkedom keeps it beside an empty body). Reproduced, fixed by moving that content into the body (`moveStrandedIntoBody`). (2) 8 × `Could not load style` from `captureHtmlScreenshot`: `addStyleTag` refused by a page's CSP; the cleanup is now best effort. Both in one PR with a test.
+- Tip: stack frames: `JSONExtractArrayRaw(toString(properties.$exception_list))`; `fn` is reserved in HogQL. `bun install --frozen-lockfile` takes ~20 s, then `bun test` works in `apps/files-worker` (the 3 real-Chrome rendering tests fail without Chrome here).
+- Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed).
+- Check tomorrow: zero `tagName` and `Could not load style` exceptions after the PR deploys; `card_processing_failed` on links.
