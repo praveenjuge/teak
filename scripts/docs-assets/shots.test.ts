@@ -76,6 +76,12 @@ describe("docs images", () => {
     ).toEqual([]);
   });
 
+  test("alt texts have no brackets, which would end a Markdown image's alt early", () => {
+    expect(
+      SHOTS.filter((shot) => /[[\]]/.test(shot.alt)).map((shot) => shot.name)
+    ).toEqual([]);
+  });
+
   test("shot names are unique and every file is a 1600 × 1000 WebP", () => {
     expect(new Set(SHOTS.map((shot) => shot.name)).size).toBe(SHOTS.length);
     for (const shot of docsShots) {

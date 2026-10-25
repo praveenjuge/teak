@@ -360,6 +360,11 @@ const extension = () => `
       <span style="display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:999px;padding:6px 12px">${icon("upload", 15)} Upload file</span></div>
   </div>`;
 
+const PILL_TONE: Record<string, string> = {
+  "Read-only": "green",
+  Write: "red",
+};
+
 const webmcp = (library: string) =>
   win(
     "app.teakvault.com",
@@ -367,21 +372,26 @@ const webmcp = (library: string) =>
       <div style="flex:1;overflow:hidden;background:url('${library}') left top/auto 100% no-repeat"></div>
       <div style="width:400px;border-left:1px solid var(--border);background:oklch(0.985 0.002 247.839);padding:24px;display:flex;flex-direction:column;gap:16px;font-size:17px">
         <div style="display:flex;align-items:center;gap:10px;font-weight:600;font-size:19px">${icon("bot", 22)} Agent</div>
-        <div style="color:var(--muted)">This page offers 3 WebMCP tools</div>
+        <div style="color:var(--muted)">This page offers 7 WebMCP tools</div>
+        <div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
         ${[
+          // apps/web/src/lib/webmcp.ts registers these six; the search box is the seventh.
           ["teak_search_cards", "Read-only"],
           ["teak_get_card", "Read-only"],
+          ["teak_recent_cards", "Read-only"],
+          ["teak_create_card", "Write"],
+          ["teak_update_tags", "Write"],
+          ["teak_set_favorite", "Write"],
           ["teak_search_form", "Declarative"],
         ]
           .map(
-            ([
-              name,
-              kind,
-            ]) => `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:12px 14px">
-              <div style="font-family:var(--mono);font-size:16px;font-weight:600">${name}</div>
-              <span class="pill ${kind === "Read-only" ? "green" : ""}" style="height:24px;font-size:13px;margin-top:8px">${kind}</span></div>`
+            ([name, kind], index) =>
+              `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 14px;${index ? "border-top:1px solid var(--border)" : ""}">
+              <span style="font-family:var(--mono);font-size:15px;font-weight:600">${name}</span>
+              <span class="pill ${PILL_TONE[kind] ?? ""}" style="height:24px;font-size:13px">${kind}</span></div>`
           )
           .join("")}
+        </div>
         <div style="margin-top:6px;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:14px;line-height:1.45">
           <div style="font-size:14px;color:var(--muted);margin-bottom:6px">teak_search_cards · { "q": "architecture" }</div>
           Found 6 cards in your library. The first is <b>Axel Towers, Copenhagen</b>.</div>

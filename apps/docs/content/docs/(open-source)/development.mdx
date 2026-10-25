@@ -11,7 +11,7 @@ related:
 
 **Prerequisites:** Git plus Bun and Node.js at the versions pinned in `package.json` (`packageManager` and `engines.node`). The pins are exact: setup and doctor warn on a different patch version and refuse a different minor or major one. CI reads the same pins (`bun-version-file` and `node-version-file`), so local and CI never disagree. Node is pinned beside Bun because Convex Node actions run on the system Node.
 
-![A terminal running bun run dev --detach, then bun run dev --status with the ports, URLs and sign-in](../images/development.webp)
+![A terminal running bun run dev --detach, which prints the app's URL, sign-in and ports, then bun run doctor with its checks](../images/development.webp)
 
 To see how the pieces fit together first, read [Architecture](/docs/architecture).
 

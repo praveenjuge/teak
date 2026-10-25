@@ -61,8 +61,6 @@ const sidebarFolders = [
 
 const chipClass =
   "demo-chip inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border bg-background px-2.5 text-sm font-medium whitespace-nowrap transition-all hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:size-3.5";
-const iconButtonClass =
-  "inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50";
 ---
 
 <div class="app-demo" data-app-demo>
@@ -116,7 +114,7 @@ const iconButtonClass =
             />
             <kbd class="demo-kbd max-[420px]:hidden">/</kbd>
           </label>
-          <button aria-label="View" class={iconButtonClass} tabindex="-1" type="button"><Icon name="sliders-horizontal" size={16} /></button>
+          <span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full"><Icon name="sliders-horizontal" size={16} /></span>
         </form>
 
         <div class="demo-filters pb-5" data-demo-filters hidden>

@@ -49,7 +49,7 @@ const app = stack.urls.appOrigin;
 /** Docs show a made-up person, never the stack's account or its devices. */
 const REPLACEMENTS: [RegExp, string][] = [
   [
-    new RegExp(stack.account.email.replace(/[.+]/g, "\\$&"), "g"),
+    new RegExp(stack.account.email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
     "alex@example.com",
   ],
   [/^Teak Developer$/, "Alex Rivera"],

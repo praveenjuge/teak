@@ -121,7 +121,7 @@ export const SHOTS: Shot[] = [
     name: "note-links",
     kind: "web",
     layout: "focus",
-    alt: "A note linking two cards with [[, each shown as a pill with the card's type and title",
+    alt: "A note linking two cards, each shown as a pill with the card's type and title",
   },
   {
     name: "note-table",
@@ -211,7 +211,7 @@ export const SHOTS: Shot[] = [
     name: "webmcp",
     kind: "mock",
     mock: "webmcp",
-    alt: "The Teak web app in a browser, with an agent panel listing the page's WebMCP tools",
+    alt: "The Teak web app in a browser, with an agent panel listing the page's seven WebMCP tools",
   },
   {
     name: "ai-agents",
@@ -241,7 +241,7 @@ export const SHOTS: Shot[] = [
     name: "development",
     kind: "mock",
     mock: "development",
-    alt: "A terminal running bun run dev --detach, then bun run dev --status with the ports, URLs and sign-in",
+    alt: "A terminal running bun run dev --detach, which prints the app's URL, sign-in and ports, then bun run doctor with its checks",
   },
   {
     name: "testing",
