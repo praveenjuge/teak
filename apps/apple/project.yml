@@ -61,6 +61,8 @@ targets:
         excludes:
           - "Resources/Info-*.plist"
           - "Resources/*.entitlements"
+      # The controls' intents run in the app, so it compiles them too.
+      - path: TeakWidgets/OpenTeakIntents.swift
     settings:
       base:
         PRODUCT_NAME: Teak
@@ -86,6 +88,7 @@ targets:
         product: PostHog
       - target: ShareExtension
       - target: SafariExtension
+      - target: TeakWidgets
 
   ShareExtension:
     type: app-extension
@@ -139,6 +142,30 @@ targets:
         "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": SafariExtension/SafariExtension-iOS.entitlements
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": SafariExtension/SafariExtension-macOS.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks"
+    dependencies:
+      - package: TeakKit
+        product: TeakCore
+
+  TeakWidgets:
+    type: app-extension
+    supportedDestinations: [iOS, macOS]
+    sources:
+      - path: TeakWidgets
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+    settings:
+      base:
+        PRODUCT_NAME: TeakWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.praveenjuge.teak.widgets
+        INFOPLIST_FILE: TeakWidgets/Info.plist
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": TeakWidgets/TeakWidgets-iOS.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": TeakWidgets/TeakWidgets-macOS.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        # OpenTeakIntents.swift routes in the app only.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) TEAK_WIDGETS"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks"
     dependencies:
       - package: TeakKit
