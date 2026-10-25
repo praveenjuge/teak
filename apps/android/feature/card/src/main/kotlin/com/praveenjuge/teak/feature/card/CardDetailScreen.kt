@@ -102,6 +102,7 @@ import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.MarkdownListItem
 import com.praveenjuge.teak.core.model.ShareTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -125,6 +126,7 @@ internal class CardDetailCallbacks(
     val onOpenCard: (String) -> Unit = {},
     val onSetFolders: (List<String>) -> Unit = {},
     val onCreateFolder: (String, (Folder) -> Unit) -> Unit = { _, _ -> },
+    val onToggleTask: (MarkdownListItem) -> Unit = {},
 )
 
 /** What a hardware key does on an open card: E archives, D marks done, R refreshes details, F favorites. */
@@ -308,10 +310,11 @@ private fun CardDetailContent(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             CardPreview(
-                card = card,
+                card = state.displayedCard ?: card,
                 documentText = documentText,
                 onCopyColor = { hex -> actions.copy(hex, UiText.of("native.card.copiedValue", hex)) },
                 onViewDocument = actions.viewDocument,
+                onToggleTask = callbacks.onToggleTask.takeUnless { card.deleted },
             )
             LinkDetailsSections(card, onOpenImage = openImage)
             NotesAndTagsSections(card, onSearchTag)

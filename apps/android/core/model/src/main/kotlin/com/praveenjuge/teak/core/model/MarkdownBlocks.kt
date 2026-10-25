@@ -3,28 +3,50 @@ package com.praveenjuge.teak.core.model
 sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class ListBlock(val items: List<MarkdownListItem>) : MarkdownBlock
+    data class Table(val table: MarkdownTable) : MarkdownBlock
     data class Quote(val text: String) : MarkdownBlock
     data class Code(val text: String) : MarkdownBlock
     data object Rule : MarkdownBlock
     data class Paragraph(val text: String) : MarkdownBlock
 }
 
-data class MarkdownListItem(val depth: Int, val marker: String, val text: String)
+/**
+ * A list item. [checked] is a task item's state (`- [x]` is true, `- [ ]` false) and null for a plain one;
+ * [line] is the item's line in the note, counting from 0: the line a tap on its checkbox flips.
+ */
+data class MarkdownListItem(
+    val depth: Int,
+    val marker: String,
+    val text: String,
+    val checked: Boolean? = null,
+    val line: Int = 0,
+)
+
+/** A GFM table: a header row and body rows of inline Markdown, every row as wide as the header. */
+data class MarkdownTable(val header: List<String>, val rows: List<List<String>>)
 
 object MarkdownBlocks {
     private val heading = Regex("^(#{1,6})\\s+(.*?)\\s*#*\\s*$")
-    private val bullet = Regex("^(\\s*)[-*+]\\s+(.*)$")
-    private val ordered = Regex("^(\\s*)(\\d{1,9})[.)]\\s+(.*)$")
+    internal val bullet = Regex("^(\\s*)([-*+])\\s+(.*)$")
+    internal val ordered = Regex("^(\\s*)(\\d{1,9})([.)])\\s+(.*)$")
+    internal val task = Regex("^\\[([ xX])] (.*)$")
     private val quote = Regex("^\\s{0,3}>\\s?(.*)$")
-    private val rule = Regex("^\\s{0,3}([-*_])(\\s*\\1){2,}\\s*$")
+    internal val rule = Regex("^\\s{0,3}([-*_])(\\s*\\1){2,}\\s*$")
     private val fence = Regex("^\\s{0,3}(```|~~~)")
+    private val delimiterRow = Regex("^\\s{0,3}\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?\\s*$")
 
-    private fun listItem(line: String): MarkdownListItem? {
+    /** The note's lines, split the same way for rendering and for ticking a task. */
+    internal fun lines(markdown: String): List<String> = markdown.replace(Regex("\r\n?"), "\n").split("\n")
+
+    private fun listItem(line: String, index: Int = 0): MarkdownListItem? {
         bullet.matchEntire(line)?.let {
-            return MarkdownListItem(it.groupValues[1].length / 2, "•", it.groupValues[2])
+            val depth = it.groupValues[1].length / 2
+            val text = it.groupValues[3]
+            val box = task.matchEntire(text) ?: return MarkdownListItem(depth, "•", text, line = index)
+            return MarkdownListItem(depth, "•", box.groupValues[2], checked = box.groupValues[1] != " ", line = index)
         }
         ordered.matchEntire(line)?.let {
-            return MarkdownListItem(it.groupValues[1].length / 2, "${it.groupValues[2]}.", it.groupValues[3])
+            return MarkdownListItem(it.groupValues[1].length / 2, "${it.groupValues[2]}.", it.groupValues[4], line = index)
         }
         return null
     }
@@ -33,6 +55,50 @@ object MarkdownBlocks {
         fence.containsMatchIn(line) || heading.matches(line) || quote.matches(line) ||
             rule.matches(line) || listItem(line) != null
 
+    private fun indent(line: String): Int = line.takeWhile { it == ' ' || it == '\t' }.length
+
+    /** A row's cells, split on unescaped pipes after dropping the outer ones, as the web counts them. */
+    internal fun cells(line: String): List<String> {
+        var row = line.trim()
+        if (row.startsWith("|")) row = row.drop(1)
+        if (row.endsWith("|") && !row.endsWith("\\|")) row = row.dropLast(1)
+        val cells = mutableListOf<String>()
+        val cell = StringBuilder()
+        var escaped = false
+        for (char in row) {
+            if (char == '|' && !escaped) {
+                cells += cell.toString()
+                cell.clear()
+            } else {
+                cell.append(char)
+            }
+            escaped = char == '\\' && !escaped
+        }
+        cells += cell.toString()
+        return cells.map { it.trim().replace("\\|", "|") }
+    }
+
+    private data class FoundTable(val table: MarkdownTable?, val end: Int)
+
+    /**
+     * The table whose header row is `lines[index]`, and the line after it. `table` is null for one the web keeps
+     * literal: aligned columns, or a row with a different number of cells.
+     */
+    private fun table(lines: List<String>, index: Int): FoundTable? {
+        if (index + 1 >= lines.size || lines[index].isBlank() || indent(lines[index]) >= 4) return null
+        val delimiter = lines[index + 1]
+        if (!delimiterRow.matches(delimiter) || !(delimiter.contains('|') || delimiter.contains(':'))) return null
+        val header = cells(lines[index])
+        val alignments = cells(delimiter)
+        if (header.size != alignments.size) return null
+        var end = index + 2
+        while (end < lines.size && lines[end].isNotBlank() && !startsBlock(lines[end])) end += 1
+        val rows = lines.subList(index + 2, end).map(::cells)
+        val aligned = alignments.any { it.contains(':') }
+        val ragged = rows.any { it.size != header.size }
+        return FoundTable(if (aligned || ragged) null else MarkdownTable(header, rows), end)
+    }
+
     private val inlineLink = Regex("\\[([^\\]]+)]\\([^)]*\\)")
     private val emphasis = Regex("(\\*\\*|__|\\*|_|~~|`)(\\S(?:.*?\\S)?)\\1")
 
@@ -40,6 +106,11 @@ object MarkdownBlocks {
         val text = when (block) {
             is MarkdownBlock.Heading -> block.text
             is MarkdownBlock.ListBlock -> block.items.joinToString("\n") { "${it.marker} ${it.text}" }
+            // As the web's tiles read a table: cells joined by " · ", rows by " / ", empty ones left out.
+            is MarkdownBlock.Table -> (listOf(block.table.header) + block.table.rows)
+                .map { row -> row.filter(String::isNotEmpty).joinToString(" · ") }
+                .filter(String::isNotEmpty)
+                .joinToString(" / ")
             is MarkdownBlock.Quote -> block.text
             is MarkdownBlock.Code -> block.text
             MarkdownBlock.Rule -> ""
@@ -50,14 +121,18 @@ object MarkdownBlocks {
 
     fun parse(markdown: String): List<MarkdownBlock> {
         val blocks = mutableListOf<MarkdownBlock>()
-        val lines = markdown.replace(Regex("\r\n?"), "\n").split("\n")
+        val lines = lines(markdown)
         var index = 0
+        // Where the last list ended: a table right after it, or indented under it, is nested in it.
+        var listEnd: Int? = null
         while (index < lines.size) {
             val line = lines[index]
             if (line.isBlank()) {
                 index += 1
                 continue
             }
+            val afterList = listEnd
+            listEnd = null
             val fenceMatch = fence.find(line)
             if (fenceMatch != null) {
                 val marker = fenceMatch.groupValues[1]
@@ -95,15 +170,29 @@ object MarkdownBlocks {
             if (listItem(line) != null) {
                 val items = mutableListOf<MarkdownListItem>()
                 while (index < lines.size) {
-                    val item = listItem(lines[index]) ?: break
+                    val item = listItem(lines[index], index) ?: break
                     items += item
                     index += 1
                 }
                 blocks += MarkdownBlock.ListBlock(items)
+                listEnd = index
                 continue
             }
-            val paragraph = mutableListOf<String>()
-            while (index < lines.size && lines[index].isNotBlank() && !startsBlock(lines[index])) {
+            val found = table(lines, index)
+            if (found != null) {
+                val nested = afterList != null && (afterList == index || indent(line) >= 2)
+                blocks += if (found.table != null && !nested) {
+                    MarkdownBlock.Table(found.table)
+                } else {
+                    // The web shows these as literal Markdown, so they keep their pipes here too.
+                    MarkdownBlock.Code(lines.subList(index, found.end).joinToString("\n"))
+                }
+                index = found.end
+                continue
+            }
+            val paragraph = mutableListOf(line)
+            index += 1
+            while (index < lines.size && lines[index].isNotBlank() && !startsBlock(lines[index]) && table(lines, index) == null) {
                 paragraph += lines[index]
                 index += 1
             }

@@ -573,6 +573,12 @@
       },
       "usage": "{used} of {count, plural, one {# card} other {# cards}}"
     },
+    "notes": {
+      "taskFailed": "Couldn't update the checklist. Try again.",
+      "checked": "Checked",
+      "unchecked": "Not checked",
+      "table": "Table, {count, plural, one {# row} other {# rows}}"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "Type",

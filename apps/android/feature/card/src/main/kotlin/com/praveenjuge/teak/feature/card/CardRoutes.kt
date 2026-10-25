@@ -81,6 +81,7 @@ fun CardDetailRoute(
             onOpenCard = onOpenCard,
             onSetFolders = viewModel::setFolders,
             onCreateFolder = viewModel::createFolder,
+            onToggleTask = viewModel::toggleTask,
         ),
     )
 }

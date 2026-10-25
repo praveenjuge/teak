@@ -5,6 +5,8 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 ## Sub-features
 
 - `android-sign-in` signs the Debug build in to the local E2E stack with `apps/android/scripts/e2e-session.ts`.
+- `android-note-tables` shows a note's GFM tables read-only with a bold header row, scrolling a wide one sideways, with `[[` pills working in cells; aligned, ragged and listed tables stay literal monospaced text. Steps in [note-tables](./note-tables.md), **Native apps**.
+- `android-tasks` shows `- [ ]` and `- [x]` items in an open note as checkboxes (done ones muted and struck through); tapping the row ticks that one item, moves it below the open ones as the web does, and saves the note, and the web shows it live. A failed save puts it back with "Couldn't update the checklist. Try again." Steps in [note-tables](./note-tables.md), **Native apps**.
 - `android-sort` sorts Home by "Newest first", "Oldest first" or "Shuffle" (each Shuffle reshuffles).
 - `android-archive` shows the Archive view, archives or unarchives from a tile's long-press menu, the detail overflow, the E key or the selection bar, with "Undo".
 - `android-bulk` acts on selected cards: Archive or Unarchive, Add to favorites, Remove from favorites, Add tags…, Add to folder…, Move to Trash, Restore, Delete forever.

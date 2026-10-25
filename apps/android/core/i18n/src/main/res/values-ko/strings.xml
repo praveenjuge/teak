@@ -602,6 +602,13 @@
     <string name="native_library_toast_deletedForever">카드가 영구 삭제되었습니다</string>
     <string name="native_library_toast_restored">카드가 복원되었습니다</string>
     <string name="native_library_toast_trashed">카드를 휴지통으로 이동했습니다</string>
+    <string name="native_notes_checked">Checked</string>
+    <plurals name="native_notes_table">
+        <item quantity="one">Table, %1$d row</item>
+        <item quantity="other">Table, %1$d rows</item>
+    </plurals>
+    <string name="native_notes_taskFailed">Couldn\'t update the checklist. Try again.</string>
+    <string name="native_notes_unchecked">Not checked</string>
     <string name="native_revisit_archived">보관됨</string>
     <string name="native_revisit_caption">%1$s · %2$s에 저장됨</string>
     <string name="native_revisit_close">다시 보기 닫기</string>

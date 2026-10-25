@@ -6,6 +6,8 @@ struct MarkdownView: View {
     var baseFont: Font = .body
     /// Live titles for `[[Title|teak:id]]` links; nil leaves tokens as text.
     var cardLinks: [String: CardLinkTarget]?
+    /// Ticks or unticks a task; nil shows its checkbox read-only.
+    var toggleTask: ((MarkdownListItem) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -39,15 +41,46 @@ struct MarkdownView: View {
         case let .list(items):
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(item.marker).foregroundStyle(.secondary).monospacedDigit()
-                        inline(item.text)
+                    if let checked = item.checked {
+                        task(item, checked: checked)
+                    } else {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(item.marker).foregroundStyle(.secondary).monospacedDigit()
+                            inline(item.text)
+                        }
+                        .font(baseFont)
+                        .padding(.leading, Double(item.depth) * 16)
                     }
-                    .font(baseFont)
-                    .padding(.leading, Double(item.depth) * 16)
                 }
             }
+        case let .table(table):
+            MarkdownTableView(table: table, cell: inline).font(baseFont)
         }
+    }
+
+    /// A task with a checkbox; done ones read muted and struck through, as on the web.
+    private func task(_ item: MarkdownListItem, checked: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Button {
+                toggleTask?(item)
+            } label: {
+                Image(systemName: checked ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(checked ? Color.accentColor : .secondary)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .disabled(toggleTask == nil)
+            inline(item.text)
+                .strikethrough(checked)
+                .foregroundStyle(checked ? .secondary : .primary)
+        }
+        .font(baseFont)
+        .padding(.leading, Double(item.depth) * 16)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(MarkdownBlocks.plainText(CardLinks.tokensToText(item.text))))
+        .accessibilityValue(checked ? tr("native.notes.checked") : tr("native.notes.unchecked"))
+        .accessibilityAddTraits(toggleTask == nil ? [] : .isToggle)
+        .accessibilityAction { toggleTask?(item) }
     }
 
     private func inline(_ text: String) -> Text {
@@ -93,6 +126,59 @@ struct MarkdownView: View {
         case 2: .title3
         default: .headline
         }
+    }
+}
+
+/// A read-only GFM table with a header row. A wide one scrolls sideways; long cells wrap.
+private struct MarkdownTableView: View {
+    let table: MarkdownTable
+    let cell: (String) -> Text
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    ForEach(Array(table.header.enumerated()), id: \.offset) { _, text in
+                        cellView(text).fontWeight(.semibold)
+                    }
+                }
+                .background(.fill.tertiary)
+                ForEach(Array(table.rows.enumerated()), id: \.offset) { _, row in
+                    Divider()
+                    GridRow {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, text in cellView(text) }
+                    }
+                }
+            }
+            .clipShape(.rect(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+        }
+        .scrollIndicators(.automatic)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(tr("native.notes.table", count: table.rows.count))
+    }
+
+    private func cellView(_ text: String) -> some View {
+        CappedWidth(maxWidth: 280) { cell(text) }
+            .frame(minWidth: 48, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+    }
+}
+
+/// Gives its content its own width up to `maxWidth`, wrapping longer text, even where the width on offer is
+/// unlimited, as inside a sideways scroll.
+private struct CappedWidth: Layout {
+    let maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let child = subviews.first else { return .zero }
+        let width = min(child.sizeThatFits(.unspecified).width, proposal.width ?? maxWidth, maxWidth)
+        return child.sizeThatFits(ProposedViewSize(width: width, height: nil))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
     }
 }
 
