@@ -48,6 +48,28 @@ describe("Android string resources", () => {
     expect(listed).toEqual([...SUPPORTED_LOCALES]);
   });
 
+  test("screens take their text from the catalog, not string literals", () => {
+    // A literal here would be English in every language; read it with tr() or UiText.of().
+    const ui =
+      /\bText\("([^"$]*[A-Za-z][^"]*)"|\b(?:label|title|text|contentDescription|message|confirmLabel|dismissLabel|supporting|placeholder|actionLabel)\s*=\s*"([^"]*[A-Za-z][^"]*)"/g;
+    // Names, key caps, search syntax people type, and animation labels nobody reads.
+    const allowed = new Set([
+      "Teak",
+      "E",
+      "tag:design type:link",
+      "recordCorner",
+    ]);
+    const literals = kotlinFiles(ANDROID).flatMap((file) =>
+      [...readFileSync(file, "utf8").matchAll(ui)]
+        .filter((match) => {
+          const text = (match[1] ?? match[2]) as string;
+          return !(allowed.has(text) || text.startsWith("by @praveenjuge"));
+        })
+        .map((match) => `${relative(ANDROID, file)}: ${match[0]}`)
+    );
+    expect(literals).toEqual([]);
+  });
+
   test("every tr and UiText.of call names a key with the values its message takes", async () => {
     const { arguments: args } = await loadNativeCatalogs(
       resolve(ANDROID, "../../packages/i18n/messages"),
