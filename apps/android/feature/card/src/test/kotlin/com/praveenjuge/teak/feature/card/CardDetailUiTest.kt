@@ -1,6 +1,10 @@
 package com.praveenjuge.teak.feature.card
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -149,5 +153,31 @@ class CardDetailUiTest {
         field.performImeAction()
 
         assertEquals(listOf("Field notes"), saved)
+    }
+
+    @Test
+    fun `a saved title arriving late keeps newer typing`() {
+        val saved = mutableListOf<String>()
+        var title by mutableStateOf("Example")
+        compose.setContent {
+            val card = Card(id = "l1", creationTime = 0.0, type = CardType.Link, url = "https://example.com", metadataTitle = title)
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onSaveTitle = { saved += it }),
+            )
+        }
+
+        val field = compose.onNodeWithContentDescription("Title")
+        field.performTextReplacement("Field notes")
+        field.performImeAction()
+        // Typing again before the card reports the first save.
+        field.performTextReplacement("Field notes 2")
+        title = "Field notes"
+        compose.waitForIdle()
+
+        field.assertTextEquals("Field notes 2")
+        field.performImeAction()
+        assertEquals(listOf("Field notes", "Field notes 2"), saved)
     }
 }

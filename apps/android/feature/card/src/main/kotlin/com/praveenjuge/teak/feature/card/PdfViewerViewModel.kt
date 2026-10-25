@@ -139,13 +139,19 @@ private class OpenPdf(private val descriptor: ParcelFileDescriptor, private val 
 
         fun open(file: File): OpenPdf {
             val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+            var renderer: PdfRenderer? = null
             var opened: OpenPdf? = null
             try {
-                // A damaged or locked PDF throws here; the file is closed and the error goes to the caller.
-                opened = OpenPdf(descriptor, PdfRenderer(descriptor))
+                // A damaged or locked PDF throws here, or a damaged page while its size is read: the renderer
+                // and the file are closed and the error goes to the caller.
+                renderer = PdfRenderer(descriptor)
+                opened = OpenPdf(descriptor, renderer)
                 return opened
             } finally {
-                if (opened == null) descriptor.close()
+                if (opened == null) {
+                    renderer?.close()
+                    descriptor.close()
+                }
             }
         }
     }

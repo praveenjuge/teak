@@ -327,13 +327,27 @@ internal fun CardDetailScreen(
 /** A link's title in the top bar, renamed in place as on the web. A blank title puts the old one back. */
 @Composable
 private fun LinkTitleField(title: String, onSave: (String) -> Unit) {
-    var draft by rememberSaveable(title) { mutableStateOf(title) }
+    var draft by rememberSaveable { mutableStateOf(title) }
+    // The card's title the draft last followed, and the title last sent until the card reports it.
+    var followed by rememberSaveable { mutableStateOf(title) }
+    var sent by rememberSaveable { mutableStateOf<String?>(null) }
+    // Follows a saved title unless newer typing is still waiting to be saved.
+    LaunchedEffect(title) {
+        if (draft == followed || draft == sent) draft = title
+        if (sent == title) sent = null
+        followed = title
+    }
     var focused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val label = tr("native.card.titleField.label")
     val placeholder = tr("native.card.titleField.placeholder")
     fun commit() {
-        if (draft.isBlank()) draft = title else onSave(draft)
+        if (draft.isBlank()) {
+            draft = title
+        } else {
+            sent = draft
+            onSave(draft)
+        }
     }
     BasicTextField(
         value = draft,
