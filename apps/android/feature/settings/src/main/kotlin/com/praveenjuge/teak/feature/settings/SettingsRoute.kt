@@ -204,7 +204,7 @@ fun SettingsScreen(
             onDismissRequest = onDismissError,
             title = { Text(tr("native.settings.deleteAccount")) },
             text = { Text(message.resolve()) },
-            confirmButton = { TextButton(onClick = onDismissError) { Text(tr("native.capture.ok")) } },
+            confirmButton = { TextButton(onClick = onDismissError) { Text(tr("native.app.ok")) } },
         )
     }
 }

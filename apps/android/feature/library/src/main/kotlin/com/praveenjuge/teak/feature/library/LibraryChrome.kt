@@ -233,31 +233,31 @@ internal fun LibraryFilterRow(
         FilterChip(
             selected = filters.favoritesOnly,
             onClick = onToggleFavorites,
-            label = { Text(tr("native.app.nav.favorites")) },
+            label = { Text(tr("native.filters.favorites")) },
             leadingIcon = { ChipIcon(if (filters.favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder) },
         )
         FilterChip(
             selected = filters.archivedOnly,
             onClick = onToggleArchive,
-            label = { Text(tr("native.app.nav.archive")) },
+            label = { Text(tr("native.filters.archive")) },
             leadingIcon = { ChipIcon(Icons.Outlined.Archive) },
         )
         FilterChip(
             selected = filters.trashOnly,
             onClick = onToggleTrash,
-            label = { Text(tr("native.app.nav.trash")) },
+            label = { Text(tr("native.filters.trash")) },
             leadingIcon = { ChipIcon(Icons.Outlined.Delete) },
         )
         FilterChip(
             selected = showsDone,
             onClick = onToggleDone,
-            label = { Text(tr("native.library.filter.done")) },
+            label = { Text(tr("native.filters.is.done")) },
             leadingIcon = { ChipIcon(Icons.Outlined.CheckCircle) },
         )
         FilterChip(
             selected = showsTodo,
             onClick = onToggleTodo,
-            label = { Text(tr("native.library.filter.todo")) },
+            label = { Text(tr("native.filters.is.todo")) },
             leadingIcon = { ChipIcon(Icons.Outlined.Circle) },
         )
         CardType.entries.forEach { type ->

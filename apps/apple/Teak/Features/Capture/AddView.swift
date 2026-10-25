@@ -10,7 +10,7 @@ struct AddView: View {
 
     var body: some View {
         content
-            .navigationTitle(tr("native.capture.title"))
+            .navigationTitle(tr("native.app.nav.add"))
             .disabled(capture.isUploading)
             .onChange(of: photos) { _, selection in
                 guard !selection.isEmpty else { return }

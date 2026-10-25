@@ -134,7 +134,7 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
             onDismissRequest = callbacks.onDismissAlert,
             title = { Text(alert.title.resolve()) },
             text = { Text(alert.message.resolve()) },
-            confirmButton = { TextButton(onClick = callbacks.onDismissAlert) { Text(tr("native.card.edit.ok")) } },
+            confirmButton = { TextButton(onClick = callbacks.onDismissAlert) { Text(tr("native.app.ok")) } },
         )
     }
 }

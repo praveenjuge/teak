@@ -91,7 +91,7 @@ struct CardTile: View {
                     RemoteImage(imageURL, placeholder: placeholderURL)
                         .frame(width: width, height: mediaHeight)
                 }
-                TileFooter(title: card.title.isEmpty ? (card.fileName ?? tr("native.library.tile.attachment")) : card.title, symbol: "doc")
+                TileFooter(title: card.title.isEmpty ? (card.fileName ?? tr("native.card.preview.attachment")) : card.title, symbol: "doc")
             }
         case .audio:
             WaveformView(seed: card.id)

@@ -89,7 +89,7 @@ object CardSheet {
         }
         file?.duration?.let { add(DetailRow(UiText.of("native.details.duration"), formatDuration(it))) }
         fileFacts(card).takeIf { it.isNotEmpty() }?.let { facts ->
-            add(DetailRow(UiText.of("native.details.details"), facts.reduceRight { fact, rest -> UiText.of("native.details.list", fact, rest) }))
+            add(DetailRow(UiText.of("native.card.sections.details"), facts.reduceRight { fact, rest -> UiText.of("native.details.list", fact, rest) }))
         }
         card.metadataDescription?.trim()?.takeIf { it.isNotEmpty() }?.let { add(DetailRow(UiText.of("native.details.description"), it)) }
     }

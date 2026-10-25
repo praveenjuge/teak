@@ -137,7 +137,7 @@ fun VoiceMemoRoute(onDone: () -> Unit) {
             onDismissRequest = viewModel::dismissError,
             title = { Text(tr("native.capture.couldntRecord")) },
             text = { Text(message.resolve()) },
-            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(tr("native.capture.ok")) } },
+            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(tr("native.app.ok")) } },
         )
     }
 }

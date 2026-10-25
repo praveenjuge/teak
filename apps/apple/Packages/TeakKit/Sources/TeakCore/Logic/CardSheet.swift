@@ -96,7 +96,7 @@ public enum CardSheet {
         }
         if let duration = file?.duration { rows.append(DetailRow(tr("native.details.duration"), formatDuration(duration))) }
         let facts = fileFacts(card)
-        if !facts.isEmpty { rows.append(DetailRow(tr("native.details.details"), facts.joined(separator: " · "))) }
+        if !facts.isEmpty { rows.append(DetailRow(tr("native.card.sections.details"), facts.joined(separator: " · "))) }
         if let description = card.metadataDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
            !description.isEmpty {
             rows.append(DetailRow(tr("native.details.description"), description))

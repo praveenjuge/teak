@@ -68,8 +68,8 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         ShortcutManagerCompat.setDynamicShortcuts(
             this,
             listOf(
-                shortcut("new_note", resources.tr("android.shortcuts.newNote"), R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
-                shortcut("voice_memo", resources.tr("android.shortcuts.voiceMemo"), R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
+                shortcut("new_note", resources.tr("native.capture.newNote"), R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
+                shortcut("voice_memo", resources.tr("native.capture.voiceMemo"), R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
             ),
         )
     }

@@ -78,19 +78,19 @@ private fun firstText(vararg values: String?, fallback: UiText): UiText =
 
 internal fun tileTitle(card: CardSummary): UiText = when (card.type) {
     CardType.Link -> firstText(card.title, card.url, fallback = UiText.of("cards.types.link"))
-    CardType.Document -> firstText(card.title, card.fileName, fallback = UiText.of("native.library.tile.attachment"))
+    CardType.Document -> firstText(card.title, card.fileName, fallback = UiText.of("native.card.preview.attachment"))
     CardType.Image -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.image"))
     CardType.Video -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.video"))
     CardType.Audio -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.audio"))
     CardType.Palette -> firstText(card.title, fallback = UiText.of("cards.types.palette"))
     CardType.Quote -> firstText(card.previewText, fallback = UiText.of("cards.types.quote"))
-    CardType.Text -> firstText(card.previewText, card.title, fallback = UiText.of("native.library.tile.note"))
+    CardType.Text -> firstText(card.previewText, card.title, fallback = UiText.of("native.card.note"))
 }
 
 /** A card's kind as a tile or caption names it: notes are "Note", not "Text". */
 @Composable
 internal fun tileKind(card: CardSummary): String =
-    if (card.type == CardType.Text) tr("native.library.tile.note") else card.type.labelText.resolve()
+    if (card.type == CardType.Text) tr("native.card.note") else card.type.labelText.resolve()
 
 enum class TileSelection { NotSelecting, Unselected, Selected }
 

@@ -17,7 +17,7 @@ public enum HiddenTags {
     }
 
     /// The note above results when the search names a hidden tag.
-    public static var searchHint: String { tr("native.tags.card.searchHint") }
+    public static var searchHint: String { tr("native.library.showsHiddenCards") }
 
     /// Under an empty view whose cards are all hidden. It names #secret and #hidden, the hidden tags.
     public static var emptyViewHint: String { tr("native.tags.card.hiddenCards") }
@@ -53,26 +53,26 @@ public enum TagOperations {
 
     public static func running(_ kind: Kind, from: String, to: String?) -> String {
         switch kind {
-        case .rename: tr("native.tags.card.renaming", from, to ?? "")
-        case .merge: tr("native.tags.card.merging", from, to ?? "")
-        case .delete: tr("native.tags.card.deleting", from)
+        case .rename: tr("native.tags.renaming", from, to ?? "")
+        case .merge: tr("native.tags.merging", from, to ?? "")
+        case .delete: tr("native.tags.deleting", from)
         }
     }
 
     public static func progress(changed: Int, total: Int) -> String {
         let total = max(total, 0)
-        return tr("native.tags.card.progress", count: total, number(min(changed, total)))
+        return tr("native.tags.progress", count: total, number(min(changed, total)))
     }
 
     public static func completed(_ kind: Kind, from: String, to: String?) -> String {
         switch kind {
-        case .rename: tr("native.tags.card.renamed", from, to ?? "")
-        case .merge: tr("native.tags.card.merged", from, to ?? "")
-        case .delete: tr("native.tags.card.deleted", from)
+        case .rename: tr("native.tags.renamed", from, to ?? "")
+        case .merge: tr("native.tags.merged", from, to ?? "")
+        case .delete: tr("native.tags.deleted", from)
         }
     }
 
-    public static func changed(_ count: Int) -> String { tr("native.tags.card.changed", count: count) }
+    public static func changed(_ count: Int) -> String { tr("native.tags.changed", count: count) }
 
     /// The tag list as it will read once the summary catches up with a
     /// finished change, so the list doesn't show the old name meanwhile.
@@ -94,9 +94,9 @@ public enum TagOperations {
         let total = max(total, 0)
         let changed = number(min(changed, total))
         return switch kind {
-        case .rename: tr("native.tags.card.renameFailed", count: total, changed)
-        case .merge: tr("native.tags.card.mergeFailed", count: total, changed)
-        case .delete: tr("native.tags.card.deleteFailed", count: total, changed)
+        case .rename: tr("native.tags.renameFailed", count: total, changed)
+        case .merge: tr("native.tags.mergeFailed", count: total, changed)
+        case .delete: tr("native.tags.deleteFailed", count: total, changed)
         }
     }
 }

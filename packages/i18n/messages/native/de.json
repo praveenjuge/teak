@@ -94,10 +94,8 @@
       "usage": "Nutzung",
       "plan": "Tarif",
       "notAvailable": "Nicht verfügbar",
-      "planFree": "Kostenlos",
       "usageFree": "{used} von {limit} Karten",
       "manage": "Verwalten…",
-      "upgrade": "Upgraden…",
       "signOut": "Abmelden",
       "signingOut": "Wird abgemeldet…",
       "signOutConfirm": "Möchten Sie sich wirklich abmelden?",
@@ -123,16 +121,8 @@
     },
     "app": {
       "nav": {
-        "home": "Start",
-        "folders": "Ordner",
         "add": "Hinzufügen",
-        "settings": "Einstellungen",
-        "favorites": "Favoriten",
-        "archive": "Archiv",
-        "tags": "Tags",
-        "trash": "Papierkorb",
-        "types": "Typen",
-        "newFolder": "Neuer Ordner"
+        "types": "Typen"
       },
       "ok": "OK",
       "upgrade": "Upgraden…",
@@ -144,22 +134,14 @@
       "failed": {
         "title": "Etwas ist schiefgelaufen"
       },
-      "signInConfigFailed": "Die Anmeldekonfiguration konnte nicht geladen werden",
-      "connectFailed": "Verbindung fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "uploadProgress": "{done} von {total} wird gespeichert…",
       "dropFiles": "Dateien zum Hochladen ablegen",
-      "missingCard": "Fehlende Karte",
       "saveRequest": {
         "savingTitle": "Wird gespeichert",
         "savingMessage": "Wird in Ihrem Teak-Tresor gespeichert…",
-        "savedTitle": "Gespeichert",
-        "savedMessage": "Es ist jetzt in Ihrer Bibliothek.",
-        "emptyTitle": "Nichts zu speichern",
         "emptyMessage": "Der Kurzbefehl hat weder Text noch Link gesendet.",
-        "signedOutTitle": "Anmeldung erforderlich",
         "signedOutMessage": "Öffnen Sie Teak, melden Sie sich an und führen Sie den Kurzbefehl dann erneut aus.",
-        "failedTitle": "Speichern fehlgeschlagen",
-        "failedMessage": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+        "failedTitle": "Speichern fehlgeschlagen"
       }
     },
     "auth": {
@@ -170,12 +152,10 @@
       "registerWithEmail": "Mit E-Mail registrieren",
       "signInWithEmail": "Mit E-Mail anmelden",
       "signingIn": "Anmeldung läuft…",
-      "signupsPaused": "Neue Registrierungen sind gerade pausiert. Bitte versuchen Sie es später erneut.",
       "failedTitle": "Anmeldung fehlgeschlagen",
       "failedApple": "Die Anmeldung mit Apple ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "failedGoogle": "Die Anmeldung mit Google ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
-      "failedEmail": "Die Anmeldung mit E-Mail ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
-      "completeFailed": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."
+      "failedEmail": "Die Anmeldung mit E-Mail ist fehlgeschlagen. Bitte versuchen Sie es erneut."
     },
     "library": {
       "search": "Suchen",
@@ -194,26 +174,12 @@
       "loadingMore": "Weitere Karten werden geladen",
       "loadMoreFailed": "Weitere Karten konnten nicht geladen werden.",
       "loadFailed": {
-        "title": "Karten konnten nicht geladen werden",
-        "message": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+        "title": "Karten konnten nicht geladen werden"
       },
-      "downloadFailed": "Diese Datei konnte nicht heruntergeladen werden.",
-      "createFolderFailed": "Der Ordner konnte nicht erstellt werden",
-      "savedSmartFolder": "„{name}“ gespeichert",
-      "refreshQueued": "Details werden aktualisiert. Zusammenfassung und Tags folgen in Kürze.",
-      "refreshFailed": "Diese Karte konnte nicht aktualisiert werden. Versuchen Sie es gleich noch einmal.",
       "toast": {
         "trashed": "Karte in den Papierkorb gelegt",
         "restored": "Karte wiederhergestellt",
         "deletedForever": "Karte endgültig gelöscht"
-      },
-      "confirmTrash": {
-        "title": "In den Papierkorb legen?",
-        "message": "Diese Karte wird in den Papierkorb gelegt."
-      },
-      "confirmDeleteForever": {
-        "title": "Endgültig löschen?",
-        "message": "Die Karte und ihre Dateien werden entfernt. Dies lässt sich nicht rückgängig machen."
       },
       "firstCard": {
         "title": "Fügen Sie Ihre erste Karte hinzu!",
@@ -223,26 +189,14 @@
       "empty": {
         "todoTitle": "Nichts mehr zu erledigen.",
         "todoMessage": "Links, die Sie als erledigt markieren, verschwinden aus dieser Liste.",
-        "smartFolderTitle": "Keine Karten passen zu diesem intelligenten Ordner.",
         "smartFolderMessage": "Karten, die zu seiner Suche passen, erscheinen hier, sobald Sie sie speichern.",
-        "folderTitle": "Noch keine Karten in diesem Ordner.",
-        "folderMessage": "Fügen Sie Karten aus Ihrer Bibliothek hinzu, um sie hier zu sehen.",
-        "trashTitle": "Der Papierkorb ist leer",
-        "trashMessage": "Gelöschte Karten bleiben 30 Tage lang hier.",
-        "archiveTitle": "Nichts archiviert",
-        "archiveMessage": "Archivieren Sie eine Karte, um sie aus Ihrer Bibliothek herauszuhalten.",
-        "filtersTitle": "Keine passenden Karten",
-        "filtersMessage": "Versuchen Sie andere Filter.",
-        "searchTitle": "Keine Ergebnisse für „{query}“",
-        "searchMessage": "Prüfen Sie die Schreibweise oder versuchen Sie eine andere Suche.",
-        "timeMessage": "Keine Karten aus {range}."
+        "folderMessage": "Fügen Sie Karten aus Ihrer Bibliothek hinzu, um sie hier zu sehen."
       },
       "menu": {
         "show": "Anzeigen",
         "type": "Typ",
         "color": "Farbe",
         "sort": "Sortieren",
-        "shuffle": "Zufällig",
         "reshuffle": "Neu mischen",
         "saveSmartFolder": "Als intelligenten Ordner speichern…"
       },
@@ -252,23 +206,12 @@
         "shuffle": "Sortierung: zufällig"
       },
       "filter": {
-        "done": "Erledigt",
-        "todo": "Offen",
         "clear": "Zurücksetzen"
       },
       "selected": "Ausgewählt",
       "tile": {
         "open": "Öffnen",
-        "favorite": "Favorit",
-        "attachment": "Anhang",
-        "note": "Notiz"
-      },
-      "saveSearch": {
-        "title": "Als intelligenten Ordner speichern",
-        "message": "Zeigt jede Karte, die zur Suche passt, auch Karten, die Sie später speichern.",
-        "nameLabel": "Name",
-        "namePlaceholder": "Leseliste",
-        "save": "Intelligenten Ordner speichern"
+        "favorite": "Favorit"
       }
     },
     "bulk": {
@@ -283,11 +226,6 @@
       "tagsHint": "Trennen Sie Tags durch Kommas.",
       "tooManyTags": "Wählen Sie höchstens {max} Tags auf einmal.",
       "addToFolderTitle": "{count, plural, one {# Karte} other {# Karten}} zu einem Ordner hinzufügen",
-      "findFolder": "Ordner suchen oder erstellen",
-      "searchFolders": "Ordner durchsuchen",
-      "createFolder": "Ordner „{name}“ erstellen",
-      "noFolders": "Noch keine Ordner. Geben Sie einen Namen ein, um einen zu erstellen.",
-      "noFolderMatch": "Kein Ordner mit diesem Namen.",
       "deleteForeverMessage": "{count, plural, one {# Karte und ihre Dateien werden entfernt.} other {# Karten und ihre Dateien werden entfernt.}} Dies lässt sich nicht rückgängig machen.",
       "done": {
         "favorite": "{count, plural, one {# Karte} other {# Karten}} zu Favoriten hinzugefügt",
@@ -317,7 +255,6 @@
       "partial": "{message}. {count, plural, one {# Karte konnte nicht geändert werden.} other {# Karten konnten nicht geändert werden.}}"
     },
     "similar": {
-      "emptyTitle": "Noch nichts Ähnliches",
       "emptyMessage": "Versuchen Sie es mit einer anderen Karte.",
       "pending": "Teak lernt diese Karte noch kennen. Versuchen Sie es gleich noch einmal.",
       "rateLimited": "Zu viele Suchen. Versuchen Sie es in einer Minute erneut.",
@@ -346,7 +283,6 @@
       "updateFailed": "Diese Karte konnte nicht aktualisiert werden."
     },
     "capture": {
-      "title": "Hinzufügen",
       "write": "Schreiben",
       "upload": "Hochladen",
       "uploads": "Uploads",
@@ -373,7 +309,6 @@
       "cardLimitReached": "Kartenlimit erreicht",
       "cardLimitMessage": "Sie haben das Kartenlimit des kostenlosen Tarifs erreicht.",
       "freePlanLimit": "Der kostenlose Tarif umfasst {limit} Karten.",
-      "nothingToSave": "Nichts zu speichern",
       "nothingToSaveMessage": "Geben Sie vor dem Speichern ein Lesezeichen, eine URL oder eine Notiz ein.",
       "linkSaved": "Link gespeichert",
       "noteSaved": "Notiz gespeichert",
@@ -393,7 +328,6 @@
       "skippedFile": "{name}: {reason}",
       "errorTitle": "Fehler",
       "photosFailed": "Die ausgewählten Fotos konnten nicht geladen werden.",
-      "ok": "OK",
       "cameraOff": "Kamerazugriff ist deaktiviert",
       "cameraOffMessage": "Erlauben Sie den Kamerazugriff in den Einstellungen, um Fotos für Teak aufzunehmen.",
       "openSettings": "Einstellungen öffnen",
@@ -421,21 +355,17 @@
     },
     "share": {
       "saving": "Wird in Teak gespeichert…",
-      "saved": "Gespeichert",
       "savedMessage": "Es ist jetzt in Ihrer Bibliothek.",
       "nothingToSave": "Nichts zu speichern",
       "nothingToSaveMessage": "Teak hat keinen Text, keinen Link und keine Datei zum Speichern gefunden.",
       "signInRequired": "Anmeldung erforderlich",
       "signInMessage": "Öffnen Sie Teak, melden Sie sich an und teilen Sie dann erneut.",
       "openTeak": "Teak öffnen",
-      "failedMessage": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "partialMessage": "Einige Objekte konnten nicht gespeichert werden.",
       "tooManyItems": "Nur die ersten {max} geteilten Objekte werden gespeichert.",
       "addDetails": "Tags und Notiz hinzufügen",
-      "addTag": "Tag hinzufügen",
       "addNote": "Notiz hinzufügen",
       "note": "Notiz",
-      "removeTag": "{tag} entfernen",
       "skip": "Überspringen",
       "detailsFailed": "Tags und Notiz konnten nicht gespeichert werden. Versuchen Sie es erneut.",
       "noteFailed": "Die Notiz konnte nicht gespeichert werden.",
@@ -472,7 +402,6 @@
       "emptyTitle": "Noch keine Ordner",
       "emptyMessage": "Gruppieren Sie zusammengehörige Karten. Erstellen Sie einen Ordner und fügen Sie ihm Karten hinzu.",
       "loadFailed": "Ordner konnten nicht geladen werden",
-      "loadFailedMessage": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "createNamed": "Ordner „{name}“ erstellen",
       "pickerEmpty": "Noch keine Ordner. Geben Sie einen Namen ein, um einen zu erstellen.",
       "findOrCreate": "Ordner suchen oder erstellen",
@@ -518,20 +447,7 @@
       "tryRest": "Versuchen Sie es erneut, um den Rest zu ändern.",
       "card": {
         "hiddenAdded": "Ausgeblendet. Suchen Sie nach #{tag}, um sie zu sehen.",
-        "searchHint": "Zeigt ausgeblendete Karten",
-        "hiddenCards": "Einige Karten sind ausgeblendet. Suchen Sie nach #secret oder #hidden, um sie zu sehen.",
-        "renaming": "„{from}“ wird in „{to}“ umbenannt…",
-        "merging": "„{from}“ wird mit „{to}“ zusammengeführt…",
-        "deleting": "„{from}“ wird gelöscht…",
-        "renamed": "„{from}“ in „{to}“ umbenannt",
-        "merged": "„{from}“ mit „{to}“ zusammengeführt",
-        "deleted": "„{from}“ gelöscht",
-        "progress": "{changed} von {count, plural, one {# Karte} other {# Karten}} geändert",
-        "changed": "{count, plural, one {# Karte geändert} other {# Karten geändert}}",
-        "renameFailed": "Umbenennen konnte nicht abgeschlossen werden. {changed} von {count, plural, one {# Karte} other {# Karten}} geändert.",
-        "mergeFailed": "Zusammenführen konnte nicht abgeschlossen werden. {changed} von {count, plural, one {# Karte} other {# Karten}} geändert.",
-        "deleteFailed": "Löschen konnte nicht abgeschlossen werden. {changed} von {count, plural, one {# Karte} other {# Karten}} geändert.",
-        "retryRest": "Versuchen Sie es erneut, um den Rest zu ändern."
+        "hiddenCards": "Einige Karten sind ausgeblendet. Suchen Sie nach #secret oder #hidden, um sie zu sehen."
       }
     },
     "card": {
@@ -547,7 +463,6 @@
         "message": "Wählen Sie eine Karte, um sie hier zu sehen."
       },
       "folders": "Ordner…",
-      "info": "Info",
       "copied": "Kopiert",
       "copiedValue": "{value} kopiert",
       "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen.",
@@ -586,9 +501,6 @@
         "none": "Diese Karte ist in keinem Ordner.",
         "count": "{count, plural, one {In # Ordner.} other {In # Ordnern.}}",
         "search": "Ordner durchsuchen",
-        "placeholder": "Ordner suchen oder erstellen",
-        "create": "Ordner „{name}“ erstellen",
-        "empty": "Noch keine Ordner. Geben Sie einen Namen ein, um einen zu erstellen.",
         "noMatch": "Kein Ordner mit diesem Namen."
       },
       "deleteForever": {
@@ -615,8 +527,7 @@
         "saveFailed": "Änderungen konnten nicht gespeichert werden",
         "quoteEmptyTitle": "Zitat ist leer",
         "quoteEmptyMessage": "Schreiben Sie das Zitat, bevor Sie speichern.",
-        "quoteEmpty": "Ein Zitat darf nicht leer sein.",
-        "ok": "OK"
+        "quoteEmpty": "Ein Zitat darf nicht leer sein."
       },
       "preview": {
         "image": "Bild",
@@ -638,8 +549,6 @@
         "linkedCard": "Verlinkte Karte: {title}"
       },
       "notice": {
-        "archived": "1 Karte archiviert",
-        "unarchived": "1 Karte zurück in die Bibliothek gebracht",
         "refreshing": "Details werden aktualisiert. Zusammenfassung und Tags werden in Kürze aktualisiert."
       },
       "failed": {
@@ -650,7 +559,6 @@
         "unarchive": "Diese Karte konnte nicht dearchiviert werden.",
         "refresh": "Diese Karte konnte nicht aktualisiert werden. Versuchen Sie es gleich noch einmal.",
         "folders": "Die Ordner der Karte konnten nicht geändert werden",
-        "createFolder": "Der Ordner konnte nicht erstellt werden",
         "moveToTrash": "Diese Karte konnte nicht in den Papierkorb gelegt werden.",
         "delete": "Diese Karte konnte nicht gelöscht werden.",
         "restore": "Diese Karte konnte nicht wiederhergestellt werden.",
@@ -658,9 +566,6 @@
         "download": "Diese Datei konnte nicht heruntergeladen werden."
       },
       "share": {
-        "saved": "In Teak gespeichert",
-        "savedCount": "{count, plural, one {# Objekt gespeichert} other {# Objekte gespeichert}}",
-        "savedSome": "{saved} von {total} gespeichert",
         "nothing": "Nichts zu speichern."
       },
       "plan": {
@@ -677,7 +582,6 @@
       "size": "Größe",
       "dimensions": "Abmessungen",
       "duration": "Dauer",
-      "details": "Details",
       "description": "Beschreibung",
       "site": "Website",
       "author": "Autor",
@@ -780,7 +684,7 @@
         "filtersMessage": "Versuchen Sie andere Filter.",
         "noMatches": "Keine passenden Karten",
         "noResults": "Keine Ergebnisse für „{query}“",
-        "noCardsFrom": "Keine Karten aus {time}.",
+        "noCardsFrom": "Keine Karten aus diesem Zeitraum.",
         "checkSpelling": "Prüfen Sie die Schreibweise oder versuchen Sie eine andere Suche."
       }
     },
@@ -793,7 +697,7 @@
       "lastMonth": "Letzter Monat",
       "thisYear": "Dieses Jahr",
       "lastYear": "Letztes Jahr",
-      "lastWeekday": "Letzten {day}",
+      "lastWeekday": "Letzter {day}",
       "range": "{start} – {end}"
     },
     "errors": {
@@ -876,8 +780,6 @@
       "saveToTeak": "In Teak sichern"
     },
     "library": {
-      "newNote": "Neue Notiz",
-      "voiceMemo": "Sprachmemo",
       "uploadFiles": "Dateien hochladen…",
       "revisitKeys": "← archivieren · → behalten · Z rückgängig · Esc beenden"
     },
@@ -938,10 +840,7 @@
     "intents": {
       "saveTitle": "In Teak sichern",
       "saveDescription": "Sichert Text oder einen Link in Ihrer Teak-Bibliothek.",
-      "contentParameter": "Text oder Link",
-      "noText": "Der Kurzbefehl hat weder Text noch Link gesendet.",
-      "signInFirst": "Öffnen Sie Teak, melden Sie sich an und führen Sie den Kurzbefehl dann erneut aus.",
-      "saved": "In Teak gesichert"
+      "contentParameter": "Text oder Link"
     },
     "appShortcuts": {
       "save": "In {applicationName} sichern"
@@ -955,13 +854,8 @@
     }
   },
   "android": {
-    "shortcuts": {
-      "newNote": "Neue Notiz",
-      "voiceMemo": "Sprachmemo"
-    },
     "notification": {
       "uploadTitle": "Wird in Teak gespeichert",
-      "uploadChannel": "Uploads",
       "file": "Datei"
     },
     "share": {

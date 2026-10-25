@@ -6,11 +6,8 @@
     <string name="android_card_savedToDownloads">已保存到“下载”</string>
     <string name="android_card_videoUnplayable">此视频无法在此设备上播放。</string>
     <string name="android_notification_file">文件</string>
-    <string name="android_notification_uploadChannel">上传</string>
     <string name="android_notification_uploadTitle">正在保存到 Teak</string>
     <string name="android_share_saveToTeak">保存到 Teak</string>
-    <string name="android_shortcuts_newNote">新建笔记</string>
-    <string name="android_shortcuts_voiceMemo">语音备忘录</string>
     <string name="cards_types_audio">音频</string>
     <string name="cards_types_card">卡片</string>
     <string name="cards_types_document">文档</string>
@@ -101,38 +98,21 @@
     <string name="native_actions_shareFailed">无法共享此文件。</string>
     <string name="native_actions_unarchive">取消归档</string>
     <string name="native_actions_unfavorite">取消收藏</string>
-    <string name="native_app_connectFailed">无法连接，请重试。</string>
     <string name="native_app_dropFiles">拖放文件以上传</string>
     <string name="native_app_failed_title">出了点问题</string>
-    <string name="native_app_missingCard">缺失的卡片</string>
     <string name="native_app_nav_add">添加</string>
-    <string name="native_app_nav_archive">归档</string>
-    <string name="native_app_nav_favorites">收藏</string>
-    <string name="native_app_nav_folders">文件夹</string>
-    <string name="native_app_nav_home">首页</string>
-    <string name="native_app_nav_newFolder">新建文件夹</string>
-    <string name="native_app_nav_settings">设置</string>
-    <string name="native_app_nav_tags">标签</string>
-    <string name="native_app_nav_trash">废纸篓</string>
     <string name="native_app_nav_types">类型</string>
     <string name="native_app_offline_message">请检查网络连接后重试，以访问你的卡片。</string>
     <string name="native_app_offline_title">你已离线</string>
     <string name="native_app_ok">好</string>
     <string name="native_app_saveRequest_emptyMessage">快捷指令没有发送任何文本或链接。</string>
-    <string name="native_app_saveRequest_emptyTitle">没有可保存的内容</string>
-    <string name="native_app_saveRequest_failedMessage">请检查网络连接后重试。</string>
     <string name="native_app_saveRequest_failedTitle">保存失败</string>
-    <string name="native_app_saveRequest_savedMessage">已保存到你的资料库。</string>
-    <string name="native_app_saveRequest_savedTitle">已保存</string>
     <string name="native_app_saveRequest_savingMessage">正在保存到你的 Teak 资料库…</string>
     <string name="native_app_saveRequest_savingTitle">正在保存</string>
     <string name="native_app_saveRequest_signedOutMessage">请打开 Teak 并登录，然后再次运行快捷指令。</string>
-    <string name="native_app_saveRequest_signedOutTitle">需要登录</string>
-    <string name="native_app_signInConfigFailed">无法加载登录配置</string>
     <string name="native_app_typeToConfirm">输入“%1$s”</string>
     <string name="native_app_upgrade">升级…</string>
     <string name="native_app_uploadProgress">正在保存 %1$s / %2$s…</string>
-    <string name="native_auth_completeFailed">无法完成登录，请重试。</string>
     <string name="native_auth_continueWithApple">通过 Apple 继续</string>
     <string name="native_auth_continueWithGoogle">通过 Google 继续</string>
     <string name="native_auth_failedApple">无法通过 Apple 登录，请重试。</string>
@@ -143,7 +123,6 @@
     <string name="native_auth_registerWithEmail">使用邮箱注册</string>
     <string name="native_auth_signInWithEmail">使用邮箱登录</string>
     <string name="native_auth_signingIn">正在登录…</string>
-    <string name="native_auth_signupsPaused">暂时停止新用户注册，请稍后再试。</string>
     <string name="native_auth_tagline">随时随地，保存一切。</string>
     <string name="native_bulk_addTagsEllipsis">添加标签…</string>
     <plurals name="native_bulk_addTagsTitle">
@@ -154,7 +133,6 @@
     <plurals name="native_bulk_addToFolderTitle">
         <item quantity="other">将 %1$d 张卡片添加到文件夹</item>
     </plurals>
-    <string name="native_bulk_createFolder">创建文件夹“%1$s”</string>
     <plurals name="native_bulk_deleteForeverMessage">
         <item quantity="other">%1$d 张卡片及其文件将被移除。此操作无法撤销。</item>
     </plurals>
@@ -201,15 +179,11 @@
     <string name="native_bulk_failed_restore">无法恢复这些卡片</string>
     <string name="native_bulk_failed_unarchive">无法取消归档这些卡片</string>
     <string name="native_bulk_failed_unfavorite">无法取消收藏这些卡片</string>
-    <string name="native_bulk_findFolder">查找或创建文件夹</string>
     <string name="native_bulk_moreActions">更多操作</string>
-    <string name="native_bulk_noFolderMatch">没有这个名称的文件夹。</string>
-    <string name="native_bulk_noFolders">还没有文件夹。输入名称即可创建。</string>
     <plurals name="native_bulk_partial">
         <item quantity="other">%2$s。%1$d 张无法更改。</item>
     </plurals>
     <string name="native_bulk_removeFromFavorites">取消收藏</string>
-    <string name="native_bulk_searchFolders">搜索文件夹</string>
     <string name="native_bulk_tagsHint">用逗号分隔标签。</string>
     <string name="native_bulk_tagsLabel">标签</string>
     <string name="native_bulk_tagsPlaceholder">设计, 灵感</string>
@@ -246,9 +220,7 @@
     <string name="native_capture_noteOrLinkDetail">写一条笔记，或粘贴链接来保存网页。</string>
     <string name="native_capture_notePlaceholder">写笔记或粘贴链接</string>
     <string name="native_capture_noteSaved">笔记已保存</string>
-    <string name="native_capture_nothingToSave">没有可保存的内容</string>
     <string name="native_capture_nothingToSaveMessage">请先输入书签、URL 或笔记，再进行保存。</string>
-    <string name="native_capture_ok">好</string>
     <string name="native_capture_openSettings">打开设置</string>
     <string name="native_capture_photosAndVideos">照片和视频</string>
     <string name="native_capture_photosDetail">从你的照片图库中选择。</string>
@@ -273,7 +245,6 @@
     <string name="native_capture_startFailed">Teak 无法开始录音，请重试。</string>
     <string name="native_capture_stopRecording">停止录音</string>
     <string name="native_capture_tapToRecord">轻点以开始录音</string>
-    <string name="native_capture_title">添加</string>
     <string name="native_capture_tooManyFiles">文件过多</string>
     <string name="native_capture_tooManyFilesMessage">Teak 一次最多保存 %1$s 个文件，将保存前 %1$s 个。</string>
     <string name="native_capture_tooShort">录音太短，无法保存。请重试。</string>
@@ -304,7 +275,6 @@
     <string name="native_card_edit_keepEditing">继续编辑</string>
     <string name="native_card_edit_notePlaceholder">写笔记</string>
     <string name="native_card_edit_notesPlaceholder">添加笔记</string>
-    <string name="native_card_edit_ok">好</string>
     <string name="native_card_edit_quoteEmpty">引用不能为空。</string>
     <string name="native_card_edit_quoteEmptyMessage">请先写下引用内容再保存。</string>
     <string name="native_card_edit_quoteEmptyTitle">引用为空</string>
@@ -314,7 +284,6 @@
     <string name="native_card_edit_tagPlaceholder">添加标签</string>
     <string name="native_card_edit_title">编辑卡片</string>
     <string name="native_card_failed_archive">无法归档此卡片。</string>
-    <string name="native_card_failed_createFolder">无法创建文件夹</string>
     <string name="native_card_failed_delete">无法删除此卡片。</string>
     <string name="native_card_failed_download">无法下载此文件。</string>
     <string name="native_card_failed_favorite">无法更新收藏状态。</string>
@@ -335,21 +304,15 @@
     <plurals name="native_card_foldersDialog_count">
         <item quantity="other">位于 %1$d 个文件夹中。</item>
     </plurals>
-    <string name="native_card_foldersDialog_create">创建文件夹“%1$s”</string>
-    <string name="native_card_foldersDialog_empty">还没有文件夹。输入名称即可创建。</string>
     <string name="native_card_foldersDialog_noMatch">没有该名称的文件夹。</string>
     <string name="native_card_foldersDialog_none">此卡片不在任何文件夹中。</string>
-    <string name="native_card_foldersDialog_placeholder">查找或创建文件夹</string>
     <string name="native_card_foldersDialog_search">搜索文件夹</string>
     <string name="native_card_hiddenCardHint">已隐藏。只有搜索 #secret 或 #hidden 时才会显示此卡片。</string>
-    <string name="native_card_info">信息</string>
     <string name="native_card_moveToTrash_message">此卡片将被移到废纸篓。</string>
     <string name="native_card_moveToTrash_title">要移到废纸篓吗？</string>
     <string name="native_card_noContent">没有内容</string>
     <string name="native_card_note">笔记</string>
-    <string name="native_card_notice_archived">已归档 1 张卡片</string>
     <string name="native_card_notice_refreshing">正在刷新详情。摘要和标签稍后就会更新。</string>
-    <string name="native_card_notice_unarchived">已将 1 张卡片移回资料库</string>
     <string name="native_card_pickCard_message">选择一张卡片即可在此查看。</string>
     <string name="native_card_pickCard_title">选择卡片</string>
     <string name="native_card_plan_free">免费</string>
@@ -382,11 +345,6 @@
     <string name="native_card_sections_tags">标签</string>
     <string name="native_card_sections_transcript">转写文本</string>
     <string name="native_card_share_nothing">没有可保存的内容。</string>
-    <string name="native_card_share_saved">已保存到 Teak</string>
-    <plurals name="native_card_share_savedCount">
-        <item quantity="other">已保存 %1$d 个项目</item>
-    </plurals>
-    <string name="native_card_share_savedSome">已保存 %1$s / %2$s</string>
     <string name="native_card_showsType">显示此类型的所有卡片</string>
     <string name="native_card_source_from">来自 %1$s</string>
     <string name="native_card_source_label">来源</string>
@@ -406,7 +364,6 @@
     <string name="native_details_camera">相机</string>
     <string name="native_details_created">创建时间</string>
     <string name="native_details_description">描述</string>
-    <string name="native_details_details">详情</string>
     <string name="native_details_dimensions">尺寸</string>
     <string name="native_details_duration">时长</string>
     <string name="native_details_exposure">曝光</string>
@@ -519,7 +476,7 @@
     <string name="native_filters_empty_filtersMessage">试试其他筛选条件。</string>
     <string name="native_filters_empty_folderMessage">此文件夹中还没有卡片。</string>
     <string name="native_filters_empty_folderTitle">空文件夹</string>
-    <string name="native_filters_empty_noCardsFrom">没有 %1$s 的卡片。</string>
+    <string name="native_filters_empty_noCardsFrom">该时间段内没有卡片。</string>
     <string name="native_filters_empty_noMatches">没有匹配的卡片</string>
     <string name="native_filters_empty_noResults">没有“%1$s”的结果</string>
     <string name="native_filters_empty_similarTitle">暂无类似内容</string>
@@ -585,7 +542,6 @@
     <string name="native_folders_findOrCreate">查找或创建文件夹</string>
     <string name="native_folders_folderName">文件夹名称</string>
     <string name="native_folders_loadFailed">无法加载文件夹</string>
-    <string name="native_folders_loadFailedMessage">请检查网络连接后重试。</string>
     <string name="native_folders_moreFor">“%1$s”的更多操作</string>
     <string name="native_folders_name">名称</string>
     <string name="native_folders_namePlaceholder">阅读清单</string>
@@ -607,38 +563,18 @@
     <string name="native_folders_title">文件夹</string>
     <string name="native_library_clearFilters">清除筛选条件</string>
     <string name="native_library_clearSearch">清除搜索</string>
-    <string name="native_library_confirmDeleteForever_message">这将移除此卡片及其文件。此操作无法撤销。</string>
-    <string name="native_library_confirmDeleteForever_title">要永久删除吗？</string>
-    <string name="native_library_confirmTrash_message">此卡片将被移到废纸篓。</string>
-    <string name="native_library_confirmTrash_title">要移到废纸篓吗？</string>
-    <string name="native_library_createFolderFailed">无法创建文件夹</string>
     <string name="native_library_doneSelecting">完成选择</string>
-    <string name="native_library_downloadFailed">无法下载此文件。</string>
-    <string name="native_library_empty_archiveMessage">归档卡片可将其移出你的资料库。</string>
-    <string name="native_library_empty_archiveTitle">没有已归档的内容</string>
-    <string name="native_library_empty_filtersMessage">试试其他筛选条件。</string>
-    <string name="native_library_empty_filtersTitle">没有匹配的卡片</string>
     <string name="native_library_empty_folderMessage">从资料库中添加卡片，它们会显示在这里。</string>
-    <string name="native_library_empty_folderTitle">此文件夹中还没有卡片。</string>
-    <string name="native_library_empty_searchMessage">请检查拼写或尝试新的搜索。</string>
-    <string name="native_library_empty_searchTitle">没有“%1$s”的结果</string>
     <string name="native_library_empty_smartFolderMessage">符合其搜索条件的卡片会在你保存后显示在这里。</string>
-    <string name="native_library_empty_smartFolderTitle">没有卡片符合此智能文件夹。</string>
-    <string name="native_library_empty_timeMessage">没有 %1$s 的卡片。</string>
     <string name="native_library_empty_todoMessage">标为已完成的链接会从此列表中移除。</string>
     <string name="native_library_empty_todoTitle">没有待办事项了。</string>
-    <string name="native_library_empty_trashMessage">你删除的卡片会在这里保留 30 天。</string>
-    <string name="native_library_empty_trashTitle">废纸篓是空的</string>
     <string name="native_library_filter_clear">清除</string>
-    <string name="native_library_filter_done">已完成</string>
-    <string name="native_library_filter_todo">待办</string>
     <string name="native_library_firstCard_message">保存笔记、链接、照片和语音备忘录，它们会显示在这里。</string>
     <string name="native_library_firstCard_title">来添加你的第一张卡片吧！</string>
     <string name="native_library_firstCard_writeNote">写笔记</string>
     <string name="native_library_folder">文件夹</string>
     <string name="native_library_folderMissing">它可能已被删除。</string>
     <string name="native_library_goBack">返回</string>
-    <string name="native_library_loadFailed_message">请检查网络连接后重试。</string>
     <string name="native_library_loadFailed_title">无法加载卡片</string>
     <string name="native_library_loadMoreFailed">无法加载更多卡片。</string>
     <string name="native_library_loadingCards">正在加载卡片</string>
@@ -647,17 +583,8 @@
     <string name="native_library_menu_reshuffle">重新随机</string>
     <string name="native_library_menu_saveSmartFolder">保存为智能文件夹…</string>
     <string name="native_library_menu_show">显示</string>
-    <string name="native_library_menu_shuffle">随机</string>
     <string name="native_library_menu_sort">排序</string>
     <string name="native_library_menu_type">类型</string>
-    <string name="native_library_refreshFailed">无法刷新此卡片，请稍后再试。</string>
-    <string name="native_library_refreshQueued">正在刷新详情。摘要和标签稍后就会更新。</string>
-    <string name="native_library_saveSearch_message">显示符合搜索条件的所有卡片，包括你以后保存的卡片。</string>
-    <string name="native_library_saveSearch_nameLabel">名称</string>
-    <string name="native_library_saveSearch_namePlaceholder">阅读清单</string>
-    <string name="native_library_saveSearch_save">保存智能文件夹</string>
-    <string name="native_library_saveSearch_title">保存为智能文件夹</string>
-    <string name="native_library_savedSmartFolder">已保存“%1$s”</string>
     <string name="native_library_search">搜索</string>
     <string name="native_library_selectAll">全选</string>
     <string name="native_library_selectCards">选择卡片</string>
@@ -670,9 +597,7 @@
     <string name="native_library_sort_newest">排序</string>
     <string name="native_library_sort_oldest">排序：最早的在前</string>
     <string name="native_library_sort_shuffle">排序：随机</string>
-    <string name="native_library_tile_attachment">附件</string>
     <string name="native_library_tile_favorite">收藏</string>
-    <string name="native_library_tile_note">笔记</string>
     <string name="native_library_tile_open">打开</string>
     <string name="native_library_toast_deletedForever">卡片已永久删除</string>
     <string name="native_library_toast_restored">卡片已恢复</string>
@@ -717,7 +642,6 @@
     <string name="native_settings_on">已开启</string>
     <string name="native_settings_openSafariSettings">打开 Safari 浏览器设置…</string>
     <string name="native_settings_plan">方案</string>
-    <string name="native_settings_planFree">免费</string>
     <string name="native_settings_privacyPolicy">隐私政策</string>
     <string name="native_settings_profile">个人资料</string>
     <string name="native_settings_safariCheckFailed">无法检查扩展：%1$s</string>
@@ -735,24 +659,19 @@
     <string name="native_settings_themeLight">浅色</string>
     <string name="native_settings_title">设置</string>
     <string name="native_settings_typeToConfirm">输入“%1$s”以确认。此操作无法撤销。</string>
-    <string name="native_settings_upgrade">升级…</string>
     <string name="native_settings_usage">用量</string>
     <string name="native_settings_usageFree">%1$s / %2$s 张卡片</string>
     <string name="native_settings_version">版本</string>
     <string name="native_settings_versionValue">版本 %1$s</string>
     <string name="native_share_addDetails">添加标签和笔记</string>
     <string name="native_share_addNote">添加笔记</string>
-    <string name="native_share_addTag">添加标签</string>
     <string name="native_share_detailsFailed">无法保存标签和笔记，请重试。</string>
-    <string name="native_share_failedMessage">请检查网络连接后重试。</string>
     <string name="native_share_note">笔记</string>
     <string name="native_share_noteFailed">无法保存笔记。</string>
     <string name="native_share_nothingToSave">没有可保存的内容</string>
     <string name="native_share_nothingToSaveMessage">Teak 找不到可保存的文本、链接或文件。</string>
     <string name="native_share_openTeak">打开 Teak</string>
     <string name="native_share_partialMessage">部分项目无法保存。</string>
-    <string name="native_share_removeTag">移除 %1$s</string>
-    <string name="native_share_saved">已保存</string>
     <string name="native_share_savedMessage">已添加到你的资料库。</string>
     <string name="native_share_saving">正在保存到 Teak…</string>
     <string name="native_share_signInMessage">请打开 Teak 并登录，然后再次共享。</string>
@@ -761,36 +680,12 @@
     <string name="native_share_tagsFailed">无法保存标签。</string>
     <string name="native_share_tooManyItems">仅保存共享的前 %1$s 个项目。</string>
     <string name="native_similar_emptyMessage">试试其他卡片。</string>
-    <string name="native_similar_emptyTitle">暂无类似内容</string>
     <string name="native_similar_pending">仍在分析此卡片，请稍后再试。</string>
     <string name="native_similar_rateLimited">搜索过于频繁，请一分钟后重试。</string>
     <string name="native_similar_unavailable">暂时无法按语义搜索。</string>
     <string name="native_similar_unavailableCard">不可用的卡片</string>
-    <plurals name="native_tags_card_changed">
-        <item quantity="other">已更改 %1$d 张卡片</item>
-    </plurals>
-    <plurals name="native_tags_card_deleteFailed">
-        <item quantity="other">无法完成删除。已更改 %2$s / %1$d 张卡片。</item>
-    </plurals>
-    <string name="native_tags_card_deleted">已删除“%1$s”</string>
-    <string name="native_tags_card_deleting">正在删除“%1$s”…</string>
     <string name="native_tags_card_hiddenAdded">已隐藏。搜索 #%1$s 即可查看。</string>
     <string name="native_tags_card_hiddenCards">部分卡片已隐藏。搜索 #secret 或 #hidden 即可查看。</string>
-    <plurals name="native_tags_card_mergeFailed">
-        <item quantity="other">无法完成合并。已更改 %2$s / %1$d 张卡片。</item>
-    </plurals>
-    <string name="native_tags_card_merged">已将“%1$s”合并到“%2$s”</string>
-    <string name="native_tags_card_merging">正在将“%1$s”合并到“%2$s”…</string>
-    <plurals name="native_tags_card_progress">
-        <item quantity="other">已更改 %2$s / %1$d 张卡片</item>
-    </plurals>
-    <plurals name="native_tags_card_renameFailed">
-        <item quantity="other">无法完成重命名。已更改 %2$s / %1$d 张卡片。</item>
-    </plurals>
-    <string name="native_tags_card_renamed">已将“%1$s”重命名为“%2$s”</string>
-    <string name="native_tags_card_renaming">正在将“%1$s”重命名为“%2$s”…</string>
-    <string name="native_tags_card_retryRest">请重试以更改其余卡片。</string>
-    <string name="native_tags_card_searchHint">显示隐藏的卡片</string>
     <plurals name="native_tags_changed">
         <item quantity="other">已更改 %1$d 张卡片</item>
     </plurals>

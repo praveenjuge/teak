@@ -309,7 +309,7 @@ internal fun LibraryScreen(
     when (dialog) {
         LibraryDialog.DeleteForever -> {
             ConfirmDialog(
-                title = tr("native.library.confirmDeleteForever.title"),
+                title = tr("native.card.deleteForever.title"),
                 message = tr("native.bulk.deleteForeverMessage", count = count),
                 confirmLabel = tr("native.actions.deleteForever"),
                 onConfirm = {
@@ -366,7 +366,7 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
         paged.isLoading && paged.cards.isEmpty() -> TeakLoading()
         paged.error != null && paged.cards.isEmpty() -> EmptyState(
             title = tr("native.library.loadFailed.title"),
-            message = tr("native.library.loadFailed.message"),
+            message = tr("native.errors.offline"),
             icon = Icons.Outlined.CloudOff,
             action = { Button(onClick = actions.onRefresh) { Text(tr("common.tryAgain")) } },
         )

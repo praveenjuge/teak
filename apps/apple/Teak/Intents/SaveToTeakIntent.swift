@@ -19,15 +19,15 @@ struct SaveToTeakIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
-            throw TeakError(message: tr("apple.intents.noText"))
+            throw TeakError(message: tr("native.app.saveRequest.emptyMessage"))
         }
         let session = TeakServices.session()
         guard try await session.restore() != nil else {
-            throw TeakError(message: tr("apple.intents.signInFirst"))
+            throw TeakError(message: tr("native.app.saveRequest.signedOutMessage"))
         }
         let _: String = try await TeakServices.http(session: session)
             .mutation(ConvexFunctions.createCard, LinkDetection.resolve(content).createArgs)
-        return .result(dialog: IntentDialog(stringLiteral: tr("apple.intents.saved")))
+        return .result(dialog: IntentDialog(stringLiteral: tr("native.capture.savedToTeak")))
     }
 }
 

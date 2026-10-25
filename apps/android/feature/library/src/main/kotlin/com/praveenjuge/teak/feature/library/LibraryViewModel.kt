@@ -146,7 +146,7 @@ data class LibraryUiState(
             val similar = parsed.similarity is SearchSimilarity.Like
             val copy = when {
                 similar -> EmptyCopy(
-                    UiText.of("native.similar.emptyTitle"),
+                    UiText.of("native.filters.empty.similarTitle"),
                     when {
                         anchorPending || semanticOutcome == "pending" -> UiText.of("native.similar.pending")
                         semanticOutcome == "rate_limited" -> UiText.of("native.similar.rateLimited")
@@ -162,37 +162,37 @@ data class LibraryUiState(
                 )
                 folderId != null && !searching -> if (folder?.isSmart == true) {
                     EmptyCopy(
-                        UiText.of("native.library.empty.smartFolderTitle"),
+                        UiText.of("native.filters.empty.smartFolderMessage"),
                         UiText.of("native.library.empty.smartFolderMessage"),
                         EmptyKind.Folder,
                     )
                 } else {
                     EmptyCopy(
-                        UiText.of("native.library.empty.folderTitle"),
+                        UiText.of("native.filters.empty.folderMessage"),
                         UiText.of("native.library.empty.folderMessage"),
                         EmptyKind.Folder,
                     )
                 }
                 !searching && !filters.isActive -> return LibraryEmptyState.FirstCard
                 !searching && filters.trashOnly -> EmptyCopy(
-                    UiText.of("native.library.empty.trashTitle"),
-                    UiText.of("native.library.empty.trashMessage"),
+                    UiText.of("native.filters.empty.trashTitle"),
+                    UiText.of("native.filters.empty.trashMessage"),
                     EmptyKind.Trash,
                 )
                 !searching && filters.archivedOnly -> EmptyCopy(
-                    UiText.of("native.library.empty.archiveTitle"),
-                    UiText.of("native.library.empty.archiveMessage"),
+                    UiText.of("native.filters.empty.archiveTitle"),
+                    UiText.of("native.filters.empty.archiveMessage"),
                     EmptyKind.Archive,
                 )
                 !searching -> EmptyCopy(
-                    UiText.of("native.library.empty.filtersTitle"),
-                    UiText.of("native.library.empty.filtersMessage"),
+                    UiText.of("native.filters.empty.noMatches"),
+                    UiText.of("native.filters.empty.filtersMessage"),
                     EmptyKind.Filters,
                 )
                 else -> EmptyCopy(
-                    title = UiText.of("native.library.empty.searchTitle", search),
-                    message = timeFilter?.let { UiText.of("native.library.empty.timeMessage", it.labelText) }
-                        ?: UiText.of("native.library.empty.searchMessage"),
+                    title = UiText.of("native.filters.empty.noResults", search),
+                    message = timeFilter?.let { UiText.of("native.filters.empty.noCardsFrom") }
+                        ?: UiText.of("native.filters.empty.checkSpelling"),
                     kind = EmptyKind.Search,
                 )
             }
@@ -370,13 +370,13 @@ class LibraryViewModel @AssistedInject constructor(
         val query = _state.value.smartFolderQuery ?: return
         viewModelScope.launch {
             catchingFailures { folders.create(name, query = query) }
-                .onSuccess { post(UiText.of("native.library.savedSmartFolder", it.name)) }
+                .onSuccess { post(UiText.of("native.folders.savedName", it.name)) }
                 .onFailure { post(folderFailure(it)) }
         }
     }
 
     private fun folderFailure(error: Throwable): UiText =
-        error.teakText(UiText.of("native.library.createFolderFailed"))
+        error.teakText(UiText.of("native.folders.createFailed"))
 
     /** Archive or unarchive one card from its tile, with Undo. */
     fun setArchived(cardId: String, archived: Boolean) =

@@ -115,7 +115,7 @@ internal fun NoteComposerScreen(
             onDismissRequest = onDismissError,
             title = { Text(error.title.resolve()) },
             text = { Text(error.message.resolve()) },
-            confirmButton = { TextButton(onClick = onDismissError) { Text(tr("native.capture.ok")) } },
+            confirmButton = { TextButton(onClick = onDismissError) { Text(tr("native.app.ok")) } },
         )
     }
 }

@@ -214,7 +214,7 @@ internal fun RevisitDeck(
                 state.isLoading -> TeakLoading()
                 state.failed -> EmptyState(
                     title = tr("native.library.loadFailed.title"),
-                    message = tr("native.library.loadFailed.message"),
+                    message = tr("native.errors.offline"),
                     icon = Icons.Outlined.CloudOff,
                     action = { Button(onClick = onDealAgain) { Text(tr("common.retry")) } },
                 )

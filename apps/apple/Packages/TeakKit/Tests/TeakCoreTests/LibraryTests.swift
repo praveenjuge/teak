@@ -161,7 +161,7 @@ private func day(_ milliseconds: Double) -> String {
         #expect(LibraryQuery(tokens: [SearchTokens.classify("favs")]).title == "Favorites")
         #expect(LibraryQuery(filters: LibraryFilters(trashOnly: true)).emptyState().title == "Trash is empty")
         #expect(LibraryQuery(text: "zebra").emptyState().title == "No results for \u{201C}zebra\u{201D}")
-        #expect(LibraryQuery(text: "yesterday").emptyState(now: tuesdayNoon, timeZone: newYork).message == "No cards from Yesterday.")
+        #expect(LibraryQuery(text: "yesterday").emptyState(now: tuesdayNoon, timeZone: newYork).message == "No cards from that time.")
     }
 }
 

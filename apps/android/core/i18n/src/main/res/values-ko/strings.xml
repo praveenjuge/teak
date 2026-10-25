@@ -6,11 +6,8 @@
     <string name="android_card_savedToDownloads">다운로드에 저장됨</string>
     <string name="android_card_videoUnplayable">이 동영상은 이 기기에서 재생할 수 없습니다.</string>
     <string name="android_notification_file">파일</string>
-    <string name="android_notification_uploadChannel">업로드</string>
     <string name="android_notification_uploadTitle">Teak에 저장하는 중</string>
     <string name="android_share_saveToTeak">Teak에 저장</string>
-    <string name="android_shortcuts_newNote">새 메모</string>
-    <string name="android_shortcuts_voiceMemo">음성 메모</string>
     <string name="cards_types_audio">오디오</string>
     <string name="cards_types_card">카드</string>
     <string name="cards_types_document">문서</string>
@@ -101,38 +98,21 @@
     <string name="native_actions_shareFailed">이 파일을 공유하지 못했습니다.</string>
     <string name="native_actions_unarchive">보관 해제</string>
     <string name="native_actions_unfavorite">즐겨찾기에서 제거</string>
-    <string name="native_app_connectFailed">연결할 수 없습니다. 다시 시도해 주세요.</string>
     <string name="native_app_dropFiles">업로드할 파일을 놓으세요</string>
     <string name="native_app_failed_title">문제가 발생했습니다</string>
-    <string name="native_app_missingCard">찾을 수 없는 카드</string>
     <string name="native_app_nav_add">추가</string>
-    <string name="native_app_nav_archive">보관함</string>
-    <string name="native_app_nav_favorites">즐겨찾기</string>
-    <string name="native_app_nav_folders">폴더</string>
-    <string name="native_app_nav_home">홈</string>
-    <string name="native_app_nav_newFolder">새 폴더</string>
-    <string name="native_app_nav_settings">설정</string>
-    <string name="native_app_nav_tags">태그</string>
-    <string name="native_app_nav_trash">휴지통</string>
     <string name="native_app_nav_types">유형</string>
     <string name="native_app_offline_message">카드에 접근하려면 연결을 확인하고 다시 시도해 주세요.</string>
     <string name="native_app_offline_title">오프라인 상태입니다</string>
     <string name="native_app_ok">확인</string>
     <string name="native_app_saveRequest_emptyMessage">단축어가 텍스트나 링크를 보내지 않았습니다.</string>
-    <string name="native_app_saveRequest_emptyTitle">저장할 항목 없음</string>
-    <string name="native_app_saveRequest_failedMessage">연결을 확인하고 다시 시도해 주세요.</string>
     <string name="native_app_saveRequest_failedTitle">저장 실패</string>
-    <string name="native_app_saveRequest_savedMessage">라이브러리에 저장되었습니다.</string>
-    <string name="native_app_saveRequest_savedTitle">저장됨</string>
     <string name="native_app_saveRequest_savingMessage">Teak 보관소에 저장하는 중…</string>
     <string name="native_app_saveRequest_savingTitle">저장 중</string>
     <string name="native_app_saveRequest_signedOutMessage">Teak을 열고 로그인한 다음 단축어를 다시 실행하세요.</string>
-    <string name="native_app_saveRequest_signedOutTitle">로그인 필요</string>
-    <string name="native_app_signInConfigFailed">로그인 설정을 불러올 수 없습니다</string>
     <string name="native_app_typeToConfirm">“%1$s” 입력</string>
     <string name="native_app_upgrade">업그레이드…</string>
     <string name="native_app_uploadProgress">저장하는 중 %1$s/%2$s…</string>
-    <string name="native_auth_completeFailed">로그인을 완료할 수 없습니다. 다시 시도해 주세요.</string>
     <string name="native_auth_continueWithApple">Apple로 계속하기</string>
     <string name="native_auth_continueWithGoogle">Google로 계속하기</string>
     <string name="native_auth_failedApple">Apple로 로그인하지 못했습니다. 다시 시도해 주세요.</string>
@@ -143,7 +123,6 @@
     <string name="native_auth_registerWithEmail">이메일로 가입</string>
     <string name="native_auth_signInWithEmail">이메일로 로그인</string>
     <string name="native_auth_signingIn">로그인 중…</string>
-    <string name="native_auth_signupsPaused">지금은 신규 가입이 일시 중지되었습니다. 나중에 다시 시도해 주세요.</string>
     <string name="native_auth_tagline">무엇이든, 어디서든 저장하세요.</string>
     <string name="native_bulk_addTagsEllipsis">태그 추가…</string>
     <plurals name="native_bulk_addTagsTitle">
@@ -154,7 +133,6 @@
     <plurals name="native_bulk_addToFolderTitle">
         <item quantity="other">카드 %1$d개를 폴더에 추가</item>
     </plurals>
-    <string name="native_bulk_createFolder">“%1$s” 폴더 만들기</string>
     <plurals name="native_bulk_deleteForeverMessage">
         <item quantity="other">카드 %1$d개와 해당 파일이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.</item>
     </plurals>
@@ -201,15 +179,11 @@
     <string name="native_bulk_failed_restore">이 카드들을 복원하지 못했습니다</string>
     <string name="native_bulk_failed_unarchive">이 카드들의 보관을 해제하지 못했습니다</string>
     <string name="native_bulk_failed_unfavorite">이 카드들을 즐겨찾기에서 제거하지 못했습니다</string>
-    <string name="native_bulk_findFolder">폴더 찾기 또는 만들기</string>
     <string name="native_bulk_moreActions">추가 작업</string>
-    <string name="native_bulk_noFolderMatch">그런 이름의 폴더가 없습니다.</string>
-    <string name="native_bulk_noFolders">아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.</string>
     <plurals name="native_bulk_partial">
         <item quantity="other">%2$s. %1$d개는 변경하지 못했습니다.</item>
     </plurals>
     <string name="native_bulk_removeFromFavorites">즐겨찾기에서 제거</string>
-    <string name="native_bulk_searchFolders">폴더 검색</string>
     <string name="native_bulk_tagsHint">태그는 쉼표로 구분하세요.</string>
     <string name="native_bulk_tagsLabel">태그</string>
     <string name="native_bulk_tagsPlaceholder">디자인, 영감</string>
@@ -246,9 +220,7 @@
     <string name="native_capture_noteOrLinkDetail">메모를 작성하거나 링크를 붙여넣어 페이지를 저장하세요.</string>
     <string name="native_capture_notePlaceholder">메모를 작성하거나 링크를 붙여넣으세요</string>
     <string name="native_capture_noteSaved">메모가 저장되었습니다</string>
-    <string name="native_capture_nothingToSave">저장할 항목 없음</string>
     <string name="native_capture_nothingToSaveMessage">저장하기 전에 북마크, URL 또는 메모를 입력하세요.</string>
-    <string name="native_capture_ok">확인</string>
     <string name="native_capture_openSettings">설정 열기</string>
     <string name="native_capture_photosAndVideos">사진 및 동영상</string>
     <string name="native_capture_photosDetail">사진 보관함에서 선택합니다.</string>
@@ -273,7 +245,6 @@
     <string name="native_capture_startFailed">Teak이 녹음을 시작하지 못했습니다. 다시 시도해 주세요.</string>
     <string name="native_capture_stopRecording">녹음 중지</string>
     <string name="native_capture_tapToRecord">탭하여 녹음 시작</string>
-    <string name="native_capture_title">추가</string>
     <string name="native_capture_tooManyFiles">파일이 너무 많음</string>
     <string name="native_capture_tooManyFilesMessage">Teak은 한 번에 최대 %1$s개의 파일을 저장합니다. 처음 %1$s개가 저장됩니다.</string>
     <string name="native_capture_tooShort">녹음이 너무 짧아 저장할 수 없습니다. 다시 시도해 주세요.</string>
@@ -304,7 +275,6 @@
     <string name="native_card_edit_keepEditing">계속 편집</string>
     <string name="native_card_edit_notePlaceholder">메모를 작성하세요</string>
     <string name="native_card_edit_notesPlaceholder">메모 추가</string>
-    <string name="native_card_edit_ok">확인</string>
     <string name="native_card_edit_quoteEmpty">인용은 비워 둘 수 없습니다.</string>
     <string name="native_card_edit_quoteEmptyMessage">저장하기 전에 인용문을 입력하세요.</string>
     <string name="native_card_edit_quoteEmptyTitle">인용이 비어 있음</string>
@@ -314,7 +284,6 @@
     <string name="native_card_edit_tagPlaceholder">태그 추가</string>
     <string name="native_card_edit_title">카드 편집</string>
     <string name="native_card_failed_archive">이 카드를 보관하지 못했습니다.</string>
-    <string name="native_card_failed_createFolder">폴더를 만들지 못했습니다</string>
     <string name="native_card_failed_delete">이 카드를 삭제하지 못했습니다.</string>
     <string name="native_card_failed_download">이 파일을 다운로드할 수 없습니다.</string>
     <string name="native_card_failed_favorite">즐겨찾기를 업데이트하지 못했습니다.</string>
@@ -335,21 +304,15 @@
     <plurals name="native_card_foldersDialog_count">
         <item quantity="other">폴더 %1$d개에 있습니다.</item>
     </plurals>
-    <string name="native_card_foldersDialog_create">“%1$s” 폴더 만들기</string>
-    <string name="native_card_foldersDialog_empty">아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.</string>
     <string name="native_card_foldersDialog_noMatch">해당 이름의 폴더가 없습니다.</string>
     <string name="native_card_foldersDialog_none">이 카드는 폴더에 없습니다.</string>
-    <string name="native_card_foldersDialog_placeholder">폴더 찾기 또는 만들기</string>
     <string name="native_card_foldersDialog_search">폴더 검색</string>
     <string name="native_card_hiddenCardHint">숨김 상태입니다. #secret 또는 #hidden으로 검색할 때만 이 카드가 표시됩니다.</string>
-    <string name="native_card_info">정보</string>
     <string name="native_card_moveToTrash_message">이 카드가 휴지통으로 이동됩니다.</string>
     <string name="native_card_moveToTrash_title">휴지통으로 이동하시겠습니까?</string>
     <string name="native_card_noContent">내용 없음</string>
     <string name="native_card_note">메모</string>
-    <string name="native_card_notice_archived">카드 1개를 보관했습니다</string>
     <string name="native_card_notice_refreshing">세부 정보를 새로 고치는 중입니다. 요약과 태그가 곧 업데이트됩니다.</string>
-    <string name="native_card_notice_unarchived">카드 1개를 라이브러리로 되돌렸습니다</string>
     <string name="native_card_pickCard_message">카드를 선택하면 여기에 표시됩니다.</string>
     <string name="native_card_pickCard_title">카드 선택</string>
     <string name="native_card_plan_free">무료</string>
@@ -382,11 +345,6 @@
     <string name="native_card_sections_tags">태그</string>
     <string name="native_card_sections_transcript">녹취록</string>
     <string name="native_card_share_nothing">저장할 항목이 없습니다.</string>
-    <string name="native_card_share_saved">Teak에 저장되었습니다</string>
-    <plurals name="native_card_share_savedCount">
-        <item quantity="other">항목 %1$d개를 저장했습니다</item>
-    </plurals>
-    <string name="native_card_share_savedSome">%2$s개 중 %1$s개를 저장했습니다</string>
     <string name="native_card_showsType">이 유형의 모든 카드 보기</string>
     <string name="native_card_source_from">출처: %1$s</string>
     <string name="native_card_source_label">출처</string>
@@ -406,7 +364,6 @@
     <string name="native_details_camera">카메라</string>
     <string name="native_details_created">생성일</string>
     <string name="native_details_description">설명</string>
-    <string name="native_details_details">세부 정보</string>
     <string name="native_details_dimensions">치수</string>
     <string name="native_details_duration">길이</string>
     <string name="native_details_exposure">노출</string>
@@ -519,7 +476,7 @@
     <string name="native_filters_empty_filtersMessage">다른 필터를 사용해 보세요.</string>
     <string name="native_filters_empty_folderMessage">이 폴더에 아직 카드가 없습니다.</string>
     <string name="native_filters_empty_folderTitle">빈 폴더</string>
-    <string name="native_filters_empty_noCardsFrom">%1$s의 카드가 없습니다.</string>
+    <string name="native_filters_empty_noCardsFrom">해당 기간의 카드가 없습니다.</string>
     <string name="native_filters_empty_noMatches">일치하는 카드가 없습니다</string>
     <string name="native_filters_empty_noResults">“%1$s”에 대한 결과가 없습니다</string>
     <string name="native_filters_empty_similarTitle">아직 비슷한 카드가 없습니다</string>
@@ -585,7 +542,6 @@
     <string name="native_folders_findOrCreate">폴더 찾기 또는 만들기</string>
     <string name="native_folders_folderName">폴더 이름</string>
     <string name="native_folders_loadFailed">폴더를 불러오지 못했습니다</string>
-    <string name="native_folders_loadFailedMessage">연결을 확인하고 다시 시도해 주세요.</string>
     <string name="native_folders_moreFor">%1$s 더 보기</string>
     <string name="native_folders_name">이름</string>
     <string name="native_folders_namePlaceholder">읽을거리</string>
@@ -607,38 +563,18 @@
     <string name="native_folders_title">폴더</string>
     <string name="native_library_clearFilters">필터 지우기</string>
     <string name="native_library_clearSearch">검색 지우기</string>
-    <string name="native_library_confirmDeleteForever_message">카드와 파일이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.</string>
-    <string name="native_library_confirmDeleteForever_title">영구 삭제하시겠습니까?</string>
-    <string name="native_library_confirmTrash_message">이 카드가 휴지통으로 이동됩니다.</string>
-    <string name="native_library_confirmTrash_title">휴지통으로 이동하시겠습니까?</string>
-    <string name="native_library_createFolderFailed">폴더를 만들지 못했습니다</string>
     <string name="native_library_doneSelecting">선택 완료</string>
-    <string name="native_library_downloadFailed">이 파일을 다운로드할 수 없습니다.</string>
-    <string name="native_library_empty_archiveMessage">카드를 보관하면 라이브러리에서 숨겨집니다.</string>
-    <string name="native_library_empty_archiveTitle">보관된 카드가 없습니다</string>
-    <string name="native_library_empty_filtersMessage">다른 필터를 사용해 보세요.</string>
-    <string name="native_library_empty_filtersTitle">일치하는 카드가 없습니다</string>
     <string name="native_library_empty_folderMessage">라이브러리에서 카드를 추가하면 여기에 표시됩니다.</string>
-    <string name="native_library_empty_folderTitle">이 폴더에 아직 카드가 없습니다.</string>
-    <string name="native_library_empty_searchMessage">철자를 확인하거나 다른 검색어로 검색해 보세요.</string>
-    <string name="native_library_empty_searchTitle">“%1$s”에 대한 결과가 없습니다</string>
     <string name="native_library_empty_smartFolderMessage">검색과 일치하는 카드를 저장하면 여기에 표시됩니다.</string>
-    <string name="native_library_empty_smartFolderTitle">이 스마트 폴더와 일치하는 카드가 없습니다.</string>
-    <string name="native_library_empty_timeMessage">%1$s의 카드가 없습니다.</string>
     <string name="native_library_empty_todoMessage">완료로 표시한 링크는 이 목록에서 사라집니다.</string>
     <string name="native_library_empty_todoTitle">남은 할 일이 없습니다.</string>
-    <string name="native_library_empty_trashMessage">삭제한 카드는 30일 동안 여기에 보관됩니다.</string>
-    <string name="native_library_empty_trashTitle">휴지통이 비어 있습니다</string>
     <string name="native_library_filter_clear">지우기</string>
-    <string name="native_library_filter_done">완료</string>
-    <string name="native_library_filter_todo">할 일</string>
     <string name="native_library_firstCard_message">메모, 링크, 사진, 음성 메모를 저장하면 여기에 표시됩니다.</string>
     <string name="native_library_firstCard_title">첫 카드를 추가해 보세요!</string>
     <string name="native_library_firstCard_writeNote">메모 작성</string>
     <string name="native_library_folder">폴더</string>
     <string name="native_library_folderMissing">삭제되었을 수 있습니다.</string>
     <string name="native_library_goBack">뒤로</string>
-    <string name="native_library_loadFailed_message">연결을 확인하고 다시 시도해 주세요.</string>
     <string name="native_library_loadFailed_title">카드를 불러오지 못했습니다</string>
     <string name="native_library_loadMoreFailed">카드를 더 불러오지 못했습니다.</string>
     <string name="native_library_loadingCards">카드를 불러오는 중</string>
@@ -647,17 +583,8 @@
     <string name="native_library_menu_reshuffle">다시 셔플</string>
     <string name="native_library_menu_saveSmartFolder">스마트 폴더로 저장…</string>
     <string name="native_library_menu_show">표시</string>
-    <string name="native_library_menu_shuffle">셔플</string>
     <string name="native_library_menu_sort">정렬</string>
     <string name="native_library_menu_type">유형</string>
-    <string name="native_library_refreshFailed">이 카드를 새로 고치지 못했습니다. 잠시 후 다시 시도해 주세요.</string>
-    <string name="native_library_refreshQueued">세부 정보를 새로 고치는 중입니다. 요약과 태그가 곧 업데이트됩니다.</string>
-    <string name="native_library_saveSearch_message">나중에 저장하는 카드를 포함해 검색과 일치하는 모든 카드를 보여 줍니다.</string>
-    <string name="native_library_saveSearch_nameLabel">이름</string>
-    <string name="native_library_saveSearch_namePlaceholder">읽을거리</string>
-    <string name="native_library_saveSearch_save">스마트 폴더 저장</string>
-    <string name="native_library_saveSearch_title">스마트 폴더로 저장</string>
-    <string name="native_library_savedSmartFolder">“%1$s”을(를) 저장했습니다</string>
     <string name="native_library_search">검색</string>
     <string name="native_library_selectAll">모두 선택</string>
     <string name="native_library_selectCards">카드 선택</string>
@@ -670,9 +597,7 @@
     <string name="native_library_sort_newest">정렬</string>
     <string name="native_library_sort_oldest">정렬: 오래된 순</string>
     <string name="native_library_sort_shuffle">정렬: 셔플</string>
-    <string name="native_library_tile_attachment">첨부 파일</string>
     <string name="native_library_tile_favorite">즐겨찾기</string>
-    <string name="native_library_tile_note">메모</string>
     <string name="native_library_tile_open">열기</string>
     <string name="native_library_toast_deletedForever">카드가 영구 삭제되었습니다</string>
     <string name="native_library_toast_restored">카드가 복원되었습니다</string>
@@ -717,7 +642,6 @@
     <string name="native_settings_on">켬</string>
     <string name="native_settings_openSafariSettings">Safari 설정 열기…</string>
     <string name="native_settings_plan">요금제</string>
-    <string name="native_settings_planFree">무료</string>
     <string name="native_settings_privacyPolicy">개인정보 처리방침</string>
     <string name="native_settings_profile">프로필</string>
     <string name="native_settings_safariCheckFailed">확장 프로그램을 확인하지 못했습니다: %1$s</string>
@@ -735,24 +659,19 @@
     <string name="native_settings_themeLight">라이트</string>
     <string name="native_settings_title">설정</string>
     <string name="native_settings_typeToConfirm">확인하려면 “%1$s”을(를) 입력하세요. 이 작업은 되돌릴 수 없습니다.</string>
-    <string name="native_settings_upgrade">업그레이드…</string>
     <string name="native_settings_usage">사용량</string>
     <string name="native_settings_usageFree">카드 %1$s/%2$s개</string>
     <string name="native_settings_version">버전</string>
     <string name="native_settings_versionValue">버전 %1$s</string>
     <string name="native_share_addDetails">태그와 메모 추가</string>
     <string name="native_share_addNote">메모 추가</string>
-    <string name="native_share_addTag">태그 추가</string>
     <string name="native_share_detailsFailed">태그와 메모를 저장하지 못했습니다. 다시 시도해 주세요.</string>
-    <string name="native_share_failedMessage">연결을 확인하고 다시 시도해 주세요.</string>
     <string name="native_share_note">메모</string>
     <string name="native_share_noteFailed">메모를 저장하지 못했습니다.</string>
     <string name="native_share_nothingToSave">저장할 항목 없음</string>
     <string name="native_share_nothingToSaveMessage">Teak이 저장할 텍스트, 링크 또는 파일을 찾지 못했습니다.</string>
     <string name="native_share_openTeak">Teak 열기</string>
     <string name="native_share_partialMessage">일부 항목을 저장하지 못했습니다.</string>
-    <string name="native_share_removeTag">%1$s 제거</string>
-    <string name="native_share_saved">저장됨</string>
     <string name="native_share_savedMessage">라이브러리에 추가되었습니다.</string>
     <string name="native_share_saving">Teak에 저장하는 중…</string>
     <string name="native_share_signInMessage">Teak을 열고 로그인한 다음 다시 공유하세요.</string>
@@ -761,36 +680,12 @@
     <string name="native_share_tagsFailed">태그를 저장하지 못했습니다.</string>
     <string name="native_share_tooManyItems">공유한 항목 중 처음 %1$s개만 저장됩니다.</string>
     <string name="native_similar_emptyMessage">다른 카드로 시도해 보세요.</string>
-    <string name="native_similar_emptyTitle">아직 비슷한 카드가 없습니다</string>
     <string name="native_similar_pending">아직 이 카드를 분석하고 있습니다. 잠시 후 다시 시도해 주세요.</string>
     <string name="native_similar_rateLimited">검색이 너무 많습니다. 1분 후에 다시 시도해 주세요.</string>
     <string name="native_similar_unavailable">지금은 의미로 검색할 수 없습니다.</string>
     <string name="native_similar_unavailableCard">사용할 수 없는 카드</string>
-    <plurals name="native_tags_card_changed">
-        <item quantity="other">카드 %1$d개가 변경되었습니다</item>
-    </plurals>
-    <plurals name="native_tags_card_deleteFailed">
-        <item quantity="other">삭제를 완료하지 못했습니다. 카드 %1$d개 중 %2$s개가 변경되었습니다.</item>
-    </plurals>
-    <string name="native_tags_card_deleted">“%1$s”을(를) 삭제했습니다</string>
-    <string name="native_tags_card_deleting">“%1$s”을(를) 삭제하는 중…</string>
     <string name="native_tags_card_hiddenAdded">숨겨졌습니다. 보려면 #%1$s(으)로 검색하세요.</string>
     <string name="native_tags_card_hiddenCards">일부 카드가 숨겨져 있습니다. 보려면 #secret 또는 #hidden으로 검색하세요.</string>
-    <plurals name="native_tags_card_mergeFailed">
-        <item quantity="other">병합을 완료하지 못했습니다. 카드 %1$d개 중 %2$s개가 변경되었습니다.</item>
-    </plurals>
-    <string name="native_tags_card_merged">“%1$s”을(를) “%2$s”(으)로 병합했습니다</string>
-    <string name="native_tags_card_merging">“%1$s”을(를) “%2$s”(으)로 병합하는 중…</string>
-    <plurals name="native_tags_card_progress">
-        <item quantity="other">카드 %1$d개 중 %2$s개가 변경되었습니다</item>
-    </plurals>
-    <plurals name="native_tags_card_renameFailed">
-        <item quantity="other">이름 변경을 완료하지 못했습니다. 카드 %1$d개 중 %2$s개가 변경되었습니다.</item>
-    </plurals>
-    <string name="native_tags_card_renamed">“%1$s”의 이름을 “%2$s”(으)로 변경했습니다</string>
-    <string name="native_tags_card_renaming">“%1$s”의 이름을 “%2$s”(으)로 변경하는 중…</string>
-    <string name="native_tags_card_retryRest">나머지를 변경하려면 다시 시도하세요.</string>
-    <string name="native_tags_card_searchHint">숨긴 카드 표시</string>
     <plurals name="native_tags_changed">
         <item quantity="other">카드 %1$d개가 변경되었습니다</item>
     </plurals>

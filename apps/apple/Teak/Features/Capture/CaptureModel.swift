@@ -36,7 +36,7 @@ final class CaptureModel {
     func saveText(_ raw: String) async -> String? {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
-            alert = Alert(title: tr("native.capture.nothingToSave"), message: tr("native.capture.nothingToSaveMessage"))
+            alert = Alert(title: tr("native.share.nothingToSave"), message: tr("native.capture.nothingToSaveMessage"))
             return nil
         }
         isSavingText = true

@@ -282,12 +282,12 @@ final class LibraryModel {
         do {
             let result = try await backend.mutation(ConvexFunctions.reprocessCard, ["cardId": .string(id)])
             if result.isQueued {
-                show(tr("native.library.refreshQueued"))
+                show(tr("native.card.notice.refreshing"))
             } else {
-                show(result.message ?? tr("native.library.refreshFailed"), isError: true)
+                show(result.message ?? tr("native.card.failed.refresh"), isError: true)
             }
         } catch {
-            show(tr("native.library.refreshFailed"), isError: true)
+            show(tr("native.card.failed.refresh"), isError: true)
         }
     }
 

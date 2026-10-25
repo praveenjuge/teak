@@ -94,10 +94,8 @@
       "usage": "사용량",
       "plan": "요금제",
       "notAvailable": "사용할 수 없음",
-      "planFree": "무료",
       "usageFree": "카드 {used}/{limit}개",
       "manage": "관리…",
-      "upgrade": "업그레이드…",
       "signOut": "로그아웃",
       "signingOut": "로그아웃 중…",
       "signOutConfirm": "로그아웃하시겠습니까?",
@@ -123,16 +121,8 @@
     },
     "app": {
       "nav": {
-        "home": "홈",
-        "folders": "폴더",
         "add": "추가",
-        "settings": "설정",
-        "favorites": "즐겨찾기",
-        "archive": "보관함",
-        "tags": "태그",
-        "trash": "휴지통",
-        "types": "유형",
-        "newFolder": "새 폴더"
+        "types": "유형"
       },
       "ok": "확인",
       "upgrade": "업그레이드…",
@@ -144,22 +134,14 @@
       "failed": {
         "title": "문제가 발생했습니다"
       },
-      "signInConfigFailed": "로그인 설정을 불러올 수 없습니다",
-      "connectFailed": "연결할 수 없습니다. 다시 시도해 주세요.",
       "uploadProgress": "저장하는 중 {done}/{total}…",
       "dropFiles": "업로드할 파일을 놓으세요",
-      "missingCard": "찾을 수 없는 카드",
       "saveRequest": {
         "savingTitle": "저장 중",
         "savingMessage": "Teak 보관소에 저장하는 중…",
-        "savedTitle": "저장됨",
-        "savedMessage": "라이브러리에 저장되었습니다.",
-        "emptyTitle": "저장할 항목 없음",
         "emptyMessage": "단축어가 텍스트나 링크를 보내지 않았습니다.",
-        "signedOutTitle": "로그인 필요",
         "signedOutMessage": "Teak을 열고 로그인한 다음 단축어를 다시 실행하세요.",
-        "failedTitle": "저장 실패",
-        "failedMessage": "연결을 확인하고 다시 시도해 주세요."
+        "failedTitle": "저장 실패"
       }
     },
     "auth": {
@@ -170,12 +152,10 @@
       "registerWithEmail": "이메일로 가입",
       "signInWithEmail": "이메일로 로그인",
       "signingIn": "로그인 중…",
-      "signupsPaused": "지금은 신규 가입이 일시 중지되었습니다. 나중에 다시 시도해 주세요.",
       "failedTitle": "로그인하지 못했습니다",
       "failedApple": "Apple로 로그인하지 못했습니다. 다시 시도해 주세요.",
       "failedGoogle": "Google로 로그인하지 못했습니다. 다시 시도해 주세요.",
-      "failedEmail": "이메일로 로그인하지 못했습니다. 다시 시도해 주세요.",
-      "completeFailed": "로그인을 완료할 수 없습니다. 다시 시도해 주세요."
+      "failedEmail": "이메일로 로그인하지 못했습니다. 다시 시도해 주세요."
     },
     "library": {
       "search": "검색",
@@ -194,26 +174,12 @@
       "loadingMore": "카드를 더 불러오는 중",
       "loadMoreFailed": "카드를 더 불러오지 못했습니다.",
       "loadFailed": {
-        "title": "카드를 불러오지 못했습니다",
-        "message": "연결을 확인하고 다시 시도해 주세요."
+        "title": "카드를 불러오지 못했습니다"
       },
-      "downloadFailed": "이 파일을 다운로드할 수 없습니다.",
-      "createFolderFailed": "폴더를 만들지 못했습니다",
-      "savedSmartFolder": "“{name}”을(를) 저장했습니다",
-      "refreshQueued": "세부 정보를 새로 고치는 중입니다. 요약과 태그가 곧 업데이트됩니다.",
-      "refreshFailed": "이 카드를 새로 고치지 못했습니다. 잠시 후 다시 시도해 주세요.",
       "toast": {
         "trashed": "카드를 휴지통으로 이동했습니다",
         "restored": "카드가 복원되었습니다",
         "deletedForever": "카드가 영구 삭제되었습니다"
-      },
-      "confirmTrash": {
-        "title": "휴지통으로 이동하시겠습니까?",
-        "message": "이 카드가 휴지통으로 이동됩니다."
-      },
-      "confirmDeleteForever": {
-        "title": "영구 삭제하시겠습니까?",
-        "message": "카드와 파일이 삭제됩니다. 이 작업은 되돌릴 수 없습니다."
       },
       "firstCard": {
         "title": "첫 카드를 추가해 보세요!",
@@ -223,26 +189,14 @@
       "empty": {
         "todoTitle": "남은 할 일이 없습니다.",
         "todoMessage": "완료로 표시한 링크는 이 목록에서 사라집니다.",
-        "smartFolderTitle": "이 스마트 폴더와 일치하는 카드가 없습니다.",
         "smartFolderMessage": "검색과 일치하는 카드를 저장하면 여기에 표시됩니다.",
-        "folderTitle": "이 폴더에 아직 카드가 없습니다.",
-        "folderMessage": "라이브러리에서 카드를 추가하면 여기에 표시됩니다.",
-        "trashTitle": "휴지통이 비어 있습니다",
-        "trashMessage": "삭제한 카드는 30일 동안 여기에 보관됩니다.",
-        "archiveTitle": "보관된 카드가 없습니다",
-        "archiveMessage": "카드를 보관하면 라이브러리에서 숨겨집니다.",
-        "filtersTitle": "일치하는 카드가 없습니다",
-        "filtersMessage": "다른 필터를 사용해 보세요.",
-        "searchTitle": "“{query}”에 대한 결과가 없습니다",
-        "searchMessage": "철자를 확인하거나 다른 검색어로 검색해 보세요.",
-        "timeMessage": "{range}의 카드가 없습니다."
+        "folderMessage": "라이브러리에서 카드를 추가하면 여기에 표시됩니다."
       },
       "menu": {
         "show": "표시",
         "type": "유형",
         "color": "색상",
         "sort": "정렬",
-        "shuffle": "셔플",
         "reshuffle": "다시 셔플",
         "saveSmartFolder": "스마트 폴더로 저장…"
       },
@@ -252,23 +206,12 @@
         "shuffle": "정렬: 셔플"
       },
       "filter": {
-        "done": "완료",
-        "todo": "할 일",
         "clear": "지우기"
       },
       "selected": "선택됨",
       "tile": {
         "open": "열기",
-        "favorite": "즐겨찾기",
-        "attachment": "첨부 파일",
-        "note": "메모"
-      },
-      "saveSearch": {
-        "title": "스마트 폴더로 저장",
-        "message": "나중에 저장하는 카드를 포함해 검색과 일치하는 모든 카드를 보여 줍니다.",
-        "nameLabel": "이름",
-        "namePlaceholder": "읽을거리",
-        "save": "스마트 폴더 저장"
+        "favorite": "즐겨찾기"
       }
     },
     "bulk": {
@@ -283,11 +226,6 @@
       "tagsHint": "태그는 쉼표로 구분하세요.",
       "tooManyTags": "한 번에 최대 {max}개의 태그를 선택할 수 있습니다.",
       "addToFolderTitle": "{count, plural, other {카드 #개}}를 폴더에 추가",
-      "findFolder": "폴더 찾기 또는 만들기",
-      "searchFolders": "폴더 검색",
-      "createFolder": "“{name}” 폴더 만들기",
-      "noFolders": "아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.",
-      "noFolderMatch": "그런 이름의 폴더가 없습니다.",
       "deleteForeverMessage": "{count, plural, other {카드 #개와 해당 파일이 삭제됩니다.}} 이 작업은 되돌릴 수 없습니다.",
       "done": {
         "favorite": "{count, plural, other {카드 #개}}를 즐겨찾기에 추가했습니다",
@@ -317,7 +255,6 @@
       "partial": "{message}. {count, plural, other {#개는 변경하지 못했습니다.}}"
     },
     "similar": {
-      "emptyTitle": "아직 비슷한 카드가 없습니다",
       "emptyMessage": "다른 카드로 시도해 보세요.",
       "pending": "아직 이 카드를 분석하고 있습니다. 잠시 후 다시 시도해 주세요.",
       "rateLimited": "검색이 너무 많습니다. 1분 후에 다시 시도해 주세요.",
@@ -346,7 +283,6 @@
       "updateFailed": "이 카드를 업데이트하지 못했습니다."
     },
     "capture": {
-      "title": "추가",
       "write": "쓰기",
       "upload": "업로드",
       "uploads": "업로드",
@@ -373,7 +309,6 @@
       "cardLimitReached": "카드 한도 도달",
       "cardLimitMessage": "무료 요금제의 카드 한도에 도달했습니다.",
       "freePlanLimit": "무료 요금제에서는 카드를 최대 {limit}개까지 저장할 수 있습니다.",
-      "nothingToSave": "저장할 항목 없음",
       "nothingToSaveMessage": "저장하기 전에 북마크, URL 또는 메모를 입력하세요.",
       "linkSaved": "링크가 저장되었습니다",
       "noteSaved": "메모가 저장되었습니다",
@@ -393,7 +328,6 @@
       "skippedFile": "{name}: {reason}",
       "errorTitle": "오류",
       "photosFailed": "선택한 사진을 불러오지 못했습니다.",
-      "ok": "확인",
       "cameraOff": "카메라 접근이 꺼져 있습니다",
       "cameraOffMessage": "Teak에서 사진을 찍으려면 설정에서 카메라 접근을 허용하세요.",
       "openSettings": "설정 열기",
@@ -421,21 +355,17 @@
     },
     "share": {
       "saving": "Teak에 저장하는 중…",
-      "saved": "저장됨",
       "savedMessage": "라이브러리에 추가되었습니다.",
       "nothingToSave": "저장할 항목 없음",
       "nothingToSaveMessage": "Teak이 저장할 텍스트, 링크 또는 파일을 찾지 못했습니다.",
       "signInRequired": "로그인 필요",
       "signInMessage": "Teak을 열고 로그인한 다음 다시 공유하세요.",
       "openTeak": "Teak 열기",
-      "failedMessage": "연결을 확인하고 다시 시도해 주세요.",
       "partialMessage": "일부 항목을 저장하지 못했습니다.",
       "tooManyItems": "공유한 항목 중 처음 {max}개만 저장됩니다.",
       "addDetails": "태그와 메모 추가",
-      "addTag": "태그 추가",
       "addNote": "메모 추가",
       "note": "메모",
-      "removeTag": "{tag} 제거",
       "skip": "건너뛰기",
       "detailsFailed": "태그와 메모를 저장하지 못했습니다. 다시 시도해 주세요.",
       "noteFailed": "메모를 저장하지 못했습니다.",
@@ -472,7 +402,6 @@
       "emptyTitle": "아직 폴더가 없습니다",
       "emptyMessage": "관련 카드를 묶어 보세요. 폴더를 만든 다음 카드를 추가하세요.",
       "loadFailed": "폴더를 불러오지 못했습니다",
-      "loadFailedMessage": "연결을 확인하고 다시 시도해 주세요.",
       "createNamed": "“{name}” 폴더 만들기",
       "pickerEmpty": "아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.",
       "findOrCreate": "폴더 찾기 또는 만들기",
@@ -518,20 +447,7 @@
       "tryRest": "나머지를 변경하려면 다시 시도하세요.",
       "card": {
         "hiddenAdded": "숨겨졌습니다. 보려면 #{tag}(으)로 검색하세요.",
-        "searchHint": "숨긴 카드 표시",
-        "hiddenCards": "일부 카드가 숨겨져 있습니다. 보려면 #secret 또는 #hidden으로 검색하세요.",
-        "renaming": "“{from}”의 이름을 “{to}”(으)로 변경하는 중…",
-        "merging": "“{from}”을(를) “{to}”(으)로 병합하는 중…",
-        "deleting": "“{from}”을(를) 삭제하는 중…",
-        "renamed": "“{from}”의 이름을 “{to}”(으)로 변경했습니다",
-        "merged": "“{from}”을(를) “{to}”(으)로 병합했습니다",
-        "deleted": "“{from}”을(를) 삭제했습니다",
-        "progress": "{count, plural, other {카드 #개}} 중 {changed}개가 변경되었습니다",
-        "changed": "{count, plural, other {카드 #개가 변경되었습니다}}",
-        "renameFailed": "이름 변경을 완료하지 못했습니다. {count, plural, other {카드 #개}} 중 {changed}개가 변경되었습니다.",
-        "mergeFailed": "병합을 완료하지 못했습니다. {count, plural, other {카드 #개}} 중 {changed}개가 변경되었습니다.",
-        "deleteFailed": "삭제를 완료하지 못했습니다. {count, plural, other {카드 #개}} 중 {changed}개가 변경되었습니다.",
-        "retryRest": "나머지를 변경하려면 다시 시도하세요."
+        "hiddenCards": "일부 카드가 숨겨져 있습니다. 보려면 #secret 또는 #hidden으로 검색하세요."
       }
     },
     "card": {
@@ -547,7 +463,6 @@
         "message": "카드를 선택하면 여기에 표시됩니다."
       },
       "folders": "폴더…",
-      "info": "정보",
       "copied": "복사됨",
       "copiedValue": "{value} 복사됨",
       "copyFailed": "클립보드에 복사하지 못했습니다.",
@@ -586,9 +501,6 @@
         "none": "이 카드는 폴더에 없습니다.",
         "count": "{count, plural, other {폴더 #개에 있습니다.}}",
         "search": "폴더 검색",
-        "placeholder": "폴더 찾기 또는 만들기",
-        "create": "“{name}” 폴더 만들기",
-        "empty": "아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.",
         "noMatch": "해당 이름의 폴더가 없습니다."
       },
       "deleteForever": {
@@ -615,8 +527,7 @@
         "saveFailed": "변경 사항을 저장하지 못했습니다",
         "quoteEmptyTitle": "인용이 비어 있음",
         "quoteEmptyMessage": "저장하기 전에 인용문을 입력하세요.",
-        "quoteEmpty": "인용은 비워 둘 수 없습니다.",
-        "ok": "확인"
+        "quoteEmpty": "인용은 비워 둘 수 없습니다."
       },
       "preview": {
         "image": "이미지",
@@ -638,8 +549,6 @@
         "linkedCard": "링크된 카드: {title}"
       },
       "notice": {
-        "archived": "카드 1개를 보관했습니다",
-        "unarchived": "카드 1개를 라이브러리로 되돌렸습니다",
         "refreshing": "세부 정보를 새로 고치는 중입니다. 요약과 태그가 곧 업데이트됩니다."
       },
       "failed": {
@@ -650,7 +559,6 @@
         "unarchive": "이 카드의 보관을 해제하지 못했습니다.",
         "refresh": "이 카드를 새로 고치지 못했습니다. 잠시 후 다시 시도해 주세요.",
         "folders": "카드의 폴더를 변경하지 못했습니다",
-        "createFolder": "폴더를 만들지 못했습니다",
         "moveToTrash": "이 카드를 휴지통으로 이동하지 못했습니다.",
         "delete": "이 카드를 삭제하지 못했습니다.",
         "restore": "이 카드를 복원하지 못했습니다.",
@@ -658,9 +566,6 @@
         "download": "이 파일을 다운로드할 수 없습니다."
       },
       "share": {
-        "saved": "Teak에 저장되었습니다",
-        "savedCount": "{count, plural, other {항목 #개를 저장했습니다}}",
-        "savedSome": "{total}개 중 {saved}개를 저장했습니다",
         "nothing": "저장할 항목이 없습니다."
       },
       "plan": {
@@ -677,7 +582,6 @@
       "size": "크기",
       "dimensions": "치수",
       "duration": "길이",
-      "details": "세부 정보",
       "description": "설명",
       "site": "사이트",
       "author": "작성자",
@@ -780,7 +684,7 @@
         "filtersMessage": "다른 필터를 사용해 보세요.",
         "noMatches": "일치하는 카드가 없습니다",
         "noResults": "“{query}”에 대한 결과가 없습니다",
-        "noCardsFrom": "{time}의 카드가 없습니다.",
+        "noCardsFrom": "해당 기간의 카드가 없습니다.",
         "checkSpelling": "철자를 확인하거나 다른 검색어로 검색해 보세요."
       }
     },
@@ -876,8 +780,6 @@
       "saveToTeak": "Teak에 저장"
     },
     "library": {
-      "newNote": "새 메모",
-      "voiceMemo": "음성 메모",
       "uploadFiles": "파일 업로드…",
       "revisitKeys": "← 보관 · → 유지 · Z 실행 취소 · Esc 나가기"
     },
@@ -938,10 +840,7 @@
     "intents": {
       "saveTitle": "Teak에 저장",
       "saveDescription": "텍스트나 링크를 Teak 라이브러리에 저장합니다.",
-      "contentParameter": "텍스트 또는 링크",
-      "noText": "단축어가 텍스트나 링크를 보내지 않았습니다.",
-      "signInFirst": "Teak을 열고 로그인한 다음 단축어를 다시 실행하세요.",
-      "saved": "Teak에 저장되었습니다"
+      "contentParameter": "텍스트 또는 링크"
     },
     "appShortcuts": {
       "save": "{applicationName}에 저장"
@@ -955,13 +854,8 @@
     }
   },
   "android": {
-    "shortcuts": {
-      "newNote": "새 메모",
-      "voiceMemo": "음성 메모"
-    },
     "notification": {
       "uploadTitle": "Teak에 저장하는 중",
-      "uploadChannel": "업로드",
       "file": "파일"
     },
     "share": {

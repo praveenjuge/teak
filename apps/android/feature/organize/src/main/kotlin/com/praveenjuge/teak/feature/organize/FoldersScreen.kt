@@ -153,7 +153,7 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
                 state.isLoading -> TeakLoading()
                 state.failed -> EmptyState(
                     tr("native.folders.loadFailed"),
-                    tr("native.folders.loadFailedMessage"),
+                    tr("native.errors.offline"),
                     icon = Icons.Outlined.CloudOff,
                 )
                 state.folders.isEmpty() -> EmptyState(

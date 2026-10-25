@@ -147,7 +147,7 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
         }
         if (state.signupsDisabled) {
             Text(
-                tr("native.auth.signupsPaused"),
+                tr("native.errors.signupsPaused"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

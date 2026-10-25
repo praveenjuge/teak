@@ -94,10 +94,8 @@
       "usage": "Usage",
       "plan": "Plan",
       "notAvailable": "Not available",
-      "planFree": "Free",
       "usageFree": "{used} of {limit} cards",
       "manage": "Manage…",
-      "upgrade": "Upgrade…",
       "signOut": "Sign out",
       "signingOut": "Signing out…",
       "signOutConfirm": "Are you sure you want to sign out?",
@@ -123,16 +121,8 @@
     },
     "app": {
       "nav": {
-        "home": "Home",
-        "folders": "Folders",
         "add": "Add",
-        "settings": "Settings",
-        "favorites": "Favorites",
-        "archive": "Archive",
-        "tags": "Tags",
-        "trash": "Trash",
-        "types": "Types",
-        "newFolder": "New folder"
+        "types": "Types"
       },
       "ok": "OK",
       "upgrade": "Upgrade…",
@@ -144,22 +134,14 @@
       "failed": {
         "title": "Something went wrong"
       },
-      "signInConfigFailed": "Unable to load sign-in configuration",
-      "connectFailed": "Unable to connect. Please try again.",
       "uploadProgress": "Saving {done} of {total}…",
       "dropFiles": "Drop files to upload",
-      "missingCard": "Missing card",
       "saveRequest": {
         "savingTitle": "Saving",
         "savingMessage": "Saving to your Teak vault…",
-        "savedTitle": "Saved",
-        "savedMessage": "It's in your library.",
-        "emptyTitle": "Nothing to save",
         "emptyMessage": "The shortcut didn't send any text or link.",
-        "signedOutTitle": "Sign in required",
         "signedOutMessage": "Open Teak and sign in, then run the shortcut again.",
-        "failedTitle": "Save failed",
-        "failedMessage": "Check your connection and try again."
+        "failedTitle": "Save failed"
       }
     },
     "auth": {
@@ -170,12 +152,10 @@
       "registerWithEmail": "Register with email",
       "signInWithEmail": "Sign in with email",
       "signingIn": "Signing in…",
-      "signupsPaused": "New sign-ups are paused right now. Please try again later.",
       "failedTitle": "Couldn't sign in",
       "failedApple": "Couldn't sign in with Apple. Please try again.",
       "failedGoogle": "Couldn't sign in with Google. Please try again.",
-      "failedEmail": "Couldn't sign in with email. Please try again.",
-      "completeFailed": "Unable to complete sign-in. Please try again."
+      "failedEmail": "Couldn't sign in with email. Please try again."
     },
     "library": {
       "search": "Search",
@@ -194,26 +174,12 @@
       "loadingMore": "Loading more cards",
       "loadMoreFailed": "Couldn't load more cards.",
       "loadFailed": {
-        "title": "Couldn't load cards",
-        "message": "Check your connection and try again."
+        "title": "Couldn't load cards"
       },
-      "downloadFailed": "Unable to download this file.",
-      "createFolderFailed": "Couldn't create the folder",
-      "savedSmartFolder": "Saved “{name}”",
-      "refreshQueued": "Refreshing details. The summary and tags update shortly.",
-      "refreshFailed": "Couldn't refresh this card. Try again in a moment.",
       "toast": {
         "trashed": "Card moved to Trash",
         "restored": "Card restored",
         "deletedForever": "Card deleted forever"
-      },
-      "confirmTrash": {
-        "title": "Move to Trash?",
-        "message": "This card will be moved to Trash."
-      },
-      "confirmDeleteForever": {
-        "title": "Delete forever?",
-        "message": "This removes the card and its files. You can't undo it."
       },
       "firstCard": {
         "title": "Let's add your first card!",
@@ -223,26 +189,14 @@
       "empty": {
         "todoTitle": "Nothing left to do.",
         "todoMessage": "Links you mark done leave this list.",
-        "smartFolderTitle": "No cards match this smart folder.",
         "smartFolderMessage": "Cards that match its search show up here, as you save them.",
-        "folderTitle": "No cards in this folder yet.",
-        "folderMessage": "Add cards from your library to see them here.",
-        "trashTitle": "Trash is empty",
-        "trashMessage": "Cards you delete stay here for 30 days.",
-        "archiveTitle": "Nothing archived",
-        "archiveMessage": "Archive a card to keep it out of your library.",
-        "filtersTitle": "No matching cards",
-        "filtersMessage": "Try other filters.",
-        "searchTitle": "No results for “{query}”",
-        "searchMessage": "Check the spelling or try a new search.",
-        "timeMessage": "No cards from {range}."
+        "folderMessage": "Add cards from your library to see them here."
       },
       "menu": {
         "show": "Show",
         "type": "Type",
         "color": "Color",
         "sort": "Sort",
-        "shuffle": "Shuffle",
         "reshuffle": "Reshuffle",
         "saveSmartFolder": "Save as smart folder…"
       },
@@ -252,23 +206,12 @@
         "shuffle": "Sort: shuffled"
       },
       "filter": {
-        "done": "Done",
-        "todo": "To do",
         "clear": "Clear"
       },
       "selected": "Selected",
       "tile": {
         "open": "Open",
-        "favorite": "Favorite",
-        "attachment": "Attachment",
-        "note": "Note"
-      },
-      "saveSearch": {
-        "title": "Save as smart folder",
-        "message": "Shows every card that matches the search, including cards you save later.",
-        "nameLabel": "Name",
-        "namePlaceholder": "Reading list",
-        "save": "Save smart folder"
+        "favorite": "Favorite"
       }
     },
     "bulk": {
@@ -283,11 +226,6 @@
       "tagsHint": "Separate tags with commas.",
       "tooManyTags": "Choose at most {max} tags at a time.",
       "addToFolderTitle": "Add {count, plural, one {# card} other {# cards}} to a folder",
-      "findFolder": "Find or create a folder",
-      "searchFolders": "Search folders",
-      "createFolder": "Create folder “{name}”",
-      "noFolders": "No folders yet. Type a name to create one.",
-      "noFolderMatch": "No folder by that name.",
       "deleteForeverMessage": "{count, plural, one {# card and its files will be removed.} other {# cards and their files will be removed.}} You can't undo it.",
       "done": {
         "favorite": "Added {count, plural, one {# card} other {# cards}} to favorites",
@@ -317,7 +255,6 @@
       "partial": "{message}. {count, plural, one {# couldn't be changed.} other {# couldn't be changed.}}"
     },
     "similar": {
-      "emptyTitle": "Nothing similar yet",
       "emptyMessage": "Try another card.",
       "pending": "Still learning about this card. Try again in a moment.",
       "rateLimited": "Too many searches. Try again in a minute.",
@@ -346,7 +283,6 @@
       "updateFailed": "Couldn't update this card."
     },
     "capture": {
-      "title": "Add",
       "write": "Write",
       "upload": "Upload",
       "uploads": "Uploads",
@@ -373,7 +309,6 @@
       "cardLimitReached": "Card limit reached",
       "cardLimitMessage": "You've reached the Free plan's card limit.",
       "freePlanLimit": "The Free plan holds {limit} cards.",
-      "nothingToSave": "Nothing to save",
       "nothingToSaveMessage": "Enter a bookmark, URL, or note before saving.",
       "linkSaved": "Link saved",
       "noteSaved": "Note saved",
@@ -393,7 +328,6 @@
       "skippedFile": "{name}: {reason}",
       "errorTitle": "Error",
       "photosFailed": "Couldn't load the photos you picked.",
-      "ok": "OK",
       "cameraOff": "Camera access is off",
       "cameraOffMessage": "Allow camera access in Settings to take photos for Teak.",
       "openSettings": "Open settings",
@@ -421,21 +355,17 @@
     },
     "share": {
       "saving": "Saving to Teak…",
-      "saved": "Saved",
       "savedMessage": "It's in your library.",
       "nothingToSave": "Nothing to save",
       "nothingToSaveMessage": "Teak couldn't find text, a link or a file to save.",
       "signInRequired": "Sign in required",
       "signInMessage": "Open Teak and sign in, then share again.",
       "openTeak": "Open Teak",
-      "failedMessage": "Check your connection and try again.",
       "partialMessage": "Some items couldn't be saved.",
       "tooManyItems": "Only the first {max} shared items are saved.",
       "addDetails": "Add tags and a note",
-      "addTag": "Add a tag",
       "addNote": "Add a note",
       "note": "Note",
-      "removeTag": "Remove {tag}",
       "skip": "Skip",
       "detailsFailed": "Couldn't save the tags and note. Try again.",
       "noteFailed": "Couldn't save the note.",
@@ -472,7 +402,6 @@
       "emptyTitle": "No folders yet",
       "emptyMessage": "Group related cards. Make a folder, then add cards to it.",
       "loadFailed": "Couldn't load folders",
-      "loadFailedMessage": "Check your connection and try again.",
       "createNamed": "Create folder “{name}”",
       "pickerEmpty": "No folders yet. Type a name to create one.",
       "findOrCreate": "Find or create a folder",
@@ -518,20 +447,7 @@
       "tryRest": "Try again to change the rest.",
       "card": {
         "hiddenAdded": "Hidden. Search #{tag} to see it.",
-        "searchHint": "Shows hidden cards",
-        "hiddenCards": "Some cards are hidden. Search #secret or #hidden to see them.",
-        "renaming": "Renaming “{from}” to “{to}”…",
-        "merging": "Merging “{from}” into “{to}”…",
-        "deleting": "Deleting “{from}”…",
-        "renamed": "Renamed “{from}” to “{to}”",
-        "merged": "Merged “{from}” into “{to}”",
-        "deleted": "Deleted “{from}”",
-        "progress": "{changed} of {count, plural, one {# card} other {# cards}} changed",
-        "changed": "{count, plural, one {# card changed} other {# cards changed}}",
-        "renameFailed": "Couldn't finish renaming. {changed} of {count, plural, one {# card} other {# cards}} changed.",
-        "mergeFailed": "Couldn't finish merging. {changed} of {count, plural, one {# card} other {# cards}} changed.",
-        "deleteFailed": "Couldn't finish deleting. {changed} of {count, plural, one {# card} other {# cards}} changed.",
-        "retryRest": "Try again to change the rest."
+        "hiddenCards": "Some cards are hidden. Search #secret or #hidden to see them."
       }
     },
     "card": {
@@ -547,7 +463,6 @@
         "message": "Choose a card to see it here."
       },
       "folders": "Folders…",
-      "info": "Info",
       "copied": "Copied",
       "copiedValue": "Copied {value}",
       "copyFailed": "Couldn't copy to the clipboard.",
@@ -586,9 +501,6 @@
         "none": "This card isn't in a folder.",
         "count": "{count, plural, one {In # folder.} other {In # folders.}}",
         "search": "Search folders",
-        "placeholder": "Find or create a folder",
-        "create": "Create folder “{name}”",
-        "empty": "No folders yet. Type a name to create one.",
         "noMatch": "No folder by that name."
       },
       "deleteForever": {
@@ -615,8 +527,7 @@
         "saveFailed": "Couldn't save changes",
         "quoteEmptyTitle": "Quote is empty",
         "quoteEmptyMessage": "Write the quote before saving.",
-        "quoteEmpty": "A quote can't be empty.",
-        "ok": "OK"
+        "quoteEmpty": "A quote can't be empty."
       },
       "preview": {
         "image": "Image",
@@ -638,8 +549,6 @@
         "linkedCard": "Linked card: {title}"
       },
       "notice": {
-        "archived": "Archived 1 card",
-        "unarchived": "Returned 1 card to the library",
         "refreshing": "Refreshing details. The summary and tags update shortly."
       },
       "failed": {
@@ -650,7 +559,6 @@
         "unarchive": "Couldn't unarchive this card.",
         "refresh": "Couldn't refresh this card. Try again in a moment.",
         "folders": "Couldn't change the card's folders",
-        "createFolder": "Couldn't create the folder",
         "moveToTrash": "Couldn't move this card to Trash.",
         "delete": "Couldn't delete this card.",
         "restore": "Couldn't restore this card.",
@@ -658,9 +566,6 @@
         "download": "Unable to download this file."
       },
       "share": {
-        "saved": "Saved to Teak",
-        "savedCount": "{count, plural, one {Saved # item} other {Saved # items}}",
-        "savedSome": "Saved {saved} of {total}",
         "nothing": "Nothing to save."
       },
       "plan": {
@@ -677,7 +582,6 @@
       "size": "Size",
       "dimensions": "Dimensions",
       "duration": "Duration",
-      "details": "Details",
       "description": "Description",
       "site": "Site",
       "author": "Author",
@@ -780,7 +684,7 @@
         "filtersMessage": "Try other filters.",
         "noMatches": "No matching cards",
         "noResults": "No results for “{query}”",
-        "noCardsFrom": "No cards from {time}.",
+        "noCardsFrom": "No cards from that time.",
         "checkSpelling": "Check the spelling or try a new search."
       }
     },
@@ -876,8 +780,6 @@
       "saveToTeak": "Save to Teak"
     },
     "library": {
-      "newNote": "New note",
-      "voiceMemo": "Voice memo",
       "uploadFiles": "Upload files…",
       "revisitKeys": "← archive · → keep · Z undo · Esc exit"
     },
@@ -938,10 +840,7 @@
     "intents": {
       "saveTitle": "Save to Teak",
       "saveDescription": "Saves text or a link to your Teak library.",
-      "contentParameter": "Text or link",
-      "noText": "The shortcut didn't send any text or link.",
-      "signInFirst": "Open Teak and sign in, then run the shortcut again.",
-      "saved": "Saved to Teak"
+      "contentParameter": "Text or link"
     },
     "appShortcuts": {
       "save": "Save to {applicationName}"
@@ -955,13 +854,8 @@
     }
   },
   "android": {
-    "shortcuts": {
-      "newNote": "New note",
-      "voiceMemo": "Voice memo"
-    },
     "notification": {
       "uploadTitle": "Saving to Teak",
-      "uploadChannel": "Uploads",
       "file": "File"
     },
     "share": {

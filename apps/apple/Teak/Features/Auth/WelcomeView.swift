@@ -25,7 +25,7 @@ struct WelcomeView: View {
             }
             Spacer(minLength: 32)
             if app.authMode?.signupsDisabled == true {
-                Text(tr("native.auth.signupsPaused"))
+                Text(tr("native.errors.signupsPaused"))
                     .padding(.bottom, 16)
             }
             VStack(spacing: 30) {

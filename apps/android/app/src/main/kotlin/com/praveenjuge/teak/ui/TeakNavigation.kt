@@ -64,10 +64,10 @@ private enum class Tab(val selected: ImageVector, val unselected: ImageVector) {
 
 @Composable
 private fun Tab.label(): String = when (this) {
-    Tab.Home -> tr("native.app.nav.home")
-    Tab.Folders -> tr("native.app.nav.folders")
+    Tab.Home -> tr("native.filters.home")
+    Tab.Folders -> tr("native.folders.title")
     Tab.Add -> tr("native.app.nav.add")
-    Tab.Settings -> tr("native.app.nav.settings")
+    Tab.Settings -> tr("native.settings.title")
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)

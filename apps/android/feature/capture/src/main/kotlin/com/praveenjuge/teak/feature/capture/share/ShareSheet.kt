@@ -60,7 +60,7 @@ private data class ShareStatus(val title: String, val message: String, val icon:
 @Composable
 private fun ShareUiState.status(): ShareStatus = when (this) {
     ShareUiState.Resolving, ShareUiState.Saving -> ShareStatus(tr("common.saving"), tr("native.share.saving"), null)
-    is ShareUiState.Saved -> ShareStatus(tr("native.share.saved"), tr("native.share.savedMessage"), Icons.Filled.CheckCircle)
+    is ShareUiState.Saved -> ShareStatus(tr("native.capture.saved"), tr("native.share.savedMessage"), Icons.Filled.CheckCircle)
     ShareUiState.Empty -> ShareStatus(tr("native.share.nothingToSave"), tr("native.share.nothingToSaveMessage"), Icons.Filled.Inbox)
     ShareUiState.SignInRequired -> ShareStatus(
         tr("native.share.signInRequired"),
@@ -74,7 +74,7 @@ private fun ShareUiState.status(): ShareStatus = when (this) {
     )
     is ShareUiState.Failed -> ShareStatus(
         tr("native.capture.couldntSave"),
-        detail?.resolve() ?: tr("native.share.failedMessage"),
+        detail?.resolve() ?: tr("native.errors.offline"),
         Icons.Filled.Error,
     )
 }
@@ -180,7 +180,7 @@ private fun ShareDetailsForm(form: ShareDetails, actions: ShareDetailsActions, o
                         selected = false,
                         onClick = { actions.onRemoveTag(tag) },
                         label = { Text(tag) },
-                        trailingIcon = { Icon(Icons.Filled.Close, contentDescription = tr("native.share.removeTag", tag), modifier = Modifier.size(InputChipDefaults.AvatarSize)) },
+                        trailingIcon = { Icon(Icons.Filled.Close, contentDescription = tr("native.card.edit.removeTag", tag), modifier = Modifier.size(InputChipDefaults.AvatarSize)) },
                     )
                 }
             }
@@ -189,7 +189,7 @@ private fun ShareDetailsForm(form: ShareDetails, actions: ShareDetailsActions, o
             OutlinedTextField(
                 value = form.tagInput,
                 onValueChange = actions.onTagInput,
-                placeholder = { Text(tr("native.share.addTag")) },
+                placeholder = { Text(tr("native.card.edit.tagPlaceholder")) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { actions.onAddTag() }),

@@ -119,7 +119,7 @@ struct ShareView: View {
                     Button(tr("native.share.openTeak"), action: openApp).buttonStyle(.glassProminent)
                 }
             } else if result.isComplete {
-                ContentUnavailableView(tr("native.share.saved"), systemImage: "checkmark.circle.fill",
+                ContentUnavailableView(tr("native.capture.saved"), systemImage: "checkmark.circle.fill",
                                        description: Text(Self.savedSummary(result)))
                     .symbolEffect(.bounce, value: result.successfulItems)
                 if model.savedCardId != nil { details }
@@ -146,7 +146,7 @@ struct ShareView: View {
 
     /// Why the first item wasn't saved. Too many items is Teak's own text; other reasons carry the error's.
     static func failureMessage(_ result: ShareImportResult) -> String {
-        guard let failure = result.failures.first else { return tr("native.share.failedMessage") }
+        guard let failure = result.failures.first else { return tr("native.errors.offline") }
         if failure.reason == .tooManyItems {
             return tr("native.share.tooManyItems", TeakLimits.maxFilesPerUpload.formatted(.number.locale(AppLanguage.locale)))
         }

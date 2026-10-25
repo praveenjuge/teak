@@ -78,7 +78,7 @@ class LibraryViewModelTest {
         assertEquals("", query.search)
         assertEquals(TimeSearch.parse("2024-06-05")?.range, query.range)
         assertEquals(
-            UiText.of("native.library.empty.timeMessage", TimeSearch.parse("2024-06-05")!!.labelText),
+            UiText.of("native.filters.empty.noCardsFrom"),
             assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.message,
         )
         assertTrue(repository.semanticRequests.isEmpty())
@@ -90,7 +90,7 @@ class LibraryViewModelTest {
         viewModel.toggleTrash()
         advanceUntilIdle()
 
-        assertEquals(UiText.of("native.library.empty.trashTitle"), assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.title)
+        assertEquals(UiText.of("native.filters.empty.trashTitle"), assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.title)
         assertEquals(UiText.of("native.filters.trash"), viewModel.state.value.title)
     }
 

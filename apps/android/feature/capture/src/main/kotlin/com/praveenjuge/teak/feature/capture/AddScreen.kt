@@ -173,7 +173,7 @@ internal fun AddScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text(tr("native.capture.title"), modifier = Modifier.semantics { heading() }) },
+                title = { Text(tr("native.app.nav.add"), modifier = Modifier.semantics { heading() }) },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -241,6 +241,6 @@ private fun MessageDialog(title: String, message: String, onDismiss: () -> Unit)
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(message) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("native.capture.ok")) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("native.app.ok")) } },
     )
 }

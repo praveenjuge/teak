@@ -128,7 +128,7 @@ class UploadWorker @AssistedInject constructor(
         notifications.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                applicationContext.resources.tr("android.notification.uploadChannel"),
+                applicationContext.resources.tr("native.capture.uploads"),
                 NotificationManager.IMPORTANCE_LOW,
             ),
         )

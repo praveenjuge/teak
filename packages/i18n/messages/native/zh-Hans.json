@@ -94,10 +94,8 @@
       "usage": "用量",
       "plan": "方案",
       "notAvailable": "不可用",
-      "planFree": "免费",
       "usageFree": "{used} / {limit} 张卡片",
       "manage": "管理…",
-      "upgrade": "升级…",
       "signOut": "退出登录",
       "signingOut": "正在退出登录…",
       "signOutConfirm": "确定要退出登录吗？",
@@ -123,16 +121,8 @@
     },
     "app": {
       "nav": {
-        "home": "首页",
-        "folders": "文件夹",
         "add": "添加",
-        "settings": "设置",
-        "favorites": "收藏",
-        "archive": "归档",
-        "tags": "标签",
-        "trash": "废纸篓",
-        "types": "类型",
-        "newFolder": "新建文件夹"
+        "types": "类型"
       },
       "ok": "好",
       "upgrade": "升级…",
@@ -144,22 +134,14 @@
       "failed": {
         "title": "出了点问题"
       },
-      "signInConfigFailed": "无法加载登录配置",
-      "connectFailed": "无法连接，请重试。",
       "uploadProgress": "正在保存 {done} / {total}…",
       "dropFiles": "拖放文件以上传",
-      "missingCard": "缺失的卡片",
       "saveRequest": {
         "savingTitle": "正在保存",
         "savingMessage": "正在保存到你的 Teak 资料库…",
-        "savedTitle": "已保存",
-        "savedMessage": "已保存到你的资料库。",
-        "emptyTitle": "没有可保存的内容",
         "emptyMessage": "快捷指令没有发送任何文本或链接。",
-        "signedOutTitle": "需要登录",
         "signedOutMessage": "请打开 Teak 并登录，然后再次运行快捷指令。",
-        "failedTitle": "保存失败",
-        "failedMessage": "请检查网络连接后重试。"
+        "failedTitle": "保存失败"
       }
     },
     "auth": {
@@ -170,12 +152,10 @@
       "registerWithEmail": "使用邮箱注册",
       "signInWithEmail": "使用邮箱登录",
       "signingIn": "正在登录…",
-      "signupsPaused": "暂时停止新用户注册，请稍后再试。",
       "failedTitle": "无法登录",
       "failedApple": "无法通过 Apple 登录，请重试。",
       "failedGoogle": "无法通过 Google 登录，请重试。",
-      "failedEmail": "无法通过邮箱登录，请重试。",
-      "completeFailed": "无法完成登录，请重试。"
+      "failedEmail": "无法通过邮箱登录，请重试。"
     },
     "library": {
       "search": "搜索",
@@ -194,26 +174,12 @@
       "loadingMore": "正在加载更多卡片",
       "loadMoreFailed": "无法加载更多卡片。",
       "loadFailed": {
-        "title": "无法加载卡片",
-        "message": "请检查网络连接后重试。"
+        "title": "无法加载卡片"
       },
-      "downloadFailed": "无法下载此文件。",
-      "createFolderFailed": "无法创建文件夹",
-      "savedSmartFolder": "已保存“{name}”",
-      "refreshQueued": "正在刷新详情。摘要和标签稍后就会更新。",
-      "refreshFailed": "无法刷新此卡片，请稍后再试。",
       "toast": {
         "trashed": "卡片已移到废纸篓",
         "restored": "卡片已恢复",
         "deletedForever": "卡片已永久删除"
-      },
-      "confirmTrash": {
-        "title": "要移到废纸篓吗？",
-        "message": "此卡片将被移到废纸篓。"
-      },
-      "confirmDeleteForever": {
-        "title": "要永久删除吗？",
-        "message": "这将移除此卡片及其文件。此操作无法撤销。"
       },
       "firstCard": {
         "title": "来添加你的第一张卡片吧！",
@@ -223,26 +189,14 @@
       "empty": {
         "todoTitle": "没有待办事项了。",
         "todoMessage": "标为已完成的链接会从此列表中移除。",
-        "smartFolderTitle": "没有卡片符合此智能文件夹。",
         "smartFolderMessage": "符合其搜索条件的卡片会在你保存后显示在这里。",
-        "folderTitle": "此文件夹中还没有卡片。",
-        "folderMessage": "从资料库中添加卡片，它们会显示在这里。",
-        "trashTitle": "废纸篓是空的",
-        "trashMessage": "你删除的卡片会在这里保留 30 天。",
-        "archiveTitle": "没有已归档的内容",
-        "archiveMessage": "归档卡片可将其移出你的资料库。",
-        "filtersTitle": "没有匹配的卡片",
-        "filtersMessage": "试试其他筛选条件。",
-        "searchTitle": "没有“{query}”的结果",
-        "searchMessage": "请检查拼写或尝试新的搜索。",
-        "timeMessage": "没有 {range} 的卡片。"
+        "folderMessage": "从资料库中添加卡片，它们会显示在这里。"
       },
       "menu": {
         "show": "显示",
         "type": "类型",
         "color": "颜色",
         "sort": "排序",
-        "shuffle": "随机",
         "reshuffle": "重新随机",
         "saveSmartFolder": "保存为智能文件夹…"
       },
@@ -252,23 +206,12 @@
         "shuffle": "排序：随机"
       },
       "filter": {
-        "done": "已完成",
-        "todo": "待办",
         "clear": "清除"
       },
       "selected": "已选择",
       "tile": {
         "open": "打开",
-        "favorite": "收藏",
-        "attachment": "附件",
-        "note": "笔记"
-      },
-      "saveSearch": {
-        "title": "保存为智能文件夹",
-        "message": "显示符合搜索条件的所有卡片，包括你以后保存的卡片。",
-        "nameLabel": "名称",
-        "namePlaceholder": "阅读清单",
-        "save": "保存智能文件夹"
+        "favorite": "收藏"
       }
     },
     "bulk": {
@@ -283,11 +226,6 @@
       "tagsHint": "用逗号分隔标签。",
       "tooManyTags": "一次最多选择 {max} 个标签。",
       "addToFolderTitle": "将 {count, plural, other {# 张卡片}}添加到文件夹",
-      "findFolder": "查找或创建文件夹",
-      "searchFolders": "搜索文件夹",
-      "createFolder": "创建文件夹“{name}”",
-      "noFolders": "还没有文件夹。输入名称即可创建。",
-      "noFolderMatch": "没有这个名称的文件夹。",
       "deleteForeverMessage": "{count, plural, other {# 张卡片及其文件将被移除。}}此操作无法撤销。",
       "done": {
         "favorite": "已收藏 {count, plural, other {# 张卡片}}",
@@ -317,7 +255,6 @@
       "partial": "{message}。{count, plural, other {# 张无法更改。}}"
     },
     "similar": {
-      "emptyTitle": "暂无类似内容",
       "emptyMessage": "试试其他卡片。",
       "pending": "仍在分析此卡片，请稍后再试。",
       "rateLimited": "搜索过于频繁，请一分钟后重试。",
@@ -346,7 +283,6 @@
       "updateFailed": "无法更新此卡片。"
     },
     "capture": {
-      "title": "添加",
       "write": "撰写",
       "upload": "上传",
       "uploads": "上传项",
@@ -373,7 +309,6 @@
       "cardLimitReached": "已达卡片上限",
       "cardLimitMessage": "你已达到免费方案的卡片上限。",
       "freePlanLimit": "免费方案最多可保存 {limit} 张卡片。",
-      "nothingToSave": "没有可保存的内容",
       "nothingToSaveMessage": "请先输入书签、URL 或笔记，再进行保存。",
       "linkSaved": "链接已保存",
       "noteSaved": "笔记已保存",
@@ -393,7 +328,6 @@
       "skippedFile": "{name}：{reason}",
       "errorTitle": "错误",
       "photosFailed": "无法加载你选择的照片。",
-      "ok": "好",
       "cameraOff": "相机访问权限已关闭",
       "cameraOffMessage": "请在“设置”中允许访问相机，以便为 Teak 拍照。",
       "openSettings": "打开设置",
@@ -421,21 +355,17 @@
     },
     "share": {
       "saving": "正在保存到 Teak…",
-      "saved": "已保存",
       "savedMessage": "已添加到你的资料库。",
       "nothingToSave": "没有可保存的内容",
       "nothingToSaveMessage": "Teak 找不到可保存的文本、链接或文件。",
       "signInRequired": "需要登录",
       "signInMessage": "请打开 Teak 并登录，然后再次共享。",
       "openTeak": "打开 Teak",
-      "failedMessage": "请检查网络连接后重试。",
       "partialMessage": "部分项目无法保存。",
       "tooManyItems": "仅保存共享的前 {max} 个项目。",
       "addDetails": "添加标签和笔记",
-      "addTag": "添加标签",
       "addNote": "添加笔记",
       "note": "笔记",
-      "removeTag": "移除 {tag}",
       "skip": "跳过",
       "detailsFailed": "无法保存标签和笔记，请重试。",
       "noteFailed": "无法保存笔记。",
@@ -472,7 +402,6 @@
       "emptyTitle": "还没有文件夹",
       "emptyMessage": "将相关卡片归为一组。先创建文件夹，再向其中添加卡片。",
       "loadFailed": "无法加载文件夹",
-      "loadFailedMessage": "请检查网络连接后重试。",
       "createNamed": "创建文件夹“{name}”",
       "pickerEmpty": "还没有文件夹。输入名称即可创建。",
       "findOrCreate": "查找或创建文件夹",
@@ -518,20 +447,7 @@
       "tryRest": "请重试以更改其余卡片。",
       "card": {
         "hiddenAdded": "已隐藏。搜索 #{tag} 即可查看。",
-        "searchHint": "显示隐藏的卡片",
-        "hiddenCards": "部分卡片已隐藏。搜索 #secret 或 #hidden 即可查看。",
-        "renaming": "正在将“{from}”重命名为“{to}”…",
-        "merging": "正在将“{from}”合并到“{to}”…",
-        "deleting": "正在删除“{from}”…",
-        "renamed": "已将“{from}”重命名为“{to}”",
-        "merged": "已将“{from}”合并到“{to}”",
-        "deleted": "已删除“{from}”",
-        "progress": "已更改 {changed} / {count, plural, other {# 张卡片}}",
-        "changed": "{count, plural, other {已更改 # 张卡片}}",
-        "renameFailed": "无法完成重命名。已更改 {changed} / {count, plural, other {# 张卡片}}。",
-        "mergeFailed": "无法完成合并。已更改 {changed} / {count, plural, other {# 张卡片}}。",
-        "deleteFailed": "无法完成删除。已更改 {changed} / {count, plural, other {# 张卡片}}。",
-        "retryRest": "请重试以更改其余卡片。"
+        "hiddenCards": "部分卡片已隐藏。搜索 #secret 或 #hidden 即可查看。"
       }
     },
     "card": {
@@ -547,7 +463,6 @@
         "message": "选择一张卡片即可在此查看。"
       },
       "folders": "文件夹…",
-      "info": "信息",
       "copied": "已复制",
       "copiedValue": "已复制 {value}",
       "copyFailed": "无法复制到剪贴板。",
@@ -586,9 +501,6 @@
         "none": "此卡片不在任何文件夹中。",
         "count": "{count, plural, other {位于 # 个文件夹中。}}",
         "search": "搜索文件夹",
-        "placeholder": "查找或创建文件夹",
-        "create": "创建文件夹“{name}”",
-        "empty": "还没有文件夹。输入名称即可创建。",
         "noMatch": "没有该名称的文件夹。"
       },
       "deleteForever": {
@@ -615,8 +527,7 @@
         "saveFailed": "无法保存更改",
         "quoteEmptyTitle": "引用为空",
         "quoteEmptyMessage": "请先写下引用内容再保存。",
-        "quoteEmpty": "引用不能为空。",
-        "ok": "好"
+        "quoteEmpty": "引用不能为空。"
       },
       "preview": {
         "image": "图片",
@@ -638,8 +549,6 @@
         "linkedCard": "链接的卡片：{title}"
       },
       "notice": {
-        "archived": "已归档 1 张卡片",
-        "unarchived": "已将 1 张卡片移回资料库",
         "refreshing": "正在刷新详情。摘要和标签稍后就会更新。"
       },
       "failed": {
@@ -650,7 +559,6 @@
         "unarchive": "无法取消归档此卡片。",
         "refresh": "无法刷新此卡片，请稍后再试。",
         "folders": "无法更改卡片所在的文件夹",
-        "createFolder": "无法创建文件夹",
         "moveToTrash": "无法将此卡片移到废纸篓。",
         "delete": "无法删除此卡片。",
         "restore": "无法恢复此卡片。",
@@ -658,9 +566,6 @@
         "download": "无法下载此文件。"
       },
       "share": {
-        "saved": "已保存到 Teak",
-        "savedCount": "{count, plural, other {已保存 # 个项目}}",
-        "savedSome": "已保存 {saved} / {total}",
         "nothing": "没有可保存的内容。"
       },
       "plan": {
@@ -677,7 +582,6 @@
       "size": "大小",
       "dimensions": "尺寸",
       "duration": "时长",
-      "details": "详情",
       "description": "描述",
       "site": "站点",
       "author": "作者",
@@ -780,7 +684,7 @@
         "filtersMessage": "试试其他筛选条件。",
         "noMatches": "没有匹配的卡片",
         "noResults": "没有“{query}”的结果",
-        "noCardsFrom": "没有 {time} 的卡片。",
+        "noCardsFrom": "该时间段内没有卡片。",
         "checkSpelling": "请检查拼写或尝试新的搜索。"
       }
     },
@@ -876,8 +780,6 @@
       "saveToTeak": "存储到 Teak"
     },
     "library": {
-      "newNote": "新建笔记",
-      "voiceMemo": "语音备忘录",
       "uploadFiles": "上传文件…",
       "revisitKeys": "← 归档 · → 保留 · Z 撤销 · Esc 退出"
     },
@@ -938,10 +840,7 @@
     "intents": {
       "saveTitle": "存储到 Teak",
       "saveDescription": "将文本或链接保存到你的 Teak 资料库。",
-      "contentParameter": "文本或链接",
-      "noText": "快捷指令没有发送任何文本或链接。",
-      "signInFirst": "请打开 Teak 并登录，然后再次运行快捷指令。",
-      "saved": "已保存到 Teak"
+      "contentParameter": "文本或链接"
     },
     "appShortcuts": {
       "save": "存储到 {applicationName}"
@@ -955,13 +854,8 @@
     }
   },
   "android": {
-    "shortcuts": {
-      "newNote": "新建笔记",
-      "voiceMemo": "语音备忘录"
-    },
     "notification": {
       "uploadTitle": "正在保存到 Teak",
-      "uploadChannel": "上传",
       "file": "文件"
     },
     "share": {

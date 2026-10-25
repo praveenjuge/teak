@@ -114,7 +114,7 @@ struct VoiceMemoView: View {
                 }
             }
             .alert(tr("native.capture.couldntRecord"), isPresented: Binding(presenting: $failure)) {
-                Button(tr("native.capture.ok")) { failure = nil }
+                Button(tr("native.app.ok")) { failure = nil }
             } message: {
                 Text(failure ?? "")
             }

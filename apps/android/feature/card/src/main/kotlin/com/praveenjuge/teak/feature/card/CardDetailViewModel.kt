@@ -207,7 +207,7 @@ class CardDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             catchingFailures { folders.create(name) }
                 .onSuccess(then)
-                .onFailure { error -> _events.send(CardDetailEvent.Message(error.teakText(UiText.of("native.card.failed.createFolder")))) }
+                .onFailure { error -> _events.send(CardDetailEvent.Message(error.teakText(UiText.of("native.folders.createFailed")))) }
         }
     }
 

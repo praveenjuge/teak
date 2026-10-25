@@ -174,7 +174,7 @@ struct RevisitView: View {
             ContentUnavailableView {
                 Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
             } description: {
-                Text(tr("native.library.loadFailed.message"))
+                Text(tr("native.errors.offline"))
             } actions: {
                 Button(tr("common.retry")) { Task { await model.deal() } }.buttonStyle(.bordered)
             }

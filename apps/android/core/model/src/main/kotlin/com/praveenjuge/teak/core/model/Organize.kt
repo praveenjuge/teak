@@ -74,19 +74,19 @@ data class TagOperation(
             val count = total.toInt()
             return when (status) {
                 TagOperationStatus.Running -> when (kind) {
-                    TagOperationKind.Rename -> UiText.of("native.tags.card.renaming", from, target)
-                    TagOperationKind.Merge -> UiText.of("native.tags.card.merging", from, target)
-                    TagOperationKind.Delete -> UiText.of("native.tags.card.deleting", from)
+                    TagOperationKind.Rename -> UiText.of("native.tags.renaming", from, target)
+                    TagOperationKind.Merge -> UiText.of("native.tags.merging", from, target)
+                    TagOperationKind.Delete -> UiText.of("native.tags.deleting", from)
                 }
                 TagOperationStatus.Completed -> when (kind) {
-                    TagOperationKind.Rename -> UiText.of("native.tags.card.renamed", from, target)
-                    TagOperationKind.Merge -> UiText.of("native.tags.card.merged", from, target)
-                    TagOperationKind.Delete -> UiText.of("native.tags.card.deleted", from)
+                    TagOperationKind.Rename -> UiText.of("native.tags.renamed", from, target)
+                    TagOperationKind.Merge -> UiText.of("native.tags.merged", from, target)
+                    TagOperationKind.Delete -> UiText.of("native.tags.deleted", from)
                 }
                 TagOperationStatus.Failed -> when (kind) {
-                    TagOperationKind.Rename -> UiText.of("native.tags.card.renameFailed", changedCount.toString(), count = count)
-                    TagOperationKind.Merge -> UiText.of("native.tags.card.mergeFailed", changedCount.toString(), count = count)
-                    TagOperationKind.Delete -> UiText.of("native.tags.card.deleteFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Rename -> UiText.of("native.tags.renameFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Merge -> UiText.of("native.tags.mergeFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Delete -> UiText.of("native.tags.deleteFailed", changedCount.toString(), count = count)
                 }
             }
         }
@@ -94,9 +94,9 @@ data class TagOperation(
     /** How many cards the change has reached, in the app's language. */
     val detailText: UiText
         get() = when (status) {
-            TagOperationStatus.Running -> UiText.of("native.tags.card.progress", changedCount.toString(), count = total.toInt())
-            TagOperationStatus.Completed -> UiText.of("native.tags.card.changed", count = changed.toInt())
-            TagOperationStatus.Failed -> UiText.of("native.tags.card.retryRest")
+            TagOperationStatus.Running -> UiText.of("native.tags.progress", changedCount.toString(), count = total.toInt())
+            TagOperationStatus.Completed -> UiText.of("native.tags.changed", count = changed.toInt())
+            TagOperationStatus.Failed -> UiText.of("native.tags.tryRest")
         }
 }
 

@@ -61,7 +61,7 @@ internal fun CardFoldersDialog(
                     value = query,
                     onValueChange = { query = it },
                     label = { Text(tr("native.card.foldersDialog.search")) },
-                    placeholder = { Text(tr("native.card.foldersDialog.placeholder")) },
+                    placeholder = { Text(tr("native.folders.findOrCreate")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
@@ -80,7 +80,7 @@ internal fun CardFoldersDialog(
                     if (canCreate) {
                         item {
                             ListItem(
-                                headlineContent = { Text(tr("native.card.foldersDialog.create", trimmed)) },
+                                headlineContent = { Text(tr("native.folders.createNamed", trimmed)) },
                                 leadingContent = { Icon(Icons.Outlined.CreateNewFolder, contentDescription = null) },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                 modifier = Modifier.clickable {
@@ -93,7 +93,7 @@ internal fun CardFoldersDialog(
                     if (visible.isEmpty() && !canCreate) {
                         item {
                             Text(
-                                if (folders.isEmpty()) tr("native.card.foldersDialog.empty") else tr("native.card.foldersDialog.noMatch"),
+                                if (folders.isEmpty()) tr("native.folders.pickerEmpty") else tr("native.card.foldersDialog.noMatch"),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }

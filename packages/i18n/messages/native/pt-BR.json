@@ -94,10 +94,8 @@
       "usage": "Uso",
       "plan": "Plano",
       "notAvailable": "Indisponível",
-      "planFree": "Grátis",
       "usageFree": "{used} de {limit} cards",
       "manage": "Gerenciar…",
-      "upgrade": "Fazer upgrade…",
       "signOut": "Sair",
       "signingOut": "Saindo…",
       "signOutConfirm": "Tem certeza de que quer sair?",
@@ -123,16 +121,8 @@
     },
     "app": {
       "nav": {
-        "home": "Início",
-        "folders": "Pastas",
         "add": "Adicionar",
-        "settings": "Configurações",
-        "favorites": "Favoritos",
-        "archive": "Arquivo",
-        "tags": "Tags",
-        "trash": "Lixeira",
-        "types": "Tipos",
-        "newFolder": "Nova pasta"
+        "types": "Tipos"
       },
       "ok": "OK",
       "upgrade": "Fazer upgrade…",
@@ -144,22 +134,14 @@
       "failed": {
         "title": "Algo deu errado"
       },
-      "signInConfigFailed": "Não foi possível carregar a configuração de acesso",
-      "connectFailed": "Não foi possível conectar. Tente novamente.",
       "uploadProgress": "Salvando {done} de {total}…",
       "dropFiles": "Solte arquivos para enviar",
-      "missingCard": "Card ausente",
       "saveRequest": {
         "savingTitle": "Salvando",
         "savingMessage": "Salvando no seu cofre do Teak…",
-        "savedTitle": "Salvo",
-        "savedMessage": "Já está na sua biblioteca.",
-        "emptyTitle": "Nada para salvar",
         "emptyMessage": "O atalho não enviou nenhum texto ou link.",
-        "signedOutTitle": "É preciso entrar",
         "signedOutMessage": "Abra o Teak e entre. Depois, execute o atalho de novo.",
-        "failedTitle": "Não foi possível salvar",
-        "failedMessage": "Verifique sua conexão e tente novamente."
+        "failedTitle": "Não foi possível salvar"
       }
     },
     "auth": {
@@ -170,12 +152,10 @@
       "registerWithEmail": "Cadastrar-se com e-mail",
       "signInWithEmail": "Entrar com e-mail",
       "signingIn": "Entrando…",
-      "signupsPaused": "Novos cadastros estão pausados no momento. Tente novamente mais tarde.",
       "failedTitle": "Não foi possível entrar",
       "failedApple": "Não foi possível entrar com a Apple. Tente novamente.",
       "failedGoogle": "Não foi possível entrar com o Google. Tente novamente.",
-      "failedEmail": "Não foi possível entrar com o e-mail. Tente novamente.",
-      "completeFailed": "Não foi possível concluir o acesso. Tente novamente."
+      "failedEmail": "Não foi possível entrar com o e-mail. Tente novamente."
     },
     "library": {
       "search": "Pesquisar",
@@ -194,26 +174,12 @@
       "loadingMore": "Carregando mais cards",
       "loadMoreFailed": "Não foi possível carregar mais cards.",
       "loadFailed": {
-        "title": "Não foi possível carregar os cards",
-        "message": "Verifique sua conexão e tente novamente."
+        "title": "Não foi possível carregar os cards"
       },
-      "downloadFailed": "Não foi possível baixar este arquivo.",
-      "createFolderFailed": "Não foi possível criar a pasta",
-      "savedSmartFolder": "“{name}” salva",
-      "refreshQueued": "Atualizando os detalhes. O resumo e as tags serão atualizados em breve.",
-      "refreshFailed": "Não foi possível atualizar este card. Tente novamente em instantes.",
       "toast": {
         "trashed": "Card movido para a Lixeira",
         "restored": "Card restaurado",
         "deletedForever": "Card excluído permanentemente"
-      },
-      "confirmTrash": {
-        "title": "Mover para a Lixeira?",
-        "message": "Este card será movido para a Lixeira."
-      },
-      "confirmDeleteForever": {
-        "title": "Excluir permanentemente?",
-        "message": "Isso remove o card e os arquivos dele. Não é possível desfazer."
       },
       "firstCard": {
         "title": "Vamos adicionar seu primeiro card!",
@@ -223,26 +189,14 @@
       "empty": {
         "todoTitle": "Nada mais a fazer.",
         "todoMessage": "Os links que você marca como concluídos saem desta lista.",
-        "smartFolderTitle": "Nenhum card corresponde a esta pasta inteligente.",
         "smartFolderMessage": "Os cards que correspondem à pesquisa dela aparecem aqui, à medida que você os salva.",
-        "folderTitle": "Nenhum card nesta pasta ainda.",
-        "folderMessage": "Adicione cards da sua biblioteca para vê-los aqui.",
-        "trashTitle": "A Lixeira está vazia",
-        "trashMessage": "Os cards que você exclui ficam aqui por 30 dias.",
-        "archiveTitle": "Nada arquivado",
-        "archiveMessage": "Arquive um card para tirá-lo da sua biblioteca.",
-        "filtersTitle": "Nenhum card encontrado",
-        "filtersMessage": "Tente outros filtros.",
-        "searchTitle": "Nenhum resultado para “{query}”",
-        "searchMessage": "Verifique a ortografia ou tente outra pesquisa.",
-        "timeMessage": "Nenhum card de {range}."
+        "folderMessage": "Adicione cards da sua biblioteca para vê-los aqui."
       },
       "menu": {
         "show": "Mostrar",
         "type": "Tipo",
         "color": "Cor",
         "sort": "Ordenar",
-        "shuffle": "Aleatório",
         "reshuffle": "Embaralhar de novo",
         "saveSmartFolder": "Salvar como pasta inteligente…"
       },
@@ -252,23 +206,12 @@
         "shuffle": "Ordem: aleatória"
       },
       "filter": {
-        "done": "Concluídos",
-        "todo": "A fazer",
         "clear": "Limpar"
       },
       "selected": "Selecionado",
       "tile": {
         "open": "Abrir",
-        "favorite": "Favorito",
-        "attachment": "Anexo",
-        "note": "Nota"
-      },
-      "saveSearch": {
-        "title": "Salvar como pasta inteligente",
-        "message": "Mostra todos os cards que correspondem à pesquisa, inclusive os que você salvar depois.",
-        "nameLabel": "Nome",
-        "namePlaceholder": "Lista de leitura",
-        "save": "Salvar pasta inteligente"
+        "favorite": "Favorito"
       }
     },
     "bulk": {
@@ -283,11 +226,6 @@
       "tagsHint": "Separe as tags com vírgulas.",
       "tooManyTags": "Escolha no máximo {max} tags por vez.",
       "addToFolderTitle": "Adicionar {count, plural, one {# card} other {# cards}} a uma pasta",
-      "findFolder": "Encontre ou crie uma pasta",
-      "searchFolders": "Pesquisar pastas",
-      "createFolder": "Criar pasta “{name}”",
-      "noFolders": "Nenhuma pasta ainda. Digite um nome para criar uma.",
-      "noFolderMatch": "Nenhuma pasta com esse nome.",
       "deleteForeverMessage": "{count, plural, one {# card e os arquivos dele serão removidos.} other {# cards e os arquivos deles serão removidos.}} Não é possível desfazer.",
       "done": {
         "favorite": "{count, plural, one {# card adicionado} other {# cards adicionados}} aos favoritos",
@@ -317,7 +255,6 @@
       "partial": "{message}. {count, plural, one {# não pôde ser alterado.} other {# não puderam ser alterados.}}"
     },
     "similar": {
-      "emptyTitle": "Nada semelhante ainda",
       "emptyMessage": "Tente outro card.",
       "pending": "Ainda estamos analisando este card. Tente novamente em instantes.",
       "rateLimited": "Pesquisas demais. Tente novamente em um minuto.",
@@ -346,7 +283,6 @@
       "updateFailed": "Não foi possível atualizar este card."
     },
     "capture": {
-      "title": "Adicionar",
       "write": "Escrever",
       "upload": "Enviar",
       "uploads": "Envios",
@@ -373,7 +309,6 @@
       "cardLimitReached": "Limite de cards atingido",
       "cardLimitMessage": "Você atingiu o limite de cards do plano Grátis.",
       "freePlanLimit": "O plano Grátis comporta {limit} cards.",
-      "nothingToSave": "Nada para salvar",
       "nothingToSaveMessage": "Digite um favorito, uma URL ou uma nota antes de salvar.",
       "linkSaved": "Link salvo",
       "noteSaved": "Nota salva",
@@ -393,7 +328,6 @@
       "skippedFile": "{name}: {reason}",
       "errorTitle": "Erro",
       "photosFailed": "Não foi possível carregar as fotos escolhidas.",
-      "ok": "OK",
       "cameraOff": "O acesso à câmera está desativado",
       "cameraOffMessage": "Permita o acesso à câmera nas configurações para tirar fotos para o Teak.",
       "openSettings": "Abrir configurações",
@@ -421,21 +355,17 @@
     },
     "share": {
       "saving": "Salvando no Teak…",
-      "saved": "Salvo",
       "savedMessage": "Já está na sua biblioteca.",
       "nothingToSave": "Nada para salvar",
       "nothingToSaveMessage": "O Teak não encontrou texto, link ou arquivo para salvar.",
       "signInRequired": "É preciso entrar",
       "signInMessage": "Abra o Teak e entre. Depois, compartilhe de novo.",
       "openTeak": "Abrir o Teak",
-      "failedMessage": "Verifique sua conexão e tente novamente.",
       "partialMessage": "Não foi possível salvar alguns itens.",
       "tooManyItems": "Só os primeiros {max} itens compartilhados são salvos.",
       "addDetails": "Adicionar tags e uma nota",
-      "addTag": "Adicionar uma tag",
       "addNote": "Adicionar uma nota",
       "note": "Nota",
-      "removeTag": "Remover {tag}",
       "skip": "Pular",
       "detailsFailed": "Não foi possível salvar as tags e a nota. Tente novamente.",
       "noteFailed": "Não foi possível salvar a nota.",
@@ -472,7 +402,6 @@
       "emptyTitle": "Nenhuma pasta ainda",
       "emptyMessage": "Agrupe cards relacionados. Crie uma pasta e adicione cards a ela.",
       "loadFailed": "Não foi possível carregar as pastas",
-      "loadFailedMessage": "Verifique sua conexão e tente novamente.",
       "createNamed": "Criar pasta “{name}”",
       "pickerEmpty": "Nenhuma pasta ainda. Digite um nome para criar uma.",
       "findOrCreate": "Encontre ou crie uma pasta",
@@ -518,20 +447,7 @@
       "tryRest": "Tente novamente para alterar o restante.",
       "card": {
         "hiddenAdded": "Oculto. Pesquise #{tag} para vê-lo.",
-        "searchHint": "Mostra cards ocultos",
-        "hiddenCards": "Alguns cards estão ocultos. Pesquise #secret ou #hidden para vê-los.",
-        "renaming": "Renomeando “{from}” para “{to}”…",
-        "merging": "Mesclando “{from}” com “{to}”…",
-        "deleting": "Excluindo “{from}”…",
-        "renamed": "“{from}” renomeada para “{to}”",
-        "merged": "“{from}” mesclada com “{to}”",
-        "deleted": "“{from}” excluída",
-        "progress": "{changed} de {count, plural, one {# card alterado} other {# cards alterados}}",
-        "changed": "{count, plural, one {# card alterado} other {# cards alterados}}",
-        "renameFailed": "Não foi possível concluir a renomeação. {changed} de {count, plural, one {# card alterado} other {# cards alterados}}.",
-        "mergeFailed": "Não foi possível concluir a mesclagem. {changed} de {count, plural, one {# card alterado} other {# cards alterados}}.",
-        "deleteFailed": "Não foi possível concluir a exclusão. {changed} de {count, plural, one {# card alterado} other {# cards alterados}}.",
-        "retryRest": "Tente novamente para alterar o restante."
+        "hiddenCards": "Alguns cards estão ocultos. Pesquise #secret ou #hidden para vê-los."
       }
     },
     "card": {
@@ -547,7 +463,6 @@
         "message": "Escolha um card para vê-lo aqui."
       },
       "folders": "Pastas…",
-      "info": "Informações",
       "copied": "Copiado",
       "copiedValue": "{value} copiado",
       "copyFailed": "Não foi possível copiar para a área de transferência.",
@@ -586,9 +501,6 @@
         "none": "Este card não está em nenhuma pasta.",
         "count": "{count, plural, one {Em # pasta.} other {Em # pastas.}}",
         "search": "Pesquisar pastas",
-        "placeholder": "Encontre ou crie uma pasta",
-        "create": "Criar pasta “{name}”",
-        "empty": "Nenhuma pasta ainda. Digite um nome para criar uma.",
         "noMatch": "Nenhuma pasta com esse nome."
       },
       "deleteForever": {
@@ -615,8 +527,7 @@
         "saveFailed": "Não foi possível salvar as alterações",
         "quoteEmptyTitle": "A citação está vazia",
         "quoteEmptyMessage": "Escreva a citação antes de salvar.",
-        "quoteEmpty": "Uma citação não pode ficar vazia.",
-        "ok": "OK"
+        "quoteEmpty": "Uma citação não pode ficar vazia."
       },
       "preview": {
         "image": "Imagem",
@@ -638,8 +549,6 @@
         "linkedCard": "Card vinculado: {title}"
       },
       "notice": {
-        "archived": "1 card arquivado",
-        "unarchived": "1 card devolvido à biblioteca",
         "refreshing": "Atualizando detalhes. O resumo e as tags serão atualizados em instantes."
       },
       "failed": {
@@ -650,7 +559,6 @@
         "unarchive": "Não foi possível desarquivar este card.",
         "refresh": "Não foi possível atualizar este card. Tente novamente em instantes.",
         "folders": "Não foi possível alterar as pastas do card",
-        "createFolder": "Não foi possível criar a pasta",
         "moveToTrash": "Não foi possível mover este card para a Lixeira.",
         "delete": "Não foi possível excluir este card.",
         "restore": "Não foi possível restaurar este card.",
@@ -658,9 +566,6 @@
         "download": "Não foi possível baixar este arquivo."
       },
       "share": {
-        "saved": "Salvo no Teak",
-        "savedCount": "{count, plural, one {# item salvo} other {# itens salvos}}",
-        "savedSome": "{saved} de {total} salvos",
         "nothing": "Nada para salvar."
       },
       "plan": {
@@ -677,7 +582,6 @@
       "size": "Tamanho",
       "dimensions": "Dimensões",
       "duration": "Duração",
-      "details": "Detalhes",
       "description": "Descrição",
       "site": "Site",
       "author": "Autor",
@@ -780,7 +684,7 @@
         "filtersMessage": "Tente outros filtros.",
         "noMatches": "Nenhum card encontrado",
         "noResults": "Nenhum resultado para “{query}”",
-        "noCardsFrom": "Nenhum card de {time}.",
+        "noCardsFrom": "Nenhum card desse período.",
         "checkSpelling": "Verifique a ortografia ou tente outra pesquisa."
       }
     },
@@ -793,7 +697,7 @@
       "lastMonth": "Mês passado",
       "thisYear": "Este ano",
       "lastYear": "Ano passado",
-      "lastWeekday": "{day} passado",
+      "lastWeekday": "{day} da semana passada",
       "range": "{start} – {end}"
     },
     "errors": {
@@ -876,8 +780,6 @@
       "saveToTeak": "Salvar no Teak"
     },
     "library": {
-      "newNote": "Nova nota",
-      "voiceMemo": "Nota de voz",
       "uploadFiles": "Enviar arquivos…",
       "revisitKeys": "← arquivar · → manter · Z desfazer · Esc sair"
     },
@@ -938,10 +840,7 @@
     "intents": {
       "saveTitle": "Salvar no Teak",
       "saveDescription": "Salva um texto ou link na sua biblioteca do Teak.",
-      "contentParameter": "Texto ou link",
-      "noText": "O atalho não enviou nenhum texto ou link.",
-      "signInFirst": "Abra o Teak e entre. Depois, execute o atalho de novo.",
-      "saved": "Salvo no Teak"
+      "contentParameter": "Texto ou link"
     },
     "appShortcuts": {
       "save": "Salvar no {applicationName}"
@@ -955,13 +854,8 @@
     }
   },
   "android": {
-    "shortcuts": {
-      "newNote": "Nova nota",
-      "voiceMemo": "Nota de voz"
-    },
     "notification": {
       "uploadTitle": "Salvando no Teak",
-      "uploadChannel": "Envios",
       "file": "Arquivo"
     },
     "share": {

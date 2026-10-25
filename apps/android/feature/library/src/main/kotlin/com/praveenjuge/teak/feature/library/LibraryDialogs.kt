@@ -102,8 +102,8 @@ internal fun FolderPickerDialog(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text(tr("native.bulk.findFolder")) },
-                    label = { Text(tr("native.bulk.searchFolders")) },
+                    placeholder = { Text(tr("native.folders.findOrCreate")) },
+                    label = { Text(tr("native.card.foldersDialog.search")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
@@ -112,12 +112,12 @@ internal fun FolderPickerDialog(
                         FolderRow(folder.name, "${folder.cardCount}", Icons.Outlined.Folder) { onPick(folder) }
                     }
                     if (canCreate) {
-                        item { FolderRow(tr("native.bulk.createFolder", trimmed), null, Icons.Outlined.CreateNewFolder) { onCreate(trimmed) } }
+                        item { FolderRow(tr("native.folders.createNamed", trimmed), null, Icons.Outlined.CreateNewFolder) { onCreate(trimmed) } }
                     }
                     if (visible.isEmpty() && !canCreate) {
                         item {
                             Text(
-                                if (folders.isEmpty()) tr("native.bulk.noFolders") else tr("native.bulk.noFolderMatch"),
+                                if (folders.isEmpty()) tr("native.folders.pickerEmpty") else tr("native.card.foldersDialog.noMatch"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -147,22 +147,22 @@ internal fun SaveSearchDialog(search: String, onSave: (String) -> Unit, onDismis
     var name by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(tr("native.library.saveSearch.title")) },
+        title = { Text(tr("native.folders.saveAsSmartFolder")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(tr("native.library.saveSearch.message"))
+                Text(tr("native.folders.smartMessage"))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text(tr("native.library.saveSearch.nameLabel")) },
-                    placeholder = { Text(tr("native.library.saveSearch.namePlaceholder")) },
+                    label = { Text(tr("native.folders.name")) },
+                    placeholder = { Text(tr("native.folders.namePlaceholder")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
                 Text(search, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text(tr("native.library.saveSearch.save")) } },
+        confirmButton = { TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text(tr("native.folders.saveSmartFolder")) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }

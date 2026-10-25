@@ -94,10 +94,8 @@
       "usage": "Utilisation",
       "plan": "Formule",
       "notAvailable": "Non disponible",
-      "planFree": "Gratuit",
       "usageFree": "{used} fiches sur {limit}",
       "manage": "Gérer…",
-      "upgrade": "Passer à Pro…",
       "signOut": "Se déconnecter",
       "signingOut": "Déconnexion…",
       "signOutConfirm": "Voulez-vous vraiment vous déconnecter ?",
@@ -123,16 +121,8 @@
     },
     "app": {
       "nav": {
-        "home": "Accueil",
-        "folders": "Dossiers",
         "add": "Ajouter",
-        "settings": "Réglages",
-        "favorites": "Favoris",
-        "archive": "Archives",
-        "tags": "Tags",
-        "trash": "Corbeille",
-        "types": "Types",
-        "newFolder": "Nouveau dossier"
+        "types": "Types"
       },
       "ok": "OK",
       "upgrade": "Passer à Pro…",
@@ -144,22 +134,14 @@
       "failed": {
         "title": "Une erreur s’est produite"
       },
-      "signInConfigFailed": "Impossible de charger la configuration de connexion",
-      "connectFailed": "Connexion impossible. Veuillez réessayer.",
       "uploadProgress": "Enregistrement de {done} sur {total}…",
       "dropFiles": "Déposez des fichiers pour les importer",
-      "missingCard": "Fiche manquante",
       "saveRequest": {
         "savingTitle": "Enregistrement",
         "savingMessage": "Enregistrement dans votre coffre Teak…",
-        "savedTitle": "Enregistré",
-        "savedMessage": "C’est dans votre bibliothèque.",
-        "emptyTitle": "Rien à enregistrer",
         "emptyMessage": "Le raccourci n’a envoyé aucun texte ni lien.",
-        "signedOutTitle": "Connexion requise",
         "signedOutMessage": "Ouvrez Teak et connectez-vous, puis exécutez à nouveau le raccourci.",
-        "failedTitle": "Échec de l’enregistrement",
-        "failedMessage": "Vérifiez votre connexion et réessayez."
+        "failedTitle": "Échec de l’enregistrement"
       }
     },
     "auth": {
@@ -170,12 +152,10 @@
       "registerWithEmail": "S’inscrire par e-mail",
       "signInWithEmail": "Se connecter par e-mail",
       "signingIn": "Connexion en cours…",
-      "signupsPaused": "Les nouvelles inscriptions sont suspendues pour le moment. Veuillez réessayer plus tard.",
       "failedTitle": "Impossible de se connecter",
       "failedApple": "Impossible de se connecter avec Apple. Veuillez réessayer.",
       "failedGoogle": "Impossible de se connecter avec Google. Veuillez réessayer.",
-      "failedEmail": "Impossible de se connecter par e-mail. Veuillez réessayer.",
-      "completeFailed": "Impossible de finaliser la connexion. Veuillez réessayer."
+      "failedEmail": "Impossible de se connecter par e-mail. Veuillez réessayer."
     },
     "library": {
       "search": "Rechercher",
@@ -194,26 +174,12 @@
       "loadingMore": "Chargement d’autres fiches",
       "loadMoreFailed": "Impossible de charger d’autres fiches.",
       "loadFailed": {
-        "title": "Impossible de charger les fiches",
-        "message": "Vérifiez votre connexion et réessayez."
+        "title": "Impossible de charger les fiches"
       },
-      "downloadFailed": "Impossible de télécharger ce fichier.",
-      "createFolderFailed": "Impossible de créer le dossier",
-      "savedSmartFolder": "« {name} » enregistré",
-      "refreshQueued": "Actualisation des détails. Le résumé et les tags seront bientôt mis à jour.",
-      "refreshFailed": "Impossible d’actualiser cette fiche. Réessayez dans un instant.",
       "toast": {
         "trashed": "Fiche placée dans la corbeille",
         "restored": "Fiche restaurée",
         "deletedForever": "Fiche supprimée définitivement"
-      },
-      "confirmTrash": {
-        "title": "Placer dans la corbeille ?",
-        "message": "Cette fiche sera placée dans la corbeille."
-      },
-      "confirmDeleteForever": {
-        "title": "Supprimer définitivement ?",
-        "message": "La fiche et ses fichiers seront supprimés. Cette action est irréversible."
       },
       "firstCard": {
         "title": "Ajoutons votre première fiche !",
@@ -223,26 +189,14 @@
       "empty": {
         "todoTitle": "Plus rien à faire.",
         "todoMessage": "Les liens que vous marquez comme terminés quittent cette liste.",
-        "smartFolderTitle": "Aucune fiche ne correspond à ce dossier intelligent.",
         "smartFolderMessage": "Les fiches qui correspondent à sa recherche apparaissent ici, au fur et à mesure que vous les enregistrez.",
-        "folderTitle": "Aucune fiche dans ce dossier pour l’instant.",
-        "folderMessage": "Ajoutez des fiches depuis votre bibliothèque pour les voir ici.",
-        "trashTitle": "La corbeille est vide",
-        "trashMessage": "Les fiches que vous supprimez restent ici pendant 30 jours.",
-        "archiveTitle": "Rien d’archivé",
-        "archiveMessage": "Archivez une fiche pour la sortir de votre bibliothèque.",
-        "filtersTitle": "Aucune fiche correspondante",
-        "filtersMessage": "Essayez d’autres filtres.",
-        "searchTitle": "Aucun résultat pour « {query} »",
-        "searchMessage": "Vérifiez l’orthographe ou lancez une nouvelle recherche.",
-        "timeMessage": "Aucune fiche de {range}."
+        "folderMessage": "Ajoutez des fiches depuis votre bibliothèque pour les voir ici."
       },
       "menu": {
         "show": "Afficher",
         "type": "Type",
         "color": "Couleur",
         "sort": "Trier",
-        "shuffle": "Aléatoire",
         "reshuffle": "Mélanger à nouveau",
         "saveSmartFolder": "Enregistrer comme dossier intelligent…"
       },
@@ -252,23 +206,12 @@
         "shuffle": "Tri : aléatoire"
       },
       "filter": {
-        "done": "Terminées",
-        "todo": "À faire",
         "clear": "Effacer"
       },
       "selected": "Sélectionnée",
       "tile": {
         "open": "Ouvrir",
-        "favorite": "Favori",
-        "attachment": "Pièce jointe",
-        "note": "Note"
-      },
-      "saveSearch": {
-        "title": "Enregistrer comme dossier intelligent",
-        "message": "Affiche toutes les fiches qui correspondent à la recherche, y compris celles que vous enregistrerez plus tard.",
-        "nameLabel": "Nom",
-        "namePlaceholder": "À lire",
-        "save": "Enregistrer le dossier intelligent"
+        "favorite": "Favori"
       }
     },
     "bulk": {
@@ -283,11 +226,6 @@
       "tagsHint": "Séparez les tags par des virgules.",
       "tooManyTags": "Choisissez au maximum {max} tags à la fois.",
       "addToFolderTitle": "Ajouter {count, plural, one {# fiche} other {# fiches}} à un dossier",
-      "findFolder": "Trouver ou créer un dossier",
-      "searchFolders": "Rechercher des dossiers",
-      "createFolder": "Créer le dossier « {name} »",
-      "noFolders": "Aucun dossier pour l’instant. Saisissez un nom pour en créer un.",
-      "noFolderMatch": "Aucun dossier ne porte ce nom.",
       "deleteForeverMessage": "{count, plural, one {# fiche et ses fichiers seront supprimés.} other {# fiches et leurs fichiers seront supprimés.}} Cette action est irréversible.",
       "done": {
         "favorite": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} aux favoris",
@@ -317,7 +255,6 @@
       "partial": "{message}. {count, plural, one {# fiche n’a pas pu être modifiée.} other {# fiches n’ont pas pu être modifiées.}}"
     },
     "similar": {
-      "emptyTitle": "Rien de similaire pour l’instant",
       "emptyMessage": "Essayez une autre fiche.",
       "pending": "Analyse de cette fiche en cours. Réessayez dans un instant.",
       "rateLimited": "Trop de recherches. Réessayez dans une minute.",
@@ -346,7 +283,6 @@
       "updateFailed": "Impossible de mettre à jour cette fiche."
     },
     "capture": {
-      "title": "Ajouter",
       "write": "Écrire",
       "upload": "Importer",
       "uploads": "Importations",
@@ -373,7 +309,6 @@
       "cardLimitReached": "Limite de fiches atteinte",
       "cardLimitMessage": "Vous avez atteint la limite de fiches de la formule gratuite.",
       "freePlanLimit": "La formule gratuite permet {limit} fiches.",
-      "nothingToSave": "Rien à enregistrer",
       "nothingToSaveMessage": "Saisissez un signet, une URL ou une note avant d’enregistrer.",
       "linkSaved": "Lien enregistré",
       "noteSaved": "Note enregistrée",
@@ -393,7 +328,6 @@
       "skippedFile": "{name} : {reason}",
       "errorTitle": "Erreur",
       "photosFailed": "Impossible de charger les photos choisies.",
-      "ok": "OK",
       "cameraOff": "L’accès à l’appareil photo est désactivé",
       "cameraOffMessage": "Autorisez l’accès à l’appareil photo dans les réglages pour prendre des photos pour Teak.",
       "openSettings": "Ouvrir les réglages",
@@ -421,21 +355,17 @@
     },
     "share": {
       "saving": "Enregistrement dans Teak…",
-      "saved": "Enregistré",
       "savedMessage": "C’est dans votre bibliothèque.",
       "nothingToSave": "Rien à enregistrer",
       "nothingToSaveMessage": "Teak n’a trouvé aucun texte, lien ou fichier à enregistrer.",
       "signInRequired": "Connexion requise",
       "signInMessage": "Ouvrez Teak et connectez-vous, puis partagez à nouveau.",
       "openTeak": "Ouvrir Teak",
-      "failedMessage": "Vérifiez votre connexion et réessayez.",
       "partialMessage": "Certains éléments n’ont pas pu être enregistrés.",
       "tooManyItems": "Seuls les {max} premiers éléments partagés sont enregistrés.",
       "addDetails": "Ajouter des tags et une note",
-      "addTag": "Ajouter un tag",
       "addNote": "Ajouter une note",
       "note": "Note",
-      "removeTag": "Retirer {tag}",
       "skip": "Ignorer",
       "detailsFailed": "Impossible d’enregistrer les tags et la note. Réessayez.",
       "noteFailed": "Impossible d’enregistrer la note.",
@@ -472,7 +402,6 @@
       "emptyTitle": "Aucun dossier pour l’instant",
       "emptyMessage": "Regroupez des fiches liées. Créez un dossier, puis ajoutez-y des fiches.",
       "loadFailed": "Impossible de charger les dossiers",
-      "loadFailedMessage": "Vérifiez votre connexion et réessayez.",
       "createNamed": "Créer le dossier « {name} »",
       "pickerEmpty": "Aucun dossier pour l’instant. Saisissez un nom pour en créer un.",
       "findOrCreate": "Trouver ou créer un dossier",
@@ -518,20 +447,7 @@
       "tryRest": "Réessayez pour modifier le reste.",
       "card": {
         "hiddenAdded": "Masquée. Recherchez #{tag} pour la voir.",
-        "searchHint": "Affiche les fiches masquées",
-        "hiddenCards": "Certaines fiches sont masquées. Recherchez #secret ou #hidden pour les voir.",
-        "renaming": "Renommage de « {from} » en « {to} »…",
-        "merging": "Fusion de « {from} » avec « {to} »…",
-        "deleting": "Suppression de « {from} »…",
-        "renamed": "« {from} » renommé en « {to} »",
-        "merged": "« {from} » fusionné avec « {to} »",
-        "deleted": "« {from} » supprimé",
-        "progress": "{changed} sur {count, plural, one {# fiche modifiée} other {# fiches modifiées}}",
-        "changed": "{count, plural, one {# fiche modifiée} other {# fiches modifiées}}",
-        "renameFailed": "Impossible de terminer le renommage. {changed} sur {count, plural, one {# fiche modifiée} other {# fiches modifiées}}.",
-        "mergeFailed": "Impossible de terminer la fusion. {changed} sur {count, plural, one {# fiche modifiée} other {# fiches modifiées}}.",
-        "deleteFailed": "Impossible de terminer la suppression. {changed} sur {count, plural, one {# fiche modifiée} other {# fiches modifiées}}.",
-        "retryRest": "Réessayez pour modifier le reste."
+        "hiddenCards": "Certaines fiches sont masquées. Recherchez #secret ou #hidden pour les voir."
       }
     },
     "card": {
@@ -547,7 +463,6 @@
         "message": "Choisissez une fiche pour l’afficher ici."
       },
       "folders": "Dossiers…",
-      "info": "Infos",
       "copied": "Copié",
       "copiedValue": "{value} copié",
       "copyFailed": "Impossible de copier dans le presse-papiers.",
@@ -586,9 +501,6 @@
         "none": "Cette fiche n’est dans aucun dossier.",
         "count": "{count, plural, one {Dans # dossier.} other {Dans # dossiers.}}",
         "search": "Rechercher des dossiers",
-        "placeholder": "Trouver ou créer un dossier",
-        "create": "Créer le dossier « {name} »",
-        "empty": "Aucun dossier pour l’instant. Saisissez un nom pour en créer un.",
         "noMatch": "Aucun dossier ne porte ce nom."
       },
       "deleteForever": {
@@ -615,8 +527,7 @@
         "saveFailed": "Impossible d’enregistrer les modifications",
         "quoteEmptyTitle": "La citation est vide",
         "quoteEmptyMessage": "Écrivez la citation avant d’enregistrer.",
-        "quoteEmpty": "Une citation ne peut pas être vide.",
-        "ok": "OK"
+        "quoteEmpty": "Une citation ne peut pas être vide."
       },
       "preview": {
         "image": "Image",
@@ -638,8 +549,6 @@
         "linkedCard": "Fiche liée : {title}"
       },
       "notice": {
-        "archived": "1 fiche archivée",
-        "unarchived": "1 fiche remise dans la bibliothèque",
         "refreshing": "Actualisation des détails. Le résumé et les tags seront bientôt mis à jour."
       },
       "failed": {
@@ -650,7 +559,6 @@
         "unarchive": "Impossible de désarchiver cette fiche.",
         "refresh": "Impossible d’actualiser cette fiche. Réessayez dans un instant.",
         "folders": "Impossible de modifier les dossiers de la fiche",
-        "createFolder": "Impossible de créer le dossier",
         "moveToTrash": "Impossible de placer cette fiche dans la corbeille.",
         "delete": "Impossible de supprimer cette fiche.",
         "restore": "Impossible de restaurer cette fiche.",
@@ -658,9 +566,6 @@
         "download": "Impossible de télécharger ce fichier."
       },
       "share": {
-        "saved": "Enregistré dans Teak",
-        "savedCount": "{count, plural, one {# élément enregistré} other {# éléments enregistrés}}",
-        "savedSome": "{saved} sur {total} enregistrés",
         "nothing": "Rien à enregistrer."
       },
       "plan": {
@@ -677,7 +582,6 @@
       "size": "Taille",
       "dimensions": "Dimensions",
       "duration": "Durée",
-      "details": "Détails",
       "description": "Description",
       "site": "Site",
       "author": "Auteur",
@@ -780,7 +684,7 @@
         "filtersMessage": "Essayez d’autres filtres.",
         "noMatches": "Aucune fiche correspondante",
         "noResults": "Aucun résultat pour « {query} »",
-        "noCardsFrom": "Aucune fiche de {time}.",
+        "noCardsFrom": "Aucune fiche pour cette période.",
         "checkSpelling": "Vérifiez l’orthographe ou lancez une nouvelle recherche."
       }
     },
@@ -876,8 +780,6 @@
       "saveToTeak": "Enregistrer dans Teak"
     },
     "library": {
-      "newNote": "Nouvelle note",
-      "voiceMemo": "Mémo vocal",
       "uploadFiles": "Importer des fichiers…",
       "revisitKeys": "← archiver · → conserver · Z annuler · Esc quitter"
     },
@@ -938,10 +840,7 @@
     "intents": {
       "saveTitle": "Enregistrer dans Teak",
       "saveDescription": "Enregistre du texte ou un lien dans votre bibliothèque Teak.",
-      "contentParameter": "Texte ou lien",
-      "noText": "Le raccourci n’a envoyé aucun texte ni lien.",
-      "signInFirst": "Ouvrez Teak et connectez-vous, puis exécutez à nouveau le raccourci.",
-      "saved": "Enregistré dans Teak"
+      "contentParameter": "Texte ou lien"
     },
     "appShortcuts": {
       "save": "Enregistrer dans {applicationName}"
@@ -955,13 +854,8 @@
     }
   },
   "android": {
-    "shortcuts": {
-      "newNote": "Nouvelle note",
-      "voiceMemo": "Mémo vocal"
-    },
     "notification": {
       "uploadTitle": "Enregistrement dans Teak",
-      "uploadChannel": "Importations",
       "file": "Fichier"
     },
     "share": {

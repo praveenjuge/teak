@@ -129,7 +129,7 @@ struct AccountSection: View {
                         if let user = account.user { Text(Self.plan(user)) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text(tr("native.settings.notAvailable")) }
                         #if os(macOS)
                         if let user = account.user {
-                            Button(user.hasPremium ? tr("native.settings.manage") : tr("native.settings.upgrade")) {
+                            Button(user.hasPremium ? tr("native.settings.manage") : tr("native.app.upgrade")) {
                                 openURL(app.config.webURL.appending(path: "settings"))
                             }
                         }
@@ -186,7 +186,7 @@ struct AccountSection: View {
 
     /// "Pro" is a name, so it stays as it is.
     static func plan(_ user: CurrentUser) -> String {
-        user.hasPremium ? "Pro" : tr("native.settings.planFree")
+        user.hasPremium ? "Pro" : tr("native.card.plan.free")
     }
 
     private var deleteButton: some View {

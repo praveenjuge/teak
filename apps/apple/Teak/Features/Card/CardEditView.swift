@@ -46,7 +46,7 @@ struct CardEditView: View {
                 Button(tr("native.card.edit.keepEditing"), role: .cancel) {}
             }
             .alert(tr("native.card.edit.saveFailed"), isPresented: Binding(presenting: $error)) {
-                Button(tr("native.card.edit.ok")) { error = nil }
+                Button(tr("native.app.ok")) { error = nil }
             } message: {
                 Text(error ?? "")
             }

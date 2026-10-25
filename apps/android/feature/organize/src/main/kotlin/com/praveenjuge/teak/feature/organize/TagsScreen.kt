@@ -258,7 +258,7 @@ private fun OperationCard(operation: TagOperation, actions: TagsActions) {
             } else {
                 androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     if (operation.status == TagOperationStatus.Failed) TextButton(onClick = actions.onRetry) { Text(tr("common.retry")) }
-                    TextButton(onClick = actions.onDismissOperation) { Text(tr("native.capture.ok")) }
+                    TextButton(onClick = actions.onDismissOperation) { Text(tr("native.app.ok")) }
                 }
             }
         }

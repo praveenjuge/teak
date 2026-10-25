@@ -467,8 +467,8 @@ public struct LibraryQuery: Hashable, Sendable {
                     "line.3.horizontal.decrease.circle")
         }
         let title = typed.isEmpty ? tr("native.filters.empty.noMatches") : tr("native.filters.empty.noResults", typed)
-        if let time = timeFilter(now: now, timeZone: timeZone), tokens.isEmpty {
-            return (title, tr("native.filters.empty.noCardsFrom", time.label), "magnifyingglass")
+        if timeFilter(now: now, timeZone: timeZone) != nil, tokens.isEmpty {
+            return (title, tr("native.filters.empty.noCardsFrom"), "magnifyingglass")
         }
         return (title, tr("native.filters.empty.checkSpelling"), "magnifyingglass")
     }

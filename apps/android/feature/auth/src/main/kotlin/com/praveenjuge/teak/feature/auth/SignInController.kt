@@ -56,7 +56,7 @@ class SignInController @Inject constructor(
                 onSuccess = { SignInProgress() },
                 onFailure = { e ->
                     Log.w(TAG, "Sign-in failed: ${e.javaClass.simpleName}")
-                    SignInProgress(error = (e as? SignInException)?.text ?: e.teakText(UiText.of("native.auth.completeFailed")))
+                    SignInProgress(error = (e as? SignInException)?.text ?: e.teakText(UiText.of("native.errors.signInFailed")))
                 },
             )
         } finally {

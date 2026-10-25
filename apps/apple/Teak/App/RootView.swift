@@ -79,16 +79,16 @@ struct MainView: View {
         @Bindable var router = router
         let services = AppServices.shared
         TabView(selection: $router.tab) {
-            Tab(tr("native.app.nav.home"), systemImage: "house", value: AppTab.home) {
+            Tab(tr("native.filters.home"), systemImage: "house", value: AppTab.home) {
                 LibraryTab(library: services.home, path: $router.homePath, namespace: namespace)
             }
-            Tab(tr("native.app.nav.folders"), systemImage: "folder", value: AppTab.folders) {
+            Tab(tr("native.folders.title"), systemImage: "folder", value: AppTab.folders) {
                 FoldersTab(namespace: namespace)
             }
             Tab(tr("native.app.nav.add"), systemImage: "plus.circle", value: AppTab.add, role: addRole) {
                 NavigationStack { AddView() }
             }
-            Tab(tr("native.app.nav.settings"), systemImage: "gearshape", value: AppTab.settings) {
+            Tab(tr("native.settings.title"), systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack { SettingsView() }
             }
         }
@@ -210,11 +210,11 @@ struct SaveRequestView: View {
         VStack(spacing: 20) {
             switch status {
             case .saving: state(tr("native.app.saveRequest.savingTitle"), tr("native.app.saveRequest.savingMessage"), "arrow.down.circle")
-            case .saved: state(tr("native.app.saveRequest.savedTitle"), tr("native.app.saveRequest.savedMessage"), "checkmark.circle.fill")
-            case .empty: state(tr("native.app.saveRequest.emptyTitle"), tr("native.app.saveRequest.emptyMessage"), "tray")
-            case .signedOut: state(tr("native.app.saveRequest.signedOutTitle"), tr("native.app.saveRequest.signedOutMessage"),
+            case .saved: state(tr("native.capture.saved"), tr("native.share.savedMessage"), "checkmark.circle.fill")
+            case .empty: state(tr("native.share.nothingToSave"), tr("native.app.saveRequest.emptyMessage"), "tray")
+            case .signedOut: state(tr("native.share.signInRequired"), tr("native.app.saveRequest.signedOutMessage"),
                                    "person.crop.circle.badge.exclamationmark")
-            case .failed: state(tr("native.app.saveRequest.failedTitle"), tr("native.app.saveRequest.failedMessage"), "xmark.circle")
+            case .failed: state(tr("native.app.saveRequest.failedTitle"), tr("native.errors.offline"), "xmark.circle")
             }
             if status != .saving && status != .saved {
                 Button(tr("common.close")) { dismiss() }

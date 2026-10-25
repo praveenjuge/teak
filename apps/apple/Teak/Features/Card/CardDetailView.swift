@@ -204,7 +204,7 @@ struct CardDetailView: View {
             }
             if isWide {
                 ToolbarItem {
-                    Button(tr("native.card.info"), systemImage: "sidebar.trailing") { showsInspector.toggle() }
+                    Button(tr("native.card.sections.info"), systemImage: "sidebar.trailing") { showsInspector.toggle() }
                         .keyboardShortcut("i", modifiers: [.command, .option])
                 }
             }

@@ -43,24 +43,24 @@ struct LibraryView: View {
             .fileExporter(isPresented: Binding(presenting: $exporting), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [],
                           defaultFilename: exporting?.fileName) { result in
-                if case .failure = result { library.show(tr("native.library.downloadFailed"), isError: true) }
+                if case .failure = result { library.show(tr("native.card.failed.download"), isError: true) }
                 exporting = nil
             }
-            .confirmationDialog(tr("native.library.confirmTrash.title"), isPresented: Binding(presenting: $confirmingDelete),
+            .confirmationDialog(tr("native.card.moveToTrash.title"), isPresented: Binding(presenting: $confirmingDelete),
                                 presenting: confirmingDelete) { card in
                 Button(tr("native.actions.moveToTrash"), role: .destructive) { Task { await library.moveToTrash(card.id) } }
                 Button(tr("common.cancel"), role: .cancel) { confirmingDelete = nil }
             } message: { _ in
-                Text(tr("native.library.confirmTrash.message"))
+                Text(tr("native.card.moveToTrash.message"))
             }
-            .confirmationDialog(tr("native.library.confirmDeleteForever.title"), isPresented: Binding(presenting: $confirmingDeleteForever),
+            .confirmationDialog(tr("native.card.deleteForever.title"), isPresented: Binding(presenting: $confirmingDeleteForever),
                                 presenting: confirmingDeleteForever) { card in
                 Button(tr("native.actions.deleteForever"), role: .destructive) { Task { await library.deleteForever(card.id) } }
                 Button(tr("common.cancel"), role: .cancel) { confirmingDeleteForever = nil }
             } message: { _ in
-                Text(tr("native.library.confirmDeleteForever.message"))
+                Text(tr("native.card.deleteForever.message"))
             }
-            .confirmationDialog(tr("native.library.confirmDeleteForever.title"), isPresented: $confirmingBulkDelete) {
+            .confirmationDialog(tr("native.card.deleteForever.title"), isPresented: $confirmingBulkDelete) {
                 Button(tr("native.actions.deleteForever"), role: .destructive) { Task { await library.deleteSelectedForever() } }
             } message: {
                 Text(tr("native.bulk.deleteForeverMessage", count: library.selection?.count ?? 0))
@@ -259,7 +259,7 @@ struct LibraryView: View {
                 exporting = CardFile(fileName: card.fileName ?? card.title) {
                     let full = try await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
                     guard let full, case let .file(url, _, _) = CardSheet.shareTarget(full) else {
-                        throw TeakError(message: tr("native.library.downloadFailed"))
+                        throw TeakError(message: tr("native.card.failed.download"))
                     }
                     return url
                 }
@@ -329,8 +329,8 @@ struct LibraryView: View {
             #if os(macOS)
             ToolbarItem {
                 Menu(tr("native.app.nav.add"), systemImage: "plus") {
-                    Button(tr("apple.library.newNote"), systemImage: "square.and.pencil") { router.compose() }
-                    Button(tr("apple.library.voiceMemo"), systemImage: "mic") { router.isRecording = true }
+                    Button(tr("native.capture.newNote"), systemImage: "square.and.pencil") { router.compose() }
+                    Button(tr("native.capture.voiceMemo"), systemImage: "mic") { router.isRecording = true }
                     Button(tr("apple.library.uploadFiles"), systemImage: "arrow.up.doc") { router.isImportingFiles = true }
                 }
                 .accessibilityIdentifier("library.add")
@@ -386,9 +386,9 @@ struct LibraryMenu: View {
                     .accessibilityIdentifier("library.revisit")
             }
             Section(tr("native.library.menu.show")) {
-                Toggle(isOn: $library.filters.favoritesOnly) { Label(tr("native.app.nav.favorites"), systemImage: "heart") }
-                Toggle(isOn: $library.filters.archivedOnly) { Label(tr("native.app.nav.archive"), systemImage: "archivebox") }
-                Toggle(isOn: $library.filters.trashOnly) { Label(tr("native.app.nav.trash"), systemImage: "trash") }
+                Toggle(isOn: $library.filters.favoritesOnly) { Label(tr("native.filters.favorites"), systemImage: "heart") }
+                Toggle(isOn: $library.filters.archivedOnly) { Label(tr("native.filters.archive"), systemImage: "archivebox") }
+                Toggle(isOn: $library.filters.trashOnly) { Label(tr("native.filters.trash"), systemImage: "trash") }
                 Menu {
                     ForEach(CardType.allCases) { type in
                         Toggle(type.plural, isOn: Binding(
@@ -417,7 +417,7 @@ struct LibraryMenu: View {
             Picker(tr("native.library.menu.sort"), selection: Binding(get: { sortKind }, set: { chooseSort($0) })) {
                 Text(LibrarySort.newest.label).tag(0)
                 Text(LibrarySort.oldest.label).tag(1)
-                Text(tr("native.library.menu.shuffle")).tag(2)
+                Text(tr("native.filters.sort.shuffle")).tag(2)
             }
             .pickerStyle(.inline)
             if library.sort.isShuffle {

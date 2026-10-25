@@ -32,9 +32,9 @@ public struct ShareImportResult: Sendable, Equatable {
 
     public var summary: String {
         if isComplete {
-            return successfulItems == 1 ? tr("native.card.share.saved") : tr("native.card.share.savedCount", count: successfulItems)
+            return successfulItems == 1 ? tr("native.capture.savedToTeak") : tr("native.capture.savedItems", count: successfulItems)
         }
-        if isPartial { return tr("native.card.share.savedSome", String(successfulItems), String(totalItems)) }
+        if isPartial { return tr("native.capture.savedSome", String(successfulItems), String(totalItems)) }
         return failures.first?.message ?? tr("native.card.share.nothing")
     }
 }
