@@ -7,7 +7,7 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 - `android-sign-in` signs the Debug build in to the local E2E stack with `apps/android/scripts/e2e-session.ts`.
 - `android-sort` sorts Home by "Newest first", "Oldest first" or "Shuffle" (each Shuffle reshuffles).
 - `android-archive` shows the Archive view, archives or unarchives from a tile's long-press menu, the detail overflow, the E key or the selection bar, with "Undo".
-- `android-bulk` acts on selected cards: Archive or Unarchive, Add to favorites, Remove from favorites, Add tags…, Add to folder…, Move to Trash, Restore, Delete Forever.
+- `android-bulk` acts on selected cards: Archive or Unarchive, Add to favorites, Remove from favorites, Add tags…, Add to folder…, Move to Trash, Restore, Delete forever.
 - `android-folders` lists folders and smart folders in the Folders tab, opens one, creates, renames, edits a smart folder's search, deletes with "Undo", and saves a search as a smart folder.
 - `android-done` marks a link done from the detail top bar with the verb for its category, as on the web ("Mark as read" for a book, article or research link, "Mark as watched" for a film, "Mark as done" when the category is unknown), shows the check on tiles, and filters with the Done and To do chips (`is:done`, `is:todo`).
 - `android-search` shows typed filters as chips ("Show Archived", "Price Under 50", "Text in image …", "Mood “…”", "Similar to …"), ranks free words and `like:`/`mood:` searches by meaning, and "More like this" from a tile or the detail overflow.
