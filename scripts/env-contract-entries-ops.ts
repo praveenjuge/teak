@@ -383,15 +383,15 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Loopback origin of a renderer Container started with a tiny RENDERER_TIMEOUT_SCALE, for its timeout tests.",
   }),
-  spec("TEAK_CLOUD_CHROMIUM", {
-    owners: ["@teak/tests"],
-    targets: ["e2e"],
-    profiles: ["e2e"],
+  spec("TEAK_CLOUD_DOCKER_BUILD", {
+    owners: ["@teak/files-worker"],
+    targets: ["files-worker"],
+    profiles: ["local"],
     secret: false,
-    validation: "path",
+    validation: "boolean",
     providers: ["shell"],
     required: false,
-    note: "The cloud image's Chromium, exported by the Claude Code SessionStart hook (.agents/hooks/session-start.sh).",
+    note: "Set to 1 by scripts/cloud-docker-build.sh so scripts/cloud-docker.sh adds a cloud session's proxy CA to the image it builds; local images only, never deployed.",
   }),
   spec("TEAK_SDK_RELEASE_ARTIFACT", {
     owners: ["teak-release"],
@@ -562,7 +562,7 @@ export const OPS_ENTRIES: EnvVarSpec[] = [
     validation: "path",
     providers: ["shell"],
     required: false,
-    note: "Optional Chromium executable for the docs images (scripts/docs-assets); defaults to TEAK_CLOUD_CHROMIUM, then Playwright's own.",
+    note: "Optional Chromium executable for the docs images (scripts/docs-assets); defaults to Playwright's own.",
   }),
   spec("TEAK_STORE_SIMULATOR", {
     owners: ["teak-repo"],

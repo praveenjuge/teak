@@ -10,6 +10,10 @@
     "workos": {
       "type": "http",
       "url": "https://mcp.workos.com/mcp"
+    },
+    "cloudflare-docs": {
+      "type": "http",
+      "url": "https://docs.mcp.cloudflare.com/mcp"
     }
   }
 }

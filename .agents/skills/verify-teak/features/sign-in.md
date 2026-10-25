@@ -49,5 +49,5 @@ Steps:
 - A brand-new account can only be made on the local E2E stack (WorkOS emulator): staging can't send codes to `example.org`. `src/journey/01-signup.e2e.ts` covers it.
 - Sign-out leaves the page at once, so its toasts vanish. Assert the hosted "Email" textbox, not a toast.
 - "Sign out <device> (this device)" in Settings → Security also signs you out. Don't tap it during other recipes.
-- If the app shows "Please sign in again." or "We couldn't check your session", the session broke. In a cloud session that usually means the browser isn't the image's Chromium (`.agents/cloud.md`). Reopen the session rather than driving on.
+- If the app shows "Please sign in again." or "We couldn't check your session", the session broke. Reopen the session rather than driving on; if it happens again, run the doctor and read `.agents/.state/stack.log`.
 - Anything else on the sign-in page, like "Sign-in is temporarily unavailable" (503) or "Invalid sign-in origin." (400), is a stack or configuration failure. Run the doctor.

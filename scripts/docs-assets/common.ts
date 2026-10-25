@@ -11,6 +11,5 @@ export interface CaptureMeta {
 
 export const captureFile = (name: string) => path.join(CACHE, `${name}.png`);
 
-/** The browser both scripts use: DOCS_ASSETS_BROWSER, a cloud session's Chromium, or Playwright's own. */
-export const browserPath = () =>
-  process.env.DOCS_ASSETS_BROWSER ?? process.env.TEAK_CLOUD_CHROMIUM;
+/** The browser both scripts use: DOCS_ASSETS_BROWSER, or Playwright's own. */
+export const browserPath = () => process.env.DOCS_ASSETS_BROWSER;

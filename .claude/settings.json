@@ -11,6 +11,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun --no-env-file \"$(git rev-parse --show-toplevel)/.agents/hooks/format-edited.ts\"",
+            "timeout": 30
+          }
+        ]
+      }
     ]
   }
 }

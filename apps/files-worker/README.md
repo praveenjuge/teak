@@ -366,7 +366,8 @@ stores every output.
   (`PORT=18080 WORK_DIR=$(mktemp -d) bun container/src/server.ts`, needs
   ffmpeg and poppler) and set `RENDERER_URL=http://localhost:18080`. In a
   Claude Code cloud session, build the image with
-  `scripts/cloud-docker-build.sh` and run the CI job's steps
+  `scripts/cloud-docker-build.sh` and run the CI job's steps; `wrangler dev`
+  builds both Containers there through `scripts/cloud-docker.sh`
   (`.agents/cloud.md`, "Containers").
 
 ## Import and audio processing

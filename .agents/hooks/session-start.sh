@@ -17,17 +17,25 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
     [[ ! -d "$browsers" ]]; then
     # Setup output goes to stderr; stdout becomes the agent's context.
     .agents/setup >&2
+  elif [[ "$(cat node_modules/.teak-install 2>/dev/null)" != "$(sha256sum bun.lock | cut -c1-64)" ]] ||
+    [[ "${CONVEX_DEPLOY_KEY:-}" == dev:* && ! -f apps/web/.env.local ]]; then
+    # The cached snapshot predates this checkout's bun.lock, or the setup
+    # script ran without the environment's secrets (it always does) and so
+    # never wired the checkout to the dev deployment. About 15 seconds.
+    .agents/setup --session >&2 || true
   fi
   if [[ -d "$browsers" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
     printf 'export PLAYWRIGHT_BROWSERS_PATH="%s"\n' "$browsers" >>"$CLAUDE_ENV_FILE"
   fi
-  # The pinned Playwright's Chromium can't open the Convex WebSocket through
-  # the session's HTTPS proxy (the handshake loses its Upgrade header), so the
-  # web app never loads against the dev deployment in it. The image's older
-  # Chromium can; point agents at it (.agents/cloud.md).
-  cloud_chromium="$(ls -d /opt/pw-browsers/chromium-*/chrome-linux*/chrome 2>/dev/null | sort -V | tail -n 1 || true)"
-  if [[ -n "$cloud_chromium" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
-    printf 'export TEAK_CLOUD_CHROMIUM="%s"\n' "$cloud_chromium" >>"$CLAUDE_ENV_FILE"
+  # MCP servers keep the image's PLAYWRIGHT_BROWSERS_PATH, not the export
+  # above, so the e2e MCP server looks for e2e's pinned browsers in the
+  # image's directory. Link them in; installing them there instead would let
+  # Playwright prune the image's own.
+  if [[ -d "$browsers" && -d /opt/pw-browsers && -w /opt/pw-browsers ]]; then
+    for build in "$browsers"/*/; do
+      build="${build%/}"
+      [[ -e "/opt/pw-browsers/${build##*/}" ]] || ln -s "$build" "/opt/pw-browsers/${build##*/}"
+    done
   fi
   # Turbo's strict env mode drops NODE_EXTRA_CA_CERTS, so Node tasks under it
   # (ray lint, Google Fonts) reject the HTTPS proxy's certificate. Turbo passes
@@ -50,6 +58,11 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   # need it (.agents/cloud.md, "Containers"). Processes aren't cached with the
   # setup script's snapshot, so start it each session.
   .agents/hooks/start-docker.sh || true
+  # Image builds that download fail on the proxy's certificate; wrangler dev
+  # builds the Containers through a docker that adds its CA to local images.
+  if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
+    printf 'export WRANGLER_DOCKER_BIN="%s"\n' "$root/scripts/cloud-docker.sh" >>"$CLAUDE_ENV_FILE"
+  fi
 fi
 
 # Stdout becomes the agent's context, so every session starts knowing that

@@ -7,8 +7,15 @@
 #
 # - Claude Code on the web: set the environment's setup script to
 #   `bash .agents/setup`; the SessionStart hook also runs it when needed.
+#   The environment's secrets aren't set while a setup script runs, so there
+#   the last step always skips; the hook runs `.agents/setup --session` to do
+#   it, and to reinstall when bun.lock has moved past the cached snapshot.
 # - Codex cloud: set the environment's setup script to `bash .agents/setup`.
 # - Amp: runs it as the orb setup script; .agents/resume restores the PATH.
+#
+# `--session` runs only the steps that depend on the checkout and the
+# secrets (dependencies and the dev deployment), for a VM whose toolchain and
+# browsers are already in place.
 #
 # Start the stack afterwards with `bun run dev --detach`.
 set -euo pipefail
@@ -149,12 +156,23 @@ EOF
   fi
 }
 
+# The same stamp scripts/setup.ts and the doctor's deps-lock check use
+# (scripts/capabilities.ts): the sha256 of the bun.lock node_modules was
+# installed from. A fresh clone gives every file the same mtime, so comparing
+# timestamps can't tell a lockfile that moved on.
+install_stamp=node_modules/.teak-install
+
+lock_hash() {
+  sha256sum bun.lock | cut -c1-64
+}
+
 install_dependencies() {
-  if [[ ! -d node_modules ]] || [[ bun.lock -nt node_modules ]]; then
-    bun ci
-  else
+  if [[ -f "$install_stamp" && "$(cat "$install_stamp")" == "$(lock_hash)" ]]; then
     printf 'node_modules is already current with bun.lock.\n'
+    return
   fi
+  bun ci
+  lock_hash | tr -d '\n' >"$install_stamp"
 }
 
 # The image's browsers in /opt/pw-browsers are an older build than the
@@ -168,6 +186,23 @@ install_e2e_browsers() {
     bun --cwd=packages/tests x e2e-web install --with-deps chromium webkit
 }
 
+# Every cloud VM starts with an empty Turbo cache, so the first typecheck
+# takes about two minutes on 4 vCPUs (one second once cached). Warm it here,
+# so it lands in the setup script's cached snapshot; unchanged packages then
+# hit it in later sessions. The snapshot is only taken when the whole script
+# finishes in about five minutes, so this stops before that whatever happens:
+# Turbo saves each finished task, so a cut-off run still caches most of them.
+warm_turbo_cache() {
+  local budget=$((270 - SECONDS))
+  if ((budget < 60)); then
+    printf 'Skipped: setup has already run %ss.\n' "$SECONDS"
+    return
+  fi
+  timeout "$budget" env TURBO_UI=false bun x turbo run typecheck \
+    --output-logs=none ||
+    printf 'Stopped after %ss; the tasks that finished are cached.\n' "$budget"
+}
+
 bootstrap_development() {
   if [[ "${CONVEX_DEPLOY_KEY:-}" != dev:* ]]; then
     printf 'Skipped: add CONVEX_DEPLOY_KEY (a dev deploy key for the shared dev deployment) to this environment'"'"'s secrets to run bun run dev. See apps/docs/content/docs/(open-source)/development.mdx.\n'
@@ -179,9 +214,26 @@ bootstrap_development() {
   TURBO_UI=false bun run setup --target extension
 }
 
+session_only=false
+case "${1:-}" in
+  "") ;;
+  --session) session_only=true ;;
+  *)
+    printf 'Usage: .agents/setup [--session]\n' >&2
+    exit 2
+    ;;
+esac
+
 if [[ "$(uname -s)" != "Linux" ]]; then
   printf 'This script prepares Linux cloud VMs. Locally, run bun run dev.\n' >&2
   exit 1
+fi
+
+if [[ "$session_only" == true ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+  step "Install workspace dependencies" install_dependencies
+  step "Connect to the shared dev deployment" bootstrap_development
+  exit 0
 fi
 
 bun_version="$(read_pin bun)"
@@ -201,5 +253,6 @@ hash -r
 step "Install workspace dependencies" install_dependencies
 step "Install the E2E suite's browsers" install_e2e_browsers
 step "Connect to the shared dev deployment" bootstrap_development
+step "Warm the Turbo cache" warm_turbo_cache
 
 printf '\nTeak setup complete: Node %s, Bun %s. Start the stack with bun run dev --detach.\n' "$(node --version)" "$(bun --version)"

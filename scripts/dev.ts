@@ -21,6 +21,7 @@ import { resolveWorktree, type WorktreePorts } from "./worktree-env.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const DEV_MAIN = join(ROOT, "scripts/dev-main.ts");
+const LOCAL_STACK = join(ROOT, "packages/tests/src/scripts/run-local-suite.ts");
 
 export const DEV_TARGETS: Record<string, string[]> = {
   web: ["@teak/web", "@teak/convex"],
@@ -41,12 +42,13 @@ const resolveTarget = (target: string): string =>
   TARGET_ALIASES[target] ?? target;
 
 export const DEV_USAGE =
-  "Usage: bun run dev [target] [--push] [--detach] [--status] [--stop] [--all] [--check] [--headless]";
+  "Usage: bun run dev [target] [--push] [--local] [--detach] [--status] [--stop] [--all] [--check] [--headless]";
 
 export const describeTargets = (): string =>
   [
     "Available dev targets:",
     "  web (default) — Next.js on the shared cloud dev deployment, seeded",
+    "  web --local — Next.js on a local backend, WorkOS emulator and Files Worker, seeded",
     "  convex — Convex backend only",
     "  docs — Docs site",
     "  extension — Chrome extension + Convex",
@@ -67,6 +69,12 @@ export interface DevArgs {
    */
   detach: boolean;
   headless: boolean;
+  /**
+   * Run the web stack on a local backend, the WorkOS emulator and the Files
+   * Worker in Miniflare (the E2E suite's stack, pushing the backend as it
+   * changes) instead of the shared dev deployment.
+   */
+  local: boolean;
   push: boolean;
   target: string;
 }
@@ -78,6 +86,7 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
       all: false,
       detach: false,
       headless: false,
+      local: false,
       push: false,
       target: "web",
     };
@@ -87,6 +96,7 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
     "--check",
     "--detach",
     "--headless",
+    "--local",
     "--push",
     "--status",
     "--stop",
@@ -112,6 +122,12 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
   if (detach && (all || target !== "web")) {
     throw new Error("--detach applies only to the web stack");
   }
+  const local = argv.includes("--local");
+  if (local && (all || target !== "web" || push)) {
+    throw new Error(
+      "--local applies only to the web stack, and has no shared backend to --push to"
+    );
+  }
   let action: DevArgs["action"] = "run";
   if (argv.includes("--stop")) {
     action = "stop";
@@ -125,6 +141,7 @@ export const parseDevArgs = (argv: string[]): DevArgs => {
     all,
     detach,
     headless: argv.includes("--headless"),
+    local,
     push,
     target,
   };
@@ -202,8 +219,11 @@ const stopStack = async (): Promise<number> => {
   return 0;
 };
 
+const isLocalDevStack = (running: StackState | null): boolean =>
+  running?.mode === "e2e" && Boolean(running.account);
+
 const describeRunning = (running: StackState): string[] => {
-  if (running.mode === "e2e") {
+  if (running.mode === "e2e" && !isLocalDevStack(running)) {
     return [
       `  An E2E run is using this checkout's ports (pid ${running.pid}); it stops when the run ends.`,
     ];
@@ -219,19 +239,22 @@ export const describeStatus = (
   running: StackState | null
 ): string =>
   [
-    `Teak dev stack for this checkout (${ports.namespace}), on the shared dev deployment ${DEV_DEPLOYMENT}:`,
+    isLocalDevStack(running)
+      ? `Teak dev stack for this checkout (${ports.namespace}), on a local backend (bun run dev --local):`
+      : `Teak dev stack for this checkout (${ports.namespace}), on the shared dev deployment ${DEV_DEPLOYMENT}:`,
     ...(running
       ? describeRunning(running)
       : [
           "  Not running. Start it with `bun run dev --detach` (it returns once the app is ready and stays up until `bun run dev --stop`).",
         ]),
-    `  Ports: web ${ports.web}, docs ${ports.docs}, extension ${ports.extension}. The backend is ${DEV_DEPLOYMENT_URLS.convexUrl}.`,
+    `  Ports: web ${ports.web}, docs ${ports.docs}, extension ${ports.extension}. The backend is ${isLocalDevStack(running) ? running?.urls.convexUrl : DEV_DEPLOYMENT_URLS.convexUrl}.`,
     "  A running stack records its URLs and sign-in in .agents/.state/stack.json and logs to .agents/.state/stack.log.",
   ].join("\n");
 
 export type DevLaunch =
   | { kind: "check" | "help" | "status" | "stop" }
   | { install: boolean; kind: "detach" }
+  | { detach: boolean; install: boolean; kind: "local" }
   | { install: boolean; kind: "main"; setup: boolean };
 
 /**
@@ -247,6 +270,9 @@ export const planDevLaunch = (
     return { kind: args.action };
   }
   const install = !hasNodeModules;
+  if (args.local) {
+    return { detach: args.detach, install, kind: "local" };
+  }
   if (usesWebStack(args) && args.detach) {
     return { install, kind: "detach" };
   }
@@ -303,14 +329,25 @@ const setUpWebStack = async (): Promise<boolean> => {
 const DETACHED_LOG = join(ROOT, ".agents/.state/dev-detached.log");
 const DETACH_READY_TIMEOUT_MS = 300_000;
 
-const runDetached = async (push: boolean): Promise<number> => {
+export const localStackCommand = (): string[] => [
+  process.execPath,
+  "--no-env-file",
+  LOCAL_STACK,
+  "stack",
+  "--dev",
+];
+
+const runDetached = async (push: boolean, local = false): Promise<number> => {
   await stopOrphans();
   const logPath = DETACHED_LOG.replace(`${ROOT}/`, "");
   let exitCode: number | null = null;
   const running = runningStack();
   if (running) {
-    if (running.mode !== "dev") {
+    if (local ? !isLocalDevStack(running) : running.mode !== "dev") {
       console.log(describeStatus(await resolveWorktree(ROOT), running));
+      console.error(
+        `Another stack is using this checkout's ports; stop it with \`bun run dev --stop\` first.`
+      );
       return 1;
     }
     if (push && running.pushing === false) {
@@ -321,21 +358,25 @@ const runDetached = async (push: boolean): Promise<number> => {
   } else {
     mkdirSync(join(ROOT, ".agents/.state"), { recursive: true });
     const log = openSync(DETACHED_LOG, "w");
-    const child = spawn(
-      process.execPath,
-      [
-        "--no-env-file",
-        join(ROOT, "scripts/dev.ts"),
-        ...(push ? ["--push"] : []),
-      ],
-      { cwd: ROOT, detached: true, stdio: ["ignore", log, log] }
-    );
+    const [command = process.execPath, ...commandArgs] = local
+      ? localStackCommand()
+      : [
+          process.execPath,
+          "--no-env-file",
+          join(ROOT, "scripts/dev.ts"),
+          ...(push ? ["--push"] : []),
+        ];
+    const child = spawn(command, commandArgs, {
+      cwd: ROOT,
+      detached: true,
+      stdio: ["ignore", log, log],
+    });
     child.on("exit", (code) => {
       exitCode = code ?? 1;
     });
     child.unref();
     console.log(
-      `Starting the web stack in the background (pid ${child.pid}); its output goes to ${logPath}…`
+      `Starting the ${local ? "local " : ""}web stack in the background (pid ${child.pid}); its output goes to ${logPath}…`
     );
   }
   const deadline = Date.now() + DETACH_READY_TIMEOUT_MS;
@@ -367,6 +408,9 @@ const runDetached = async (push: boolean): Promise<number> => {
 };
 
 const describeCheck = (args: DevArgs): string => {
+  if (args.local) {
+    return `Would run the web app on a local backend, the WorkOS emulator and the Files Worker in Miniflare, with a seeded account${args.detach ? ", in the background" : ""}`;
+  }
   if (usesWebStack(args)) {
     return `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${args.push ? ", taking over pushing the backend" : ""}${args.detach ? ", in the background" : ""}`;
   }
@@ -410,6 +454,22 @@ const main = async (argv: string[]): Promise<number> => {
   }
   if (launch.kind === "detach") {
     return await runDetached(args.push);
+  }
+  if (launch.kind === "local") {
+    if (launch.detach) {
+      return await runDetached(false, true);
+    }
+    await stopOrphans();
+    const running = runningStack();
+    if (running) {
+      console.log(describeStatus(await resolveWorktree(ROOT), running));
+      return 1;
+    }
+    const [command = process.execPath, ...commandArgs] = localStackCommand();
+    const child = spawn(command, commandArgs, { cwd: ROOT, stdio: "inherit" });
+    return await new Promise<number>((resolve) =>
+      child.once("exit", (code) => resolve(code ?? 1))
+    );
   }
   if (launch.setup && !(await setUpWebStack())) {
     return 1;

@@ -253,7 +253,13 @@ const signalChildGroup = (child: ChildProcess, signal: NodeJS.Signals) =>
 // `convex dev` runs the web server in its own process group and stops it
 // only on SIGINT, so interrupt first and force-stop whatever remains.
 export const stopGroup = async (child: ChildProcess) => {
-  if (!child.pid || child.exitCode !== null) {
+  if (!child.pid) {
+    return;
+  }
+  if (child.exitCode !== null || child.signalCode !== null) {
+    // The leader is gone, but what it started may still run in its group: a
+    // `convex dev` that crashed leaves its local backend holding the port.
+    signalChildGroup(child, "SIGKILL");
     return;
   }
   const exited = new Promise((resolve) => child.once("exit", resolve));

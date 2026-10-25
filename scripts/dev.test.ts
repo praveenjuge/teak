@@ -6,6 +6,7 @@ import {
   DEV_TARGETS,
   describeStatus,
   devMainCommand,
+  localStackCommand,
   needsWebEnv,
   parseDevArgs,
   planDevLaunch,
@@ -22,9 +23,18 @@ describe("parseDevArgs", () => {
       all: false,
       detach: false,
       headless: false,
+      local: false,
       push: false,
       target: "web",
     });
+  });
+
+  test("parses --local for the web stack only, without --push", () => {
+    expect(parseDevArgs(["--local"]).local).toBe(true);
+    expect(parseDevArgs(["--local", "--detach"]).detach).toBe(true);
+    expect(() => parseDevArgs(["--local", "--push"])).toThrow("--push");
+    expect(() => parseDevArgs(["extension", "--local"])).toThrow("web stack");
+    expect(() => parseDevArgs(["--all", "--local"])).toThrow("web stack");
   });
 
   test("parses --push, --status and --stop for the web stack", () => {
@@ -235,6 +245,37 @@ describe("describeStatus", () => {
     expect(text).toContain("dev+mac-main@example.org");
     expect(text).toContain("bun run dev --push");
   });
+
+  test("tells a local dev stack apart from an E2E run", () => {
+    const state = {
+      groups: [41],
+      mode: "e2e" as const,
+      ready: true,
+      logPath: "/tmp/stack.log",
+      pid: 42,
+      ports: { web: 3000, convex: 3210, convexSite: 3211, emulator: 4100 },
+      startedAt: "2026-10-25T00:00:00.000Z",
+      urls: {
+        appOrigin: "http://localhost:3000",
+        apiOrigin: "http://localhost:3211",
+        convexUrl: "http://127.0.0.1:3210",
+      },
+    };
+    const run = describeStatus(mainWorktreePorts(), state);
+    expect(run).toContain("An E2E run is using this checkout's ports");
+    const local = describeStatus(mainWorktreePorts(), {
+      ...state,
+      account: { email: "dev+local-main@example.org", password: "pw-123" },
+      notes: [
+        "Sign in as dev+local-main@example.org / pw-123 (WorkOS emulator); its vault is seeded with sample cards.",
+      ],
+    });
+    expect(local).toContain("on a local backend (bun run dev --local)");
+    expect(local).toContain("Running at http://localhost:3000 (pid 42)");
+    expect(local).toContain("dev+local-main@example.org");
+    expect(local).toContain("The backend is http://127.0.0.1:3210");
+    expect(local).not.toContain("shared dev deployment");
+  });
 });
 
 describe("planDevLaunch", () => {
@@ -257,6 +298,16 @@ describe("planDevLaunch", () => {
       argv: ["--detach"],
       hasNodeModules: false,
       launch: { install: true, kind: "detach" },
+    },
+    {
+      argv: ["--local"],
+      hasNodeModules: true,
+      launch: { detach: false, install: false, kind: "local" },
+    },
+    {
+      argv: ["--local", "--detach"],
+      hasNodeModules: false,
+      launch: { detach: true, install: true, kind: "local" },
     },
     {
       argv: ["extension"],
@@ -287,6 +338,19 @@ describe("planDevLaunch", () => {
       "--headless",
     ]);
   });
+});
+
+test("--local runs the E2E suite's stack in dev mode, without .env files", () => {
+  expect(localStackCommand()).toEqual([
+    process.execPath,
+    "--no-env-file",
+    join(ROOT, "packages/tests/src/scripts/run-local-suite.ts"),
+    "stack",
+    "--dev",
+  ]);
+  expect(
+    existsSync(join(ROOT, "packages/tests/src/scripts/run-local-suite.ts"))
+  ).toBe(true);
 });
 
 describe("dev.ts before install", () => {
