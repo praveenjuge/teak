@@ -519,9 +519,10 @@ public struct LibraryQuery: Hashable, Sendable {
         return query.isEmpty ? nil : query
     }
 
-    /// Whether saving a smart folder would leave filters behind.
+    /// Whether saving a smart folder would leave filters behind, including a
+    /// date typed beside other words.
     public var smartFolderDropsFilters: Bool {
-        filters.hue != nil || tokens.contains { [.hue, .style, .hex, .date].contains($0.kind) }
+        filters.hue != nil || tokens.contains { [.hue, .style, .hex, .date].contains($0.kind) } || timeFilter() != nil
     }
 
     /// A name for a smart folder made from this search, like the web's.

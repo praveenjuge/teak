@@ -168,6 +168,9 @@ private func day(_ milliseconds: Double) -> String {
         #expect(LibraryQuery(text: "iphone 2024").searchArgs(now: tuesdayNoon, timeZone: newYork)["createdAtRange"] == nil)
         #expect(LibraryQuery(text: "-figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"]
             == "-figma last week")
+        // A smart folder saves only the words, so saving warns that the date is left behind.
+        #expect(LibraryQuery(text: "figma last week").smartFolderDropsFilters)
+        #expect(!LibraryQuery(text: "figma").smartFolderDropsFilters)
     }
 
     @Test(arguments: [

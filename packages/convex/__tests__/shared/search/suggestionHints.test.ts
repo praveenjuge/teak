@@ -1,6 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { flattenCatalog } from "../../../../i18n/src/catalog";
 import { SHARED_WEB_NAMESPACES } from "../../../../i18n/src/native";
 import { SEARCH_QUALIFIER_KEYS } from "../../../shared/search/qualifiers";
@@ -24,12 +22,24 @@ const messageKeys = [
   ...Object.values(SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS),
 ];
 
-const repoFile = (path: string) =>
-  readFileSync(join(import.meta.dir, "../../../../..", path), "utf8");
-
+// Each file is named in full, so the test reads only these three.
 const english = flattenCatalog(
-  JSON.parse(repoFile("packages/i18n/messages/en.json"))
+  await Bun.file(
+    new URL("../../../../i18n/messages/en.json", import.meta.url)
+  ).json()
 );
+const appleConstants = await Bun.file(
+  new URL(
+    "../../../../../apps/apple/Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json",
+    import.meta.url
+  )
+).json();
+const androidConstants = await Bun.file(
+  new URL(
+    "../../../../../apps/android/core/model/src/main/kotlin/com/praveenjuge/teak/core/model/SharedConstants.kt",
+    import.meta.url
+  )
+).text();
 
 describe("search suggestion hints", () => {
   test("every label is an English message the native apps can read", () => {
@@ -57,28 +67,20 @@ describe("search suggestion hints", () => {
   // apps' generated constants must carry the same data; their drift tests
   // keep them regenerated.
   test("the Apple and Android apps ship the same hints", () => {
-    const apple = JSON.parse(
-      repoFile(
-        "apps/apple/Packages/TeakKit/Sources/TeakCore/Resources/SharedConstants.json"
-      )
-    );
-    expect(apple.searchSuggestionHints).toEqual({
+    expect(appleConstants.searchSuggestionHints).toEqual({
       qualifiers: SEARCH_QUALIFIER_HINTS,
       exclude: SEARCH_EXCLUDE_HINTS,
       or: SEARCH_OR_HINT,
       isOptions: SEARCH_IS_OPTIONS,
       groups: SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS,
     });
-    const android = repoFile(
-      "apps/android/core/model/src/main/kotlin/com/praveenjuge/teak/core/model/SharedConstants.kt"
-    );
     for (const hint of hints) {
-      expect(android).toContain(
+      expect(androidConstants).toContain(
         `SearchHint(id = "${hint.id}", group = "${hint.group}", key = "${hint.key}", insert = "${hint.insert}", messageKey = "${hint.messageKey}")`
       );
     }
     for (const option of SEARCH_IS_OPTIONS) {
-      expect(android).toContain(
+      expect(androidConstants).toContain(
         `SearchIsOption(value = "${option.value}", words = listOf(${option.words.map((word) => `"${word}"`).join(", ")}), messageKey = "${option.messageKey}")`
       );
     }
