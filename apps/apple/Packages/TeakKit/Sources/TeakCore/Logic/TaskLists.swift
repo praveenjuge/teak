@@ -66,12 +66,15 @@ public enum TaskLists {
         let starts: [Int]
     }
 
-    /// The items sharing a list with the one on `line`: same indent and bullet, with only their children and blank
-    /// lines between them. Nil unless every one of them is a task and there are at least two.
+    /// The items sharing a list with the one on `line`: same indent and bullet, with only their children, the text
+    /// indented under them, and blank lines between them. Nil unless every one of them is a task and there are at
+    /// least two, or when unindented text runs on from the list's last line, which Markdown may join to that item.
     private static func siblings(_ lines: [String], of line: Int, indent: Int, bullet: String) -> Siblings? {
-        /// True for a sibling, false for a child line, nil for a line that ends the list.
+        /// True for a sibling, false for a line inside an item, nil for a line that ends the list.
         func belongs(_ index: Int) -> Bool? {
-            guard let item = Line(lines[index]) else { return nil }
+            guard let item = Line(lines[index]) else {
+                return lines[index].prefix(while: \.isWhitespace).count > indent ? false : nil
+            }
             if item.indent > indent { return false }
             return item.indent == indent && item.bullet == bullet ? true : nil
         }
@@ -93,7 +96,10 @@ public enum TaskLists {
                 index += 1
                 continue
             }
-            guard belongs(index) != nil else { break }
+            guard belongs(index) != nil else {
+                if Line(lines[index]) == nil, !MarkdownBlocks.isBlank(lines[index - 1]) { return nil }
+                break
+            }
             index += 1
             end = index
         }

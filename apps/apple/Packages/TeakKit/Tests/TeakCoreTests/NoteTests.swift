@@ -126,6 +126,10 @@ private func toggled(_ markdown: String, line: Int) -> String? {
          "- [ ] B\n\n- [ ] C\n- [x] A"),
         ("odd spacing, as the checklists seed writes it", "-  [ ] Two spaces\n\n- [ ] Blank line above\n* [ ] Star bullet", 0,
          "- [ ] Blank line above\n\n-  [x] Two spaces\n* [ ] Star bullet"),
+        ("text indented under the last item stays with it", "- [ ] A\n- [ ] B\n  B's note", 0,
+         "- [ ] B\n  B's note\n- [x] A"),
+        ("a paragraph indented under an item moves with it", "- [ ] A\n\n  More about A\n\n- [ ] B", 0,
+         "- [ ] B\n\n- [x] A\n\n  More about A"),
     ])
     func reordersTheList(_ name: String, before: String, line: Int, after: String) {
         #expect(toggled(before, line: line) == after)
@@ -137,6 +141,8 @@ private func toggled(_ markdown: String, line: Int) -> String? {
         ("a list with one item", "- [ ] A", 0, "- [x] A"),
         ("a list mixing tasks and plain items", "- [ ] A\n- plain\n- [ ] B", 0, "- [x] A\n- plain\n- [ ] B"),
         ("another bullet starts another list", "- [ ] A\n* [ ] B", 0, "- [x] A\n* [ ] B"),
+        ("unindented text running on from the last item", "- [ ] A\n- [ ] B\nmore of B", 0,
+         "- [x] A\n- [ ] B\nmore of B"),
     ])
     func movesNothing(_ name: String, before: String, line: Int, after: String) {
         #expect(toggled(before, line: line) == after)

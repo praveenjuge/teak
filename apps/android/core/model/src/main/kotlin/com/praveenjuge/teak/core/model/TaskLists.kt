@@ -53,13 +53,15 @@ object TaskLists {
     private class Siblings(val span: IntRange, val starts: List<Int>)
 
     /**
-     * The items sharing a list with the one on [line]: same indent and bullet, with only their children and blank
-     * lines between them. Null unless every one of them is a task and there are at least two.
+     * The items sharing a list with the one on [line]: same indent and bullet, with only their children, the text
+     * indented under them, and blank lines between them. Null unless every one of them is a task and there are at
+     * least two, or when unindented text runs on from the list's last line, which Markdown may join to that item.
      */
     private fun siblings(lines: List<String>, line: Int, task: Line): Siblings? {
-        // True for a sibling, false for a child line, null for a line that ends the list.
+        // True for a sibling, false for a line inside an item, null for a line that ends the list.
         fun belongs(index: Int): Boolean? {
-            val item = parseLine(lines[index]) ?: return null
+            val item = parseLine(lines[index])
+                ?: return if (lines[index].takeWhile { it.isWhitespace() }.length > task.indent) false else null
             if (item.indent > task.indent) return false
             return if (item.indent == task.indent && item.bullet == task.bullet) true else null
         }
@@ -81,7 +83,10 @@ object TaskLists {
                 index += 1
                 continue
             }
-            if (belongs(index) == null) break
+            if (belongs(index) == null) {
+                if (parseLine(lines[index]) == null && !lines[index - 1].isBlank()) return null
+                break
+            }
             index += 1
             end = index
         }

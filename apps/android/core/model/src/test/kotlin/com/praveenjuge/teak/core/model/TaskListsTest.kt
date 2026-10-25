@@ -50,6 +50,14 @@ class TaskListsTest {
                 "-  [ ] Two spaces\n\n- [ ] Blank line above\n* [ ] Star bullet", 0,
                 "- [ ] Blank line above\n\n-  [x] Two spaces\n* [ ] Star bullet",
             ),
+            ToggleCase(
+                "text indented under the last item stays with it",
+                "- [ ] A\n- [ ] B\n  B's note", 0, "- [ ] B\n  B's note\n- [x] A",
+            ),
+            ToggleCase(
+                "a paragraph indented under an item moves with it",
+                "- [ ] A\n\n  More about A\n\n- [ ] B", 0, "- [ ] B\n\n- [x] A\n\n  More about A",
+            ),
         ).forEach { assertEquals(it.after, toggled(it.before, it.line), it.name) }
     }
 
@@ -61,6 +69,10 @@ class TaskListsTest {
             ToggleCase("a list with one item", "- [ ] A", 0, "- [x] A"),
             ToggleCase("a list mixing tasks and plain items", "- [ ] A\n- plain\n- [ ] B", 0, "- [x] A\n- plain\n- [ ] B"),
             ToggleCase("another bullet starts another list", "- [ ] A\n* [ ] B", 0, "- [x] A\n* [ ] B"),
+            ToggleCase(
+                "unindented text running on from the last item",
+                "- [ ] A\n- [ ] B\nmore of B", 0, "- [x] A\n- [ ] B\nmore of B",
+            ),
         ).forEach { assertEquals(it.after, toggled(it.before, it.line), it.name) }
     }
 
