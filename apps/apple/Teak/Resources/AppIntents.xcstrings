@@ -7,7 +7,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "Fügt Karten zu einem Ihrer Teak-Ordner hinzu."
           }
         },
         "en" : {
@@ -19,37 +19,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "Añade tarjetas a una de sus carpetas de Teak."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "Ajoute des fiches à l’un de vos dossiers Teak."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "Teak のフォルダにカードを追加します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "Teak 폴더에 카드를 추가합니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "Adiciona cards a uma das suas pastas do Teak."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adds cards to one of your Teak folders."
+            "value" : "将卡片添加到你的某个 Teak 文件夹。"
           }
         }
       }
@@ -60,7 +60,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "Zu Ordner hinzufügen"
           }
         },
         "en" : {
@@ -72,37 +72,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "Añadir a carpeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "Ajouter au dossier"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "フォルダに追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "폴더에 추가"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "Adicionar à pasta"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add to Folder"
+            "value" : "添加到文件夹"
           }
         }
       }
@@ -113,7 +113,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "Karte"
           }
         },
         "en" : {
@@ -125,25 +125,25 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "Tarjeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "Fiche"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "カード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "카드"
           }
         },
         "pt-BR" : {
@@ -155,7 +155,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "卡片"
           }
         }
       }
@@ -166,7 +166,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "Karte"
           }
         },
         "en" : {
@@ -178,25 +178,25 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "Tarjeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "Fiche"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "カード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "카드"
           }
         },
         "pt-BR" : {
@@ -208,7 +208,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "卡片"
           }
         }
       }
@@ -219,7 +219,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards"
+            "value" : "Karten"
           }
         },
         "en" : {
@@ -231,25 +231,25 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards"
+            "value" : "Tarjetas"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards"
+            "value" : "Fiches"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards"
+            "value" : "カード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards"
+            "value" : "카드"
           }
         },
         "pt-BR" : {
@@ -261,7 +261,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards"
+            "value" : "卡片"
           }
         }
       }
@@ -325,7 +325,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Ordner"
           }
         },
         "en" : {
@@ -337,37 +337,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Carpeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Dossier"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "フォルダ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "폴더"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Pasta"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "文件夹"
           }
         }
       }
@@ -378,7 +378,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Ordner"
           }
         },
         "en" : {
@@ -390,37 +390,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Carpeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Dossier"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "フォルダ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "폴더"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "Pasta"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder"
+            "value" : "文件夹"
           }
         }
       }
@@ -431,7 +431,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "Archivierte Karten einbeziehen"
           }
         },
         "en" : {
@@ -443,37 +443,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "Incluir tarjetas archivadas"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "Inclure les fiches archivées"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "アーカイブ済みのカードを含める"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "보관된 카드 포함"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "Incluir cards arquivados"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Include archived cards"
+            "value" : "包括已归档的卡片"
           }
         }
       }
@@ -496,25 +496,25 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Enlace"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Lien"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "リンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "링크"
           }
         },
         "pt-BR" : {
@@ -526,7 +526,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "链接"
           }
         }
       }
@@ -537,7 +537,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "Öffnet Teak mit einer neuen Notiz."
           }
         },
         "en" : {
@@ -549,37 +549,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "Abre Teak con una nota nueva."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "Ouvre Teak sur une nouvelle note."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "Teak を開いて新規メモを作成します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "Teak을 열고 새 메모를 시작합니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "Abre o Teak em uma nova nota."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on a new note."
+            "value" : "打开 Teak 并新建笔记。"
           }
         }
       }
@@ -590,7 +590,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "Neue Notiz"
           }
         },
         "en" : {
@@ -602,37 +602,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "Nueva nota"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "Nouvelle note"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "新規メモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "새 메모"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "Nova nota"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "新建笔记"
           }
         }
       }
@@ -643,7 +643,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "Öffnet eine Karte in Teak."
           }
         },
         "en" : {
@@ -655,37 +655,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "Abre una tarjeta en Teak."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "Ouvre une fiche dans Teak."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "Teak でカードを開きます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "Teak에서 카드를 엽니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "Abre um card no Teak."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens a card in Teak."
+            "value" : "在 Teak 中打开卡片。"
           }
         }
       }
@@ -696,7 +696,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "Karte öffnen"
           }
         },
         "en" : {
@@ -708,37 +708,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "Abrir tarjeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "Ouvrir la fiche"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "カードを開く"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "카드 열기"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "Abrir card"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Card"
+            "value" : "打开卡片"
           }
         }
       }
@@ -749,7 +749,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "Suche"
           }
         },
         "en" : {
@@ -761,37 +761,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "Búsqueda"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "Recherche"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "検索"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "검색"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "Pesquisa"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "搜索"
           }
         }
       }
@@ -802,7 +802,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "Öffnet Teak bei der Sprachmemo-Aufnahme."
           }
         },
         "en" : {
@@ -814,37 +814,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "Abre Teak en la grabadora de notas de voz."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "Ouvre Teak sur l’enregistreur de mémos vocaux."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "Teak を開いてボイスメモの録音画面を表示します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "Teak을 열고 음성 메모 녹음기를 표시합니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "Abre o Teak no gravador de notas de voz."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Opens Teak on the voice memo recorder."
+            "value" : "打开 Teak 的语音备忘录录音界面。"
           }
         }
       }
@@ -855,7 +855,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "Sprachmemo aufnehmen"
           }
         },
         "en" : {
@@ -867,37 +867,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "Grabar nota de voz"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "Enregistrer un mémo vocal"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "ボイスメモを録音"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "음성 메모 녹음"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "Gravar nota de voz"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record Voice Memo"
+            "value" : "录制语音备忘录"
           }
         }
       }
@@ -1014,7 +1014,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "Findet Karten in Ihrer Teak-Bibliothek, mit derselben Suche wie in der App."
           }
         },
         "en" : {
@@ -1026,37 +1026,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "Encuentra tarjetas en su biblioteca de Teak, con la misma búsqueda que la app."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "Trouve des fiches dans votre bibliothèque Teak, avec la même recherche que l’app."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "アプリと同じ検索で、Teak ライブラリのカードを探します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "앱과 같은 검색으로 Teak 라이브러리에서 카드를 찾습니다."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "Encontra cards na sua biblioteca do Teak, com a mesma pesquisa do app."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Finds cards in your Teak library, with the same search as the app."
+            "value" : "使用与 App 相同的搜索，在你的 Teak 资料库中查找卡片。"
           }
         }
       }
@@ -1067,7 +1067,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "Teak durchsuchen"
           }
         },
         "en" : {
@@ -1079,37 +1079,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "Buscar en Teak"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "Rechercher dans Teak"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "Teak を検索"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "Teak 검색"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "Pesquisar no Teak"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search Teak"
+            "value" : "搜索 Teak"
           }
         }
       }
@@ -1120,7 +1120,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "Ein intelligenter Ordner füllt sich über seine Suche. Wählen Sie einen anderen Ordner."
           }
         },
         "en" : {
@@ -1132,37 +1132,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "Una carpeta inteligente se llena con su búsqueda. Elija otra carpeta."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "Un dossier intelligent se remplit à partir de sa recherche. Choisissez un autre dossier."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "スマートフォルダは検索条件で自動的に中身が決まります。別のフォルダを選んでください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "스마트 폴더는 검색 조건으로 자동으로 채워집니다. 다른 폴더를 선택하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "Uma pasta inteligente se preenche pela pesquisa dela. Escolha outra pasta."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A smart folder fills itself from its search. Pick another folder."
+            "value" : "智能文件夹会根据其搜索条件自动填充。请选择其他文件夹。"
           }
         }
       }
@@ -1173,7 +1173,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Titel"
           }
         },
         "en" : {
@@ -1185,37 +1185,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Título"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Titre"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "タイトル"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "제목"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "Título"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Title"
+            "value" : "标题"
           }
         }
       }

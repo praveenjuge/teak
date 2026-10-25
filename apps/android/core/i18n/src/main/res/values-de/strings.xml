@@ -576,6 +576,7 @@
     <string name="native_folders_editSmartFolder">Intelligenten Ordner bearbeiten</string>
     <string name="native_folders_emptyMessage">Gruppieren Sie zusammengehörige Karten. Erstellen Sie einen Ordner und fügen Sie ihm Karten hinzu.</string>
     <string name="native_folders_emptyTitle">Noch keine Ordner</string>
+    <string name="native_folders_find">Ordner suchen</string>
     <string name="native_folders_findOrCreate">Ordner suchen oder erstellen</string>
     <string name="native_folders_folderName">Ordnername</string>
     <string name="native_folders_loadFailed">Ordner konnten nicht geladen werden</string>
@@ -726,7 +727,10 @@
     <string name="native_settings_versionValue">Version %1$s</string>
     <string name="native_share_addDetails">Tags und Notiz hinzufügen</string>
     <string name="native_share_addNote">Notiz hinzufügen</string>
+    <string name="native_share_addToFolders">Zu Ordnern hinzufügen</string>
     <string name="native_share_detailsFailed">Tags und Notiz konnten nicht gespeichert werden. Versuchen Sie es erneut.</string>
+    <string name="native_share_foldersEmpty">Erstellen Sie in Teak einen Ordner und fügen Sie dann hinzu, was Sie teilen.</string>
+    <string name="native_share_foldersFailed">Konnte nicht zu Ordnern hinzugefügt werden.</string>
     <string name="native_share_note">Notiz</string>
     <string name="native_share_noteFailed">Die Notiz konnte nicht gespeichert werden.</string>
     <string name="native_share_nothingToSave">Nichts zu speichern</string>

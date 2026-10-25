@@ -551,6 +551,7 @@
     <string name="native_folders_editSmartFolder">스마트 폴더 편집</string>
     <string name="native_folders_emptyMessage">관련 카드를 묶어 보세요. 폴더를 만든 다음 카드를 추가하세요.</string>
     <string name="native_folders_emptyTitle">아직 폴더가 없습니다</string>
+    <string name="native_folders_find">폴더 찾기</string>
     <string name="native_folders_findOrCreate">폴더 찾기 또는 만들기</string>
     <string name="native_folders_folderName">폴더 이름</string>
     <string name="native_folders_loadFailed">폴더를 불러오지 못했습니다</string>
@@ -698,7 +699,10 @@
     <string name="native_settings_versionValue">버전 %1$s</string>
     <string name="native_share_addDetails">태그와 메모 추가</string>
     <string name="native_share_addNote">메모 추가</string>
+    <string name="native_share_addToFolders">폴더에 추가</string>
     <string name="native_share_detailsFailed">태그와 메모를 저장하지 못했습니다. 다시 시도해 주세요.</string>
+    <string name="native_share_foldersEmpty">Teak에서 폴더를 만든 다음 공유한 항목을 추가하세요.</string>
+    <string name="native_share_foldersFailed">폴더에 추가하지 못했습니다.</string>
     <string name="native_share_note">메모</string>
     <string name="native_share_noteFailed">메모를 저장하지 못했습니다.</string>
     <string name="native_share_nothingToSave">저장할 항목 없음</string>

@@ -380,7 +380,10 @@
       "skip": "Ignorer",
       "detailsFailed": "Impossible d’enregistrer les tags et la note. Réessayez.",
       "noteFailed": "Impossible d’enregistrer la note.",
-      "tagsFailed": "Impossible d’enregistrer les tags."
+      "tagsFailed": "Impossible d’enregistrer les tags.",
+      "addToFolders": "Ajouter à des dossiers",
+      "foldersFailed": "Impossible d’ajouter aux dossiers.",
+      "foldersEmpty": "Créez un dossier dans Teak, puis ajoutez-y ce que vous partagez."
     },
     "folders": {
       "title": "Dossiers",
@@ -416,6 +419,7 @@
       "createNamed": "Créer le dossier « {name} »",
       "pickerEmpty": "Aucun dossier pour l’instant. Saisissez un nom pour en créer un.",
       "findOrCreate": "Trouver ou créer un dossier",
+      "find": "Rechercher un dossier",
       "addCardsTitle": "{count, plural, one {Ajouter # fiche à un dossier} other {Ajouter # fiches à un dossier}}"
     },
     "tags": {
@@ -875,6 +879,12 @@
       "moreLikeThis": "Plus de ce genre",
       "refreshDetails": "Actualiser les détails"
     },
+    "controls": {
+      "newNote": "Nouvelle note",
+      "newNoteDescription": "Ouvre Teak sur une nouvelle note.",
+      "voiceMemo": "Mémo vocal",
+      "voiceMemoDescription": "Ouvre Teak et lance un mémo vocal."
+    },
     "mac": {
       "openLibrary": "Ouvrir la bibliothèque Teak",
       "settings": "Réglages…",
@@ -895,13 +905,41 @@
     "intents": {
       "saveTitle": "Enregistrer dans Teak",
       "saveDescription": "Enregistre du texte ou un lien dans votre bibliothèque Teak.",
-      "contentParameter": "Texte ou lien"
+      "contentParameter": "Texte ou lien",
+      "searchTitle": "Rechercher dans Teak",
+      "searchDescription": "Trouve des fiches dans votre bibliothèque Teak, avec la même recherche que l’app.",
+      "queryParameter": "Recherche",
+      "includeArchivedParameter": "Inclure les fiches archivées",
+      "openCardTitle": "Ouvrir la fiche",
+      "openCardDescription": "Ouvre une fiche dans Teak.",
+      "cardParameter": "Fiche",
+      "cardsParameter": "Fiches",
+      "addToFolderTitle": "Ajouter au dossier",
+      "addToFolderDescription": "Ajoute des fiches à l’un de vos dossiers Teak.",
+      "folderParameter": "Dossier",
+      "newNoteTitle": "Nouvelle note",
+      "newNoteDescription": "Ouvre Teak sur une nouvelle note.",
+      "recordVoiceMemoTitle": "Enregistrer un mémo vocal",
+      "recordVoiceMemoDescription": "Ouvre Teak sur l’enregistreur de mémos vocaux.",
+      "cardEntity": "Fiche",
+      "folderEntity": "Dossier",
+      "titleProperty": "Titre",
+      "linkProperty": "Lien",
+      "smartFolderMessage": "Un dossier intelligent se remplit à partir de sa recherche. Choisissez un autre dossier."
     },
     "appShortcuts": {
-      "save": "Enregistrer dans {applicationName}"
+      "save": "Enregistrer dans {applicationName}",
+      "search": "Rechercher dans {applicationName}",
+      "openCard": "Ouvrir une fiche dans {applicationName}",
+      "addToFolder": "Ajouter des fiches à un dossier dans {applicationName}",
+      "newNote": "Nouvelle note dans {applicationName}",
+      "recordVoiceMemo": "Enregistrer un mémo vocal dans {applicationName}"
     },
     "intentSummaries": {
-      "save": "Enregistrer {content} dans Teak"
+      "save": "Enregistrer {content} dans Teak",
+      "search": "Rechercher {query} dans Teak",
+      "openCard": "Ouvrir {target}",
+      "addToFolder": "Ajouter {cards} à {folder}"
     },
     "card": {
       "audioUnplayableMac": "Ce format d’enregistrement ne peut pas être lu sur Mac",

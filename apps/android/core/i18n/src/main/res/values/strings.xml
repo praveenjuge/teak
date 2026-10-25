@@ -576,6 +576,7 @@
     <string name="native_folders_editSmartFolder">Edit smart folder</string>
     <string name="native_folders_emptyMessage">Group related cards. Make a folder, then add cards to it.</string>
     <string name="native_folders_emptyTitle">No folders yet</string>
+    <string name="native_folders_find">Find a folder</string>
     <string name="native_folders_findOrCreate">Find or create a folder</string>
     <string name="native_folders_folderName">Folder name</string>
     <string name="native_folders_loadFailed">Couldn\'t load folders</string>
@@ -726,7 +727,10 @@
     <string name="native_settings_versionValue">Version %1$s</string>
     <string name="native_share_addDetails">Add tags and a note</string>
     <string name="native_share_addNote">Add a note</string>
+    <string name="native_share_addToFolders">Add to folders</string>
     <string name="native_share_detailsFailed">Couldn\'t save the tags and note. Try again.</string>
+    <string name="native_share_foldersEmpty">Make a folder in Teak, then add what you share to it.</string>
+    <string name="native_share_foldersFailed">Couldn\'t add to folders.</string>
     <string name="native_share_note">Note</string>
     <string name="native_share_noteFailed">Couldn\'t save the note.</string>
     <string name="native_share_nothingToSave">Nothing to save</string>

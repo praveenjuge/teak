@@ -7,7 +7,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "Karten in ${applicationName} zu einem Ordner hinzufügen"
           }
         },
         "en" : {
@@ -19,37 +19,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "Añadir tarjetas a una carpeta en ${applicationName}"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "Ajouter des fiches à un dossier dans ${applicationName}"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "${applicationName} でカードをフォルダに追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "${applicationName}에서 카드를 폴더에 추가"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "Adicionar cards a uma pasta no ${applicationName}"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add cards to a folder in ${applicationName}"
+            "value" : "在 ${applicationName} 中将卡片添加到文件夹"
           }
         }
       }
@@ -60,7 +60,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "Neue Notiz in ${applicationName}"
           }
         },
         "en" : {
@@ -72,37 +72,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "Nueva nota en ${applicationName}"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "Nouvelle note dans ${applicationName}"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "${applicationName} で新規メモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "${applicationName}에서 새 메모"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "Nova nota no ${applicationName}"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note in ${applicationName}"
+            "value" : "在 ${applicationName} 中新建笔记"
           }
         }
       }
@@ -113,7 +113,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "Eine Karte in ${applicationName} öffnen"
           }
         },
         "en" : {
@@ -125,37 +125,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "Abrir una tarjeta en ${applicationName}"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "Ouvrir une fiche dans ${applicationName}"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "${applicationName} でカードを開く"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "${applicationName}에서 카드 열기"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "Abrir um card no ${applicationName}"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open a card in ${applicationName}"
+            "value" : "在 ${applicationName} 中打开卡片"
           }
         }
       }
@@ -166,7 +166,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "Ein Sprachmemo in ${applicationName} aufnehmen"
           }
         },
         "en" : {
@@ -178,37 +178,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "Grabar una nota de voz en ${applicationName}"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "Enregistrer un mémo vocal dans ${applicationName}"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "${applicationName} でボイスメモを録音"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "${applicationName}에서 음성 메모 녹음"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "Gravar uma nota de voz no ${applicationName}"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice memo in ${applicationName}"
+            "value" : "在 ${applicationName} 中录制语音备忘录"
           }
         }
       }
@@ -272,7 +272,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "${applicationName} durchsuchen"
           }
         },
         "en" : {
@@ -284,37 +284,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "Buscar en ${applicationName}"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "Rechercher dans ${applicationName}"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "${applicationName} を検索"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "${applicationName} 검색"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "Pesquisar no ${applicationName}"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search ${applicationName}"
+            "value" : "搜索 ${applicationName}"
           }
         }
       }

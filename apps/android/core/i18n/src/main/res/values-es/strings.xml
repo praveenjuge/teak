@@ -576,6 +576,7 @@
     <string name="native_folders_editSmartFolder">Editar carpeta inteligente</string>
     <string name="native_folders_emptyMessage">Agrupe tarjetas relacionadas. Cree una carpeta y luego añádale tarjetas.</string>
     <string name="native_folders_emptyTitle">Aún no hay carpetas</string>
+    <string name="native_folders_find">Buscar una carpeta</string>
     <string name="native_folders_findOrCreate">Busque o cree una carpeta</string>
     <string name="native_folders_folderName">Nombre de la carpeta</string>
     <string name="native_folders_loadFailed">No se pudieron cargar las carpetas</string>
@@ -726,7 +727,10 @@
     <string name="native_settings_versionValue">Versión %1$s</string>
     <string name="native_share_addDetails">Añadir etiquetas y una nota</string>
     <string name="native_share_addNote">Añadir una nota</string>
+    <string name="native_share_addToFolders">Añadir a carpetas</string>
     <string name="native_share_detailsFailed">No se pudieron guardar las etiquetas y la nota. Vuelva a intentarlo.</string>
+    <string name="native_share_foldersEmpty">Cree una carpeta en Teak y luego añada a ella lo que comparta.</string>
+    <string name="native_share_foldersFailed">No se pudo añadir a las carpetas.</string>
     <string name="native_share_note">Nota</string>
     <string name="native_share_noteFailed">No se pudo guardar la nota.</string>
     <string name="native_share_nothingToSave">Nada que guardar</string>

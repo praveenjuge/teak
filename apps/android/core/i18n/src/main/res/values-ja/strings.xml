@@ -551,6 +551,7 @@
     <string name="native_folders_editSmartFolder">スマートフォルダを編集</string>
     <string name="native_folders_emptyMessage">関連するカードをまとめましょう。フォルダを作成して、カードを追加してください。</string>
     <string name="native_folders_emptyTitle">フォルダはまだありません</string>
+    <string name="native_folders_find">フォルダを検索</string>
     <string name="native_folders_findOrCreate">フォルダを検索または作成</string>
     <string name="native_folders_folderName">フォルダ名</string>
     <string name="native_folders_loadFailed">フォルダを読み込めませんでした</string>
@@ -698,7 +699,10 @@
     <string name="native_settings_versionValue">バージョン %1$s</string>
     <string name="native_share_addDetails">タグとメモを追加</string>
     <string name="native_share_addNote">メモを追加</string>
+    <string name="native_share_addToFolders">フォルダに追加</string>
     <string name="native_share_detailsFailed">タグとメモを保存できませんでした。もう一度お試しください。</string>
+    <string name="native_share_foldersEmpty">Teak でフォルダを作成すると、共有したものを追加できます。</string>
+    <string name="native_share_foldersFailed">フォルダに追加できませんでした。</string>
     <string name="native_share_note">メモ</string>
     <string name="native_share_noteFailed">メモを保存できませんでした。</string>
     <string name="native_share_nothingToSave">保存するものがありません</string>

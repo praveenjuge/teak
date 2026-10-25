@@ -380,7 +380,10 @@
       "skip": "跳过",
       "detailsFailed": "无法保存标签和笔记，请重试。",
       "noteFailed": "无法保存笔记。",
-      "tagsFailed": "无法保存标签。"
+      "tagsFailed": "无法保存标签。",
+      "addToFolders": "添加到文件夹",
+      "foldersFailed": "无法添加到文件夹。",
+      "foldersEmpty": "请先在 Teak 中创建文件夹，然后将分享的内容添加进去。"
     },
     "folders": {
       "title": "文件夹",
@@ -416,6 +419,7 @@
       "createNamed": "创建文件夹“{name}”",
       "pickerEmpty": "还没有文件夹。输入名称即可创建。",
       "findOrCreate": "查找或创建文件夹",
+      "find": "查找文件夹",
       "addCardsTitle": "{count, plural, other {将 # 张卡片添加到文件夹}}"
     },
     "tags": {
@@ -875,6 +879,12 @@
       "moreLikeThis": "更多类似内容",
       "refreshDetails": "刷新详情"
     },
+    "controls": {
+      "newNote": "新建笔记",
+      "newNoteDescription": "打开 Teak 并新建笔记。",
+      "voiceMemo": "语音备忘录",
+      "voiceMemoDescription": "打开 Teak 并开始录制语音备忘录。"
+    },
     "mac": {
       "openLibrary": "打开 Teak 资料库",
       "settings": "设置…",
@@ -895,13 +905,41 @@
     "intents": {
       "saveTitle": "存储到 Teak",
       "saveDescription": "将文本或链接保存到你的 Teak 资料库。",
-      "contentParameter": "文本或链接"
+      "contentParameter": "文本或链接",
+      "searchTitle": "搜索 Teak",
+      "searchDescription": "使用与 App 相同的搜索，在你的 Teak 资料库中查找卡片。",
+      "queryParameter": "搜索",
+      "includeArchivedParameter": "包括已归档的卡片",
+      "openCardTitle": "打开卡片",
+      "openCardDescription": "在 Teak 中打开卡片。",
+      "cardParameter": "卡片",
+      "cardsParameter": "卡片",
+      "addToFolderTitle": "添加到文件夹",
+      "addToFolderDescription": "将卡片添加到你的某个 Teak 文件夹。",
+      "folderParameter": "文件夹",
+      "newNoteTitle": "新建笔记",
+      "newNoteDescription": "打开 Teak 并新建笔记。",
+      "recordVoiceMemoTitle": "录制语音备忘录",
+      "recordVoiceMemoDescription": "打开 Teak 的语音备忘录录音界面。",
+      "cardEntity": "卡片",
+      "folderEntity": "文件夹",
+      "titleProperty": "标题",
+      "linkProperty": "链接",
+      "smartFolderMessage": "智能文件夹会根据其搜索条件自动填充。请选择其他文件夹。"
     },
     "appShortcuts": {
-      "save": "存储到 {applicationName}"
+      "save": "存储到 {applicationName}",
+      "search": "搜索 {applicationName}",
+      "openCard": "在 {applicationName} 中打开卡片",
+      "addToFolder": "在 {applicationName} 中将卡片添加到文件夹",
+      "newNote": "在 {applicationName} 中新建笔记",
+      "recordVoiceMemo": "在 {applicationName} 中录制语音备忘录"
     },
     "intentSummaries": {
-      "save": "将 {content} 存储到 Teak"
+      "save": "将 {content} 存储到 Teak",
+      "search": "在 Teak 中搜索 {query}",
+      "openCard": "打开 {target}",
+      "addToFolder": "将 {cards} 添加到 {folder}"
     },
     "card": {
       "audioUnplayableMac": "此录音格式无法在 Mac 上播放",

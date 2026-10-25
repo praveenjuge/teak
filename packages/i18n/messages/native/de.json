@@ -380,7 +380,10 @@
       "skip": "Überspringen",
       "detailsFailed": "Tags und Notiz konnten nicht gespeichert werden. Versuchen Sie es erneut.",
       "noteFailed": "Die Notiz konnte nicht gespeichert werden.",
-      "tagsFailed": "Die Tags konnten nicht gespeichert werden."
+      "tagsFailed": "Die Tags konnten nicht gespeichert werden.",
+      "addToFolders": "Zu Ordnern hinzufügen",
+      "foldersFailed": "Konnte nicht zu Ordnern hinzugefügt werden.",
+      "foldersEmpty": "Erstellen Sie in Teak einen Ordner und fügen Sie dann hinzu, was Sie teilen."
     },
     "folders": {
       "title": "Ordner",
@@ -416,6 +419,7 @@
       "createNamed": "Ordner „{name}“ erstellen",
       "pickerEmpty": "Noch keine Ordner. Geben Sie einen Namen ein, um einen zu erstellen.",
       "findOrCreate": "Ordner suchen oder erstellen",
+      "find": "Ordner suchen",
       "addCardsTitle": "{count, plural, one {# Karte zu einem Ordner hinzufügen} other {# Karten zu einem Ordner hinzufügen}}"
     },
     "tags": {
@@ -875,6 +879,12 @@
       "moreLikeThis": "Ähnliche Karten",
       "refreshDetails": "Details aktualisieren"
     },
+    "controls": {
+      "newNote": "Neue Notiz",
+      "newNoteDescription": "Öffnet Teak mit einer neuen Notiz.",
+      "voiceMemo": "Sprachmemo",
+      "voiceMemoDescription": "Öffnet Teak und startet ein Sprachmemo."
+    },
     "mac": {
       "openLibrary": "Teak-Bibliothek öffnen",
       "settings": "Einstellungen…",
@@ -895,13 +905,41 @@
     "intents": {
       "saveTitle": "In Teak sichern",
       "saveDescription": "Sichert Text oder einen Link in Ihrer Teak-Bibliothek.",
-      "contentParameter": "Text oder Link"
+      "contentParameter": "Text oder Link",
+      "searchTitle": "Teak durchsuchen",
+      "searchDescription": "Findet Karten in Ihrer Teak-Bibliothek, mit derselben Suche wie in der App.",
+      "queryParameter": "Suche",
+      "includeArchivedParameter": "Archivierte Karten einbeziehen",
+      "openCardTitle": "Karte öffnen",
+      "openCardDescription": "Öffnet eine Karte in Teak.",
+      "cardParameter": "Karte",
+      "cardsParameter": "Karten",
+      "addToFolderTitle": "Zu Ordner hinzufügen",
+      "addToFolderDescription": "Fügt Karten zu einem Ihrer Teak-Ordner hinzu.",
+      "folderParameter": "Ordner",
+      "newNoteTitle": "Neue Notiz",
+      "newNoteDescription": "Öffnet Teak mit einer neuen Notiz.",
+      "recordVoiceMemoTitle": "Sprachmemo aufnehmen",
+      "recordVoiceMemoDescription": "Öffnet Teak bei der Sprachmemo-Aufnahme.",
+      "cardEntity": "Karte",
+      "folderEntity": "Ordner",
+      "titleProperty": "Titel",
+      "linkProperty": "Link",
+      "smartFolderMessage": "Ein intelligenter Ordner füllt sich über seine Suche. Wählen Sie einen anderen Ordner."
     },
     "appShortcuts": {
-      "save": "In {applicationName} sichern"
+      "save": "In {applicationName} sichern",
+      "search": "{applicationName} durchsuchen",
+      "openCard": "Eine Karte in {applicationName} öffnen",
+      "addToFolder": "Karten in {applicationName} zu einem Ordner hinzufügen",
+      "newNote": "Neue Notiz in {applicationName}",
+      "recordVoiceMemo": "Ein Sprachmemo in {applicationName} aufnehmen"
     },
     "intentSummaries": {
-      "save": "{content} in Teak sichern"
+      "save": "{content} in Teak sichern",
+      "search": "Teak nach {query} durchsuchen",
+      "openCard": "{target} öffnen",
+      "addToFolder": "{cards} zu {folder} hinzufügen"
     },
     "card": {
       "audioUnplayableMac": "Dieses Aufnahmeformat kann auf dem Mac nicht abgespielt werden",

@@ -576,6 +576,7 @@
     <string name="native_folders_editSmartFolder">Editar pasta inteligente</string>
     <string name="native_folders_emptyMessage">Agrupe cards relacionados. Crie uma pasta e adicione cards a ela.</string>
     <string name="native_folders_emptyTitle">Nenhuma pasta ainda</string>
+    <string name="native_folders_find">Encontrar uma pasta</string>
     <string name="native_folders_findOrCreate">Encontre ou crie uma pasta</string>
     <string name="native_folders_folderName">Nome da pasta</string>
     <string name="native_folders_loadFailed">Não foi possível carregar as pastas</string>
@@ -726,7 +727,10 @@
     <string name="native_settings_versionValue">Versão %1$s</string>
     <string name="native_share_addDetails">Adicionar tags e uma nota</string>
     <string name="native_share_addNote">Adicionar uma nota</string>
+    <string name="native_share_addToFolders">Adicionar a pastas</string>
     <string name="native_share_detailsFailed">Não foi possível salvar as tags e a nota. Tente novamente.</string>
+    <string name="native_share_foldersEmpty">Crie uma pasta no Teak e depois adicione a ela o que você compartilhar.</string>
+    <string name="native_share_foldersFailed">Não foi possível adicionar às pastas.</string>
     <string name="native_share_note">Nota</string>
     <string name="native_share_noteFailed">Não foi possível salvar a nota.</string>
     <string name="native_share_nothingToSave">Nada para salvar</string>
