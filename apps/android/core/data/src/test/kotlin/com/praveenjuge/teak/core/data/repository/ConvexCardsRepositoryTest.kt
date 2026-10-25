@@ -23,7 +23,7 @@ class ConvexCardsRepositoryTest {
     private val repository = ConvexCardsRepository(convex)
 
     @Test
-    fun `a date search sends the range instead of text, with float64 numbers`() = runTest {
+    fun `a date search sends the range and the words beside it, with float64 numbers`() = runTest {
         convex.responses["cards:searchMobileCardSummariesPaginated"] = {
             buildJsonObject {
                 put("page", buildJsonArray {})
@@ -32,15 +32,18 @@ class ConvexCardsRepositoryTest {
             }
         }
         repository.page(
-            CardQuery(search = "last week", range = CreatedAtRange(10, 20), filters = LibraryFilters(favoritesOnly = true)),
+            CardQuery(search = "figma", range = CreatedAtRange(10, 20), filters = LibraryFilters(favoritesOnly = true)),
             cursor = null,
             numItems = 20,
         ).first()
         val args = convex.calls.single().args
         assertEquals(mapOf("numItems" to 20, "cursor" to null), args["paginationOpts"])
         assertEquals(mapOf("start" to 10L, "end" to 20L), args["createdAtRange"])
-        assertFalse("searchQuery" in args)
+        assertEquals("figma", args["searchQuery"])
         assertEquals(true, args["favoritesOnly"])
+
+        repository.page(CardQuery(range = CreatedAtRange(10, 20)), cursor = null, numItems = 20).first()
+        assertFalse("searchQuery" in convex.calls.last().args)
     }
 
     @Test

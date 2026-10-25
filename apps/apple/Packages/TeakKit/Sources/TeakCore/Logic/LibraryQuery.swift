@@ -87,7 +87,9 @@ public struct LibraryFilters: Hashable, Sendable {
 }
 
 public struct SearchToken: Identifiable, Hashable, Sendable {
-    public enum Kind: String, Sendable { case keyword, date, type, tag, style, hue, hex, favorites, trash, qualifier }
+    /// `hint` is a suggestion that writes into the search text when picked,
+    /// such as `-tag:` or `OR`; it never stays a token.
+    public enum Kind: String, Sendable { case keyword, date, type, tag, style, hue, hex, favorites, trash, qualifier, hint }
 
     public let kind: Kind
     public let value: String
@@ -118,6 +120,7 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
         case .favorites: "heart"
         case .trash: "trash"
         case .qualifier: qualifierSymbol
+        case .hint: value.hasPrefix("-") ? "minus.circle" : value.hasPrefix("OR") ? "arrow.triangle.branch" : "line.3.horizontal.decrease"
         }
     }
 
@@ -132,6 +135,7 @@ public struct SearchToken: Identifiable, Hashable, Sendable {
             default: return "heart"
             }
         case .like: return "sparkles"
+        case .site: return "globe"
         case .mood: return "camera.aperture"
         case .price: return "banknote"
         case .text: return "text.viewfinder"
@@ -205,38 +209,69 @@ public enum SearchTokens {
         return SearchToken(kind: .keyword, value: trimmed, label: trimmed)
     }
 
-    /// Chips for typed text. Quotes group words, so `text:"Total due"` and
-    /// `"design system"` stay whole; other words go through `words`.
+    /// Chips for committed text. Filters with a search argument of their own
+    /// (a type, favorites, Archive, Trash, a color, a style or a date) become
+    /// chips; every other word stays in one word chip, as typed, and the
+    /// backend reads it. Text with `-`, `OR` or parentheses stays whole, since
+    /// lifting a filter out of it could change what it means.
     public static func parse(_ input: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        guard !SearchQualifiers.hasOperators(trimmed) else { return [keyword(trimmed)] }
         var tokens: [SearchToken] = []
-        var run: [String] = []
+        var kept: [String] = []
+        var keptAt: Int?
+        func keep(_ source: String) {
+            if keptAt == nil { keptAt = tokens.count }
+            kept.append(source)
+        }
+        var run: [SearchQualifiers.RawToken] = []
         func flush() {
-            tokens += words(run, now: now, timeZone: timeZone)
+            for word in words(run, now: now, timeZone: timeZone) {
+                switch word {
+                case let .token(token): tokens.append(token)
+                case let .kept(source): keep(source)
+                }
+            }
             run = []
         }
-        for raw in SearchQualifiers.tokenize(input) {
-            let source = raw.quoted
-                ? raw.prefix + SearchQualifiers.quote(String(raw.text.dropFirst(raw.prefix.count)))
-                : raw.text
-            let parsed = SearchQualifiers.parse(source)
-            if let qualifier = parsed.qualifiers.first, raw.quoted || !raw.text.hasPrefix("#") {
+        for raw in SearchQualifiers.tokenize(trimmed) {
+            if raw.quoted {
                 flush()
-                tokens.append(token(for: qualifier))
-            } else if raw.quoted, raw.prefix.isEmpty, let phrase = parsed.phrases.first {
+                keep(raw.source)
+            } else if let qualifier = SearchQualifiers.parse(raw.text).qualifiers.first, !raw.text.hasPrefix("#") {
                 flush()
-                tokens.append(SearchToken(kind: .keyword, value: SearchQualifiers.quote(phrase), label: phrase))
+                if let token = lifted(qualifier) { tokens.append(token) } else { keep(raw.source) }
             } else {
-                run.append(raw.text)
+                run.append(raw)
             }
         }
         flush()
-        return tokens.filter { !$0.value.isEmpty }
+        if let keptAt { tokens.insert(keyword(kept.joined(separator: " ")), at: keptAt) }
+        return tokens
     }
 
-    private static func words(_ input: [String], now: Date, timeZone: TimeZone) -> [SearchToken] {
+    private static func keyword(_ text: String) -> SearchToken {
+        SearchToken(kind: .keyword, value: text, label: text)
+    }
+
+    /// A qualifier's chip when it has a search argument of its own.
+    private static func lifted(_ qualifier: SearchQualifier) -> SearchToken? {
+        switch qualifier.key {
+        case .type: token(for: qualifier)
+        case .is where [SearchIsValue.fav.rawValue, SearchIsValue.archived.rawValue].contains(qualifier.value): token(for: qualifier)
+        default: nil
+        }
+    }
+
+    private enum Word { case token(SearchToken), kept(String) }
+
+    private static let liftedKinds: Set<SearchToken.Kind> = [.date, .type, .style, .hue, .hex, .favorites, .trash]
+
+    private static func words(_ input: [SearchQualifiers.RawToken], now: Date, timeZone: TimeZone) -> [Word] {
         let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
-        let words = input.map { $0.trimmingCharacters(in: punctuation) }
-        var tokens: [SearchToken] = []
+        let words = input.map { $0.text.trimmingCharacters(in: punctuation) }
+        var result: [Word] = []
         var index = 0
         while index < words.count {
             var matched: (SearchToken, Int)?
@@ -248,30 +283,94 @@ public enum SearchTokens {
                 }
             }
             if let (token, length) = matched {
-                tokens.append(token)
+                result.append(.token(token))
                 index += length
             } else {
-                tokens.append(classify(words[index], now: now, timeZone: timeZone))
+                let token = classify(words[index], now: now, timeZone: timeZone)
+                result.append(liftedKinds.contains(token.kind) ? .token(token) : .kept(input[index].source))
                 index += 1
+            }
+        }
+        return result
+    }
+
+    /// A date written inside typed text, and the text around it as typed:
+    /// "figma last week" searches "figma" from last week. A lone number isn't
+    /// read as a year beside other words, and text with operators is left whole.
+    public static func splitDate(_ text: String, now: Date = Date(), timeZone: TimeZone = .current)
+        -> (filter: TimeFilter, rest: String)? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !SearchQualifiers.hasOperators(trimmed) else { return nil }
+        if let whole = TimeSearch.parse(trimmed, now: now, timeZone: timeZone) { return (whole, "") }
+        let raws = SearchQualifiers.tokenize(trimmed)
+        let punctuation = CharacterSet(charactersIn: ",.;:!?()[]{}\"'")
+        for start in raws.indices {
+            for length in stride(from: min(9, raws.count - start), through: 1, by: -1) {
+                let slice = raws[start..<(start + length)]
+                guard !slice.contains(where: \.quoted) else { continue }
+                let phrase = slice.map { $0.text.trimmingCharacters(in: punctuation) }.joined(separator: " ")
+                if length == 1, phrase.contains(":") || phrase.allSatisfy(\.isNumber) { continue }
+                if let filter = TimeSearch.parse(phrase, now: now, timeZone: timeZone) {
+                    let rest = (raws[..<start] + raws[(start + length)...]).map(\.source).joined(separator: " ")
+                    return (filter, rest)
+                }
+            }
+        }
+        return nil
+    }
+
+    /// The tokens the search field suggests for typed text: the filters it
+    /// would lift out, then hints for the word being typed (filters to start or
+    /// leave out, `OR`, types and `is:` values), as the web suggests them.
+    public static func suggestions(for text: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let operators = SearchQualifiers.hasOperators(trimmed)
+        var tokens = operators ? [] : parse(trimmed, now: now, timeZone: timeZone).filter { $0.kind != .keyword }
+        func add(_ token: SearchToken) {
+            if !tokens.contains(where: { $0.id == token.id }) { tokens.append(token) }
+        }
+        // A picked value becomes a chip only when it's the whole search: the field clears its text as it takes a
+        // chip, so after other words it writes into the text instead.
+        let before = SearchQualifiers.currentWord(text).before
+        let asChip = before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        func value(_ qualifier: SearchQualifier) -> SearchToken {
+            let chip = token(for: qualifier)
+            return asChip ? chip : SearchToken(kind: .hint, value: SearchQualifiers.format(qualifier) + " ", label: chip.label)
+        }
+        for suggestion in SearchSuggestions.build(for: text) {
+            if suggestion.complete, suggestion.group != "Exclude",
+               let qualifier = SearchQualifiers.parse(suggestion.insert).qualifiers.first {
+                add(value(qualifier))
+            } else {
+                add(hint(suggestion))
+            }
+        }
+        // The start of a word like "done" offers the Show chips too.
+        let last = trimmed.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
+        if !operators, !last.contains(":"), last.count >= 2 {
+            for (option, words) in showOptions where words.contains(where: { $0.hasPrefix(last) }) {
+                add(value(SearchQualifier(.is, option.rawValue)))
             }
         }
         return tokens
     }
 
-    public static func suggestions(for text: String, now: Date = Date(), timeZone: TimeZone = .current) -> [SearchToken] {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
-        var tokens = parse(trimmed, now: now, timeZone: timeZone).filter { $0.kind != .keyword }
-        // "is:" and the start of a word like "done" offer the Show chips.
-        let last = trimmed.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
-        let typed = last.hasPrefix("is:") ? String(last.dropFirst(3)) : last
-        if last.hasPrefix("is:") || typed.count >= 2 {
-            for (value, words) in showOptions where words.contains(where: { $0.hasPrefix(typed) }) {
-                let chip = token(for: SearchQualifier(.is, value.rawValue))
-                if !tokens.contains(where: { $0.id == chip.id }) { tokens.append(chip) }
-            }
+    private static func hint(_ suggestion: SearchSuggestion) -> SearchToken {
+        let label = if let detail = suggestion.detail {
+            tr("native.search.suggestion", suggestion.label, detail)
+        } else if suggestion.group == "Exclude" {
+            tr("native.search.exclude", suggestion.label)
+        } else {
+            suggestion.label
         }
-        return tokens
+        return SearchToken(kind: .hint, value: suggestion.insert + (suggestion.complete ? " " : ""), label: label)
+    }
+
+    /// The search text after picking a hint token while `text` is typed: the
+    /// hint replaces the word being typed.
+    public static func applying(_ hint: SearchToken, to text: String) -> String {
+        SearchQualifiers.currentWord(text).before + hint.value
     }
 
     private static func isHex(_ value: String) -> Bool {
@@ -316,8 +415,9 @@ public struct LibraryQuery: Hashable, Sendable {
             || filters.folder?.query.map { SearchQualifiers.parse($0).has(.archived) } == true)
     }
 
+    /// The date the typed text names, alone or beside other words.
     public func timeFilter(now: Date = Date(), timeZone: TimeZone = .current) -> TimeFilter? {
-        TimeSearch.parse(text, now: now, timeZone: timeZone)
+        SearchTokens.splitDate(text, now: now, timeZone: timeZone)?.filter
     }
 
     public var hasSearch: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tokens.isEmpty }
@@ -370,15 +470,18 @@ public struct LibraryQuery: Hashable, Sendable {
             default: break
             }
         }
+        // Typed text goes as written; a date in it filters by date instead.
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty {
-            if range == nil, let time = timeFilter(now: now, timeZone: timeZone) {
-                range = time.range
+            if range == nil, let date = SearchTokens.splitDate(typed, now: now, timeZone: timeZone) {
+                range = date.filter.range
+                words.append(date.rest)
             } else {
                 words.append(typed)
             }
         }
-        return (words.isEmpty ? nil : words.joined(separator: " "), range)
+        let joined = SearchQualifiers.join(words)
+        return (joined.isEmpty ? nil : joined, range)
     }
 
     public func searchArgs(now: Date = Date(), timeZone: TimeZone = .current) -> ConvexArgs {
@@ -419,13 +522,14 @@ public struct LibraryQuery: Hashable, Sendable {
         if effective.favoritesOnly { parts.append("is:fav") }
         if effective.archivedOnly { parts.append("is:archived") }
         if let words = searchText() { parts.append(words) }
-        let query = parts.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = SearchQualifiers.join(parts)
         return query.isEmpty ? nil : query
     }
 
-    /// Whether saving a smart folder would leave filters behind.
+    /// Whether saving a smart folder would leave filters behind, including a
+    /// date typed beside other words.
     public var smartFolderDropsFilters: Bool {
-        filters.hue != nil || tokens.contains { [.hue, .style, .hex, .date].contains($0.kind) }
+        filters.hue != nil || tokens.contains { [.hue, .style, .hex, .date].contains($0.kind) } || timeFilter() != nil
     }
 
     /// A name for a smart folder made from this search, like the web's.

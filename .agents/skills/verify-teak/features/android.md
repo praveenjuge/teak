@@ -5,6 +5,8 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 ## Sub-features
 
 - `android-sign-in` signs the Debug build in to the local E2E stack with `apps/android/scripts/e2e-session.ts`.
+- `android-note-tables` shows a note's GFM tables read-only with a bold header row, scrolling a wide one sideways, with `[[` pills working in cells; aligned, ragged and listed tables stay literal monospaced text. Steps in [note-tables](./note-tables.md), **Native apps**.
+- `android-tasks` shows `- [ ]` and `- [x]` items in an open note as checkboxes (done ones muted and struck through); tapping the row ticks that one item, moves it below the open ones as the web does, and saves the note, and the web shows it live. A failed save puts it back with "Couldn't update the checklist. Try again." Steps in [note-tables](./note-tables.md), **Native apps**.
 - `android-sort` sorts Home by "Newest first", "Oldest first" or "Shuffle" (each Shuffle reshuffles).
 - `android-archive` shows the Archive view, archives or unarchives from a tile's long-press menu, the detail overflow, the E key or the selection bar, with "Undo".
 - `android-bulk` acts on selected cards: Archive or Unarchive, Add to favorites, Remove from favorites, Add tags…, Add to folder…, Move to Trash, Restore, Delete forever.
@@ -17,6 +19,8 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 - `android-revisit` deals up to 20 shuffled cards from the current view: swipe or ← to archive, → to keep, Z to undo, and "All caught up" at the end.
 - `android-tags` lists tags in Settings → Tags and renames, merges or deletes one, with progress.
 - `android-share` saves a shared link or text, then offers "Add tags and a note"; left alone the sheet closes itself.
+- `android-card-link-picker` opens a "Link a card" dropdown under a note's Edit field when `[[` is typed, searches as you type (`cards:searchCardLinkSuggestions`, as the web's menu: no Trash, not the note itself), and puts in `[[Title|teak:<id>]]` on a tap; Back, Esc, a tap outside or deleting the `[[` closes it.
+- `android-search-operators` sends `-`, `OR`, parentheses and `site:` as typed (no chips for a search with operators), lists suggestions under the search field ("Exclude" with `-tag:` … `-is:`, "Combine" with "OR · Either side matches", "Filters", "Types", "Show"), and searches the words beside a date ("figma last week" sends the date range and "figma"). See [search-operators](./search-operators.md).
 
 ## How to get to it (user POV)
 
@@ -47,10 +51,12 @@ Steps:
 - **Refresh details.** On any card: More → "Refresh details" → "Refreshing details. The summary and tags update shortly."; press R right after → "This card is already refreshing. Try again in a minute."
 - **More like this.** More → "More like this": Home shows the chip "Similar to <title>". The local backend's log (`bunx convex logs --history 400 --success`) shows `search/semanticActions:requestSemanticResults` for free-word and `like:` searches, and none for a filter-only search like `is:archived`.
 - **Card links.** `tag:scenario-card-links` → "Cycle A → Cycle B": a pill with B's current title and "Linked from" listing Cycle C. "Broken links": three "Missing card" pills and "Renamed after linking". Edit shows the raw `[[…|teak:…]]` text; Close without saving.
+- **Card link picker.** Open any note → Edit → in the note field type `%s[[garden`: the "Link a card" dropdown shows "Garden plan" and never the note itself, while the keyboard stays up. Tap it: the field reads `[[Garden plan|teak:<id>]] ` and the dropdown closes. Save: the note shows a "Garden plan" pill, and "Garden plan" lists the note under "Linked from". Type `[[` then press Back (`adb shell input keyevent KEYCODE_BACK`): the dropdown closes and stays closed until the `[[` is deleted. `[[trash` offers no card from Trash.
 - **Detail rows.** `tag:scenario-omnibox-titles` → "Omnibox note: 1 < 2 > 0, saved from a page": Info "From · example.com". `tag:scenario-card-details` → "Author, a distinct publisher and a date": "Published · Nov 20, 2023". For camera rows, upload a JPEG with EXIF through Add → "Photos & Videos" on the second account: Camera, Taken, Exposure, Aperture, Focal length and ISO appear once processing finishes.
 - **Hidden.** `tag:secret`: header "Shows hidden cards"; a hidden card's Tags read "Hidden. Only a search for #secret or #hidden shows this card.". Edit a visible note → add tag "Secret" → "Hidden. Search #secret to see it." → Close → "Discard".
 - **Revisit.** Clear the search, tap "Revisit": "1 of 20". Swipe right (keep), press ← (archive: "Archived 1 card" with "Undo"), press Z (back one, card unarchived), press → until "All caught up" with "N archived · N kept", then "Done".
 - **Tags.** Settings → Tags → "Find a tag" → your run's tag → "More for …" → "Rename…" (card "Renamed “…” to “…” · N cards changed"), "Merge into…" (pick a tag → "Merge into “…”"), "Delete…" → "Delete tag" ("Deleted “…”"; "No tags match …"). Deleting the run's tags is also the cleanup for **Bulk**.
+- **Search operators.** Seed `search-operators` and search the rows of [search-operators](./search-operators.md)'s table (each after `#scenario-search-operators`, in parentheses): the counts match the web's, and no filter chips show. Type `design -`: under the field, "Exclude" lists `-tag:` "Leave out cards with a tag" … `-is:`; tap `-tag:` and the field reads `design -tag:`. Type `design o`: "Combine" with "OR" "Either side matches"; tap it and the field reads `design OR `. `#scenario-search-operators figma last week` lists only cards saved last week that match "figma".
 - **Share.** On the second account: `adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://example.com/verify-<run-id>" -n com.praveenjuge.teak.debug/com.praveenjuge.teak.feature.capture.share.ShareActivity` → "Saved" with "Add tags and a note"; tap it within 6 seconds, add tags and a note, "Save": the sheet closes and the card's detail shows both. Shared again without tapping, the sheet closes on its own.
 
 ## Gotchas

@@ -44,25 +44,30 @@ import Testing
     }
 }
 
-@Suite(.serialized) struct LanguageChangeTests {
+// Other suites run in parallel and read text in the current language, so these
+// check the notifications without ever changing it.
+@Suite struct LanguageChangeTests {
     @Test func textReadThroughTrIsObservedForLanguageChanges() {
-        let before = AppLanguage.current
-        defer { AppLanguage.use(before) }
         let changed = Mutex(false)
         withObservationTracking {
             _ = tr("settings.language.label")
         } onChange: {
             changed.withLock { $0 = true }
         }
-        AppLanguage.use(before == "de" ? "fr" : "de")
+        AppLanguage.use(AppLanguage.current)
         #expect(changed.withLock { $0 })
     }
 
     @Test func reloadReadsTheSharedLanguageAgain() {
-        let before = AppLanguage.current
-        defer { AppLanguage.use(before) }
-        AppLanguage.use("ja")
+        let changed = Mutex(false)
+        withObservationTracking {
+            _ = tr("settings.language.label")
+        } onChange: {
+            changed.withLock { $0 = true }
+        }
         AppLanguage.reload()
-        #expect(AppLanguage.current == "ja")
+        let stored = UserDefaults(suiteName: "group.com.praveenjuge.teak")?.string(forKey: "teak.language")
+        #expect(AppLanguage.current == stored.flatMap(AppLanguage.supported) ?? AppLanguage.system)
+        #expect(changed.withLock { $0 })
     }
 }

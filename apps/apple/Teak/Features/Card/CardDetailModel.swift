@@ -10,6 +10,8 @@ final class CardDetailModel {
     private(set) var isLoading = true
     private(set) var favoriteOverride: Bool?
     private(set) var doneOverride: Bool?
+    /// A note's content with a ticked task, shown until the saved card catches up.
+    private(set) var contentOverride: String?
     private(set) var isSaving = false
     private(set) var isRefreshing = false
     /// Live titles for the `[[…|teak:id]]` pills in a note, by id.
@@ -25,6 +27,7 @@ final class CardDetailModel {
     @ObservationIgnored private var backlinksTask: Task<Void, Never>?
     @ObservationIgnored private var linkIds: [String] = []
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
+    @ObservationIgnored private var taskSaves = 0
 
     init(id: String, backend: TeakBackend) {
         self.id = id
@@ -41,6 +44,7 @@ final class CardDetailModel {
                         isLoading = false
                         if favoriteOverride == value?.isFavorited { favoriteOverride = nil }
                         if doneOverride == value?.isDone { doneOverride = nil }
+                        if contentOverride != nil, value?.content == contentOverride || taskSaves == 0 { contentOverride = nil }
                         watchLinks(value)
                     }
                     return
@@ -64,6 +68,31 @@ final class CardDetailModel {
 
     var isFavorited: Bool { favoriteOverride ?? card?.favorited ?? false }
     var isDone: Bool { doneOverride ?? card?.isDone ?? false }
+
+    /// The card as shown, with any task tick that's still saving.
+    var displayedCard: Card? {
+        guard var card else { return nil }
+        if let contentOverride { card.content = contentOverride }
+        return card
+    }
+
+    /// Ticks or unticks one task in a note right away, moving it as the web does, and saves the note. A failed save
+    /// puts the note back and says so.
+    func toggleTask(_ item: MarkdownListItem) async {
+        guard let card = displayedCard, card.type == .text, !card.deleted,
+              let next = TaskLists.toggle(card.content, item: item) else { return }
+        contentOverride = next
+        message = nil
+        taskSaves += 1
+        defer { taskSaves -= 1 }
+        do {
+            try await update(["field": "content", "value": .string(next)])
+            if taskSaves == 1, self.card?.content == contentOverride { contentOverride = nil }
+        } catch {
+            contentOverride = nil
+            message = tr("native.notes.taskFailed")
+        }
+    }
 
     /// One live lookup for the note's pills, redone only when its links change,
     /// and one for the notes that link here.

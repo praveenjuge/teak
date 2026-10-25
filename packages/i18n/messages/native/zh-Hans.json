@@ -573,6 +573,15 @@
       },
       "usage": "{used} / {count, plural, other {# 张卡片}}"
     },
+    "linkPicker": {
+      "label": "链接卡片",
+      "hint": "输入 [[ 即可链接其他卡片。",
+      "searching": "正在搜索卡片…",
+      "failed": "无法搜索卡片",
+      "noMatches": "没有匹配的卡片",
+      "noCards": "还没有卡片",
+      "option": "链接 {title}"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "类型",
@@ -688,6 +697,11 @@
         "checkSpelling": "请检查拼写或尝试新的搜索。"
       }
     },
+    "search": {
+      "suggestions": "搜索建议",
+      "suggestion": "{label} · {detail}",
+      "exclude": "排除 {label}"
+    },
     "time": {
       "today": "今天",
       "yesterday": "昨天",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "文件超过 100 MB。",
       "unreadableFile": "Teak 无法读取该文件。",
       "skippedAtLimit": "由于已达到卡片上限，未上传。"
+    },
+    "notes": {
+      "taskFailed": "无法更新任务列表，请重试。",
+      "checked": "已勾选",
+      "unchecked": "未勾选",
+      "table": "表格，{count, plural, other {# 行}}"
     }
   },
   "apple": {

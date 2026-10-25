@@ -6,6 +6,7 @@ import com.praveenjuge.teak.core.model.BulkResult
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
 import com.praveenjuge.teak.core.model.CardLinkTarget
+import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.CardSummaryPage
 import com.praveenjuge.teak.core.model.CurrentUser
 import com.praveenjuge.teak.core.model.Folder
@@ -32,6 +33,7 @@ object ConvexFunctions {
     val reprocessCard = ConvexFunction("cards:reprocessCard", JsonObject.serializer())
     val getCardLinkTargets = ConvexFunction("cards:getCardLinkTargets", ListSerializer(CardLinkTarget.serializer()))
     val getCardBacklinks = ConvexFunction("cards:getCardBacklinks", CardBacklinks.serializer())
+    val searchCardLinkSuggestions = ConvexFunction("cards:searchCardLinkSuggestions", ListSerializer(LinkedCard.serializer()))
     val similarAnchorSummary = ConvexFunction("cards:similarAnchorSummary", SimilarAnchor.serializer())
     val viewHasHiddenCards = ConvexFunction("cards:viewHasHiddenCards", Boolean.serializer())
     val requestSemanticResults = ConvexFunction("search/semanticActions:requestSemanticResults", JsonObject.serializer())

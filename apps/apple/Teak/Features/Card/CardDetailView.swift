@@ -161,7 +161,8 @@ struct CardDetailView: View {
     }
 
     @ViewBuilder private func hero(_ card: Card, _ model: CardDetailModel) -> some View {
-        CardPreview(card: card, linkTargets: model.linkTargets)
+        CardPreview(card: model.displayedCard ?? card, linkTargets: model.linkTargets,
+                    toggleTask: card.deleted ? nil : { item in Task { await model.toggleTask(item) } })
             #if os(macOS)
             .onTapGesture(count: 2) { if CardEdit.canEditContent(card.type) { showEditSheet = true } }
             #endif

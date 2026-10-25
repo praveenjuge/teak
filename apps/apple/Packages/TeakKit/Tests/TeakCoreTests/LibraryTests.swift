@@ -156,6 +156,85 @@ private func day(_ milliseconds: Double) -> String {
         #expect(args["createdAtRange"] != nil)
     }
 
+    @Test func aDateBesideWordsKeepsTheWords() throws {
+        let args = LibraryQuery(text: "figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)
+        #expect(args["searchQuery"] == "figma")
+        guard case let .object(range)? = args["createdAtRange"], case let .number(start)? = range["start"] else {
+            Issue.record("Expected a date range")
+            return
+        }
+        #expect(day(start) == "2026-01-25")
+        // A lone number beside words stays a word, and operators keep the text whole.
+        #expect(LibraryQuery(text: "iphone 2024").searchArgs(now: tuesdayNoon, timeZone: newYork)["createdAtRange"] == nil)
+        #expect(LibraryQuery(text: "-figma last week").searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"]
+            == "-figma last week")
+        // A smart folder saves only the words, so saving warns that the date is left behind.
+        #expect(LibraryQuery(text: "figma last week").smartFolderDropsFilters)
+        #expect(!LibraryQuery(text: "figma").smartFolderDropsFilters)
+    }
+
+    @Test(arguments: [
+        "design -figma", "tag:fonts OR tag:type", "(site:github.com OR site:gitlab.com) -is:archived", "site:github.com",
+        "-\"exact phrase\" notes", "(a OR b) c",
+    ])
+    func searchTextIsSentAsTyped(text: String) {
+        #expect(LibraryQuery(text: text).searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"] == .string(text))
+        // Pressing Return keeps it whole, so the operators reach the backend.
+        let tokens = SearchTokens.parse(text, now: tuesdayNoon, timeZone: newYork)
+        #expect(tokens.map(\.kind) == [.keyword])
+        #expect(LibraryQuery(tokens: tokens).searchArgs(now: tuesdayNoon, timeZone: newYork)["searchQuery"] == .string(text))
+    }
+
+    @Test func returnLiftsOnlyFiltersWithTheirOwnArgument() {
+        let tokens = SearchTokens.parse("type:image tag:fonts \"design system\" is:fav last week site:github.com",
+                                        now: tuesdayNoon, timeZone: newYork)
+        #expect(tokens.map(\.kind) == [.type, .keyword, .favorites, .date])
+        #expect(tokens[1].value == "tag:fonts \"design system\" site:github.com")
+        let operators = SearchTokens.parse("type:image OR is:fav", now: tuesdayNoon, timeZone: newYork)
+        #expect(operators.map(\.value) == ["type:image OR is:fav"])
+    }
+
+    @Test func anOrBesideOtherWordsIsGrouped() {
+        let query = LibraryQuery(text: "tag:fonts OR tag:type", tokens: [SearchTokens.parse("design")[0]])
+        #expect(query.searchArgs()["searchQuery"] == "design (tag:fonts OR tag:type)")
+        let folder = LibraryQuery(text: "a OR b", filters: LibraryFilters(types: [.link]))
+        #expect(folder.smartFolderQuery == "type:link (a OR b)")
+    }
+
+    @Test func suggestsExcludeAndOrAsHints() throws {
+        let exclude = SearchTokens.suggestions(for: "design -")
+        #expect(exclude.map(\.kind) == Array(repeating: .hint, count: 5))
+        #expect(exclude.map(\.value) == ["-tag:", "-type:", "-site:", "-folder:", "-is:"])
+        #expect(exclude[0].label == "-tag: · Leave out cards with a tag")
+
+        let or = try #require(SearchTokens.suggestions(for: "design o").first)
+        #expect(or.kind == .hint)
+        #expect(or.label == "OR · Either side matches")
+        #expect(SearchTokens.applying(or, to: "design o") == "design OR ")
+        #expect(SearchTokens.suggestions(for: "or").allSatisfy { $0.value != "OR " })
+
+        let excludedType = try #require(SearchTokens.suggestions(for: "notes -type:ima").first)
+        #expect(excludedType.value == "-type:image ")
+        #expect(excludedType.label == "Leave out Image")
+        #expect(SearchTokens.applying(excludedType, to: "notes -type:ima") == "notes -type:image ")
+    }
+
+    @Test func pickedValuesBecomeChipsOnlyWhenTheyAreTheWholeSearch() throws {
+        let show = try #require(SearchTokens.suggestions(for: "is:arch").first)
+        #expect(show.kind == .qualifier)
+        #expect(show.value == "is:archived")
+        // After other words a pick writes into the text, so the words stay.
+        let typed = try #require(SearchTokens.suggestions(for: "design -type:quote type:ima").first)
+        #expect(typed.kind == .hint)
+        #expect(SearchTokens.applying(typed, to: "design -type:quote type:ima") == "design -type:quote type:image ")
+        let todo = try #require(SearchTokens.suggestions(for: "design to").first { $0.label == "To do" })
+        #expect(SearchTokens.applying(todo, to: "design to") == "design is:todo ")
+        let joined = try #require(SearchTokens.suggestions(for: "tag:fonts OR type:ima").first)
+        #expect(joined.kind == .hint)
+        #expect(SearchTokens.applying(joined, to: "tag:fonts OR type:ima") == "tag:fonts OR type:image ")
+        #expect(SearchTokens.suggestions(for: "ty").map(\.value) == ["type:"])
+    }
+
     @Test func titlesAndEmptyStatesFollowTheQuery() {
         #expect(LibraryQuery(tokens: [SearchTokens.classify("retro")]).title == "Filtered")
         #expect(LibraryQuery(tokens: [SearchTokens.classify("favs")]).title == "Favorites")

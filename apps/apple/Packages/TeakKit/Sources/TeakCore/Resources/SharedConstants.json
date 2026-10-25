@@ -250,6 +250,156 @@
     "application/octet-stream",
     "binary/octet-stream"
   ],
+  "searchSuggestionHints": {
+    "qualifiers": [
+      {
+        "id": "Filters:tag",
+        "group": "Filters",
+        "key": "tag",
+        "insert": "tag:",
+        "messageKey": "search.suggestions.hints.tag"
+      },
+      {
+        "id": "Filters:type",
+        "group": "Filters",
+        "key": "type",
+        "insert": "type:",
+        "messageKey": "search.suggestions.hints.type"
+      },
+      {
+        "id": "Filters:site",
+        "group": "Filters",
+        "key": "site",
+        "insert": "site:",
+        "messageKey": "search.suggestions.hints.site"
+      },
+      {
+        "id": "Filters:folder",
+        "group": "Filters",
+        "key": "folder",
+        "insert": "folder:",
+        "messageKey": "search.suggestions.hints.folder"
+      },
+      {
+        "id": "Filters:is",
+        "group": "Filters",
+        "key": "is",
+        "insert": "is:",
+        "messageKey": "search.suggestions.hints.is"
+      },
+      {
+        "id": "Filters:mood",
+        "group": "Filters",
+        "key": "mood",
+        "insert": "mood:",
+        "messageKey": "search.suggestions.hints.mood"
+      },
+      {
+        "id": "Filters:price",
+        "group": "Filters",
+        "key": "price",
+        "insert": "price:",
+        "messageKey": "search.suggestions.hints.price"
+      },
+      {
+        "id": "Filters:text",
+        "group": "Filters",
+        "key": "text",
+        "insert": "text:",
+        "messageKey": "search.suggestions.hints.text"
+      }
+    ],
+    "exclude": [
+      {
+        "id": "Exclude:-tag",
+        "group": "Exclude",
+        "key": "tag",
+        "insert": "-tag:",
+        "messageKey": "search.suggestions.excludeHints.tag"
+      },
+      {
+        "id": "Exclude:-type",
+        "group": "Exclude",
+        "key": "type",
+        "insert": "-type:",
+        "messageKey": "search.suggestions.excludeHints.type"
+      },
+      {
+        "id": "Exclude:-site",
+        "group": "Exclude",
+        "key": "site",
+        "insert": "-site:",
+        "messageKey": "search.suggestions.excludeHints.site"
+      },
+      {
+        "id": "Exclude:-folder",
+        "group": "Exclude",
+        "key": "folder",
+        "insert": "-folder:",
+        "messageKey": "search.suggestions.excludeHints.folder"
+      },
+      {
+        "id": "Exclude:-is",
+        "group": "Exclude",
+        "key": "is",
+        "insert": "-is:",
+        "messageKey": "search.suggestions.excludeHints.is"
+      }
+    ],
+    "or": {
+      "id": "Combine:OR",
+      "group": "Combine",
+      "key": "OR",
+      "insert": "OR ",
+      "messageKey": "search.suggestions.orDetail"
+    },
+    "isOptions": [
+      {
+        "value": "fav",
+        "words": [
+          "fav",
+          "favorites",
+          "starred"
+        ],
+        "messageKey": "search.suggestions.isOptions.fav"
+      },
+      {
+        "value": "archived",
+        "words": [
+          "archived",
+          "archive"
+        ],
+        "messageKey": "search.suggestions.isOptions.archived"
+      },
+      {
+        "value": "done",
+        "words": [
+          "done",
+          "completed",
+          "finished"
+        ],
+        "messageKey": "search.suggestions.isOptions.done"
+      },
+      {
+        "value": "todo",
+        "words": [
+          "todo",
+          "to-do"
+        ],
+        "messageKey": "search.suggestions.isOptions.todo"
+      }
+    ],
+    "groups": {
+      "Combine": "search.suggestions.groups.combine",
+      "Exclude": "search.suggestions.groups.exclude",
+      "Filters": "search.suggestions.groups.filters",
+      "Tags": "search.suggestions.groups.tags",
+      "Types": "search.suggestions.groups.types",
+      "Folders": "search.suggestions.groups.folders",
+      "Sites": "search.suggestions.groups.sites",
+      "Show": "search.suggestions.groups.show"
+    }
+  },
   "locales": [
     {
       "id": "en",

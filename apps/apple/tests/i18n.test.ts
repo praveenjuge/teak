@@ -14,7 +14,7 @@ const swiftFiles = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      return [".build", "Tests", "TeakUITests"].includes(entry.name)
+      return [".build", "build", "Tests", "TeakUITests"].includes(entry.name)
         ? []
         : swiftFiles(path);
     }

@@ -1,9 +1,15 @@
 package com.praveenjuge.teak.feature.card
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.onAllNodesWithText
+import com.praveenjuge.teak.core.model.MarkdownListItem
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -33,6 +39,22 @@ class CardDetailUiTest {
         compose.onNodeWithText("Passport").assertIsDisplayed()
         compose.onNodeWithText("Book the train").assertIsDisplayed()
         compose.onNodeWithText("Go early").assertIsDisplayed()
+    }
+
+    @Test
+    fun `a note shows its table and ticks a task from its checkbox`() {
+        val ticked = mutableListOf<MarkdownListItem>()
+        compose.setContent {
+            MarkdownText("| Plan | Price |\n| --- | --- |\n| Free | $0 |\n\n- [ ] Milk\n- [x] Bread", onToggleTask = { ticked += it })
+        }
+
+        compose.onNodeWithText("Plan").assertIsDisplayed()
+        compose.onNodeWithText("$0").assertIsDisplayed()
+        compose.onAllNodesWithText("|", substring = true).assertCountEquals(0)
+        compose.onNode(hasText("Bread") and isToggleable()).assertIsOn()
+        compose.onNode(hasText("Milk") and isToggleable()).assertIsOff().performClick()
+
+        assertEquals(listOf(MarkdownListItem(0, "•", "Milk", checked = false, line = 4)), ticked)
     }
 
     @Test

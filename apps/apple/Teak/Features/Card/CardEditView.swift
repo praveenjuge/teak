@@ -11,6 +11,8 @@ struct CardEditView: View {
     @State private var error: String?
     @State private var confirmDiscard = false
     @FocusState private var tagFieldFocused: Bool
+    @State private var contentSelection: TextSelection?
+    @State private var linkPicker: CardLinkPickerModel?
 
     var body: some View {
         NavigationStack {
@@ -55,6 +57,7 @@ struct CardEditView: View {
         .frame(minWidth: 420, minHeight: 480)
         .task {
             if model == nil { model = CardDetailModel(id: cardId, backend: app.backend) }
+            if linkPicker == nil { linkPicker = CardLinkPickerModel(cardId: cardId, backend: app.backend) }
             model?.start()
         }
         .onChange(of: model?.card) { _, card in
@@ -70,12 +73,11 @@ struct CardEditView: View {
 
     private func form(_ card: Card, _ draft: Binding<CardEditDraft>) -> some View {
         Form {
-            if CardEdit.canEditContent(card.type) {
-                Section(card.type == .quote ? tr("cards.types.quote") : tr("native.card.note")) {
-                    TextField(card.type == .quote ? tr("native.card.edit.quotePlaceholder") : tr("native.card.edit.notePlaceholder"),
-                              text: Binding(get: { draft.wrappedValue.editableContent ?? "" },
-                                            set: { draft.wrappedValue.editableContent = $0 }),
-                              axis: .vertical)
+            if card.type == .text {
+                noteSection(draft)
+            } else if CardEdit.canEditContent(card.type) {
+                Section(tr("cards.types.quote")) {
+                    TextField(tr("native.card.edit.quotePlaceholder"), text: contentBinding(draft), axis: .vertical)
                         .lineLimit(4...16)
                 }
             }
@@ -136,6 +138,55 @@ struct CardEditView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func contentBinding(_ draft: Binding<CardEditDraft>) -> Binding<String> {
+        Binding(get: { draft.wrappedValue.editableContent ?? "" }, set: { draft.wrappedValue.editableContent = $0 })
+    }
+
+    /// The note's field, with the `[[` picker under it while a link is being typed.
+    private func noteSection(_ draft: Binding<CardEditDraft>) -> some View {
+        Section {
+            TextField(tr("native.card.edit.notePlaceholder"), text: contentBinding(draft), selection: $contentSelection,
+                      axis: .vertical)
+                .lineLimit(4...16)
+                .accessibilityIdentifier("edit.content")
+                .onKeyPress(keys: [.escape, .upArrow, .downArrow, .return]) { press in
+                    linkKey(press.key, draft)
+                }
+                .onChange(of: LinkEditPoint(text: draft.wrappedValue.editableContent ?? "", selection: contentSelection)) { _, point in
+                    linkPicker?.update(text: point.text, cursor: point.cursor)
+                }
+            if let linkPicker, linkPicker.isOpen {
+                CardLinkPicker(model: linkPicker) { pickLink($0, draft) }
+            }
+        } header: {
+            Text(tr("native.card.note"))
+        } footer: {
+            Text(tr("native.linkPicker.hint"))
+        }
+    }
+
+    /// Escape closes the picker, the arrows move through its cards and Return links the highlighted one.
+    /// With no cards listed, the arrows move the caret as usual.
+    private func linkKey(_ key: KeyEquivalent, _ draft: Binding<CardEditDraft>) -> KeyPress.Result {
+        guard let linkPicker, linkPicker.isOpen else { return .ignored }
+        switch key {
+        case .escape: linkPicker.dismiss()
+        case .upArrow, .downArrow:
+            guard linkPicker.highlightedCard != nil else { return .ignored }
+            linkPicker.moveHighlight(by: key == .upArrow ? -1 : 1)
+        default:
+            guard let card = linkPicker.highlightedCard else { return .ignored }
+            pickLink(card, draft)
+        }
+        return .handled
+    }
+
+    private func pickLink(_ card: LinkedCard, _ draft: Binding<CardEditDraft>) {
+        guard let result = linkPicker?.pick(card, in: draft.wrappedValue.editableContent ?? "") else { return }
+        draft.wrappedValue.editableContent = result.text
+        contentSelection = TextSelection(insertionPoint: String.Index(utf16Offset: result.cursor, in: result.text))
     }
 
     private func addTag(_ draft: Binding<CardEditDraft>) {

@@ -30,9 +30,9 @@ class MarkdownBlocksTest {
                 MarkdownBlock.Heading(1, "Trip plan"),
                 MarkdownBlock.ListBlock(
                     listOf(
-                        MarkdownListItem(0, "•", "Book **train** tickets"),
-                        MarkdownListItem(1, "•", "Window seat"),
-                        MarkdownListItem(0, "1.", "Pack"),
+                        MarkdownListItem(0, "•", "Book **train** tickets", line = 2),
+                        MarkdownListItem(1, "•", "Window seat", line = 3),
+                        MarkdownListItem(0, "1.", "Pack", line = 4),
                     ),
                 ),
                 MarkdownBlock.Quote("Leave early.\nReally."),

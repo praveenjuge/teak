@@ -3,10 +3,11 @@ import Foundation
 /// A port of `parseSearchQuery` and its helpers in
 /// `packages/convex/shared/search/qualifiers.ts`, so the search field turns
 /// typed qualifiers into chips the way the web does. The backend parses the
-/// search text itself; this only decides what each chip says. `site:` is not
-/// ported: the app has no site chip, so it stays plain text for the backend.
+/// search text itself, operators included; this reads only the flat form and
+/// decides what each chip says. Text with `-`, `OR` or parentheses is sent as
+/// typed (`hasOperators`).
 public enum SearchQualifierKey: String, CaseIterable, Sendable {
-    case tag, type, `is`, folder, like, mood, price, text
+    case tag, type, `is`, site, folder, like, mood, price, text
 }
 
 public enum SearchIsValue: String, Sendable {
@@ -52,6 +53,7 @@ public struct ParsedSearchQuery: Hashable, Sendable {
     public var text: String { (terms + phrases).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines) }
     public var tags: [String] { values(.tag) }
     public var types: [CardType] { values(.type).compactMap(CardType.init(rawValue:)) }
+    public var sites: [String] { values(.site) }
     public var folders: [String] { values(.folder).map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() } }
     public var ocrTexts: [String] { values(.text) }
     public var prices: [PriceBound] { values(.price).compactMap(SearchQualifiers.parsePriceBound) }
@@ -82,6 +84,8 @@ public enum SearchQualifiers {
         public let prefix: String
         public let quoted: Bool
         public let text: String
+        /// The token as it was typed, quotes and escapes included.
+        public var source = ""
     }
 
     /// Words split on whitespace, where quotes (straight or curly) group words
@@ -94,6 +98,7 @@ public enum SearchQualifiers {
         while index < scalars.count {
             while index < scalars.count, isSpace(scalars[index]) { index += 1 }
             if index >= scalars.count { break }
+            let start = index
             var text = String.UnicodeScalarView()
             var prefix: String?
             var inQuotes = false
@@ -125,15 +130,80 @@ public enum SearchQualifiers {
                 text.append(character)
                 index += 1
             }
-            tokens.append(RawToken(prefix: prefix ?? "", quoted: prefix != nil, text: String(text)))
+            var source = String.UnicodeScalarView()
+            source.append(contentsOf: scalars[start..<index])
+            tokens.append(RawToken(prefix: prefix ?? "", quoted: prefix != nil, text: String(text), source: String(source)))
         }
         return tokens
     }
 
-    static func trimEdgePunctuation(_ value: String) -> String {
+    /// Whether the text uses search operators: a word that starts with `-`, an
+    /// uppercase `OR` or a parenthesis, outside quotes. Such text is sent as
+    /// typed, since lifting a filter out of it could change what it means.
+    public static func hasOperators(_ text: String) -> Bool {
+        var inQuotes = false
+        var word = ""
+        var escaped = false
+        for scalar in text.unicodeScalars {
+            if inQuotes {
+                if escaped { escaped = false } else if scalar == "\\" { escaped = true } else if quoteCharacters.contains(scalar) { inQuotes = false }
+                continue
+            }
+            if quoteCharacters.contains(scalar) {
+                if word == "-" { return true }
+                inQuotes = true
+                word.append("\"")
+            } else if scalar == "(" || scalar == ")" {
+                return true
+            } else if scalar.properties.isWhitespace {
+                if word == "OR" { return true }
+                word = ""
+            } else {
+                if word.isEmpty, scalar == "-" { word.append("-"); continue }
+                if word == "-" { return true }
+                word.unicodeScalars.append(scalar)
+            }
+        }
+        return word == "OR"
+    }
+
+    /// Search parts joined by spaces, each part with an `OR` in parentheses
+    /// when there are others, since a space binds tighter than `OR`: the
+    /// grouping the web's `buildCardsSearchTerms` applies.
+    public static func join(_ parts: [String]) -> String {
+        let parts = parts.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard parts.count > 1 else { return parts.first ?? "" }
+        return parts.map { $0.contains(/(^|[\s(])OR(?=[\s)]|$)/) ? "(\($0))" : $0 }.joined(separator: " ")
+    }
+
+    /// The word being typed at the end of the text, and where it starts, as
+    /// the web's `currentSearchToken` finds it: quotes keep spaces inside a word.
+    public static func currentWord(_ text: String) -> (before: String, word: String) {
+        var start = text.startIndex
+        var inQuotes = false
+        var index = text.startIndex
+        while index < text.endIndex {
+            let character = text[index]
+            if character == "\\", inQuotes {
+                index = text.index(after: index)
+                if index < text.endIndex { index = text.index(after: index) }
+                continue
+            }
+            if character.unicodeScalars.first.map(quoteCharacters.contains) == true {
+                inQuotes.toggle()
+            } else if !inQuotes, character.isWhitespace {
+                start = text.index(after: index)
+            }
+            index = text.index(after: index)
+        }
+        return (String(text[..<start]), String(text[start...]))
+    }
+
+    static func trimEdgePunctuation(_ value: String, keeping keep: String = "") -> String {
+        func trims(_ character: Character) -> Bool { trimCharacters.contains(character) && !keep.contains(character) }
         var characters = Substring(value)
-        while let first = characters.first, trimCharacters.contains(first) { characters.removeFirst() }
-        while let last = characters.last, trimCharacters.contains(last) { characters.removeLast() }
+        while let first = characters.first, trims(first) { characters.removeFirst() }
+        while let last = characters.last, trims(last) { characters.removeLast() }
         return String(characters)
     }
 
@@ -214,6 +284,8 @@ public enum SearchQualifiers {
             if doneWords.contains(word) { return SearchQualifier(key, SearchIsValue.done.rawValue) }
             if todoWords.contains(word) { return SearchQualifier(key, SearchIsValue.todo.rawValue) }
             return archivedWords.contains(word) ? SearchQualifier(key, SearchIsValue.archived.rawValue) : nil
+        case .site:
+            return normalizeHost(value).map { SearchQualifier(key, $0) }
         case .folder:
             return SearchQualifier(key, value)
         case .like:
@@ -227,6 +299,29 @@ public enum SearchQualifiers {
             let text = prefix(collapseSpaces(value), utf16: maxOCRTextLength).trimmingCharacters(in: .whitespacesAndNewlines)
             return text.isEmpty ? nil : SearchQualifier(key, text)
         }
+    }
+
+    /// The lowercase host without `www.`, a port or a path, as `normalizeUrlHost`
+    /// reads a `site:` value. Unicode names stay as typed; the backend reads the text.
+    static func normalizeHost(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.firstMatch(of: /^[a-zA-Z][a-zA-Z\d+.\-]*:(?!\/\/)(?!\d)/) == nil else { return nil }
+        let afterScheme = trimmed.firstMatch(of: /^[a-zA-Z][a-zA-Z\d+.\-]*:\/\//).map { String(trimmed[$0.range.upperBound...]) }
+            ?? trimmed
+        let authority = afterScheme.prefix { !"/?#\\".contains($0) }
+        let hostAndPort = authority.split(separator: "@", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+        var host: String
+        if hostAndPort.hasPrefix("[") {
+            guard let close = hostAndPort.firstIndex(of: "]") else { return nil }
+            host = String(hostAndPort[...close])
+        } else {
+            host = String(hostAndPort.prefix { $0 != ":" })
+        }
+        host = host.lowercased()
+        guard !host.isEmpty, !host.contains(where: { $0.isWhitespace || "<>^|%\u{0}".contains($0) }) else { return nil }
+        while host.hasSuffix(".") { host.removeLast() }
+        if host.hasPrefix("www."), host.count > 4 { host.removeFirst(4) }
+        return host.isEmpty ? nil : host
     }
 
     private static func isSimilarity(_ key: SearchQualifierKey) -> Bool { key == .like || key == .mood }
@@ -271,7 +366,7 @@ public enum SearchQualifiers {
             if let colon, colon > 0, !token.quoted || colon == token.prefix.count - 1,
                let key = SearchQualifierKey(rawValue: keyCandidate) {
                 let rawValue = String(token.text.dropFirst(colon + 1))
-                let qualifier = parseQualifier(key, token.quoted ? rawValue : trimEdgePunctuation(rawValue))
+                let qualifier = parseQualifier(key, token.quoted ? rawValue : trimEdgePunctuation(rawValue, keeping: key == .site ? "[]" : ""))
                 if let qualifier, isSimilarity(qualifier.key),
                    parsed.qualifiers.contains(where: { isSimilarity($0.key) && identity($0) != identity(qualifier) }) {
                     parsed.terms.append(token.text)
@@ -310,6 +405,7 @@ public enum SearchQualifiers {
         case .tag: return (tr("native.filters.chips.tag"), qualifier.value)
         case .type: return (tr("native.filters.chips.type"), CardType(rawValue: qualifier.value)?.label ?? qualifier.value)
         case .is: return (tr("native.filters.chips.is"), SearchIsValue(rawValue: qualifier.value)?.label ?? qualifier.value)
+        case .site: return (tr("native.filters.chips.site"), qualifier.value)
         case .folder: return (tr("native.filters.chips.folder"), qualifier.value)
         case .like: return (tr("native.filters.chips.like"), likeTitle ?? tr("native.filters.chips.anyCard"))
         case .mood: return (tr("native.filters.chips.mood"), tr("native.filters.chips.moodValue", qualifier.value))

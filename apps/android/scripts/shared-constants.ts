@@ -28,6 +28,14 @@ import {
 import { SEARCH_TOKEN_TRIM_CHARACTERS } from "../../../packages/convex/shared/search/constants";
 import { SEARCH_QUALIFIER_KEYS } from "../../../packages/convex/shared/search/qualifiers";
 import {
+  SEARCH_EXCLUDE_HINTS,
+  SEARCH_IS_OPTIONS,
+  SEARCH_OR_HINT,
+  SEARCH_QUALIFIER_HINTS,
+  SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS,
+  type SearchSuggestionHint,
+} from "../../../packages/convex/shared/search/suggestionHints";
+import {
   HIDDEN_TAG_KEYS,
   MAX_TAG_KEY_LENGTH,
   MAX_TAG_NAME_LENGTH,
@@ -56,6 +64,18 @@ const kotlinMap = (record: Record<string, string>) =>
       ([key, value]) => `    ${kotlinString(key)} to ${kotlinString(value)},`
     )
     .join("\n")}\n)`;
+
+const kotlinHint = (hint: SearchSuggestionHint) =>
+  `SearchHint(id = ${kotlinString(hint.id)}, group = ${kotlinString(hint.group)}, key = ${kotlinString(hint.key)}, insert = ${kotlinString(hint.insert)}, messageKey = ${kotlinString(hint.messageKey)})`;
+
+const kotlinHints = (hints: readonly SearchSuggestionHint[]) =>
+  `listOf(\n${hints.map((hint) => `    ${kotlinHint(hint)},`).join("\n")}\n)`;
+
+const kotlinIsOptions = () =>
+  `listOf(\n${SEARCH_IS_OPTIONS.map(
+    (option) =>
+      `    SearchIsOption(value = ${kotlinString(option.value)}, words = listOf(${option.words.map(kotlinString).join(", ")}), messageKey = ${kotlinString(option.messageKey)}),`
+  ).join("\n")}\n)`;
 
 export const renderSharedConstants = () =>
   [
@@ -102,6 +122,17 @@ export const renderSharedConstants = () =>
     `const val SEARCH_TOKEN_TRIM_CHARACTERS = ${kotlinString(SEARCH_TOKEN_TRIM_CHARACTERS)}`,
     "",
     `val SEARCH_QUALIFIER_KEYS: List<String> = ${kotlinList(SEARCH_QUALIFIER_KEYS)}`,
+    "",
+    "/** The search field's hints, from `packages/convex/shared/search/suggestionHints.ts`. */",
+    `val SEARCH_QUALIFIER_HINTS: List<SearchHint> = ${kotlinHints(SEARCH_QUALIFIER_HINTS)}`,
+    "",
+    `val SEARCH_EXCLUDE_HINTS: List<SearchHint> = ${kotlinHints(SEARCH_EXCLUDE_HINTS)}`,
+    "",
+    `val SEARCH_OR_HINT: SearchHint = ${kotlinHint(SEARCH_OR_HINT)}`,
+    "",
+    `val SEARCH_IS_OPTIONS: List<SearchIsOption> = ${kotlinIsOptions()}`,
+    "",
+    `val SEARCH_SUGGESTION_GROUPS: Map<String, String> = ${kotlinMap(SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS)}`,
     "",
     "/** Teak's languages, in the order the Language setting lists them, each in its own name. */",
     `val LOCALE_NAMES: Map<String, String> = ${kotlinMap(
