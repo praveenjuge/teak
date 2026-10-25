@@ -205,7 +205,7 @@ SHOTS.push(
     kind: "web",
     layout: "raw",
     out: HOME_SHOWCASE,
-    alt: 'Teak search for "architecture" showing buildings, stairs and interiors found by their AI tags',
+    alt: "Teak search for architecture, showing buildings, stairs and interiors found by their AI tags",
   },
   {
     name: "organize-web",

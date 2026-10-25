@@ -36,17 +36,17 @@ article.prose.max-w-none > :not(:has([data-operation-panel])) {
 /* Inline code reads as a chip, the same in body text, tables and callouts. */
 article.prose :where(:not(pre)) > code {
   padding: 0.1em 0.4em;
+  font-size: 0.875em;
+  background: var(--blume-muted);
   border: 1px solid var(--blume-border);
   border-radius: 0.4em;
-  background: var(--blume-muted);
-  font-size: 0.875em;
 }
 
 /* The API playground's "Try it" gets a chevron instead of the browser marker. */
 details[data-playground] > summary {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
+  align-items: center;
   list-style: none;
 }
 
@@ -55,9 +55,9 @@ details[data-playground] > summary::-webkit-details-marker {
 }
 
 details[data-playground] > summary::before {
-  content: "";
   width: 0.45rem;
   height: 0.45rem;
+  content: "";
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(-45deg);
