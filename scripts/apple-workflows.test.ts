@@ -207,7 +207,8 @@ describe("Apple release workflows", () => {
       "embedded.mobileprovision",
       "Contents/embedded.provisionprofile",
       "codesign --verify --deep --strict",
-      '"$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID"',
+      '"$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID"|"$WIDGETS_EXTENSION_BUNDLE_ID"',
+      '[ "${#extensions[@]}" -ne 3 ]',
     ]) {
       expect(verify).toContain(expected);
     }
