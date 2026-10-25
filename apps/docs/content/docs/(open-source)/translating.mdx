@@ -1,13 +1,13 @@
 ---
 title: Translating
-description: How Teak's web app and browser extension are translated, how to add or change text, and the glossary every language uses
+description: How Teak's web app, browser extension and native apps are translated, how to add or change text, and the glossary every language uses
 icon: languages
 related:
   - /docs/adding-a-feature
   - /docs/testing
 ---
 
-The web app (`apps/web`) and the browser extension (`apps/extension`) are translated into Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Simplified Chinese. Every word people read comes from one catalog in `packages/i18n` (`@teak/i18n`). The native apps, Raycast, the Safari extension, these docs and emails are in English. To choose a language in the app, see [Language](/docs/features#language).
+The web app (`apps/web`), the browser extension (`apps/extension`) and the Apple and Android apps (`apps/apple`, `apps/android`) are translated into Spanish, Portuguese (Brazil), German, French, Japanese, Korean and Simplified Chinese. Every word people read comes from the catalogs in `packages/i18n` (`@teak/i18n`). Raycast, these docs and emails are in English. To choose a language in the app, see [Language](/docs/features#language).
 
 ![Settings → Appearance with the language menu open, listing Teak's eight languages](../images/language.webp)
 
@@ -22,6 +22,8 @@ The web app (`apps/web`) and the browser extension (`apps/extension`) are transl
 | A translator outside React | `createTeakTranslator` from `@teak/i18n` |
 | Term glossary | [Glossary](#glossary) on this page |
 | Server error messages | `errors.*` keys, `apps/web/src/lib/serverErrors.ts`, `hooks/useServerErrors.ts` |
+| The native apps' catalogs (the `native`, `apple` and `android` namespaces) | `packages/i18n/messages/native/<locale>.json` |
+| Generated native files | Apple: `TeakCore/Resources/Localizable.xcstrings`, `Teak/Resources/InfoPlist.xcstrings`, the Safari extension's `_locales`. Android: `core/i18n/src/main/res/values*/strings.xml`, `locales_config.xml` |
 
 The signed-in web app gets its locale from the `teak-locale` cookie (read in `AuthenticatedAppProvider`), which mirrors the account's Language setting. Without a provider, for example in tests or a screen outside the app shell, components render English.
 
@@ -31,6 +33,22 @@ The signed-in web app gets its locale from the `teak-locale` cookie (read in `Au
 2. Read it with `const t = useTranslations("cardModal.menu")` and `t("replaceImage")`.
 3. Add the same key to all seven other catalogs in the same pull request, translated with the [glossary](#glossary). `scripts/i18n-catalog.test.ts` fails when a catalog lacks a key or its placeholders differ from English.
 4. Run `bun test scripts/i18n-catalog.test.ts`, then look at the screen in the language (Settings → Language), and in the pseudo-locale (`?__locale=en-XA`, development only).
+
+## Native apps
+
+The Apple and Android apps read the same catalogs, converted to each platform's own format. The native text lives in its own files, `packages/i18n/messages/native/<locale>.json`, so the web never downloads it.
+
+- **Namespaces.** `native.*` is text both apps show, under the same key on each, so a phrase reads the same on iPhone and Android. `apple.*` and `android.*` hold platform-only text, such as Mac menu commands (Title Case, as macOS menus expect), the Safari popup, permission prompts and the upload notification. The apps can also read the web's `common`, `errors`, `cards.types`, `search.colorHues`, `search.visualStyles` and `settings.language` keys, which mean the same everywhere (`SHARED_WEB_NAMESPACES` in `packages/i18n/src/native.ts`).
+- **Messages.** Placeholders and at most one plural per message. No `select`, tags or number formats: Apple's string catalogs and Android's resources can't express them. For text that varies by a value, such as the done verbs, use one key per value (`native.done.markAs.read`, `native.done.markAs.watched`…). `scripts/i18n-catalog.test.ts` enforces this.
+- **Reading text.** Swift: `tr("native.library.title")`, `tr("native.common.cardCount", count: n)`. Kotlin: `tr("native.library.title")` in a composable, or `UiText.of("native.library.title")` in a ViewModel or `core:model`, resolved where it's shown. A message's plural count goes in `count`; its other values are strings, in the order the English message first uses them.
+- **After changing a catalog,** regenerate both apps' files:
+
+  ```bash
+  bun --no-env-file run apps/apple/scripts/i18n.ts --write && bun --no-env-file run apps/android/scripts/i18n.ts --write
+  ```
+
+  `apps/apple/tests/i18n.test.ts` and `apps/android/tests/i18n.test.ts` fail when the generated files drift, and when a `tr` or `UiText.of` call names a missing key or passes the wrong values.
+- **Language.** The apps follow the account's language, like the web. Settings → Language changes it, and so does the system's per-app language list (iOS, macOS, Android 13 and later), which the app saves to the account on its next launch. Signed out, they follow the device. Dates and numbers format in the app's language: `AppLanguage.locale` on Apple, the configuration's locale on Android.
 
 ## Writing messages
 
@@ -47,6 +65,7 @@ The signed-in web app gets its locale from the `teak-locale` cookie (read in `Au
 - "Teak", plan names where the glossary says so, and search syntax: qualifiers (`is:fav`, `type:image`, `tag:`) and date words, which people type.
 - Text the server stores on cards: link facts, bylines, price labels, import errors.
 - Developer surfaces: the public API, MCP tool descriptions and CLI output.
+- Phrases people type to confirm, such as "delete account".
 
 ## Dates and numbers
 

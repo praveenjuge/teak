@@ -1,6 +1,6 @@
 # Language
 
-A user picks the web app's language in Settings → Appearance → Language: English, Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 or 简体中文. The app switches in place without a reload, a toast "Language changed" (in the new language) offers Undo, and the choice is saved to the account, so another browser signed in to the same account follows it. Dates, numbers and plurals follow the language; search syntax (`is:fav`, `type:image`, `OR`) stays English. The browser extension follows the account's language once signed in, and `/v1/me` returns `locale`. In development, `?__locale=en-XA` shows the pseudo-locale, which wraps every catalog string as `[Šéţţîñĝš ~~~]`.
+A user picks Teak's language in the web app's Settings → Appearance → Language, or the Apple and Android apps' Settings → Language: English, Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 or 简体中文. The app switches in place without a reload, a toast "Language changed" (in the new language) offers Undo, and the choice is saved to the account, so another browser signed in to the same account follows it. Dates, numbers and plurals follow the language; search syntax (`is:fav`, `type:image`, `OR`) stays English. The browser extension follows the account's language once signed in, and `/v1/me` returns `locale`. In development, `?__locale=en-XA` shows the pseudo-locale, which wraps every catalog string as `[Šéţţîñĝš ~~~]`.
 
 ## Sub-features
 
@@ -12,6 +12,8 @@ A user picks the web app's language in Settings → Appearance → Language: Eng
 - `language-pseudo` (development only) renders `en-XA` from the cookie or `?__locale=en-XA`, to find untranslated text, clipping and overflow.
 - `language-api` returns `locale` from `GET /v1/me`, `me().locale` in the SDK and "Language: Deutsch" in `teak whoami`. No API, MCP or CLI command sets it.
 - `language-sign-out` clears the cookie on sign-out, so the next account starts from its own language.
+- `apple-language` (iPhone, iPad, Mac) lists the eight languages in Settings → Language (the General tab on Mac), switches the app at once with "Language changed" and Undo under the row, and saves to the account; the web follows. A language set on the web reaches the running app within seconds. Choosing a language in iOS Settings → Apps → Teak → Language (macOS: Language & Region → Applications) relaunches the app in it and saves it to the account. The share extension and the Safari extension's native replies use the app's language; the Safari popup's own labels follow Safari's.
+- `android-language` (phone and tablet) lists the eight languages in Settings → Language, switches at once with a "Language changed" snackbar and Undo, and saves to the account. On Android 13 and later, Settings → Apps → Teak → Language lists the same eight and a choice there is saved to the account when the app next starts. Android 12 has no system list; the in-app choice recreates the screen in the language.
 
 ## How to get to it (user POV)
 
@@ -19,6 +21,8 @@ A user picks the web app's language in Settings → Appearance → Language: Eng
 - After a switch: the toast's "Undo" (its label is in the new language, such as "Rückgängig").
 - Development: any app URL with `?__locale=en-XA`.
 - `teak whoami`, `GET /v1/me`.
+- iPhone and iPad: Settings tab → Language; iOS Settings → Apps → Teak Dev → Language. Mac: Settings (⌘,) → General → Language; System Settings → General → Language & Region → Applications.
+- Android: Settings → Appearance → Language; system Settings → Apps → Teak Dev → Language.
 
 ## Driving it with e2e MCP
 
@@ -39,6 +43,8 @@ Steps:
 - **Every language.** Switch through all eight on `/`, a card dialog (link and note) and every Settings page, at 390 and 1440 px, light and dark; screenshot each for the owner's spot check.
 - **Pseudo-locale (break it).** `navigate` to `/?__locale=en-XA`. Every catalog string is bracketed and accented. Walk the sidebar, grid, a card dialog for each type, Settings, Tags, Trash, Archive, folders, search suggestions and pills, the command palette (`⌘K`), `?`, the bulk bar at 390 px and a few toasts. Any plain English that isn't server-made (link facts, bylines, import errors) or search syntax is a missed string; any clipped button, overflow or wrapped toolbar is a layout bug. Clear with Settings → Appearance → Language → English.
 - **Sign-out.** Switch to Deutsch, sign out: `document.cookie` has no `teak-locale`. Sign back in: German again, from the account.
+- **Apple.** Build and sign in as in [apple](./apple.md). Settings → Language → Deutsch: every screen is German at once (tabs, library, a card, the share sheet), and the footer offers "Rückgängig". `GET /v1/me` reads `"locale":"de"`; the web, reloaded, is German. Switch the web to 日本語: the app turns Japanese within seconds. In iOS Settings → Apps → Teak Dev → Language pick Français: the app relaunches in French and `/v1/me` reads `"fr"`. Check plurals in the bulk bar ("1 Karte", "2 Karten"), dates on a link card, and Mac menu commands. Screenshot iPhone, iPad and Mac in de and ja, light and dark.
+- **Android.** Build and sign in as in [android](./android.md). Settings → Language → Deutsch: the screen re-renders in German and a snackbar offers "Rückgängig"; `/v1/me` reads `"de"`. Switch the web to 日本語: the app follows within seconds. `adb shell am start -a android.settings.APP_LOCALE_SETTINGS -d package:com.praveenjuge.teak.dev` → Français: reopen the app, it's French and `/v1/me` reads `"fr"`. Check the share sheet and the upload notification. Screenshot phone and tablet in de and ja, light and dark.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/web/language.e2e.ts src/web/i18n-pseudo.e2e.ts`.
 - **Clean up.** Settings → Appearance → Language → English, and check `GET /v1/me` says `"locale":"en"`.
 
@@ -50,3 +56,5 @@ Steps:
 - Also English on purpose: browser tab titles (route metadata renders before the language is known), the toast region's screen-reader label "Notifications", and key names in shortcuts (Esc, Enter, Ctrl, Del).
 - The extension's name in the browser follows the browser's language, not the account's.
 - A second tab follows a language change on its next query update or reload, not instantly.
+- The native apps start in the account's language once signed in, so an account that never chose one is English even on a German device; signed out they follow the device.
+- iOS and macOS apply a per-app language to system controls (share sheets, pickers, system alerts) only after a relaunch; Teak's own text switches at once.

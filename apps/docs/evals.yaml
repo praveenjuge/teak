@@ -92,6 +92,13 @@ questions:
       - Search qualifiers such as is:fav stay in English in every language
     routes: /docs/features
 
+  - id: app-language
+    question: My iPhone is set to Japanese. Can the Teak app be in Japanese too?
+    expected:
+      - Yes, choose 日本語 in the app's Settings → Language, or in iPhone Settings → Apps → Teak → Language
+      - The choice is saved to the account, so the web and other devices follow it
+    routes: /docs/features
+
   - id: ai-tags-language
     question: I saved a Japanese article. Will Teak's AI summary and tags be in English?
     expected:
