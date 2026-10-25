@@ -78,7 +78,7 @@ class LibraryViewModelTest {
         assertEquals("", query.search)
         assertEquals(TimeSearch.parse("2024-06-05")?.range, query.range)
         assertEquals(
-            UiText.of("native.library.empty.timeMessage", TimeSearch.parse("2024-06-05")!!.label),
+            UiText.of("native.library.empty.timeMessage", TimeSearch.parse("2024-06-05")!!.labelText),
             assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.message,
         )
         assertTrue(repository.semanticRequests.isEmpty())
@@ -91,7 +91,7 @@ class LibraryViewModelTest {
         advanceUntilIdle()
 
         assertEquals(UiText.of("native.library.empty.trashTitle"), assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.title)
-        assertEquals(UiText.verbatim("Trash"), viewModel.state.value.title)
+        assertEquals(UiText.of("native.filters.trash"), viewModel.state.value.title)
     }
 
     @Test
@@ -101,7 +101,7 @@ class LibraryViewModelTest {
         advanceUntilIdle()
 
         assertTrue(repository.queries.last().filters.archivedOnly)
-        assertEquals(UiText.verbatim("Archive"), viewModel.state.value.title)
+        assertEquals(UiText.of("native.filters.archive"), viewModel.state.value.title)
         assertFalse(viewModel.state.value.canRevisit)
     }
 
@@ -129,7 +129,7 @@ class LibraryViewModelTest {
         assertEquals(UiText.of("native.library.selectedCount", count = 2), viewModel.state.value.title)
 
         viewModel.endSelection()
-        assertEquals(UiText.verbatim("Home"), viewModel.state.value.title)
+        assertEquals(UiText.of("native.filters.home"), viewModel.state.value.title)
     }
 
     @Test
@@ -244,7 +244,10 @@ class LibraryViewModelTest {
 
         val state = viewModel.state.value
         assertTrue(state.showsDone)
-        assertEquals(listOf("Archived", "Under 50"), state.chips(unavailableCard = "unavailable card").map { it.label })
+        assertEquals(
+            listOf(UiText.of("native.filters.is.archived"), UiText.of("native.filters.price.under", "50")),
+            state.chips(unavailableCard = "unavailable card").map { it.labelText },
+        )
     }
 
     @Test

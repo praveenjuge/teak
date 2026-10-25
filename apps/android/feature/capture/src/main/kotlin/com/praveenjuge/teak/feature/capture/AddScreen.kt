@@ -219,7 +219,7 @@ internal fun AddScreen(
             onDismiss = onDismissAlert,
         )
         is AddAlert.Skipped -> {
-            val lines = alert.files.map { tr("native.capture.skippedFile", it.name, it.reason) }
+            val lines = alert.files.map { tr("native.capture.skippedFile", it.name, it.reasonText) }
             MessageDialog(
                 title = tr("native.capture.someSkipped"),
                 message = lines.joinToString("\n"),

@@ -57,10 +57,6 @@ internal fun usageText(user: CurrentUser): UiText {
     }
 }
 
-/** "Pro" is a name, so it stays as it is. */
-internal fun planText(user: CurrentUser): UiText =
-    if (user.hasPremium) UiText.verbatim("Pro") else UiText.of("native.settings.planFree")
-
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val account: AccountRepository,
@@ -89,7 +85,7 @@ class SettingsViewModel @Inject constructor(
                 current == null -> UiText.of("native.settings.notAvailable")
                 else -> usageText(current)
             },
-            plan = current?.let(::planText),
+            plan = current?.planText,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 

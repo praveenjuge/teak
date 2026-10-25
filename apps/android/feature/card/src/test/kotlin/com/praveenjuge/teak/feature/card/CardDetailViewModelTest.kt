@@ -227,7 +227,7 @@ class CardDetailViewModelTest {
         viewModel.events.test {
             viewModel.toggleArchived()
             val note = awaitItem() as CardDetailEvent.Message
-            assertEquals(UiText.of("native.card.notice.archived"), note.text)
+            assertEquals(UiText.of("native.bulk.done.archive", count = 1), note.text)
             note.undo!!.invoke()
         }
         assertEquals(listOf("archive:c1", "unarchive:c1"), cards.writes)

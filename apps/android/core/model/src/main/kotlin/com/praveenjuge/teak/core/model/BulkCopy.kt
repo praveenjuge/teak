@@ -2,8 +2,6 @@ package com.praveenjuge.teak.core.model
 
 /** The words after a bulk change, as `apps/web/src/lib/bulkCardActions.ts` writes them. */
 object BulkCopy {
-    fun cardCount(count: Int): String = "$count card${if (count == 1) "" else "s"}"
-
     private fun done(action: BulkAction, count: Int, folder: String?): UiText = when (action) {
         BulkAction.Favorite -> UiText.of("native.bulk.done.favorite", count = count)
         BulkAction.Unfavorite -> UiText.of("native.bulk.done.unfavorite", count = count)

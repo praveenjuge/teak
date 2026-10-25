@@ -4,20 +4,18 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class CardType(val plural: String) {
-    @SerialName("text") Text("Notes"),
-    @SerialName("link") Link("Links"),
-    @SerialName("image") Image("Images"),
-    @SerialName("video") Video("Videos"),
-    @SerialName("audio") Audio("Audio"),
-    @SerialName("document") Document("Documents"),
-    @SerialName("palette") Palette("Palettes"),
-    @SerialName("quote") Quote("Quotes"),
+enum class CardType {
+    @SerialName("text") Text,
+    @SerialName("link") Link,
+    @SerialName("image") Image,
+    @SerialName("video") Video,
+    @SerialName("audio") Audio,
+    @SerialName("document") Document,
+    @SerialName("palette") Palette,
+    @SerialName("quote") Quote,
     ;
 
     val wireName: String get() = name.lowercase()
-
-    val label: String get() = CARD_TYPE_LABELS.getValue(wireName)
 
     /** The type's name in the app's language: "Image". */
     val labelText: UiText
@@ -224,15 +222,6 @@ data class CurrentUser(
     val cardCount: Double = 0.0,
     val canCreateCard: Boolean = true,
 ) {
-    val plan: String get() = if (hasPremium) "Pro" else "Free"
-
-    val usageLabel: String
-        get() {
-            val count = cardCount.toInt()
-            val noun = if (count == 1) "Card" else "Cards"
-            return if (hasPremium) "$count $noun" else "$count of $FREE_TIER_LIMIT Cards"
-        }
-
     /** The plan's name: "Pro" stays as it is. */
     val planText: UiText get() = if (hasPremium) UiText.verbatim("Pro") else UiText.of("native.card.plan.free")
 
@@ -274,8 +263,6 @@ enum class ColorHue(val hex: Long) {
     ;
 
     val wireName: String get() = name.lowercase()
-
-    val label: String get() = COLOR_HUE_LABELS.getValue(wireName)
 
     val labelText: UiText
         get() = when (this) {

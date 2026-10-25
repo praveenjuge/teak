@@ -62,18 +62,11 @@ object LinkState {
     /** The note after toggling, also the tile badge's spoken label: "Marked as read" or "Marked as not read". */
     fun toggledText(category: String?, isDone: Boolean): UiText = wordsFor(category).let { if (isDone) it.markedAs else it.markedAsNot }
 
-    /** English only, for screens that haven't moved to [toggledText] yet. */
-    fun toggledMessage(category: String?, isDone: Boolean): String {
-        val verb = doneVerb(category)
-        return if (isDone) "Marked as $verb" else "Marked as not $verb"
-    }
-
-    /** [formatPrice] in the app's language: "Free" comes from the catalog. */
+    /** A link's price in the app's language: "Free" from the catalog, else the amount written the [locale]'s way. */
     fun priceText(price: LinkPrice, locale: Locale = Locale.getDefault()): UiText =
-        if (price.amount == 0.0) UiText.of("native.details.free") else UiText.verbatim(formatPrice(price, locale))
+        if (price.amount == 0.0) UiText.of("native.details.free") else UiText.verbatim(formatAmount(price, locale))
 
-    fun formatPrice(price: LinkPrice, locale: Locale = Locale.getDefault()): String {
-        if (price.amount == 0.0) return "Free"
+    private fun formatAmount(price: LinkPrice, locale: Locale): String {
         val currency = price.currency?.let { runCatching { Currency.getInstance(it) }.getOrNull() }
         if (currency != null) {
             return NumberFormat.getCurrencyInstance(locale).apply {

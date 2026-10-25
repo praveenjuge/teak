@@ -39,12 +39,12 @@ class NoteComposerViewModelTest {
     }
 
     @Test
-    fun `a full card limit shows the server's message`() = runTest {
+    fun `a full card limit explains the limit`() = runTest {
         cards.createError = TeakException(TeakException.CARD_LIMIT_REACHED, "You've used all 200 cards on Free.")
         val viewModel = NoteComposerViewModel(cards)
         viewModel.save("A note")
         assertEquals(
-            SaveError(UiText.of("native.capture.cardLimitReached"), UiText.verbatim("You've used all 200 cards on Free.")),
+            SaveError(UiText.of("native.capture.cardLimitReached"), UiText.of("native.capture.cardLimitMessage")),
             viewModel.uiState.value.error,
         )
         assertTrue(viewModel.uiState.value.canSave("A note"))

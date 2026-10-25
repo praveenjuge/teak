@@ -8,6 +8,8 @@ import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
+import com.praveenjuge.teak.core.model.BulkAction
+import com.praveenjuge.teak.core.model.BulkCopy
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
 import com.praveenjuge.teak.core.model.CardLinkTarget
@@ -159,7 +161,7 @@ class CardDetailViewModel @AssistedInject constructor(
         viewModelScope.launch {
             catchingFailures { repository.setArchived(card.id, archive) }
                 .onSuccess {
-                    val text = if (archive) UiText.of("native.card.notice.archived") else UiText.of("native.card.notice.unarchived")
+                    val text = BulkCopy.result(if (archive) BulkAction.Archive else BulkAction.Unarchive, updated = 1, failedCount = 0)
                     _events.send(
                         CardDetailEvent.Message(text) {
                             viewModelScope.launch {

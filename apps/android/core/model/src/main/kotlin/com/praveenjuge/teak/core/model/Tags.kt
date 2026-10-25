@@ -31,22 +31,4 @@ object Tags {
 
     /** The hint a library view shows when its only cards are hidden ones. */
     val hiddenCardsHint: UiText get() = UiText.of("native.tags.card.hiddenCards")
-
-    // English only, for screens that haven't moved to the UiText versions above yet.
-
-    fun explainInvalidName(name: String): String? {
-        val trimmed = name.trim()
-        return when {
-            trimmed.isEmpty() -> TAG_ERROR_MESSAGES.getValue("EMPTY_NAME")
-            trimmed.length > MAX_TAG_NAME_LENGTH -> TAG_ERROR_MESSAGES.getValue("NAME_TOO_LONG")
-            else -> null
-        }
-    }
-
-    fun existsMessage(name: String): String = "A tag named \"${name.trim()}\" already exists. Merge into it instead."
-
-    fun hiddenHint(previousTags: List<String>, tag: String): String? =
-        if (isHidden(tag) && !isHiddenList(previousTags)) "Hidden. Search #${key(tag)} to see it." else null
-
-    const val HIDDEN_CARDS_HINT = "Some cards are hidden. Search #secret or #hidden to see them."
 }

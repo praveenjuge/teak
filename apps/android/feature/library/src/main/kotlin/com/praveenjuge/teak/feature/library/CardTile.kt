@@ -45,6 +45,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -89,7 +90,7 @@ internal fun tileTitle(card: CardSummary): UiText = when (card.type) {
 /** A card's kind as a tile or caption names it: notes are "Note", not "Text". */
 @Composable
 internal fun tileKind(card: CardSummary): String =
-    if (card.type == CardType.Text) tr("native.library.tile.note") else card.type.label
+    if (card.type == CardType.Text) tr("native.library.tile.note") else card.type.labelText.resolve()
 
 enum class TileSelection { NotSelecting, Unselected, Selected }
 
@@ -110,11 +111,13 @@ internal fun CardTile(
     val favorite = card.isFavorited == true
     val kind = tileKind(card)
     val favoriteLabel = tr("native.library.tile.favorite")
+    val doneLabel = if (card.isDone) LinkState.toggledText(card.linkCategory, isDone = true).resolve() else null
+    val priceLabel = linkPriceText(card)
     val description = buildString {
         append(kind).append(", ").append(spokenTitle)
         if (favorite) append(", ").append(favoriteLabel)
-        if (card.isDone) append(", ").append(LinkState.toggledMessage(card.linkCategory, isDone = true))
-        card.linkPrice?.let { append(", ").append(LinkState.formatPrice(it)) }
+        doneLabel?.let { append(", ").append(it) }
+        priceLabel?.let { append(", ").append(it) }
     }
     val selecting = selection != TileSelection.NotSelecting
     val selected = selection == TileSelection.Selected
@@ -151,21 +154,27 @@ internal fun CardTile(
     }
 }
 
+/** A link's price in the app's language: "Free", or the amount written its way. */
+@Composable
+private fun linkPriceText(card: CardSummary): String? =
+    card.linkPrice?.let { LinkState.priceText(it, LocalConfiguration.current.locales[0]).resolve() }
+
 @Composable
 private fun TileContent(card: CardSummary, title: String) {
     val imageUrl = CardGrid.tileImageUrl(card)
+    val price = linkPriceText(card)
     when (card.type) {
         CardType.Link -> if (imageUrl != null) {
             Box {
                 TileImage(card, imageUrl)
-                card.linkPrice?.let { PricePill(LinkState.formatPrice(it), Modifier.align(Alignment.BottomStart).padding(8.dp)) }
+                price?.let { PricePill(it, Modifier.align(Alignment.BottomStart).padding(8.dp)) }
             }
             HorizontalDivider()
             TileFooter(title, subtitle = CardSheet.hostname(card.url)?.takeIf { it != title }, done = card.isDone)
         } else {
             TileFooter(
                 title,
-                subtitle = listOfNotNull(card.linkPrice?.let(LinkState::formatPrice), CardSheet.hostname(card.url)?.takeIf { it != title })
+                subtitle = listOfNotNull(price, CardSheet.hostname(card.url)?.takeIf { it != title })
                     .joinToString(" · ").ifEmpty { null },
                 titleLines = 2,
                 done = card.isDone,

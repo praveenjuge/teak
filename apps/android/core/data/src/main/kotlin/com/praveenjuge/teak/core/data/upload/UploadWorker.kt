@@ -7,6 +7,7 @@ import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -14,6 +15,7 @@ import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.i18n.tr
+import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -70,12 +72,21 @@ class UploadWorker @AssistedInject constructor(
     private fun continueQueue(name: String, error: TeakException): Result =
         Result.success(failureOutput(name, UploadOutcome.Failed, error))
 
-    private fun failureOutput(name: String, outcome: UploadOutcome, error: TeakException) = workDataOf(
-        Output.NAME to name,
-        Output.OUTCOME to outcome.name,
-        Output.ERROR to error.message,
-        Output.ERROR_CODE to error.code,
-    )
+    /**
+     * The failure, with its catalog message when it has one, so the row reads in whatever language
+     * the app is in when it's shown. [Output.ERROR] keeps the message as it was thrown.
+     */
+    private fun failureOutput(name: String, outcome: UploadOutcome, error: TeakException): Data {
+        val message = (error.text as? UiText.Message)?.takeIf { text -> text.count == null && text.args.all { it is String } }
+        return workDataOf(
+            Output.NAME to name,
+            Output.OUTCOME to outcome.name,
+            Output.ERROR to ((error.text as? UiText.Verbatim)?.text ?: error.message),
+            Output.ERROR_CODE to error.code,
+            Output.ERROR_KEY to message?.key,
+            Output.ERROR_ARGS to message?.args?.map { it as String }?.toTypedArray(),
+        )
+    }
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
         foregroundInfo(inputData.getString(KEY_NAME) ?: applicationContext.resources.tr("android.notification.file"), 0f)
@@ -147,6 +158,8 @@ class UploadWorker @AssistedInject constructor(
         const val CARD_ID = "result.cardId"
         const val ERROR = "result.error"
         const val ERROR_CODE = "result.errorCode"
+        const val ERROR_KEY = "result.errorKey"
+        const val ERROR_ARGS = "result.errorArgs"
     }
 }
 

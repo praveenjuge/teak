@@ -70,7 +70,7 @@ class ShareImporterTest {
 
     @Test
     fun `a skipped file makes a partial save with its reason`() = runTest {
-        uploads.nextStage = StageResult(listOf(staged("a.png")), listOf(SkippedFile("movie.mov", "It's larger than 100 MB.")))
+        uploads.nextStage = StageResult(listOf(staged("a.png")), listOf(SkippedFile.tooLarge("movie.mov")))
 
         val result = importer().import(
             listOf(
@@ -84,19 +84,19 @@ class ShareImporterTest {
             ShareResult.Partial(
                 saved = 2,
                 total = 3,
-                detail = UiText.of("native.capture.skippedFile", "movie.mov", "It's larger than 100 MB."),
+                detail = UiText.of("native.capture.skippedFile", "movie.mov", UiText.of("native.errors.fileTooLargeSkipped")),
             ),
             result,
         )
     }
 
     @Test
-    fun `a full card limit fails with the server's message`() = runTest {
+    fun `a full card limit fails with the limit's own words`() = runTest {
         cards.createError = TeakException(TeakException.CARD_LIMIT_REACHED, "You've reached the Free plan's card limit.")
 
         val result = importer().import(listOf(ShareItem.Text("a note")))
 
-        assertEquals(ShareResult.Failed(UiText.verbatim("You've reached the Free plan's card limit.")), result)
+        assertEquals(ShareResult.Failed(UiText.of("errors.cards.CARD_LIMIT_REACHED")), result)
     }
 
     @Test

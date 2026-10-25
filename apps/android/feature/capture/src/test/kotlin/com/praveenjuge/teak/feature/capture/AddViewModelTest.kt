@@ -45,7 +45,7 @@ class AddViewModelTest {
         val viewModel = AddViewModel(uploads)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         val photo = StagedFile("/a", "a.png", "image/png", 1)
-        val skipped = SkippedFile("huge.mov", "It's larger than 100 MB.")
+        val skipped = SkippedFile.tooLarge("huge.mov")
         uploads.nextStage = StageResult(listOf(photo), listOf(skipped))
 
         viewModel.upload(uris(2))

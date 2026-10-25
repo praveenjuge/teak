@@ -3,7 +3,7 @@ package com.praveenjuge.teak.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardPager
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
@@ -135,7 +135,7 @@ data class LibraryUiState(
     val title: UiText
         get() = when {
             selection == Selection.None -> folder?.name?.let(UiText::verbatim)
-                ?: if (folderId != null) UiText.of("native.library.folder") else UiText.verbatim(filters.title)
+                ?: if (folderId != null) UiText.of("native.library.folder") else filters.titleText
             pickedIds.isEmpty() -> UiText.of("native.library.selectCards")
             else -> UiText.of("native.library.selectedCount", count = pickedIds.size)
         }
@@ -191,7 +191,7 @@ data class LibraryUiState(
                 )
                 else -> EmptyCopy(
                     title = UiText.of("native.library.empty.searchTitle", search),
-                    message = timeFilter?.let { UiText.of("native.library.empty.timeMessage", it.label) }
+                    message = timeFilter?.let { UiText.of("native.library.empty.timeMessage", it.labelText) }
                         ?: UiText.of("native.library.empty.searchMessage"),
                     kind = EmptyKind.Search,
                 )
@@ -376,7 +376,7 @@ class LibraryViewModel @AssistedInject constructor(
     }
 
     private fun folderFailure(error: Throwable): UiText =
-        (error as? TeakException)?.message?.let(UiText::verbatim) ?: UiText.of("native.library.createFolderFailed")
+        error.teakText(UiText.of("native.library.createFolderFailed"))
 
     /** Archive or unarchive one card from its tile, with Undo. */
     fun setArchived(cardId: String, archived: Boolean) =

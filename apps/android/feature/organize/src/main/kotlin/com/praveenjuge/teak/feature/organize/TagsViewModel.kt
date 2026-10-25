@@ -3,7 +3,7 @@ package com.praveenjuge.teak.feature.organize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.TagsRepository
 import com.praveenjuge.teak.core.model.TagCount
 import com.praveenjuge.teak.core.model.TagOperation
@@ -167,7 +167,7 @@ class TagsViewModel @Inject constructor(
                     follow(operation.id)
                 }
                 .onFailure { error ->
-                    val message = (error as? TeakException)?.message?.let(UiText::verbatim) ?: UiText.of("native.tags.startFailed")
+                    val message = error.teakText(UiText.of("native.tags.startFailed"))
                     _state.update { it.copy(editorError = message) }
                 }
         }

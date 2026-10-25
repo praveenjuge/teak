@@ -42,7 +42,7 @@ class LibraryFiltersTest {
         val archive = LibraryFilters(trashOnly = true).toggleArchive()
         assertEquals(LibraryFilters(archivedOnly = true), archive)
         assertEquals(mapOf("showArchivedOnly" to true), archive.toSearchArgs())
-        assertEquals("Archive", archive.title)
+        assertEquals(UiText.of("native.filters.archive"), archive.titleText)
         assertEquals(LibraryFilters(trashOnly = true), archive.toggleTrash())
     }
 
@@ -69,14 +69,14 @@ class LibraryFiltersTest {
     @Test
     fun `titles follow the filter like iOS`() {
         val cases = listOf(
-            LibraryFilters.Empty to "Home",
-            LibraryFilters(trashOnly = true, favoritesOnly = true) to "Trash",
-            LibraryFilters(favoritesOnly = true) to "Favorites",
-            LibraryFilters(types = listOf(CardType.Text)) to "Notes",
-            LibraryFilters(favoritesOnly = true, types = listOf(CardType.Link)) to "Favorite Links",
-            LibraryFilters(hue = ColorHue.Teal) to "Teal",
-            LibraryFilters(types = listOf(CardType.Text, CardType.Link)) to "Filtered",
+            LibraryFilters.Empty to UiText.of("native.filters.home"),
+            LibraryFilters(trashOnly = true, favoritesOnly = true) to UiText.of("native.filters.trash"),
+            LibraryFilters(favoritesOnly = true) to UiText.of("native.filters.favorites"),
+            LibraryFilters(types = listOf(CardType.Text)) to UiText.of("native.filters.types.text"),
+            LibraryFilters(favoritesOnly = true, types = listOf(CardType.Link)) to UiText.of("native.filters.favoriteTypes.link"),
+            LibraryFilters(hue = ColorHue.Teal) to UiText.of("search.colorHues.teal"),
+            LibraryFilters(types = listOf(CardType.Text, CardType.Link)) to UiText.of("native.filters.filtered"),
         )
-        for ((filters, title) in cases) assertEquals(title, filters.title, "$filters")
+        for ((filters, title) in cases) assertEquals(title, filters.titleText, "$filters")
     }
 }

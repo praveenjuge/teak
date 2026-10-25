@@ -31,7 +31,7 @@ data class ShareDetails(
     val note: String = "",
     val isSaving: Boolean = false,
     val failed: Boolean = false,
-    val hiddenHint: String? = null,
+    val hiddenHint: UiText? = null,
 )
 
 sealed interface ShareUiState {
@@ -116,7 +116,7 @@ class ShareViewModel @Inject constructor(
     fun addTag() = updateDetails { details ->
         val tag = CardEdit.normalizeTag(details.tagInput)
         if (tag.isEmpty() || tag in details.tags) return@updateDetails details.copy(tagInput = "")
-        details.copy(tags = details.tags + tag, tagInput = "", hiddenHint = Tags.hiddenHint(details.tags, tag) ?: details.hiddenHint)
+        details.copy(tags = details.tags + tag, tagInput = "", hiddenHint = Tags.hiddenHintText(details.tags, tag) ?: details.hiddenHint)
     }
 
     fun removeTag(tag: String) = updateDetails { it.copy(tags = it.tags - tag) }

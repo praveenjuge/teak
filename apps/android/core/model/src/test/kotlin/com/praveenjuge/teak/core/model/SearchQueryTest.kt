@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.core.model
 
 import org.junit.Test
+import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -200,13 +201,19 @@ class SearchQueryTest {
     @Test
     fun `describes price bounds`() {
         val cases = listOf(
-            "price:<100" to "Under 100",
-            "price:>1500" to "Over 1,500",
-            "price:<=9.99" to "9.99 or less",
-            "price:>=10" to "10 or more",
-            "price:=0" to "Exactly 0",
+            "price:<100" to UiText.of("native.filters.price.under", "100"),
+            "price:>1500" to UiText.of("native.filters.price.over", "1,500"),
+            "price:<=9.99" to UiText.of("native.filters.price.atMost", "9.99"),
+            "price:>=10" to UiText.of("native.filters.price.atLeast", "10"),
+            "price:=0" to UiText.of("native.filters.price.exactly", "0"),
         )
-        for ((query, label) in cases) assertEquals(label, SearchQuery.describePriceBound(parse(query).prices.single()), query)
+        for ((query, label) in cases) {
+            assertEquals(label, SearchQuery.describePriceBoundText(parse(query).prices.single(), Locale.US), query)
+        }
+        assertEquals(
+            UiText.of("native.filters.price.over", "1.500"),
+            SearchQuery.describePriceBoundText(parse("price:>1500").prices.single(), Locale.GERMANY),
+        )
     }
 
     @Test
@@ -271,12 +278,24 @@ class SearchQueryTest {
     fun `chips name each filter like the web`() {
         val id = "j979t50bv7gjxz2mazwwf5tes18gbvnt"
         val chips = QualifierChips.of("is:archived is:done is:todo like:$id text:4411 price:<50 lamp", anchorTitle = "Desk")
+        val show = UiText.of("native.filters.chips.is")
         assertEquals(
-            listOf("Show" to "Archived", "Show" to "Done", "Show" to "To do", "Similar to" to "Desk", "Text in image" to "4411", "Price" to "Under 50"),
-            chips.map { it.title to it.label },
+            listOf(
+                show to UiText.of("native.filters.is.archived"),
+                show to UiText.of("native.filters.is.done"),
+                show to UiText.of("native.filters.is.todo"),
+                UiText.of("native.filters.chips.like") to UiText.verbatim("Desk"),
+                UiText.of("native.filters.chips.text") to UiText.verbatim("4411"),
+                UiText.of("native.filters.chips.price") to SearchQuery.describePriceBoundText(PriceBound(PriceComparison.Less, 50.0)),
+            ),
+            chips.map { it.titleText to it.labelText },
         )
-        assertEquals(listOf("Mood" to "“calm”"), QualifierChips.of("mood:calm").map { it.title to it.label })
-        assertEquals("Remove show Archived", chips.first().removeLabel)
+        assertEquals(
+            listOf(UiText.of("native.filters.chips.mood") to UiText.of("native.filters.chips.moodValue", "calm")),
+            QualifierChips.of("mood:calm").map { it.titleText to it.labelText },
+        )
+        assertEquals(UiText.of("native.filters.chips.anyCard"), QualifierChips.of("like:$id").single().labelText)
+        assertEquals(UiText.of("native.filters.removeChip.is", UiText.of("native.filters.is.archived")), chips.first().removeText)
         assertEquals("is:todo lamp", QualifierChips.remove("is:done is:todo lamp", SearchQualifier.Is(SearchIsValue.Done)))
         assertEquals("is:done lamp", QualifierChips.add("lamp", SearchQualifier.Is(SearchIsValue.Done)))
         assertEquals("is:done lamp", QualifierChips.add("is:done lamp", SearchQualifier.Is(SearchIsValue.Done)))

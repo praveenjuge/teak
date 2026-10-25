@@ -15,8 +15,8 @@ data class CreatedAtRange(
     override val endExclusive: EpochMillis,
 ) : OpenEndRange<EpochMillis>
 
-/** [label] is English, for screens that haven't moved to [labelText], the label in the app's language. */
-data class TimeFilter(val label: String, val range: CreatedAtRange, val labelText: UiText = UiText.verbatim(label))
+/** A created-at range and its label in the app's language: "Last week", "Jun 5, 2024". */
+data class TimeFilter(val labelText: UiText, val range: CreatedAtRange)
 
 /**
  * Turns searches like "last week", "monday", "June 2024" or "2024-06-05 to 2024-07-01" into a
@@ -25,7 +25,7 @@ data class TimeFilter(val label: String, val range: CreatedAtRange, val labelTex
  * The words people type stay English; only the label follows the app's language.
  */
 object TimeSearch {
-    private data class DayRange(val start: LocalDate, val end: LocalDate, val label: String, val text: UiText)
+    private data class DayRange(val start: LocalDate, val end: LocalDate, val text: UiText)
 
     private val months = mapOf(
         "january" to 1, "jan" to 1, "february" to 2, "feb" to 2, "march" to 3, "mar" to 3,
@@ -39,8 +39,6 @@ object TimeSearch {
         "thursday" to 4, "friday" to 5, "saturday" to 6,
     )
 
-    private val dayLabel = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
-    private val monthLabel = DateTimeFormatter.ofPattern("MMM yyyy", Locale.US)
     private val iso = Regex("^(\\d{4})-(\\d{2})-(\\d{2})$")
     private val us = Regex("^(\\d{1,2})/(\\d{1,2})/(\\d{4})$")
     private val monthDayYear = Regex("^([a-z]+)\\s+(\\d{1,2}),?\\s+(\\d{4})$")
@@ -50,34 +48,31 @@ object TimeSearch {
     /** Sunday = 0, like JavaScript's `Date.getDay()`. */
     private fun LocalDate.weekdayIndex(): Int = dayOfWeek.value % 7
 
-    private fun titleCase(value: String) =
-        value.split(" ").joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
-
     private fun relative(query: String, today: LocalDate): DayRange? = when (query) {
-        "today" -> DayRange(today, today.plusDays(1), "Today", UiText.of("native.time.today"))
-        "yesterday" -> DayRange(today.minusDays(1), today, "Yesterday", UiText.of("native.time.yesterday"))
+        "today" -> DayRange(today, today.plusDays(1), UiText.of("native.time.today"))
+        "yesterday" -> DayRange(today.minusDays(1), today, UiText.of("native.time.yesterday"))
         "this week", "last week" -> {
             val startOfWeek = today.minusDays(today.weekdayIndex().toLong())
             if (query == "this week") {
-                DayRange(startOfWeek, startOfWeek.plusDays(7), "This Week", UiText.of("native.time.thisWeek"))
+                DayRange(startOfWeek, startOfWeek.plusDays(7), UiText.of("native.time.thisWeek"))
             } else {
-                DayRange(startOfWeek.minusDays(7), startOfWeek, "Last Week", UiText.of("native.time.lastWeek"))
+                DayRange(startOfWeek.minusDays(7), startOfWeek, UiText.of("native.time.lastWeek"))
             }
         }
         "this month", "last month" -> {
             val startOfMonth = today.withDayOfMonth(1)
             if (query == "this month") {
-                DayRange(startOfMonth, startOfMonth.plusMonths(1), "This Month", UiText.of("native.time.thisMonth"))
+                DayRange(startOfMonth, startOfMonth.plusMonths(1), UiText.of("native.time.thisMonth"))
             } else {
-                DayRange(startOfMonth.minusMonths(1), startOfMonth, "Last Month", UiText.of("native.time.lastMonth"))
+                DayRange(startOfMonth.minusMonths(1), startOfMonth, UiText.of("native.time.lastMonth"))
             }
         }
         "this year", "last year" -> {
             val startOfYear = today.withDayOfYear(1)
             if (query == "this year") {
-                DayRange(startOfYear, startOfYear.plusYears(1), "This Year", UiText.of("native.time.thisYear"))
+                DayRange(startOfYear, startOfYear.plusYears(1), UiText.of("native.time.thisYear"))
             } else {
-                DayRange(startOfYear.minusYears(1), startOfYear, "Last Year", UiText.of("native.time.lastYear"))
+                DayRange(startOfYear.minusYears(1), startOfYear, UiText.of("native.time.lastYear"))
             }
         }
         else -> null
@@ -90,10 +85,9 @@ object TimeSearch {
         val diff = (today.weekdayIndex() - index + 7) % 7
         val mostRecent = today.minusDays(diff.toLong())
         val start = if (last) mostRecent.minusDays(7) else mostRecent
-        val label = if (last) "Last ${titleCase(token)}" else titleCase(token)
         val name = start.dayOfWeek.getDisplayName(TextStyle.FULL_STANDALONE, locale)
         val text = if (last) UiText.of("native.time.lastWeekday", name) else UiText.verbatim(name)
-        return DayRange(start, start.plusDays(1), label, text)
+        return DayRange(start, start.plusDays(1), text)
     }
 
     private fun dateOrNull(year: Int, month: Int, day: Int): LocalDate? =
@@ -102,7 +96,6 @@ object TimeSearch {
     private fun day(date: LocalDate, locale: Locale) = DayRange(
         date,
         date.plusDays(1),
-        dayLabel.format(date),
         UiText.verbatim(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)),
     )
 
@@ -124,12 +117,12 @@ object TimeSearch {
             months[name]?.let { month ->
                 val start = LocalDate.of(y.toInt(), month, 1)
                 val text = DateTimeFormatter.ofPattern("MMM yyyy", locale).format(start)
-                return DayRange(start, start.plusMonths(1), monthLabel.format(start), UiText.verbatim(text))
+                return DayRange(start, start.plusMonths(1), UiText.verbatim(text))
             }
         }
         year.matchEntire(query)?.let { m ->
             val start = LocalDate.of(m.groupValues[1].toInt(), 1, 1)
-            return DayRange(start, start.plusYears(1), m.groupValues[1], UiText.verbatim(m.groupValues[1]))
+            return DayRange(start, start.plusYears(1), UiText.verbatim(m.groupValues[1]))
         }
         return null
     }
@@ -158,14 +151,10 @@ object TimeSearch {
             val left = single(split.first, today, locale) ?: return null
             val right = single(split.second, today, locale) ?: return null
             if (!left.start.isBefore(right.end)) return null
-            return TimeFilter(
-                "${left.label} – ${right.label}",
-                range(left.start, right.end, zone),
-                UiText.of("native.time.range", left.text, right.text),
-            )
+            return TimeFilter(UiText.of("native.time.range", left.text, right.text), range(left.start, right.end, zone))
         }
         val match = single(normalized, today, locale) ?: return null
-        return TimeFilter(match.label, range(match.start, match.end, zone), match.text)
+        return TimeFilter(match.text, range(match.start, match.end, zone))
     }
 
     private fun range(start: LocalDate, end: LocalDate, zone: ZoneId) =

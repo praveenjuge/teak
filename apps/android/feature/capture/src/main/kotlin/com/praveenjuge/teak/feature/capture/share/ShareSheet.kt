@@ -198,7 +198,7 @@ private fun ShareDetailsForm(form: ShareDetails, actions: ShareDetailsActions, o
             FilledTonalButton(onClick = actions.onAddTag, enabled = form.tagInput.isNotBlank()) { Text(tr("common.add")) }
         }
         form.hiddenHint?.let {
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(it.resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         OutlinedTextField(
             value = form.note,

@@ -384,7 +384,7 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
                     LibraryEmpty(state.emptyState, actions.onWriteNote)
                     if (state.hasHiddenCards) {
                         Text(
-                            Tags.HIDDEN_CARDS_HINT,
+                            Tags.hiddenCardsHint.resolve(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,

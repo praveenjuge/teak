@@ -62,9 +62,9 @@ class WelcomeViewModelTest {
     @Test
     fun `a failed exchange shows the reason`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
-        account.signInError = SignInException("Verify your email before opening your vault.")
+        account.signInError = SignInException.verifyEmail()
         controller.handleCallback(Uri.parse("teak://auth/callback?code=abc&state=xyz"))
-        assertEquals(UiText.verbatim("Verify your email before opening your vault."), viewModel.uiState.value.error)
+        assertEquals(UiText.of("native.errors.verifyEmail"), viewModel.uiState.value.error)
     }
 
     @Test

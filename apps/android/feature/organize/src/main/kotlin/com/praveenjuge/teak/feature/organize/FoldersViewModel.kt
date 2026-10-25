@@ -3,7 +3,7 @@ package com.praveenjuge.teak.feature.organize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.UiText
@@ -98,7 +98,7 @@ class FoldersViewModel @Inject constructor(
                     } else {
                         UiText.of("native.folders.saveFailed")
                     }
-                    val message = (error as? TeakException)?.message?.let(UiText::verbatim) ?: fallback
+                    val message = error.teakText(fallback)
                     _state.update { it.copy(isSaving = false, editorError = message) }
                 }
         }

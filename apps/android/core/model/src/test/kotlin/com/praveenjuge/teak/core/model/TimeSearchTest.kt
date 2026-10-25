@@ -15,39 +15,42 @@ class TimeSearchTest {
 
     private fun day(millis: Long) = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
 
-    private fun assertRange(query: String, label: String, start: LocalDate, end: LocalDate) {
-        val result = TimeSearch.parse(query, tuesdayNoon)!!
-        assertEquals(label, result.label, query)
+    private fun assertRange(query: String, label: UiText, start: LocalDate, end: LocalDate) {
+        val result = TimeSearch.parse(query, tuesdayNoon, Locale.US)!!
+        assertEquals(label, result.labelText, query)
         assertEquals(start, day(result.range.start), query)
         assertEquals(end, day(result.range.endExclusive), query)
     }
 
     @Test
     fun `parses relative days and weeks`() {
-        assertRange("today", "Today", LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 4))
-        assertRange("yesterday", "Yesterday", LocalDate.of(2026, 2, 2), LocalDate.of(2026, 2, 3))
-        assertRange("last week", "Last Week", LocalDate.of(2026, 1, 25), LocalDate.of(2026, 2, 1))
-        assertRange("Last  Month", "Last Month", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 1))
+        assertRange("today", UiText.of("native.time.today"), LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 4))
+        assertRange("yesterday", UiText.of("native.time.yesterday"), LocalDate.of(2026, 2, 2), LocalDate.of(2026, 2, 3))
+        assertRange("last week", UiText.of("native.time.lastWeek"), LocalDate.of(2026, 1, 25), LocalDate.of(2026, 2, 1))
+        assertRange("Last  Month", UiText.of("native.time.lastMonth"), LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 1))
     }
 
     @Test
     fun `parses weekdays`() {
-        assertRange("monday", "Monday", LocalDate.of(2026, 2, 2), LocalDate.of(2026, 2, 3))
-        assertRange("last monday", "Last Monday", LocalDate.of(2026, 1, 26), LocalDate.of(2026, 1, 27))
+        assertRange("monday", UiText.verbatim("Monday"), LocalDate.of(2026, 2, 2), LocalDate.of(2026, 2, 3))
+        assertRange("last monday", UiText.of("native.time.lastWeekday", "Monday"), LocalDate.of(2026, 1, 26), LocalDate.of(2026, 1, 27))
     }
 
     @Test
     fun `parses explicit dates, months and years`() {
-        assertRange("June 2024", "Jun 2024", LocalDate.of(2024, 6, 1), LocalDate.of(2024, 7, 1))
-        assertRange("June 5, 2024", "Jun 5, 2024", LocalDate.of(2024, 6, 5), LocalDate.of(2024, 6, 6))
-        assertRange("2024-06-05", "Jun 5, 2024", LocalDate.of(2024, 6, 5), LocalDate.of(2024, 6, 6))
-        assertRange("06/05/2024", "Jun 5, 2024", LocalDate.of(2024, 6, 5), LocalDate.of(2024, 6, 6))
-        assertRange("2024", "2024", LocalDate.of(2024, 1, 1), LocalDate.of(2025, 1, 1))
+        assertRange("June 2024", UiText.verbatim("Jun 2024"), LocalDate.of(2024, 6, 1), LocalDate.of(2024, 7, 1))
+        assertRange("June 5, 2024", UiText.verbatim("Jun 5, 2024"), LocalDate.of(2024, 6, 5), LocalDate.of(2024, 6, 6))
+        assertRange("2024-06-05", UiText.verbatim("Jun 5, 2024"), LocalDate.of(2024, 6, 5), LocalDate.of(2024, 6, 6))
+        assertRange("06/05/2024", UiText.verbatim("Jun 5, 2024"), LocalDate.of(2024, 6, 5), LocalDate.of(2024, 6, 6))
+        assertRange("2024", UiText.verbatim("2024"), LocalDate.of(2024, 1, 1), LocalDate.of(2025, 1, 1))
     }
 
     @Test
     fun `parses ranges`() {
-        assertRange("June 2024 to July 2025", "Jun 2024 – Jul 2025", LocalDate.of(2024, 6, 1), LocalDate.of(2025, 8, 1))
+        assertRange(
+            "June 2024 to July 2025",
+            UiText.of("native.time.range", UiText.verbatim("Jun 2024"), UiText.verbatim("Jul 2025")),
+            LocalDate.of(2024, 6, 1), LocalDate.of(2025, 8, 1))
     }
 
     @Test

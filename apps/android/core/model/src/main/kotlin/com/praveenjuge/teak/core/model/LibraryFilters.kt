@@ -28,18 +28,7 @@ data class LibraryFilters(
     fun sorted(sort: CardSort, random: Random = Random.Default): LibraryFilters =
         copy(sort = sort, shuffleSeed = if (sort == CardSort.Shuffle) random.nextInt(0, MAX_SHUFFLE_SEED) else 0)
 
-    val title: String
-        get() {
-            if (trashOnly) return "Trash"
-            if (archivedOnly) return "Archive"
-            val typeTitle = types.singleOrNull()?.plural
-            if (favoritesOnly) return if (typeTitle != null) "Favorite $typeTitle" else "Favorites"
-            if (typeTitle != null) return typeTitle
-            hue?.let { return it.label }
-            return if (types.size > 1) "Filtered" else "Home"
-        }
-
-    /** [title] in the app's language. */
+    /** The library's title for these filters, in the app's language: "Trash", "Favorite notes", "Home". */
     val titleText: UiText
         get() {
             if (trashOnly) return UiText.of("native.filters.trash")

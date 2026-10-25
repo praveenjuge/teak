@@ -50,10 +50,7 @@ class NoteComposerViewModel @Inject constructor(
 
     private fun saveError(error: Throwable): SaveError =
         if (error is TeakException && error.code == TeakException.CARD_LIMIT_REACHED) {
-            SaveError(
-                UiText.of("native.capture.cardLimitReached"),
-                error.message?.let(UiText::verbatim) ?: UiText.of("native.capture.cardLimitMessage"),
-            )
+            SaveError(UiText.of("native.capture.cardLimitReached"), UiText.of("native.capture.cardLimitMessage"))
         } else {
             GENERIC_ERROR
         }

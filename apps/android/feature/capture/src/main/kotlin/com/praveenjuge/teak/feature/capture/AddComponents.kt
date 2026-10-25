@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.upload.UploadStatus
+import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.FREE_TIER_LIMIT
 
@@ -46,7 +47,7 @@ internal fun UploadRow(upload: UploadStatus) {
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    Text(upload.error ?: tr("native.capture.uploadDidntFinish"))
+                    Text(upload.errorText?.resolve() ?: tr("native.capture.uploadDidntFinish"))
                     if (limitReached) Text(tr("native.capture.freePlanLimit", formatCount(FREE_TIER_LIMIT)))
                 }
             }

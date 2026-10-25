@@ -85,6 +85,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardSort
@@ -134,7 +135,7 @@ internal fun LibraryTopBar(
                 DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
                     CardSort.entries.forEach { option ->
                         DropdownMenuItem(
-                            text = { Text(option.label) },
+                            text = { Text(option.labelText.resolve()) },
                             leadingIcon = {
                                 Icon(
                                     when (option) {
@@ -264,7 +265,7 @@ internal fun LibraryFilterRow(
             FilterChip(
                 selected = selected,
                 onClick = { onToggleType(type) },
-                label = { Text(type.plural) },
+                label = { Text(type.pluralText.resolve()) },
                 leadingIcon = if (selected) ({ ChipIcon(Icons.Filled.Check) }) else null,
             )
         }
@@ -292,14 +293,14 @@ private fun ColorChip(hue: ColorHue?, onSelectHue: (ColorHue) -> Unit) {
         FilterChip(
             selected = hue != null,
             onClick = { expanded = true },
-            label = { Text(hue?.label ?: tr("native.library.menu.color")) },
+            label = { Text(hue?.labelText?.resolve() ?: tr("native.library.menu.color")) },
             leadingIcon = hue?.let { { Swatch(it, size = FilterChipDefaults.IconSize.value.toInt()) } },
             trailingIcon = { ChipIcon(Icons.Filled.ArrowDropDown) },
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             ColorHue.entries.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label) },
+                    text = { Text(option.labelText.resolve()) },
                     leadingIcon = { Swatch(option) },
                     trailingIcon = if (option == hue) ({ Icon(Icons.Filled.Check, contentDescription = tr("native.library.selected")) }) else null,
                     onClick = {
@@ -321,22 +322,23 @@ internal fun QualifierChipRow(chips: List<QualifierChip>, onRemove: (SearchQuali
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         chips.forEach { chip ->
+            val removeLabel = chip.removeText.resolve()
             InputChip(
                 selected = true,
                 onClick = { onRemove(chip.qualifier) },
                 label = {
                     Text(
                         buildAnnotatedString {
-                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) { append(chip.title) }
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) { append(chip.titleText.resolve()) }
                             append(" ")
-                            append(chip.label)
+                            append(chip.labelText.resolve())
                         },
                         maxLines = 1,
                     )
                 },
                 leadingIcon = { ChipIcon(qualifierIcon(chip.qualifier)) },
                 trailingIcon = { ChipIcon(Icons.Filled.Close) },
-                modifier = Modifier.semantics { contentDescription = chip.removeLabel },
+                modifier = Modifier.semantics { contentDescription = removeLabel },
             )
         }
     }

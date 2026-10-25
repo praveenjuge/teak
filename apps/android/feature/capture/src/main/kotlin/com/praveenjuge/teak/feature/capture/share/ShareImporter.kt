@@ -46,7 +46,7 @@ class ShareImporter @Inject constructor(
         if (files.isNotEmpty()) {
             catchingFailures {
                 val staged = uploads.stage(files.map { it.uri })
-                failures += staged.skipped.map { UiText.of("native.capture.skippedFile", it.name, it.reason) }
+                failures += staged.skipped.map { UiText.of("native.capture.skippedFile", it.name, it.reasonText) }
                 if (staged.files.isNotEmpty()) uploads.enqueue(staged.files)
             }.onFailure { repeat(files.size) { failures += null } }
         }
@@ -61,7 +61,7 @@ class ShareImporter @Inject constructor(
     }
 
     private fun Throwable.detail(): UiText? =
-        (this as? TeakException)?.takeIf { it.code in EXPLAINED_CODES }?.message?.let(UiText::verbatim)
+        (this as? TeakException)?.takeIf { it.code in EXPLAINED_CODES }?.text
 
     companion object {
         val TOO_MANY_ITEMS: UiText = UiText.of("native.share.tooManyItems", MAX_FILES_PER_UPLOAD.toString())

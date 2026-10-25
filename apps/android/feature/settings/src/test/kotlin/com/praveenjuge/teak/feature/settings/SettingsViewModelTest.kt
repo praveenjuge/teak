@@ -56,7 +56,7 @@ class SettingsViewModelTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         assertEquals(UiText.of("native.settings.usageFree", "12", "200"), viewModel.uiState.value.usage)
-        assertEquals(UiText.of("native.settings.planFree"), viewModel.uiState.value.plan)
+        assertEquals(UiText.of("native.card.plan.free"), viewModel.uiState.value.plan)
         assertEquals("ada@example.com", viewModel.uiState.value.email)
 
         account.currentUserFlow.value = Result.success(CurrentUser(id = "t", email = "a@b.c", hasPremium = true, cardCount = 1.0))

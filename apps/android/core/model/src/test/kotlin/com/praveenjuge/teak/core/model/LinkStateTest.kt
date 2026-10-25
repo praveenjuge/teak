@@ -32,7 +32,6 @@ class LinkStateTest {
         assertEquals(UiText.of("native.done.markAs.done"), LinkState.toggleText(null, isDone = false))
         assertEquals(UiText.of("native.done.state.done"), LinkState.toggleText("repo", isDone = true))
         assertEquals(UiText.of("native.done.markedAsNot.read"), LinkState.toggledText("book", isDone = false))
-        assertEquals("Marked as not read", LinkState.toggledMessage("book", isDone = false))
         assertTrue(LinkState.isActionable("product"))
         assertFalse(LinkState.isActionable("repo"))
     }
@@ -55,15 +54,14 @@ class LinkStateTest {
     @Test
     fun `formats link prices`() {
         val cases = listOf(
-            LinkPrice(24.99, "USD") to "$24.99",
-            LinkPrice(1299.0, "EUR") to "€1,299.00",
-            LinkPrice(1_299_999.0, "JPY") to "¥1,299,999",
-            LinkPrice(0.0, "USD") to "Free",
-            LinkPrice(12.5) to "12.5",
-            LinkPrice(12.0, "ZZZZ") to "12",
+            LinkPrice(24.99, "USD") to UiText.verbatim("$24.99"),
+            LinkPrice(1299.0, "EUR") to UiText.verbatim("€1,299.00"),
+            LinkPrice(1_299_999.0, "JPY") to UiText.verbatim("¥1,299,999"),
+            LinkPrice(0.0, "USD") to UiText.of("native.details.free"),
+            LinkPrice(12.5) to UiText.verbatim("12.5"),
+            LinkPrice(12.0, "ZZZZ") to UiText.verbatim("12"),
         )
-        for ((price, label) in cases) assertEquals(label, LinkState.formatPrice(price, Locale.US), "$price")
-        assertEquals(UiText.of("native.details.free"), LinkState.priceText(LinkPrice(0.0, "USD"), Locale.US))
+        for ((price, label) in cases) assertEquals(label, LinkState.priceText(price, Locale.US), "$price")
         val euros = LinkState.priceText(LinkPrice(1299.0, "EUR"), Locale.GERMANY)
         assertTrue((euros as UiText.Verbatim).text.contains("1.299,00"), "$euros")
     }
@@ -71,10 +69,10 @@ class LinkStateTest {
     @Test
     fun `tag names must be non-empty and at most 64 characters`() {
         assertEquals("design", Tags.key("  Design "))
-        assertEquals("Name the tag", Tags.explainInvalidName(" "))
-        assertNull(Tags.explainInvalidName("x".repeat(64)))
-        assertEquals("Tags can be at most 64 characters", Tags.explainInvalidName("x".repeat(65)))
-        assertEquals("A tag named \"web\" already exists. Merge into it instead.", Tags.existsMessage(" web "))
+        assertEquals(UiText.of("errors.tags.EMPTY_NAME"), Tags.invalidNameText(" "))
+        assertNull(Tags.invalidNameText("x".repeat(64)))
+        assertEquals(UiText.of("errors.tags.NAME_TOO_LONG", "64"), Tags.invalidNameText("x".repeat(65)))
+        assertEquals(UiText.of("errors.tags.TAG_EXISTS", "web"), Tags.existsText(" web "))
     }
 
     @Test
@@ -93,11 +91,9 @@ class LinkStateTest {
 
     @Test
     fun `adding a hidden tag explains how to find the card, once`() {
-        assertEquals("Hidden. Search #secret to see it.", Tags.hiddenHint(listOf("work"), "Secret"))
         assertEquals(UiText.of("native.tags.card.hiddenAdded", "secret"), Tags.hiddenHintText(listOf("work"), "Secret"))
         assertNull(Tags.hiddenHintText(listOf("hidden"), "secret"))
-        assertNull(Tags.hiddenHint(listOf("hidden"), "secret"))
-        assertNull(Tags.hiddenHint(emptyList(), "work"))
+        assertNull(Tags.hiddenHintText(emptyList(), "work"))
     }
 
     @Test
