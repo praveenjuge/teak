@@ -21,7 +21,12 @@ final class LanguageModel {
     @ObservationIgnored private let defaults = UserDefaults.standard
     /// The language the app last gave the system, to notice a change made there.
     @ObservationIgnored private static let appliedKey = "teak.language.applied"
-    @ObservationIgnored private var pendingSystemChoice: String?
+    /// A language picked in the system's list that the account hasn't taken yet; kept until a save succeeds.
+    @ObservationIgnored private static let pendingKey = "teak.language.pending"
+    private var pendingSystemChoice: String? {
+        get { defaults.string(forKey: Self.pendingKey).flatMap(AppLanguage.supported) }
+        set { defaults.set(newValue, forKey: Self.pendingKey) }
+    }
     @ObservationIgnored private var lastSeen: String?
     @ObservationIgnored private var undoTask: Task<Void, Never>?
 
@@ -47,10 +52,14 @@ final class LanguageModel {
 
     private func accept(_ value: String?, backend: TeakBackend) async {
         guard let account = value.flatMap(AppLanguage.supported) else { return }
+        // A system pick wins until the account has it; each update retries the save.
         if let pending = pendingSystemChoice {
-            pendingSystemChoice = nil
-            lastSeen = pending
-            if pending != account { try? await save(pending, backend: backend) }
+            var saved = pending == account
+            if !saved { saved = (try? await save(pending, backend: backend)) != nil }
+            if saved {
+                pendingSystemChoice = nil
+                lastSeen = pending
+            }
             return
         }
         // Acting only when the account's value changes never undoes a save still in flight.
@@ -63,6 +72,7 @@ final class LanguageModel {
     func choose(_ next: String, backend: TeakBackend) {
         let previous = code
         guard next != previous, !isSaving else { return }
+        pendingSystemChoice = nil
         apply(next)
         isSaving = true
         error = nil
