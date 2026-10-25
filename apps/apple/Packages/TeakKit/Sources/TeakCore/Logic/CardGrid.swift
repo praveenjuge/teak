@@ -127,9 +127,8 @@ public enum LinkEdit {
 
 /// Emptying Trash: what the confirmation and the note after it say.
 public enum EmptyTrash {
-    /// Where the server's Trash counts stop (`TRASH_COUNT_LIMIT` in `packages/convex/shared/constants.ts`):
-    /// a count this big means "this many or more".
-    public static let countLimit = 500
+    /// Where the server's Trash counts stop: a count this big means "this many or more".
+    public static var countLimit: Int { SharedConstants.shared.limits.trashCount }
 
     /// The confirmation: the count from `cards:trashCount`, as "at least" once it reaches the limit.
     public static func message(count: Int) -> String {

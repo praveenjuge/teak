@@ -101,11 +101,8 @@ object LinkEdit {
 
 /** Emptying Trash: what the confirmation and the note after it say. */
 object EmptyTrash {
-    /**
-     * Where the server's Trash counts stop (`TRASH_COUNT_LIMIT` in `packages/convex/shared/constants.ts`):
-     * a count this big means "this many or more".
-     */
-    const val COUNT_LIMIT = 500
+    /** Where the server's Trash counts stop: a count this big means "this many or more". */
+    const val COUNT_LIMIT = TRASH_COUNT_LIMIT
 
     /** The confirmation: the count from `cards:trashCount`, as "at least" once it reaches the limit. */
     fun message(count: Int): UiText =

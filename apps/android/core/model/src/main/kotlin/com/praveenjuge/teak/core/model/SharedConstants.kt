@@ -2,6 +2,9 @@ package com.praveenjuge.teak.core.model
 
 const val FREE_TIER_LIMIT = 200
 
+/** Where the server's Trash counts stop: a count this big means "this many or more". */
+const val TRASH_COUNT_LIMIT = 500
+
 const val MAX_FILE_SIZE: Long = 104857600L
 
 const val MAX_FILES_PER_UPLOAD = 20

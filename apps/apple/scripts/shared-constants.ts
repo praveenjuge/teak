@@ -13,6 +13,7 @@ import {
   FREE_TIER_LIMIT,
   MAX_FILES_PER_UPLOAD,
   SIGNUPS_PAUSED_MESSAGE,
+  TRASH_COUNT_LIMIT,
   VISUAL_STYLE_ALIAS_MAP,
   VISUAL_STYLE_LABELS,
   VISUAL_STYLE_TAXONOMY,
@@ -66,6 +67,7 @@ export const buildSharedConstants = () => ({
     maxFileNameLength: MAX_FILE_NAME_LENGTH,
     markdownContentMaxBytes: MARKDOWN_CONTENT_MAX_BYTES,
     maxTagNameLength: MAX_TAG_NAME_LENGTH,
+    trashCount: TRASH_COUNT_LIMIT,
   },
   messages: {
     signupsPaused: SIGNUPS_PAUSED_MESSAGE,

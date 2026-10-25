@@ -8,6 +8,8 @@ public struct SharedConstants: Decodable, Sendable {
         public let maxFileNameLength: Int
         public let markdownContentMaxBytes: Int
         public let maxTagNameLength: Int
+        /// Where the server's Trash counts stop: a count this big means "this many or more".
+        public let trashCount: Int
     }
 
     public struct Messages: Decodable, Sendable {

@@ -285,11 +285,11 @@
     <string name="native_card_edit_saveFailed">无法保存更改</string>
     <string name="native_card_edit_tagPlaceholder">添加标签</string>
     <string name="native_card_edit_title">编辑卡片</string>
-    <string name="native_card_editLink_invalid">URL must use the http or https scheme</string>
-    <string name="native_card_editLink_label">Link</string>
+    <string name="native_card_editLink_invalid">Use an http or https link.</string>
+    <string name="native_card_editLink_label">Address</string>
     <string name="native_card_editLink_menu">Edit link…</string>
-    <string name="native_card_editLink_message">The preview refreshes after you save.</string>
-    <string name="native_card_editLink_saved">Link saved. The preview refreshes shortly.</string>
+    <string name="native_card_editLink_message">Saving a new address refreshes the card’s preview.</string>
+    <string name="native_card_editLink_saved">Link saved. Its preview will refresh in a moment.</string>
     <string name="native_card_editLink_title">Edit link</string>
     <string name="native_card_failed_archive">无法归档此卡片。</string>
     <string name="native_card_failed_delete">无法删除此卡片。</string>

@@ -19,6 +19,7 @@ import {
   FREE_TIER_LIMIT,
   MAX_FILES_PER_UPLOAD,
   SIGNUPS_PAUSED_MESSAGE,
+  TRASH_COUNT_LIMIT,
 } from "../../../packages/convex/shared/constants";
 import { MAX_FILE_SIZE } from "../../../packages/convex/shared/fileFormats";
 import { FOLDER_ERROR_MESSAGES } from "../../../packages/convex/shared/folders";
@@ -83,6 +84,9 @@ export const renderSharedConstants = () =>
     "package com.praveenjuge.teak.core.model",
     "",
     `const val FREE_TIER_LIMIT = ${FREE_TIER_LIMIT}`,
+    "",
+    "/** Where the server's Trash counts stop: a count this big means \"this many or more\". */",
+    `const val TRASH_COUNT_LIMIT = ${TRASH_COUNT_LIMIT}`,
     "",
     `const val MAX_FILE_SIZE: Long = ${MAX_FILE_SIZE}L`,
     "",

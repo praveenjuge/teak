@@ -17102,49 +17102,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "URL must use the http or https scheme"
+            "value" : "Use an http or https link."
           }
         }
       }
@@ -17155,49 +17155,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link"
+            "value" : "Address"
           }
         }
       }
@@ -17261,49 +17261,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The preview refreshes after you save."
+            "value" : "Saving a new address refreshes the card’s preview."
           }
         }
       }
@@ -17314,49 +17314,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved. The preview refreshes shortly."
+            "value" : "Link saved. Its preview will refresh in a moment."
           }
         }
       }

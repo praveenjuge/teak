@@ -12,6 +12,7 @@ type TitledCard = Pick<
   | "fileMetadata"
   | "metadata"
   | "metadataTitle"
+  | "metadataTitleEdited"
   | "type"
   | "url"
 >;
@@ -50,8 +51,9 @@ export const cardPreviewText = (
   );
 
 /**
- * The title every surface shows for a card: its link preview title, its
- * title, its file name, its site, then its first line of text.
+ * The title every surface shows for a card: a title the person typed, its link
+ * preview title, its title, its file name, its site, then its first line of
+ * text. The web's `resolveLinkTitle` reads a link's title the same way.
  */
 export const cardDisplayTitle = (
   card: TitledCard,
@@ -62,6 +64,7 @@ export const cardDisplayTitle = (
       ? card.metadata.linkPreview.title
       : undefined;
   return (
+    (card.metadataTitleEdited ? card.metadataTitle : undefined) ||
     linkTitle ||
     card.metadataTitle ||
     card.fileMetadata?.fileName ||

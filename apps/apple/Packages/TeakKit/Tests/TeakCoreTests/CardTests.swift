@@ -208,7 +208,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 }
 
 @Suite struct LinkEditTests {
-    private let invalid = "URL must use the http or https scheme"
+    private let invalid = "Use an http or https link."
 
     @Test(arguments: ["https://example.com", "  http://teak.dev/a?b=1#c  ", "HTTPS://Example.com",
                       "https://me@example.com:8080/x", "https://bücher.de"])
