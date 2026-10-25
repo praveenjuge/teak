@@ -154,6 +154,26 @@ describe("emptyTrash", () => {
     expect(await card(later)).toMatchObject({ isDeleted: true });
   });
 
+  test("keeps a card restored before its delete runs", async () => {
+    const { t, owner, trashed, card, runScheduled } = await setup();
+    const kept = await trashed();
+    const gone = await trashed();
+
+    await owner.mutation(api.cards.emptyTrash, {});
+    // Runs the listing page only; each card's delete is still waiting.
+    vi.runOnlyPendingTimers();
+    await t.finishInProgressScheduledFunctions();
+    await owner.mutation(api.cards.updateCardField, {
+      cardId: kept,
+      field: "restore",
+    });
+
+    await runScheduled();
+
+    expect((await card(kept))?.isDeleted).toBeUndefined();
+    expect(await card(gone)).toBeNull();
+  });
+
   test("an empty Trash schedules nothing", async () => {
     const { t, owner, insert } = await setup();
     await insert();

@@ -16,11 +16,11 @@ import { TRASH_COUNT_LIMIT } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { permanentDeleteCardForUserHandler } from "./deleteCard";
 
-/** Cards hard-deleted per run; each run schedules the next. */
+/** Cards listed per run; each run schedules their deletes and the next run. */
 export const EMPTY_TRASH_PAGE_SIZE = 25;
 
 /**
- * Bytes one count or one delete run may read. A note can hold 512 KiB, so a
+ * Bytes one count or one listing run may read. A note can hold 512 KiB, so a
  * page stops early on large cards and stays far below Convex's 16 MiB limit.
  */
 const COUNT_BYTES = 8 * 1024 * 1024;
@@ -74,8 +74,8 @@ export const trashCount = query({
 
 /**
  * Permanently deletes every card in the account's Trash. It returns the
- * count (as `trashCount` does) and deletes them a page at a time after it
- * returns, skipping cards trashed after the call.
+ * count (as `trashCount` does) and deletes them after it returns, skipping
+ * cards trashed after the call.
  */
 export const emptyTrash = mutation({
   args: {},
@@ -105,6 +105,10 @@ export const emptyTrash = mutation({
   },
 });
 
+/**
+ * Lists a page of Trash and schedules one delete per card. Deleting a card
+ * also reads its search row and transcript, so each gets its own transaction.
+ */
 export const emptyTrashPage = internalMutation({
   args: {
     userId: v.string(),
@@ -124,15 +128,37 @@ export const emptyTrashPage = internalMutation({
     });
     for (const card of page) {
       if (trashedBefore(card, args.startedAt)) {
-        await permanentDeleteCardForUserHandler(ctx, userId, card._id, {
-          requireTrashed: true,
-        });
+        await ctx.scheduler.runAfter(
+          0,
+          internal.card.emptyTrash.emptyTrashCard,
+          {
+            userId,
+            startedAt: args.startedAt,
+            cardId: card._id,
+          }
+        );
       }
     }
     if (!isDone) {
       await ctx.scheduler.runAfter(0, internal.card.emptyTrash.emptyTrashPage, {
         ...args,
         cursor: continueCursor,
+      });
+    }
+    return null;
+  },
+});
+
+/** Deletes one card, unless it was deleted, restored or trashed again since. */
+export const emptyTrashCard = internalMutation({
+  args: { userId: v.string(), startedAt: v.number(), cardId: v.id("cards") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireTeakUserId(ctx, args.userId);
+    const card = await ctx.db.get("cards", args.cardId);
+    if (card?.userId === userId && trashedBefore(card, args.startedAt)) {
+      await permanentDeleteCardForUserHandler(ctx, userId, card._id, {
+        requireTrashed: true,
       });
     }
     return null;
