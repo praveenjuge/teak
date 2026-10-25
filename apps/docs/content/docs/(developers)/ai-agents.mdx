@@ -83,9 +83,10 @@ teak tags
 ## Can agents use Teak inside the browser?
 
 Yes. In browsers that ship the draft WebMCP API, the signed-in Teak web app
-registers read-only `teak_search_cards` and `teak_get_card` tools plus a
-declarative search form, all running in your existing session with no extra
-authentication. See [WebMCP](/docs/webmcp) for requirements and the tool
+registers seven tools: `teak_search_cards`, `teak_get_card` and
+`teak_recent_cards` to read, `teak_create_card`, `teak_update_tags` and
+`teak_set_favorite` to save and change cards, and a declarative search form.
+They all run in your existing session with no extra authentication. See [WebMCP](/docs/webmcp) for requirements and the tool
 reference.
 
 ## Is there an Agent Skill?
