@@ -85,7 +85,7 @@ export const renderSharedConstants = () =>
     "",
     `const val FREE_TIER_LIMIT = ${FREE_TIER_LIMIT}`,
     "",
-    "/** Where the server's Trash counts stop: a count this big means \"this many or more\". */",
+    '/** Where the server\'s Trash counts stop: a count this big means "this many or more". */',
     `const val TRASH_COUNT_LIMIT = ${TRASH_COUNT_LIMIT}`,
     "",
     `const val MAX_FILE_SIZE: Long = ${MAX_FILE_SIZE}L`,
