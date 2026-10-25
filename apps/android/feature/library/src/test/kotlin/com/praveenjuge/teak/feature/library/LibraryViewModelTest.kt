@@ -12,6 +12,7 @@ import com.praveenjuge.teak.core.model.TimeSearch
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
+import com.praveenjuge.teak.core.testing.FakeLanguageRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -30,17 +31,27 @@ class LibraryViewModelTest {
 
     private val repository = FakeCardsRepository()
     private val folders = FakeFoldersRepository()
+    private val language = FakeLanguageRepository()
 
     private fun summary(id: String) = CardSummary(id = id, creationTime = 0.0, type = CardType.Text, title = "Card $id")
 
     private fun library(vararg ids: String, folderId: String? = null): LibraryViewModel {
         repository.summaries.value = ids.map(::summary)
-        return LibraryViewModel(folderId, repository, folders)
+        return LibraryViewModel(folderId, repository, folders, language)
     }
 
     private fun LibraryViewModel.select(vararg ids: String) {
         beginSelection()
         ids.forEach(::toggleSelected)
+    }
+
+    @Test
+    fun `date words read in the app's language`() = runTest {
+        language.current.value = "fr"
+        val viewModel = library()
+        viewModel.onSearchChange("monday")
+        advanceUntilIdle()
+        assertEquals(UiText.verbatim("lundi"), viewModel.state.value.timeFilter?.labelText)
     }
 
     @Test

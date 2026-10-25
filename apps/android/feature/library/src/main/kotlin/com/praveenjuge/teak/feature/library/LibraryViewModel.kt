@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.repository.CardPager
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
+import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.data.repository.PagedCards
 import com.praveenjuge.teak.core.model.BulkAction
@@ -47,6 +48,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 enum class EmptyKind { Search, Trash, Filters, Archive, Folder, Similar }
 
@@ -206,6 +208,7 @@ class LibraryViewModel @AssistedInject constructor(
     @Assisted private val folderId: String?,
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
+    private val language: LanguageRepository,
 ) : ViewModel() {
     private val pager = CardPager(repository, viewModelScope)
     private val searchText = MutableStateFlow("")
@@ -219,8 +222,9 @@ class LibraryViewModel @AssistedInject constructor(
             .map(String::trim)
             .distinctUntilChanged()
         val filters = _state.map { it.filters }.distinctUntilChanged()
-        combine(search, filters) { text, chips ->
-            val time = TimeSearch.parse(text)
+        // Date words read in the app's language, which on Android 12 isn't the process default.
+        combine(search, filters, language.current) { text, chips, code ->
+            val time = TimeSearch.parse(text, locale = Locale.forLanguageTag(code))
             _state.update { it.copy(search = text, timeFilter = time) }
             if (time != null) {
                 CardQuery(range = time.range, filters = chips, folderId = folderId)

@@ -23,6 +23,7 @@ object AppLanguage {
     private const val PREFS = "teak_language"
     private const val CHOSEN = "chosen"
     private const val APPLIED = "applied"
+    private const val PENDING = "pending"
 
     /** The language the app shows now. */
     fun current(context: Context): String = chosen(context) ?: match(systemLocales())
@@ -36,6 +37,7 @@ object AppLanguage {
         prefs(context).edit {
             putString(CHOSEN, code)
             putString(APPLIED, code)
+            remove(PENDING)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.getSystemService(LocaleManager::class.java).applicationLocales = LocaleList.forLanguageTags(code)
@@ -43,20 +45,29 @@ object AppLanguage {
     }
 
     /**
-     * A language picked in the system's per-app list since Teak last applied one, which the
-     * account should take, or null. Picking "System default" there counts as the device's language.
+     * A language picked in the system's per-app list that the account hasn't taken yet, or null.
+     * It stays pending until [systemChoiceSaved], so a failed save is retried rather than lost.
+     * Picking "System default" there counts as the device's language.
      */
-    fun changedInSystem(context: Context): String? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
-        val applied = prefs(context).getString(APPLIED, null) ?: return null
-        val locales = context.getSystemService(LocaleManager::class.java).applicationLocales
-        val now = if (locales.isEmpty) match(systemLocales()) else match(locales)
-        if (now == applied) return null
-        prefs(context).edit {
-            putString(CHOSEN, now)
-            putString(APPLIED, now)
+    fun systemChoice(context: Context): String? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val applied = prefs(context).getString(APPLIED, null)
+            val locales = context.getSystemService(LocaleManager::class.java).applicationLocales
+            val now = if (locales.isEmpty) match(systemLocales()) else match(locales)
+            if (applied != null && now != applied) {
+                prefs(context).edit {
+                    putString(CHOSEN, now)
+                    putString(APPLIED, now)
+                    putString(PENDING, now)
+                }
+            }
         }
-        return now
+        return prefs(context).getString(PENDING, null)?.takeIf { it in codes }
+    }
+
+    /** The account took the system's choice. */
+    fun systemChoiceSaved(context: Context) {
+        prefs(context).edit { remove(PENDING) }
     }
 
     /**

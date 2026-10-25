@@ -53,12 +53,17 @@ class ConvexLanguageRepository @Inject constructor(
     }
 
     override suspend fun follow() {
-        AppLanguage.changedInSystem(context)?.let { picked ->
-            _current.value = picked
-            catchingFailures { save(picked) }
-        }
+        AppLanguage.systemChoice(context)?.let { _current.value = it }
         convex.subscribe(ConvexFunctions.getPreferences).collect { result ->
             val code = result.getOrNull()?.locale?.takeIf { it in AppLanguage.codes } ?: return@collect
+            // A language picked in the system's list wins until the account has it; each update retries.
+            AppLanguage.systemChoice(context)?.let { picked ->
+                if (code == picked || catchingFailures { save(picked) }.isSuccess) {
+                    AppLanguage.systemChoiceSaved(context)
+                    lastSeen = picked
+                }
+                return@collect
+            }
             if (code == lastSeen) return@collect
             lastSeen = code
             if (code != _current.value) apply(code)
