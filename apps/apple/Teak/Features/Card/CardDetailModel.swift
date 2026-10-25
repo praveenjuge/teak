@@ -24,6 +24,7 @@ final class CardDetailModel {
     var notice: String?
 
     @ObservationIgnored private let backend: TeakBackend
+    @ObservationIgnored private let spotlight: SpotlightIndexer?
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var linksTask: Task<Void, Never>?
     @ObservationIgnored private var backlinksTask: Task<Void, Never>?
@@ -32,9 +33,10 @@ final class CardDetailModel {
     @ObservationIgnored private var taskSaves = 0
     @ObservationIgnored private var keepSaves = 0
 
-    init(id: String, backend: TeakBackend) {
+    init(id: String, backend: TeakBackend, spotlight: SpotlightIndexer? = nil) {
         self.id = id
         self.backend = backend
+        self.spotlight = spotlight
     }
 
     func start() {
@@ -50,6 +52,7 @@ final class CardDetailModel {
                         if contentOverride != nil, value?.content == contentOverride || taskSaves == 0 { contentOverride = nil }
                         if tagsOverride != nil, value?.tags == tagsOverride || keepSaves == 0 { tagsOverride = nil }
                         watchLinks(value)
+                        if let value { spotlight?.follow(value) }
                     }
                     return
                 } catch {

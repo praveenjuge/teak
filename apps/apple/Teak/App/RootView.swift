@@ -1,3 +1,4 @@
+import CoreSpotlight
 import PhotosUI
 import SwiftUI
 import TeakCore
@@ -41,7 +42,14 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { app.becameActive() }
         }
-        .onOpenURL { router.handle($0) }
+        .onChange(of: app.phase, initial: true) { _, phase in router.follow(phase) }
+        .onOpenURL { router.handle($0, phase: app.phase) }
+        // A Spotlight result for a card opens it.
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                  TeakLink.isCardId(id) else { return }
+            router.handle(TeakLink.card(id).url, phase: app.phase)
+        }
         .sheet(item: Bindable(router).saveRequest) { request in
             SaveRequestView(text: request.text)
         }

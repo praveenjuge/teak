@@ -33,7 +33,7 @@ struct CardDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task {
-            if model == nil { model = CardDetailModel(id: route.id, backend: app.backend) }
+            if model == nil { model = CardDetailModel(id: route.id, backend: app.backend, spotlight: app.spotlight) }
             model?.start()
         }
         .onDisappear { model?.stop() }

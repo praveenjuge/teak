@@ -905,13 +905,41 @@
     "intents": {
       "saveTitle": "Save to Teak",
       "saveDescription": "Saves text or a link to your Teak library.",
-      "contentParameter": "Text or link"
+      "contentParameter": "Text or link",
+      "searchTitle": "Search Teak",
+      "searchDescription": "Finds cards in your Teak library, with the same search as the app.",
+      "queryParameter": "Search",
+      "includeArchivedParameter": "Include archived cards",
+      "openCardTitle": "Open Card",
+      "openCardDescription": "Opens a card in Teak.",
+      "cardParameter": "Card",
+      "cardsParameter": "Cards",
+      "addToFolderTitle": "Add to Folder",
+      "addToFolderDescription": "Adds cards to one of your Teak folders.",
+      "folderParameter": "Folder",
+      "newNoteTitle": "New Note",
+      "newNoteDescription": "Opens Teak on a new note.",
+      "recordVoiceMemoTitle": "Record Voice Memo",
+      "recordVoiceMemoDescription": "Opens Teak on the voice memo recorder.",
+      "cardEntity": "Card",
+      "folderEntity": "Folder",
+      "titleProperty": "Title",
+      "linkProperty": "Link",
+      "smartFolderMessage": "A smart folder fills itself from its search. Pick another folder."
     },
     "appShortcuts": {
-      "save": "Save to {applicationName}"
+      "save": "Save to {applicationName}",
+      "search": "Search {applicationName}",
+      "openCard": "Open a card in {applicationName}",
+      "addToFolder": "Add cards to a folder in {applicationName}",
+      "newNote": "New note in {applicationName}",
+      "recordVoiceMemo": "Record a voice memo in {applicationName}"
     },
     "intentSummaries": {
-      "save": "Save {content} to Teak"
+      "save": "Save {content} to Teak",
+      "search": "Search Teak for {query}",
+      "openCard": "Open {target}",
+      "addToFolder": "Add {cards} to {folder}"
     },
     "card": {
       "audioUnplayableMac": "This recording format can't play on Mac",

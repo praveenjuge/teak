@@ -59,15 +59,44 @@ final class AppRouter {
         }
     }
 
-    func handle(_ url: URL) {
-        guard url.scheme == "teak" else { return }
-        switch url.host() {
-        case "save":
-            saveRequest = SaveRequest(text: SaveLink.text(from: url.absoluteString))
-        case "connect":
-            tab = .home
-        default:
+    /// A link that needs the library, held until the app knows who's signed in.
+    private var pendingLink: TeakLink?
+
+    /// Follows a `teak://` link. Signed out, the app stays on the welcome
+    /// screen and a link into the library is dropped.
+    func handle(_ url: URL, phase: AppPhase) {
+        switch TeakLink(url) {
+        case let .save(text): saveRequest = SaveRequest(text: text)
+        case .connect: tab = .home
+        case let link?:
+            pendingLink = link
+            follow(phase)
+        case nil: break
+        }
+    }
+
+    /// Opens a held link once the library shows, or drops it when no one is signed in.
+    func follow(_ phase: AppPhase) {
+        guard let link = pendingLink else { return }
+        switch phase {
+        case .signedIn:
+            pendingLink = nil
+            open(link)
+        case .signedOut:
+            pendingLink = nil
+        case .loading, .offline, .failed:
             break
+        }
+    }
+
+    private func open(_ link: TeakLink) {
+        switch link {
+        case let .card(id):
+            tab = .home
+            if homePath.last?.id != id { homePath = [CardRoute(id: id, summary: nil)] }
+        case .newNote: compose()
+        case .voiceMemo: isRecording = true
+        case .save, .connect: break
         }
     }
 }
