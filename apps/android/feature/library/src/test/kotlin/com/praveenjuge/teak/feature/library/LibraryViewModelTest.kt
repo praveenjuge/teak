@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.feature.library
 
 import com.praveenjuge.teak.core.data.repository.CardQuery
+import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardSort
 import com.praveenjuge.teak.core.model.CardSummary
@@ -35,9 +36,9 @@ class LibraryViewModelTest {
 
     private fun summary(id: String) = CardSummary(id = id, creationTime = 0.0, type = CardType.Text, title = "Card $id")
 
-    private fun library(vararg ids: String, folderId: String? = null): LibraryViewModel {
+    private fun library(vararg ids: String, folderId: String? = null, fixedView: LibraryView? = null): LibraryViewModel {
         repository.summaries.value = ids.map(::summary)
-        return LibraryViewModel(folderId, repository, folders, language)
+        return LibraryViewModel(folderId, fixedView, repository, folders, language)
     }
 
     private fun LibraryViewModel.select(vararg ids: String) {
@@ -66,6 +67,25 @@ class LibraryViewModelTest {
             CardQuery(search = "design", filters = LibraryFilters(favoritesOnly = true, types = listOf(CardType.Link))),
             repository.queries.last(),
         )
+    }
+
+    @Test
+    fun `the tablet's Trash page keeps its filter`() = runTest {
+        val viewModel = library(fixedView = LibraryView.Trash)
+        advanceUntilIdle()
+        assertEquals(LibraryFilters(trashOnly = true), repository.queries.last().filters)
+        assertFalse(viewModel.state.value.canClearFilters)
+
+        viewModel.toggleTrash()
+        viewModel.toggleArchive()
+        viewModel.toggleType(CardType.Link)
+        advanceUntilIdle()
+        assertEquals(LibraryFilters(trashOnly = true, types = listOf(CardType.Link)), viewModel.state.value.filters)
+        assertTrue(viewModel.state.value.canClearFilters)
+
+        viewModel.clearFilters()
+        assertEquals(LibraryFilters(trashOnly = true), viewModel.state.value.filters)
+        assertEquals(UiText.of("native.filters.trash"), viewModel.state.value.title)
     }
 
     @Test

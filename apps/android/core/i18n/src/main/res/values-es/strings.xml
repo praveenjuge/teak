@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">Este vídeo no se puede reproducir en este dispositivo.</string>
     <string name="android_notification_file">Archivo</string>
     <string name="android_notification_uploadTitle">Guardando en Teak</string>
+    <string name="android_settings_wallpaperColors">Wallpaper colors</string>
+    <string name="android_settings_wallpaperColorsDescription">Color the app from your wallpaper instead of Teak\'s red.</string>
     <string name="android_share_saveToTeak">Guardar en Teak</string>
     <string name="cards_types_audio">Audio</string>
     <string name="cards_types_card">Tarjeta</string>
@@ -635,6 +637,11 @@
     <string name="native_linkPicker_noMatches">No hay tarjetas que coincidan</string>
     <string name="native_linkPicker_option">Enlazar %1$s</string>
     <string name="native_linkPicker_searching">Buscando tarjetas…</string>
+    <string name="native_media_pdfFailed">Couldn\'t open this PDF.</string>
+    <string name="native_media_pdfLoading">Opening the PDF…</string>
+    <string name="native_media_pdfPage">Page %1$s of %2$s</string>
+    <string name="native_media_seek">Seek</string>
+    <string name="native_media_seekPosition">%1$s of %2$s</string>
     <string name="native_notes_checked">Marcado</string>
     <plurals name="native_notes_table">
         <item quantity="one">Tabla, %1$d fila</item>

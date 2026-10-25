@@ -16,6 +16,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.FileMetadata
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,5 +73,28 @@ class CardDetailUiTest {
         compose.onNodeWithText("design").performScrollTo().performClick()
 
         assertEquals(listOf("design"), searched)
+    }
+
+    @Test
+    fun `View document opens a PDF in the app's reader`() {
+        var opened = 0
+        val card = Card(
+            id = "c1",
+            creationTime = 0.0,
+            type = CardType.Document,
+            fileUrl = "https://files.test/deck.pdf",
+            fileMetadata = FileMetadata(fileName = "deck.pdf", mimeType = "application/pdf"),
+        )
+        compose.setContent {
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onViewPdf = { opened += 1 }),
+            )
+        }
+
+        compose.onNodeWithText("View document").performScrollTo().performClick()
+
+        assertEquals(1, opened)
     }
 }

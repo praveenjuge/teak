@@ -34,6 +34,7 @@ sealed interface LanguageNotice {
 
 data class SettingsUiState(
     val theme: ThemePreference = ThemePreference.System,
+    val useWallpaperColors: Boolean = false,
     val language: String = "en",
     val isChangingLanguage: Boolean = false,
     val languageNotice: LanguageNotice? = null,
@@ -68,16 +69,19 @@ class SettingsViewModel @Inject constructor(
 
     private val local = MutableStateFlow(SettingsUiState())
 
+    private val appearance = combine(preferences.theme, preferences.useWallpaperColors, ::Pair)
+
     val uiState: StateFlow<SettingsUiState> = combine(
         local,
-        preferences.theme,
+        appearance,
         account.session,
         account.currentUser,
         language.current,
-    ) { local, theme, session, user, code ->
+    ) { local, (theme, wallpaperColors), session, user, code ->
         val current: CurrentUser? = user.getOrNull()
         local.copy(
             theme = theme,
+            useWallpaperColors = wallpaperColors,
             language = code,
             email = (session as? SessionState.SignedIn)?.user?.email,
             usage = when {
@@ -91,6 +95,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTheme(theme: ThemePreference) {
         viewModelScope.launch { preferences.setTheme(theme) }
+    }
+
+    fun setUseWallpaperColors(enabled: Boolean) {
+        viewModelScope.launch { preferences.setUseWallpaperColors(enabled) }
     }
 
     /** Switches the app's language now and saves it to the account, with Undo. */

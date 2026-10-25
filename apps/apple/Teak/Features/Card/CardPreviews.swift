@@ -42,6 +42,11 @@ private struct Unavailable: View {
 struct ImagePreview: View {
     let card: Card
     static let maxHeight = 440.0
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #else
+    @State private var viewing: ImageViewerItem?
+    #endif
 
     var body: some View {
         let urls = CardSheet.imageURLs(card)
@@ -53,12 +58,30 @@ struct ImagePreview: View {
                 .frame(maxHeight: Self.maxHeight)
                 .clipShape(.rect(cornerRadius: 16))
         } else {
-            RemoteImage(urls: urls, contentMode: .fit, maxPixelSize: 2400)
-                .aspectRatio(ratio, contentMode: .fit)
-                .frame(maxHeight: Self.maxHeight)
-                .clipShape(.rect(cornerRadius: 16))
-                .accessibilityLabel(card.metadataTitle ?? card.fileMetadata?.fileName ?? tr("native.card.preview.image"))
+            let item = ImageViewerItem(card: card)
+            Button { open(item) } label: {
+                RemoteImage(urls: urls, contentMode: .fit, maxPixelSize: 2400)
+                    .aspectRatio(ratio, contentMode: .fit)
+                    .frame(maxHeight: Self.maxHeight)
+                    .clipShape(.rect(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(item.title)
+            .accessibilityHint(tr("native.card.preview.viewFullScreen"))
+            .accessibilityAddTraits(.isImage)
+            #if os(iOS)
+            .fullScreenCover(item: $viewing) { ImageViewer(item: $0) }
+            #endif
         }
+    }
+
+    /// Full screen on iPhone and iPad; its own zoomable window on Mac.
+    private func open(_ item: ImageViewerItem) {
+        #if os(macOS)
+        openWindow(id: ImageWindow.id, value: item)
+        #else
+        viewing = item
+        #endif
     }
 
     private var ratio: Double {
@@ -187,6 +210,16 @@ final class AudioPlayback {
         isPlaying = false
     }
 
+    /// Moves to `fraction` of the recording, playing or not, as the web's seek bar does.
+    func seek(to fraction: Double, url: URL) {
+        guard duration > 0 else { return }
+        if player == nil { prepare(url) }
+        let seconds = min(max(fraction, 0), 1) * duration
+        elapsed = seconds
+        progress = seconds / duration
+        player?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+
     private func prepare(_ url: URL) {
         let item = AVPlayerItem(url: url)
         let player = AVPlayer(playerItem: item)
@@ -204,8 +237,10 @@ final class AudioPlayback {
         endObserver = NotificationCenter.default.addObserver(forName: AVPlayerItem.didPlayToEndTimeNotification,
                                                              object: item, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.isPlaying = false
-                self?.progress = 1
+                guard let self else { return }
+                self.isPlaying = false
+                self.progress = 1
+                self.elapsed = self.duration
             }
         }
     }
@@ -236,7 +271,7 @@ struct AudioPreview: View {
                 .buttonStyle(.glassProminent)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(playback.isPlaying ? tr("native.card.preview.pause") : tr("native.card.preview.play"))
-                WaveformView(seed: card.id, progress: playback.progress)
+                SeekBar(seed: card.id, playback: playback, url: url)
                     .frame(height: 56)
                 Text(timeLabel)
                     .font(.footnote.monospacedDigit())
@@ -258,10 +293,54 @@ struct AudioPreview: View {
         #endif
     }
 
+    /// The length before playing, then where it is out of the length, like the web.
     private var timeLabel: String {
-        let shown = playback.isPlaying || playback.elapsed > 0 ? playback.elapsed : playback.duration
-        return CardSheet.formatDuration(shown)
+        let started = playback.isPlaying || playback.elapsed > 0
+        guard playback.duration > 0 else { return started ? CardSheet.formatDuration(playback.elapsed) : "" }
+        return started
+            ? "\(CardSheet.formatDuration(playback.elapsed)) / \(CardSheet.formatDuration(playback.duration))"
+            : CardSheet.formatDuration(playback.duration)
     }
+}
+
+/// The waveform as a seek bar: tap or drag to move through the recording. VoiceOver adjusts it in steps.
+private struct SeekBar: View {
+    let seed: String
+    let playback: AudioPlayback
+    let url: URL
+    /// Where a drag is, shown until it lets go and seeks there.
+    @State private var scrub: Double?
+
+    var body: some View {
+        GeometryReader { proxy in
+            WaveformView(seed: seed, progress: scrub ?? playback.progress)
+                .contentShape(.rect)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { scrub = fraction($0.location.x, width: proxy.size.width) }
+                        .onEnded {
+                            playback.seek(to: fraction($0.location.x, width: proxy.size.width), url: url)
+                            scrub = nil
+                        },
+                    isEnabled: playback.duration > 0
+                )
+        }
+        .accessibilityElement()
+        .accessibilityLabel(tr("native.media.seek"))
+        .accessibilityValue(tr("native.media.seekPosition", CardSheet.formatDuration(playback.elapsed),
+                               CardSheet.formatDuration(playback.duration)))
+        .accessibilityAdjustableAction { direction in
+            // Five seconds, or a tenth of a recording shorter than 50 seconds.
+            let step = playback.duration > 0 ? min(5, playback.duration / 10) / playback.duration : 0
+            switch direction {
+            case .increment: playback.seek(to: playback.progress + step, url: url)
+            case .decrement: playback.seek(to: playback.progress - step, url: url)
+            @unknown default: break
+            }
+        }
+    }
+
+    private func fraction(_ x: Double, width: Double) -> Double { width > 0 ? min(max(x / width, 0), 1) : 0 }
 }
 
 struct DocumentPreview: View {

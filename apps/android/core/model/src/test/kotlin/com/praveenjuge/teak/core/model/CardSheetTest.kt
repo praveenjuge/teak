@@ -24,6 +24,15 @@ class CardSheetTest {
     }
 
     @Test
+    fun `knows a PDF by its type or its name`() {
+        val document = card(CardType.Document)
+        assertEquals(true, CardSheet.isPdf(document.copy(fileMetadata = FileMetadata(mimeType = "application/pdf"))))
+        assertEquals(true, CardSheet.isPdf(document.copy(fileMetadata = FileMetadata(fileName = "Deck.PDF"))))
+        assertEquals(false, CardSheet.isPdf(document.copy(fileMetadata = FileMetadata(fileName = "notes.md", mimeType = "text/markdown"))))
+        assertEquals(false, CardSheet.isPdf(document))
+    }
+
+    @Test
     fun `download names never escape the downloads folder`() {
         assertEquals("a_b.png", CardSheet.downloadFileName(null, "a/b.png"))
         assertEquals("uuid-photo.heic", CardSheet.downloadFileName("https://files.test/users%2Fu1%2Fuuid-photo.heic?sig=1", null))

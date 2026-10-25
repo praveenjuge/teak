@@ -40,6 +40,10 @@ object CardSheet {
         return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
     }
 
+    /** A PDF, which the card view shows page by page. */
+    fun isPdf(card: Card): Boolean =
+        card.fileMetadata?.mimeType == "application/pdf" || card.fileMetadata?.fileName?.lowercase()?.endsWith(".pdf") == true
+
     fun hostname(url: String?): String? = url?.let {
         runCatching { URI(it).host }.getOrNull()?.removePrefix("www.")?.takeIf(String::isNotEmpty)
     }

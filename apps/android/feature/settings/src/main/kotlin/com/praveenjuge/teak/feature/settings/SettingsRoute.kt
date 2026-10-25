@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Mail
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.WorkspacePremium
@@ -29,6 +31,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -38,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -63,6 +67,7 @@ fun SettingsRoute(onManageTags: () -> Unit = {}, viewModel: SettingsViewModel = 
         state = state,
         versionName = viewModel.versionName,
         onThemeChange = viewModel::setTheme,
+        onWallpaperColorsChange = viewModel::setUseWallpaperColors,
         onLanguageChange = viewModel::chooseLanguage,
         onUndoLanguage = viewModel::undoLanguage,
         onDismissLanguageNotice = viewModel::dismissLanguageNotice,
@@ -85,6 +90,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     versionName: String,
     onThemeChange: (ThemePreference) -> Unit,
+    onWallpaperColorsChange: (Boolean) -> Unit,
     onLanguageChange: (String) -> Unit,
     onUndoLanguage: () -> Unit,
     onDismissLanguageNotice: () -> Unit,
@@ -118,6 +124,20 @@ fun SettingsScreen(
         ) {
             ListSectionHeader(tr("native.settings.appearance"))
             ThemePicker(state.theme, onThemeChange)
+            Spacer(Modifier.height(12.dp))
+            ListGroup {
+                ListRow(
+                    tr("android.settings.wallpaperColors"),
+                    Icons.Outlined.Palette,
+                    modifier = Modifier.toggleable(
+                        value = state.useWallpaperColors,
+                        role = Role.Switch,
+                        onValueChange = onWallpaperColorsChange,
+                    ),
+                    supporting = tr("android.settings.wallpaperColorsDescription"),
+                    trailing = { Switch(checked = state.useWallpaperColors, onCheckedChange = null) },
+                )
+            }
             Spacer(Modifier.height(12.dp))
             LanguageSetting(state.language, enabled = !state.isChangingLanguage, onChoose = onLanguageChange)
 

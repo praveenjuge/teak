@@ -67,6 +67,13 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         #expect(CardSheet.copyText(card(.link, content: "note")) == "note")
     }
 
+    @Test func knowsAPDFByItsTypeOrItsName() {
+        #expect(CardSheet.isPDF(card(.document, file: FileMetadata(mimeType: "application/pdf"))))
+        #expect(CardSheet.isPDF(card(.document, file: FileMetadata(fileName: "Deck.PDF"))))
+        #expect(!CardSheet.isPDF(card(.document, file: FileMetadata(fileName: "notes.md", mimeType: "text/markdown"))))
+        #expect(!CardSheet.isPDF(card(.document)))
+    }
+
     @Test func namesDownloadsSafely() {
         #expect(CardSheet.downloadFileName(url: "https://files.example/a", savedName: "photo.jpg") == "photo.jpg")
         #expect(CardSheet.downloadFileName(url: "https://files.example/uploads/report.pdf") == "report.pdf")

@@ -4,6 +4,7 @@ import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -38,6 +39,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,12 +51,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -311,12 +317,21 @@ internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, m
     }
 
     val totalSeconds = if (duration > 0) duration / 1000.0 else savedDuration ?: 0.0
-    val progress = if (totalSeconds > 0) (position / 1000.0 / totalSeconds).coerceIn(0.0, 1.0).toFloat() else 0f
-    val started = position > 0 || isPlaying
+    // Where a drag on the waveform is, until it lets go and seeks there.
+    var scrub by remember(player) { mutableStateOf<Float?>(null) }
+    val playedProgress = if (totalSeconds > 0) (position / 1000.0 / totalSeconds).coerceIn(0.0, 1.0).toFloat() else 0f
+    val progress = scrub ?: playedProgress
+    val shownSeconds = scrub?.let { it * totalSeconds } ?: (position / 1000.0)
+    val started = position > 0 || isPlaying || scrub != null
     val timeLabel = if (started) {
-        "${CardSheet.formatDuration(position / 1000.0)} / ${CardSheet.formatDuration(totalSeconds)}"
+        "${CardSheet.formatDuration(shownSeconds)} / ${CardSheet.formatDuration(totalSeconds)}"
     } else {
         CardSheet.formatDuration(totalSeconds)
+    }
+    fun seek(fraction: Float) {
+        val target = (fraction.coerceIn(0f, 1f) * totalSeconds * 1000).toLong()
+        player.seekTo(target)
+        position = target
     }
 
     Row(
@@ -344,28 +359,94 @@ internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, m
                 contentDescription = if (isPlaying) tr("native.card.preview.pause") else tr("native.card.preview.play"),
             )
         }
-        Waveform(cardId, progress, Modifier.weight(1f).height(36.dp))
+        SeekableWaveform(
+            seed = cardId,
+            progress = progress,
+            positionText = tr(
+                "native.media.seekPosition",
+                CardSheet.formatDuration(shownSeconds),
+                CardSheet.formatDuration(totalSeconds),
+            ),
+            enabled = totalSeconds > 0,
+            onScrub = { scrub = it },
+            onSeek = { fraction ->
+                scrub = null
+                seek(fraction)
+            },
+            modifier = Modifier.weight(1f).height(44.dp),
+        )
         Text(timeLabel, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
+/**
+ * The waveform as a seek bar, like the web's: tap or drag to move through the recording. [onScrub] follows a
+ * drag (null when it's cancelled), and [onSeek] gets where it ended. TalkBack reads it as an adjustable bar.
+ */
 @Composable
-private fun Waveform(seed: String, progress: Float, modifier: Modifier = Modifier) {
+private fun SeekableWaveform(
+    seed: String,
+    progress: Float,
+    positionText: String,
+    enabled: Boolean,
+    onScrub: (Float?) -> Unit,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val heights = remember(seed) { CardGrid.waveformHeights(seed) }
     val played = MaterialTheme.colorScheme.primary
     val unplayed = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     val playedBars = (progress * heights.size).roundToInt()
-    val description = tr("native.card.preview.playbackProgress")
+    val label = tr("native.media.seek")
+    var width by remember { mutableFloatStateOf(1f) }
+    // The gesture handlers outlive a recomposition, so they read the latest callbacks, which know the duration.
+    val scrubTo by rememberUpdatedState(onScrub)
+    val seekTo by rememberUpdatedState(onSeek)
+    fun fraction(x: Float) = (x / width).coerceIn(0f, 1f)
+    val gestures = if (enabled) {
+        Modifier
+            .pointerInput(Unit) { detectTapGestures { seekTo(fraction(it.x)) } }
+            .pointerInput(Unit) {
+                var last = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        last = fraction(it.x)
+                        scrubTo(last)
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        last = fraction(change.position.x)
+                        scrubTo(last)
+                    },
+                    onDragEnd = { seekTo(last) },
+                    onDragCancel = { scrubTo(null) },
+                )
+            }
+    } else {
+        Modifier
+    }
     Canvas(
-        modifier.semantics {
-            contentDescription = description
-            progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
-        },
+        modifier
+            .onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }
+            .then(gestures)
+            .semantics {
+                contentDescription = label
+                stateDescription = positionText
+                progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                if (enabled) {
+                    setProgress { target ->
+                        onSeek(target)
+                        true
+                    }
+                } else {
+                    disabled()
+                }
+            },
     ) {
         val step = size.width / heights.size
         val barWidth = minOf(step * 0.6f, 3.dp.toPx())
         heights.forEachIndexed { index, value ->
-            val barHeight = size.height * value
+            val barHeight = size.height * 0.82f * value
             drawRoundRect(
                 color = if (index < playedBars) played else unplayed,
                 topLeft = Offset(step * index + (step - barWidth) / 2, (size.height - barHeight) / 2),

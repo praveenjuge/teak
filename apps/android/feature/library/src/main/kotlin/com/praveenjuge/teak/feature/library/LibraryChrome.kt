@@ -220,9 +220,21 @@ internal fun LibrarySearchField(state: TextFieldState, modifier: Modifier = Modi
     )
 }
 
+/**
+ * Which Favorites, Archive and Trash chips the filter row shows: all of them on phones, only one that's on
+ * where the tablet rail has them (so it can be turned off), and none on those views' own pages.
+ */
+internal enum class ViewChips {
+    All, Selected, None;
+
+    fun shows(selected: Boolean): Boolean = this == All || (this == Selected && selected)
+}
+
 @Composable
 internal fun LibraryFilterRow(
     filters: LibraryFilters,
+    viewChips: ViewChips,
+    canClear: Boolean,
     showsDone: Boolean,
     showsTodo: Boolean,
     onToggleFavorites: () -> Unit,
@@ -239,24 +251,30 @@ internal fun LibraryFilterRow(
         modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(
-            selected = filters.favoritesOnly,
-            onClick = onToggleFavorites,
-            label = { Text(tr("native.filters.favorites")) },
-            leadingIcon = { ChipIcon(if (filters.favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder) },
-        )
-        FilterChip(
-            selected = filters.archivedOnly,
-            onClick = onToggleArchive,
-            label = { Text(tr("native.filters.archive")) },
-            leadingIcon = { ChipIcon(Icons.Outlined.Archive) },
-        )
-        FilterChip(
-            selected = filters.trashOnly,
-            onClick = onToggleTrash,
-            label = { Text(tr("native.filters.trash")) },
-            leadingIcon = { ChipIcon(Icons.Outlined.Delete) },
-        )
+        if (viewChips.shows(filters.favoritesOnly)) {
+            FilterChip(
+                selected = filters.favoritesOnly,
+                onClick = onToggleFavorites,
+                label = { Text(tr("native.filters.favorites")) },
+                leadingIcon = { ChipIcon(if (filters.favoritesOnly) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder) },
+            )
+        }
+        if (viewChips.shows(filters.archivedOnly)) {
+            FilterChip(
+                selected = filters.archivedOnly,
+                onClick = onToggleArchive,
+                label = { Text(tr("native.filters.archive")) },
+                leadingIcon = { ChipIcon(Icons.Outlined.Archive) },
+            )
+        }
+        if (viewChips.shows(filters.trashOnly)) {
+            FilterChip(
+                selected = filters.trashOnly,
+                onClick = onToggleTrash,
+                label = { Text(tr("native.filters.trash")) },
+                leadingIcon = { ChipIcon(Icons.Outlined.Delete) },
+            )
+        }
         FilterChip(
             selected = showsDone,
             onClick = onToggleDone,
@@ -279,7 +297,7 @@ internal fun LibraryFilterRow(
             )
         }
         ColorChip(filters.hue, onSelectHue)
-        if (filters.isActive) {
+        if (canClear) {
             AssistChip(onClick = onClear, label = { Text(tr("native.library.filter.clear")) }, leadingIcon = { ChipIcon(Icons.Filled.Close) })
         }
     }

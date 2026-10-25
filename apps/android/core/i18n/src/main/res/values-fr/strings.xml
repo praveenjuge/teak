@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">Cette vidéo ne peut pas être lue sur cet appareil.</string>
     <string name="android_notification_file">Fichier</string>
     <string name="android_notification_uploadTitle">Enregistrement dans Teak</string>
+    <string name="android_settings_wallpaperColors">Wallpaper colors</string>
+    <string name="android_settings_wallpaperColorsDescription">Color the app from your wallpaper instead of Teak\'s red.</string>
     <string name="android_share_saveToTeak">Enregistrer dans Teak</string>
     <string name="cards_types_audio">Audio</string>
     <string name="cards_types_card">Fiche</string>
@@ -635,6 +637,11 @@
     <string name="native_linkPicker_noMatches">Aucune fiche correspondante</string>
     <string name="native_linkPicker_option">Lier %1$s</string>
     <string name="native_linkPicker_searching">Recherche de fiches…</string>
+    <string name="native_media_pdfFailed">Couldn\'t open this PDF.</string>
+    <string name="native_media_pdfLoading">Opening the PDF…</string>
+    <string name="native_media_pdfPage">Page %1$s of %2$s</string>
+    <string name="native_media_seek">Seek</string>
+    <string name="native_media_seekPosition">%1$s of %2$s</string>
     <string name="native_notes_checked">Coché</string>
     <plurals name="native_notes_table">
         <item quantity="one">Tableau, %1$d ligne</item>

@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">この動画はこのデバイスでは再生できません。</string>
     <string name="android_notification_file">ファイル</string>
     <string name="android_notification_uploadTitle">Teak に保存中</string>
+    <string name="android_settings_wallpaperColors">Wallpaper colors</string>
+    <string name="android_settings_wallpaperColorsDescription">Color the app from your wallpaper instead of Teak\'s red.</string>
     <string name="android_share_saveToTeak">Teak に保存</string>
     <string name="cards_types_audio">音声</string>
     <string name="cards_types_card">カード</string>
@@ -609,6 +611,11 @@
     <string name="native_linkPicker_noMatches">一致するカードはありません</string>
     <string name="native_linkPicker_option">%1$s をリンク</string>
     <string name="native_linkPicker_searching">カードを検索中…</string>
+    <string name="native_media_pdfFailed">Couldn\'t open this PDF.</string>
+    <string name="native_media_pdfLoading">Opening the PDF…</string>
+    <string name="native_media_pdfPage">Page %1$s of %2$s</string>
+    <string name="native_media_seek">Seek</string>
+    <string name="native_media_seekPosition">%1$s of %2$s</string>
     <string name="native_notes_checked">チェック済み</string>
     <plurals name="native_notes_table">
         <item quantity="other">表、%1$d 行</item>

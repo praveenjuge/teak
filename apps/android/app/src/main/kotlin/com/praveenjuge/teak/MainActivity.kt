@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val theme by preferences.theme.collectAsStateWithLifecycle(ThemePreference.System)
+            val wallpaperColors by preferences.useWallpaperColors.collectAsStateWithLifecycle(false)
             val dark = when (theme) {
                 ThemePreference.System -> isSystemInDarkTheme()
                 ThemePreference.Light -> false
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 onDispose {}
             }
-            TeakTheme(darkTheme = dark) {
+            TeakTheme(darkTheme = dark, wallpaperColors = wallpaperColors) {
                 TeakApp(
                     account = account,
                     launchRequest = launchRequest,

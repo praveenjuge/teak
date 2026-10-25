@@ -10,6 +10,10 @@ class FakePreferencesRepository : PreferencesRepository {
     override suspend fun setTheme(theme: ThemePreference) {
         this.theme.value = theme
     }
+    override val useWallpaperColors = MutableStateFlow(false)
+    override suspend fun setUseWallpaperColors(enabled: Boolean) {
+        useWallpaperColors.value = enabled
+    }
     override suspend fun cachedAuthMode(): String? = authMode
     override suspend fun cacheAuthMode(json: String) {
         authMode = json

@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">此视频无法在此设备上播放。</string>
     <string name="android_notification_file">文件</string>
     <string name="android_notification_uploadTitle">正在保存到 Teak</string>
+    <string name="android_settings_wallpaperColors">Wallpaper colors</string>
+    <string name="android_settings_wallpaperColorsDescription">Color the app from your wallpaper instead of Teak\'s red.</string>
     <string name="android_share_saveToTeak">保存到 Teak</string>
     <string name="cards_types_audio">音频</string>
     <string name="cards_types_card">卡片</string>
@@ -609,6 +611,11 @@
     <string name="native_linkPicker_noMatches">没有匹配的卡片</string>
     <string name="native_linkPicker_option">链接 %1$s</string>
     <string name="native_linkPicker_searching">正在搜索卡片…</string>
+    <string name="native_media_pdfFailed">Couldn\'t open this PDF.</string>
+    <string name="native_media_pdfLoading">Opening the PDF…</string>
+    <string name="native_media_pdfPage">Page %1$s of %2$s</string>
+    <string name="native_media_seek">Seek</string>
+    <string name="native_media_seekPosition">%1$s of %2$s</string>
     <string name="native_notes_checked">已勾选</string>
     <plurals name="native_notes_table">
         <item quantity="other">表格，%1$d 行</item>

@@ -3,6 +3,7 @@ package com.praveenjuge.teak.core.data.prefs
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -21,6 +22,10 @@ interface PreferencesRepository {
     val theme: Flow<ThemePreference>
     suspend fun setTheme(theme: ThemePreference)
 
+    /** Material You: colors from the wallpaper instead of Teak's red. Off by default. */
+    val useWallpaperColors: Flow<Boolean>
+    suspend fun setUseWallpaperColors(enabled: Boolean)
+
     suspend fun cachedAuthMode(): String?
     suspend fun cacheAuthMode(json: String)
 }
@@ -33,6 +38,7 @@ class DataStorePreferencesRepository @Inject constructor(
 ) : PreferencesRepository {
     private val themeKey = stringPreferencesKey("theme")
     private val authModeKey = stringPreferencesKey("auth_mode")
+    private val wallpaperColorsKey = booleanPreferencesKey("wallpaper_colors")
 
     private val data: Flow<Preferences> = context.dataStore.data.catch { error ->
         if (error is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw error
@@ -46,6 +52,12 @@ class DataStorePreferencesRepository @Inject constructor(
         context.dataStore.edit { prefs ->
             if (theme == ThemePreference.System) prefs.remove(themeKey) else prefs[themeKey] = theme.name
         }
+    }
+
+    override val useWallpaperColors: Flow<Boolean> = data.map { prefs -> prefs[wallpaperColorsKey] ?: false }
+
+    override suspend fun setUseWallpaperColors(enabled: Boolean) {
+        context.dataStore.edit { prefs -> if (enabled) prefs[wallpaperColorsKey] = true else prefs.remove(wallpaperColorsKey) }
     }
 
     override suspend fun cachedAuthMode(): String? = data.first()[authModeKey]

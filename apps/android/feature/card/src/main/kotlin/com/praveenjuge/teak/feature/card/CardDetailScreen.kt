@@ -127,6 +127,8 @@ internal class CardDetailCallbacks(
     val onSetFolders: (List<String>) -> Unit = {},
     val onCreateFolder: (String, (Folder) -> Unit) -> Unit = { _, _ -> },
     val onToggleTask: (MarkdownListItem) -> Unit = {},
+    /** Opens the card's PDF in the app's reader. */
+    val onViewPdf: () -> Unit = {},
 )
 
 /** What a hardware key does on an open card: E archives, D marks done, R refreshes details, F favorites. */
@@ -313,7 +315,8 @@ private fun CardDetailContent(
                 card = state.displayedCard ?: card,
                 documentText = documentText,
                 onCopyColor = { hex -> actions.copy(hex, UiText.of("native.card.copiedValue", hex)) },
-                onViewDocument = actions.viewDocument,
+                // PDFs open in the app's reader; other documents open in the browser.
+                onViewDocument = if (CardSheet.isPdf(card)) ({ _ -> callbacks.onViewPdf() }) else actions.viewDocument,
                 onToggleTask = callbacks.onToggleTask.takeUnless { card.deleted },
             )
             LinkDetailsSections(card, onOpenImage = openImage)

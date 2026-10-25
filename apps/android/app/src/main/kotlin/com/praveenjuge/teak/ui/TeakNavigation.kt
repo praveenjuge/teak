@@ -2,18 +2,10 @@ package com.praveenjuge.teak.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.AddCircleOutline
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -23,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
@@ -31,13 +22,14 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.feature.capture.AddRoute
 import com.praveenjuge.teak.feature.capture.NoteComposerRoute
 import com.praveenjuge.teak.feature.capture.VoiceMemoRoute
 import com.praveenjuge.teak.feature.card.CardDetailPlaceholder
 import com.praveenjuge.teak.feature.card.CardDetailRoute
 import com.praveenjuge.teak.feature.card.CardEditRoute
+import com.praveenjuge.teak.feature.card.PdfViewerRoute
+import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.model.SearchQualifier
 import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.feature.library.LibraryRoute
@@ -52,37 +44,33 @@ import com.praveenjuge.teak.navigation.CardDetail
 import com.praveenjuge.teak.navigation.CardEdit
 import com.praveenjuge.teak.navigation.Home
 import com.praveenjuge.teak.navigation.NoteComposer
+import com.praveenjuge.teak.navigation.PdfViewer
 import com.praveenjuge.teak.navigation.Settings
+import com.praveenjuge.teak.navigation.ViewLibrary
 import com.praveenjuge.teak.navigation.VoiceMemo
-
-private enum class Tab(val selected: ImageVector, val unselected: ImageVector) {
-    Home(Icons.Filled.Home, Icons.Outlined.Home),
-    Folders(Icons.Filled.Folder, Icons.Outlined.Folder),
-    Add(Icons.Filled.AddCircle, Icons.Outlined.AddCircleOutline),
-    Settings(Icons.Filled.Settings, Icons.Outlined.Settings),
-}
-
-@Composable
-private fun Tab.label(): String = when (this) {
-    Tab.Home -> tr("native.filters.home")
-    Tab.Folders -> tr("native.folders.title")
-    Tab.Add -> tr("native.app.nav.add")
-    Tab.Settings -> tr("native.settings.title")
-}
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
 fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> Unit) {
     val stacks = mapOf(
         Tab.Home to rememberNavBackStack(Home),
+        Tab.Favorites to rememberNavBackStack(ViewLibrary(LibraryView.Favorites)),
+        Tab.Archive to rememberNavBackStack(ViewLibrary(LibraryView.Archive)),
+        Tab.Trash to rememberNavBackStack(ViewLibrary(LibraryView.Trash)),
         Tab.Folders to rememberNavBackStack(Folders),
         Tab.Add to rememberNavBackStack(Add),
         Tab.Settings to rememberNavBackStack(Settings),
     )
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     var searchRequest by rememberSaveable { mutableStateOf<String?>(null) }
+    val width = currentWindowAdaptiveInfo().windowSizeClass.windowWidth()
+    val tabs = navigationTabs(width)
+    // Narrowing the window drops Favorites, Archive and Trash from the bar; their chips are back on Home.
+    LaunchedEffect(tab, tabs) { if (tab !in tabs) tab = Tab.Home }
     val backStack = stacks.getValue(tab)
     val activity = LocalActivity.current
+    // The rail has Favorites, Archive and Trash, so the library leaves out their chips.
+    val viewChips = Tab.Trash !in tabs
 
     LaunchedEffect(launchRequest) {
         when (launchRequest) {
@@ -111,7 +99,7 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {
-            Tab.entries.forEach { item ->
+            tabs.forEach { item ->
                 item(
                     selected = tab == item,
                     onClick = {
@@ -145,6 +133,18 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
                         onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
                         onWriteNote = { backStack.push(NoteComposer()) },
+                        viewChips = viewChips,
+                    )
+                }
+                entry<ViewLibrary>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) { key ->
+                    LibraryRoute(
+                        fixedView = key.view,
+                        searchRequest = null,
+                        onSearchRequestHandled = {},
+                        selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
+                        onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
+                        onWriteNote = { backStack.push(NoteComposer()) },
+                        viewChips = false,
                     )
                 }
                 entry<Folders> { FoldersRoute(onOpenFolder = { id -> backStack.push(FolderLibrary(id)) }) }
@@ -157,6 +157,7 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
                         onWriteNote = { backStack.push(NoteComposer()) },
                         onBack = { backStack.remove(key) },
+                        viewChips = viewChips,
                     )
                 }
                 entry<CardDetail>(metadata = ListDetailSceneStrategy.detailPane()) { key ->
@@ -167,7 +168,11 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         onSearchTag = { tag -> searchHome(tag) },
                         onMoreLikeThis = { id -> searchHome("like:$id") },
                         onOpenCard = { id -> backStack.add(CardDetail(id)) },
+                        onViewPdf = { backStack.push(PdfViewer(key.id)) },
                     )
+                }
+                entry<PdfViewer> { key ->
+                    PdfViewerRoute(cardId = key.cardId, onBack = { backStack.remove(key) })
                 }
                 entry<CardEdit>(metadata = ListDetailSceneStrategy.extraPane()) { key ->
                     CardEditRoute(cardId = key.id, onDone = { backStack.remove(key) })
@@ -211,6 +216,6 @@ private fun NavBackStack<NavKey>.push(key: NavKey) {
 }
 
 private fun NavBackStack<NavKey>.replaceDetail(key: CardDetail) {
-    while (lastOrNull() is CardEdit || lastOrNull() is CardDetail) removeLastOrNull()
+    while (lastOrNull() is CardEdit || lastOrNull() is CardDetail || lastOrNull() is PdfViewer) removeLastOrNull()
     add(key)
 }

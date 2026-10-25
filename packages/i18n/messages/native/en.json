@@ -747,6 +747,13 @@
       "checked": "Checked",
       "unchecked": "Not checked",
       "table": "Table, {count, plural, one {# row} other {# rows}}"
+    },
+    "media": {
+      "seek": "Seek",
+      "seekPosition": "{current} of {duration}",
+      "pdfPage": "Page {page} of {total}",
+      "pdfLoading": "Opening the PDF…",
+      "pdfFailed": "Couldn't open this PDF."
     }
   },
   "apple": {
@@ -871,6 +878,11 @@
     "card": {
       "audioUnplayableMac": "This recording format can't play on Mac",
       "audioUnplayableIPhone": "This recording format can't play on iPhone"
+    },
+    "media": {
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out",
+      "zoomToFit": "Zoom to Fit"
     }
   },
   "android": {
@@ -886,6 +898,10 @@
       "videoUnplayable": "This video can't play on this device.",
       "openInAnotherApp": "Open in another app",
       "noAppForLink": "No app can open this link."
+    },
+    "settings": {
+      "wallpaperColors": "Wallpaper colors",
+      "wallpaperColorsDescription": "Color the app from your wallpaper instead of Teak's red."
     }
   }
 }

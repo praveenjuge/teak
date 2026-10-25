@@ -77,6 +77,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.designsystem.R as DesignR
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
@@ -109,10 +110,12 @@ fun LibraryRoute(
     onWriteNote: () -> Unit,
     folderId: String? = null,
     onBack: (() -> Unit)? = null,
+    fixedView: LibraryView? = null,
+    viewChips: Boolean = true,
 ) {
     val viewModel = hiltViewModel<LibraryViewModel, LibraryViewModel.Factory>(
-        key = folderId ?: "home",
-        creationCallback = { it.create(folderId) },
+        key = folderId ?: fixedView?.wireName ?: "home",
+        creationCallback = { it.create(folderId, fixedView) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val searchState = rememberTextFieldState()
@@ -140,6 +143,7 @@ fun LibraryRoute(
             onOpenCard = onOpenCard,
             onWriteNote = onWriteNote,
             onBack = onBack,
+            viewChips = viewChips,
             onToggleFavorites = viewModel::toggleFavorites,
             onToggleArchive = viewModel::toggleArchive,
             onToggleTrash = viewModel::toggleTrash,
@@ -186,6 +190,8 @@ internal data class LibraryActions(
     val onOpenCard: (String) -> Unit = {},
     val onWriteNote: () -> Unit = {},
     val onBack: (() -> Unit)? = null,
+    /** Shows the Favorites, Archive and Trash chips; off where the rail has them. */
+    val viewChips: Boolean = true,
     val onToggleFavorites: () -> Unit = {},
     val onToggleArchive: () -> Unit = {},
     val onToggleTrash: () -> Unit = {},
@@ -278,6 +284,12 @@ internal fun LibraryScreen(
                 if (!state.isSelecting) {
                     LibraryFilterRow(
                         filters = state.filters,
+                        viewChips = when {
+                            state.fixedView != null -> ViewChips.None
+                            actions.viewChips -> ViewChips.All
+                            else -> ViewChips.Selected
+                        },
+                        canClear = state.canClearFilters,
                         showsDone = state.showsDone,
                         showsTodo = state.showsTodo,
                         onToggleFavorites = actions.onToggleFavorites,
