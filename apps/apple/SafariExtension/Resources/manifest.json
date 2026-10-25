@@ -20,7 +20,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Save to Teak",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": "images/toolbar-icon.svg"
   },
   "permissions": [

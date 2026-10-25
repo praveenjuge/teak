@@ -44,7 +44,7 @@ class CaptureScreensTest {
             }
         }
 
-        listOf("Note or Link", "Voice Memo", "Photos & Videos", "Camera", "Files").forEach {
+        listOf("Note or link", "Voice memo", "Photos & videos", "Camera", "Files").forEach {
             compose.onNodeWithText(it).performClick()
         }
 

@@ -7,6 +7,7 @@ import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -15,8 +16,8 @@ sealed interface ShareResult {
     data object SignInRequired : ShareResult
     /** Everything was saved; [cardIds] are the text and link cards made right away (files upload later). */
     data class Saved(val cardIds: List<String> = emptyList()) : ShareResult
-    data class Partial(val saved: Int, val total: Int, val detail: String?) : ShareResult
-    data class Failed(val detail: String?) : ShareResult
+    data class Partial(val saved: Int, val total: Int, val detail: UiText?) : ShareResult
+    data class Failed(val detail: UiText?) : ShareResult
 }
 
 class ShareImporter @Inject constructor(
@@ -32,7 +33,7 @@ class ShareImporter @Inject constructor(
 
         val processed = items.take(MAX_FILES_PER_UPLOAD)
         val extras = items.size - processed.size
-        val failures = mutableListOf<String?>()
+        val failures = mutableListOf<UiText?>()
         val created = mutableListOf<String>()
 
         for (item in processed.filterIsInstance<ShareItem.Text>()) {
@@ -45,7 +46,7 @@ class ShareImporter @Inject constructor(
         if (files.isNotEmpty()) {
             catchingFailures {
                 val staged = uploads.stage(files.map { it.uri })
-                failures += staged.skipped.map { "${it.name}: ${it.reason}" }
+                failures += staged.skipped.map { UiText.of("native.capture.skippedFile", it.name, it.reason) }
                 if (staged.files.isNotEmpty()) uploads.enqueue(staged.files)
             }.onFailure { repeat(files.size) { failures += null } }
         }
@@ -59,11 +60,11 @@ class ShareImporter @Inject constructor(
         }
     }
 
-    private fun Throwable.detail(): String? =
-        (this as? TeakException)?.takeIf { it.code in EXPLAINED_CODES }?.message
+    private fun Throwable.detail(): UiText? =
+        (this as? TeakException)?.takeIf { it.code in EXPLAINED_CODES }?.message?.let(UiText::verbatim)
 
     companion object {
-        val TOO_MANY_ITEMS = "Only the first $MAX_FILES_PER_UPLOAD shared items are processed."
+        val TOO_MANY_ITEMS: UiText = UiText.of("native.share.tooManyItems", MAX_FILES_PER_UPLOAD.toString())
         private val EXPLAINED_CODES = setOf(
             TeakException.CARD_LIMIT_REACHED,
             TeakException.FILE_TOO_LARGE,

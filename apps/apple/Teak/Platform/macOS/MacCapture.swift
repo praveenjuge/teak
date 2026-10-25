@@ -41,9 +41,9 @@ enum PasteboardReader {
 enum BackgroundCapture {
     static func save(_ items: [SharedItem]) {
         let services = AppServices.shared
-        guard !items.isEmpty else { return CaptureHUD.show("The clipboard is empty", isError: true) }
+        guard !items.isEmpty else { return CaptureHUD.show(tr("apple.mac.clipboardEmpty"), isError: true) }
         guard services.app.user != nil else {
-            CaptureHUD.show("Sign in to Teak first", isError: true)
+            CaptureHUD.show(tr("apple.mac.signInFirst"), isError: true)
             services.showMainWindow()
             return
         }
@@ -52,9 +52,9 @@ enum BackgroundCapture {
             await services.capture.save(items)
             if let alert = services.capture.alert {
                 services.capture.alert = nil
-                CaptureHUD.show(alert.isCardLimit ? "You've reached the Free plan's card limit" : alert.message, isError: true)
+                CaptureHUD.show(alert.isCardLimit ? tr("native.capture.cardLimitMessage") : alert.message, isError: true)
             } else if services.capture.savedCount > before {
-                CaptureHUD.show(services.capture.lastSaved ?? "Saved to Teak")
+                CaptureHUD.show(services.capture.lastSaved ?? tr("native.capture.savedToTeak"))
             }
         }
     }
@@ -114,9 +114,15 @@ enum CaptureHUD {
 final class QuickCapturePanel: NSObject, NSWindowDelegate {
     static let shared = QuickCapturePanel()
     private var panel: NSPanel?
+    /// The language the panel was built in; a new one rebuilds it.
+    private var language: String?
 
     func show() {
-        if panel == nil { panel = makePanel() }
+        if panel == nil || language != AppLanguage.current {
+            panel?.orderOut(nil)
+            panel = makePanel()
+            language = AppLanguage.current
+        }
         NSApp.activate()
         panel?.center()
         panel?.makeKeyAndOrderFront(nil)
@@ -127,7 +133,7 @@ final class QuickCapturePanel: NSObject, NSWindowDelegate {
     private func makePanel() -> NSPanel {
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 520, height: 260),
                             styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-        panel.title = "Quick Capture"
+        panel.title = tr("apple.mac.quickCaptureTitle")
         panel.titlebarAppearsTransparent = true
         panel.isFloatingPanel = true
         panel.level = .floating
@@ -160,17 +166,17 @@ private struct QuickCaptureView: View {
                 .scrollContentBackground(.hidden)
                 .focused($focused)
                 .disabled(capture.isSavingText)
-                .accessibilityLabel("Write a note or paste a link")
+                .accessibilityLabel(tr("native.capture.notePlaceholder"))
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
-                        Text("Write a note or paste a link…").foregroundStyle(.secondary).allowsHitTesting(false)
+                        Text(tr("native.capture.notePlaceholder")).foregroundStyle(.secondary).allowsHitTesting(false)
                     }
                 }
             HStack {
-                Button("Choose Files…", systemImage: "paperclip") { choosingFiles = true }
+                Button(tr("native.capture.chooseFiles"), systemImage: "paperclip") { choosingFiles = true }
                 Spacer()
-                Button("Cancel", action: onClose).keyboardShortcut(.cancelAction)
-                Button("Save", action: save)
+                Button(tr("common.cancel"), action: onClose).keyboardShortcut(.cancelAction)
+                Button(tr("common.save"), action: save)
                     .keyboardShortcut(.return, modifiers: .command)
                     .buttonStyle(.glassProminent)
                     .disabled(capture.isSavingText || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -190,14 +196,14 @@ private struct QuickCaptureView: View {
 
     private func save() {
         guard app.user != nil else {
-            CaptureHUD.show("Sign in to Teak first", isError: true)
+            CaptureHUD.show(tr("apple.mac.signInFirst"), isError: true)
             return
         }
         Task {
             if await capture.saveText(text) != nil {
                 text = ""
                 onClose()
-                CaptureHUD.show(capture.lastSaved ?? "Saved to Teak")
+                CaptureHUD.show(capture.lastSaved ?? tr("native.capture.savedToTeak"))
             } else if let alert = capture.alert {
                 capture.alert = nil
                 CaptureHUD.show(alert.message, isError: true)
@@ -258,6 +264,8 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     private var statusItem: NSStatusItem?
     private let menu = NSMenu()
     private let statusRow = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    /// Each item's title, read again when the menu opens so it follows the app's language.
+    private var titles: [(item: NSMenuItem, title: () -> String)] = []
 
     override init() {
         super.init()
@@ -265,20 +273,21 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
         menu.delegate = self
         menu.addItem(statusRow)
         menu.addItem(.separator())
-        add("Quick Capture…", #selector(quickCapture))
-        add("Paste as New Card", #selector(paste))
+        add({ tr("apple.commands.quickCapture") }, #selector(quickCapture))
+        add({ tr("apple.commands.pasteAsNewCard") }, #selector(paste))
         menu.addItem(.separator())
-        add("Open Teak Library", #selector(openLibrary))
-        add("Settings…", #selector(showTeakSettings))
+        add({ tr("apple.mac.openLibrary") }, #selector(openLibrary))
+        add({ tr("apple.mac.settings") }, #selector(showTeakSettings))
         menu.addItem(.separator())
-        add("Quit Teak", #selector(quit))
+        add({ tr("apple.mac.quit") }, #selector(quit))
     }
 
-    private func add(_ title: String, _ action: Selector) {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+    private func add(_ title: @escaping () -> String, _ action: Selector) {
+        let item = NSMenuItem(title: title(), action: action, keyEquivalent: "")
         item.target = self
         if #available(macOS 27, *) { item.preferredImageVisibility = .hidden }
         menu.addItem(item)
+        titles.append((item, title))
     }
 
     func sync(enabled: Bool) {
@@ -289,7 +298,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
                 button.image?.size = NSSize(width: 18, height: 18)
                 button.image?.isTemplate = true
                 button.setAccessibilityLabel("Teak")
-                button.toolTip = "Teak — drop files or text here to save them"
+                button.toolTip = tr("apple.mac.menuBarTooltip")
                 button.window?.registerForDraggedTypes([.fileURL, .URL, .string, .png, .tiff])
                 button.window?.delegate = self
             }
@@ -304,10 +313,12 @@ final class MenuBarItem: NSObject, NSMenuDelegate, NSDraggingDestination, NSWind
     func menuWillOpen(_ menu: NSMenu) {
         let services = AppServices.shared
         if let email = services.app.user?.email {
-            statusRow.title = services.app.isConnected ? "Signed in as \(email)" : "Offline — \(email)"
+            statusRow.title = services.app.isConnected ? tr("apple.mac.signedInAs", email) : tr("apple.mac.offline", email)
         } else {
-            statusRow.title = "Signed out — open Teak to sign in."
+            statusRow.title = tr("apple.mac.signedOut")
         }
+        for (item, title) in titles { item.title = title() }
+        statusItem?.button?.toolTip = tr("apple.mac.menuBarTooltip")
     }
 
     @objc private func quickCapture() { QuickCapturePanel.shared.show() }
@@ -352,12 +363,12 @@ struct MacOptionsSection: View {
     @AppStorage(MacPreferences.quickCaptureKey) private var quickCapture = false
 
     var body: some View {
-        Section("Capture") {
-            Toggle("Show Teak in the menu bar", isOn: $menuBar)
+        Section(tr("apple.mac.capture")) {
+            Toggle(tr("apple.mac.showInMenuBar"), isOn: $menuBar)
                 .onChange(of: menuBar) { _, enabled in MenuBarItem.shared.sync(enabled: enabled) }
             Toggle(isOn: $quickCapture) {
-                Text("Quick Capture shortcut")
-                Text("Press ⌃⌥⌘T anywhere to write a note.")
+                Text(tr("apple.mac.quickCaptureShortcut"))
+                Text(tr("apple.mac.quickCaptureHint"))
             }
             .onChange(of: quickCapture) { _, enabled in QuickCaptureHotKey.shared.sync(enabled: enabled) }
         }

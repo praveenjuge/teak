@@ -17,27 +17,26 @@ enum FolderPrompt: Identifiable, Equatable {
 
     var title: String {
         switch self {
-        case .create: "New Folder"
-        case .rename: "Rename Folder"
-        case .smart: "Save as Smart Folder"
+        case .create: tr("native.folders.newFolder")
+        case .rename: tr("native.folders.renameFolder")
+        case .smart: tr("native.folders.saveAsSmartFolder")
         }
     }
 
     var message: String {
         switch self {
-        case .create: "Name the folder."
-        case .rename: "Change the folder's name."
+        case .create: tr("native.folders.createMessage")
+        case .rename: tr("native.folders.renameMessage")
         case let .smart(_, _, dropsFilters):
-            "Shows every card that matches the search, including cards you save later."
-                + (dropsFilters ? " Colors, styles and dates aren't saved in a smart folder." : "")
+            dropsFilters ? tr("native.folders.smartMessageDropsFilters") : tr("native.folders.smartMessage")
         }
     }
 
     var confirm: String {
         switch self {
-        case .create: "Create Folder"
-        case .rename: "Save"
-        case .smart: "Save Smart Folder"
+        case .create: tr("native.folders.createFolder")
+        case .rename: tr("common.save")
+        case .smart: tr("native.folders.saveSmartFolder")
         }
     }
 
@@ -66,7 +65,7 @@ struct FolderActions {
                 if library.filters.folder?.id == folder.id { library.filters.folder?.name = name }
             case let .smart(query, _, _):
                 let saved = try await folders.create(name: name, smartQuery: query)
-                library.show("Saved \u{201C}\(saved.name)\u{201D}")
+                library.show(tr("native.folders.savedName", saved.name))
                 if open { library.open(saved) }
             }
         } catch {
@@ -78,16 +77,16 @@ struct FolderActions {
         do {
             try await folders.delete(folder)
             if library.filters.folder?.id == folder.id { library.open(nil) }
-            library.show("Deleted \u{201C}\(folder.name)\u{201D}") {
+            library.show(tr("native.folders.deletedName", folder.name)) {
                 Task {
                     library.dismissStatus()
                     do { try await folders.restore(folder) } catch {
-                        library.show("Couldn't restore the folder", isError: true)
+                        library.show(tr("native.folders.restoreFailed"), isError: true)
                     }
                 }
             }
         } catch {
-            library.show("Couldn't delete the folder", isError: true)
+            library.show(tr("native.folders.deleteFailed"), isError: true)
         }
     }
 }
@@ -100,9 +99,9 @@ struct FolderPromptModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .alert(prompt?.title ?? "", isPresented: Binding(presenting: $prompt), presenting: prompt) { prompt in
-                TextField("Folder name", text: $name)
+                TextField(tr("native.folders.folderName"), text: $name)
                     .accessibilityIdentifier("folder.name")
-                Button("Cancel", role: .cancel) { self.prompt = nil }
+                Button(tr("common.cancel"), role: .cancel) { self.prompt = nil }
                 Button(prompt.confirm) {
                     let submitted = name
                     Task { await actions.submit(prompt, name: submitted) }
@@ -130,7 +129,7 @@ struct FolderLabel: View {
                 Text(folder.name).lineLimit(1)
                 Spacer(minLength: 8)
                 if !folder.isSmart {
-                    Text(Int(folder.activeCardCount), format: .number)
+                    Text(Int(folder.activeCardCount), format: .number.locale(AppLanguage.locale))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -140,7 +139,7 @@ struct FolderLabel: View {
             Image(systemName: folder.symbol)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(folder.isSmart ? "\(folder.name), smart folder" : folder.name)
+        .accessibilityLabel(folder.isSmart ? tr("native.folders.smartLabel", folder.name) : folder.name)
     }
 }
 
@@ -151,8 +150,8 @@ struct FolderMenu: View {
     let actions: FolderActions
 
     var body: some View {
-        Button("Rename…", systemImage: "pencil") { prompt = .rename(folder) }
-        Button("Delete", systemImage: "trash", role: .destructive) { Task { await actions.delete(folder) } }
+        Button(tr("native.folders.renameMenu"), systemImage: "pencil") { prompt = .rename(folder) }
+        Button(tr("common.delete"), systemImage: "trash", role: .destructive) { Task { await actions.delete(folder) } }
     }
 }
 
@@ -214,10 +213,10 @@ struct FoldersPage: View {
                 .accessibilityIdentifier("folder.\(folder.id)")
                 .contextMenu { FolderMenu(folder: folder, prompt: $prompt, actions: actions) }
                 .swipeActions {
-                    Button("Delete", systemImage: "trash", role: .destructive) {
+                    Button(tr("common.delete"), systemImage: "trash", role: .destructive) {
                         Task { await actions.delete(folder) }
                     }
-                    Button("Rename…", systemImage: "pencil") { prompt = .rename(folder) }
+                    Button(tr("native.folders.renameMenu"), systemImage: "pencil") { prompt = .rename(folder) }
                 }
             }
         }
@@ -227,11 +226,11 @@ struct FoldersPage: View {
                 ProgressView()
             } else if folders.folders.isEmpty {
                 ContentUnavailableView {
-                    Label("No Folders Yet", systemImage: "folder")
+                    Label(tr("native.folders.emptyTitle"), systemImage: "folder")
                 } description: {
-                    Text("Group related cards. Make a folder, then add cards to it.")
+                    Text(tr("native.folders.emptyMessage"))
                 } actions: {
-                    Button("New Folder") { prompt = .create }.buttonStyle(.bordered)
+                    Button(tr("native.folders.newFolder")) { prompt = .create }.buttonStyle(.bordered)
                 }
             }
         }
@@ -243,10 +242,10 @@ struct FoldersPage: View {
             }
         }
         .animation(.smooth, value: library.status)
-        .navigationTitle("Folders")
+        .navigationTitle(tr("native.folders.title"))
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("New Folder", systemImage: "folder.badge.plus") { prompt = .create }
+                Button(tr("native.folders.newFolder"), systemImage: "folder.badge.plus") { prompt = .create }
                     .accessibilityIdentifier("folders.new")
             }
         }
@@ -278,7 +277,7 @@ struct FolderPickerView: View {
                 }
                 let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty, !folders.folders.contains(where: { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) {
-                    Button("Create folder \u{201C}\(trimmed)\u{201D}", systemImage: "folder.badge.plus") {
+                    Button(tr("native.folders.createNamed", trimmed), systemImage: "folder.badge.plus") {
                         Task { await create(trimmed) }
                     }
                 }
@@ -295,17 +294,17 @@ struct FolderPickerView: View {
                     .accessibilityAddTraits(checked.contains(folder.id) ? .isSelected : [])
                 }
                 if visible.isEmpty, trimmed.isEmpty, folders.isLoaded {
-                    Text("No folders yet. Type a name to create one.").foregroundStyle(.secondary)
+                    Text(tr("native.folders.pickerEmpty")).foregroundStyle(.secondary)
                 }
             }
             .tint(.primary)
-            .searchable(text: $query, prompt: "Find or create a folder")
+            .searchable(text: $query, prompt: tr("native.folders.findOrCreate"))
             .navigationTitle(title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(tr("common.done")) { dismiss() } }
             }
         }
         .frame(minWidth: 360, minHeight: 420)
@@ -314,8 +313,8 @@ struct FolderPickerView: View {
 
     private var title: String {
         switch mode {
-        case .card: "Folders"
-        case let .bulk(count): "Add \(BulkCardAction.cards(count)) to a Folder"
+        case .card: tr("native.folders.title")
+        case let .bulk(count): tr("native.folders.addCardsTitle", count: count)
         }
     }
 

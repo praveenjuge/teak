@@ -13,6 +13,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.i18n.tr
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -77,7 +78,7 @@ class UploadWorker @AssistedInject constructor(
     )
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
-        foregroundInfo(inputData.getString(KEY_NAME) ?: "File", 0f)
+        foregroundInfo(inputData.getString(KEY_NAME) ?: applicationContext.resources.tr("android.notification.file"), 0f)
 
     /**
      * Failing this upload fails every upload waiting behind it without running them, so their staged
@@ -103,7 +104,7 @@ class UploadWorker @AssistedInject constructor(
     private fun notification(name: String, progress: Float) =
         NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_upload)
-            .setContentTitle(applicationContext.getString(R.string.upload_notification_title))
+            .setContentTitle(applicationContext.resources.tr("android.notification.uploadTitle"))
             .setContentText(name)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
@@ -111,12 +112,12 @@ class UploadWorker @AssistedInject constructor(
             .setProgress(100, (progress * 100).toInt(), progress <= 0f)
             .build()
 
+    /** Creating the channel again only renames it, so its name follows the app's language. */
     private fun ensureChannel() {
-        if (notifications.getNotificationChannel(CHANNEL_ID) != null) return
         notifications.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                applicationContext.getString(R.string.upload_channel_name),
+                applicationContext.resources.tr("android.notification.uploadChannel"),
                 NotificationManager.IMPORTANCE_LOW,
             ),
         )

@@ -55,6 +55,7 @@
 		AE8769CA0B4D22B2F28E644E /* SignInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */; };
 		AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D536980FFE491122D6407C /* CardPreviews.swift */; };
 		BA6AA56ECC778EF921A6A451 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 05A6A4C24A841ACBD88F153D /* PostHog */; };
+		BABE0E920FA931BDF96D06B5 /* AppIntents.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = D606D982DC768AADB4134838 /* AppIntents.xcstrings */; };
 		C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C31EB7F1B7572867D99BCC /* CardDetailView.swift */; };
 		CA936634E82AC028BE4DD6AE /* LanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB394A36A18ACECFC01E2CA /* LanguageModel.swift */; };
 		DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */; };
@@ -159,6 +160,7 @@
 		D02A3CA9E5B01345E12A9686 /* TeakApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakApp.swift; sourceTree = "<group>"; };
 		D43730182DF3AE363D581845 /* CardPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardPager.swift; sourceTree = "<group>"; };
 		D4C91E3F9825B47431347263 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		D606D982DC768AADB4134838 /* AppIntents.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppIntents.xcstrings; sourceTree = "<group>"; };
 		D7540E18BA147E28A80B9210 /* RevisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisitView.swift; sourceTree = "<group>"; };
 		DF5AE6B629B181A48CCF749D /* FoldersModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoldersModel.swift; sourceTree = "<group>"; };
 		DF90B422F7E69311723801B0 /* TeakUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TeakUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -316,6 +318,7 @@
 		BAA355B9F15E1DFCE4A0690A /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				D606D982DC768AADB4134838 /* AppIntents.xcstrings */,
 				E170EA1FC1F06AD8197557FF /* Assets.xcassets */,
 				58B0E93C8633F282D6BB48B0 /* InfoPlist.xcstrings */,
 				95C16BEC41D963B284F502CD /* ServicesMenu.xcstrings */,
@@ -580,6 +583,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BABE0E920FA931BDF96D06B5 /* AppIntents.xcstrings in Resources */,
 				813A2A6ED5E3B10ED1BB91B8 /* Assets.xcassets in Resources */,
 				8889D78B04C7F809F8908321 /* InfoPlist.xcstrings in Resources */,
 				A0FCE52D7211226DD596F7B0 /* ServicesMenu.xcstrings in Resources */,

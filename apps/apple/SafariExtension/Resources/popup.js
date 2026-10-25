@@ -4,6 +4,10 @@ const signInButton = document.getElementById("sign-in");
 const retryButton = document.getElementById("retry");
 const signOutButton = document.getElementById("sign-out");
 
+// The popup can't know the account's language before sign-in, so it follows the
+// browser's: every label comes from `_locales` (generated from packages/i18n).
+const t = (name) => browser.i18n.getMessage(name) || name;
+
 const setState = (state, nextTitle, nextMessage) => {
   document.body.dataset.state = state;
   title.textContent = nextTitle;
@@ -16,7 +20,7 @@ const sendNative = async (payload) => {
     { version: 1, ...payload }
   );
   if (!response || typeof response !== "object") {
-    throw new Error("Teak returned an invalid response.");
+    throw new Error(t("invalidResponse"));
   }
   return response;
 };
@@ -35,84 +39,89 @@ const isSaveableUrl = (url) => {
   }
 };
 
-const text = (value, fallback) =>
-  typeof value === "string" && value.trim() ? value : fallback;
+/** A native reply's text: Teak's own `code` in the popup's language, or the backend's `message`. */
+const detail = (response, fallback) => {
+  const known =
+    typeof response.code === "string"
+      ? browser.i18n.getMessage(response.code)
+      : "";
+  if (known) {
+    return known;
+  }
+  return typeof response.message === "string" && response.message.trim()
+    ? response.message
+    : fallback;
+};
 
 const saveCurrentPage = async () => {
-  setState("checking", "Teak", "Checking your session…");
+  setState("checking", "Teak", t("checkingSession"));
 
   const authState = await sendNative({ type: "getAuthState" });
   if (authState.status === "error") {
     setState(
       "error",
-      "Unable to connect",
-      text(authState.message, "Please try again.")
+      t("unableToConnect"),
+      detail(authState, t("pleaseTryAgain"))
     );
     return;
   }
   if (authState.authenticated !== true) {
-    setState("signed-out", "Sign in to Teak", "Sign in to save pages.");
+    setState("signed-out", t("signInTitle"), t("signInMessage"));
     return;
   }
 
   const url = await getActiveTabUrl();
   if (!isSaveableUrl(url)) {
-    setState(
-      "invalid",
-      "Cannot save this page",
-      "Open a regular website and try again."
-    );
+    setState("invalid", t("cannotSaveTitle"), t("openRegularWebsite"));
     return;
   }
 
-  setState("saving", "Saving page", "Adding this page to your library…");
+  setState("saving", t("savingTitle"), t("savingMessage"));
   const saveResult = await sendNative({ type: "saveCurrentPage", url });
   if (saveResult.status === "saved") {
-    setState("saved", "Saved to Teak", "Added to your library.");
+    setState("saved", t("savedTitle"), t("savedMessage"));
   } else if (saveResult.status === "duplicate") {
-    setState("duplicate", "Already saved", "This page is in your library.");
+    setState("duplicate", t("duplicateTitle"), t("duplicateMessage"));
   } else if (saveResult.status === "unauthenticated") {
     setState(
       "signed-out",
-      "Sign in to Teak",
-      text(saveResult.message, "Sign in to save pages.")
+      t("signInTitle"),
+      detail(saveResult, t("signInMessage"))
     );
   } else {
     setState(
       "error",
-      "Save failed",
-      text(saveResult.message, "Teak could not save this page.")
+      t("saveFailedTitle"),
+      detail(saveResult, t("saveFailedMessage"))
     );
   }
 };
 
 const startSignIn = async () => {
-  setState("checking", "Opening Teak", "Complete sign in.");
+  setState("checking", t("openingTeak"), t("completeSignIn"));
   const response = await sendNative({ type: "startSignIn" });
   if (response.status === "open-url" && typeof response.url === "string") {
     // iPhone and iPad: Safari opens Teak from a tab.
     await browser.tabs.create({ url: response.url });
   }
   if (response.status === "opening-app" || response.status === "open-url") {
-    setState("checking", "Finish sign in", "Return here after signing in.");
+    setState("checking", t("finishSignInTitle"), t("returnAfterSignIn"));
     return;
   }
   setState(
     "error",
-    "Sign in failed",
-    text(response.message, "Teak could not start sign in.")
+    t("signInFailedTitle"),
+    detail(response, t("signInFailedMessage"))
   );
 };
 
 const signOut = async () => {
-  setState("checking", "Signing out", "One moment…");
+  setState("checking", t("signingOutTitle"), t("oneMoment"));
   const response = await sendNative({ type: "signOut" });
   if (response.status !== "signed-out") {
-    throw new Error(
-      text(response.message, "Could not sign out. Please try again.")
-    );
+    throw new Error(detail(response, t("signOutFailedMessage")));
   }
-  setState("signed-out", "Signed out", "Sign in to save pages.");
+  setState("signed-out", t("signedOutTitle"), t("signInMessage"));
 };
 
 const run = async () => {
@@ -121,20 +130,26 @@ const run = async () => {
   } catch (error) {
     setState(
       "error",
-      "Teak needs Safari access",
-      error instanceof Error
-        ? error.message
-        : "Try again from a regular website."
+      t("needsAccessTitle"),
+      error instanceof Error ? error.message : t("needsAccessMessage")
     );
   }
 };
+
+if (document.documentElement) {
+  document.documentElement.lang = browser.i18n.getUILanguage();
+}
+message.textContent = t("checkingSafari");
+signInButton.textContent = t("signIn");
+retryButton.textContent = t("tryAgain");
+signOutButton.textContent = t("signOut");
 
 signInButton.addEventListener("click", () => {
   startSignIn().catch((error) => {
     setState(
       "error",
-      "Sign in failed",
-      error instanceof Error ? error.message : "Try again."
+      t("signInFailedTitle"),
+      error instanceof Error ? error.message : t("tryAgainShort")
     );
   });
 });
@@ -147,8 +162,8 @@ signOutButton.addEventListener("click", () => {
   signOut().catch((error) => {
     setState(
       "error",
-      "Sign out failed",
-      error instanceof Error ? error.message : "Try again."
+      t("signOutFailedTitle"),
+      error instanceof Error ? error.message : t("tryAgainShort")
     );
   });
 });

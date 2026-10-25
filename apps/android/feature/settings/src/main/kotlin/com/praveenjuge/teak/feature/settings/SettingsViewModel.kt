@@ -10,6 +10,8 @@ import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.model.CurrentUser
+import com.praveenjuge.teak.core.model.FREE_TIER_LIMIT
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,14 +38,28 @@ data class SettingsUiState(
     val isChangingLanguage: Boolean = false,
     val languageNotice: LanguageNotice? = null,
     val email: String? = null,
-    val usage: String? = null,
-    val plan: String? = null,
+    val usage: UiText? = null,
+    val plan: UiText? = null,
     val deleteStep: DeleteStep = DeleteStep.None,
     val isDeleting: Boolean = false,
     val isSigningOut: Boolean = false,
     val confirmSignOut: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
 )
+
+/** "12 cards", or "12 of 200 cards" on the Free plan. */
+internal fun usageText(user: CurrentUser): UiText {
+    val count = user.cardCount.toInt()
+    return if (user.hasPremium) {
+        UiText.of("native.common.cardCount", count = count)
+    } else {
+        UiText.of("native.settings.usageFree", count.toString(), FREE_TIER_LIMIT.toString())
+    }
+}
+
+/** "Pro" is a name, so it stays as it is. */
+internal fun planText(user: CurrentUser): UiText =
+    if (user.hasPremium) UiText.verbatim("Pro") else UiText.of("native.settings.planFree")
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -69,11 +85,11 @@ class SettingsViewModel @Inject constructor(
             language = code,
             email = (session as? SessionState.SignedIn)?.user?.email,
             usage = when {
-                user.isFailure -> "Not available"
-                current == null -> "Not available"
-                else -> current.usageLabel
+                user.isFailure -> UiText.of("native.settings.notAvailable")
+                current == null -> UiText.of("native.settings.notAvailable")
+                else -> usageText(current)
             },
-            plan = current?.plan,
+            plan = current?.let(::planText),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
@@ -128,7 +144,7 @@ class SettingsViewModel @Inject constructor(
                 .onSuccess { local.update { it.copy(isDeleting = false) } }
                 .onFailure {
                     local.update {
-                        it.copy(isDeleting = false, error = "Something went wrong while deleting your account.")
+                        it.copy(isDeleting = false, error = UiText.of("native.settings.deleteFailed"))
                     }
                 }
         }
@@ -137,6 +153,7 @@ class SettingsViewModel @Inject constructor(
     fun dismissError() = local.update { it.copy(error = null) }
 
     companion object {
+        /** What the person types to delete their account. It stays English in every language. */
         const val DELETE_PHRASE = "delete account"
     }
 }

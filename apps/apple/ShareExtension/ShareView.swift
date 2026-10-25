@@ -32,9 +32,8 @@ final class ShareModel {
         guard let id = savedCardId, let convex else { return true }
         let tagList = CardEdit.adding(tags, to: [])
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        if tagList.contains(where: { $0.utf16.count > TagOperations.maxNameLength }),
-           let message = TagOperations.message("NAME_TOO_LONG") {
-            detailsError = "\(message)."
+        if tagList.contains(where: { $0.utf16.count > TagOperations.maxNameLength }) {
+            detailsError = tr("errors.tags.NAME_TOO_LONG", TagOperations.maxNameLength.formatted(.number.locale(AppLanguage.locale)))
             return false
         }
         isSavingDetails = true
@@ -49,7 +48,7 @@ final class ShareModel {
             detailsError = nil
             return true
         } catch {
-            detailsError = tagList.isEmpty ? "Couldn't save the note." : "Couldn't save tags."
+            detailsError = tagList.isEmpty ? tr("native.share.noteFailed") : tr("native.share.tagsFailed")
             return false
         }
     }
@@ -106,52 +105,74 @@ struct ShareView: View {
         switch model.phase {
         case .saving:
             ProgressView().controlSize(.large)
-            Text("Saving to Teak…").foregroundStyle(.secondary)
+            Text(tr("native.share.saving")).foregroundStyle(.secondary)
         case .empty:
-            ContentUnavailableView("Nothing to Save", systemImage: "tray",
-                                   description: Text("Teak couldn't find text, a link or a file to save."))
-            Button("Close", action: close).buttonStyle(.glass)
+            ContentUnavailableView(tr("native.share.nothingToSave"), systemImage: "tray",
+                                   description: Text(tr("native.share.nothingToSaveMessage")))
+            Button(tr("common.close"), action: close).buttonStyle(.glass)
         case let .done(result):
             if result.needsSignIn {
-                ContentUnavailableView("Sign In Required", systemImage: "person.crop.circle.badge.exclamationmark",
-                                       description: Text("Open Teak and sign in, then share again."))
+                ContentUnavailableView(tr("native.share.signInRequired"), systemImage: "person.crop.circle.badge.exclamationmark",
+                                       description: Text(tr("native.share.signInMessage")))
                 HStack {
-                    Button("Close", action: close).buttonStyle(.glass)
-                    Button("Open Teak", action: openApp).buttonStyle(.glassProminent)
+                    Button(tr("common.close"), action: close).buttonStyle(.glass)
+                    Button(tr("native.share.openTeak"), action: openApp).buttonStyle(.glassProminent)
                 }
             } else if result.isComplete {
-                ContentUnavailableView("Saved", systemImage: "checkmark.circle.fill", description: Text(result.summary))
+                ContentUnavailableView(tr("native.share.saved"), systemImage: "checkmark.circle.fill",
+                                       description: Text(Self.savedSummary(result)))
                     .symbolEffect(.bounce, value: result.successfulItems)
                 if model.savedCardId != nil { details }
             } else {
-                ContentUnavailableView(result.isPartial ? result.summary : "Couldn't Save",
+                ContentUnavailableView(result.isPartial ? Self.partialSummary(result) : tr("native.capture.couldntSave"),
                                        systemImage: result.isPartial ? "exclamationmark.circle" : "xmark.circle",
-                                       description: Text(result.failures.first?.message ?? "Please try again."))
-                Button("Close", action: close).buttonStyle(.glass)
+                                       description: Text(Self.failureMessage(result)))
+                Button(tr("common.close"), action: close).buttonStyle(.glass)
             }
         }
     }
 
+    static func savedSummary(_ result: ShareImportResult) -> String {
+        result.successfulItems == 1
+            ? tr("native.capture.savedToTeak")
+            : tr("native.capture.savedItems", count: result.successfulItems)
+    }
+
+    static func partialSummary(_ result: ShareImportResult) -> String {
+        let locale = AppLanguage.locale
+        return tr("native.capture.savedSome", result.successfulItems.formatted(.number.locale(locale)),
+                  result.totalItems.formatted(.number.locale(locale)))
+    }
+
+    /// Why the first item wasn't saved. Too many items is Teak's own text; other reasons carry the error's.
+    static func failureMessage(_ result: ShareImportResult) -> String {
+        guard let failure = result.failures.first else { return tr("native.share.failedMessage") }
+        if failure.reason == .tooManyItems {
+            return tr("native.share.tooManyItems", TeakLimits.maxFilesPerUpload.formatted(.number.locale(AppLanguage.locale)))
+        }
+        return failure.message
+    }
+
     private var details: some View {
         VStack(spacing: 10) {
-            TextField("Add tags", text: $tags)
+            TextField(tr("native.actions.addTags"), text: $tags)
                 .focused($focus, equals: .tags)
                 .textFieldStyle(.roundedBorder)
-                .accessibilityLabel("Tags")
+                .accessibilityLabel(tr("native.tags.title"))
                 .accessibilityIdentifier("share.tags")
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
-            TextField("Add a note", text: $note, axis: .vertical)
+            TextField(tr("native.share.addNote"), text: $note, axis: .vertical)
                 .focused($focus, equals: .note)
                 .lineLimit(2...4)
                 .textFieldStyle(.roundedBorder)
-                .accessibilityLabel("Note")
+                .accessibilityLabel(tr("native.share.note"))
                 .accessibilityIdentifier("share.note")
             if let error = model.detailsError {
                 Text(error).font(.footnote).foregroundStyle(.red)
             }
-            Button(isEditing ? "Save" : "Done") {
+            Button(isEditing ? tr("common.save") : tr("common.done")) {
                 Task { if await model.saveDetails(tags: tags, note: note) { close() } }
             }
             .buttonStyle(.glassProminent)
