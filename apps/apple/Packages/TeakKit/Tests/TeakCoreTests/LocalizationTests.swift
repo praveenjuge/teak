@@ -34,3 +34,10 @@ import Testing
         #expect(AppLanguage.supported("pt") == nil)
     }
 }
+
+@Suite struct AppLanguageTests {
+    @Test func readsWithoutTheAppsConfig() {
+        #expect(AppLanguage.codes.contains(AppLanguage.current))
+        #expect(!tr("settings.language.label").isEmpty)
+    }
+}

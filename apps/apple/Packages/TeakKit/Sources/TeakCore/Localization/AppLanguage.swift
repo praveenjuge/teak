@@ -20,13 +20,22 @@ public enum AppLanguage {
     public static var codes: [String] { options.map(\.id) }
 
     private static let storageKey = "teak.language"
+
+    /// The app group's defaults, read without `TeakConfig`, which needs the app's
+    /// Info.plist: tests and previews have none.
+    private static var defaults: UserDefaults {
+        let group = Bundle.main.object(forInfoDictionaryKey: "TeakAppGroup") as? String
+        return UserDefaults(suiteName: group.flatMap { $0.isEmpty || $0.hasPrefix("$(") ? nil : $0 }
+            ?? "group.com.praveenjuge.teak") ?? .standard
+    }
+
     private static let state = OSAllocatedUnfairLock<String?>(initialState: nil)
 
     /// The language now in use.
     public static var current: String {
         state.withLock { cached in
             if let cached { return cached }
-            let stored = TeakServices.sharedDefaults().string(forKey: storageKey).flatMap(supported)
+            let stored = defaults.string(forKey: storageKey).flatMap(supported)
             let code = stored ?? system
             cached = code
             return code
@@ -45,7 +54,7 @@ public enum AppLanguage {
     public static func use(_ code: String) {
         guard let code = supported(code) else { return }
         state.withLock { $0 = code }
-        TeakServices.sharedDefaults().set(code, forKey: storageKey)
+        defaults.set(code, forKey: storageKey)
     }
 
     /// One of Teak's codes for a stored or system value, or nil.
