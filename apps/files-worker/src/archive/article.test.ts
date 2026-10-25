@@ -34,6 +34,19 @@ const decoded = (base64: string) =>
   );
 
 describe("extractArticle", () => {
+  test("keeps the reading order of content before and after <body>", async () => {
+    const html = `<!doctype html><html lang="en"><head><title>A guide</title></head><article><p>FIRSTMARK ${sentences(12)}</p></article><body><p>SECONDMARK ${sentences(12, 20)}</p></body><p>THIRDMARK ${sentences(12, 40)}</p></html>`;
+    const result = await extractArticle(html, PAGE_URL);
+    if (result.kind !== "article") {
+      throw new Error(`expected an article, got ${result.kind}`);
+    }
+    const order = ["FIRSTMARK", "SECONDMARK", "THIRDMARK"].map((mark) =>
+      result.markdown.indexOf(mark)
+    );
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
   test("reads an article from a page with no <body> tag or content after it", async () => {
     const paragraph = `<p>${sentences(12)}</p>`;
     for (const html of [

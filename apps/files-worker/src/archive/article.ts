@@ -448,7 +448,13 @@ const languageTag = (value: string | null | undefined) => {
 };
 
 interface BodyDocument {
-  body: (DomElement & { appendChild: (node: DomNode) => void }) | null;
+  body:
+    | (DomElement & {
+        appendChild: (node: DomNode) => void;
+        childNodes: Iterable<DomNode>;
+        insertBefore: (node: DomNode, before: DomNode | null) => void;
+      })
+    | null;
   documentElement: { childNodes: Iterable<DomNode> };
 }
 
@@ -456,16 +462,25 @@ interface BodyDocument {
  * linkedom keeps what a page puts outside `<body>` (a page without the tag,
  * or content after `</body>`) beside it, and Readability walks up to `BODY`
  * and past the document when it finds its article there. That content moves
- * into the body.
+ * into the body, in reading order: what came before it goes in front of its
+ * own content, what came after goes behind.
  */
 const moveStrandedIntoBody = (document: BodyDocument) => {
   const { body } = document;
   if (!body) {
     return;
   }
+  const first = [...body.childNodes][0] ?? null;
+  let seenBody = false;
   for (const node of [...document.documentElement.childNodes]) {
-    if (node.nodeName !== "HEAD" && node !== body) {
-      body.appendChild(node);
+    if (node === body) {
+      seenBody = true;
+    } else if (node.nodeName !== "HEAD") {
+      if (seenBody) {
+        body.appendChild(node);
+      } else {
+        body.insertBefore(node, first);
+      }
     }
   }
 };
