@@ -199,43 +199,6 @@ public enum SearchQualifiers {
         return (String(text[..<start]), String(text[start...]))
     }
 
-    /// Whether a word typed after `before` belongs to an `OR` or an open group,
-    /// as the web's `continuesOperator` decides; a filter picked there stays in
-    /// the text.
-    public static func continuesOperator(_ before: String) -> Bool {
-        var depth = 0
-        var inQuotes = false
-        var word = ""
-        var topLevelOr = false
-        func endWord() {
-            if word == "OR", depth == 0 { topLevelOr = true }
-            word = ""
-        }
-        var escaped = false
-        for character in before {
-            if escaped { escaped = false; continue }
-            if character == "\\", inQuotes { escaped = true; continue }
-            if character.unicodeScalars.first.map(quoteCharacters.contains) == true {
-                inQuotes.toggle()
-                word = ""
-            } else if inQuotes {
-                continue
-            } else if character == "(" {
-                endWord()
-                depth += 1
-            } else if character == ")" {
-                endWord()
-                depth = max(0, depth - 1)
-            } else if character.isWhitespace {
-                endWord()
-            } else {
-                word.append(character)
-            }
-        }
-        endWord()
-        return depth > 0 || topLevelOr
-    }
-
     static func trimEdgePunctuation(_ value: String, keeping keep: String = "") -> String {
         func trims(_ character: Character) -> Bool { trimCharacters.contains(character) && !keep.contains(character) }
         var characters = Substring(value)

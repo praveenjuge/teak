@@ -330,11 +330,18 @@ public enum SearchTokens {
         func add(_ token: SearchToken) {
             if !tokens.contains(where: { $0.id == token.id }) { tokens.append(token) }
         }
-        let joinsOperator = SearchQualifiers.continuesOperator(SearchQualifiers.currentWord(text).before)
+        // A picked value becomes a chip only when it's the whole search: the field clears its text as it takes a
+        // chip, so after other words it writes into the text instead.
+        let before = SearchQualifiers.currentWord(text).before
+        let asChip = before.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        func value(_ qualifier: SearchQualifier) -> SearchToken {
+            let chip = token(for: qualifier)
+            return asChip ? chip : SearchToken(kind: .hint, value: SearchQualifiers.format(qualifier) + " ", label: chip.label)
+        }
         for suggestion in SearchSuggestions.build(for: text) {
-            if suggestion.complete, !joinsOperator, suggestion.group != "Exclude",
+            if suggestion.complete, suggestion.group != "Exclude",
                let qualifier = SearchQualifiers.parse(suggestion.insert).qualifiers.first {
-                add(token(for: qualifier))
+                add(value(qualifier))
             } else {
                 add(hint(suggestion))
             }
@@ -342,8 +349,8 @@ public enum SearchTokens {
         // The start of a word like "done" offers the Show chips too.
         let last = trimmed.split(whereSeparator: \.isWhitespace).last.map { $0.lowercased() } ?? ""
         if !operators, !last.contains(":"), last.count >= 2 {
-            for (value, words) in showOptions where words.contains(where: { $0.hasPrefix(last) }) {
-                add(token(for: SearchQualifier(.is, value.rawValue)))
+            for (option, words) in showOptions where words.contains(where: { $0.hasPrefix(last) }) {
+                add(value(SearchQualifier(.is, option.rawValue)))
             }
         }
         return tokens

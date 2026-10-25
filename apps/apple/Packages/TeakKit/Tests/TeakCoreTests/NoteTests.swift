@@ -96,6 +96,18 @@ private let linkId = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         }
         #expect(items.map(\.line) == [2])
     }
+
+    @Test func indentedCodeShowsItsTasksAsText() {
+        let note = "    - [ ] example A\n    - [ ] example B"
+        #expect(MarkdownBlocks.parse(note) == [.code("- [ ] example A\n- [ ] example B")])
+        #expect(toggled(note, line: 0) == nil)
+        // Indented under a list item, the same lines are still a nested list.
+        guard case let .list(items) = MarkdownBlocks.parse("- [ ] P\n    - [ ] child").first else {
+            Issue.record("Expected a list")
+            return
+        }
+        #expect(items.map(\.checked) == [false, false])
+    }
 }
 
 /// The task on `line` ticked or unticked through the item the renderer shows.

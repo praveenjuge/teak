@@ -156,6 +156,18 @@ public enum MarkdownBlocks {
                 blocks.append(.code(code.joined(separator: "\n")))
                 continue
             }
+            // Text indented four spaces outside a list is code, so a `- [ ]` written there shows and can't be ticked.
+            if indent(line) >= 4, afterList == nil {
+                var code: [String] = []
+                while index < lines.count, isBlank(lines[index]) || indent(lines[index]) >= 4 {
+                    let text = lines[index]
+                    code.append(text.hasPrefix("\t") ? String(text.dropFirst()) : String(text.dropFirst(min(4, indent(text)))))
+                    index += 1
+                }
+                while let last = code.last, isBlank(last) { code.removeLast() }
+                blocks.append(.code(code.joined(separator: "\n")))
+                continue
+            }
             if let m = line.wholeMatch(of: heading) {
                 blocks.append(.heading(level: m.1.count, text: String(m.2)))
                 index += 1

@@ -150,6 +150,18 @@ object MarkdownBlocks {
                 blocks += MarkdownBlock.Code(code.joinToString("\n"))
                 continue
             }
+            // Text indented four spaces outside a list is code, so a `- [ ]` written there shows and can't be ticked.
+            if (indent(line) >= 4 && afterList == null) {
+                val code = mutableListOf<String>()
+                while (index < lines.size && (lines[index].isBlank() || indent(lines[index]) >= 4)) {
+                    val text = lines[index]
+                    code += if (text.startsWith("\t")) text.drop(1) else text.drop(minOf(4, indent(text)))
+                    index += 1
+                }
+                while (code.lastOrNull()?.isBlank() == true) code.removeAt(code.lastIndex)
+                blocks += MarkdownBlock.Code(code.joinToString("\n"))
+                continue
+            }
             val headingMatch = heading.matchEntire(line)
             if (headingMatch != null) {
                 blocks += MarkdownBlock.Heading(headingMatch.groupValues[1].length, headingMatch.groupValues[2])

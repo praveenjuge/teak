@@ -206,43 +206,6 @@ object SearchQuery {
         return text.substring(0, start.coerceAtMost(text.length)) to text.substring(start.coerceAtMost(text.length))
     }
 
-    /** Whether a word typed after [before] joins an `OR` or an open group, as the web's `continuesOperator` decides. */
-    fun continuesOperator(before: String): Boolean {
-        var depth = 0
-        var inQuotes = false
-        var word = ""
-        var topLevelOr = false
-        fun endWord() {
-            if (word == "OR" && depth == 0) topLevelOr = true
-            word = ""
-        }
-        var index = 0
-        while (index < before.length) {
-            val character = before[index]
-            when {
-                character == '\\' && inQuotes -> index += 1
-                character in QUOTES -> {
-                    inQuotes = !inQuotes
-                    word = ""
-                }
-                inQuotes -> Unit
-                character == '(' -> {
-                    endWord()
-                    depth += 1
-                }
-                character == ')' -> {
-                    endWord()
-                    depth = maxOf(0, depth - 1)
-                }
-                character.isWhitespace() -> endWord()
-                else -> word += character
-            }
-            index += 1
-        }
-        endWord()
-        return depth > 0 || topLevelOr
-    }
-
     /** A date found in typed text, and the text around it as typed. */
     data class DateSplit(val filter: TimeFilter, val rest: String)
 

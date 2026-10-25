@@ -168,12 +168,14 @@ struct CardEditView: View {
     }
 
     /// Escape closes the picker, the arrows move through its cards and Return links the highlighted one.
+    /// With no cards listed, the arrows move the caret as usual.
     private func linkKey(_ key: KeyEquivalent, _ draft: Binding<CardEditDraft>) -> KeyPress.Result {
         guard let linkPicker, linkPicker.isOpen else { return .ignored }
         switch key {
         case .escape: linkPicker.dismiss()
-        case .upArrow: linkPicker.moveHighlight(by: -1)
-        case .downArrow: linkPicker.moveHighlight(by: 1)
+        case .upArrow, .downArrow:
+            guard linkPicker.highlightedCard != nil else { return .ignored }
+            linkPicker.moveHighlight(by: key == .upArrow ? -1 : 1)
         default:
             guard let card = linkPicker.highlightedCard else { return .ignored }
             pickLink(card, draft)

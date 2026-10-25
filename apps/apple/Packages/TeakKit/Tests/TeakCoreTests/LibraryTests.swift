@@ -219,10 +219,16 @@ private func day(_ milliseconds: Double) -> String {
         #expect(SearchTokens.applying(excludedType, to: "notes -type:ima") == "notes -type:image ")
     }
 
-    @Test func pickedValuesBecomeChipsUnlessTheyJoinAnOr() throws {
+    @Test func pickedValuesBecomeChipsOnlyWhenTheyAreTheWholeSearch() throws {
         let show = try #require(SearchTokens.suggestions(for: "is:arch").first)
         #expect(show.kind == .qualifier)
         #expect(show.value == "is:archived")
+        // After other words a pick writes into the text, so the words stay.
+        let typed = try #require(SearchTokens.suggestions(for: "design -type:quote type:ima").first)
+        #expect(typed.kind == .hint)
+        #expect(SearchTokens.applying(typed, to: "design -type:quote type:ima") == "design -type:quote type:image ")
+        let todo = try #require(SearchTokens.suggestions(for: "design to").first { $0.label == "To do" })
+        #expect(SearchTokens.applying(todo, to: "design to") == "design is:todo ")
         let joined = try #require(SearchTokens.suggestions(for: "tag:fonts OR type:ima").first)
         #expect(joined.kind == .hint)
         #expect(SearchTokens.applying(joined, to: "tag:fonts OR type:ima") == "tag:fonts OR type:image ")

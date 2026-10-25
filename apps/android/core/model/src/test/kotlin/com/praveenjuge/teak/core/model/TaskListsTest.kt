@@ -82,6 +82,16 @@ class TaskListsTest {
     }
 
     @Test
+    fun `indented code shows its tasks as text`() {
+        val note = "    - [ ] example A\n    - [ ] example B"
+        assertEquals(listOf<MarkdownBlock>(MarkdownBlock.Code("- [ ] example A\n- [ ] example B")), MarkdownBlocks.parse(note))
+        assertNull(toggled(note, 0))
+        // Indented under a list item, the same lines are still a nested list.
+        val items = (MarkdownBlocks.parse("- [ ] P\n    - [ ] child").first() as MarkdownBlock.ListBlock).items
+        assertEquals(listOf(false, false), items.map { it.checked })
+    }
+
+    @Test
     fun `flips exactly the tapped one of two same lines`() {
         val note = "- [ ] A\n- [ ] B\n- [ ] A"
         assertEquals("- [ ] A\n- [ ] B\n- [x] A", toggled(note, 2))
