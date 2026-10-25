@@ -28,19 +28,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import com.praveenjuge.teak.core.model.BulkCopy
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.MAX_BULK_TAGS
 import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
+import com.praveenjuge.teak.core.model.UiText
 
 /** Tags typed as "design, inspiration", or why they can't be added. */
-internal fun parseBulkTags(text: String): Result<List<String>> {
+internal data class BulkTags(val tags: List<String>, val error: UiText? = null) {
+    val canAdd: Boolean get() = error == null && tags.isNotEmpty()
+}
+
+internal fun parseBulkTags(text: String): BulkTags {
     val tags = text.split(',').map(CardEdit::normalizeTag).filter(String::isNotEmpty).distinct()
     return when {
-        tags.any { it.length > MAX_TAG_NAME_LENGTH } -> Result.failure(IllegalArgumentException("Tags can be at most $MAX_TAG_NAME_LENGTH characters."))
-        tags.size > MAX_BULK_TAGS -> Result.failure(IllegalArgumentException("Choose at most $MAX_BULK_TAGS tags at a time."))
-        else -> Result.success(tags)
+        tags.any { it.length > MAX_TAG_NAME_LENGTH } -> BulkTags(tags, UiText.of("errors.tags.NAME_TOO_LONG", MAX_TAG_NAME_LENGTH))
+        tags.size > MAX_BULK_TAGS -> BulkTags(tags, UiText.of("native.bulk.tooManyTags", MAX_BULK_TAGS))
+        else -> BulkTags(tags)
     }
 }
 
@@ -48,19 +54,19 @@ internal fun parseBulkTags(text: String): Result<List<String>> {
 internal fun AddTagsDialog(count: Int, onAdd: (List<String>) -> Unit, onDismiss: () -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
     val parsed = parseBulkTags(text)
-    val error = parsed.exceptionOrNull()?.message
-    val submit = { parsed.getOrNull()?.takeIf { it.isNotEmpty() }?.let(onAdd) }
+    val error = parsed.error?.resolve()
+    val submit = { if (parsed.canAdd) onAdd(parsed.tags) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add tags to ${BulkCopy.cardCount(count)}") },
+        title = { Text(tr("native.bulk.addTagsTitle", count = count)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Separate tags with commas.")
+                Text(tr("native.bulk.tagsHint"))
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    label = { Text("Tags") },
-                    placeholder = { Text("design, inspiration") },
+                    label = { Text(tr("native.bulk.tagsLabel")) },
+                    placeholder = { Text(tr("native.bulk.tagsPlaceholder")) },
                     singleLine = true,
                     isError = error != null,
                     supportingText = error?.let { { Text(it) } },
@@ -69,9 +75,9 @@ internal fun AddTagsDialog(count: Int, onAdd: (List<String>) -> Unit, onDismiss:
             }
         },
         confirmButton = {
-            TextButton(onClick = { submit() }, enabled = parsed.getOrNull()?.isNotEmpty() == true) { Text("Add tags") }
+            TextButton(onClick = { submit() }, enabled = parsed.canAdd) { Text(tr("native.actions.addTags")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }
 
@@ -90,14 +96,14 @@ internal fun FolderPickerDialog(
     val canCreate = trimmed.isNotEmpty() && folders.none { it.name.equals(trimmed, ignoreCase = true) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add ${BulkCopy.cardCount(count)} to a folder") },
+        title = { Text(tr("native.bulk.addToFolderTitle", count = count)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Find or create a folder") },
-                    label = { Text("Search folders") },
+                    placeholder = { Text(tr("native.bulk.findFolder")) },
+                    label = { Text(tr("native.bulk.searchFolders")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
@@ -106,12 +112,12 @@ internal fun FolderPickerDialog(
                         FolderRow(folder.name, "${folder.cardCount}", Icons.Outlined.Folder) { onPick(folder) }
                     }
                     if (canCreate) {
-                        item { FolderRow("Create folder “$trimmed”", null, Icons.Outlined.CreateNewFolder) { onCreate(trimmed) } }
+                        item { FolderRow(tr("native.bulk.createFolder", trimmed), null, Icons.Outlined.CreateNewFolder) { onCreate(trimmed) } }
                     }
                     if (visible.isEmpty() && !canCreate) {
                         item {
                             Text(
-                                if (folders.isEmpty()) "No folders yet. Type a name to create one." else "No folder by that name.",
+                                if (folders.isEmpty()) tr("native.bulk.noFolders") else tr("native.bulk.noFolderMatch"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -121,7 +127,7 @@ internal fun FolderPickerDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }
 
@@ -141,22 +147,22 @@ internal fun SaveSearchDialog(search: String, onSave: (String) -> Unit, onDismis
     var name by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Save as smart folder") },
+        title = { Text(tr("native.library.saveSearch.title")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Shows every card that matches the search, including cards you save later.")
+                Text(tr("native.library.saveSearch.message"))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
-                    placeholder = { Text("Reading list") },
+                    label = { Text(tr("native.library.saveSearch.nameLabel")) },
+                    placeholder = { Text(tr("native.library.saveSearch.namePlaceholder")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
                 Text(search, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text("Save smart folder") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onSave(name) }, enabled = name.isNotBlank()) { Text(tr("native.library.saveSearch.save")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }

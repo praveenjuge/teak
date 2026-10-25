@@ -51,7 +51,8 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.designsystem.R as DesignR
-import com.praveenjuge.teak.core.model.SIGNUPS_PAUSED_MESSAGE
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 
 @Composable
 fun WelcomeRoute(viewModel: WelcomeViewModel = hiltViewModel()) {
@@ -95,7 +96,7 @@ fun WelcomeScreen(
                 )
                 Spacer(Modifier.weight(1f).heightIn(min = 48.dp))
                 Text(
-                    "Save Anything. Anywhere.",
+                    tr("native.auth.tagline"),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = (-0.5).sp,
@@ -105,7 +106,7 @@ fun WelcomeScreen(
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Your personal everything management system. Organize, save, and access all your text, images, and documents in one place.",
+                    tr("native.auth.intro"),
                     style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -120,12 +121,12 @@ fun WelcomeScreen(
             }
         }
     }
-    state.error?.let { message ->
+    state.error?.let { error ->
         AlertDialog(
             onDismissRequest = onDismissError,
-            title = { Text("Sign In Failed") },
-            text = { Text(message) },
-            confirmButton = { TextButton(onClick = onDismissError) { Text("OK") } },
+            title = { Text(tr("native.auth.failedTitle")) },
+            text = { Text(error.resolve()) },
+            confirmButton = { TextButton(onClick = onDismissError) { Text(tr("native.app.ok")) } },
         )
     }
 }
@@ -134,18 +135,19 @@ fun WelcomeScreen(
 @Composable
 private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Unit) {
     val busy = state.pending != null
-    fun label(method: SignInMethod, text: String) = if (state.pending == method) "Signing in…" else text
+    val signingIn = tr("native.auth.signingIn")
+    fun label(method: SignInMethod, text: String) = if (state.pending == method) signingIn else text
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        ProviderButton(label(SignInMethod.Google, "Continue with Google"), enabled = !busy, onClick = { onSignIn(SignInMethod.Google) }) {
+        ProviderButton(label(SignInMethod.Google, tr("native.auth.continueWithGoogle")), enabled = !busy, onClick = { onSignIn(SignInMethod.Google) }) {
             Image(painterResource(R.drawable.ic_google_g), contentDescription = null, modifier = Modifier.size(18.dp))
         }
-        ProviderButton(label(SignInMethod.Apple, "Continue with Apple"), enabled = !busy, onClick = { onSignIn(SignInMethod.Apple) }) {
+        ProviderButton(label(SignInMethod.Apple, tr("native.auth.continueWithApple")), enabled = !busy, onClick = { onSignIn(SignInMethod.Apple) }) {
             Icon(painterResource(R.drawable.ic_apple), contentDescription = null, modifier = Modifier.size(18.dp))
         }
         if (state.signupsDisabled) {
             Text(
-                SIGNUPS_PAUSED_MESSAGE,
+                tr("native.auth.signupsPaused"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -158,7 +160,7 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
             verticalArrangement = Arrangement.Center,
         ) {
             if (!state.signupsDisabled) {
-                EmailLink(label(SignInMethod.EmailSignUp, "Register with Email"), enabled = !busy) {
+                EmailLink(label(SignInMethod.EmailSignUp, tr("native.auth.registerWithEmail")), enabled = !busy) {
                     onSignIn(SignInMethod.EmailSignUp)
                 }
                 Text(
@@ -167,7 +169,7 @@ private fun SignInOptions(state: WelcomeUiState, onSignIn: (SignInMethod) -> Uni
                     modifier = Modifier.align(Alignment.CenterVertically).clearAndSetSemantics {},
                 )
             }
-            EmailLink(label(SignInMethod.EmailSignIn, "Login with Email"), enabled = !busy) {
+            EmailLink(label(SignInMethod.EmailSignIn, tr("native.auth.signInWithEmail")), enabled = !busy) {
                 onSignIn(SignInMethod.EmailSignIn)
             }
         }

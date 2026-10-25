@@ -81,6 +81,8 @@ import com.praveenjuge.teak.core.designsystem.R as DesignR
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardGrid
 import com.praveenjuge.teak.core.model.CardSort
@@ -92,6 +94,7 @@ import com.praveenjuge.teak.core.model.QualifierChips
 import com.praveenjuge.teak.core.model.SearchIsValue
 import com.praveenjuge.teak.core.model.SearchQualifier
 import com.praveenjuge.teak.core.model.Tags
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val LOAD_MORE_THRESHOLD = 5
@@ -225,13 +228,15 @@ internal fun LibraryScreen(
     var dialog by rememberSaveable { mutableStateOf<LibraryDialog?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     BackHandler(enabled = state.isSelecting, onBack = actions.onEndSelection)
+    val messageText = state.message?.text?.resolve()
+    val undoLabel = tr("common.undo")
     LaunchedEffect(state.message) {
         val message = state.message ?: return@LaunchedEffect
         // Dismiss even when leaving the screen cuts the snackbar short, so it doesn't come back later.
         try {
             val result = snackbarHostState.showSnackbar(
-                message.text,
-                actionLabel = if (message.undo != null) "Undo" else null,
+                messageText.orEmpty(),
+                actionLabel = if (message.undo != null) undoLabel else null,
                 duration = if (message.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) actions.onUndo(message)
@@ -244,7 +249,7 @@ internal fun LibraryScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LibraryTopBar(
-                title = state.title,
+                title = state.title.resolve(),
                 isSelecting = state.isSelecting,
                 canSelect = state.paged.cards.isNotEmpty(),
                 canRevisit = state.canRevisit,
@@ -277,7 +282,7 @@ internal fun LibraryScreen(
                         onSelectHue = actions.onSelectHue,
                         onClear = actions.onClearFilters,
                     )
-                    QualifierChipRow(state.chips, actions.onRemoveQualifier, Modifier.padding(top = 4.dp))
+                    QualifierChipRow(state.chips(tr("native.similar.unavailableCard")), actions.onRemoveQualifier, Modifier.padding(top = 4.dp))
                     if (state.showsHiddenCards) HiddenCardsHeader()
                 }
                 LibraryContent(state, selectedCardId, actions)
@@ -303,11 +308,10 @@ internal fun LibraryScreen(
     val count = state.pickedIds.size
     when (dialog) {
         LibraryDialog.DeleteForever -> {
-            val noun = if (count == 1) "This card" else "$count cards"
             ConfirmDialog(
-                title = "Delete Forever?",
-                message = "$noun and their files will be removed. You can't undo it.",
-                confirmLabel = "Delete Forever",
+                title = tr("native.library.confirmDeleteForever.title"),
+                message = tr("native.bulk.deleteForeverMessage", count = count),
+                confirmLabel = tr("native.actions.deleteForever"),
                 onConfirm = {
                     dialog = null
                     actions.onDeleteForever()
@@ -354,17 +358,17 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
     val paged = state.paged
     when {
         state.folderMissing -> EmptyState(
-            title = "Folder not found",
-            message = "It may have been deleted.",
+            title = tr("errors.folders.NOT_FOUND"),
+            message = tr("native.library.folderMissing"),
             icon = Icons.Outlined.Folder,
-            action = actions.onBack?.let { back -> { Button(onClick = back) { Text("Go back") } } },
+            action = actions.onBack?.let { back -> { Button(onClick = back) { Text(tr("native.library.goBack")) } } },
         )
         paged.isLoading && paged.cards.isEmpty() -> TeakLoading()
         paged.error != null && paged.cards.isEmpty() -> EmptyState(
-            title = "Couldn't Load Cards",
-            message = "Check your connection and try again.",
+            title = tr("native.library.loadFailed.title"),
+            message = tr("native.library.loadFailed.message"),
             icon = Icons.Outlined.CloudOff,
-            action = { Button(onClick = actions.onRefresh) { Text("Try Again") } },
+            action = { Button(onClick = actions.onRefresh) { Text(tr("common.tryAgain")) } },
         )
         else -> PullToRefreshBox(
             isRefreshing = paged.isRefreshing,
@@ -401,14 +405,14 @@ private fun LibraryEmpty(emptyState: LibraryEmptyState, onWriteNote: () -> Unit)
         is LibraryEmptyState.NoMatches -> emptyState.copy
         LibraryEmptyState.FirstCard -> {
             EmptyState(
-                title = "Let's add your first card!",
-                message = "Save notes, links, photos, and voice memos. They'll show up here.",
+                title = tr("native.library.firstCard.title"),
+                message = tr("native.library.firstCard.message"),
                 icon = ImageVector.vectorResource(DesignR.drawable.teak_logo),
                 action = {
                     Button(onClick = onWriteNote) {
                         Icon(Icons.Outlined.EditNote, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                         Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Write a Note")
+                        Text(tr("native.library.firstCard.writeNote"))
                     }
                 },
             )
@@ -423,7 +427,7 @@ private fun LibraryEmpty(emptyState: LibraryEmptyState, onWriteNote: () -> Unit)
         EmptyKind.Folder -> Icons.Outlined.Folder
         EmptyKind.Similar -> Icons.Outlined.AutoAwesome
     }
-    EmptyState(title = copy.title, message = copy.message, icon = icon)
+    EmptyState(title = copy.title.resolve(), message = copy.message.resolve(), icon = icon)
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -476,12 +480,12 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (selecting) actions.onToggleSelected(card.id) else menuCardId = card.id
                         },
-                        actions = menu.map { item -> CustomAccessibilityAction(item.label) { item.onClick(); true } },
+                        actions = menu.map { item -> CustomAccessibilityAction(item.label.resolve()) { item.onClick(); true } },
                     )
                     DropdownMenu(expanded = menuCardId == card.id, onDismissRequest = { menuCardId = null }) {
                         menu.forEach { item ->
                             DropdownMenuItem(
-                                text = { Text(item.label) },
+                                text = { Text(item.label.resolve()) },
                                 leadingIcon = { Icon(item.icon, contentDescription = null) },
                                 onClick = {
                                     menuCardId = null
@@ -495,7 +499,8 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
             if (state.paged.isLoadingMore) {
                 item(span = StaggeredGridItemSpan.FullLine) {
                     Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        LoadingIndicator(Modifier.semantics { contentDescription = "Loading more cards" })
+                        val loadingMore = tr("native.library.loadingMore")
+                        LoadingIndicator(Modifier.semantics { contentDescription = loadingMore })
                     }
                 }
             } else if (state.paged.error != null) {
@@ -513,29 +518,29 @@ private fun LoadMoreFailed(onRetry: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "Couldn't load more cards.",
+            tr("native.library.loadMoreFailed"),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(onClick = onRetry) { Text("Try Again") }
+        TextButton(onClick = onRetry) { Text(tr("common.tryAgain")) }
     }
 }
 
-internal class TileMenuItem(val label: String, val icon: ImageVector, val onClick: () -> Unit)
+internal class TileMenuItem(val label: UiText, val icon: ImageVector, val onClick: () -> Unit)
 
 /** A tile's long-press menu, also offered to TalkBack as custom actions. */
 internal fun tileMenu(card: CardSummary, inTrash: Boolean, actions: LibraryActions): List<TileMenuItem> = buildList {
-    add(TileMenuItem("Select", Icons.Outlined.CheckCircle) { actions.onBeginSelection(card.id) })
+    add(TileMenuItem(UiText.of("native.actions.select"), Icons.Outlined.CheckCircle) { actions.onBeginSelection(card.id) })
     if (inTrash) {
-        add(TileMenuItem("Restore", Icons.Outlined.Restore) { actions.onRestoreCard(card.id) })
+        add(TileMenuItem(UiText.of("native.actions.restore"), Icons.Outlined.Restore) { actions.onRestoreCard(card.id) })
         return@buildList
     }
     if (card.archived) {
-        add(TileMenuItem("Unarchive", Icons.Outlined.Unarchive) { actions.onArchiveCard(card.id, false) })
+        add(TileMenuItem(UiText.of("native.actions.unarchive"), Icons.Outlined.Unarchive) { actions.onArchiveCard(card.id, false) })
     } else {
-        add(TileMenuItem("Archive", Icons.Outlined.Archive) { actions.onArchiveCard(card.id, true) })
+        add(TileMenuItem(UiText.of("native.actions.archive"), Icons.Outlined.Archive) { actions.onArchiveCard(card.id, true) })
     }
-    add(TileMenuItem("More like this", Icons.Outlined.AutoAwesome) { actions.onMoreLikeThis(card.id) })
+    add(TileMenuItem(UiText.of("native.actions.moreLikeThis"), Icons.Outlined.AutoAwesome) { actions.onMoreLikeThis(card.id) })
 }
 
 @Composable
@@ -546,6 +551,6 @@ private fun HiddenCardsHeader() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-        Text("Shows hidden cards", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr("native.library.showsHiddenCards"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

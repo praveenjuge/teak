@@ -134,7 +134,7 @@ final class AppModel {
                     try await accept(JSONEncoder().encode(mode))
                 }
             } catch {
-                configurationError = "Unable to load sign-in configuration"
+                configurationError = tr("native.app.signInConfigFailed")
             }
             try? await Task.sleep(for: .seconds(5))
         }
@@ -142,7 +142,7 @@ final class AppModel {
 
     private func accept(_ data: Data) async {
         guard let next = try? AuthMode.parse(data) else {
-            configurationError = "Unable to load sign-in configuration"
+            configurationError = tr("native.app.signInConfigFailed")
             return
         }
         if let current = await session.clientId, current != next.authKitClientId {
@@ -155,7 +155,7 @@ final class AppModel {
 
     private func timeOutConfiguration() async {
         try? await Task.sleep(for: .seconds(10))
-        if authMode == nil, isOnline { configurationError = "Unable to connect. Please try again." }
+        if authMode == nil, isOnline { configurationError = tr("native.app.connectFailed") }
     }
 
     func retryConfiguration() {
@@ -187,7 +187,7 @@ final class AppModel {
 
     func signIn(_ method: SignInMethod, using webAuthentication: WebAuthenticationSession) async throws {
         guard let clientId = authMode?.authKitClientId else {
-            throw TeakError(message: "Unable to load sign-in configuration")
+            throw TeakError(message: tr("native.app.signInConfigFailed"))
         }
         let attempt = await session.beginSignIn()
         let request = AuthKitRequest(clientId: clientId, method: method, workosURL: config.workosURL)

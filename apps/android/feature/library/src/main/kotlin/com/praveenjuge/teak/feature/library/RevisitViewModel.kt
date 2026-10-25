@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.CardSort
 import com.praveenjuge.teak.core.model.CardSummary
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,14 +32,14 @@ data class RevisitUiState(
     /** Set after an archive, for the "Archived 1 card" note with Undo. */
     val archivedNote: Long? = null,
     /** Why the last archive or Undo didn't go through. */
-    val error: String? = null,
+    val error: UiText? = null,
 ) {
     val current: CardSummary? get() = cards.getOrNull(position)
     val isEmpty: Boolean get() = !isLoading && !failed && cards.isEmpty()
     val isFinished: Boolean get() = !isLoading && cards.isNotEmpty() && position >= cards.size
-    val progress: String get() = "${(position + 1).coerceAtMost(cards.size)} of ${cards.size}"
+    val progress: UiText get() = UiText.of("native.revisit.position", (position + 1).coerceAtMost(cards.size), cards.size)
     val canUndo: Boolean get() = steps.isNotEmpty()
-    val summary: String get() = "${steps.count { it.archived }} archived · ${steps.count { !it.archived }} kept"
+    val summary: UiText get() = UiText.of("native.revisit.summary", steps.count { it.archived }, steps.count { !it.archived })
 }
 
 /**
@@ -138,11 +139,11 @@ class RevisitViewModel @Inject constructor(
 
     fun errorShown() = _state.update { it.copy(error = null) }
 
-    private fun failureMessage(error: Throwable): String =
+    private fun failureMessage(error: Throwable): UiText =
         if ((error as? TeakException)?.code == TeakException.RATE_LIMITED) {
-            "Too many changes. Try again in a moment."
+            UiText.of("native.revisit.tooManyChanges")
         } else {
-            "Couldn't update this card."
+            UiText.of("native.revisit.updateFailed")
         }
 
     companion object {

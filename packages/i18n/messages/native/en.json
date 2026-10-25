@@ -79,6 +79,230 @@
     },
     "settings": {
       "languageDescription": "Saved to your account, so it follows you to every device."
+    },
+    "app": {
+      "nav": {
+        "home": "Home",
+        "folders": "Folders",
+        "add": "Add",
+        "settings": "Settings",
+        "favorites": "Favorites",
+        "archive": "Archive",
+        "tags": "Tags",
+        "trash": "Trash",
+        "types": "Types",
+        "newFolder": "New folder"
+      },
+      "ok": "OK",
+      "upgrade": "Upgrade…",
+      "typeToConfirm": "Type “{phrase}”",
+      "offline": {
+        "title": "You're offline",
+        "message": "Check your connection and try again to access your cards."
+      },
+      "failed": {
+        "title": "Something went wrong"
+      },
+      "signInConfigFailed": "Unable to load sign-in configuration",
+      "connectFailed": "Unable to connect. Please try again.",
+      "uploadProgress": "Saving {done} of {total}…",
+      "dropFiles": "Drop files to upload",
+      "missingCard": "Missing card",
+      "saveRequest": {
+        "savingTitle": "Saving",
+        "savingMessage": "Saving to your Teak vault…",
+        "savedTitle": "Saved",
+        "savedMessage": "It's in your library.",
+        "emptyTitle": "Nothing to save",
+        "emptyMessage": "The shortcut didn't send any text or link.",
+        "signedOutTitle": "Sign in required",
+        "signedOutMessage": "Open Teak and sign in, then run the shortcut again.",
+        "failedTitle": "Save failed",
+        "failedMessage": "Check your connection and try again."
+      }
+    },
+    "auth": {
+      "tagline": "Save anything. Anywhere.",
+      "intro": "Your personal everything management system. Organize, save, and access all your text, images, and documents in one place.",
+      "continueWithApple": "Continue with Apple",
+      "continueWithGoogle": "Continue with Google",
+      "registerWithEmail": "Register with email",
+      "signInWithEmail": "Sign in with email",
+      "signingIn": "Signing in…",
+      "signupsPaused": "New sign-ups are paused right now. Please try again later.",
+      "failedTitle": "Couldn't sign in",
+      "failedApple": "Couldn't sign in with Apple. Please try again.",
+      "failedGoogle": "Couldn't sign in with Google. Please try again.",
+      "failedEmail": "Couldn't sign in with email. Please try again.",
+      "completeFailed": "Unable to complete sign-in. Please try again."
+    },
+    "library": {
+      "search": "Search",
+      "clearSearch": "Clear search",
+      "selectCards": "Select cards",
+      "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+      "selectAll": "Select all",
+      "doneSelecting": "Done selecting",
+      "folder": "Folder",
+      "goBack": "Go back",
+      "folderMissing": "It may have been deleted.",
+      "showsHiddenCards": "Shows hidden cards",
+      "clearFilters": "Clear filters",
+      "showAllCards": "Show all cards",
+      "loadingCards": "Loading cards",
+      "loadingMore": "Loading more cards",
+      "loadMoreFailed": "Couldn't load more cards.",
+      "loadFailed": {
+        "title": "Couldn't load cards",
+        "message": "Check your connection and try again."
+      },
+      "downloadFailed": "Unable to download this file.",
+      "createFolderFailed": "Couldn't create the folder",
+      "savedSmartFolder": "Saved “{name}”",
+      "refreshQueued": "Refreshing details. The summary and tags update shortly.",
+      "refreshFailed": "Couldn't refresh this card. Try again in a moment.",
+      "toast": {
+        "trashed": "Card moved to Trash",
+        "restored": "Card restored",
+        "deletedForever": "Card deleted forever"
+      },
+      "confirmTrash": {
+        "title": "Move to Trash?",
+        "message": "This card will be moved to Trash."
+      },
+      "confirmDeleteForever": {
+        "title": "Delete forever?",
+        "message": "This removes the card and its files. You can't undo it."
+      },
+      "firstCard": {
+        "title": "Let's add your first card!",
+        "message": "Save notes, links, photos, and voice memos. They'll show up here.",
+        "writeNote": "Write a note"
+      },
+      "empty": {
+        "todoTitle": "Nothing left to do.",
+        "todoMessage": "Links you mark done leave this list.",
+        "smartFolderTitle": "No cards match this smart folder.",
+        "smartFolderMessage": "Cards that match its search show up here, as you save them.",
+        "folderTitle": "No cards in this folder yet.",
+        "folderMessage": "Add cards from your library to see them here.",
+        "trashTitle": "Trash is empty",
+        "trashMessage": "Cards you delete stay here for 30 days.",
+        "archiveTitle": "Nothing archived",
+        "archiveMessage": "Archive a card to keep it out of your library.",
+        "filtersTitle": "No matching cards",
+        "filtersMessage": "Try other filters.",
+        "searchTitle": "No results for “{query}”",
+        "searchMessage": "Check the spelling or try a new search.",
+        "timeMessage": "No cards from {range}."
+      },
+      "menu": {
+        "show": "Show",
+        "type": "Type",
+        "color": "Color",
+        "sort": "Sort",
+        "shuffle": "Shuffle",
+        "reshuffle": "Reshuffle",
+        "saveSmartFolder": "Save as smart folder…"
+      },
+      "sort": {
+        "newest": "Sort",
+        "oldest": "Sort: oldest first",
+        "shuffle": "Sort: shuffled"
+      },
+      "filter": {
+        "done": "Done",
+        "todo": "To do",
+        "clear": "Clear"
+      },
+      "selected": "Selected",
+      "tile": {
+        "open": "Open",
+        "favorite": "Favorite",
+        "attachment": "Attachment",
+        "note": "Note"
+      },
+      "saveSearch": {
+        "title": "Save as smart folder",
+        "message": "Shows every card that matches the search, including cards you save later.",
+        "nameLabel": "Name",
+        "namePlaceholder": "Reading list",
+        "save": "Save smart folder"
+      }
+    },
+    "bulk": {
+      "addTagsEllipsis": "Add tags…",
+      "addToFolderEllipsis": "Add to folder…",
+      "addToFavorites": "Add to favorites",
+      "removeFromFavorites": "Remove from favorites",
+      "moreActions": "More actions",
+      "addTagsTitle": "Add tags to {count, plural, one {# card} other {# cards}}",
+      "tagsLabel": "Tags",
+      "tagsPlaceholder": "design, inspiration",
+      "tagsHint": "Separate tags with commas.",
+      "tooManyTags": "Choose at most {max} tags at a time.",
+      "addToFolderTitle": "Add {count, plural, one {# card} other {# cards}} to a folder",
+      "findFolder": "Find or create a folder",
+      "searchFolders": "Search folders",
+      "createFolder": "Create folder “{name}”",
+      "noFolders": "No folders yet. Type a name to create one.",
+      "noFolderMatch": "No folder by that name.",
+      "deleteForeverMessage": "{count, plural, one {# card and its files will be removed.} other {# cards and their files will be removed.}} You can't undo it.",
+      "done": {
+        "favorite": "Added {count, plural, one {# card} other {# cards}} to favorites",
+        "unfavorite": "Removed {count, plural, one {# card} other {# cards}} from favorites",
+        "archive": "Archived {count, plural, one {# card} other {# cards}}",
+        "unarchive": "Returned {count, plural, one {# card} other {# cards}} to the library",
+        "addTags": "Added tags to {count, plural, one {# card} other {# cards}}",
+        "removeTags": "Removed tags from {count, plural, one {# card} other {# cards}}",
+        "delete": "Moved {count, plural, one {# card} other {# cards}} to Trash",
+        "restore": "Restored {count, plural, one {# card} other {# cards}}",
+        "addToFolder": "Added {count, plural, one {# card} other {# cards}} to {folder}",
+        "addToTheFolder": "Added {count, plural, one {# card} other {# cards}} to the folder",
+        "deleteForever": "Deleted {count, plural, one {# card} other {# cards}} forever"
+      },
+      "failed": {
+        "favorite": "Couldn't add these cards to favorites",
+        "unfavorite": "Couldn't remove these cards from favorites",
+        "archive": "Couldn't archive these cards",
+        "unarchive": "Couldn't unarchive these cards",
+        "addTags": "Couldn't add tags to these cards",
+        "removeTags": "Couldn't remove tags from these cards",
+        "delete": "Couldn't move these cards to Trash",
+        "restore": "Couldn't restore these cards",
+        "addToFolder": "Couldn't add these cards to the folder",
+        "deleteForever": "Couldn't delete these cards forever"
+      },
+      "partial": "{message}. {count, plural, one {# couldn't be changed.} other {# couldn't be changed.}}"
+    },
+    "similar": {
+      "emptyTitle": "Nothing similar yet",
+      "emptyMessage": "Try another card.",
+      "pending": "Still learning about this card. Try again in a moment.",
+      "rateLimited": "Too many searches. Try again in a minute.",
+      "unavailable": "Couldn't search by meaning right now.",
+      "unavailableCard": "unavailable card"
+    },
+    "revisit": {
+      "title": "Revisit",
+      "close": "Close Revisit",
+      "position": "{current} of {total}",
+      "emptyTitle": "Nothing to revisit here",
+      "emptyMessage": "Cards you save show up here to look back on.",
+      "keep": "Keep",
+      "archived": "Archived",
+      "swipeHint": "Swipe left to archive, right to keep",
+      "releaseToArchive": "Release to archive",
+      "releaseToKeep": "Release to keep",
+      "caption": "{type} · Saved {date}",
+      "finishedTitle": "All caught up",
+      "summary": "{archived} archived · {kept} kept",
+      "startOver": "Start over",
+      "revisitMore": "{count, plural, one {Revisit # more} other {Revisit # more}}",
+      "undoLastArchive": "Undo last archive",
+      "undoHint": "Z undoes the last archive",
+      "tooManyChanges": "Too many changes. Try again in a moment.",
+      "updateFailed": "Couldn't update this card."
     }
   },
   "apple": {
@@ -91,6 +315,12 @@
     },
     "servicesMenu": {
       "saveToTeak": "Save to Teak"
+    },
+    "library": {
+      "newNote": "New note",
+      "voiceMemo": "Voice memo",
+      "uploadFiles": "Upload files…",
+      "revisitKeys": "← archive · → keep · Z undo · Esc exit"
     }
   },
   "android": {}

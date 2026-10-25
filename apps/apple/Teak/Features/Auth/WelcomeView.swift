@@ -17,34 +17,34 @@ struct WelcomeView: View {
                     .frame(width: 92)
                     .foregroundStyle(.tint)
                     .accessibilityLabel("Teak")
-                Text("Save Anything. Anywhere.")
+                Text(tr("native.auth.tagline"))
                     .font(.title2.bold())
-                Text("Your personal everything management system. Organize, save, and access all your text, images, and documents in one place.")
+                Text(tr("native.auth.intro"))
                     .font(.body)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 32)
             if app.authMode?.signupsDisabled == true {
-                Text(TeakMessages.signupsPaused)
+                Text(tr("native.auth.signupsPaused"))
                     .padding(.bottom, 16)
             }
             VStack(spacing: 30) {
                 VStack(spacing: 12) {
                     signInButton(.apple) {
-                        Label(title(.apple, "Continue with Apple"), systemImage: "apple.logo")
+                        Label(title(.apple, tr("native.auth.continueWithApple")), systemImage: "apple.logo")
                     }
                     signInButton(.google) {
                         Label {
-                            Text(title(.google, "Continue with Google"))
+                            Text(title(.google, tr("native.auth.continueWithGoogle")))
                         } icon: {
                             Image("GoogleLogo").resizable().frame(width: 18, height: 18)
                         }
                     }
                     if app.authMode?.signupsDisabled == false {
-                        signInButton(.emailSignUp) { Text(title(.emailSignUp, "Register with Email")) }
+                        signInButton(.emailSignUp) { Text(title(.emailSignUp, tr("native.auth.registerWithEmail"))) }
                     }
                 }
-                signInButton(.emailSignIn) { Text(title(.emailSignIn, "Login with Email")) }
+                signInButton(.emailSignIn) { Text(title(.emailSignIn, tr("native.auth.signInWithEmail"))) }
             }
         }
         .padding(.horizontal, 28)
@@ -53,14 +53,14 @@ struct WelcomeView: View {
         .frame(maxWidth: 480, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
         .alert(failure?.title ?? "", isPresented: Binding(presenting: $failure), presenting: failure) { _ in
-            Button("OK") { failure = nil }
+            Button(tr("native.app.ok")) { failure = nil }
         } message: { failure in
             Text(failure.message)
         }
     }
 
     private func title(_ method: SignInMethod, _ idle: String) -> String {
-        pending == method ? "Signing in…" : idle
+        pending == method ? tr("native.auth.signingIn") : idle
     }
 
     private func signInButton(_ method: SignInMethod, @ViewBuilder label: () -> some View) -> some View {
@@ -87,9 +87,16 @@ struct WelcomeView: View {
                 try await app.signIn(method, using: webAuthentication)
             } catch {
                 let message = (error as? TeakError)?.message
-                failure = ("\(method.label) Sign In Failed",
-                           message ?? "Failed to sign in with \(method.label). Please try again.")
+                failure = (tr("native.auth.failedTitle"), message ?? Self.failure(method))
             }
+        }
+    }
+
+    private static func failure(_ method: SignInMethod) -> String {
+        switch method {
+        case .apple: tr("native.auth.failedApple")
+        case .google: tr("native.auth.failedGoogle")
+        case .emailSignUp, .emailSignIn: tr("native.auth.failedEmail")
         }
     }
 }

@@ -101,35 +101,41 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
     /// The backend takes at most this many cards per call.
     public static let chunkSize = 100
 
-    public static func cards(_ count: Int) -> String { count == 1 ? "1 card" : "\(count) cards" }
+    public static func cards(_ count: Int) -> String { tr("native.common.cardCount", count: count) }
 
     public func done(_ count: Int, folder: String? = nil) -> String {
-        let cards = Self.cards(count)
         switch self {
-        case .favorite: return "Added \(cards) to favorites"
-        case .unfavorite: return "Removed \(cards) from favorites"
-        case .archive: return "Archived \(cards)"
-        case .unarchive: return "Returned \(cards) to the library"
-        case .addTags: return "Added tags to \(cards)"
-        case .removeTags: return "Removed tags from \(cards)"
-        case .delete: return "Moved \(cards) to Trash"
-        case .restore: return "Restored \(cards)"
-        case .addToFolder: return "Added \(cards) to \(folder ?? "the folder")"
+        case .favorite: tr("native.bulk.done.favorite", count: count)
+        case .unfavorite: tr("native.bulk.done.unfavorite", count: count)
+        case .archive: tr("native.bulk.done.archive", count: count)
+        case .unarchive: tr("native.bulk.done.unarchive", count: count)
+        case .addTags: tr("native.bulk.done.addTags", count: count)
+        case .removeTags: tr("native.bulk.done.removeTags", count: count)
+        case .delete: tr("native.bulk.done.delete", count: count)
+        case .restore: tr("native.bulk.done.restore", count: count)
+        case .addToFolder:
+            folder.map { tr("native.bulk.done.addToFolder", count: count, $0) }
+                ?? tr("native.bulk.done.addToTheFolder", count: count)
         }
     }
 
     public var failure: String {
         switch self {
-        case .favorite: "Couldn't add these cards to favorites"
-        case .unfavorite: "Couldn't remove these cards from favorites"
-        case .archive: "Couldn't archive these cards"
-        case .unarchive: "Couldn't unarchive these cards"
-        case .addTags: "Couldn't add tags to these cards"
-        case .removeTags: "Couldn't remove tags from these cards"
-        case .delete: "Couldn't move these cards to Trash"
-        case .restore: "Couldn't restore these cards"
-        case .addToFolder: "Couldn't add these cards to the folder"
+        case .favorite: tr("native.bulk.failed.favorite")
+        case .unfavorite: tr("native.bulk.failed.unfavorite")
+        case .archive: tr("native.bulk.failed.archive")
+        case .unarchive: tr("native.bulk.failed.unarchive")
+        case .addTags: tr("native.bulk.failed.addTags")
+        case .removeTags: tr("native.bulk.failed.removeTags")
+        case .delete: tr("native.bulk.failed.delete")
+        case .restore: tr("native.bulk.failed.restore")
+        case .addToFolder: tr("native.bulk.failed.addToFolder")
         }
+    }
+
+    /// What changed, and how many cards didn't: "Archived 7 cards. 3 couldn't be changed."
+    public static func partial(_ done: String, failed: Int) -> String {
+        failed > 0 ? tr("native.bulk.partial", count: failed, done) : done
     }
 
     /// The action that puts cards back, for Undo.
@@ -145,9 +151,7 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
     }
 
     public func message(updated: Int, failed: Int, folder: String? = nil) -> String {
-        if updated == 0 { return failure }
-        let done = done(updated, folder: folder)
-        return failed > 0 ? "\(done). \(failed) couldn't be changed." : done
+        updated == 0 ? failure : Self.partial(done(updated, folder: folder), failed: failed)
     }
 
     /// Ids split into the chunks one call may carry.

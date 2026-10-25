@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
+import com.praveenjuge.teak.core.i18n.tr
 
 @Composable
 fun ConfirmDialog(
@@ -35,7 +36,7 @@ fun ConfirmDialog(
                 )
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }
 
@@ -60,7 +61,7 @@ fun TypedConfirmDialog(
                     value = typed,
                     onValueChange = { typed = it },
                     singleLine = true,
-                    label = { Text("Type \"$phrase\"") },
+                    label = { Text(tr("native.app.typeToConfirm", phrase)) },
                 )
             }
         },
@@ -69,6 +70,6 @@ fun TypedConfirmDialog(
                 Text(confirmLabel, color = if (matches) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }

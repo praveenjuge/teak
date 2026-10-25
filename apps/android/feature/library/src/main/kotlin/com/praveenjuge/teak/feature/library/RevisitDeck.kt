@@ -59,6 +59,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -79,13 +80,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardSummary
-import com.praveenjuge.teak.core.model.CardType
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 import kotlin.math.abs
 
 private val SwipeThreshold = 96.dp
@@ -148,13 +151,16 @@ internal fun RevisitDeck(
     val focus = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) { focus.requestFocus() }
+    val archivedNote = tr("native.bulk.done.archive", count = 1)
+    val undoLabel = tr("common.undo")
+    val errorText = state.error?.resolve()
     LaunchedEffect(state.archivedNote) {
         if (state.archivedNote == null) return@LaunchedEffect
-        val result = snackbarHostState.showSnackbar("Archived 1 card", actionLabel = "Undo", duration = SnackbarDuration.Long)
+        val result = snackbarHostState.showSnackbar(archivedNote, actionLabel = undoLabel, duration = SnackbarDuration.Long)
         if (result == SnackbarResult.ActionPerformed) onUndo() else onNoteShown()
     }
     LaunchedEffect(state.error) {
-        val error = state.error ?: return@LaunchedEffect
+        val error = errorText ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(error)
         onErrorShown()
     }
@@ -179,16 +185,16 @@ internal fun RevisitDeck(
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Revisit") },
+                    title = { Text(tr("native.revisit.title")) },
                     navigationIcon = {
-                        IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = "Close Revisit") }
+                        IconButton(onClick = onClose) { Icon(Icons.Filled.Close, contentDescription = tr("native.revisit.close")) }
                     },
                     actions = {
                         if (state.cards.isNotEmpty() && !state.isFinished) {
-                            Text(state.progress, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(end = 8.dp))
+                            Text(state.progress.resolve(), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(end = 8.dp))
                         }
                         IconButton(onClick = onUndo, enabled = state.canUndo) {
-                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = tr("common.undo"))
                         }
                     },
                 )
@@ -207,16 +213,16 @@ internal fun RevisitDeck(
             when {
                 state.isLoading -> TeakLoading()
                 state.failed -> EmptyState(
-                    title = "Couldn't load cards",
-                    message = "Check your connection and try again.",
+                    title = tr("native.library.loadFailed.title"),
+                    message = tr("native.library.loadFailed.message"),
                     icon = Icons.Outlined.CloudOff,
-                    action = { Button(onClick = onDealAgain) { Text("Retry") } },
+                    action = { Button(onClick = onDealAgain) { Text(tr("common.retry")) } },
                 )
                 state.isEmpty -> EmptyState(
-                    title = "Nothing to revisit here",
-                    message = "Cards you save show up here to look back on.",
+                    title = tr("native.revisit.emptyTitle"),
+                    message = tr("native.revisit.emptyMessage"),
                     icon = Icons.Outlined.ViewCarousel,
-                    action = { Button(onClick = onClose) { Text("Done") } },
+                    action = { Button(onClick = onClose) { Text(tr("common.done")) } },
                 )
                 state.isFinished -> DeckEnd(state, onDealAgain, onClose)
                 current != null -> key(current.id) {
@@ -238,6 +244,8 @@ private fun DeckCard(
     val offset = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val threshold = with(LocalDensity.current) { SwipeThreshold.toPx() }
+    val archiveLabel = tr("native.actions.archive")
+    val keepLabel = tr("native.revisit.keep")
     Column(
         Modifier.widthIn(max = 480.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -245,9 +253,9 @@ private fun DeckCard(
     ) {
         Text(
             when {
-                offset.value <= -threshold -> "Release to archive"
-                offset.value >= threshold -> "Release to keep"
-                else -> "Swipe left to archive, right to keep"
+                offset.value <= -threshold -> tr("native.revisit.releaseToArchive")
+                offset.value >= threshold -> tr("native.revisit.releaseToKeep")
+                else -> tr("native.revisit.swipeHint")
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -282,8 +290,8 @@ private fun DeckCard(
                 }
                 .semantics {
                     customActions = listOf(
-                        CustomAccessibilityAction("Archive") { onArchive(); true },
-                        CustomAccessibilityAction("Keep") { onKeep(); true },
+                        CustomAccessibilityAction(archiveLabel) { onArchive(); true },
+                        CustomAccessibilityAction(keepLabel) { onKeep(); true },
                     )
                 },
         ) {
@@ -296,7 +304,7 @@ private fun DeckCard(
             )
         }
         Text(
-            "${if (card.type == CardType.Text) "Note" else card.type.label} · Saved ${savedDate(card.creationTime)}",
+            tr("native.revisit.caption", tileKind(card), savedDate(card.creationTime, LocalConfiguration.current.locales[0])),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -304,10 +312,10 @@ private fun DeckCard(
             OutlinedButton(onClick = onArchive, enabled = !archiving) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                Text("Archive")
+                Text(archiveLabel)
             }
             Button(onClick = onKeep) {
-                Text("Keep")
+                Text(keepLabel)
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
             }
@@ -323,11 +331,11 @@ private fun DeckEnd(state: RevisitUiState, onDealAgain: () -> Unit, onClose: () 
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
-        Text("All caught up", style = MaterialTheme.typography.headlineSmall)
-        Text(state.summary, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr("native.revisit.finishedTitle"), style = MaterialTheme.typography.headlineSmall)
+        Text(state.summary.resolve(), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (state.steps.any { it.archived }) {
             Text(
-                "Z undoes the last archive",
+                tr("native.revisit.undoHint"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -335,14 +343,21 @@ private fun DeckEnd(state: RevisitUiState, onDealAgain: () -> Unit, onClose: () 
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onDealAgain) {
-                Text(if (state.cards.size >= RevisitViewModel.DECK_SIZE) "Revisit ${RevisitViewModel.DECK_SIZE} more" else "Start over")
+                Text(
+                    if (state.cards.size >= RevisitViewModel.DECK_SIZE) {
+                        tr("native.revisit.revisitMore", count = RevisitViewModel.DECK_SIZE)
+                    } else {
+                        tr("native.revisit.startOver")
+                    },
+                )
             }
-            Button(onClick = onClose) { Text("Done") }
+            Button(onClick = onClose) { Text(tr("common.done")) }
         }
     }
 }
 
-private fun savedDate(epochMillis: Double): String =
+private fun savedDate(epochMillis: Double, locale: Locale): String =
     DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+        .withLocale(locale)
         .withZone(ZoneId.systemDefault())
         .format(Instant.ofEpochMilli(epochMillis.toLong()))

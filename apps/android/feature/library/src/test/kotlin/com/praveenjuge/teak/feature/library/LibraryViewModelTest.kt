@@ -9,6 +9,7 @@ import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.FolderKind
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.TimeSearch
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
@@ -76,7 +77,10 @@ class LibraryViewModelTest {
         val query = repository.queries.last()
         assertEquals("", query.search)
         assertEquals(TimeSearch.parse("2024-06-05")?.range, query.range)
-        assertEquals("No cards from Jun 5, 2024.", assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.message)
+        assertEquals(
+            UiText.of("native.library.empty.timeMessage", TimeSearch.parse("2024-06-05")!!.label),
+            assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.message,
+        )
         assertTrue(repository.semanticRequests.isEmpty())
     }
 
@@ -86,8 +90,8 @@ class LibraryViewModelTest {
         viewModel.toggleTrash()
         advanceUntilIdle()
 
-        assertEquals("Trash Is Empty", assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.title)
-        assertEquals("Trash", viewModel.state.value.title)
+        assertEquals(UiText.of("native.library.empty.trashTitle"), assertIs<LibraryEmptyState.NoMatches>(viewModel.state.value.emptyState).copy.title)
+        assertEquals(UiText.verbatim("Trash"), viewModel.state.value.title)
     }
 
     @Test
@@ -97,7 +101,7 @@ class LibraryViewModelTest {
         advanceUntilIdle()
 
         assertTrue(repository.queries.last().filters.archivedOnly)
-        assertEquals("Archive", viewModel.state.value.title)
+        assertEquals(UiText.verbatim("Archive"), viewModel.state.value.title)
         assertFalse(viewModel.state.value.canRevisit)
     }
 
@@ -118,14 +122,14 @@ class LibraryViewModelTest {
     fun `select mode titles count the picked cards`() = runTest {
         val viewModel = library("a", "b")
         viewModel.beginSelection()
-        assertEquals("Select Cards", viewModel.state.value.title)
+        assertEquals(UiText.of("native.library.selectCards"), viewModel.state.value.title)
 
         viewModel.toggleSelected("a")
         viewModel.toggleSelected("b")
-        assertEquals("2 Selected", viewModel.state.value.title)
+        assertEquals(UiText.of("native.library.selectedCount", count = 2), viewModel.state.value.title)
 
         viewModel.endSelection()
-        assertEquals("Home", viewModel.state.value.title)
+        assertEquals(UiText.verbatim("Home"), viewModel.state.value.title)
     }
 
     @Test
@@ -139,7 +143,7 @@ class LibraryViewModelTest {
 
         val state = viewModel.state.value
         assertEquals(listOf("bulk:delete:a,c,e"), repository.writes)
-        assertEquals("Moved 3 cards to Trash. 2 couldn't be changed.", state.message?.text)
+        assertEquals(UiText.of("native.bulk.partial", UiText.of("native.bulk.done.delete", count = 3), count = 2), state.message?.text)
         assertEquals(Selection.None, state.selection)
     }
 
@@ -151,7 +155,7 @@ class LibraryViewModelTest {
         advanceUntilIdle()
 
         val message = viewModel.state.value.message!!
-        assertEquals("Archived 2 cards", message.text)
+        assertEquals(UiText.of("native.bulk.done.archive", count = 2), message.text)
         viewModel.undo(message)
         advanceUntilIdle()
 
@@ -165,14 +169,14 @@ class LibraryViewModelTest {
         viewModel.select("a", "b")
         viewModel.runOnSelected(BulkAction.AddTags, tags = listOf("design"))
         advanceUntilIdle()
-        assertEquals("Added tags to 2 cards", viewModel.state.value.message?.text)
+        assertEquals(UiText.of("native.bulk.done.addTags", count = 2), viewModel.state.value.message?.text)
 
         viewModel.select("a")
         viewModel.addSelectedToNewFolder("Reading")
         advanceUntilIdle()
 
         assertEquals(listOf("bulk:addTags:a,b:design", "bulk:addToFolder:a:f1"), repository.writes)
-        assertEquals("Added 1 card to Reading", viewModel.state.value.message?.text)
+        assertEquals(UiText.of("native.bulk.done.addToFolder", "Reading", count = 1), viewModel.state.value.message?.text)
         assertEquals(listOf("Reading"), folders.all.value.map { it.name })
     }
 
@@ -199,7 +203,7 @@ class LibraryViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf("c"), viewModel.state.value.paged.cards.map { it.id })
-        assertEquals("Deleted 2 cards forever", viewModel.state.value.message?.text)
+        assertEquals(UiText.of("native.bulk.done.deleteForever", count = 2), viewModel.state.value.message?.text)
     }
 
     @Test
@@ -240,7 +244,7 @@ class LibraryViewModelTest {
 
         val state = viewModel.state.value
         assertTrue(state.showsDone)
-        assertEquals(listOf("Archived", "Under 50"), state.chips.map { it.label })
+        assertEquals(listOf("Archived", "Under 50"), state.chips(unavailableCard = "unavailable card").map { it.label })
     }
 
     @Test
@@ -260,7 +264,7 @@ class LibraryViewModelTest {
         folders.all.value = listOf(Folder(id = "f1", name = "Reading", kind = FolderKind.Manual))
         val viewModel = library(folderId = "f1")
         advanceUntilIdle()
-        assertEquals("Reading", viewModel.state.value.title)
+        assertEquals(UiText.verbatim("Reading"), viewModel.state.value.title)
         assertEquals("f1", repository.queries.last().folderId)
 
         folders.all.value = emptyList()

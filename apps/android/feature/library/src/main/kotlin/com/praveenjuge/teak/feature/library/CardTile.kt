@@ -58,30 +58,38 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardGrid
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.LinkState
 import com.praveenjuge.teak.core.model.MarkdownBlocks
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.parseHexArgb
 
 private val TileShape = RoundedCornerShape(16.dp)
 private val TilePadding = 14.dp
 
-private fun firstText(vararg values: String?, fallback: String): String =
-    values.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback
+private fun firstText(vararg values: String?, fallback: UiText): UiText =
+    values.firstOrNull { !it.isNullOrBlank() }?.trim()?.let(UiText::verbatim) ?: fallback
 
-internal fun tileTitle(card: CardSummary): String = when (card.type) {
-    CardType.Link -> firstText(card.title, card.url, fallback = "Link")
-    CardType.Document -> firstText(card.title, card.fileName, fallback = "Attachment")
-    CardType.Image -> firstText(card.title, card.fileName, fallback = "Image")
-    CardType.Video -> firstText(card.title, card.fileName, fallback = "Video")
-    CardType.Audio -> firstText(card.title, card.fileName, fallback = "Audio")
-    CardType.Palette -> firstText(card.title, fallback = "Palette")
-    CardType.Quote -> firstText(card.previewText, fallback = "Quote")
-    CardType.Text -> firstText(card.previewText, card.title, fallback = "Note")
+internal fun tileTitle(card: CardSummary): UiText = when (card.type) {
+    CardType.Link -> firstText(card.title, card.url, fallback = UiText.of("cards.types.link"))
+    CardType.Document -> firstText(card.title, card.fileName, fallback = UiText.of("native.library.tile.attachment"))
+    CardType.Image -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.image"))
+    CardType.Video -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.video"))
+    CardType.Audio -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.audio"))
+    CardType.Palette -> firstText(card.title, fallback = UiText.of("cards.types.palette"))
+    CardType.Quote -> firstText(card.previewText, fallback = UiText.of("cards.types.quote"))
+    CardType.Text -> firstText(card.previewText, card.title, fallback = UiText.of("native.library.tile.note"))
 }
+
+/** A card's kind as a tile or caption names it: notes are "Note", not "Text". */
+@Composable
+internal fun tileKind(card: CardSummary): String =
+    if (card.type == CardType.Text) tr("native.library.tile.note") else card.type.label
 
 enum class TileSelection { NotSelecting, Unselected, Selected }
 
@@ -97,12 +105,14 @@ internal fun CardTile(
     modifier: Modifier = Modifier,
     actions: List<CustomAccessibilityAction> = emptyList(),
 ) {
-    val title = tileTitle(card)
+    val title = tileTitle(card).resolve()
     val spokenTitle = if (card.type == CardType.Text) remember(title) { MarkdownBlocks.toPlainText(title) } else title
     val favorite = card.isFavorited == true
+    val kind = tileKind(card)
+    val favoriteLabel = tr("native.library.tile.favorite")
     val description = buildString {
-        append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(spokenTitle)
-        if (favorite) append(", Favorite")
+        append(kind).append(", ").append(spokenTitle)
+        if (favorite) append(", ").append(favoriteLabel)
         if (card.isDone) append(", ").append(LinkState.toggledMessage(card.linkCategory, isDone = true))
         card.linkPrice?.let { append(", ").append(LinkState.formatPrice(it)) }
     }
@@ -114,8 +124,8 @@ internal fun CardTile(
             .clip(TileShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .combinedClickable(
-                onClickLabel = if (selecting) null else "Open",
-                onLongClickLabel = if (selecting) null else "Select",
+                onClickLabel = if (selecting) null else tr("native.library.tile.open"),
+                onLongClickLabel = if (selecting) null else tr("native.actions.select"),
                 onLongClick = onLongClick,
                 onClick = onClick,
             )

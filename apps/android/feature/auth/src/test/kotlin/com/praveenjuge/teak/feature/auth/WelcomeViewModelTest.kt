@@ -6,6 +6,7 @@ import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.model.AuthMode
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.flow.collect
@@ -63,7 +64,7 @@ class WelcomeViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         account.signInError = SignInException("Verify your email before opening your vault.")
         controller.handleCallback(Uri.parse("teak://auth/callback?code=abc&state=xyz"))
-        assertEquals("Verify your email before opening your vault.", viewModel.uiState.value.error)
+        assertEquals(UiText.verbatim("Verify your email before opening your vault."), viewModel.uiState.value.error)
     }
 
     @Test

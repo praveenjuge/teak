@@ -79,16 +79,16 @@ struct MainView: View {
         @Bindable var router = router
         let services = AppServices.shared
         TabView(selection: $router.tab) {
-            Tab("Home", systemImage: "house", value: AppTab.home) {
+            Tab(tr("native.app.nav.home"), systemImage: "house", value: AppTab.home) {
                 LibraryTab(library: services.home, path: $router.homePath, namespace: namespace)
             }
-            Tab("Folders", systemImage: "folder", value: AppTab.folders) {
+            Tab(tr("native.app.nav.folders"), systemImage: "folder", value: AppTab.folders) {
                 FoldersTab(namespace: namespace)
             }
-            Tab("Add", systemImage: "plus.circle", value: AppTab.add, role: addRole) {
+            Tab(tr("native.app.nav.add"), systemImage: "plus.circle", value: AppTab.add, role: addRole) {
                 NavigationStack { AddView() }
             }
-            Tab("Settings", systemImage: "gearshape", value: AppTab.settings) {
+            Tab(tr("native.app.nav.settings"), systemImage: "gearshape", value: AppTab.settings) {
                 NavigationStack { SettingsView() }
             }
         }
@@ -120,17 +120,18 @@ struct MainView: View {
                presenting: capture.alert) { alert in
             #if os(macOS)
             if alert.isCardLimit {
-                Button("Upgrade…") { NSWorkspace.shared.open(AppServices.shared.app.config.webURL.appending(path: "settings")) }
+                Button(tr("native.app.upgrade")) { NSWorkspace.shared.open(AppServices.shared.app.config.webURL.appending(path: "settings")) }
             }
             #endif
-            Button("OK", role: .cancel) {}
+            Button(tr("native.app.ok"), role: .cancel) {}
         } message: { alert in
             Text(alert.message)
         }
         .sensoryFeedback(.success, trigger: capture.savedCount)
         .overlay(alignment: .top) {
             if let upload = capture.upload {
-                Label("Saving \(min(upload.done + 1, upload.total)) of \(upload.total)…", systemImage: "arrow.up.circle")
+                Label(tr("native.app.uploadProgress", localizedNumber(min(upload.done + 1, upload.total)), localizedNumber(upload.total)),
+                      systemImage: "arrow.up.circle")
                     .font(.subheadline.weight(.medium))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -178,7 +179,7 @@ struct LibraryTab: View {
             if isDropTargeted {
                 ZStack {
                     Rectangle().fill(.tint.opacity(0.08))
-                    Label("Drop files to upload", systemImage: "arrow.down.doc")
+                    Label(tr("native.app.dropFiles"), systemImage: "arrow.down.doc")
                         .font(.title3.weight(.semibold))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
@@ -208,15 +209,15 @@ struct SaveRequestView: View {
     var body: some View {
         VStack(spacing: 20) {
             switch status {
-            case .saving: state("Saving", "Saving to your Teak vault…", "arrow.down.circle")
-            case .saved: state("Saved", "It's in your library.", "checkmark.circle.fill")
-            case .empty: state("Nothing to Save", "The shortcut didn't send any text or link.", "tray")
-            case .signedOut: state("Sign In Required", "Open Teak and sign in, then run the shortcut again.",
+            case .saving: state(tr("native.app.saveRequest.savingTitle"), tr("native.app.saveRequest.savingMessage"), "arrow.down.circle")
+            case .saved: state(tr("native.app.saveRequest.savedTitle"), tr("native.app.saveRequest.savedMessage"), "checkmark.circle.fill")
+            case .empty: state(tr("native.app.saveRequest.emptyTitle"), tr("native.app.saveRequest.emptyMessage"), "tray")
+            case .signedOut: state(tr("native.app.saveRequest.signedOutTitle"), tr("native.app.saveRequest.signedOutMessage"),
                                    "person.crop.circle.badge.exclamationmark")
-            case .failed: state("Save Failed", "Check your connection and try again.", "xmark.circle")
+            case .failed: state(tr("native.app.saveRequest.failedTitle"), tr("native.app.saveRequest.failedMessage"), "xmark.circle")
             }
             if status != .saving && status != .saved {
-                Button("Close") { dismiss() }
+                Button(tr("common.close")) { dismiss() }
                     .buttonStyle(.glass)
                     .controlSize(.large)
             }

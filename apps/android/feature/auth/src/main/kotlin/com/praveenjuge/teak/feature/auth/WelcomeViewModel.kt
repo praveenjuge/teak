@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.data.repository.AccountRepository
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +19,7 @@ data class WelcomeUiState(
     val isConfigured: Boolean = false,
     val signupsDisabled: Boolean = false,
     val pending: SignInMethod? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 @HiltViewModel

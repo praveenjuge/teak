@@ -9,11 +9,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.praveenjuge.teak.core.i18n.tr
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TeakLoading(modifier: Modifier = Modifier) {
+    val loading = tr("common.loading")
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        LoadingIndicator(Modifier.semantics { contentDescription = "Loading" })
+        LoadingIndicator(Modifier.semantics { contentDescription = loading })
     }
 }

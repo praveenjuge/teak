@@ -49,7 +49,9 @@ final class LibraryModel {
     }
 
     var title: String {
-        if let selection { return selection.isEmpty ? "Select Cards" : "\(selection.count) Selected" }
+        if let selection {
+            return selection.isEmpty ? tr("native.library.selectCards") : tr("native.library.selectedCount", count: selection.count)
+        }
         return query.title
     }
 
@@ -222,21 +224,21 @@ final class LibraryModel {
     }
 
     func moveToTrash(_ id: String) async -> Bool {
-        await hide(id, success: "Card deleted. Find it in Trash.") {
+        await hide(id, success: tr("native.library.toast.trashed")) {
             let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.updateCardField,
                                                                 ["cardId": .string(id), "field": "delete"])
         }
     }
 
     func restore(_ id: String) async -> Bool {
-        await hide(id, success: "Card restored") {
+        await hide(id, success: tr("native.library.toast.restored")) {
             let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.updateCardField,
                                                                 ["cardId": .string(id), "field": "restore"])
         }
     }
 
     func deleteForever(_ id: String) async -> Bool {
-        await hide(id, success: "Card deleted forever") {
+        await hide(id, success: tr("native.library.toast.deletedForever")) {
             let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(id)])
         }
     }
@@ -280,12 +282,12 @@ final class LibraryModel {
         do {
             let result = try await backend.mutation(ConvexFunctions.reprocessCard, ["cardId": .string(id)])
             if result.isQueued {
-                show("Refreshing details. The summary and tags update shortly.")
+                show(tr("native.library.refreshQueued"))
             } else {
-                show(result.message ?? "Couldn't refresh this card. Try again in a moment.", isError: true)
+                show(result.message ?? tr("native.library.refreshFailed"), isError: true)
             }
         } catch {
-            show("Couldn't refresh this card. Try again in a moment.", isError: true)
+            show(tr("native.library.refreshFailed"), isError: true)
         }
     }
 
@@ -413,10 +415,10 @@ final class LibraryModel {
         }
         endSelection()
         let done = chosen.count - failed
-        if failed > 0 {
-            show("\(failed) of \(chosen.count) didn't change. Please try again.", isError: true)
+        if done == 0 {
+            show(tr("native.bulk.failed.deleteForever"), isError: true)
         } else {
-            show("Deleted forever: \(BulkCardAction.cards(done))")
+            show(BulkCardAction.partial(tr("native.bulk.done.deleteForever", count: done), failed: failed), isError: failed > 0)
         }
     }
 }

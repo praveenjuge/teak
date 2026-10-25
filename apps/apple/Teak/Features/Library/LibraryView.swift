@@ -32,7 +32,7 @@ struct LibraryView: View {
             .navigationBarTitleDisplayMode(.large)
             #endif
             .searchable(text: $library.text, tokens: $library.tokens, suggestedTokens: .constant(suggestions),
-                        placement: searchPlacement, prompt: "Search") { token in
+                        placement: searchPlacement, prompt: tr("native.library.search")) { token in
                 Label(token.label, systemImage: token.symbol)
             }
             .onSubmit(of: .search) { library.commitText() }
@@ -43,42 +43,41 @@ struct LibraryView: View {
             .fileExporter(isPresented: Binding(presenting: $exporting), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [],
                           defaultFilename: exporting?.fileName) { result in
-                if case .failure = result { library.show("Unable to download this file.", isError: true) }
+                if case .failure = result { library.show(tr("native.library.downloadFailed"), isError: true) }
                 exporting = nil
             }
-            .confirmationDialog("Delete Card", isPresented: Binding(presenting: $confirmingDelete),
+            .confirmationDialog(tr("native.library.confirmTrash.title"), isPresented: Binding(presenting: $confirmingDelete),
                                 presenting: confirmingDelete) { card in
-                Button("Delete", role: .destructive) { Task { await library.moveToTrash(card.id) } }
-                Button("Cancel", role: .cancel) { confirmingDelete = nil }
+                Button(tr("native.actions.moveToTrash"), role: .destructive) { Task { await library.moveToTrash(card.id) } }
+                Button(tr("common.cancel"), role: .cancel) { confirmingDelete = nil }
             } message: { _ in
-                Text("This card will be moved to Trash.")
+                Text(tr("native.library.confirmTrash.message"))
             }
-            .confirmationDialog("Delete Forever?", isPresented: Binding(presenting: $confirmingDeleteForever),
+            .confirmationDialog(tr("native.library.confirmDeleteForever.title"), isPresented: Binding(presenting: $confirmingDeleteForever),
                                 presenting: confirmingDeleteForever) { card in
-                Button("Delete Forever", role: .destructive) { Task { await library.deleteForever(card.id) } }
-                Button("Cancel", role: .cancel) { confirmingDeleteForever = nil }
+                Button(tr("native.actions.deleteForever"), role: .destructive) { Task { await library.deleteForever(card.id) } }
+                Button(tr("common.cancel"), role: .cancel) { confirmingDeleteForever = nil }
             } message: { _ in
-                Text("This removes the card and its files. You can't undo it.")
+                Text(tr("native.library.confirmDeleteForever.message"))
             }
-            .confirmationDialog("Delete Forever?", isPresented: $confirmingBulkDelete) {
-                Button("Delete Forever", role: .destructive) { Task { await library.deleteSelectedForever() } }
+            .confirmationDialog(tr("native.library.confirmDeleteForever.title"), isPresented: $confirmingBulkDelete) {
+                Button(tr("native.actions.deleteForever"), role: .destructive) { Task { await library.deleteSelectedForever() } }
             } message: {
-                let count = library.selection?.count ?? 0
-                Text("\(count == 1 ? "This card" : "\(count) cards") and their files will be removed. You can't undo it.")
+                Text(tr("native.bulk.deleteForeverMessage", count: library.selection?.count ?? 0))
             }
-            .alert("Add Tags to \(BulkCardAction.cards(library.selection?.count ?? 0))", isPresented: $addingTags) {
-                TextField("design, inspiration", text: $bulkTags)
+            .alert(tr("native.bulk.addTagsTitle", count: library.selection?.count ?? 0), isPresented: $addingTags) {
+                TextField(tr("native.bulk.tagsPlaceholder"), text: $bulkTags)
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     #endif
-                Button("Cancel", role: .cancel) { bulkTags = "" }
-                Button("Add Tags") {
+                Button(tr("common.cancel"), role: .cancel) { bulkTags = "" }
+                Button(tr("native.actions.addTags")) {
                     let tags = CardEdit.adding(bulkTags, to: [])
                     bulkTags = ""
                     Task { await library.run(.addTags, tags: tags) }
                 }
             } message: {
-                Text("Separate tags with commas.")
+                Text(tr("native.bulk.tagsHint"))
             }
             .sheet(isPresented: $pickingFolder) {
                 FolderPickerView(mode: .bulk(count: library.selection?.count ?? 0), folders: services.folders) { folder in
@@ -260,7 +259,7 @@ struct LibraryView: View {
                 exporting = CardFile(fileName: card.fileName ?? card.title) {
                     let full = try await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
                     guard let full, case let .file(url, _, _) = CardSheet.shareTarget(full) else {
-                        throw TeakError(message: "Unable to download this file.")
+                        throw TeakError(message: tr("native.library.downloadFailed"))
                     }
                     return url
                 }
@@ -291,17 +290,17 @@ struct LibraryView: View {
                 }
             } actions: {
                 if ["pending", "unavailable", "anchor_unavailable"].contains(library.semanticOutcome) {
-                    Button("Try Again") { library.reload() }.buttonStyle(.bordered)
+                    Button(tr("common.tryAgain")) { library.reload() }.buttonStyle(.bordered)
                 } else if !library.tokens.isEmpty || (library.filters.isActive && library.filters.folder == nil) {
                     // A folder page clears its search but stays on the folder.
-                    Button("Clear Filters") {
+                    Button(tr("native.library.clearFilters")) {
                         let folder = library.filters.folder
                         library.clearFilters()
                         library.filters.folder = folder
                     }
                     .buttonStyle(.bordered)
                 } else if library.filters.folder != nil, library === services.home {
-                    Button("Show All Cards") { library.clearFilters() }.buttonStyle(.bordered)
+                    Button(tr("native.library.showAllCards")) { library.clearFilters() }.buttonStyle(.bordered)
                 }
             }
         }
@@ -310,9 +309,9 @@ struct LibraryView: View {
     /// Why search by meaning found nothing, in the web's words.
     private var semanticMessage: String? {
         switch library.semanticOutcome {
-        case "pending", "anchor_unavailable": "Still learning about this card. Try again in a moment."
-        case "rate_limited": "Too many searches. Try again in a minute."
-        case "unavailable": "Couldn't search by meaning right now."
+        case "pending", "anchor_unavailable": tr("native.similar.pending")
+        case "rate_limited": tr("native.similar.rateLimited")
+        case "unavailable": tr("native.similar.unavailable")
         default: nil
         }
     }
@@ -320,19 +319,19 @@ struct LibraryView: View {
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
         if library.isSelecting {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Done") { library.endSelection() }
-                    .accessibilityLabel("Done selecting")
+                Button(tr("common.done")) { library.endSelection() }
+                    .accessibilityLabel(tr("native.library.doneSelecting"))
             }
             ToolbarItem {
-                Button("Select All") { library.selectAll() }
+                Button(tr("native.library.selectAll")) { library.selectAll() }
             }
         } else {
             #if os(macOS)
             ToolbarItem {
-                Menu("Add", systemImage: "plus") {
-                    Button("New Note", systemImage: "square.and.pencil") { router.compose() }
-                    Button("Voice Memo", systemImage: "mic") { router.isRecording = true }
-                    Button("Upload Files…", systemImage: "arrow.up.doc") { router.isImportingFiles = true }
+                Menu(tr("native.app.nav.add"), systemImage: "plus") {
+                    Button(tr("apple.library.newNote"), systemImage: "square.and.pencil") { router.compose() }
+                    Button(tr("apple.library.voiceMemo"), systemImage: "mic") { router.isRecording = true }
+                    Button(tr("apple.library.uploadFiles"), systemImage: "arrow.up.doc") { router.isImportingFiles = true }
                 }
                 .accessibilityIdentifier("library.add")
             }
@@ -380,16 +379,16 @@ struct LibraryMenu: View {
     var body: some View {
         Menu {
             Section {
-                Button("Select", systemImage: "checkmark.circle") { library.beginSelection() }
+                Button(tr("native.actions.select"), systemImage: "checkmark.circle") { library.beginSelection() }
                     .accessibilityIdentifier("library.select")
-                Button("Revisit", systemImage: "rectangle.stack", action: revisit)
+                Button(tr("native.revisit.title"), systemImage: "rectangle.stack", action: revisit)
                     .disabled(library.isTrash || library.isArchive || library.cards.isEmpty)
                     .accessibilityIdentifier("library.revisit")
             }
-            Section("Show") {
-                Toggle(isOn: $library.filters.favoritesOnly) { Label("Favorites", systemImage: "heart") }
-                Toggle(isOn: $library.filters.archivedOnly) { Label("Archive", systemImage: "archivebox") }
-                Toggle(isOn: $library.filters.trashOnly) { Label("Trash", systemImage: "trash") }
+            Section(tr("native.library.menu.show")) {
+                Toggle(isOn: $library.filters.favoritesOnly) { Label(tr("native.app.nav.favorites"), systemImage: "heart") }
+                Toggle(isOn: $library.filters.archivedOnly) { Label(tr("native.app.nav.archive"), systemImage: "archivebox") }
+                Toggle(isOn: $library.filters.trashOnly) { Label(tr("native.app.nav.trash"), systemImage: "trash") }
                 Menu {
                     ForEach(CardType.allCases) { type in
                         Toggle(type.plural, isOn: Binding(
@@ -397,7 +396,7 @@ struct LibraryMenu: View {
                             set: { _ in library.filters = library.filters.togglingType(type) }))
                     }
                 } label: {
-                    Label("Type", systemImage: "square.grid.2x2")
+                    Label(tr("native.library.menu.type"), systemImage: "square.grid.2x2")
                 }
                 Menu {
                     ForEach(ColorHue.all) { hue in
@@ -412,39 +411,39 @@ struct LibraryMenu: View {
                         }
                     }
                 } label: {
-                    Label("Color", systemImage: "paintpalette")
+                    Label(tr("native.library.menu.color"), systemImage: "paintpalette")
                 }
             }
-            Picker("Sort", selection: Binding(get: { sortKind }, set: { chooseSort($0) })) {
+            Picker(tr("native.library.menu.sort"), selection: Binding(get: { sortKind }, set: { chooseSort($0) })) {
                 Text(LibrarySort.newest.label).tag(0)
                 Text(LibrarySort.oldest.label).tag(1)
-                Text("Shuffle").tag(2)
+                Text(tr("native.library.menu.shuffle")).tag(2)
             }
             .pickerStyle(.inline)
             if library.sort.isShuffle {
                 Section {
-                    Button("Reshuffle", systemImage: "shuffle") { library.shuffle() }
+                    Button(tr("native.library.menu.reshuffle"), systemImage: "shuffle") { library.shuffle() }
                 }
             }
             if saveSmartFolder != nil || narrowed {
                 Section {
                     if let saveSmartFolder {
-                        Button("Save as Smart Folder…", systemImage: "folder.badge.gearshape", action: saveSmartFolder)
+                        Button(tr("native.library.menu.saveSmartFolder"), systemImage: "folder.badge.gearshape", action: saveSmartFolder)
                     }
                     if narrowed {
                         // A folder page keeps its folder.
-                        Button("Clear Filters", systemImage: "xmark.circle", role: .destructive) {
+                        Button(tr("native.library.clearFilters"), systemImage: "xmark.circle", role: .destructive) {
                             library.filters = LibraryFilters(folder: library.filters.folder)
                         }
                     }
                 }
             }
         } label: {
-            Label("More", systemImage: narrowed || library.sort != .newest
+            Label(tr("common.more"), systemImage: narrowed || library.sort != .newest
                 ? "ellipsis.circle.fill" : "ellipsis.circle")
                 .labelStyle(.iconOnly)
         }
-        .accessibilityLabel("More")
+        .accessibilityLabel(tr("common.more"))
         .accessibilityIdentifier("library.more")
     }
 
@@ -484,30 +483,30 @@ struct SelectionBar: View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
                 if library.isTrash {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { Task { await library.run(.restore) } }
+                    Button(tr("native.actions.restore"), systemImage: "arrow.uturn.backward") { Task { await library.run(.restore) } }
                         .glassEffectID("restore", in: glass)
-                    Button("Delete Forever", systemImage: "trash", role: .destructive, action: confirmDeleteForever)
+                    Button(tr("native.actions.deleteForever"), systemImage: "trash", role: .destructive, action: confirmDeleteForever)
                         .glassEffectID("forever", in: glass)
                 } else {
                     if library.isArchive {
-                        Button("Unarchive", systemImage: "tray.and.arrow.up") { Task { await library.run(.unarchive) } }
+                        Button(tr("native.actions.unarchive"), systemImage: "tray.and.arrow.up") { Task { await library.run(.unarchive) } }
                             .glassEffectID("unarchive", in: glass)
                     } else {
-                        Button("Archive", systemImage: "archivebox") { Task { await library.run(.archive) } }
+                        Button(tr("native.actions.archive"), systemImage: "archivebox") { Task { await library.run(.archive) } }
                             .glassEffectID("archive", in: glass)
                     }
-                    Button("Add Tags…", systemImage: "tag", action: addTags)
+                    Button(tr("native.bulk.addTagsEllipsis"), systemImage: "tag", action: addTags)
                         .glassEffectID("tags", in: glass)
-                    Button("Add to Folder…", systemImage: "folder.badge.plus", action: addToFolder)
+                    Button(tr("native.bulk.addToFolderEllipsis"), systemImage: "folder.badge.plus", action: addToFolder)
                         .glassEffectID("folder", in: glass)
                     // Unfavorites when every chosen card is already a favorite.
                     let unfavorite = !library.selectedCards.isEmpty && library.selectedCards.allSatisfy(\.favorited)
-                    Button(unfavorite ? "Remove from Favorites" : "Add to Favorites",
+                    Button(unfavorite ? tr("native.bulk.removeFromFavorites") : tr("native.bulk.addToFavorites"),
                            systemImage: unfavorite ? "heart.slash" : "heart") {
                         Task { await library.run(unfavorite ? .unfavorite : .favorite) }
                     }
                     .glassEffectID("favorite", in: glass)
-                    Button("Move to Trash", systemImage: "trash", role: .destructive) { Task { await library.run(.delete) } }
+                    Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { Task { await library.run(.delete) } }
                         .glassEffectID("delete", in: glass)
                 }
             }
@@ -530,14 +529,14 @@ struct StatusToast: View {
                 .foregroundStyle(status.isError ? .red : .green)
             Text(status.text).font(.subheadline.weight(.medium))
             if let undo = status.undo {
-                Button("Undo") { undo() }
+                Button(tr("common.undo")) { undo() }
                     .font(.subheadline.weight(.semibold))
                     .buttonStyle(.borderless)
                     .accessibilityIdentifier("status.undo")
             }
             #if os(macOS)
             if status.isCardLimit {
-                Button("Upgrade…") { openURL(app.config.webURL.appending(path: "settings")) }
+                Button(tr("native.app.upgrade")) { openURL(app.config.webURL.appending(path: "settings")) }
                     .buttonStyle(.borderless)
             }
             #endif
@@ -563,13 +562,13 @@ struct FirstCardView: View {
                 .foregroundStyle(.primary)
                 .accessibilityLabel("Teak")
             VStack(spacing: 6) {
-                Text("Let's add your first card!").font(.headline)
-                Text("Save notes, links, photos, and voice memos. They'll show up here.")
+                Text(tr("native.library.firstCard.title")).font(.headline)
+                Text(tr("native.library.firstCard.message"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            Button("Write a Note", systemImage: "square.and.pencil") { router.compose() }
+            Button(tr("native.library.firstCard.writeNote"), systemImage: "square.and.pencil") { router.compose() }
                 .buttonStyle(.glassProminent)
                 .controlSize(.large)
         }

@@ -6,6 +6,7 @@ import com.praveenjuge.teak.core.data.auth.SignInException
 import com.praveenjuge.teak.core.data.auth.SignInMethod
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.repository.AccountRepository
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +15,7 @@ import javax.inject.Singleton
 
 data class SignInProgress(
     val pending: SignInMethod? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 /**
@@ -34,7 +35,7 @@ class SignInController @Inject constructor(
         return try {
             account.signInUrl(method)
         } catch (e: SignInException) {
-            _progress.value = SignInProgress(error = e.message)
+            _progress.value = SignInProgress(error = e.message?.let(UiText::verbatim) ?: UiText.of("native.auth.completeFailed"))
             null
         }
     }
@@ -54,7 +55,7 @@ class SignInController @Inject constructor(
                 onSuccess = { SignInProgress() },
                 onFailure = { e ->
                     Log.w(TAG, "Sign-in failed: ${e.javaClass.simpleName}")
-                    SignInProgress(error = e.message ?: "Unable to complete sign-in. Please try again.")
+                    SignInProgress(error = e.message?.let(UiText::verbatim) ?: UiText.of("native.auth.completeFailed"))
                 },
             )
         } finally {
