@@ -274,9 +274,11 @@ class LibraryViewModel @AssistedInject constructor(
             .distinctUntilChanged()
             .collectLatestIn { (typed, scope) ->
                 _state.update { it.copy(semanticOutcome = null) }
-                // The words beside a date search by meaning; the date filters the keyword results.
-                val text = SearchQuery.splitDate(typed, locale = Locale.forLanguageTag(language.current.value))?.rest ?: typed
-                if (text.isBlank()) return@collectLatestIn
+                // The words beside a date search by meaning; the date filters the keyword results. A search
+                // that's only a date has nothing to rank, while an empty one still warms a saved `like:` folder.
+                val date = SearchQuery.splitDate(typed, locale = Locale.forLanguageTag(language.current.value))
+                if (date != null && date.rest.isBlank()) return@collectLatestIn
+                val text = date?.rest ?: typed
                 val combined = if (scope != null) SearchQuery.combine(scope, text) else text
                 if (combined == null) return@collectLatestIn
                 if (SearchQuery.semanticRequest(SearchQuery.parse(combined)) == null) return@collectLatestIn

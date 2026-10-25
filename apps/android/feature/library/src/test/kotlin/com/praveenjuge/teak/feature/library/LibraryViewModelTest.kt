@@ -311,6 +311,16 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun `a smart folder that saves a like search ranks by meaning with nothing typed`() = runTest {
+        folders.all.value = listOf(
+            Folder(id = "f1", name = "Like this", kind = FolderKind.Smart, query = "like:j979t50bv7gjxz2mazwwf5tes18gbvnt"),
+        )
+        library(folderId = "f1")
+        advanceUntilIdle()
+        assertEquals(listOf(""), repository.semanticRequests)
+    }
+
+    @Test
     fun `a smart folder that saves is-archived is an Archive view`() = runTest {
         folders.all.value = listOf(
             Folder(id = "f1", name = "Old reads", kind = FolderKind.Smart, query = "is:archived type:link"),
