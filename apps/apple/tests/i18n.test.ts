@@ -59,6 +59,19 @@ describe("Apple string catalogs", () => {
     expect(missing).toEqual([]);
   });
 
+  test("views take their text from the catalog, not string literals", () => {
+    // A literal here would be English in every language; read it with tr().
+    const view =
+      /\b(Text|Button|Label|Section|Toggle|Picker|Menu|TextField|SecureField|LabeledContent|ContentUnavailableView|navigationTitle|alert|confirmationDialog|help|accessibilityLabel|accessibilityHint|accessibilityValue|Tab|CommandMenu)\("([^"\\]*[A-Za-z][^"\\]*)"/g;
+    const allowed = new Set(["Teak"]);
+    const literals = swiftFiles(APPLE).flatMap((file) =>
+      [...readFileSync(file, "utf8").matchAll(view)]
+        .filter((match) => !allowed.has(match[2] as string))
+        .map((match) => `${relative(APPLE, file)}: ${match[0]}`)
+    );
+    expect(literals).toEqual([]);
+  });
+
   test("every tr call names a key with the values its message takes", async () => {
     const { arguments: args } = await loadNativeCatalogs(
       resolve(APPLE, "../../packages/i18n/messages"),
