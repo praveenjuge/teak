@@ -82,6 +82,13 @@ class TaskListsTest {
     }
 
     @Test
+    fun `a longer fence keeps a shorter one inside its code`() {
+        val note = "````md\n```\n- [ ] A\n- [ ] B\n```\n````"
+        assertEquals(listOf<MarkdownBlock>(MarkdownBlock.Code("```\n- [ ] A\n- [ ] B\n```")), MarkdownBlocks.parse(note))
+        assertNull(toggled(note, 2))
+    }
+
+    @Test
     fun `indented code shows its tasks as text`() {
         val note = "    - [ ] example A\n    - [ ] example B"
         assertEquals(listOf<MarkdownBlock>(MarkdownBlock.Code("- [ ] example A\n- [ ] example B")), MarkdownBlocks.parse(note))

@@ -97,6 +97,12 @@ private let linkId = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         #expect(items.map(\.line) == [2])
     }
 
+    @Test func aLongerFenceKeepsAShorterOneInsideItsCode() {
+        let note = "````md\n```\n- [ ] A\n- [ ] B\n```\n````"
+        #expect(MarkdownBlocks.parse(note) == [.code("```\n- [ ] A\n- [ ] B\n```")])
+        #expect(toggled(note, line: 2) == nil)
+    }
+
     @Test func indentedCodeShowsItsTasksAsText() {
         let note = "    - [ ] example A\n    - [ ] example B"
         #expect(MarkdownBlocks.parse(note) == [.code("- [ ] example A\n- [ ] example B")])

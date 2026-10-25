@@ -46,7 +46,7 @@ public enum MarkdownBlocks {
     nonisolated(unsafe) static let task = /^\[([ xX])\] (.*)$/
     nonisolated(unsafe) static let quote = /^\s{0,3}>\s?(.*)$/
     nonisolated(unsafe) static let rule = /^\s{0,3}([-*_])(\s*\1){2,}\s*$/
-    nonisolated(unsafe) static let fence = /^\s{0,3}(```|~~~)/
+    nonisolated(unsafe) static let fence = /^\s{0,3}(`{3,}|~{3,})/
     nonisolated(unsafe) static let delimiterRow = /^\s{0,3}\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/
 
     /// The note's lines, split the same way for rendering and for ticking a task.
@@ -73,6 +73,14 @@ public enum MarkdownBlocks {
     private static func startsBlock(_ line: String) -> Bool {
         line.prefixMatch(of: fence) != nil || line.wholeMatch(of: heading) != nil
             || line.wholeMatch(of: quote) != nil || line.wholeMatch(of: rule) != nil || listItem(line) != nil
+    }
+
+    /// Whether `line` closes a fence opened with `marker`: the same character, at least as many times, and nothing
+    /// else, so a shorter fence inside a longer one stays part of the code.
+    private static func closesFence(_ line: String, _ marker: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard let character = marker.first else { return false }
+        return trimmed.count >= marker.count && trimmed.allSatisfy { $0 == character }
     }
 
     /// Whether `lines[index]` runs on as paragraph text: not blank, and not the start of another block or a table.
@@ -148,7 +156,7 @@ public enum MarkdownBlocks {
                 let marker = String(m.1)
                 var code: [String] = []
                 index += 1
-                while index < lines.count, !lines[index].trimmingCharacters(in: .whitespaces).hasPrefix(marker) {
+                while index < lines.count, !closesFence(lines[index], marker) {
                     code.append(lines[index])
                     index += 1
                 }

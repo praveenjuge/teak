@@ -32,7 +32,7 @@ object MarkdownBlocks {
     internal val task = Regex("^\\[([ xX])] (.*)$")
     private val quote = Regex("^\\s{0,3}>\\s?(.*)$")
     internal val rule = Regex("^\\s{0,3}([-*_])(\\s*\\1){2,}\\s*$")
-    private val fence = Regex("^\\s{0,3}(```|~~~)")
+    private val fence = Regex("^\\s{0,3}(`{3,}|~{3,})")
     private val delimiterRow = Regex("^\\s{0,3}\\|?\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?\\s*$")
 
     /** The note's lines, split the same way for rendering and for ticking a task. */
@@ -54,6 +54,15 @@ object MarkdownBlocks {
     private fun startsBlock(line: String): Boolean =
         fence.containsMatchIn(line) || heading.matches(line) || quote.matches(line) ||
             rule.matches(line) || listItem(line) != null
+
+    /**
+     * Whether [line] closes a fence opened with [marker]: the same character, at least as many times, and nothing
+     * else, so a shorter fence inside a longer one stays part of the code.
+     */
+    private fun closesFence(line: String, marker: String): Boolean {
+        val trimmed = line.trim()
+        return trimmed.length >= marker.length && trimmed.all { it == marker.first() }
+    }
 
     /** Whether `lines[index]` runs on as paragraph text: not blank, and not the start of another block or a table. */
     internal fun continuesParagraph(lines: List<String>, index: Int): Boolean =
@@ -142,7 +151,7 @@ object MarkdownBlocks {
                 val marker = fenceMatch.groupValues[1]
                 val code = mutableListOf<String>()
                 index += 1
-                while (index < lines.size && !lines[index].trim().startsWith(marker)) {
+                while (index < lines.size && !closesFence(lines[index], marker)) {
                     code += lines[index]
                     index += 1
                 }
