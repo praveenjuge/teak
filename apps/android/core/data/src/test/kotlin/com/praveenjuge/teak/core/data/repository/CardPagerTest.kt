@@ -11,6 +11,7 @@ import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.LinkedCard
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -51,6 +52,7 @@ class CardPagerTest {
         override suspend fun refresh(id: String): RefreshOutcome = error("unused")
         override fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>> = error("unused")
         override fun backlinks(id: String): Flow<Result<CardBacklinks>> = error("unused")
+        override fun linkSuggestions(query: String, excludeCardId: String): Flow<Result<List<LinkedCard>>> = error("unused")
         override fun similarAnchor(id: String): Flow<Result<SimilarAnchor>> = error("unused")
         override fun viewHasHiddenCards(view: LibraryView, folderId: String?): Flow<Result<Boolean>> = error("unused")
         override suspend fun requestSemanticResults(search: String, folderId: String?): String = error("unused")

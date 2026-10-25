@@ -573,6 +573,15 @@
       },
       "usage": "{used} sur {count, plural, one {# fiche} other {# fiches}}"
     },
+    "linkPicker": {
+      "label": "Lier une fiche",
+      "hint": "Saisissez [[ pour lier une autre fiche.",
+      "searching": "Recherche de fiches…",
+      "failed": "Impossible de rechercher les fiches",
+      "noMatches": "Aucune fiche correspondante",
+      "noCards": "Aucune fiche pour l’instant",
+      "option": "Lier {title}"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "Type",
@@ -688,6 +697,11 @@
         "checkSpelling": "Vérifiez l’orthographe ou lancez une nouvelle recherche."
       }
     },
+    "search": {
+      "suggestions": "Suggestions de recherche",
+      "suggestion": "{label} · {detail}",
+      "exclude": "Exclure {label}"
+    },
     "time": {
       "today": "Aujourd’hui",
       "yesterday": "Hier",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "Il dépasse 100 Mo.",
       "unreadableFile": "Teak n’a pas pu le lire.",
       "skippedAtLimit": "Non importé, car vous avez atteint votre limite de fiches."
+    },
+    "notes": {
+      "taskFailed": "Impossible de mettre à jour la liste de tâches. Réessayez.",
+      "checked": "Coché",
+      "unchecked": "Non coché",
+      "table": "Tableau, {count, plural, one {# ligne} other {# lignes}}"
     }
   },
   "apple": {

@@ -3,15 +3,19 @@ package com.praveenjuge.teak.feature.card
 import app.cash.turbine.test
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class CardEditViewModelTest {
     @get:Rule val mainDispatcherRule = MainDispatcherRule()
@@ -125,6 +129,63 @@ class CardEditViewModelTest {
 
         viewModel.removeTag("secret")
         assertNull(viewModel.uiState.value.hiddenHint)
+    }
+
+    @Test
+    fun `typing double brackets in a note finds cards and picking one links it`() = runTest {
+        val roadMap = LinkedCard(id = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b", title = "Road map", type = CardType.Link)
+        cards.linkableCards = listOf(roadMap, LinkedCard(id = note.id, title = "Road notes", type = CardType.Text))
+        val viewModel = viewModel()
+
+        viewModel.updateContent("See [[road and more", cursor = 10)
+        assertTrue(viewModel.uiState.value.linkPicker!!.isLoading)
+        advanceUntilIdle()
+        assertEquals(listOf("road"), cards.linkSuggestionQueries)
+        assertEquals(listOf(roadMap), viewModel.uiState.value.linkPicker!!.cards)
+
+        viewModel.pickLink(roadMap)
+        val linked = "See [[Road map|teak:${roadMap.id}]] and more"
+        val state = viewModel.uiState.value
+        assertNull(state.linkPicker)
+        assertEquals(linked, state.draft!!.editableContent)
+        assertEquals(linked.indexOf(" and more"), state.contentCursor)
+
+        viewModel.done.test {
+            viewModel.save()
+            awaitItem()
+        }
+        assertEquals(listOf("edit:c1:Content(value=$linked)"), cards.writes)
+    }
+
+    @Test
+    fun `a closed picker stays closed until its double brackets go`() = runTest {
+        val viewModel = viewModel()
+        viewModel.updateContent("[[ro", cursor = 4)
+        assertNotNull(viewModel.uiState.value.linkPicker)
+
+        viewModel.dismissLinkPicker()
+        viewModel.updateContent("[[roa", cursor = 5)
+        assertNull(viewModel.uiState.value.linkPicker)
+
+        viewModel.updateContent("[", cursor = 1)
+        viewModel.updateContent("[[", cursor = 2)
+        assertNotNull(viewModel.uiState.value.linkPicker)
+
+        viewModel.updateContent("[[x]]", cursor = 5)
+        assertNull(viewModel.uiState.value.linkPicker)
+    }
+
+    @Test
+    fun `a failed card search says so, and quotes get no picker`() = runTest {
+        cards.linkSuggestionError = IllegalStateException("offline")
+        val viewModel = viewModel()
+        viewModel.updateContent("[[", cursor = 2)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.linkPicker!!.failed)
+
+        val quote = viewModel(note.copy(id = "q1", type = CardType.Quote))
+        quote.updateContent("[[", cursor = 2)
+        assertNull(quote.uiState.value.linkPicker)
     }
 
     @Test

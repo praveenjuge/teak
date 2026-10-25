@@ -29,6 +29,13 @@ import {
 } from "../../../packages/convex/shared/linkCategories";
 import { MARKDOWN_CONTENT_MAX_BYTES } from "../../../packages/convex/shared/markdown";
 import {
+  SEARCH_EXCLUDE_HINTS,
+  SEARCH_IS_OPTIONS,
+  SEARCH_OR_HINT,
+  SEARCH_QUALIFIER_HINTS,
+  SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS,
+} from "../../../packages/convex/shared/search/suggestionHints";
+import {
   HIDDEN_TAG_KEYS,
   MAX_TAG_NAME_LENGTH,
   TAG_ERROR_MESSAGES,
@@ -74,6 +81,13 @@ export const buildSharedConstants = () => ({
   colorHueLabels: COLOR_HUE_LABELS,
   colorHueAliases: sortedRecord(COLOR_HUE_ALIAS_MAP),
   genericMimeTypes: [...GENERIC_MIME_TYPES].sort(),
+  searchSuggestionHints: {
+    qualifiers: SEARCH_QUALIFIER_HINTS,
+    exclude: SEARCH_EXCLUDE_HINTS,
+    or: SEARCH_OR_HINT,
+    isOptions: SEARCH_IS_OPTIONS,
+    groups: SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS,
+  },
   locales: SUPPORTED_LOCALES.map((id) => ({
     id,
     name: LOCALE_NAMES[id].native,

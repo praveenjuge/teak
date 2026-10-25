@@ -59,7 +59,14 @@ import Testing
 
     @Test func reloadReadsTheSharedLanguageAgain() {
         AppLanguage.use("ja")
+        let changed = Mutex(false)
+        withObservationTracking {
+            _ = tr("settings.language.label")
+        } onChange: {
+            changed.withLock { $0 = true }
+        }
         AppLanguage.reload()
         #expect(AppLanguage.current == "ja")
+        #expect(changed.withLock { $0 })
     }
 }

@@ -91,6 +91,7 @@ import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ColorHue
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.QualifierChips
+import com.praveenjuge.teak.core.model.SearchSuggestions
 import com.praveenjuge.teak.core.model.SearchIsValue
 import com.praveenjuge.teak.core.model.SearchQualifier
 import com.praveenjuge.teak.core.model.Tags
@@ -267,7 +268,13 @@ internal fun LibraryScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
-                LibrarySearchField(searchState)
+                var searchFocused by remember { mutableStateOf(false) }
+                LibrarySearchField(searchState, onFocusChange = { searchFocused = it })
+                val typed = searchState.text.toString()
+                val suggestions = remember(typed) { SearchSuggestions.build(typed) }
+                if (searchFocused) {
+                    SearchSuggestionList(suggestions, onPick = { searchState.setTextAndPlaceCursorAtEnd(it.accept(typed)) })
+                }
                 if (!state.isSelecting) {
                     LibraryFilterRow(
                         filters = state.filters,

@@ -111,7 +111,8 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         ("text:4411", "ocrTexts", ["4411"]), ("TEXT:\"Total  Due\"", "ocrTexts", ["Total Due"]),
         ("text:Total text:total", "ocrTexts", ["Total"]), ("text:a text:b", "ocrTexts", ["a", "b"]),
         ("text:", "terms", []), ("text:\"  \"", "ocrTexts", []), ("text:東京駅", "ocrTexts", ["東京駅"]),
-        ("is:nope", "terms", ["is:nope"]),
+        ("is:nope", "terms", ["is:nope"]), ("site:www.GitHub.com/path", "sites", ["github.com"]),
+        ("site:https://gitlab.com:8443", "sites", ["gitlab.com"]), ("site:mailto:x", "terms", ["site:mailto:x"]),
     ]
 
     private static func field(_ parsed: ParsedSearchQuery, _ name: String) -> [String] {
@@ -121,6 +122,7 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         case "folders": parsed.folders
         case "phrases": parsed.phrases
         case "ocrTexts": parsed.ocrTexts
+        case "sites": parsed.sites
         default: parsed.terms
         }
     }
@@ -235,6 +237,15 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 
     @Test func doneAndTodoWriteTheOneCanonicalWay() {
         #expect(SearchQualifiers.parse("IS:Finished is:TO-DO lamp").canonical == "is:done is:todo lamp")
+    }
+
+    @Test(arguments: [
+        ("design -figma", true), ("tag:fonts OR tag:type", true), ("(a b)", true), ("-\"a b\"", true), ("x OR", true),
+        ("to-do 2024-06-05", false), ("a - b", false), ("tag:fonts or tag:type", false), ("\"a OR (b)\"", false),
+        ("site:github.com", false), ("ORANGE", false),
+    ])
+    func findsOperators(text: String, expected: Bool) {
+        #expect(SearchQualifiers.hasOperators(text) == expected)
     }
 
     @Test func anEmptySearchParsesToNothing() {

@@ -150,4 +150,34 @@ object CardLinks {
     }
 
     fun tokensToText(markdown: String): String = replaceTokens(markdown) { title, _ -> title }
+
+    /** A `[[` being typed: it starts at [start], the cursor is at [end], and [query] is the text between, trimmed. */
+    data class OpenQuery(val start: Int, val end: Int, val query: String)
+
+    /**
+     * The `[[` the cursor is typing after, on the same line, or null. A link can't start inside code, a table row
+     * or another link, and the text after `[[` can't hold the `]` or `|` a token is made of.
+     */
+    fun openQuery(text: String, cursor: Int): OpenQuery? {
+        if (cursor < 2 || cursor > text.length) return null
+        val lineStart = text.lastIndexOf('\n', cursor - 1) + 1
+        val start = text.lastIndexOf("[[", cursor - 2).takeIf { it >= lineStart } ?: return null
+        val typed = text.substring(start + 2, cursor)
+        if (typed.length > CARD_LINK_TITLE_MAX_LENGTH || ']' in typed || '|' in typed) return null
+        val lineEnd = text.indexOf('\n', lineStart).let { if (it == -1) text.length else it }
+        if (text.substring(lineStart, lineEnd).trimStart().startsWith("|")) return null
+        if (!maskCode(text).startsWith("[[", start)) return null
+        if (find(text).any { it.start < cursor && cursor < it.end }) return null
+        return OpenQuery(start, cursor, typed.trim())
+    }
+
+    /** A note with the typed `[[query` swapped for a link to the card, and where the cursor goes next. */
+    data class Insertion(val text: String, val cursor: Int)
+
+    /** [text] with [open] replaced by a link to the card, then a space unless whitespace follows already. */
+    fun insertingLink(text: String, open: OpenQuery, title: String, id: String): Insertion {
+        val after = text.substring(open.end)
+        val inserted = formatToken(title, id) + if (after.firstOrNull()?.isWhitespace() == true) "" else " "
+        return Insertion(text.substring(0, open.start) + inserted + after, open.start + inserted.length)
+    }
 }

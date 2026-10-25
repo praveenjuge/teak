@@ -573,6 +573,15 @@
       },
       "usage": "{used} von {count, plural, one {# Karte} other {# Karten}}"
     },
+    "linkPicker": {
+      "label": "Karte verlinken",
+      "hint": "Geben Sie [[ ein, um eine andere Karte zu verlinken.",
+      "searching": "Karten werden gesucht…",
+      "failed": "Karten konnten nicht durchsucht werden",
+      "noMatches": "Keine passenden Karten",
+      "noCards": "Noch keine Karten",
+      "option": "{title} verlinken"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "Typ",
@@ -688,6 +697,11 @@
         "checkSpelling": "Prüfen Sie die Schreibweise oder versuchen Sie eine andere Suche."
       }
     },
+    "search": {
+      "suggestions": "Suchvorschläge",
+      "suggestion": "{label} · {detail}",
+      "exclude": "{label} ausschließen"
+    },
     "time": {
       "today": "Heute",
       "yesterday": "Gestern",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "Sie ist größer als 100 MB.",
       "unreadableFile": "Teak konnte sie nicht lesen.",
       "skippedAtLimit": "Nicht hochgeladen, weil Sie Ihr Kartenlimit erreicht haben."
+    },
+    "notes": {
+      "taskFailed": "Die Aufgabenliste konnte nicht aktualisiert werden. Versuchen Sie es erneut.",
+      "checked": "Abgehakt",
+      "unchecked": "Nicht abgehakt",
+      "table": "Tabelle, {count, plural, one {# Zeile} other {# Zeilen}}"
     }
   },
   "apple": {

@@ -96,6 +96,30 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun `a date word beside other words filters by date and keeps the words`() = runTest {
+        val viewModel = library()
+        viewModel.onSearchChange("figma last week")
+        advanceUntilIdle()
+
+        val query = repository.queries.last()
+        assertEquals("figma", query.search)
+        assertEquals(TimeSearch.parse("last week")?.range, query.range)
+        assertEquals("figma", viewModel.state.value.revisitQuery.search)
+        assertEquals(query.range, viewModel.state.value.revisitQuery.range)
+    }
+
+    @Test
+    fun `search text with operators is sent as typed`() = runTest {
+        val viewModel = library()
+        for (text in listOf("design -figma", "tag:fonts OR tag:type", "(site:github.com OR site:gitlab.com) -is:archived")) {
+            viewModel.onSearchChange(text)
+            advanceUntilIdle()
+            assertEquals(CardQuery(search = text), repository.queries.last(), text)
+            assertTrue(viewModel.state.value.chips("").isEmpty(), text)
+        }
+    }
+
+    @Test
     fun `an empty Trash says how long cards stay`() = runTest {
         val viewModel = library()
         viewModel.toggleTrash()
@@ -284,6 +308,16 @@ class LibraryViewModelTest {
         folders.all.value = emptyList()
         advanceUntilIdle()
         assertTrue(viewModel.state.value.folderMissing)
+    }
+
+    @Test
+    fun `a smart folder that saves a like search ranks by meaning with nothing typed`() = runTest {
+        folders.all.value = listOf(
+            Folder(id = "f1", name = "Like this", kind = FolderKind.Smart, query = "like:j979t50bv7gjxz2mazwwf5tes18gbvnt"),
+        )
+        library(folderId = "f1")
+        advanceUntilIdle()
+        assertEquals(listOf(""), repository.semanticRequests)
     }
 
     @Test

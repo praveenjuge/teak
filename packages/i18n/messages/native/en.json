@@ -573,6 +573,15 @@
       },
       "usage": "{used} of {count, plural, one {# card} other {# cards}}"
     },
+    "linkPicker": {
+      "label": "Link a card",
+      "hint": "Type [[ to link another card.",
+      "searching": "Searching cards…",
+      "failed": "Couldn't search cards",
+      "noMatches": "No matching cards",
+      "noCards": "No cards yet",
+      "option": "Link {title}"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "Type",
@@ -688,6 +697,11 @@
         "checkSpelling": "Check the spelling or try a new search."
       }
     },
+    "search": {
+      "suggestions": "Search suggestions",
+      "suggestion": "{label} · {detail}",
+      "exclude": "Leave out {label}"
+    },
     "time": {
       "today": "Today",
       "yesterday": "Yesterday",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "It's larger than 100 MB.",
       "unreadableFile": "Teak couldn't read it.",
       "skippedAtLimit": "Not uploaded because you've reached your card limit."
+    },
+    "notes": {
+      "taskFailed": "Couldn't update the checklist. Try again.",
+      "checked": "Checked",
+      "unchecked": "Not checked",
+      "table": "Table, {count, plural, one {# row} other {# rows}}"
     }
   },
   "apple": {

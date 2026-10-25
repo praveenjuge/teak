@@ -3,6 +3,7 @@ package com.praveenjuge.teak.core.model
 import java.math.RoundingMode
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
+import java.time.ZonedDateTime
 import java.util.Locale
 
 /** A port of `packages/convex/shared/search/qualifiers.ts` and `semantic.ts`; keep them in step. */
@@ -89,7 +90,8 @@ object SearchQuery {
     private val PRICE_BOUND = Regex("^(<=|>=|<|>|=)(\\d{1,12}(?:\\.\\d{1,6})?)$")
     private val WHITESPACE = Regex("\\s+")
 
-    private data class RawToken(val prefix: String, val quoted: Boolean, val text: String)
+    /** [source] is the token as it was typed, quotes and escapes included. */
+    private data class RawToken(val prefix: String, val quoted: Boolean, val text: String, val source: String = "")
 
     private fun tokenize(input: String): List<RawToken> {
         val tokens = mutableListOf<RawToken>()
@@ -97,6 +99,7 @@ object SearchQuery {
         while (index < input.length) {
             while (index < input.length && input[index].isWhitespace()) index += 1
             if (index >= input.length) break
+            val start = index
             val text = StringBuilder()
             var prefix: String? = null
             var inQuotes = false
@@ -128,10 +131,109 @@ object SearchQuery {
                 text.append(character)
                 index += 1
             }
-            tokens += RawToken(prefix.orEmpty(), prefix != null, text.toString())
+            tokens += RawToken(prefix.orEmpty(), prefix != null, text.toString(), input.substring(start, index))
         }
         return tokens
     }
+
+    /**
+     * Whether the text uses search operators: a word that starts with `-`, an uppercase `OR` or a
+     * parenthesis, outside quotes. Such text is sent as typed, since lifting a filter out of it could
+     * change what it means. Apple's `SearchQualifiers.hasOperators` is the same rule.
+     */
+    fun hasOperators(text: String): Boolean {
+        var inQuotes = false
+        var escaped = false
+        var word = ""
+        for (character in text) {
+            if (inQuotes) {
+                when {
+                    escaped -> escaped = false
+                    character == '\\' -> escaped = true
+                    character in QUOTES -> inQuotes = false
+                }
+                continue
+            }
+            when {
+                character in QUOTES -> {
+                    if (word == "-") return true
+                    inQuotes = true
+                    word += '"'
+                }
+                character == '(' || character == ')' -> return true
+                character.isWhitespace() -> {
+                    if (word == "OR") return true
+                    word = ""
+                }
+                word.isEmpty() && character == '-' -> word = "-"
+                word == "-" -> return true
+                else -> word += character
+            }
+        }
+        return word == "OR"
+    }
+
+    private val TYPED_OR = Regex("(^|[\\s(])OR(?=[\\s)]|$)")
+
+    /**
+     * Search parts joined by spaces, each part with an `OR` in parentheses when there are others,
+     * since a space binds tighter than `OR`: the grouping the web's `buildCardsSearchTerms` applies.
+     */
+    fun join(parts: List<String>): String {
+        val kept = parts.map(String::trim).filter(String::isNotEmpty)
+        if (kept.size <= 1) return kept.firstOrNull().orEmpty()
+        return kept.joinToString(" ") { if (TYPED_OR.containsMatchIn(it)) "($it)" else it }
+    }
+
+    /** The text before the word being typed at the end, and that word, as the web's `currentSearchToken` finds them. */
+    fun currentWord(text: String): Pair<String, String> {
+        var start = 0
+        var inQuotes = false
+        var index = 0
+        while (index < text.length) {
+            val character = text[index]
+            if (character == '\\' && inQuotes) {
+                index += 2
+                continue
+            }
+            if (character in QUOTES) {
+                inQuotes = !inQuotes
+            } else if (!inQuotes && character.isWhitespace()) {
+                start = index + 1
+            }
+            index += 1
+        }
+        return text.substring(0, start.coerceAtMost(text.length)) to text.substring(start.coerceAtMost(text.length))
+    }
+
+    /** A date found in typed text, and the text around it as typed. */
+    data class DateSplit(val filter: TimeFilter, val rest: String)
+
+    /**
+     * A date written inside typed text: "figma last week" searches "figma" from last week. A lone number
+     * isn't read as a year beside other words, and text with operators is left whole. Apple's
+     * `SearchTokens.splitDate` is the same rule.
+     */
+    fun splitDate(text: String, now: ZonedDateTime = ZonedDateTime.now(), locale: Locale = Locale.getDefault()): DateSplit? {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || hasOperators(trimmed)) return null
+        TimeSearch.parse(trimmed, now, locale)?.let { return DateSplit(it, "") }
+        val raws = tokenize(trimmed)
+        for (start in raws.indices) {
+            for (length in minOf(9, raws.size - start) downTo 1) {
+                val slice = raws.subList(start, start + length)
+                if (slice.any { it.quoted }) continue
+                val phrase = slice.joinToString(" ") { it.text.trim { c -> c in DATE_PUNCTUATION } }
+                if (length == 1 && (':' in phrase || phrase.all(Char::isDigit))) continue
+                val filter = TimeSearch.parse(phrase, now, locale) ?: continue
+                val rest = (raws.subList(0, start) + raws.subList(start + length, raws.size)).joinToString(" ") { it.source }
+                return DateSplit(filter, rest)
+            }
+        }
+        return null
+    }
+
+    private const val DATE_PUNCTUATION = ",.;:!?()[]{}\"'"
 
     private fun trimEdgePunctuation(value: String, keep: String = ""): String {
         fun trims(character: Char) = character in SEARCH_TOKEN_TRIM_CHARACTERS && character !in keep
@@ -415,9 +517,19 @@ data class QualifierChip(
 }
 
 object QualifierChips {
-    /** The chips for every filter in [search], as the web's `describeQualifierChip` words them. */
+    private val WHITESPACE = Regex("\\s+")
+
+    /**
+     * The chips for every filter in [search], as the web's `describeQualifierChip` words them. A search
+     * with `-`, `OR` or parentheses shows none: its filters may sit inside a group, and removing one
+     * from there would change the rest.
+     */
     fun of(search: String, anchorTitle: String? = null): List<QualifierChip> =
-        SearchQuery.parse(search).qualifiers.mapNotNull { describe(it, anchorTitle) }
+        if (SearchQuery.hasOperators(search)) {
+            emptyList()
+        } else {
+            SearchQuery.parse(search).qualifiers.mapNotNull { describe(it, anchorTitle) }
+        }
 
     private fun isText(value: SearchIsValue): UiText = when (value) {
         SearchIsValue.Favorite -> UiText.of("native.filters.is.fav")
@@ -448,8 +560,13 @@ object QualifierChips {
         is SearchQualifier.Text -> QualifierChip(qualifier, UiText.of("native.filters.chips.text"), UiText.verbatim(qualifier.value))
     }
 
-    /** [search] without [qualifier], in canonical form. */
+    /** [search] without [qualifier], in canonical form; a search with operators keeps the rest as typed. */
     fun remove(search: String, qualifier: SearchQualifier): String {
+        if (SearchQuery.hasOperators(search)) {
+            return search.trim().split(WHITESPACE).filterNot { word ->
+                word.first() !in "-(" && ')' !in word && SearchQuery.parse(word).qualifiers == listOf(qualifier)
+            }.joinToString(" ")
+        }
         val parsed = SearchQuery.parse(search)
         return (
             parsed.qualifiers.filterNot { it == qualifier }.map(SearchQuery::format) +
@@ -457,8 +574,13 @@ object QualifierChips {
             ).joinToString(" ")
     }
 
-    /** The search with [qualifier] added once, ahead of the words already typed. */
+    /** The search with [qualifier] added once, ahead of the words already typed, which keep their grouping. */
     fun add(search: String, qualifier: SearchQualifier): String {
+        if (SearchQuery.hasOperators(search)) {
+            val words = search.trim().split(WHITESPACE)
+            if (words.any { it.first() !in "-(" && ')' !in it && SearchQuery.parse(it).qualifiers == listOf(qualifier) }) return search
+            return SearchQuery.join(listOf(SearchQuery.format(qualifier), search))
+        }
         val parsed = SearchQuery.parse(search)
         if (qualifier in parsed.qualifiers) return parsed.canonical
         return SearchQuery.parse((listOf(SearchQuery.format(qualifier)) + parsed.canonical).joinToString(" ").trim()).canonical

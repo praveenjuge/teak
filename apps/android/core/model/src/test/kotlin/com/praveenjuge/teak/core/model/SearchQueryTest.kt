@@ -300,4 +300,43 @@ class SearchQueryTest {
         assertEquals("is:done lamp", QualifierChips.add("lamp", SearchQualifier.Is(SearchIsValue.Done)))
         assertEquals("is:done lamp", QualifierChips.add("is:done lamp", SearchQualifier.Is(SearchIsValue.Done)))
     }
+
+    /** The same cases as Apple's `findsOperators`. */
+    @Test
+    fun `finds search operators outside quotes`() {
+        val cases = listOf(
+            "design -figma" to true, "tag:fonts OR tag:type" to true, "(a b)" to true, "-\"a b\"" to true, "x OR" to true,
+            "to-do 2024-06-05" to false, "a - b" to false, "tag:fonts or tag:type" to false, "\"a OR (b)\"" to false,
+            "site:github.com" to false, "ORANGE" to false,
+        )
+        for ((text, expected) in cases) assertEquals(expected, SearchQuery.hasOperators(text), text)
+    }
+
+    @Test
+    fun `search text with operators keeps its chips and grouping as typed`() {
+        val done = SearchQualifier.Is(SearchIsValue.Done)
+        for (text in listOf("design -figma", "tag:fonts OR tag:type", "(site:github.com OR site:gitlab.com) -is:archived")) {
+            assertEquals(emptyList(), QualifierChips.of(text), text)
+        }
+        assertEquals("is:done (tag:fonts OR tag:type)", QualifierChips.add("tag:fonts OR tag:type", done))
+        assertEquals("is:done design -figma", QualifierChips.add("design -figma", done))
+        assertEquals("design -figma", QualifierChips.remove("is:done design -figma", done))
+        assertEquals("-is:done a", QualifierChips.remove("-is:done a", done))
+        assertEquals("type:link (a OR b)", LibraryFilters(types = listOf(CardType.Link)).smartFolderQuery("a OR b"))
+        assertEquals("a OR b", SearchQuery.join(listOf("a OR b")))
+    }
+
+    @Test
+    fun `a date beside words keeps the words`() {
+        val zone = java.time.ZoneId.of("America/New_York")
+        val now = java.time.ZonedDateTime.of(2026, 2, 3, 12, 0, 0, 0, zone)
+        val split = SearchQuery.splitDate("figma last week", now, Locale.US)!!
+        assertEquals("figma", split.rest)
+        assertEquals(TimeSearch.parse("last week", now, Locale.US)!!.range, split.filter.range)
+        assertEquals("tag:x \"a b\"", SearchQuery.splitDate("tag:x yesterday \"a b\"", now, Locale.US)!!.rest)
+        assertEquals("", SearchQuery.splitDate("last week", now, Locale.US)!!.rest)
+        assertNull(SearchQuery.splitDate("iphone 2024", now, Locale.US))
+        assertNull(SearchQuery.splitDate("-figma last week", now, Locale.US))
+        assertNull(SearchQuery.splitDate("figma", now, Locale.US))
+    }
 }

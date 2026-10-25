@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  SEARCH_EXCLUDE_HINTS,
+  SEARCH_IS_OPTIONS,
+  SEARCH_OR_HINT,
+  SEARCH_QUALIFIER_HINTS,
+} from "@teak/convex/shared/search/suggestionHints";
+import {
   buildSearchSuggestions,
   continuesOperator,
   currentSearchToken,
@@ -306,5 +312,32 @@ describe("continuesOperator", () => {
     ["xOR y ", false],
   ])("%p", (before: string, expected: boolean) => {
     expect(continuesOperator(before)).toBe(expected);
+  });
+});
+
+describe("shared hints", () => {
+  // The native apps generate the same lists, so the hints read alike everywhere.
+  const pick = (token: string, afterWord = false) =>
+    buildSearchSuggestions(token, {}, { afterWord }).suggestions.map(
+      ({ id, insert }) => ({ id, insert })
+    );
+  const shared = (hints: readonly { id: string; insert: string }[]) =>
+    hints.map(({ id, insert }) => ({ id, insert }));
+
+  test("the filter, exclude and OR hints come from the shared lists", () => {
+    expect(pick("t")).toEqual(
+      shared(SEARCH_QUALIFIER_HINTS.filter((hint) => hint.key.startsWith("t")))
+    );
+    expect(pick("-")).toEqual(shared(SEARCH_EXCLUDE_HINTS));
+    expect(pick("or", true)[0]).toEqual(shared([SEARCH_OR_HINT])[0]);
+  });
+
+  test("is: offers the shared show options", () => {
+    expect(pick("is:")).toEqual(
+      SEARCH_IS_OPTIONS.map((option) => ({
+        id: `Show:is:${option.value}`,
+        insert: `is:${option.value}`,
+      }))
+    );
   });
 });

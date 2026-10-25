@@ -9,14 +9,18 @@ import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardEditDraft
 import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.CardLinks
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +31,11 @@ import kotlinx.coroutines.launch
 
 data class EditAlert(val title: UiText, val message: UiText)
 
+/** The `[[` picker for a note: the cards found for [query], null while the first search runs. */
+data class LinkPickerState(val query: String, val cards: List<LinkedCard>? = null, val failed: Boolean = false) {
+    val isLoading: Boolean get() = cards == null && !failed
+}
+
 data class CardEditUiState(
     val isLoading: Boolean = true,
     val card: Card? = null,
@@ -36,6 +45,10 @@ data class CardEditUiState(
     val alert: EditAlert? = null,
     /** Shown after adding a tag that hides the card: "Hidden. Search #secret to see it." */
     val hiddenHint: UiText? = null,
+    /** Open while a `[[` is being typed in a note. */
+    val linkPicker: LinkPickerState? = null,
+    /** Where the note's cursor goes after a link is put in; null leaves it where the person put it. */
+    val contentCursor: Int? = null,
 ) {
     val changes: List<CardFieldChange>
         get() = if (card != null && draft != null) CardEdit.changes(card, draft) else emptyList()
@@ -69,7 +82,57 @@ class CardEditViewModel @AssistedInject constructor(
         }
     }
 
-    fun updateContent(value: String) = updateDraft { it.copy(editableContent = value) }
+    private var openLink: CardLinks.OpenQuery? = null
+    /** Where the `[[` the picker was closed on starts: it stays closed until that `[[` goes. */
+    private var dismissedLinkStart: Int? = null
+    private var linkSearch: Job? = null
+
+    /** A typed change or a cursor move in the note or quote field; [cursor] is where the caret is. */
+    fun updateContent(value: String, cursor: Int = value.length) {
+        updateDraft { it.copy(editableContent = value) }
+        _uiState.update { it.copy(contentCursor = null) }
+        val next = if (_uiState.value.card?.type == CardType.Text) CardLinks.openQuery(value, cursor) else null
+        if (next?.start != dismissedLinkStart) dismissedLinkStart = null
+        showLinkPicker(next?.takeIf { it.start != dismissedLinkStart })
+    }
+
+    /** Puts a link to [card] where the `[[` and its query were typed. */
+    fun pickLink(card: LinkedCard) {
+        val open = openLink ?: return
+        val content = _uiState.value.draft?.editableContent ?: return
+        val result = CardLinks.insertingLink(content, open, card.title, card.id)
+        showLinkPicker(null)
+        updateDraft { it.copy(editableContent = result.text) }
+        _uiState.update { it.copy(contentCursor = result.cursor) }
+    }
+
+    /** Escape, Back or a tap outside: closed until this `[[` is deleted. */
+    fun dismissLinkPicker() {
+        dismissedLinkStart = openLink?.start
+        showLinkPicker(null)
+    }
+
+    private fun showLinkPicker(open: CardLinks.OpenQuery?) {
+        val previous = openLink
+        openLink = open
+        if (open == null) {
+            linkSearch?.cancel()
+            _uiState.update { it.copy(linkPicker = null) }
+            return
+        }
+        if (previous?.query == open.query && _uiState.value.linkPicker != null) return
+        // The last answer stays up while the next one loads, so the list doesn't flash.
+        _uiState.update { it.copy(linkPicker = it.linkPicker?.copy(query = open.query) ?: LinkPickerState(open.query)) }
+        linkSearch?.cancel()
+        linkSearch = viewModelScope.launch {
+            delay(LINK_SEARCH_DEBOUNCE_MS)
+            repository.linkSuggestions(open.query, cardId).collect { result ->
+                _uiState.update { state ->
+                    state.copy(linkPicker = state.linkPicker?.copy(cards = result.getOrNull(), failed = result.isFailure))
+                }
+            }
+        }
+    }
 
     fun updateNotes(value: String) = updateDraft { it.copy(notes = value) }
 
@@ -119,6 +182,11 @@ class CardEditViewModel @AssistedInject constructor(
 
     private fun updateDraft(transform: (CardEditDraft) -> CardEditDraft) = _uiState.update { state ->
         state.draft?.let { state.copy(draft = transform(it)) } ?: state
+    }
+
+    private companion object {
+        /** As on the web: search once typing pauses. */
+        const val LINK_SEARCH_DEBOUNCE_MS = 150L
     }
 
     @AssistedFactory

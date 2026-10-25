@@ -13,6 +13,7 @@ A user types `[[` in a note to link another card. The link is stored as `[[Title
 ## How to get to it (user POV)
 
 - Open a note (or the home page composer, or Focus) → type `[[` → the "Link a card" list → pick a card.
+- Native apps: open a note → Edit (pencil on iPhone, iPad and Mac) → type `[[` in the note field → the "Link a card" list under the field → pick a card ([apple](./apple.md) `apple-card-link-picker`, [android](./android.md) `android-card-link-picker`).
 - Click a pill to open its card. Open any card → the side panel's "Linked from" section.
 - `teak links <card-id>`, `GET /v1/cards/<card-id>`, the MCP tool `teak_v1_get_card_links`.
 
@@ -42,5 +43,5 @@ Steps:
 - Links are only to your own cards; a token naming another account's card never makes a backlink and shows "Missing card".
 - A note tagged `secret` or `hidden` never shows under "Linked from" or in `backlinks`.
 - A note indexes at most 500 linked cards for "Linked from"; later pills still render.
-- Native apps (Mac, iPhone, iPad) show the link as its title on tiles but the raw token inside the note.
+- Native apps (Mac, iPhone, iPad, Android) show the link as its title on tiles and as a pill in the card, but the raw token in the Edit field; their `[[` picker uses the web menu's query, `cards:searchCardLinkSuggestions`.
 - Bold or italic around a link keeps the note as literal Markdown, as with other syntax the editor can't round-trip.

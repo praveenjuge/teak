@@ -17,6 +17,7 @@ export const SHARED_WEB_NAMESPACES = [
   "errors",
   "cards.types",
   "search.colorHues",
+  "search.suggestions",
   "search.visualStyles",
   "settings.language",
 ] as const;

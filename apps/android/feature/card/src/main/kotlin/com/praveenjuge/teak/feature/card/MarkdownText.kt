@@ -54,22 +54,47 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.praveenjuge.teak.core.model.MarkdownBlock
 import com.praveenjuge.teak.core.model.MarkdownBlocks
+import com.praveenjuge.teak.core.model.MarkdownListItem
+import com.praveenjuge.teak.core.model.MarkdownTable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CollectionInfo
+import androidx.compose.ui.semantics.CollectionItemInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.collectionInfo
+import androidx.compose.ui.semantics.collectionItemInfo
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Constraints
 
 private val headingSteps = listOf(7, 4, 2)
 
+/** A note's Markdown. [onToggleTask] ticks or unticks a task; without it, checkboxes are read-only. */
 @Composable
-internal fun MarkdownText(text: String, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodyLarge) {
+internal fun MarkdownText(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyLarge,
+    onToggleTask: ((MarkdownListItem) -> Unit)? = null,
+) {
     val blocks = remember(text) { MarkdownBlocks.parse(text) }
     val inline = inlineStyles()
     SelectionContainer(modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            blocks.forEach { block -> MarkdownBlockView(block, style, inline) }
+            blocks.forEach { block -> MarkdownBlockView(block, style, inline, onToggleTask) }
         }
     }
 }
 
 @Composable
-private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: InlineStyles) {
+private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: InlineStyles, onToggleTask: ((MarkdownListItem) -> Unit)?) {
     val secondary = MaterialTheme.colorScheme.onSurfaceVariant
     when (block) {
         is MarkdownBlock.Heading -> InlineText(
@@ -84,15 +109,21 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: In
         )
         is MarkdownBlock.ListBlock -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             block.items.forEach { item ->
-                Row(
-                    modifier = Modifier.padding(start = (item.depth * 18).dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(item.marker, style = style, color = secondary)
-                    InlineText(item.text, style, inline)
+                val checked = item.checked
+                if (checked != null) {
+                    TaskRow(item, checked, style, inline, onToggleTask)
+                } else {
+                    Row(
+                        modifier = Modifier.padding(start = (item.depth * 18).dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(item.marker, style = style, color = secondary)
+                        InlineText(item.text, style, inline)
+                    }
                 }
             }
         }
+        is MarkdownBlock.Table -> TableView(block.table, style, inline)
         is MarkdownBlock.Quote -> Row(Modifier.height(IntrinsicSize.Min)) {
             Box(
                 Modifier
@@ -112,6 +143,93 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: In
         )
         MarkdownBlock.Rule -> HorizontalDivider(Modifier.padding(vertical = 4.dp))
         is MarkdownBlock.Paragraph -> InlineText(block.text, style, inline)
+    }
+}
+
+/** A task with its checkbox; done ones read muted and struck through, as on the web. The whole row ticks it. */
+@Composable
+private fun TaskRow(
+    item: MarkdownListItem,
+    checked: Boolean,
+    style: TextStyle,
+    inline: InlineStyles,
+    onToggle: ((MarkdownListItem) -> Unit)?,
+) {
+    val state = if (checked) tr("native.notes.checked") else tr("native.notes.unchecked")
+    val base = Modifier.padding(start = (item.depth * 18).dp)
+    val rowModifier = if (onToggle == null) {
+        base.semantics(mergeDescendants = true) { stateDescription = state }
+    } else {
+        base.minimumInteractiveComponentSize().toggleable(value = checked, role = Role.Checkbox) { onToggle(item) }
+    }
+    Row(rowModifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        val textStyle = if (checked) {
+            style.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, textDecoration = TextDecoration.LineThrough)
+        } else {
+            style
+        }
+        InlineText(item.text, textStyle, inline)
+    }
+}
+
+/** A read-only GFM table with a header row. A wide one scrolls sideways; long cells wrap. */
+@Composable
+private fun TableView(table: MarkdownTable, style: TextStyle, inline: InlineStyles) {
+    val colors = MaterialTheme.colorScheme
+    val description = tr("native.notes.table", count = table.rows.size)
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .semantics {
+                contentDescription = description
+                collectionInfo = CollectionInfo(rowCount = table.rows.size + 1, columnCount = table.header.size)
+            },
+    ) {
+        TableGrid(table.header.size, Modifier.clip(shape).border(1.dp, colors.outlineVariant, shape)) {
+            (listOf(table.header) + table.rows).forEachIndexed { rowIndex, row ->
+                row.forEachIndexed { columnIndex, text ->
+                    Box(
+                        Modifier
+                            .background(if (rowIndex == 0) colors.surfaceVariant else Color.Transparent)
+                            .border(0.5.dp, colors.outlineVariant)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .semantics { collectionItemInfo = CollectionItemInfo(rowIndex, 1, columnIndex, 1) },
+                    ) {
+                        InlineText(text, if (rowIndex == 0) style.copy(fontWeight = FontWeight.SemiBold) else style, inline)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val MaxCellWidth = 280.dp
+
+/** Cells in columns as wide as their widest cell (up to [MaxCellWidth], wrapping past it) and rows as tall as their tallest. */
+@Composable
+private fun TableGrid(columns: Int, modifier: Modifier, content: @Composable () -> Unit) {
+    val maxCell = with(LocalDensity.current) { MaxCellWidth.roundToPx() }
+    Layout(content, modifier) { measurables, _ ->
+        val rows = measurables.chunked(columns)
+        val widths = List(columns) { column ->
+            rows.maxOf { row -> row.getOrNull(column)?.maxIntrinsicWidth(Constraints.Infinity)?.coerceAtMost(maxCell) ?: 0 }
+        }
+        val heights = rows.map { row -> row.withIndex().maxOf { (column, cell) -> cell.minIntrinsicHeight(widths[column]) } }
+        val placeables = rows.mapIndexed { r, row -> row.mapIndexed { c, cell -> cell.measure(Constraints.fixed(widths[c], heights[r])) } }
+        layout(widths.sum(), heights.sum()) {
+            var y = 0
+            placeables.forEachIndexed { r, row ->
+                var x = 0
+                row.forEachIndexed { c, placeable ->
+                    placeable.place(x, y)
+                    x += widths[c]
+                }
+                y += heights[r]
+            }
+        }
     }
 }
 

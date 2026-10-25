@@ -31,9 +31,15 @@ struct LibraryView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.large)
             #endif
-            .searchable(text: $library.text, tokens: $library.tokens, suggestedTokens: .constant(suggestions),
+            .searchable(text: $library.text, tokens: $library.tokens,
                         placement: searchPlacement, prompt: tr("native.library.search")) { token in
                 Label(token.label, systemImage: token.symbol)
+            }
+            // Suggestions, not suggested tokens: iOS shows those only while the field is empty.
+            .searchSuggestions {
+                ForEach(suggestions) { token in
+                    Label(token.label, systemImage: token.symbol).searchCompletion(token)
+                }
             }
             .onSubmit(of: .search) { library.commitText() }
             .toolbar { toolbar }
