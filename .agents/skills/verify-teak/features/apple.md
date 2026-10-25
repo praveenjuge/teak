@@ -19,7 +19,7 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 - `apple-tags` lists tags with counts (Mac and iPad sidebar, iPhone Settings › Tags) and renames, merges and deletes them with progress.
 - `apple-share-details` adds tags and a note after a single shared item is saved.
 - `apple-safari-save` saves the Safari tab with `createCard` and no duplicate check first: a page already in Teak moves to the top (and out of Archive) and the popup reads "Saved to Teak", since `createCard` returns only the id.
-- `apple-commands` offers Card menu commands on Mac and iPad: Archive ⌃⌘A, Mark as done ⇧⌘D, More Like This ⇧⌘L, Refresh Details ⌥⌘R, and View › Revisit ⌃⌘R.
+- `apple-commands` offers Card menu commands on Mac and iPad: Archive ⌃⌘A, Mark as Done ⇧⌘D, More Like This ⇧⌘L, Refresh Details ⌥⌘R, and View › Revisit ⌃⌘R.
 
 ## How to get to it (user POV)
 
