@@ -55,7 +55,8 @@ object TaskLists {
     /**
      * The items sharing a list with the one on [line]: same indent and bullet, with only their children, the text
      * indented under them, and blank lines between them. Null unless every one of them is a task and there are at
-     * least two, or when unindented text runs on from the list's last line, which Markdown may join to that item.
+     * least two, or when unindented paragraph text runs on from the list's last line, which Markdown joins to that
+     * item. A heading, quote, fence, rule or table there ends the list.
      */
     private fun siblings(lines: List<String>, line: Int, task: Line): Siblings? {
         // True for a sibling, false for a line inside an item, null for a line that ends the list.
@@ -84,7 +85,7 @@ object TaskLists {
                 continue
             }
             if (belongs(index) == null) {
-                if (parseLine(lines[index]) == null && !lines[index - 1].isBlank()) return null
+                if (!lines[index - 1].isBlank() && MarkdownBlocks.continuesParagraph(lines, index)) return null
                 break
             }
             index += 1

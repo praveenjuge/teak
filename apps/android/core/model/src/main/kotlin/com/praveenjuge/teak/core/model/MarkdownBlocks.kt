@@ -55,6 +55,10 @@ object MarkdownBlocks {
         fence.containsMatchIn(line) || heading.matches(line) || quote.matches(line) ||
             rule.matches(line) || listItem(line) != null
 
+    /** Whether `lines[index]` runs on as paragraph text: not blank, and not the start of another block or a table. */
+    internal fun continuesParagraph(lines: List<String>, index: Int): Boolean =
+        lines[index].isNotBlank() && !startsBlock(lines[index]) && table(lines, index) == null
+
     private fun indent(line: String): Int = line.takeWhile { it == ' ' || it == '\t' }.length
 
     /** A row's cells, split on unescaped pipes after dropping the outer ones, as the web counts them. */
@@ -192,7 +196,7 @@ object MarkdownBlocks {
             }
             val paragraph = mutableListOf(line)
             index += 1
-            while (index < lines.size && lines[index].isNotBlank() && !startsBlock(lines[index]) && table(lines, index) == null) {
+            while (index < lines.size && continuesParagraph(lines, index)) {
                 paragraph += lines[index]
                 index += 1
             }

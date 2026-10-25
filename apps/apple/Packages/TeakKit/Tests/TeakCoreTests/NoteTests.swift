@@ -130,6 +130,9 @@ private func toggled(_ markdown: String, line: Int) -> String? {
          "- [ ] B\n  B's note\n- [x] A"),
         ("a paragraph indented under an item moves with it", "- [ ] A\n\n  More about A\n\n- [ ] B", 0,
          "- [ ] B\n\n- [x] A\n\n  More about A"),
+        ("a heading right after the list ends it", "- [ ] A\n- [ ] B\n## Next", 0, "- [ ] B\n- [x] A\n## Next"),
+        ("a code fence right after the list ends it", "- [ ] A\n- [ ] B\n```\ncode\n```", 0,
+         "- [ ] B\n- [x] A\n```\ncode\n```"),
     ])
     func reordersTheList(_ name: String, before: String, line: Int, after: String) {
         #expect(toggled(before, line: line) == after)

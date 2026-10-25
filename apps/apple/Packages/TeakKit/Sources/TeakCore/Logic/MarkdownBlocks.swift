@@ -75,6 +75,11 @@ public enum MarkdownBlocks {
             || line.wholeMatch(of: quote) != nil || line.wholeMatch(of: rule) != nil || listItem(line) != nil
     }
 
+    /// Whether `lines[index]` runs on as paragraph text: not blank, and not the start of another block or a table.
+    static func continuesParagraph(_ lines: [String], at index: Int) -> Bool {
+        !isBlank(lines[index]) && !startsBlock(lines[index]) && table(lines, at: index) == nil
+    }
+
     static func isBlank(_ line: String) -> Bool {
         line.allSatisfy(\.isWhitespace)
     }
@@ -193,7 +198,7 @@ public enum MarkdownBlocks {
             }
             var paragraph: [String] = [line]
             index += 1
-            while index < lines.count, !isBlank(lines[index]), !startsBlock(lines[index]), table(lines, at: index) == nil {
+            while index < lines.count, continuesParagraph(lines, at: index) {
                 paragraph.append(lines[index])
                 index += 1
             }

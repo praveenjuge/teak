@@ -58,6 +58,11 @@ class TaskListsTest {
                 "a paragraph indented under an item moves with it",
                 "- [ ] A\n\n  More about A\n\n- [ ] B", 0, "- [ ] B\n\n- [x] A\n\n  More about A",
             ),
+            ToggleCase("a heading right after the list ends it", "- [ ] A\n- [ ] B\n## Next", 0, "- [ ] B\n- [x] A\n## Next"),
+            ToggleCase(
+                "a code fence right after the list ends it",
+                "- [ ] A\n- [ ] B\n```\ncode\n```", 0, "- [ ] B\n- [x] A\n```\ncode\n```",
+            ),
         ).forEach { assertEquals(it.after, toggled(it.before, it.line), it.name) }
     }
 
