@@ -208,6 +208,7 @@ describe("Apple release workflows", () => {
       "Contents/embedded.provisionprofile",
       "codesign --verify --deep --strict",
       '"$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID"|"$WIDGETS_EXTENSION_BUNDLE_ID"',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: a Bash array length in the script, not a JS template.
       '[ "${#extensions[@]}" -ne 3 ]',
     ]) {
       expect(verify).toContain(expected);

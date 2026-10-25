@@ -170,6 +170,8 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         let indexed = ["new1000000000000": 300.0, "trashed000000000": 250, "older00000000000": 100]
         #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: false) == ["trashed000000000"])
         #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: true) == ["older00000000000", "trashed000000000"])
-        #expect(CardIndex.stale(indexed: indexed, newest: [], complete: true).isEmpty)
+        // A finished read of an empty library drops everything; an unfinished one drops nothing.
+        #expect(CardIndex.stale(indexed: indexed, newest: [], complete: true) == indexed.keys.sorted())
+        #expect(CardIndex.stale(indexed: indexed, newest: [], complete: false).isEmpty)
     }
 }

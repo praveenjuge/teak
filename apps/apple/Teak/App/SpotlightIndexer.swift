@@ -34,10 +34,22 @@ actor SpotlightIndexer {
     private let file = URL.applicationSupportDirectory.appending(path: "Spotlight.json")
     private var loaded: Ledger?
     private var inFlight: Set<String> = []
+    /// Cards removed while their batch was being indexed; the batch leaves them out.
+    private var withdrawn: Set<String> = []
     private var lastRefresh: ContinuousClock.Instant?
+    /// Library changes and removals, applied one after another in the order they came.
+    private let work: AsyncStream<CardIndex.Changes>.Continuation
 
     init(session: TeakSession) {
         self.session = session
+        let (stream, work) = AsyncStream.makeStream(of: CardIndex.Changes.self)
+        self.work = work
+        Task { [weak self] in
+            for await changes in stream {
+                await self?.remove(changes.remove)
+                await self?.index(changes.index)
+            }
+        }
     }
 
     // MARK: From the app
@@ -45,17 +57,14 @@ actor SpotlightIndexer {
     /// Applies what a library view's cards say. Called on the main actor as pages load.
     nonisolated func apply(_ changes: CardIndex.Changes) {
         guard !changes.isEmpty else { return }
-        Task {
-            await remove(changes.remove)
-            await index(changes.index)
-        }
+        work.yield(changes)
     }
 
     /// Follows a card opened on its own: once it's in Trash, archived or
     /// hidden, it leaves Spotlight. Library pages do the adding.
     nonisolated func follow(_ card: Card) {
         guard IndexedCard(card) == nil else { return }
-        Task { await remove([card.id]) }
+        work.yield(CardIndex.Changes(remove: [card.id]))
     }
 
     /// Reads the newest cards and indexes them, then drops the ones they show
@@ -82,8 +91,9 @@ actor SpotlightIndexer {
             return
         }
         await index(newest)
-        let indexed = ledger().cards.mapValues(\.created)
-        await remove(CardIndex.stale(indexed: indexed, newest: newest, complete: complete))
+        // What the read shows has left only counts while its account is still signed in.
+        guard let owner = await session.user?.id, ledger().owner == owner else { return }
+        await remove(CardIndex.stale(indexed: ledger().cards.mapValues(\.created), newest: newest, complete: complete))
     }
 
     /// Empties Teak's part of Spotlight, when no one is signed in.
@@ -102,7 +112,10 @@ actor SpotlightIndexer {
         let changed = cards.filter { ledger().cards[$0.id]?.fingerprint != $0.fingerprint && !inFlight.contains($0.id) }
         guard !changed.isEmpty, CSSearchableIndex.isIndexingAvailable() else { return }
         inFlight.formUnion(changed.map(\.id))
-        defer { inFlight.subtract(changed.map(\.id)) }
+        defer {
+            inFlight.subtract(changed.map(\.id))
+            withdrawn.subtract(changed.map(\.id))
+        }
         for start in stride(from: 0, to: changed.count, by: Self.batchSize) {
             await index(Array(changed[start..<min(start + Self.batchSize, changed.count)]), as: owner)
         }
@@ -112,6 +125,9 @@ actor SpotlightIndexer {
         let thumbnails = await Self.thumbnails(for: changed)
         // Signing out while thumbnails load empties the index; nothing goes back in.
         guard await session.user?.id == owner, ledger().owner == owner else { return }
+        // Nor does a card removed meanwhile.
+        let changed = changed.filter { !withdrawn.contains($0.id) }
+        guard !changed.isEmpty else { return }
         let items = changed.map { card in
             let entity = CardEntity(card)
             let item = CSSearchableItem(uniqueIdentifier: card.id, domainIdentifier: Self.domain,
@@ -127,13 +143,17 @@ actor SpotlightIndexer {
         } catch {
             return
         }
-        for card in changed {
+        // A card removed while this went in comes straight back out.
+        let late = changed.map(\.id).filter(withdrawn.contains)
+        if !late.isEmpty { try? await searchIndex.deleteSearchableItems(withIdentifiers: late) }
+        for card in changed where !withdrawn.contains(card.id) {
             loaded?.cards[card.id] = Entry(fingerprint: card.fingerprint, created: card.creationTime)
         }
         save()
     }
 
     private func remove(_ ids: [String]) async {
+        withdrawn.formUnion(ids.filter(inFlight.contains))
         let known = ids.filter { ledger().cards[$0] != nil }
         guard !known.isEmpty else { return }
         do {

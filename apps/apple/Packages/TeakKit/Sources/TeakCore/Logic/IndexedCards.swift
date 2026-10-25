@@ -206,10 +206,11 @@ public enum CardIndex {
 
     /// The indexed cards a refresh of the newest cards shows have left the
     /// library: those as new as the oldest card read, or all of them when the
-    /// read reached the end. An empty read removes nothing, as above.
+    /// read reached the end, even with no cards left to show.
     public static func stale(indexed: [String: Double], newest: [IndexedCard], complete: Bool) -> [String] {
-        guard let oldest = newest.map(\.creationTime).min() else { return [] }
         let kept = Set(newest.map(\.id))
+        if complete { return indexed.keys.filter { !kept.contains($0) }.sorted() }
+        guard let oldest = newest.map(\.creationTime).min() else { return [] }
         return indexed.filter { id, created in !kept.contains(id) && (complete || created >= oldest) }
             .keys.sorted()
     }
