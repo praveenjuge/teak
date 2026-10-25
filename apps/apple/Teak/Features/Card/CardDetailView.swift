@@ -28,7 +28,7 @@ struct CardDetailView: View {
                 ProgressView()
             }
         }
-        .modifier(CardTitle(title: title, editable: editsTitle) { text in Task { await model?.saveTitle(text) } })
+        .modifier(CardTitle(title: title, editable: editsTitle) { [model] text in Task { await model?.saveTitle(text) } })
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -355,13 +355,20 @@ private struct CardTitle: ViewModifier {
                     if typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         draft = title
                     } else {
-                        sent = typed
-                        save(typed)
+                        flush(typed)
                     }
                 }
+                // Closing the card before the title settles still saves it.
+                .onDisappear { flush(draft) }
         } else {
             content.navigationTitle(title)
         }
+    }
+
+    private func flush(_ typed: String) {
+        guard typed != title, typed != sent, !typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        sent = typed
+        save(typed)
     }
 }
 

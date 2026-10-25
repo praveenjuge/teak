@@ -180,4 +180,26 @@ class CardDetailUiTest {
         field.performImeAction()
         assertEquals(listOf("Field notes", "Field notes 2"), saved)
     }
+
+    @Test
+    fun `leaving the card while typing a title saves it`() {
+        val saved = mutableListOf<String>()
+        var open by mutableStateOf(true)
+        compose.setContent {
+            if (open) {
+                val card = Card(id = "l1", creationTime = 0.0, type = CardType.Link, url = "https://example.com", metadataTitle = "Example")
+                CardDetailScreen(
+                    state = CardDetailUiState(isLoading = false, card = card),
+                    snackbarHostState = SnackbarHostState(),
+                    callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onSaveTitle = { saved += it }),
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Title").performTextReplacement("Field notes")
+        open = false
+        compose.waitForIdle()
+
+        assertEquals(listOf("Field notes"), saved)
+    }
 }
