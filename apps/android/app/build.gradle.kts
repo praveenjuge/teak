@@ -107,6 +107,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:i18n"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:library"))
     implementation(project(":feature:card"))

@@ -28,6 +28,7 @@ struct SettingsView: View {
             if sizeClass == .compact { LibrarySection() }
             #endif
             AppearanceSection()
+            LanguageSection()
             AccountSection(account: account)
             SafariExtensionSection()
             AboutSection()

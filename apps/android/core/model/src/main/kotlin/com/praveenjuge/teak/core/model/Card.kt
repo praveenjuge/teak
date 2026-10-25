@@ -171,6 +171,10 @@ data class Card(
     val linkCategoryName: String? get() = metadata?.linkCategory?.category
 }
 
+/** The account's display preferences: its language, as a BCP 47 code. */
+@Serializable
+data class AccountPreferences(val locale: String)
+
 @Serializable
 data class CurrentUser(
     @SerialName("_id") val id: String,

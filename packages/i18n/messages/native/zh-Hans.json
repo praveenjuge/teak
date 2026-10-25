@@ -1,0 +1,23 @@
+{
+  "native": {
+    "common": {
+      "cardCount": "{count, plural, other {# 张卡片}}"
+    },
+    "settings": {
+      "languageDescription": "保存在你的账户中，会同步到你的所有设备。"
+    }
+  },
+  "apple": {
+    "infoPlist": {
+      "NSCameraUsageDescription": "Teak 使用相机拍摄你要保存到资料库的照片和视频。",
+      "NSMicrophoneUsageDescription": "Teak 录制你要保存到资料库的语音备忘录。"
+    },
+    "safari": {
+      "extensionDescription": "将 Safari 页面保存到你的 Teak 资料库。"
+    },
+    "servicesMenu": {
+      "saveToTeak": "存储到 Teak"
+    }
+  },
+  "android": {}
+}

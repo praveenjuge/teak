@@ -1,0 +1,23 @@
+{
+  "native": {
+    "common": {
+      "cardCount": "{count, plural, other {카드 #개}}"
+    },
+    "settings": {
+      "languageDescription": "계정에 저장되므로 모든 기기에서 같은 설정이 적용됩니다."
+    }
+  },
+  "apple": {
+    "infoPlist": {
+      "NSCameraUsageDescription": "Teak은 라이브러리에 저장할 사진과 동영상을 촬영하기 위해 카메라를 사용합니다.",
+      "NSMicrophoneUsageDescription": "Teak은 라이브러리에 저장할 음성 메모를 녹음합니다."
+    },
+    "safari": {
+      "extensionDescription": "Safari 페이지를 Teak 라이브러리에 저장합니다."
+    },
+    "servicesMenu": {
+      "saveToTeak": "Teak에 저장"
+    }
+  },
+  "android": {}
+}

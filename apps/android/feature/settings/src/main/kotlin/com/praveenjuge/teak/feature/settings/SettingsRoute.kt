@@ -24,6 +24,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -32,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -58,6 +61,9 @@ fun SettingsRoute(onManageTags: () -> Unit = {}, viewModel: SettingsViewModel = 
         state = state,
         versionName = viewModel.versionName,
         onThemeChange = viewModel::setTheme,
+        onLanguageChange = viewModel::chooseLanguage,
+        onUndoLanguage = viewModel::undoLanguage,
+        onDismissLanguageNotice = viewModel::dismissLanguageNotice,
         onSignOut = viewModel::requestSignOut,
         onConfirmSignOut = viewModel::signOut,
         onCancelSignOut = viewModel::cancelSignOut,
@@ -77,6 +83,9 @@ fun SettingsScreen(
     state: SettingsUiState,
     versionName: String,
     onThemeChange: (ThemePreference) -> Unit,
+    onLanguageChange: (String) -> Unit,
+    onUndoLanguage: () -> Unit,
+    onDismissLanguageNotice: () -> Unit,
     onSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
     onCancelSignOut: () -> Unit,
@@ -89,9 +98,12 @@ fun SettingsScreen(
     onManageTags: () -> Unit = {},
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    val snackbar = remember { SnackbarHostState() }
+    LanguageNoticeEffect(state.languageNotice, snackbar, onUndoLanguage, onDismissLanguageNotice)
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = { LargeTopAppBar(title = { Text("Settings") }, scrollBehavior = scrollBehavior) },
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             Modifier
@@ -104,6 +116,8 @@ fun SettingsScreen(
         ) {
             ListSectionHeader("Appearance")
             ThemePicker(state.theme, onThemeChange)
+            Spacer(Modifier.height(12.dp))
+            LanguageSetting(state.language, enabled = !state.isChangingLanguage, onChoose = onLanguageChange)
 
             ListSectionHeader("Library")
             ListGroup {

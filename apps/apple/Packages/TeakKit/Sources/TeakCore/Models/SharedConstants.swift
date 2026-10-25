@@ -30,6 +30,7 @@ public struct SharedConstants: Decodable, Sendable {
     public let colorHueLabels: [String: String]
     public let colorHueAliases: [String: String]
     public let genericMimeTypes: [String]
+    public let locales: [AppLanguage.Option]
     public let fileFormats: [FileFormat]
 
     public static let shared: SharedConstants = {

@@ -34,6 +34,10 @@ import {
   TAG_ERROR_MESSAGES,
 } from "../../../packages/convex/shared/tags";
 import { VECTOR_QUERY_MAX_CHARS } from "../../../packages/files-protocol/src/embeddings";
+import {
+  LOCALE_NAMES,
+  SUPPORTED_LOCALES,
+} from "../../../packages/i18n/src/locales";
 
 export const SHARED_CONSTANTS_PATH = resolve(
   import.meta.dir,
@@ -98,6 +102,13 @@ export const renderSharedConstants = () =>
     `const val SEARCH_TOKEN_TRIM_CHARACTERS = ${kotlinString(SEARCH_TOKEN_TRIM_CHARACTERS)}`,
     "",
     `val SEARCH_QUALIFIER_KEYS: List<String> = ${kotlinList(SEARCH_QUALIFIER_KEYS)}`,
+    "",
+    "/** Teak's languages, in the order the Language setting lists them, each in its own name. */",
+    `val LOCALE_NAMES: Map<String, String> = ${kotlinMap(
+      Object.fromEntries(
+        SUPPORTED_LOCALES.map((locale) => [locale, LOCALE_NAMES[locale].native])
+      )
+    )}`,
     "",
   ].join("\n");
 

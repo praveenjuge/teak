@@ -7,6 +7,7 @@ let strict: [SwiftSetting] = [
 
 let package = Package(
     name: "TeakKit",
+    defaultLocalization: "en",
     platforms: [.iOS(.v26), .macOS(.v26)],
     products: [
         .library(name: "TeakCore", targets: ["TeakCore"]),

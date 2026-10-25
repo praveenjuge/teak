@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.data.convex
 
+import com.praveenjuge.teak.core.model.AccountPreferences
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.BulkResult
 import com.praveenjuge.teak.core.model.Card
@@ -53,6 +54,8 @@ object ConvexFunctions {
     val ensureUser = ConvexFunction("workosBootstrap:ensureUser", JsonObject.serializer())
     val revokeAuthkitSession = ConvexFunction("securitySessions:revokeAuthkitSession", JsonElement.serializer())
     val deleteMyAccount = ConvexFunction("accountDeletion:deleteMyAccount", JsonElement.serializer())
+    val getPreferences = ConvexFunction("settings/preferences:getPreferences", AccountPreferences.serializer().nullable)
+    val setLocale = ConvexFunction("settings/preferences:setLocale", AccountPreferences.serializer())
 }
 
 fun <T> ConvexApi.subscribe(function: ConvexFunction<T>, args: Map<String, Any?> = emptyMap()): Flow<Result<T>> =

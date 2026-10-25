@@ -250,6 +250,40 @@
     "application/octet-stream",
     "binary/octet-stream"
   ],
+  "locales": [
+    {
+      "id": "en",
+      "name": "English"
+    },
+    {
+      "id": "es",
+      "name": "Español"
+    },
+    {
+      "id": "pt-BR",
+      "name": "Português (Brasil)"
+    },
+    {
+      "id": "de",
+      "name": "Deutsch"
+    },
+    {
+      "id": "fr",
+      "name": "Français"
+    },
+    {
+      "id": "ja",
+      "name": "日本語"
+    },
+    {
+      "id": "ko",
+      "name": "한국어"
+    },
+    {
+      "id": "zh-Hans",
+      "name": "简体中文"
+    }
+  ],
   "fileFormats": [
     {
       "id": "design-tokens",

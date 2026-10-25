@@ -13,6 +13,7 @@ struct MacSettingsView: View {
             Tab("General", systemImage: "gearshape") {
                 Form {
                     AppearanceSection()
+                    LanguageSection()
                     MacOptionsSection()
                     SafariExtensionSection()
                 }

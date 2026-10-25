@@ -103,6 +103,7 @@ struct MainView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         #endif
         .task { AppServices.shared.folders.start() }
+        .task { await AppServices.shared.language.watch(AppServices.shared.app.backend) }
         .sheet(isPresented: $router.isComposing) { NoteComposerView() }
 
         .sheet(isPresented: $router.isRecording) { VoiceMemoView() }

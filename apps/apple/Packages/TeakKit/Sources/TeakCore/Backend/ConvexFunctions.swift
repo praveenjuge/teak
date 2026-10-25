@@ -39,6 +39,13 @@ public enum ConvexFunctions {
     static let ensureUser = ConvexFunction<UserBootstrap.Result>("workosBootstrap:ensureUser")
     public static let revokeAuthkitSession = ConvexFunction<ConvexVoid>("securitySessions:revokeAuthkitSession")
     public static let deleteMyAccount = ConvexFunction<ConvexVoid>("accountDeletion:deleteMyAccount")
+    public static let getPreferences = ConvexFunction<AccountPreferences?>("settings/preferences:getPreferences")
+    public static let setLocale = ConvexFunction<AccountPreferences>("settings/preferences:setLocale")
+}
+
+/// The account's display preferences: its language, as a BCP 47 code.
+public struct AccountPreferences: Decodable, Sendable, Hashable {
+    public let locale: String
 }
 
 public extension ConvexCaller {

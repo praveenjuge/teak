@@ -1,0 +1,23 @@
+{
+  "native": {
+    "common": {
+      "cardCount": "{count, plural, one {# Karte} other {# Karten}}"
+    },
+    "settings": {
+      "languageDescription": "In Ihrem Konto gespeichert, damit es Ihnen auf jedes Gerät folgt."
+    }
+  },
+  "apple": {
+    "infoPlist": {
+      "NSCameraUsageDescription": "Teak verwendet die Kamera, um Fotos und Videos für Ihre Bibliothek aufzunehmen.",
+      "NSMicrophoneUsageDescription": "Teak nimmt Sprachmemos für Ihre Bibliothek auf."
+    },
+    "safari": {
+      "extensionDescription": "Sichern Sie Safari-Seiten in Ihrer Teak-Bibliothek."
+    },
+    "servicesMenu": {
+      "saveToTeak": "In Teak sichern"
+    }
+  },
+  "android": {}
+}

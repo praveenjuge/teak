@@ -16,10 +16,12 @@ import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.repository.ConvexAccountRepository
+import com.praveenjuge.teak.core.data.repository.ConvexLanguageRepository
 import com.praveenjuge.teak.core.data.repository.ConvexCardsRepository
 import com.praveenjuge.teak.core.data.repository.ConvexFoldersRepository
 import com.praveenjuge.teak.core.data.repository.ConvexTagsRepository
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
+import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.data.repository.TagsRepository
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.data.upload.WorkManagerUploadRepository
@@ -88,6 +90,7 @@ abstract class DataBindsModule {
     @Binds abstract fun foldersRepository(impl: ConvexFoldersRepository): FoldersRepository
     @Binds abstract fun tagsRepository(impl: ConvexTagsRepository): TagsRepository
     @Binds abstract fun accountRepository(impl: ConvexAccountRepository): AccountRepository
+    @Binds abstract fun languageRepository(impl: ConvexLanguageRepository): LanguageRepository
     @Binds abstract fun preferencesRepository(impl: DataStorePreferencesRepository): PreferencesRepository
     @Binds abstract fun uploadRepository(impl: WorkManagerUploadRepository): UploadRepository
 }

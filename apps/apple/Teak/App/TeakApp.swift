@@ -13,6 +13,7 @@ final class AppServices {
     let folderLibrary: LibraryModel
     let folders: FoldersModel
     let tags: TagsModel
+    let language = LanguageModel()
     var openMainWindow: (() -> Void)?
     var openSettingsWindow: (() -> Void)?
 
@@ -74,10 +75,15 @@ struct TeakApp: App {
 }
 
 extension View {
+    /// The app's models, and its language: a new language rebuilds the views, so
+    /// every `tr` reads it again.
     func environments(_ services: AppServices) -> some View {
         environment(services.app)
             .environment(services.router)
             .environment(services.capture)
+            .environment(services.language)
+            .environment(\.locale, services.language.locale)
+            .id(services.language.code)
             .fontDesign(.rounded)
     }
 }
