@@ -131,6 +131,17 @@ export default defineConfig({
     ],
   },
   seo: {
+    // Link previews in Teak's colors: the wordmark, slate text, red accent.
+    og: {
+      logo: "/logos/logo-light.svg",
+      palette: {
+        accent: "#df2225",
+        background: "#ffffff",
+        foreground: "#030712",
+        muted: "#6a7282",
+        border: "#e5e7eb",
+      },
+    },
     x: { handle: "@praveenjuge" },
     rss: {
       enabled: true,
