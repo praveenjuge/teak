@@ -296,7 +296,7 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToAppear()
 
         tap(app.menuButtons["library.add"].firstMatch)
-        tap(app.menuButtons["library.add"].menuItems["New Note"].firstMatch.waitToAppear())
+        tap(app.menuButtons["library.add"].menuItems["New note"].firstMatch.waitToAppear())
         let editor = app.textViews["composer.text"].waitToAppear()
         let menuNote = marker("menu")
         enter(menuNote, into: editor)
