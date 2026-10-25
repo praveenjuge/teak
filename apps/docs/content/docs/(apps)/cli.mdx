@@ -1,9 +1,17 @@
 ---
 title: Command Line
 description: Install and use the Teak CLI from your terminal
+icon: terminal
+sidebar:
+  label: CLI
+related:
+  - /docs/api
+  - /docs/ai-agents
 ---
 
 The Teak CLI lets you save, search, tag, favorite, update, delete, restore, and export cards without leaving your terminal.
+
+![A terminal running teak add and teak search, listing matching cards with their types and tags](../images/cli.webp)
 
 ## Install
 
@@ -50,7 +58,7 @@ teak logout
 
 `teak logout` revokes browser sign-in and disconnects every CLI installation; reconnecting can take about five minutes. If the saved sign-in has already expired, logout clears only this device and says so — disconnect other installations in **Settings → Security → Connected apps**. If the network fails, credentials stay saved; run `teak logout` again before signing in so Teak can revoke the previous session. API keys are unaffected.
 
-![Settings → Security showing signed-in devices and the connected Teak CLI](../images/connected-apps.webp)
+![Settings → Security showing signed-in devices and connected apps](../images/connected-apps.webp)
 
 Credentials are stored separately for each API deployment, so local development cannot use or clear your production sign-in. With `--api-url` or `TEAK_API_URL`, `teak login` asks for the resources that deployment advertises: `https://teakvault.com/api` in production, or the deployment's own `/api` resource, such as `https://<deployment>.convex.site/api` for development.
 

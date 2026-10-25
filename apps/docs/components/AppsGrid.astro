@@ -93,6 +93,19 @@ const deviceCards: AppCard[] = [
     iconAlt: "Android icon",
     iconSrc: "/platform-icons/android.svg",
   },
+  {
+    name: "Raycast",
+    copy: "Save your clipboard, search your cards, and jump to favorites without leaving the keyboard.",
+    iconAlt: "Raycast icon",
+    iconSrc: "/platform-icons/raycast.svg",
+    href: RAYCAST_STORE_URL,
+    badge: {
+      src: RAYCAST_INSTALL_BUTTON_URL,
+      alt: "Install the Teak Raycast extension",
+      width: 256,
+      height: 64,
+    },
+  },
 ];
 
 const browserCards: AppCard[] = [
@@ -131,19 +144,6 @@ const browserCards: AppCard[] = [
       alt: "Get the add-on for Firefox",
       width: 129,
       height: 45,
-    },
-  },
-  {
-    name: "Raycast",
-    copy: "Save your clipboard, search your cards, and jump to favorites without leaving the keyboard.",
-    iconAlt: "Raycast icon",
-    iconSrc: "/platform-icons/raycast.svg",
-    href: RAYCAST_STORE_URL,
-    badge: {
-      src: RAYCAST_INSTALL_BUTTON_URL,
-      alt: "Install the Teak Raycast extension",
-      width: 256,
-      height: 64,
     },
   },
 ];
@@ -205,7 +205,7 @@ const groups = [
     id: "devices",
     title: "On your devices",
     description:
-      "Native apps that capture from the share sheet, the menu bar, and everywhere in between.",
+      "Native apps that capture from the share sheet, the menu bar, your launcher, and everywhere in between.",
     cards: deviceCards,
   },
   {
@@ -227,7 +227,7 @@ const isExternal = (href?: string) => href?.startsWith("http") ?? false;
         <h2 class="text-2xl leading-tight font-bold tracking-[-0.025em]" id={`apps-${group.id}`}>{group.title}</h2>
         <p class="mt-1.5 text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">{group.description}</p>
       </div>
-      <ul class="grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+      <ul class:list={["grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2", group.cards.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"]}>
         {group.cards.map((card) => (
           <li class:list={["app-card group", { "app-card-static": !card.href }]} data-platform={card.platform}>
             <div class="flex items-start justify-between gap-3">

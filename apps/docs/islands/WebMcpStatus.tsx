@@ -89,8 +89,8 @@ export default function WebMcpStatus() {
       {probe.tools.length === 0 ? (
         <>
           No tools are registered on this docs page. Sign in to the Teak web
-          app, where <code>teak_search_cards</code> and{" "}
-          <code>teak_get_card</code> are registered for your session.
+          app, where the seven tools listed above are registered for your
+          session.
         </>
       ) : (
         <>

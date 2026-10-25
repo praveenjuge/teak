@@ -4,7 +4,9 @@ teakvault.com's docs, built from `apps/docs/content` with Blume. The sidebar gro
 
 ## Sub-features
 
-- `docs-sidebar` lists the groups in order (Apps, Data, Developers, Open Source, Legal), each with its pages in the order its `meta.ts` gives.
+- `docs-sidebar` lists the groups in order (Apps, Data, Developers, Open Source, Legal), each with its pages in the order its `meta.ts` gives, every row with its icon and short label (a page's `sidebar.label`, or its title).
+- `docs-images` shows at least one framed 1600 × 1000 image on every page but Legal, Raycast, Mac and iPhone and iPad, and on Features one in each main section; each opens larger when clicked. `scripts/docs-assets` makes them ([README](../../../../scripts/docs-assets/README.md)), and `bun test scripts/docs-assets` checks that every page has one and every alt text matches its shot.
+- `docs-related` ends most pages with two **Related pages** cards (the page's `related` frontmatter).
 - `docs-page` renders a page's title, description, body and "On this page" outline, in light and dark, without horizontal page scroll at 390px.
 - `docs-agent-visibility` keeps `<Visibility for="agents">` text out of the web page and puts it in the page's `.md` mirror and `llms-full.txt`.
 - `docs-header` shows Login and Register to a signed-out visitor and only "Open Teak" to one with the `teak_session_hint=1` cookie, on marketing pages, docs, changelog entries and the API reference alike. `bun run --cwd apps/docs build` fails when a built page ships the header without the script and CSS that do this (`scripts/check-header-visibility.ts`).
@@ -25,8 +27,9 @@ Preconditions:
 
 Steps:
 
-- **Sidebar.** `open_session` on `http://localhost:3001/docs/architecture`. The sidebar shows, in order: "Welcome to Teak", "Features", "Support", then the group "Apps" (Mac App, Mobile App (iOS), Browser Extensions, Raycast Extension, Command Line), "Data" (Import Your Data, Export Your Data), "Developers" (API, API Quickstart, TypeScript SDK, MCP, WebMCP, Teak for AI Agents), "Open Source" (Development Guide, Architecture, Testing, Adding a Feature, Translating, Self-Hosting) and "Legal". The current page is highlighted and its breadcrumb names its group.
+- **Sidebar.** `open_session` on `http://localhost:3001/docs/architecture`. The sidebar shows, in order: "Welcome to Teak", "Features", "Support", then the group "Apps" (Mac, iPhone and iPad, Browser Extensions, Raycast, CLI), "Data" (Import, Export), "Developers" (API, API Quickstart, TypeScript SDK, MCP, WebMCP, AI Agents), "Open Source" (Development, Architecture, Testing, Adding a Feature, Translating, Self-Hosting) and "Legal", each row with an icon. The current page is highlighted and its breadcrumb names its group. The page headings keep the full titles ("Mac App", "Command Line").
 - **Page.** Open each page a change touches. The heading matches its frontmatter `title`, the description shows under it, and "On this page" lists its H2 headings. Repeat in dark (`colorScheme: "dark"`) and at 390px, where `document.documentElement.scrollWidth` stays at most the window width; wide tables scroll inside their own box.
+- **Images.** On `/docs/architecture`, the diagram shows under the first paragraph, inside `article.prose` as an `img` whose alt starts "Teak's apps talk to one Convex backend"; `tap` it and it opens larger. `bun test scripts/docs-assets` passes. Open `/docs/features`: the open card image has markers 1 to 3 and the numbered list under it names Tags, Summary and Colors.
 - **Agent text.** On `/docs/testing`, the page has no "Notes for agents" section. `curl -s http://localhost:3001/docs/testing.md | grep "Notes for agents"` finds it. Do the same for any page whose `Visibility` block the change touches.
 - **Header.** On `/docs/testing` and `/`, the header has links "Login" and "Register" and no visible "Open Teak". Add cookie `teak_session_hint` with value `1` for the host and reload: only "Open Teak" shows. Never all three.
 - **Links.** `bun run --cwd apps/docs typecheck` (strict check and validate) and `bun run --cwd apps/docs build` (build and audit) both pass.

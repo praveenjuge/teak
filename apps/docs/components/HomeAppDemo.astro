@@ -45,13 +45,25 @@ const cardsById = Object.fromEntries(
   columns.flat().map((card) => [card.id, card])
 );
 
+// The web app's sidebar (apps/web/src/components/sidebar/AppSidebar.tsx).
+const sidebarLinks = [
+  { icon: "layout-grid", label: "Everything" },
+  { icon: "heart", label: "Favorites" },
+  { icon: "hash", label: "Tags" },
+  { icon: "archive", label: "Archive" },
+  { icon: "trash-2", label: "Trash" },
+  { icon: "settings", label: "Settings" },
+];
+const sidebarFolders = [
+  { color: "oklch(0.7 0.17 50)", label: "Moodboard" },
+  { color: "oklch(0.62 0.14 250)", label: "Reading list" },
+];
+
 const chipClass =
   "demo-chip inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full border bg-background px-2.5 text-sm font-medium whitespace-nowrap transition-all hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:size-3.5";
-const iconButtonClass =
-  "inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50";
 ---
 
-<div class="app-demo meadow meadow-large" data-app-demo>
+<div class="app-demo" data-app-demo>
   <div class="demo-window" role="group" aria-label="Interactive preview of the Teak web app">
     <div class="demo-chrome" aria-hidden="true">
       <span class="flex gap-2">
@@ -67,25 +79,42 @@ const iconButtonClass =
     </div>
 
     <div class="demo-viewport @container" data-demo-viewport>
-      <div class="px-4 text-sm text-foreground">
-        <form aria-label="Search cards" class="group flex items-center" data-demo-search>
-          <Icon class="text-muted-foreground group-focus-within:text-primary group-hover:text-primary" name="search" size={16} />
-          <input
-            aria-label="Search for anything"
-            autocomplete="off"
-            class="h-16 w-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground"
-            data-demo-query
-            name="q"
-            placeholder="Search for anything..."
-            type="search"
-          />
-          <span class="flex items-center gap-1">
-            <span class="flex items-center gap-1 max-[420px]:hidden">
-              <button aria-label="Upload files" class={iconButtonClass} tabindex="-1" type="button"><Icon name="upload" size={16} /></button>
-              <button aria-label="Record audio" class={iconButtonClass} tabindex="-1" type="button"><Icon name="mic" size={16} /></button>
-            </span>
-            <button aria-label="Settings" class={`${iconButtonClass} border bg-background dark:border-input dark:bg-input/30`} tabindex="-1" type="button"><Icon name="settings" size={16} /></button>
+      <aside class="demo-sidebar" aria-hidden="true">
+        <span class="flex items-center justify-between px-2 pb-4">
+          <img alt="" class="h-5 w-auto" height="18" src="/logos/logo-light.svg" width="52" />
+          <Icon class="text-muted-foreground" name="plus" size={16} />
+        </span>
+        {sidebarLinks.map(({ icon, label }, index) => (
+          <span class:list={["demo-nav", { "demo-nav-active": index === 0 }]}>
+            <Icon name={icon} size={15} />
+            {label}
           </span>
+        ))}
+        <span class="demo-nav-heading">Folders</span>
+        {sidebarFolders.map(({ color, label }) => (
+          <span class="demo-nav">
+            <span class="demo-folder-dot" style={`background: ${color}`}></span>
+            {label}
+          </span>
+        ))}
+      </aside>
+      <div class="demo-main @container px-4 text-sm text-foreground">
+        <form aria-label="Search cards" class="demo-header" data-demo-search>
+          <span class="font-medium max-[520px]:hidden">Everything</span>
+          <label class="demo-search group">
+            <Icon class="shrink-0 text-muted-foreground group-focus-within:text-primary" name="search" size={16} />
+            <input
+              aria-label="Search everything"
+              autocomplete="off"
+              class="h-10 w-full min-w-0 flex-1 bg-transparent px-2.5 text-sm outline-none [&::-webkit-search-cancel-button]:hidden placeholder:text-muted-foreground"
+              data-demo-query
+              name="q"
+              placeholder="Search everything"
+              type="search"
+            />
+            <kbd class="demo-kbd max-[420px]:hidden">/</kbd>
+          </label>
+          <span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full"><Icon name="sliders-horizontal" size={16} /></span>
         </form>
 
         <div class="demo-filters pb-5" data-demo-filters hidden>
@@ -273,12 +302,9 @@ const iconButtonClass =
 </script>
 
 <style is:global>
+  /* The hero behind it already fades into the meadow, so the window sits on it directly. */
   .app-demo {
     position: relative;
-    padding: clamp(0.75rem, 3vw, 2rem);
-    overflow: hidden;
-    border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
-    border-radius: 1.5rem;
     isolation: isolate;
   }
 
@@ -325,8 +351,102 @@ const iconButtonClass =
 
   .demo-viewport {
     position: relative;
+    display: flex;
     height: clamp(30rem, 62vw, 40rem);
     overflow: hidden;
+  }
+
+  .demo-sidebar {
+    display: flex;
+    width: 13rem;
+    flex: none;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 1rem 0.625rem;
+    border-right: 1px solid var(--border);
+    background: var(--background);
+    font-size: 0.8125rem;
+  }
+
+  .demo-nav {
+    display: flex;
+    height: 2rem;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0 0.625rem;
+    border-radius: 0.5rem;
+    color: var(--foreground);
+  }
+
+  .demo-nav :global(svg) {
+    color: var(--muted-foreground);
+  }
+
+  .demo-nav-active {
+    background: var(--muted);
+    font-weight: 500;
+  }
+
+  .demo-nav-heading {
+    padding: 1.25rem 0.625rem 0.375rem;
+    color: var(--muted-foreground);
+    font-size: 0.6875rem;
+  }
+
+  .demo-folder-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-inline: 0.25rem;
+    border-radius: 9999px;
+  }
+
+  .demo-main {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .demo-header {
+    display: flex;
+    height: 4rem;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .demo-search {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    max-width: 30rem;
+    align-items: center;
+    margin-inline: auto;
+    padding: 0 0.5rem 0 0.875rem;
+    border-radius: 9999px;
+    background: var(--muted);
+    cursor: text;
+  }
+
+  .demo-search:focus-within {
+    box-shadow: 0 0 0 1px var(--primary);
+  }
+
+  .demo-kbd {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    background: var(--background);
+    color: var(--muted-foreground);
+    font-family: inherit;
+    font-size: 0.6875rem;
+  }
+
+  @media (max-width: 47.99rem) {
+    .demo-sidebar {
+      display: none;
+    }
   }
 
   .demo-grid {

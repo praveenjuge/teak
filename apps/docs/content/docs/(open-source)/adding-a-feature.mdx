@@ -1,9 +1,15 @@
 ---
 title: Adding a Feature
 description: The rules that keep a new Teak feature consistent across the API, MCP, SDK, CLI, search, deletion and deploys
+icon: list-checks
+related:
+  - /docs/architecture
+  - /docs/testing
 ---
 
 The rules that keep a new feature consistent across Teak's surfaces, search, deletion and deploys. Read this before adding a field, a table, an index, an API operation or a background step. `packages/convex/AGENTS.md` and the generated Convex guidelines (`packages/convex/_generated/ai/guidelines.md`) apply on top of it.
+
+![A public API feature moves from the internal function to the HTTP handler, route, OpenAPI, MCP tool, SDK method, CLI command and the parity row](../images/adding-a-feature.webp)
 
 ## One feature, every surface
 

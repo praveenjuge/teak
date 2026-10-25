@@ -1,6 +1,71 @@
+/*
+ * Teak's own neutrals (apps/web/src/styles/theme.css): cool slate text,
+ * surfaces and borders instead of Blume's pure grays, so the docs, the site
+ * and the app read as one product. Backgrounds keep Blume's values.
+ */
 :root {
   --blume-accent: oklch(0.58 0.22 27);
   --blume-radius: 1rem;
+  --blume-foreground: oklch(0.13 0.028 261.692);
+  --blume-muted: oklch(0.967 0.003 264.542);
+  --blume-muted-foreground: oklch(0.551 0.027 264.364);
+  --blume-border: oklch(0.928 0.006 264.531);
+}
+
+:root[data-theme="dark"] {
+  --blume-foreground: oklch(0.985 0.002 247.839);
+  --blume-muted: oklch(0.17 0.014 262);
+  --blume-muted-foreground: oklch(0.707 0.022 261.325);
+  --blume-border: oklch(0.278 0.033 256.848 / 0.8);
+}
+
+/*
+ * Wide pages (`mode: wide`, the API Quickstart) need the room for their
+ * side-by-side Try it panels, not for text: keep prose, images and code at a
+ * readable measure and let only the panels span the column.
+ */
+article.prose.max-w-none > :not(:has([data-operation-panel])) {
+  max-width: 48rem;
+}
+
+/* Step titles are headings for their step, not secondary text. */
+[data-blume-step] > p:first-of-type {
+  color: var(--blume-foreground);
+}
+
+/* Inline code reads as a chip, the same in body text, tables and callouts. */
+article.prose :where(:not(pre)) > code {
+  padding: 0.1em 0.4em;
+  font-size: 0.875em;
+  background: var(--blume-muted);
+  border: 1px solid var(--blume-border);
+  border-radius: 0.4em;
+}
+
+/* The API playground's "Try it" gets a chevron instead of the browser marker. */
+details[data-playground] > summary {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  list-style: none;
+}
+
+details[data-playground] > summary::-webkit-details-marker {
+  display: none;
+}
+
+details[data-playground] > summary::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  content: "";
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms ease;
+}
+
+details[data-playground][open] > summary::before {
+  transform: rotate(45deg);
 }
 
 /* Pill polish — align Blume docs chrome with the site header's rounded-full buttons.
@@ -12,8 +77,10 @@ blume-prompt a {
   border-radius: 9999px !important;
 }
 
+/* Every docs image is a framed 16:10 shot (scripts/docs-assets); give them one edge. */
 article.prose img[data-image-component] {
   border-radius: var(--blume-radius);
+  box-shadow: 0 0 0 1px var(--blume-border);
 }
 
 /*
