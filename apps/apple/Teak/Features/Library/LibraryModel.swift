@@ -39,7 +39,7 @@ final class LibraryModel {
     private var hiddenIds: Set<String> = []
     @ObservationIgnored private let backend: TeakBackend
     @ObservationIgnored private var debouncedText = ""
-    /// The text as last typed, which picking a suggested token may clear.
+    /// The text as last typed, which picking a suggestion may clear.
     @ObservationIgnored private var typedText = ""
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var statusTask: Task<Void, Never>?

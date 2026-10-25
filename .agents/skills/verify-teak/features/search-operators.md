@@ -20,7 +20,7 @@ A user types `-` before a word, a phrase or a filter to leave those cards out (`
 - `?` (focus outside a text field) → "Search" group.
 - Sidebar → the pack's smart folders "Fonts or type", "Operators, not archived" and "GitHub or GitLab".
 - `teak search 'design -tag:old'`, `GET /v1/cards?q=…`, MCP `teak_v1_search_cards`.
-- Apple app: the library's search field (iPhone Home, iPad and Mac toolbar); suggestions appear as suggested tokens under it. See `apple-search-operators` in [apple](./apple.md).
+- Apple app: the library's search field (iPhone Home, iPad and Mac toolbar); suggestions list under it while you type. See `apple-search-operators` in [apple](./apple.md).
 - Android app: Home's search field; suggestions list under it while it has focus. See `android-search-operators` in [android](./android.md).
 - The suggestion hints (filters, Exclude, OR, `is:` values) come from `packages/convex/shared/search/suggestionHints.ts` on every app.
 
