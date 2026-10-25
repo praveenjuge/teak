@@ -1,0 +1,122 @@
+{
+  "extensionDescription": {
+    "message": "Safari のページを Teak のライブラリに保存します。"
+  },
+  "actionTitle": {
+    "message": "Teak に保存"
+  },
+  "checkingSafari": {
+    "message": "Safari を確認中…"
+  },
+  "signIn": {
+    "message": "サインイン"
+  },
+  "tryAgain": {
+    "message": "もう一度試す"
+  },
+  "signOut": {
+    "message": "サインアウト"
+  },
+  "checkingSession": {
+    "message": "セッションを確認中…"
+  },
+  "unableToConnect": {
+    "message": "接続できません"
+  },
+  "pleaseTryAgain": {
+    "message": "もう一度お試しください。"
+  },
+  "signInTitle": {
+    "message": "Teak にサインイン"
+  },
+  "signInMessage": {
+    "message": "サインインするとページを保存できます。"
+  },
+  "cannotSaveTitle": {
+    "message": "このページは保存できません"
+  },
+  "openRegularWebsite": {
+    "message": "通常の Web サイトを開いて、もう一度お試しください。"
+  },
+  "savingTitle": {
+    "message": "ページを保存中"
+  },
+  "savingMessage": {
+    "message": "このページをライブラリに追加しています…"
+  },
+  "savedTitle": {
+    "message": "Teak に保存しました"
+  },
+  "savedMessage": {
+    "message": "ライブラリに追加されました。"
+  },
+  "duplicateTitle": {
+    "message": "保存済みです"
+  },
+  "duplicateMessage": {
+    "message": "このページはすでにライブラリにあります。"
+  },
+  "saveFailedTitle": {
+    "message": "保存に失敗しました"
+  },
+  "saveFailedMessage": {
+    "message": "Teak でこのページを保存できませんでした。"
+  },
+  "openingTeak": {
+    "message": "Teak を開いています"
+  },
+  "completeSignIn": {
+    "message": "サインインを完了してください。"
+  },
+  "finishSignInTitle": {
+    "message": "サインインを完了"
+  },
+  "returnAfterSignIn": {
+    "message": "サインインしたら、ここに戻ってください。"
+  },
+  "signInFailedTitle": {
+    "message": "サインインに失敗しました"
+  },
+  "signInFailedMessage": {
+    "message": "Teak でサインインを開始できませんでした。"
+  },
+  "signingOutTitle": {
+    "message": "サインアウト中"
+  },
+  "oneMoment": {
+    "message": "しばらくお待ちください…"
+  },
+  "signOutFailedTitle": {
+    "message": "サインアウトに失敗しました"
+  },
+  "signOutFailedMessage": {
+    "message": "サインアウトできませんでした。もう一度お試しください。"
+  },
+  "signedOutTitle": {
+    "message": "サインアウトしました"
+  },
+  "needsAccessTitle": {
+    "message": "Teak には Safari へのアクセスが必要です"
+  },
+  "needsAccessMessage": {
+    "message": "通常の Web サイトからもう一度お試しください。"
+  },
+  "invalidResponse": {
+    "message": "Teak から無効な応答が返されました。"
+  },
+  "tryAgainShort": {
+    "message": "もう一度お試しください。"
+  },
+  "invalidRequest": {
+    "message": "Teak への無効なリクエストです。"
+  },
+  "unsupportedRequest": {
+    "message": "サポートされていない Teak リクエストです。"
+  },
+  "openFromApplications": {
+    "message": "サインインするには、“アプリケーション”フォルダから Teak を開いてください。"
+  },
+  "signOutCheckConnection": {
+    "message": "サインアウトできませんでした。接続を確認してから、もう一度お試しください。"
+  }
+}

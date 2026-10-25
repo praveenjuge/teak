@@ -73,13 +73,13 @@ struct MarkdownView: View {
     /// "Missing card" when it's in Trash, deleted or not yours.
     private func pill(_ match: CardLinks.Match, target: CardLinkTarget?) -> AttributedString {
         if target?.missing == true {
-            var missing = AttributedString("\u{2009}Missing card\u{2009}")
+            var missing = AttributedString("\u{2009}\(tr("native.card.preview.missingCard"))\u{2009}")
             missing.foregroundColor = .secondary
             missing.backgroundColor = Color.secondary.opacity(0.12)
             missing.strikethroughStyle = .single
             return missing
         }
-        let title = target?.title?.nonEmptyTrimmed ?? match.title.nonEmptyTrimmed ?? "Card"
+        let title = target?.title?.nonEmptyTrimmed ?? match.title.nonEmptyTrimmed ?? tr("cards.types.card")
         var pill = AttributedString("\u{2009}\(title)\u{2009}")
         pill.link = CardLinkURL.url(for: match.id)
         pill.foregroundColor = .accentColor

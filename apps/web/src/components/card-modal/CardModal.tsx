@@ -996,7 +996,7 @@ export function CardModal({
               variant="destructive"
             >
               <Trash />
-              {tc("delete")}
+              {t("menu.moveToTrash")}
               <DropdownMenuShortcut aria-hidden>
                 {menuShortcuts.delete.label}
               </DropdownMenuShortcut>

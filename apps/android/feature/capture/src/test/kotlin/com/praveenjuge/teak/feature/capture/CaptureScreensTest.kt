@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.upload.UploadStatus
 import com.praveenjuge.teak.core.designsystem.theme.TeakTheme
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.feature.capture.share.ShareSheetContent
 import com.praveenjuge.teak.feature.capture.share.ShareUiState
 import org.junit.Rule
@@ -44,7 +45,7 @@ class CaptureScreensTest {
             }
         }
 
-        listOf("Note or Link", "Voice Memo", "Photos & Videos", "Camera", "Files").forEach {
+        listOf("Note or link", "Voice memo", "Photos & videos", "Camera", "Files").forEach {
             compose.onNodeWithText(it).performClick()
         }
 
@@ -58,7 +59,7 @@ class CaptureScreensTest {
             fileName = "trip.mp4",
             state = UploadStatus.State.Failed,
             progress = 0f,
-            error = "You've reached the Free plan's card limit.",
+            errorText = UiText.of("errors.cards.CARD_LIMIT_REACHED"),
             errorCode = TeakException.CARD_LIMIT_REACHED,
         )
         compose.setContent {
@@ -68,7 +69,7 @@ class CaptureScreensTest {
         }
 
         compose.onNodeWithText("Card limit reached").assertExists()
-        compose.onNodeWithText("You've reached the Free plan's card limit.").assertExists()
+        compose.onNodeWithText("Card limit reached. Please upgrade to Pro for unlimited cards.").assertExists()
         compose.onNodeWithText("The Free plan holds 200 cards.").assertExists()
         compose.onNodeWithText("Clear").assertExists()
     }

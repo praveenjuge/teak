@@ -67,34 +67,36 @@ data class TagOperation(
 ) {
     private val changedCount: Int get() = minOf(changed, total).toInt()
 
-    /** The progress line, as the web's tag toasts word it. */
-    val title: String
-        get() = when (status) {
-            TagOperationStatus.Running -> when (kind) {
-                TagOperationKind.Rename -> "Renaming “$from” to “$to”…"
-                TagOperationKind.Merge -> "Merging “$from” into “$to”…"
-                TagOperationKind.Delete -> "Deleting “$from”…"
-            }
-            TagOperationStatus.Completed -> when (kind) {
-                TagOperationKind.Rename -> "Renamed “$from” to “$to”"
-                TagOperationKind.Merge -> "Merged “$from” into “$to”"
-                TagOperationKind.Delete -> "Deleted “$from”"
-            }
-            TagOperationStatus.Failed -> {
-                val verb = when (kind) {
-                    TagOperationKind.Rename -> "renaming"
-                    TagOperationKind.Merge -> "merging"
-                    TagOperationKind.Delete -> "deleting"
+    /** The progress line, as the web's tag toasts word it, in the app's language. */
+    val titleText: UiText
+        get() {
+            val target = to.orEmpty()
+            val count = total.toInt()
+            return when (status) {
+                TagOperationStatus.Running -> when (kind) {
+                    TagOperationKind.Rename -> UiText.of("native.tags.renaming", from, target)
+                    TagOperationKind.Merge -> UiText.of("native.tags.merging", from, target)
+                    TagOperationKind.Delete -> UiText.of("native.tags.deleting", from)
                 }
-                "Couldn't finish $verb. $changedCount of ${total.toInt()} cards changed."
+                TagOperationStatus.Completed -> when (kind) {
+                    TagOperationKind.Rename -> UiText.of("native.tags.renamed", from, target)
+                    TagOperationKind.Merge -> UiText.of("native.tags.merged", from, target)
+                    TagOperationKind.Delete -> UiText.of("native.tags.deleted", from)
+                }
+                TagOperationStatus.Failed -> when (kind) {
+                    TagOperationKind.Rename -> UiText.of("native.tags.renameFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Merge -> UiText.of("native.tags.mergeFailed", changedCount.toString(), count = count)
+                    TagOperationKind.Delete -> UiText.of("native.tags.deleteFailed", changedCount.toString(), count = count)
+                }
             }
         }
 
-    val detail: String
+    /** How many cards the change has reached, in the app's language. */
+    val detailText: UiText
         get() = when (status) {
-            TagOperationStatus.Running -> "$changedCount of ${total.toInt()} cards changed"
-            TagOperationStatus.Completed -> if (changed.toInt() == 1) "1 card changed" else "${changed.toInt()} cards changed"
-            TagOperationStatus.Failed -> "Try again to change the rest."
+            TagOperationStatus.Running -> UiText.of("native.tags.progress", changedCount.toString(), count = total.toInt())
+            TagOperationStatus.Completed -> UiText.of("native.tags.changed", count = changed.toInt())
+            TagOperationStatus.Failed -> UiText.of("native.tags.tryRest")
         }
 }
 
@@ -113,7 +115,8 @@ data class SimilarAnchor(val status: String, val title: String? = null)
 
 sealed interface RefreshOutcome {
     data object Queued : RefreshOutcome
-    data class Refused(val message: String) : RefreshOutcome
+    /** The server's reason, or null when it gave none. */
+    data class Refused(val message: String?) : RefreshOutcome
 }
 
 @Serializable
@@ -130,8 +133,16 @@ enum class BulkAction(val wireName: String) {
     AddToFolder("addToFolder"),
 }
 
-enum class CardSort(val wireName: String, val label: String) {
-    Newest("newest", "Newest first"),
-    Oldest("oldest", "Oldest first"),
-    Shuffle("shuffle", "Shuffle"),
+enum class CardSort(val wireName: String) {
+    Newest("newest"),
+    Oldest("oldest"),
+    Shuffle("shuffle"),
+    ;
+
+    val labelText: UiText
+        get() = when (this) {
+            Newest -> UiText.of("native.filters.sort.newest")
+            Oldest -> UiText.of("native.filters.sort.oldest")
+            Shuffle -> UiText.of("native.filters.sort.shuffle")
+        }
 }

@@ -272,6 +272,17 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         }
     }
 
+    /// Android's LinkStateTest checks the same: a new verb needs its own catalog keys.
+    @Test func everyDoneVerbHasItsOwnSentences() throws {
+        for verb in Set(SharedConstants.shared.linkCategoryDoneVerbs.values) {
+            let words = try #require(LinkDone.words(verb: verb), "no sentences for \(verb)")
+            for text in [words.markAs, words.markAsNot, words.state, words.markedAs, words.markedAsNot] {
+                #expect(!text.hasPrefix("native."), "\(verb) is missing \(text)")
+            }
+        }
+        #expect(LinkDone.unmarkLabel("movie") == "Mark as not watched")
+    }
+
     @Test func labelsTheToggleAndItsToast() {
         #expect(LinkDone.markLabel("book") == "Mark as read")
         #expect(LinkDone.doneLabel("movie") == "Watched")

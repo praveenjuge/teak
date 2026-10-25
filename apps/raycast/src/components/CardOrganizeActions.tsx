@@ -38,7 +38,7 @@ export function CardOrganizeActions({
         target={
           <SimilarCardsView cardId={card.id} title={getCardTitle(card)} />
         }
-        title="Find Similar"
+        title="More Like This"
       />
       <Action.Push
         icon={Icon.Folder}
@@ -54,7 +54,7 @@ export function CardOrganizeActions({
             : archiveCard(card, onCardUpdated))
         }
         shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
-        title={card.isArchived ? "Unarchive" : "Archive Card"}
+        title={card.isArchived ? "Unarchive" : "Archive"}
       />
       <Action
         icon={Icon.ArrowClockwise}

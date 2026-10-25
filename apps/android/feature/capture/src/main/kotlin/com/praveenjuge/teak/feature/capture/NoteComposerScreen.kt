@@ -36,6 +36,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 
 @Composable
 fun NoteComposerRoute(initialText: String, onDone: () -> Unit) {
@@ -72,10 +74,10 @@ internal fun NoteComposerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New Note", modifier = Modifier.semantics { heading() }) },
+                title = { Text(tr("native.capture.newNote"), modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
                     }
                 },
                 actions = {
@@ -85,7 +87,7 @@ internal fun NoteComposerScreen(
                         }
                     } else {
                         IconButton(onClick = onSave, enabled = state.canSave(textState.text)) {
-                            Icon(Icons.Filled.Check, contentDescription = "Save note")
+                            Icon(Icons.Filled.Check, contentDescription = tr("native.capture.saveNote"))
                         }
                     }
                 },
@@ -95,7 +97,7 @@ internal fun NoteComposerScreen(
         TextField(
             state = textState,
             modifier = Modifier.fillMaxSize().padding(padding).focusRequester(focusRequester),
-            placeholder = { Text("Write a note or paste a link") },
+            placeholder = { Text(tr("native.capture.notePlaceholder")) },
             textStyle = MaterialTheme.typography.bodyLarge,
             lineLimits = TextFieldLineLimits.MultiLine(),
             colors = TextFieldDefaults.colors(
@@ -111,9 +113,9 @@ internal fun NoteComposerScreen(
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = onDismissError,
-            title = { Text(error.title) },
-            text = { Text(error.message) },
-            confirmButton = { TextButton(onClick = onDismissError) { Text("OK") } },
+            title = { Text(error.title.resolve()) },
+            text = { Text(error.message.resolve()) },
+            confirmButton = { TextButton(onClick = onDismissError) { Text(tr("native.app.ok")) } },
         )
     }
 }

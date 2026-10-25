@@ -36,7 +36,9 @@ final class RevisitModel {
 
     var current: CardSummary? { index < cards.count ? cards[index] : nil }
     var isFinished: Bool { !isLoading && !failed && !cards.isEmpty && current == nil }
-    var position: String { "\(min(index + 1, cards.count)) of \(cards.count)" }
+    var position: String {
+        tr("native.revisit.position", localizedNumber(min(index + 1, cards.count)), localizedNumber(cards.count))
+    }
 
     func deal(startOver: Bool = false) async {
         if startOver {
@@ -83,7 +85,7 @@ final class RevisitModel {
             lastArchived = card.id
             archived += 1
             index += 1
-            AccessibilityNotification.Announcement("Archived").post()
+            AccessibilityNotification.Announcement(tr("native.revisit.archived")).post()
         } catch {
             library.show(error)
         }
@@ -130,13 +132,13 @@ struct RevisitView: View {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(20)
-                .navigationTitle("Revisit")
+                .navigationTitle(tr("native.revisit.title"))
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Close Revisit", systemImage: "xmark") { dismiss() }
+                        Button(tr("native.revisit.close"), systemImage: "xmark") { dismiss() }
                     }
                     if model.current != nil {
                         ToolbarItem(placement: .principal) {
@@ -167,18 +169,22 @@ struct RevisitView: View {
 
     @ViewBuilder private var content: some View {
         if model.isLoading {
-            ProgressView().accessibilityLabel("Loading cards")
+            ProgressView().accessibilityLabel(tr("native.library.loadingCards"))
         } else if model.failed {
             ContentUnavailableView {
-                Label("Couldn't Load Cards", systemImage: "exclamationmark.triangle")
+                Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(tr("native.errors.offline"))
             } actions: {
-                Button("Retry") { Task { await model.deal() } }.buttonStyle(.bordered)
+                Button(tr("common.retry")) { Task { await model.deal() } }.buttonStyle(.bordered)
             }
         } else if model.cards.isEmpty {
             ContentUnavailableView {
-                Label("Nothing to Revisit Here", systemImage: "rectangle.stack")
+                Label(tr("native.revisit.emptyTitle"), systemImage: "rectangle.stack")
+            } description: {
+                Text(tr("native.revisit.emptyMessage"))
             } actions: {
-                Button("Done") { dismiss() }.buttonStyle(.bordered)
+                Button(tr("common.done")) { dismiss() }.buttonStyle(.bordered)
             }
         } else if let card = model.current {
             deck(card)
@@ -207,18 +213,18 @@ struct RevisitView: View {
                 .gesture(swipe)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityElement(children: .combine)
-                .accessibilityAction(named: "Archive") { Task { await model.archive() } }
-                .accessibilityAction(named: "Keep") { model.keep() }
-                .accessibilityAction(named: "Undo") { Task { await model.undo() } }
+                .accessibilityAction(named: tr("native.actions.archive")) { Task { await model.archive() } }
+                .accessibilityAction(named: tr("native.revisit.keep")) { model.keep() }
+                .accessibilityAction(named: tr("common.undo")) { Task { await model.undo() } }
                 .id(card.id)
                 .transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .opacity))
             }
             HStack(spacing: 16) {
                 Button { Task { await model.archive() } } label: {
-                    Label("Archive", systemImage: "archivebox").frame(maxWidth: .infinity)
+                    Label(tr("native.actions.archive"), systemImage: "archivebox").frame(maxWidth: .infinity)
                 }
                 Button { model.keep() } label: {
-                    Label("Keep", systemImage: "hand.thumbsup").frame(maxWidth: .infinity)
+                    Label(tr("native.revisit.keep"), systemImage: "hand.thumbsup").frame(maxWidth: .infinity)
                 }
             }
             .buttonStyle(.glass)
@@ -228,7 +234,7 @@ struct RevisitView: View {
             HStack(spacing: 12) {
                 Text(hint).font(.footnote).foregroundStyle(.secondary)
                 if model.lastArchived != nil {
-                    Button("Undo") { Task { await model.undo() } }
+                    Button(tr("common.undo")) { Task { await model.undo() } }
                         .font(.footnote.weight(.medium))
                         .buttonStyle(.borderless)
                 }
@@ -239,16 +245,17 @@ struct RevisitView: View {
 
     private var hint: String {
         #if os(macOS)
-        "\u{2190} archive \u{00B7} \u{2192} keep \u{00B7} Z undo \u{00B7} Esc exit"
+        tr("apple.library.revisitKeys")
         #else
-        "Swipe left to archive, right to keep"
+        tr("native.revisit.swipeHint")
         #endif
     }
 
     @ViewBuilder private var swipeHint: some View {
         if abs(drag.width) > 24 {
-            Text(drag.width < -threshold ? "Release to archive" : drag.width > threshold ? "Release to keep"
-                 : drag.width < 0 ? "Archive" : "Keep")
+            Text(drag.width < -threshold ? tr("native.revisit.releaseToArchive")
+                 : drag.width > threshold ? tr("native.revisit.releaseToKeep")
+                 : drag.width < 0 ? tr("native.actions.archive") : tr("native.revisit.keep"))
                 .font(.footnote.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -258,13 +265,11 @@ struct RevisitView: View {
     }
 
     private func caption(_ card: CardSummary) -> some View {
-        HStack(spacing: 6) {
-            Label(card.type.label, systemImage: card.type.symbol)
-            Text("\u{00B7}")
-            Text("Saved \(Date(timeIntervalSince1970: card.creationTime / 1000).formatted(date: .abbreviated, time: .omitted))")
-        }
-        .font(.footnote)
-        .foregroundStyle(.secondary)
+        let saved = Date(timeIntervalSince1970: card.creationTime / 1000)
+            .formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(AppLanguage.locale))
+        return Label(tr("native.revisit.caption", card.type.label, saved), systemImage: card.type.symbol)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
     }
 
     private var swipe: some Gesture {
@@ -283,18 +288,18 @@ struct RevisitView: View {
 
     private var finished: some View {
         ContentUnavailableView {
-            Label("All Caught Up", systemImage: "checkmark.circle")
+            Label(tr("native.revisit.finishedTitle"), systemImage: "checkmark.circle")
         } description: {
-            Text("\(model.archived) archived \u{00B7} \(model.kept) kept")
+            Text(tr("native.revisit.summary", localizedNumber(model.archived), localizedNumber(model.kept)))
         } actions: {
             VStack(spacing: 10) {
-                Button(model.isExhausted ? "Start Over" : "Revisit \(RevisitModel.deckSize) More") {
+                Button(model.isExhausted ? tr("native.revisit.startOver") : tr("native.revisit.revisitMore", count: RevisitModel.deckSize)) {
                     Task { await model.deal(startOver: model.isExhausted) }
                 }
                 .buttonStyle(.glassProminent)
-                Button("Done") { dismiss() }.buttonStyle(.bordered)
+                Button(tr("common.done")) { dismiss() }.buttonStyle(.bordered)
                 if model.lastArchived != nil {
-                    Button("Undo Last Archive") { Task { await model.undo() } }.buttonStyle(.borderless)
+                    Button(tr("native.revisit.undoLastArchive")) { Task { await model.undo() } }.buttonStyle(.borderless)
                 }
             }
         }

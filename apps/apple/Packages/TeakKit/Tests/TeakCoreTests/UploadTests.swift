@@ -73,7 +73,7 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
 
     @Test func rejectsUnsupportedAndOversizedFilesBeforeAnyNetworkWork() async throws {
         let transport = backend()
-        await #expect(throws: TeakError(code: TeakError.unsupportedType, message: "Unsupported file type")) {
+        await #expect(throws: TeakError(code: TeakError.unsupportedType, message: tr("errors.cards.UNSUPPORTED_TYPE"))) {
             try await pipeline(transport).upload(UploadItem(fileURL: file("animation.riv")))
         }
         let big = UploadItem(fileURL: file("a.zip"), fileSize: TeakLimits.maxFileSize + 1)
@@ -165,6 +165,18 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
             try await call(200, ["status": "error", "errorMessage": "x",
                                  "errorData": ["code": "RATE_LIMITED", "message": "Slow down"]])
         }
+    }
+
+    /// Android's ConvexApi test checks the same codes.
+    @Test func wordsKnownCodesInTheAppsLanguage() async {
+        await #expect(throws: TeakError(code: "DUPLICATE_NAME", message: "A folder with this name already exists")) {
+            try await call(200, ["status": "error", "errorMessage": "x",
+                                 "errorData": ["code": "DUPLICATE_NAME", "message": "Server words"]])
+        }
+        #expect(TeakError.card(code: "TOO_MANY_FILES", message: nil).message
+            == "Too many files selected. You can upload up to \(TeakLimits.maxFilesPerUpload) files at a time.")
+        // A code more than one area throws keeps the server's words.
+        #expect(TeakError.card(code: "NOT_FOUND", message: "Folder not found").message == "Folder not found")
     }
 
     @Test func showsOnlyTheThrownMessage() async {

@@ -68,8 +68,11 @@ async function openMoreMenu() {
 }
 
 function itemName(element: Element) {
-  const key = element.querySelector('[data-slot="dropdown-menu-shortcut"]');
-  return element.textContent?.replace(key?.textContent ?? "", "").trim();
+  const key =
+    element.querySelector('[data-slot="dropdown-menu-shortcut"]')
+      ?.textContent ?? "";
+  const text = element.textContent ?? "";
+  return (key && text.endsWith(key) ? text.slice(0, -key.length) : text).trim();
 }
 
 function menuItem(name: string) {
@@ -103,8 +106,8 @@ describe("BulkActionBar", () => {
       ]
     );
     expect(items).toEqual([
-      ["Add to favorites", "F"],
-      ["Remove from favorites", null],
+      ["Favorite", "F"],
+      ["Unfavorite", null],
       ["Add tags…", "T"],
       ["Remove tags…", null],
       ["Copy links", null],
@@ -124,12 +127,8 @@ describe("BulkActionBar", () => {
   test("when every selected card is a favorite, F removes them", async () => {
     await renderBar(2, { allFavorited: true });
     await openMoreMenu();
-    expect(
-      menuItem("Remove from favorites").getAttribute("aria-keyshortcuts")
-    ).toBe("F");
-    expect(
-      menuItem("Add to favorites").getAttribute("aria-keyshortcuts")
-    ).toBeNull();
+    expect(menuItem("Unfavorite").getAttribute("aria-keyshortcuts")).toBe("F");
+    expect(menuItem("Favorite").getAttribute("aria-keyshortcuts")).toBeNull();
   });
 
   test("inside a folder, More can take cards out of it", async () => {

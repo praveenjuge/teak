@@ -1,0 +1,122 @@
+{
+  "extensionDescription": {
+    "message": "Guarde páginas de Safari en su biblioteca de Teak."
+  },
+  "actionTitle": {
+    "message": "Guardar en Teak"
+  },
+  "checkingSafari": {
+    "message": "Comprobando Safari…"
+  },
+  "signIn": {
+    "message": "Iniciar sesión"
+  },
+  "tryAgain": {
+    "message": "Volver a intentar"
+  },
+  "signOut": {
+    "message": "Cerrar sesión"
+  },
+  "checkingSession": {
+    "message": "Comprobando su sesión…"
+  },
+  "unableToConnect": {
+    "message": "No se pudo conectar"
+  },
+  "pleaseTryAgain": {
+    "message": "Vuelva a intentarlo."
+  },
+  "signInTitle": {
+    "message": "Inicie sesión en Teak"
+  },
+  "signInMessage": {
+    "message": "Inicie sesión para guardar páginas."
+  },
+  "cannotSaveTitle": {
+    "message": "No se puede guardar esta página"
+  },
+  "openRegularWebsite": {
+    "message": "Abra un sitio web normal y vuelva a intentarlo."
+  },
+  "savingTitle": {
+    "message": "Guardando la página"
+  },
+  "savingMessage": {
+    "message": "Añadiendo esta página a su biblioteca…"
+  },
+  "savedTitle": {
+    "message": "Guardado en Teak"
+  },
+  "savedMessage": {
+    "message": "Se añadió a su biblioteca."
+  },
+  "duplicateTitle": {
+    "message": "Ya está guardada"
+  },
+  "duplicateMessage": {
+    "message": "Esta página ya está en su biblioteca."
+  },
+  "saveFailedTitle": {
+    "message": "No se pudo guardar"
+  },
+  "saveFailedMessage": {
+    "message": "Teak no pudo guardar esta página."
+  },
+  "openingTeak": {
+    "message": "Abriendo Teak"
+  },
+  "completeSignIn": {
+    "message": "Complete el inicio de sesión."
+  },
+  "finishSignInTitle": {
+    "message": "Termine de iniciar sesión"
+  },
+  "returnAfterSignIn": {
+    "message": "Vuelva aquí después de iniciar sesión."
+  },
+  "signInFailedTitle": {
+    "message": "No se pudo iniciar sesión"
+  },
+  "signInFailedMessage": {
+    "message": "Teak no pudo empezar a iniciar sesión."
+  },
+  "signingOutTitle": {
+    "message": "Cerrando sesión"
+  },
+  "oneMoment": {
+    "message": "Un momento…"
+  },
+  "signOutFailedTitle": {
+    "message": "No se pudo cerrar sesión"
+  },
+  "signOutFailedMessage": {
+    "message": "No se pudo cerrar sesión. Vuelva a intentarlo."
+  },
+  "signedOutTitle": {
+    "message": "Sesión cerrada"
+  },
+  "needsAccessTitle": {
+    "message": "Teak necesita acceso a Safari"
+  },
+  "needsAccessMessage": {
+    "message": "Vuelva a intentarlo desde un sitio web normal."
+  },
+  "invalidResponse": {
+    "message": "Teak devolvió una respuesta no válida."
+  },
+  "tryAgainShort": {
+    "message": "Vuelva a intentarlo."
+  },
+  "invalidRequest": {
+    "message": "Solicitud de Teak no válida."
+  },
+  "unsupportedRequest": {
+    "message": "Solicitud de Teak no compatible."
+  },
+  "openFromApplications": {
+    "message": "Abra Teak desde Aplicaciones para iniciar sesión."
+  },
+  "signOutCheckConnection": {
+    "message": "No se pudo cerrar sesión. Compruebe su conexión y vuelva a intentarlo."
+  }
+}

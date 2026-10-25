@@ -7,7 +7,7 @@ enum CardFiles {
     static func download(_ url: URL, as fileName: String) async throws -> URL {
         let (temporary, response) = try await URLSession.shared.download(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw TeakError(message: "Unable to download this file.")
+            throw TeakError(message: tr("native.card.failed.download"))
         }
         let folder = FileManager.default.temporaryDirectory.appending(path: "Shared/\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

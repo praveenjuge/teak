@@ -48,13 +48,13 @@ struct SidebarMainView: View {
         let actions = FolderActions(folders: services.folders, library: library)
         NavigationSplitView {
             List(selection: selection(library)) {
-                Label("Home", systemImage: "house").tag(SidebarItem.home)
-                Label("Add", systemImage: "plus.circle").tag(SidebarItem.add)
-                Label("Favorites", systemImage: "heart").tag(SidebarItem.favorites)
-                Label("Archive", systemImage: "archivebox").tag(SidebarItem.archive)
-                Label("Tags", systemImage: "number").tag(SidebarItem.tags)
-                Label("Trash", systemImage: "trash").tag(SidebarItem.trash)
-                Label("Settings", systemImage: "gearshape").tag(SidebarItem.settings)
+                Label(tr("native.filters.home"), systemImage: "house").tag(SidebarItem.home)
+                Label(tr("native.app.nav.add"), systemImage: "plus.circle").tag(SidebarItem.add)
+                Label(tr("native.filters.favorites"), systemImage: "heart").tag(SidebarItem.favorites)
+                Label(tr("native.filters.archive"), systemImage: "archivebox").tag(SidebarItem.archive)
+                Label(tr("native.tags.title"), systemImage: "number").tag(SidebarItem.tags)
+                Label(tr("native.filters.trash"), systemImage: "trash").tag(SidebarItem.trash)
+                Label(tr("native.settings.title"), systemImage: "gearshape").tag(SidebarItem.settings)
                 Section {
                     ForEach(services.folders.folders) { folder in
                         FolderLabel(folder: folder)
@@ -62,21 +62,21 @@ struct SidebarMainView: View {
                             .contextMenu { FolderMenu(folder: folder, prompt: $prompt, actions: actions) }
                     }
                     if services.folders.folders.isEmpty, services.folders.isLoaded {
-                        Button("New Folder", systemImage: "folder.badge.plus") { prompt = .create }
+                        Button(tr("native.folders.newFolder"), systemImage: "folder.badge.plus") { prompt = .create }
                             .buttonStyle(.borderless)
                             .foregroundStyle(.secondary)
                     }
                 } header: {
                     HStack {
-                        Text("Folders")
+                        Text(tr("native.folders.title"))
                         Spacer()
-                        Button("New Folder", systemImage: "plus") { prompt = .create }
+                        Button(tr("native.folders.newFolder"), systemImage: "plus") { prompt = .create }
                             .labelStyle(.iconOnly)
                             .buttonStyle(.borderless)
                             .accessibilityIdentifier("sidebar.newFolder")
                     }
                 }
-                Section("Types") {
+                Section(tr("native.app.nav.types")) {
                     ForEach(CardType.allCases) { type in
                         Label(type.plural, systemImage: type.symbol).tag(SidebarItem.type(type))
                     }

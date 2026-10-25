@@ -13,7 +13,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
 @Suite struct CardSheetTests {
     @Test func formatsByteCounts() {
-        #expect([0, 512, 2048, 1_572_864, 2_147_483_648].map(CardSheet.formatFileSize)
+        #expect([0, 512, 2048, 1_572_864, 2_147_483_648].map { CardSheet.formatFileSize($0) }
             == ["0 B", "512 B", "2 KB", "1.5 MB", "2 GB"])
     }
 

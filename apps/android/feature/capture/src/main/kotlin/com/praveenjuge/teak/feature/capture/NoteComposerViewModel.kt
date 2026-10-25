@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardsRepository
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class SaveError(val title: String, val message: String)
+data class SaveError(val title: UiText, val message: UiText)
 
 data class NoteComposerUiState(
     val isSaving: Boolean = false,
@@ -49,12 +50,12 @@ class NoteComposerViewModel @Inject constructor(
 
     private fun saveError(error: Throwable): SaveError =
         if (error is TeakException && error.code == TeakException.CARD_LIMIT_REACHED) {
-            SaveError("Card limit reached", error.message ?: "You've reached the Free plan's card limit.")
+            SaveError(UiText.of("native.capture.cardLimitReached"), UiText.of("native.capture.cardLimitMessage"))
         } else {
             GENERIC_ERROR
         }
 
     private companion object {
-        val GENERIC_ERROR = SaveError("Couldn't save", "Failed to save card. Please try again.")
+        val GENERIC_ERROR = SaveError(UiText.of("native.capture.couldntSave"), UiText.of("native.capture.saveFailedMessage"))
     }
 }

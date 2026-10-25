@@ -13,7 +13,10 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.i18n.AppLanguage
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +37,14 @@ object StagingArea {
     internal fun slotOf(path: String): File? = File(path).parentFile?.takeIf { it.parentFile?.name == DIRECTORY }
 }
 
-data class SkippedFile(val name: String, val reason: String)
+/** A file that wasn't staged, and why, in the app's language. */
+data class SkippedFile(val name: String, val reasonText: UiText) {
+    companion object {
+        fun tooLarge(name: String) = SkippedFile(name, UiText.of("native.errors.fileTooLargeSkipped"))
+
+        fun unreadable(name: String) = SkippedFile(name, UiText.of("native.errors.unreadableFile"))
+    }
+}
 
 data class StageResult(val files: List<StagedFile>, val skipped: List<SkippedFile>)
 
@@ -43,7 +53,8 @@ data class UploadStatus(
     val fileName: String,
     val state: State,
     val progress: Float,
-    val error: String?,
+    /** Why the upload failed, in the app's language where Teak has words for it. */
+    val errorText: UiText?,
     val errorCode: String?,
 ) {
     enum class State { Waiting, Uploading, Saved, Failed }
@@ -72,7 +83,7 @@ class WorkManagerUploadRepository @Inject constructor(
             for (uri in uris) {
                 val (name, size) = describe(uri)
                 if (size != null && size > MAX_FILE_SIZE) {
-                    skipped += SkippedFile(name, "It's larger than 100 MB.")
+                    skipped += SkippedFile.tooLarge(name)
                     continue
                 }
                 try {
@@ -83,14 +94,14 @@ class WorkManagerUploadRepository @Inject constructor(
                     } ?: throw IOException("Unreadable")
                     if (copied > MAX_FILE_SIZE) {
                         directory.deleteRecursively()
-                        skipped += SkippedFile(name, "It's larger than 100 MB.")
+                        skipped += SkippedFile.tooLarge(name)
                         continue
                     }
                     files += StagedFile(target.path, target.name, mimeType(uri, target.name), copied, metadata(uri))
                 } catch (e: IOException) {
-                    skipped += SkippedFile(name, "Teak couldn't read it.")
+                    skipped += SkippedFile.unreadable(name)
                 } catch (e: SecurityException) {
-                    skipped += SkippedFile(name, "Teak couldn't read it.")
+                    skipped += SkippedFile.unreadable(name)
                 }
             }
             StageResult(files, skipped)
@@ -140,10 +151,10 @@ class WorkManagerUploadRepository @Inject constructor(
             fileName = info.tags.firstOrNull { it.startsWith(UploadWorker.NAME_TAG_PREFIX) }
                 ?.removePrefix(UploadWorker.NAME_TAG_PREFIX)
                 ?: output.getString(UploadWorker.Output.NAME)
-                ?: "File",
+                ?: AppLanguage.resources(context).tr("android.notification.file"),
             state = state,
             progress = info.progress.getFloat(UploadWorker.KEY_PROGRESS, if (state == UploadStatus.State.Saved) 1f else 0f),
-            error = if (skipped) SKIPPED_AT_LIMIT else output.getString(UploadWorker.Output.ERROR),
+            errorText = if (skipped) UiText.of("native.errors.skippedAtLimit") else failureText(output),
             errorCode = if (skipped) TeakException.CARD_LIMIT_REACHED else output.getString(UploadWorker.Output.ERROR_CODE),
         )
     }
@@ -184,9 +195,20 @@ class WorkManagerUploadRepository @Inject constructor(
             ?: "upload_${System.currentTimeMillis()}"
 
     private companion object {
-        const val SKIPPED_AT_LIMIT = "Not uploaded because you've reached your card limit."
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
     }
+}
+
+/**
+ * What a failed upload says: the catalog message the worker recorded, else the words for its code,
+ * else its message as the server wrote it (rows from before the worker recorded messages).
+ */
+internal fun failureText(output: Data): UiText? {
+    output.getString(UploadWorker.Output.ERROR_KEY)?.let { key ->
+        return UiText.Message(key, args = output.getStringArray(UploadWorker.Output.ERROR_ARGS).orEmpty().toList())
+    }
+    return output.getString(UploadWorker.Output.ERROR_CODE)?.let(TeakException::textFor)
+        ?: output.getString(UploadWorker.Output.ERROR)?.let(UiText::verbatim)
 }
 
 /**

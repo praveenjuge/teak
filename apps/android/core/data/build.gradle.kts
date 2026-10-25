@@ -10,6 +10,7 @@ android {
 
 dependencies {
     api(project(":core:model"))
+    implementation(project(":core:i18n"))
     api(libs.convex.android) {
         artifact { type = "aar" }
         isTransitive = true

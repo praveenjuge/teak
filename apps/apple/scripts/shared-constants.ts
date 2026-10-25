@@ -33,6 +33,10 @@ import {
   MAX_TAG_NAME_LENGTH,
   TAG_ERROR_MESSAGES,
 } from "../../../packages/convex/shared/tags";
+import {
+  LOCALE_NAMES,
+  SUPPORTED_LOCALES,
+} from "../../../packages/i18n/src/locales";
 
 export const SHARED_CONSTANTS_PATH = resolve(
   import.meta.dir,
@@ -70,6 +74,10 @@ export const buildSharedConstants = () => ({
   colorHueLabels: COLOR_HUE_LABELS,
   colorHueAliases: sortedRecord(COLOR_HUE_ALIAS_MAP),
   genericMimeTypes: [...GENERIC_MIME_TYPES].sort(),
+  locales: SUPPORTED_LOCALES.map((id) => ({
+    id,
+    name: LOCALE_NAMES[id].native,
+  })),
   fileFormats: FILE_FORMATS.map((format) => ({
     id: format.id,
     cardType: format.cardType,

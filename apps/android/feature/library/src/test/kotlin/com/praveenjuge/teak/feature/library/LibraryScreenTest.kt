@@ -44,7 +44,7 @@ class LibraryScreenTest {
         show(LibraryUiState(paged = PagedCards(isLoading = false)), LibraryActions(onWriteNote = { wroteNote = true }))
 
         composeRule.onNodeWithText("Let's add your first card!").assertExists()
-        composeRule.onNodeWithText("Write a Note").performClick()
+        composeRule.onNodeWithText("Write a note").performClick()
 
         assertTrue(wroteNote)
     }

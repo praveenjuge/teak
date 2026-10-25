@@ -20,8 +20,8 @@ private func day(_ milliseconds: Double) -> String {
     @Test(arguments: [
         ("today", "Today", "2026-02-03", "2026-02-04"),
         ("yesterday", "Yesterday", "2026-02-02", "2026-02-03"),
-        ("last week", "Last Week", "2026-01-25", "2026-02-01"),
-        ("Last  Month", "Last Month", "2026-01-01", "2026-02-01"),
+        ("last week", "Last week", "2026-01-25", "2026-02-01"),
+        ("Last  Month", "Last month", "2026-01-01", "2026-02-01"),
         ("monday", "Monday", "2026-02-02", "2026-02-03"),
         ("last monday", "Last Monday", "2026-01-26", "2026-01-27"),
         ("June 2024", "Jun 2024", "2024-06-01", "2024-07-01"),
@@ -38,6 +38,13 @@ private func day(_ milliseconds: Double) -> String {
         #expect(result.label == label)
         #expect(day(result.range.lowerBound) == start)
         #expect(day(result.range.upperBound) == end)
+    }
+
+    /// The words people type stay English; dates and weekdays read in the app's language.
+    @Test func labelsDatesInTheAppsLanguage() {
+        let german = Locale(identifier: "de")
+        #expect(TimeSearch.parse("2024-06-05", now: tuesdayNoon, timeZone: newYork, locale: german)?.label == "5. Juni 2024")
+        #expect(TimeSearch.parse("monday", now: tuesdayNoon, timeZone: newYork, locale: german)?.label == "Montag")
     }
 
     @Test(arguments: ["design inspiration", "2024-02-30", "July 2025 to June 2024", "mar", ""])
@@ -85,7 +92,7 @@ private func day(_ milliseconds: Double) -> String {
         (LibraryFilters(favoritesOnly: true, trashOnly: true), "Trash"),
         (LibraryFilters(favoritesOnly: true), "Favorites"),
         (LibraryFilters(types: [.text]), "Notes"),
-        (LibraryFilters(favoritesOnly: true, types: [.link]), "Favorite Links"),
+        (LibraryFilters(favoritesOnly: true, types: [.link]), "Favorite links"),
         (LibraryFilters(hue: ColorHue("teal")), "Teal"),
         (LibraryFilters(types: [.link, .image]), "Filtered"),
     ])
@@ -152,9 +159,9 @@ private func day(_ milliseconds: Double) -> String {
     @Test func titlesAndEmptyStatesFollowTheQuery() {
         #expect(LibraryQuery(tokens: [SearchTokens.classify("retro")]).title == "Filtered")
         #expect(LibraryQuery(tokens: [SearchTokens.classify("favs")]).title == "Favorites")
-        #expect(LibraryQuery(filters: LibraryFilters(trashOnly: true)).emptyState().title == "Trash Is Empty")
-        #expect(LibraryQuery(text: "zebra").emptyState().title == "No Results for \u{201C}zebra\u{201D}")
-        #expect(LibraryQuery(text: "yesterday").emptyState(now: tuesdayNoon, timeZone: newYork).message == "No cards from Yesterday.")
+        #expect(LibraryQuery(filters: LibraryFilters(trashOnly: true)).emptyState().title == "Trash is empty")
+        #expect(LibraryQuery(text: "zebra").emptyState().title == "No results for \u{201C}zebra\u{201D}")
+        #expect(LibraryQuery(text: "yesterday").emptyState(now: tuesdayNoon, timeZone: newYork).message == "No cards from that time.")
     }
 }
 

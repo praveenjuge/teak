@@ -12,7 +12,7 @@ public struct ShareImportResult: Sendable, Equatable {
         public let reason: Reason
         public let message: String
 
-        static let signInRequired = Failure(reason: .unauthenticated, message: "Sign in to save shared content.")
+        static var signInRequired: Failure { Failure(reason: .unauthenticated, message: tr("native.errors.signInToSave")) }
 
         static func from(_ error: any Error, reason: Reason) -> Failure {
             if (error as? TeakError)?.isSignedOut == true { return signInRequired }
@@ -31,9 +31,11 @@ public struct ShareImportResult: Sendable, Equatable {
     public var needsSignIn: Bool { failures.contains { $0.reason == .unauthenticated } }
 
     public var summary: String {
-        if isComplete { return successfulItems == 1 ? "Saved to Teak" : "Saved \(successfulItems) items" }
-        if isPartial { return "Saved \(successfulItems) of \(totalItems)" }
-        return failures.first?.message ?? "Nothing to save."
+        if isComplete {
+            return successfulItems == 1 ? tr("native.capture.savedToTeak") : tr("native.capture.savedItems", count: successfulItems)
+        }
+        if isPartial { return tr("native.capture.savedSome", String(successfulItems), String(totalItems)) }
+        return failures.first?.message ?? tr("native.card.share.nothing")
     }
 }
 
@@ -70,7 +72,7 @@ public struct ShareImporter: Sendable {
         let processable = items.prefix(maxItems)
         var result = ShareImportResult(totalItems: items.count, attemptedItems: processable.count)
         result.failures = items.dropFirst(maxItems).map { _ in
-            .init(reason: .tooManyItems, message: "Only the first \(maxItems) shared items are saved.")
+            .init(reason: .tooManyItems, message: tr("native.errors.tooManyShared", count: maxItems))
         }
         guard isAuthenticated else {
             result.failures += processable.map { _ in .signInRequired }

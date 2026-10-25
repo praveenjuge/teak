@@ -1,0 +1,122 @@
+{
+  "extensionDescription": {
+    "message": "Enregistrez des pages Safari dans votre bibliothèque Teak."
+  },
+  "actionTitle": {
+    "message": "Enregistrer dans Teak"
+  },
+  "checkingSafari": {
+    "message": "Vérification de Safari…"
+  },
+  "signIn": {
+    "message": "Se connecter"
+  },
+  "tryAgain": {
+    "message": "Réessayer"
+  },
+  "signOut": {
+    "message": "Se déconnecter"
+  },
+  "checkingSession": {
+    "message": "Vérification de votre session…"
+  },
+  "unableToConnect": {
+    "message": "Connexion impossible"
+  },
+  "pleaseTryAgain": {
+    "message": "Veuillez réessayer."
+  },
+  "signInTitle": {
+    "message": "Connectez-vous à Teak"
+  },
+  "signInMessage": {
+    "message": "Connectez-vous pour enregistrer des pages."
+  },
+  "cannotSaveTitle": {
+    "message": "Impossible d’enregistrer cette page"
+  },
+  "openRegularWebsite": {
+    "message": "Ouvrez un site web classique et réessayez."
+  },
+  "savingTitle": {
+    "message": "Enregistrement de la page"
+  },
+  "savingMessage": {
+    "message": "Ajout de cette page à votre bibliothèque…"
+  },
+  "savedTitle": {
+    "message": "Enregistré dans Teak"
+  },
+  "savedMessage": {
+    "message": "Ajouté à votre bibliothèque."
+  },
+  "duplicateTitle": {
+    "message": "Déjà enregistrée"
+  },
+  "duplicateMessage": {
+    "message": "Cette page est déjà dans votre bibliothèque."
+  },
+  "saveFailedTitle": {
+    "message": "Échec de l’enregistrement"
+  },
+  "saveFailedMessage": {
+    "message": "Teak n’a pas pu enregistrer cette page."
+  },
+  "openingTeak": {
+    "message": "Ouverture de Teak"
+  },
+  "completeSignIn": {
+    "message": "Terminez la connexion."
+  },
+  "finishSignInTitle": {
+    "message": "Terminer la connexion"
+  },
+  "returnAfterSignIn": {
+    "message": "Revenez ici une fois connecté."
+  },
+  "signInFailedTitle": {
+    "message": "Échec de la connexion"
+  },
+  "signInFailedMessage": {
+    "message": "Teak n’a pas pu lancer la connexion."
+  },
+  "signingOutTitle": {
+    "message": "Déconnexion"
+  },
+  "oneMoment": {
+    "message": "Un instant…"
+  },
+  "signOutFailedTitle": {
+    "message": "Échec de la déconnexion"
+  },
+  "signOutFailedMessage": {
+    "message": "Impossible de se déconnecter. Veuillez réessayer."
+  },
+  "signedOutTitle": {
+    "message": "Déconnecté"
+  },
+  "needsAccessTitle": {
+    "message": "Teak a besoin d’accéder à Safari"
+  },
+  "needsAccessMessage": {
+    "message": "Réessayez depuis un site web classique."
+  },
+  "invalidResponse": {
+    "message": "Teak a renvoyé une réponse non valide."
+  },
+  "tryAgainShort": {
+    "message": "Réessayez."
+  },
+  "invalidRequest": {
+    "message": "Requête Teak non valide."
+  },
+  "unsupportedRequest": {
+    "message": "Requête Teak non prise en charge."
+  },
+  "openFromApplications": {
+    "message": "Ouvrez Teak depuis Applications pour vous connecter."
+  },
+  "signOutCheckConnection": {
+    "message": "Impossible de se déconnecter. Vérifiez votre connexion et réessayez."
+  }
+}

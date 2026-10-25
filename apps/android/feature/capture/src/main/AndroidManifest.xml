@@ -16,7 +16,7 @@
             android:name=".share.ShareActivity"
             android:excludeFromRecents="true"
             android:exported="true"
-            android:label="@string/capture_save_to_teak"
+            android:label="@string/android_share_saveToTeak"
             android:noHistory="true"
             android:autoRemoveFromRecents="true"
             android:taskAffinity=""
@@ -32,7 +32,7 @@
                 <data android:mimeType="application/*" />
                 <data android:mimeType="*/*" />
             </intent-filter>
-            <intent-filter android:label="@string/capture_save_to_teak">
+            <intent-filter android:label="@string/android_share_saveToTeak">
                 <action android:name="android.intent.action.PROCESS_TEXT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />

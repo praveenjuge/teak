@@ -87,13 +87,18 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.text
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.Card
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
@@ -171,14 +176,14 @@ internal fun CardDetailScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            card?.let { CardSheet.title(it) } ?: "",
+                            card?.let { CardSheet.title(it).resolve() } ?: "",
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = callbacks.onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
                         }
                     },
                     actions = {
@@ -187,13 +192,13 @@ internal fun CardDetailScreen(
                                 FilledTonalButton(onClick = callbacks.onToggleDone, modifier = Modifier.semantics { selected = true }) {
                                     Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                    Text(state.doneLabel)
+                                    Text(state.doneText.resolve())
                                 }
                             } else {
                                 OutlinedButton(onClick = callbacks.onToggleDone) {
                                     Icon(Icons.Outlined.Circle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                    Text(state.doneLabel)
+                                    Text(state.doneText.resolve())
                                 }
                             }
                         }
@@ -228,8 +233,8 @@ internal fun CardDetailScreen(
             state.isLoading -> TeakLoading(Modifier.padding(padding))
             card == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
-                    title = "Card unavailable",
-                    message = "It may have been deleted or moved.",
+                    title = tr("native.card.unavailable.title"),
+                    message = tr("native.card.unavailable.movedMessage"),
                     icon = Icons.Outlined.ErrorOutline,
                 )
             }
@@ -248,9 +253,9 @@ internal fun CardDetailScreen(
 
     when (confirm) {
         PendingConfirm.Trash -> ConfirmDialog(
-            title = "Move to Trash?",
-            message = "This card will be moved to trash.",
-            confirmLabel = "Move to Trash",
+            title = tr("native.card.moveToTrash.title"),
+            message = tr("native.card.moveToTrash.message"),
+            confirmLabel = tr("native.actions.moveToTrash"),
             onConfirm = {
                 confirm = null
                 callbacks.onMoveToTrash()
@@ -258,9 +263,9 @@ internal fun CardDetailScreen(
             onDismiss = { confirm = null },
         )
         PendingConfirm.DeleteForever -> ConfirmDialog(
-            title = "Delete Forever?",
-            message = "This removes the card and its files. You can't undo it.",
-            confirmLabel = "Delete Forever",
+            title = tr("native.card.deleteForever.title"),
+            message = tr("native.card.deleteForever.message"),
+            confirmLabel = tr("native.actions.deleteForever"),
             onConfirm = {
                 confirm = null
                 callbacks.onDeleteForever()
@@ -305,7 +310,7 @@ private fun CardDetailContent(
             CardPreview(
                 card = card,
                 documentText = documentText,
-                onCopyColor = { hex -> actions.copy(hex, "Copied $hex") },
+                onCopyColor = { hex -> actions.copy(hex, UiText.of("native.card.copiedValue", hex)) },
                 onViewDocument = actions.viewDocument,
             )
             LinkDetailsSections(card, onOpenImage = openImage)
@@ -336,7 +341,7 @@ private fun CardToolbar(
         expanded = true,
         floatingActionButton = {
             FloatingToolbarDefaults.StandardFloatingActionButton(onClick = callbacks.onEdit) {
-                Icon(Icons.Outlined.Edit, contentDescription = "Edit")
+                Icon(Icons.Outlined.Edit, contentDescription = tr("common.edit"))
             }
         },
         colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
@@ -351,27 +356,27 @@ private fun CardToolbar(
             },
             enabled = shareTarget != ShareTarget.None,
         ) {
-            Icon(Icons.Outlined.Share, contentDescription = "Share")
+            Icon(Icons.Outlined.Share, contentDescription = tr("native.actions.share"))
         }
         IconButton(onClick = callbacks.onToggleFavorite) {
             Icon(
                 if (isFavorited) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,
-                contentDescription = if (isFavorited) "Unfavorite" else "Favorite",
+                contentDescription = if (isFavorited) tr("native.actions.unfavorite") else tr("native.actions.favorite"),
             )
         }
         if (copyText != null) {
-            IconButton(onClick = { actions.copy(copyText, "Copied") }) {
-                Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy")
+            IconButton(onClick = { actions.copy(copyText, UiText.of("native.card.copied")) }) {
+                Icon(Icons.Outlined.ContentCopy, contentDescription = tr("common.copy"))
             }
         }
         if (linkUrl != null) {
             IconButton(onClick = { actions.openLink(linkUrl) }) {
-                Icon(Icons.Outlined.OpenInBrowser, contentDescription = "Open in Browser")
+                Icon(Icons.Outlined.OpenInBrowser, contentDescription = tr("native.actions.openLink"))
             }
         }
         Box {
             IconButton(onClick = { menuOpen = true }) {
-                Icon(Icons.Outlined.MoreVert, contentDescription = "More")
+                Icon(Icons.Outlined.MoreVert, contentDescription = tr("common.more"))
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 fun close(action: () -> Unit): () -> Unit = {
@@ -379,30 +384,30 @@ private fun CardToolbar(
                     action()
                 }
                 DropdownMenuItem(
-                    text = { Text(if (card.archived) "Unarchive" else "Archive") },
+                    text = { Text(if (card.archived) tr("native.actions.unarchive") else tr("native.actions.archive")) },
                     leadingIcon = { Icon(if (card.archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = null) },
                     trailingIcon = { Text("E", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     onClick = close(callbacks.onToggleArchived),
                 )
                 DropdownMenuItem(
-                    text = { Text("More like this") },
+                    text = { Text(tr("native.actions.moreLikeThis")) },
                     leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },
                     onClick = close(callbacks.onMoreLikeThis),
                 )
                 DropdownMenuItem(
-                    text = { Text("Folders…") },
+                    text = { Text(tr("native.card.folders")) },
                     leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null) },
                     onClick = close(onEditFolders),
                 )
                 DropdownMenuItem(
-                    text = { Text("Refresh details") },
+                    text = { Text(tr("native.actions.refreshDetails")) },
                     leadingIcon = { Icon(Icons.Outlined.Refresh, contentDescription = null) },
                     enabled = !isRefreshing,
                     onClick = close(callbacks.onRefreshDetails),
                 )
                 if (card.fileUrl != null) {
                     DropdownMenuItem(
-                        text = { Text("Download") },
+                        text = { Text(tr("native.actions.download")) },
                         leadingIcon = { Icon(Icons.Outlined.Download, contentDescription = null) },
                         onClick = {
                             menuOpen = false
@@ -411,7 +416,7 @@ private fun CardToolbar(
                     )
                 }
                 DropdownMenuItem(
-                    text = { Text("Move to Trash", color = MaterialTheme.colorScheme.error) },
+                    text = { Text(tr("native.actions.moveToTrash"), color = MaterialTheme.colorScheme.error) },
                     leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                     onClick = {
                         menuOpen = false
@@ -429,19 +434,19 @@ private fun TrashToolbar(onRestore: () -> Unit, onDeleteForever: () -> Unit) {
     HorizontalFloatingToolbar(expanded = true) {
         FilledTonalButton(onClick = onRestore) {
             Icon(Icons.Outlined.Restore, contentDescription = null)
-            Text("Restore", modifier = Modifier.padding(start = 8.dp))
+            Text(tr("native.actions.restore"), modifier = Modifier.padding(start = 8.dp))
         }
         IconButton(
             onClick = onDeleteForever,
             colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.error),
         ) {
-            Icon(Icons.Outlined.DeleteForever, contentDescription = "Delete Forever")
+            Icon(Icons.Outlined.DeleteForever, contentDescription = tr("native.actions.deleteForever"))
         }
     }
 }
 
 internal class UiActions(
-    val copy: (text: String, confirmation: String) -> Unit,
+    val copy: (text: String, confirmation: UiText) -> Unit,
     val shareText: (ShareTarget.Text) -> Unit,
     val openLink: (String) -> Unit,
     val viewDocument: (String) -> Unit,
@@ -450,22 +455,23 @@ internal class UiActions(
 @Composable
 private fun rememberUiActions(snackbarHostState: SnackbarHostState): UiActions {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     fun show(message: String) {
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
-    return remember(context, clipboard, scope, snackbarHostState) {
+    return remember(context, resources, clipboard, scope, snackbarHostState) {
         UiActions(
             copy = { text, confirmation ->
                 scope.launch {
                     try {
                         clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Teak", text)))
-                        snackbarHostState.showSnackbar(confirmation)
+                        snackbarHostState.showSnackbar(resources.text(confirmation))
                     } catch (error: CancellationException) {
                         throw error
                     } catch (_: Exception) {
-                        snackbarHostState.showSnackbar("Couldn't copy to the clipboard.")
+                        snackbarHostState.showSnackbar(resources.tr("native.card.copyFailed"))
                     }
                 }
             },
@@ -473,8 +479,8 @@ private fun rememberUiActions(snackbarHostState: SnackbarHostState): UiActions {
             openLink = { url ->
                 val safe = safeExternalUrl(url)
                 when {
-                    safe == null -> show("This link looks unsafe to open.")
-                    !context.openInBrowser(safe) -> show("No app can open this link.")
+                    safe == null -> show(resources.tr("native.card.unsafeLink"))
+                    !context.openInBrowser(safe) -> show(resources.tr("android.card.noAppForLink"))
                 }
             },
             viewDocument = { url ->

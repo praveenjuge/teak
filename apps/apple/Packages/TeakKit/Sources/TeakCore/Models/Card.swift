@@ -7,18 +7,43 @@ public enum CardType: String, CaseIterable, Codable, Sendable, Identifiable, Has
 
     public var showsSummaryColors: Bool { self != .palette }
 
-    public var label: String { SharedConstants.shared.cardTypeLabels[rawValue] ?? rawValue.capitalized }
+    public var label: String {
+        switch self {
+        case .text: tr("cards.types.text")
+        case .link: tr("cards.types.link")
+        case .image: tr("cards.types.image")
+        case .video: tr("cards.types.video")
+        case .audio: tr("cards.types.audio")
+        case .document: tr("cards.types.document")
+        case .palette: tr("cards.types.palette")
+        case .quote: tr("cards.types.quote")
+        }
+    }
 
     public var plural: String {
         switch self {
-        case .text: "Notes"
-        case .link: "Links"
-        case .image: "Images"
-        case .video: "Videos"
-        case .audio: "Audio"
-        case .document: "Documents"
-        case .palette: "Palettes"
-        case .quote: "Quotes"
+        case .text: tr("native.filters.types.text")
+        case .link: tr("native.filters.types.link")
+        case .image: tr("native.filters.types.image")
+        case .video: tr("native.filters.types.video")
+        case .audio: tr("native.filters.types.audio")
+        case .document: tr("native.filters.types.document")
+        case .palette: tr("native.filters.types.palette")
+        case .quote: tr("native.filters.types.quote")
+        }
+    }
+
+    /// The library's title for this type's favorites: "Favorite notes".
+    public var favoritesTitle: String {
+        switch self {
+        case .text: tr("native.filters.favoriteTypes.text")
+        case .link: tr("native.filters.favoriteTypes.link")
+        case .image: tr("native.filters.favoriteTypes.image")
+        case .video: tr("native.filters.favoriteTypes.video")
+        case .audio: tr("native.filters.favoriteTypes.audio")
+        case .document: tr("native.filters.favoriteTypes.document")
+        case .palette: tr("native.filters.favoriteTypes.palette")
+        case .quote: tr("native.filters.favoriteTypes.quote")
         }
     }
 
@@ -410,12 +435,12 @@ public struct CurrentUser: Decodable, Sendable, Hashable {
         canCreateCard = try c.decodeIfPresent(Bool.self, forKey: .canCreateCard) ?? true
     }
 
-    public var plan: String { hasPremium ? "Pro" : "Free" }
+    public var plan: String { hasPremium ? "Pro" : tr("native.card.plan.free") }
 
     public var usageLabel: String {
         let count = Int(cardCount)
-        let noun = count == 1 ? "Card" : "Cards"
-        return hasPremium ? "\(count) \(noun)" : "\(count) of \(TeakLimits.freeTierCards) Cards"
+        if hasPremium { return tr("native.common.cardCount", count: count) }
+        return tr("native.card.usage", count: TeakLimits.freeTierCards, count.formatted(.number.locale(AppLanguage.locale)))
     }
 }
 
@@ -435,7 +460,7 @@ public struct AuthMode: Codable, Sendable, Hashable {
               mode.primary == "workos",
               let clientId = mode.authKitClientId,
               WorkOSClientID.isValid(clientId)
-        else { throw TeakError(message: "Unable to load sign-in configuration") }
+        else { throw TeakError(message: tr("native.errors.signInConfig")) }
         return mode
     }
 }
@@ -446,9 +471,52 @@ public enum WorkOSClientID {
     }
 }
 
+/// The visual styles image search knows, by their backend ids.
+public enum VisualStyle {
+    public static func label(_ id: String) -> String {
+        switch id {
+        case "abstract": tr("search.visualStyles.abstract")
+        case "cinematic": tr("search.visualStyles.cinematic")
+        case "dark": tr("search.visualStyles.dark")
+        case "illustrative": tr("search.visualStyles.illustrative")
+        case "minimal": tr("search.visualStyles.minimal")
+        case "monochrome": tr("search.visualStyles.monochrome")
+        case "moody": tr("search.visualStyles.moody")
+        case "pastel": tr("search.visualStyles.pastel")
+        case "photographic": tr("search.visualStyles.photographic")
+        case "retro": tr("search.visualStyles.retro")
+        case "surreal": tr("search.visualStyles.surreal")
+        case "vintage": tr("search.visualStyles.vintage")
+        case "vibrant": tr("search.visualStyles.vibrant")
+        case "typographic": tr("search.visualStyles.typographic")
+        case "3d": tr("search.visualStyles.threeD")
+        case "flat": tr("search.visualStyles.flat")
+        case "geometric": tr("search.visualStyles.geometric")
+        case "hand-drawn": tr("search.visualStyles.handDrawn")
+        case "futuristic": tr("search.visualStyles.futuristic")
+        default: id.capitalized
+        }
+    }
+}
+
 public struct ColorHue: Hashable, Sendable, Identifiable {
     public let id: String
-    public var label: String { SharedConstants.shared.colorHueLabels[id] ?? id.capitalized }
+    public var label: String {
+        switch id {
+        case "red": tr("search.colorHues.red")
+        case "orange": tr("search.colorHues.orange")
+        case "yellow": tr("search.colorHues.yellow")
+        case "green": tr("search.colorHues.green")
+        case "teal": tr("search.colorHues.teal")
+        case "cyan": tr("search.colorHues.cyan")
+        case "blue": tr("search.colorHues.blue")
+        case "purple": tr("search.colorHues.purple")
+        case "pink": tr("search.colorHues.pink")
+        case "brown": tr("search.colorHues.brown")
+        case "neutral": tr("search.colorHues.neutral")
+        default: id.capitalized
+        }
+    }
 
     public init?(_ id: String) {
         guard SharedConstants.shared.colorHues.contains(id) else { return nil }

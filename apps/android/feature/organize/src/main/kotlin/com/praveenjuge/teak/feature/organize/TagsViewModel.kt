@@ -3,13 +3,15 @@ package com.praveenjuge.teak.feature.organize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.TagsRepository
 import com.praveenjuge.teak.core.model.TagCount
 import com.praveenjuge.teak.core.model.TagOperation
 import com.praveenjuge.teak.core.model.TagOperationKind
 import com.praveenjuge.teak.core.model.TagOperationStatus
+import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
 import com.praveenjuge.teak.core.model.Tags
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,22 +26,30 @@ import javax.inject.Inject
 
 /** The tag dialog that's open. */
 data class TagEditor(val kind: TagOperationKind, val tag: TagCount) {
-    /** "N cards, plus any in Archive or Trash", the reach every change states. */
-    val scope: String get() = "${if (tag.cards == 1) "1 card" else "${tag.cards} cards"}, plus any in Archive or Trash"
-
-    val title: String
+    val title: UiText
         get() = when (kind) {
-            TagOperationKind.Rename -> "Rename tag"
-            TagOperationKind.Merge -> "Merge “${tag.name}” into…"
-            TagOperationKind.Delete -> "Delete “${tag.name}”?"
+            TagOperationKind.Rename -> UiText.of("native.tags.renameTitle")
+            TagOperationKind.Merge -> UiText.of("native.tags.mergeTitle", tag.name)
+            TagOperationKind.Delete -> UiText.of("native.tags.deleteTitle", tag.name)
         }
 
-    val message: String
+    /** Rename and delete state their reach: the tag's cards, plus any in Archive or Trash. */
+    val message: UiText
         get() = when (kind) {
-            TagOperationKind.Rename -> "Renames “${tag.name}” on $scope."
-            TagOperationKind.Merge -> "Cards tagged “${tag.name}” get the tag you pick instead. A card with both keeps one."
-            TagOperationKind.Delete -> "Removes “${tag.name}” from $scope. The cards are kept. This can't be undone."
+            TagOperationKind.Rename -> UiText.of("native.tags.renameMessage", tag.name, count = tag.cards)
+            TagOperationKind.Merge -> UiText.of("native.tags.mergeMessage", tag.name)
+            TagOperationKind.Delete -> UiText.of("native.tags.deleteMessage", tag.name, count = tag.cards)
         }
+}
+
+/** Why [name] can't be a tag, in the words the backend's error codes use. */
+internal fun invalidTagName(name: String): UiText? {
+    val trimmed = name.trim()
+    return when {
+        trimmed.isEmpty() -> UiText.of("errors.tags.EMPTY_NAME")
+        trimmed.length > MAX_TAG_NAME_LENGTH -> UiText.of("errors.tags.NAME_TOO_LONG", MAX_TAG_NAME_LENGTH.toString())
+        else -> null
+    }
 }
 
 data class TagsUiState(
@@ -48,7 +58,7 @@ data class TagsUiState(
     val isComplete: Boolean = true,
     val query: String = "",
     val editor: TagEditor? = null,
-    val editorError: String? = null,
+    val editorError: UiText? = null,
     val operation: TagOperation? = null,
 ) {
     /** The list with a running or finished change already applied, since the summary catches up a little later. */
@@ -110,11 +120,11 @@ class TagsViewModel @Inject constructor(
     fun closeEditor() = _state.update { it.copy(editor = null, editorError = null) }
 
     /** Why [name] can't be the new name, checked as the user types. */
-    fun renameError(name: String): String? {
+    fun renameError(name: String): UiText? {
         val editor = _state.value.editor ?: return null
-        Tags.explainInvalidName(name)?.let { return it }
+        invalidTagName(name)?.let { return it }
         val existing = _state.value.tags.firstOrNull { Tags.key(it.name) == Tags.key(name) && Tags.key(it.name) != Tags.key(editor.tag.name) }
-        return existing?.let { "A tag named “${it.name}” already exists." }
+        return existing?.let { UiText.of("native.tags.exists", it.name) }
     }
 
     fun submit(to: String? = null) {
@@ -123,9 +133,9 @@ class TagsViewModel @Inject constructor(
             val name = to.orEmpty()
             val existing = _state.value.tags.firstOrNull { Tags.key(it.name) == Tags.key(name) && Tags.key(it.name) != Tags.key(editor.tag.name) }
             if (existing != null) {
-                return _state.update { it.copy(editorError = "A tag named “${existing.name}” already exists.") }
+                return _state.update { it.copy(editorError = UiText.of("native.tags.exists", existing.name)) }
             }
-            Tags.explainInvalidName(name)?.let { error -> return _state.update { it.copy(editorError = error) } }
+            invalidTagName(name)?.let { error -> return _state.update { it.copy(editorError = error) } }
         }
         start(editor.kind, editor.tag.name, to)
     }
@@ -157,7 +167,7 @@ class TagsViewModel @Inject constructor(
                     follow(operation.id)
                 }
                 .onFailure { error ->
-                    val message = (error as? TeakException)?.message ?: "Couldn't start the tag change"
+                    val message = error.teakText(UiText.of("native.tags.startFailed"))
                     _state.update { it.copy(editorError = message) }
                 }
         }

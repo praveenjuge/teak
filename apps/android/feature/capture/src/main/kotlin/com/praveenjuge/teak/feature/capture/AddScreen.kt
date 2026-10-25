@@ -31,7 +31,10 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import com.praveenjuge.teak.core.i18n.tr
+import java.text.NumberFormat
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -134,19 +137,19 @@ fun AddRoute(onWriteNote: () -> Unit, onRecordVoice: () -> Unit) {
     when (cameraAlert) {
         CameraAlert.PermissionDenied -> AlertDialog(
             onDismissRequest = { cameraAlert = null },
-            title = { Text("Camera access is off") },
-            text = { Text("Allow camera access in Settings to take photos for Teak.") },
+            title = { Text(tr("native.capture.cameraOff")) },
+            text = { Text(tr("native.capture.cameraOffMessage")) },
             confirmButton = {
                 TextButton(onClick = {
                     cameraAlert = null
                     openAppSettings(context)
-                }) { Text("Open Settings") }
+                }) { Text(tr("native.capture.openSettings")) }
             },
-            dismissButton = { TextButton(onClick = { cameraAlert = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { cameraAlert = null }) { Text(tr("common.cancel")) } },
         )
         CameraAlert.Unavailable -> MessageDialog(
-            title = "No camera app",
-            message = "This device doesn't have an app that can take photos.",
+            title = tr("native.capture.noCameraApp"),
+            message = tr("native.capture.noCameraAppMessage"),
             onDismiss = { cameraAlert = null },
         )
         null -> Unit
@@ -170,7 +173,7 @@ internal fun AddScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text("Add", modifier = Modifier.semantics { heading() }) },
+                title = { Text(tr("native.app.nav.add"), modifier = Modifier.semantics { heading() }) },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -182,26 +185,26 @@ internal fun AddScreen(
                 bottom = padding.calculateBottomPadding() + 24.dp,
             ),
         ) {
-            item { ListSectionHeader("Write") }
+            item { ListSectionHeader(tr("native.capture.write")) }
             item {
                 ListGroup {
-                    ListRow("Note or Link", Icons.Filled.EditNote, onClick = onWriteNote)
-                    ListRow("Voice Memo", Icons.Filled.Mic, onClick = onRecordVoice)
+                    ListRow(tr("native.capture.noteOrLink"), Icons.Filled.EditNote, onClick = onWriteNote)
+                    ListRow(tr("native.capture.voiceMemo"), Icons.Filled.Mic, onClick = onRecordVoice)
                 }
             }
-            item { ListSectionHeader("Upload") }
+            item { ListSectionHeader(tr("native.capture.upload")) }
             item {
                 ListGroup {
                     val enabled = !state.isPreparing
-                    ListRow("Photos & Videos", Icons.Filled.PhotoLibrary, enabled = enabled, onClick = onPickMedia)
-                    ListRow("Camera", Icons.Filled.PhotoCamera, enabled = enabled, onClick = onTakePhoto)
-                    ListRow("Files", Icons.Filled.Folder, enabled = enabled, onClick = onPickFiles)
+                    ListRow(tr("native.capture.photosAndVideos"), Icons.Filled.PhotoLibrary, enabled = enabled, onClick = onPickMedia)
+                    ListRow(tr("native.capture.camera"), Icons.Filled.PhotoCamera, enabled = enabled, onClick = onTakePhoto)
+                    ListRow(tr("native.capture.files"), Icons.Filled.Folder, enabled = enabled, onClick = onPickFiles)
                 }
             }
             if (state.uploads.isNotEmpty()) {
                 item {
-                    ListSectionHeader("Uploads") {
-                        if (state.hasFinishedUploads) TextButton(onClick = onClearFinished) { Text("Clear") }
+                    ListSectionHeader(tr("native.capture.uploads")) {
+                        if (state.hasFinishedUploads) TextButton(onClick = onClearFinished) { Text(tr("native.capture.clear")) }
                     }
                 }
                 items(state.uploads, key = { it.id }) { upload -> UploadRow(upload) }
@@ -211,18 +214,26 @@ internal fun AddScreen(
 
     when (val alert = state.alert) {
         AddAlert.TooManyFiles -> MessageDialog(
-            title = "Too many files",
-            message = "Choose up to $MAX_FILES_PER_UPLOAD files at a time.",
+            title = tr("native.capture.tooManyFiles"),
+            message = tr("native.capture.chooseUpTo", formatCount(MAX_FILES_PER_UPLOAD)),
             onDismiss = onDismissAlert,
         )
-        is AddAlert.Skipped -> MessageDialog(
-            title = "Some files were skipped",
-            message = alert.files.joinToString("\n") { "${it.name}: ${it.reason}" },
-            onDismiss = onDismissAlert,
-        )
+        is AddAlert.Skipped -> {
+            val lines = alert.files.map { tr("native.capture.skippedFile", it.name, it.reasonText) }
+            MessageDialog(
+                title = tr("native.capture.someSkipped"),
+                message = lines.joinToString("\n"),
+                onDismiss = onDismissAlert,
+            )
+        }
         null -> Unit
     }
 }
+
+/** A count written the way the app's language writes numbers. */
+@Composable
+internal fun formatCount(value: Int): String =
+    NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(value)
 
 @Composable
 private fun MessageDialog(title: String, message: String, onDismiss: () -> Unit) {
@@ -230,6 +241,6 @@ private fun MessageDialog(title: String, message: String, onDismiss: () -> Unit)
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(message) },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("native.app.ok")) } },
     )
 }

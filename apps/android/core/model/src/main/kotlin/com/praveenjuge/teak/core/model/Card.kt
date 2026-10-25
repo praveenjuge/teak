@@ -4,20 +4,57 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class CardType(val plural: String) {
-    @SerialName("text") Text("Notes"),
-    @SerialName("link") Link("Links"),
-    @SerialName("image") Image("Images"),
-    @SerialName("video") Video("Videos"),
-    @SerialName("audio") Audio("Audio"),
-    @SerialName("document") Document("Documents"),
-    @SerialName("palette") Palette("Palettes"),
-    @SerialName("quote") Quote("Quotes"),
+enum class CardType {
+    @SerialName("text") Text,
+    @SerialName("link") Link,
+    @SerialName("image") Image,
+    @SerialName("video") Video,
+    @SerialName("audio") Audio,
+    @SerialName("document") Document,
+    @SerialName("palette") Palette,
+    @SerialName("quote") Quote,
     ;
 
     val wireName: String get() = name.lowercase()
 
-    val label: String get() = CARD_TYPE_LABELS.getValue(wireName)
+    /** The type's name in the app's language: "Image". */
+    val labelText: UiText
+        get() = when (this) {
+            Text -> UiText.of("cards.types.text")
+            Link -> UiText.of("cards.types.link")
+            Image -> UiText.of("cards.types.image")
+            Video -> UiText.of("cards.types.video")
+            Audio -> UiText.of("cards.types.audio")
+            Document -> UiText.of("cards.types.document")
+            Palette -> UiText.of("cards.types.palette")
+            Quote -> UiText.of("cards.types.quote")
+        }
+
+    /** The library's title for the type: "Notes". */
+    val pluralText: UiText
+        get() = when (this) {
+            Text -> UiText.of("native.filters.types.text")
+            Link -> UiText.of("native.filters.types.link")
+            Image -> UiText.of("native.filters.types.image")
+            Video -> UiText.of("native.filters.types.video")
+            Audio -> UiText.of("native.filters.types.audio")
+            Document -> UiText.of("native.filters.types.document")
+            Palette -> UiText.of("native.filters.types.palette")
+            Quote -> UiText.of("native.filters.types.quote")
+        }
+
+    /** The library's title for the type's favorites: "Favorite notes". */
+    val favoritesText: UiText
+        get() = when (this) {
+            Text -> UiText.of("native.filters.favoriteTypes.text")
+            Link -> UiText.of("native.filters.favoriteTypes.link")
+            Image -> UiText.of("native.filters.favoriteTypes.image")
+            Video -> UiText.of("native.filters.favoriteTypes.video")
+            Audio -> UiText.of("native.filters.favoriteTypes.audio")
+            Document -> UiText.of("native.filters.favoriteTypes.document")
+            Palette -> UiText.of("native.filters.favoriteTypes.palette")
+            Quote -> UiText.of("native.filters.favoriteTypes.quote")
+        }
 
     val showsSummaryColors: Boolean get() = this != Palette
 }
@@ -171,6 +208,10 @@ data class Card(
     val linkCategoryName: String? get() = metadata?.linkCategory?.category
 }
 
+/** The account's display preferences: its language, as a BCP 47 code. */
+@Serializable
+data class AccountPreferences(val locale: String)
+
 @Serializable
 data class CurrentUser(
     @SerialName("_id") val id: String,
@@ -181,14 +222,18 @@ data class CurrentUser(
     val cardCount: Double = 0.0,
     val canCreateCard: Boolean = true,
 ) {
-    val plan: String get() = if (hasPremium) "Pro" else "Free"
+    /** The plan's name: "Pro" stays as it is. */
+    val planText: UiText get() = if (hasPremium) UiText.verbatim("Pro") else UiText.of("native.card.plan.free")
 
-    val usageLabel: String
-        get() {
-            val count = cardCount.toInt()
-            val noun = if (count == 1) "Card" else "Cards"
-            return if (hasPremium) "$count $noun" else "$count of $FREE_TIER_LIMIT Cards"
+    /** "3 cards", or "3 of 200 cards" on Free. */
+    fun usageText(locale: java.util.Locale = java.util.Locale.getDefault()): UiText {
+        val count = cardCount.toInt()
+        return if (hasPremium) {
+            UiText.of("native.common.cardCount", count = count)
+        } else {
+            UiText.of("native.card.usage", java.text.NumberFormat.getIntegerInstance(locale).format(count), count = FREE_TIER_LIMIT)
         }
+    }
 }
 
 @Serializable
@@ -219,5 +264,18 @@ enum class ColorHue(val hex: Long) {
 
     val wireName: String get() = name.lowercase()
 
-    val label: String get() = COLOR_HUE_LABELS.getValue(wireName)
+    val labelText: UiText
+        get() = when (this) {
+            Red -> UiText.of("search.colorHues.red")
+            Orange -> UiText.of("search.colorHues.orange")
+            Yellow -> UiText.of("search.colorHues.yellow")
+            Green -> UiText.of("search.colorHues.green")
+            Teal -> UiText.of("search.colorHues.teal")
+            Cyan -> UiText.of("search.colorHues.cyan")
+            Blue -> UiText.of("search.colorHues.blue")
+            Purple -> UiText.of("search.colorHues.purple")
+            Pink -> UiText.of("search.colorHues.pink")
+            Brown -> UiText.of("search.colorHues.brown")
+            Neutral -> UiText.of("search.colorHues.neutral")
+        }
 }

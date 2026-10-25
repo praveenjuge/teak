@@ -7,6 +7,7 @@ import com.praveenjuge.teak.core.data.upload.SkippedFile
 import com.praveenjuge.teak.core.data.upload.StageResult
 import com.praveenjuge.teak.core.data.upload.StagedFile
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeUploadRepository
@@ -39,7 +40,7 @@ class ShareImporterTest {
             ShareResult.Partial(
                 saved = MAX_FILES_PER_UPLOAD,
                 total = total,
-                detail = "Only the first $MAX_FILES_PER_UPLOAD shared items are processed.",
+                detail = UiText.of("native.share.tooManyItems", "$MAX_FILES_PER_UPLOAD"),
             ),
             result,
         )
@@ -69,7 +70,7 @@ class ShareImporterTest {
 
     @Test
     fun `a skipped file makes a partial save with its reason`() = runTest {
-        uploads.nextStage = StageResult(listOf(staged("a.png")), listOf(SkippedFile("movie.mov", "It's larger than 100 MB.")))
+        uploads.nextStage = StageResult(listOf(staged("a.png")), listOf(SkippedFile.tooLarge("movie.mov")))
 
         val result = importer().import(
             listOf(
@@ -79,16 +80,23 @@ class ShareImporterTest {
             ),
         )
 
-        assertEquals(ShareResult.Partial(saved = 2, total = 3, detail = "movie.mov: It's larger than 100 MB."), result)
+        assertEquals(
+            ShareResult.Partial(
+                saved = 2,
+                total = 3,
+                detail = UiText.of("native.capture.skippedFile", "movie.mov", UiText.of("native.errors.fileTooLargeSkipped")),
+            ),
+            result,
+        )
     }
 
     @Test
-    fun `a full card limit fails with the server's message`() = runTest {
+    fun `a full card limit fails with the limit's own words`() = runTest {
         cards.createError = TeakException(TeakException.CARD_LIMIT_REACHED, "You've reached the Free plan's card limit.")
 
         val result = importer().import(listOf(ShareItem.Text("a note")))
 
-        assertEquals(ShareResult.Failed("You've reached the Free plan's card limit."), result)
+        assertEquals(ShareResult.Failed(UiText.of("errors.cards.CARD_LIMIT_REACHED")), result)
     }
 
     @Test

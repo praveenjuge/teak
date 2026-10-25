@@ -3,7 +3,9 @@ package com.praveenjuge.teak.feature.settings
 import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.model.CurrentUser
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
+import com.praveenjuge.teak.core.testing.FakeLanguageRepository
 import com.praveenjuge.teak.core.testing.FakePreferencesRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.flow.collect
@@ -21,20 +23,45 @@ class SettingsViewModelTest {
 
     private val account = FakeAccountRepository()
     private val preferences = FakePreferencesRepository()
+    private val language = FakeLanguageRepository()
 
-    private fun newViewModel() = SettingsViewModel(account, preferences, TeakConfig("https://test.convex.cloud", "1.0.85", isDebug = true))
+    private fun newViewModel() =
+        SettingsViewModel(account, preferences, language, TeakConfig("https://test.convex.cloud", "1.0.85", isDebug = true))
+
+    @Test
+    fun `choosing a language saves it and offers Undo`() = runTest {
+        val viewModel = newViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        viewModel.chooseLanguage("de")
+        assertEquals("de", viewModel.uiState.value.language)
+        assertEquals(LanguageNotice.Changed(undoTo = "en"), viewModel.uiState.value.languageNotice)
+
+        viewModel.undoLanguage()
+        assertEquals("en", viewModel.uiState.value.language)
+        assertEquals(listOf("de", "en"), language.saved)
+    }
+
+    @Test
+    fun `a language that can't be saved switches back`() = runTest {
+        val viewModel = newViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        language.saveError = IllegalStateException("offline")
+        viewModel.chooseLanguage("ja")
+        assertEquals("en", viewModel.uiState.value.language)
+        assertEquals(LanguageNotice.Failed, viewModel.uiState.value.languageNotice)
+    }
 
     @Test
     fun `shows usage out of the free limit and the plan`() = runTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
-        assertEquals("12 of 200 Cards", viewModel.uiState.value.usage)
-        assertEquals("Free", viewModel.uiState.value.plan)
+        assertEquals(UiText.of("native.settings.usageFree", "12", "200"), viewModel.uiState.value.usage)
+        assertEquals(UiText.of("native.card.plan.free"), viewModel.uiState.value.plan)
         assertEquals("ada@example.com", viewModel.uiState.value.email)
 
         account.currentUserFlow.value = Result.success(CurrentUser(id = "t", email = "a@b.c", hasPremium = true, cardCount = 1.0))
-        assertEquals("1 Card", viewModel.uiState.value.usage)
-        assertEquals("Pro", viewModel.uiState.value.plan)
+        assertEquals(UiText.of("native.common.cardCount", count = 1), viewModel.uiState.value.usage)
+        assertEquals(UiText.verbatim("Pro"), viewModel.uiState.value.plan)
     }
 
     @Test
@@ -63,7 +90,7 @@ class SettingsViewModelTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         viewModel.confirmDelete("delete account")
-        assertEquals("Something went wrong while deleting your account.", viewModel.uiState.value.error)
+        assertEquals(UiText.of("native.settings.deleteFailed"), viewModel.uiState.value.error)
         assertFalse(viewModel.uiState.value.isDeleting)
     }
 

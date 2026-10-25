@@ -7,6 +7,16 @@ const source = readFileSync(
   "utf8"
 );
 
+const messages: Record<string, { message: string }> = JSON.parse(
+  readFileSync(
+    new URL(
+      "../SafariExtension/Resources/_locales/en/messages.json",
+      import.meta.url
+    ),
+    "utf8"
+  )
+);
+
 type Reply = Record<string, unknown>;
 
 async function popup(
@@ -21,6 +31,7 @@ async function popup(
     },
   };
   const body = { dataset: { state: "" } };
+  const buttons: Record<string, { textContent: string }> = {};
   const sent: Reply[] = [];
   const opened: string[] = [];
   const context = createContext({
@@ -34,10 +45,17 @@ async function popup(
         if (id === "message") {
           return message;
         }
-        return { addEventListener: () => undefined };
+        buttons[id] = { textContent: "" };
+        return Object.assign(buttons[id], {
+          addEventListener: () => undefined,
+        });
       },
     },
     browser: {
+      i18n: {
+        getMessage: (name: string) => messages[name]?.message ?? "",
+        getUILanguage: () => "en",
+      },
       runtime: {
         sendNativeMessage: (host: string, payload: Reply) => {
           expect(host).toBe("com.praveenjuge.teak");
@@ -62,8 +80,29 @@ async function popup(
   if (options.action) {
     await runInContext(`${options.action}()`, context);
   }
-  return { title, message, body, sent, opened };
+  return { title, message, body, buttons, sent, opened };
 }
+
+test("labels its buttons from the extension's messages", async () => {
+  const result = await popup({
+    getAuthState: { authenticated: false },
+  });
+  expect(result.buttons["sign-in"].textContent).toBe("Sign in");
+  expect(result.buttons.retry.textContent).toBe("Try again");
+  expect(result.buttons["sign-out"].textContent).toBe("Sign out");
+  expect(result.title.textContent).toBe("Sign in to Teak");
+});
+
+test("reads Teak's own native errors from the extension's messages", async () => {
+  const result = await popup({
+    getAuthState: { authenticated: true },
+    saveCurrentPage: { status: "error", code: "openRegularWebsite" },
+  });
+  expect(result.title.textContent).toBe("Save failed");
+  expect(result.message.textContent).toBe(
+    "Open a regular website and try again."
+  );
+});
 
 test("saves the current page and confirms it", async () => {
   const result = await popup({

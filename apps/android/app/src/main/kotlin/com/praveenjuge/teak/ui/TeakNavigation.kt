@@ -31,6 +31,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.feature.capture.AddRoute
 import com.praveenjuge.teak.feature.capture.NoteComposerRoute
 import com.praveenjuge.teak.feature.capture.VoiceMemoRoute
@@ -54,11 +55,19 @@ import com.praveenjuge.teak.navigation.NoteComposer
 import com.praveenjuge.teak.navigation.Settings
 import com.praveenjuge.teak.navigation.VoiceMemo
 
-private enum class Tab(val label: String, val selected: ImageVector, val unselected: ImageVector) {
-    Home("Home", Icons.Filled.Home, Icons.Outlined.Home),
-    Folders("Folders", Icons.Filled.Folder, Icons.Outlined.Folder),
-    Add("Add", Icons.Filled.AddCircle, Icons.Outlined.AddCircleOutline),
-    Settings("Settings", Icons.Filled.Settings, Icons.Outlined.Settings),
+private enum class Tab(val selected: ImageVector, val unselected: ImageVector) {
+    Home(Icons.Filled.Home, Icons.Outlined.Home),
+    Folders(Icons.Filled.Folder, Icons.Outlined.Folder),
+    Add(Icons.Filled.AddCircle, Icons.Outlined.AddCircleOutline),
+    Settings(Icons.Filled.Settings, Icons.Outlined.Settings),
+}
+
+@Composable
+private fun Tab.label(): String = when (this) {
+    Tab.Home -> tr("native.filters.home")
+    Tab.Folders -> tr("native.folders.title")
+    Tab.Add -> tr("native.app.nav.add")
+    Tab.Settings -> tr("native.settings.title")
 }
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -109,7 +118,7 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         if (tab == item) stacks.getValue(item).resetTo(stacks.getValue(item).first()) else tab = item
                     },
                     icon = { Icon(if (tab == item) item.selected else item.unselected, contentDescription = null) },
-                    label = { Text(item.label) },
+                    label = { Text(item.label()) },
                 )
             }
         },

@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.Folder
 
 /** The folders one card is in: check to add, uncheck to remove, or type a name to make a new one. */
@@ -47,21 +48,20 @@ internal fun CardFoldersDialog(
     val canCreate = trimmed.isNotEmpty() && folders.none { it.name.equals(trimmed, ignoreCase = true) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Folders") },
+        title = { Text(tr("native.card.sections.folders")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (checked.size) {
-                        0 -> "This card isn't in a folder."
-                        1 -> "In 1 folder."
-                        else -> "In ${checked.size} folders."
+                        0 -> tr("native.card.foldersDialog.none")
+                        else -> tr("native.card.foldersDialog.count", count = checked.size)
                     },
                 )
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Search folders") },
-                    placeholder = { Text("Find or create a folder") },
+                    label = { Text(tr("native.card.foldersDialog.search")) },
+                    placeholder = { Text(tr("native.folders.findOrCreate")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
@@ -80,7 +80,7 @@ internal fun CardFoldersDialog(
                     if (canCreate) {
                         item {
                             ListItem(
-                                headlineContent = { Text("Create folder “$trimmed”") },
+                                headlineContent = { Text(tr("native.folders.createNamed", trimmed)) },
                                 leadingContent = { Icon(Icons.Outlined.CreateNewFolder, contentDescription = null) },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                                 modifier = Modifier.clickable {
@@ -93,7 +93,7 @@ internal fun CardFoldersDialog(
                     if (visible.isEmpty() && !canCreate) {
                         item {
                             Text(
-                                if (folders.isEmpty()) "No folders yet. Type a name to create one." else "No folder by that name.",
+                                if (folders.isEmpty()) tr("native.folders.pickerEmpty") else tr("native.card.foldersDialog.noMatch"),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -101,7 +101,7 @@ internal fun CardFoldersDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(checked) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onSave(checked) }) { Text(tr("common.save")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }

@@ -25,9 +25,9 @@ public enum LibrarySort: Hashable, Sendable {
 
     public var label: String {
         switch self {
-        case .newest: "Newest First"
-        case .oldest: "Oldest First"
-        case .shuffle: "Shuffle"
+        case .newest: tr("native.filters.sort.newest")
+        case .oldest: tr("native.filters.sort.oldest")
+        case .shuffle: tr("native.filters.sort.shuffle")
         }
     }
 
@@ -72,15 +72,18 @@ public struct LibraryFilters: Hashable, Sendable {
     }
 
     public var title: String {
-        if trashOnly { return "Trash" }
+        if trashOnly { return tr("native.filters.trash") }
         if let folder { return folder.name }
-        if archivedOnly { return "Archive" }
-        let typeTitle = types.count == 1 ? types[0].plural : nil
-        if favoritesOnly { return typeTitle.map { "Favorite \($0)" } ?? "Favorites" }
-        if let typeTitle { return typeTitle }
+        if archivedOnly { return tr("native.filters.archive") }
+        let type = types.count == 1 ? types[0] : nil
+        if favoritesOnly { return type?.favoritesTitle ?? tr("native.filters.favorites") }
+        if let type { return type.plural }
         if let hue { return hue.label }
-        return types.count > 1 ? "Filtered" : "Home"
+        return isHome ? tr("native.filters.home") : tr("native.filters.filtered")
     }
+
+    /// Whether the title is Home: no view, folder, type or color picked.
+    var isHome: Bool { !trashOnly && folder == nil && !archivedOnly && !favoritesOnly && types.isEmpty && hue == nil }
 }
 
 public struct SearchToken: Identifiable, Hashable, Sendable {
@@ -150,10 +153,10 @@ public enum SearchTokens {
         case .tag: return tag(qualifier.value)
         case .type: return SearchToken(kind: .type, value: qualifier.value, label: CardType(rawValue: qualifier.value)?.label ?? qualifier.value)
         case .is where qualifier.value == SearchIsValue.fav.rawValue:
-            return SearchToken(kind: .favorites, value: "favorites", label: "Favorites")
+            return SearchToken(kind: .favorites, value: "favorites", label: tr("native.filters.favorites"))
         default:
             let chip = SearchQualifiers.chip(qualifier, likeTitle: likeTitle)
-            let label = qualifier.key == .is ? chip.label : "\(chip.title): \(chip.label)"
+            let label = qualifier.key == .is ? chip.label : tr("native.filters.chips.titled", chip.title, chip.label)
             return SearchToken(kind: .qualifier, value: SearchQualifiers.format(qualifier), label: label, qualifier: qualifier)
         }
     }
@@ -171,10 +174,10 @@ public enum SearchTokens {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         let value = trimmed.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
         if ["fav", "favs", "favorites", "favourite", "favourites"].contains(value) {
-            return SearchToken(kind: .favorites, value: "favorites", label: "Favorites")
+            return SearchToken(kind: .favorites, value: "favorites", label: tr("native.filters.favorites"))
         }
         if ["trash", "deleted", "bin", "recycle", "trashed"].contains(value) {
-            return SearchToken(kind: .trash, value: "trash", label: "Trash")
+            return SearchToken(kind: .trash, value: "trash", label: tr("native.filters.trash"))
         }
         let parsed = SearchQualifiers.parse(trimmed)
         if parsed.qualifiers.count == 1, parsed.terms.isEmpty, parsed.phrases.isEmpty {
@@ -189,7 +192,7 @@ public enum SearchTokens {
         let constants = SharedConstants.shared
         let facet = value.filter { $0.isLetter || $0.isNumber }
         if let style = constants.visualStyleAliases[facet] {
-            return SearchToken(kind: .style, value: style, label: constants.visualStyleLabels[style] ?? style.capitalized)
+            return SearchToken(kind: .style, value: style, label: VisualStyle.label(style))
         }
         if let hue = constants.colorHueAliases[facet], let bucket = ColorHue(hue) {
             return SearchToken(kind: .hue, value: hue, label: bucket.label)
@@ -321,9 +324,9 @@ public struct LibraryQuery: Hashable, Sendable {
     public var isNarrowed: Bool { hasSearch || filters.isActive }
 
     public var title: String {
-        let base = effectiveFilters.title
+        let effective = effectiveFilters
         let narrowing = tokens.contains { [.keyword, .tag, .style, .hex, .date, .qualifier].contains($0.kind) }
-        return base == "Home" && narrowing ? "Filtered" : base
+        return effective.isHome && narrowing ? tr("native.filters.filtered") : effective.title
     }
 
     /// The search text the backend parses, with qualifiers and tags written
@@ -429,8 +432,8 @@ public struct LibraryQuery: Hashable, Sendable {
     public var suggestedSmartFolderName: String {
         let effective = effectiveFilters
         var parts = effective.types.map(\.plural)
-        if effective.favoritesOnly { parts.append("Favorites") }
-        if effective.archivedOnly { parts.append("Archived") }
+        if effective.favoritesOnly { parts.append(tr("native.filters.is.fav")) }
+        if effective.archivedOnly { parts.append(tr("native.filters.is.archived")) }
         for token in tokens where [.keyword, .tag, .qualifier].contains(token.kind) { parts.append(token.label) }
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !typed.isEmpty { parts.append(typed) }
@@ -443,29 +446,30 @@ public struct LibraryQuery: Hashable, Sendable {
         let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let parsed = parsedSearch
         if typed.isEmpty, tokens.isEmpty, effectiveFilters.trashOnly {
-            return ("Trash Is Empty", "Cards you delete stay here for 30 days.", "trash")
+            return (tr("native.filters.empty.trashTitle"), tr("native.filters.empty.trashMessage"), "trash")
         }
         if let folder = filters.folder, typed.isEmpty, tokens.isEmpty {
             return folder.isSmart
-                ? ("No Matching Cards", "No cards match this smart folder.", "folder.badge.gearshape")
-                : ("Empty Folder", "No cards in this folder yet.", "folder")
+                ? (tr("native.filters.empty.noMatches"), tr("native.filters.empty.smartFolderMessage"), "folder.badge.gearshape")
+                : (tr("native.filters.empty.folderTitle"), tr("native.filters.empty.folderMessage"), "folder")
         }
         if typed.isEmpty, tokens.isEmpty, filters.archivedOnly {
-            return ("Nothing Archived", "Archive a card to keep it out of your library.", "archivebox")
+            return (tr("native.filters.empty.archiveTitle"), tr("native.filters.empty.archiveMessage"), "archivebox")
         }
         if parsed.likeCardId != nil {
-            return ("Nothing Similar Yet", "", "sparkles")
+            return (tr("native.filters.empty.similarTitle"), "", "sparkles")
         }
         if parsed.has(.todo) {
-            return ("Nothing Left to Do", "", "checkmark.circle")
+            return (tr("native.filters.empty.todoTitle"), "", "checkmark.circle")
         }
         if typed.isEmpty, tokens.isEmpty, filters.isActive {
-            return ("No Matching Cards", "Try other filters.", "line.3.horizontal.decrease.circle")
+            return (tr("native.filters.empty.noMatches"), tr("native.filters.empty.filtersMessage"),
+                    "line.3.horizontal.decrease.circle")
         }
-        let title = typed.isEmpty ? "No Matching Cards" : "No Results for \u{201C}\(typed)\u{201D}"
-        if let time = timeFilter(now: now, timeZone: timeZone), tokens.isEmpty {
-            return (title, "No cards from \(time.label).", "magnifyingglass")
+        let title = typed.isEmpty ? tr("native.filters.empty.noMatches") : tr("native.filters.empty.noResults", typed)
+        if timeFilter(now: now, timeZone: timeZone) != nil, tokens.isEmpty {
+            return (title, tr("native.filters.empty.noCardsFrom"), "magnifyingglass")
         }
-        return (title, "Check the spelling or try a new search.", "magnifyingglass")
+        return (title, tr("native.filters.empty.checkSpelling"), "magnifyingglass")
     }
 }

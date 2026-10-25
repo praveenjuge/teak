@@ -41,9 +41,9 @@ struct CardDetailView: View {
     private var title: String {
         if let card = model?.card { return CardSheet.title(card, fallback: route.summary?.title) }
         switch route.summary?.type {
-        case .text: return "Note"
-        case .quote: return "Quote"
-        default: return route.summary?.title ?? "Preview"
+        case .text: return tr("native.card.note")
+        case .quote: return tr("cards.types.quote")
+        default: return route.summary?.title ?? tr("native.card.previewTitle")
         }
     }
 
@@ -102,17 +102,17 @@ struct CardDetailView: View {
                           contentTypes: exporting.map { [$0.contentType] } ?? [], defaultFilename: exporting?.fileName) { _ in
                 exporting = nil
             }
-            .confirmationDialog("Delete Forever?", isPresented: $confirmDeleteForever) {
-                Button("Delete Forever", role: .destructive) { run { await model.deleteForever() } }
+            .confirmationDialog(tr("native.card.deleteForever.title"), isPresented: $confirmDeleteForever) {
+                Button(tr("native.actions.deleteForever"), role: .destructive) { run { await model.deleteForever() } }
             } message: {
-                Text("This card and its files will be deleted. You can't undo this.")
+                Text(tr("native.card.deleteForever.message"))
             }
             .sensoryFeedback(.success, trigger: feedback)
         } else if model.isLoading {
             ProgressView()
         } else {
-            ContentUnavailableView("Card unavailable", systemImage: "exclamationmark.triangle",
-                                   description: Text("It may have been deleted or moved."))
+            ContentUnavailableView(tr("native.card.unavailable.title"), systemImage: "exclamationmark.triangle",
+                                   description: Text(tr("native.card.unavailable.movedMessage")))
         }
     }
 
@@ -130,9 +130,8 @@ struct CardDetailView: View {
     private func commands(_ card: Card, _ model: CardDetailModel) -> CardCommands? {
         guard !card.deleted else { return nil }
         return CardCommands(
-            archiveTitle: card.archived ? "Unarchive" : "Archive",
-            doneTitle: card.type == .link ? (model.isDone ? "Mark as Not \(LinkDone.verb(card.linkCategoryName).capitalized)"
-                                                           : LinkDone.markLabel(card.linkCategoryName)) : nil,
+            archived: card.archived,
+            done: card.type == .link ? (LinkDone.verb(card.linkCategoryName), model.isDone) : nil,
             toggleArchive: { toggleArchive(card, model) },
             toggleDone: { Task { if await model.toggleDone() { feedback += 1 } } },
             moreLikeThis: { moreLikeThis(card) },
@@ -172,17 +171,17 @@ struct CardDetailView: View {
     private func toolbar(_ card: Card, _ model: CardDetailModel) -> some ToolbarContent {
         if card.deleted {
             ToolbarItem {
-                Button("Restore", systemImage: "arrow.uturn.backward") { run { await model.restore() } }
+                Button(tr("native.actions.restore"), systemImage: "arrow.uturn.backward") { run { await model.restore() } }
             }
             ToolbarItem {
-                Button("Delete Forever", systemImage: "trash", role: .destructive) { confirmDeleteForever = true }
+                Button(tr("native.actions.deleteForever"), systemImage: "trash", role: .destructive) { confirmDeleteForever = true }
                     .tint(.red)
             }
         } else {
             ToolbarItem { shareButton(card) }
             ToolbarSpacer(.fixed)
             ToolbarItemGroup {
-                Button(model.isFavorited ? "Unfavorite" : "Favorite",
+                Button(model.isFavorited ? tr("native.actions.unfavorite") : tr("native.actions.favorite"),
                        systemImage: model.isFavorited ? "heart.fill" : "heart") {
                     Task { if await model.toggleFavorite() { feedback += 1 } }
                 }
@@ -198,14 +197,14 @@ struct CardDetailView: View {
                     .accessibilityAddTraits(model.isDone ? .isSelected : [])
                     .accessibilityIdentifier("detail.done")
                 }
-                Button("Edit", systemImage: "pencil") { showEditSheet = true }
+                Button(tr("common.edit"), systemImage: "pencil") { showEditSheet = true }
                 .keyboardShortcut("e", modifiers: .command)
-                Menu("More", systemImage: "ellipsis") { moreMenu(card, model) }
+                Menu(tr("common.more"), systemImage: "ellipsis") { moreMenu(card, model) }
                     .accessibilityIdentifier("detail.more")
             }
             if isWide {
                 ToolbarItem {
-                    Button("Info", systemImage: "sidebar.trailing") { showsInspector.toggle() }
+                    Button(tr("native.card.sections.info"), systemImage: "sidebar.trailing") { showsInspector.toggle() }
                         .keyboardShortcut("i", modifiers: [.command, .option])
                 }
             }
@@ -222,9 +221,9 @@ struct CardDetailView: View {
             }
             if card.type == .link {
                 if let url = SafeURL.sanitize(card.url) {
-                    Button("Open in Browser", systemImage: "safari") { open(url) }
+                    Button(tr("native.actions.openLink"), systemImage: "safari") { open(url) }
                 } else if card.url != nil {
-                    Button("Open in Browser", systemImage: "safari") { model.message = "This link looks unsafe to open." }
+                    Button(tr("native.actions.openLink"), systemImage: "safari") { model.message = tr("native.card.unsafeLink") }
                 }
             }
             if case let .file(url, name, _) = CardSheet.shareTarget(card) {
@@ -234,29 +233,30 @@ struct CardDetailView: View {
             }
         }
         Section {
-            Button(card.archived ? "Unarchive" : "Archive", systemImage: card.archived ? "tray.and.arrow.up" : "archivebox") {
+            Button(card.archived ? tr("native.actions.unarchive") : tr("native.actions.archive"),
+                   systemImage: card.archived ? "tray.and.arrow.up" : "archivebox") {
                 toggleArchive(card, model)
             }
-            Button("Folders…", systemImage: "folder") { pickingFolders = true }
-            Button("More Like This", systemImage: "sparkles") { moreLikeThis(card) }
-            Button("Refresh Details", systemImage: "arrow.clockwise") { Task { await model.refreshDetails() } }
+            Button(tr("native.card.folders"), systemImage: "folder") { pickingFolders = true }
+            Button(tr("native.actions.moreLikeThis"), systemImage: "sparkles") { moreLikeThis(card) }
+            Button(tr("native.actions.refreshDetails"), systemImage: "arrow.clockwise") { Task { await model.refreshDetails() } }
                 .disabled(model.isRefreshing)
         }
         Section {
-            Button("Copy Link to Card", systemImage: "link") {
+            Button(tr("native.actions.copyLinkToCard"), systemImage: "link") {
                 Pasteboard.copy(webURL(card).absoluteString)
                 feedback += 1
             }
-            Button("Open on Web", systemImage: "globe") { open(webURL(card)) }
+            Button(tr("native.actions.openOnWeb"), systemImage: "globe") { open(webURL(card)) }
         }
-        Button("Delete Card", systemImage: "trash", role: .destructive) { run { await model.moveToTrash() } }
+        Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { run { await model.moveToTrash() } }
     }
 
     private var downloadLabel: String {
         #if os(macOS)
-        "Download"
+        tr("native.actions.download")
         #else
-        "Save to Files"
+        tr("native.actions.saveToFiles")
         #endif
     }
 
@@ -264,16 +264,16 @@ struct CardDetailView: View {
         switch CardSheet.shareTarget(card) {
         case let .text(text, subject):
             if let url = SafeURL.sanitize(text), card.type == .link {
-                ShareLink(item: url, subject: subject.map(Text.init)) { Label("Share", systemImage: "square.and.arrow.up") }
+                ShareLink(item: url, subject: subject.map(Text.init)) { Label(tr("native.actions.share"), systemImage: "square.and.arrow.up") }
             } else {
-                ShareLink(item: text) { Label("Share", systemImage: "square.and.arrow.up") }
+                ShareLink(item: text) { Label(tr("native.actions.share"), systemImage: "square.and.arrow.up") }
             }
         case let .file(url, name, _):
             ShareLink(item: CardFile(fileName: name) { url }, preview: SharePreview(name)) {
-                Label("Share", systemImage: "square.and.arrow.up")
+                Label(tr("native.actions.share"), systemImage: "square.and.arrow.up")
             }
         case .none:
-            Button("Share", systemImage: "square.and.arrow.up") {}.disabled(true)
+            Button(tr("native.actions.share"), systemImage: "square.and.arrow.up") {}.disabled(true)
         }
     }
 

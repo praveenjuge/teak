@@ -31,11 +31,14 @@ public enum TimeSearch {
     ]
     private static let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 
-    public static func parse(_ query: String, now: Date = Date(), timeZone: TimeZone = .current) -> TimeFilter? {
+    /// `locale` only words the label; the words people type stay English.
+    public static func parse(_ query: String, now: Date = Date(), timeZone: TimeZone = .current,
+                             locale: Locale = AppLanguage.locale) -> TimeFilter? {
         let normalized = query.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
         guard !normalized.isEmpty else { return nil }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
+        calendar.locale = locale
         calendar.firstWeekday = 1
         let today = calendar.startOfDay(for: now)
         let input = String(normalized.prefix(200))
@@ -63,7 +66,7 @@ public enum TimeSearch {
             guard let first = single(left, today: today, calendar: calendar),
                   let last = single(right, today: today, calendar: calendar),
                   first.start < last.end else { return nil }
-            return TimeFilter(label: "\(first.label) – \(last.label)", range: range(first.start, last.end))
+            return TimeFilter(label: tr("native.time.range", first.label, last.label), range: range(first.start, last.end))
         }
         guard let match = single(normalized, today: today, calendar: calendar) else { return nil }
         return TimeFilter(label: match.label, range: range(match.start, match.end))
@@ -87,26 +90,26 @@ public enum TimeSearch {
             calendar.dateInterval(of: component, for: today)!.start
         }
         switch query {
-        case "today": return DayRange(start: today, end: add(.day, 1, to: today), label: "Today")
-        case "yesterday": return DayRange(start: add(.day, -1, to: today), end: today, label: "Yesterday")
+        case "today": return DayRange(start: today, end: add(.day, 1, to: today), label: tr("native.time.today"))
+        case "yesterday": return DayRange(start: add(.day, -1, to: today), end: today, label: tr("native.time.yesterday"))
         case "this week":
             let week = start(of: .weekOfYear)
-            return DayRange(start: week, end: add(.day, 7, to: week), label: "This Week")
+            return DayRange(start: week, end: add(.day, 7, to: week), label: tr("native.time.thisWeek"))
         case "last week":
             let week = start(of: .weekOfYear)
-            return DayRange(start: add(.day, -7, to: week), end: week, label: "Last Week")
+            return DayRange(start: add(.day, -7, to: week), end: week, label: tr("native.time.lastWeek"))
         case "this month":
             let month = start(of: .month)
-            return DayRange(start: month, end: add(.month, 1, to: month), label: "This Month")
+            return DayRange(start: month, end: add(.month, 1, to: month), label: tr("native.time.thisMonth"))
         case "last month":
             let month = start(of: .month)
-            return DayRange(start: add(.month, -1, to: month), end: month, label: "Last Month")
+            return DayRange(start: add(.month, -1, to: month), end: month, label: tr("native.time.lastMonth"))
         case "this year":
             let year = start(of: .year)
-            return DayRange(start: year, end: add(.year, 1, to: year), label: "This Year")
+            return DayRange(start: year, end: add(.year, 1, to: year), label: tr("native.time.thisYear"))
         case "last year":
             let year = start(of: .year)
-            return DayRange(start: add(.year, -1, to: year), end: year, label: "Last Year")
+            return DayRange(start: add(.year, -1, to: year), end: year, label: tr("native.time.lastYear"))
         default: return nil
         }
     }
@@ -119,7 +122,8 @@ public enum TimeSearch {
         let diff = (todayIndex - index + 7) % 7
         let mostRecent = calendar.date(byAdding: .day, value: -diff, to: today)!
         let start = last ? calendar.date(byAdding: .day, value: -7, to: mostRecent)! : mostRecent
-        let label = last ? "Last \(token.capitalized)" : token.capitalized
+        let name = calendar.standaloneWeekdaySymbols[index]
+        let label = last ? tr("native.time.lastWeekday", name) : name
         return DayRange(start: start, end: calendar.date(byAdding: .day, value: 1, to: start)!, label: label)
     }
 
@@ -127,12 +131,12 @@ public enum TimeSearch {
         func day(_ year: Int, _ month: Int, _ day: Int) -> DayRange? {
             guard let start = validDate(year: year, month: month, day: day, calendar: calendar) else { return nil }
             return DayRange(start: start, end: calendar.date(byAdding: .day, value: 1, to: start)!,
-                            label: format(start, "MMM d, yyyy", calendar))
+                            label: format(start, "MMMdyyyy", calendar))
         }
         func month(_ year: Int, _ month: Int) -> DayRange? {
             guard let start = validDate(year: year, month: month, day: 1, calendar: calendar) else { return nil }
             return DayRange(start: start, end: calendar.date(byAdding: .month, value: 1, to: start)!,
-                            label: format(start, "MMM yyyy", calendar))
+                            label: format(start, "MMMyyyy", calendar))
         }
 
         if let m = query.wholeMatch(of: /(\d{4})-(\d{2})-(\d{2})/) {
@@ -165,12 +169,12 @@ public enum TimeSearch {
         return parts.year == year && parts.month == month && parts.day == day ? date : nil
     }
 
-    private static func format(_ date: Date, _ pattern: String, _ calendar: Calendar) -> String {
+    private static func format(_ date: Date, _ template: String, _ calendar: Calendar) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = calendar.locale
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = pattern
+        formatter.setLocalizedDateFormatFromTemplate(template)
         return formatter.string(from: date)
     }
 }

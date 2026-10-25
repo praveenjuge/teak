@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.card
 import app.cash.turbine.test
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
@@ -78,7 +79,7 @@ class CardEditViewModelTest {
         viewModel.updateContent("   ")
         viewModel.save()
 
-        assertEquals(EditAlert("Quote is empty", "Write the quote before saving."), viewModel.uiState.value.alert)
+        assertEquals(EditAlert(UiText.of("native.card.edit.quoteEmptyTitle"), UiText.of("native.card.edit.quoteEmptyMessage")), viewModel.uiState.value.alert)
         assertEquals(emptyList(), cards.writes)
     }
 
@@ -89,7 +90,7 @@ class CardEditViewModelTest {
         viewModel.updateNotes("New notes")
         viewModel.save()
 
-        assertEquals("Couldn't save changes", viewModel.uiState.value.alert?.title)
+        assertEquals(UiText.of("native.card.edit.saveFailed"), viewModel.uiState.value.alert?.title)
         assertEquals("New notes", viewModel.uiState.value.draft!!.notes)
         assertFalse(viewModel.uiState.value.isSaving)
     }
@@ -120,7 +121,7 @@ class CardEditViewModelTest {
         val viewModel = viewModel()
         viewModel.updateNewTag("Secret")
         viewModel.addTag()
-        assertEquals("Hidden. Search #secret to see it.", viewModel.uiState.value.hiddenHint)
+        assertEquals(UiText.of("native.tags.card.hiddenAdded", "secret"), viewModel.uiState.value.hiddenHint)
 
         viewModel.removeTag("secret")
         assertNull(viewModel.uiState.value.hiddenHint)

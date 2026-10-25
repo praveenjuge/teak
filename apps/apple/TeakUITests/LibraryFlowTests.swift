@@ -57,7 +57,7 @@ final class LibraryFlowTests: XCTestCase {
         app.typeKey("n", modifierFlags: .command)
         #else
         tap(tab("Add"))
-        tap(app.buttons["Note or Link"].waitToAppear())
+        tap(app.buttons["Note or link"].waitToAppear())
         #endif
         let editor = app.textViews["composer.text"].waitToAppear()
         tap(editor)
@@ -205,8 +205,8 @@ final class LibraryFlowTests: XCTestCase {
         filter("Select")
         tap(tile(containing: first))
         tap(tile(containing: second))
-        app.staticTexts["2 Selected"].firstMatch.waitToAppear()
-        tap(app.buttons["Add to Favorites"].firstMatch.waitToAppear())
+        app.staticTexts["2 selected"].firstMatch.waitToAppear()
+        tap(app.buttons["Add to favorites"].firstMatch.waitToAppear())
         app.staticTexts["Added 2 cards to favorites"].firstMatch.waitToAppear()
         filter("Favorites")
         tile(containing: first).waitToAppear()
@@ -266,10 +266,10 @@ final class LibraryFlowTests: XCTestCase {
         let field = app.alerts.textFields.firstMatch.waitToAppear()
         #endif
         enter(name, into: field)
-        tap(app.buttons["Create Folder"].firstMatch)
+        tap(app.buttons["Create folder"].firstMatch)
         let row = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
         tap(row.waitToAppear())
-        app.staticTexts["Empty Folder"].firstMatch.waitToAppear()
+        app.staticTexts["Empty folder"].firstMatch.waitToAppear()
         #if os(iOS)
         app.navigationBars[name].firstMatch.waitToAppear()
         #endif
@@ -290,13 +290,13 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToDisappear()
 
         tap(sidebar.staticTexts["Add"])
-        app.buttons["Choose Files…"].firstMatch.waitToAppear()
+        app.buttons["Choose files…"].firstMatch.waitToAppear()
 
         tap(sidebar.staticTexts["Home"])
         tile(containing: note).waitToAppear()
 
         tap(app.menuButtons["library.add"].firstMatch)
-        tap(app.menuButtons["library.add"].menuItems["New Note"].firstMatch.waitToAppear())
+        tap(app.menuButtons["library.add"].menuItems["New note"].firstMatch.waitToAppear())
         let editor = app.textViews["composer.text"].waitToAppear()
         let menuNote = marker("menu")
         enter(menuNote, into: editor)
@@ -319,7 +319,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(tab("Settings"))
         #endif
         tap(app.buttons["settings.logOut"].firstMatch.waitToAppear())
-        tap(confirmation("Log Out").waitToAppear())
+        tap(confirmation("Sign out").waitToAppear())
         app.buttons["signIn.emailSignIn"].waitToAppear(20)
         #if os(macOS)
         XCTAssertFalse(app.windows["Settings"].exists || app.windows["Account"].exists)

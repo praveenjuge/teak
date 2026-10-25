@@ -12,6 +12,7 @@ import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import com.praveenjuge.teak.core.data.FakeConvexApi
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -129,11 +130,23 @@ class UploadQueueTest {
         val rows = runBlocking { withTimeout(5_000) { repository.uploads.first { it.size == 2 } } }.associateBy { it.fileName }
         val failed = rows.getValue("recording.m4a")
         assertEquals(UploadStatus.State.Failed, failed.state)
-        assertEquals("This file type isn't supported.", failed.error)
+        assertEquals(UiText.of("errors.cards.UNSUPPORTED_TYPE"), failed.errorText)
         assertEquals(TeakException.UNSUPPORTED_TYPE, failed.errorCode)
         val saved = rows.getValue("photo.jpg")
         assertEquals(UploadStatus.State.Saved, saved.state)
-        assertNull(saved.error)
+        assertNull(saved.errorText)
+    }
+
+    @Test
+    fun `a failure on this device keeps its catalog words for the row`() {
+        server.enqueue(MockResponse().setResponseCode(403))
+        val repository = WorkManagerUploadRepository(context)
+        repository.enqueue(listOf(staged("photo.jpg", "image/jpeg")))
+        runQueue()
+
+        val row = runBlocking { withTimeout(5_000) { repository.uploads.first { it.isNotEmpty() } } }.single()
+        assertEquals(UploadStatus.State.Failed, row.state)
+        assertEquals(UiText.of("native.errors.uploadStatus", "403"), row.errorText)
     }
 
     @Test
@@ -161,8 +174,8 @@ class UploadQueueTest {
             assertEquals(UploadStatus.State.Failed, it.state)
             assertEquals(TeakException.CARD_LIMIT_REACHED, it.errorCode)
         }
-        assertEquals("You've reached the Free plan's card limit.", rows.getValue("recording.m4a").error)
-        assertEquals("Not uploaded because you've reached your card limit.", rows.getValue("photo.jpg").error)
-        assertEquals("Not uploaded because you've reached your card limit.", rows.getValue("clip.mp4").error)
+        assertEquals(UiText.of("errors.cards.CARD_LIMIT_REACHED"), rows.getValue("recording.m4a").errorText)
+        assertEquals(UiText.of("native.errors.skippedAtLimit"), rows.getValue("photo.jpg").errorText)
+        assertEquals(UiText.of("native.errors.skippedAtLimit"), rows.getValue("clip.mp4").errorText)
     }
 }

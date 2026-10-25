@@ -57,8 +57,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
-import com.praveenjuge.teak.core.model.BulkCopy
+import androidx.compose.ui.platform.LocalContext
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.text
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.Folder
+import com.praveenjuge.teak.core.model.UiText
 
 @Composable
 fun FoldersRoute(onOpenFolder: (String) -> Unit) {
@@ -94,13 +98,14 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
     var newMenu by remember { mutableStateOf(false) }
+    val resources = LocalContext.current.resources
     LaunchedEffect(state.note) {
         val note = state.note ?: return@LaunchedEffect
         // Dismiss even when leaving the screen cuts the snackbar short, so it doesn't come back later.
         try {
             val result = snackbarHostState.showSnackbar(
-                note.text,
-                actionLabel = if (note.restoreId != null) "Undo" else null,
+                resources.text(note.text),
+                actionLabel = if (note.restoreId != null) resources.tr("common.undo") else null,
                 duration = if (note.restoreId != null) SnackbarDuration.Long else SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) actions.onRestore(note)
@@ -112,13 +117,15 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text("Folders") },
+                title = { Text(tr("native.folders.title")) },
                 actions = {
                     Box {
-                        IconButton(onClick = { newMenu = true }) { Icon(Icons.Outlined.CreateNewFolder, contentDescription = "New folder") }
+                        IconButton(onClick = { newMenu = true }) {
+                            Icon(Icons.Outlined.CreateNewFolder, contentDescription = tr("native.folders.newFolder"))
+                        }
                         DropdownMenu(expanded = newMenu, onDismissRequest = { newMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("New folder") },
+                                text = { Text(tr("native.folders.newFolder")) },
                                 leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null) },
                                 onClick = {
                                     newMenu = false
@@ -126,7 +133,7 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("New smart folder") },
+                                text = { Text(tr("native.folders.newSmartFolder")) },
                                 leadingIcon = { Icon(Icons.Outlined.FolderSpecial, contentDescription = null) },
                                 onClick = {
                                     newMenu = false
@@ -144,12 +151,20 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             when {
                 state.isLoading -> TeakLoading()
-                state.failed -> EmptyState("Couldn't Load Folders", "Check your connection and try again.", icon = Icons.Outlined.CloudOff)
+                state.failed -> EmptyState(
+                    tr("native.folders.loadFailed"),
+                    tr("native.errors.offline"),
+                    icon = Icons.Outlined.CloudOff,
+                )
                 state.folders.isEmpty() -> EmptyState(
-                    title = "No folders yet",
-                    message = "Group related cards. Make a folder, then add cards to it.",
+                    title = tr("native.folders.emptyTitle"),
+                    message = tr("native.folders.emptyMessage"),
                     icon = Icons.Outlined.Folder,
-                    action = { Button(onClick = { actions.onOpenEditor(FolderEditor.New(smart = false)) }) { Text("New folder") } },
+                    action = {
+                        Button(onClick = { actions.onOpenEditor(FolderEditor.New(smart = false)) }) {
+                            Text(tr("native.folders.newFolder"))
+                        }
+                    },
                 )
                 else -> LazyColumn(
                     Modifier.widthIn(max = 720.dp).fillMaxWidth(),
@@ -168,25 +183,28 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
 @Composable
 private fun FolderRow(folder: Folder, actions: FoldersActions) {
     var menu by remember { mutableStateOf(false) }
+    val smartLabel = tr("native.folders.smartLabel", folder.name)
     ListItem(
         headlineContent = { Text(folder.name) },
         supportingContent = {
-            Text(if (folder.isSmart) folder.query.orEmpty() else BulkCopy.cardCount(folder.cardCount), maxLines = 1)
+            Text(if (folder.isSmart) folder.query.orEmpty() else tr("native.common.cardCount", count = folder.cardCount), maxLines = 1)
         },
         leadingContent = { Icon(if (folder.isSmart) Icons.Outlined.ManageSearch else Icons.Outlined.Folder, contentDescription = null) },
         trailingContent = {
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "More for ${folder.name}") }
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = tr("native.folders.moreFor", folder.name))
+                }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
-                        text = { Text(if (folder.isSmart) "Edit search…" else "Rename…") },
+                        text = { Text(if (folder.isSmart) tr("native.folders.editSearchMenu") else tr("native.folders.renameMenu")) },
                         onClick = {
                             menu = false
                             actions.onOpenEditor(FolderEditor.Edit(folder))
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        text = { Text(tr("common.delete"), color = MaterialTheme.colorScheme.error) },
                         onClick = {
                             menu = false
                             actions.onDelete(folder)
@@ -197,14 +215,14 @@ private fun FolderRow(folder: Folder, actions: FoldersActions) {
         },
         modifier = Modifier
             .clickable { actions.onOpenFolder(folder.id) }
-            .semantics { if (folder.isSmart) contentDescription = "${folder.name} (smart folder)" },
+            .semantics { if (folder.isSmart) contentDescription = smartLabel },
     )
 }
 
 @Composable
 private fun FolderNameDialog(
     editor: FolderEditor,
-    error: String?,
+    error: UiText?,
     saving: Boolean,
     onSave: (String, String?) -> Unit,
     onDismiss: () -> Unit,
@@ -214,15 +232,15 @@ private fun FolderNameDialog(
     var query by rememberSaveable(editor) { mutableStateOf(existing?.query.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(editor.title) },
+        title = { Text(editor.title.resolve()) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (editor.smart) Text("Shows every card that matches the search, including cards you save later.")
+                if (editor.smart) Text(tr("native.folders.smartMessage"))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
-                    placeholder = { Text("Reading list") },
+                    label = { Text(tr("native.folders.name")) },
+                    placeholder = { Text(tr("native.folders.namePlaceholder")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 )
@@ -230,18 +248,20 @@ private fun FolderNameDialog(
                     OutlinedTextField(
                         value = query,
                         onValueChange = { query = it },
-                        label = { Text("Search") },
+                        label = { Text(tr("native.folders.search")) },
                         placeholder = { Text("tag:design type:link") },
                         textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
                     )
                 }
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                if (error != null) Text(error.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(name, query.takeIf { editor.smart }) }, enabled = !saving) { Text(editor.submitLabel) }
+            TextButton(onClick = { onSave(name, query.takeIf { editor.smart }) }, enabled = !saving) {
+                Text(editor.submitLabel.resolve())
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
     )
 }

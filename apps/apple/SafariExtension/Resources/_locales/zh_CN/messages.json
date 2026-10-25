@@ -1,0 +1,122 @@
+{
+  "extensionDescription": {
+    "message": "将 Safari 页面保存到你的 Teak 资料库。"
+  },
+  "actionTitle": {
+    "message": "存储到 Teak"
+  },
+  "checkingSafari": {
+    "message": "正在检查 Safari 浏览器…"
+  },
+  "signIn": {
+    "message": "登录"
+  },
+  "tryAgain": {
+    "message": "再试一次"
+  },
+  "signOut": {
+    "message": "退出登录"
+  },
+  "checkingSession": {
+    "message": "正在检查你的会话…"
+  },
+  "unableToConnect": {
+    "message": "无法连接"
+  },
+  "pleaseTryAgain": {
+    "message": "请重试。"
+  },
+  "signInTitle": {
+    "message": "登录 Teak"
+  },
+  "signInMessage": {
+    "message": "登录后即可保存网页。"
+  },
+  "cannotSaveTitle": {
+    "message": "无法保存此网页"
+  },
+  "openRegularWebsite": {
+    "message": "请打开普通网站后重试。"
+  },
+  "savingTitle": {
+    "message": "正在保存网页"
+  },
+  "savingMessage": {
+    "message": "正在将此网页添加到你的资料库…"
+  },
+  "savedTitle": {
+    "message": "已保存到 Teak"
+  },
+  "savedMessage": {
+    "message": "已添加到你的资料库。"
+  },
+  "duplicateTitle": {
+    "message": "已保存过"
+  },
+  "duplicateMessage": {
+    "message": "此网页已在你的资料库中。"
+  },
+  "saveFailedTitle": {
+    "message": "保存失败"
+  },
+  "saveFailedMessage": {
+    "message": "Teak 无法保存此网页。"
+  },
+  "openingTeak": {
+    "message": "正在打开 Teak"
+  },
+  "completeSignIn": {
+    "message": "请完成登录。"
+  },
+  "finishSignInTitle": {
+    "message": "完成登录"
+  },
+  "returnAfterSignIn": {
+    "message": "登录后请返回此处。"
+  },
+  "signInFailedTitle": {
+    "message": "登录失败"
+  },
+  "signInFailedMessage": {
+    "message": "Teak 无法开始登录。"
+  },
+  "signingOutTitle": {
+    "message": "正在退出登录"
+  },
+  "oneMoment": {
+    "message": "请稍候…"
+  },
+  "signOutFailedTitle": {
+    "message": "退出登录失败"
+  },
+  "signOutFailedMessage": {
+    "message": "无法退出登录，请重试。"
+  },
+  "signedOutTitle": {
+    "message": "已退出登录"
+  },
+  "needsAccessTitle": {
+    "message": "Teak 需要访问 Safari 浏览器"
+  },
+  "needsAccessMessage": {
+    "message": "请在普通网站上重试。"
+  },
+  "invalidResponse": {
+    "message": "Teak 返回了无效的响应。"
+  },
+  "tryAgainShort": {
+    "message": "请重试。"
+  },
+  "invalidRequest": {
+    "message": "无效的 Teak 请求。"
+  },
+  "unsupportedRequest": {
+    "message": "不支持的 Teak 请求。"
+  },
+  "openFromApplications": {
+    "message": "请从“应用程序”文件夹打开 Teak 进行登录。"
+  },
+  "signOutCheckConnection": {
+    "message": "无法退出登录。请检查网络连接后重试。"
+  }
+}

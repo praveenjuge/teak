@@ -38,11 +38,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.parseHexArgb
+import java.util.Locale
 import kotlin.math.ceil
 
 private val SWATCH_MIN_WIDTH = 84.dp
@@ -56,7 +61,8 @@ internal fun CardPreview(
     onViewDocument: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val openImage = rememberImageViewer(CardSheet.title(card))
+    val title = CardSheet.title(card).resolve()
+    val openImage = rememberImageViewer(title)
     val file = card.fileMetadata
     val ratio = mediaRatio(file?.width, file?.height)
     val content = card.content.trim()
@@ -65,9 +71,9 @@ internal fun CardPreview(
             primaryUrl = CardSheet.imagePrimaryUrl(card),
             fallbackUrl = card.thumbnailUrl ?: card.screenshotUrl,
             ratio = ratio,
-            contentDescription = CardSheet.title(card),
+            contentDescription = title,
             placeholderIcon = Icons.Outlined.Image,
-            placeholderLabel = "Image unavailable",
+            placeholderLabel = tr("native.card.preview.imageUnavailable"),
             modifier = modifier,
             onOpen = openImage,
         )
@@ -76,7 +82,7 @@ internal fun CardPreview(
         CardType.Text -> TextSurface(modifier) {
             if (content.isEmpty()) NoContent() else MarkdownText(content)
         }
-        CardType.Quote -> QuotePreview(content.ifEmpty { "No content" }, modifier)
+        CardType.Quote -> QuotePreview(content.ifEmpty { tr("native.card.noContent") }, modifier)
         CardType.Palette -> PaletteSwatches(card.colors.orEmpty().take(12), onCopyColor, modifier)
         CardType.Link -> LinkPreview(card, modifier)
         CardType.Document -> DocumentPreview(card, documentText, onViewDocument, modifier)
@@ -97,7 +103,7 @@ private fun TextSurface(modifier: Modifier = Modifier, content: @Composable () -
 
 @Composable
 private fun NoContent() {
-    Text("No content", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(tr("native.card.noContent"), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 private fun isGif(card: Card): Boolean =
@@ -108,23 +114,24 @@ private fun isGif(card: Card): Boolean =
 private fun VideoPreview(card: Card, ratio: Float?, modifier: Modifier) {
     val poster = card.thumbnailUrl ?: card.screenshotUrl
     val url = card.fileUrl
+    val title = CardSheet.title(card).resolve()
     when {
         isGif(card) -> MediaImage(
             primaryUrl = url,
             fallbackUrl = poster,
             ratio = ratio,
-            contentDescription = CardSheet.title(card),
+            contentDescription = title,
             placeholderIcon = Icons.Outlined.Image,
-            placeholderLabel = "Animated preview unavailable",
+            placeholderLabel = tr("native.card.preview.animatedUnavailable"),
             modifier = modifier,
         )
         url == null -> MediaImage(
             primaryUrl = poster,
             fallbackUrl = null,
             ratio = ratio,
-            contentDescription = CardSheet.title(card),
+            contentDescription = title,
             placeholderIcon = Icons.Outlined.PlayCircle,
-            placeholderLabel = "Video preview unavailable",
+            placeholderLabel = tr("native.card.preview.videoUnavailable"),
             modifier = modifier,
         )
         else -> VideoPlayer(url, poster, ratio, modifier)
@@ -160,7 +167,7 @@ private fun QuotePreview(text: String, modifier: Modifier) {
 @Composable
 private fun PaletteSwatches(colors: List<CardColor>, onCopy: (String) -> Unit, modifier: Modifier) {
     if (colors.isEmpty()) {
-        MediaPlaceholder(Icons.Outlined.Palette, "No colors saved", modifier)
+        MediaPlaceholder(Icons.Outlined.Palette, tr("native.card.preview.noColors"), modifier)
         return
     }
     BoxWithConstraints(modifier.fillMaxWidth().clip(MediaShape)) {
@@ -185,7 +192,7 @@ private fun Swatch(hex: String, onCopy: (String) -> Unit, modifier: Modifier) {
         modifier
             .height(SWATCH_HEIGHT)
             .background(color)
-            .clickable(onClickLabel = "Copy $hex", role = Role.Button) { onCopy(hex) },
+            .clickable(onClickLabel = tr("native.card.copyColor", hex), role = Role.Button) { onCopy(hex) },
         contentAlignment = Alignment.BottomCenter,
     ) {
         Text(
@@ -204,7 +211,7 @@ private fun Swatch(hex: String, onCopy: (String) -> Unit, modifier: Modifier) {
 @Composable
 private fun LinkPreview(card: Card, modifier: Modifier) {
     val preview = card.metadata?.linkPreview?.takeIf { it.status == "success" }
-    val title = listOf(preview?.title, card.metadataTitle, card.url).firstOrNull { !it.isNullOrBlank() } ?: "Link"
+    val title = listOf(preview?.title, card.metadataTitle, card.url).firstOrNull { !it.isNullOrBlank() } ?: tr("cards.types.link")
     val description = listOf(preview?.description, card.metadataDescription).firstOrNull { !it.isNullOrBlank() }
     val host = CardSheet.hostname(card.url)
     val imageUrl = card.linkPreviewImageUrl ?: card.screenshotUrl
@@ -216,7 +223,7 @@ private fun LinkPreview(card: Card, modifier: Modifier) {
                 ratio = null,
                 contentDescription = null,
                 placeholderIcon = Icons.Outlined.Link,
-                placeholderLabel = "Preview unavailable",
+                placeholderLabel = tr("native.card.preview.previewUnavailable"),
             )
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -245,19 +252,19 @@ private fun LinkPreview(card: Card, modifier: Modifier) {
     }
 }
 
-internal fun documentFacts(card: Card): List<String> {
+internal fun documentFacts(card: Card, locale: Locale = Locale.getDefault()): List<UiText> {
     val file = card.fileMetadata ?: return emptyList()
     val extension = (file.extension ?: file.fileName?.substringAfterLast('.', ""))
         ?.removePrefix(".")?.uppercase()?.takeIf { it.isNotEmpty() }
-    val size = file.fileSize?.let(CardSheet::formatFileSize)
-    return listOfNotNull(extension, size) + CardSheet.fileFacts(card).filter { it != file.kind }
+    val size = file.fileSize?.let { CardSheet.formatFileSize(it, locale) }
+    return listOfNotNull(extension, size).map(UiText::verbatim) + CardSheet.fileFacts(card).filter { it != file.kind?.let(UiText::verbatim) }
 }
 
 @Composable
 private fun DocumentPreview(card: Card, text: String?, onViewDocument: (String) -> Unit, modifier: Modifier) {
     val file = card.fileMetadata
-    val title = listOf(card.metadataTitle, file?.fileName).firstOrNull { !it.isNullOrBlank() } ?: "Attachment"
-    val facts = documentFacts(card)
+    val title = listOf(card.metadataTitle, file?.fileName).firstOrNull { !it.isNullOrBlank() } ?: tr("native.card.preview.attachment")
+    val facts = documentFacts(card, LocalConfiguration.current.locales[0]).map { it.resolve() }
     val fileUrl = safeExternalUrl(card.fileUrl)
     val openImage = rememberImageViewer(title)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -269,7 +276,7 @@ private fun DocumentPreview(card: Card, text: String?, onViewDocument: (String) 
                 ratio = mediaRatio(file?.width, file?.height),
                 contentDescription = null,
                 placeholderIcon = Icons.AutoMirrored.Outlined.InsertDriveFile,
-                placeholderLabel = "Preview unavailable",
+                placeholderLabel = tr("native.card.preview.previewUnavailable"),
                 onOpen = openImage,
             )
         }
@@ -300,7 +307,7 @@ private fun DocumentPreview(card: Card, text: String?, onViewDocument: (String) 
         if (fileUrl != null) {
             FilledTonalButton(onClick = { onViewDocument(fileUrl) }) {
                 Icon(Icons.Outlined.Preview, contentDescription = null, modifier = Modifier.size(18.dp))
-                Text("View Document", modifier = Modifier.padding(start = 8.dp))
+                Text(tr("native.card.preview.viewDocument"), modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

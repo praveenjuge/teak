@@ -1,0 +1,122 @@
+{
+  "extensionDescription": {
+    "message": "Safari 페이지를 Teak 라이브러리에 저장합니다."
+  },
+  "actionTitle": {
+    "message": "Teak에 저장"
+  },
+  "checkingSafari": {
+    "message": "Safari 확인 중…"
+  },
+  "signIn": {
+    "message": "로그인"
+  },
+  "tryAgain": {
+    "message": "다시 시도"
+  },
+  "signOut": {
+    "message": "로그아웃"
+  },
+  "checkingSession": {
+    "message": "세션을 확인하는 중…"
+  },
+  "unableToConnect": {
+    "message": "연결할 수 없음"
+  },
+  "pleaseTryAgain": {
+    "message": "다시 시도해 주세요."
+  },
+  "signInTitle": {
+    "message": "Teak에 로그인"
+  },
+  "signInMessage": {
+    "message": "로그인하면 페이지를 저장할 수 있습니다."
+  },
+  "cannotSaveTitle": {
+    "message": "이 페이지는 저장할 수 없습니다"
+  },
+  "openRegularWebsite": {
+    "message": "일반 웹사이트를 연 다음 다시 시도해 주세요."
+  },
+  "savingTitle": {
+    "message": "페이지 저장 중"
+  },
+  "savingMessage": {
+    "message": "이 페이지를 라이브러리에 추가하는 중…"
+  },
+  "savedTitle": {
+    "message": "Teak에 저장되었습니다"
+  },
+  "savedMessage": {
+    "message": "라이브러리에 추가되었습니다."
+  },
+  "duplicateTitle": {
+    "message": "이미 저장됨"
+  },
+  "duplicateMessage": {
+    "message": "이 페이지는 이미 라이브러리에 있습니다."
+  },
+  "saveFailedTitle": {
+    "message": "저장 실패"
+  },
+  "saveFailedMessage": {
+    "message": "Teak이 이 페이지를 저장하지 못했습니다."
+  },
+  "openingTeak": {
+    "message": "Teak 여는 중"
+  },
+  "completeSignIn": {
+    "message": "로그인을 완료하세요."
+  },
+  "finishSignInTitle": {
+    "message": "로그인 완료하기"
+  },
+  "returnAfterSignIn": {
+    "message": "로그인한 후 여기로 돌아오세요."
+  },
+  "signInFailedTitle": {
+    "message": "로그인 실패"
+  },
+  "signInFailedMessage": {
+    "message": "Teak이 로그인을 시작하지 못했습니다."
+  },
+  "signingOutTitle": {
+    "message": "로그아웃하는 중"
+  },
+  "oneMoment": {
+    "message": "잠시만 기다려 주세요…"
+  },
+  "signOutFailedTitle": {
+    "message": "로그아웃 실패"
+  },
+  "signOutFailedMessage": {
+    "message": "로그아웃하지 못했습니다. 다시 시도해 주세요."
+  },
+  "signedOutTitle": {
+    "message": "로그아웃됨"
+  },
+  "needsAccessTitle": {
+    "message": "Teak에 Safari 접근 권한이 필요합니다"
+  },
+  "needsAccessMessage": {
+    "message": "일반 웹사이트에서 다시 시도해 주세요."
+  },
+  "invalidResponse": {
+    "message": "Teak에서 잘못된 응답을 반환했습니다."
+  },
+  "tryAgainShort": {
+    "message": "다시 시도하세요."
+  },
+  "invalidRequest": {
+    "message": "잘못된 Teak 요청입니다."
+  },
+  "unsupportedRequest": {
+    "message": "지원하지 않는 Teak 요청입니다."
+  },
+  "openFromApplications": {
+    "message": "로그인하려면 응용 프로그램 폴더에서 Teak을 여세요."
+  },
+  "signOutCheckConnection": {
+    "message": "로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요."
+  }
+}

@@ -89,7 +89,7 @@ class ConvexAccountRepository @Inject constructor(
 
     override suspend fun signInUrl(method: SignInMethod): String {
         val clientId = _authMode.value?.validClientId
-            ?: throw SignInException("Unable to load sign-in configuration")
+            ?: throw SignInException.signInConfig()
         return sessions.beginSignIn(clientId, method)
     }
 

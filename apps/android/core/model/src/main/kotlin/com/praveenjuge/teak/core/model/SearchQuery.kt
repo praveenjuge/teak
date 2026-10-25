@@ -157,15 +157,16 @@ object SearchQuery {
 
     fun formatPriceBound(bound: PriceBound): String = "${bound.op.symbol}${jsNumber(bound.amount)}"
 
-    fun describePriceBound(bound: PriceBound): String {
-        val format = DecimalFormat("#,##0.######", DecimalFormatSymbols(Locale.US)).apply { roundingMode = RoundingMode.HALF_UP }
+    /** A price filter in the app's language, "Under 50", with the amount written the [locale]'s way. */
+    fun describePriceBoundText(bound: PriceBound, locale: Locale = Locale.getDefault()): UiText {
+        val format = DecimalFormat("#,##0.######", DecimalFormatSymbols(locale)).apply { roundingMode = RoundingMode.HALF_UP }
         val amount = format.format(bound.amount)
         return when (bound.op) {
-            PriceComparison.Less -> "Under $amount"
-            PriceComparison.Greater -> "Over $amount"
-            PriceComparison.AtMost -> "$amount or less"
-            PriceComparison.AtLeast -> "$amount or more"
-            PriceComparison.Equal -> "Exactly $amount"
+            PriceComparison.Less -> UiText.of("native.filters.price.under", amount)
+            PriceComparison.Greater -> UiText.of("native.filters.price.over", amount)
+            PriceComparison.AtMost -> UiText.of("native.filters.price.atMost", amount)
+            PriceComparison.AtLeast -> UiText.of("native.filters.price.atLeast", amount)
+            PriceComparison.Equal -> UiText.of("native.filters.price.exactly", amount)
         }
     }
 
@@ -391,8 +392,26 @@ object ColorText {
 }
 
 /** A filter written in the search, shown as a removable chip: "Show · Archived", "Price · Under 50". */
-data class QualifierChip(val qualifier: SearchQualifier, val title: String, val label: String) {
-    val removeLabel: String get() = "Remove ${title.lowercase()} $label"
+data class QualifierChip(
+    val qualifier: SearchQualifier,
+    /** What the filter is, "Show", in the app's language. */
+    val titleText: UiText,
+    /** Its value, "Archived": the app's words for Teak's own values, else the value as it was typed. */
+    val labelText: UiText,
+) {
+    /** The remove button's spoken label: "Remove tag design". */
+    val removeText: UiText
+        get() = when (qualifier) {
+            is SearchQualifier.Tag -> UiText.of("native.filters.removeChip.tag", labelText)
+            is SearchQualifier.Type -> UiText.of("native.filters.removeChip.type", labelText)
+            is SearchQualifier.Is -> UiText.of("native.filters.removeChip.is", labelText)
+            is SearchQualifier.Site -> UiText.of("native.filters.removeChip.site", labelText)
+            is SearchQualifier.Folder -> UiText.of("native.filters.removeChip.folder", labelText)
+            is SearchQualifier.Like -> UiText.of("native.filters.removeChip.like", labelText)
+            is SearchQualifier.Mood -> UiText.of("native.filters.removeChip.mood", labelText)
+            is SearchQualifier.Price -> UiText.of("native.filters.removeChip.price", labelText)
+            is SearchQualifier.Text -> UiText.of("native.filters.removeChip.text", labelText)
+        }
 }
 
 object QualifierChips {
@@ -400,26 +419,33 @@ object QualifierChips {
     fun of(search: String, anchorTitle: String? = null): List<QualifierChip> =
         SearchQuery.parse(search).qualifiers.mapNotNull { describe(it, anchorTitle) }
 
+    private fun isText(value: SearchIsValue): UiText = when (value) {
+        SearchIsValue.Favorite -> UiText.of("native.filters.is.fav")
+        SearchIsValue.Archived -> UiText.of("native.filters.is.archived")
+        SearchIsValue.Done -> UiText.of("native.filters.is.done")
+        SearchIsValue.Todo -> UiText.of("native.filters.is.todo")
+    }
+
     fun describe(qualifier: SearchQualifier, anchorTitle: String? = null): QualifierChip? = when (qualifier) {
-        is SearchQualifier.Tag -> QualifierChip(qualifier, "Tag", qualifier.value)
-        is SearchQualifier.Type -> QualifierChip(qualifier, "Type", qualifier.type.label)
-        is SearchQualifier.Is -> QualifierChip(
-            qualifier,
-            "Show",
-            when (qualifier.state) {
-                SearchIsValue.Favorite -> "Favorites"
-                SearchIsValue.Archived -> "Archived"
-                SearchIsValue.Done -> "Done"
-                SearchIsValue.Todo -> "To do"
-            },
+        is SearchQualifier.Tag -> QualifierChip(qualifier, UiText.of("native.filters.chips.tag"), UiText.verbatim(qualifier.value))
+        is SearchQualifier.Type -> QualifierChip(qualifier, UiText.of("native.filters.chips.type"), qualifier.type.labelText)
+        is SearchQualifier.Is -> QualifierChip(qualifier, UiText.of("native.filters.chips.is"), isText(qualifier.state))
+        is SearchQualifier.Site -> QualifierChip(
+            qualifier, UiText.of("native.filters.chips.site"), UiText.verbatim(UrlHost.forDisplay(qualifier.value)),
         )
-        is SearchQualifier.Site -> QualifierChip(qualifier, "Site", UrlHost.forDisplay(qualifier.value))
-        is SearchQualifier.Folder -> QualifierChip(qualifier, "Folder", qualifier.value)
-        is SearchQualifier.Like -> QualifierChip(qualifier, "Similar to", anchorTitle ?: "a card")
-        is SearchQualifier.Mood -> QualifierChip(qualifier, "Mood", "“${qualifier.value}”")
-        is SearchQualifier.Price -> SearchQuery.parsePriceBound(qualifier.value)
-            ?.let { QualifierChip(qualifier, "Price", SearchQuery.describePriceBound(it)) }
-        is SearchQualifier.Text -> QualifierChip(qualifier, "Text in image", qualifier.value)
+        is SearchQualifier.Folder -> QualifierChip(qualifier, UiText.of("native.filters.chips.folder"), UiText.verbatim(qualifier.value))
+        is SearchQualifier.Like -> QualifierChip(
+            qualifier,
+            UiText.of("native.filters.chips.like"),
+            anchorTitle?.let(UiText::verbatim) ?: UiText.of("native.filters.chips.anyCard"),
+        )
+        is SearchQualifier.Mood -> QualifierChip(
+            qualifier, UiText.of("native.filters.chips.mood"), UiText.of("native.filters.chips.moodValue", qualifier.value),
+        )
+        is SearchQualifier.Price -> SearchQuery.parsePriceBound(qualifier.value)?.let {
+            QualifierChip(qualifier, UiText.of("native.filters.chips.price"), SearchQuery.describePriceBoundText(it))
+        }
+        is SearchQualifier.Text -> QualifierChip(qualifier, UiText.of("native.filters.chips.text"), UiText.verbatim(qualifier.value))
     }
 
     /** [search] without [qualifier], in canonical form. */

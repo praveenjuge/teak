@@ -36,7 +36,7 @@ final class CaptureModel {
     func saveText(_ raw: String) async -> String? {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
-            alert = Alert(title: "Nothing to Save", message: "Enter a bookmark, URL, or note before saving.")
+            alert = Alert(title: tr("native.share.nothingToSave"), message: tr("native.capture.nothingToSaveMessage"))
             return nil
         }
         isSavingText = true
@@ -44,12 +44,12 @@ final class CaptureModel {
         do {
             let input = LinkDetection.resolve(raw)
             let id = try await backend.mutation(ConvexFunctions.createCard, input.createArgs)
-            saved(input.type == .link ? "Link saved" : "Note saved")
+            saved(input.type == .link ? tr("native.capture.linkSaved") : tr("native.capture.noteSaved"))
             return id
         } catch let error as TeakError where error.isCardLimit {
-            alert = Alert(title: "Card limit reached", message: error.message, isCardLimit: true)
+            alert = Alert(title: tr("native.capture.cardLimitReached"), message: error.message, isCardLimit: true)
         } catch {
-            alert = Alert(title: "Couldn't Save", message: "Failed to save card. Please try again.")
+            alert = Alert(title: tr("native.capture.couldntSave"), message: tr("native.capture.saveFailedMessage"))
         }
         return nil
     }
@@ -58,8 +58,9 @@ final class CaptureModel {
         guard !items.isEmpty, upload == nil else { return }
         let files = Array(items.prefix(TeakLimits.maxFilesPerUpload))
         if items.count > files.count {
-            alert = Alert(title: "Too many files",
-                          message: "Teak saves up to \(TeakLimits.maxFilesPerUpload) files at a time. The first \(TeakLimits.maxFilesPerUpload) will be saved.")
+            alert = Alert(title: tr("native.capture.tooManyFiles"),
+                          message: tr("native.capture.tooManyFilesMessage",
+                                      TeakLimits.maxFilesPerUpload.formatted(.number.locale(AppLanguage.locale))))
         }
         let pipeline = UploadPipeline(convex: backend)
         upload = (0, files.count)
@@ -78,11 +79,17 @@ final class CaptureModel {
             }
         }
         if let lastError, lastError.isCardLimit {
-            alert = Alert(title: "Card limit reached", message: lastError.message, isCardLimit: true)
+            alert = Alert(title: tr("native.capture.cardLimitReached"), message: lastError.message, isCardLimit: true)
         } else if let lastError {
-            alert = Alert(title: saved > 0 ? "Saved \(saved) of \(files.count)" : "Upload failed", message: lastError.message)
+            let locale = AppLanguage.locale
+            let title = saved > 0
+                ? tr("native.capture.savedSome", saved.formatted(.number.locale(locale)), files.count.formatted(.number.locale(locale)))
+                : tr("native.capture.uploadFailed")
+            alert = Alert(title: title, message: lastError.message)
         }
-        if saved > 0 { self.saved(saved == 1 ? "Saved to Teak" : "Saved \(saved) items") }
+        if saved > 0 {
+            self.saved(saved == 1 ? tr("native.capture.savedToTeak") : tr("native.capture.savedItems", count: saved))
+        }
     }
 
     func uploadPicked(_ urls: [URL]) async {
@@ -96,8 +103,9 @@ final class CaptureModel {
             items.append(item)
         }
         if skipped > 0 {
-            alert = Alert(title: items.isEmpty ? "Unsupported File" : "Some files were skipped",
-                          message: items.isEmpty ? "This file format cannot be uploaded." : "Some file formats cannot be uploaded.")
+            alert = items.isEmpty
+                ? Alert(title: tr("native.capture.unsupportedFile"), message: tr("native.capture.unsupportedFileMessage"))
+                : Alert(title: tr("native.capture.someSkipped"), message: tr("native.capture.someSkippedMessage"))
         }
         await upload(items)
     }
@@ -113,7 +121,7 @@ final class CaptureModel {
             items.append(item)
         }
         if items.isEmpty, !selection.isEmpty {
-            alert = Alert(title: "Error", message: "Failed to pick from gallery")
+            alert = Alert(title: tr("native.capture.errorTitle"), message: tr("native.capture.photosFailed"))
             return
         }
         await upload(items)

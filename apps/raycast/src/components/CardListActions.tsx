@@ -90,7 +90,7 @@ export function CardListActions(props: CardListActionsProps) {
             icon={Icon.Star}
             onAction={() => onToggleFavorite(card)}
             shortcut={{ modifiers: ["cmd"], key: "f" }}
-            title={card.isFavorited ? "Remove Favorite" : "Add Favorite"}
+            title={card.isFavorited ? "Unfavorite" : "Favorite"}
           />
           <Action.Push
             icon={Icon.Pencil}

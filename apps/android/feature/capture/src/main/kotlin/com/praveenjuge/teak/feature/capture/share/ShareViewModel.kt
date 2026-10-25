@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.Tags
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -30,7 +31,7 @@ data class ShareDetails(
     val note: String = "",
     val isSaving: Boolean = false,
     val failed: Boolean = false,
-    val hiddenHint: String? = null,
+    val hiddenHint: UiText? = null,
 )
 
 sealed interface ShareUiState {
@@ -41,8 +42,8 @@ sealed interface ShareUiState {
     data class Saved(val cardId: String? = null, val details: ShareDetails? = null) : ShareUiState
     data object Empty : ShareUiState
     data object SignInRequired : ShareUiState
-    data class Partial(val saved: Int, val total: Int, val detail: String?) : ShareUiState
-    data class Failed(val detail: String?) : ShareUiState
+    data class Partial(val saved: Int, val total: Int, val detail: UiText?) : ShareUiState
+    data class Failed(val detail: UiText?) : ShareUiState
 }
 
 @HiltViewModel
@@ -115,7 +116,7 @@ class ShareViewModel @Inject constructor(
     fun addTag() = updateDetails { details ->
         val tag = CardEdit.normalizeTag(details.tagInput)
         if (tag.isEmpty() || tag in details.tags) return@updateDetails details.copy(tagInput = "")
-        details.copy(tags = details.tags + tag, tagInput = "", hiddenHint = Tags.hiddenHint(details.tags, tag) ?: details.hiddenHint)
+        details.copy(tags = details.tags + tag, tagInput = "", hiddenHint = Tags.hiddenHintText(details.tags, tag) ?: details.hiddenHint)
     }
 
     fun removeTag(tag: String) = updateDetails { it.copy(tags = it.tags - tag) }

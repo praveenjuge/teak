@@ -45,6 +45,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -58,30 +59,38 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardGrid
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.LinkState
 import com.praveenjuge.teak.core.model.MarkdownBlocks
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.parseHexArgb
 
 private val TileShape = RoundedCornerShape(16.dp)
 private val TilePadding = 14.dp
 
-private fun firstText(vararg values: String?, fallback: String): String =
-    values.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback
+private fun firstText(vararg values: String?, fallback: UiText): UiText =
+    values.firstOrNull { !it.isNullOrBlank() }?.trim()?.let(UiText::verbatim) ?: fallback
 
-internal fun tileTitle(card: CardSummary): String = when (card.type) {
-    CardType.Link -> firstText(card.title, card.url, fallback = "Link")
-    CardType.Document -> firstText(card.title, card.fileName, fallback = "Attachment")
-    CardType.Image -> firstText(card.title, card.fileName, fallback = "Image")
-    CardType.Video -> firstText(card.title, card.fileName, fallback = "Video")
-    CardType.Audio -> firstText(card.title, card.fileName, fallback = "Audio")
-    CardType.Palette -> firstText(card.title, fallback = "Palette")
-    CardType.Quote -> firstText(card.previewText, fallback = "Quote")
-    CardType.Text -> firstText(card.previewText, card.title, fallback = "Note")
+internal fun tileTitle(card: CardSummary): UiText = when (card.type) {
+    CardType.Link -> firstText(card.title, card.url, fallback = UiText.of("cards.types.link"))
+    CardType.Document -> firstText(card.title, card.fileName, fallback = UiText.of("native.card.preview.attachment"))
+    CardType.Image -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.image"))
+    CardType.Video -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.video"))
+    CardType.Audio -> firstText(card.title, card.fileName, fallback = UiText.of("cards.types.audio"))
+    CardType.Palette -> firstText(card.title, fallback = UiText.of("cards.types.palette"))
+    CardType.Quote -> firstText(card.previewText, fallback = UiText.of("cards.types.quote"))
+    CardType.Text -> firstText(card.previewText, card.title, fallback = UiText.of("native.card.note"))
 }
+
+/** A card's kind as a tile or caption names it: notes are "Note", not "Text". */
+@Composable
+internal fun tileKind(card: CardSummary): String =
+    if (card.type == CardType.Text) tr("native.card.note") else card.type.labelText.resolve()
 
 enum class TileSelection { NotSelecting, Unselected, Selected }
 
@@ -97,14 +106,18 @@ internal fun CardTile(
     modifier: Modifier = Modifier,
     actions: List<CustomAccessibilityAction> = emptyList(),
 ) {
-    val title = tileTitle(card)
+    val title = tileTitle(card).resolve()
     val spokenTitle = if (card.type == CardType.Text) remember(title) { MarkdownBlocks.toPlainText(title) } else title
     val favorite = card.isFavorited == true
+    val kind = tileKind(card)
+    val favoriteLabel = tr("native.library.tile.favorite")
+    val doneLabel = if (card.isDone) LinkState.toggledText(card.linkCategory, isDone = true).resolve() else null
+    val priceLabel = linkPriceText(card)
     val description = buildString {
-        append(if (card.type == CardType.Text) "Note" else card.type.label).append(", ").append(spokenTitle)
-        if (favorite) append(", Favorite")
-        if (card.isDone) append(", ").append(LinkState.toggledMessage(card.linkCategory, isDone = true))
-        card.linkPrice?.let { append(", ").append(LinkState.formatPrice(it)) }
+        append(kind).append(", ").append(spokenTitle)
+        if (favorite) append(", ").append(favoriteLabel)
+        doneLabel?.let { append(", ").append(it) }
+        priceLabel?.let { append(", ").append(it) }
     }
     val selecting = selection != TileSelection.NotSelecting
     val selected = selection == TileSelection.Selected
@@ -114,8 +127,8 @@ internal fun CardTile(
             .clip(TileShape)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .combinedClickable(
-                onClickLabel = if (selecting) null else "Open",
-                onLongClickLabel = if (selecting) null else "Select",
+                onClickLabel = if (selecting) null else tr("native.library.tile.open"),
+                onLongClickLabel = if (selecting) null else tr("native.actions.select"),
                 onLongClick = onLongClick,
                 onClick = onClick,
             )
@@ -141,21 +154,27 @@ internal fun CardTile(
     }
 }
 
+/** A link's price in the app's language: "Free", or the amount written its way. */
+@Composable
+private fun linkPriceText(card: CardSummary): String? =
+    card.linkPrice?.let { LinkState.priceText(it, LocalConfiguration.current.locales[0]).resolve() }
+
 @Composable
 private fun TileContent(card: CardSummary, title: String) {
     val imageUrl = CardGrid.tileImageUrl(card)
+    val price = linkPriceText(card)
     when (card.type) {
         CardType.Link -> if (imageUrl != null) {
             Box {
                 TileImage(card, imageUrl)
-                card.linkPrice?.let { PricePill(LinkState.formatPrice(it), Modifier.align(Alignment.BottomStart).padding(8.dp)) }
+                price?.let { PricePill(it, Modifier.align(Alignment.BottomStart).padding(8.dp)) }
             }
             HorizontalDivider()
             TileFooter(title, subtitle = CardSheet.hostname(card.url)?.takeIf { it != title }, done = card.isDone)
         } else {
             TileFooter(
                 title,
-                subtitle = listOfNotNull(card.linkPrice?.let(LinkState::formatPrice), CardSheet.hostname(card.url)?.takeIf { it != title })
+                subtitle = listOfNotNull(price, CardSheet.hostname(card.url)?.takeIf { it != title })
                     .joinToString(" · ").ifEmpty { null },
                 titleLines = 2,
                 done = card.isDone,

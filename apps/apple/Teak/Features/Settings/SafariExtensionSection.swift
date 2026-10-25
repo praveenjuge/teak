@@ -1,4 +1,5 @@
 import SwiftUI
+import TeakCore
 
 #if os(macOS)
 import SafariServices
@@ -15,21 +16,21 @@ struct SafariExtensionSection: View {
     #endif
 
     var body: some View {
-        Section("Safari Extension") {
+        Section(tr("native.settings.safariExtension")) {
             #if os(macOS)
-            LabeledContent("Status") {
+            LabeledContent(tr("native.settings.status")) {
                 switch isEnabled {
-                case true?: Label("On", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                case false?: Text("Off")
+                case true?: Label(tr("native.settings.on"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                case false?: Text(tr("native.settings.off"))
                 case nil: ProgressView().controlSize(.small)
                 }
             }
-            Button("Open Safari Settings…") { Task { await openSafariSettings() } }
+            Button(tr("native.settings.openSafariSettings")) { Task { await openSafariSettings() } }
             if let problem {
                 Text(problem).font(.footnote).foregroundStyle(.secondary)
             }
             #else
-            Text("Save pages from Safari with one tap. In Safari, tap \(Image(systemName: "puzzlepiece.extension")) in the address bar, choose Manage Extensions, and turn on Teak.")
+            hint
                 .font(.callout)
                 .foregroundStyle(.secondary)
             #endif
@@ -41,6 +42,17 @@ struct SafariExtensionSection: View {
         }
         #endif
     }
+
+    #if os(iOS)
+    /// The hint with Safari's extensions icon where the message says `{icon}`.
+    private var hint: Text {
+        let marker = "\u{FFFC}"
+        let parts = tr("native.settings.safariHint", marker).components(separatedBy: marker)
+        let icon = Text(Image(systemName: "puzzlepiece.extension"))
+        guard parts.count == 2 else { return Text(parts.joined()) }
+        return Text("\(Text(parts[0]))\(icon)\(Text(parts[1]))")
+    }
+    #endif
 
     #if os(macOS)
     private func refresh() async {
@@ -54,7 +66,7 @@ struct SafariExtensionSection: View {
                                                                completionHandler: handler)
         }
         isEnabled = enabled
-        problem = error.map { "Couldn't check the extension: \($0)" }
+        problem = error.map { tr("native.settings.safariCheckFailed", $0) }
     }
 
     private func openSafariSettings() async {
@@ -71,7 +83,7 @@ struct SafariExtensionSection: View {
         if let safari = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Safari") {
             _ = try? await NSWorkspace.shared.openApplication(at: safari, configuration: .init())
         }
-        problem = "In Safari, choose Safari > Settings > Extensions, then turn on Teak."
+        problem = tr("native.settings.safariWhere")
     }
     #endif
 }

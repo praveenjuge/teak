@@ -139,3 +139,15 @@ val SEARCH_QUALIFIER_KEYS: List<String> = listOf(
     "price",
     "text",
 )
+
+/** Teak's languages, in the order the Language setting lists them, each in its own name. */
+val LOCALE_NAMES: Map<String, String> = mapOf(
+    "en" to "English",
+    "es" to "Español",
+    "pt-BR" to "Português (Brasil)",
+    "de" to "Deutsch",
+    "fr" to "Français",
+    "ja" to "日本語",
+    "ko" to "한국어",
+    "zh-Hans" to "简体中文",
+)

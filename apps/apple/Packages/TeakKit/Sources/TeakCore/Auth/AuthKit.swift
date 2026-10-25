@@ -22,16 +22,8 @@ public enum SignInMethod: String, Sendable, CaseIterable {
 
     /// Apple returns to WorkOS with a cross-site form POST, which App Review saw
     /// fail in a private session, and it never sets AuthKit's cookie. Every other
-    /// provider uses a private session, so Log Out needs no browser logout.
+    /// provider uses a private session, so signing out needs no browser logout.
     public var prefersEphemeralSession: Bool { self != .apple }
-
-    public var label: String {
-        switch self {
-        case .apple: "Apple"
-        case .google: "Google"
-        case .emailSignUp, .emailSignIn: "Email"
-        }
-    }
 }
 
 public struct AuthKitRequest: Sendable {
@@ -91,11 +83,11 @@ public struct AuthKitRequest: Sendable {
     public func callback(from url: URL) throws -> Callback {
         guard url.scheme == Self.callbackScheme, url.host() == "auth", url.path() == "/callback",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-        else { throw TeakError(message: "Unable to complete sign-in. Please try again.") }
+        else { throw TeakError(message: tr("native.errors.signInFailed")) }
         func item(_ name: String) -> String? { items.first { $0.name == name }?.value }
         if item("error") == "access_denied" { return .cancelled }
         guard item("error") == nil, item("state") == state, let code = item("code"), !code.isEmpty else {
-            throw TeakError(message: "Unable to complete sign-in. Please try again.")
+            throw TeakError(message: tr("native.errors.signInFailed"))
         }
         return .code(code)
     }

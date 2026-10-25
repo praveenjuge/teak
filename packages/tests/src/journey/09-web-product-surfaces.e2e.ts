@@ -255,7 +255,7 @@ https://example.com/editor
       dialog.getByRole("button", `Remove tag ${marker}-tag`)
     ).toBeVisible();
     await dialog.getByRole("button", "More actions").click();
-    await screen.getByRole("menuitem", "Delete").click();
+    await screen.getByRole("menuitem", "Move to Trash").click();
     await expect(dialog).not.toBeVisible();
     await showTrash(surface);
     await screen.getByText(`${marker} restore-me`, { exact: false }).click();

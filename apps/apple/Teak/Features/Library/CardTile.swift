@@ -40,7 +40,7 @@ struct CardTile: View {
                 .foregroundStyle(.red)
                 .padding(10)
                 .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-                .accessibilityLabel("Favorite")
+                .accessibilityLabel(tr("native.library.tile.favorite"))
         }
     }
 
@@ -91,7 +91,7 @@ struct CardTile: View {
                     RemoteImage(imageURL, placeholder: placeholderURL)
                         .frame(width: width, height: mediaHeight)
                 }
-                TileFooter(title: card.title.isEmpty ? (card.fileName ?? "Attachment") : card.title, symbol: "doc")
+                TileFooter(title: card.title.isEmpty ? (card.fileName ?? tr("native.card.preview.attachment")) : card.title, symbol: "doc")
             }
         case .audio:
             WaveformView(seed: card.id)
@@ -111,7 +111,7 @@ struct CardTile: View {
         case .quote:
             VStack(spacing: 0) {
                 Image(systemName: "quote.opening").font(.footnote).foregroundStyle(.tertiary).padding(.vertical, 8)
-                Text(card.previewText ?? "Quote")
+                Text(card.previewText ?? tr("cards.types.quote"))
                     .font(.subheadline.weight(.medium))
                     .multilineTextAlignment(.center)
                     .lineLimit(4)
@@ -131,7 +131,7 @@ struct CardTile: View {
         var parts = [card.type.label, card.title]
         if card.isDone { parts.append(doneLabel) }
         if let price { parts.append(price) }
-        if card.favorited { parts.append("Favorite") }
+        if card.favorited { parts.append(tr("native.library.tile.favorite")) }
         return parts.joined(separator: ", ")
     }
 }
@@ -315,7 +315,7 @@ struct SkeletonGrid: View {
         }
         .padding(.horizontal, CardGrid.edge)
         .padding(.top, 8)
-        .accessibilityLabel("Loading cards")
+        .accessibilityLabel(tr("native.library.loadingCards"))
     }
 }
 

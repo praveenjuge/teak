@@ -112,13 +112,13 @@ final class CardDetailModel {
             return true
         } catch {
             doneOverride = !next
-            message = "Couldn't update. Try again."
+            message = tr("native.card.failed.update")
             return false
         }
     }
 
     func setArchived(_ archived: Bool) async -> Bool {
-        await perform(archived ? "Couldn't archive this card." : "Couldn't unarchive this card.") {
+        await perform(archived ? tr("native.card.failed.archive") : tr("native.card.failed.unarchive")) {
             try await self.update(["field": archived ? "archive" : "unarchive"])
         }
     }
@@ -130,12 +130,12 @@ final class CardDetailModel {
         do {
             let result = try await backend.mutation(ConvexFunctions.reprocessCard, ["cardId": .string(id)])
             if result.isQueued {
-                show("Refreshing details. The summary and tags update shortly.")
+                show(tr("native.card.notice.refreshing"))
             } else {
-                message = result.message ?? "Couldn't refresh this card. Try again in a moment."
+                message = result.message ?? tr("native.card.failed.refresh")
             }
         } catch {
-            message = "Couldn't refresh this card. Try again in a moment."
+            message = tr("native.card.failed.refresh")
         }
     }
 
@@ -151,21 +151,21 @@ final class CardDetailModel {
             return true
         } catch {
             favoriteOverride = !next
-            message = "Couldn't update this favorite."
+            message = tr("native.card.failed.favorite")
             return false
         }
     }
 
     func moveToTrash() async -> Bool {
-        await perform("Couldn't delete this card.") { try await self.update(["field": "delete"]) }
+        await perform(tr("native.card.failed.moveToTrash")) { try await self.update(["field": "delete"]) }
     }
 
     func restore() async -> Bool {
-        await perform("Couldn't restore this card.") { try await self.update(["field": "restore"]) }
+        await perform(tr("native.card.failed.restore")) { try await self.update(["field": "restore"]) }
     }
 
     func deleteForever() async -> Bool {
-        await perform("Couldn't delete this card.") {
+        await perform(tr("native.card.failed.delete")) {
             let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.permanentDeleteCard, ["id": .string(self.id)])
         }
     }

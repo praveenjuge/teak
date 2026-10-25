@@ -64,6 +64,10 @@ import com.praveenjuge.teak.core.model.TagCount
 import com.praveenjuge.teak.core.model.TagOperation
 import com.praveenjuge.teak.core.model.TagOperationKind
 import com.praveenjuge.teak.core.model.TagOperationStatus
+import com.praveenjuge.teak.core.model.UiText
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
+import androidx.compose.ui.platform.LocalConfiguration
 import java.text.NumberFormat
 
 @Composable
@@ -96,13 +100,51 @@ internal data class TagsActions(
     val onClose: () -> Unit = {},
     val onSubmit: (String?) -> Unit = {},
     val onMergeInstead: (String) -> Unit = {},
-    val renameError: (String) -> String? = { null },
+    val renameError: (String) -> UiText? = { null },
     val existingTag: (String) -> String? = { null },
     val onRetry: () -> Unit = {},
     val onDismissOperation: () -> Unit = {},
 )
 
-private fun countLabel(count: Int) = if (count == 1) "1 card" else "${NumberFormat.getIntegerInstance().format(count)} cards"
+/** A count written the way the app's language writes numbers. */
+@Composable
+private fun formatCount(value: Int): String =
+    NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(value)
+
+/** What a tag change says while it runs, once it's done, and when it fails. */
+@Composable
+private fun TagOperation.titleText(): String {
+    val target = to.orEmpty()
+    val cards = total.toInt().coerceAtLeast(0)
+    val done = formatCount(minOf(changed.toInt(), cards))
+    return when (status) {
+        TagOperationStatus.Running -> when (kind) {
+            TagOperationKind.Rename -> tr("native.tags.renaming", from, target)
+            TagOperationKind.Merge -> tr("native.tags.merging", from, target)
+            TagOperationKind.Delete -> tr("native.tags.deleting", from)
+        }
+        TagOperationStatus.Completed -> when (kind) {
+            TagOperationKind.Rename -> tr("native.tags.renamed", from, target)
+            TagOperationKind.Merge -> tr("native.tags.merged", from, target)
+            TagOperationKind.Delete -> tr("native.tags.deleted", from)
+        }
+        TagOperationStatus.Failed -> when (kind) {
+            TagOperationKind.Rename -> tr("native.tags.renameFailed", done, count = cards)
+            TagOperationKind.Merge -> tr("native.tags.mergeFailed", done, count = cards)
+            TagOperationKind.Delete -> tr("native.tags.deleteFailed", done, count = cards)
+        }
+    }
+}
+
+@Composable
+private fun TagOperation.detailText(): String {
+    val cards = total.toInt().coerceAtLeast(0)
+    return when (status) {
+        TagOperationStatus.Running -> tr("native.tags.progress", formatCount(minOf(changed.toInt(), cards)), count = cards)
+        TagOperationStatus.Completed -> tr("native.tags.changed", count = changed.toInt())
+        TagOperationStatus.Failed -> tr("native.tags.tryRest")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,8 +154,12 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             LargeTopAppBar(
-                title = { Text("Tags") },
-                navigationIcon = { IconButton(onClick = actions.onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
+                title = { Text(tr("native.tags.title")) },
+                navigationIcon = {
+                    IconButton(onClick = actions.onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
+                    }
+                },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -127,7 +173,7 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
                 TextField(
                     value = state.query,
                     onValueChange = actions.onSearch,
-                    placeholder = { Text("Find a tag") },
+                    placeholder = { Text(tr("native.tags.find")) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                     singleLine = true,
                     shape = CircleShape,
@@ -135,15 +181,16 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 )
+                val loading = tr("native.tags.loading")
                 when {
-                    state.isLoading -> TeakLoading(Modifier.semantics { contentDescription = "Loading tags" })
+                    state.isLoading -> TeakLoading(Modifier.semantics { contentDescription = loading })
                     state.shown.isEmpty() -> EmptyState(
-                        title = "No tags yet",
-                        message = "Tags you add to cards, and the ones Teak suggests, show up here.",
+                        title = tr("native.tags.emptyTitle"),
+                        message = tr("native.tags.emptyMessage"),
                         icon = Icons.Outlined.Tag,
                     )
                     state.visible.isEmpty() -> Text(
-                        "No tags match “${state.query.trim()}”.",
+                        tr("native.tags.noMatch", state.query.trim()),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(24.dp),
                     )
@@ -160,17 +207,20 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
 @Composable
 private fun TagRow(tag: TagCount, actions: TagsActions) {
     var menu by remember { mutableStateOf(false) }
+    val rowLabel = tr("native.tags.rowLabel", tag.name, count = tag.cards)
     ListItem(
         headlineContent = { Text(tag.name) },
         leadingContent = { Icon(Icons.Outlined.Tag, contentDescription = null) },
         trailingContent = {
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "More for ${tag.name}") }
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = tr("native.folders.moreFor", tag.name))
+                }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     listOf(
-                        TagOperationKind.Rename to "Rename…",
-                        TagOperationKind.Merge to "Merge into…",
-                        TagOperationKind.Delete to "Delete…",
+                        TagOperationKind.Rename to tr("native.folders.renameMenu"),
+                        TagOperationKind.Merge to tr("native.tags.mergeMenu"),
+                        TagOperationKind.Delete to tr("native.tags.deleteMenu"),
                     ).forEach { (kind, label) ->
                         DropdownMenuItem(
                             text = { Text(label, color = if (kind == TagOperationKind.Delete) MaterialTheme.colorScheme.error else Color.Unspecified) },
@@ -183,10 +233,10 @@ private fun TagRow(tag: TagCount, actions: TagsActions) {
                 }
             }
         },
-        supportingContent = { Text(NumberFormat.getIntegerInstance().format(tag.cards), modifier = Modifier.clearAndSetSemantics {}) },
+        supportingContent = { Text(formatCount(tag.cards), modifier = Modifier.clearAndSetSemantics {}) },
         modifier = Modifier
             .clickable { actions.onOpenTag(tag.name) }
-            .semantics { contentDescription = "${tag.name}, ${countLabel(tag.cards)}" },
+            .semantics { contentDescription = rowLabel },
     )
 }
 
@@ -198,8 +248,8 @@ private fun OperationCard(operation: TagOperation, actions: TagsActions) {
             Modifier.padding(16.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(operation.title, style = MaterialTheme.typography.titleSmall)
-            Text(operation.detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(operation.titleText(), style = MaterialTheme.typography.titleSmall)
+            Text(operation.detailText(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (operation.status == TagOperationStatus.Running) {
                 LinearProgressIndicator(
                     progress = { if (operation.total > 0) (operation.processed / operation.total).toFloat() else 0f },
@@ -207,8 +257,8 @@ private fun OperationCard(operation: TagOperation, actions: TagsActions) {
                 )
             } else {
                 androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    if (operation.status == TagOperationStatus.Failed) TextButton(onClick = actions.onRetry) { Text("Retry") }
-                    TextButton(onClick = actions.onDismissOperation) { Text("OK") }
+                    if (operation.status == TagOperationStatus.Failed) TextButton(onClick = actions.onRetry) { Text(tr("common.retry")) }
+                    TextButton(onClick = actions.onDismissOperation) { Text(tr("native.app.ok")) }
                 }
             }
         }
@@ -223,21 +273,21 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
     val liveError = if (editor.kind == TagOperationKind.Rename) actions.renameError(name) else null
     val error = state.editorError ?: liveError
     val confirm = when (editor.kind) {
-        TagOperationKind.Rename -> "Rename"
-        TagOperationKind.Merge -> target?.let { "Merge into “$it”" } ?: "Merge"
-        TagOperationKind.Delete -> "Delete tag"
+        TagOperationKind.Rename -> tr("common.rename")
+        TagOperationKind.Merge -> target?.let { tr("native.tags.mergeInto", it) } ?: tr("native.tags.merge")
+        TagOperationKind.Delete -> tr("native.tags.deleteTag")
     }
     AlertDialog(
         onDismissRequest = actions.onClose,
-        title = { Text(editor.title) },
+        title = { Text(editor.title.resolve()) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(editor.message)
+                Text(editor.message.resolve())
                 when (editor.kind) {
                     TagOperationKind.Rename -> OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("New name") },
+                        label = { Text(tr("native.tags.newName")) },
                         singleLine = true,
                         isError = error != null,
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
@@ -245,10 +295,10 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
                     TagOperationKind.Merge -> MergePicker(editor, state.shown, find, target, onFind = { find = it }, onPick = { target = it })
                     TagOperationKind.Delete -> Unit
                 }
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                if (error != null) Text(error.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                 val existing = if (editor.kind == TagOperationKind.Rename) actions.existingTag(name) else null
                 if (existing != null) {
-                    TextButton(onClick = { actions.onMergeInstead(existing) }) { Text("Merge into “$existing” instead") }
+                    TextButton(onClick = { actions.onMergeInstead(existing) }) { Text(tr("native.tags.mergeInstead", existing)) }
                 }
             }
         },
@@ -264,7 +314,7 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
                 Text(confirm, color = if (editor.kind == TagOperationKind.Delete) MaterialTheme.colorScheme.error else Color.Unspecified)
             }
         },
-        dismissButton = { TextButton(onClick = actions.onClose) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = actions.onClose) { Text(tr("common.cancel")) } },
     )
 }
 
@@ -272,18 +322,33 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
 private fun MergePicker(editor: TagEditor, tags: List<TagCount>, find: String, target: String?, onFind: (String) -> Unit, onPick: (String) -> Unit) {
     val others = tags.filter { it.name != editor.tag.name }
     val visible = others.filter { find.isBlank() || it.name.contains(find.trim(), ignoreCase = true) }.take(200)
-    OutlinedTextField(value = find, onValueChange = onFind, placeholder = { Text("Find a tag") }, label = { Text("Find a tag") }, singleLine = true)
+    OutlinedTextField(
+        value = find,
+        onValueChange = onFind,
+        placeholder = { Text(tr("native.tags.find")) },
+        label = { Text(tr("native.tags.find")) },
+        singleLine = true,
+    )
     LazyColumn(Modifier.heightIn(max = 240.dp)) {
         items(visible, key = { it.name }) { tag ->
             ListItem(
                 headlineContent = { Text(tag.name) },
-                supportingContent = { Text(countLabel(tag.cards)) },
-                trailingContent = if (tag.name == target) ({ Icon(Icons.Filled.Check, contentDescription = "Selected") }) else null,
+                supportingContent = { Text(tr("native.common.cardCount", count = tag.cards)) },
+                trailingContent = if (tag.name == target) {
+                    { Icon(Icons.Filled.Check, contentDescription = tr("native.tags.selected")) }
+                } else {
+                    null
+                },
                 modifier = Modifier.clickable { onPick(tag.name) },
             )
         }
         if (visible.isEmpty()) {
-            item { Text(if (others.isEmpty()) "No other tags yet." else "No tag by that name.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item {
+                Text(
+                    if (others.isEmpty()) tr("native.tags.noOthers") else tr("native.tags.noneByName"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

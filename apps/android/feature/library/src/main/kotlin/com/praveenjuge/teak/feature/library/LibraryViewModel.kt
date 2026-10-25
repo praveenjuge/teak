@@ -3,11 +3,12 @@ package com.praveenjuge.teak.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardPager
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
+import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.data.repository.PagedCards
 import com.praveenjuge.teak.core.model.BulkAction
@@ -26,6 +27,7 @@ import com.praveenjuge.teak.core.model.SearchSimilarity
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.TimeFilter
 import com.praveenjuge.teak.core.model.TimeSearch
+import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -46,10 +48,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 enum class EmptyKind { Search, Trash, Filters, Archive, Folder, Similar }
 
-data class EmptyCopy(val title: String, val message: String, val kind: EmptyKind)
+data class EmptyCopy(val title: UiText, val message: UiText, val kind: EmptyKind)
 
 sealed interface LibraryEmptyState {
     data object FirstCard : LibraryEmptyState
@@ -69,7 +72,7 @@ sealed interface Selection {
 /** A change that can be taken back: the inverse action on the cards that changed. */
 data class Undo(val action: BulkAction, val ids: List<String>)
 
-data class LibraryMessage(val id: Long, val text: String, val undo: Undo? = null)
+data class LibraryMessage(val id: Long, val text: UiText, val undo: Undo? = null)
 
 data class LibraryUiState(
     val filters: LibraryFilters = LibraryFilters.Empty,
@@ -84,6 +87,8 @@ data class LibraryUiState(
     val folderMissing: Boolean = false,
     val folders: List<Folder> = emptyList(),
     val anchorTitle: String? = null,
+    /** The `like:` card is in Trash, deleted or not yours. */
+    val anchorUnavailable: Boolean = false,
     val anchorPending: Boolean = false,
     val semanticOutcome: String? = null,
     val hasHiddenCards: Boolean = false,
@@ -101,9 +106,12 @@ data class LibraryUiState(
     val showsDone: Boolean get() = parsed.done
     val showsTodo: Boolean get() = parsed.todo
 
-    /** Filters typed in the search, as chips; Done and To do have their own toggles in the filter row. */
-    val chips: List<QualifierChip>
-        get() = QualifierChips.of(search, anchorTitle).filterNot {
+    /**
+     * Filters typed in the search, as chips; Done and To do have their own toggles in the filter row.
+     * [unavailableCard] names a `like:` card that can't be shown.
+     */
+    fun chips(unavailableCard: String): List<QualifierChip> =
+        QualifierChips.of(search, anchorTitle ?: unavailableCard.takeIf { anchorUnavailable }).filterNot {
             it.qualifier == SearchQualifier.Is(SearchIsValue.Done) || it.qualifier == SearchQualifier.Is(SearchIsValue.Todo)
         }
 
@@ -126,11 +134,12 @@ data class LibraryUiState(
 
     val canRevisit: Boolean get() = !filters.trashOnly && !isArchive && paged.cards.isNotEmpty()
 
-    val title: String
+    val title: UiText
         get() = when {
-            selection == Selection.None -> folder?.name ?: if (folderId != null) "Folder" else filters.title
-            pickedIds.isEmpty() -> "Select Cards"
-            else -> "${pickedIds.size} Selected"
+            selection == Selection.None -> folder?.name?.let(UiText::verbatim)
+                ?: if (folderId != null) UiText.of("native.library.folder") else filters.titleText
+            pickedIds.isEmpty() -> UiText.of("native.library.selectCards")
+            else -> UiText.of("native.library.selectedCount", count = pickedIds.size)
         }
 
     val emptyState: LibraryEmptyState
@@ -139,30 +148,53 @@ data class LibraryUiState(
             val similar = parsed.similarity is SearchSimilarity.Like
             val copy = when {
                 similar -> EmptyCopy(
-                    "Nothing similar yet",
+                    UiText.of("native.filters.empty.similarTitle"),
                     when {
-                        anchorPending || semanticOutcome == "pending" -> "Still learning about this card. Try again in a moment."
-                        semanticOutcome == "rate_limited" -> "Too many searches. Try again in a minute."
-                        semanticOutcome == "unavailable" -> "Couldn't search by meaning right now."
-                        else -> "Try another card."
+                        anchorPending || semanticOutcome == "pending" -> UiText.of("native.similar.pending")
+                        semanticOutcome == "rate_limited" -> UiText.of("native.similar.rateLimited")
+                        semanticOutcome == "unavailable" -> UiText.of("native.similar.unavailable")
+                        else -> UiText.of("native.similar.emptyMessage")
                     },
                     EmptyKind.Similar,
                 )
-                parsed.todo && parsed.terms.isEmpty() && parsed.phrases.isEmpty() -> EmptyCopy("Nothing left to do.", "Links you mark done leave this list.", EmptyKind.Filters)
-                folderId != null && !searching -> EmptyCopy(
-                    if (folder?.isSmart == true) "No cards match this smart folder." else "No cards in this folder yet.",
-                    if (folder?.isSmart == true) "Cards that match its search show up here, as you save them." else "Add cards from your library to see them here.",
-                    EmptyKind.Folder,
+                parsed.todo && parsed.terms.isEmpty() && parsed.phrases.isEmpty() -> EmptyCopy(
+                    UiText.of("native.library.empty.todoTitle"),
+                    UiText.of("native.library.empty.todoMessage"),
+                    EmptyKind.Filters,
                 )
+                folderId != null && !searching -> if (folder?.isSmart == true) {
+                    EmptyCopy(
+                        UiText.of("native.filters.empty.smartFolderMessage"),
+                        UiText.of("native.library.empty.smartFolderMessage"),
+                        EmptyKind.Folder,
+                    )
+                } else {
+                    EmptyCopy(
+                        UiText.of("native.filters.empty.folderMessage"),
+                        UiText.of("native.library.empty.folderMessage"),
+                        EmptyKind.Folder,
+                    )
+                }
                 !searching && !filters.isActive -> return LibraryEmptyState.FirstCard
-                !searching && filters.trashOnly ->
-                    EmptyCopy("Trash Is Empty", "Cards you delete stay here for 30 days.", EmptyKind.Trash)
-                !searching && filters.archivedOnly ->
-                    EmptyCopy("Nothing archived", "Archive a card to keep it out of your library.", EmptyKind.Archive)
-                !searching -> EmptyCopy("No Matching Cards", "Try other filters.", EmptyKind.Filters)
+                !searching && filters.trashOnly -> EmptyCopy(
+                    UiText.of("native.filters.empty.trashTitle"),
+                    UiText.of("native.filters.empty.trashMessage"),
+                    EmptyKind.Trash,
+                )
+                !searching && filters.archivedOnly -> EmptyCopy(
+                    UiText.of("native.filters.empty.archiveTitle"),
+                    UiText.of("native.filters.empty.archiveMessage"),
+                    EmptyKind.Archive,
+                )
+                !searching -> EmptyCopy(
+                    UiText.of("native.filters.empty.noMatches"),
+                    UiText.of("native.filters.empty.filtersMessage"),
+                    EmptyKind.Filters,
+                )
                 else -> EmptyCopy(
-                    title = "No Results for “$search”",
-                    message = timeFilter?.let { "No cards from ${it.label}." } ?: "Check the spelling or try a new search.",
+                    title = UiText.of("native.filters.empty.noResults", search),
+                    message = timeFilter?.let { UiText.of("native.filters.empty.noCardsFrom") }
+                        ?: UiText.of("native.filters.empty.checkSpelling"),
                     kind = EmptyKind.Search,
                 )
             }
@@ -176,6 +208,7 @@ class LibraryViewModel @AssistedInject constructor(
     @Assisted private val folderId: String?,
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
+    private val language: LanguageRepository,
 ) : ViewModel() {
     private val pager = CardPager(repository, viewModelScope)
     private val searchText = MutableStateFlow("")
@@ -189,8 +222,9 @@ class LibraryViewModel @AssistedInject constructor(
             .map(String::trim)
             .distinctUntilChanged()
         val filters = _state.map { it.filters }.distinctUntilChanged()
-        combine(search, filters) { text, chips ->
-            val time = TimeSearch.parse(text)
+        // Date words read in the app's language, which on Android 12 isn't the process default.
+        combine(search, filters, language.current) { text, chips, code ->
+            val time = TimeSearch.parse(text, locale = Locale.forLanguageTag(code))
             _state.update { it.copy(search = text, timeFilter = time) }
             if (time != null) {
                 CardQuery(range = time.range, filters = chips, folderId = folderId)
@@ -224,7 +258,8 @@ class LibraryViewModel @AssistedInject constructor(
             .onEach { anchor ->
                 _state.update {
                     it.copy(
-                        anchorTitle = anchor?.title ?: if (anchor?.status == "unavailable") "unavailable card" else null,
+                        anchorTitle = anchor?.title,
+                        anchorUnavailable = anchor?.title == null && anchor?.status == "unavailable",
                         anchorPending = anchor?.status == "pending",
                     )
                 }
@@ -330,7 +365,7 @@ class LibraryViewModel @AssistedInject constructor(
         viewModelScope.launch {
             catchingFailures { folders.create(name) }
                 .onSuccess { runOnSelected(BulkAction.AddToFolder, folder = it) }
-                .onFailure { post((it as? TeakException)?.message ?: "Couldn't create the folder") }
+                .onFailure { post(folderFailure(it)) }
         }
     }
 
@@ -339,10 +374,13 @@ class LibraryViewModel @AssistedInject constructor(
         val query = _state.value.smartFolderQuery ?: return
         viewModelScope.launch {
             catchingFailures { folders.create(name, query = query) }
-                .onSuccess { post("Saved “${it.name}”") }
-                .onFailure { post((it as? TeakException)?.message ?: "Couldn't create the folder") }
+                .onSuccess { post(UiText.of("native.folders.savedName", it.name)) }
+                .onFailure { post(folderFailure(it)) }
         }
     }
+
+    private fun folderFailure(error: Throwable): UiText =
+        error.teakText(UiText.of("native.folders.createFailed"))
 
     /** Archive or unarchive one card from its tile, with Undo. */
     fun setArchived(cardId: String, archived: Boolean) =
@@ -355,7 +393,7 @@ class LibraryViewModel @AssistedInject constructor(
         val updated = result.getOrNull()?.updatedIds.orEmpty()
         val failed = result.getOrNull()?.failedIds?.size ?: ids.size
         val undo = BulkCopy.undoOf(action)?.takeIf { updated.isNotEmpty() }?.let { Undo(it, updated) }
-        post(BulkCopy.result(action, updated.size, failed, folder?.name ?: "the folder"), undo)
+        post(BulkCopy.result(action, updated.size, failed, folder?.name), undo)
     }
 
     /** Delete forever has no bulk endpoint: one call per card, counting the ones that fail. */
@@ -370,10 +408,10 @@ class LibraryViewModel @AssistedInject constructor(
                 catchingFailures { repository.deleteForever(id) }.onFailure { failed += 1 }
             }
             val deleted = ids.size - failed
-            val text = when {
-                deleted == 0 -> "Couldn't delete these cards"
-                failed > 0 -> "Deleted ${BulkCopy.cardCount(deleted)}. $failed couldn't be changed."
-                else -> "Deleted ${BulkCopy.cardCount(deleted)} forever"
+            val text = if (deleted == 0) {
+                UiText.of("native.bulk.failed.deleteForever")
+            } else {
+                BulkCopy.partial(UiText.of("native.bulk.done.deleteForever", count = deleted), failed)
             }
             _state.update { it.copy(isRunningBulkAction = false, selection = Selection.None) }
             post(text)
@@ -387,13 +425,13 @@ class LibraryViewModel @AssistedInject constructor(
             val failed = catchingFailures { repository.bulk(undo.action, undo.ids) }
                 .map { it.failedIds.size }
                 .getOrDefault(undo.ids.size)
-            if (failed > 0) post(BulkCopy.result(undo.action, undo.ids.size - failed, failed, "the folder"))
+            if (failed > 0) post(BulkCopy.result(undo.action, undo.ids.size - failed, failed))
         }
     }
 
     fun dismissMessage(id: Long) = _state.update { if (it.message?.id == id) it.copy(message = null) else it }
 
-    private fun post(text: String, undo: Undo? = null) {
+    private fun post(text: UiText, undo: Undo? = null) {
         messageId += 1
         _state.update { it.copy(message = LibraryMessage(messageId, text, undo)) }
     }

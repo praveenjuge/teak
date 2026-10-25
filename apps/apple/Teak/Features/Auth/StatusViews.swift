@@ -1,11 +1,12 @@
 import SwiftUI
+import TeakCore
 
 struct LoadingView: View {
     var body: some View {
         ProgressView()
             .controlSize(.large)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .accessibilityLabel("Loading")
+            .accessibilityLabel(tr("common.loading"))
     }
 }
 
@@ -14,11 +15,11 @@ struct OfflineView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("You're Offline", systemImage: "wifi.slash")
+            Label(tr("native.app.offline.title"), systemImage: "wifi.slash")
         } description: {
-            Text("Check your connection and try again to access your cards.")
+            Text(tr("native.app.offline.message"))
         } actions: {
-            Button("Try Again", action: retry)
+            Button(tr("common.tryAgain"), action: retry)
                 .buttonStyle(.bordered)
                 .controlSize(.large)
         }
@@ -31,11 +32,11 @@ struct FailedView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label("Something Went Wrong", systemImage: "exclamationmark.triangle")
+            Label(tr("native.app.failed.title"), systemImage: "exclamationmark.triangle")
         } description: {
             Text(message)
         } actions: {
-            Button("Try Again", action: retry)
+            Button(tr("common.tryAgain"), action: retry)
                 .buttonStyle(.bordered)
                 .controlSize(.large)
         }

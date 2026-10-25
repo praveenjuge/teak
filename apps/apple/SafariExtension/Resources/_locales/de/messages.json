@@ -1,0 +1,122 @@
+{
+  "extensionDescription": {
+    "message": "Sichern Sie Safari-Seiten in Ihrer Teak-Bibliothek."
+  },
+  "actionTitle": {
+    "message": "In Teak sichern"
+  },
+  "checkingSafari": {
+    "message": "Safari wird geprüft…"
+  },
+  "signIn": {
+    "message": "Anmelden"
+  },
+  "tryAgain": {
+    "message": "Erneut versuchen"
+  },
+  "signOut": {
+    "message": "Abmelden"
+  },
+  "checkingSession": {
+    "message": "Ihre Sitzung wird geprüft…"
+  },
+  "unableToConnect": {
+    "message": "Verbindung fehlgeschlagen"
+  },
+  "pleaseTryAgain": {
+    "message": "Bitte versuchen Sie es erneut."
+  },
+  "signInTitle": {
+    "message": "Bei Teak anmelden"
+  },
+  "signInMessage": {
+    "message": "Melden Sie sich an, um Seiten zu sichern."
+  },
+  "cannotSaveTitle": {
+    "message": "Diese Seite kann nicht gesichert werden"
+  },
+  "openRegularWebsite": {
+    "message": "Öffnen Sie eine normale Website und versuchen Sie es erneut."
+  },
+  "savingTitle": {
+    "message": "Seite wird gesichert"
+  },
+  "savingMessage": {
+    "message": "Diese Seite wird Ihrer Bibliothek hinzugefügt…"
+  },
+  "savedTitle": {
+    "message": "In Teak gesichert"
+  },
+  "savedMessage": {
+    "message": "Zu Ihrer Bibliothek hinzugefügt."
+  },
+  "duplicateTitle": {
+    "message": "Bereits gesichert"
+  },
+  "duplicateMessage": {
+    "message": "Diese Seite ist bereits in Ihrer Bibliothek."
+  },
+  "saveFailedTitle": {
+    "message": "Sichern fehlgeschlagen"
+  },
+  "saveFailedMessage": {
+    "message": "Teak konnte diese Seite nicht sichern."
+  },
+  "openingTeak": {
+    "message": "Teak wird geöffnet"
+  },
+  "completeSignIn": {
+    "message": "Schließen Sie die Anmeldung ab."
+  },
+  "finishSignInTitle": {
+    "message": "Anmeldung abschließen"
+  },
+  "returnAfterSignIn": {
+    "message": "Kehren Sie nach der Anmeldung hierher zurück."
+  },
+  "signInFailedTitle": {
+    "message": "Anmeldung fehlgeschlagen"
+  },
+  "signInFailedMessage": {
+    "message": "Teak konnte die Anmeldung nicht starten."
+  },
+  "signingOutTitle": {
+    "message": "Abmeldung läuft"
+  },
+  "oneMoment": {
+    "message": "Einen Moment…"
+  },
+  "signOutFailedTitle": {
+    "message": "Abmeldung fehlgeschlagen"
+  },
+  "signOutFailedMessage": {
+    "message": "Abmeldung fehlgeschlagen. Bitte versuchen Sie es erneut."
+  },
+  "signedOutTitle": {
+    "message": "Abgemeldet"
+  },
+  "needsAccessTitle": {
+    "message": "Teak benötigt Zugriff auf Safari"
+  },
+  "needsAccessMessage": {
+    "message": "Versuchen Sie es auf einer normalen Website erneut."
+  },
+  "invalidResponse": {
+    "message": "Teak hat eine ungültige Antwort zurückgegeben."
+  },
+  "tryAgainShort": {
+    "message": "Versuchen Sie es erneut."
+  },
+  "invalidRequest": {
+    "message": "Ungültige Teak-Anfrage."
+  },
+  "unsupportedRequest": {
+    "message": "Nicht unterstützte Teak-Anfrage."
+  },
+  "openFromApplications": {
+    "message": "Öffnen Sie Teak im Ordner „Programme“, um sich anzumelden."
+  },
+  "signOutCheckConnection": {
+    "message": "Abmeldung fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+  }
+}

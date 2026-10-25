@@ -13,16 +13,14 @@ public enum HiddenTags {
     /// hidden tag added, as the web's toast words it.
     public static func addedHint(before: [String]?, after: [String]) -> String? {
         guard !isHiddenTagList(before), let tag = after.first(where: isHidden) else { return nil }
-        return "Hidden. Search #\(SearchQualifiers.tagKey(tag)) to see it."
+        return tr("native.tags.card.hiddenAdded", SearchQualifiers.tagKey(tag))
     }
 
     /// The note above results when the search names a hidden tag.
-    public static let searchHint = "Shows hidden cards"
+    public static var searchHint: String { tr("native.library.showsHiddenCards") }
 
-    /// Under an empty view whose cards are all hidden.
-    public static var emptyViewHint: String {
-        "Some cards are hidden. Search \(keys.map { "#\($0)" }.joined(separator: " or ")) to see them."
-    }
+    /// Under an empty view whose cards are all hidden. It names #secret and #hidden, the hidden tags.
+    public static var emptyViewHint: String { tr("native.tags.card.hiddenCards") }
 }
 
 /// Renaming, merging and deleting a tag across every card. Ports
@@ -32,7 +30,18 @@ public enum TagOperations {
 
     public static var maxNameLength: Int { SharedConstants.shared.limits.maxTagNameLength }
 
-    public static func message(_ code: String) -> String? { SharedConstants.shared.tagErrorMessages[code] }
+    /// The web's text for a tag error code, or nil for one it doesn't word.
+    public static func message(_ code: String) -> String? {
+        switch code {
+        case "EMPTY_NAME": tr("errors.tags.EMPTY_NAME")
+        case "NAME_TOO_LONG": tr("errors.tags.NAME_TOO_LONG", String(maxNameLength))
+        case "NOT_FOUND": tr("errors.tags.NOT_FOUND")
+        case "SAME_TAG": tr("errors.tags.SAME_TAG")
+        case "OPERATION_RUNNING": tr("errors.tags.OPERATION_RUNNING")
+        case "OPERATION_NOT_FOUND": tr("errors.tags.OPERATION_NOT_FOUND")
+        default: nil
+        }
+    }
 
     public static func invalidName(_ name: String) -> String? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -40,32 +49,30 @@ public enum TagOperations {
         return trimmed.utf16.count > maxNameLength ? message("NAME_TOO_LONG") : nil
     }
 
-    static func cards(_ count: Int) -> String {
-        "\(count.formatted(.number.locale(Locale(identifier: "en_US")))) \(count == 1 ? "card" : "cards")"
-    }
+    private static func number(_ value: Int) -> String { value.formatted(.number.locale(AppLanguage.locale)) }
 
     public static func running(_ kind: Kind, from: String, to: String?) -> String {
         switch kind {
-        case .rename: "Renaming \u{201C}\(from)\u{201D} to \u{201C}\(to ?? "")\u{201D}…"
-        case .merge: "Merging \u{201C}\(from)\u{201D} into \u{201C}\(to ?? "")\u{201D}…"
-        case .delete: "Deleting \u{201C}\(from)\u{201D}…"
+        case .rename: tr("native.tags.renaming", from, to ?? "")
+        case .merge: tr("native.tags.merging", from, to ?? "")
+        case .delete: tr("native.tags.deleting", from)
         }
     }
 
     public static func progress(changed: Int, total: Int) -> String {
         let total = max(total, 0)
-        return "\(min(changed, total).formatted(.number.locale(Locale(identifier: "en_US")))) of \(cards(total)) changed"
+        return tr("native.tags.progress", count: total, number(min(changed, total)))
     }
 
     public static func completed(_ kind: Kind, from: String, to: String?) -> String {
         switch kind {
-        case .rename: "Renamed \u{201C}\(from)\u{201D} to \u{201C}\(to ?? "")\u{201D}"
-        case .merge: "Merged \u{201C}\(from)\u{201D} into \u{201C}\(to ?? "")\u{201D}"
-        case .delete: "Deleted \u{201C}\(from)\u{201D}"
+        case .rename: tr("native.tags.renamed", from, to ?? "")
+        case .merge: tr("native.tags.merged", from, to ?? "")
+        case .delete: tr("native.tags.deleted", from)
         }
     }
 
-    public static func changed(_ count: Int) -> String { "\(cards(count)) changed" }
+    public static func changed(_ count: Int) -> String { tr("native.tags.changed", count: count) }
 
     /// The tag list as it will read once the summary catches up with a
     /// finished change, so the list doesn't show the old name meanwhile.
@@ -84,12 +91,13 @@ public enum TagOperations {
     }
 
     public static func failed(_ kind: Kind, changed: Int, total: Int) -> String {
-        let verb = switch kind {
-        case .rename: "renaming"
-        case .merge: "merging"
-        case .delete: "deleting"
+        let total = max(total, 0)
+        let changed = number(min(changed, total))
+        return switch kind {
+        case .rename: tr("native.tags.renameFailed", count: total, changed)
+        case .merge: tr("native.tags.mergeFailed", count: total, changed)
+        case .delete: tr("native.tags.deleteFailed", count: total, changed)
         }
-        return "Couldn't finish \(verb). \(progress(changed: changed, total: total))."
     }
 }
 
@@ -101,35 +109,41 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
     /// The backend takes at most this many cards per call.
     public static let chunkSize = 100
 
-    public static func cards(_ count: Int) -> String { count == 1 ? "1 card" : "\(count) cards" }
+    public static func cards(_ count: Int) -> String { tr("native.common.cardCount", count: count) }
 
     public func done(_ count: Int, folder: String? = nil) -> String {
-        let cards = Self.cards(count)
         switch self {
-        case .favorite: return "Added \(cards) to favorites"
-        case .unfavorite: return "Removed \(cards) from favorites"
-        case .archive: return "Archived \(cards)"
-        case .unarchive: return "Returned \(cards) to the library"
-        case .addTags: return "Added tags to \(cards)"
-        case .removeTags: return "Removed tags from \(cards)"
-        case .delete: return "Moved \(cards) to Trash"
-        case .restore: return "Restored \(cards)"
-        case .addToFolder: return "Added \(cards) to \(folder ?? "the folder")"
+        case .favorite: tr("native.bulk.done.favorite", count: count)
+        case .unfavorite: tr("native.bulk.done.unfavorite", count: count)
+        case .archive: tr("native.bulk.done.archive", count: count)
+        case .unarchive: tr("native.bulk.done.unarchive", count: count)
+        case .addTags: tr("native.bulk.done.addTags", count: count)
+        case .removeTags: tr("native.bulk.done.removeTags", count: count)
+        case .delete: tr("native.bulk.done.delete", count: count)
+        case .restore: tr("native.bulk.done.restore", count: count)
+        case .addToFolder:
+            folder.map { tr("native.bulk.done.addToFolder", count: count, $0) }
+                ?? tr("native.bulk.done.addToTheFolder", count: count)
         }
     }
 
     public var failure: String {
         switch self {
-        case .favorite: "Couldn't add these cards to favorites"
-        case .unfavorite: "Couldn't remove these cards from favorites"
-        case .archive: "Couldn't archive these cards"
-        case .unarchive: "Couldn't unarchive these cards"
-        case .addTags: "Couldn't add tags to these cards"
-        case .removeTags: "Couldn't remove tags from these cards"
-        case .delete: "Couldn't move these cards to Trash"
-        case .restore: "Couldn't restore these cards"
-        case .addToFolder: "Couldn't add these cards to the folder"
+        case .favorite: tr("native.bulk.failed.favorite")
+        case .unfavorite: tr("native.bulk.failed.unfavorite")
+        case .archive: tr("native.bulk.failed.archive")
+        case .unarchive: tr("native.bulk.failed.unarchive")
+        case .addTags: tr("native.bulk.failed.addTags")
+        case .removeTags: tr("native.bulk.failed.removeTags")
+        case .delete: tr("native.bulk.failed.delete")
+        case .restore: tr("native.bulk.failed.restore")
+        case .addToFolder: tr("native.bulk.failed.addToFolder")
         }
+    }
+
+    /// What changed, and how many cards didn't: "Archived 7 cards. 3 couldn't be changed."
+    public static func partial(_ done: String, failed: Int) -> String {
+        failed > 0 ? tr("native.bulk.partial", count: failed, done) : done
     }
 
     /// The action that puts cards back, for Undo.
@@ -145,9 +159,7 @@ public enum BulkCardAction: String, Sendable, CaseIterable {
     }
 
     public func message(updated: Int, failed: Int, folder: String? = nil) -> String {
-        if updated == 0 { return failure }
-        let done = done(updated, folder: folder)
-        return failed > 0 ? "\(done). \(failed) couldn't be changed." : done
+        updated == 0 ? failure : Self.partial(done(updated, folder: folder), failed: failed)
     }
 
     /// Ids split into the chunks one call may carry.

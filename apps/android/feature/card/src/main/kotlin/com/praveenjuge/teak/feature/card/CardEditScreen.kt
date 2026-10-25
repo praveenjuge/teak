@@ -53,8 +53,11 @@ import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardEditDraft
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.UiText
 
 internal class CardEditCallbacks(
     val onClose: () -> Unit,
@@ -78,13 +81,13 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Edit Card") },
+                title = { Text(tr("native.card.edit.title")) },
                 navigationIcon = {
-                    IconButton(onClick = close) { Icon(Icons.Filled.Close, contentDescription = "Close") }
+                    IconButton(onClick = close) { Icon(Icons.Filled.Close, contentDescription = tr("common.close")) }
                 },
                 actions = {
                     Button(onClick = callbacks.onSave, enabled = state.canSave, modifier = Modifier.padding(end = 8.dp)) {
-                        Text(if (state.isSaving) "Saving…" else "Save")
+                        Text(if (state.isSaving) tr("common.saving") else tr("common.save"))
                     }
                 },
             )
@@ -96,8 +99,8 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
             state.isLoading -> TeakLoading(Modifier.padding(padding))
             card == null || draft == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
-                    title = "Card unavailable",
-                    message = "It may have been deleted.",
+                    title = tr("native.card.unavailable.title"),
+                    message = tr("native.card.unavailable.deletedMessage"),
                     icon = Icons.Outlined.ErrorOutline,
                 )
             }
@@ -116,9 +119,9 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
 
     if (confirmDiscard) {
         ConfirmDialog(
-            title = "Discard changes?",
-            message = "Your edits to this card won't be saved.",
-            confirmLabel = "Discard",
+            title = tr("native.card.edit.discardTitle"),
+            message = tr("native.card.edit.discardMessage"),
+            confirmLabel = tr("native.card.edit.discard"),
             onConfirm = {
                 confirmDiscard = false
                 callbacks.onClose()
@@ -129,9 +132,9 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
     state.alert?.let { alert ->
         AlertDialog(
             onDismissRequest = callbacks.onDismissAlert,
-            title = { Text(alert.title) },
-            text = { Text(alert.message) },
-            confirmButton = { TextButton(onClick = callbacks.onDismissAlert) { Text("OK") } },
+            title = { Text(alert.title.resolve()) },
+            text = { Text(alert.message.resolve()) },
+            confirmButton = { TextButton(onClick = callbacks.onDismissAlert) { Text(tr("native.app.ok")) } },
         )
     }
 }
@@ -141,7 +144,7 @@ private fun EditForm(
     type: CardType,
     draft: CardEditDraft,
     newTag: String,
-    hiddenHint: String?,
+    hiddenHint: UiText?,
     showAiTags: Boolean,
     callbacks: CardEditCallbacks,
 ) {
@@ -160,8 +163,8 @@ private fun EditForm(
             OutlinedTextField(
                 value = content,
                 onValueChange = callbacks.onContentChange,
-                label = { Text(if (isQuote) "Quote" else "Note") },
-                placeholder = { Text(if (isQuote) "Write the quote" else "Write a note") },
+                label = { Text(if (isQuote) tr("cards.types.quote") else tr("native.card.note")) },
+                placeholder = { Text(if (isQuote) tr("native.card.edit.quotePlaceholder") else tr("native.card.edit.notePlaceholder")) },
                 minLines = 4,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth(),
@@ -170,13 +173,13 @@ private fun EditForm(
         OutlinedTextField(
             value = draft.notes,
             onValueChange = callbacks.onNotesChange,
-            label = { Text("Notes") },
-            placeholder = { Text("Add notes") },
+            label = { Text(tr("native.card.sections.notes")) },
+            placeholder = { Text(tr("native.card.edit.notesPlaceholder")) },
             minLines = 2,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier.fillMaxWidth(),
         )
-        FormSection("Tags") {
+        FormSection(tr("native.card.sections.tags")) {
             if (draft.tags.isNotEmpty()) {
                 RemovableChips(draft.tags, sparkles = false, onRemove = callbacks.onRemoveTag)
             }
@@ -184,7 +187,7 @@ private fun EditForm(
                 OutlinedTextField(
                     value = newTag,
                     onValueChange = callbacks.onNewTagChange,
-                    placeholder = { Text("Add a tag") },
+                    placeholder = { Text(tr("native.card.edit.tagPlaceholder")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
@@ -194,7 +197,7 @@ private fun EditForm(
                     keyboardActions = KeyboardActions(onDone = { callbacks.onAddTag() }),
                     modifier = Modifier.weight(1f),
                 )
-                FilledTonalButton(onClick = callbacks.onAddTag, enabled = newTag.isNotBlank()) { Text("Add") }
+                FilledTonalButton(onClick = callbacks.onAddTag, enabled = newTag.isNotBlank()) { Text(tr("common.add")) }
             }
             if (hiddenHint != null) {
                 Row(
@@ -203,17 +206,17 @@ private fun EditForm(
                     modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
                 ) {
                     Icon(Icons.Outlined.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                    Text(hiddenHint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(hiddenHint.resolve(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
         if (showAiTags) {
-            FormSection("Tags by Teak") {
+            FormSection(tr("native.card.edit.aiTags")) {
                 if (draft.aiTags.isNotEmpty()) {
                     RemovableChips(draft.aiTags, sparkles = true, onRemove = callbacks.onRemoveAiTag)
                 }
                 Text(
-                    "Remove any tags that don't fit this card.",
+                    tr("native.card.edit.aiTagsHint"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -250,7 +253,7 @@ private fun RemovableChips(tags: List<String>, sparkles: Boolean, onRemove: (Str
                     null
                 },
                 trailingIcon = {
-                    Icon(Icons.Filled.Close, contentDescription = "Remove $tag", modifier = Modifier.size(InputChipDefaults.AvatarSize))
+                    Icon(Icons.Filled.Close, contentDescription = tr("native.card.edit.removeTag", tag), modifier = Modifier.size(InputChipDefaults.AvatarSize))
                 },
             )
         }

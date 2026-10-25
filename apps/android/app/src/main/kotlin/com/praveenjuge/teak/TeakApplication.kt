@@ -23,8 +23,12 @@ import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.repository.AccountRepository
+import com.praveenjuge.teak.core.data.repository.LanguageRepository
+import com.praveenjuge.teak.core.i18n.AppLanguage
+import com.praveenjuge.teak.core.i18n.tr
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.Optional
@@ -37,6 +41,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     @Inject lateinit var httpClient: OkHttpClient
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
     @Inject lateinit var e2eLaunch: Optional<E2ELaunch>
+    @Inject lateinit var language: LanguageRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -45,24 +50,33 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         super.onCreate()
         initPostHog()
         publishShortcuts()
+        // Android 12 sends no configuration change for an in-app language, so relabel on each change.
+        scope.launch { language.current.drop(1).collect { publishShortcuts() } }
         scope.launch {
             e2eLaunch.orElse(null)?.let { launch -> catchingFailures { launch.adoptSession() } }
             account.start()
         }
     }
 
+    /** A new app language relabels the launcher shortcuts. */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        publishShortcuts()
+    }
+
     private fun publishShortcuts() {
-        fun shortcut(id: String, label: Int, icon: Int, action: String) =
+        val labels = AppLanguage.resources(this)
+        fun shortcut(id: String, label: String, icon: Int, action: String) =
             ShortcutInfoCompat.Builder(this, id)
-                .setShortLabel(getString(label))
+                .setShortLabel(label)
                 .setIcon(IconCompat.createWithResource(this, icon))
                 .setIntent(Intent(this, MainActivity::class.java).setAction(action))
                 .build()
         ShortcutManagerCompat.setDynamicShortcuts(
             this,
             listOf(
-                shortcut("new_note", R.string.shortcut_new_note, R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
-                shortcut("voice_memo", R.string.shortcut_voice_memo, R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
+                shortcut("new_note", labels.tr("native.capture.newNote"), R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
+                shortcut("voice_memo", labels.tr("native.capture.voiceMemo"), R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
             ),
         )
     }

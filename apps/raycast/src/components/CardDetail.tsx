@@ -368,9 +368,7 @@ export function CardDetail({
                 icon={Icon.Star}
                 onAction={handleToggleFavorite}
                 shortcut={{ modifiers: ["cmd"], key: "f" }}
-                title={
-                  cardState.isFavorited ? "Remove Favorite" : "Add Favorite"
-                }
+                title={cardState.isFavorited ? "Unfavorite" : "Favorite"}
               />
               <Action.Push
                 icon={Icon.Pencil}

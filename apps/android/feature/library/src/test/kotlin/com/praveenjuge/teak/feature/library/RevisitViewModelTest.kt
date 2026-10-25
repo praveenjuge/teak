@@ -7,6 +7,7 @@ import com.praveenjuge.teak.core.model.CardSort
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.flow.flowOf
@@ -36,7 +37,7 @@ class RevisitViewModelTest {
         val query = repository.queries.last()
         assertEquals("design", query.search)
         assertEquals(CardSort.Shuffle, query.filters.sort)
-        assertEquals("1 of 2", viewModel.state.value.progress)
+        assertEquals(UiText.of("native.revisit.position", 1, 2), viewModel.state.value.progress)
     }
 
     @Test
@@ -49,7 +50,7 @@ class RevisitViewModelTest {
 
         val state = viewModel.state.value
         assertTrue(state.isFinished)
-        assertEquals("1 archived · 1 kept", state.summary)
+        assertEquals(UiText.of("native.revisit.summary", 1, 1), state.summary)
         assertEquals(listOf("archive:a"), repository.writes)
     }
 
@@ -78,14 +79,14 @@ class RevisitViewModelTest {
         advanceUntilIdle()
 
         assertEquals("b", viewModel.state.value.current?.id)
-        assertEquals("Couldn't update this card.", viewModel.state.value.error)
+        assertEquals(UiText.of("native.revisit.updateFailed"), viewModel.state.value.error)
         viewModel.errorShown()
 
         repository.failingIds = setOf("b")
         viewModel.archive()
         advanceUntilIdle()
         assertEquals("b", viewModel.state.value.current?.id)
-        assertEquals("Couldn't update this card.", viewModel.state.value.error)
+        assertEquals(UiText.of("native.revisit.updateFailed"), viewModel.state.value.error)
     }
 
     @Test
@@ -103,7 +104,7 @@ class RevisitViewModelTest {
         }
         val viewModel = RevisitViewModel(repository).apply { start(CardQuery()) }
         advanceUntilIdle()
-        assertEquals("1 of 20", viewModel.state.value.progress)
+        assertEquals(UiText.of("native.revisit.position", 1, 20), viewModel.state.value.progress)
         assertEquals("a1", viewModel.state.value.current?.id)
     }
 

@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.string
 import com.praveenjuge.teak.core.data.repository.CARD_SOURCE
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -54,9 +55,9 @@ class FileUploader @Inject constructor(
                 metadata?.let { put("additionalMetadata", it) }
             },
         )
-        prepared.requireSuccess("Failed to prepare upload")
-        val uploadKey = prepared.string("uploadKey") ?: throw TeakException(null, "Failed to prepare upload")
-        val uploadUrl = prepared.string("uploadUrl") ?: throw TeakException(null, "Failed to prepare upload")
+        prepared.requireSuccess(::prepareFailed)
+        val uploadKey = prepared.string("uploadKey") ?: throw prepareFailed(null)
+        val uploadUrl = prepared.string("uploadUrl") ?: throw prepareFailed(null)
         onProgress(0.05f)
 
         val etag = put(uploadUrl, File(file.path), file.mimeType) { sent -> onProgress(0.05f + 0.9f * sent) }
@@ -73,9 +74,9 @@ class FileUploader @Inject constructor(
                 metadata?.let { put("additionalMetadata", it) }
             },
         )
-        finalized.requireSuccess("Failed to create card")
+        finalized.requireSuccess(::createFailed)
         onProgress(1f)
-        return finalized.string("cardId") ?: throw TeakException(null, "Failed to create card")
+        return finalized.string("cardId") ?: throw createFailed(null)
     }
 
     private suspend fun put(url: String, file: File, mimeType: String, onProgress: (Float) -> Unit): String? =
@@ -90,7 +91,11 @@ class FileUploader @Inject constructor(
                     httpClient.newCall(request).execute().use { response ->
                         if (response.isSuccessful) return@withContext response.header("ETag")
                         if (attempt >= MAX_ATTEMPTS || response.code !in RETRYABLE) {
-                            throw TeakException(null, "Upload failed with status ${response.code}")
+                            throw TeakException(
+                                null,
+                                "Upload failed with status ${response.code}",
+                                text = UiText.of("native.errors.uploadStatus", response.code.toString()),
+                            )
                         }
                     }
                 } catch (e: IOException) {
@@ -101,11 +106,18 @@ class FileUploader @Inject constructor(
             error("Every attempt either returns or throws")
         }
 
-    private fun JsonObject.requireSuccess(fallback: String) {
+    private fun JsonObject.requireSuccess(fallback: (code: String?) -> TeakException) {
         if (get("success")?.jsonPrimitive?.booleanOrNull != true) {
-            throw TeakException(string("errorCode"), string("error") ?: fallback)
+            val code = string("errorCode")
+            throw string("error")?.let { TeakException(code, it) } ?: fallback(code)
         }
     }
+
+    private fun prepareFailed(code: String?) =
+        TeakException(code, "Failed to prepare upload", text = code?.let(TeakException::textFor) ?: UiText.of("native.errors.prepareUpload"))
+
+    private fun createFailed(code: String?) =
+        TeakException(code, "Failed to create card", text = code?.let(TeakException::textFor) ?: UiText.of("native.errors.createCard"))
 
     private class ProgressBody(
         private val file: File,

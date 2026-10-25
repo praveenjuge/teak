@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "default_locale": "en",
-  "name": "__MSG_extension_name__",
-  "description": "__MSG_extension_description__",
+  "name": "Teak",
+  "description": "__MSG_extensionDescription__",
   "version": "1.0.90",
   "icons": {
     "48": "images/icon-48.png",
@@ -20,7 +20,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Save to Teak",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": "images/toolbar-icon.svg"
   },
   "permissions": [

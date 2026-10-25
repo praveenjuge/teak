@@ -5,7 +5,13 @@ import TeakSync
 enum Appearance: String, CaseIterable, Identifiable {
     case auto, light, dark
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .auto: tr("native.settings.themeAuto")
+        case .light: tr("native.settings.themeLight")
+        case .dark: tr("native.settings.themeDark")
+        }
+    }
     var colorScheme: ColorScheme? {
         switch self {
         case .auto: nil
@@ -28,12 +34,13 @@ struct SettingsView: View {
             if sizeClass == .compact { LibrarySection() }
             #endif
             AppearanceSection()
+            LanguageSection()
             AccountSection(account: account)
             SafariExtensionSection()
             AboutSection()
         }
         .formStyle(.grouped)
-        .navigationTitle("Settings")
+        .navigationTitle(tr("native.settings.title"))
         .task { await account.watch(app.backend) }
     }
 }
@@ -44,7 +51,7 @@ struct LibrarySection: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Section("Library") {
+        Section(tr("native.settings.library")) {
             NavigationLink {
                 TagsView(model: AppServices.shared.tags) { tag in
                     let library = AppServices.shared.home
@@ -54,7 +61,7 @@ struct LibrarySection: View {
                     router.tab = .home
                 }
             } label: {
-                Label("Tags", systemImage: "number")
+                Label(tr("native.tags.title"), systemImage: "number")
             }
             .accessibilityIdentifier("settings.tags")
         }
@@ -66,8 +73,8 @@ struct AppearanceSection: View {
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
 
     var body: some View {
-        Section("Appearance") {
-            Picker("Theme", selection: $appearance) {
+        Section(tr("native.settings.appearance")) {
+            Picker(tr("native.settings.theme"), selection: $appearance) {
                 ForEach(Appearance.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -99,35 +106,39 @@ struct AccountSection: View {
     let account: AccountModel
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
-    @State private var confirmLogOut = false
+    @State private var confirmSignOut = false
     @State private var confirmDelete = false
     @State private var typingConfirmation = false
     @State private var confirmation = ""
     @State private var isWorking = false
     @State private var error: String?
 
+    /// What the person types to delete their account. It stays English in every language.
     static let deletePhrase = "delete account"
 
     var body: some View {
         Group {
-            Section("Profile") {
-                LabeledContent("Email", value: app.user?.email ?? account.user?.email ?? "Not logged in")
-                LabeledContent("Usage") {
-                    if let user = account.user { Text(user.usageLabel) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text("Not available") }
+            Section(tr("native.settings.profile")) {
+                LabeledContent(tr("native.settings.email"),
+                               value: app.user?.email ?? account.user?.email ?? tr("native.settings.notSignedIn"))
+                LabeledContent(tr("native.settings.usage")) {
+                    if let user = account.user { Text(Self.usage(user)) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text(tr("native.settings.notAvailable")) }
                 }
-                LabeledContent("Plan") {
+                LabeledContent(tr("native.settings.plan")) {
                     HStack(spacing: 12) {
-                        if let user = account.user { Text(user.plan) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text("Not available") }
+                        if let user = account.user { Text(Self.plan(user)) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text(tr("native.settings.notAvailable")) }
                         #if os(macOS)
                         if let user = account.user {
-                            Button(user.hasPremium ? "Manage…" : "Upgrade…") { openURL(app.config.webURL.appending(path: "settings")) }
+                            Button(user.hasPremium ? tr("native.settings.manage") : tr("native.app.upgrade")) {
+                                openURL(app.config.webURL.appending(path: "settings"))
+                            }
                         }
                         #endif
                     }
                 }
                 #if os(iOS)
                 deleteButton
-                logOutButton
+                signOutButton
                 errorText
                 #endif
             }
@@ -136,43 +147,57 @@ struct AccountSection: View {
                 HStack {
                     deleteButton
                     Spacer()
-                    logOutButton
+                    signOutButton
                 }
                 errorText
             }
             #endif
         }
-        .confirmationDialog("Log Out", isPresented: $confirmLogOut) {
-            Button("Log Out", role: .destructive) { logOut() }
+        .confirmationDialog(tr("native.settings.signOut"), isPresented: $confirmSignOut) {
+            Button(tr("native.settings.signOut"), role: .destructive) { signOut() }
         } message: {
-            Text("Are you sure you want to log out?")
+            Text(tr("native.settings.signOutConfirm"))
         }
-        .confirmationDialog("Delete Account", isPresented: $confirmDelete) {
-            Button("Delete Account", role: .destructive) { typingConfirmation = true }
+        .confirmationDialog(tr("native.settings.deleteAccount"), isPresented: $confirmDelete) {
+            Button(tr("native.settings.deleteAccount"), role: .destructive) { typingConfirmation = true }
         } message: {
-            Text("This will permanently remove your account, cards, tags, and uploaded files. Are you sure?")
+            Text(tr("native.settings.deleteWarning"))
         }
-        .alert("Delete Account", isPresented: $typingConfirmation) {
+        .alert(tr("native.settings.deleteAccount"), isPresented: $typingConfirmation) {
             TextField(Self.deletePhrase, text: $confirmation)
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
-            Button("Cancel", role: .cancel) { confirmation = "" }
-            Button("Delete", role: .destructive) { deleteAccount() }
+            Button(tr("common.cancel"), role: .cancel) { confirmation = "" }
+            Button(tr("native.actions.deleteForever"), role: .destructive) { deleteAccount() }
         } message: {
-            Text("Type \u{201C}\(Self.deletePhrase)\u{201D} to confirm.")
+            Text(tr("native.settings.typeToConfirm", Self.deletePhrase))
         }
     }
 
+    /// "12 cards", or "12 of 200 cards" on the Free plan.
+    static func usage(_ user: CurrentUser) -> String {
+        let count = Int(user.cardCount)
+        guard !user.hasPremium else { return tr("native.common.cardCount", count: count) }
+        let locale = AppLanguage.locale
+        return tr("native.settings.usageFree", count.formatted(.number.locale(locale)),
+                  TeakLimits.freeTierCards.formatted(.number.locale(locale)))
+    }
+
+    /// "Pro" is a name, so it stays as it is.
+    static func plan(_ user: CurrentUser) -> String {
+        user.hasPremium ? "Pro" : tr("native.card.plan.free")
+    }
+
     private var deleteButton: some View {
-        Button(isWorking ? "Deleting…" : "Delete Account", role: .destructive) {
+        Button(isWorking ? tr("native.settings.deleting") : tr("native.settings.deleteAccount"), role: .destructive) {
             confirmDelete = true
         }
         .disabled(isWorking)
     }
 
-    private var logOutButton: some View {
-        Button("Log Out") { confirmLogOut = true }
+    private var signOutButton: some View {
+        Button(tr("native.settings.signOut")) { confirmSignOut = true }
             .tint(.primary)
             .accessibilityIdentifier("settings.logOut")
     }
@@ -183,7 +208,7 @@ struct AccountSection: View {
         }
     }
 
-    private func logOut() {
+    private func signOut() {
         error = nil
         Task {
             do {
@@ -198,7 +223,7 @@ struct AccountSection: View {
         let typed = confirmation.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         confirmation = ""
         guard typed == Self.deletePhrase else {
-            error = "Type \u{201C}\(Self.deletePhrase)\u{201D} to confirm."
+            error = tr("native.settings.typeToConfirm", Self.deletePhrase)
             return
         }
         isWorking = true
@@ -208,7 +233,7 @@ struct AccountSection: View {
             do {
                 try await app.deleteAccount()
             } catch {
-                self.error = "Something went wrong while deleting your account."
+                self.error = tr("native.settings.deleteFailed")
             }
         }
     }
@@ -218,11 +243,16 @@ private struct AboutSection: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        Section("About") {
-            LabeledContent("Teak", value: "by @praveenjuge")
-            Text("Hope you enjoy using Teak as much as I enjoyed creating it.")
+        Section(tr("native.settings.about")) {
+            // The app's name and the author's handle stay as they are in every language.
+            LabeledContent {
+                Text(verbatim: "by @praveenjuge")
+            } label: {
+                Text(verbatim: "Teak")
+            }
+            Text(tr("native.settings.hope"))
                 .foregroundStyle(.secondary)
-            LabeledContent("Version", value: "\(app.config.version) (\(app.config.build))")
+            LabeledContent(tr("native.settings.version"), value: "\(app.config.version) (\(app.config.build))")
         }
     }
 }

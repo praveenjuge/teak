@@ -58,9 +58,9 @@ class DefaultWorkOsAuthApi @Inject constructor(
             put("code_verifier", pending.codeVerifier)
         }
     } catch (e: InvalidRefreshTokenException) {
-        throw SignInException(UNABLE_TO_SIGN_IN, e)
+        throw SignInException.signInFailed(e)
     } catch (e: IOException) {
-        throw SignInException("Unable to connect. Please try again.", e)
+        throw SignInException.connectFailed(e)
     }
 
     override suspend fun refresh(clientId: String, refreshToken: String): AuthSession =
@@ -81,7 +81,7 @@ class DefaultWorkOsAuthApi @Inject constructor(
                 .build()
             httpClient.newCall(request).execute().use { response ->
                 val text = response.body?.string().orEmpty()
-                if (text.length > MAX_RESPONSE) throw SignInException(UNABLE_TO_SIGN_IN)
+                if (text.length > MAX_RESPONSE) throw SignInException.signInFailed()
                 if (!response.isSuccessful) {
                     val error = runCatching {
                         val root = Json.parseToJsonElement(text).jsonObject

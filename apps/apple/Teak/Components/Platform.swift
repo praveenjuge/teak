@@ -1,4 +1,5 @@
 import SwiftUI
+import TeakCore
 import UniformTypeIdentifiers
 
 #if os(macOS)
@@ -28,6 +29,11 @@ enum Pasteboard {
         return true
         #endif
     }
+}
+
+/// A number as text in the app's language, for a `tr` value.
+func localizedNumber(_ value: Int) -> String {
+    value.formatted(.number.locale(AppLanguage.locale))
 }
 
 extension UTType {

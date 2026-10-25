@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.capture.share
 
 import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeUploadRepository
@@ -89,7 +90,7 @@ class ShareViewModelTest {
             viewModel.updateNote("  For the weekend ")
             val details = (viewModel.uiState.value as ShareUiState.Saved).details!!
             assertEquals(listOf("secret"), details.tags)
-            assertEquals("Hidden. Search #secret to see it.", details.hiddenHint)
+            assertEquals(UiText.of("native.tags.card.hiddenAdded", "secret"), details.hiddenHint)
 
             viewModel.saveDetails()
             runCurrent()

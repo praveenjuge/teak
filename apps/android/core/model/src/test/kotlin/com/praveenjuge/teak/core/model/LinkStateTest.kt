@@ -7,6 +7,7 @@ import java.util.Locale
 import java.util.TimeZone
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -23,43 +24,55 @@ class LinkStateTest {
 
     @Test
     fun `every known category gets its own verb, like doneActionLabel`() {
-        assertEquals("Mark as read", LinkState.toggleLabel("article", isDone = false))
-        assertEquals("Watched", LinkState.toggleLabel("movie", isDone = true))
-        assertEquals("Mark as read", LinkState.toggleLabel("research", isDone = false))
-        assertEquals("Marked as read", LinkState.toggledMessage("research", isDone = true))
-        assertEquals("Mark as done", LinkState.toggleLabel("a-category-from-the-future", isDone = false))
-        assertEquals("Mark as done", LinkState.toggleLabel(null, isDone = false))
-        assertEquals("Done", LinkState.toggleLabel("repo", isDone = true))
-        assertEquals("Marked as not read", LinkState.toggledMessage("book", isDone = false))
+        assertEquals(UiText.of("native.done.markAs.read"), LinkState.toggleText("article", isDone = false))
+        assertEquals(UiText.of("native.done.state.watched"), LinkState.toggleText("movie", isDone = true))
+        assertEquals(UiText.of("native.done.markAs.read"), LinkState.toggleText("research", isDone = false))
+        assertEquals(UiText.of("native.done.markedAs.read"), LinkState.toggledText("research", isDone = true))
+        assertEquals(UiText.of("native.done.markAs.done"), LinkState.toggleText("a-category-from-the-future", isDone = false))
+        assertEquals(UiText.of("native.done.markAs.done"), LinkState.toggleText(null, isDone = false))
+        assertEquals(UiText.of("native.done.state.done"), LinkState.toggleText("repo", isDone = true))
+        assertEquals(UiText.of("native.done.markedAsNot.read"), LinkState.toggledText("book", isDone = false))
         assertTrue(LinkState.isActionable("product"))
         assertFalse(LinkState.isActionable("repo"))
     }
 
+    /** Apple's TeakCoreTests check the same: a new verb needs its own catalog keys. */
     @Test
-    fun `every done label fits in 16 characters`() {
-        for (category in LINK_CATEGORY_DONE_VERBS.keys) assertTrue(LinkState.toggleLabel(category, false).length <= 16, category)
+    fun `every done verb has its own sentences`() {
+        for (verb in LINK_CATEGORY_DONE_VERBS.values.toSet()) {
+            val words = assertNotNull(LinkState.words(verb), verb)
+            val keys = listOf(words.markAs, words.markAsNot, words.state, words.markedAs, words.markedAsNot)
+                .map { (it as UiText.Message).key }
+            assertEquals(
+                listOf("markAs", "markAsNot", "state", "markedAs", "markedAsNot").map { "native.done.$it.$verb" },
+                keys,
+                verb,
+            )
+        }
     }
 
     @Test
     fun `formats link prices`() {
         val cases = listOf(
-            LinkPrice(24.99, "USD") to "$24.99",
-            LinkPrice(1299.0, "EUR") to "€1,299.00",
-            LinkPrice(1_299_999.0, "JPY") to "¥1,299,999",
-            LinkPrice(0.0, "USD") to "Free",
-            LinkPrice(12.5) to "12.5",
-            LinkPrice(12.0, "ZZZZ") to "12",
+            LinkPrice(24.99, "USD") to UiText.verbatim("$24.99"),
+            LinkPrice(1299.0, "EUR") to UiText.verbatim("€1,299.00"),
+            LinkPrice(1_299_999.0, "JPY") to UiText.verbatim("¥1,299,999"),
+            LinkPrice(0.0, "USD") to UiText.of("native.details.free"),
+            LinkPrice(12.5) to UiText.verbatim("12.5"),
+            LinkPrice(12.0, "ZZZZ") to UiText.verbatim("12"),
         )
-        for ((price, label) in cases) assertEquals(label, LinkState.formatPrice(price, Locale.US), "$price")
+        for ((price, label) in cases) assertEquals(label, LinkState.priceText(price, Locale.US), "$price")
+        val euros = LinkState.priceText(LinkPrice(1299.0, "EUR"), Locale.GERMANY)
+        assertTrue((euros as UiText.Verbatim).text.contains("1.299,00"), "$euros")
     }
 
     @Test
     fun `tag names must be non-empty and at most 64 characters`() {
         assertEquals("design", Tags.key("  Design "))
-        assertEquals("Name the tag", Tags.explainInvalidName(" "))
-        assertNull(Tags.explainInvalidName("x".repeat(64)))
-        assertEquals("Tags can be at most 64 characters", Tags.explainInvalidName("x".repeat(65)))
-        assertEquals("A tag named \"web\" already exists. Merge into it instead.", Tags.existsMessage(" web "))
+        assertEquals(UiText.of("errors.tags.EMPTY_NAME"), Tags.invalidNameText(" "))
+        assertNull(Tags.invalidNameText("x".repeat(64)))
+        assertEquals(UiText.of("errors.tags.NAME_TOO_LONG", "64"), Tags.invalidNameText("x".repeat(65)))
+        assertEquals(UiText.of("errors.tags.TAG_EXISTS", "web"), Tags.existsText(" web "))
     }
 
     @Test
@@ -78,9 +91,9 @@ class LinkStateTest {
 
     @Test
     fun `adding a hidden tag explains how to find the card, once`() {
-        assertEquals("Hidden. Search #secret to see it.", Tags.hiddenHint(listOf("work"), "Secret"))
-        assertNull(Tags.hiddenHint(listOf("hidden"), "secret"))
-        assertNull(Tags.hiddenHint(emptyList(), "work"))
+        assertEquals(UiText.of("native.tags.card.hiddenAdded", "secret"), Tags.hiddenHintText(listOf("work"), "Secret"))
+        assertNull(Tags.hiddenHintText(listOf("hidden"), "secret"))
+        assertNull(Tags.hiddenHintText(emptyList(), "work"))
     }
 
     @Test
@@ -96,10 +109,13 @@ class LinkStateTest {
                 takenAtClock = java.time.Instant.parse("2026-05-17T09:00:05Z").toEpochMilli().toDouble(),
             ),
         )
-        assertEquals(listOf("Camera", "Taken", "Exposure", "Aperture", "Focal length", "ISO"), rows.map { it.label })
+        assertEquals(
+            listOf("camera", "taken", "exposure", "aperture", "focalLength", "iso").map { UiText.of("native.details.$it") },
+            rows.map { it.label },
+        )
         assertEquals(
             listOf("Canon EOS R5", "May 17, 2026, 09:00 AM", "1/250 s", "f/1.8", "50 mm", "400"),
-            rows.map { it.value },
+            rows.map { it.text },
         )
     }
 
@@ -109,7 +125,7 @@ class LinkStateTest {
     fun `shows the camera's clock time wherever it's viewed`() {
         val original = TimeZone.getDefault()
         fun taken(at: String, offset: Double? = null) =
-            Exif.rows(ImageExif(takenAtClock = Instant.parse(at).toEpochMilli().toDouble(), takenAtOffset = offset)).single().value
+            Exif.rows(ImageExif(takenAtClock = Instant.parse(at).toEpochMilli().toDouble(), takenAtOffset = offset)).single().text
         try {
             for (zone in listOf("America/Los_Angeles", "Pacific/Auckland")) {
                 TimeZone.setDefault(TimeZone.getTimeZone(zone))
@@ -136,9 +152,9 @@ class LinkStateTest {
         val la = ZoneId.of("America/Los_Angeles")
         assertEquals(
             "May 17, 2026, 09:00 AM UTC+5:30",
-            Exif.rows(ImageExif(takenAt = earlier, takenAtClock = nine, takenAtOffset = 330.0), la).single().value,
+            Exif.rows(ImageExif(takenAt = earlier, takenAtClock = nine, takenAtOffset = 330.0), la).single().text,
         )
-        assertEquals("May 17, 2026, 02:00 AM", Exif.rows(ImageExif(takenAt = nine), la).single().value)
+        assertEquals("May 17, 2026, 02:00 AM", Exif.rows(ImageExif(takenAt = nine), la).single().text)
     }
 
     @Test
@@ -147,7 +163,7 @@ class LinkStateTest {
         assertEquals(emptyList(), Exif.rows(null))
         assertEquals(emptyList(), Exif.rows(ImageExif(exposureTime = 0.0, fNumber = -2.0, focalLength = Double.NaN, iso = Double.POSITIVE_INFINITY)))
         assertEquals(emptyList(), Exif.rows(ImageExif(make = "   ", model = "")))
-        assertEquals(listOf(DetailRow("Aperture", "f/8"), DetailRow("Focal length", "24 mm")), Exif.rows(ImageExif(fNumber = 8.0, focalLength = 23.99)))
+        assertEquals(listOf(DetailRow(UiText.of("native.details.aperture"), "f/8"), DetailRow(UiText.of("native.details.focalLength"), "24 mm")), Exif.rows(ImageExif(fNumber = 8.0, focalLength = 23.99)))
     }
 
     @Test
@@ -174,3 +190,6 @@ class LinkStateTest {
         for (seconds in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY, null)) assertNull(Exif.formatExposureTime(seconds))
     }
 }
+
+/** The text a detail row shows when it isn't a catalog message. */
+internal val DetailRow.text: String get() = (value as UiText.Verbatim).text

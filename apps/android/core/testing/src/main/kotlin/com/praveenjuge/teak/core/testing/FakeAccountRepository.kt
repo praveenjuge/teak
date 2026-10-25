@@ -44,7 +44,7 @@ class FakeAccountRepository(
     override suspend fun completeSignIn(code: String?, state: String?, error: String?): SignInOutcome {
         signInError?.let { throw it }
         if (error == "access_denied") return SignInOutcome.Cancelled
-        if (error != null) throw SignInException(DefaultWorkOsAuthApi.UNABLE_TO_SIGN_IN)
+        if (error != null) throw SignInException.signInFailed()
         session.value = SessionState.SignedIn(user)
         return SignInOutcome.SignedIn
     }

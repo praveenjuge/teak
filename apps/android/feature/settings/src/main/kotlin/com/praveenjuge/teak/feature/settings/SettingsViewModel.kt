@@ -8,7 +8,10 @@ import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.data.repository.AccountRepository
+import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.model.CurrentUser
+import com.praveenjuge.teak.core.model.FREE_TIER_LIMIT
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,22 +24,44 @@ import javax.inject.Inject
 
 enum class DeleteStep { None, Warning, Confirm }
 
+/** What the last language change in Settings did. */
+sealed interface LanguageNotice {
+    /** Saved; Undo switches back to [undoTo]. */
+    data class Changed(val undoTo: String) : LanguageNotice
+
+    data object Failed : LanguageNotice
+}
+
 data class SettingsUiState(
     val theme: ThemePreference = ThemePreference.System,
+    val language: String = "en",
+    val isChangingLanguage: Boolean = false,
+    val languageNotice: LanguageNotice? = null,
     val email: String? = null,
-    val usage: String? = null,
-    val plan: String? = null,
+    val usage: UiText? = null,
+    val plan: UiText? = null,
     val deleteStep: DeleteStep = DeleteStep.None,
     val isDeleting: Boolean = false,
     val isSigningOut: Boolean = false,
     val confirmSignOut: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
 )
+
+/** "12 cards", or "12 of 200 cards" on the Free plan. */
+internal fun usageText(user: CurrentUser): UiText {
+    val count = user.cardCount.toInt()
+    return if (user.hasPremium) {
+        UiText.of("native.common.cardCount", count = count)
+    } else {
+        UiText.of("native.settings.usageFree", count.toString(), FREE_TIER_LIMIT.toString())
+    }
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val account: AccountRepository,
     private val preferences: PreferencesRepository,
+    private val language: LanguageRepository,
     config: TeakConfig,
 ) : ViewModel() {
     val versionName: String = config.versionName
@@ -48,23 +73,44 @@ class SettingsViewModel @Inject constructor(
         preferences.theme,
         account.session,
         account.currentUser,
-    ) { local, theme, session, user ->
+        language.current,
+    ) { local, theme, session, user, code ->
         val current: CurrentUser? = user.getOrNull()
         local.copy(
             theme = theme,
+            language = code,
             email = (session as? SessionState.SignedIn)?.user?.email,
             usage = when {
-                user.isFailure -> "Not available"
-                current == null -> "Not available"
-                else -> current.usageLabel
+                user.isFailure -> UiText.of("native.settings.notAvailable")
+                current == null -> UiText.of("native.settings.notAvailable")
+                else -> usageText(current)
             },
-            plan = current?.plan,
+            plan = current?.planText,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     fun setTheme(theme: ThemePreference) {
         viewModelScope.launch { preferences.setTheme(theme) }
     }
+
+    /** Switches the app's language now and saves it to the account, with Undo. */
+    fun chooseLanguage(code: String) {
+        val previous = language.current.value
+        if (code == previous || local.value.isChangingLanguage) return
+        local.update { it.copy(isChangingLanguage = true, languageNotice = null) }
+        viewModelScope.launch {
+            val notice = catchingFailures { language.choose(code) }
+                .fold({ LanguageNotice.Changed(undoTo = previous) }, { LanguageNotice.Failed })
+            local.update { it.copy(isChangingLanguage = false, languageNotice = notice) }
+        }
+    }
+
+    fun undoLanguage() {
+        val notice = local.value.languageNotice as? LanguageNotice.Changed ?: return
+        chooseLanguage(notice.undoTo)
+    }
+
+    fun dismissLanguageNotice() = local.update { it.copy(languageNotice = null) }
 
     fun requestSignOut() = local.update { it.copy(confirmSignOut = true) }
 
@@ -94,7 +140,7 @@ class SettingsViewModel @Inject constructor(
                 .onSuccess { local.update { it.copy(isDeleting = false) } }
                 .onFailure {
                     local.update {
-                        it.copy(isDeleting = false, error = "Something went wrong while deleting your account.")
+                        it.copy(isDeleting = false, error = UiText.of("native.settings.deleteFailed"))
                     }
                 }
         }
@@ -103,6 +149,7 @@ class SettingsViewModel @Inject constructor(
     fun dismissError() = local.update { it.copy(error = null) }
 
     companion object {
+        /** What the person types to delete their account. It stays English in every language. */
         const val DELETE_PHRASE = "delete account"
     }
 }

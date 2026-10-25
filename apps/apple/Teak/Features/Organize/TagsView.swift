@@ -52,7 +52,7 @@ final class TagsModel {
     }
 
     func start(_ kind: TagOperations.Kind, from: String, to: String? = nil) async {
-        if let to, let invalid = TagOperations.invalidName(to) { return error = invalid }
+        if let to, let invalid = TagChangeText.invalidName(to) { return error = invalid }
         error = nil
         notice = nil
         var args: ConvexArgs = ["kind": .string(kind.rawValue), "from": .string(from)]
@@ -61,7 +61,7 @@ final class TagsModel {
             let started = try await backend.mutation(ConvexFunctions.startTagOperation, args)
             follow(started)
         } catch {
-            self.error = (error as? TeakError)?.message ?? "Couldn't start the tag change"
+            self.error = (error as? TeakError)?.message ?? tr("native.tags.startFailed")
         }
     }
 
@@ -76,11 +76,11 @@ final class TagsModel {
                     operation = value
                     if value.isRunning { continue }
                     if value.isFailed {
-                        error = TagOperations.failed(value.kind, changed: Int(value.changed), total: Int(value.total))
-                            + " Try again to change the rest."
+                        error = TagChangeText.failed(value.kind, changed: Int(value.changed), total: Int(value.total))
+                            + "\n" + tr("native.tags.tryRest")
                     } else {
-                        notice = TagOperations.completed(value.kind, from: value.from, to: value.to)
-                            + ". " + TagOperations.changed(Int(value.changed)) + "."
+                        notice = TagChangeText.completed(value.kind, from: value.from, to: value.to)
+                            + "\n" + tr("native.tags.changed", count: Int(value.changed))
                         finished = (value, summary?.computedAt)
                     }
                     operation = nil
@@ -89,6 +89,49 @@ final class TagsModel {
             } catch {
                 operation = nil
             }
+        }
+    }
+}
+
+/// What a tag change says while it runs, once it's done and when it fails.
+enum TagChangeText {
+    private static func number(_ value: Int) -> String { value.formatted(.number.locale(AppLanguage.locale)) }
+
+    static func invalidName(_ name: String) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return tr("errors.tags.EMPTY_NAME") }
+        guard trimmed.utf16.count > TagOperations.maxNameLength else { return nil }
+        return tr("errors.tags.NAME_TOO_LONG", number(TagOperations.maxNameLength))
+    }
+
+    static func running(_ kind: TagOperations.Kind, from: String, to: String?) -> String {
+        switch kind {
+        case .rename: tr("native.tags.renaming", from, to ?? "")
+        case .merge: tr("native.tags.merging", from, to ?? "")
+        case .delete: tr("native.tags.deleting", from)
+        }
+    }
+
+    static func progress(changed: Int, total: Int) -> String {
+        let total = max(total, 0)
+        return tr("native.tags.progress", count: total, number(min(changed, total)))
+    }
+
+    static func completed(_ kind: TagOperations.Kind, from: String, to: String?) -> String {
+        switch kind {
+        case .rename: tr("native.tags.renamed", from, to ?? "")
+        case .merge: tr("native.tags.merged", from, to ?? "")
+        case .delete: tr("native.tags.deleted", from)
+        }
+    }
+
+    static func failed(_ kind: TagOperations.Kind, changed: Int, total: Int) -> String {
+        let total = max(total, 0)
+        let changed = number(min(changed, total))
+        return switch kind {
+        case .rename: tr("native.tags.renameFailed", count: total, changed)
+        case .merge: tr("native.tags.mergeFailed", count: total, changed)
+        case .delete: tr("native.tags.deleteFailed", count: total, changed)
         }
     }
 }
@@ -107,10 +150,10 @@ struct TagsView: View {
             if let operation = model.operation {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(TagOperations.running(operation.kind, from: operation.from, to: operation.to))
+                        Text(TagChangeText.running(operation.kind, from: operation.from, to: operation.to))
                             .font(.subheadline.weight(.medium))
                         ProgressView(value: operation.total > 0 ? min(operation.processed / operation.total, 1) : 0)
-                        Text(TagOperations.progress(changed: Int(operation.changed), total: Int(operation.total)))
+                        Text(TagChangeText.progress(changed: Int(operation.changed), total: Int(operation.total)))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -128,14 +171,15 @@ struct TagsView: View {
                     HStack {
                         Label(item.name, systemImage: HiddenTags.isHidden(item.name) ? "eye.slash" : "number")
                         Spacer()
-                        Text(Int(item.count), format: .number).foregroundStyle(.secondary).monospacedDigit()
+                        Text(Int(item.count), format: .number.locale(AppLanguage.locale))
+                            .foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
-                .accessibilityLabel("\(item.name), \(BulkCardAction.cards(Int(item.count)))")
+                .accessibilityLabel(tr("native.tags.rowLabel", count: Int(item.count), item.name))
                 .contextMenu { menu(item) }
                 .swipeActions {
-                    Button("Delete…", systemImage: "trash", role: .destructive) { deleting = item }
-                    Button("Rename…", systemImage: "pencil") { rename(item) }
+                    Button(tr("native.tags.deleteMenu"), systemImage: "trash", role: .destructive) { deleting = item }
+                    Button(tr("native.folders.renameMenu"), systemImage: "pencil") { rename(item) }
                 }
                 .disabled(model.operation != nil)
             }
@@ -143,29 +187,29 @@ struct TagsView: View {
         .tint(.primary)
         .overlay {
             if !model.isLoaded {
-                ProgressView().accessibilityLabel("Loading tags")
+                ProgressView().accessibilityLabel(tr("native.tags.loading"))
             } else if model.items.isEmpty {
-                ContentUnavailableView("No Tags Yet", systemImage: "number",
-                                       description: Text("Tags you add to cards, and the ones Teak suggests, show up here."))
+                ContentUnavailableView(tr("native.tags.emptyTitle"), systemImage: "number",
+                                       description: Text(tr("native.tags.emptyMessage")))
             } else if visible.isEmpty {
                 ContentUnavailableView.search(text: query)
             }
         }
-        .searchable(text: $query, prompt: "Find a tag")
-        .navigationTitle("Tags")
+        .searchable(text: $query, prompt: tr("native.tags.find"))
+        .navigationTitle(tr("native.tags.title"))
         .task { model.start() }
-        .alert("Rename Tag", isPresented: Binding(presenting: $renaming), presenting: renaming) { item in
-            TextField("New name", text: $newName)
-            Button("Cancel", role: .cancel) {}
-            Button("Rename") { Task { await model.start(.rename, from: item.name, to: newName) } }
+        .alert(tr("native.tags.renameTitle"), isPresented: Binding(presenting: $renaming), presenting: renaming) { item in
+            TextField(tr("native.tags.newName"), text: $newName)
+            Button(tr("common.cancel"), role: .cancel) {}
+            Button(tr("common.rename")) { Task { await model.start(.rename, from: item.name, to: newName) } }
         } message: { item in
-            Text("Renames \u{201C}\(item.name)\u{201D} on \(scope(item)).")
+            Text(tr("native.tags.renameMessage", count: Int(item.count), item.name))
         }
-        .confirmationDialog("Delete \u{201C}\(deleting?.name ?? "")\u{201D}?", isPresented: Binding(presenting: $deleting),
+        .confirmationDialog(tr("native.tags.deleteTitle", deleting?.name ?? ""), isPresented: Binding(presenting: $deleting),
                             titleVisibility: .visible, presenting: deleting) { item in
-            Button("Delete Tag", role: .destructive) { Task { await model.start(.delete, from: item.name) } }
+            Button(tr("native.tags.deleteTag"), role: .destructive) { Task { await model.start(.delete, from: item.name) } }
         } message: { item in
-            Text("Removes \u{201C}\(item.name)\u{201D} from \(scope(item)). The cards are kept. This can't be undone.")
+            Text(tr("native.tags.deleteMessage", count: Int(item.count), item.name))
         }
         .sheet(item: $merging) { item in
             MergeTagView(source: item, tags: model.items) { target in
@@ -179,19 +223,15 @@ struct TagsView: View {
         return trimmed.isEmpty ? model.items : model.items.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
     }
 
-    private func scope(_ item: TagSummary.Item) -> String {
-        "\(BulkCardAction.cards(Int(item.count))), plus any in Archive or Trash"
-    }
-
     private func rename(_ item: TagSummary.Item) {
         newName = item.name
         renaming = item
     }
 
     @ViewBuilder private func menu(_ item: TagSummary.Item) -> some View {
-        Button("Rename…", systemImage: "pencil") { rename(item) }
-        Button("Merge Into…", systemImage: "arrow.triangle.merge") { merging = item }
-        Button("Delete…", systemImage: "trash", role: .destructive) { deleting = item }
+        Button(tr("native.folders.renameMenu"), systemImage: "pencil") { rename(item) }
+        Button(tr("native.tags.mergeMenu"), systemImage: "arrow.triangle.merge") { merging = item }
+        Button(tr("native.tags.deleteMenu"), systemImage: "trash", role: .destructive) { deleting = item }
     }
 }
 
@@ -205,7 +245,7 @@ private struct MergeTagView: View {
     var body: some View {
         NavigationStack {
             List {
-                Text("Cards tagged \u{201C}\(source.name)\u{201D} get the tag you pick instead. A card with both keeps one.")
+                Text(tr("native.tags.mergeMessage", source.name))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 ForEach(targets.prefix(200)) { tag in
@@ -216,21 +256,21 @@ private struct MergeTagView: View {
                         HStack {
                             Text(tag.name)
                             Spacer()
-                            Text(Int(tag.count), format: .number).foregroundStyle(.secondary)
+                            Text(Int(tag.count), format: .number.locale(AppLanguage.locale)).foregroundStyle(.secondary)
                         }
                     }
                 }
                 if targets.isEmpty {
-                    Text(query.isEmpty ? "No other tags yet." : "No tag by that name.").foregroundStyle(.secondary)
+                    Text(query.isEmpty ? tr("native.tags.noOthers") : tr("native.tags.noneByName")).foregroundStyle(.secondary)
                 }
             }
             .tint(.primary)
-            .searchable(text: $query, prompt: "Find a tag")
-            .navigationTitle("Merge \u{201C}\(source.name)\u{201D} Into…")
+            .searchable(text: $query, prompt: tr("native.tags.find"))
+            .navigationTitle(tr("native.tags.mergeTitle", source.name))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(tr("common.cancel")) { dismiss() } } }
         }
         .frame(minWidth: 360, minHeight: 420)
     }
