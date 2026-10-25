@@ -28,6 +28,7 @@ import javax.inject.Singleton
 
 internal const val CARD_SOURCE = "android"
 
+/** A library page: [search] goes as typed, and [range] narrows it to when cards were saved. */
 data class CardQuery(
     val search: String = "",
     val range: CreatedAtRange? = null,
@@ -82,12 +83,8 @@ class ConvexCardsRepository @Inject constructor(
             put("paginationOpts", mapOf("numItems" to numItems, "cursor" to cursor))
             putAll(query.filters.toSearchArgs())
             query.folderId?.let { put("folderId", it) }
-            val range = query.range
-            if (range != null) {
-                put("createdAtRange", mapOf("start" to range.start, "end" to range.endExclusive))
-            } else if (query.search.isNotBlank()) {
-                put("searchQuery", query.search.trim())
-            }
+            query.range?.let { put("createdAtRange", mapOf("start" to it.start, "end" to it.endExclusive)) }
+            if (query.search.isNotBlank()) put("searchQuery", query.search.trim())
         }
         return convex.subscribe(ConvexFunctions.searchCardSummaries, args)
     }

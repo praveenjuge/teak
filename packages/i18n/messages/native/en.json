@@ -697,6 +697,11 @@
         "checkSpelling": "Check the spelling or try a new search."
       }
     },
+    "search": {
+      "suggestions": "Search suggestions",
+      "suggestion": "{label} · {detail}",
+      "exclude": "Leave out {label}"
+    },
     "time": {
       "today": "Today",
       "yesterday": "Yesterday",

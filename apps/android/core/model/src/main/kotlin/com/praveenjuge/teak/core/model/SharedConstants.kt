@@ -140,6 +140,46 @@ val SEARCH_QUALIFIER_KEYS: List<String> = listOf(
     "text",
 )
 
+/** The search field's hints, from `packages/convex/shared/search/suggestionHints.ts`. */
+val SEARCH_QUALIFIER_HINTS: List<SearchHint> = listOf(
+    SearchHint(id = "Filters:tag", group = "Filters", key = "tag", insert = "tag:", messageKey = "search.suggestions.hints.tag"),
+    SearchHint(id = "Filters:type", group = "Filters", key = "type", insert = "type:", messageKey = "search.suggestions.hints.type"),
+    SearchHint(id = "Filters:site", group = "Filters", key = "site", insert = "site:", messageKey = "search.suggestions.hints.site"),
+    SearchHint(id = "Filters:folder", group = "Filters", key = "folder", insert = "folder:", messageKey = "search.suggestions.hints.folder"),
+    SearchHint(id = "Filters:is", group = "Filters", key = "is", insert = "is:", messageKey = "search.suggestions.hints.is"),
+    SearchHint(id = "Filters:mood", group = "Filters", key = "mood", insert = "mood:", messageKey = "search.suggestions.hints.mood"),
+    SearchHint(id = "Filters:price", group = "Filters", key = "price", insert = "price:", messageKey = "search.suggestions.hints.price"),
+    SearchHint(id = "Filters:text", group = "Filters", key = "text", insert = "text:", messageKey = "search.suggestions.hints.text"),
+)
+
+val SEARCH_EXCLUDE_HINTS: List<SearchHint> = listOf(
+    SearchHint(id = "Exclude:-tag", group = "Exclude", key = "tag", insert = "-tag:", messageKey = "search.suggestions.excludeHints.tag"),
+    SearchHint(id = "Exclude:-type", group = "Exclude", key = "type", insert = "-type:", messageKey = "search.suggestions.excludeHints.type"),
+    SearchHint(id = "Exclude:-site", group = "Exclude", key = "site", insert = "-site:", messageKey = "search.suggestions.excludeHints.site"),
+    SearchHint(id = "Exclude:-folder", group = "Exclude", key = "folder", insert = "-folder:", messageKey = "search.suggestions.excludeHints.folder"),
+    SearchHint(id = "Exclude:-is", group = "Exclude", key = "is", insert = "-is:", messageKey = "search.suggestions.excludeHints.is"),
+)
+
+val SEARCH_OR_HINT: SearchHint = SearchHint(id = "Combine:OR", group = "Combine", key = "OR", insert = "OR ", messageKey = "search.suggestions.orDetail")
+
+val SEARCH_IS_OPTIONS: List<SearchIsOption> = listOf(
+    SearchIsOption(value = "fav", words = listOf("fav", "favorites", "starred"), messageKey = "search.suggestions.isOptions.fav"),
+    SearchIsOption(value = "archived", words = listOf("archived", "archive"), messageKey = "search.suggestions.isOptions.archived"),
+    SearchIsOption(value = "done", words = listOf("done", "completed", "finished"), messageKey = "search.suggestions.isOptions.done"),
+    SearchIsOption(value = "todo", words = listOf("todo", "to-do"), messageKey = "search.suggestions.isOptions.todo"),
+)
+
+val SEARCH_SUGGESTION_GROUPS: Map<String, String> = mapOf(
+    "Combine" to "search.suggestions.groups.combine",
+    "Exclude" to "search.suggestions.groups.exclude",
+    "Filters" to "search.suggestions.groups.filters",
+    "Tags" to "search.suggestions.groups.tags",
+    "Types" to "search.suggestions.groups.types",
+    "Folders" to "search.suggestions.groups.folders",
+    "Sites" to "search.suggestions.groups.sites",
+    "Show" to "search.suggestions.groups.show",
+)
+
 /** Teak's languages, in the order the Language setting lists them, each in its own name. */
 val LOCALE_NAMES: Map<String, String> = mapOf(
     "en" to "English",

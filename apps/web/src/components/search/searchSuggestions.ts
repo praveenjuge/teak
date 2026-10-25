@@ -13,6 +13,14 @@ import {
   type CardType,
   cardTypes,
 } from "@teak/convex/shared/constants";
+import {
+  SEARCH_EXCLUDE_HINTS,
+  SEARCH_IS_OPTIONS,
+  SEARCH_OR_HINT,
+  SEARCH_QUALIFIER_HINTS,
+  SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS,
+  type SearchSuggestionGroup,
+} from "@teak/convex/shared/search/suggestionHints";
 import { isHiddenTagList } from "@teak/convex/shared/tags";
 import {
   createTeakTranslator,
@@ -34,32 +42,19 @@ export interface SearchSuggestionSources {
   tags?: readonly { count: number; name: string }[];
 }
 
-export type SearchSuggestionGroup =
-  | "Combine"
-  | "Exclude"
-  | "Filters"
-  | "Tags"
-  | "Types"
-  | "Folders"
-  | "Sites"
-  | "Show";
+export type { SearchSuggestionGroup } from "@teak/convex/shared/search/suggestionHints";
 
-const GROUP_MESSAGE_KEYS = {
-  Combine: "combine",
-  Exclude: "exclude",
-  Filters: "filters",
-  Tags: "tags",
-  Types: "types",
-  Folders: "folders",
-  Sites: "sites",
-  Show: "show",
-} as const satisfies Record<SearchSuggestionGroup, string>;
+/** A shared hint's catalog key, as the `search` translator takes it. */
+const searchMessage = <K extends `search.${string}`>(key: K) =>
+  key.slice("search.".length) as K extends `search.${infer Rest}`
+    ? Rest
+    : never;
 
 /** A suggestion group's heading in the UI language. */
 export const searchSuggestionGroupLabel = (
   group: SearchSuggestionGroup,
   t: SearchTranslator = englishSearch
-): string => t(`suggestions.groups.${GROUP_MESSAGE_KEYS[group]}`);
+): string => t(searchMessage(SEARCH_SUGGESTION_GROUP_MESSAGE_KEYS[group]));
 
 export interface SearchSuggestion {
   complete: boolean;
@@ -81,49 +76,31 @@ export interface SearchSuggestionResult {
 export const SEARCH_SUGGESTION_GROUP_LIMIT = 8;
 const WORD_GROUP_LIMIT = 4;
 
-// Qualifier keys are search syntax and stay English; their hints are
-// translated.
-const QUALIFIER_HINTS = [
-  "tag",
-  "type",
-  "site",
-  "folder",
-  "is",
-  "mood",
-  "price",
-  "text",
-] as const satisfies readonly SearchQualifierKey[];
+// The hints are shared with the native apps. Their inserts are search syntax
+// and stay English; what each does is translated.
+type SharedHint =
+  | (typeof SEARCH_QUALIFIER_HINTS)[number]
+  | (typeof SEARCH_EXCLUDE_HINTS)[number]
+  | typeof SEARCH_OR_HINT;
 
-/** The filters a `-` can leave out; `like:` and `mood:` can't be excluded. */
-const EXCLUDE_HINTS = [
-  "tag",
-  "type",
-  "site",
-  "folder",
-  "is",
-] as const satisfies readonly SearchQualifierKey[];
-
-const orSuggestion = (t: SearchTranslator): SearchSuggestion => ({
+const hintSuggestion = (
+  hint: SharedHint,
+  t: SearchTranslator
+): SearchSuggestion => ({
   complete: false,
-  detail: t("suggestions.orDetail"),
-  group: "Combine",
-  id: "Combine:OR",
-  insert: "OR ",
-  key: "OR",
-  label: "OR",
+  detail: t(searchMessage(hint.messageKey)),
+  group: hint.group,
+  id: hint.id,
+  insert: hint.insert,
+  key: hint.key,
+  label: hint.insert.trim(),
 });
 
-// `words` are what people type after `is:`, so they stay English.
-const IS_OPTIONS = [
-  { value: "fav", words: ["fav", "favorites", "starred"] },
-  { value: "archived", words: ["archived", "archive"] },
-  { value: "done", words: ["done", "completed", "finished"] },
-  { value: "todo", words: ["todo", "to-do"] },
-] as const;
-
 const isOptionLabel = (t: SearchTranslator, value: string): string => {
-  const option = IS_OPTIONS.find((candidate) => candidate.value === value);
-  return option ? t(`suggestions.isOptions.${option.value}`) : value;
+  const option = SEARCH_IS_OPTIONS.find(
+    (candidate) => candidate.value === value
+  );
+  return option ? t(searchMessage(option.messageKey)) : value;
 };
 
 const QUOTES = new Set(['"', "“", "”"]);
@@ -290,7 +267,7 @@ const valueSuggestions = (
       );
     case "is": {
       const needle = value.trim().toLowerCase();
-      return IS_OPTIONS.filter(
+      return SEARCH_IS_OPTIONS.filter(
         (option) =>
           !needle || option.words.some((word) => word.startsWith(needle))
       ).map((option) =>
@@ -345,21 +322,13 @@ const excludeSuggestions = (
 ): SearchSuggestionResult => {
   const result = buildSearchSuggestions(token, sources, text);
   const word = token.toLowerCase();
-  const keys = EXCLUDE_HINTS.filter((key) => key.startsWith(word)).map(
-    (key): SearchSuggestion => ({
-      complete: false,
-      detail: text.t(`suggestions.excludeHints.${key}`),
-      group: "Exclude",
-      id: `Exclude:-${key}`,
-      insert: `-${key}:`,
-      key,
-      label: `-${key}:`,
-    })
-  );
+  const keys = SEARCH_EXCLUDE_HINTS.filter((hint) =>
+    hint.key.startsWith(word)
+  ).map((hint) => hintSuggestion(hint, text.t));
   const isKeyHint = (suggestion: SearchSuggestion) =>
     suggestion.group === "Filters";
   const allowed = (suggestion: SearchSuggestion) =>
-    EXCLUDE_HINTS.some((key) => key === suggestion.key);
+    SEARCH_EXCLUDE_HINTS.some((hint) => hint.key === suggestion.key);
   return {
     completingValue: result.completingValue,
     suggestions: [
@@ -401,7 +370,7 @@ export function buildSearchSuggestions(
     const positive = buildSearchSuggestions(token, sources, text);
     return {
       completingValue: false,
-      suggestions: [orSuggestion(t), ...positive.suggestions],
+      suggestions: [hintSuggestion(SEARCH_OR_HINT, t), ...positive.suggestions],
     };
   }
 
@@ -440,17 +409,9 @@ export function buildSearchSuggestions(
   }
 
   const word = token.toLowerCase();
-  const keys: SearchSuggestion[] = QUALIFIER_HINTS.filter((key) =>
-    key.startsWith(word)
-  ).map((key) => ({
-    complete: false,
-    detail: t(`suggestions.hints.${key}`),
-    group: "Filters",
-    id: `Filters:${key}`,
-    insert: `${key}:`,
-    key,
-    label: `${key}:`,
-  }));
+  const keys = SEARCH_QUALIFIER_HINTS.filter((hint) =>
+    hint.key.startsWith(word)
+  ).map((hint) => hintSuggestion(hint, t));
   if (word.length < 2 || word.includes(":")) {
     return { completingValue: false, suggestions: keys };
   }
