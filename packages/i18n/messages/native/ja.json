@@ -573,6 +573,15 @@
       },
       "usage": "{used} / {count, plural, other {# 件のカード}}"
     },
+    "linkPicker": {
+      "label": "カードをリンク",
+      "hint": "[[ と入力すると、別のカードをリンクできます。",
+      "searching": "カードを検索中…",
+      "failed": "カードを検索できませんでした",
+      "noMatches": "一致するカードはありません",
+      "noCards": "カードはまだありません",
+      "option": "{title} をリンク"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "種類",
@@ -688,6 +697,11 @@
         "checkSpelling": "スペルを確認するか、別のキーワードで検索してください。"
       }
     },
+    "search": {
+      "suggestions": "検索候補",
+      "suggestion": "{label} · {detail}",
+      "exclude": "{label} を除外"
+    },
     "time": {
       "today": "今日",
       "yesterday": "昨日",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "100 MB を超えています。",
       "unreadableFile": "Teak で読み取れませんでした。",
       "skippedAtLimit": "カードの上限に達したため、アップロードされませんでした。"
+    },
+    "notes": {
+      "taskFailed": "タスクリストを更新できませんでした。もう一度お試しください。",
+      "checked": "チェック済み",
+      "unchecked": "未チェック",
+      "table": "表、{count, plural, other {# 行}}"
     }
   },
   "apple": {

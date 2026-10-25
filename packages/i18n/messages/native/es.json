@@ -573,6 +573,15 @@
       },
       "usage": "{used} de {count, plural, one {# tarjeta} other {# tarjetas}}"
     },
+    "linkPicker": {
+      "label": "Enlazar una tarjeta",
+      "hint": "Escriba [[ para enlazar otra tarjeta.",
+      "searching": "Buscando tarjetas…",
+      "failed": "No se pudieron buscar tarjetas",
+      "noMatches": "No hay tarjetas que coincidan",
+      "noCards": "Aún no hay tarjetas",
+      "option": "Enlazar {title}"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "Tipo",
@@ -688,6 +697,11 @@
         "checkSpelling": "Revise la ortografía o pruebe con otra búsqueda."
       }
     },
+    "search": {
+      "suggestions": "Sugerencias de búsqueda",
+      "suggestion": "{label} · {detail}",
+      "exclude": "Excluir {label}"
+    },
     "time": {
       "today": "Hoy",
       "yesterday": "Ayer",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "Ocupa más de 100 MB.",
       "unreadableFile": "Teak no pudo leerlo.",
       "skippedAtLimit": "No se subió porque alcanzó su límite de tarjetas."
+    },
+    "notes": {
+      "taskFailed": "No se pudo actualizar la lista de tareas. Vuelva a intentarlo.",
+      "checked": "Marcado",
+      "unchecked": "Sin marcar",
+      "table": "Tabla, {count, plural, one {# fila} other {# filas}}"
     }
   },
   "apple": {

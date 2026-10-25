@@ -573,6 +573,15 @@
       },
       "usage": "{used}/{count, plural, other {카드 #개}}"
     },
+    "linkPicker": {
+      "label": "카드 링크",
+      "hint": "[[를 입력해 다른 카드를 링크하세요.",
+      "searching": "카드를 검색하는 중…",
+      "failed": "카드를 검색하지 못했습니다",
+      "noMatches": "일치하는 카드가 없습니다",
+      "noCards": "아직 카드가 없습니다",
+      "option": "{title} 링크"
+    },
     "details": {
       "list": "{first} · {rest}",
       "type": "유형",
@@ -688,6 +697,11 @@
         "checkSpelling": "철자를 확인하거나 다른 검색어로 검색해 보세요."
       }
     },
+    "search": {
+      "suggestions": "검색 제안",
+      "suggestion": "{label} · {detail}",
+      "exclude": "{label} 제외"
+    },
     "time": {
       "today": "오늘",
       "yesterday": "어제",
@@ -727,6 +741,12 @@
       "fileTooLargeSkipped": "100MB보다 큽니다.",
       "unreadableFile": "Teak이 읽을 수 없습니다.",
       "skippedAtLimit": "카드 한도에 도달하여 업로드되지 않았습니다."
+    },
+    "notes": {
+      "taskFailed": "할 일 목록을 업데이트하지 못했습니다. 다시 시도해 주세요.",
+      "checked": "체크됨",
+      "unchecked": "체크 안 됨",
+      "table": "표, {count, plural, other {#개 행}}"
     }
   },
   "apple": {

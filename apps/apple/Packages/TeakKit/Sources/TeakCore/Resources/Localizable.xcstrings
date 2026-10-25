@@ -33570,7 +33570,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "Karten konnten nicht durchsucht werden"
           }
         },
         "en" : {
@@ -33582,37 +33582,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "No se pudieron buscar tarjetas"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "Impossible de rechercher les fiches"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "カードを検索できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "카드를 검색하지 못했습니다"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "Não foi possível pesquisar os cards"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't search cards"
+            "value" : "无法搜索卡片"
           }
         }
       }
@@ -33623,7 +33623,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "Geben Sie [[ ein, um eine andere Karte zu verlinken."
           }
         },
         "en" : {
@@ -33635,37 +33635,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "Escriba [[ para enlazar otra tarjeta."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "Saisissez [[ pour lier une autre fiche."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "[[ と入力すると、別のカードをリンクできます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "[[를 입력해 다른 카드를 링크하세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "Digite [[ para vincular outro card."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type [[ to link another card."
+            "value" : "输入 [[ 即可链接其他卡片。"
           }
         }
       }
@@ -33676,7 +33676,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "Karte verlinken"
           }
         },
         "en" : {
@@ -33688,37 +33688,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "Enlazar una tarjeta"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "Lier une fiche"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "カードをリンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "카드 링크"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "Vincular um card"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link a card"
+            "value" : "链接卡片"
           }
         }
       }
@@ -33729,7 +33729,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "Noch keine Karten"
           }
         },
         "en" : {
@@ -33741,37 +33741,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "Aún no hay tarjetas"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "Aucune fiche pour l’instant"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "カードはまだありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "아직 카드가 없습니다"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "Nenhum card ainda"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No cards yet"
+            "value" : "还没有卡片"
           }
         }
       }
@@ -33782,7 +33782,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "Keine passenden Karten"
           }
         },
         "en" : {
@@ -33794,37 +33794,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "No hay tarjetas que coincidan"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "Aucune fiche correspondante"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "一致するカードはありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "일치하는 카드가 없습니다"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "Nenhum card encontrado"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No matching cards"
+            "value" : "没有匹配的卡片"
           }
         }
       }
@@ -33835,7 +33835,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "%1$@ verlinken"
           }
         },
         "en" : {
@@ -33847,37 +33847,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "Enlazar %1$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "Lier %1$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "%1$@ をリンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "%1$@ 링크"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "Vincular %1$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link %1$@"
+            "value" : "链接 %1$@"
           }
         }
       }
@@ -33888,7 +33888,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "Karten werden gesucht…"
           }
         },
         "en" : {
@@ -33900,37 +33900,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "Buscando tarjetas…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "Recherche de fiches…"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "カードを検索中…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "카드를 검색하는 중…"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "Pesquisando cards…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching cards…"
+            "value" : "正在搜索卡片…"
           }
         }
       }
@@ -33941,7 +33941,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "Abgehakt"
           }
         },
         "en" : {
@@ -33953,37 +33953,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "Marcado"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "Coché"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "チェック済み"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "체크됨"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "Marcado"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checked"
+            "value" : "已勾选"
           }
         }
       }
@@ -33997,13 +33997,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld row"
+                  "value" : "Tabelle, %1$lld Zeile"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "Tabelle, %1$lld Zeilen"
                 }
               }
             }
@@ -34033,13 +34033,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld row"
+                  "value" : "Tabla, %1$lld fila"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "Tabla, %1$lld filas"
                 }
               }
             }
@@ -34051,13 +34051,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld row"
+                  "value" : "Tableau, %1$lld ligne"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "Tableau, %1$lld lignes"
                 }
               }
             }
@@ -34066,16 +34066,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Table, %1$lld row"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "表、%1$lld 行"
                 }
               }
             }
@@ -34084,16 +34078,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Table, %1$lld row"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "표, %1$lld개 행"
                 }
               }
             }
@@ -34105,13 +34093,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld row"
+                  "value" : "Tabela, %1$lld linha"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "Tabela, %1$lld linhas"
                 }
               }
             }
@@ -34120,16 +34108,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Table, %1$lld row"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Table, %1$lld rows"
+                  "value" : "表格，%1$lld 行"
                 }
               }
             }
@@ -34143,7 +34125,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "Die Aufgabenliste konnte nicht aktualisiert werden. Versuchen Sie es erneut."
           }
         },
         "en" : {
@@ -34155,37 +34137,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "No se pudo actualizar la lista de tareas. Vuelva a intentarlo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "Impossible de mettre à jour la liste de tâches. Réessayez."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "タスクリストを更新できませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "할 일 목록을 업데이트하지 못했습니다. 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "Não foi possível atualizar a lista de tarefas. Tente novamente."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't update the checklist. Try again."
+            "value" : "无法更新任务列表，请重试。"
           }
         }
       }
@@ -34196,7 +34178,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "Nicht abgehakt"
           }
         },
         "en" : {
@@ -34208,37 +34190,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "Sin marcar"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "Non coché"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "未チェック"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "체크 안 됨"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "Não marcado"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not checked"
+            "value" : "未勾选"
           }
         }
       }
@@ -35334,7 +35316,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "%1$@ ausschließen"
           }
         },
         "en" : {
@@ -35346,37 +35328,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "Excluir %1$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "Exclure %1$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "%1$@ を除外"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "%1$@ 제외"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "Omitir %1$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leave out %1$@"
+            "value" : "排除 %1$@"
           }
         }
       }
@@ -35440,7 +35422,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "Suchvorschläge"
           }
         },
         "en" : {
@@ -35452,37 +35434,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "Sugerencias de búsqueda"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "Suggestions de recherche"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "検索候補"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "검색 제안"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "Sugestões de pesquisa"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search suggestions"
+            "value" : "搜索建议"
           }
         }
       }
