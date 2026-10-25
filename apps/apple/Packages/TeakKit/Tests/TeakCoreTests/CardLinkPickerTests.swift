@@ -12,7 +12,7 @@ private func split(_ marked: String) -> (text: String, cursor: Int) {
     return (parts.joined(), parts[0].utf16.count)
 }
 
-@Suite struct CardLinkPickerTests {
+@Suite(.english) struct CardLinkPickerTests {
     @Test(arguments: [
         ("just typed", "See [[^", "", 4),
         ("a query", "See [[road map^", "road map", 4),

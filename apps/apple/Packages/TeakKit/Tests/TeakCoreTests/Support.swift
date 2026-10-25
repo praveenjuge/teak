@@ -138,13 +138,19 @@ enum Fixture {
         return url
     }
 
+    private static let probe = NSLock()
+
+    /// Checks by taking the lock for a moment, so two checks at once would see each
+    /// other: a test's own check races the one `ScriptedActivity` makes as it ends.
     static func isLocked(_ directory: URL) -> Bool {
-        let path = directory.appending(path: "workos-session.test.lock").path
-        let descriptor = open(path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
-        defer { close(descriptor) }
-        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { return true }
-        flock(descriptor, LOCK_UN)
-        return false
+        probe.withLock {
+            let path = directory.appending(path: "workos-session.test.lock").path
+            let descriptor = open(path, O_CREAT | O_RDWR | O_CLOEXEC, S_IRUSR | S_IWUSR)
+            defer { close(descriptor) }
+            guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else { return true }
+            flock(descriptor, LOCK_UN)
+            return false
+        }
     }
 
     static func token(sub: String = "user_ONE", sid: String = "session_ONE", expiry: Date) -> String {

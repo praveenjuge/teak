@@ -29,6 +29,7 @@ Native SwiftUI. One multiplatform app target, a share extension and a Safari web
 ## Tests
 
 - Follow `apps/docs/content/docs/(open-source)/testing.mdx`. Swift Testing in `Packages/TeakKit/Tests`.
+- Swift Testing runs suites in parallel and `AppLanguage` is one value per process, so every suite takes `.english` or, if it changes the language, `.switchesLanguage` (`Tests/TeakCoreTests/Language.swift`). Pass localized text to `@Test(arguments:)` as a closure: arguments are evaluated before the trait applies. `apps/apple/tests/teakkit-language.test.ts` fails on a test without one. The lock puts back the language saved in the app group whenever no suite holds it.
 - UI flows run against this checkout's local E2E stack: start `bun run --cwd packages/tests e2e:stack`, then `scripts/ui-tests.sh ios|ipad|mac`. Each test signs in as a fresh WorkOS emulator user; Debug builds read the stack's URLs and a test session from launch environment variables (compiled out of Release).
 - For a manual run against the stack, `bun --no-env-file run apps/apple/scripts/e2e-session.ts` prints that launch environment.
 - Mac UI tests need UI automation allowed on the machine (`automationmodetool`), so CI runs iPhone and iPad.

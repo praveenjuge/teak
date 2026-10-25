@@ -6,7 +6,7 @@ import Testing
 
 // Android's core:i18n tests check the same cases.
 
-@Suite struct LocalizationTests {
+@Suite(.english) struct LocalizationTests {
     @Test(arguments: [
         ("en", 1, "1 card"), ("en", 2, "2 cards"),
         ("de", 1, "1 Karte"), ("de", 3, "3 Karten"),
@@ -37,28 +37,28 @@ import Testing
     }
 }
 
-@Suite struct AppLanguageTests {
+@Suite(.english) struct AppLanguageTests {
     @Test func readsWithoutTheAppsConfig() {
         #expect(AppLanguage.codes.contains(AppLanguage.current))
         #expect(!tr("settings.language.label").isEmpty)
     }
 }
 
-// Other suites run in parallel and read text in the current language, so these
-// check the notifications without ever changing it.
-@Suite struct LanguageChangeTests {
+@Suite(.serialized, .switchesLanguage) struct LanguageChangeTests {
     @Test func textReadThroughTrIsObservedForLanguageChanges() {
+        let before = AppLanguage.current
         let changed = Mutex(false)
         withObservationTracking {
             _ = tr("settings.language.label")
         } onChange: {
             changed.withLock { $0 = true }
         }
-        AppLanguage.use(AppLanguage.current)
+        AppLanguage.use(before == "de" ? "fr" : "de")
         #expect(changed.withLock { $0 })
     }
 
     @Test func reloadReadsTheSharedLanguageAgain() {
+        AppLanguage.use("ja")
         let changed = Mutex(false)
         withObservationTracking {
             _ = tr("settings.language.label")
@@ -66,8 +66,7 @@ import Testing
             changed.withLock { $0 = true }
         }
         AppLanguage.reload()
-        let stored = UserDefaults(suiteName: "group.com.praveenjuge.teak")?.string(forKey: "teak.language")
-        #expect(AppLanguage.current == stored.flatMap(AppLanguage.supported) ?? AppLanguage.system)
+        #expect(AppLanguage.current == "ja")
         #expect(changed.withLock { $0 })
     }
 }

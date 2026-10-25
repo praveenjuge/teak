@@ -7,7 +7,7 @@ import Testing
 
 private let linkId = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 
-@Suite struct NoteTableTests {
+@Suite(.english) struct NoteTableTests {
     @Test func readsAGFMTableWithAHeaderRow() {
         let note = "| Plan | Price |\n| --- | --- |\n| Free | $0 |\n| Pro | **$8** |"
         #expect(MarkdownBlocks.parse(note) == [
@@ -76,7 +76,7 @@ private let linkId = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
     }
 }
 
-@Suite struct NoteTaskTests {
+@Suite(.english) struct NoteTaskTests {
     @Test func readsTaskItemsInAMixedList() {
         let note = "- [ ] Buy milk\n- [x] Call mom\n  * [X] Nested\n- plain\n- [ ]\n1. [ ] numbered"
         #expect(MarkdownBlocks.parse(note) == [.list([
@@ -126,7 +126,7 @@ private func toggled(_ markdown: String, line: Int) -> String? {
     return TaskLists.toggle(markdown, item: item)
 }
 
-@Suite struct TaskListTests {
+@Suite(.english) struct TaskListTests {
     @Test(arguments: [
         ("ticking the first of three moves it to the end", "- [ ] A\n- [ ] B\n- [ ] C", 0, "- [ ] B\n- [ ] C\n- [x] A"),
         ("ticking the last open item below a done one moves it first", "- [x] A\n- [ ] B", 1, "- [x] B\n- [x] A"),

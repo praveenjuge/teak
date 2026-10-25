@@ -16,7 +16,7 @@ private func day(_ milliseconds: Double) -> String {
     return formatter.string(from: Date(timeIntervalSince1970: milliseconds / 1000))
 }
 
-@Suite struct TimeSearchTests {
+@Suite(.english) struct TimeSearchTests {
     @Test(arguments: [
         ("today", "Today", "2026-02-03", "2026-02-04"),
         ("yesterday", "Yesterday", "2026-02-02", "2026-02-03"),
@@ -53,7 +53,7 @@ private func day(_ milliseconds: Double) -> String {
     }
 }
 
-@Suite struct LibraryFilterTests {
+@Suite(.english) struct LibraryFilterTests {
     @Test func aSmartFolderThatSavesIsArchivedIsAnArchiveView() {
         let archived = Folder(id: "f1", name: "Old reads", kind: .smart, query: "is:archived type:link")
         #expect(LibraryQuery(filters: LibraryFilters(folder: FolderScope(archived))).isArchive)
@@ -101,7 +101,7 @@ private func day(_ milliseconds: Double) -> String {
     }
 }
 
-@Suite struct SearchTokenTests {
+@Suite(.english) struct SearchTokenTests {
     @Test(arguments: [
         ("favs", SearchToken.Kind.favorites, "favorites"),
         ("bin", .trash, "trash"),
@@ -244,7 +244,7 @@ private func day(_ milliseconds: Double) -> String {
     }
 }
 
-@Suite struct CardGridTests {
+@Suite(.english) struct CardGridTests {
     private func summary(_ type: CardType, aspectRatio: Double? = nil, compactUrl: String? = nil,
                          linkPreviewImageUrl: String? = nil, screenshotUrl: String? = nil,
                          thumbnailUrl: String? = nil) -> CardSummary {
