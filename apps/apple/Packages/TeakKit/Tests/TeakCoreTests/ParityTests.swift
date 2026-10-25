@@ -9,7 +9,7 @@ import Testing
 private let idA = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
 
-@Suite struct CardLinksTests {
+@Suite(.english) struct CardLinksTests {
     @Test(arguments: [
         ("one link", "See [[Plan|teak:\(idA)]].", [idA]),
         ("order kept, duplicates dropped", "[[B|teak:\(idB)]] then [[A|teak:\(idA)]] and [[B again|teak:\(idB)]]", [idB, idA]),
@@ -97,7 +97,7 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
     }
 }
 
-@Suite struct SearchQualifierTests {
+@Suite(.english) struct SearchQualifierTests {
     private static let rows: [(String, String, [String])] = [
         ("#Design", "tags", ["design"]), ("TAG:Design", "tags", ["design"]),
         ("tag:\"Design Systems\"", "tags", ["design systems"]), ("#fff", "tags", []), ("#fff", "terms", ["#fff"]),
@@ -268,7 +268,7 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
     }
 }
 
-@Suite struct LinkFactsTests {
+@Suite(.english) struct LinkFactsTests {
     @Test(arguments: [
         ("movie", "watched"), ("game", "played"), ("product", "bought"), ("article", "read"),
         ("a-category-from-the-future", "done"), (nil, "done"), ("", "done"),
@@ -385,7 +385,7 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
     }
 }
 
-@Suite struct TagRulesTests {
+@Suite(.english) struct TagRulesTests {
     @Test(arguments: [
         (["secret"], true), (["Secret"], true), ([" HIDDEN "], true), (["work", "  hidden"], true),
         (["secrets", "hidden-ish", "hide"], false), ([], false),
