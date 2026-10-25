@@ -29,6 +29,12 @@ const INFO_PLIST = "apple.infoPlist.";
 const SERVICES_MENU = "apple.servicesMenu.";
 /** The Safari extension's `_locales`, which the browser reads. */
 const SAFARI = "apple.safari.";
+/**
+ * App Intents text. The system reads an intent's title and description from
+ * the app's own bundle, so these also go into an `AppIntents` table there
+ * (`LocalizedStringResource("apple.intents.…", table: "AppIntents")`).
+ */
+const APP_INTENTS = "apple.intents.";
 
 const formatted = (segments: Segment[], args: Arguments): string => {
   const hasValues = args.count !== undefined || args.names.length > 0;
@@ -142,6 +148,13 @@ export const renderAppleCatalogs = async (): Promise<Map<string, string>> => {
         (key) => key.slice(INFO_PLIST.length)
       ),
       () => ({ names: [] })
+    )
+  );
+  files.set(
+    "Teak/Resources/AppIntents.xcstrings",
+    xcstrings(
+      pick((key) => key.startsWith(APP_INTENTS)),
+      argsOf
     )
   );
   files.set(

@@ -21,6 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.upload.UploadStatus
+import com.praveenjuge.teak.core.i18n.tr
+import com.praveenjuge.teak.core.model.FREE_TIER_LIMIT
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -32,20 +34,20 @@ internal fun UploadRow(upload: UploadStatus) {
         headlineContent = { Text(upload.fileName, maxLines = 1, overflow = TextOverflow.MiddleEllipsis) },
         supportingContent = {
             when (upload.state) {
-                UploadStatus.State.Waiting -> Text("Waiting to upload")
+                UploadStatus.State.Waiting -> Text(tr("native.capture.waiting"))
                 UploadStatus.State.Uploading -> LinearWavyProgressIndicator(
                     progress = { upload.progress },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
-                UploadStatus.State.Saved -> Text("Saved")
+                UploadStatus.State.Saved -> Text(tr("native.capture.saved"))
                 UploadStatus.State.Failed -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        if (limitReached) "Card limit reached" else "Failed",
+                        if (limitReached) tr("native.capture.cardLimitReached") else tr("native.capture.failed"),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    Text(upload.error ?: "The upload didn't finish. Please try again.")
-                    if (limitReached) Text("The Free plan holds 200 cards.")
+                    Text(upload.error ?: tr("native.capture.uploadDidntFinish"))
+                    if (limitReached) Text(tr("native.capture.freePlanLimit", formatCount(FREE_TIER_LIMIT)))
                 }
             }
         },
@@ -53,12 +55,12 @@ internal fun UploadRow(upload: UploadStatus) {
             when (upload.state) {
                 UploadStatus.State.Saved -> Icon(
                     Icons.Filled.CheckCircle,
-                    contentDescription = "Saved",
+                    contentDescription = tr("native.capture.saved"),
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 UploadStatus.State.Failed -> Icon(
                     Icons.Filled.Error,
-                    contentDescription = "Failed",
+                    contentDescription = tr("native.capture.failed"),
                     tint = MaterialTheme.colorScheme.error,
                 )
                 else -> Unit

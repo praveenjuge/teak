@@ -10,7 +10,7 @@ struct MacSettingsView: View {
 
     var body: some View {
         TabView {
-            Tab("General", systemImage: "gearshape") {
+            Tab(tr("apple.mac.general"), systemImage: "gearshape") {
                 Form {
                     AppearanceSection()
                     LanguageSection()
@@ -20,14 +20,14 @@ struct MacSettingsView: View {
                 .formStyle(.grouped)
                 .frame(width: 520, height: 470)
             }
-            Tab("Account", systemImage: "person.crop.circle") {
+            Tab(tr("native.settings.account"), systemImage: "person.crop.circle") {
                 Form {
                     AccountSection(account: account)
                 }
                 .formStyle(.grouped)
                 .frame(width: 520, height: 310)
             }
-            Tab("About", systemImage: "info.circle") {
+            Tab(tr("native.settings.about"), systemImage: "info.circle") {
                 MacAboutView()
                     .frame(width: 520, height: 300)
             }
@@ -68,14 +68,14 @@ private struct MacAboutView: View {
                 .resizable()
                 .frame(width: 96, height: 96)
                 .accessibilityHidden(true)
-            Text("Teak").font(.title2.weight(.semibold))
-            Text("Version \(app.config.version) (\(app.config.build))")
+            Text(verbatim: "Teak").font(.title2.weight(.semibold))
+            Text(tr("native.settings.versionValue", "\(app.config.version) (\(app.config.build))"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            Text("by @praveenjuge")
+            Text(verbatim: "by @praveenjuge")
                 .padding(.top, 10)
-            Text("Hope you enjoy using Teak as much as I enjoyed creating it.")
+            Text(tr("native.settings.hope"))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }

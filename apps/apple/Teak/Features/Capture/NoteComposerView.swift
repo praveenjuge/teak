@@ -14,36 +14,36 @@ struct NoteComposerView: View {
         NavigationStack {
             TextEditor(text: $text)
                 .focused($focused)
-                .accessibilityLabel("Write a note or paste a link")
+                .accessibilityLabel(tr("native.capture.notePlaceholder"))
                 .accessibilityIdentifier("composer.text")
                 .scrollContentBackground(.hidden)
                 .contentMargins(.horizontal, 20, for: .scrollContent)
                 .contentMargins(.vertical, 12, for: .scrollContent)
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
-                        Text("Write a note or paste a link")
+                        Text(tr("native.capture.notePlaceholder"))
                             .foregroundStyle(.tertiary)
                             .padding(.horizontal, 25)
                             .padding(.top, 20)
                             .allowsHitTesting(false)
                     }
                 }
-                .navigationTitle("New Note")
+                .navigationTitle(tr("native.capture.newNote"))
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
+                        Button(tr("common.cancel")) { dismiss() }
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button { save() } label: {
-                            Text(capture.isSavingText ? "Saving…" : "Save").foregroundStyle(.white)
+                            Text(capture.isSavingText ? tr("common.saving") : tr("common.save")).foregroundStyle(.white)
                         }
                             .buttonStyle(.glassProminent)
                             .disabled(capture.isSavingText || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .keyboardShortcut(.return, modifiers: .command)
-                            .accessibilityHint("Saves this text card.")
+                            .accessibilityHint(tr("native.capture.saveNoteHint"))
                             .accessibilityIdentifier("composer.save")
                     }
                 }
@@ -75,13 +75,13 @@ struct InlineComposerTile: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 8) {
-            TextField("Write a note or paste a link", text: $text, axis: .vertical)
+            TextField(tr("native.capture.notePlaceholder"), text: $text, axis: .vertical)
                 .lineLimit(2...8)
                 .textFieldStyle(.plain)
                 .focused($focused)
                 .onSubmit { if !text.contains("\n") { save() } }
             if focused || !text.isEmpty {
-                Button(capture.isSavingText ? "Saving…" : "Save", action: save)
+                Button(capture.isSavingText ? tr("common.saving") : tr("common.save"), action: save)
                     .buttonStyle(.glassProminent)
                     .controlSize(.small)
                     .keyboardShortcut(.return, modifiers: .command)

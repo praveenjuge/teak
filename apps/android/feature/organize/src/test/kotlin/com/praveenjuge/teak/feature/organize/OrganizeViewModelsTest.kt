@@ -7,6 +7,7 @@ import com.praveenjuge.teak.core.model.TagCount
 import com.praveenjuge.teak.core.model.TagOperationKind
 import com.praveenjuge.teak.core.model.TagOperationStatus
 import com.praveenjuge.teak.core.model.TagSummary
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.FakeTagsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
@@ -28,7 +29,7 @@ class OrganizeViewModelsTest {
         val viewModel = FoldersViewModel(folders)
         viewModel.open(FolderEditor.New(smart = true))
         viewModel.save("Design links", query = " ")
-        assertEquals("Add a search for the smart folder", viewModel.state.value.editorError)
+        assertEquals(UiText.of("errors.folders.EMPTY_QUERY"), viewModel.state.value.editorError)
 
         viewModel.save("Design links", query = "tag:design type:link")
         advanceUntilIdle()
@@ -43,7 +44,7 @@ class OrganizeViewModelsTest {
         viewModel.open(FolderEditor.New(smart = false))
         viewModel.save("Reading", query = null)
         advanceUntilIdle()
-        assertEquals("A folder with this name already exists", viewModel.state.value.editorError)
+        assertEquals(UiText.verbatim("A folder with this name already exists"), viewModel.state.value.editorError)
     }
 
     @Test
@@ -53,7 +54,7 @@ class OrganizeViewModelsTest {
         viewModel.delete(folders.all.value.single())
         advanceUntilIdle()
         val note = viewModel.state.value.note!!
-        assertEquals("Deleted “Reading”. Its cards are still in your library.", note.text)
+        assertEquals(UiText.of("native.folders.deletedName", "Reading"), note.text)
 
         viewModel.restore(note)
         advanceUntilIdle()
@@ -80,7 +81,7 @@ class OrganizeViewModelsTest {
         val viewModel = TagsViewModel(tags)
         advanceUntilIdle()
         viewModel.open(TagOperationKind.Rename, TagCount("ui", 2.0))
-        assertEquals("A tag named “design” already exists.", viewModel.renameError("Design"))
+        assertEquals(UiText.of("native.tags.exists", "design"), viewModel.renameError("Design"))
         assertEquals("design", viewModel.existingTag("Design"))
 
         viewModel.mergeInstead("design")
@@ -94,16 +95,16 @@ class OrganizeViewModelsTest {
         val viewModel = TagsViewModel(tags)
         advanceUntilIdle()
         viewModel.open(TagOperationKind.Delete, TagCount("old", 2.0))
-        assertEquals("Removes “old” from 2 cards, plus any in Archive or Trash. The cards are kept. This can't be undone.", viewModel.state.value.editor?.message)
+        assertEquals(UiText.of("native.tags.deleteMessage", "old", count = 2), viewModel.state.value.editor?.message)
         viewModel.submit()
         advanceUntilIdle()
-        assertEquals("Deleting “old”…", viewModel.state.value.operation?.title)
+        assertEquals(TagOperationStatus.Running, viewModel.state.value.operation?.status)
+        assertEquals(TagOperationKind.Delete to "old", viewModel.state.value.operation?.let { it.kind to it.from })
 
         tags.finish("op1")
         advanceUntilIdle()
         assertEquals(TagOperationStatus.Completed, viewModel.state.value.operation?.status)
-        assertEquals("Deleted “old”", viewModel.state.value.operation?.title)
-        assertEquals("2 cards changed", viewModel.state.value.operation?.detail)
+        assertEquals(2.0, viewModel.state.value.operation?.changed)
         assertEquals(emptyList(), viewModel.state.value.shown)
         assertEquals(1, tags.summaryRequests)
     }

@@ -6,6 +6,7 @@ import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.model.Folder
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,27 +26,27 @@ sealed interface FolderEditor {
         override val smart: Boolean get() = folder.isSmart
     }
 
-    val title: String
+    val title: UiText
         get() = when (this) {
-            is New -> if (smart) "Save as smart folder" else "New folder"
-            is Edit -> if (smart) "Edit smart folder" else "Edit folder"
+            is New -> if (smart) UiText.of("native.folders.saveAsSmartFolder") else UiText.of("native.folders.newFolder")
+            is Edit -> if (smart) UiText.of("native.folders.editSmartFolder") else UiText.of("native.folders.editFolder")
         }
 
-    val submitLabel: String
+    val submitLabel: UiText
         get() = when (this) {
-            is New -> if (smart) "Save smart folder" else "Create folder"
-            is Edit -> "Save"
+            is New -> if (smart) UiText.of("native.folders.saveSmartFolder") else UiText.of("native.folders.createFolder")
+            is Edit -> UiText.of("common.save")
         }
 }
 
-data class FolderNote(val id: Long, val text: String, val restoreId: String? = null)
+data class FolderNote(val id: Long, val text: UiText, val restoreId: String? = null)
 
 data class FoldersUiState(
     val isLoading: Boolean = true,
     val failed: Boolean = false,
     val folders: List<Folder> = emptyList(),
     val editor: FolderEditor? = null,
-    val editorError: String? = null,
+    val editorError: UiText? = null,
     val isSaving: Boolean = false,
     val note: FolderNote? = null,
 )
@@ -76,8 +77,8 @@ class FoldersViewModel @Inject constructor(
     fun save(name: String, query: String?) {
         val editor = _state.value.editor ?: return
         val error = when {
-            name.isBlank() -> "Name the folder"
-            editor.smart && query.isNullOrBlank() -> "Add a search for the smart folder"
+            name.isBlank() -> UiText.of("errors.folders.EMPTY_NAME")
+            editor.smart && query.isNullOrBlank() -> UiText.of("errors.folders.EMPTY_QUERY")
             else -> null
         }
         if (error != null) return _state.update { it.copy(editorError = error) }
@@ -92,8 +93,13 @@ class FoldersViewModel @Inject constructor(
             }
                 .onSuccess { _state.update { it.copy(isSaving = false, editor = null) } }
                 .onFailure { error ->
-                    val fallback = if (editor is FolderEditor.New) "Couldn't create the folder" else "Couldn't save the folder"
-                    _state.update { it.copy(isSaving = false, editorError = (error as? TeakException)?.message ?: fallback) }
+                    val fallback = if (editor is FolderEditor.New) {
+                        UiText.of("native.folders.createFailed")
+                    } else {
+                        UiText.of("native.folders.saveFailed")
+                    }
+                    val message = (error as? TeakException)?.message?.let(UiText::verbatim) ?: fallback
+                    _state.update { it.copy(isSaving = false, editorError = message) }
                 }
         }
     }
@@ -102,20 +108,20 @@ class FoldersViewModel @Inject constructor(
     fun delete(folder: Folder) {
         viewModelScope.launch {
             catchingFailures { repository.delete(folder.id) }
-                .onSuccess { post("Deleted “${folder.name}”. Its cards are still in your library.", restoreId = folder.id) }
-                .onFailure { post("Couldn't delete the folder") }
+                .onSuccess { post(UiText.of("native.folders.deletedName", folder.name), restoreId = folder.id) }
+                .onFailure { post(UiText.of("native.folders.deleteFailed")) }
         }
     }
 
     fun restore(note: FolderNote) {
         val id = note.restoreId ?: return
         dismissNote(note.id)
-        viewModelScope.launch { catchingFailures { repository.restore(id) }.onFailure { post("Couldn't restore the folder") } }
+        viewModelScope.launch { catchingFailures { repository.restore(id) }.onFailure { post(UiText.of("native.folders.restoreFailed")) } }
     }
 
     fun dismissNote(id: Long) = _state.update { if (it.note?.id == id) it.copy(note = null) else it }
 
-    private fun post(text: String, restoreId: String? = null) {
+    private fun post(text: UiText, restoreId: String? = null) {
         noteId += 1
         _state.update { it.copy(note = FolderNote(noteId, text, restoreId)) }
     }

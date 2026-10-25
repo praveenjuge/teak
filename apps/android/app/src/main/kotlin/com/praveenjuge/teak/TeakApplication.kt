@@ -23,6 +23,7 @@ import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.repository.AccountRepository
+import com.praveenjuge.teak.core.i18n.tr
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -51,18 +52,24 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         }
     }
 
+    /** A new app language relabels the launcher shortcuts. */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        publishShortcuts()
+    }
+
     private fun publishShortcuts() {
-        fun shortcut(id: String, label: Int, icon: Int, action: String) =
+        fun shortcut(id: String, label: String, icon: Int, action: String) =
             ShortcutInfoCompat.Builder(this, id)
-                .setShortLabel(getString(label))
+                .setShortLabel(label)
                 .setIcon(IconCompat.createWithResource(this, icon))
                 .setIntent(Intent(this, MainActivity::class.java).setAction(action))
                 .build()
         ShortcutManagerCompat.setDynamicShortcuts(
             this,
             listOf(
-                shortcut("new_note", R.string.shortcut_new_note, R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
-                shortcut("voice_memo", R.string.shortcut_voice_memo, R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
+                shortcut("new_note", resources.tr("android.shortcuts.newNote"), R.drawable.ic_shortcut_note, MainActivity.ACTION_NEW_NOTE),
+                shortcut("voice_memo", resources.tr("android.shortcuts.voiceMemo"), R.drawable.ic_shortcut_mic, MainActivity.ACTION_VOICE_MEMO),
             ),
         )
     }

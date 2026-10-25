@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.Tags
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -41,8 +42,8 @@ sealed interface ShareUiState {
     data class Saved(val cardId: String? = null, val details: ShareDetails? = null) : ShareUiState
     data object Empty : ShareUiState
     data object SignInRequired : ShareUiState
-    data class Partial(val saved: Int, val total: Int, val detail: String?) : ShareUiState
-    data class Failed(val detail: String?) : ShareUiState
+    data class Partial(val saved: Int, val total: Int, val detail: UiText?) : ShareUiState
+    data class Failed(val detail: UiText?) : ShareUiState
 }
 
 @HiltViewModel

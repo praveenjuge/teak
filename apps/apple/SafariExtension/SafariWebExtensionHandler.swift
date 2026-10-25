@@ -23,6 +23,8 @@ final class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     }
 }
 
+/// Replies to the popup. Teak's own messages go as a `code`, which the popup reads from its
+/// `_locales` so it stays in the browser's language; error text from the backend goes as `message`.
 struct SafariRequests {
     let session = TeakServices.session()
 
@@ -32,8 +34,8 @@ struct SafariRequests {
         case "startSignIn": return await startSignIn()
         case "saveCurrentPage": return await save(url)
         case "signOut": return await signOut()
-        case nil: return ["status": "error", "message": "Invalid Teak request."]
-        default: return ["status": "error", "message": "Unsupported Teak request."]
+        case nil: return ["status": "error", "code": "invalidRequest"]
+        default: return ["status": "error", "code": "unsupportedRequest"]
         }
     }
 
@@ -54,7 +56,7 @@ struct SafariRequests {
         let opened = await MainActor.run { NSWorkspace.shared.open(url) }
         return opened
             ? ["status": "opening-app"]
-            : ["status": "error", "message": "Open Teak from Applications to sign in."]
+            : ["status": "error", "code": "openFromApplications"]
         #else
         return ["status": "open-url", "url": url.absoluteString]
         #endif
@@ -62,7 +64,7 @@ struct SafariRequests {
 
     private func save(_ raw: String?) async -> [String: Any] {
         guard let url = SafeURL.sanitize(raw)?.absoluteString else {
-            return ["status": "error", "message": "Open a regular website and try again."]
+            return ["status": "error", "code": "openRegularWebsite"]
         }
         do {
             guard try await session.restore() != nil else { return ["status": "unauthenticated"] }
@@ -93,7 +95,7 @@ struct SafariRequests {
             await session.clear()
             return ["status": "signed-out"]
         } catch {
-            return ["status": "error", "message": "Couldn't sign out. Check your connection and try again."]
+            return ["status": "error", "code": "signOutCheckConnection"]
         }
     }
 }

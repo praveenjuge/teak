@@ -49,26 +49,34 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
+import com.praveenjuge.teak.feature.capture.formatCount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 private data class ShareStatus(val title: String, val message: String, val icon: ImageVector?)
 
+@Composable
 private fun ShareUiState.status(): ShareStatus = when (this) {
-    ShareUiState.Resolving, ShareUiState.Saving -> ShareStatus("Saving", "Saving to your Teak vault…", null)
-    is ShareUiState.Saved -> ShareStatus("Saved", "It's in your library.", Icons.Filled.CheckCircle)
-    ShareUiState.Empty -> ShareStatus("Nothing to Save", "There's no text, link, or file here to save.", Icons.Filled.Inbox)
+    ShareUiState.Resolving, ShareUiState.Saving -> ShareStatus(tr("common.saving"), tr("native.share.saving"), null)
+    is ShareUiState.Saved -> ShareStatus(tr("native.share.saved"), tr("native.share.savedMessage"), Icons.Filled.CheckCircle)
+    ShareUiState.Empty -> ShareStatus(tr("native.share.nothingToSave"), tr("native.share.nothingToSaveMessage"), Icons.Filled.Inbox)
     ShareUiState.SignInRequired -> ShareStatus(
-        "Sign In Required",
-        "Open Teak and sign in, then share again.",
+        tr("native.share.signInRequired"),
+        tr("native.share.signInMessage"),
         Icons.Filled.AccountCircle,
     )
     is ShareUiState.Partial -> ShareStatus(
-        "Saved $saved of $total",
-        detail ?: "Some items couldn't be saved.",
+        tr("native.capture.savedSome", formatCount(saved), formatCount(total)),
+        detail?.resolve() ?: tr("native.share.partialMessage"),
         Icons.Filled.Warning,
     )
-    is ShareUiState.Failed -> ShareStatus("Save Failed", detail ?: "Check your connection and try again.", Icons.Filled.Error)
+    is ShareUiState.Failed -> ShareStatus(
+        tr("native.capture.couldntSave"),
+        detail?.resolve() ?: tr("native.share.failedMessage"),
+        Icons.Filled.Error,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,7 +118,7 @@ internal fun ShareSheetContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            "Save to Teak",
+            tr("android.share.saveToTeak"),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.semantics { heading() },
@@ -136,13 +144,13 @@ internal fun ShareSheetContent(
             )
         }
         when (state) {
-            ShareUiState.SignInRequired -> Button(onClick = onOpenTeak) { Text("Open Teak") }
+            ShareUiState.SignInRequired -> Button(onClick = onOpenTeak) { Text(tr("native.share.openTeak")) }
             ShareUiState.Empty, is ShareUiState.Partial, is ShareUiState.Failed ->
-                OutlinedButton(onClick = onClose) { Text("Close") }
+                OutlinedButton(onClick = onClose) { Text(tr("common.close")) }
             is ShareUiState.Saved -> if (state.cardId != null) {
                 val form = state.details
                 if (form == null) {
-                    OutlinedButton(onClick = details.onAdd) { Text("Add tags and a note") }
+                    OutlinedButton(onClick = details.onAdd) { Text(tr("native.share.addDetails")) }
                 } else {
                     ShareDetailsForm(form, details, onSkip = onClose)
                 }
@@ -172,7 +180,7 @@ private fun ShareDetailsForm(form: ShareDetails, actions: ShareDetailsActions, o
                         selected = false,
                         onClick = { actions.onRemoveTag(tag) },
                         label = { Text(tag) },
-                        trailingIcon = { Icon(Icons.Filled.Close, contentDescription = "Remove $tag", modifier = Modifier.size(InputChipDefaults.AvatarSize)) },
+                        trailingIcon = { Icon(Icons.Filled.Close, contentDescription = tr("native.share.removeTag", tag), modifier = Modifier.size(InputChipDefaults.AvatarSize)) },
                     )
                 }
             }
@@ -181,13 +189,13 @@ private fun ShareDetailsForm(form: ShareDetails, actions: ShareDetailsActions, o
             OutlinedTextField(
                 value = form.tagInput,
                 onValueChange = actions.onTagInput,
-                placeholder = { Text("Add a tag") },
+                placeholder = { Text(tr("native.share.addTag")) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { actions.onAddTag() }),
                 modifier = Modifier.weight(1f),
             )
-            FilledTonalButton(onClick = actions.onAddTag, enabled = form.tagInput.isNotBlank()) { Text("Add") }
+            FilledTonalButton(onClick = actions.onAddTag, enabled = form.tagInput.isNotBlank()) { Text(tr("common.add")) }
         }
         form.hiddenHint?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -195,18 +203,20 @@ private fun ShareDetailsForm(form: ShareDetails, actions: ShareDetailsActions, o
         OutlinedTextField(
             value = form.note,
             onValueChange = actions.onNote,
-            label = { Text("Note") },
-            placeholder = { Text("Add a note…") },
+            label = { Text(tr("native.share.note")) },
+            placeholder = { Text(tr("native.share.addNote")) },
             minLines = 2,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier.fillMaxWidth(),
         )
         if (form.failed) {
-            Text("Couldn't save the tags and note. Try again.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            Text(tr("native.share.detailsFailed"), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-            TextButton(onClick = onSkip, enabled = !form.isSaving) { Text("Skip") }
-            Button(onClick = actions.onSave, enabled = !form.isSaving) { Text(if (form.isSaving) "Saving…" else "Save") }
+            TextButton(onClick = onSkip, enabled = !form.isSaving) { Text(tr("native.share.skip")) }
+            Button(onClick = actions.onSave, enabled = !form.isSaving) {
+                Text(if (form.isSaving) tr("common.saving") else tr("common.save"))
+            }
         }
     }
 }

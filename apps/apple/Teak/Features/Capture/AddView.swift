@@ -10,7 +10,7 @@ struct AddView: View {
 
     var body: some View {
         content
-            .navigationTitle("Add")
+            .navigationTitle(tr("native.capture.title"))
             .disabled(capture.isUploading)
             .onChange(of: photos) { _, selection in
                 guard !selection.isEmpty else { return }
@@ -24,35 +24,37 @@ struct AddView: View {
     #if os(macOS)
     private var content: some View {
         Form {
-            Section("Write") {
-                AddAction("Note or Link", detail: "Write a note, or paste a link to save the page.",
+            Section(tr("native.capture.write")) {
+                AddAction(tr("native.capture.noteOrLink"), detail: tr("native.capture.noteOrLinkDetail"),
                           symbol: "square.and.pencil") {
-                    Button("New Note") { router.compose() }
+                    Button(tr("native.capture.newNote")) { router.compose() }
                 }
-                AddAction("Voice Memo", detail: "Record a voice note and save it with its transcript.",
+                AddAction(tr("native.capture.voiceMemo"), detail: tr("native.capture.voiceMemoDetail"),
                           symbol: "mic") {
-                    Button("Record…") { router.isRecording = true }
+                    Button(tr("native.capture.recordEllipsis")) { router.isRecording = true }
                 }
             }
             Section {
-                AddAction("Photos & Videos", detail: "Choose from your Photos library.", symbol: "photo.on.rectangle") {
-                    PhotosPicker("Choose…", selection: $photos, maxSelectionCount: TeakLimits.maxFilesPerUpload,
+                AddAction(tr("native.capture.photosAndVideos"), detail: tr("native.capture.photosDetail"),
+                          symbol: "photo.on.rectangle") {
+                    PhotosPicker(tr("native.capture.chooseEllipsis"), selection: $photos,
+                                 maxSelectionCount: TeakLimits.maxFilesPerUpload,
                                  selectionBehavior: .ordered, matching: .any(of: [.images, .videos]))
                 }
-                AddAction("Files", detail: "Up to \(TeakLimits.maxFilesPerUpload) at a time, \(maxFileSize) each.",
+                AddAction(tr("native.capture.files"), detail: tr("native.capture.filesDetail", maxFiles, maxFileSize),
                           symbol: "folder") {
-                    Button("Choose Files…") { router.isImportingFiles = true }
+                    Button(tr("native.capture.chooseFiles")) { router.isImportingFiles = true }
                 }
             } header: {
-                Text("Upload")
+                Text(tr("native.capture.upload"))
             } footer: {
-                Text("You can also drop files onto the library, or paste them with ⌘V.")
+                Text(tr("native.capture.dropHint"))
                     .foregroundStyle(.secondary)
             }
             if let upload = capture.upload {
                 Section {
                     ProgressView(value: Double(upload.done), total: Double(upload.total)) {
-                        Text("Saving \(min(upload.done + 1, upload.total)) of \(upload.total)…")
+                        Text(savingProgress(upload))
                     }
                 }
             }
@@ -60,33 +62,37 @@ struct AddView: View {
         .formStyle(.grouped)
     }
 
+    private var maxFiles: String {
+        TeakLimits.maxFilesPerUpload.formatted(.number.locale(AppLanguage.locale))
+    }
+
     private var maxFileSize: String {
-        Int64(TeakLimits.maxFileSize).formatted(.byteCount(style: .memory))
+        Int64(TeakLimits.maxFileSize).formatted(.byteCount(style: .memory).locale(AppLanguage.locale))
     }
     #else
     private var content: some View {
         @Bindable var router = router
         return List {
-            Section("Write") {
-                row("Note or Link", symbol: "doc.text.fill", color: .blue) { router.compose() }
-                row("Voice Memo", symbol: "mic.fill", color: .orange) { router.isRecording = true }
+            Section(tr("native.capture.write")) {
+                row(tr("native.capture.noteOrLink"), symbol: "doc.text.fill", color: .blue) { router.compose() }
+                row(tr("native.capture.voiceMemo"), symbol: "mic.fill", color: .orange) { router.isRecording = true }
             }
-            Section("Upload") {
+            Section(tr("native.capture.upload")) {
                 PhotosPicker(selection: $photos, maxSelectionCount: TeakLimits.maxFilesPerUpload,
                              selectionBehavior: .ordered, matching: .any(of: [.images, .videos])) {
-                    AddRowLabel(title: "Photos & Videos", symbol: "photo.on.rectangle", color: .green)
+                    AddRowLabel(title: tr("native.capture.photosAndVideos"), symbol: "photo.on.rectangle", color: .green)
                 }
                 #if os(iOS)
                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                    row("Camera", symbol: "camera.fill", color: .gray) { router.isUsingCamera = true }
+                    row(tr("native.capture.camera"), symbol: "camera.fill", color: .gray) { router.isUsingCamera = true }
                 }
                 #endif
-                row("Files", symbol: "folder.fill", color: .cyan) { router.isImportingFiles = true }
+                row(tr("native.capture.files"), symbol: "folder.fill", color: .cyan) { router.isImportingFiles = true }
             }
             if let upload = capture.upload {
                 Section {
                     ProgressView(value: Double(upload.done), total: Double(upload.total)) {
-                        Text("Saving \(min(upload.done + 1, upload.total)) of \(upload.total)…")
+                        Text(savingProgress(upload))
                     }
                 }
             }
@@ -98,6 +104,13 @@ struct AddView: View {
         Button(action: action) { AddRowLabel(title: title, symbol: symbol, color: color) }
     }
     #endif
+}
+
+/// "Saving 2 of 5…", with the numbers in the app's language.
+private func savingProgress(_ upload: (done: Int, total: Int)) -> String {
+    let locale = AppLanguage.locale
+    return tr("native.capture.savingProgress", min(upload.done + 1, upload.total).formatted(.number.locale(locale)),
+              upload.total.formatted(.number.locale(locale)))
 }
 
 #if os(macOS)

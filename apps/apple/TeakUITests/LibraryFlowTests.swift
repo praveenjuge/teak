@@ -57,7 +57,7 @@ final class LibraryFlowTests: XCTestCase {
         app.typeKey("n", modifierFlags: .command)
         #else
         tap(tab("Add"))
-        tap(app.buttons["Note or Link"].waitToAppear())
+        tap(app.buttons["Note or link"].waitToAppear())
         #endif
         let editor = app.textViews["composer.text"].waitToAppear()
         tap(editor)
@@ -266,7 +266,7 @@ final class LibraryFlowTests: XCTestCase {
         let field = app.alerts.textFields.firstMatch.waitToAppear()
         #endif
         enter(name, into: field)
-        tap(app.buttons["Create Folder"].firstMatch)
+        tap(app.buttons["Create folder"].firstMatch)
         let row = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
         tap(row.waitToAppear())
         app.staticTexts["Empty Folder"].firstMatch.waitToAppear()
@@ -290,7 +290,7 @@ final class LibraryFlowTests: XCTestCase {
         tile(containing: note).waitToDisappear()
 
         tap(sidebar.staticTexts["Add"])
-        app.buttons["Choose Files…"].firstMatch.waitToAppear()
+        app.buttons["Choose files…"].firstMatch.waitToAppear()
 
         tap(sidebar.staticTexts["Home"])
         tile(containing: note).waitToAppear()
@@ -319,7 +319,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(tab("Settings"))
         #endif
         tap(app.buttons["settings.logOut"].firstMatch.waitToAppear())
-        tap(confirmation("Log Out").waitToAppear())
+        tap(confirmation("Sign out").waitToAppear())
         app.buttons["signIn.emailSignIn"].waitToAppear(20)
         #if os(macOS)
         XCTAssertFalse(app.windows["Settings"].exists || app.windows["Account"].exists)

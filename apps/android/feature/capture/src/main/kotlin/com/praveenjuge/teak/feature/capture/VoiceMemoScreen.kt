@@ -54,8 +54,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
-
-private const val MIC_RATIONALE = "Teak needs the microphone to record voice memos."
+import com.praveenjuge.teak.core.i18n.resolve
+import com.praveenjuge.teak.core.i18n.tr
 
 @Composable
 fun VoiceMemoRoute(onDone: () -> Unit) {
@@ -78,7 +78,7 @@ fun VoiceMemoRoute(onDone: () -> Unit) {
 
     LaunchedEffect(viewModel) {
         viewModel.saved.collect {
-            Toast.makeText(context, "Voice memo saved. It's uploading now.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.resources.tr("native.capture.voiceMemoSaved"), Toast.LENGTH_SHORT).show()
             currentOnDone()
         }
     }
@@ -108,22 +108,22 @@ fun VoiceMemoRoute(onDone: () -> Unit) {
     if (showRationale) {
         AlertDialog(
             onDismissRequest = { showRationale = false },
-            title = { Text("Allow the microphone") },
-            text = { Text(MIC_RATIONALE) },
+            title = { Text(tr("native.capture.allowMic")) },
+            text = { Text(tr("native.capture.micNeeded")) },
             confirmButton = {
                 TextButton(onClick = {
                     showRationale = false
                     micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                }) { Text("Continue") }
+                }) { Text(tr("native.capture.continue")) }
             },
-            dismissButton = { TextButton(onClick = { showRationale = false }) { Text("Not Now") } },
+            dismissButton = { TextButton(onClick = { showRationale = false }) { Text(tr("native.capture.notNow")) } },
         )
     }
     if (confirmDiscard) {
         ConfirmDialog(
-            title = "Discard recording?",
-            message = "You're still recording. Leaving now throws this recording away.",
-            confirmLabel = "Discard",
+            title = tr("native.capture.discardTitle"),
+            message = tr("native.capture.discardMessage"),
+            confirmLabel = tr("native.capture.discard"),
             onConfirm = {
                 confirmDiscard = false
                 viewModel.discard()
@@ -135,9 +135,9 @@ fun VoiceMemoRoute(onDone: () -> Unit) {
     state.error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Couldn't record") },
-            text = { Text(message) },
-            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } },
+            title = { Text(tr("native.capture.couldntRecord")) },
+            text = { Text(message.resolve()) },
+            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(tr("native.capture.ok")) } },
         )
     }
 }
@@ -156,10 +156,10 @@ internal fun VoiceMemoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Voice Memo", modifier = Modifier.semantics { heading() }) },
+                title = { Text(tr("native.capture.voiceMemo"), modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
                     }
                 },
             )
@@ -177,9 +177,9 @@ internal fun VoiceMemoScreen(
             )
             Text(
                 when {
-                    saving -> "Saving…"
-                    recording -> "Recording"
-                    else -> "Tap to start recording"
+                    saving -> tr("common.saving")
+                    recording -> tr("native.capture.recording")
+                    else -> tr("native.capture.tapToRecord")
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -187,12 +187,12 @@ internal fun VoiceMemoScreen(
             )
             if (micDenied) {
                 Text(
-                    MIC_RATIONALE,
+                    tr("native.capture.micNeeded"),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 16.dp),
                 )
-                OutlinedButton(onClick = onOpenSettings) { Text("Open Settings") }
+                OutlinedButton(onClick = onOpenSettings) { Text(tr("native.capture.openSettings")) }
             }
             Spacer(Modifier.weight(1f))
             RecordButton(recording = recording, enabled = !saving, onClick = onRecordToggle)
@@ -212,7 +212,7 @@ private fun RecordButton(recording: Boolean, enabled: Boolean, onClick: () -> Un
     ) {
         Icon(
             if (recording) Icons.Filled.Stop else Icons.Filled.Mic,
-            contentDescription = if (recording) "Stop recording" else "Record",
+            contentDescription = if (recording) tr("native.capture.stopRecording") else tr("native.capture.record"),
             modifier = Modifier.size(40.dp),
         )
     }

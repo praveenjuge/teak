@@ -81,7 +81,7 @@ struct VoiceMemoView: View {
                 Text(CardSheet.formatDuration(recorder.elapsed))
                     .font(.system(size: 56, weight: .medium, design: .rounded).monospacedDigit())
                     .contentTransition(.numericText())
-                    .accessibilityLabel("Recording time \(CardSheet.formatDuration(recorder.elapsed))")
+                    .accessibilityLabel(tr("native.capture.recordingTime", CardSheet.formatDuration(recorder.elapsed)))
                 Text(status).foregroundStyle(.secondary)
                 Button {
                     recorder.isRecording ? stop() : start()
@@ -96,25 +96,25 @@ struct VoiceMemoView: View {
                 .buttonBorderShape(.circle)
                 .tint(.red)
                 .disabled(isSaving)
-                .accessibilityLabel(recorder.isRecording ? "Stop recording" : "Record")
+                .accessibilityLabel(recorder.isRecording ? tr("native.capture.stopRecording") : tr("native.capture.record"))
                 .keyboardShortcut(.space, modifiers: [])
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-            .navigationTitle("Voice Memo")
+            .navigationTitle(tr("native.capture.voiceMemo"))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button(tr("common.cancel")) {
                         recorder.cancel()
                         dismiss()
                     }
                 }
             }
-            .alert("Couldn't Record", isPresented: Binding(presenting: $failure)) {
-                Button("OK") { failure = nil }
+            .alert(tr("native.capture.couldntRecord"), isPresented: Binding(presenting: $failure)) {
+                Button(tr("native.capture.ok")) { failure = nil }
             } message: {
                 Text(failure ?? "")
             }
@@ -125,8 +125,8 @@ struct VoiceMemoView: View {
     }
 
     private var status: String {
-        if isSaving { return "Saving…" }
-        return recorder.isRecording ? "Recording" : "Tap to start recording"
+        if isSaving { return tr("common.saving") }
+        return recorder.isRecording ? tr("native.capture.recording") : tr("native.capture.tapToRecord")
     }
 
     private func start() {
@@ -134,9 +134,9 @@ struct VoiceMemoView: View {
             do {
                 try await recorder.start()
             } catch VoiceRecorder.Failure.permission {
-                failure = "Audio recording permission is required to record audio."
+                failure = tr("native.capture.micNeeded")
             } catch {
-                failure = "Failed to start recording."
+                failure = tr("native.capture.startFailed")
             }
         }
     }

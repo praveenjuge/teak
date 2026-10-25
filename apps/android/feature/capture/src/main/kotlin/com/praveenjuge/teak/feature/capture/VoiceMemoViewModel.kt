@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.upload.StagedFile
 import com.praveenjuge.teak.core.data.upload.StagingArea
 import com.praveenjuge.teak.core.data.upload.UploadRepository
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -29,7 +30,7 @@ enum class RecordingPhase { Idle, Recording, Saving }
 data class VoiceMemoUiState(
     val phase: RecordingPhase = RecordingPhase.Idle,
     val elapsedSeconds: Long = 0,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 @HiltViewModel
@@ -100,7 +101,7 @@ class VoiceMemoViewModel @Inject constructor(
         }
         if (!stopped || file.length() == 0L) {
             file.parentFile?.deleteRecursively()
-            _uiState.value = VoiceMemoUiState(error = "That recording was too short to save. Please try again.")
+            _uiState.value = VoiceMemoUiState(error = UiText.of("native.capture.tooShort"))
             return
         }
         uploads.enqueue(listOf(StagedFile(file.path, file.name, "audio/mp4", file.length(), mapOf("duration" to seconds))))
@@ -157,6 +158,6 @@ class VoiceMemoViewModel @Inject constructor(
     private fun failToStart(mediaRecorder: MediaRecorder, directory: File) {
         mediaRecorder.release()
         directory.deleteRecursively()
-        _uiState.value = VoiceMemoUiState(error = "Teak couldn't start recording. Please try again.")
+        _uiState.value = VoiceMemoUiState(error = UiText.of("native.capture.startFailed"))
     }
 }

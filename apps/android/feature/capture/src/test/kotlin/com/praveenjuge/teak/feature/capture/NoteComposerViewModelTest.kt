@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.capture
 
 import app.cash.turbine.test
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
@@ -42,7 +43,10 @@ class NoteComposerViewModelTest {
         cards.createError = TeakException(TeakException.CARD_LIMIT_REACHED, "You've used all 200 cards on Free.")
         val viewModel = NoteComposerViewModel(cards)
         viewModel.save("A note")
-        assertEquals(SaveError("Card limit reached", "You've used all 200 cards on Free."), viewModel.uiState.value.error)
+        assertEquals(
+            SaveError(UiText.of("native.capture.cardLimitReached"), UiText.verbatim("You've used all 200 cards on Free.")),
+            viewModel.uiState.value.error,
+        )
         assertTrue(viewModel.uiState.value.canSave("A note"))
     }
 
@@ -54,6 +58,6 @@ class NoteComposerViewModelTest {
             viewModel.save("A note")
             expectNoEvents()
         }
-        assertEquals("Failed to save card. Please try again.", viewModel.uiState.value.error?.message)
+        assertEquals(UiText.of("native.capture.saveFailedMessage"), viewModel.uiState.value.error?.message)
     }
 }

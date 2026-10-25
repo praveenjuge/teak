@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.settings
 import com.praveenjuge.teak.core.data.TeakConfig
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.model.CurrentUser
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeLanguageRepository
 import com.praveenjuge.teak.core.testing.FakePreferencesRepository
@@ -54,13 +55,13 @@ class SettingsViewModelTest {
     fun `shows usage out of the free limit and the plan`() = runTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
-        assertEquals("12 of 200 Cards", viewModel.uiState.value.usage)
-        assertEquals("Free", viewModel.uiState.value.plan)
+        assertEquals(UiText.of("native.settings.usageFree", "12", "200"), viewModel.uiState.value.usage)
+        assertEquals(UiText.of("native.settings.planFree"), viewModel.uiState.value.plan)
         assertEquals("ada@example.com", viewModel.uiState.value.email)
 
         account.currentUserFlow.value = Result.success(CurrentUser(id = "t", email = "a@b.c", hasPremium = true, cardCount = 1.0))
-        assertEquals("1 Card", viewModel.uiState.value.usage)
-        assertEquals("Pro", viewModel.uiState.value.plan)
+        assertEquals(UiText.of("native.common.cardCount", count = 1), viewModel.uiState.value.usage)
+        assertEquals(UiText.verbatim("Pro"), viewModel.uiState.value.plan)
     }
 
     @Test
@@ -89,7 +90,7 @@ class SettingsViewModelTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         viewModel.confirmDelete("delete account")
-        assertEquals("Something went wrong while deleting your account.", viewModel.uiState.value.error)
+        assertEquals(UiText.of("native.settings.deleteFailed"), viewModel.uiState.value.error)
         assertFalse(viewModel.uiState.value.isDeleting)
     }
 
