@@ -7,6 +7,8 @@ import TeakCore
 struct CardPreview: View {
     let card: Card
     var linkTargets: [String: CardLinkTarget] = [:]
+    /// Ticks or unticks a task in a note; nil keeps its checkboxes read-only.
+    var toggleTask: ((MarkdownListItem) -> Void)?
 
     var body: some View {
         switch card.type {
@@ -17,7 +19,9 @@ struct CardPreview: View {
         case .palette: PalettePreview(card: card)
         case .link: LinkPreviewView(card: card)
         case .quote: QuotePreview(card: card)
-        case .text: MarkdownView(markdown: card.content.isEmpty ? tr("native.card.noContent") : card.content, cardLinks: linkTargets)
+        case .text:
+            MarkdownView(markdown: card.content.isEmpty ? tr("native.card.noContent") : card.content, cardLinks: linkTargets,
+                         toggleTask: toggleTask)
         }
     }
 }

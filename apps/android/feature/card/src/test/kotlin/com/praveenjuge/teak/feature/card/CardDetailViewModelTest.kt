@@ -5,6 +5,8 @@ import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.MarkdownListItem
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardMetadata
 import com.praveenjuge.teak.core.model.LinkCategory
@@ -254,6 +256,59 @@ class CardDetailViewModelTest {
             note.undo!!.invoke()
             assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.undo")), awaitItem())
         }
+    }
+
+    private class SlowEdits(private val fake: FakeCardsRepository) : CardsRepository by fake {
+        val release = CompletableDeferred<Unit>()
+        override suspend fun apply(id: String, changes: List<CardFieldChange>) {
+            release.await()
+            fake.apply(id, changes)
+        }
+    }
+
+    private fun task(line: Int, checked: Boolean) = MarkdownListItem(0, "•", "", checked = checked, line = line)
+
+    @Test
+    fun `ticking a task shows at once, moves it below the open ones, and saves the note`() = runTest {
+        cards.cards.value = mapOf(card.id to card.copy(content = "# Today\n- [ ] Milk\n- [ ] Bread"))
+        val repository = SlowEdits(cards)
+        val viewModel = viewModel(repository)
+
+        viewModel.toggleTask(task(line = 1, checked = false))
+        assertEquals("# Today\n- [ ] Bread\n- [x] Milk", viewModel.uiState.value.displayedCard?.content)
+        assertEquals(emptyList(), cards.writes)
+
+        repository.release.complete(Unit)
+        assertEquals(listOf("edit:c1:${CardFieldChange.Content("# Today\n- [ ] Bread\n- [x] Milk")}"), cards.writes)
+        assertNull(viewModel.uiState.value.contentOverride)
+        assertEquals("# Today\n- [ ] Bread\n- [x] Milk", viewModel.uiState.value.displayedCard?.content)
+    }
+
+    @Test
+    fun `a failed tick puts the note back and says so`() = runTest {
+        cards.cards.value = mapOf(card.id to card.copy(content = "- [ ] Milk\n- [ ] Bread"))
+        cards.failingIds = setOf(card.id)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.toggleTask(task(line = 0, checked = false))
+            assertEquals(CardDetailEvent.Message(UiText.of("native.notes.taskFailed")), awaitItem())
+        }
+        assertNull(viewModel.uiState.value.contentOverride)
+        assertEquals("- [ ] Milk\n- [ ] Bread", viewModel.uiState.value.displayedCard?.content)
+    }
+
+    @Test
+    fun `a stale tick or a trashed note changes nothing`() = runTest {
+        cards.cards.value = mapOf(card.id to card.copy(content = "- [x] Milk"))
+        val viewModel = viewModel()
+        viewModel.toggleTask(task(line = 0, checked = false))
+
+        cards.cards.value = mapOf(card.id to card.copy(content = "- [ ] Milk", isDeleted = true))
+        viewModel.toggleTask(task(line = 0, checked = false))
+
+        assertEquals(emptyList(), cards.writes)
+        assertNull(viewModel.uiState.value.contentOverride)
     }
 
     @Test

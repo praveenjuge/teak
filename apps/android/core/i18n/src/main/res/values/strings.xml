@@ -635,6 +635,13 @@
     <string name="native_linkPicker_noMatches">No matching cards</string>
     <string name="native_linkPicker_option">Link %1$s</string>
     <string name="native_linkPicker_searching">Searching cards…</string>
+    <string name="native_notes_checked">Checked</string>
+    <plurals name="native_notes_table">
+        <item quantity="one">Table, %1$d row</item>
+        <item quantity="other">Table, %1$d rows</item>
+    </plurals>
+    <string name="native_notes_taskFailed">Couldn\'t update the checklist. Try again.</string>
+    <string name="native_notes_unchecked">Not checked</string>
     <string name="native_revisit_archived">Archived</string>
     <string name="native_revisit_caption">%1$s · Saved %2$s</string>
     <string name="native_revisit_close">Close Revisit</string>

@@ -12,6 +12,9 @@ import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkCopy
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.MarkdownListItem
+import com.praveenjuge.teak.core.model.TaskLists
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardLinks
 import com.praveenjuge.teak.core.model.CardSheet
@@ -53,7 +56,12 @@ data class CardDetailUiState(
     val linkTargets: Map<String, CardLinkTarget> = emptyMap(),
     val backlinks: CardBacklinks = CardBacklinks(),
     val folders: List<Folder> = emptyList(),
+    /** A note's content with a ticked task, shown until the saved card catches up. */
+    val contentOverride: String? = null,
 ) {
+    /** The card as shown, with any task tick that's still saving. */
+    val displayedCard: Card? get() = contentOverride?.let { content -> card?.copy(content = content) } ?: card
+
     val isFavorited: Boolean get() = favoriteOverride ?: (card?.favorited == true)
     val isDone: Boolean get() = doneOverride ?: (card?.isDone == true)
 
@@ -86,6 +94,7 @@ class CardDetailViewModel @AssistedInject constructor(
     val events: Flow<CardDetailEvent> = _events.receiveAsFlow()
 
     private var requestedDocumentText = false
+    private var taskSaves = 0
 
     init {
         viewModelScope.launch {
@@ -94,7 +103,8 @@ class CardDetailViewModel @AssistedInject constructor(
                 _uiState.update { state ->
                     val favorite = state.favoriteOverride.takeUnless { card != null && card.favorited == it }
                     val done = state.doneOverride.takeUnless { card != null && card.isDone == it }
-                    state.copy(isLoading = false, card = card, favoriteOverride = favorite, doneOverride = done)
+                    val content = state.contentOverride.takeUnless { card?.content == it || taskSaves == 0 }
+                    state.copy(isLoading = false, card = card, favoriteOverride = favorite, doneOverride = done, contentOverride = content)
                 }
                 if (card != null) loadDocumentText(card)
             }
@@ -123,6 +133,32 @@ class CardDetailViewModel @AssistedInject constructor(
                 _uiState.update { it.copy(favoriteOverride = !next) }
                 _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.favorite")))
             }
+        }
+    }
+
+    /**
+     * Ticks or unticks one task in a note at once, moving it as the web does, and saves the note. A failed save puts
+     * the note back and says so.
+     */
+    fun toggleTask(item: MarkdownListItem) {
+        val card = _uiState.value.displayedCard ?: return
+        if (card.type != CardType.Text || card.deleted) return
+        val next = TaskLists.toggle(card.content, item) ?: return
+        _uiState.update { it.copy(contentOverride = next) }
+        taskSaves += 1
+        viewModelScope.launch {
+            val result = catchingFailures { repository.apply(card.id, listOf(CardFieldChange.Content(next))) }
+            taskSaves -= 1
+            result
+                .onSuccess {
+                    _uiState.update { state ->
+                        if (taskSaves == 0 && state.card?.content == state.contentOverride) state.copy(contentOverride = null) else state
+                    }
+                }
+                .onFailure {
+                    _uiState.update { it.copy(contentOverride = null) }
+                    _events.send(CardDetailEvent.Message(UiText.of("native.notes.taskFailed")))
+                }
         }
     }
 

@@ -5,6 +5,8 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 ## Sub-features
 
 - `apple-archive` archives and unarchives a card from its context menu, swipe, Card menu or More menu, with Undo; the Archive view lists them (sidebar on Mac and iPad, More menu on iPhone).
+- `apple-note-tables` shows a note's GFM tables read-only with a bold header row, scrolling a wide one sideways, with `[[` pills working in cells; aligned, ragged and listed tables stay literal monospaced text. Steps in [note-tables](./note-tables.md), **Native apps**.
+- `apple-tasks` shows `- [ ]` and `- [x]` items in an open note as checkboxes (done ones muted and struck through); a tap ticks that one item, moves it below the open ones as the web does, and saves the note, and the web shows it live. A failed save puts it back with "Couldn't update the checklist. Try again." Steps in [note-tables](./note-tables.md), **Native apps**.
 - `apple-bulk` selects cards (More › Select) and archives, unarchives, adds tags, adds to a folder, favorites, moves to Trash or restores them, with a count message and Undo.
 - `apple-sort` sorts by Newest first, Oldest first or Shuffle from the More menu, with Reshuffle for a new order.
 - `apple-folders` lists folders and smart folders (sidebar on Mac and iPad, the **Folders** tab on iPhone), opens one, creates, renames and deletes with Undo, files a card from its Folders row or the selection bar, and saves the current search as a smart folder.

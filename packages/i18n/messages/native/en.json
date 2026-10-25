@@ -736,6 +736,12 @@
       "fileTooLargeSkipped": "It's larger than 100 MB.",
       "unreadableFile": "Teak couldn't read it.",
       "skippedAtLimit": "Not uploaded because you've reached your card limit."
+    },
+    "notes": {
+      "taskFailed": "Couldn't update the checklist. Try again.",
+      "checked": "Checked",
+      "unchecked": "Not checked",
+      "table": "Table, {count, plural, one {# row} other {# rows}}"
     }
   },
   "apple": {

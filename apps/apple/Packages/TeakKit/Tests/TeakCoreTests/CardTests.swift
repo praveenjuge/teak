@@ -171,9 +171,9 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
                     "Plain line one", "line two #travel"].joined(separator: "\n")
         #expect(MarkdownBlocks.parse(note) == [
             .heading(level: 1, text: "Trip plan"),
-            .list([MarkdownListItem(depth: 0, marker: "•", text: "Book **train** tickets"),
-                   MarkdownListItem(depth: 1, marker: "•", text: "Window seat"),
-                   MarkdownListItem(depth: 0, marker: "1.", text: "Pack")]),
+            .list([MarkdownListItem(depth: 0, marker: "•", text: "Book **train** tickets", line: 2),
+                   MarkdownListItem(depth: 1, marker: "•", text: "Window seat", line: 3),
+                   MarkdownListItem(depth: 0, marker: "1.", text: "Pack", line: 4)]),
             .quote("Leave early.\nReally."),
             .rule,
             .code("# not a heading"),

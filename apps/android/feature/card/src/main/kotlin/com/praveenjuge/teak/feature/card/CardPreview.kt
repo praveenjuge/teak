@@ -45,6 +45,7 @@ import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardSheet
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.MarkdownListItem
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.model.parseHexArgb
 import java.util.Locale
@@ -60,6 +61,7 @@ internal fun CardPreview(
     onCopyColor: (String) -> Unit,
     onViewDocument: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onToggleTask: ((MarkdownListItem) -> Unit)? = null,
 ) {
     val title = CardSheet.title(card).resolve()
     val openImage = rememberImageViewer(title)
@@ -80,7 +82,8 @@ internal fun CardPreview(
         CardType.Video -> VideoPreview(card, ratio, modifier)
         CardType.Audio -> AudioPlayer(card.id, card.fileUrl, file?.duration, modifier)
         CardType.Text -> TextSurface(modifier) {
-            if (content.isEmpty()) NoContent() else MarkdownText(content)
+            // The untrimmed note, so a task's line number points at its line in the stored Markdown.
+            if (content.isEmpty()) NoContent() else MarkdownText(card.content, onToggleTask = onToggleTask)
         }
         CardType.Quote -> QuotePreview(content.ifEmpty { tr("native.card.noContent") }, modifier)
         CardType.Palette -> PaletteSwatches(card.colors.orEmpty().take(12), onCopyColor, modifier)
