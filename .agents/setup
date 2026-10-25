@@ -28,8 +28,7 @@ step() {
   shift
   local started=$SECONDS
   printf '\n==> %s\n' "$label"
-  # Return the failure itself: under `step … || …`, set -e doesn't stop here.
-  "$@" || return
+  "$@"
   printf '<== %s (%ss)\n' "$label" "$((SECONDS - started))"
 }
 
@@ -236,13 +235,14 @@ fi
 if [[ "$session_only" == true ]]; then
   export PATH="$HOME/.local/bin:$PATH"
   step "Install workspace dependencies" install_dependencies
-  # A new bun.lock can pin another e2e browser build. If installing it fails,
-  # drop the stamp so the next session tries again.
+  # A new bun.lock can pin another e2e browser build. The stamp comes back
+  # only once that install succeeds, so a failure (which stops setup) leaves
+  # the next session to try again. No `||` here: it would turn off set -e
+  # inside the steps.
   if [[ "$dependencies_changed" == true ]]; then
-    step "Install the E2E suite's browsers" install_e2e_browsers || {
-      rm -f "$install_stamp"
-      exit 1
-    }
+    rm -f "$install_stamp"
+    step "Install the E2E suite's browsers" install_e2e_browsers
+    lock_hash | tr -d '\n' >"$install_stamp"
   fi
   step "Connect to the shared dev deployment" bootstrap_development
   exit 0
