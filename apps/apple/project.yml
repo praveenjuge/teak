@@ -61,8 +61,6 @@ targets:
         excludes:
           - "Resources/Info-*.plist"
           - "Resources/*.entitlements"
-      # The controls' intents run in the app, so it compiles them too.
-      - path: TeakWidgets/OpenTeakIntents.swift
     settings:
       base:
         PRODUCT_NAME: Teak
@@ -155,6 +153,10 @@ targets:
         excludes:
           - "Info.plist"
           - "*.entitlements"
+      # A control that opens the app needs its intent in both targets.
+      - path: Teak/Intents/OpenAppIntents.swift
+      - path: Teak/Intents/IntentSession.swift
+      - path: Teak/Resources/AppIntents.xcstrings
     settings:
       base:
         PRODUCT_NAME: TeakWidgets
@@ -163,7 +165,7 @@ targets:
         "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": TeakWidgets/TeakWidgets-iOS.entitlements
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": TeakWidgets/TeakWidgets-macOS.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
-        # OpenTeakIntents.swift routes in the app only.
+        # OpenAppIntents.swift routes in the app only.
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) TEAK_WIDGETS"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks @executable_path/../../../../Frameworks"

@@ -15,12 +15,7 @@ struct OpenCardIntent: OpenIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        try await IntentSession.requireSignedIn()
-        let services = AppServices.shared
-        #if os(macOS)
-        services.showMainWindow()
-        #endif
-        services.router.handle(TeakLink.card(target.id).url, phase: services.app.phase)
+        try await openInTeak(.card(target.id))
         return .result()
     }
 }

@@ -9,9 +9,12 @@
 /* Begin PBXBuildFile section */
 		00396219B50278C661B770E7 /* CardSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EE1B224975A9737F41FCAEF /* CardSections.swift */; };
 		00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C33080F59C53DEC2AAC7D61E /* LibraryModel.swift */; };
+		01F3D064695392FF7384BDC8 /* OpenAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CF93333B480B7DF4EA32485 /* OpenAppIntents.swift */; };
+		0B6E9220276B34FD9DAB5DC6 /* TeakShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A764AEAD9FFF717F9C2A68C8 /* TeakShortcuts.swift */; };
 		107E7EC61783BD65AFB463D5 /* CaptureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC9794E71FD9919068F5A074 /* CaptureModel.swift */; };
 		11977A51CFA72681AD445E73 /* RevisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7540E18BA147E28A80B9210 /* RevisitView.swift */; };
 		12DE4A1F397593B86AC346BA /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 38FE96DF2D1AF40CC9B918A0 /* popup.js */; };
+		1CE56A8AD57F772FD73CBDBE /* SearchTeakIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF1C6AEB2ABA4A07CAE45E7 /* SearchTeakIntent.swift */; };
 		208E0427A98AAEAF3EE3D554 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C91E3F9825B47431347263 /* ShareViewController.swift */; };
 		247696638EB43FCE52B18248 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		26ACDCCE13BC4CC10CFEF958 /* CardLinkPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB076F319391164EE3794A4 /* CardLinkPicker.swift */; };
@@ -28,16 +31,18 @@
 		406A5760D80DADA5E1F337CA /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 81BE157FBAE13A3511575988 /* manifest.json */; };
 		41A9F462D1A9D7B15BCF2B43 /* CardPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D43730182DF3AE363D581845 /* CardPager.swift */; };
 		435531015D521B1295BD6684 /* images in Resources */ = {isa = PBXBuildFile; fileRef = 6C85399EBC56ADF34B6DE69D /* images */; };
+		4BEF04DA93BAA35F146DDFA8 /* AppIntents.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = D606D982DC768AADB4134838 /* AppIntents.xcstrings */; };
 		4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B195766D8684A763BB1AB093 /* LibraryView.swift */; };
+		4E8E362616DC05AF0E2136EB /* FolderEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA9809E63BCC7E5636D5A222 /* FolderEntity.swift */; };
 		50A9E6A40C46EC6BD15ED9E4 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 068CE95962841A9057B5472B /* SafariWebExtensionHandler.swift */; };
 		531C9DE90DBE1F6A758D1F5E /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = FFDC83C6E603B2D30AD15EB1 /* TeakCore */; };
 		5BF2BE72834C1F430546D85D /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6F6A3A42782815CB35DFE813 /* TeakUI */; };
 		6129572D0B477BD1CDA57006 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = 005BE33C57BE4A949C714E10 /* popup.css */; };
+		67B048B512A2AE943F41C947 /* OpenCardIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E4A7C7369968E741E441F8 /* OpenCardIntent.swift */; };
 		68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */; };
 		69554D700DCBF5E4F7A831CD /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4D093ED645A59C3CF7691A5D /* Localizable.xcstrings */; };
 		6B39462082BB18E0944ABD96 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C78020F918336D66648413 /* WelcomeView.swift */; };
 		6D8DEC6F8D593FB105DB8578 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BBB7C456017B244B6D91EBA7 /* popup.html */; };
-		72953DA2590C7B8E96236A10 /* OpenTeakIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9C97DA3940988921B50EF9 /* OpenTeakIntents.swift */; };
 		72F339878D2F22A07DB4483B /* TeakApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02A3CA9E5B01345E12A9686 /* TeakApp.swift */; };
 		7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FA5E9E3447570860C77A35 /* NoteComposerView.swift */; };
 		80F6ACDD5F9616FB3FBFE83F /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 310894E9752F13554268C5D7 /* background.js */; };
@@ -49,10 +54,12 @@
 		89FE2ADF2373A0B4FF02176B /* E2EStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E3FF2D7400936FF1F520A0D /* E2EStack.swift */; };
 		930D7C22FA57EE97F0B642F6 /* ShareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98EA7CC268C54F60FBCE785A /* ShareView.swift */; };
 		932FA0496D22FCC4FAE13EC0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EAC217372F9E2FABC172E6 /* AppModel.swift */; };
+		9AA3B1AA0408773CA8F1BE2F /* IntentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81E005238D5BA1EF90E3FA7 /* IntentSession.swift */; };
 		9E100A7A429BEB546078D675 /* PostHogReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A70994655951C2A6A64F37A2 /* PostHogReporting.swift */; };
 		A0B65ACF040BA219D9391EA3 /* CardContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FE4699DD01CF9DF68B709D /* CardContextMenu.swift */; };
 		A0FCE52D7211226DD596F7B0 /* ServicesMenu.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 95C16BEC41D963B284F502CD /* ServicesMenu.xcstrings */; };
 		A468F94175235B9899B77BA3 /* CardTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBEA95678E058CFC665ADECF /* CardTile.swift */; };
+		A9E00FF787473D152CD47860 /* IntentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81E005238D5BA1EF90E3FA7 /* IntentSession.swift */; };
 		AA14AE3E3DD9CBD06D777480 /* LibraryFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB415C3CD2A76F708857831 /* LibraryFlowTests.swift */; };
 		AB4CB582214A6AED33EF2DCD /* TeakSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5CE8FF720AF1C66F003874A9 /* TeakSync */; };
 		AC18D4A737BE12F096486102 /* FolderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E967113DEC38E0E2D38A690 /* FolderViews.swift */; };
@@ -60,18 +67,20 @@
 		ADD04D6DA903EF65CC7A87F4 /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4A0CC010CD48DA681F8998DC /* TeakCore */; };
 		AE8769CA0B4D22B2F28E644E /* SignInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */; };
 		AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D536980FFE491122D6407C /* CardPreviews.swift */; };
+		B33C43CAFF9E6D3A752F0878 /* SpotlightIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73398FFB255AE0403EB2DDE3 /* SpotlightIndexer.swift */; };
 		BA6AA56ECC778EF921A6A451 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 05A6A4C24A841ACBD88F153D /* PostHog */; };
 		BABE0E920FA931BDF96D06B5 /* AppIntents.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = D606D982DC768AADB4134838 /* AppIntents.xcstrings */; };
 		C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C31EB7F1B7572867D99BCC /* CardDetailView.swift */; };
 		CA936634E82AC028BE4DD6AE /* LanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB394A36A18ACECFC01E2CA /* LanguageModel.swift */; };
 		CCFAE0D0E4C07CE16BB0A82E /* TeakControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B859EE31449C9D1CBB36F6 /* TeakControls.swift */; };
+		D68B53AF981DD2057F39D71D /* OpenAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CF93333B480B7DF4EA32485 /* OpenAppIntents.swift */; };
 		DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */; };
 		DC36BB48B0EBCCE205D7A0C9 /* SafariExtensionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */; };
-		DD153CAC526CAAEED2AD2148 /* OpenTeakIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9C97DA3940988921B50EF9 /* OpenTeakIntents.swift */; };
 		DEA2A0E06301B298126F060D /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC3EC60C8F0E88E5C6CFEFF5 /* ImageViewer.swift */; };
 		E0AE5D5D8F80E276096A2F7A /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = C514F569EE7DFB45299EF550 /* TeakCore */; };
 		E57DC0A90C4B639603941134 /* TeakCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */; };
 		E703EDE9EC3246A9A56F778F /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491038488A86B5D19F99D1D1 /* Platform.swift */; };
+		E738416E3CA2119066466800 /* CardEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA3D8FEA2B3FA68FFC3BE32D /* CardEntity.swift */; };
 		E7566BF40E979E496227C887 /* SafariExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9762C51F63127F94AE58823F /* SafariExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		EA3F3743942FB24892D83A3D /* TagsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFF2A4EB00C2FD68C6181825 /* TagsView.swift */; };
 		EF9B49989FA5EB27E60A8CE0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D7DCCAEFE2568D11C6C196CD /* Assets.xcassets */; };
@@ -138,6 +147,7 @@
 		1241428612C78B46F9261153 /* RemoteImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImage.swift; sourceTree = "<group>"; };
 		13C31EB7F1B7572867D99BCC /* CardDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardDetailView.swift; sourceTree = "<group>"; };
 		186BE1B031F07346B9A04E99 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
+		2CF93333B480B7DF4EA32485 /* OpenAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAppIntents.swift; sourceTree = "<group>"; };
 		30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakCommands.swift; sourceTree = "<group>"; };
 		310894E9752F13554268C5D7 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = background.js; sourceTree = "<group>"; };
 		33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -153,6 +163,7 @@
 		6C85399EBC56ADF34B6DE69D /* images */ = {isa = PBXFileReference; lastKnownFileType = folder; name = images; path = SafariExtension/Resources/images; sourceTree = SOURCE_ROOT; };
 		6E2C5AE9A93AFE2E6816B8CB /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		6E3FF2D7400936FF1F520A0D /* E2EStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EStack.swift; sourceTree = "<group>"; };
+		73398FFB255AE0403EB2DDE3 /* SpotlightIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexer.swift; sourceTree = "<group>"; };
 		73BD742C40C369AC491243AC /* SidebarMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarMainView.swift; sourceTree = "<group>"; };
 		765D5C7C127FCACD4165A25C /* TeakWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TeakWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoView.swift; sourceTree = "<group>"; };
@@ -160,16 +171,18 @@
 		81BE157FBAE13A3511575988 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
 		86D536980FFE491122D6407C /* CardPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardPreviews.swift; sourceTree = "<group>"; };
 		8825C3A95E26F19DF39B0F96 /* StatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusViews.swift; sourceTree = "<group>"; };
-		8F9C97DA3940988921B50EF9 /* OpenTeakIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenTeakIntents.swift; sourceTree = "<group>"; };
 		91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariExtensionSection.swift; sourceTree = "<group>"; };
 		95C16BEC41D963B284F502CD /* ServicesMenu.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ServicesMenu.xcstrings; sourceTree = "<group>"; };
 		9762C51F63127F94AE58823F /* SafariExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SafariExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		98EA7CC268C54F60FBCE785A /* ShareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareView.swift; sourceTree = "<group>"; };
+		9BF1C6AEB2ABA4A07CAE45E7 /* SearchTeakIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTeakIntent.swift; sourceTree = "<group>"; };
 		9FB394A36A18ACECFC01E2CA /* LanguageModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageModel.swift; sourceTree = "<group>"; };
 		A40A653CFC66F96920615712 /* CardEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditView.swift; sourceTree = "<group>"; };
 		A4FA5E9E3447570860C77A35 /* NoteComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteComposerView.swift; sourceTree = "<group>"; };
 		A4FE4699DD01CF9DF68B709D /* CardContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardContextMenu.swift; sourceTree = "<group>"; };
 		A70994655951C2A6A64F37A2 /* PostHogReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHogReporting.swift; sourceTree = "<group>"; };
+		A764AEAD9FFF717F9C2A68C8 /* TeakShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakShortcuts.swift; sourceTree = "<group>"; };
+		AA3D8FEA2B3FA68FFC3BE32D /* CardEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEntity.swift; sourceTree = "<group>"; };
 		B195766D8684A763BB1AB093 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		B7FAA81DD73D5F9027B68CD8 /* CardFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardFiles.swift; sourceTree = "<group>"; };
 		B8FC22D12BEDFA49700BBF69 /* Teak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Teak.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -180,6 +193,7 @@
 		BEB8CCFA07439724E1FD132D /* MacSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettings.swift; sourceTree = "<group>"; };
 		C1C78020F918336D66648413 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		C33080F59C53DEC2AAC7D61E /* LibraryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryModel.swift; sourceTree = "<group>"; };
+		CA9809E63BCC7E5636D5A222 /* FolderEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderEntity.swift; sourceTree = "<group>"; };
 		CB834A92D5E9C12ED538973C /* TeakKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = TeakKit; path = Packages/TeakKit; sourceTree = SOURCE_ROOT; };
 		D02A3CA9E5B01345E12A9686 /* TeakApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeakApp.swift; sourceTree = "<group>"; };
 		D43730182DF3AE363D581845 /* CardPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardPager.swift; sourceTree = "<group>"; };
@@ -187,9 +201,11 @@
 		D606D982DC768AADB4134838 /* AppIntents.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppIntents.xcstrings; sourceTree = "<group>"; };
 		D7540E18BA147E28A80B9210 /* RevisitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisitView.swift; sourceTree = "<group>"; };
 		D7DCCAEFE2568D11C6C196CD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D9E4A7C7369968E741E441F8 /* OpenCardIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCardIntent.swift; sourceTree = "<group>"; };
 		DF5AE6B629B181A48CCF749D /* FoldersModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoldersModel.swift; sourceTree = "<group>"; };
 		DF90B422F7E69311723801B0 /* TeakUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TeakUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E170EA1FC1F06AD8197557FF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E81E005238D5BA1EF90E3FA7 /* IntentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentSession.swift; sourceTree = "<group>"; };
 		EFD2EBF243733EF9F23C428D /* SaveToTeakIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveToTeakIntent.swift; sourceTree = "<group>"; };
 		F32533E118EE2528C2BEB7A4 /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		F9EAC217372F9E2FABC172E6 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -262,7 +278,6 @@
 			isa = PBXGroup;
 			children = (
 				D7DCCAEFE2568D11C6C196CD /* Assets.xcassets */,
-				8F9C97DA3940988921B50EF9 /* OpenTeakIntents.swift */,
 				51B859EE31449C9D1CBB36F6 /* TeakControls.swift */,
 			);
 			path = TeakWidgets;
@@ -290,7 +305,14 @@
 		5E718E1BB5E59F985E314DD5 /* Intents */ = {
 			isa = PBXGroup;
 			children = (
+				AA3D8FEA2B3FA68FFC3BE32D /* CardEntity.swift */,
+				CA9809E63BCC7E5636D5A222 /* FolderEntity.swift */,
+				E81E005238D5BA1EF90E3FA7 /* IntentSession.swift */,
+				2CF93333B480B7DF4EA32485 /* OpenAppIntents.swift */,
+				D9E4A7C7369968E741E441F8 /* OpenCardIntent.swift */,
 				EFD2EBF243733EF9F23C428D /* SaveToTeakIntent.swift */,
+				9BF1C6AEB2ABA4A07CAE45E7 /* SearchTeakIntent.swift */,
+				A764AEAD9FFF717F9C2A68C8 /* TeakShortcuts.swift */,
 			);
 			path = Intents;
 			sourceTree = "<group>";
@@ -461,6 +483,7 @@
 				A70994655951C2A6A64F37A2 /* PostHogReporting.swift */,
 				6E2C5AE9A93AFE2E6816B8CB /* RootView.swift */,
 				73BD742C40C369AC491243AC /* SidebarMainView.swift */,
+				73398FFB255AE0403EB2DDE3 /* SpotlightIndexer.swift */,
 				D02A3CA9E5B01345E12A9686 /* TeakApp.swift */,
 				30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */,
 			);
@@ -686,6 +709,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4BEF04DA93BAA35F146DDFA8 /* AppIntents.xcstrings in Resources */,
 				EF9B49989FA5EB27E60A8CE0 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -732,15 +756,18 @@
 				68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */,
 				C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */,
 				8925AC5AACC899AB35C87D63 /* CardEditView.swift in Sources */,
+				E738416E3CA2119066466800 /* CardEntity.swift in Sources */,
 				2A7543B5D7CF619ACC795271 /* CardFiles.swift in Sources */,
 				26ACDCCE13BC4CC10CFEF958 /* CardLinkPicker.swift in Sources */,
 				41A9F462D1A9D7B15BCF2B43 /* CardPager.swift in Sources */,
 				AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */,
 				00396219B50278C661B770E7 /* CardSections.swift in Sources */,
 				A468F94175235B9899B77BA3 /* CardTile.swift in Sources */,
+				4E8E362616DC05AF0E2136EB /* FolderEntity.swift in Sources */,
 				AC18D4A737BE12F096486102 /* FolderViews.swift in Sources */,
 				2B8393E139FF71E06A25FA8A /* FoldersModel.swift in Sources */,
 				DEA2A0E06301B298126F060D /* ImageViewer.swift in Sources */,
+				A9E00FF787473D152CD47860 /* IntentSession.swift in Sources */,
 				CA936634E82AC028BE4DD6AE /* LanguageModel.swift in Sources */,
 				00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */,
 				4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */,
@@ -748,7 +775,8 @@
 				84F46662E636B17CEC469DCE /* MacSettings.swift in Sources */,
 				F36056B9A07A44FACCC5142B /* MarkdownView.swift in Sources */,
 				7371FA16E076E1E3112BEFA1 /* NoteComposerView.swift in Sources */,
-				72953DA2590C7B8E96236A10 /* OpenTeakIntents.swift in Sources */,
+				01F3D064695392FF7384BDC8 /* OpenAppIntents.swift in Sources */,
+				67B048B512A2AE943F41C947 /* OpenCardIntent.swift in Sources */,
 				E703EDE9EC3246A9A56F778F /* Platform.swift in Sources */,
 				9E100A7A429BEB546078D675 /* PostHogReporting.swift in Sources */,
 				3B09E374EB56BA539F61359D /* RemoteImage.swift in Sources */,
@@ -756,12 +784,15 @@
 				81826080281B3E00D6EEA32C /* RootView.swift in Sources */,
 				DC36BB48B0EBCCE205D7A0C9 /* SafariExtensionSection.swift in Sources */,
 				3CFE72D197FCA573B94B309A /* SaveToTeakIntent.swift in Sources */,
+				1CE56A8AD57F772FD73CBDBE /* SearchTeakIntent.swift in Sources */,
 				2E166D46FB2B7B0DCBA9E11E /* SettingsView.swift in Sources */,
 				3FB93CA1D16CBC6A5741165C /* SidebarMainView.swift in Sources */,
+				B33C43CAFF9E6D3A752F0878 /* SpotlightIndexer.swift in Sources */,
 				FE488C6C72766C15CB08F7E6 /* StatusViews.swift in Sources */,
 				EA3F3743942FB24892D83A3D /* TagsView.swift in Sources */,
 				72F339878D2F22A07DB4483B /* TeakApp.swift in Sources */,
 				E57DC0A90C4B639603941134 /* TeakCommands.swift in Sources */,
+				0B6E9220276B34FD9DAB5DC6 /* TeakShortcuts.swift in Sources */,
 				DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */,
 				6B39462082BB18E0944ABD96 /* WelcomeView.swift in Sources */,
 			);
@@ -771,7 +802,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DD153CAC526CAAEED2AD2148 /* OpenTeakIntents.swift in Sources */,
+				9AA3B1AA0408773CA8F1BE2F /* IntentSession.swift in Sources */,
+				D68B53AF981DD2057F39D71D /* OpenAppIntents.swift in Sources */,
 				CCFAE0D0E4C07CE16BB0A82E /* TeakControls.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

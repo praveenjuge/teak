@@ -21,7 +21,7 @@ struct TeakWidgetsBundle: WidgetBundle {
 struct NewNoteControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.praveenjuge.teak.widgets.new-note") {
-            ControlWidgetButton(action: OpenNewNoteIntent()) {
+            ControlWidgetButton(action: NewNoteIntent()) {
                 Label(tr("apple.controls.newNote"), systemImage: "square.and.pencil")
             }
             .tint(Color("AccentColor"))
@@ -34,7 +34,7 @@ struct NewNoteControl: ControlWidget {
 struct VoiceMemoControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "com.praveenjuge.teak.widgets.voice-memo") {
-            ControlWidgetButton(action: OpenVoiceMemoIntent()) {
+            ControlWidgetButton(action: RecordVoiceMemoIntent()) {
                 Label(tr("apple.controls.voiceMemo"), systemImage: "mic")
             }
             .tint(Color("AccentColor"))
