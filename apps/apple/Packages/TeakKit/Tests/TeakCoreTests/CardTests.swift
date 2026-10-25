@@ -207,7 +207,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct LinkEditTests {
+@Suite(.english) struct LinkEditTests {
     private let invalid = "Use an http or https link."
 
     @Test(arguments: ["https://example.com", "  http://teak.dev/a?b=1#c  ", "HTTPS://Example.com",
@@ -231,7 +231,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct EmptyTrashTests {
+@Suite(.english) struct EmptyTrashTests {
     @Test func confirmationCountsTheCards() {
         #expect(EmptyTrash.message(count: 1) == "This permanently deletes 1 card and their files. This can’t be undone.")
         #expect(EmptyTrash.message(count: 3) == "This permanently deletes 3 cards and their files. This can’t be undone.")
