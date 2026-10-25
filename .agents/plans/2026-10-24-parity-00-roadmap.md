@@ -6,13 +6,13 @@ Bring the native apps and the web up to the same feature set and wording, where 
 
 | # | Plan | Surfaces | One PR that… |
 |---|---|---|---|
-| 1 | [Native languages and shared wording](./2026-10-24-parity-01-native-languages.md) | Apple, Android, i18n, Raycast and Safari labels | ships the 8 languages on Apple and Android from `packages/i18n`, adds Settings → Language, the system per-app language, and one word for each action everywhere |
+| 1 | Native languages and shared wording (done on `feat/native-languages`; native text lives in `packages/i18n/messages/native`, see `translating.mdx`) | Apple, Android, i18n, Raycast and Safari labels | ships the 8 languages on Apple and Android from `packages/i18n`, adds Settings → Language, the system per-app language, and one word for each action everywhere |
 | 2 | [Native notes and search](./2026-10-24-parity-02-native-notes-search.md) | Apple, Android | shows tables, ticks task checkboxes, adds the `[[` card picker, and makes `-`, `OR`, `( )` and `site:` work and get suggested |
 | 3 | [Native cards and library](./2026-10-24-parity-03-native-cards-library.md) | Convex, web, Apple, Android | adds Empty Trash everywhere, and closes the card and library gaps: smart-folder search on Apple, link title and URL, Keep for AI tags, Undo after Trash, media controls, Android's tablet rail and wallpaper colors |
 | 4 | [Apple system integration](./2026-10-24-parity-04-apple-system.md) | Apple | adds Search, Open card and Add to folder intents, Spotlight, Control Center controls and the Action button, and a folder picker in the share extension |
 | 5 | [Web install and share target](./2026-10-24-parity-05-web-install.md) | web | makes the web app installable and a share target, without offline support |
 
-Order: phase 1 first, because phases 2–4 add native text and that text goes into the catalogs phase 1 creates. Phases 2, 3 and 4 then go in any order. Phase 5 doesn't depend on any other phase and can ship whenever.
+Order: phase 1 first, because phases 2–4 add native text and that text goes into the catalogs phase 1 creates (`packages/i18n/messages/native/*.json`, read with `tr` on Apple and `tr`/`UiText` on Android). Phases 2, 3 and 4 then go in any order. Phase 5 doesn't depend on any other phase and can ship whenever.
 
 ## Decisions (from the 2026-10-24 Q&A)
 
