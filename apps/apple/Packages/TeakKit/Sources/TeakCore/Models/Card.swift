@@ -292,6 +292,8 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
     public var aiSummary: String?
     public var aiTranscript: String?
     public var metadataTitle: String?
+    /// Someone typed this title, so a refreshed preview keeps it.
+    public var metadataTitleEdited: Bool?
     public var metadataDescription: String?
     public var isFavorited: Bool?
     public var isDeleted: Bool?
@@ -316,8 +318,8 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
 
     enum CodingKeys: String, CodingKey {
         case id = "_id", creationTime = "_creationTime", type, content, url, notes, tags, aiTags, aiSummary,
-             aiTranscript, metadataTitle, metadataDescription, isFavorited, isDeleted, createdAt, updatedAt,
-             colors, fileMetadata, metadata, fileUrl, detailUrl, thumbnailUrl, compactUrl, placeholderUrl,
+             aiTranscript, metadataTitle, metadataTitleEdited, metadataDescription, isFavorited, isDeleted, createdAt,
+             updatedAt, colors, fileMetadata, metadata, fileUrl, detailUrl, thumbnailUrl, compactUrl, placeholderUrl,
              screenshotUrl, linkPreviewImageUrl, linkPreviewMedia, isArchived, completedAt, sourceUrl, sourceTitle,
              folderIds
     }
@@ -331,7 +333,7 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
                 compactUrl: String? = nil, placeholderUrl: String? = nil, screenshotUrl: String? = nil,
                 linkPreviewImageUrl: String? = nil, linkPreviewMedia: [LinkPreviewMedia]? = nil,
                 isArchived: Bool? = nil, completedAt: Double? = nil, sourceUrl: String? = nil,
-                sourceTitle: String? = nil, folderIds: [String]? = nil) {
+                sourceTitle: String? = nil, folderIds: [String]? = nil, metadataTitleEdited: Bool? = nil) {
         self.id = id
         self.creationTime = creationTime
         self.type = type
@@ -343,6 +345,7 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
         self.aiSummary = aiSummary
         self.aiTranscript = aiTranscript
         self.metadataTitle = metadataTitle
+        self.metadataTitleEdited = metadataTitleEdited
         self.metadataDescription = metadataDescription
         self.isFavorited = isFavorited
         self.isDeleted = isDeleted
@@ -379,6 +382,7 @@ public struct Card: Decodable, Sendable, Identifiable, Hashable {
         aiSummary = try c.decodeIfPresent(String.self, forKey: .aiSummary)
         aiTranscript = try c.decodeIfPresent(String.self, forKey: .aiTranscript)
         metadataTitle = try c.decodeIfPresent(String.self, forKey: .metadataTitle)
+        metadataTitleEdited = try c.decodeIfPresent(Bool.self, forKey: .metadataTitleEdited)
         metadataDescription = try c.decodeIfPresent(String.self, forKey: .metadataDescription)
         isFavorited = try c.decodeIfPresent(Bool.self, forKey: .isFavorited)
         isDeleted = try c.decodeIfPresent(Bool.self, forKey: .isDeleted)

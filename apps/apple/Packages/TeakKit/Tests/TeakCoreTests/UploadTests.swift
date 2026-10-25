@@ -176,7 +176,17 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
         #expect(TeakError.card(code: "TOO_MANY_FILES", message: nil).message
             == "Too many files selected. You can upload up to \(TeakLimits.maxFilesPerUpload) files at a time.")
         // A code more than one area throws keeps the server's words.
-        #expect(TeakError.card(code: "NOT_FOUND", message: "Folder not found").message == "Folder not found")
+        #expect(TeakError.card(code: "NOT_FOUND", message: "Tag not found").message == "Tag not found")
+    }
+
+    /// Folder errors come as `INVALID_INPUT` with English words; they're matched by those words, as on the web.
+    @Test func wordsFolderErrorsSentWithAGeneralCode() {
+        #expect(TeakError.localizedFolderMessage("Smart folders don't show Trash. To search for the word, put it in quotes")
+            == "Smart folders don't show Trash. To search for the word, put it in quotes")
+        #expect(TeakError.localizedFolderMessage("Smart folder searches can be at most 500 characters")
+            == "Smart folder searches can be at most 500 characters")
+        #expect(TeakError.localizedFolderMessage("Add a search for the smart folder") == "Add a search for the smart folder")
+        #expect(TeakError.localizedFolderMessage("Something else") == nil)
     }
 
     @Test func showsOnlyTheThrownMessage() async {

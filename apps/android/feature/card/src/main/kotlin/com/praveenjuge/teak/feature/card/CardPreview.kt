@@ -214,7 +214,7 @@ private fun Swatch(hex: String, onCopy: (String) -> Unit, modifier: Modifier) {
 @Composable
 private fun LinkPreview(card: Card, modifier: Modifier) {
     val preview = card.metadata?.linkPreview?.takeIf { it.status == "success" }
-    val title = listOf(preview?.title, card.metadataTitle, card.url).firstOrNull { !it.isNullOrBlank() } ?: tr("cards.types.link")
+    val title = CardSheet.linkTitle(card).resolve()
     val description = listOf(preview?.description, card.metadataDescription).firstOrNull { !it.isNullOrBlank() }
     val host = CardSheet.hostname(card.url)
     val imageUrl = card.linkPreviewImageUrl ?: card.screenshotUrl

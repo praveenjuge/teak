@@ -127,6 +127,14 @@ object CardSheet {
         } ?: ShareTarget.None
     }
 
+    /** A title someone typed first, then the page's own, as the web's `resolveLinkTitle`. */
+    fun linkTitle(card: Card): UiText {
+        val preview = card.metadata?.linkPreview?.takeIf { it.status == "success" }
+        val edited = card.metadataTitle.takeIf { card.metadataTitleEdited == true }
+        return listOf(edited, preview?.title, card.metadataTitle, card.url).firstOrNull { !it.isNullOrBlank() }
+            ?.let(UiText::verbatim) ?: UiText.of("cards.types.link")
+    }
+
     fun title(card: Card, fallback: String? = null): UiText = when (card.type) {
         CardType.Text -> UiText.of("native.card.note")
         CardType.Quote -> UiText.of("cards.types.quote")

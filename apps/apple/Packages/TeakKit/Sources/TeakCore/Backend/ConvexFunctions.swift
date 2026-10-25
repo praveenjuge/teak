@@ -15,6 +15,8 @@ public enum ConvexFunctions {
     public static let createCard = ConvexFunction<String>("cards:createCard")
     public static let updateCardField = ConvexFunction<ConvexVoid>("cards:updateCardField")
     public static let permanentDeleteCard = ConvexFunction<ConvexVoid>("cards:permanentDeleteCard")
+    public static let emptyTrash = ConvexFunction<TrashCount>("cards:emptyTrash")
+    public static let trashCount = ConvexFunction<TrashCount>("cards:trashCount")
     public static let bulkUpdateCards = ConvexFunction<BulkUpdateResult>("cards:bulkUpdateCards")
     public static let reprocessCard = ConvexFunction<ReprocessResult>("cards:reprocessCard")
     public static let getCardLinkTargets = ConvexFunction<[CardLinkTarget]>("cards:getCardLinkTargets")

@@ -10,7 +10,7 @@ struct LibraryView: View {
     @State private var width = 0.0
     @State private var editing: CardRoute?
     @State private var exporting: CardFile?
-    @State private var confirmingDelete: CardSummary?
+    @State private var confirmingEmptyTrash = false
     @State private var confirmingDeleteForever: CardSummary?
     @State private var confirmingBulkDelete = false
     @State private var addingTags = false
@@ -45,6 +45,7 @@ struct LibraryView: View {
             .toolbar { toolbar }
             .overlay(alignment: .bottom) { bottomOverlay }
             .task { library.start() }
+            .task(id: library.isTrash) { await library.followTrashCount() }
             .sheet(item: $editing) { route in CardEditView(cardId: route.id) }
             .fileExporter(isPresented: Binding(presenting: $exporting), item: exporting,
                           contentTypes: exporting.map { [$0.contentType] } ?? [],
@@ -52,12 +53,11 @@ struct LibraryView: View {
                 if case .failure = result { library.show(tr("native.card.failed.download"), isError: true) }
                 exporting = nil
             }
-            .confirmationDialog(tr("native.card.moveToTrash.title"), isPresented: Binding(presenting: $confirmingDelete),
-                                presenting: confirmingDelete) { card in
-                Button(tr("native.actions.moveToTrash"), role: .destructive) { Task { await library.moveToTrash(card.id) } }
-                Button(tr("common.cancel"), role: .cancel) { confirmingDelete = nil }
-            } message: { _ in
-                Text(tr("native.card.moveToTrash.message"))
+            .confirmationDialog(tr("native.trash.emptyTitle"), isPresented: $confirmingEmptyTrash) {
+                Button(tr("native.trash.empty"), role: .destructive) { Task { await library.emptyTrash() } }
+                Button(tr("common.cancel"), role: .cancel) {}
+            } message: {
+                Text(library.emptyTrashMessage)
             }
             .confirmationDialog(tr("native.card.deleteForever.title"), isPresented: Binding(presenting: $confirmingDeleteForever),
                                 presenting: confirmingDeleteForever) { card in
@@ -270,13 +270,7 @@ struct LibraryView: View {
                     return url
                 }
             },
-            confirmDelete: { card in
-                #if os(macOS)
-                Task { await library.moveToTrash(card.id) }
-                #else
-                confirmingDelete = card
-                #endif
-            },
+            moveToTrash: { card in Task { await library.moveToTrash(card.id) } },
             confirmDeleteForever: { confirmingDeleteForever = $0 },
             moreLikeThis: { library.moreLike($0.id, title: $0.title) })
     }
@@ -342,8 +336,16 @@ struct LibraryView: View {
                 .accessibilityIdentifier("library.add")
             }
             #endif
+            if library.isTrash {
+                ToolbarItem {
+                    Button(tr("native.trash.empty"), systemImage: "xmark.bin", role: .destructive) { confirmingEmptyTrash = true }
+                        .disabled(!library.canEmptyTrash)
+                        .accessibilityIdentifier("library.emptyTrash")
+                }
+            }
             ToolbarItem {
-                LibraryMenu(library: library, revisit: { revisiting = true }, saveSmartFolder: saveSmartFolder)
+                LibraryMenu(library: library, revisit: { revisiting = true }, saveSmartFolder: saveSmartFolder,
+                            emptyTrash: library.isTrash ? { confirmingEmptyTrash = true } : nil)
             }
         }
     }
@@ -381,6 +383,8 @@ struct LibraryMenu: View {
     @Bindable var library: LibraryModel
     let revisit: () -> Void
     let saveSmartFolder: (() -> Void)?
+    /// Asks before emptying Trash; set only in Trash.
+    var emptyTrash: (() -> Void)?
 
     var body: some View {
         Menu {
@@ -429,6 +433,12 @@ struct LibraryMenu: View {
             if library.sort.isShuffle {
                 Section {
                     Button(tr("native.library.menu.reshuffle"), systemImage: "shuffle") { library.shuffle() }
+                }
+            }
+            if let emptyTrash {
+                Section {
+                    Button(tr("native.trash.empty"), systemImage: "xmark.bin", role: .destructive, action: emptyTrash)
+                        .disabled(!library.canEmptyTrash)
                 }
             }
             if saveSmartFolder != nil || narrowed {

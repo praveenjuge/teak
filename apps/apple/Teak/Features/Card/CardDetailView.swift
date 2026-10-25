@@ -15,6 +15,7 @@ struct CardDetailView: View {
     @State private var exporting: CardFile?
     @State private var confirmDeleteForever = false
     @State private var pickingFolders = false
+    @State private var editingLink = false
     @State private var feedback = 0
 
     private var library: LibraryModel { AppServices.shared.home }
@@ -27,7 +28,7 @@ struct CardDetailView: View {
                 ProgressView()
             }
         }
-        .navigationTitle(title)
+        .modifier(CardTitle(title: title, editable: editsTitle) { text in Task { await model?.saveTitle(text) } })
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -38,8 +39,16 @@ struct CardDetailView: View {
         .onDisappear { model?.stop() }
     }
 
+    /// A link's title is renamed in the header, as on the web.
+    private var editsTitle: Bool {
+        guard let card = model?.card else { return false }
+        return card.type == .link && !card.deleted
+    }
+
     private var title: String {
-        if let card = model?.card { return CardSheet.title(card, fallback: route.summary?.title) }
+        if let card = model?.card {
+            return card.type == .link ? CardSheet.linkTitle(card) : CardSheet.title(card, fallback: route.summary?.title)
+        }
         switch route.summary?.type {
         case .text: return tr("native.card.note")
         case .quote: return tr("cards.types.quote")
@@ -76,6 +85,9 @@ struct CardDetailView: View {
             }
             .toolbar { toolbar(card, model) }
             .sheet(isPresented: $showEditSheet) { CardEditView(cardId: card.id) }
+            .sheet(isPresented: $editingLink) {
+                EditLinkSheet(address: card.url ?? "") { await model.saveLink($0) }
+            }
             .sheet(isPresented: $pickingFolders) {
                 FolderPickerView(mode: .card(id: card.id, folderIds: card.folderIds ?? []), folders: AppServices.shared.folders)
             }
@@ -117,9 +129,13 @@ struct CardDetailView: View {
     }
 
     private func sections(_ card: Card, _ model: CardDetailModel) -> some View {
-        CardSections(card: card, backlinks: model.backlinks?.backlinks ?? [], hasMoreBacklinks: model.backlinks?.hasMore == true,
+        CardSections(card: model.displayedCard ?? card, backlinks: model.backlinks?.backlinks ?? [],
+                     hasMoreBacklinks: model.backlinks?.hasMore == true,
                      folderNames: folderNames(card), openCard: { router.open(CardRoute(id: $0, summary: nil)) },
-                     openSource: open, editFolders: card.deleted ? nil : { pickingFolders = true })
+                     openSource: open, editFolders: card.deleted ? nil : { pickingFolders = true },
+                     suggestedTags: card.deleted ? nil : SuggestedTagActions(
+                         keep: { tag in Task { await model.keepTag(tag) } },
+                         remove: { tag in Task { await model.removeSuggestedTag(tag) } }))
     }
 
     private func folderNames(_ card: Card) -> [String] {
@@ -226,6 +242,8 @@ struct CardDetailView: View {
                 } else if card.url != nil {
                     Button(tr("native.actions.openLink"), systemImage: "safari") { model.message = tr("native.card.unsafeLink") }
                 }
+                Button(tr("native.card.editLink.menu"), systemImage: "square.and.pencil") { editingLink = true }
+                    .accessibilityIdentifier("detail.editLink")
             }
             if case let .file(url, name, _) = CardSheet.shareTarget(card) {
                 Button(downloadLabel, systemImage: "arrow.down.circle") {
@@ -250,7 +268,16 @@ struct CardDetailView: View {
             }
             Button(tr("native.actions.openOnWeb"), systemImage: "globe") { open(webURL(card)) }
         }
-        Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { run { await model.moveToTrash() } }
+        Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { moveToTrash(card, model) }
+    }
+
+    /// Trashes the card and closes it, with Undo in the library's note.
+    private func moveToTrash(_ card: Card, _ model: CardDetailModel) {
+        run {
+            guard await model.moveToTrash() else { return false }
+            library.showTrashed(card.id)
+            return true
+        }
     }
 
     private var downloadLabel: String {
@@ -293,6 +320,103 @@ struct CardDetailView: View {
             if await action() {
                 feedback += 1
                 router.close(route.id)
+            }
+        }
+    }
+}
+
+/// The card's title in the header. A link's can be renamed there: Rename in the title menu, and on Mac the window
+/// title. A blank title puts the old one back.
+private struct CardTitle: ViewModifier {
+    let title: String
+    let editable: Bool
+    let save: (String) -> Void
+    @State private var draft = ""
+
+    func body(content: Content) -> some View {
+        if editable {
+            content
+                .navigationTitle($draft)
+                .toolbarTitleMenu { RenameButton() }
+                .onAppear { draft = title }
+                .onChange(of: title) { _, saved in draft = saved }
+                // Saves once the title settles, however often the field reports it.
+                .task(id: draft) {
+                    let typed = draft
+                    guard typed != title else { return }
+                    try? await Task.sleep(for: .milliseconds(400))
+                    guard !Task.isCancelled else { return }
+                    if typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        draft = title
+                    } else {
+                        save(typed)
+                    }
+                }
+        } else {
+            content.navigationTitle(title)
+        }
+    }
+}
+
+/// Edit link…: a new address for a link card. Saving refreshes its preview.
+private struct EditLinkSheet: View {
+    let address: String
+    let save: (String) async -> String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var error: String?
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(tr("native.card.editLink.label"), text: $text)
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .onSubmit(submit)
+                        .accessibilityIdentifier("editLink.field")
+                } footer: {
+                    if let error {
+                        Text(error).foregroundStyle(.red)
+                    } else {
+                        Text(tr("native.card.editLink.message"))
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle(tr("native.card.editLink.title"))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("common.cancel")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(tr("common.save"), action: submit)
+                        .disabled(isSaving || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .frame(minWidth: 380, minHeight: 200)
+        #if os(iOS)
+        .presentationDetents([.medium])
+        #endif
+        .onAppear { text = address }
+    }
+
+    private func submit() {
+        guard !isSaving else { return }
+        isSaving = true
+        Task {
+            defer { isSaving = false }
+            if let message = await save(text) {
+                error = message
+            } else {
+                dismiss()
             }
         }
     }

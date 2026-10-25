@@ -24,7 +24,7 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
 
     /// A server error in the app's language: the catalog's text for its code, else the server's message.
     public static func card(code: String?, message: String?, fallback: String = TeakMessages.genericFailure) -> TeakError {
-        let known = code.flatMap(localizedMessage)
+        let known = code.flatMap(localizedMessage) ?? message.flatMap(localizedFolderMessage)
         let tooFast = code == rateLimited ? tr("errors.cards.RATE_LIMITED") : nil
         return TeakError(code: code, message: known ?? message?.nonEmpty ?? tooFast ?? fallback)
     }
@@ -57,6 +57,16 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
         case "UNSUPPORTED_LOCALE": tr("errors.settings.UNSUPPORTED_LOCALE")
         default: nil
         }
+    }
+
+    /// A folder error the server sends in English with a general code (`INVALID_INPUT`, `CONFLICT`), matched by
+    /// its words as the web's `byEnglishMessage` does. A limit in it, like "at most 500 characters", carries over.
+    static func localizedFolderMessage(_ message: String) -> String? {
+        guard let code = SharedConstants.shared.folderErrorMessages.first(where: { $0.value == message })?.key
+        else { return nil }
+        let key = "errors.folders.\(code)"
+        if let limit = message.firstMatch(of: /\d+/) { return tr(key, String(limit.output)) }
+        return tr(key)
     }
 
     public static func server(message: String) -> TeakError {

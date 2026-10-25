@@ -285,15 +285,23 @@
     <string name="native_card_edit_saveFailed">変更を保存できませんでした</string>
     <string name="native_card_edit_tagPlaceholder">タグを追加</string>
     <string name="native_card_edit_title">カードを編集</string>
+    <string name="native_card_editLink_invalid">URL must use the http or https scheme</string>
+    <string name="native_card_editLink_label">Link</string>
+    <string name="native_card_editLink_menu">Edit link…</string>
+    <string name="native_card_editLink_message">The preview refreshes after you save.</string>
+    <string name="native_card_editLink_saved">Link saved. The preview refreshes shortly.</string>
+    <string name="native_card_editLink_title">Edit link</string>
     <string name="native_card_failed_archive">このカードをアーカイブできませんでした。</string>
     <string name="native_card_failed_delete">このカードを削除できませんでした。</string>
     <string name="native_card_failed_download">このファイルをダウンロードできませんでした。</string>
+    <string name="native_card_failed_editLink">Couldn\'t change the link.</string>
     <string name="native_card_failed_favorite">お気に入りを更新できませんでした。</string>
     <string name="native_card_failed_folders">カードのフォルダを変更できませんでした</string>
     <string name="native_card_failed_moveToTrash">このカードをゴミ箱に移動できませんでした。</string>
     <string name="native_card_failed_refresh">このカードを更新できませんでした。しばらくしてからもう一度お試しください。</string>
     <string name="native_card_failed_restore">このカードを復元できませんでした。</string>
     <string name="native_card_failed_saveFile">このファイルを保存できませんでした。</string>
+    <string name="native_card_failed_title">Couldn\'t save the title.</string>
     <string name="native_card_failed_unarchive">このカードのアーカイブを解除できませんでした。</string>
     <string name="native_card_failed_undo">元に戻せませんでした。もう一度お試しください。</string>
     <string name="native_card_failed_update">更新できませんでした。もう一度お試しください。</string>
@@ -351,6 +359,8 @@
     <string name="native_card_source_from">取得元：%1$s</string>
     <string name="native_card_source_label">取得元</string>
     <string name="native_card_source_open">%1$s を開く</string>
+    <string name="native_card_titleField_label">Title</string>
+    <string name="native_card_titleField_placeholder">Untitled link</string>
     <string name="native_card_unavailable_deletedMessage">削除された可能性があります。</string>
     <string name="native_card_unavailable_movedMessage">削除または移動された可能性があります。</string>
     <string name="native_card_unavailable_title">カードを利用できません</string>
@@ -727,6 +737,8 @@
     <string name="native_tags_emptyTitle">タグはまだありません</string>
     <string name="native_tags_exists">「%1$s」という名前のタグがすでにあります。</string>
     <string name="native_tags_find">タグを検索</string>
+    <string name="native_tags_keep">Keep</string>
+    <string name="native_tags_keepTag">Keep %1$s</string>
     <string name="native_tags_loading">タグを読み込み中</string>
     <string name="native_tags_merge">統合</string>
     <plurals name="native_tags_mergeFailed">
@@ -760,6 +772,7 @@
     </plurals>
     <string name="native_tags_selected">選択済み</string>
     <string name="native_tags_startFailed">タグの変更を開始できませんでした</string>
+    <string name="native_tags_suggested">Suggested by Teak</string>
     <string name="native_tags_title">タグ</string>
     <string name="native_tags_tryRest">残りを変更するには、もう一度お試しください。</string>
     <string name="native_time_lastMonth">先月</string>
@@ -772,6 +785,27 @@
     <string name="native_time_thisYear">今年</string>
     <string name="native_time_today">今日</string>
     <string name="native_time_yesterday">昨日</string>
+    <string name="native_trash_alreadyEmpty">Trash is already empty</string>
+    <string name="native_trash_empty">Empty Trash</string>
+    <string name="native_trash_emptyFailed">Couldn\'t empty Trash. Try again.</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="one">This permanently deletes %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="one">This permanently deletes at least %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes at least %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">Empty Trash?</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="one">Deleting %1$d card forever</item>
+        <item quantity="other">Deleting %1$d cards forever</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="one">Deleting at least %1$d card forever</item>
+        <item quantity="other">Deleting at least %1$d cards forever</item>
+    </plurals>
+    <string name="native_trash_rateLimited">Trash was emptied a few times just now. Try again in a minute.</string>
     <string name="search_colorHues_blue">青</string>
     <string name="search_colorHues_brown">茶</string>
     <string name="search_colorHues_cyan">シアン</string>

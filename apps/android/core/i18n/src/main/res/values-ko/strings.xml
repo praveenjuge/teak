@@ -285,15 +285,23 @@
     <string name="native_card_edit_saveFailed">변경 사항을 저장하지 못했습니다</string>
     <string name="native_card_edit_tagPlaceholder">태그 추가</string>
     <string name="native_card_edit_title">카드 편집</string>
+    <string name="native_card_editLink_invalid">URL must use the http or https scheme</string>
+    <string name="native_card_editLink_label">Link</string>
+    <string name="native_card_editLink_menu">Edit link…</string>
+    <string name="native_card_editLink_message">The preview refreshes after you save.</string>
+    <string name="native_card_editLink_saved">Link saved. The preview refreshes shortly.</string>
+    <string name="native_card_editLink_title">Edit link</string>
     <string name="native_card_failed_archive">이 카드를 보관하지 못했습니다.</string>
     <string name="native_card_failed_delete">이 카드를 삭제하지 못했습니다.</string>
     <string name="native_card_failed_download">이 파일을 다운로드할 수 없습니다.</string>
+    <string name="native_card_failed_editLink">Couldn\'t change the link.</string>
     <string name="native_card_failed_favorite">즐겨찾기를 업데이트하지 못했습니다.</string>
     <string name="native_card_failed_folders">카드의 폴더를 변경하지 못했습니다</string>
     <string name="native_card_failed_moveToTrash">이 카드를 휴지통으로 이동하지 못했습니다.</string>
     <string name="native_card_failed_refresh">이 카드를 새로 고치지 못했습니다. 잠시 후 다시 시도해 주세요.</string>
     <string name="native_card_failed_restore">이 카드를 복원하지 못했습니다.</string>
     <string name="native_card_failed_saveFile">이 파일을 저장하지 못했습니다.</string>
+    <string name="native_card_failed_title">Couldn\'t save the title.</string>
     <string name="native_card_failed_unarchive">이 카드의 보관을 해제하지 못했습니다.</string>
     <string name="native_card_failed_undo">실행 취소하지 못했습니다. 다시 시도해 주세요.</string>
     <string name="native_card_failed_update">업데이트하지 못했습니다. 다시 시도해 주세요.</string>
@@ -351,6 +359,8 @@
     <string name="native_card_source_from">출처: %1$s</string>
     <string name="native_card_source_label">출처</string>
     <string name="native_card_source_open">%1$s 열기</string>
+    <string name="native_card_titleField_label">Title</string>
+    <string name="native_card_titleField_placeholder">Untitled link</string>
     <string name="native_card_unavailable_deletedMessage">삭제되었을 수 있습니다.</string>
     <string name="native_card_unavailable_movedMessage">삭제되었거나 이동되었을 수 있습니다.</string>
     <string name="native_card_unavailable_title">카드를 사용할 수 없음</string>
@@ -727,6 +737,8 @@
     <string name="native_tags_emptyTitle">아직 태그가 없습니다</string>
     <string name="native_tags_exists">“%1$s” 태그가 이미 있습니다.</string>
     <string name="native_tags_find">태그 찾기</string>
+    <string name="native_tags_keep">Keep</string>
+    <string name="native_tags_keepTag">Keep %1$s</string>
     <string name="native_tags_loading">태그를 불러오는 중</string>
     <string name="native_tags_merge">병합</string>
     <plurals name="native_tags_mergeFailed">
@@ -760,6 +772,7 @@
     </plurals>
     <string name="native_tags_selected">선택됨</string>
     <string name="native_tags_startFailed">태그 변경을 시작하지 못했습니다</string>
+    <string name="native_tags_suggested">Suggested by Teak</string>
     <string name="native_tags_title">태그</string>
     <string name="native_tags_tryRest">나머지를 변경하려면 다시 시도하세요.</string>
     <string name="native_time_lastMonth">지난달</string>
@@ -772,6 +785,27 @@
     <string name="native_time_thisYear">올해</string>
     <string name="native_time_today">오늘</string>
     <string name="native_time_yesterday">어제</string>
+    <string name="native_trash_alreadyEmpty">Trash is already empty</string>
+    <string name="native_trash_empty">Empty Trash</string>
+    <string name="native_trash_emptyFailed">Couldn\'t empty Trash. Try again.</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="one">This permanently deletes %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="one">This permanently deletes at least %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes at least %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">Empty Trash?</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="one">Deleting %1$d card forever</item>
+        <item quantity="other">Deleting %1$d cards forever</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="one">Deleting at least %1$d card forever</item>
+        <item quantity="other">Deleting at least %1$d cards forever</item>
+    </plurals>
+    <string name="native_trash_rateLimited">Trash was emptied a few times just now. Try again in a minute.</string>
     <string name="search_colorHues_blue">파란색</string>
     <string name="search_colorHues_brown">갈색</string>
     <string name="search_colorHues_cyan">시안</string>

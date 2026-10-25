@@ -69,6 +69,22 @@ val TAG_ERROR_MESSAGES: Map<String, String> = mapOf(
     "OPERATION_NOT_FOUND" to "Tag operation not found",
 )
 
+/** The server's folder errors by code, sent in English with a general code such as `INVALID_INPUT`. */
+val FOLDER_ERROR_MESSAGES: Map<String, String> = mapOf(
+    "DUPLICATE_NAME" to "A folder with this name already exists",
+    "EMPTY_NAME" to "Name the folder",
+    "NAME_TOO_LONG" to "Folder names can be at most 300 characters",
+    "TOO_MANY_FOLDERS" to "You can have up to 500 folders",
+    "TOO_MANY_FOLDERS_ON_CARD" to "A card can be in up to 50 folders",
+    "NOT_FOUND" to "Folder not found",
+    "EMPTY_QUERY" to "Add a search for the smart folder",
+    "QUERY_TOO_LONG" to "Smart folder searches can be at most 500 characters",
+    "SMART_FOLDER_IN_QUERY" to "A smart folder's search can't use another smart folder",
+    "SMART_FOLDER_MEMBERSHIP" to "Cards can't be added to a smart folder; it shows the cards that match its search",
+    "QUERY_ON_MANUAL_FOLDER" to "Only smart folders have a search",
+    "SMART_FOLDER_TRASH" to "Smart folders don't show Trash. To search for the word, put it in quotes",
+)
+
 val HIDDEN_TAG_KEYS: List<String> = listOf(
     "secret",
     "hidden",

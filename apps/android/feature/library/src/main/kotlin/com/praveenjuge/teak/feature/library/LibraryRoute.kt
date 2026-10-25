@@ -164,6 +164,7 @@ fun LibraryRoute(
             onAddToFolder = { viewModel.runOnSelected(BulkAction.AddToFolder, folder = it) },
             onAddToNewFolder = viewModel::addSelectedToNewFolder,
             onDeleteForever = viewModel::deleteSelectedForever,
+            onEmptyTrash = viewModel::emptyTrash,
             onArchiveCard = viewModel::setArchived,
             onRestoreCard = viewModel::restoreCard,
             onMoreLikeThis = { id -> setSearch("like:$id") },
@@ -212,6 +213,7 @@ internal data class LibraryActions(
     val onAddToFolder: (Folder) -> Unit = {},
     val onAddToNewFolder: (String) -> Unit = {},
     val onDeleteForever: () -> Unit = {},
+    val onEmptyTrash: () -> Unit = {},
     val onArchiveCard: (String, Boolean) -> Unit = { _, _ -> },
     val onRestoreCard: (String) -> Unit = {},
     val onMoreLikeThis: (String) -> Unit = {},
@@ -221,7 +223,7 @@ internal data class LibraryActions(
     val onDismissMessage: (Long) -> Unit = {},
 )
 
-private enum class LibraryDialog { DeleteForever, AddTags, AddToFolder, SaveSearch }
+private enum class LibraryDialog { DeleteForever, AddTags, AddToFolder, SaveSearch, EmptyTrash }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -268,6 +270,8 @@ internal fun LibraryScreen(
                 onRevisit = actions.onRevisit,
                 onBack = actions.onBack,
                 onSaveSearch = if (state.smartFolderQuery != null) ({ dialog = LibraryDialog.SaveSearch }) else null,
+                onEmptyTrash = if (state.filters.trashOnly) ({ dialog = LibraryDialog.EmptyTrash }) else null,
+                canEmptyTrash = state.canEmptyTrash,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -338,6 +342,16 @@ internal fun LibraryScreen(
                 onDismiss = { dialog = null },
             )
         }
+        LibraryDialog.EmptyTrash -> ConfirmDialog(
+            title = tr("native.trash.emptyTitle"),
+            message = state.emptyTrashMessage.resolve(),
+            confirmLabel = tr("native.trash.empty"),
+            onConfirm = {
+                dialog = null
+                actions.onEmptyTrash()
+            },
+            onDismiss = { dialog = null },
+        )
         LibraryDialog.AddTags -> AddTagsDialog(
             count = count,
             onAdd = {

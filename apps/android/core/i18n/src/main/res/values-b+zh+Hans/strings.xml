@@ -285,15 +285,23 @@
     <string name="native_card_edit_saveFailed">无法保存更改</string>
     <string name="native_card_edit_tagPlaceholder">添加标签</string>
     <string name="native_card_edit_title">编辑卡片</string>
+    <string name="native_card_editLink_invalid">URL must use the http or https scheme</string>
+    <string name="native_card_editLink_label">Link</string>
+    <string name="native_card_editLink_menu">Edit link…</string>
+    <string name="native_card_editLink_message">The preview refreshes after you save.</string>
+    <string name="native_card_editLink_saved">Link saved. The preview refreshes shortly.</string>
+    <string name="native_card_editLink_title">Edit link</string>
     <string name="native_card_failed_archive">无法归档此卡片。</string>
     <string name="native_card_failed_delete">无法删除此卡片。</string>
     <string name="native_card_failed_download">无法下载此文件。</string>
+    <string name="native_card_failed_editLink">Couldn\'t change the link.</string>
     <string name="native_card_failed_favorite">无法更新收藏状态。</string>
     <string name="native_card_failed_folders">无法更改卡片所在的文件夹</string>
     <string name="native_card_failed_moveToTrash">无法将此卡片移到废纸篓。</string>
     <string name="native_card_failed_refresh">无法刷新此卡片，请稍后再试。</string>
     <string name="native_card_failed_restore">无法恢复此卡片。</string>
     <string name="native_card_failed_saveFile">无法保存此文件。</string>
+    <string name="native_card_failed_title">Couldn\'t save the title.</string>
     <string name="native_card_failed_unarchive">无法取消归档此卡片。</string>
     <string name="native_card_failed_undo">无法撤销，请重试。</string>
     <string name="native_card_failed_update">无法更新，请重试。</string>
@@ -351,6 +359,8 @@
     <string name="native_card_source_from">来自 %1$s</string>
     <string name="native_card_source_label">来源</string>
     <string name="native_card_source_open">打开 %1$s</string>
+    <string name="native_card_titleField_label">Title</string>
+    <string name="native_card_titleField_placeholder">Untitled link</string>
     <string name="native_card_unavailable_deletedMessage">它可能已被删除。</string>
     <string name="native_card_unavailable_movedMessage">它可能已被删除或移动。</string>
     <string name="native_card_unavailable_title">卡片不可用</string>
@@ -727,6 +737,8 @@
     <string name="native_tags_emptyTitle">还没有标签</string>
     <string name="native_tags_exists">名为“%1$s”的标签已存在。</string>
     <string name="native_tags_find">查找标签</string>
+    <string name="native_tags_keep">Keep</string>
+    <string name="native_tags_keepTag">Keep %1$s</string>
     <string name="native_tags_loading">正在加载标签</string>
     <string name="native_tags_merge">合并</string>
     <plurals name="native_tags_mergeFailed">
@@ -760,6 +772,7 @@
     </plurals>
     <string name="native_tags_selected">已选择</string>
     <string name="native_tags_startFailed">无法开始更改标签</string>
+    <string name="native_tags_suggested">Suggested by Teak</string>
     <string name="native_tags_title">标签</string>
     <string name="native_tags_tryRest">请重试以更改其余卡片。</string>
     <string name="native_time_lastMonth">上个月</string>
@@ -772,6 +785,27 @@
     <string name="native_time_thisYear">今年</string>
     <string name="native_time_today">今天</string>
     <string name="native_time_yesterday">昨天</string>
+    <string name="native_trash_alreadyEmpty">Trash is already empty</string>
+    <string name="native_trash_empty">Empty Trash</string>
+    <string name="native_trash_emptyFailed">Couldn\'t empty Trash. Try again.</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="one">This permanently deletes %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="one">This permanently deletes at least %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes at least %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">Empty Trash?</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="one">Deleting %1$d card forever</item>
+        <item quantity="other">Deleting %1$d cards forever</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="one">Deleting at least %1$d card forever</item>
+        <item quantity="other">Deleting at least %1$d cards forever</item>
+    </plurals>
+    <string name="native_trash_rateLimited">Trash was emptied a few times just now. Try again in a minute.</string>
     <string name="search_colorHues_blue">蓝色</string>
     <string name="search_colorHues_brown">棕色</string>
     <string name="search_colorHues_cyan">青色</string>

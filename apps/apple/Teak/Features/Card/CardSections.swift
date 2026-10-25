@@ -18,6 +18,8 @@ struct CardSections: View {
     var openCard: (String) -> Void = { _ in }
     var openSource: (URL) -> Void = { _ in }
     var editFolders: (() -> Void)?
+    /// Keep and Remove for Teak's suggested tags; nil shows them without either, as in Trash.
+    var suggestedTags: SuggestedTagActions?
     @Environment(\.filterLibrary) private var filterLibrary
     @Environment(\.dismiss) private var dismiss
 
@@ -28,8 +30,16 @@ struct CardSections: View {
                 section(tr("native.card.sections.notes")) { paragraph(notes) }
             }
             let tags = (card.tags ?? []).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            if !tags.isEmpty {
-                section(tr("native.card.sections.tags")) { ChipRow(tags: tags, onTag: searchTag) }
+            let suggested = CardEdit.suggestedTags(card)
+            if !tags.isEmpty || !suggested.isEmpty {
+                section(tr("native.card.sections.tags")) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if !tags.isEmpty { ChipRow(tags: tags, onTag: searchTag) }
+                        if !suggested.isEmpty {
+                            SuggestedTagRow(tags: suggested, actions: suggestedTags, onTag: searchTag)
+                        }
+                    }
+                }
             }
             summary
             if let transcript = card.aiTranscript?.trimmingCharacters(in: .whitespacesAndNewlines), !transcript.isEmpty {
@@ -80,13 +90,12 @@ struct CardSections: View {
 
     @ViewBuilder private var summary: some View {
         let text = card.aiSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let tags = (card.aiTags ?? []).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         let colors = card.type.showsSummaryColors ? (card.colors ?? []).prefix(8).map(\.hex) : []
-        if !text.isEmpty || !tags.isEmpty || !colors.isEmpty {
+        if !text.isEmpty || !colors.isEmpty {
             section(tr("native.card.sections.summary")) {
                 VStack(alignment: .leading, spacing: 10) {
                     if !text.isEmpty { paragraph(text) }
-                    ChipRow(tags: tags, colors: colors, sparkles: true, onTag: searchTag)
+                    if !colors.isEmpty { ChipRow(colors: colors) }
                 }
             }
         }
@@ -249,10 +258,63 @@ private extension View {
     }
 }
 
+struct SuggestedTagActions {
+    var keep: (String) -> Void
+    var remove: (String) -> Void
+}
+
+/// "Suggested by Teak": tags Teak added, each with Keep and Remove, like the web's card details.
+private struct SuggestedTagRow: View {
+    let tags: [String]
+    let actions: SuggestedTagActions?
+    let onTag: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(tr("native.tags.suggested"), systemImage: "sparkles")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(tags, id: \.self, content: chip)
+                }
+            }
+            .scrollClipDisabled()
+        }
+    }
+
+    private func chip(_ tag: String) -> some View {
+        HStack(spacing: 2) {
+            Button { onTag(tag) } label: {
+                Text(tag).font(.footnote.weight(.medium)).padding(.leading, 10).padding(.trailing, actions == nil ? 10 : 2)
+            }
+            .accessibilityLabel(tr("native.card.searchForTag", tag))
+            if let actions {
+                Button(tr("native.tags.keep"), systemImage: "plus") { actions.keep(tag) }
+                    .frame(width: 26, height: 30)
+                    .contentShape(.rect)
+                    .accessibilityLabel(tr("native.tags.keepTag", tag))
+                    .accessibilityIdentifier("detail.keepTag.\(tag)")
+                Button(tr("common.remove"), systemImage: "xmark") { actions.remove(tag) }
+                    .frame(width: 26, height: 30)
+                    .contentShape(.rect)
+                    .padding(.trailing, 4)
+                    .accessibilityLabel(tr("native.card.edit.removeTag", tag))
+            }
+        }
+        .labelStyle(.iconOnly)
+        .imageScale(.small)
+        .buttonStyle(.plain)
+        .frame(minHeight: 30)
+        .foregroundStyle(.secondary)
+        .overlay(Capsule().strokeBorder(.tertiary, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+        .contentShape(.capsule)
+    }
+}
+
 struct ChipRow: View {
     var tags: [String] = []
     var colors: [String] = []
-    var sparkles = false
     var onTag: ((String) -> Void)?
 
     var body: some View {
@@ -266,13 +328,11 @@ struct ChipRow: View {
                     Button {
                         onTag?(tag)
                     } label: {
-                        HStack(spacing: 4) {
-                            if sparkles { Image(systemName: "sparkles").font(.caption2).foregroundStyle(.secondary) }
-                            Text(tag).font(.footnote.weight(.medium))
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.fill.tertiary, in: .capsule)
+                        Text(tag)
+                            .font(.footnote.weight(.medium))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(.fill.tertiary, in: .capsule)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(tr("native.card.searchForTag", tag))

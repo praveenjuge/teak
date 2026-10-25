@@ -119,6 +119,15 @@ sealed interface RefreshOutcome {
     data class Refused(val message: String?) : RefreshOutcome
 }
 
+/**
+ * `cards:trashCount`, and what `cards:emptyTrash` will delete: the cards in Trash, stopping at
+ * [EmptyTrash.COUNT_LIMIT] ("that many or more").
+ */
+@Serializable
+data class TrashCount(val count: Double) {
+    val cardCount: Int get() = count.toInt()
+}
+
 @Serializable
 data class BulkResult(val updatedIds: List<String> = emptyList(), val failedIds: List<String> = emptyList())
 

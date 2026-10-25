@@ -84,6 +84,12 @@ fun CardDetailRoute(
             onCreateFolder = viewModel::createFolder,
             onToggleTask = viewModel::toggleTask,
             onViewPdf = onViewPdf,
+            onSaveTitle = viewModel::saveTitle,
+            onEditLink = viewModel::openEditLink,
+            onSaveLink = viewModel::saveLink,
+            onCloseEditLink = viewModel::closeEditLink,
+            onKeepTag = viewModel::keepTag,
+            onRemoveSuggestedTag = viewModel::removeSuggestedTag,
         ),
     )
 }

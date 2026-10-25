@@ -169,6 +169,88 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
         draft.editableContent = "  "
         #expect(CardEdit.validationError(for: quote, draft: draft) != nil)
     }
+
+    @Test func keepingASuggestedTagWritesTheTagsPlusIt() {
+        let keep = CardEdit.keeping("macro", tags: ["flowers"])
+        #expect(keep == .tags(["flowers", "macro"]))
+        #expect(keep?.args(cardId: "c") == ["cardId": "c", "field": "tags", "value": ["flowers", "macro"]])
+        #expect(CardEdit.keeping("Macro", tags: ["macro"]) == nil)
+        #expect(CardFieldChange.removeAiTag("macro").args(cardId: "c")
+            == ["cardId": "c", "field": "removeAiTag", "tagToRemove": "macro"])
+    }
+
+    @Test func suggestsTeakTagsTheCardDoesNotHave() {
+        let tagged = card(.image, tags: ["design"], aiTags: ["Design", "Color", " "])
+        #expect(CardEdit.suggestedTags(tagged) == ["Color"])
+        #expect(CardEdit.suggestedTags(card(.image)).isEmpty)
+    }
+
+    @Test func undoAfterTrashRestoresTheCard() {
+        #expect(CardFieldChange.moveToTrash.args(cardId: "c") == ["cardId": "c", "field": "delete"])
+        #expect(CardFieldChange.restore.args(cardId: "c") == ["cardId": "c", "field": "restore"])
+    }
+
+    @Test func savesATypedLinkTitleUnlessBlankOrUnchanged() {
+        let change = CardEdit.titleChange("  Field notes ", current: "Example")
+        #expect(change == .metadataTitle("Field notes"))
+        #expect(change?.args(cardId: "c") == ["cardId": "c", "field": "metadataTitle", "value": "Field notes"])
+        #expect(CardEdit.titleChange("   ", current: "Example") == nil)
+        #expect(CardEdit.titleChange("Example ", current: "Example") == nil)
+    }
+
+    @Test func showsATypedLinkTitleBeforeThePagesOwn() {
+        var link = card(.link, url: "https://example.com", metadataTitle: "Typed")
+        link.metadata = CardMetadata(linkPreview: LinkPreview(status: "success", title: "From the page"))
+        #expect(CardSheet.linkTitle(link) == "From the page")
+        link.metadataTitleEdited = true
+        #expect(CardSheet.linkTitle(link) == "Typed")
+    }
+}
+
+@Suite struct LinkEditTests {
+    private let invalid = "URL must use the http or https scheme"
+
+    @Test(arguments: ["https://example.com", "  http://teak.dev/a?b=1#c  ", "HTTPS://Example.com",
+                      "https://me@example.com:8080/x", "https://bücher.de"])
+    func acceptsHttpAndHttpsLinks(_ input: String) {
+        #expect(LinkEdit.validationError(input) == nil)
+    }
+
+    @Test(arguments: ["", "example.com", "ftp://example.com", "javascript:alert(1)", "https://",
+                      "https://exa mple.com", "https://:80"])
+    func refusesAnythingElseWithTheServersMessage(_ input: String) {
+        #expect(LinkEdit.validationError(input) == invalid)
+        #expect(LinkEdit.change(input, current: "https://example.com") == nil)
+    }
+
+    @Test func savesANewAddressTrimmed() {
+        let change = LinkEdit.change("  https://example.org/new ", current: "https://example.com")
+        #expect(change == .url("https://example.org/new"))
+        #expect(change?.args(cardId: "c") == ["cardId": "c", "field": "url", "value": "https://example.org/new"])
+        #expect(LinkEdit.change("https://example.com", current: "https://example.com") == nil)
+    }
+}
+
+@Suite struct EmptyTrashTests {
+    @Test func confirmationCountsTheCards() {
+        #expect(EmptyTrash.message(count: 1) == "This permanently deletes 1 card and its files. This can't be undone.")
+        #expect(EmptyTrash.message(count: 3) == "This permanently deletes 3 cards and their files. This can't be undone.")
+        #expect(EmptyTrash.message(count: 500)
+            == "This permanently deletes at least 500 cards and their files. This can't be undone.")
+    }
+
+    @Test func saysWhatTheServerWillDelete() {
+        #expect(EmptyTrash.done(5) == "Deleting 5 cards forever")
+        #expect(EmptyTrash.done(500) == "Deleting at least 500 cards forever")
+        #expect(EmptyTrash.done(0) == "Trash is already empty")
+    }
+
+    @Test func wordsTheServersLimitInTheAppsLanguage() {
+        let limited = TeakError(code: "RATE_LIMITED", message: "Trash was emptied a few times just now. Try again in a minute.")
+        #expect(EmptyTrash.failure(limited) == "Trash was emptied a few times just now. Try again in a minute.")
+        #expect(EmptyTrash.failure(TeakError(code: nil, message: "Offline")) == "Offline")
+        #expect(EmptyTrash.failure(CancellationError()) == "Couldn't empty Trash. Try again.")
+    }
 }
 
 @Suite struct MarkdownBlockTests {

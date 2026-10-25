@@ -29,6 +29,7 @@ class FakeCardsRepository : CardsRepository {
     val linkTargetRequests = mutableListOf<List<String>>()
     var failingIds: Set<String> = emptySet()
     var createError: Exception? = null
+    var emptyTrashError: Exception? = null
     var refreshOutcome: RefreshOutcome = RefreshOutcome.Queued
     var semanticError: Exception? = null
     var linkTargets: List<CardLinkTarget> = emptyList()
@@ -79,6 +80,21 @@ class FakeCardsRepository : CardsRepository {
         summaries.value = summaries.value.filterNot { it.id == id }
     }
 
+    /** Trash's count: the summaries stand for the Trash view, plus [hiddenTrashCount] cards it doesn't show. */
+    var hiddenTrashCount = 0
+
+    override fun trashCount(): Flow<Result<Int>> = summaries.map { Result.success(it.size + hiddenTrashCount) }
+
+    /** Empties Trash: the summaries stand for the Trash view, so they all go. */
+    override suspend fun emptyTrash(): Int {
+        emptyTrashError?.let { throw it }
+        val count = summaries.value.size + hiddenTrashCount
+        writes += "emptyTrash"
+        hiddenTrashCount = 0
+        summaries.value = emptyList()
+        return count
+    }
+
     override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult {
         val failed = ids.filter { it in failingIds }
         val updated = ids - failed.toSet()
@@ -105,6 +121,10 @@ class FakeCardsRepository : CardsRepository {
                     is CardFieldChange.Notes -> card.copy(notes = change.value)
                     is CardFieldChange.Tags -> card.copy(tags = change.value)
                     is CardFieldChange.RemoveAiTag -> card.copy(aiTags = card.aiTags.orEmpty() - change.tag)
+                    is CardFieldChange.MetadataTitle -> card.copy(metadataTitle = change.value, metadataTitleEdited = true)
+                    is CardFieldChange.Url -> card.copy(url = change.value)
+                    CardFieldChange.MoveToTrash -> card.copy(isDeleted = true)
+                    CardFieldChange.Restore -> card.copy(isDeleted = null)
                 }
             }
         }

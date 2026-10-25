@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.data.convex
 
+import com.praveenjuge.teak.core.model.FOLDER_ERROR_MESSAGES
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
 import com.praveenjuge.teak.core.model.UiText
@@ -68,7 +69,7 @@ class TeakException(
     val code: String?,
     message: String,
     cause: Throwable? = null,
-    val text: UiText = code?.let(::textFor) ?: UiText.verbatim(message),
+    val text: UiText = code?.let(::textFor) ?: textForFolderMessage(message) ?: UiText.verbatim(message),
 ) : Exception(message, cause) {
     companion object {
         const val CARD_LIMIT_REACHED = "CARD_LIMIT_REACHED"
@@ -107,6 +108,16 @@ class TeakException(
             "TRASHED" -> UiText.of("errors.pdfs.TRASHED")
             "UNSUPPORTED_LOCALE" -> UiText.of("errors.settings.UNSUPPORTED_LOCALE")
             else -> null
+        }
+
+        /**
+         * A folder error the server sends in English with a general code (`INVALID_INPUT`, `CONFLICT`), matched by
+         * its words as the web's `byEnglishMessage` does. A limit in it, like "at most 500 characters", carries over.
+         */
+        fun textForFolderMessage(message: String): UiText? {
+            val code = FOLDER_ERROR_MESSAGES.entries.firstOrNull { it.value == message }?.key ?: return null
+            val limit = Regex("""\d+""").find(message)?.value
+            return if (limit != null) UiText.of("errors.folders.$code", limit) else UiText.of("errors.folders.$code")
         }
     }
 }
