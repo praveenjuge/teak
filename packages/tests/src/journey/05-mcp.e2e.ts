@@ -23,10 +23,12 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_check_duplicate_url",
       "teak_v1_create_card",
       "teak_v1_create_folder",
+      "teak_v1_create_highlight",
       "teak_v1_create_thumbnail_upload",
       "teak_v1_create_upload",
       "teak_v1_delete_card",
       "teak_v1_delete_folder",
+      "teak_v1_delete_highlight",
       "teak_v1_delete_tag",
       "teak_v1_find_similar_cards",
       "teak_v1_get_card",
@@ -39,6 +41,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_list_cards",
       "teak_v1_list_favorite_cards",
       "teak_v1_list_folders",
+      "teak_v1_list_highlights",
       "teak_v1_list_tags",
       "teak_v1_merge_tags",
       "teak_v1_refresh_card",
@@ -54,6 +57,7 @@ test("MCP lists and calls every public tool", async () => {
       "teak_v1_set_card_thumbnail",
       "teak_v1_update_card",
       "teak_v1_update_folder",
+      "teak_v1_update_highlight",
     ].sort()
   );
   const tag = `mcp-tag-${Date.now()}`;
