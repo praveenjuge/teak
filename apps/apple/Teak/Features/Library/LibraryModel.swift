@@ -49,9 +49,13 @@ final class LibraryModel {
     @ObservationIgnored private var semanticTask: Task<Void, Never>?
     @ObservationIgnored private var hiddenTask: Task<Void, Never>?
 
-    init(backend: TeakBackend) {
+    init(backend: TeakBackend, spotlight: SpotlightIndexer) {
         self.backend = backend
         pager = CardPager(backend: backend)
+        pager.onLoad = { [weak self, spotlight] cards, left in
+            guard let self else { return }
+            spotlight.apply(CardIndex.changes(cards, left: left, in: query))
+        }
     }
 
     struct StatusMessage: Equatable, Identifiable {
