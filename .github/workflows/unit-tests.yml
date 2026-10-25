@@ -95,18 +95,25 @@ jobs:
           scripts/generate-project.sh --check
       - name: TeakKit tests
         run: |
-          swift build --build-tests --package-path Packages/TeakKit
-          failed=0
-          for run in $(seq 50); do
-            if swift test --skip-build --package-path Packages/TeakKit > "$RUNNER_TEMP/teakkit.log" 2>&1; then
-              echo "Run $run passed"
-            else
-              failed=$((failed + 1))
-              echo "Run $run failed:"
-              grep -E '✘' "$RUNNER_TEMP/teakkit.log" || tail -20 "$RUNNER_TEMP/teakkit.log"
-            fi
-          done
-          echo "$failed of 50 runs failed"
+          for core in $(seq "$(sysctl -n hw.ncpu)"); do yes > /dev/null & done
+          trap 'kill $(jobs -p) 2>/dev/null' EXIT
+          stress() {
+            swift build --build-tests --package-path Packages/TeakKit > "$RUNNER_TEMP/build.log" 2>&1 || { tail -40 "$RUNNER_TEMP/build.log"; return 1; }
+            failed=0
+            for run in $(seq 40); do
+              if ! swift test --skip-build --package-path Packages/TeakKit > "$RUNNER_TEMP/teakkit.log" 2>&1; then
+                failed=$((failed + 1))
+                echo "Run $run failed:"
+                grep -E '✘' "$RUNNER_TEMP/teakkit.log" || tail -20 "$RUNNER_TEMP/teakkit.log"
+              fi
+            done
+            echo "$1: $failed of 40 runs failed, every core busy"
+          }
+          git fetch -q --depth 1 origin 2baa8224617ff012745fed955d5449264ac62fe1
+          rm -rf Packages/TeakKit && git checkout 2baa8224617ff012745fed955d5449264ac62fe1 -- Packages/TeakKit
+          stress "Before the fix (2baa822)"
+          rm -rf Packages/TeakKit && git checkout HEAD -- Packages/TeakKit && git status --short Packages/TeakKit
+          stress "With the fix"
           [ "$failed" -eq 0 ]
 
   renderer:
