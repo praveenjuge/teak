@@ -222,7 +222,8 @@ final class LibraryModel {
         let message = StatusMessage(text: text, isError: isError, isCardLimit: isCardLimit, undo: undo)
         status = message
         statusTask = Task {
-            try? await Task.sleep(for: .seconds(isError ? 5 : undo == nil ? 3 : 6))
+            // An Undo stays 10 seconds, as on the web.
+            try? await Task.sleep(for: .seconds(isError ? 5 : undo == nil ? 3 : 10))
             if status?.id == message.id { status = nil }
         }
     }
