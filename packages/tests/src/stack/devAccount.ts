@@ -22,6 +22,8 @@ const emulatorFetch = async (
   path: string,
   body: Record<string, unknown>
 ) => {
+  // The origin is this checkout's local emulator; callers pass only literal paths.
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf
   const response = await fetch(new URL(path, origin), {
     body: JSON.stringify(body),
     headers: {
