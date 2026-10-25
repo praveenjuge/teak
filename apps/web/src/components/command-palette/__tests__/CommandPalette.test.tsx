@@ -45,9 +45,9 @@ const headings = (html: string) =>
   );
 
 describe("CommandPaletteResults", () => {
-  test("lists the views and actions, and no folder group without folders", () => {
+  test("lists the views, Settings pages and actions, and no folder group without folders", () => {
     const html = render({});
-    expect(headings(html)).toEqual(["Navigate", "Actions"]);
+    expect(headings(html)).toEqual(["Navigate", "Actions", "Settings"]);
     for (const label of [
       "Everything",
       "Favorites",
@@ -63,6 +63,11 @@ describe("CommandPaletteResults", () => {
       "Shuffle",
       "Keyboard shortcuts",
       "Sign out",
+      "Settings: Plan",
+      "Settings: Appearance",
+      "Settings: Integrations",
+      "Settings: Security",
+      "Settings: Import &amp; export",
     ]) {
       expect(html).toContain(`>${label}<`);
     }
@@ -77,7 +82,12 @@ describe("CommandPaletteResults", () => {
         folder({ _id: "f3", name: long }),
       ],
     });
-    expect(headings(html)).toEqual(["Navigate", "Actions", "Folders"]);
+    expect(headings(html)).toEqual([
+      "Navigate",
+      "Actions",
+      "Settings",
+      "Folders",
+    ]);
     expect(html).toContain(">Reading<");
     expect(html).toContain('aria-label="Smart folder"');
     expect(html).toContain(`title="${long}"`);

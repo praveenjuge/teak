@@ -478,7 +478,7 @@ function AuthenticatedPopup({
             {status.tone === "upgrade" ? (
               <Button asChild size="sm">
                 <a
-                  href={`${APP_URL}/settings`}
+                  href={`${APP_URL}/settings/plan`}
                   rel="noopener noreferrer"
                   target="_blank"
                 >

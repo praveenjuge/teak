@@ -21,7 +21,7 @@ People and agents use Teak without the web app through the public REST API, the 
 - REST: `https://reminiscent-kangaroo-59.convex.site/v1/...` on the dev deployment, with `Authorization: Bearer <key>`. Production is `https://teakvault.com/api/...`. OpenAPI is at `/openapi.json`.
 - CLI: `bun apps/cli/src/index.ts …` from the repository root, with `TEAK_API_KEY` and `TEAK_API_URL` set.
 - MCP: `POST https://reminiscent-kangaroo-59.convex.site/mcp`, JSON-RPC, with the same bearer key.
-- A key: Settings → Security → API keys ([settings](./settings.md)), or `scripts/api-key.ts` below.
+- A key: Settings → Integrations → API keys ([settings](./settings.md)), or `scripts/api-key.ts` below.
 
 ## Driving it with curl, the CLI and scripts/api-key.ts
 

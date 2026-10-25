@@ -166,9 +166,5 @@ export function SettingsListSkeleton({
 }
 
 export function SettingsEmptyState({ children }: { children: ReactNode }) {
-  return (
-    <p className="rounded-xl border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
-      {children}
-    </p>
-  );
+  return <p className="text-[13px] text-muted-foreground">{children}</p>;
 }

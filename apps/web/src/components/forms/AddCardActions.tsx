@@ -41,6 +41,7 @@ import {
   useFileUploadCore,
 } from "@/hooks/useFileUploadCore";
 import { useServerErrors } from "@/hooks/useServerErrors";
+import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
 import { useQuery } from "../../lib/convexQueryHooks";
 import { registerUploadFiles } from "../../lib/keyboardShortcuts";
 import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
@@ -130,7 +131,7 @@ export function AddCardActions({
   onNewNote,
   onSuccess,
   onUpgrade,
-  upgradeUrl = "/settings",
+  upgradeUrl = SETTINGS_PLAN_HREF,
   variant = "toolbar",
 }: AddCardActionsProps) {
   const t = useTranslations("forms.addCardActions");

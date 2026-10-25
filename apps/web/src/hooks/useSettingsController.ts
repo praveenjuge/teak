@@ -8,7 +8,7 @@ import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { ConnectionTarget } from "../components/settings/SecuritySection";
+import type { ConnectionTarget } from "../components/settings/SecurityConnections";
 import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../lib/convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
@@ -227,6 +227,7 @@ export function useSettingsController({
     deleteDialogOpen,
     deleteLoading,
     email: user?.email,
+    name: user?.name,
     exportState,
     handleCancelExport,
     handleCreateApiKey,

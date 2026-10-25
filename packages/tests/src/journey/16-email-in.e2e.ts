@@ -85,9 +85,11 @@ test("save by email: turn it on, then mail and its attachment become cards", {
   await deliver(early.inbound);
   expect(early.rejections).toEqual([REJECT_CANT_SAVE]);
 
-  await gotoApp(browser, "/settings");
-  await screen.getByRole("button", "Save by email: Off").click();
-  await screen.getByRole("button", "Turn on").click();
+  await gotoApp(browser, "/settings/integrations");
+  await screen
+    .getByRole("region", "Save by email")
+    .getByRole("button", "Turn on")
+    .click();
   await expect(screen.getByText("save@in.teakvault.com")).toBeVisible();
   await expect(
     screen.getByText(`Send from ${account.email}`, { exact: false })

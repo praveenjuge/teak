@@ -6,7 +6,7 @@ GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { SubscriptionDialog } = await import("../SubscriptionSection");
+const { UpgradeCard } = await import("../SubscriptionSection");
 
 let root: Root | undefined;
 
@@ -16,7 +16,7 @@ afterEach(async () => {
   document.body.innerHTML = "";
 });
 
-async function renderDialog(
+async function renderCard(
   onCheckout: (planId: string) => void,
   loadingPlanId: string | null = null
 ) {
@@ -25,12 +25,10 @@ async function renderDialog(
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <SubscriptionDialog
+      <UpgradeCard
         loadingPlanId={loadingPlanId}
         monthlyPlanId="plan_monthly"
         onCheckout={onCheckout}
-        onOpenChange={() => undefined}
-        open
         yearlyPlanId="plan_yearly"
       />
     )
@@ -47,7 +45,7 @@ function button(name: string) {
 
 test("checks out the yearly plan unless another plan is picked", async () => {
   const onCheckout = mock((_planId: string) => undefined);
-  await renderDialog(onCheckout);
+  await renderCard(onCheckout);
 
   await act(() => button("Continue to checkout").click());
   expect(onCheckout).toHaveBeenLastCalledWith("plan_yearly");
@@ -62,7 +60,7 @@ test("checks out the yearly plan unless another plan is picked", async () => {
 });
 
 test("locks the plan choice while checkout is opening", async () => {
-  await renderDialog(() => undefined, "plan_yearly");
+  await renderCard(() => undefined, "plan_yearly");
 
   const radios = [
     ...document.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
@@ -72,7 +70,7 @@ test("locks the plan choice while checkout is opening", async () => {
 });
 
 test("the yearly plan's badge states the real saving over monthly", async () => {
-  await renderDialog(() => undefined);
+  await renderCard(() => undefined);
 
   // $99 a year against 12 × $19 saves 57%.
   expect(document.body.textContent).toContain("Save 57%");

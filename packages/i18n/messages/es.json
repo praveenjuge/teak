@@ -34,22 +34,16 @@
   },
   "settings": {
     "footer": {
-      "feedback": "Escríbame a <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> si tiene algún comentario. Si alguna vez quiere irse, puede <deleteAccount>eliminar su cuenta</deleteAccount>. Espero que disfrute usando Teak tanto como yo disfruté creándolo.",
-      "signature": "Firma de Praveen Juge"
+      "feedback": "Escríbame a <twitterLink>{handle}</twitterLink> / <emailLink>{email}</emailLink> si tiene algún comentario. Espero que disfrute usando Teak tanto como yo disfruté creándolo.",
+      "signature": "Firma de Praveen Juge",
+      "linksLabel": "Ayuda y recursos",
+      "docs": "Documentación",
+      "changelog": "Novedades",
+      "support": "Ayuda",
+      "version": "Versión {version}"
     },
     "header": {
       "title": "Ajustes"
-    },
-    "rows": {
-      "email": "Correo electrónico",
-      "usage": "Uso",
-      "plan": "Plan",
-      "saveByEmail": "Guardar por correo",
-      "security": "Seguridad",
-      "importExport": "Importar/exportar datos",
-      "theme": "Tema",
-      "signOut": "Cerrar sesión",
-      "language": "Idioma"
     },
     "skeleton": {
       "loading": "Cargando ajustes…"
@@ -59,34 +53,18 @@
     },
     "content": {
       "notAvailable": "No disponible",
-      "cardCount": "{count, plural, one {# tarjeta} other {# tarjetas}}",
       "pro": "Pro",
       "freePlan": "Plan Gratis",
-      "manage": "Gestionar",
       "manageSubscription": "Gestionar suscripción",
-      "upgrade": "Mejorar plan",
       "signOut": "Cerrar sesión"
     },
     "theme": {
       "useSystem": "Usar el tema del sistema",
       "useLight": "Usar el tema claro",
-      "useDark": "Usar el tema oscuro"
-    },
-    "importExport": {
-      "manage": "Gestionar",
-      "manageLabel": "Gestionar la importación y la exportación",
-      "title": "Gestionar datos",
-      "description": "Traiga tarjetas de otras herramientas o llévese una copia completa.",
-      "importTab": "Importar",
-      "exportTab": "Exportar"
-    },
-    "security": {
-      "manage": "Gestionar",
-      "manageLabel": "Gestionar la seguridad",
-      "title": "Seguridad",
-      "description": "Gestione los dispositivos, las aplicaciones y las claves que pueden acceder a su cuenta de Teak.",
-      "connectionsTab": "Conexiones",
-      "apiKeysTab": "Claves de API"
+      "useDark": "Usar el tema oscuro",
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro"
     },
     "connections": {
       "devicesTitle": "Dispositivos",
@@ -119,7 +97,6 @@
       "disconnectDescription": "{name} perderá el acceso a su biblioteca de Teak en todas sus instalaciones hasta que vuelva a conectarla."
     },
     "apiKeys": {
-      "title": "Claves de API",
       "revokeAllTitle": "¿Revocar todas las claves de API?",
       "revokeAllDescription": "Todas las claves de API dejarán de funcionar de inmediato, incluidas las que usan la CLI, Raycast y los clientes MCP. Esta acción no se puede deshacer.",
       "revokeAllConfirm": "Revocar todas las claves",
@@ -145,10 +122,8 @@
       "keyRegenerated": "Clave de API regenerada. Copie ahora la nueva clave.",
       "keyCopied": "Clave de API copiada.",
       "copyFailed": "No se pudo copiar la clave. Selecciónela y cópiela manualmente.",
-      "limitNote": "Las claves tienen acceso completo a su biblioteca. Puede tener hasta 10 claves activas.",
       "createKey": "Crear clave",
       "loading": "Cargando claves de API…",
-      "empty": "Cree su primera clave de API para conectar herramientas externas.",
       "revokeAll": "Revocar todas las claves"
     },
     "deleteAccount": {
@@ -161,7 +136,6 @@
     "subscription": {
       "title": "Pásese a Pro",
       "description": "Desbloquee todas las funciones y elimine los límites.",
-      "maybeLater": "Quizá más tarde",
       "continueToCheckout": "Continuar al pago",
       "choosePlan": "Elija un plan",
       "everythingInPro": "Todo lo incluido en Pro",
@@ -178,10 +152,10 @@
         "browserExtensions": "Extensiones del navegador",
         "apps": "Apps para iOS, Mac y Android",
         "apiAndMcp": "Acceso a API y MCP"
-      }
+      },
+      "cancelAnytime": "Cancele cuando quiera."
     },
     "inboundEmail": {
-      "title": "Guardar por correo",
       "genericError": "No se pudo actualizar Guardar por correo. Vuelva a intentarlo.",
       "rateLimited": "Demasiados cambios. Vuelva a intentarlo dentro de un minuto.",
       "addressCopied": "Dirección copiada",
@@ -193,13 +167,8 @@
       "copyAddress": "Copiar dirección",
       "sendFrom": "Envíe desde <strong>{sender}</strong>. Los correos de otras direcciones no se guardan.",
       "unverified": "Los correos no se guardan hasta que verifique su correo de inicio de sesión, <strong>{sender}</strong>.",
-      "howItWorks": "Reenvíe o envíe lo que quiera. Un correo con un solo enlace se convierte en una tarjeta de enlace, todo lo demás se convierte en una nota y los adjuntos se convierten en tarjetas propias. Todas llevan la etiqueta email.",
       "lastReceived": "Último correo recibido {when}",
-      "turnOff": "Desactivar",
-      "on": "Activado",
-      "off": "Desactivado",
-      "statusOnLabel": "Guardar por correo: activado",
-      "statusOffLabel": "Guardar por correo: desactivado"
+      "turnOff": "Desactivar"
     },
     "export": {
       "starting": "Iniciando la exportación…",
@@ -249,7 +218,6 @@
       "reportCopied": "Informe de importación copiado.",
       "reportCopyFailed": "No se pudo copiar el informe de importación.",
       "reportDownloadFailed": "No se pudo descargar el informe de importación.",
-      "noImports": "Aún no hay importaciones.",
       "loadingLast": "Cargando los detalles de la última importación…",
       "resumeUpload": "Reanudar subida",
       "startImport": "Iniciar importación",
@@ -346,7 +314,8 @@
           "name": "Teak",
           "hint": "Un ZIP de Exportar sus datos en Teak."
         }
-      }
+      },
+      "orDrop": "o suéltelo aquí"
     },
     "format": {
       "justNow": "justo ahora",
@@ -365,9 +334,99 @@
       "label": "Idioma",
       "saving": "Cambiando el idioma",
       "changed": "Idioma cambiado",
-      "changeFailed": "No se pudo cambiar el idioma. Vuelva a intentarlo.",
-      "feedback": "Ayude a mejorar las traducciones",
-      "feedbackSubject": "Comentarios sobre la traducción ({locale})"
+      "changeFailed": "No se pudo cambiar el idioma. Vuelva a intentarlo."
+    },
+    "nav": {
+      "label": "Páginas de ajustes",
+      "account": "Cuenta",
+      "plan": "Plan",
+      "appearance": "Apariencia",
+      "integrations": "Integraciones",
+      "security": "Seguridad",
+      "data": "Importar y exportar"
+    },
+    "pages": {
+      "account": {
+        "description": "Con qué cuenta ha iniciado sesión y todos sus ajustes de un vistazo."
+      },
+      "plan": {
+        "title": "Plan",
+        "description": "Su plan, cuántas tarjetas ha guardado y la facturación."
+      },
+      "appearance": {
+        "title": "Apariencia",
+        "description": "Cómo se ve Teak y en qué idioma se muestra."
+      },
+      "integrations": {
+        "title": "Integraciones",
+        "description": "Guarde en Teak desde su correo, su navegador, sus dispositivos y sus propias herramientas."
+      },
+      "security": {
+        "title": "Seguridad",
+        "description": "Los dispositivos y las aplicaciones que pueden acceder a su cuenta de Teak."
+      },
+      "data": {
+        "title": "Importar y exportar",
+        "description": "Traiga tarjetas de otras herramientas o llévese una copia completa."
+      }
+    },
+    "overview": {
+      "sectionsLabel": "Todos los ajustes",
+      "planFree": "Plan Gratis · {count} de {limit} tarjetas",
+      "planPro": "Pro · {count, plural, one {# tarjeta} other {# tarjetas}}",
+      "appearance": "{theme, select, light {Tema claro} dark {Tema oscuro} other {Tema del sistema}} · {language}",
+      "integrations": "{email, select, on {Guardar por correo activado} other {Guardar por correo desactivado}} · {keys, plural, =0 {sin claves de API} one {# clave de API} other {# claves de API}}",
+      "devices": "{count, plural, =0 {Ningún dispositivo con sesión iniciada} one {# dispositivo con sesión iniciada} other {# dispositivos con sesión iniciada}}",
+      "devicesMore": "Más de {count} dispositivos con sesión iniciada",
+      "exportRunning": "Exportación en curso",
+      "exportReady": "Exportación lista para descargar",
+      "exportLast": "Última exportación: {date}",
+      "dataIdle": "Traiga tarjetas o lléveselas",
+      "signedInAs": "Sesión iniciada como"
+    },
+    "dangerZone": {
+      "title": "Eliminar cuenta",
+      "description": "Elimine de forma permanente su cuenta, sus tarjetas y sus archivos. No se puede deshacer.",
+      "action": "Eliminar su cuenta"
+    },
+    "plan": {
+      "currentTitle": "Plan actual",
+      "freeDescription": "Guarde hasta {limit} tarjetas.",
+      "proDescription": "Tarjetas y almacenamiento ilimitados, en todas las aplicaciones.",
+      "usageLabel": "Tarjetas usadas",
+      "usage": "{count} de {limit} tarjetas",
+      "remaining": "{count, plural, one {Queda # tarjeta} other {Quedan # tarjetas}}",
+      "limitReachedShort": "Límite alcanzado",
+      "limitReached": "Ha alcanzado el límite de tarjetas del plan Gratis. Pásese a Pro para seguir guardando.",
+      "unlimited": "{count, plural, one {# tarjeta guardada} other {# tarjetas guardadas}}, sin límite.",
+      "manageDescription": "Cambie o cancele su plan y consulte sus facturas.",
+      "includedTitle": "Incluido en su plan"
+    },
+    "appearance": {
+      "themeTitle": "Tema",
+      "themeDescription": "Siga el tema del sistema o use siempre el claro o el oscuro. Se guarda en este navegador.",
+      "languageTitle": "Idioma",
+      "languageDescription": "Se guarda en su cuenta, así que le acompaña en todos los navegadores."
+    },
+    "integrations": {
+      "saveByEmailTitle": "Guardar por correo",
+      "appsTitle": "Aplicaciones y extensiones",
+      "apiTitle": "Claves de API",
+      "apiDescription": "Para la API, la CLI y los clientes MCP, con acceso completo a su biblioteca. Hasta 10 claves. <link>Documentación de la API</link>",
+      "opensInNewTab": "{name} (se abre en una pestaña nueva)",
+      "apps": {
+        "chrome": "Chrome",
+        "firefox": "Firefox",
+        "apple": "iPhone y Mac",
+        "raycast": "Raycast"
+      },
+      "allApps": "Todas las aplicaciones"
+    },
+    "data": {
+      "importTitle": "Importar",
+      "importDescription": "Traiga enlaces y notas desde su navegador u otra aplicación.",
+      "exportTitle": "Exportar",
+      "exportDescription": "Todas sus tarjetas y sus archivos en un ZIP, con un archivo de marcadores y una hoja de cálculo."
     }
   },
   "app": {
@@ -1234,7 +1293,8 @@
       "navigate": "Navegar",
       "cards": "Tarjetas",
       "actions": "Acciones",
-      "folders": "Carpetas"
+      "folders": "Carpetas",
+      "settings": "Ajustes"
     },
     "views": {
       "tags": "Etiquetas",
@@ -1256,7 +1316,8 @@
       "searchAll": "Buscar «{query}» en todo",
       "untitled": "Tarjeta sin título"
     },
-    "resultsLabel": "Sugerencias"
+    "resultsLabel": "Sugerencias",
+    "settingsSection": "Ajustes: {section}"
   },
   "shortcuts": {
     "groups": {
@@ -1302,7 +1363,8 @@
       "newNote": "Nueva nota",
       "uploadFiles": "Subir archivos",
       "notifications": "Ir a las notificaciones (Deshacer)",
-      "keyboardShortcuts": "Atajos de teclado"
+      "keyboardShortcuts": "Atajos de teclado",
+      "goToSettings": "Ajustes"
     }
   },
   "extension": {

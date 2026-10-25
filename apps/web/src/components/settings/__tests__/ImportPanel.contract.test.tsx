@@ -187,9 +187,10 @@ describe("ImportPanel", () => {
     }
   });
 
-  test("shows an empty last-import state when there are no imports", () => {
+  test("says nothing about a last import when there are none", () => {
     const markup = renderImportPanel();
-    expect(markup).toContain("No imports yet.");
+    expect(markup).not.toContain("Last import");
+    expect(markup).toContain("Choose file");
   });
 
   test("offers a resume prompt when a persisted upload was interrupted", () => {

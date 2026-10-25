@@ -12,10 +12,10 @@ import { ConfirmDialog } from "../ui/confirm-dialog";
 import { Spinner } from "../ui/spinner";
 import {
   SettingsEmptyState,
-  SettingsIconTile,
   SettingsList,
   SettingsListSkeleton,
 } from "./SettingsDialog";
+import { SettingsSection } from "./SettingsSection";
 
 export interface DeviceSession {
   current: boolean;
@@ -149,47 +149,50 @@ function ConnectionList({
         </p>
       ) : null}
       <SettingsList>
-        {rows.map((row) => (
-          <li
-            className="flex items-center gap-3 px-4 py-3"
-            data-testid={`connection-${row.id}`}
-            key={row.id}
-          >
-            <SettingsIconTile icon={icon(row)} />
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                <p className="min-w-0 truncate font-medium text-sm">
-                  {row.name}
-                </p>
-                {row.current ? (
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium text-[11px] text-muted-foreground leading-4">
-                    <span className="size-1.5 rounded-full bg-emerald-500" />
-                    {t("thisDevice")}
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-muted-foreground text-xs leading-5">
-                {row.detail}
-                {row.lastUsedAt
-                  ? ` · ${t("lastUsed", { date: formatDate(locale, row.lastUsedAt) })}`
-                  : null}
-              </p>
-            </div>
-            <Button
-              aria-label={row.actionLabel}
-              className="text-muted-foreground hover:text-foreground"
-              disabled={busy !== null}
-              onClick={() => {
-                setPending(row);
-                setConfirmOpen(true);
-              }}
-              size="sm"
-              variant="ghost"
+        {rows.map((row) => {
+          const RowIcon = icon(row);
+          return (
+            <li
+              className="flex items-center gap-3 px-4 py-3"
+              data-testid={`connection-${row.id}`}
+              key={row.id}
             >
-              {busy === row.id ? <Spinner /> : <span>{verb}</span>}
-            </Button>
-          </li>
-        ))}
+              <RowIcon className="size-[18px] shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="min-w-0 truncate font-medium text-sm">
+                    {row.name}
+                  </p>
+                  {row.current ? (
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 font-medium text-[11px] text-muted-foreground leading-4">
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      {t("thisDevice")}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-muted-foreground text-xs leading-5">
+                  {row.detail}
+                  {row.lastUsedAt
+                    ? ` · ${t("lastUsed", { date: formatDate(locale, row.lastUsedAt) })}`
+                    : null}
+                </p>
+              </div>
+              <Button
+                aria-label={row.actionLabel}
+                className="text-muted-foreground hover:text-foreground"
+                disabled={busy !== null}
+                onClick={() => {
+                  setPending(row);
+                  setConfirmOpen(true);
+                }}
+                size="sm"
+                variant="ghost"
+              >
+                {busy === row.id ? <Spinner /> : <span>{verb}</span>}
+              </Button>
+            </li>
+          );
+        })}
       </SettingsList>
       {pending ? (
         <ConfirmDialog
@@ -340,38 +343,23 @@ function WorkosApps({
   );
 }
 
-function SectionHeading({
-  description,
-  title,
-}: {
-  description: string;
-  title: string;
-}) {
-  return (
-    <div className="mb-3">
-      <h3 className="font-medium text-sm">{title}</h3>
-      <p className="text-muted-foreground text-xs leading-5">{description}</p>
-    </div>
-  );
-}
-
 export function SecurityConnections(props: SecurityConnectionsProps) {
   const t = useTranslations("settings.connections");
   const identity = props.connectionIdentity;
   return (
-    <div className="space-y-7" key={identity?.key}>
-      <section aria-label={t("devicesTitle")}>
-        <SectionHeading
-          description={t("devicesDescription")}
-          title={t("devicesTitle")}
-        />
+    <div className="flex flex-col gap-10" key={identity?.key}>
+      <SettingsSection
+        description={t("devicesDescription")}
+        id="devices"
+        title={t("devicesTitle")}
+      >
         <DeviceList {...props} />
-      </section>
-      <section aria-label={t("appsTitle")}>
-        <SectionHeading
-          description={t("appsDescription")}
-          title={t("appsTitle")}
-        />
+      </SettingsSection>
+      <SettingsSection
+        description={t("appsDescription")}
+        id="connected-apps"
+        title={t("appsTitle")}
+      >
         {identity ? (
           <RetryableQueryBoundary
             fallback={(retry) => (
@@ -390,7 +378,7 @@ export function SecurityConnections(props: SecurityConnectionsProps) {
         ) : (
           <SettingsListSkeleton label={t("loadingApps")} rows={1} />
         )}
-      </section>
+      </SettingsSection>
     </div>
   );
 }

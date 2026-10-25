@@ -38,12 +38,19 @@ import {
   type FolderSummary,
   folderPath,
 } from "../../lib/folders";
-import { GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
+import {
+  GO_TO_SETTINGS_KEY,
+  GO_TO_VIEW_KEYS,
+} from "../../lib/keyboardShortcuts";
 import {
   LIBRARY_VIEW_PATHS,
   LIBRARY_VIEWS,
   libraryViewLabel,
 } from "../../lib/libraryViews";
+import {
+  SETTINGS_SECTION_KEYWORDS,
+  SETTINGS_SECTIONS,
+} from "../../lib/settingsSections";
 import { getCardTypeIconComponent } from "../card-modal/cardTypeIcon";
 import { FolderDot } from "../folders/FolderDot";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
@@ -117,6 +124,7 @@ export function CommandPaletteResults({
 }: CommandPaletteResultsProps) {
   const t = useTranslations("commandPalette");
   const tViews = useTranslations("lib.libraryViews");
+  const tSettingsNav = useTranslations("settings.nav");
   const trimmed = query.trim();
   return (
     <>
@@ -169,6 +177,15 @@ export function CommandPaletteResults({
         >
           <Settings />
           <span>{t("views.settings")}</span>
+          <span aria-hidden="true" className="ml-auto">
+            <ShortcutHint
+              row={{
+                keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
+                label: t("views.settings"),
+                sequence: true,
+              }}
+            />
+          </span>
         </CommandItem>
       </CommandGroup>
       {trimmed.length >= PALETTE_MIN_CARD_QUERY_LENGTH &&
@@ -202,6 +219,30 @@ export function CommandPaletteResults({
             </CommandItem>
           );
         })}
+      </CommandGroup>
+      <CommandGroup heading={t("groups.settings")}>
+        {SETTINGS_SECTIONS.filter(({ id }) => id !== "account").map(
+          ({ href, icon: Icon, id }) => {
+            const section = tSettingsNav(id);
+            const label = t("settingsSection", { section });
+            return (
+              <CommandItem
+                key={id}
+                keywords={[
+                  label,
+                  section,
+                  "settings",
+                  ...SETTINGS_SECTION_KEYWORDS[id],
+                ]}
+                onSelect={() => onSelect({ kind: "navigate", href })}
+                value={`settings:${id}`}
+              >
+                <Icon />
+                <span className="truncate">{label}</span>
+              </CommandItem>
+            );
+          }
+        )}
       </CommandGroup>
       {folders && folders.length > 0 && (
         <CommandGroup heading={t("groups.folders")}>

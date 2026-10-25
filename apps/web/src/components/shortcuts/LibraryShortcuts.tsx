@@ -13,12 +13,13 @@ import {
   paletteCardHref,
   paletteSearchAllHref,
   paletteShuffleHref,
-  settingsDialogHref,
+  settingsDataHref,
   shouldOpenPalette,
 } from "../../lib/commandPalette";
 import {
   focusLibrarySearch,
   focusNewNoteComposer,
+  GO_TO_SETTINGS_KEY,
   GO_TO_VIEW_KEYS,
   pressUploadFiles,
 } from "../../lib/keyboardShortcuts";
@@ -139,7 +140,7 @@ export function LibraryShortcuts({
           return;
         case "import":
         case "export":
-          onNavigate(settingsDialogHref(command.id));
+          onNavigate(settingsDataHref(command.id));
           return;
         case "toggle-theme":
           setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -198,10 +199,18 @@ export function LibraryShortcuts({
       },
       ...LIBRARY_VIEWS.map((view) => ({
         keys: `g ${GO_TO_VIEW_KEYS[view]}`,
-        run: closeDialogThen(() => onGoToView(view)),
+        run: closeDialogThen(() => {
+          onGoToView(view);
+        }),
       })),
+      {
+        keys: `g ${GO_TO_SETTINGS_KEY}`,
+        run: closeDialogThen(() => {
+          onNavigate("/settings");
+        }),
+      },
     ],
-    [closeDialogThen, newNote, onGoToView, setDialogOpen]
+    [closeDialogThen, newNote, onGoToView, onNavigate, setDialogOpen]
   );
 
   useKeyboardShortcuts(shortcuts);

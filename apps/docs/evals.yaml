@@ -28,7 +28,7 @@ questions:
   - id: create-api-key
     question: Where do I create a Teak API key, and how many can I have?
     expected:
-      - Settings → Security → API keys
+      - Settings → Integrations → API keys
       - Up to 10 active keys per account
     routes: /docs/api
 
@@ -88,7 +88,7 @@ questions:
   - id: change-language
     question: Can I use Teak in German, and does search still work with is:fav?
     expected:
-      - Choose Deutsch in Settings → Language; the choice is saved to the account
+      - Choose Deutsch in Settings → Appearance → Language; the choice is saved to the account
       - Search qualifiers such as is:fav stay in English in every language
     routes: /docs/features
 

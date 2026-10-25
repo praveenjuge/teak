@@ -4,7 +4,7 @@ import { api } from "@teak/convex";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DeviceSession } from "../components/settings/SecuritySection";
+import type { DeviceSession } from "../components/settings/SecurityConnections";
 
 // Convex actions do not subscribe: pages stay local, and a response for a
 // previous account is discarded.

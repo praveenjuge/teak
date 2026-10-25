@@ -28,7 +28,7 @@ test("the pseudo-locale reaches the sidebar, search and settings", async ({
 
   // The cookie carries it to the next page, and Settings shows English in
   // the Language select, since the pseudo-locale is never a saved choice.
-  await gotoApp(browser, "/settings");
+  await gotoApp(browser, "/settings/appearance");
   await expect(screen.getByRole("combobox", /^\[Ļáñĝûáĝé/)).toHaveText(
     /English/,
     { timeout: 30_000 }

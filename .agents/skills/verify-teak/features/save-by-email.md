@@ -12,7 +12,7 @@ A user turns on Save by email in Settings and sends or forwards anything to `sav
 
 ## How to get to it (user POV)
 
-- Settings → "Save by email" row → "Off" (or "On") → the "Save by email" dialog → "Turn on" / "Copy address" / "Turn off".
+- Settings → Integrations (`/settings/integrations`) → region "Save by email" → "Turn on" / "Copy address" / "Turn off". Account's Integrations summary reads "Save by email on" or "Save by email off".
 - In the library: search `#email`, or open a card saved by email.
 
 ## Driving it with e2e MCP
@@ -26,7 +26,7 @@ Preconditions:
 
 Steps:
 
-- **Settings.** `navigate` to `/settings`. `click` the button "Save by email: On" (seeded) → the dialog "Save by email" shows `save@in.teakvault.com` (or the dev domain), "Send from <sign-in email>…", and "Last email received …". `click` "Copy address": the toast "Address copied". `click` "Turn off": the row reads "Save by email: Off". `click` it and "Turn on" again.
+- **Settings.** `navigate` to `/settings`: the Integrations summary reads "Save by email on · …" (seeded). `navigate` to `/settings/integrations`: region "Save by email" has "Turn off" beside its title and shows `save@in.teakvault.com` (or the dev domain), then one line "Send from <sign-in email>…  Last email received …". `click` "Copy address": the toast "Address copied". `click` "Turn off": the button reads "Turn on" and the address is gone, and Account's summary reads "Save by email off". `click` "Turn on" again.
 - **Note.** `press` "/" and `type` "#scenario-email-in". Open the note headed "The Weekly Leaf — issue 12": it has "Read: Why maples blush" linking to `https://example.com/maples`, no tracking images, and no "utm_" in any link.
 - **Link.** In the same results, the link card for `example.com/essays/slow-reading` has the note "Worth a read:".
 - **Attachments.** `type` "#scenario-email-attachments" with `replace: true`: the body note and document cards "Itinerary.pdf", "Receipt.pdf", two "Scan.pdf", "請求書.pdf" are listed.
@@ -38,4 +38,4 @@ Steps:
 - Only the sign-in email is accepted, compared without letter case. A work address that forwards for you, or a "send as" alias, isn't the sign-in email and is refused.
 - The free 200-card limit and the 60-an-hour limit drop mail silently by design: no card and no bounce.
 - Email Routing takes messages up to 25 MiB including encoding, so about 18 MB of attachments.
-- The Settings row is hidden while signed out; the dialog's address is the deployment's (`in-dev.teakvault.com` on dev).
+- Settings needs a signed-in account; the address on Integrations is the deployment's (`in-dev.teakvault.com` on dev).

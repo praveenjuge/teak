@@ -31,7 +31,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
   await expect(screen.getByText(email)).toBeVisible();
   await expect(browser.locator('[data-slot="page-loading"]')).toHaveCount(0);
   await library.create("Saved while settings was open");
-  await screen.getByRole("link", /back/i).click();
+  await browser.back();
   await expect(
     screen.getByText("Saved while settings was open").first()
   ).toBeVisible();
@@ -48,7 +48,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
 
     const toHome = await observeNavigation(
       browser,
-      () => screen.getByRole("link", /back/i).click(),
+      () => browser.back(),
       () => expect(draft).toHaveText("Navigation draft — do not save")
     );
     expect(toHome.loading).toEqual([]);
@@ -66,7 +66,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
     return null;
   });
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
-  await screen.getByRole("link", /back/i).click();
+  await browser.back();
   await expect(search).toHaveValue("navigation search");
   await search.fill("");
   await expect(draft).toHaveText("Navigation draft — do not save");
@@ -87,7 +87,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
     return null;
   });
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
-  await screen.getByRole("link", /back/i).click();
+  await browser.back();
   await expect.poll(() => browser.evaluate(() => window.scrollY)).toBe(600);
   await browser.evaluate(() => {
     const spacer = document.querySelector("[data-navigation-test-spacer]");
@@ -114,6 +114,39 @@ test("loads settings directly for an authenticated session", async ({
   webAccount: _signedIn,
 }) => {
   await gotoApp(browser, "/settings");
-  await expect(screen.getByRole("link", /back/i)).toBeVisible();
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
+  await expect(screen.getByRole("navigation", "Settings pages")).toBeVisible();
+});
+
+test("Settings pages link to each other and back through the breadcrumb", async ({
+  browser,
+  screen,
+  webAccount: _signedIn,
+}) => {
+  await gotoApp(browser, "/");
+  await expect(screen.getByRole("main")).toBeVisible({ timeout: 30_000 });
+  await browser.keyboard.press("g");
+  await browser.keyboard.press("s");
+  await expect
+    .poll(async () => new URL(await browser.url()).pathname)
+    .toBe("/settings");
+
+  const pages = screen.getByRole("navigation", "Settings pages");
+  await pages.getByRole("link", "Appearance").click();
+  await expect(
+    screen.getByRole("heading", "Appearance", { level: 2 })
+  ).toBeVisible();
+  await expect(pages.getByRole("link", "Appearance")).toHaveAttribute(
+    "aria-current",
+    "page"
+  );
+
+  // The header's breadcrumb leads back to the list of Settings pages.
+  await browser
+    .locator('[data-page-header] a[href="/settings"]')
+    .first()
+    .click();
+  await expect
+    .poll(async () => new URL(await browser.url()).pathname)
+    .toBe("/settings");
 });

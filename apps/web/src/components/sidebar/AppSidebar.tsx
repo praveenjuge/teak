@@ -26,7 +26,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsApplePlatform } from "../../hooks/useIsApplePlatform";
-import { ariaKeyShortcut, GO_TO_VIEW_KEYS } from "../../lib/keyboardShortcuts";
+import {
+  ariaKeyShortcut,
+  GO_TO_SETTINGS_KEY,
+  GO_TO_VIEW_KEYS,
+} from "../../lib/keyboardShortcuts";
 import {
   LIBRARY_VIEW_PATHS,
   type LibraryView,
@@ -200,7 +204,21 @@ export function AppSidebar({
               <SidebarMenuButton
                 asChild
                 isActive={isSettingsActive}
-                tooltip={t("settings")}
+                tooltip={{
+                  className: "flex items-center gap-2",
+                  children: (
+                    <>
+                      {t("settings")}
+                      <ShortcutHint
+                        row={{
+                          keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
+                          label: t("settings"),
+                          sequence: true,
+                        }}
+                      />
+                    </>
+                  ),
+                }}
               >
                 <LinkComponent
                   aria-current={isSettingsActive ? "page" : undefined}
@@ -212,6 +230,9 @@ export function AppSidebar({
                   <span>{t("settings")}</span>
                 </LinkComponent>
               </SidebarMenuButton>
+              <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">
+                <ShortcutKeys keys={["G", GO_TO_SETTINGS_KEY.toUpperCase()]} />
+              </SidebarMenuBadge>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
