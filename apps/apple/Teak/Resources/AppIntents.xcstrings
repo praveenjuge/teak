@@ -7,7 +7,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "Text oder Link"
           }
         },
         "en" : {
@@ -19,13 +19,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "Texto o enlace"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "Texte ou lien"
           }
         },
         "ja" : {
@@ -43,7 +43,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "Texto ou link"
           }
         },
         "zh-Hans" : {
@@ -60,7 +60,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "Der Kurzbefehl hat weder Text noch Link gesendet."
           }
         },
         "en" : {
@@ -72,13 +72,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "El atajo no envió ningún texto ni enlace."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "Le raccourci n’a envoyé aucun texte ni lien."
           }
         },
         "ja" : {
@@ -96,7 +96,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "O atalho não enviou nenhum texto ou link."
           }
         },
         "zh-Hans" : {
@@ -113,7 +113,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "Sichert Text oder einen Link in Ihrer Teak-Bibliothek."
           }
         },
         "en" : {
@@ -125,13 +125,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "Guarda texto o un enlace en su biblioteca de Teak."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "Enregistre du texte ou un lien dans votre bibliothèque Teak."
           }
         },
         "ja" : {
@@ -149,7 +149,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "Salva um texto ou link na sua biblioteca do Teak."
           }
         },
         "zh-Hans" : {
@@ -166,7 +166,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "In Teak sichern"
           }
         },
         "en" : {
@@ -178,13 +178,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Guardar en Teak"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Enregistrer dans Teak"
           }
         },
         "ja" : {
@@ -202,7 +202,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Salvar no Teak"
           }
         },
         "zh-Hans" : {
@@ -219,7 +219,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "In Teak gesichert"
           }
         },
         "en" : {
@@ -231,13 +231,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Guardado en Teak"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Enregistré dans Teak"
           }
         },
         "ja" : {
@@ -255,7 +255,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Salvo no Teak"
           }
         },
         "zh-Hans" : {
@@ -272,7 +272,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Öffnen Sie Teak, melden Sie sich an und führen Sie den Kurzbefehl dann erneut aus."
           }
         },
         "en" : {
@@ -284,13 +284,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Abra Teak e inicie sesión. Después, vuelva a ejecutar el atajo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Ouvrez Teak et connectez-vous, puis exécutez à nouveau le raccourci."
           }
         },
         "ja" : {
@@ -308,7 +308,7 @@
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Abra o Teak e entre. Depois, execute o atalho de novo."
           }
         },
         "zh-Hans" : {

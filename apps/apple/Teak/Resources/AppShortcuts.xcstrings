@@ -7,7 +7,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "In ${applicationName} sichern"
           }
         },
         "en" : {
@@ -19,37 +19,37 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "Guardar en ${applicationName}"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "Enregistrer dans ${applicationName}"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "${applicationName} に保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "${applicationName}에 저장"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "Salvar no ${applicationName}"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to ${applicationName}"
+            "value" : "存储到 ${applicationName}"
           }
         }
       }

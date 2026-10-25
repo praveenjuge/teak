@@ -3,120 +3,120 @@
     "message": "Salve páginas do Safari na sua biblioteca do Teak."
   },
   "actionTitle": {
-    "message": "Save to Teak"
+    "message": "Salvar no Teak"
   },
   "checkingSafari": {
-    "message": "Checking Safari…"
+    "message": "Verificando o Safari…"
   },
   "signIn": {
-    "message": "Sign in"
+    "message": "Entrar"
   },
   "tryAgain": {
-    "message": "Try again"
+    "message": "Tentar novamente"
   },
   "signOut": {
-    "message": "Sign out"
+    "message": "Sair"
   },
   "checkingSession": {
-    "message": "Checking your session…"
+    "message": "Verificando sua sessão…"
   },
   "unableToConnect": {
-    "message": "Unable to connect"
+    "message": "Não foi possível conectar"
   },
   "pleaseTryAgain": {
-    "message": "Please try again."
+    "message": "Tente novamente."
   },
   "signInTitle": {
-    "message": "Sign in to Teak"
+    "message": "Entre no Teak"
   },
   "signInMessage": {
-    "message": "Sign in to save pages."
+    "message": "Entre para salvar páginas."
   },
   "cannotSaveTitle": {
-    "message": "Can't save this page"
+    "message": "Não é possível salvar esta página"
   },
   "openRegularWebsite": {
-    "message": "Open a regular website and try again."
+    "message": "Abra um site comum e tente novamente."
   },
   "savingTitle": {
-    "message": "Saving page"
+    "message": "Salvando a página"
   },
   "savingMessage": {
-    "message": "Adding this page to your library…"
+    "message": "Adicionando esta página à sua biblioteca…"
   },
   "savedTitle": {
-    "message": "Saved to Teak"
+    "message": "Salvo no Teak"
   },
   "savedMessage": {
-    "message": "Added to your library."
+    "message": "Adicionado à sua biblioteca."
   },
   "duplicateTitle": {
-    "message": "Already saved"
+    "message": "Já salva"
   },
   "duplicateMessage": {
-    "message": "This page is in your library."
+    "message": "Esta página já está na sua biblioteca."
   },
   "saveFailedTitle": {
-    "message": "Save failed"
+    "message": "Falha ao salvar"
   },
   "saveFailedMessage": {
-    "message": "Teak couldn't save this page."
+    "message": "O Teak não conseguiu salvar esta página."
   },
   "openingTeak": {
-    "message": "Opening Teak"
+    "message": "Abrindo o Teak"
   },
   "completeSignIn": {
-    "message": "Complete sign in."
+    "message": "Conclua o acesso."
   },
   "finishSignInTitle": {
-    "message": "Finish sign in"
+    "message": "Concluir o acesso"
   },
   "returnAfterSignIn": {
-    "message": "Return here after signing in."
+    "message": "Volte aqui depois de entrar."
   },
   "signInFailedTitle": {
-    "message": "Sign in failed"
+    "message": "Falha ao entrar"
   },
   "signInFailedMessage": {
-    "message": "Teak couldn't start sign in."
+    "message": "O Teak não conseguiu iniciar o acesso."
   },
   "signingOutTitle": {
-    "message": "Signing out"
+    "message": "Saindo"
   },
   "oneMoment": {
-    "message": "One moment…"
+    "message": "Só um momento…"
   },
   "signOutFailedTitle": {
-    "message": "Sign out failed"
+    "message": "Falha ao sair"
   },
   "signOutFailedMessage": {
-    "message": "Couldn't sign out. Please try again."
+    "message": "Não foi possível sair. Tente novamente."
   },
   "signedOutTitle": {
-    "message": "Signed out"
+    "message": "Você saiu"
   },
   "needsAccessTitle": {
-    "message": "Teak needs Safari access"
+    "message": "O Teak precisa de acesso ao Safari"
   },
   "needsAccessMessage": {
-    "message": "Try again from a regular website."
+    "message": "Tente novamente em um site comum."
   },
   "invalidResponse": {
-    "message": "Teak returned an invalid response."
+    "message": "O Teak retornou uma resposta inválida."
   },
   "tryAgainShort": {
-    "message": "Try again."
+    "message": "Tente novamente."
   },
   "invalidRequest": {
-    "message": "Invalid Teak request."
+    "message": "Solicitação do Teak inválida."
   },
   "unsupportedRequest": {
-    "message": "Unsupported Teak request."
+    "message": "Solicitação do Teak incompatível."
   },
   "openFromApplications": {
-    "message": "Open Teak from Applications to sign in."
+    "message": "Abra o Teak pela pasta Aplicativos para entrar."
   },
   "signOutCheckConnection": {
-    "message": "Couldn't sign out. Check your connection and try again."
+    "message": "Não foi possível sair. Verifique sua conexão e tente novamente."
   }
 }
