@@ -316,9 +316,10 @@ private func day(_ milliseconds: Double) -> String {
         #expect(FolderChoice.toggling("f1", in: picked) == ["f2"])
     }
 
-    @Test func oneCardSendsItsWholeListOfFolders() {
-        #expect(FolderChoice.change(selected: ["f1", "f2"], saved: [], cardCount: 1) == .set(["f1", "f2"]))
-        #expect(FolderChoice.change(selected: [], saved: ["f1"], cardCount: 1) == .set([]))
+    @Test func oneCardOnlyAddsWhatWasPicked() {
+        // A link shared again keeps the folders it was already in.
+        #expect(FolderChoice.change(selected: ["f1", "f2"], saved: [], cardCount: 1) == .update(add: ["f1", "f2"], remove: []))
+        #expect(FolderChoice.change(selected: [], saved: ["f1"], cardCount: 1) == .update(add: [], remove: ["f1"]))
         #expect(FolderChoice.change(selected: ["f2", "f1"], saved: ["f1", "f2"], cardCount: 1) == .none)
     }
 

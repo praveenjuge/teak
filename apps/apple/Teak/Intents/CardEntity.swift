@@ -63,7 +63,8 @@ struct CardEntityQuery: EntityStringQuery {
         var cards: [CardEntity] = []
         for id in identifiers where TeakLink.isCardId(id) {
             let card = try await http.query(ConvexFunctions.getCard, ["id": .string(id)])
-            if let indexed = card.flatMap(IndexedCard.init) { cards.append(CardEntity(indexed)) }
+            // Search Teak can return archived cards, so a later action still finds them.
+            if let indexed = card.flatMap({ IndexedCard($0, includeArchived: true) }) { cards.append(CardEntity(indexed)) }
         }
         return cards
     }

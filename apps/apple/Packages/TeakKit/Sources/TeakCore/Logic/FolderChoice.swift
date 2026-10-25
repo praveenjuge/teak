@@ -29,14 +29,13 @@ public enum FolderChoice {
         selection.contains(id) ? selection.filter { $0 != id } : selection + [id]
     }
 
-    /// What saving a selection sends, given the folders already saved on the cards.
+    /// What saving a selection sends, given the folders this sheet already saved. Only those
+    /// change: a card shared again keeps the folders it was in before.
     public enum Change: Equatable, Sendable {
         /// Nothing to save.
         case none
-        /// One card: its whole list of folders, through `folders:setCardFolders`.
-        case set([String])
-        /// Several cards: folders to add them all to (`folders:addCardsToFolder`) and to take them
-        /// all out of (`folders:removeCardsFromFolder`).
+        /// Folders to add the cards to (`folders:addCardsToFolder`) and to take them out of
+        /// (`folders:removeCardsFromFolder`).
         case update(add: [String], remove: [String])
     }
 
@@ -44,6 +43,6 @@ public enum FolderChoice {
         let add = selected.filter { !saved.contains($0) }
         let remove = saved.filter { !selected.contains($0) }
         guard cardCount > 0, !add.isEmpty || !remove.isEmpty else { return .none }
-        return cardCount == 1 ? .set(selected) : .update(add: add, remove: remove)
+        return .update(add: add, remove: remove)
     }
 }

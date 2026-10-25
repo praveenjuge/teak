@@ -168,7 +168,8 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         let newest = try [summary("new1000000000000", created: 300), summary("new2000000000000", created: 200)]
             .map { try #require(IndexedCard($0)) }
         let indexed = ["new1000000000000": 300.0, "trashed000000000": 250, "older00000000000": 100]
-        #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: false) == ["trashed000000000"])
+        // A partial read can't tell which older cards it covered, so it drops none.
+        #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: false).isEmpty)
         #expect(CardIndex.stale(indexed: indexed, newest: newest, complete: true) == ["older00000000000", "trashed000000000"])
         // A finished read of an empty library drops everything; an unfinished one drops nothing.
         #expect(CardIndex.stale(indexed: indexed, newest: [], complete: true) == indexed.keys.sorted())

@@ -32,8 +32,8 @@ public struct IndexedCard: Hashable, Sendable {
 
     /// A card read whole, titled as `cardDisplayTitle` titles it
     /// (`packages/convex/card/displayTitle.ts`).
-    public init?(_ card: Card) {
-        guard !card.deleted, !card.archived, !HiddenTags.isHiddenTagList(card.tags) else { return nil }
+    public init?(_ card: Card, includeArchived: Bool = false) {
+        guard !card.deleted, includeArchived || !card.archived, !HiddenTags.isHiddenTagList(card.tags) else { return nil }
         let text = card.type == .audio ? card.aiTranscript : CardLinks.tokensToText(card.content)
         let preview = text.flatMap(Self.compact)
         let linkPreview = card.metadata?.linkPreview
@@ -204,14 +204,13 @@ public enum CardIndex {
         return changes
     }
 
-    /// The indexed cards a refresh of the newest cards shows have left the
-    /// library: those as new as the oldest card read, or all of them when the
-    /// read reached the end, even with no cards left to show.
+    /// The indexed cards a refresh shows have left the library: only when it
+    /// read the whole library, even an empty one. The library sorts by when a
+    /// card was last saved, which summaries don't carry, so a partial read
+    /// can't tell which older cards it covered.
     public static func stale(indexed: [String: Double], newest: [IndexedCard], complete: Bool) -> [String] {
+        guard complete else { return [] }
         let kept = Set(newest.map(\.id))
-        if complete { return indexed.keys.filter { !kept.contains($0) }.sorted() }
-        guard let oldest = newest.map(\.creationTime).min() else { return [] }
-        return indexed.filter { id, created in !kept.contains(id) && (complete || created >= oldest) }
-            .keys.sorted()
+        return indexed.keys.filter { !kept.contains($0) }.sorted()
     }
 }

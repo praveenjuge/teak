@@ -52,7 +52,7 @@ final class CardDetailModel {
                         if contentOverride != nil, value?.content == contentOverride || taskSaves == 0 { contentOverride = nil }
                         if tagsOverride != nil, value?.tags == tagsOverride || keepSaves == 0 { tagsOverride = nil }
                         watchLinks(value)
-                        if let value { spotlight?.follow(value) }
+                        if let value { spotlight?.follow(value) } else { spotlight?.forget(id) }
                     }
                     return
                 } catch {

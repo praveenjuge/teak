@@ -67,6 +67,11 @@ actor SpotlightIndexer {
         work.yield(CardIndex.Changes(remove: [card.id]))
     }
 
+    /// Drops a card that no longer exists, such as one deleted on another device.
+    nonisolated func forget(_ id: String) {
+        work.yield(CardIndex.Changes(remove: [id]))
+    }
+
     /// Reads the newest cards and indexes them, then drops the ones they show
     /// have left. Runs at most every five minutes.
     func refresh(_ backend: any ConvexCaller) async {
@@ -108,7 +113,7 @@ actor SpotlightIndexer {
 
     private func index(_ cards: [IndexedCard]) async {
         guard let owner = await session.user?.id else { return }
-        if ledger().owner != owner { await adopt(owner) }
+        if ledger().owner != owner, !(await adopt(owner)) { return }
         let changed = cards.filter { ledger().cards[$0.id]?.fingerprint != $0.fingerprint && !inFlight.contains($0.id) }
         guard !changed.isEmpty, CSSearchableIndex.isIndexingAvailable() else { return }
         inFlight.formUnion(changed.map(\.id))
@@ -166,10 +171,12 @@ actor SpotlightIndexer {
     }
 
     /// Another account's cards never stay indexed for this one.
-    private func adopt(_ owner: String) async {
-        try? await searchIndex.deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+    private func adopt(_ owner: String) async -> Bool {
+        // Until the old account's items are gone, the ledger stays theirs and the next index tries again.
+        guard (try? await searchIndex.deleteSearchableItems(withDomainIdentifiers: [Self.domain])) != nil else { return false }
         loaded = Ledger(owner: owner)
         save()
+        return true
     }
 
     // MARK: Ledger
