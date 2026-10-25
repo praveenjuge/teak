@@ -192,7 +192,6 @@ import type * as migration_backfillUrlHost from "../migration/backfillUrlHost.js
 import type * as migration_cancelOrphanedWorkflowCleanupJobs from "../migration/cancelOrphanedWorkflowCleanupJobs.js";
 import type * as migration_exportBetterAuth from "../migration/exportBetterAuth.js";
 import type * as migration_ocrBackfill from "../migration/ocrBackfill.js";
-import type * as migration_reprocessStaleCards from "../migration/reprocessStaleCards.js";
 import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApi_cardsForUser from "../publicApi/cardsForUser.js";
@@ -558,7 +557,6 @@ declare const fullApi: ApiFromModules<{
   "migration/cancelOrphanedWorkflowCleanupJobs": typeof migration_cancelOrphanedWorkflowCleanupJobs;
   "migration/exportBetterAuth": typeof migration_exportBetterAuth;
   "migration/ocrBackfill": typeof migration_ocrBackfill;
-  "migration/reprocessStaleCards": typeof migration_reprocessStaleCards;
   operationalRetention: typeof operationalRetention;
   publicApi: typeof publicApi;
   "publicApi/cardsForUser": typeof publicApi_cardsForUser;
