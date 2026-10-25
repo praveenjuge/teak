@@ -749,7 +749,8 @@
       "shortcutsHint": "按 <kbd>?</kbd> 查看所有快捷键",
       "showDetails": "显示详情",
       "unarchive": "取消归档",
-      "unfavorite": "取消收藏"
+      "unfavorite": "取消收藏",
+      "editLink": "编辑链接…"
     },
     "toasts": {
       "copiedLink": "已复制链接",
@@ -954,7 +955,8 @@
       "restore": "恢复",
       "select": "选择",
       "unarchive": "取消归档",
-      "unfavorite": "取消收藏"
+      "unfavorite": "取消收藏",
+      "editLink": "编辑链接…"
     },
     "copyImageFailed": "无法复制图片",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "GIF 预览",
       "imageAlt": "图片",
       "videoThumbnail": "视频缩略图"
+    },
+    "editLink": {
+      "title": "编辑链接",
+      "description": "保存新地址后，卡片的预览会刷新。",
+      "label": "地址",
+      "invalid": "请使用 http 或 https 链接。",
+      "saved": "链接已保存。预览稍后会刷新。",
+      "failed": "无法保存链接"
+    },
+    "emptyTrash": {
+      "button": "清空废纸篓",
+      "title": "清空废纸篓？",
+      "description": "这将永久删除 {count, plural, other {# 张卡片}}及其文件。此操作无法撤销。",
+      "descriptionAtLeast": "这将永久删除 {count, plural, other {# 张或更多卡片}}及其文件。此操作无法撤销。",
+      "confirm": "清空废纸篓",
+      "emptying": "{count, plural, other {正在永久删除 # 张卡片}}",
+      "emptyingAll": "正在清空废纸篓",
+      "rateLimited": "刚才已多次清空废纸篓。请一分钟后再试。",
+      "failed": "无法清空废纸篓。请重试。"
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "切换主题",
       "shuffle": "随机",
       "shortcuts": "键盘快捷键",
-      "signOut": "退出登录"
+      "signOut": "退出登录",
+      "emptyTrash": "清空废纸篓"
     },
     "cards": {
       "searching": "正在搜索卡片",

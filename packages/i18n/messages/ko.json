@@ -749,7 +749,8 @@
       "shortcutsHint": "<kbd>?</kbd>를 누르면 모든 단축키를 볼 수 있습니다",
       "showDetails": "세부 정보 보기",
       "unarchive": "보관 해제",
-      "unfavorite": "즐겨찾기에서 제거"
+      "unfavorite": "즐겨찾기에서 제거",
+      "editLink": "링크 편집…"
     },
     "toasts": {
       "copiedLink": "링크가 복사되었습니다",
@@ -954,7 +955,8 @@
       "restore": "복원",
       "select": "선택",
       "unarchive": "보관 해제",
-      "unfavorite": "즐겨찾기에서 제거"
+      "unfavorite": "즐겨찾기에서 제거",
+      "editLink": "링크 편집…"
     },
     "copyImageFailed": "이미지를 복사하지 못했습니다",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "GIF 미리보기",
       "imageAlt": "이미지",
       "videoThumbnail": "동영상 썸네일"
+    },
+    "editLink": {
+      "title": "링크 편집",
+      "description": "새 주소를 저장하면 카드 미리 보기가 새로 고쳐집니다.",
+      "label": "주소",
+      "invalid": "http 또는 https 링크를 사용하세요.",
+      "saved": "링크를 저장했습니다. 곧 미리 보기가 새로 고쳐집니다.",
+      "failed": "링크를 저장하지 못했습니다"
+    },
+    "emptyTrash": {
+      "button": "휴지통 비우기",
+      "title": "휴지통을 비우시겠습니까?",
+      "description": "카드 {count, plural, other {#개}}와 해당 파일이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "descriptionAtLeast": "카드 {count, plural, other {#개 이상}}과 해당 파일이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "confirm": "휴지통 비우기",
+      "emptying": "{count, plural, other {카드 #개를 영구 삭제하는 중}}",
+      "emptyingAll": "휴지통을 비우는 중",
+      "rateLimited": "방금 휴지통을 여러 번 비웠습니다. 1분 후에 다시 시도하세요.",
+      "failed": "휴지통을 비우지 못했습니다. 다시 시도하세요."
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "테마 전환",
       "shuffle": "셔플",
       "shortcuts": "키보드 단축키",
-      "signOut": "로그아웃"
+      "signOut": "로그아웃",
+      "emptyTrash": "휴지통 비우기"
     },
     "cards": {
       "searching": "카드를 검색하는 중",

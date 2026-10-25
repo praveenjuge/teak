@@ -29,6 +29,7 @@ import { isOptimisticCard } from "../cards/types";
 import {
   BulkTagsDialog,
   CardFoldersDialog,
+  EditLinkDialog,
   FolderPickerDialog,
 } from "../lazyDialogs";
 import {
@@ -194,6 +195,7 @@ export const MasonryGrid = memo(function MasonryGrid({
     "add" | "move" | null
   >(null);
   const [foldersCardId, setFoldersCardId] = useState<string | null>(null);
+  const [editLinkCardId, setEditLinkCardId] = useState<string | null>(null);
   const keepSelectionMode = Boolean(addToFolder);
   const addToFolderId = addToFolder?.id;
   useEffect(() => {
@@ -560,6 +562,11 @@ export const MasonryGrid = memo(function MasonryGrid({
     [filteredCards, foldersCardId]
   );
 
+  const editLinkCard = useMemo(() => {
+    const card = filteredCards.find(({ _id }) => _id === editLinkCardId);
+    return card?.url ? { id: card._id, url: card.url } : null;
+  }, [editLinkCardId, filteredCards]);
+
   const selectedCards = useMemo(
     () => filteredCards.filter((card) => selectedCardIds.has(card._id)),
     [filteredCards, selectedCardIds]
@@ -750,6 +757,7 @@ export const MasonryGrid = memo(function MasonryGrid({
           onCopyImage={onCopyImage}
           onDelete={onDeleteCard}
           onEditFolders={setFoldersCardId}
+          onEditLink={setEditLinkCardId}
           onEnterSelectionMode={enterSelectionMode}
           onPermanentDelete={requestPermanentDelete}
           onRestore={onRestoreCard}
@@ -973,6 +981,15 @@ export const MasonryGrid = memo(function MasonryGrid({
           }
         }}
         open={foldersCardId !== null}
+      />
+      <EditLinkDialog
+        card={editLinkCard}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditLinkCardId(null);
+          }
+        }}
+        open={editLinkCard !== null}
       />
       <ConfirmDialog
         confirmLabel={tDialog("confirm")}

@@ -105,6 +105,7 @@ export interface CardProps {
   onCopyImage?: (content: string, isImage: boolean) => void;
   onDelete?: (cardId: string) => void;
   onEditFolders?: (cardId: string) => void;
+  onEditLink?: (cardId: string) => void;
   onEnterSelectionMode?: (cardId: string) => void;
   onPermanentDelete?: (cardId: string) => void;
   onRestore?: (cardId: string) => void;

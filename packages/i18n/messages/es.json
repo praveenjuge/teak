@@ -749,7 +749,8 @@
       "shortcutsHint": "Pulse <kbd>?</kbd> para ver todos los atajos",
       "showDetails": "Mostrar detalles",
       "unarchive": "Desarchivar",
-      "unfavorite": "Quitar de favoritas"
+      "unfavorite": "Quitar de favoritas",
+      "editLink": "Editar enlace…"
     },
     "toasts": {
       "copiedLink": "Enlace copiado",
@@ -954,7 +955,8 @@
       "restore": "Restaurar",
       "select": "Seleccionar",
       "unarchive": "Desarchivar",
-      "unfavorite": "Quitar de favoritas"
+      "unfavorite": "Quitar de favoritas",
+      "editLink": "Editar enlace…"
     },
     "copyImageFailed": "No se pudo copiar la imagen",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "Vista previa del GIF",
       "imageAlt": "Imagen",
       "videoThumbnail": "Miniatura del vídeo"
+    },
+    "editLink": {
+      "title": "Editar enlace",
+      "description": "Al guardar una dirección nueva se actualiza la vista previa de la tarjeta.",
+      "label": "Dirección",
+      "invalid": "Use un enlace http o https.",
+      "saved": "Enlace guardado. Su vista previa se actualizará en un momento.",
+      "failed": "No se pudo guardar el enlace"
+    },
+    "emptyTrash": {
+      "button": "Vaciar la papelera",
+      "title": "¿Vaciar la papelera?",
+      "description": "Esto elimina de forma permanente {count, plural, one {# tarjeta} other {# tarjetas}} y sus archivos. Esta acción no se puede deshacer.",
+      "descriptionAtLeast": "Esto elimina de forma permanente {count, plural, other {# tarjetas o más}} y sus archivos. Esta acción no se puede deshacer.",
+      "confirm": "Vaciar la papelera",
+      "emptying": "{count, plural, one {Eliminando # tarjeta definitivamente} other {Eliminando # tarjetas definitivamente}}",
+      "emptyingAll": "Vaciando la papelera",
+      "rateLimited": "La papelera se vació varias veces hace un momento. Inténtelo de nuevo en un minuto.",
+      "failed": "No se pudo vaciar la papelera. Inténtelo de nuevo."
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "Cambiar tema",
       "shuffle": "Aleatorio",
       "shortcuts": "Atajos de teclado",
-      "signOut": "Cerrar sesión"
+      "signOut": "Cerrar sesión",
+      "emptyTrash": "Vaciar la papelera"
     },
     "cards": {
       "searching": "Buscando tarjetas",

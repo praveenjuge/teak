@@ -17,6 +17,7 @@ import {
   Settings,
   Shuffle,
   SunMoon,
+  Trash,
   Upload,
   type VadivamIcon,
 } from "vadivam-react";
@@ -24,11 +25,11 @@ import { REMOTE_SEARCH_DEBOUNCE_MS } from "../../hooks/useCardsSearchController"
 import { useFolders } from "../../hooks/useFolders";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import {
-  COMMAND_PALETTE_ACTIONS,
   type CommandPaletteActionId,
   PALETTE_CARD_LIMIT,
   PALETTE_MIN_CARD_QUERY_LENGTH,
   type PaletteCard,
+  paletteActions,
   paletteCardHost,
   paletteCardSearchArgs,
   paletteCardTitle,
@@ -85,6 +86,7 @@ const ACTION_ICONS: Record<CommandPaletteActionId, VadivamIcon> = {
   "toggle-theme": SunMoon,
   shuffle: Shuffle,
   shortcuts: Keyboard,
+  "empty-trash": Trash,
   "sign-out": LogOut,
 };
 
@@ -113,6 +115,8 @@ interface CommandPaletteResultsProps {
   cards: PaletteCardsState;
   folders: readonly FolderSummary[] | undefined;
   onSelect: (command: CommandPaletteCommand) => void;
+  /** The page the palette opened over, for actions offered only there. */
+  pathname?: string | null;
   query: string;
 }
 
@@ -120,6 +124,7 @@ export function CommandPaletteResults({
   cards,
   folders,
   onSelect,
+  pathname,
   query,
 }: CommandPaletteResultsProps) {
   const t = useTranslations("commandPalette");
@@ -199,7 +204,7 @@ export function CommandPaletteResults({
           </CommandGroup>
         )}
       <CommandGroup heading={t("groups.actions")}>
-        {COMMAND_PALETTE_ACTIONS.map((action) => {
+        {paletteActions(pathname).map((action) => {
           const Icon = ACTION_ICONS[action.id];
           const label = t(`actions.${action.labelKey}`);
           return (
@@ -480,6 +485,7 @@ export function CommandPalette({
           cards={cards}
           folders={folders}
           onSelect={onSelect}
+          pathname={pathname}
           query={query}
         />
       </CommandList>

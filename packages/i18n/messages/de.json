@@ -749,7 +749,8 @@
       "shortcutsHint": "Drücken Sie <kbd>?</kbd> für alle Tastenkürzel",
       "showDetails": "Details anzeigen",
       "unarchive": "Dearchivieren",
-      "unfavorite": "Aus Favoriten entfernen"
+      "unfavorite": "Aus Favoriten entfernen",
+      "editLink": "Link bearbeiten…"
     },
     "toasts": {
       "copiedLink": "Link kopiert",
@@ -954,7 +955,8 @@
       "restore": "Wiederherstellen",
       "select": "Auswählen",
       "unarchive": "Dearchivieren",
-      "unfavorite": "Aus Favoriten entfernen"
+      "unfavorite": "Aus Favoriten entfernen",
+      "editLink": "Link bearbeiten…"
     },
     "copyImageFailed": "Das Bild konnte nicht kopiert werden",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "GIF-Vorschau",
       "imageAlt": "Bild",
       "videoThumbnail": "Video-Miniaturansicht"
+    },
+    "editLink": {
+      "title": "Link bearbeiten",
+      "description": "Wenn Sie eine neue Adresse speichern, wird die Vorschau der Karte aktualisiert.",
+      "label": "Adresse",
+      "invalid": "Verwenden Sie einen http- oder https-Link.",
+      "saved": "Link gespeichert. Die Vorschau wird gleich aktualisiert.",
+      "failed": "Der Link konnte nicht gespeichert werden"
+    },
+    "emptyTrash": {
+      "button": "Papierkorb leeren",
+      "title": "Papierkorb leeren?",
+      "description": "Damit werden {count, plural, one {# Karte} other {# Karten}} und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+      "descriptionAtLeast": "Damit werden {count, plural, other {# oder mehr Karten}} und ihre Dateien endgültig gelöscht. Das lässt sich nicht rückgängig machen.",
+      "confirm": "Papierkorb leeren",
+      "emptying": "{count, plural, one {# Karte wird endgültig gelöscht} other {# Karten werden endgültig gelöscht}}",
+      "emptyingAll": "Papierkorb wird geleert",
+      "rateLimited": "Der Papierkorb wurde gerade mehrmals geleert. Versuchen Sie es in einer Minute erneut.",
+      "failed": "Der Papierkorb konnte nicht geleert werden. Versuchen Sie es erneut."
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "Design wechseln",
       "shuffle": "Zufällig",
       "shortcuts": "Tastenkürzel",
-      "signOut": "Abmelden"
+      "signOut": "Abmelden",
+      "emptyTrash": "Papierkorb leeren"
     },
     "cards": {
       "searching": "Karten werden gesucht",

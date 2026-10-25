@@ -49,6 +49,7 @@ import {
   LazyConnectedCardModal as ConnectedCardModal,
   preloadCardModal,
 } from "../components/card-modal/LazyCardModal";
+import { EmptyTrashButton } from "../components/cards/EmptyTrashButton";
 import { isOptimisticCard } from "../components/cards/types";
 import { FolderDot } from "../components/folders/FolderDot";
 import { SmartFolderQuery } from "../components/folders/SmartFolderQuery";
@@ -915,6 +916,9 @@ export function CardsScreen({
     <>
       <CardsSearchHeader
         {...searchBarProps}
+        HeaderActions={
+          view === "trash" && !isFolderView ? <EmptyTrashButton /> : undefined
+        }
         leading={headerLeading}
         lockedChips={
           folder && isSmartFolder ? (

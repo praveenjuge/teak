@@ -10,6 +10,10 @@ export const CardFoldersDialog = onDemand(() =>
   )
 );
 
+export const EditLinkDialog = onDemand(() =>
+  import("./cards/EditLinkDialog").then((module) => module.EditLinkDialog)
+);
+
 export const FolderNameDialog = onDemand(() =>
   import("./folders/FolderNameDialog").then((module) => module.FolderNameDialog)
 );
@@ -35,6 +39,7 @@ export function preloadLibraryDialogs(): Promise<unknown> {
     [
       BulkTagsDialog,
       CardFoldersDialog,
+      EditLinkDialog,
       FolderNameDialog,
       FolderPickerDialog,
       FocusEditor,
