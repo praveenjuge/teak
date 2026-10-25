@@ -11,9 +11,12 @@ import {
   queueUserCreated,
 } from "../telemetry/schedule";
 import {
+  CLAIM_PAGE,
+  claimRetryDelayMs,
   DEAD_LETTER_RETRY_MS,
   DISPATCH_RETENTION_MS,
   enqueueObjectDeletion,
+  FLUSH_JITTER_MS,
   MAX_DISPATCH_ATTEMPTS,
   queueAccountDeletionWorkflow,
   queueExportWorkflow,
@@ -668,6 +671,7 @@ describe("flush", () => {
     });
     await t.action(internal.workflowDispatch.flush, {});
     expect(sent).toHaveLength(1);
+    expect(sent[0]?.items.length).toBeLessThanOrEqual(CLAIM_PAGE);
     const params = sent[0];
     expect(params?.convexSiteUrl).toBe("https://session-tests.convex.site");
     expect(params?.signature).toBe(
@@ -684,6 +688,72 @@ describe("flush", () => {
       (await rows(t)).map((row) => [row.kind, row.state])
     );
     expect(states).toEqual({ deleteObjects: "done", export: "pending" });
+  });
+
+  test("claims a small page per round so conflicting claims stay short", async () => {
+    // Regression for the claim-vs-claim OCC failures: many parallel flushes
+    // used to claim up to 100 rows per mutation, and the long conflicting
+    // transactions exhausted Convex's retries until flushes failed. Small
+    // pages keep each claim short enough for retries to recover.
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "flush-secret");
+    vi.stubEnv("WORKFLOW_RPC_SECRET", "deployment-rpc-secret");
+    const sent: Array<{ items: DispatchItem[] }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body)) as {
+          params: { items: DispatchItem[] };
+        };
+        sent.push(body.params);
+        return Promise.resolve(
+          Response.json({
+            data: {
+              results: body.params.items.map((_item, index) => ({
+                index,
+                ok: true,
+              })),
+            },
+            ok: true,
+            requestId: "r",
+            version: 1,
+          })
+        );
+      })
+    );
+    const t = convexTest(schema, modules);
+    const total = CLAIM_PAGE * 2 + 1;
+    for (let i = 0; i < total; i += 1) {
+      await insertExportJob(t, "pending");
+    }
+    const jobIds = await t.run((ctx) => ctx.db.query("exportJobs").collect());
+    await t.run(async (ctx) => {
+      for (const job of jobIds) {
+        await queueExportWorkflow(ctx, job._id, "user-1");
+      }
+    });
+    await t.action(internal.workflowDispatch.flush, {});
+    expect(sent.length).toBeGreaterThan(1);
+    for (const call of sent) {
+      expect(call.items.length).toBeLessThanOrEqual(CLAIM_PAGE);
+    }
+    expect(sent.reduce((sum, call) => sum + call.items.length, 0)).toBe(total);
+  });
+});
+
+describe("claim retry", () => {
+  test("backs off with doubling delays, then gives up", () => {
+    // A flush whose claim keeps failing reschedules itself on these delays
+    // instead of dying; after the cap it reports and stops, and the hourly
+    // watchdog re-arms a flush for rows still pending past PENDING_STALL_MS.
+    expect(claimRetryDelayMs(0)).toBe(1000);
+    expect(claimRetryDelayMs(1)).toBe(2000);
+    expect(claimRetryDelayMs(2)).toBe(4000);
+    expect(claimRetryDelayMs(3)).toBe(8000);
+    expect(claimRetryDelayMs(6)).toBe(60_000);
+    expect(claimRetryDelayMs(7)).toBe(60_000);
+    expect(claimRetryDelayMs(8)).toBeNull();
+    expect(claimRetryDelayMs(20)).toBeNull();
   });
 });
 
@@ -726,6 +796,20 @@ describe("flush scheduling", () => {
     await t.mutation(internal.workflowDispatch.claim, {});
     await t.run((ctx) => queueExportWorkflow(ctx, second, "user-1"));
     expect(await flushes(t)).toBe(2);
+  });
+
+  test("a save's flush starts inside the jitter window", async () => {
+    // Parallel saves each schedule a flush; jitter spreads their claim calls
+    // out so claims stop conflicting with each other on the due range.
+    const t = convexTest(schema, modules);
+    const first = await insertExportJob(t, "pending");
+    await t.run((ctx) => queueExportWorkflow(ctx, first, "user-1"));
+    const [job] = (await scheduledJobs(t)).filter(
+      (candidate) => candidate.name === "workflowDispatch:flush"
+    );
+    const delay = job.scheduledTime - NOW;
+    expect(delay).toBeGreaterThanOrEqual(0);
+    expect(delay).toBeLessThan(FLUSH_JITTER_MS);
   });
 
   test("a row left waiting does not hold back the next save", async () => {
