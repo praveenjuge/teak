@@ -169,7 +169,6 @@ export const Card = memo(function Card({
   onToggleSelection,
 }: CardProps) {
   const t = useTranslations("cards");
-  const tc = useTranslations("common");
   const tLabel = useTranslations("cards.accessibleLabel");
   const tLinkTitle = useTranslations("lib.linkTitle");
   const refreshCardMediaUrl = useAction(
@@ -477,7 +476,7 @@ export const Card = memo(function Card({
           {
             icon: Trash,
             id: "delete",
-            label: tc("delete"),
+            label: t("menu.moveToTrash"),
             onSelect: handleDelete,
             shortcut: shortcuts.delete,
           },

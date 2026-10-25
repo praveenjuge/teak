@@ -3,7 +3,10 @@
 // They live here, outside apps/raycast, so the published extension never
 // carries a test that needs the monorepo.
 import { expect, test } from "bun:test";
-import { DONE_VERB_BY_CATEGORY } from "../apps/raycast/src/lib/doneStates";
+import {
+  DONE_VERBS_PATH,
+  renderDoneVerbs,
+} from "../apps/raycast/scripts/done-verbs";
 import { HIDDEN_TAGS } from "../apps/raycast/src/lib/hiddenTags";
 import {
   HUE_OPTIONS,
@@ -13,10 +16,6 @@ import {
   COLOR_HUE_BUCKETS,
   VISUAL_STYLE_TAXONOMY,
 } from "../packages/convex/shared/constants";
-import {
-  LINK_CATEGORIES,
-  LINK_CATEGORY_DONE_VERB,
-} from "../packages/convex/shared/linkCategories";
 import { HIDDEN_TAG_KEYS } from "../packages/convex/shared/tags";
 
 test("offers the same hue and style filters as Teak's search", () => {
@@ -24,11 +23,9 @@ test("offers the same hue and style filters as Teak's search", () => {
   expect(STYLE_OPTIONS).toEqual(VISUAL_STYLE_TAXONOMY);
 });
 
-test("names a link's done state the way Teak's apps do", () => {
-  expect(Object.keys(DONE_VERB_BY_CATEGORY).sort()).toEqual(
-    [...LINK_CATEGORIES].sort()
-  );
-  expect(DONE_VERB_BY_CATEGORY).toEqual(LINK_CATEGORY_DONE_VERB);
+test("names a link's done state the way Teak's apps do", async () => {
+  // Regenerate with: bun --no-env-file run apps/raycast/scripts/done-verbs.ts --write
+  expect(await Bun.file(DONE_VERBS_PATH).text()).toBe(renderDoneVerbs());
 });
 
 test("hides the same tags as Teak's search", () => {

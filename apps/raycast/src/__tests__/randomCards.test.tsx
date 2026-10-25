@@ -112,11 +112,11 @@ test("Keep moves on without changing the card", async () => {
   expect(requests.filter((request) => request.method !== "GET")).toEqual([]);
 });
 
-test("Archive Card archives it and drops it from the deck", async () => {
+test("Archive archives it and drops it from the deck", async () => {
   serve([card(idA, "First card"), card(idB, "Second card")]);
   await act(async () => root.render(createElement(RandomCardsCommand)));
   await settle();
-  await press("Archive Card");
+  await press("Archive");
   const patch = requests.find((request) => request.method === "PATCH");
   expect(patch?.body).toEqual({ isArchived: true });
   expect(patch?.url.pathname).toBe(`/api/v1/cards/${idA}`);

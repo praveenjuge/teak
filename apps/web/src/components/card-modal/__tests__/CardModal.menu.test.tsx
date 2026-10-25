@@ -185,7 +185,7 @@ test("a replaced image can be reset from the card menu", async () => {
 test("a card in Trash has neither More like this nor image actions", async () => {
   await render(linkCard({ isDeleted: true } as Partial<CardModalCard>));
   await openMenu();
-  expect(menuItem("Copy Link")).toBeDefined();
+  expect(menuItem("Copy link")).toBeDefined();
   expect(menuItem("More like this")).toBeUndefined();
   expect(menuItem("Replace image")).toBeUndefined();
 });
@@ -199,7 +199,7 @@ test("a card in Trash says so above the card, with Restore there and not in the 
   );
   await openMenu();
   expect(menuItem("Restore")).toBeUndefined();
-  expect(menuItem("Delete Forever")).toBeUndefined();
+  expect(menuItem("Delete forever")).toBeUndefined();
   await act(() => button("Restore")?.click());
   expect(handleRestore).toHaveBeenCalledTimes(1);
 });

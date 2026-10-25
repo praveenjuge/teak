@@ -173,7 +173,7 @@ export default function RandomCardsCommand() {
                   icon={Icon.Box}
                   onAction={() => void archiveCard(card, handleUpdated)}
                   shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
-                  title="Archive Card"
+                  title="Archive"
                 />
                 <Action.Push
                   icon={Icon.Eye}
@@ -204,7 +204,7 @@ export default function RandomCardsCommand() {
                       title={getCardTitle(card)}
                     />
                   }
-                  title="Find Similar"
+                  title="More Like This"
                 />
                 <Action
                   icon={Icon.Shuffle}

@@ -92,9 +92,9 @@ test("a link row offers archive, done, similar, folder and refresh actions", asy
   const text = container.textContent ?? "";
   for (const title of [
     "A long read",
-    "Archive Card",
+    "Archive",
     "Mark as Read",
-    "Find Similar",
+    "More Like This",
     "Add to Folder…",
     "Refresh Details",
     "Show Archive",
@@ -121,7 +121,7 @@ test("a text card has no done action", async () => {
   serve(() => [{ ...linkCard, linkCategory: null, type: "text" }]);
   await render();
   expect(container.textContent).not.toContain("Mark as");
-  expect(container.textContent).toContain("Archive Card");
+  expect(container.textContent).toContain("Archive");
 });
 
 test("Shuffle asks the API for a shuffled page with a seed", async () => {

@@ -155,7 +155,7 @@ describe("Cards/Card", () => {
       expect(markup).toContain(`aria-keyshortcuts="${key}"`);
     }
     expect(markup).toMatch(/Copy link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
-    expect(markup).toMatch(/Delete<kbd>(⌫|Del)<\/kbd>/);
+    expect(markup).toMatch(/Move to Trash<kbd>(⌫|Del)<\/kbd>/);
     expect(markup).toContain("Open link</div>");
     expect(markup).toContain("Refresh details</div>");
   });
@@ -171,7 +171,7 @@ describe("Cards/Card", () => {
     );
     expect(markup).toContain("Deselect<kbd>X</kbd>");
     expect(markup).toMatch(/Copy link<kbd>(⌘C|Ctrl\+C)<\/kbd>/);
-    for (const label of ["Add tags…", "Favorite", "Archive", "Delete"]) {
+    for (const label of ["Add tags…", "Favorite", "Archive", "Move to Trash"]) {
       expect(markup).toContain(`${label}</div>`);
     }
     expect(markup).not.toContain('aria-keyshortcuts="F"');
@@ -377,7 +377,7 @@ describe("Cards/Card", () => {
     expect(image("image/svg+xml")).not.toContain("Copy image");
   });
 
-  // Bug 30: Trash offers only Restore and Delete Forever.
+  // Bug 30: Trash offers only Restore and Delete forever.
   test("offers no Open link for a link in Trash", () => {
     const trashed = renderToStaticMarkup(
       <Card card={createLinkCard({ isDeleted: true }) as any} />
@@ -385,7 +385,7 @@ describe("Cards/Card", () => {
     const items = [
       ...trashed.matchAll(/role="menuitem">(?:<svg.*?<\/svg>)?([^<]*)/g),
     ].map((match) => match[1]);
-    expect(items).toEqual(["Restore", "Delete Forever"]);
+    expect(items).toEqual(["Restore", "Delete forever"]);
   });
 
   // Bug 02: an emptied note was a blank strip the quick actions covered.
@@ -457,15 +457,15 @@ describe("Cards/Card", () => {
     expect(markup).toContain(">A site</p>");
   });
 
-  test("offers Delete Forever only for a card in Trash", () => {
+  test("offers Delete forever only for a card in Trash", () => {
     const active = renderToStaticMarkup(
       <Card card={createLinkCard() as any} />
     );
     const trashed = renderToStaticMarkup(
       <Card card={createLinkCard({ isDeleted: true }) as any} />
     );
-    expect(active).not.toContain("Delete Forever");
-    expect(trashed).toContain("Delete Forever");
+    expect(active).not.toContain("Delete forever");
+    expect(trashed).toContain("Delete forever");
   });
 
   test("passes scrub data from the card to the video preview", () => {
