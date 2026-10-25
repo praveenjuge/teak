@@ -879,6 +879,12 @@
       "moreLikeThis": "More Like This",
       "refreshDetails": "Refresh Details"
     },
+    "controls": {
+      "newNote": "New Note",
+      "newNoteDescription": "Opens Teak on a new note.",
+      "voiceMemo": "Voice Memo",
+      "voiceMemoDescription": "Opens Teak and starts a voice memo."
+    },
     "mac": {
       "openLibrary": "Open Teak Library",
       "settings": "Settings…",

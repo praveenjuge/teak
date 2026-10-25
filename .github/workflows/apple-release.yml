@@ -46,6 +46,7 @@ env:
   APP_GROUP: group.com.praveenjuge.teak
   SHARE_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.share-extension
   SAFARI_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.safari-extension
+  WIDGETS_EXTENSION_BUNDLE_ID: com.praveenjuge.teak.widgets
   # The Expo iPhone app used builds 1-89; the native app continues above them.
   MINIMUM_BUILD_NUMBER: "90"
   PROJECT_PATH: apps/apple/Teak.xcodeproj
@@ -406,6 +407,7 @@ jobs:
           ensure_profile "$APP_BUNDLE_ID" "App" "app"
           ensure_profile "$SHARE_EXTENSION_BUNDLE_ID" "Share Extension" "share"
           ensure_profile "$SAFARI_EXTENSION_BUNDLE_ID" "Safari Extension" "safari"
+          ensure_profile "$WIDGETS_EXTENSION_BUNDLE_ID" "Widgets Extension" "widgets"
 
       - name: Archive the Release build
         id: archive
@@ -417,6 +419,7 @@ jobs:
           SAFARI_PROFILE_NAME: ${{ steps.profiles.outputs.safari_name }}
           SHARE_PROFILE_NAME: ${{ steps.profiles.outputs.share_name }}
           SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
+          WIDGETS_PROFILE_NAME: ${{ steps.profiles.outputs.widgets_name }}
         run: |
           archive_path="$RUNNER_TEMP/Teak-$SLUG.xcarchive"
           # Each target picks its profile by bundle ID, so the project keeps
@@ -438,7 +441,8 @@ jobs:
             'PROVISIONING_PROFILE_SPECIFIER=$(TEAK_PROFILE_$(PRODUCT_BUNDLE_IDENTIFIER:identifier))' \
             TEAK_PROFILE_com_praveenjuge_teak="$APP_PROFILE_NAME" \
             TEAK_PROFILE_com_praveenjuge_teak_share_extension="$SHARE_PROFILE_NAME" \
-            TEAK_PROFILE_com_praveenjuge_teak_safari_extension="$SAFARI_PROFILE_NAME"
+            TEAK_PROFILE_com_praveenjuge_teak_safari_extension="$SAFARI_PROFILE_NAME" \
+            TEAK_PROFILE_com_praveenjuge_teak_widgets="$WIDGETS_PROFILE_NAME"
           echo "path=$archive_path" >> "$GITHUB_OUTPUT"
 
       - name: Export the signed App Store package
@@ -451,6 +455,7 @@ jobs:
           SAFARI_PROFILE_NAME: ${{ steps.profiles.outputs.safari_name }}
           SHARE_PROFILE_NAME: ${{ steps.profiles.outputs.share_name }}
           SIGNING_IDENTITY: ${{ steps.signing.outputs.distribution_identity }}
+          WIDGETS_PROFILE_NAME: ${{ steps.profiles.outputs.widgets_name }}
         run: |
           export_path="$RUNNER_TEMP/apple-$SLUG-export"
           export_options="$RUNNER_TEMP/Apple-$SLUG-ExportOptions.plist"
@@ -467,6 +472,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$APP_BUNDLE_ID string $APP_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$SHARE_EXTENSION_BUNDLE_ID string $SHARE_PROFILE_NAME" "$export_options"
           /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$SAFARI_EXTENSION_BUNDLE_ID string $SAFARI_PROFILE_NAME" "$export_options"
+          /usr/libexec/PlistBuddy -c "Add :provisioningProfiles:$WIDGETS_EXTENSION_BUNDLE_ID string $WIDGETS_PROFILE_NAME" "$export_options"
           xcodebuild \
             -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
@@ -513,8 +519,8 @@ jobs:
           app_path="${apps[0]}"
           extensions=()
           while IFS= read -r found; do extensions+=("$found"); done < <(find "$app_path/${contents}PlugIns" -mindepth 1 -maxdepth 1 -type d -name '*.appex')
-          if [ "${#extensions[@]}" -ne 2 ]; then
-            echo "Expected the share and Safari extensions in the signed $LABEL app." >&2
+          if [ "${#extensions[@]}" -ne 3 ]; then
+            echo "Expected the share, Safari and widgets extensions in the signed $LABEL app." >&2
             exit 1
           fi
 
@@ -577,19 +583,19 @@ jobs:
           for extension_path in "${extensions[@]}"; do
             extension_id="$(plutil -extract CFBundleIdentifier raw "$extension_path/${contents}Info.plist")"
             case "$extension_id" in
-              "$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID") ;;
+              "$SHARE_EXTENSION_BUNDLE_ID"|"$SAFARI_EXTENSION_BUNDLE_ID"|"$WIDGETS_EXTENSION_BUNDLE_ID") ;;
               *) echo "Unexpected extension in the signed app: $extension_id." >&2; exit 1 ;;
             esac
             verify_bundle "$extension_path" "$extension_id"
             codesign --verify --strict "$extension_path"
             seen="$seen $extension_id"
           done
-          if [[ "$seen" != *"$SHARE_EXTENSION_BUNDLE_ID"* ]] || [[ "$seen" != *"$SAFARI_EXTENSION_BUNDLE_ID"* ]]; then
-            echo "The signed app must contain both the share and Safari extensions." >&2
+          if [[ "$seen" != *"$SHARE_EXTENSION_BUNDLE_ID"* ]] || [[ "$seen" != *"$SAFARI_EXTENSION_BUNDLE_ID"* ]] || [[ "$seen" != *"$WIDGETS_EXTENSION_BUNDLE_ID"* ]]; then
+            echo "The signed app must contain the share, Safari and widgets extensions." >&2
             exit 1
           fi
           codesign --verify --deep --strict "$app_path"
-          echo "- Signed $LABEL package: verified $VERSION/$BUILD_NUMBER for the app, share extension, and Safari extension" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Signed $LABEL package: verified $VERSION/$BUILD_NUMBER for the app, share extension, Safari extension, and widgets extension" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload dSYMs to PostHog
         if: steps.release_state.outputs.mutate == 'true' && steps.build_state.outputs.reuse != 'true'

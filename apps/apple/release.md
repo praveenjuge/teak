@@ -30,13 +30,13 @@ and release workflows are gone.
    `asc builds next-build-number`.
 7. asc resolves the distribution certificates that match the repository key
    (iOS Distribution; Apple Distribution plus Mac Installer for macOS) and the
-   App Store profiles for the app, share extension, and Safari extension. Each
-   profile must carry `group.com.praveenjuge.teak`.
+   App Store profiles for the app, share extension, Safari extension, and
+   widgets extension. Each profile must carry `group.com.praveenjuge.teak`.
 8. Xcode archives scheme `Teak` in Release and exports an IPA or PKG. The
    workflow verifies bundle IDs, version, build number, production Convex URL,
    PostHog token (app only; the extensions carry none), entitlements (App
    Group, keychain group, sandbox on macOS), embedded profiles, and signatures
-   for all three bundles, then uploads the archive's dSYMs to PostHog with
+   for all four bundles, then uploads the archive's dSYMs to PostHog with
    `posthog-cli dsym upload`.
 9. The signed package and a SHA-256 descriptor move to an Ubuntu submit leg,
    which checks the digest, uploads with `asc builds upload --wait`, and
@@ -68,10 +68,16 @@ pointer here when one is missing.
 - **Safari extension ID.** Register `com.praveenjuge.teak.safari-extension` as a
   universal bundle ID in the developer portal, or with
   `asc bundle-ids create --identifier com.praveenjuge.teak.safari-extension --name "Teak Safari Extension" --platform UNIVERSAL`.
+- **Widgets extension ID.** Register `com.praveenjuge.teak.widgets` (the
+  Control Center controls) as a universal bundle ID in the developer portal, or
+  with
+  `asc bundle-ids create --identifier com.praveenjuge.teak.widgets --name "Teak Widgets" --platform UNIVERSAL`,
+  then assign it the App Group as below. Do this before the first release that
+  includes the controls.
 - **App Group.** In the developer portal, turn on App Groups for
-  `com.praveenjuge.teak`, `com.praveenjuge.teak.share-extension`, and
-  `com.praveenjuge.teak.safari-extension`, and assign `group.com.praveenjuge.teak`
-  to each. The API can't assign groups. Profiles made before this change are
+  `com.praveenjuge.teak`, `com.praveenjuge.teak.share-extension`,
+  `com.praveenjuge.teak.safari-extension`, and `com.praveenjuge.teak.widgets`,
+  and assign `group.com.praveenjuge.teak` to each. The API can't assign groups. Profiles made before this change are
   replaced automatically.
 - **iPad screenshots.** The first iPad-capable build needs a 13" iPad set in
   `store/screenshots/ipad/en-US/`.
@@ -128,6 +134,6 @@ and changes nothing in App Store Connect.
 App Store Connect app: `6756574989`
 
 Bundle IDs: `com.praveenjuge.teak`, `com.praveenjuge.teak.share-extension`,
-`com.praveenjuge.teak.safari-extension`
+`com.praveenjuge.teak.safari-extension`, `com.praveenjuge.teak.widgets`
 
 App Group: `group.com.praveenjuge.teak`
