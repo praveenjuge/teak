@@ -1,10 +1,308 @@
 {
   "native": {
     "common": {
-      "cardCount": "{count, plural, other {# 枚のカード}}"
+      "cardCount": "{count, plural, other {# 件のカード}}"
+    },
+    "actions": {
+      "addTags": "タグを追加",
+      "archive": "アーカイブ",
+      "unarchive": "アーカイブ解除",
+      "favorite": "お気に入りに追加",
+      "unfavorite": "お気に入りから削除",
+      "moveToTrash": "ゴミ箱に移動",
+      "restore": "復元",
+      "deleteForever": "完全に削除",
+      "moreLikeThis": "似たカード",
+      "refreshDetails": "詳細を更新",
+      "copyLink": "リンクをコピー",
+      "copyLinkToCard": "カードへのリンクをコピー",
+      "copyImage": "画像をコピー",
+      "copyText": "テキストをコピー",
+      "copyQuote": "引用をコピー",
+      "copyPalette": "パレットをコピー",
+      "openLink": "リンクを開く",
+      "openOnWeb": "Web で開く",
+      "download": "ダウンロード",
+      "saveToFiles": "“ファイル”に保存",
+      "share": "共有",
+      "select": "選択",
+      "linkCopied": "リンクをコピーしました",
+      "copyImageFailed": "この画像をコピーできませんでした。",
+      "shareFailed": "このファイルを共有できませんでした。"
+    },
+    "done": {
+      "markAs": {
+        "read": "既読にする",
+        "watched": "視聴済みにする",
+        "listened": "聴取済みにする",
+        "bought": "購入済みにする",
+        "cooked": "調理済みにする",
+        "played": "プレイ済みにする",
+        "done": "完了にする"
+      },
+      "markAsNot": {
+        "read": "未読にする",
+        "watched": "未視聴にする",
+        "listened": "未聴取にする",
+        "bought": "未購入にする",
+        "cooked": "未調理にする",
+        "played": "未プレイにする",
+        "done": "未完了にする"
+      },
+      "state": {
+        "read": "既読",
+        "watched": "視聴済み",
+        "listened": "聴取済み",
+        "bought": "購入済み",
+        "cooked": "調理済み",
+        "played": "プレイ済み",
+        "done": "完了"
+      },
+      "markedAs": {
+        "read": "既読にしました",
+        "watched": "視聴済みにしました",
+        "listened": "聴取済みにしました",
+        "bought": "購入済みにしました",
+        "cooked": "調理済みにしました",
+        "played": "プレイ済みにしました",
+        "done": "完了にしました"
+      },
+      "markedAsNot": {
+        "read": "未読にしました",
+        "watched": "未視聴にしました",
+        "listened": "未聴取にしました",
+        "bought": "未購入にしました",
+        "cooked": "未調理にしました",
+        "played": "未プレイにしました",
+        "done": "未完了にしました"
+      }
     },
     "settings": {
       "languageDescription": "アカウントに保存されるため、すべてのデバイスで同じ設定になります。"
+    },
+    "app": {
+      "nav": {
+        "home": "ホーム",
+        "folders": "フォルダ",
+        "add": "追加",
+        "settings": "設定",
+        "favorites": "お気に入り",
+        "archive": "アーカイブ",
+        "tags": "タグ",
+        "trash": "ゴミ箱",
+        "types": "種類",
+        "newFolder": "新規フォルダ"
+      },
+      "ok": "OK",
+      "upgrade": "アップグレード…",
+      "typeToConfirm": "「{phrase}」と入力",
+      "offline": {
+        "title": "オフラインです",
+        "message": "カードにアクセスするには、接続を確認してからもう一度お試しください。"
+      },
+      "failed": {
+        "title": "問題が発生しました"
+      },
+      "signInConfigFailed": "サインインの設定を読み込めませんでした",
+      "connectFailed": "接続できませんでした。もう一度お試しください。",
+      "uploadProgress": "保存しています（{done}/{total}）…",
+      "dropFiles": "ドロップしてファイルをアップロード",
+      "missingCard": "見つからないカード",
+      "saveRequest": {
+        "savingTitle": "保存中",
+        "savingMessage": "Teak の保管庫に保存しています…",
+        "savedTitle": "保存しました",
+        "savedMessage": "ライブラリに追加されました。",
+        "emptyTitle": "保存するものがありません",
+        "emptyMessage": "ショートカットからテキストやリンクが送信されませんでした。",
+        "signedOutTitle": "サインインが必要です",
+        "signedOutMessage": "Teak を開いてサインインしてから、もう一度ショートカットを実行してください。",
+        "failedTitle": "保存できませんでした",
+        "failedMessage": "接続を確認してから、もう一度お試しください。"
+      }
+    },
+    "auth": {
+      "tagline": "何でも、どこからでも保存。",
+      "intro": "あらゆるものを管理できる、あなた専用のシステム。テキスト、画像、ドキュメントをひとつの場所で整理・保存して、いつでも開けます。",
+      "continueWithApple": "Apple で続ける",
+      "continueWithGoogle": "Google で続ける",
+      "registerWithEmail": "メールアドレスで登録",
+      "signInWithEmail": "メールアドレスでサインイン",
+      "signingIn": "サインイン中…",
+      "signupsPaused": "現在、新規登録を一時停止しています。しばらくしてからもう一度お試しください。",
+      "failedTitle": "サインインできませんでした",
+      "failedApple": "Apple でサインインできませんでした。もう一度お試しください。",
+      "failedGoogle": "Google でサインインできませんでした。もう一度お試しください。",
+      "failedEmail": "メールアドレスでサインインできませんでした。もう一度お試しください。",
+      "completeFailed": "サインインを完了できませんでした。もう一度お試しください。"
+    },
+    "library": {
+      "search": "検索",
+      "clearSearch": "検索をクリア",
+      "selectCards": "カードを選択",
+      "selectedCount": "{count, plural, other {# 件を選択中}}",
+      "selectAll": "すべて選択",
+      "doneSelecting": "選択を終了",
+      "folder": "フォルダ",
+      "goBack": "戻る",
+      "folderMissing": "削除された可能性があります。",
+      "showsHiddenCards": "非表示のカードを表示しています",
+      "clearFilters": "フィルタをクリア",
+      "showAllCards": "すべてのカードを表示",
+      "loadingCards": "カードを読み込み中",
+      "loadingMore": "さらにカードを読み込み中",
+      "loadMoreFailed": "続きのカードを読み込めませんでした。",
+      "loadFailed": {
+        "title": "カードを読み込めませんでした",
+        "message": "接続を確認してから、もう一度お試しください。"
+      },
+      "downloadFailed": "このファイルをダウンロードできませんでした。",
+      "createFolderFailed": "フォルダを作成できませんでした",
+      "savedSmartFolder": "「{name}」を保存しました",
+      "refreshQueued": "詳細を更新しています。要約とタグはまもなく更新されます。",
+      "refreshFailed": "このカードを更新できませんでした。しばらくしてからもう一度お試しください。",
+      "toast": {
+        "trashed": "カードをゴミ箱に移動しました",
+        "restored": "カードを復元しました",
+        "deletedForever": "カードを完全に削除しました"
+      },
+      "confirmTrash": {
+        "title": "ゴミ箱に移動しますか？",
+        "message": "このカードはゴミ箱に移動されます。"
+      },
+      "confirmDeleteForever": {
+        "title": "完全に削除しますか？",
+        "message": "カードとそのファイルが削除されます。この操作は元に戻せません。"
+      },
+      "firstCard": {
+        "title": "最初のカードを追加しましょう！",
+        "message": "メモ、リンク、写真、ボイスメモを保存すると、ここに表示されます。",
+        "writeNote": "メモを書く"
+      },
+      "empty": {
+        "todoTitle": "残っている未完了の項目はありません。",
+        "todoMessage": "完了にしたリンクはこのリストから外れます。",
+        "smartFolderTitle": "このスマートフォルダに一致するカードはありません。",
+        "smartFolderMessage": "検索条件に一致するカードは、保存するたびにここに表示されます。",
+        "folderTitle": "このフォルダにはまだカードがありません。",
+        "folderMessage": "ライブラリからカードを追加すると、ここに表示されます。",
+        "trashTitle": "ゴミ箱は空です",
+        "trashMessage": "削除したカードは 30 日間ここに残ります。",
+        "archiveTitle": "アーカイブしたカードはありません",
+        "archiveMessage": "カードをアーカイブすると、ライブラリに表示されなくなります。",
+        "filtersTitle": "一致するカードはありません",
+        "filtersMessage": "別のフィルタをお試しください。",
+        "searchTitle": "「{query}」の検索結果はありません",
+        "searchMessage": "スペルを確認するか、別のキーワードで検索してください。",
+        "timeMessage": "{range} のカードはありません。"
+      },
+      "menu": {
+        "show": "表示",
+        "type": "種類",
+        "color": "色",
+        "sort": "並べ替え",
+        "shuffle": "シャッフル",
+        "reshuffle": "もう一度シャッフル",
+        "saveSmartFolder": "スマートフォルダとして保存…"
+      },
+      "sort": {
+        "newest": "並べ替え",
+        "oldest": "並べ替え：古い順",
+        "shuffle": "並べ替え：シャッフル"
+      },
+      "filter": {
+        "done": "完了",
+        "todo": "未完了",
+        "clear": "クリア"
+      },
+      "selected": "選択済み",
+      "tile": {
+        "open": "開く",
+        "favorite": "お気に入り",
+        "attachment": "添付ファイル",
+        "note": "メモ"
+      },
+      "saveSearch": {
+        "title": "スマートフォルダとして保存",
+        "message": "検索条件に一致するすべてのカードを表示します。あとで保存したカードも含まれます。",
+        "nameLabel": "名前",
+        "namePlaceholder": "あとで読む",
+        "save": "スマートフォルダを保存"
+      }
+    },
+    "bulk": {
+      "addTagsEllipsis": "タグを追加…",
+      "addToFolderEllipsis": "フォルダに追加…",
+      "addToFavorites": "お気に入りに追加",
+      "removeFromFavorites": "お気に入りから削除",
+      "moreActions": "その他の操作",
+      "addTagsTitle": "{count, plural, other {# 件のカード}}にタグを追加",
+      "tagsLabel": "タグ",
+      "tagsPlaceholder": "デザイン, インスピレーション",
+      "tagsHint": "タグはカンマで区切ってください。",
+      "tooManyTags": "一度に選択できるタグは {max} 個までです。",
+      "addToFolderTitle": "{count, plural, other {# 件のカード}}をフォルダに追加",
+      "findFolder": "フォルダを検索または作成",
+      "searchFolders": "フォルダを検索",
+      "createFolder": "フォルダ「{name}」を作成",
+      "noFolders": "フォルダはまだありません。名前を入力すると作成できます。",
+      "noFolderMatch": "その名前のフォルダはありません。",
+      "deleteForeverMessage": "{count, plural, other {# 件のカードとそのファイルが削除されます。}}この操作は元に戻せません。",
+      "done": {
+        "favorite": "{count, plural, other {# 件のカード}}をお気に入りに追加しました",
+        "unfavorite": "{count, plural, other {# 件のカード}}をお気に入りから削除しました",
+        "archive": "{count, plural, other {# 件のカード}}をアーカイブしました",
+        "unarchive": "{count, plural, other {# 件のカード}}をライブラリに戻しました",
+        "addTags": "{count, plural, other {# 件のカード}}にタグを追加しました",
+        "removeTags": "{count, plural, other {# 件のカード}}からタグを削除しました",
+        "delete": "{count, plural, other {# 件のカード}}をゴミ箱に移動しました",
+        "restore": "{count, plural, other {# 件のカード}}を復元しました",
+        "addToFolder": "{count, plural, other {# 件のカード}}を {folder} に追加しました",
+        "addToTheFolder": "{count, plural, other {# 件のカード}}をフォルダに追加しました",
+        "deleteForever": "{count, plural, other {# 件のカード}}を完全に削除しました"
+      },
+      "failed": {
+        "favorite": "これらのカードをお気に入りに追加できませんでした",
+        "unfavorite": "これらのカードをお気に入りから削除できませんでした",
+        "archive": "これらのカードをアーカイブできませんでした",
+        "unarchive": "これらのカードのアーカイブを解除できませんでした",
+        "addTags": "これらのカードにタグを追加できませんでした",
+        "removeTags": "これらのカードからタグを削除できませんでした",
+        "delete": "これらのカードをゴミ箱に移動できませんでした",
+        "restore": "これらのカードを復元できませんでした",
+        "addToFolder": "これらのカードをフォルダに追加できませんでした",
+        "deleteForever": "これらのカードを完全に削除できませんでした"
+      },
+      "partial": "{message}。{count, plural, other {# 件は変更できませんでした。}}"
+    },
+    "similar": {
+      "emptyTitle": "似たカードはまだありません",
+      "emptyMessage": "別のカードでお試しください。",
+      "pending": "このカードはまだ解析中です。しばらくしてからもう一度お試しください。",
+      "rateLimited": "検索回数が多すぎます。1 分後にもう一度お試しください。",
+      "unavailable": "現在、意味による検索を利用できません。",
+      "unavailableCard": "利用できないカード"
+    },
+    "revisit": {
+      "title": "振り返り",
+      "close": "振り返りを閉じる",
+      "position": "{current} / {total}",
+      "emptyTitle": "振り返るカードはありません",
+      "emptyMessage": "保存したカードがここに表示され、あとから振り返れます。",
+      "keep": "残す",
+      "archived": "アーカイブ済み",
+      "swipeHint": "左にスワイプでアーカイブ、右にスワイプで残す",
+      "releaseToArchive": "指を離してアーカイブ",
+      "releaseToKeep": "指を離して残す",
+      "caption": "{type} · {date} に保存",
+      "finishedTitle": "すべて確認しました",
+      "summary": "アーカイブ {archived} 件 · 残す {kept} 件",
+      "startOver": "最初からやり直す",
+      "revisitMore": "{count, plural, other {さらに # 件を振り返る}}",
+      "undoLastArchive": "直前のアーカイブを取り消す",
+      "undoHint": "Z で直前のアーカイブを取り消します",
+      "tooManyChanges": "変更が多すぎます。しばらくしてからもう一度お試しください。",
+      "updateFailed": "このカードを更新できませんでした。"
     }
   },
   "apple": {
@@ -17,6 +315,12 @@
     },
     "servicesMenu": {
       "saveToTeak": "Teak に保存"
+    },
+    "library": {
+      "newNote": "新規メモ",
+      "voiceMemo": "ボイスメモ",
+      "uploadFiles": "ファイルをアップロード…",
+      "revisitKeys": "← アーカイブ · → 残す · Z 元に戻す · Esc 終了"
     }
   },
   "android": {}

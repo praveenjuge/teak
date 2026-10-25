@@ -8,7 +8,7 @@ import Testing
     @Test(arguments: [
         ("en", 1, "1 card"), ("en", 2, "2 cards"),
         ("de", 1, "1 Karte"), ("de", 3, "3 Karten"),
-        ("ja", 1, "1 枚のカード"), ("ja", 3, "3 枚のカード"),
+        ("ja", 1, "1 件のカード"), ("ja", 3, "3 件のカード"),
     ])
     func pluralsFollowTheLanguage(_ code: String, count: Int, expected: String) {
         #expect(tr("native.common.cardCount", count: count, [], in: code) == expected)

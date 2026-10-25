@@ -3,8 +3,306 @@
     "common": {
       "cardCount": "{count, plural, one {# Karte} other {# Karten}}"
     },
+    "actions": {
+      "addTags": "Tags hinzufügen",
+      "archive": "Archivieren",
+      "unarchive": "Dearchivieren",
+      "favorite": "Als Favorit markieren",
+      "unfavorite": "Aus Favoriten entfernen",
+      "moveToTrash": "In den Papierkorb legen",
+      "restore": "Wiederherstellen",
+      "deleteForever": "Endgültig löschen",
+      "moreLikeThis": "Ähnliche Karten",
+      "refreshDetails": "Details aktualisieren",
+      "copyLink": "Link kopieren",
+      "copyLinkToCard": "Link zur Karte kopieren",
+      "copyImage": "Bild kopieren",
+      "copyText": "Text kopieren",
+      "copyQuote": "Zitat kopieren",
+      "copyPalette": "Palette kopieren",
+      "openLink": "Link öffnen",
+      "openOnWeb": "Im Web öffnen",
+      "download": "Herunterladen",
+      "saveToFiles": "In Dateien sichern",
+      "share": "Teilen",
+      "select": "Auswählen",
+      "linkCopied": "Link kopiert",
+      "copyImageFailed": "Dieses Bild konnte nicht kopiert werden.",
+      "shareFailed": "Diese Datei konnte nicht geteilt werden."
+    },
+    "done": {
+      "markAs": {
+        "read": "Als gelesen markieren",
+        "watched": "Als gesehen markieren",
+        "listened": "Als gehört markieren",
+        "bought": "Als gekauft markieren",
+        "cooked": "Als gekocht markieren",
+        "played": "Als gespielt markieren",
+        "done": "Als erledigt markieren"
+      },
+      "markAsNot": {
+        "read": "Als ungelesen markieren",
+        "watched": "Als nicht gesehen markieren",
+        "listened": "Als nicht gehört markieren",
+        "bought": "Als nicht gekauft markieren",
+        "cooked": "Als nicht gekocht markieren",
+        "played": "Als nicht gespielt markieren",
+        "done": "Als nicht erledigt markieren"
+      },
+      "state": {
+        "read": "Gelesen",
+        "watched": "Gesehen",
+        "listened": "Gehört",
+        "bought": "Gekauft",
+        "cooked": "Gekocht",
+        "played": "Gespielt",
+        "done": "Erledigt"
+      },
+      "markedAs": {
+        "read": "Als gelesen markiert",
+        "watched": "Als gesehen markiert",
+        "listened": "Als gehört markiert",
+        "bought": "Als gekauft markiert",
+        "cooked": "Als gekocht markiert",
+        "played": "Als gespielt markiert",
+        "done": "Als erledigt markiert"
+      },
+      "markedAsNot": {
+        "read": "Als ungelesen markiert",
+        "watched": "Als nicht gesehen markiert",
+        "listened": "Als nicht gehört markiert",
+        "bought": "Als nicht gekauft markiert",
+        "cooked": "Als nicht gekocht markiert",
+        "played": "Als nicht gespielt markiert",
+        "done": "Als nicht erledigt markiert"
+      }
+    },
     "settings": {
       "languageDescription": "In Ihrem Konto gespeichert, damit es Ihnen auf jedes Gerät folgt."
+    },
+    "app": {
+      "nav": {
+        "home": "Start",
+        "folders": "Ordner",
+        "add": "Hinzufügen",
+        "settings": "Einstellungen",
+        "favorites": "Favoriten",
+        "archive": "Archiv",
+        "tags": "Tags",
+        "trash": "Papierkorb",
+        "types": "Typen",
+        "newFolder": "Neuer Ordner"
+      },
+      "ok": "OK",
+      "upgrade": "Upgraden…",
+      "typeToConfirm": "Geben Sie „{phrase}“ ein",
+      "offline": {
+        "title": "Sie sind offline",
+        "message": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut, um auf Ihre Karten zuzugreifen."
+      },
+      "failed": {
+        "title": "Etwas ist schiefgelaufen"
+      },
+      "signInConfigFailed": "Die Anmeldekonfiguration konnte nicht geladen werden",
+      "connectFailed": "Verbindung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "uploadProgress": "{done} von {total} wird gespeichert…",
+      "dropFiles": "Dateien zum Hochladen ablegen",
+      "missingCard": "Fehlende Karte",
+      "saveRequest": {
+        "savingTitle": "Wird gespeichert",
+        "savingMessage": "Wird in Ihrem Teak-Tresor gespeichert…",
+        "savedTitle": "Gespeichert",
+        "savedMessage": "Es ist jetzt in Ihrer Bibliothek.",
+        "emptyTitle": "Nichts zu speichern",
+        "emptyMessage": "Der Kurzbefehl hat weder Text noch Link gesendet.",
+        "signedOutTitle": "Anmeldung erforderlich",
+        "signedOutMessage": "Öffnen Sie Teak, melden Sie sich an und führen Sie den Kurzbefehl dann erneut aus.",
+        "failedTitle": "Speichern fehlgeschlagen",
+        "failedMessage": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+      }
+    },
+    "auth": {
+      "tagline": "Alles speichern. Überall.",
+      "intro": "Ihr persönliches System für alles. Organisieren, speichern und öffnen Sie all Ihre Texte, Bilder und Dokumente an einem Ort.",
+      "continueWithApple": "Mit Apple fortfahren",
+      "continueWithGoogle": "Mit Google fortfahren",
+      "registerWithEmail": "Mit E-Mail registrieren",
+      "signInWithEmail": "Mit E-Mail anmelden",
+      "signingIn": "Anmeldung läuft…",
+      "signupsPaused": "Neue Registrierungen sind gerade pausiert. Bitte versuchen Sie es später erneut.",
+      "failedTitle": "Anmeldung fehlgeschlagen",
+      "failedApple": "Die Anmeldung mit Apple ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "failedGoogle": "Die Anmeldung mit Google ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "failedEmail": "Die Anmeldung mit E-Mail ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "completeFailed": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut."
+    },
+    "library": {
+      "search": "Suchen",
+      "clearSearch": "Suche löschen",
+      "selectCards": "Karten auswählen",
+      "selectedCount": "{count, plural, one {# ausgewählt} other {# ausgewählt}}",
+      "selectAll": "Alle auswählen",
+      "doneSelecting": "Auswahl beenden",
+      "folder": "Ordner",
+      "goBack": "Zurück",
+      "folderMissing": "Er wurde möglicherweise gelöscht.",
+      "showsHiddenCards": "Zeigt ausgeblendete Karten",
+      "clearFilters": "Filter zurücksetzen",
+      "showAllCards": "Alle Karten anzeigen",
+      "loadingCards": "Karten werden geladen",
+      "loadingMore": "Weitere Karten werden geladen",
+      "loadMoreFailed": "Weitere Karten konnten nicht geladen werden.",
+      "loadFailed": {
+        "title": "Karten konnten nicht geladen werden",
+        "message": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+      },
+      "downloadFailed": "Diese Datei konnte nicht heruntergeladen werden.",
+      "createFolderFailed": "Der Ordner konnte nicht erstellt werden",
+      "savedSmartFolder": "„{name}“ gespeichert",
+      "refreshQueued": "Details werden aktualisiert. Zusammenfassung und Tags folgen in Kürze.",
+      "refreshFailed": "Diese Karte konnte nicht aktualisiert werden. Versuchen Sie es gleich noch einmal.",
+      "toast": {
+        "trashed": "Karte in den Papierkorb gelegt",
+        "restored": "Karte wiederhergestellt",
+        "deletedForever": "Karte endgültig gelöscht"
+      },
+      "confirmTrash": {
+        "title": "In den Papierkorb legen?",
+        "message": "Diese Karte wird in den Papierkorb gelegt."
+      },
+      "confirmDeleteForever": {
+        "title": "Endgültig löschen?",
+        "message": "Die Karte und ihre Dateien werden entfernt. Dies lässt sich nicht rückgängig machen."
+      },
+      "firstCard": {
+        "title": "Fügen Sie Ihre erste Karte hinzu!",
+        "message": "Speichern Sie Notizen, Links, Fotos und Sprachmemos. Sie erscheinen hier.",
+        "writeNote": "Notiz schreiben"
+      },
+      "empty": {
+        "todoTitle": "Nichts mehr zu erledigen.",
+        "todoMessage": "Links, die Sie als erledigt markieren, verschwinden aus dieser Liste.",
+        "smartFolderTitle": "Keine Karten passen zu diesem intelligenten Ordner.",
+        "smartFolderMessage": "Karten, die zu seiner Suche passen, erscheinen hier, sobald Sie sie speichern.",
+        "folderTitle": "Noch keine Karten in diesem Ordner.",
+        "folderMessage": "Fügen Sie Karten aus Ihrer Bibliothek hinzu, um sie hier zu sehen.",
+        "trashTitle": "Der Papierkorb ist leer",
+        "trashMessage": "Gelöschte Karten bleiben 30 Tage lang hier.",
+        "archiveTitle": "Nichts archiviert",
+        "archiveMessage": "Archivieren Sie eine Karte, um sie aus Ihrer Bibliothek herauszuhalten.",
+        "filtersTitle": "Keine passenden Karten",
+        "filtersMessage": "Versuchen Sie andere Filter.",
+        "searchTitle": "Keine Ergebnisse für „{query}“",
+        "searchMessage": "Prüfen Sie die Schreibweise oder versuchen Sie eine andere Suche.",
+        "timeMessage": "Keine Karten aus {range}."
+      },
+      "menu": {
+        "show": "Anzeigen",
+        "type": "Typ",
+        "color": "Farbe",
+        "sort": "Sortieren",
+        "shuffle": "Zufällig",
+        "reshuffle": "Neu mischen",
+        "saveSmartFolder": "Als intelligenten Ordner speichern…"
+      },
+      "sort": {
+        "newest": "Sortieren",
+        "oldest": "Sortierung: älteste zuerst",
+        "shuffle": "Sortierung: zufällig"
+      },
+      "filter": {
+        "done": "Erledigt",
+        "todo": "Offen",
+        "clear": "Zurücksetzen"
+      },
+      "selected": "Ausgewählt",
+      "tile": {
+        "open": "Öffnen",
+        "favorite": "Favorit",
+        "attachment": "Anhang",
+        "note": "Notiz"
+      },
+      "saveSearch": {
+        "title": "Als intelligenten Ordner speichern",
+        "message": "Zeigt jede Karte, die zur Suche passt, auch Karten, die Sie später speichern.",
+        "nameLabel": "Name",
+        "namePlaceholder": "Leseliste",
+        "save": "Intelligenten Ordner speichern"
+      }
+    },
+    "bulk": {
+      "addTagsEllipsis": "Tags hinzufügen…",
+      "addToFolderEllipsis": "Zu Ordner hinzufügen…",
+      "addToFavorites": "Zu Favoriten hinzufügen",
+      "removeFromFavorites": "Aus Favoriten entfernen",
+      "moreActions": "Weitere Aktionen",
+      "addTagsTitle": "Tags zu {count, plural, one {# Karte} other {# Karten}} hinzufügen",
+      "tagsLabel": "Tags",
+      "tagsPlaceholder": "Design, Inspiration",
+      "tagsHint": "Trennen Sie Tags durch Kommas.",
+      "tooManyTags": "Wählen Sie höchstens {max} Tags auf einmal.",
+      "addToFolderTitle": "{count, plural, one {# Karte} other {# Karten}} zu einem Ordner hinzufügen",
+      "findFolder": "Ordner suchen oder erstellen",
+      "searchFolders": "Ordner durchsuchen",
+      "createFolder": "Ordner „{name}“ erstellen",
+      "noFolders": "Noch keine Ordner. Geben Sie einen Namen ein, um einen zu erstellen.",
+      "noFolderMatch": "Kein Ordner mit diesem Namen.",
+      "deleteForeverMessage": "{count, plural, one {# Karte und ihre Dateien werden entfernt.} other {# Karten und ihre Dateien werden entfernt.}} Dies lässt sich nicht rückgängig machen.",
+      "done": {
+        "favorite": "{count, plural, one {# Karte} other {# Karten}} zu Favoriten hinzugefügt",
+        "unfavorite": "{count, plural, one {# Karte} other {# Karten}} aus Favoriten entfernt",
+        "archive": "{count, plural, one {# Karte} other {# Karten}} archiviert",
+        "unarchive": "{count, plural, one {# Karte} other {# Karten}} zurück in die Bibliothek gebracht",
+        "addTags": "Tags zu {count, plural, one {# Karte} other {# Karten}} hinzugefügt",
+        "removeTags": "Tags von {count, plural, one {# Karte} other {# Karten}} entfernt",
+        "delete": "{count, plural, one {# Karte} other {# Karten}} in den Papierkorb gelegt",
+        "restore": "{count, plural, one {# Karte} other {# Karten}} wiederhergestellt",
+        "addToFolder": "{count, plural, one {# Karte} other {# Karten}} zu {folder} hinzugefügt",
+        "addToTheFolder": "{count, plural, one {# Karte} other {# Karten}} zum Ordner hinzugefügt",
+        "deleteForever": "{count, plural, one {# Karte} other {# Karten}} endgültig gelöscht"
+      },
+      "failed": {
+        "favorite": "Diese Karten konnten nicht zu Favoriten hinzugefügt werden",
+        "unfavorite": "Diese Karten konnten nicht aus Favoriten entfernt werden",
+        "archive": "Diese Karten konnten nicht archiviert werden",
+        "unarchive": "Diese Karten konnten nicht dearchiviert werden",
+        "addTags": "Den Karten konnten keine Tags hinzugefügt werden",
+        "removeTags": "Die Tags konnten nicht von diesen Karten entfernt werden",
+        "delete": "Diese Karten konnten nicht in den Papierkorb gelegt werden",
+        "restore": "Diese Karten konnten nicht wiederhergestellt werden",
+        "addToFolder": "Diese Karten konnten nicht zum Ordner hinzugefügt werden",
+        "deleteForever": "Diese Karten konnten nicht endgültig gelöscht werden"
+      },
+      "partial": "{message}. {count, plural, one {# Karte konnte nicht geändert werden.} other {# Karten konnten nicht geändert werden.}}"
+    },
+    "similar": {
+      "emptyTitle": "Noch nichts Ähnliches",
+      "emptyMessage": "Versuchen Sie es mit einer anderen Karte.",
+      "pending": "Teak lernt diese Karte noch kennen. Versuchen Sie es gleich noch einmal.",
+      "rateLimited": "Zu viele Suchen. Versuchen Sie es in einer Minute erneut.",
+      "unavailable": "Die Suche nach Bedeutung ist gerade nicht möglich.",
+      "unavailableCard": "nicht verfügbare Karte"
+    },
+    "revisit": {
+      "title": "Wiedersehen",
+      "close": "Wiedersehen schließen",
+      "position": "{current} von {total}",
+      "emptyTitle": "Hier gibt es nichts wiederzusehen",
+      "emptyMessage": "Karten, die Sie speichern, erscheinen hier, damit Sie sie wiedersehen.",
+      "keep": "Behalten",
+      "archived": "Archiviert",
+      "swipeHint": "Nach links wischen zum Archivieren, nach rechts zum Behalten",
+      "releaseToArchive": "Loslassen zum Archivieren",
+      "releaseToKeep": "Loslassen zum Behalten",
+      "caption": "{type} · Gespeichert am {date}",
+      "finishedTitle": "Alles erledigt",
+      "summary": "{archived} archiviert · {kept} behalten",
+      "startOver": "Von vorn beginnen",
+      "revisitMore": "{count, plural, one {# weitere wiedersehen} other {# weitere wiedersehen}}",
+      "undoLastArchive": "Letztes Archivieren rückgängig machen",
+      "undoHint": "Z macht das letzte Archivieren rückgängig",
+      "tooManyChanges": "Zu viele Änderungen. Versuchen Sie es gleich noch einmal.",
+      "updateFailed": "Diese Karte konnte nicht aktualisiert werden."
     }
   },
   "apple": {
@@ -17,6 +315,12 @@
     },
     "servicesMenu": {
       "saveToTeak": "In Teak sichern"
+    },
+    "library": {
+      "newNote": "Neue Notiz",
+      "voiceMemo": "Sprachmemo",
+      "uploadFiles": "Dateien hochladen…",
+      "revisitKeys": "← archivieren · → behalten · Z rückgängig · Esc beenden"
     }
   },
   "android": {}

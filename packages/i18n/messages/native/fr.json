@@ -3,8 +3,306 @@
     "common": {
       "cardCount": "{count, plural, one {# fiche} other {# fiches}}"
     },
+    "actions": {
+      "addTags": "Ajouter des tags",
+      "archive": "Archiver",
+      "unarchive": "Désarchiver",
+      "favorite": "Ajouter aux favoris",
+      "unfavorite": "Retirer des favoris",
+      "moveToTrash": "Placer dans la corbeille",
+      "restore": "Restaurer",
+      "deleteForever": "Supprimer définitivement",
+      "moreLikeThis": "Plus de ce genre",
+      "refreshDetails": "Actualiser les détails",
+      "copyLink": "Copier le lien",
+      "copyLinkToCard": "Copier le lien vers la fiche",
+      "copyImage": "Copier l’image",
+      "copyText": "Copier le texte",
+      "copyQuote": "Copier la citation",
+      "copyPalette": "Copier la palette",
+      "openLink": "Ouvrir le lien",
+      "openOnWeb": "Ouvrir sur le web",
+      "download": "Télécharger",
+      "saveToFiles": "Enregistrer dans Fichiers",
+      "share": "Partager",
+      "select": "Sélectionner",
+      "linkCopied": "Lien copié",
+      "copyImageFailed": "Impossible de copier cette image.",
+      "shareFailed": "Impossible de partager ce fichier."
+    },
+    "done": {
+      "markAs": {
+        "read": "Marquer comme lue",
+        "watched": "Marquer comme vue",
+        "listened": "Marquer comme écoutée",
+        "bought": "Marquer comme achetée",
+        "cooked": "Marquer comme cuisinée",
+        "played": "Marquer comme jouée",
+        "done": "Marquer comme terminée"
+      },
+      "markAsNot": {
+        "read": "Marquer comme non lue",
+        "watched": "Marquer comme non vue",
+        "listened": "Marquer comme non écoutée",
+        "bought": "Marquer comme non achetée",
+        "cooked": "Marquer comme non cuisinée",
+        "played": "Marquer comme non jouée",
+        "done": "Marquer comme non terminée"
+      },
+      "state": {
+        "read": "Lue",
+        "watched": "Vue",
+        "listened": "Écoutée",
+        "bought": "Achetée",
+        "cooked": "Cuisinée",
+        "played": "Jouée",
+        "done": "Terminée"
+      },
+      "markedAs": {
+        "read": "Marquée comme lue",
+        "watched": "Marquée comme vue",
+        "listened": "Marquée comme écoutée",
+        "bought": "Marquée comme achetée",
+        "cooked": "Marquée comme cuisinée",
+        "played": "Marquée comme jouée",
+        "done": "Marquée comme terminée"
+      },
+      "markedAsNot": {
+        "read": "Marquée comme non lue",
+        "watched": "Marquée comme non vue",
+        "listened": "Marquée comme non écoutée",
+        "bought": "Marquée comme non achetée",
+        "cooked": "Marquée comme non cuisinée",
+        "played": "Marquée comme non jouée",
+        "done": "Marquée comme non terminée"
+      }
+    },
     "settings": {
       "languageDescription": "Enregistrée dans votre compte, elle vous suit sur tous vos appareils."
+    },
+    "app": {
+      "nav": {
+        "home": "Accueil",
+        "folders": "Dossiers",
+        "add": "Ajouter",
+        "settings": "Réglages",
+        "favorites": "Favoris",
+        "archive": "Archives",
+        "tags": "Tags",
+        "trash": "Corbeille",
+        "types": "Types",
+        "newFolder": "Nouveau dossier"
+      },
+      "ok": "OK",
+      "upgrade": "Passer à Pro…",
+      "typeToConfirm": "Saisissez « {phrase} »",
+      "offline": {
+        "title": "Vous êtes hors ligne",
+        "message": "Vérifiez votre connexion et réessayez pour accéder à vos fiches."
+      },
+      "failed": {
+        "title": "Une erreur s’est produite"
+      },
+      "signInConfigFailed": "Impossible de charger la configuration de connexion",
+      "connectFailed": "Connexion impossible. Veuillez réessayer.",
+      "uploadProgress": "Enregistrement de {done} sur {total}…",
+      "dropFiles": "Déposez des fichiers pour les importer",
+      "missingCard": "Fiche manquante",
+      "saveRequest": {
+        "savingTitle": "Enregistrement",
+        "savingMessage": "Enregistrement dans votre coffre Teak…",
+        "savedTitle": "Enregistré",
+        "savedMessage": "C’est dans votre bibliothèque.",
+        "emptyTitle": "Rien à enregistrer",
+        "emptyMessage": "Le raccourci n’a envoyé aucun texte ni lien.",
+        "signedOutTitle": "Connexion requise",
+        "signedOutMessage": "Ouvrez Teak et connectez-vous, puis exécutez à nouveau le raccourci.",
+        "failedTitle": "Échec de l’enregistrement",
+        "failedMessage": "Vérifiez votre connexion et réessayez."
+      }
+    },
+    "auth": {
+      "tagline": "Enregistrez tout. Partout.",
+      "intro": "Votre système personnel pour tout gérer. Organisez, enregistrez et retrouvez tous vos textes, images et documents au même endroit.",
+      "continueWithApple": "Continuer avec Apple",
+      "continueWithGoogle": "Continuer avec Google",
+      "registerWithEmail": "S’inscrire par e-mail",
+      "signInWithEmail": "Se connecter par e-mail",
+      "signingIn": "Connexion en cours…",
+      "signupsPaused": "Les nouvelles inscriptions sont suspendues pour le moment. Veuillez réessayer plus tard.",
+      "failedTitle": "Impossible de se connecter",
+      "failedApple": "Impossible de se connecter avec Apple. Veuillez réessayer.",
+      "failedGoogle": "Impossible de se connecter avec Google. Veuillez réessayer.",
+      "failedEmail": "Impossible de se connecter par e-mail. Veuillez réessayer.",
+      "completeFailed": "Impossible de finaliser la connexion. Veuillez réessayer."
+    },
+    "library": {
+      "search": "Rechercher",
+      "clearSearch": "Effacer la recherche",
+      "selectCards": "Sélectionner des fiches",
+      "selectedCount": "{count, plural, one {# sélectionnée} other {# sélectionnées}}",
+      "selectAll": "Tout sélectionner",
+      "doneSelecting": "Terminer la sélection",
+      "folder": "Dossier",
+      "goBack": "Retour",
+      "folderMissing": "Il a peut-être été supprimé.",
+      "showsHiddenCards": "Affiche les fiches masquées",
+      "clearFilters": "Effacer les filtres",
+      "showAllCards": "Afficher toutes les fiches",
+      "loadingCards": "Chargement des fiches",
+      "loadingMore": "Chargement d’autres fiches",
+      "loadMoreFailed": "Impossible de charger d’autres fiches.",
+      "loadFailed": {
+        "title": "Impossible de charger les fiches",
+        "message": "Vérifiez votre connexion et réessayez."
+      },
+      "downloadFailed": "Impossible de télécharger ce fichier.",
+      "createFolderFailed": "Impossible de créer le dossier",
+      "savedSmartFolder": "« {name} » enregistré",
+      "refreshQueued": "Actualisation des détails. Le résumé et les tags seront bientôt mis à jour.",
+      "refreshFailed": "Impossible d’actualiser cette fiche. Réessayez dans un instant.",
+      "toast": {
+        "trashed": "Fiche placée dans la corbeille",
+        "restored": "Fiche restaurée",
+        "deletedForever": "Fiche supprimée définitivement"
+      },
+      "confirmTrash": {
+        "title": "Placer dans la corbeille ?",
+        "message": "Cette fiche sera placée dans la corbeille."
+      },
+      "confirmDeleteForever": {
+        "title": "Supprimer définitivement ?",
+        "message": "La fiche et ses fichiers seront supprimés. Cette action est irréversible."
+      },
+      "firstCard": {
+        "title": "Ajoutons votre première fiche !",
+        "message": "Enregistrez des notes, des liens, des photos et des mémos vocaux. Ils apparaîtront ici.",
+        "writeNote": "Écrire une note"
+      },
+      "empty": {
+        "todoTitle": "Plus rien à faire.",
+        "todoMessage": "Les liens que vous marquez comme terminés quittent cette liste.",
+        "smartFolderTitle": "Aucune fiche ne correspond à ce dossier intelligent.",
+        "smartFolderMessage": "Les fiches qui correspondent à sa recherche apparaissent ici, au fur et à mesure que vous les enregistrez.",
+        "folderTitle": "Aucune fiche dans ce dossier pour l’instant.",
+        "folderMessage": "Ajoutez des fiches depuis votre bibliothèque pour les voir ici.",
+        "trashTitle": "La corbeille est vide",
+        "trashMessage": "Les fiches que vous supprimez restent ici pendant 30 jours.",
+        "archiveTitle": "Rien d’archivé",
+        "archiveMessage": "Archivez une fiche pour la sortir de votre bibliothèque.",
+        "filtersTitle": "Aucune fiche correspondante",
+        "filtersMessage": "Essayez d’autres filtres.",
+        "searchTitle": "Aucun résultat pour « {query} »",
+        "searchMessage": "Vérifiez l’orthographe ou lancez une nouvelle recherche.",
+        "timeMessage": "Aucune fiche de {range}."
+      },
+      "menu": {
+        "show": "Afficher",
+        "type": "Type",
+        "color": "Couleur",
+        "sort": "Trier",
+        "shuffle": "Aléatoire",
+        "reshuffle": "Mélanger à nouveau",
+        "saveSmartFolder": "Enregistrer comme dossier intelligent…"
+      },
+      "sort": {
+        "newest": "Trier",
+        "oldest": "Tri : plus anciennes d’abord",
+        "shuffle": "Tri : aléatoire"
+      },
+      "filter": {
+        "done": "Terminées",
+        "todo": "À faire",
+        "clear": "Effacer"
+      },
+      "selected": "Sélectionnée",
+      "tile": {
+        "open": "Ouvrir",
+        "favorite": "Favori",
+        "attachment": "Pièce jointe",
+        "note": "Note"
+      },
+      "saveSearch": {
+        "title": "Enregistrer comme dossier intelligent",
+        "message": "Affiche toutes les fiches qui correspondent à la recherche, y compris celles que vous enregistrerez plus tard.",
+        "nameLabel": "Nom",
+        "namePlaceholder": "À lire",
+        "save": "Enregistrer le dossier intelligent"
+      }
+    },
+    "bulk": {
+      "addTagsEllipsis": "Ajouter des tags…",
+      "addToFolderEllipsis": "Ajouter à un dossier…",
+      "addToFavorites": "Ajouter aux favoris",
+      "removeFromFavorites": "Retirer des favoris",
+      "moreActions": "Plus d’actions",
+      "addTagsTitle": "Ajouter des tags à {count, plural, one {# fiche} other {# fiches}}",
+      "tagsLabel": "Tags",
+      "tagsPlaceholder": "design, inspiration",
+      "tagsHint": "Séparez les tags par des virgules.",
+      "tooManyTags": "Choisissez au maximum {max} tags à la fois.",
+      "addToFolderTitle": "Ajouter {count, plural, one {# fiche} other {# fiches}} à un dossier",
+      "findFolder": "Trouver ou créer un dossier",
+      "searchFolders": "Rechercher des dossiers",
+      "createFolder": "Créer le dossier « {name} »",
+      "noFolders": "Aucun dossier pour l’instant. Saisissez un nom pour en créer un.",
+      "noFolderMatch": "Aucun dossier ne porte ce nom.",
+      "deleteForeverMessage": "{count, plural, one {# fiche et ses fichiers seront supprimés.} other {# fiches et leurs fichiers seront supprimés.}} Cette action est irréversible.",
+      "done": {
+        "favorite": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} aux favoris",
+        "unfavorite": "{count, plural, one {# fiche retirée} other {# fiches retirées}} des favoris",
+        "archive": "{count, plural, one {# fiche archivée} other {# fiches archivées}}",
+        "unarchive": "{count, plural, one {# fiche remise} other {# fiches remises}} dans la bibliothèque",
+        "addTags": "Tags ajoutés à {count, plural, one {# fiche} other {# fiches}}",
+        "removeTags": "Tags retirés de {count, plural, one {# fiche} other {# fiches}}",
+        "delete": "{count, plural, one {# fiche placée} other {# fiches placées}} dans la corbeille",
+        "restore": "{count, plural, one {# fiche restaurée} other {# fiches restaurées}}",
+        "addToFolder": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} à {folder}",
+        "addToTheFolder": "{count, plural, one {# fiche ajoutée} other {# fiches ajoutées}} au dossier",
+        "deleteForever": "{count, plural, one {# fiche supprimée} other {# fiches supprimées}} définitivement"
+      },
+      "failed": {
+        "favorite": "Impossible d’ajouter ces fiches aux favoris",
+        "unfavorite": "Impossible de retirer ces fiches des favoris",
+        "archive": "Impossible d’archiver ces fiches",
+        "unarchive": "Impossible de désarchiver ces fiches",
+        "addTags": "Impossible d’ajouter des tags à ces fiches",
+        "removeTags": "Impossible de retirer des tags de ces fiches",
+        "delete": "Impossible de placer ces fiches dans la corbeille",
+        "restore": "Impossible de restaurer ces fiches",
+        "addToFolder": "Impossible d’ajouter ces fiches au dossier",
+        "deleteForever": "Impossible de supprimer définitivement ces fiches"
+      },
+      "partial": "{message}. {count, plural, one {# fiche n’a pas pu être modifiée.} other {# fiches n’ont pas pu être modifiées.}}"
+    },
+    "similar": {
+      "emptyTitle": "Rien de similaire pour l’instant",
+      "emptyMessage": "Essayez une autre fiche.",
+      "pending": "Analyse de cette fiche en cours. Réessayez dans un instant.",
+      "rateLimited": "Trop de recherches. Réessayez dans une minute.",
+      "unavailable": "La recherche par le sens est indisponible pour le moment.",
+      "unavailableCard": "fiche indisponible"
+    },
+    "revisit": {
+      "title": "Revoir",
+      "close": "Fermer Revoir",
+      "position": "{current} sur {total}",
+      "emptyTitle": "Rien à revoir ici",
+      "emptyMessage": "Les fiches que vous enregistrez apparaissent ici pour que vous puissiez les revoir.",
+      "keep": "Conserver",
+      "archived": "Archivée",
+      "swipeHint": "Balayez vers la gauche pour archiver, vers la droite pour conserver",
+      "releaseToArchive": "Relâchez pour archiver",
+      "releaseToKeep": "Relâchez pour conserver",
+      "caption": "{type} · Enregistrée le {date}",
+      "finishedTitle": "Vous êtes à jour",
+      "summary": "{archived} archivées · {kept} conservées",
+      "startOver": "Recommencer",
+      "revisitMore": "{count, plural, one {En revoir # de plus} other {En revoir # de plus}}",
+      "undoLastArchive": "Annuler le dernier archivage",
+      "undoHint": "Z annule le dernier archivage",
+      "tooManyChanges": "Trop de modifications. Réessayez dans un instant.",
+      "updateFailed": "Impossible de mettre à jour cette fiche."
     }
   },
   "apple": {
@@ -17,6 +315,12 @@
     },
     "servicesMenu": {
       "saveToTeak": "Enregistrer dans Teak"
+    },
+    "library": {
+      "newNote": "Nouvelle note",
+      "voiceMemo": "Mémo vocal",
+      "uploadFiles": "Importer des fichiers…",
+      "revisitKeys": "← archiver · → conserver · Z annuler · Esc quitter"
     }
   },
   "android": {}

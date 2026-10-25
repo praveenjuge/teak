@@ -26,7 +26,7 @@ class StringsTest {
         val cases = listOf(
             Triple("en", 1, "1 card"), Triple("en", 2, "2 cards"),
             Triple("de", 1, "1 Karte"), Triple("de", 3, "3 Karten"),
-            Triple("ja", 1, "1 枚のカード"), Triple("ja", 3, "3 枚のカード"),
+            Triple("ja", 1, "1 件のカード"), Triple("ja", 3, "3 件のカード"),
         )
         for ((code, count, expected) in cases) {
             assertEquals(expected, resources(code).tr("native.common.cardCount", count = count))
