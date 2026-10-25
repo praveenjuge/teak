@@ -190,6 +190,31 @@ describe("Cards/Card", () => {
     expect(trashed).toContain("Restore");
   });
 
+  test("offers Edit link… for an active link only", () => {
+    const onEditLink = () => undefined;
+    expect(
+      renderToStaticMarkup(
+        <Card card={createLinkCard() as any} onEditLink={onEditLink} />
+      )
+    ).toContain("Edit link…</div>");
+    expect(
+      renderToStaticMarkup(
+        <Card
+          card={createLinkCard({ isDeleted: true }) as any}
+          onEditLink={onEditLink}
+        />
+      )
+    ).not.toContain("Edit link…");
+    expect(
+      renderToStaticMarkup(
+        <Card
+          card={createLinkCard({ type: "text", url: undefined }) as any}
+          onEditLink={onEditLink}
+        />
+      )
+    ).not.toContain("Edit link…");
+  });
+
   test("prefers attached X image media over screenshot in masonry preview", () => {
     const markup = renderToStaticMarkup(
       <Card

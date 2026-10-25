@@ -13,6 +13,7 @@ import {
   paletteCardHref,
   paletteSearchAllHref,
   paletteShuffleHref,
+  requestEmptyTrash,
   settingsDataHref,
   shouldOpenPalette,
 } from "../../lib/commandPalette";
@@ -152,6 +153,9 @@ export function LibraryShortcuts({
           return;
         case "shortcuts":
           setDialogOpen(true);
+          return;
+        case "empty-trash":
+          requestEmptyTrash();
           return;
         case "sign-out":
           onSignOut();

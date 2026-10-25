@@ -749,7 +749,8 @@
       "shortcutsHint": "Press <kbd>?</kbd> for all shortcuts",
       "showDetails": "Show details",
       "unarchive": "Unarchive",
-      "unfavorite": "Unfavorite"
+      "unfavorite": "Unfavorite",
+      "editLink": "Edit link…"
     },
     "toasts": {
       "copiedLink": "Copied link",
@@ -954,7 +955,8 @@
       "restore": "Restore",
       "select": "Select",
       "unarchive": "Unarchive",
-      "unfavorite": "Unfavorite"
+      "unfavorite": "Unfavorite",
+      "editLink": "Edit link…"
     },
     "copyImageFailed": "Failed to copy image",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "GIF preview",
       "imageAlt": "Image",
       "videoThumbnail": "Video thumbnail"
+    },
+    "editLink": {
+      "title": "Edit link",
+      "description": "Saving a new address refreshes the card’s preview.",
+      "label": "Address",
+      "invalid": "Use an http or https link.",
+      "saved": "Link saved. Its preview will refresh in a moment.",
+      "failed": "Couldn’t save the link"
+    },
+    "emptyTrash": {
+      "button": "Empty Trash",
+      "title": "Empty Trash?",
+      "description": "This permanently deletes {count, plural, one {# card} other {# cards}} and their files. This can’t be undone.",
+      "descriptionAtLeast": "This permanently deletes {count, plural, other {# or more cards}} and their files. This can’t be undone.",
+      "confirm": "Empty Trash",
+      "emptying": "{count, plural, one {Deleting # card forever} other {Deleting # cards forever}}",
+      "emptyingAll": "Emptying Trash",
+      "rateLimited": "Trash was emptied a few times just now. Try again in a minute.",
+      "failed": "Couldn’t empty Trash. Try again."
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "Toggle theme",
       "shuffle": "Shuffle",
       "shortcuts": "Keyboard shortcuts",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "emptyTrash": "Empty Trash"
     },
     "cards": {
       "searching": "Searching cards",

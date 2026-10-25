@@ -219,6 +219,8 @@ A change runs in the background, with its progress in a message at the bottom of
 
 Deleted cards go to trash first. Restore them, or delete permanently (including files). Cards left in trash are permanently deleted after 30 days. Open **Trash** from the sidebar, or type `trash`, `bin`, or `deleted` in the search bar.
 
+**Empty Trash**, at the top of Trash, permanently deletes every card in Trash and its files at once. Teak asks first and says how many cards will go, since it can't be undone. The cards disappear on your other devices as they're deleted, and a card you move to Trash after choosing it stays there. The button is greyed out while Trash is empty, and the command palette offers **Empty Trash** while Trash is open.
+
 ### Archive
 
 Archive a card to keep it out of your library without deleting it. Right-click it in the grid, or open it and choose **Archive**. Open **Archive** from the sidebar (or type `archive` and press Enter) to see archived cards, and **Unarchive** to bring one back. Archived cards stay out of search, favorites, filters, and tags until you return them, and they still count toward your card limit. Moving an archived card to Trash and restoring it puts it back in Archive.
@@ -334,7 +336,7 @@ Press `⌘K` (`Ctrl+K` on Windows and Linux) on any page to jump anywhere withou
 
 - **Go to** Everything, Favorites, Archive, Trash, Tags, Settings, any Settings page (Plan, Appearance, Integrations, Security, Import & export), or any folder or smart folder by name.
 - **Find a card:** after two characters, the palette lists up to 8 cards from your search, qualifiers included (`#design`, `type:link`, `site:github.com`). Choose one to open it, or choose **Search all** to see every match. From Archive it searches your archive, and **Search all** stays there; it never shows cards in Trash.
-- **Run an action:** New note, Upload files, Import, Export, Toggle theme, Shuffle, Keyboard shortcuts, and Sign out.
+- **Run an action:** New note, Upload files, Import, Export, Toggle theme, Shuffle, Keyboard shortcuts, and Sign out, plus Empty Trash while Trash is open.
 
 Press `⌘K` again or `Esc` to close it, and focus goes back where it was. While you write a note, `⌘K` still adds a link, and while another dialog or menu is open it does nothing.
 
@@ -383,6 +385,10 @@ If a summary or tags miss the mark, or a link's preview looks out of date, open 
 If a link's preview image is wrong, missing, or not the one you want, open the card and choose your own: drop an image on the preview, paste one with `⌘V` (`Ctrl+V` on Windows) while no text field has focus, or choose **Replace image** from the card's **⋯** menu. Use a JPEG, PNG, WebP, GIF, or AVIF image under 20 MB; SVG and HEIC images aren't supported yet. A link without an image shows **Add an image** where you can drop one.
 
 Your image shows in the grid and in the card on the web, and in the grids of the iPhone, iPad, and Mac apps. It stays through **Refresh details**. **Undo** in the message that follows puts back the previous image for two minutes. **Reset to original image** goes back to the image Teak found, or its screenshot of the page, and deletes yours.
+
+### Edit a link
+
+To change the address a link card points to, open the card and choose **Edit link…** from its **⋯** menu, or right-click it in the grid. The field starts with the current address and takes `http` and `https` links only. Saving refreshes the card: Teak reads the new page for its preview, summary, and tags, and saves a fresh copy of it. Your own tags and notes stay. A link with highlights keeps its address until you remove them, because they belong to the saved copy of the old page.
 
 ### Card details
 

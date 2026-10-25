@@ -749,7 +749,8 @@
       "shortcutsHint": "Appuyez sur <kbd>?</kbd> pour voir tous les raccourcis",
       "showDetails": "Afficher les détails",
       "unarchive": "Désarchiver",
-      "unfavorite": "Retirer des favoris"
+      "unfavorite": "Retirer des favoris",
+      "editLink": "Modifier le lien…"
     },
     "toasts": {
       "copiedLink": "Lien copié",
@@ -954,7 +955,8 @@
       "restore": "Restaurer",
       "select": "Sélectionner",
       "unarchive": "Désarchiver",
-      "unfavorite": "Retirer des favoris"
+      "unfavorite": "Retirer des favoris",
+      "editLink": "Modifier le lien…"
     },
     "copyImageFailed": "Impossible de copier l’image",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "Aperçu du GIF",
       "imageAlt": "Image",
       "videoThumbnail": "Miniature de la vidéo"
+    },
+    "editLink": {
+      "title": "Modifier le lien",
+      "description": "Enregistrer une nouvelle adresse actualise l’aperçu de la fiche.",
+      "label": "Adresse",
+      "invalid": "Utilisez un lien http ou https.",
+      "saved": "Lien enregistré. Son aperçu sera actualisé dans un instant.",
+      "failed": "Impossible d’enregistrer le lien"
+    },
+    "emptyTrash": {
+      "button": "Vider la corbeille",
+      "title": "Vider la corbeille ?",
+      "description": "Cette action supprime définitivement {count, plural, one {# fiche} other {# fiches}} et leurs fichiers. Elle est irréversible.",
+      "descriptionAtLeast": "Cette action supprime définitivement {count, plural, other {# fiches ou plus}} et leurs fichiers. Elle est irréversible.",
+      "confirm": "Vider la corbeille",
+      "emptying": "{count, plural, one {Suppression définitive de # fiche} other {Suppression définitive de # fiches}}",
+      "emptyingAll": "Vidage de la corbeille",
+      "rateLimited": "La corbeille a été vidée plusieurs fois à l’instant. Réessayez dans une minute.",
+      "failed": "Impossible de vider la corbeille. Réessayez."
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "Changer de thème",
       "shuffle": "Aléatoire",
       "shortcuts": "Raccourcis clavier",
-      "signOut": "Se déconnecter"
+      "signOut": "Se déconnecter",
+      "emptyTrash": "Vider la corbeille"
     },
     "cards": {
       "searching": "Recherche de fiches",
