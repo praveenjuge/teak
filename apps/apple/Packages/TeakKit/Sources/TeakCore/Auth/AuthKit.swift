@@ -22,16 +22,8 @@ public enum SignInMethod: String, Sendable, CaseIterable {
 
     /// Apple returns to WorkOS with a cross-site form POST, which App Review saw
     /// fail in a private session, and it never sets AuthKit's cookie. Every other
-    /// provider uses a private session, so Log Out needs no browser logout.
+    /// provider uses a private session, so signing out needs no browser logout.
     public var prefersEphemeralSession: Bool { self != .apple }
-
-    public var label: String {
-        switch self {
-        case .apple: "Apple"
-        case .google: "Google"
-        case .emailSignUp, .emailSignIn: "Email"
-        }
-    }
 }
 
 public struct AuthKitRequest: Sendable {

@@ -3,120 +3,120 @@
     "message": "Safari のページを Teak のライブラリに保存します。"
   },
   "actionTitle": {
-    "message": "Save to Teak"
+    "message": "Teak に保存"
   },
   "checkingSafari": {
-    "message": "Checking Safari…"
+    "message": "Safari を確認中…"
   },
   "signIn": {
-    "message": "Sign in"
+    "message": "サインイン"
   },
   "tryAgain": {
-    "message": "Try again"
+    "message": "もう一度試す"
   },
   "signOut": {
-    "message": "Sign out"
+    "message": "サインアウト"
   },
   "checkingSession": {
-    "message": "Checking your session…"
+    "message": "セッションを確認中…"
   },
   "unableToConnect": {
-    "message": "Unable to connect"
+    "message": "接続できません"
   },
   "pleaseTryAgain": {
-    "message": "Please try again."
+    "message": "もう一度お試しください。"
   },
   "signInTitle": {
-    "message": "Sign in to Teak"
+    "message": "Teak にサインイン"
   },
   "signInMessage": {
-    "message": "Sign in to save pages."
+    "message": "サインインするとページを保存できます。"
   },
   "cannotSaveTitle": {
-    "message": "Can't save this page"
+    "message": "このページは保存できません"
   },
   "openRegularWebsite": {
-    "message": "Open a regular website and try again."
+    "message": "通常の Web サイトを開いて、もう一度お試しください。"
   },
   "savingTitle": {
-    "message": "Saving page"
+    "message": "ページを保存中"
   },
   "savingMessage": {
-    "message": "Adding this page to your library…"
+    "message": "このページをライブラリに追加しています…"
   },
   "savedTitle": {
-    "message": "Saved to Teak"
+    "message": "Teak に保存しました"
   },
   "savedMessage": {
-    "message": "Added to your library."
+    "message": "ライブラリに追加されました。"
   },
   "duplicateTitle": {
-    "message": "Already saved"
+    "message": "保存済みです"
   },
   "duplicateMessage": {
-    "message": "This page is in your library."
+    "message": "このページはすでにライブラリにあります。"
   },
   "saveFailedTitle": {
-    "message": "Save failed"
+    "message": "保存に失敗しました"
   },
   "saveFailedMessage": {
-    "message": "Teak couldn't save this page."
+    "message": "Teak でこのページを保存できませんでした。"
   },
   "openingTeak": {
-    "message": "Opening Teak"
+    "message": "Teak を開いています"
   },
   "completeSignIn": {
-    "message": "Complete sign in."
+    "message": "サインインを完了してください。"
   },
   "finishSignInTitle": {
-    "message": "Finish sign in"
+    "message": "サインインを完了"
   },
   "returnAfterSignIn": {
-    "message": "Return here after signing in."
+    "message": "サインインしたら、ここに戻ってください。"
   },
   "signInFailedTitle": {
-    "message": "Sign in failed"
+    "message": "サインインに失敗しました"
   },
   "signInFailedMessage": {
-    "message": "Teak couldn't start sign in."
+    "message": "Teak でサインインを開始できませんでした。"
   },
   "signingOutTitle": {
-    "message": "Signing out"
+    "message": "サインアウト中"
   },
   "oneMoment": {
-    "message": "One moment…"
+    "message": "しばらくお待ちください…"
   },
   "signOutFailedTitle": {
-    "message": "Sign out failed"
+    "message": "サインアウトに失敗しました"
   },
   "signOutFailedMessage": {
-    "message": "Couldn't sign out. Please try again."
+    "message": "サインアウトできませんでした。もう一度お試しください。"
   },
   "signedOutTitle": {
-    "message": "Signed out"
+    "message": "サインアウトしました"
   },
   "needsAccessTitle": {
-    "message": "Teak needs Safari access"
+    "message": "Teak には Safari へのアクセスが必要です"
   },
   "needsAccessMessage": {
-    "message": "Try again from a regular website."
+    "message": "通常の Web サイトからもう一度お試しください。"
   },
   "invalidResponse": {
-    "message": "Teak returned an invalid response."
+    "message": "Teak から無効な応答が返されました。"
   },
   "tryAgainShort": {
-    "message": "Try again."
+    "message": "もう一度お試しください。"
   },
   "invalidRequest": {
-    "message": "Invalid Teak request."
+    "message": "Teak への無効なリクエストです。"
   },
   "unsupportedRequest": {
-    "message": "Unsupported Teak request."
+    "message": "サポートされていない Teak リクエストです。"
   },
   "openFromApplications": {
-    "message": "Open Teak from Applications to sign in."
+    "message": "サインインするには、“アプリケーション”フォルダから Teak を開いてください。"
   },
   "signOutCheckConnection": {
-    "message": "Couldn't sign out. Check your connection and try again."
+    "message": "サインアウトできませんでした。接続を確認してから、もう一度お試しください。"
   }
 }

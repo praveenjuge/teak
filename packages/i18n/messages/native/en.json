@@ -896,7 +896,25 @@
       "revisit": "Revisit",
       "card": "Card",
       "archive": "Archive",
-      "markAsDone": "Mark as Done",
+      "unarchive": "Unarchive",
+      "markAs": {
+        "read": "Mark as Read",
+        "watched": "Mark as Watched",
+        "listened": "Mark as Listened",
+        "bought": "Mark as Bought",
+        "cooked": "Mark as Cooked",
+        "played": "Mark as Played",
+        "done": "Mark as Done"
+      },
+      "markAsNot": {
+        "read": "Mark as Not Read",
+        "watched": "Mark as Not Watched",
+        "listened": "Mark as Not Listened",
+        "bought": "Mark as Not Bought",
+        "cooked": "Mark as Not Cooked",
+        "played": "Mark as Not Played",
+        "done": "Mark as Not Done"
+      },
       "moreLikeThis": "More Like This",
       "refreshDetails": "Refresh Details"
     },
@@ -924,6 +942,12 @@
       "noText": "The shortcut didn't send any text or link.",
       "signInFirst": "Open Teak and sign in, then run the shortcut again.",
       "saved": "Saved to Teak"
+    },
+    "appShortcuts": {
+      "save": "Save to {applicationName}"
+    },
+    "intentSummaries": {
+      "save": "Save {content} to Teak"
     },
     "card": {
       "audioUnplayableMac": "This recording format can't play on Mac",

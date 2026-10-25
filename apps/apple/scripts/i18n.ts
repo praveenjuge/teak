@@ -35,6 +35,35 @@ const SAFARI = "apple.safari.";
  * (`LocalizedStringResource("apple.intents.…", table: "AppIntents")`).
  */
 const APP_INTENTS = "apple.intents.";
+/**
+ * Siri and Shortcuts phrases (`AppShortcut(phrases:)`), which the system finds
+ * by their English text in an `AppShortcuts` table, placeholders as `${name}`.
+ */
+const APP_SHORTCUTS = "apple.appShortcuts.";
+/**
+ * An intent's `ParameterSummary`, found by its English text in the app's
+ * default (`Localizable`) table, placeholders as `${name}`.
+ */
+const INTENT_SUMMARIES = "apple.intentSummaries.";
+
+/** App Intents' own placeholder style: `{content}` → `${content}`. */
+const appIntentsText = (key: string, message: string): string => {
+  const parsed = parseNativeMessage(message);
+  if (parsed.kind !== "plain") {
+    throw new Error(`${key}: Siri and Shortcuts text can't have a plural`);
+  }
+  return parsed.segments
+    .map((segment) => {
+      if ("text" in segment) {
+        return segment.text;
+      }
+      if ("arg" in segment) {
+        return `\${${segment.arg}}`;
+      }
+      throw new Error(`${key}: Siri and Shortcuts text can't have a count`);
+    })
+    .join("");
+};
 
 const formatted = (segments: Segment[], args: Arguments): string => {
   const hasValues = args.count !== undefined || args.names.length > 0;
@@ -73,7 +102,10 @@ const localization = (message: string, args: Arguments) => {
 type Entries = Map<string, Record<Locale, string>>;
 
 /** Xcode's own layout (`"key" : value`, sorted keys), so saving in Xcode doesn't reformat it. */
-const xcstrings = (entries: Entries, argsOf: (key: string) => Arguments) => {
+const xcstrings = (
+  entries: Entries,
+  argsOf: ((key: string) => Arguments) | "verbatim"
+) => {
   const strings = Object.fromEntries(
     [...entries.keys()].sort().map((key) => {
       const byLocale = entries.get(key) as Record<Locale, string>;
@@ -86,7 +118,9 @@ const xcstrings = (entries: Entries, argsOf: (key: string) => Arguments) => {
               .sort()
               .map((locale) => [
                 locale,
-                localization(byLocale[locale], argsOf(key)),
+                argsOf === "verbatim"
+                  ? unit(byLocale[locale])
+                  : localization(byLocale[locale], argsOf(key)),
               ])
           ),
         },
@@ -128,9 +162,30 @@ export const renderAppleCatalogs = async (): Promise<Map<string, string>> => {
     return entries;
   };
   const special = (key: string) =>
-    [INFO_PLIST, SERVICES_MENU, SAFARI].some((prefix) =>
-      key.startsWith(prefix)
+    [INFO_PLIST, SERVICES_MENU, SAFARI, APP_SHORTCUTS, INTENT_SUMMARIES].some(
+      (prefix) => key.startsWith(prefix)
     );
+  // Keyed and written in App Intents' own placeholder style.
+  const byEnglishText = (prefix: string) => {
+    const entries: Entries = new Map();
+    for (const key of messages.en.keys()) {
+      if (key.startsWith(prefix)) {
+        entries.set(
+          appIntentsText(key, messages.en.get(key) as string),
+          Object.fromEntries(
+            SUPPORTED_LOCALES.map((locale) => [
+              locale,
+              appIntentsText(
+                key,
+                messages[locale].get(key) ?? (messages.en.get(key) as string)
+              ),
+            ])
+          ) as Record<Locale, string>
+        );
+      }
+    }
+    return entries;
+  };
 
   const files = new Map<string, string>();
   files.set(
@@ -156,6 +211,14 @@ export const renderAppleCatalogs = async (): Promise<Map<string, string>> => {
       pick((key) => key.startsWith(APP_INTENTS)),
       argsOf
     )
+  );
+  files.set(
+    "Teak/Resources/AppShortcuts.xcstrings",
+    xcstrings(byEnglishText(APP_SHORTCUTS), "verbatim")
+  );
+  files.set(
+    "Teak/Resources/Localizable.xcstrings",
+    xcstrings(byEnglishText(INTENT_SUMMARIES), "verbatim")
   );
   files.set(
     "Teak/Resources/ServicesMenu.xcstrings",

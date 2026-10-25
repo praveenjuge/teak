@@ -205,8 +205,8 @@ final class LibraryFlowTests: XCTestCase {
         filter("Select")
         tap(tile(containing: first))
         tap(tile(containing: second))
-        app.staticTexts["2 Selected"].firstMatch.waitToAppear()
-        tap(app.buttons["Add to Favorites"].firstMatch.waitToAppear())
+        app.staticTexts["2 selected"].firstMatch.waitToAppear()
+        tap(app.buttons["Add to favorites"].firstMatch.waitToAppear())
         app.staticTexts["Added 2 cards to favorites"].firstMatch.waitToAppear()
         filter("Favorites")
         tile(containing: first).waitToAppear()
@@ -269,7 +269,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(app.buttons["Create folder"].firstMatch)
         let row = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
         tap(row.waitToAppear())
-        app.staticTexts["Empty Folder"].firstMatch.waitToAppear()
+        app.staticTexts["Empty folder"].firstMatch.waitToAppear()
         #if os(iOS)
         app.navigationBars[name].firstMatch.waitToAppear()
         #endif

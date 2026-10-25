@@ -3,120 +3,120 @@
     "message": "将 Safari 页面保存到你的 Teak 资料库。"
   },
   "actionTitle": {
-    "message": "Save to Teak"
+    "message": "存储到 Teak"
   },
   "checkingSafari": {
-    "message": "Checking Safari…"
+    "message": "正在检查 Safari 浏览器…"
   },
   "signIn": {
-    "message": "Sign in"
+    "message": "登录"
   },
   "tryAgain": {
-    "message": "Try again"
+    "message": "再试一次"
   },
   "signOut": {
-    "message": "Sign out"
+    "message": "退出登录"
   },
   "checkingSession": {
-    "message": "Checking your session…"
+    "message": "正在检查你的会话…"
   },
   "unableToConnect": {
-    "message": "Unable to connect"
+    "message": "无法连接"
   },
   "pleaseTryAgain": {
-    "message": "Please try again."
+    "message": "请重试。"
   },
   "signInTitle": {
-    "message": "Sign in to Teak"
+    "message": "登录 Teak"
   },
   "signInMessage": {
-    "message": "Sign in to save pages."
+    "message": "登录后即可保存网页。"
   },
   "cannotSaveTitle": {
-    "message": "Can't save this page"
+    "message": "无法保存此网页"
   },
   "openRegularWebsite": {
-    "message": "Open a regular website and try again."
+    "message": "请打开普通网站后重试。"
   },
   "savingTitle": {
-    "message": "Saving page"
+    "message": "正在保存网页"
   },
   "savingMessage": {
-    "message": "Adding this page to your library…"
+    "message": "正在将此网页添加到你的资料库…"
   },
   "savedTitle": {
-    "message": "Saved to Teak"
+    "message": "已保存到 Teak"
   },
   "savedMessage": {
-    "message": "Added to your library."
+    "message": "已添加到你的资料库。"
   },
   "duplicateTitle": {
-    "message": "Already saved"
+    "message": "已保存过"
   },
   "duplicateMessage": {
-    "message": "This page is in your library."
+    "message": "此网页已在你的资料库中。"
   },
   "saveFailedTitle": {
-    "message": "Save failed"
+    "message": "保存失败"
   },
   "saveFailedMessage": {
-    "message": "Teak couldn't save this page."
+    "message": "Teak 无法保存此网页。"
   },
   "openingTeak": {
-    "message": "Opening Teak"
+    "message": "正在打开 Teak"
   },
   "completeSignIn": {
-    "message": "Complete sign in."
+    "message": "请完成登录。"
   },
   "finishSignInTitle": {
-    "message": "Finish sign in"
+    "message": "完成登录"
   },
   "returnAfterSignIn": {
-    "message": "Return here after signing in."
+    "message": "登录后请返回此处。"
   },
   "signInFailedTitle": {
-    "message": "Sign in failed"
+    "message": "登录失败"
   },
   "signInFailedMessage": {
-    "message": "Teak couldn't start sign in."
+    "message": "Teak 无法开始登录。"
   },
   "signingOutTitle": {
-    "message": "Signing out"
+    "message": "正在退出登录"
   },
   "oneMoment": {
-    "message": "One moment…"
+    "message": "请稍候…"
   },
   "signOutFailedTitle": {
-    "message": "Sign out failed"
+    "message": "退出登录失败"
   },
   "signOutFailedMessage": {
-    "message": "Couldn't sign out. Please try again."
+    "message": "无法退出登录，请重试。"
   },
   "signedOutTitle": {
-    "message": "Signed out"
+    "message": "已退出登录"
   },
   "needsAccessTitle": {
-    "message": "Teak needs Safari access"
+    "message": "Teak 需要访问 Safari 浏览器"
   },
   "needsAccessMessage": {
-    "message": "Try again from a regular website."
+    "message": "请在普通网站上重试。"
   },
   "invalidResponse": {
-    "message": "Teak returned an invalid response."
+    "message": "Teak 返回了无效的响应。"
   },
   "tryAgainShort": {
-    "message": "Try again."
+    "message": "请重试。"
   },
   "invalidRequest": {
-    "message": "Invalid Teak request."
+    "message": "无效的 Teak 请求。"
   },
   "unsupportedRequest": {
-    "message": "Unsupported Teak request."
+    "message": "不支持的 Teak 请求。"
   },
   "openFromApplications": {
-    "message": "Open Teak from Applications to sign in."
+    "message": "请从“应用程序”文件夹打开 Teak 进行登录。"
   },
   "signOutCheckConnection": {
-    "message": "Couldn't sign out. Check your connection and try again."
+    "message": "无法退出登录。请检查网络连接后重试。"
   }
 }

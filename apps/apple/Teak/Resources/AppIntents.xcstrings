@@ -31,13 +31,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "テキストまたはリンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "텍스트 또는 링크"
           }
         },
         "pt-BR" : {
@@ -49,7 +49,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "文本或链接"
           }
         }
       }
@@ -84,13 +84,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "ショートカットからテキストやリンクが送信されませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "단축어가 텍스트나 링크를 보내지 않았습니다."
           }
         },
         "pt-BR" : {
@@ -102,7 +102,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "快捷指令没有发送任何文本或链接。"
           }
         }
       }
@@ -137,13 +137,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "テキストやリンクを Teak ライブラリに保存します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "텍스트나 링크를 Teak 라이브러리에 저장합니다."
           }
         },
         "pt-BR" : {
@@ -155,7 +155,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "将文本或链接保存到你的 Teak 资料库。"
           }
         }
       }
@@ -190,13 +190,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Teak に保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Teak에 저장"
           }
         },
         "pt-BR" : {
@@ -208,7 +208,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "存储到 Teak"
           }
         }
       }
@@ -243,13 +243,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Teak に保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Teak에 저장되었습니다"
           }
         },
         "pt-BR" : {
@@ -261,7 +261,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "已保存到 Teak"
           }
         }
       }
@@ -296,13 +296,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Teak を開いてサインインしてから、もう一度ショートカットを実行してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Teak을 열고 로그인한 다음 단축어를 다시 실행하세요."
           }
         },
         "pt-BR" : {
@@ -314,7 +314,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "请打开 Teak 并登录，然后再次运行快捷指令。"
           }
         }
       }

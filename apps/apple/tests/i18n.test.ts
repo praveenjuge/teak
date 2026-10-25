@@ -36,6 +36,29 @@ describe("Apple string catalogs", () => {
     expect(drifted).toEqual([]);
   });
 
+  test("Siri phrases and Shortcuts summaries match the intent's source", async () => {
+    const { messages } = await loadNativeCatalogs(
+      resolve(APPLE, "../../packages/i18n/messages"),
+      "apple"
+    );
+    const source = readFileSync(
+      join(APPLE, "Teak/Intents/SaveToTeakIntent.swift"),
+      "utf8"
+    );
+    // The system finds these by their English text, so the Swift literal must match it.
+    const missing = [...messages.en]
+      .filter(([key]) => /^apple\.(appShortcuts|intentSummaries)\./.test(key))
+      .map(([key, english]) => [
+        key,
+        english
+          .replace("{applicationName}", "\\(.applicationName)")
+          .replaceAll(/\{(\w+)\}/g, "\\(\\.$$$1)"),
+      ])
+      .filter(([, swift]) => !source.includes(`"${swift}"`))
+      .map(([key]) => key);
+    expect(missing).toEqual([]);
+  });
+
   test("every tr call names a key with the values its message takes", async () => {
     const { arguments: args } = await loadNativeCatalogs(
       resolve(APPLE, "../../packages/i18n/messages"),

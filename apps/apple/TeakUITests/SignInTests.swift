@@ -14,7 +14,7 @@ final class SignInTests: XCTestCase {
         app.buttons["signIn.emailSignIn"].waitToAppear(30)
         XCTAssertTrue(app.buttons["signIn.apple"].exists)
         XCTAssertTrue(app.buttons["signIn.google"].exists)
-        XCTAssertTrue(app.staticTexts["Save Anything. Anywhere."].exists)
+        XCTAssertTrue(app.staticTexts["Save anything. Anywhere."].exists)
     }
 
     #if os(iOS)

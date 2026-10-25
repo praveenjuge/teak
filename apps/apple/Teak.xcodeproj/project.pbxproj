@@ -31,6 +31,7 @@
 		5BF2BE72834C1F430546D85D /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6F6A3A42782815CB35DFE813 /* TeakUI */; };
 		6129572D0B477BD1CDA57006 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = 005BE33C57BE4A949C714E10 /* popup.css */; };
 		68B5196CE99A1E0CFAA9FCA0 /* CardDetailModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 023C0132FA1156ABEEBF08E6 /* CardDetailModel.swift */; };
+		69554D700DCBF5E4F7A831CD /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4D093ED645A59C3CF7691A5D /* Localizable.xcstrings */; };
 		6B39462082BB18E0944ABD96 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1C78020F918336D66648413 /* WelcomeView.swift */; };
 		6D8DEC6F8D593FB105DB8578 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = BBB7C456017B244B6D91EBA7 /* popup.html */; };
 		72F339878D2F22A07DB4483B /* TeakApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02A3CA9E5B01345E12A9686 /* TeakApp.swift */; };
@@ -51,6 +52,7 @@
 		AA14AE3E3DD9CBD06D777480 /* LibraryFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB415C3CD2A76F708857831 /* LibraryFlowTests.swift */; };
 		AB4CB582214A6AED33EF2DCD /* TeakSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5CE8FF720AF1C66F003874A9 /* TeakSync */; };
 		AC18D4A737BE12F096486102 /* FolderViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E967113DEC38E0E2D38A690 /* FolderViews.swift */; };
+		AC3D4437E1462BC4D4FB3E68 /* AppShortcuts.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 4CC063380FDEB159F2101F64 /* AppShortcuts.xcstrings */; };
 		ADD04D6DA903EF65CC7A87F4 /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = 4A0CC010CD48DA681F8998DC /* TeakCore */; };
 		AE8769CA0B4D22B2F28E644E /* SignInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAAA31B47AA2D7E2A831C533 /* SignInTests.swift */; };
 		AF55BC39EBC04C40378BB4FD /* CardPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86D536980FFE491122D6407C /* CardPreviews.swift */; };
@@ -126,6 +128,8 @@
 		38FE96DF2D1AF40CC9B918A0 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
 		3CB415C3CD2A76F708857831 /* LibraryFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryFlowTests.swift; sourceTree = "<group>"; };
 		491038488A86B5D19F99D1D1 /* Platform.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Platform.swift; sourceTree = "<group>"; };
+		4CC063380FDEB159F2101F64 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
+		4D093ED645A59C3CF7691A5D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		58B0E93C8633F282D6BB48B0 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		5B2D4635BF4CC78ADEDD823F /* AddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddView.swift; sourceTree = "<group>"; };
 		66B83C864DD2BAFB4E482041 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -319,8 +323,10 @@
 			isa = PBXGroup;
 			children = (
 				D606D982DC768AADB4134838 /* AppIntents.xcstrings */,
+				4CC063380FDEB159F2101F64 /* AppShortcuts.xcstrings */,
 				E170EA1FC1F06AD8197557FF /* Assets.xcassets */,
 				58B0E93C8633F282D6BB48B0 /* InfoPlist.xcstrings */,
+				4D093ED645A59C3CF7691A5D /* Localizable.xcstrings */,
 				95C16BEC41D963B284F502CD /* ServicesMenu.xcstrings */,
 			);
 			path = Resources;
@@ -584,8 +590,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				BABE0E920FA931BDF96D06B5 /* AppIntents.xcstrings in Resources */,
+				AC3D4437E1462BC4D4FB3E68 /* AppShortcuts.xcstrings in Resources */,
 				813A2A6ED5E3B10ED1BB91B8 /* Assets.xcassets in Resources */,
 				8889D78B04C7F809F8908321 /* InfoPlist.xcstrings in Resources */,
+				69554D700DCBF5E4F7A831CD /* Localizable.xcstrings in Resources */,
 				A0FCE52D7211226DD596F7B0 /* ServicesMenu.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -796,6 +804,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -878,6 +887,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;

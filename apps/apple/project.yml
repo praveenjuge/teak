@@ -65,6 +65,9 @@ targets:
       base:
         PRODUCT_NAME: Teak
         PRODUCT_BUNDLE_IDENTIFIER: com.praveenjuge.teak
+        # Text comes from catalogs generated out of packages/i18n; keep Xcode
+        # from adding extracted strings to them.
+        SWIFT_EMIT_LOC_STRINGS: NO
         "INFOPLIST_FILE[sdk=iphone*]": Teak/Resources/Info-iOS.plist
         "INFOPLIST_FILE[sdk=macosx*]": Teak/Resources/Info-macOS.plist
         "CODE_SIGN_ENTITLEMENTS[sdk=iphone*]": Teak/Resources/Teak-iOS.entitlements

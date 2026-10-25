@@ -130,9 +130,8 @@ struct CardDetailView: View {
     private func commands(_ card: Card, _ model: CardDetailModel) -> CardCommands? {
         guard !card.deleted else { return nil }
         return CardCommands(
-            archiveTitle: card.archived ? tr("native.actions.unarchive") : tr("native.actions.archive"),
-            doneTitle: card.type == .link ? (model.isDone ? LinkDone.unmarkLabel(card.linkCategoryName)
-                                                           : LinkDone.markLabel(card.linkCategoryName)) : nil,
+            archived: card.archived,
+            done: card.type == .link ? (LinkDone.verb(card.linkCategoryName), model.isDone) : nil,
             toggleArchive: { toggleArchive(card, model) },
             toggleDone: { Task { if await model.toggleDone() { feedback += 1 } } },
             moreLikeThis: { moreLikeThis(card) },

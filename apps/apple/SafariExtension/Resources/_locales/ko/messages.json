@@ -3,120 +3,120 @@
     "message": "Safari 페이지를 Teak 라이브러리에 저장합니다."
   },
   "actionTitle": {
-    "message": "Save to Teak"
+    "message": "Teak에 저장"
   },
   "checkingSafari": {
-    "message": "Checking Safari…"
+    "message": "Safari 확인 중…"
   },
   "signIn": {
-    "message": "Sign in"
+    "message": "로그인"
   },
   "tryAgain": {
-    "message": "Try again"
+    "message": "다시 시도"
   },
   "signOut": {
-    "message": "Sign out"
+    "message": "로그아웃"
   },
   "checkingSession": {
-    "message": "Checking your session…"
+    "message": "세션을 확인하는 중…"
   },
   "unableToConnect": {
-    "message": "Unable to connect"
+    "message": "연결할 수 없음"
   },
   "pleaseTryAgain": {
-    "message": "Please try again."
+    "message": "다시 시도해 주세요."
   },
   "signInTitle": {
-    "message": "Sign in to Teak"
+    "message": "Teak에 로그인"
   },
   "signInMessage": {
-    "message": "Sign in to save pages."
+    "message": "로그인하면 페이지를 저장할 수 있습니다."
   },
   "cannotSaveTitle": {
-    "message": "Can't save this page"
+    "message": "이 페이지는 저장할 수 없습니다"
   },
   "openRegularWebsite": {
-    "message": "Open a regular website and try again."
+    "message": "일반 웹사이트를 연 다음 다시 시도해 주세요."
   },
   "savingTitle": {
-    "message": "Saving page"
+    "message": "페이지 저장 중"
   },
   "savingMessage": {
-    "message": "Adding this page to your library…"
+    "message": "이 페이지를 라이브러리에 추가하는 중…"
   },
   "savedTitle": {
-    "message": "Saved to Teak"
+    "message": "Teak에 저장되었습니다"
   },
   "savedMessage": {
-    "message": "Added to your library."
+    "message": "라이브러리에 추가되었습니다."
   },
   "duplicateTitle": {
-    "message": "Already saved"
+    "message": "이미 저장됨"
   },
   "duplicateMessage": {
-    "message": "This page is in your library."
+    "message": "이 페이지는 이미 라이브러리에 있습니다."
   },
   "saveFailedTitle": {
-    "message": "Save failed"
+    "message": "저장 실패"
   },
   "saveFailedMessage": {
-    "message": "Teak couldn't save this page."
+    "message": "Teak이 이 페이지를 저장하지 못했습니다."
   },
   "openingTeak": {
-    "message": "Opening Teak"
+    "message": "Teak 여는 중"
   },
   "completeSignIn": {
-    "message": "Complete sign in."
+    "message": "로그인을 완료하세요."
   },
   "finishSignInTitle": {
-    "message": "Finish sign in"
+    "message": "로그인 완료하기"
   },
   "returnAfterSignIn": {
-    "message": "Return here after signing in."
+    "message": "로그인한 후 여기로 돌아오세요."
   },
   "signInFailedTitle": {
-    "message": "Sign in failed"
+    "message": "로그인 실패"
   },
   "signInFailedMessage": {
-    "message": "Teak couldn't start sign in."
+    "message": "Teak이 로그인을 시작하지 못했습니다."
   },
   "signingOutTitle": {
-    "message": "Signing out"
+    "message": "로그아웃하는 중"
   },
   "oneMoment": {
-    "message": "One moment…"
+    "message": "잠시만 기다려 주세요…"
   },
   "signOutFailedTitle": {
-    "message": "Sign out failed"
+    "message": "로그아웃 실패"
   },
   "signOutFailedMessage": {
-    "message": "Couldn't sign out. Please try again."
+    "message": "로그아웃하지 못했습니다. 다시 시도해 주세요."
   },
   "signedOutTitle": {
-    "message": "Signed out"
+    "message": "로그아웃됨"
   },
   "needsAccessTitle": {
-    "message": "Teak needs Safari access"
+    "message": "Teak에 Safari 접근 권한이 필요합니다"
   },
   "needsAccessMessage": {
-    "message": "Try again from a regular website."
+    "message": "일반 웹사이트에서 다시 시도해 주세요."
   },
   "invalidResponse": {
-    "message": "Teak returned an invalid response."
+    "message": "Teak에서 잘못된 응답을 반환했습니다."
   },
   "tryAgainShort": {
-    "message": "Try again."
+    "message": "다시 시도하세요."
   },
   "invalidRequest": {
-    "message": "Invalid Teak request."
+    "message": "잘못된 Teak 요청입니다."
   },
   "unsupportedRequest": {
-    "message": "Unsupported Teak request."
+    "message": "지원하지 않는 Teak 요청입니다."
   },
   "openFromApplications": {
-    "message": "Open Teak from Applications to sign in."
+    "message": "로그인하려면 응용 프로그램 폴더에서 Teak을 여세요."
   },
   "signOutCheckConnection": {
-    "message": "Couldn't sign out. Check your connection and try again."
+    "message": "로그아웃하지 못했습니다. 연결을 확인하고 다시 시도해 주세요."
   }
 }

@@ -137,13 +137,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Archive"
+            "value" : "アーカイブ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Archive"
+            "value" : "보관"
           }
         },
         "pt-BR" : {
@@ -155,7 +155,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Archive"
+            "value" : "归档"
           }
         }
       }
@@ -190,13 +190,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "カード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "카드"
           }
         },
         "pt-BR" : {
@@ -208,12 +208,118 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card"
+            "value" : "卡片"
           }
         }
       }
     },
-    "apple.commands.markAsDone" : {
+    "apple.commands.markAs.bought" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Bought"
+          }
+        }
+      }
+    },
+    "apple.commands.markAs.cooked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Cooked"
+          }
+        }
+      }
+    },
+    "apple.commands.markAs.done" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -262,6 +368,589 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mark as Done"
+          }
+        }
+      }
+    },
+    "apple.commands.markAs.listened" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Listened"
+          }
+        }
+      }
+    },
+    "apple.commands.markAs.played" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Played"
+          }
+        }
+      }
+    },
+    "apple.commands.markAs.read" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Read"
+          }
+        }
+      }
+    },
+    "apple.commands.markAs.watched" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Watched"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.bought" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Bought"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.cooked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Cooked"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Done"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.listened" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Listened"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.played" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Played"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.read" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Read"
+          }
+        }
+      }
+    },
+    "apple.commands.markAsNot.watched" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as Not Watched"
           }
         }
       }
@@ -296,13 +985,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More Like This"
+            "value" : "似たカード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More Like This"
+            "value" : "비슷한 카드"
           }
         },
         "pt-BR" : {
@@ -314,7 +1003,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More Like This"
+            "value" : "更多类似内容"
           }
         }
       }
@@ -349,13 +1038,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "新規メモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "새 메모"
           }
         },
         "pt-BR" : {
@@ -367,7 +1056,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New Note"
+            "value" : "新建笔记"
           }
         }
       }
@@ -402,13 +1091,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paste as New Card"
+            "value" : "新規カードとしてペースト"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paste as New Card"
+            "value" : "새 카드로 붙여넣기"
           }
         },
         "pt-BR" : {
@@ -420,7 +1109,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paste as New Card"
+            "value" : "粘贴为新卡片"
           }
         }
       }
@@ -455,13 +1144,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture…"
+            "value" : "クイックキャプチャ…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture…"
+            "value" : "빠른 캡처…"
           }
         },
         "pt-BR" : {
@@ -473,7 +1162,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture…"
+            "value" : "快速记录…"
           }
         }
       }
@@ -508,13 +1197,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh Details"
+            "value" : "詳細を更新"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh Details"
+            "value" : "세부 정보 새로 고침"
           }
         },
         "pt-BR" : {
@@ -526,7 +1215,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh Details"
+            "value" : "刷新详情"
           }
         }
       }
@@ -561,13 +1250,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh Library"
+            "value" : "ライブラリを更新"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh Library"
+            "value" : "라이브러리 새로 고침"
           }
         },
         "pt-BR" : {
@@ -579,7 +1268,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Refresh Library"
+            "value" : "刷新资料库"
           }
         }
       }
@@ -614,13 +1303,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Revisit"
+            "value" : "振り返り"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Revisit"
+            "value" : "다시 보기"
           }
         },
         "pt-BR" : {
@@ -632,7 +1321,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Revisit"
+            "value" : "回顾"
           }
         }
       }
@@ -667,13 +1356,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select All Cards"
+            "value" : "すべてのカードを選択"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select All Cards"
+            "value" : "모든 카드 선택"
           }
         },
         "pt-BR" : {
@@ -685,7 +1374,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select All Cards"
+            "value" : "选择所有卡片"
           }
         }
       }
@@ -720,13 +1409,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select Cards"
+            "value" : "カードを選択"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select Cards"
+            "value" : "카드 선택"
           }
         },
         "pt-BR" : {
@@ -738,7 +1427,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Select Cards"
+            "value" : "选择卡片"
           }
         }
       }
@@ -773,13 +1462,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Archive"
+            "value" : "アーカイブを表示"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Archive"
+            "value" : "보관함 보기"
           }
         },
         "pt-BR" : {
@@ -791,7 +1480,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Archive"
+            "value" : "显示归档"
           }
         }
       }
@@ -826,13 +1515,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Favorites"
+            "value" : "お気に入りを表示"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Favorites"
+            "value" : "즐겨찾기 보기"
           }
         },
         "pt-BR" : {
@@ -844,7 +1533,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Favorites"
+            "value" : "显示收藏"
           }
         }
       }
@@ -879,13 +1568,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Trash"
+            "value" : "ゴミ箱を表示"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Trash"
+            "value" : "휴지통 보기"
           }
         },
         "pt-BR" : {
@@ -897,7 +1586,60 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Trash"
+            "value" : "显示废纸篓"
+          }
+        }
+      }
+    },
+    "apple.commands.unarchive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unarchive"
           }
         }
       }
@@ -932,13 +1674,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload Files…"
+            "value" : "ファイルをアップロード…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload Files…"
+            "value" : "파일 업로드…"
           }
         },
         "pt-BR" : {
@@ -950,7 +1692,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload Files…"
+            "value" : "上传文件…"
           }
         }
       }
@@ -985,13 +1727,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice Memo"
+            "value" : "ボイスメモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice Memo"
+            "value" : "음성 메모"
           }
         },
         "pt-BR" : {
@@ -1003,7 +1745,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice Memo"
+            "value" : "语音备忘录"
           }
         }
       }
@@ -1038,13 +1780,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "テキストまたはリンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "텍스트 또는 링크"
           }
         },
         "pt-BR" : {
@@ -1056,7 +1798,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text or link"
+            "value" : "文本或链接"
           }
         }
       }
@@ -1091,13 +1833,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "ショートカットからテキストやリンクが送信されませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "단축어가 텍스트나 링크를 보내지 않았습니다."
           }
         },
         "pt-BR" : {
@@ -1109,7 +1851,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The shortcut didn't send any text or link."
+            "value" : "快捷指令没有发送任何文本或链接。"
           }
         }
       }
@@ -1144,13 +1886,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "テキストやリンクを Teak ライブラリに保存します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "텍스트나 링크를 Teak 라이브러리에 저장합니다."
           }
         },
         "pt-BR" : {
@@ -1162,7 +1904,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves text or a link to your Teak library."
+            "value" : "将文本或链接保存到你的 Teak 资料库。"
           }
         }
       }
@@ -1197,13 +1939,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Teak に保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "Teak에 저장"
           }
         },
         "pt-BR" : {
@@ -1215,7 +1957,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save to Teak"
+            "value" : "存储到 Teak"
           }
         }
       }
@@ -1250,13 +1992,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Teak に保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Teak에 저장되었습니다"
           }
         },
         "pt-BR" : {
@@ -1268,7 +2010,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "已保存到 Teak"
           }
         }
       }
@@ -1303,13 +2045,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Teak を開いてサインインしてから、もう一度ショートカットを実行してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "Teak을 열고 로그인한 다음 단축어를 다시 실행하세요."
           }
         },
         "pt-BR" : {
@@ -1321,7 +2063,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then run the shortcut again."
+            "value" : "请打开 Teak 并登录，然后再次运行快捷指令。"
           }
         }
       }
@@ -1568,13 +2310,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Capture"
+            "value" : "キャプチャ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Capture"
+            "value" : "캡처"
           }
         },
         "pt-BR" : {
@@ -1586,7 +2328,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Capture"
+            "value" : "记录"
           }
         }
       }
@@ -1621,13 +2363,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The clipboard is empty"
+            "value" : "クリップボードは空です"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The clipboard is empty"
+            "value" : "클립보드가 비어 있습니다"
           }
         },
         "pt-BR" : {
@@ -1639,7 +2381,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The clipboard is empty"
+            "value" : "剪贴板为空"
           }
         }
       }
@@ -1674,13 +2416,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "General"
+            "value" : "一般"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "General"
+            "value" : "일반"
           }
         },
         "pt-BR" : {
@@ -1692,7 +2434,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "General"
+            "value" : "通用"
           }
         }
       }
@@ -1727,13 +2469,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak — drop files or text here to save them"
+            "value" : "Teak — ここにファイルやテキストをドロップして保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak — drop files or text here to save them"
+            "value" : "Teak — 여기에 파일이나 텍스트를 놓아 저장하세요"
           }
         },
         "pt-BR" : {
@@ -1745,7 +2487,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak — drop files or text here to save them"
+            "value" : "Teak — 将文件或文本拖放到此处即可保存"
           }
         }
       }
@@ -1780,13 +2522,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Offline — %1$@"
+            "value" : "オフライン — %1$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Offline — %1$@"
+            "value" : "오프라인 — %1$@"
           }
         },
         "pt-BR" : {
@@ -1798,7 +2540,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Offline — %1$@"
+            "value" : "离线 — %1$@"
           }
         }
       }
@@ -1833,13 +2575,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak Library"
+            "value" : "Teak ライブラリを開く"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak Library"
+            "value" : "Teak 라이브러리 열기"
           }
         },
         "pt-BR" : {
@@ -1851,7 +2593,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak Library"
+            "value" : "打开 Teak 资料库"
           }
         }
       }
@@ -1886,13 +2628,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Press ⌃⌥⌘T anywhere to write a note."
+            "value" : "どこからでも ⌃⌥⌘T を押すとメモを書けます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Press ⌃⌥⌘T anywhere to write a note."
+            "value" : "어디서든 ⌃⌥⌘T를 누르면 메모를 작성할 수 있습니다."
           }
         },
         "pt-BR" : {
@@ -1904,7 +2646,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Press ⌃⌥⌘T anywhere to write a note."
+            "value" : "在任意位置按下 ⌃⌥⌘T 即可写笔记。"
           }
         }
       }
@@ -1939,13 +2681,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture shortcut"
+            "value" : "クイックキャプチャのショートカット"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture shortcut"
+            "value" : "빠른 캡처 단축키"
           }
         },
         "pt-BR" : {
@@ -1957,7 +2699,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture shortcut"
+            "value" : "快速记录快捷键"
           }
         }
       }
@@ -1992,13 +2734,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture"
+            "value" : "クイックキャプチャ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture"
+            "value" : "빠른 캡처"
           }
         },
         "pt-BR" : {
@@ -2010,7 +2752,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quick Capture"
+            "value" : "快速记录"
           }
         }
       }
@@ -2045,13 +2787,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quit Teak"
+            "value" : "Teak を終了"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quit Teak"
+            "value" : "Teak 종료"
           }
         },
         "pt-BR" : {
@@ -2063,7 +2805,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quit Teak"
+            "value" : "退出 Teak"
           }
         }
       }
@@ -2098,13 +2840,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings…"
+            "value" : "設定…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings…"
+            "value" : "설정…"
           }
         },
         "pt-BR" : {
@@ -2116,7 +2858,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings…"
+            "value" : "设置…"
           }
         }
       }
@@ -2151,13 +2893,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Teak in the menu bar"
+            "value" : "メニューバーに Teak を表示"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Teak in the menu bar"
+            "value" : "메뉴 막대에 Teak 표시"
           }
         },
         "pt-BR" : {
@@ -2169,7 +2911,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show Teak in the menu bar"
+            "value" : "在菜单栏中显示 Teak"
           }
         }
       }
@@ -2204,13 +2946,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in to Teak first"
+            "value" : "先に Teak にサインインしてください"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in to Teak first"
+            "value" : "먼저 Teak에 로그인하세요"
           }
         },
         "pt-BR" : {
@@ -2222,7 +2964,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in to Teak first"
+            "value" : "请先登录 Teak"
           }
         }
       }
@@ -2257,13 +2999,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signed in as %1$@"
+            "value" : "%1$@ でサインイン中"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signed in as %1$@"
+            "value" : "%1$@(으)로 로그인됨"
           }
         },
         "pt-BR" : {
@@ -2275,7 +3017,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signed in as %1$@"
+            "value" : "已登录为 %1$@"
           }
         }
       }
@@ -2310,13 +3052,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signed out — open Teak to sign in."
+            "value" : "サインインしていません — Teak を開いてサインインしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signed out — open Teak to sign in."
+            "value" : "로그아웃됨 — Teak을 열어 로그인하세요."
           }
         },
         "pt-BR" : {
@@ -2328,7 +3070,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signed out — open Teak to sign in."
+            "value" : "未登录 — 打开 Teak 以登录。"
           }
         }
       }
@@ -12702,13 +13444,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow the microphone"
+            "value" : "マイクを許可"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow the microphone"
+            "value" : "마이크 허용"
           }
         },
         "pt-BR" : {
@@ -12720,7 +13462,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow the microphone"
+            "value" : "允许使用麦克风"
           }
         }
       }
@@ -12755,13 +13497,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Camera"
+            "value" : "カメラ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Camera"
+            "value" : "카메라"
           }
         },
         "pt-BR" : {
@@ -12773,7 +13515,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Camera"
+            "value" : "相机"
           }
         }
       }
@@ -12808,13 +13550,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Camera access is off"
+            "value" : "カメラへのアクセスがオフになっています"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Camera access is off"
+            "value" : "카메라 접근이 꺼져 있습니다"
           }
         },
         "pt-BR" : {
@@ -12826,7 +13568,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Camera access is off"
+            "value" : "相机访问权限已关闭"
           }
         }
       }
@@ -12861,13 +13603,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow camera access in Settings to take photos for Teak."
+            "value" : "Teak で写真を撮るには、“設定”でカメラへのアクセスを許可してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow camera access in Settings to take photos for Teak."
+            "value" : "Teak에서 사진을 찍으려면 설정에서 카메라 접근을 허용하세요."
           }
         },
         "pt-BR" : {
@@ -12879,7 +13621,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow camera access in Settings to take photos for Teak."
+            "value" : "请在“设置”中允许访问相机，以便为 Teak 拍照。"
           }
         }
       }
@@ -12914,13 +13656,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You've reached the Free plan's card limit."
+            "value" : "無料プランのカードの上限に達しました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You've reached the Free plan's card limit."
+            "value" : "무료 요금제의 카드 한도에 도달했습니다."
           }
         },
         "pt-BR" : {
@@ -12932,7 +13674,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You've reached the Free plan's card limit."
+            "value" : "你已达到免费方案的卡片上限。"
           }
         }
       }
@@ -12967,13 +13709,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card limit reached"
+            "value" : "カードの上限に達しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card limit reached"
+            "value" : "카드 한도 도달"
           }
         },
         "pt-BR" : {
@@ -12985,7 +13727,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Card limit reached"
+            "value" : "已达卡片上限"
           }
         }
       }
@@ -13020,13 +13762,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose…"
+            "value" : "選択…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose…"
+            "value" : "선택…"
           }
         },
         "pt-BR" : {
@@ -13038,7 +13780,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose…"
+            "value" : "选择…"
           }
         }
       }
@@ -13073,13 +13815,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose files…"
+            "value" : "ファイルを選択…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose files…"
+            "value" : "파일 선택…"
           }
         },
         "pt-BR" : {
@@ -13091,7 +13833,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose files…"
+            "value" : "选择文件…"
           }
         }
       }
@@ -13126,13 +13868,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose up to %1$@ files at a time."
+            "value" : "一度に選択できるファイルは %1$@ 件までです。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose up to %1$@ files at a time."
+            "value" : "한 번에 최대 %1$@개의 파일을 선택하세요."
           }
         },
         "pt-BR" : {
@@ -13144,7 +13886,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose up to %1$@ files at a time."
+            "value" : "一次最多选择 %1$@ 个文件。"
           }
         }
       }
@@ -13179,13 +13921,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear"
+            "value" : "クリア"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear"
+            "value" : "지우기"
           }
         },
         "pt-BR" : {
@@ -13197,7 +13939,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear"
+            "value" : "清除"
           }
         }
       }
@@ -13232,13 +13974,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "続ける"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "계속"
           }
         },
         "pt-BR" : {
@@ -13250,7 +13992,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "继续"
           }
         }
       }
@@ -13285,13 +14027,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't record"
+            "value" : "録音できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't record"
+            "value" : "녹음하지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -13303,7 +14045,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't record"
+            "value" : "无法录音"
           }
         }
       }
@@ -13338,13 +14080,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save"
+            "value" : "保存できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save"
+            "value" : "저장하지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -13356,7 +14098,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save"
+            "value" : "无法保存"
           }
         }
       }
@@ -13391,13 +14133,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard"
+            "value" : "破棄"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard"
+            "value" : "버리기"
           }
         },
         "pt-BR" : {
@@ -13409,7 +14151,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard"
+            "value" : "丢弃"
           }
         }
       }
@@ -13444,13 +14186,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You're still recording. Leaving now throws this recording away."
+            "value" : "まだ録音中です。いま移動すると、この録音は破棄されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You're still recording. Leaving now throws this recording away."
+            "value" : "아직 녹음 중입니다. 지금 나가면 이 녹음은 버려집니다."
           }
         },
         "pt-BR" : {
@@ -13462,7 +14204,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You're still recording. Leaving now throws this recording away."
+            "value" : "仍在录音。现在离开将丢弃此录音。"
           }
         }
       }
@@ -13497,13 +14239,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard recording?"
+            "value" : "録音を破棄しますか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard recording?"
+            "value" : "녹음을 버리시겠습니까?"
           }
         },
         "pt-BR" : {
@@ -13515,7 +14257,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Discard recording?"
+            "value" : "要丢弃录音吗？"
           }
         }
       }
@@ -13550,13 +14292,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can also drop files onto the library, or paste them with ⌘V."
+            "value" : "ファイルはライブラリにドロップするか、⌘V でペーストすることもできます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can also drop files onto the library, or paste them with ⌘V."
+            "value" : "파일을 라이브러리에 놓거나 ⌘V로 붙여넣을 수도 있습니다."
           }
         },
         "pt-BR" : {
@@ -13568,7 +14310,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You can also drop files onto the library, or paste them with ⌘V."
+            "value" : "你也可以将文件拖放到资料库中，或使用 ⌘V 粘贴。"
           }
         }
       }
@@ -13603,13 +14345,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Error"
+            "value" : "エラー"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Error"
+            "value" : "오류"
           }
         },
         "pt-BR" : {
@@ -13621,7 +14363,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Error"
+            "value" : "错误"
           }
         }
       }
@@ -13656,13 +14398,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed"
+            "value" : "失敗"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed"
+            "value" : "실패"
           }
         },
         "pt-BR" : {
@@ -13674,7 +14416,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed"
+            "value" : "失败"
           }
         }
       }
@@ -13709,13 +14451,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files"
+            "value" : "ファイル"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files"
+            "value" : "파일"
           }
         },
         "pt-BR" : {
@@ -13727,7 +14469,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Files"
+            "value" : "文件"
           }
         }
       }
@@ -13762,13 +14504,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Up to %1$@ at a time, %2$@ each."
+            "value" : "一度に %1$@ 件まで、1 件あたり %2$@ までです。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Up to %1$@ at a time, %2$@ each."
+            "value" : "한 번에 최대 %1$@개, 파일당 최대 %2$@까지 가능합니다."
           }
         },
         "pt-BR" : {
@@ -13780,7 +14522,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Up to %1$@ at a time, %2$@ each."
+            "value" : "一次最多 %1$@ 个，每个不超过 %2$@。"
           }
         }
       }
@@ -13815,13 +14557,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The Free plan holds %1$@ cards."
+            "value" : "無料プランでは最大 %1$@ 件のカードを保存できます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The Free plan holds %1$@ cards."
+            "value" : "무료 요금제에서는 카드를 최대 %1$@개까지 저장할 수 있습니다."
           }
         },
         "pt-BR" : {
@@ -13833,7 +14575,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The Free plan holds %1$@ cards."
+            "value" : "免费方案最多可保存 %1$@ 张卡片。"
           }
         }
       }
@@ -13868,13 +14610,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved"
+            "value" : "リンクを保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved"
+            "value" : "링크가 저장되었습니다"
           }
         },
         "pt-BR" : {
@@ -13886,7 +14628,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Link saved"
+            "value" : "链接已保存"
           }
         }
       }
@@ -13921,13 +14663,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak needs the microphone to record voice memos."
+            "value" : "Teak でボイスメモを録音するにはマイクが必要です。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak needs the microphone to record voice memos."
+            "value" : "Teak에서 음성 메모를 녹음하려면 마이크가 필요합니다."
           }
         },
         "pt-BR" : {
@@ -13939,7 +14681,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak needs the microphone to record voice memos."
+            "value" : "Teak 需要使用麦克风来录制语音备忘录。"
           }
         }
       }
@@ -13974,13 +14716,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note"
+            "value" : "新規メモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note"
+            "value" : "새 메모"
           }
         },
         "pt-BR" : {
@@ -13992,7 +14734,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New note"
+            "value" : "新建笔记"
           }
         }
       }
@@ -14027,13 +14769,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No camera app"
+            "value" : "カメラアプリがありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No camera app"
+            "value" : "카메라 앱 없음"
           }
         },
         "pt-BR" : {
@@ -14045,7 +14787,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No camera app"
+            "value" : "没有相机应用"
           }
         }
       }
@@ -14080,13 +14822,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This device doesn't have an app that can take photos."
+            "value" : "このデバイスには写真を撮影できるアプリがありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This device doesn't have an app that can take photos."
+            "value" : "이 기기에는 사진을 찍을 수 있는 앱이 없습니다."
           }
         },
         "pt-BR" : {
@@ -14098,7 +14840,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This device doesn't have an app that can take photos."
+            "value" : "此设备上没有可以拍照的应用。"
           }
         }
       }
@@ -14133,13 +14875,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not now"
+            "value" : "今はしない"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not now"
+            "value" : "나중에"
           }
         },
         "pt-BR" : {
@@ -14151,7 +14893,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not now"
+            "value" : "以后再说"
           }
         }
       }
@@ -14186,13 +14928,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note or link"
+            "value" : "メモまたはリンク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note or link"
+            "value" : "메모 또는 링크"
           }
         },
         "pt-BR" : {
@@ -14204,7 +14946,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note or link"
+            "value" : "笔记或链接"
           }
         }
       }
@@ -14239,13 +14981,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write a note, or paste a link to save the page."
+            "value" : "メモを書くか、リンクを貼り付けてページを保存します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write a note, or paste a link to save the page."
+            "value" : "메모를 작성하거나 링크를 붙여넣어 페이지를 저장하세요."
           }
         },
         "pt-BR" : {
@@ -14257,7 +14999,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write a note, or paste a link to save the page."
+            "value" : "写一条笔记，或粘贴链接来保存网页。"
           }
         }
       }
@@ -14292,13 +15034,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write a note or paste a link"
+            "value" : "メモを書くか、リンクを貼り付け"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write a note or paste a link"
+            "value" : "메모를 작성하거나 링크를 붙여넣으세요"
           }
         },
         "pt-BR" : {
@@ -14310,7 +15052,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write a note or paste a link"
+            "value" : "写笔记或粘贴链接"
           }
         }
       }
@@ -14345,13 +15087,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note saved"
+            "value" : "メモを保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note saved"
+            "value" : "메모가 저장되었습니다"
           }
         },
         "pt-BR" : {
@@ -14363,7 +15105,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note saved"
+            "value" : "笔记已保存"
           }
         }
       }
@@ -14398,13 +15140,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing to save"
+            "value" : "保存するものがありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing to save"
+            "value" : "저장할 항목 없음"
           }
         },
         "pt-BR" : {
@@ -14416,7 +15158,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing to save"
+            "value" : "没有可保存的内容"
           }
         }
       }
@@ -14451,13 +15193,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter a bookmark, URL, or note before saving."
+            "value" : "保存する前に、ブックマーク、URL、メモのいずれかを入力してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter a bookmark, URL, or note before saving."
+            "value" : "저장하기 전에 북마크, URL 또는 메모를 입력하세요."
           }
         },
         "pt-BR" : {
@@ -14469,7 +15211,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter a bookmark, URL, or note before saving."
+            "value" : "请先输入书签、URL 或笔记，再进行保存。"
           }
         }
       }
@@ -14510,7 +15252,7 @@
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OK"
+            "value" : "확인"
           }
         },
         "pt-BR" : {
@@ -14522,7 +15264,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "OK"
+            "value" : "好"
           }
         }
       }
@@ -14557,13 +15299,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open settings"
+            "value" : "設定を開く"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open settings"
+            "value" : "설정 열기"
           }
         },
         "pt-BR" : {
@@ -14575,7 +15317,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open settings"
+            "value" : "打开设置"
           }
         }
       }
@@ -14610,13 +15352,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photos & videos"
+            "value" : "写真と動画"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photos & videos"
+            "value" : "사진 및 동영상"
           }
         },
         "pt-BR" : {
@@ -14628,7 +15370,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Photos & videos"
+            "value" : "照片和视频"
           }
         }
       }
@@ -14663,13 +15405,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose from your Photos library."
+            "value" : "写真ライブラリから選択します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose from your Photos library."
+            "value" : "사진 보관함에서 선택합니다."
           }
         },
         "pt-BR" : {
@@ -14681,7 +15423,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose from your Photos library."
+            "value" : "从你的照片图库中选择。"
           }
         }
       }
@@ -14716,13 +15458,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load the photos you picked."
+            "value" : "選択した写真を読み込めませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load the photos you picked."
+            "value" : "선택한 사진을 불러오지 못했습니다."
           }
         },
         "pt-BR" : {
@@ -14734,7 +15476,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load the photos you picked."
+            "value" : "无法加载你选择的照片。"
           }
         }
       }
@@ -14769,13 +15511,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record"
+            "value" : "録音"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record"
+            "value" : "녹음"
           }
         },
         "pt-BR" : {
@@ -14787,7 +15529,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record"
+            "value" : "录音"
           }
         }
       }
@@ -14822,13 +15564,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record…"
+            "value" : "録音…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record…"
+            "value" : "녹음…"
           }
         },
         "pt-BR" : {
@@ -14840,7 +15582,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record…"
+            "value" : "录制…"
           }
         }
       }
@@ -14875,13 +15617,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording"
+            "value" : "録音中"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording"
+            "value" : "녹음 중"
           }
         },
         "pt-BR" : {
@@ -14893,7 +15635,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording"
+            "value" : "正在录音"
           }
         }
       }
@@ -14928,13 +15670,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording time %1$@"
+            "value" : "録音時間 %1$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording time %1$@"
+            "value" : "녹음 시간 %1$@"
           }
         },
         "pt-BR" : {
@@ -14946,7 +15688,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Recording time %1$@"
+            "value" : "录音时长 %1$@"
           }
         }
       }
@@ -14981,13 +15723,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed to save card. Please try again."
+            "value" : "カードを保存できませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed to save card. Please try again."
+            "value" : "카드를 저장하지 못했습니다. 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -14999,7 +15741,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Failed to save card. Please try again."
+            "value" : "无法保存卡片，请重试。"
           }
         }
       }
@@ -15034,13 +15776,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save note"
+            "value" : "メモを保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save note"
+            "value" : "메모 저장"
           }
         },
         "pt-BR" : {
@@ -15052,7 +15794,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save note"
+            "value" : "保存笔记"
           }
         }
       }
@@ -15087,13 +15829,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves this text card."
+            "value" : "このテキストカードを保存します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves this text card."
+            "value" : "이 텍스트 카드를 저장합니다."
           }
         },
         "pt-BR" : {
@@ -15105,7 +15847,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saves this text card."
+            "value" : "保存此文本卡片。"
           }
         }
       }
@@ -15140,13 +15882,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved"
+            "value" : "保存済み"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved"
+            "value" : "저장됨"
           }
         },
         "pt-BR" : {
@@ -15158,7 +15900,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved"
+            "value" : "已保存"
           }
         }
       }
@@ -15241,16 +15983,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Saved %1$lld item"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Saved %1$lld items"
+                  "value" : "%1$lld 件の項目を保存しました"
                 }
               }
             }
@@ -15259,16 +15995,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Saved %1$lld item"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Saved %1$lld items"
+                  "value" : "항목 %1$lld개를 저장했습니다"
                 }
               }
             }
@@ -15295,16 +16025,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Saved %1$lld item"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Saved %1$lld items"
+                  "value" : "已保存 %1$lld 个项目"
                 }
               }
             }
@@ -15342,13 +16066,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved %1$@ of %2$@"
+            "value" : "%2$@ 件中 %1$@ 件を保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved %1$@ of %2$@"
+            "value" : "%2$@개 중 %1$@개를 저장했습니다"
           }
         },
         "pt-BR" : {
@@ -15360,7 +16084,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved %1$@ of %2$@"
+            "value" : "已保存 %1$@ / %2$@"
           }
         }
       }
@@ -15395,13 +16119,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Teak に保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "Teak에 저장되었습니다"
           }
         },
         "pt-BR" : {
@@ -15413,7 +16137,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved to Teak"
+            "value" : "已保存到 Teak"
           }
         }
       }
@@ -15448,13 +16172,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving %1$@ of %2$@…"
+            "value" : "保存しています（%1$@/%2$@）…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving %1$@ of %2$@…"
+            "value" : "저장하는 중 %1$@/%2$@…"
           }
         },
         "pt-BR" : {
@@ -15466,7 +16190,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving %1$@ of %2$@…"
+            "value" : "正在保存 %1$@ / %2$@…"
           }
         }
       }
@@ -15501,7 +16225,7 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@: %2$@"
+            "value" : "%1$@：%2$@"
           }
         },
         "ko" : {
@@ -15519,7 +16243,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@: %2$@"
+            "value" : "%1$@：%2$@"
           }
         }
       }
@@ -15554,13 +16278,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some files were skipped"
+            "value" : "一部のファイルをスキップしました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some files were skipped"
+            "value" : "일부 파일을 건너뛰었습니다"
           }
         },
         "pt-BR" : {
@@ -15572,7 +16296,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some files were skipped"
+            "value" : "已跳过部分文件"
           }
         }
       }
@@ -15607,13 +16331,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some file formats can't be uploaded."
+            "value" : "一部のファイル形式はアップロードできません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some file formats can't be uploaded."
+            "value" : "일부 파일 형식은 업로드할 수 없습니다."
           }
         },
         "pt-BR" : {
@@ -15625,7 +16349,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some file formats can't be uploaded."
+            "value" : "部分文件格式无法上传。"
           }
         }
       }
@@ -15660,13 +16384,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak couldn't start recording. Please try again."
+            "value" : "Teak で録音を開始できませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak couldn't start recording. Please try again."
+            "value" : "Teak이 녹음을 시작하지 못했습니다. 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -15678,7 +16402,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak couldn't start recording. Please try again."
+            "value" : "Teak 无法开始录音，请重试。"
           }
         }
       }
@@ -15713,13 +16437,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop recording"
+            "value" : "録音を停止"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop recording"
+            "value" : "녹음 중지"
           }
         },
         "pt-BR" : {
@@ -15731,7 +16455,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop recording"
+            "value" : "停止录音"
           }
         }
       }
@@ -15766,13 +16490,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap to start recording"
+            "value" : "タップして録音を開始"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap to start recording"
+            "value" : "탭하여 녹음 시작"
           }
         },
         "pt-BR" : {
@@ -15784,7 +16508,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap to start recording"
+            "value" : "轻点以开始录音"
           }
         }
       }
@@ -15819,13 +16543,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add"
+            "value" : "追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add"
+            "value" : "추가"
           }
         },
         "pt-BR" : {
@@ -15837,7 +16561,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add"
+            "value" : "添加"
           }
         }
       }
@@ -15872,13 +16596,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Too many files"
+            "value" : "ファイルが多すぎます"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Too many files"
+            "value" : "파일이 너무 많음"
           }
         },
         "pt-BR" : {
@@ -15890,7 +16614,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Too many files"
+            "value" : "文件过多"
           }
         }
       }
@@ -15925,13 +16649,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak saves up to %1$@ files at a time. The first %1$@ will be saved."
+            "value" : "Teak で一度に保存できるファイルは %1$@ 件までです。最初の %1$@ 件が保存されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak saves up to %1$@ files at a time. The first %1$@ will be saved."
+            "value" : "Teak은 한 번에 최대 %1$@개의 파일을 저장합니다. 처음 %1$@개가 저장됩니다."
           }
         },
         "pt-BR" : {
@@ -15943,7 +16667,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak saves up to %1$@ files at a time. The first %1$@ will be saved."
+            "value" : "Teak 一次最多保存 %1$@ 个文件，将保存前 %1$@ 个。"
           }
         }
       }
@@ -15978,13 +16702,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That recording was too short to save. Please try again."
+            "value" : "録音が短すぎるため保存できませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That recording was too short to save. Please try again."
+            "value" : "녹음이 너무 짧아 저장할 수 없습니다. 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -15996,7 +16720,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That recording was too short to save. Please try again."
+            "value" : "录音太短，无法保存。请重试。"
           }
         }
       }
@@ -16031,13 +16755,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unsupported file"
+            "value" : "サポートされていないファイル"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unsupported file"
+            "value" : "지원하지 않는 파일"
           }
         },
         "pt-BR" : {
@@ -16049,7 +16773,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unsupported file"
+            "value" : "不支持的文件"
           }
         }
       }
@@ -16084,13 +16808,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This file format can't be uploaded."
+            "value" : "このファイル形式はアップロードできません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This file format can't be uploaded."
+            "value" : "이 파일 형식은 업로드할 수 없습니다."
           }
         },
         "pt-BR" : {
@@ -16102,7 +16826,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This file format can't be uploaded."
+            "value" : "无法上传此文件格式。"
           }
         }
       }
@@ -16137,13 +16861,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload"
+            "value" : "アップロード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload"
+            "value" : "업로드"
           }
         },
         "pt-BR" : {
@@ -16155,7 +16879,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload"
+            "value" : "上传"
           }
         }
       }
@@ -16190,13 +16914,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The upload didn't finish. Please try again."
+            "value" : "アップロードが完了しませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The upload didn't finish. Please try again."
+            "value" : "업로드가 완료되지 않았습니다. 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -16208,7 +16932,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The upload didn't finish. Please try again."
+            "value" : "上传未完成，请重试。"
           }
         }
       }
@@ -16243,13 +16967,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload failed"
+            "value" : "アップロードに失敗しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload failed"
+            "value" : "업로드 실패"
           }
         },
         "pt-BR" : {
@@ -16261,7 +16985,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upload failed"
+            "value" : "上传失败"
           }
         }
       }
@@ -16296,13 +17020,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uploads"
+            "value" : "アップロード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uploads"
+            "value" : "업로드"
           }
         },
         "pt-BR" : {
@@ -16314,7 +17038,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Uploads"
+            "value" : "上传项"
           }
         }
       }
@@ -16349,13 +17073,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice memo"
+            "value" : "ボイスメモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice memo"
+            "value" : "음성 메모"
           }
         },
         "pt-BR" : {
@@ -16367,7 +17091,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice memo"
+            "value" : "语音备忘录"
           }
         }
       }
@@ -16402,13 +17126,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice note and save it with its transcript."
+            "value" : "ボイスメモを録音して、文字起こしと一緒に保存します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice note and save it with its transcript."
+            "value" : "음성 메모를 녹음해 받아쓴 텍스트와 함께 저장합니다."
           }
         },
         "pt-BR" : {
@@ -16420,7 +17144,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Record a voice note and save it with its transcript."
+            "value" : "录制语音备忘录，并连同转写文本一起保存。"
           }
         }
       }
@@ -16455,13 +17179,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice memo saved. It's uploading now."
+            "value" : "ボイスメモを保存しました。現在アップロードしています。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice memo saved. It's uploading now."
+            "value" : "음성 메모가 저장되었습니다. 지금 업로드하고 있습니다."
           }
         },
         "pt-BR" : {
@@ -16473,7 +17197,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Voice memo saved. It's uploading now."
+            "value" : "语音备忘录已保存，正在上传。"
           }
         }
       }
@@ -16508,13 +17232,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Waiting to upload"
+            "value" : "アップロード待ち"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Waiting to upload"
+            "value" : "업로드 대기 중"
           }
         },
         "pt-BR" : {
@@ -16526,7 +17250,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Waiting to upload"
+            "value" : "等待上传"
           }
         }
       }
@@ -16561,13 +17285,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write"
+            "value" : "書く"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write"
+            "value" : "쓰기"
           }
         },
         "pt-BR" : {
@@ -16579,7 +17303,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Write"
+            "value" : "撰写"
           }
         }
       }
@@ -31394,16 +32118,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Add %1$lld card to a folder"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Add %1$lld cards to a folder"
+                  "value" : "%1$lld 件のカードをフォルダに追加"
                 }
               }
             }
@@ -31412,16 +32130,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Add %1$lld card to a folder"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Add %1$lld cards to a folder"
+                  "value" : "카드 %1$lld개를 폴더에 추가"
                 }
               }
             }
@@ -31448,16 +32160,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Add %1$lld card to a folder"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Add %1$lld cards to a folder"
+                  "value" : "将 %1$lld 张卡片添加到文件夹"
                 }
               }
             }
@@ -31495,13 +32201,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't create the folder"
+            "value" : "フォルダを作成できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't create the folder"
+            "value" : "폴더를 만들지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -31513,7 +32219,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't create the folder"
+            "value" : "无法创建文件夹"
           }
         }
       }
@@ -31548,13 +32254,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create folder"
+            "value" : "フォルダを作成"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create folder"
+            "value" : "폴더 만들기"
           }
         },
         "pt-BR" : {
@@ -31566,7 +32272,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create folder"
+            "value" : "创建文件夹"
           }
         }
       }
@@ -31601,13 +32307,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name the folder."
+            "value" : "フォルダに名前を付けてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name the folder."
+            "value" : "폴더 이름을 입력하세요."
           }
         },
         "pt-BR" : {
@@ -31619,7 +32325,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name the folder."
+            "value" : "为文件夹命名。"
           }
         }
       }
@@ -31654,13 +32360,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create folder “%1$@”"
+            "value" : "フォルダ「%1$@」を作成"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create folder “%1$@”"
+            "value" : "“%1$@” 폴더 만들기"
           }
         },
         "pt-BR" : {
@@ -31672,7 +32378,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Create folder “%1$@”"
+            "value" : "创建文件夹“%1$@”"
           }
         }
       }
@@ -31707,13 +32413,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't delete the folder"
+            "value" : "フォルダを削除できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't delete the folder"
+            "value" : "폴더를 삭제하지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -31725,7 +32431,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't delete the folder"
+            "value" : "无法删除文件夹"
           }
         }
       }
@@ -31760,13 +32466,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted “%1$@”. Its cards are still in your library."
+            "value" : "「%1$@」を削除しました。カードはライブラリに残っています。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted “%1$@”. Its cards are still in your library."
+            "value" : "“%1$@”을(를) 삭제했습니다. 카드는 라이브러리에 그대로 있습니다."
           }
         },
         "pt-BR" : {
@@ -31778,7 +32484,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted “%1$@”. Its cards are still in your library."
+            "value" : "已删除“%1$@”。其中的卡片仍在你的资料库中。"
           }
         }
       }
@@ -31813,13 +32519,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit folder"
+            "value" : "フォルダを編集"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit folder"
+            "value" : "폴더 편집"
           }
         },
         "pt-BR" : {
@@ -31831,7 +32537,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit folder"
+            "value" : "编辑文件夹"
           }
         }
       }
@@ -31866,13 +32572,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit search…"
+            "value" : "検索条件を編集…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit search…"
+            "value" : "검색 편집…"
           }
         },
         "pt-BR" : {
@@ -31884,7 +32590,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit search…"
+            "value" : "编辑搜索条件…"
           }
         }
       }
@@ -31919,13 +32625,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit smart folder"
+            "value" : "スマートフォルダを編集"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit smart folder"
+            "value" : "스마트 폴더 편집"
           }
         },
         "pt-BR" : {
@@ -31937,7 +32643,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edit smart folder"
+            "value" : "编辑智能文件夹"
           }
         }
       }
@@ -31972,13 +32678,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Group related cards. Make a folder, then add cards to it."
+            "value" : "関連するカードをまとめましょう。フォルダを作成して、カードを追加してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Group related cards. Make a folder, then add cards to it."
+            "value" : "관련 카드를 묶어 보세요. 폴더를 만든 다음 카드를 추가하세요."
           }
         },
         "pt-BR" : {
@@ -31990,7 +32696,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Group related cards. Make a folder, then add cards to it."
+            "value" : "将相关卡片归为一组。先创建文件夹，再向其中添加卡片。"
           }
         }
       }
@@ -32025,13 +32731,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders yet"
+            "value" : "フォルダはまだありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders yet"
+            "value" : "아직 폴더가 없습니다"
           }
         },
         "pt-BR" : {
@@ -32043,7 +32749,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders yet"
+            "value" : "还没有文件夹"
           }
         }
       }
@@ -32078,13 +32784,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find or create a folder"
+            "value" : "フォルダを検索または作成"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find or create a folder"
+            "value" : "폴더 찾기 또는 만들기"
           }
         },
         "pt-BR" : {
@@ -32096,7 +32802,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find or create a folder"
+            "value" : "查找或创建文件夹"
           }
         }
       }
@@ -32131,13 +32837,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder name"
+            "value" : "フォルダ名"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder name"
+            "value" : "폴더 이름"
           }
         },
         "pt-BR" : {
@@ -32149,7 +32855,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder name"
+            "value" : "文件夹名称"
           }
         }
       }
@@ -32184,13 +32890,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load folders"
+            "value" : "フォルダを読み込めませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load folders"
+            "value" : "폴더를 불러오지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -32202,7 +32908,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't load folders"
+            "value" : "无法加载文件夹"
           }
         }
       }
@@ -32237,13 +32943,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try again."
+            "value" : "接続を確認してから、もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try again."
+            "value" : "연결을 확인하고 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -32255,7 +32961,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try again."
+            "value" : "请检查网络连接后重试。"
           }
         }
       }
@@ -32290,13 +32996,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More for %1$@"
+            "value" : "%1$@ のその他の操作"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More for %1$@"
+            "value" : "%1$@ 더 보기"
           }
         },
         "pt-BR" : {
@@ -32308,7 +33014,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More for %1$@"
+            "value" : "“%1$@”的更多操作"
           }
         }
       }
@@ -32343,13 +33049,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name"
+            "value" : "名前"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name"
+            "value" : "이름"
           }
         },
         "pt-BR" : {
@@ -32361,7 +33067,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name"
+            "value" : "名称"
           }
         }
       }
@@ -32396,13 +33102,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reading list"
+            "value" : "あとで読む"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reading list"
+            "value" : "읽을거리"
           }
         },
         "pt-BR" : {
@@ -32414,7 +33120,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reading list"
+            "value" : "阅读清单"
           }
         }
       }
@@ -32449,13 +33155,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New folder"
+            "value" : "新規フォルダ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New folder"
+            "value" : "새 폴더"
           }
         },
         "pt-BR" : {
@@ -32467,7 +33173,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New folder"
+            "value" : "新建文件夹"
           }
         }
       }
@@ -32502,13 +33208,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New smart folder"
+            "value" : "新規スマートフォルダ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New smart folder"
+            "value" : "새 스마트 폴더"
           }
         },
         "pt-BR" : {
@@ -32520,7 +33226,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New smart folder"
+            "value" : "新建智能文件夹"
           }
         }
       }
@@ -32555,13 +33261,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders yet. Type a name to create one."
+            "value" : "フォルダはまだありません。名前を入力して作成してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders yet. Type a name to create one."
+            "value" : "아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요."
           }
         },
         "pt-BR" : {
@@ -32573,7 +33279,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders yet. Type a name to create one."
+            "value" : "还没有文件夹。输入名称即可创建。"
           }
         }
       }
@@ -32608,13 +33314,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename folder"
+            "value" : "フォルダの名前を変更"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename folder"
+            "value" : "폴더 이름 변경"
           }
         },
         "pt-BR" : {
@@ -32626,7 +33332,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename folder"
+            "value" : "重命名文件夹"
           }
         }
       }
@@ -32661,13 +33367,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename…"
+            "value" : "名前を変更…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename…"
+            "value" : "이름 변경…"
           }
         },
         "pt-BR" : {
@@ -32679,7 +33385,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename…"
+            "value" : "重命名…"
           }
         }
       }
@@ -32714,13 +33420,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Change the folder's name."
+            "value" : "フォルダの名前を変更します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Change the folder's name."
+            "value" : "폴더 이름을 변경합니다."
           }
         },
         "pt-BR" : {
@@ -32732,7 +33438,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Change the folder's name."
+            "value" : "更改文件夹的名称。"
           }
         }
       }
@@ -32767,13 +33473,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't restore the folder"
+            "value" : "フォルダを復元できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't restore the folder"
+            "value" : "폴더를 복원하지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -32785,7 +33491,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't restore the folder"
+            "value" : "无法恢复文件夹"
           }
         }
       }
@@ -32820,13 +33526,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save as smart folder"
+            "value" : "スマートフォルダとして保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save as smart folder"
+            "value" : "스마트 폴더로 저장"
           }
         },
         "pt-BR" : {
@@ -32838,7 +33544,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save as smart folder"
+            "value" : "保存为智能文件夹"
           }
         }
       }
@@ -32873,13 +33579,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the folder"
+            "value" : "フォルダを保存できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the folder"
+            "value" : "폴더를 저장하지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -32891,7 +33597,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the folder"
+            "value" : "无法保存文件夹"
           }
         }
       }
@@ -32926,13 +33632,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save smart folder"
+            "value" : "スマートフォルダを保存"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save smart folder"
+            "value" : "스마트 폴더 저장"
           }
         },
         "pt-BR" : {
@@ -32944,7 +33650,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save smart folder"
+            "value" : "保存智能文件夹"
           }
         }
       }
@@ -32979,13 +33685,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved “%1$@”"
+            "value" : "「%1$@」を保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved “%1$@”"
+            "value" : "“%1$@”을(를) 저장했습니다"
           }
         },
         "pt-BR" : {
@@ -32997,7 +33703,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved “%1$@”"
+            "value" : "已保存“%1$@”"
           }
         }
       }
@@ -33032,13 +33738,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "検索条件"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "검색"
           }
         },
         "pt-BR" : {
@@ -33050,7 +33756,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search"
+            "value" : "搜索"
           }
         }
       }
@@ -33085,13 +33791,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@, smart folder"
+            "value" : "%1$@、スマートフォルダ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@, smart folder"
+            "value" : "%1$@, 스마트 폴더"
           }
         },
         "pt-BR" : {
@@ -33103,7 +33809,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@, smart folder"
+            "value" : "%1$@，智能文件夹"
           }
         }
       }
@@ -33138,13 +33844,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows every card that matches the search, including cards you save later."
+            "value" : "検索条件に一致するすべてのカードを表示します。あとで保存したカードも含まれます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows every card that matches the search, including cards you save later."
+            "value" : "나중에 저장하는 카드를 포함해 검색과 일치하는 모든 카드를 보여 줍니다."
           }
         },
         "pt-BR" : {
@@ -33156,7 +33862,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows every card that matches the search, including cards you save later."
+            "value" : "显示符合搜索条件的所有卡片，包括你以后保存的卡片。"
           }
         }
       }
@@ -33191,13 +33897,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows every card that matches the search, including cards you save later. Colors, styles and dates aren't saved in a smart folder."
+            "value" : "検索条件に一致するすべてのカードを表示します。あとで保存したカードも含まれます。色、スタイル、日付はスマートフォルダに保存されません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows every card that matches the search, including cards you save later. Colors, styles and dates aren't saved in a smart folder."
+            "value" : "나중에 저장하는 카드를 포함해 검색과 일치하는 모든 카드를 보여 줍니다. 색상, 스타일, 날짜는 스마트 폴더에 저장되지 않습니다."
           }
         },
         "pt-BR" : {
@@ -33209,7 +33915,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Shows every card that matches the search, including cards you save later. Colors, styles and dates aren't saved in a smart folder."
+            "value" : "显示符合搜索条件的所有卡片，包括你以后保存的卡片。颜色、风格和日期不会保存在智能文件夹中。"
           }
         }
       }
@@ -33244,13 +33950,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folders"
+            "value" : "フォルダ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folders"
+            "value" : "폴더"
           }
         },
         "pt-BR" : {
@@ -33262,7 +33968,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folders"
+            "value" : "文件夹"
           }
         }
       }
@@ -38170,13 +38876,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "About"
+            "value" : "情報"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "About"
+            "value" : "정보"
           }
         },
         "pt-BR" : {
@@ -38188,7 +38894,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "About"
+            "value" : "关于"
           }
         }
       }
@@ -38223,13 +38929,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "アカウント"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "계정"
           }
         },
         "pt-BR" : {
@@ -38241,7 +38947,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account"
+            "value" : "账户"
           }
         }
       }
@@ -38276,13 +38982,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appearance"
+            "value" : "外観"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appearance"
+            "value" : "화면 모드"
           }
         },
         "pt-BR" : {
@@ -38294,7 +39000,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appearance"
+            "value" : "外观"
           }
         }
       }
@@ -38329,13 +39035,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete account"
+            "value" : "アカウントを削除"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete account"
+            "value" : "계정 삭제"
           }
         },
         "pt-BR" : {
@@ -38347,7 +39053,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete account"
+            "value" : "删除账户"
           }
         }
       }
@@ -38382,13 +39088,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Something went wrong while deleting your account."
+            "value" : "アカウントの削除中に問題が発生しました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Something went wrong while deleting your account."
+            "value" : "계정을 삭제하는 중에 문제가 발생했습니다."
           }
         },
         "pt-BR" : {
@@ -38400,7 +39106,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Something went wrong while deleting your account."
+            "value" : "删除账户时出了点问题。"
           }
         }
       }
@@ -38435,13 +39141,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This will permanently remove your account, cards, tags, and uploaded files. Are you sure?"
+            "value" : "アカウント、カード、タグ、アップロードしたファイルが完全に削除されます。よろしいですか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This will permanently remove your account, cards, tags, and uploaded files. Are you sure?"
+            "value" : "계정, 카드, 태그, 업로드한 파일이 영구적으로 삭제됩니다. 계속하시겠습니까?"
           }
         },
         "pt-BR" : {
@@ -38453,7 +39159,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This will permanently remove your account, cards, tags, and uploaded files. Are you sure?"
+            "value" : "这将永久删除你的账户、卡片、标签和上传的文件。确定要继续吗？"
           }
         }
       }
@@ -38488,13 +39194,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleting…"
+            "value" : "削除中…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleting…"
+            "value" : "삭제 중…"
           }
         },
         "pt-BR" : {
@@ -38506,7 +39212,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleting…"
+            "value" : "正在删除…"
           }
         }
       }
@@ -38541,13 +39247,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Email"
+            "value" : "メールアドレス"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Email"
+            "value" : "이메일"
           }
         },
         "pt-BR" : {
@@ -38559,7 +39265,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Email"
+            "value" : "邮箱"
           }
         }
       }
@@ -38594,13 +39300,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Help and docs"
+            "value" : "ヘルプとドキュメント"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Help and docs"
+            "value" : "도움말 및 문서"
           }
         },
         "pt-BR" : {
@@ -38612,7 +39318,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Help and docs"
+            "value" : "帮助和文档"
           }
         }
       }
@@ -38647,13 +39353,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hope you enjoy using Teak as much as I enjoyed creating it."
+            "value" : "私が楽しんで作ったのと同じくらい、Teak を楽しんで使っていただけたらうれしいです。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hope you enjoy using Teak as much as I enjoyed creating it."
+            "value" : "제가 Teak을 즐겁게 만든 만큼 여러분도 즐겁게 사용하시길 바랍니다."
           }
         },
         "pt-BR" : {
@@ -38665,7 +39371,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hope you enjoy using Teak as much as I enjoyed creating it."
+            "value" : "希望你喜欢使用 Teak，就像我喜欢创造它一样。"
           }
         }
       }
@@ -38753,13 +39459,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Library"
+            "value" : "ライブラリ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Library"
+            "value" : "라이브러리"
           }
         },
         "pt-BR" : {
@@ -38771,7 +39477,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Library"
+            "value" : "资料库"
           }
         }
       }
@@ -38806,13 +39512,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manage…"
+            "value" : "管理…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manage…"
+            "value" : "관리…"
           }
         },
         "pt-BR" : {
@@ -38824,7 +39530,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manage…"
+            "value" : "管理…"
           }
         }
       }
@@ -38859,13 +39565,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not available"
+            "value" : "利用できません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not available"
+            "value" : "사용할 수 없음"
           }
         },
         "pt-BR" : {
@@ -38877,7 +39583,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not available"
+            "value" : "不可用"
           }
         }
       }
@@ -38912,13 +39618,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not signed in"
+            "value" : "サインインしていません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not signed in"
+            "value" : "로그인하지 않음"
           }
         },
         "pt-BR" : {
@@ -38930,7 +39636,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not signed in"
+            "value" : "未登录"
           }
         }
       }
@@ -38965,13 +39671,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Off"
+            "value" : "オフ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Off"
+            "value" : "끔"
           }
         },
         "pt-BR" : {
@@ -38983,7 +39689,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Off"
+            "value" : "已关闭"
           }
         }
       }
@@ -39018,13 +39724,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On"
+            "value" : "オン"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On"
+            "value" : "켬"
           }
         },
         "pt-BR" : {
@@ -39036,7 +39742,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "On"
+            "value" : "已开启"
           }
         }
       }
@@ -39071,13 +39777,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Safari settings…"
+            "value" : "Safari の設定を開く…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Safari settings…"
+            "value" : "Safari 설정 열기…"
           }
         },
         "pt-BR" : {
@@ -39089,7 +39795,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Safari settings…"
+            "value" : "打开 Safari 浏览器设置…"
           }
         }
       }
@@ -39124,13 +39830,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plan"
+            "value" : "プラン"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plan"
+            "value" : "요금제"
           }
         },
         "pt-BR" : {
@@ -39142,7 +39848,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Plan"
+            "value" : "方案"
           }
         }
       }
@@ -39177,13 +39883,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Free"
+            "value" : "無料"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Free"
+            "value" : "무료"
           }
         },
         "pt-BR" : {
@@ -39195,7 +39901,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Free"
+            "value" : "免费"
           }
         }
       }
@@ -39230,13 +39936,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacy policy"
+            "value" : "プライバシーポリシー"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacy policy"
+            "value" : "개인정보 처리방침"
           }
         },
         "pt-BR" : {
@@ -39248,7 +39954,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacy policy"
+            "value" : "隐私政策"
           }
         }
       }
@@ -39283,13 +39989,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profile"
+            "value" : "プロフィール"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profile"
+            "value" : "프로필"
           }
         },
         "pt-BR" : {
@@ -39301,7 +40007,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Profile"
+            "value" : "个人资料"
           }
         }
       }
@@ -39336,13 +40042,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't check the extension: %1$@"
+            "value" : "拡張機能を確認できませんでした：%1$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't check the extension: %1$@"
+            "value" : "확장 프로그램을 확인하지 못했습니다: %1$@"
           }
         },
         "pt-BR" : {
@@ -39354,7 +40060,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't check the extension: %1$@"
+            "value" : "无法检查扩展：%1$@"
           }
         }
       }
@@ -39389,13 +40095,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Safari extension"
+            "value" : "Safari 拡張機能"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Safari extension"
+            "value" : "Safari 확장 프로그램"
           }
         },
         "pt-BR" : {
@@ -39407,7 +40113,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Safari extension"
+            "value" : "Safari 浏览器扩展"
           }
         }
       }
@@ -39442,13 +40148,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save pages from Safari with one tap. In Safari, tap %1$@ in the address bar, choose Manage Extensions, and turn on Teak."
+            "value" : "Safari からワンタップでページを保存できます。Safari のアドレスバーで %1$@ をタップし、“機能拡張を管理”を選択して Teak をオンにしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save pages from Safari with one tap. In Safari, tap %1$@ in the address bar, choose Manage Extensions, and turn on Teak."
+            "value" : "Safari에서 한 번만 탭하면 페이지를 저장할 수 있습니다. Safari 주소 막대에서 %1$@을(를) 탭하고 확장 프로그램 관리를 선택한 다음 Teak을 켜세요."
           }
         },
         "pt-BR" : {
@@ -39460,7 +40166,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save pages from Safari with one tap. In Safari, tap %1$@ in the address bar, choose Manage Extensions, and turn on Teak."
+            "value" : "在 Safari 浏览器中轻点一下即可保存网页。在 Safari 浏览器中，轻点地址栏中的 %1$@，选择“管理扩展”，然后开启 Teak。"
           }
         }
       }
@@ -39495,13 +40201,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Safari, choose Safari > Settings > Extensions, then turn on Teak."
+            "value" : "Safari で“Safari”>“設定”>“機能拡張”を選択して、Teak をオンにしてください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Safari, choose Safari > Settings > Extensions, then turn on Teak."
+            "value" : "Safari에서 Safari > 설정 > 확장 프로그램을 선택한 다음 Teak을 켜세요."
           }
         },
         "pt-BR" : {
@@ -39513,7 +40219,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Safari, choose Safari > Settings > Extensions, then turn on Teak."
+            "value" : "在 Safari 浏览器中，选取“Safari 浏览器”>“设置”>“扩展”，然后开启 Teak。"
           }
         }
       }
@@ -39548,13 +40254,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out"
+            "value" : "サインアウト"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out"
+            "value" : "로그아웃"
           }
         },
         "pt-BR" : {
@@ -39566,7 +40272,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out"
+            "value" : "退出登录"
           }
         }
       }
@@ -39601,13 +40307,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Are you sure you want to sign out?"
+            "value" : "サインアウトしますか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Are you sure you want to sign out?"
+            "value" : "로그아웃하시겠습니까?"
           }
         },
         "pt-BR" : {
@@ -39619,7 +40325,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Are you sure you want to sign out?"
+            "value" : "确定要退出登录吗？"
           }
         }
       }
@@ -39654,13 +40360,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signing out…"
+            "value" : "サインアウト中…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signing out…"
+            "value" : "로그아웃 중…"
           }
         },
         "pt-BR" : {
@@ -39672,7 +40378,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signing out…"
+            "value" : "正在退出登录…"
           }
         }
       }
@@ -39707,13 +40413,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Status"
+            "value" : "状態"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Status"
+            "value" : "상태"
           }
         },
         "pt-BR" : {
@@ -39725,7 +40431,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Status"
+            "value" : "状态"
           }
         }
       }
@@ -39760,13 +40466,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename, merge or delete your tags"
+            "value" : "タグの名前の変更、統合、削除ができます"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename, merge or delete your tags"
+            "value" : "태그 이름을 변경하거나 병합하거나 삭제합니다"
           }
         },
         "pt-BR" : {
@@ -39778,7 +40484,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename, merge or delete your tags"
+            "value" : "重命名、合并或删除你的标签"
           }
         }
       }
@@ -39813,13 +40519,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Theme"
+            "value" : "テーマ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Theme"
+            "value" : "테마"
           }
         },
         "pt-BR" : {
@@ -39831,7 +40537,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Theme"
+            "value" : "主题"
           }
         }
       }
@@ -39866,13 +40572,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto"
+            "value" : "自動"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto"
+            "value" : "자동"
           }
         },
         "pt-BR" : {
@@ -39884,7 +40590,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auto"
+            "value" : "自动"
           }
         }
       }
@@ -39919,13 +40625,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dark"
+            "value" : "ダーク"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dark"
+            "value" : "다크"
           }
         },
         "pt-BR" : {
@@ -39937,7 +40643,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dark"
+            "value" : "深色"
           }
         }
       }
@@ -39972,13 +40678,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Light"
+            "value" : "ライト"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Light"
+            "value" : "라이트"
           }
         },
         "pt-BR" : {
@@ -39990,7 +40696,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Light"
+            "value" : "浅色"
           }
         }
       }
@@ -40025,13 +40731,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings"
+            "value" : "設定"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings"
+            "value" : "설정"
           }
         },
         "pt-BR" : {
@@ -40043,7 +40749,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings"
+            "value" : "设置"
           }
         }
       }
@@ -40078,13 +40784,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type “%1$@” to confirm. This can't be undone."
+            "value" : "確認のため「%1$@」と入力してください。この操作は元に戻せません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type “%1$@” to confirm. This can't be undone."
+            "value" : "확인하려면 “%1$@”을(를) 입력하세요. 이 작업은 되돌릴 수 없습니다."
           }
         },
         "pt-BR" : {
@@ -40096,7 +40802,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Type “%1$@” to confirm. This can't be undone."
+            "value" : "输入“%1$@”以确认。此操作无法撤销。"
           }
         }
       }
@@ -40131,13 +40837,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upgrade…"
+            "value" : "アップグレード…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upgrade…"
+            "value" : "업그레이드…"
           }
         },
         "pt-BR" : {
@@ -40149,7 +40855,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Upgrade…"
+            "value" : "升级…"
           }
         }
       }
@@ -40184,13 +40890,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usage"
+            "value" : "使用状況"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usage"
+            "value" : "사용량"
           }
         },
         "pt-BR" : {
@@ -40202,7 +40908,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usage"
+            "value" : "用量"
           }
         }
       }
@@ -40237,13 +40943,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@ cards"
+            "value" : "%1$@ / %2$@ 件のカード"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@ cards"
+            "value" : "카드 %1$@/%2$@개"
           }
         },
         "pt-BR" : {
@@ -40255,7 +40961,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ of %2$@ cards"
+            "value" : "%1$@ / %2$@ 张卡片"
           }
         }
       }
@@ -40290,13 +40996,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version"
+            "value" : "バージョン"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version"
+            "value" : "버전"
           }
         },
         "pt-BR" : {
@@ -40308,7 +41014,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version"
+            "value" : "版本"
           }
         }
       }
@@ -40343,13 +41049,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version %1$@"
+            "value" : "バージョン %1$@"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version %1$@"
+            "value" : "버전 %1$@"
           }
         },
         "pt-BR" : {
@@ -40361,7 +41067,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Version %1$@"
+            "value" : "版本 %1$@"
           }
         }
       }
@@ -40396,13 +41102,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add tags and a note"
+            "value" : "タグとメモを追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add tags and a note"
+            "value" : "태그와 메모 추가"
           }
         },
         "pt-BR" : {
@@ -40414,7 +41120,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add tags and a note"
+            "value" : "添加标签和笔记"
           }
         }
       }
@@ -40449,13 +41155,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a note"
+            "value" : "メモを追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a note"
+            "value" : "메모 추가"
           }
         },
         "pt-BR" : {
@@ -40467,7 +41173,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a note"
+            "value" : "添加笔记"
           }
         }
       }
@@ -40502,13 +41208,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a tag"
+            "value" : "タグを追加"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a tag"
+            "value" : "태그 추가"
           }
         },
         "pt-BR" : {
@@ -40520,7 +41226,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add a tag"
+            "value" : "添加标签"
           }
         }
       }
@@ -40555,13 +41261,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the tags and note. Try again."
+            "value" : "タグとメモを保存できませんでした。もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the tags and note. Try again."
+            "value" : "태그와 메모를 저장하지 못했습니다. 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -40573,7 +41279,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the tags and note. Try again."
+            "value" : "无法保存标签和笔记，请重试。"
           }
         }
       }
@@ -40608,13 +41314,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try again."
+            "value" : "接続を確認してから、もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try again."
+            "value" : "연결을 확인하고 다시 시도해 주세요."
           }
         },
         "pt-BR" : {
@@ -40626,7 +41332,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Check your connection and try again."
+            "value" : "请检查网络连接后重试。"
           }
         }
       }
@@ -40661,13 +41367,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note"
+            "value" : "メモ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note"
+            "value" : "메모"
           }
         },
         "pt-BR" : {
@@ -40679,7 +41385,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Note"
+            "value" : "笔记"
           }
         }
       }
@@ -40714,13 +41420,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the note."
+            "value" : "メモを保存できませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the note."
+            "value" : "메모를 저장하지 못했습니다."
           }
         },
         "pt-BR" : {
@@ -40732,7 +41438,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save the note."
+            "value" : "无法保存笔记。"
           }
         }
       }
@@ -40767,13 +41473,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing to save"
+            "value" : "保存するものがありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing to save"
+            "value" : "저장할 항목 없음"
           }
         },
         "pt-BR" : {
@@ -40785,7 +41491,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nothing to save"
+            "value" : "没有可保存的内容"
           }
         }
       }
@@ -40820,13 +41526,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak couldn't find text, a link or a file to save."
+            "value" : "保存できるテキスト、リンク、ファイルが見つかりませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak couldn't find text, a link or a file to save."
+            "value" : "Teak이 저장할 텍스트, 링크 또는 파일을 찾지 못했습니다."
           }
         },
         "pt-BR" : {
@@ -40838,7 +41544,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Teak couldn't find text, a link or a file to save."
+            "value" : "Teak 找不到可保存的文本、链接或文件。"
           }
         }
       }
@@ -40873,13 +41579,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak"
+            "value" : "Teak を開く"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak"
+            "value" : "Teak 열기"
           }
         },
         "pt-BR" : {
@@ -40891,7 +41597,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak"
+            "value" : "打开 Teak"
           }
         }
       }
@@ -40926,13 +41632,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some items couldn't be saved."
+            "value" : "一部の項目を保存できませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some items couldn't be saved."
+            "value" : "일부 항목을 저장하지 못했습니다."
           }
         },
         "pt-BR" : {
@@ -40944,7 +41650,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some items couldn't be saved."
+            "value" : "部分项目无法保存。"
           }
         }
       }
@@ -40979,13 +41685,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove %1$@"
+            "value" : "%1$@ を削除"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove %1$@"
+            "value" : "%1$@ 제거"
           }
         },
         "pt-BR" : {
@@ -40997,7 +41703,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove %1$@"
+            "value" : "移除 %1$@"
           }
         }
       }
@@ -41032,13 +41738,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved"
+            "value" : "保存しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved"
+            "value" : "저장됨"
           }
         },
         "pt-BR" : {
@@ -41050,7 +41756,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved"
+            "value" : "已保存"
           }
         }
       }
@@ -41085,13 +41791,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It's in your library."
+            "value" : "ライブラリに追加されました。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It's in your library."
+            "value" : "라이브러리에 추가되었습니다."
           }
         },
         "pt-BR" : {
@@ -41103,7 +41809,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It's in your library."
+            "value" : "已添加到你的资料库。"
           }
         }
       }
@@ -41138,13 +41844,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving to Teak…"
+            "value" : "Teak に保存中…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving to Teak…"
+            "value" : "Teak에 저장하는 중…"
           }
         },
         "pt-BR" : {
@@ -41156,7 +41862,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saving to Teak…"
+            "value" : "正在保存到 Teak…"
           }
         }
       }
@@ -41191,13 +41897,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then share again."
+            "value" : "Teak を開いてサインインしてから、もう一度共有してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then share again."
+            "value" : "Teak을 열고 로그인한 다음 다시 공유하세요."
           }
         },
         "pt-BR" : {
@@ -41209,7 +41915,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Teak and sign in, then share again."
+            "value" : "请打开 Teak 并登录，然后再次共享。"
           }
         }
       }
@@ -41244,13 +41950,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in required"
+            "value" : "サインインが必要です"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in required"
+            "value" : "로그인 필요"
           }
         },
         "pt-BR" : {
@@ -41262,7 +41968,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign in required"
+            "value" : "需要登录"
           }
         }
       }
@@ -41297,13 +42003,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Skip"
+            "value" : "スキップ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Skip"
+            "value" : "건너뛰기"
           }
         },
         "pt-BR" : {
@@ -41315,7 +42021,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Skip"
+            "value" : "跳过"
           }
         }
       }
@@ -41350,13 +42056,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save tags."
+            "value" : "タグを保存できませんでした。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save tags."
+            "value" : "태그를 저장하지 못했습니다."
           }
         },
         "pt-BR" : {
@@ -41368,7 +42074,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't save tags."
+            "value" : "无法保存标签。"
           }
         }
       }
@@ -41403,13 +42109,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only the first %1$@ shared items are saved."
+            "value" : "共有された項目のうち、保存されるのは最初の %1$@ 件だけです。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only the first %1$@ shared items are saved."
+            "value" : "공유한 항목 중 처음 %1$@개만 저장됩니다."
           }
         },
         "pt-BR" : {
@@ -41421,7 +42127,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only the first %1$@ shared items are saved."
+            "value" : "仅保存共享的前 %1$@ 个项目。"
           }
         }
       }
@@ -43097,16 +43803,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$lld card changed"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%1$lld cards changed"
+                  "value" : "%1$lld 件のカードを変更しました"
                 }
               }
             }
@@ -43115,16 +43815,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$lld card changed"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%1$lld cards changed"
+                  "value" : "카드 %1$lld개가 변경되었습니다"
                 }
               }
             }
@@ -43151,16 +43845,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$lld card changed"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%1$lld cards changed"
+                  "value" : "已更改 %1$lld 张卡片"
                 }
               }
             }
@@ -43246,16 +43934,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish deleting. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish deleting. %2$@ of %1$lld cards changed."
+                  "value" : "削除を完了できませんでした。%1$lld 件のカード中 %2$@ 件を変更しました。"
                 }
               }
             }
@@ -43264,16 +43946,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish deleting. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish deleting. %2$@ of %1$lld cards changed."
+                  "value" : "삭제를 완료하지 못했습니다. 카드 %1$lld개 중 %2$@개가 변경되었습니다."
                 }
               }
             }
@@ -43300,16 +43976,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish deleting. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish deleting. %2$@ of %1$lld cards changed."
+                  "value" : "无法完成删除。已更改 %2$@ / %1$lld 张卡片。"
                 }
               }
             }
@@ -43347,13 +44017,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete…"
+            "value" : "削除…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete…"
+            "value" : "삭제…"
           }
         },
         "pt-BR" : {
@@ -43365,7 +44035,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete…"
+            "value" : "删除…"
           }
         }
       }
@@ -43448,16 +44118,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Removes “%2$@” from %1$lld card, plus any in Archive or Trash. The cards are kept. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Removes “%2$@” from %1$lld cards, plus any in Archive or Trash. The cards are kept. This can't be undone."
+                  "value" : "%1$lld 件のカードから「%2$@」を削除します。アーカイブとゴミ箱にあるカードも対象です。カード自体は残ります。この操作は元に戻せません。"
                 }
               }
             }
@@ -43466,16 +44130,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Removes “%2$@” from %1$lld card, plus any in Archive or Trash. The cards are kept. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Removes “%2$@” from %1$lld cards, plus any in Archive or Trash. The cards are kept. This can't be undone."
+                  "value" : "보관함이나 휴지통에 있는 카드를 포함해 카드 %1$lld개에서 “%2$@”을(를) 제거합니다. 카드는 유지됩니다. 이 작업은 되돌릴 수 없습니다."
                 }
               }
             }
@@ -43502,16 +44160,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Removes “%2$@” from %1$lld card, plus any in Archive or Trash. The cards are kept. This can't be undone."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Removes “%2$@” from %1$lld cards, plus any in Archive or Trash. The cards are kept. This can't be undone."
+                  "value" : "从 %1$lld 张卡片上移除“%2$@”，归档和废纸篓中的卡片也包括在内。卡片会被保留。此操作无法撤销。"
                 }
               }
             }
@@ -43549,13 +44201,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete tag"
+            "value" : "タグを削除"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete tag"
+            "value" : "태그 삭제"
           }
         },
         "pt-BR" : {
@@ -43567,7 +44219,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete tag"
+            "value" : "删除标签"
           }
         }
       }
@@ -43602,13 +44254,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete “%1$@”?"
+            "value" : "「%1$@」を削除しますか？"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete “%1$@”?"
+            "value" : "“%1$@”을(를) 삭제하시겠습니까?"
           }
         },
         "pt-BR" : {
@@ -43620,7 +44272,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete “%1$@”?"
+            "value" : "要删除“%1$@”吗？"
           }
         }
       }
@@ -43655,13 +44307,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted “%1$@”"
+            "value" : "「%1$@」を削除しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted “%1$@”"
+            "value" : "“%1$@”을(를) 삭제했습니다"
           }
         },
         "pt-BR" : {
@@ -43673,7 +44325,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted “%1$@”"
+            "value" : "已删除“%1$@”"
           }
         }
       }
@@ -43708,13 +44360,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleting “%1$@”…"
+            "value" : "「%1$@」を削除しています…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleting “%1$@”…"
+            "value" : "“%1$@”을(를) 삭제하는 중…"
           }
         },
         "pt-BR" : {
@@ -43726,7 +44378,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleting “%1$@”…"
+            "value" : "正在删除“%1$@”…"
           }
         }
       }
@@ -43761,13 +44413,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags you add to cards, and the ones Teak suggests, show up here."
+            "value" : "カードに付けたタグや、Teak がおすすめするタグがここに表示されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags you add to cards, and the ones Teak suggests, show up here."
+            "value" : "카드에 추가한 태그와 Teak이 추천한 태그가 여기에 표시됩니다."
           }
         },
         "pt-BR" : {
@@ -43779,7 +44431,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags you add to cards, and the ones Teak suggests, show up here."
+            "value" : "你为卡片添加的标签以及 Teak 建议的标签都会显示在这里。"
           }
         }
       }
@@ -43814,13 +44466,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags yet"
+            "value" : "タグはまだありません"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags yet"
+            "value" : "아직 태그가 없습니다"
           }
         },
         "pt-BR" : {
@@ -43832,7 +44484,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags yet"
+            "value" : "还没有标签"
           }
         }
       }
@@ -43867,13 +44519,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A tag named “%1$@” already exists."
+            "value" : "「%1$@」という名前のタグがすでにあります。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A tag named “%1$@” already exists."
+            "value" : "“%1$@” 태그가 이미 있습니다."
           }
         },
         "pt-BR" : {
@@ -43885,7 +44537,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A tag named “%1$@” already exists."
+            "value" : "名为“%1$@”的标签已存在。"
           }
         }
       }
@@ -43920,13 +44572,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find a tag"
+            "value" : "タグを検索"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find a tag"
+            "value" : "태그 찾기"
           }
         },
         "pt-BR" : {
@@ -43938,7 +44590,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find a tag"
+            "value" : "查找标签"
           }
         }
       }
@@ -43973,13 +44625,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading tags"
+            "value" : "タグを読み込み中"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading tags"
+            "value" : "태그를 불러오는 중"
           }
         },
         "pt-BR" : {
@@ -43991,7 +44643,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading tags"
+            "value" : "正在加载标签"
           }
         }
       }
@@ -44026,13 +44678,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge"
+            "value" : "統合"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge"
+            "value" : "병합"
           }
         },
         "pt-BR" : {
@@ -44044,7 +44696,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge"
+            "value" : "合并"
           }
         }
       }
@@ -44127,16 +44779,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish merging. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish merging. %2$@ of %1$lld cards changed."
+                  "value" : "統合を完了できませんでした。%1$lld 件のカード中 %2$@ 件を変更しました。"
                 }
               }
             }
@@ -44145,16 +44791,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish merging. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish merging. %2$@ of %1$lld cards changed."
+                  "value" : "병합을 완료하지 못했습니다. 카드 %1$lld개 중 %2$@개가 변경되었습니다."
                 }
               }
             }
@@ -44181,16 +44821,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish merging. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish merging. %2$@ of %1$lld cards changed."
+                  "value" : "无法完成合并。已更改 %2$@ / %1$lld 张卡片。"
                 }
               }
             }
@@ -44228,13 +44862,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into “%1$@” instead"
+            "value" : "代わりに「%1$@」に統合"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into “%1$@” instead"
+            "value" : "대신 “%1$@”(으)로 병합"
           }
         },
         "pt-BR" : {
@@ -44246,7 +44880,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into “%1$@” instead"
+            "value" : "改为合并到“%1$@”"
           }
         }
       }
@@ -44281,13 +44915,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into “%1$@”"
+            "value" : "「%1$@」に統合"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into “%1$@”"
+            "value" : "“%1$@”(으)로 병합"
           }
         },
         "pt-BR" : {
@@ -44299,7 +44933,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into “%1$@”"
+            "value" : "合并到“%1$@”"
           }
         }
       }
@@ -44334,13 +44968,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into…"
+            "value" : "統合…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into…"
+            "value" : "병합…"
           }
         },
         "pt-BR" : {
@@ -44352,7 +44986,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge into…"
+            "value" : "合并到…"
           }
         }
       }
@@ -44387,13 +45021,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards tagged “%1$@” get the tag you pick instead. A card with both keeps one."
+            "value" : "「%1$@」のタグが付いたカードには、代わりに選択したタグが付きます。両方が付いたカードは 1 つにまとめられます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards tagged “%1$@” get the tag you pick instead. A card with both keeps one."
+            "value" : "“%1$@” 태그가 붙은 카드에 선택한 태그가 대신 붙습니다. 두 태그가 모두 있는 카드는 하나만 유지합니다."
           }
         },
         "pt-BR" : {
@@ -44405,7 +45039,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cards tagged “%1$@” get the tag you pick instead. A card with both keeps one."
+            "value" : "带有“%1$@”标签的卡片将改用你选择的标签。同时带有两个标签的卡片只保留一个。"
           }
         }
       }
@@ -44440,13 +45074,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge “%1$@” into…"
+            "value" : "「%1$@」の統合先…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge “%1$@” into…"
+            "value" : "“%1$@”을(를) 다음 태그로 병합…"
           }
         },
         "pt-BR" : {
@@ -44458,7 +45092,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merge “%1$@” into…"
+            "value" : "将“%1$@”合并到…"
           }
         }
       }
@@ -44493,13 +45127,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merged “%1$@” into “%2$@”"
+            "value" : "「%1$@」を「%2$@」に統合しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merged “%1$@” into “%2$@”"
+            "value" : "“%1$@”을(를) “%2$@”(으)로 병합했습니다"
           }
         },
         "pt-BR" : {
@@ -44511,7 +45145,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merged “%1$@” into “%2$@”"
+            "value" : "已将“%1$@”合并到“%2$@”"
           }
         }
       }
@@ -44546,13 +45180,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merging “%1$@” into “%2$@”…"
+            "value" : "「%1$@」を「%2$@」に統合しています…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merging “%1$@” into “%2$@”…"
+            "value" : "“%1$@”을(를) “%2$@”(으)로 병합하는 중…"
           }
         },
         "pt-BR" : {
@@ -44564,7 +45198,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Merging “%1$@” into “%2$@”…"
+            "value" : "正在将“%1$@”合并到“%2$@”…"
           }
         }
       }
@@ -44599,13 +45233,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New name"
+            "value" : "新しい名前"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New name"
+            "value" : "새 이름"
           }
         },
         "pt-BR" : {
@@ -44617,7 +45251,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "New name"
+            "value" : "新名称"
           }
         }
       }
@@ -44652,13 +45286,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags match “%1$@”."
+            "value" : "「%1$@」に一致するタグはありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags match “%1$@”."
+            "value" : "“%1$@”와(과) 일치하는 태그가 없습니다."
           }
         },
         "pt-BR" : {
@@ -44670,7 +45304,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags match “%1$@”."
+            "value" : "没有符合“%1$@”的标签。"
           }
         }
       }
@@ -44705,13 +45339,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No other tags yet."
+            "value" : "ほかのタグはまだありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No other tags yet."
+            "value" : "아직 다른 태그가 없습니다."
           }
         },
         "pt-BR" : {
@@ -44723,7 +45357,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No other tags yet."
+            "value" : "还没有其他标签。"
           }
         }
       }
@@ -44758,13 +45392,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tag by that name."
+            "value" : "その名前のタグはありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tag by that name."
+            "value" : "해당 이름의 태그가 없습니다."
           }
         },
         "pt-BR" : {
@@ -44776,7 +45410,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tag by that name."
+            "value" : "没有该名称的标签。"
           }
         }
       }
@@ -44859,16 +45493,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%2$@ of %1$lld card changed"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%2$@ of %1$lld cards changed"
+                  "value" : "%1$lld 件のカード中 %2$@ 件を変更済み"
                 }
               }
             }
@@ -44877,16 +45505,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%2$@ of %1$lld card changed"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%2$@ of %1$lld cards changed"
+                  "value" : "카드 %1$lld개 중 %2$@개가 변경되었습니다"
                 }
               }
             }
@@ -44913,16 +45535,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%2$@ of %1$lld card changed"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%2$@ of %1$lld cards changed"
+                  "value" : "已更改 %2$@ / %1$lld 张卡片"
                 }
               }
             }
@@ -45008,16 +45624,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish renaming. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish renaming. %2$@ of %1$lld cards changed."
+                  "value" : "名前の変更を完了できませんでした。%1$lld 件のカード中 %2$@ 件を変更しました。"
                 }
               }
             }
@@ -45026,16 +45636,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish renaming. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish renaming. %2$@ of %1$lld cards changed."
+                  "value" : "이름 변경을 완료하지 못했습니다. 카드 %1$lld개 중 %2$@개가 변경되었습니다."
                 }
               }
             }
@@ -45062,16 +45666,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn't finish renaming. %2$@ of %1$lld card changed."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Couldn't finish renaming. %2$@ of %1$lld cards changed."
+                  "value" : "无法完成重命名。已更改 %2$@ / %1$lld 张卡片。"
                 }
               }
             }
@@ -45157,16 +45755,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Renames “%2$@” on %1$lld card, plus any in Archive or Trash."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Renames “%2$@” on %1$lld cards, plus any in Archive or Trash."
+                  "value" : "%1$lld 件のカードの「%2$@」の名前を変更します。アーカイブとゴミ箱にあるカードも対象です。"
                 }
               }
             }
@@ -45175,16 +45767,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Renames “%2$@” on %1$lld card, plus any in Archive or Trash."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Renames “%2$@” on %1$lld cards, plus any in Archive or Trash."
+                  "value" : "보관함이나 휴지통에 있는 카드를 포함해 카드 %1$lld개에서 “%2$@”의 이름을 변경합니다."
                 }
               }
             }
@@ -45211,16 +45797,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Renames “%2$@” on %1$lld card, plus any in Archive or Trash."
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Renames “%2$@” on %1$lld cards, plus any in Archive or Trash."
+                  "value" : "在 %1$lld 张卡片上重命名“%2$@”，归档和废纸篓中的卡片也包括在内。"
                 }
               }
             }
@@ -45258,13 +45838,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename tag"
+            "value" : "タグの名前を変更"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename tag"
+            "value" : "태그 이름 변경"
           }
         },
         "pt-BR" : {
@@ -45276,7 +45856,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rename tag"
+            "value" : "重命名标签"
           }
         }
       }
@@ -45311,13 +45891,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renamed “%1$@” to “%2$@”"
+            "value" : "「%1$@」を「%2$@」に名前変更しました"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renamed “%1$@” to “%2$@”"
+            "value" : "“%1$@”의 이름을 “%2$@”(으)로 변경했습니다"
           }
         },
         "pt-BR" : {
@@ -45329,7 +45909,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renamed “%1$@” to “%2$@”"
+            "value" : "已将“%1$@”重命名为“%2$@”"
           }
         }
       }
@@ -45364,13 +45944,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renaming “%1$@” to “%2$@”…"
+            "value" : "「%1$@」を「%2$@」に名前変更しています…"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renaming “%1$@” to “%2$@”…"
+            "value" : "“%1$@”의 이름을 “%2$@”(으)로 변경하는 중…"
           }
         },
         "pt-BR" : {
@@ -45382,7 +45962,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renaming “%1$@” to “%2$@”…"
+            "value" : "正在将“%1$@”重命名为“%2$@”…"
           }
         }
       }
@@ -45465,16 +46045,10 @@
         "ja" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%2$@, %1$lld card"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%2$@, %1$lld cards"
+                  "value" : "%2$@、%1$lld 件のカード"
                 }
               }
             }
@@ -45483,16 +46057,10 @@
         "ko" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%2$@, %1$lld card"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%2$@, %1$lld cards"
+                  "value" : "%2$@, 카드 %1$lld개"
                 }
               }
             }
@@ -45519,16 +46087,10 @@
         "zh-Hans" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%2$@, %1$lld card"
-                }
-              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%2$@, %1$lld cards"
+                  "value" : "%2$@，%1$lld 张卡片"
                 }
               }
             }
@@ -45566,13 +46128,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selected"
+            "value" : "選択済み"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selected"
+            "value" : "선택됨"
           }
         },
         "pt-BR" : {
@@ -45584,7 +46146,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Selected"
+            "value" : "已选择"
           }
         }
       }
@@ -45619,13 +46181,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't start the tag change"
+            "value" : "タグの変更を開始できませんでした"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't start the tag change"
+            "value" : "태그 변경을 시작하지 못했습니다"
           }
         },
         "pt-BR" : {
@@ -45637,7 +46199,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't start the tag change"
+            "value" : "无法开始更改标签"
           }
         }
       }
@@ -45672,13 +46234,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags"
+            "value" : "タグ"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags"
+            "value" : "태그"
           }
         },
         "pt-BR" : {
@@ -45690,7 +46252,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags"
+            "value" : "标签"
           }
         }
       }
@@ -45725,13 +46287,13 @@
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Try again to change the rest."
+            "value" : "残りを変更するには、もう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Try again to change the rest."
+            "value" : "나머지를 변경하려면 다시 시도하세요."
           }
         },
         "pt-BR" : {
@@ -45743,7 +46305,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Try again to change the rest."
+            "value" : "请重试以更改其余卡片。"
           }
         }
       }
