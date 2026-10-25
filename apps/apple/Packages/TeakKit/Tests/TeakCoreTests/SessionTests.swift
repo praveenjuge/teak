@@ -14,7 +14,7 @@ private func request() -> AuthKitRequest {
     AuthKitRequest(clientId: Fixture.clientId, method: .google, state: "state-1", verifier: verifier)
 }
 
-@Suite struct AuthKitTests {
+@Suite(.english) struct AuthKitTests {
     @Test func buildsAPublicPKCERequest() throws {
         let url = request().url
         let items = Dictionary(uniqueKeysWithValues: URLComponents(url: url, resolvingAgainstBaseURL: false)!
@@ -46,7 +46,7 @@ private func request() -> AuthKitRequest {
     }
 }
 
-@Suite struct SessionTests {
+@Suite(.english) struct SessionTests {
     @Test func exchangesPKCEStoresMinimalCredentialsAndRestores() async throws {
         let storage = MemoryStorage()
         let transport = ScriptedTransport { _, body in
@@ -248,7 +248,7 @@ private func request() -> AuthKitRequest {
     }
 }
 
-@Suite struct CredentialLockTests {
+@Suite(.english) struct CredentialLockTests {
     @Test func runningOutOfTimeTakesTheLockFromAnOperationThatWontStop() async throws {
         let directory = Fixture.tempDirectory()
         let activity = ScriptedActivity()
@@ -272,7 +272,7 @@ private final class TokenLog: @unchecked Sendable {
     var values: [String?] { lock.withLock { _values } }
 }
 
-@Suite struct BootstrapTests {
+@Suite(.english) struct BootstrapTests {
     @Test func waitsForAPendingProfile() async throws {
         let calls = Counter()
         let transport = ScriptedTransport { request, body in
@@ -288,11 +288,13 @@ private final class TokenLog: @unchecked Sendable {
         #expect(transport.count == 3)
     }
 
-    @Test(arguments: [("verify_email", TeakMessages.verifyEmail), ("frozen", TeakMessages.signupsPaused),
-                      ("quarantined", TeakMessages.vaultUnavailable)])
-    func explainsWhyAVaultWontOpen(status: String, message: String) async throws {
+    // The messages are closures: arguments are evaluated before `.english` applies.
+    @Test(arguments: [("verify_email", { @Sendable in TeakMessages.verifyEmail }),
+                      ("frozen", { @Sendable in TeakMessages.signupsPaused }),
+                      ("quarantined", { @Sendable in TeakMessages.vaultUnavailable })])
+    func explainsWhyAVaultWontOpen(status: String, message: @Sendable () -> String) async throws {
         let transport = ScriptedTransport { _, _ in (200, ["status": "success", "value": ["status": status, "reason": "x"]]) }
-        await #expect(throws: TeakError(message: message)) {
+        await #expect(throws: TeakError(message: message())) {
             try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport, delay: .zero)
                 .ensureUser(accessToken: "token")
         }
@@ -305,7 +307,7 @@ final class Counter: @unchecked Sendable {
     func next() -> Int { lock.withLock { defer { value += 1 }; return value } }
 }
 
-@Suite struct ServicesTests {
+@Suite(.english) struct ServicesTests {
     @Test func aSignedOutSessionFailsBeforeAnyRequest() async throws {
         let transport = ScriptedTransport { _, _ in
             Issue.record("a signed-out session made a request")

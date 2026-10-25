@@ -11,7 +11,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
          colors: colors, fileMetadata: file, fileUrl: fileUrl, detailUrl: detailUrl, thumbnailUrl: thumbnailUrl)
 }
 
-@Suite struct CardSheetTests {
+@Suite(.english) struct CardSheetTests {
     @Test func formatsByteCounts() {
         #expect([0, 512, 2048, 1_572_864, 2_147_483_648].map { CardSheet.formatFileSize($0) }
             == ["0 B", "512 B", "2 KB", "1.5 MB", "2 GB"])
@@ -129,7 +129,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct CardEditTests {
+@Suite(.english) struct CardEditTests {
     private let original = card(.text, content: "Original", notes: "Old notes", tags: ["keep"], aiTags: ["Design", "Color"])
 
     @Test func anUntouchedFormSavesNothing() {
@@ -164,7 +164,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct MarkdownBlockTests {
+@Suite(.english) struct MarkdownBlockTests {
     @Test func splitsANoteIntoTheBlocksTheWebShows() {
         let note = ["# Trip plan", "", "- Book **train** tickets", "  - Window seat", "1. Pack", "",
                     "> Leave early.", "> Really.", "", "---", "", "```", "# not a heading", "```",
@@ -190,7 +190,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct TextInputTests {
+@Suite(.english) struct TextInputTests {
     @Test func keepsRawMarkdownForNotes() {
         let content = "\u{FEFF}  # Mobile\r\n\r\n- [ ] task  \n"
         let resolved = LinkDetection.resolve(content)
@@ -218,7 +218,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct FileFormatTests {
+@Suite(.english) struct FileFormatTests {
     @Test func fillsInAMissingMimeTypeFromTheName() {
         #expect(FileFormats.uploadMimeType(fileName: "component.tsx", mimeType: "application/octet-stream") == "text/tsx")
         #expect(FileFormats.uploadMimeType(fileName: "voice.m4a", mimeType: nil) != nil)
@@ -242,7 +242,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
-@Suite struct CardDecodingTests {
+@Suite(.english) struct CardDecodingTests {
     @Test func decodesACardMarkedDoneInACategoryItDoesNotKnow() throws {
         let json = """
         {

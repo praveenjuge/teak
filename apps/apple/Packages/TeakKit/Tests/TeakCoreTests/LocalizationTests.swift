@@ -6,7 +6,7 @@ import Testing
 
 // Android's core:i18n tests check the same cases.
 
-@Suite struct LocalizationTests {
+@Suite(.english) struct LocalizationTests {
     @Test(arguments: [
         ("en", 1, "1 card"), ("en", 2, "2 cards"),
         ("de", 1, "1 Karte"), ("de", 3, "3 Karten"),
@@ -37,17 +37,16 @@ import Testing
     }
 }
 
-@Suite struct AppLanguageTests {
+@Suite(.english) struct AppLanguageTests {
     @Test func readsWithoutTheAppsConfig() {
         #expect(AppLanguage.codes.contains(AppLanguage.current))
         #expect(!tr("settings.language.label").isEmpty)
     }
 }
 
-@Suite(.serialized) struct LanguageChangeTests {
+@Suite(.serialized, .switchesLanguage) struct LanguageChangeTests {
     @Test func textReadThroughTrIsObservedForLanguageChanges() {
         let before = AppLanguage.current
-        defer { AppLanguage.use(before) }
         let changed = Mutex(false)
         withObservationTracking {
             _ = tr("settings.language.label")
@@ -59,8 +58,6 @@ import Testing
     }
 
     @Test func reloadReadsTheSharedLanguageAgain() {
-        let before = AppLanguage.current
-        defer { AppLanguage.use(before) }
         AppLanguage.use("ja")
         AppLanguage.reload()
         #expect(AppLanguage.current == "ja")

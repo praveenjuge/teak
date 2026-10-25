@@ -36,7 +36,7 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
                    transport: transport, retryDelays: [.zero, .zero])
 }
 
-@Suite struct UploadTests {
+@Suite(.english) struct UploadTests {
     @Test func preparesUploadsThenFinalizesWithTheETag() async throws {
         let transport = backend()
         let item = UploadItem(fileURL: file("photo.png"), mimeType: "application/octet-stream", width: 800, height: 600)
@@ -95,7 +95,7 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
     }
 }
 
-@Suite struct ShareImportTests {
+@Suite(.english) struct ShareImportTests {
     private func importer(failing: Set<String> = []) -> ShareImporter {
         ShareImporter(
             createText: { text in
@@ -153,7 +153,7 @@ private func pipeline(_ transport: ScriptedTransport) -> UploadPipeline {
     }
 }
 
-@Suite struct ConvexHTTPTests {
+@Suite(.english) struct ConvexHTTPTests {
     private func call(_ status: Int, _ json: Any) async throws -> ConvexVoid {
         nonisolated(unsafe) let json = json
         let transport = ScriptedTransport { _, _ in (status, json) }
