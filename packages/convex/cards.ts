@@ -6,6 +6,7 @@ export {
 } from "./card/cardLinks";
 export * from "./card/createCard";
 export * from "./card/deleteCard";
+export { emptyTrash, trashCount } from "./card/emptyTrash";
 export * from "./card/findDuplicateCard";
 export * from "./card/getCard";
 export * from "./card/getCards";

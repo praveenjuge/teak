@@ -116,6 +116,15 @@ final class LibraryFlowTests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
+    /// "Delete forever", in Title Case in Mac menus.
+    private var deleteForever: String {
+        #if os(macOS)
+        "Delete Forever"
+        #else
+        "Delete forever"
+        #endif
+    }
+
     @MainActor private func menuItem(_ name: String) -> XCUIElement {
         #if os(macOS)
         app.menuItems[name].firstMatch
@@ -174,7 +183,14 @@ final class LibraryFlowTests: XCTestCase {
 
         tap(tile(containing: note))
         tap(byId("detail.more").waitToAppear())
-        tap(menuItem("Delete Card").waitToAppear())
+        tap(menuItem("Move to Trash").waitToAppear())
+        tile(containing: note).waitToDisappear()
+        // Moving to Trash asks nothing and offers Undo, which puts the card back.
+        tap(byId("status.undo").waitToAppear())
+        tile(containing: note).waitToAppear()
+
+        tile(containing: note).openContextMenu()
+        tap(menuItem("Move to Trash").waitToAppear())
         tile(containing: note).waitToDisappear()
 
         filter("Trash")
@@ -186,13 +202,13 @@ final class LibraryFlowTests: XCTestCase {
 
         tap(tile(containing: note))
         tap(byId("detail.more").waitToAppear())
-        tap(menuItem("Delete Card").waitToAppear())
+        tap(menuItem("Move to Trash").waitToAppear())
         filter("Trash")
         tile(containing: note).waitToAppear().openContextMenu()
-        tap(menuItem("Delete Forever").waitToAppear())
-        tap(confirmation("Delete Forever").waitToAppear())
+        tap(menuItem(deleteForever).waitToAppear())
+        tap(confirmation(deleteForever).waitToAppear())
         tile(containing: note).waitToDisappear()
-        XCTAssertFalse(confirmation("Delete Forever").waitForExistence(timeout: 3))
+        XCTAssertFalse(confirmation(deleteForever).waitForExistence(timeout: 3))
     }
 
     @MainActor

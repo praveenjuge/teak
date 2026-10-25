@@ -23,6 +23,7 @@ import {
   MAX_FILE_NAME_LENGTH,
   MAX_FILE_SIZE,
 } from "../../../packages/convex/shared/fileFormats";
+import { FOLDER_ERROR_MESSAGES } from "../../../packages/convex/shared/folders";
 import {
   ACTIONABLE_LINK_CATEGORIES,
   LINK_CATEGORY_DONE_VERB,
@@ -71,6 +72,7 @@ export const buildSharedConstants = () => ({
   },
   cardErrorMessages: CARD_ERROR_MESSAGES,
   tagErrorMessages: TAG_ERROR_MESSAGES,
+  folderErrorMessages: FOLDER_ERROR_MESSAGES,
   hiddenTagKeys: [...HIDDEN_TAG_KEYS],
   linkCategoryDoneVerbs: sortedRecord(LINK_CATEGORY_DONE_VERB),
   actionableLinkCategories: [...ACTIONABLE_LINK_CATEGORIES].sort(),

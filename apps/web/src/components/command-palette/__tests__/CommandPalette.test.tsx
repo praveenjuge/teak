@@ -20,10 +20,12 @@ const folder = (
 const render = ({
   cards = { status: "idle" },
   folders = [],
+  pathname = "/",
   query = "",
 }: {
   cards?: PaletteCardsState;
   folders?: FolderSummary[];
+  pathname?: string;
   query?: string;
 }) =>
   renderToStaticMarkup(
@@ -33,6 +35,7 @@ const render = ({
           cards={cards}
           folders={folders}
           onSelect={() => undefined}
+          pathname={pathname}
           query={query}
         />
       </CommandList>
@@ -71,6 +74,11 @@ describe("CommandPaletteResults", () => {
     ]) {
       expect(html).toContain(`>${label}<`);
     }
+  });
+
+  test("offers Empty Trash only in Trash", () => {
+    expect(render({})).not.toContain(">Empty Trash<");
+    expect(render({ pathname: "/trash" })).toContain(">Empty Trash<");
   });
 
   test("lists folders and marks smart folders, with the full name as a tooltip", () => {

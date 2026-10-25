@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.CreatedAtRange
 import com.praveenjuge.teak.core.model.LibraryFilters
+import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -109,6 +110,21 @@ class ConvexCardsRepositoryTest {
         assertEquals("cards:permanentDeleteCard", convex.calls[0].name)
         assertEquals(mapOf("id" to "c1"), convex.calls[0].args)
         assertEquals(mapOf("cardId" to "c2", "field" to "delete"), convex.calls[1].args)
+    }
+
+    @Test
+    fun `empty trash takes no arguments and reports how many cards it deletes`() = runTest {
+        convex.responses["cards:emptyTrash"] = { buildJsonObject { put("count", 3.0); put("more", false) } }
+        assertEquals(TrashCount(3.0), repository.emptyTrash())
+        assertEquals("cards:emptyTrash", convex.calls.single().name)
+        assertEquals(emptyMap(), convex.calls.single().args)
+    }
+
+    @Test
+    fun `trash count follows cards trashCount`() = runTest {
+        convex.responses["cards:trashCount"] = { buildJsonObject { put("count", 40.0); put("more", true) } }
+        assertEquals(TrashCount(40.0, more = true), repository.trashCount().first().getOrThrow())
+        assertEquals("cards:trashCount", convex.calls.single().name)
     }
 
     @Test

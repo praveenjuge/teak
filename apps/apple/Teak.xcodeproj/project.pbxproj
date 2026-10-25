@@ -63,6 +63,7 @@
 		CA936634E82AC028BE4DD6AE /* LanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB394A36A18ACECFC01E2CA /* LanguageModel.swift */; };
 		DA5B5FBF30F1B93E2DEA8EA3 /* VoiceMemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */; };
 		DC36BB48B0EBCCE205D7A0C9 /* SafariExtensionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */; };
+		DEA2A0E06301B298126F060D /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC3EC60C8F0E88E5C6CFEFF5 /* ImageViewer.swift */; };
 		E0AE5D5D8F80E276096A2F7A /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = C514F569EE7DFB45299EF550 /* TeakCore */; };
 		E57DC0A90C4B639603941134 /* TeakCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30BD656D74E8D555D4EC2E21 /* TeakCommands.swift */; };
 		E703EDE9EC3246A9A56F778F /* Platform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 491038488A86B5D19F99D1D1 /* Platform.swift */; };
@@ -157,6 +158,7 @@
 		B8FC22D12BEDFA49700BBF69 /* Teak.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Teak.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBB7C456017B244B6D91EBA7 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
 		BBEA95678E058CFC665ADECF /* CardTile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTile.swift; sourceTree = "<group>"; };
+		BC3EC60C8F0E88E5C6CFEFF5 /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
 		BDFC7C1A7EFDB3B2D6F915E2 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; name = _locales; path = SafariExtension/Resources/_locales; sourceTree = SOURCE_ROOT; };
 		BEB8CCFA07439724E1FD132D /* MacSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSettings.swift; sourceTree = "<group>"; };
 		C1C78020F918336D66648413 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 				FFB076F319391164EE3794A4 /* CardLinkPicker.swift */,
 				86D536980FFE491122D6407C /* CardPreviews.swift */,
 				0EE1B224975A9737F41FCAEF /* CardSections.swift */,
+				BC3EC60C8F0E88E5C6CFEFF5 /* ImageViewer.swift */,
 			);
 			path = Card;
 			sourceTree = "<group>";
@@ -665,6 +668,7 @@
 				A468F94175235B9899B77BA3 /* CardTile.swift in Sources */,
 				AC18D4A737BE12F096486102 /* FolderViews.swift in Sources */,
 				2B8393E139FF71E06A25FA8A /* FoldersModel.swift in Sources */,
+				DEA2A0E06301B298126F060D /* ImageViewer.swift in Sources */,
 				CA936634E82AC028BE4DD6AE /* LanguageModel.swift in Sources */,
 				00895B5374DF8CD81E3AFCDF /* LibraryModel.swift in Sources */,
 				4D2C4E4BAA75709A532DCE88 /* LibraryView.swift in Sources */,

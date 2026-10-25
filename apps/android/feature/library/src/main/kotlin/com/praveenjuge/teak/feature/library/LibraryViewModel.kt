@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
+import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardPager
 import com.praveenjuge.teak.core.data.repository.CardQuery
@@ -16,6 +17,7 @@ import com.praveenjuge.teak.core.model.BulkCopy
 import com.praveenjuge.teak.core.model.CardSort
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ColorHue
+import com.praveenjuge.teak.core.model.EmptyTrash
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.QualifierChip
@@ -26,6 +28,7 @@ import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.core.model.SearchSimilarity
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.TimeFilter
+import com.praveenjuge.teak.core.model.TrashCount
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -73,8 +76,18 @@ data class Undo(val action: BulkAction, val ids: List<String>)
 
 data class LibraryMessage(val id: Long, val text: UiText, val undo: Undo? = null)
 
+/** The filters a library view always has: Favorites, Archive or Trash from the tablet rail, or none. */
+internal fun LibraryView?.baseFilters(): LibraryFilters = when (this) {
+    LibraryView.Favorites -> LibraryFilters(favoritesOnly = true)
+    LibraryView.Archive -> LibraryFilters(archivedOnly = true)
+    LibraryView.Trash -> LibraryFilters(trashOnly = true)
+    LibraryView.All, null -> LibraryFilters.Empty
+}
+
 data class LibraryUiState(
-    val filters: LibraryFilters = LibraryFilters.Empty,
+    /** Favorites, Archive or Trash shown as their own page, whose filter can't be turned off. */
+    val fixedView: LibraryView? = null,
+    val filters: LibraryFilters = fixedView.baseFilters(),
     val search: String = "",
     val timeFilter: TimeFilter? = null,
     /** The search without the date words [timeFilter] came from: "figma" for "figma last week". */
@@ -94,8 +107,21 @@ data class LibraryUiState(
     val semanticOutcome: String? = null,
     val hasHiddenCards: Boolean = false,
     val message: LibraryMessage? = null,
+    val isEmptyingTrash: Boolean = false,
+    /** Every card in Trash, from `cards:trashCount`, while this view is Trash. */
+    val trashCount: TrashCount? = null,
 ) {
     val isSelecting: Boolean get() = selection is Selection.Active
+
+    /** Filters beyond the view's own, which Clear takes off. */
+    val canClearFilters: Boolean
+        get() = filters.copy(sort = CardSort.Newest, shuffleSeed = 0) != fixedView.baseFilters()
+
+    /** Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives. */
+    val canEmptyTrash: Boolean
+        get() = filters.trashOnly && !isEmptyingTrash && (trashCount?.let { it.cardCount > 0 } ?: paged.cards.isNotEmpty())
+
+    val emptyTrashMessage: UiText get() = EmptyTrash.message(trashCount?.cardCount ?: paged.cards.size, more = trashCount?.more == true)
 
     val pickedIds: List<String> get() = (selection as? Selection.Active)?.pickedIds.orEmpty()
 
@@ -207,13 +233,14 @@ data class LibraryUiState(
 @HiltViewModel(assistedFactory = LibraryViewModel.Factory::class)
 class LibraryViewModel @AssistedInject constructor(
     @Assisted private val folderId: String?,
+    @Assisted private val fixedView: LibraryView?,
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
     private val language: LanguageRepository,
 ) : ViewModel() {
     private val pager = CardPager(repository, viewModelScope)
     private val searchText = MutableStateFlow("")
-    private val _state = MutableStateFlow(LibraryUiState(folderId = folderId))
+    private val _state = MutableStateFlow(LibraryUiState(fixedView = fixedView, folderId = folderId))
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()
     private var messageId = 0L
 
@@ -246,6 +273,16 @@ class LibraryViewModel @AssistedInject constructor(
         watchSimilarAnchor()
         warmMeaningSearch()
         watchHiddenCards()
+        watchTrashCount()
+    }
+
+    /** Follows `cards:trashCount` while this view is Trash, for Empty Trash. */
+    private fun watchTrashCount() {
+        _state.map { it.filters.trashOnly }
+            .distinctUntilChanged()
+            .flatMapLatest { trash -> if (trash) repository.trashCount().map { it.getOrNull() } else flowOf(null) }
+            .onEach { count -> _state.update { it.copy(trashCount = count) } }
+            .launchIn(viewModelScope)
     }
 
     /** The `like:` card's title, for its chip. */
@@ -315,11 +352,16 @@ class LibraryViewModel @AssistedInject constructor(
         searchText.value = text
     }
 
-    fun toggleFavorites() = updateFilters { it.copy(favoritesOnly = !it.favoritesOnly) }
+    fun toggleFavorites() = updateViewFilter { it.copy(favoritesOnly = !it.favoritesOnly) }
 
-    fun toggleTrash() = updateFilters { it.toggleTrash() }
+    fun toggleTrash() = updateViewFilter { it.toggleTrash() }
 
-    fun toggleArchive() = updateFilters { it.toggleArchive() }
+    fun toggleArchive() = updateViewFilter { it.toggleArchive() }
+
+    /** Favorites, Archive and Trash pages keep their own filter. */
+    private fun updateViewFilter(transform: (LibraryFilters) -> LibraryFilters) {
+        if (fixedView == null) updateFilters(transform)
+    }
 
     fun toggleType(type: CardType) = updateFilters { it.toggleType(type) }
 
@@ -327,7 +369,7 @@ class LibraryViewModel @AssistedInject constructor(
 
     fun sort(sort: CardSort) = updateFilters { it.sorted(sort) }
 
-    fun clearFilters() = updateFilters { LibraryFilters.Empty.copy(sort = it.sort, shuffleSeed = it.shuffleSeed) }
+    fun clearFilters() = updateFilters { fixedView.baseFilters().copy(sort = it.sort, shuffleSeed = it.shuffleSeed) }
 
     private fun updateFilters(transform: (LibraryFilters) -> LibraryFilters) =
         _state.update { it.copy(filters = transform(it.filters)) }
@@ -421,6 +463,18 @@ class LibraryViewModel @AssistedInject constructor(
         }
     }
 
+    /** Deletes every card in Trash forever. The server deletes them in pages, and the view follows live. */
+    fun emptyTrash() {
+        if (!_state.value.canEmptyTrash) return
+        _state.update { it.copy(isEmptyingTrash = true) }
+        viewModelScope.launch {
+            catchingFailures { repository.emptyTrash() }
+                .onSuccess { post(EmptyTrash.done(it)) }
+                .onFailure { error -> post(EmptyTrash.failure((error as? TeakException)?.code, (error as? TeakException)?.text)) }
+            _state.update { it.copy(isEmptyingTrash = false) }
+        }
+    }
+
     fun undo(message: LibraryMessage) {
         val undo = message.undo ?: return
         dismissMessage(message.id)
@@ -441,7 +495,7 @@ class LibraryViewModel @AssistedInject constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(folderId: String?): LibraryViewModel
+        fun create(folderId: String?, fixedView: LibraryView?): LibraryViewModel
     }
 
     companion object {

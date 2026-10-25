@@ -6,6 +6,20 @@ const ID = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b";
 describe("card display title", () => {
   test.each([
     [
+      "a title the person typed before all",
+      {
+        content: "",
+        metadata: {
+          linkPreview: { source: "x", status: "success", title: "Preview" },
+        },
+        metadataTitle: "Field notes",
+        metadataTitleEdited: true,
+        type: "link",
+        url: "https://www.example.com/a",
+      },
+      "Field notes",
+    ],
+    [
       "the link preview title first",
       {
         content: "",

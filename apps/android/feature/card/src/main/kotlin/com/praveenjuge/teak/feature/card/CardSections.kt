@@ -28,10 +28,13 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
@@ -40,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,6 +53,7 @@ import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
 import com.praveenjuge.teak.core.model.CardDetails
+import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardSource
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.CardSheet
@@ -118,14 +123,19 @@ internal fun LinkDetailsSections(card: Card, onOpenImage: (String) -> Unit) {
     }
 }
 
+/** Keep and Remove for Teak's suggested tags. */
+internal class SuggestedTagActions(val keep: (String) -> Unit, val remove: (String) -> Unit)
+
+/** [suggested] is null in Trash, where Teak's tags show without Keep and Remove. */
 @Composable
-internal fun NotesAndTagsSections(card: Card, onSearchTag: (String) -> Unit) {
+internal fun NotesAndTagsSections(card: Card, onSearchTag: (String) -> Unit, suggested: SuggestedTagActions? = null) {
     val notes = card.notes?.trim().orEmpty()
     val tags = card.tags.orEmpty().map(String::trim).filter(String::isNotEmpty)
+    val suggestedTags = CardEdit.suggestedTags(card)
     if (notes.isNotEmpty()) {
         DetailSection(tr("native.card.sections.notes")) { MarkdownText(notes) }
     }
-    if (tags.isNotEmpty()) {
+    if (tags.isNotEmpty() || suggestedTags.isNotEmpty()) {
         DetailSection(tr("native.card.sections.tags")) {
             if (card.hidden) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -137,23 +147,67 @@ internal fun NotesAndTagsSections(card: Card, onSearchTag: (String) -> Unit) {
                     )
                 }
             }
-            ChipRow(tags = tags, onPressTag = onSearchTag)
+            if (tags.isNotEmpty()) ChipRow(tags = tags, onPressTag = onSearchTag)
+            if (suggestedTags.isNotEmpty()) SuggestedTagRow(suggestedTags, suggested, onSearchTag)
+        }
+    }
+}
+
+/** "Suggested by Teak": tags Teak added, each with Keep and Remove, like the web's card details. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SuggestedTagRow(tags: List<String>, actions: SuggestedTagActions?, onPressTag: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            Text(tr("native.tags.suggested"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            tags.forEach { tag ->
+                val keepLabel = tr("native.tags.keepTag", tag)
+                if (actions == null) {
+                    SuggestionChip(onClick = { onPressTag(tag) }, label = { Text(tag) })
+                } else {
+                    InputChip(
+                        selected = false,
+                        onClick = { actions.keep(tag) },
+                        label = { Text(tag) },
+                        leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(InputChipDefaults.IconSize)) },
+                        trailingIcon = {
+                            IconButton(onClick = { actions.remove(tag) }, modifier = Modifier.size(24.dp)) {
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = tr("native.card.edit.removeTag", tag),
+                                    modifier = Modifier.size(InputChipDefaults.IconSize),
+                                )
+                            }
+                        },
+                        modifier = Modifier.semantics {
+                            onClick(label = keepLabel) {
+                                actions.keep(tag)
+                                true
+                            }
+                        },
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-internal fun SummarySections(card: Card, onSearchTag: (String) -> Unit) {
+internal fun SummarySections(card: Card) {
     val summary = card.aiSummary?.trim().orEmpty()
-    val tags = card.aiTags.orEmpty().map(String::trim).filter(String::isNotEmpty)
     val colors = if (card.type.showsSummaryColors) card.colors.orEmpty().take(8).map { it.hex } else emptyList()
     val transcript = card.aiTranscript?.trim().orEmpty()
-    if (summary.isNotEmpty() || tags.isNotEmpty() || colors.isNotEmpty()) {
+    if (summary.isNotEmpty() || colors.isNotEmpty()) {
         DetailSection(tr("native.card.sections.summary")) {
             if (summary.isNotEmpty()) SelectableText(summary)
-            if (tags.isNotEmpty() || colors.isNotEmpty()) {
-                ChipRow(tags = tags, colors = colors, sparkles = true, onPressTag = onSearchTag)
-            }
+            if (colors.isNotEmpty()) ChipRow(tags = emptyList(), colors = colors, onPressTag = {})
         }
     }
     if (transcript.isNotEmpty()) {
@@ -287,7 +341,6 @@ internal fun ChipRow(
     tags: List<String>,
     onPressTag: (String) -> Unit,
     colors: List<String> = emptyList(),
-    sparkles: Boolean = false,
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -302,17 +355,7 @@ internal fun ChipRow(
             )
         }
         tags.forEach { tag ->
-            if (sparkles) {
-                AssistChip(
-                    onClick = { onPressTag(tag) },
-                    label = { Text(tag) },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
-                    },
-                )
-            } else {
-                SuggestionChip(onClick = { onPressTag(tag) }, label = { Text(tag) })
-            }
+            SuggestionChip(onClick = { onPressTag(tag) }, label = { Text(tag) })
         }
     }
 }

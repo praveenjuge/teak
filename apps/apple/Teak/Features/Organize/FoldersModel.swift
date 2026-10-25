@@ -51,6 +51,15 @@ final class FoldersModel {
         ])
     }
 
+    /// Renames a smart folder and changes its search together, as the web's and Android's folder dialog do.
+    func update(_ folder: Folder, name: String, query: String) async throws -> Folder {
+        try await backend.mutation(ConvexFunctions.updateFolder, [
+            "folderId": .string(folder.id),
+            "name": .string(name.trimmingCharacters(in: .whitespacesAndNewlines)),
+            "query": .string(query.trimmingCharacters(in: .whitespacesAndNewlines)),
+        ])
+    }
+
     func delete(_ folder: Folder) async throws {
         let _: String = try await backend.mutation(ConvexFunctions.deleteFolder, ["folderId": .string(folder.id)])
     }

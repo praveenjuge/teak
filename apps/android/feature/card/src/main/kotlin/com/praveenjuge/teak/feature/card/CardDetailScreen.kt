@@ -48,7 +48,22 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.MoreVert
@@ -127,6 +142,14 @@ internal class CardDetailCallbacks(
     val onSetFolders: (List<String>) -> Unit = {},
     val onCreateFolder: (String, (Folder) -> Unit) -> Unit = { _, _ -> },
     val onToggleTask: (MarkdownListItem) -> Unit = {},
+    /** Opens the card's PDF in the app's reader. */
+    val onViewPdf: () -> Unit = {},
+    val onSaveTitle: (String) -> Unit = {},
+    val onEditLink: () -> Unit = {},
+    val onSaveLink: (String) -> Unit = {},
+    val onCloseEditLink: () -> Unit = {},
+    val onKeepTag: (String) -> Unit = {},
+    val onRemoveSuggestedTag: (String) -> Unit = {},
 )
 
 /** What a hardware key does on an open card: E archives, D marks done, R refreshes details, F favorites. */
@@ -177,11 +200,15 @@ internal fun CardDetailScreen(
             Column {
                 TopAppBar(
                     title = {
-                        Text(
-                            card?.let { CardSheet.title(it).resolve() } ?: "",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        if (card != null && state.editsTitle) {
+                            LinkTitleField(CardSheet.linkTitle(card).resolve(), callbacks.onSaveTitle)
+                        } else {
+                            Text(
+                                card?.let { CardSheet.title(it).resolve() } ?: "",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     },
                     navigationIcon = {
                         IconButton(onClick = callbacks.onBack) {
@@ -286,6 +313,91 @@ internal fun CardDetailScreen(
         )
         null -> Unit
     }
+    if (card != null && state.isEditingLink) {
+        EditLinkDialog(
+            address = card.url.orEmpty(),
+            error = state.linkError,
+            saving = state.isSavingLink,
+            onSave = callbacks.onSaveLink,
+            onDismiss = callbacks.onCloseEditLink,
+        )
+    }
+}
+
+/** A link's title in the top bar, renamed in place as on the web. A blank title puts the old one back. */
+@Composable
+private fun LinkTitleField(title: String, onSave: (String) -> Unit) {
+    var draft by rememberSaveable { mutableStateOf(title) }
+    // The card's title the draft last followed, and the title last sent until the card reports it.
+    var followed by rememberSaveable { mutableStateOf(title) }
+    var sent by rememberSaveable { mutableStateOf<String?>(null) }
+    // Follows a saved title unless newer typing is still waiting to be saved.
+    LaunchedEffect(title) {
+        if (draft == followed || draft == sent) draft = title
+        if (sent == title) sent = null
+        followed = title
+    }
+    var focused by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val label = tr("native.card.titleField.label")
+    val placeholder = tr("native.card.titleField.placeholder")
+    fun commit() {
+        if (draft.isBlank()) {
+            draft = title
+        } else {
+            sent = draft
+            onSave(draft)
+        }
+    }
+    BasicTextField(
+        value = draft,
+        onValueChange = { draft = it },
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        decorationBox = { field ->
+            Box {
+                if (draft.isEmpty()) Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                field()
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = label }
+            .onFocusChanged { state ->
+                if (focused && !state.isFocused) commit()
+                focused = state.isFocused
+            },
+    )
+}
+
+/** Edit link…: a new address for a link card. Saving refreshes its preview. */
+@Composable
+private fun EditLinkDialog(address: String, error: UiText?, saving: Boolean, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by rememberSaveable { mutableStateOf(address) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(tr("native.card.editLink.title")) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(tr("native.card.editLink.label")) },
+                singleLine = true,
+                isError = error != null,
+                supportingText = { Text(error?.resolve() ?: tr("native.card.editLink.message")) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave(text) }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text) }, enabled = !saving && text.isNotBlank()) { Text(tr("common.save")) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
+    )
 }
 
 @Composable
@@ -313,12 +425,17 @@ private fun CardDetailContent(
                 card = state.displayedCard ?: card,
                 documentText = documentText,
                 onCopyColor = { hex -> actions.copy(hex, UiText.of("native.card.copiedValue", hex)) },
-                onViewDocument = actions.viewDocument,
+                // PDFs open in the app's reader; other documents open in the browser.
+                onViewDocument = if (CardSheet.isPdf(card)) ({ _ -> callbacks.onViewPdf() }) else actions.viewDocument,
                 onToggleTask = callbacks.onToggleTask.takeUnless { card.deleted },
             )
             LinkDetailsSections(card, onOpenImage = openImage)
-            NotesAndTagsSections(card, onSearchTag)
-            SummarySections(card, onSearchTag)
+            NotesAndTagsSections(
+                state.displayedCard ?: card,
+                onSearchTag,
+                suggested = if (card.deleted) null else SuggestedTagActions(callbacks.onKeepTag, callbacks.onRemoveSuggestedTag),
+            )
+            SummarySections(card)
             LinkedFromSection(state.backlinks, callbacks.onOpenCard)
             InfoSection(card, state.cardFolders, onOpenSource = actions.openLink, onEditFolders = onEditFolders)
         }
@@ -392,6 +509,13 @@ private fun CardToolbar(
                     trailingIcon = { Text("E", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     onClick = close(callbacks.onToggleArchived),
                 )
+                if (card.type == CardType.Link) {
+                    DropdownMenuItem(
+                        text = { Text(tr("native.card.editLink.menu")) },
+                        leadingIcon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
+                        onClick = close(callbacks.onEditLink),
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text(tr("native.actions.moreLikeThis")) },
                     leadingIcon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = null) },

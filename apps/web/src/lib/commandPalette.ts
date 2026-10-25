@@ -8,7 +8,7 @@ import {
 import { isOverlayOpen } from "../hooks/useKeyboardShortcuts";
 import { englishTranslator } from "./englishTranslators";
 import { folderIdForPath } from "./folders";
-import { libraryViewForPath } from "./libraryViews";
+import { type LibraryView, libraryViewForPath } from "./libraryViews";
 import { type LinkTitleTranslator, resolveLinkTitle } from "./linkTitle";
 import { markdownToPlainText } from "./markdownToPlainText";
 import { isApplePlatform } from "./platform";
@@ -73,6 +73,7 @@ export type CommandPaletteActionId =
   | "toggle-theme"
   | "shuffle"
   | "shortcuts"
+  | "empty-trash"
   | "sign-out";
 
 export interface CommandPaletteAction {
@@ -82,6 +83,8 @@ export interface CommandPaletteAction {
   keywords: string[];
   /** The label's message key under `commandPalette.actions`. */
   labelKey: keyof (typeof englishMessages)["commandPalette"]["actions"];
+  /** Offered only while this view is open. */
+  view?: LibraryView;
 }
 
 export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
@@ -119,8 +122,42 @@ export const COMMAND_PALETTE_ACTIONS: readonly CommandPaletteAction[] = [
     keys: ["?"],
     labelKey: "shortcuts",
   },
+  {
+    id: "empty-trash",
+    keywords: ["delete", "forever", "clear"],
+    labelKey: "emptyTrash",
+    view: "trash",
+  },
   { id: "sign-out", keywords: ["log out", "logout"], labelKey: "signOut" },
 ];
+
+/** The actions the palette offers on this page. */
+export const paletteActions = (pathname: string | null | undefined) => {
+  const view = libraryViewForPath(pathname);
+  return COMMAND_PALETTE_ACTIONS.filter(
+    (action) => !action.view || action.view === view
+  );
+};
+
+let emptyTrashHandler: (() => void) | null = null;
+
+/** Trash's Empty Trash button, which the palette's action presses. */
+export function registerEmptyTrash(handler: () => void): () => void {
+  emptyTrashHandler = handler;
+  return () => {
+    if (emptyTrashHandler === handler) {
+      emptyTrashHandler = null;
+    }
+  };
+}
+
+export function requestEmptyTrash(): boolean {
+  if (!emptyTrashHandler) {
+    return false;
+  }
+  emptyTrashHandler();
+  return true;
+}
 
 export function isLibraryRoute(pathname: string | null | undefined): boolean {
   return (

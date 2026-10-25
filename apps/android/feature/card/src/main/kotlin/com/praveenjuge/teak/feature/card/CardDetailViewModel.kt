@@ -12,7 +12,9 @@ import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkCopy
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
+import com.praveenjuge.teak.core.model.CardEdit
 import com.praveenjuge.teak.core.model.CardFieldChange
+import com.praveenjuge.teak.core.model.LinkEdit
 import com.praveenjuge.teak.core.model.MarkdownListItem
 import com.praveenjuge.teak.core.model.TaskLists
 import com.praveenjuge.teak.core.model.CardLinkTarget
@@ -58,9 +60,21 @@ data class CardDetailUiState(
     val folders: List<Folder> = emptyList(),
     /** A note's content with a ticked task, shown until the saved card catches up. */
     val contentOverride: String? = null,
+    /** The card's tags with a kept suggestion that's still saving. */
+    val tagsOverride: List<String>? = null,
+    /** Edit link… is open; [linkError] says why the last address wasn't saved. */
+    val isEditingLink: Boolean = false,
+    val linkError: UiText? = null,
+    val isSavingLink: Boolean = false,
 ) {
-    /** The card as shown, with any task tick that's still saving. */
-    val displayedCard: Card? get() = contentOverride?.let { content -> card?.copy(content = content) } ?: card
+    /** The card as shown, with any task tick or kept tag that's still saving. */
+    val displayedCard: Card?
+        get() = card?.let { saved ->
+            saved.copy(content = contentOverride ?: saved.content, tags = tagsOverride ?: saved.tags)
+        }
+
+    /** A link's title is renamed in the header, as on the web. */
+    val editsTitle: Boolean get() = card?.type == CardType.Link && !card.deleted
 
     val isFavorited: Boolean get() = favoriteOverride ?: (card?.favorited == true)
     val isDone: Boolean get() = doneOverride ?: (card?.isDone == true)
@@ -95,6 +109,7 @@ class CardDetailViewModel @AssistedInject constructor(
 
     private var requestedDocumentText = false
     private var taskSaves = 0
+    private var keepSaves = 0
 
     init {
         viewModelScope.launch {
@@ -104,7 +119,15 @@ class CardDetailViewModel @AssistedInject constructor(
                     val favorite = state.favoriteOverride.takeUnless { card != null && card.favorited == it }
                     val done = state.doneOverride.takeUnless { card != null && card.isDone == it }
                     val content = state.contentOverride.takeUnless { card?.content == it || taskSaves == 0 }
-                    state.copy(isLoading = false, card = card, favoriteOverride = favorite, doneOverride = done, contentOverride = content)
+                    val tags = state.tagsOverride.takeUnless { card?.tags == it || keepSaves == 0 }
+                    state.copy(
+                        isLoading = false,
+                        card = card,
+                        favoriteOverride = favorite,
+                        doneOverride = done,
+                        contentOverride = content,
+                        tagsOverride = tags,
+                    )
                 }
                 if (card != null) loadDocumentText(card)
             }
@@ -227,6 +250,71 @@ class CardDetailViewModel @AssistedInject constructor(
             }
             _uiState.update { it.copy(isRefreshing = false) }
             _events.send(CardDetailEvent.Message(text))
+        }
+    }
+
+    /** Saves a link title typed in the header. A blank title leaves the one the card has. */
+    fun saveTitle(input: String) {
+        val card = _uiState.value.card ?: return
+        val current = (CardSheet.linkTitle(card) as? UiText.Verbatim)?.text.orEmpty()
+        val change = CardEdit.titleChange(input, current) ?: return
+        viewModelScope.launch {
+            catchingFailures { repository.apply(card.id, listOf(change)) }.onFailure { error ->
+                _events.send(CardDetailEvent.Message(error.teakText(UiText.of("native.card.failed.title"))))
+            }
+        }
+    }
+
+    fun openEditLink() = _uiState.update { it.copy(isEditingLink = true, linkError = null) }
+
+    fun closeEditLink() = _uiState.update { it.copy(isEditingLink = false, linkError = null) }
+
+    /** Saves a link's new address, which refreshes its preview. A non-link is refused here with the server's words. */
+    fun saveLink(input: String) {
+        val card = _uiState.value.card ?: return
+        if (_uiState.value.isSavingLink) return
+        LinkEdit.validationError(input)?.let { error -> return _uiState.update { it.copy(linkError = error) } }
+        val change = LinkEdit.change(input, card.url) ?: return closeEditLink()
+        _uiState.update { it.copy(isSavingLink = true, linkError = null) }
+        viewModelScope.launch {
+            catchingFailures { repository.apply(card.id, listOf(change)) }
+                .onSuccess {
+                    _uiState.update { it.copy(isSavingLink = false, isEditingLink = false) }
+                    _events.send(CardDetailEvent.Message(UiText.of("native.card.editLink.saved")))
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(isSavingLink = false, linkError = error.teakText(UiText.of("native.card.failed.editLink"))) }
+                }
+        }
+    }
+
+    /** Keeps a tag Teak suggested as one of the card's own. Quick Keeps build on each other before the card catches up. */
+    fun keepTag(tag: String) {
+        val state = _uiState.value
+        val card = state.card ?: return
+        val change = CardEdit.keeping(tag, state.tagsOverride ?: card.tags.orEmpty()) ?: return
+        _uiState.update { it.copy(tagsOverride = change.value) }
+        keepSaves += 1
+        viewModelScope.launch {
+            val result = catchingFailures { repository.apply(card.id, listOf(change)) }
+            keepSaves -= 1
+            result
+                .onSuccess {
+                    _uiState.update { s -> if (keepSaves == 0 && s.card?.tags == s.tagsOverride) s.copy(tagsOverride = null) else s }
+                }
+                .onFailure {
+                    _uiState.update { it.copy(tagsOverride = null) }
+                    _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.update")))
+                }
+        }
+    }
+
+    fun removeSuggestedTag(tag: String) {
+        val card = _uiState.value.card ?: return
+        viewModelScope.launch {
+            catchingFailures { repository.apply(card.id, listOf(CardFieldChange.RemoveAiTag(tag))) }.onFailure {
+                _events.send(CardDetailEvent.Message(UiText.of("native.card.failed.update")))
+            }
         }
     }
 

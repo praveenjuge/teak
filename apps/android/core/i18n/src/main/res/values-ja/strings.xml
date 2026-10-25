@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">この動画はこのデバイスでは再生できません。</string>
     <string name="android_notification_file">ファイル</string>
     <string name="android_notification_uploadTitle">Teak に保存中</string>
+    <string name="android_settings_wallpaperColors">壁紙の色</string>
+    <string name="android_settings_wallpaperColorsDescription">Teak の赤ではなく壁紙の色でアプリを彩ります。</string>
     <string name="android_share_saveToTeak">Teak に保存</string>
     <string name="cards_types_audio">音声</string>
     <string name="cards_types_card">カード</string>
@@ -283,15 +285,23 @@
     <string name="native_card_edit_saveFailed">変更を保存できませんでした</string>
     <string name="native_card_edit_tagPlaceholder">タグを追加</string>
     <string name="native_card_edit_title">カードを編集</string>
+    <string name="native_card_editLink_invalid">http または https のリンクを使用してください。</string>
+    <string name="native_card_editLink_label">アドレス</string>
+    <string name="native_card_editLink_menu">リンクを編集…</string>
+    <string name="native_card_editLink_message">新しいアドレスを保存すると、カードのプレビューが更新されます。</string>
+    <string name="native_card_editLink_saved">リンクを保存しました。まもなくプレビューが更新されます。</string>
+    <string name="native_card_editLink_title">リンクを編集</string>
     <string name="native_card_failed_archive">このカードをアーカイブできませんでした。</string>
     <string name="native_card_failed_delete">このカードを削除できませんでした。</string>
     <string name="native_card_failed_download">このファイルをダウンロードできませんでした。</string>
+    <string name="native_card_failed_editLink">リンクを変更できませんでした。</string>
     <string name="native_card_failed_favorite">お気に入りを更新できませんでした。</string>
     <string name="native_card_failed_folders">カードのフォルダを変更できませんでした</string>
     <string name="native_card_failed_moveToTrash">このカードをゴミ箱に移動できませんでした。</string>
     <string name="native_card_failed_refresh">このカードを更新できませんでした。しばらくしてからもう一度お試しください。</string>
     <string name="native_card_failed_restore">このカードを復元できませんでした。</string>
     <string name="native_card_failed_saveFile">このファイルを保存できませんでした。</string>
+    <string name="native_card_failed_title">タイトルを保存できませんでした。</string>
     <string name="native_card_failed_unarchive">このカードのアーカイブを解除できませんでした。</string>
     <string name="native_card_failed_undo">元に戻せませんでした。もう一度お試しください。</string>
     <string name="native_card_failed_update">更新できませんでした。もう一度お試しください。</string>
@@ -349,6 +359,8 @@
     <string name="native_card_source_from">取得元：%1$s</string>
     <string name="native_card_source_label">取得元</string>
     <string name="native_card_source_open">%1$s を開く</string>
+    <string name="native_card_titleField_label">タイトル</string>
+    <string name="native_card_titleField_placeholder">無題のリンク</string>
     <string name="native_card_unavailable_deletedMessage">削除された可能性があります。</string>
     <string name="native_card_unavailable_movedMessage">削除または移動された可能性があります。</string>
     <string name="native_card_unavailable_title">カードを利用できません</string>
@@ -609,6 +621,11 @@
     <string name="native_linkPicker_noMatches">一致するカードはありません</string>
     <string name="native_linkPicker_option">%1$s をリンク</string>
     <string name="native_linkPicker_searching">カードを検索中…</string>
+    <string name="native_media_pdfFailed">この PDF を開けませんでした。</string>
+    <string name="native_media_pdfLoading">PDF を開いています…</string>
+    <string name="native_media_pdfPage">%1$s / %2$s ページ</string>
+    <string name="native_media_seek">再生位置</string>
+    <string name="native_media_seekPosition">%1$s / %2$s</string>
     <string name="native_notes_checked">チェック済み</string>
     <plurals name="native_notes_table">
         <item quantity="other">表、%1$d 行</item>
@@ -720,6 +737,8 @@
     <string name="native_tags_emptyTitle">タグはまだありません</string>
     <string name="native_tags_exists">「%1$s」という名前のタグがすでにあります。</string>
     <string name="native_tags_find">タグを検索</string>
+    <string name="native_tags_keep">残す</string>
+    <string name="native_tags_keepTag">%1$s を残す</string>
     <string name="native_tags_loading">タグを読み込み中</string>
     <string name="native_tags_merge">統合</string>
     <plurals name="native_tags_mergeFailed">
@@ -753,6 +772,7 @@
     </plurals>
     <string name="native_tags_selected">選択済み</string>
     <string name="native_tags_startFailed">タグの変更を開始できませんでした</string>
+    <string name="native_tags_suggested">Teak のおすすめ</string>
     <string name="native_tags_title">タグ</string>
     <string name="native_tags_tryRest">残りを変更するには、もう一度お試しください。</string>
     <string name="native_time_lastMonth">先月</string>
@@ -765,6 +785,23 @@
     <string name="native_time_thisYear">今年</string>
     <string name="native_time_today">今日</string>
     <string name="native_time_yesterday">昨日</string>
+    <string name="native_trash_alreadyEmpty">ゴミ箱はすでに空です</string>
+    <string name="native_trash_empty">ゴミ箱を空にする</string>
+    <string name="native_trash_emptyFailed">ゴミ箱を空にできませんでした。もう一度お試しください。</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="other">%1$d 枚のカードとそのファイルが完全に削除されます。この操作は元に戻せません。</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="other">%1$d 枚以上のカードとそのファイルが完全に削除されます。この操作は元に戻せません。</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">ゴミ箱を空にしますか？</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="other">%1$d 枚のカードを完全に削除しています</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="other">%1$d 枚以上のカードを完全に削除しています</item>
+    </plurals>
+    <string name="native_trash_rateLimited">ゴミ箱を短時間に何度も空にしました。1 分後にもう一度お試しください。</string>
     <string name="search_colorHues_blue">青</string>
     <string name="search_colorHues_brown">茶</string>
     <string name="search_colorHues_cyan">シアン</string>

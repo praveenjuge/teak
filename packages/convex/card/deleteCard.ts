@@ -33,7 +33,7 @@ export const permanentDeleteCard = mutation({
   },
 });
 
-const permanentDeleteCardForUserHandler = async (
+export const permanentDeleteCardForUserHandler = async (
   ctx: MutationCtx,
   userId: TeakUserId,
   cardId: Id<"cards">,

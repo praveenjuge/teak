@@ -70,6 +70,32 @@ class CardFiles @Inject constructor(
         FileProvider.getUriForFile(context, "${context.packageName}.files", file)
     }
 
+    /**
+     * A card's document in the cache, for reading in the app. It's kept while that card is the one being read,
+     * so reopening it doesn't download again; opening another card's document replaces it.
+     */
+    suspend fun cachedDocument(url: String, cardId: String, extension: String): File = withContext(Dispatchers.IO) {
+        val directory = File(context.cacheDir, DOCUMENTS_DIRECTORY).apply { mkdirs() }
+        val name = "${cardId.replace(unsafeNameCharacters, "_")}.$extension"
+        val file = File(directory, name)
+        if (file.length() > 0) return@withContext file
+        directory.listFiles()?.forEach { it.delete() }
+        val partial = File(directory, "$name.part")
+        try {
+            open(url).use { response ->
+                val body = response.body ?: throw IOException("Empty response")
+                partial.outputStream().use { output -> body.byteStream().copyTo(output) }
+            }
+            if (!partial.renameTo(file)) throw IOException("Couldn't keep the document")
+        } finally {
+            partial.delete()
+        }
+        file
+    }
+
+    /** A content URI other apps can read [file] through, for "Open in another app". */
+    fun contentUri(file: File): Uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+
     suspend fun saveToDownloads(url: String, fileName: String, mimeType: String?) = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val values = ContentValues().apply {
@@ -104,6 +130,8 @@ class CardFiles @Inject constructor(
 
     private companion object {
         const val SHARED_DIRECTORY = "shared"
+        const val DOCUMENTS_DIRECTORY = "documents"
+        val unsafeNameCharacters = Regex("[^A-Za-z0-9_-]")
     }
 }
 

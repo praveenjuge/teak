@@ -71,6 +71,14 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 60,
   },
+  // Empty Trash: each one schedules a paged hard delete of the account's
+  // Trash.
+  emptyTrash: {
+    kind: "token bucket",
+    rate: 3,
+    period: MINUTE,
+    capacity: 3,
+  },
   podcastTranscription: {
     kind: "token bucket",
     rate: 20,

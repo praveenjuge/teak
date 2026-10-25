@@ -40,6 +40,10 @@ object CardSheet {
         return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
     }
 
+    /** A PDF, which the card view shows page by page. */
+    fun isPdf(card: Card): Boolean =
+        card.fileMetadata?.mimeType == "application/pdf" || card.fileMetadata?.fileName?.lowercase()?.endsWith(".pdf") == true
+
     fun hostname(url: String?): String? = url?.let {
         runCatching { URI(it).host }.getOrNull()?.removePrefix("www.")?.takeIf(String::isNotEmpty)
     }
@@ -121,6 +125,14 @@ object CardSheet {
         else -> card.fileUrl?.let {
             ShareTarget.File(it, downloadFileName(it, card.fileMetadata?.fileName), card.fileMetadata?.mimeType)
         } ?: ShareTarget.None
+    }
+
+    /** A title someone typed first, then the page's own, as the web's `resolveLinkTitle`. */
+    fun linkTitle(card: Card): UiText {
+        val preview = card.metadata?.linkPreview?.takeIf { it.status == "success" }
+        val edited = card.metadataTitle.takeIf { card.metadataTitleEdited == true }
+        return listOf(edited, preview?.title, card.metadataTitle, card.url).firstOrNull { !it.isNullOrBlank() }
+            ?.let(UiText::verbatim) ?: UiText.of("cards.types.link")
     }
 
     fun title(card: Card, fallback: String? = null): UiText = when (card.type) {

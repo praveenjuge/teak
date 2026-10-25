@@ -177,6 +177,8 @@ data class Card(
     val aiSummary: String? = null,
     val aiTranscript: String? = null,
     val metadataTitle: String? = null,
+    /** Someone typed this title, so a refreshed preview keeps it. */
+    val metadataTitleEdited: Boolean? = null,
     val metadataDescription: String? = null,
     val isFavorited: Boolean? = null,
     val isDeleted: Boolean? = null,

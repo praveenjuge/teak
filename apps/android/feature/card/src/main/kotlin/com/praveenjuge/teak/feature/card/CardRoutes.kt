@@ -32,6 +32,7 @@ fun CardDetailRoute(
     onSearchTag: (String) -> Unit,
     onMoreLikeThis: (String) -> Unit = {},
     onOpenCard: (String) -> Unit = {},
+    onViewPdf: () -> Unit = {},
 ) {
     val viewModel = hiltViewModel<CardDetailViewModel, CardDetailViewModel.Factory>(
         key = cardId,
@@ -82,6 +83,13 @@ fun CardDetailRoute(
             onSetFolders = viewModel::setFolders,
             onCreateFolder = viewModel::createFolder,
             onToggleTask = viewModel::toggleTask,
+            onViewPdf = onViewPdf,
+            onSaveTitle = viewModel::saveTitle,
+            onEditLink = viewModel::openEditLink,
+            onSaveLink = viewModel::saveLink,
+            onCloseEditLink = viewModel::closeEditLink,
+            onKeepTag = viewModel::keepTag,
+            onRemoveSuggestedTag = viewModel::removeSuggestedTag,
         ),
     )
 }

@@ -1,6 +1,10 @@
 package com.praveenjuge.teak.feature.card
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -11,9 +15,14 @@ import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.onAllNodesWithText
 import com.praveenjuge.teak.core.model.MarkdownListItem
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
 import org.junit.Rule
@@ -22,6 +31,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import com.praveenjuge.teak.core.model.FileMetadata
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -72,5 +82,124 @@ class CardDetailUiTest {
         compose.onNodeWithText("design").performScrollTo().performClick()
 
         assertEquals(listOf("design"), searched)
+    }
+
+
+    @Test
+    fun `View document opens a PDF in the app's reader`() {
+        var opened = 0
+        val card = Card(
+            id = "c1",
+            creationTime = 0.0,
+            type = CardType.Document,
+            fileUrl = "https://files.test/deck.pdf",
+            fileMetadata = FileMetadata(fileName = "deck.pdf", mimeType = "application/pdf"),
+        )
+        compose.setContent {
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onViewPdf = { opened += 1 }),
+            )
+        }
+
+        compose.onNodeWithText("View document").performScrollTo().performClick()
+
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun `Teak's suggested tags offer Keep and Remove`() {
+        val kept = mutableListOf<String>()
+        val removed = mutableListOf<String>()
+        val card = Card(id = "c1", creationTime = 0.0, type = CardType.Text, content = "Hello", tags = listOf("design"), aiTags = listOf("Design", "macro"))
+        compose.setContent {
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(
+                    onBack = {},
+                    onEdit = {},
+                    onSearchTag = {},
+                    onKeepTag = { kept += it },
+                    onRemoveSuggestedTag = { removed += it },
+                ),
+            )
+        }
+
+        compose.onNodeWithText("Suggested by Teak").performScrollTo().assertExists()
+        // Semantics actions: the floating toolbar can sit over the last section in a short test window.
+        compose.onNodeWithText("macro").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithContentDescription("Remove macro").performSemanticsAction(SemanticsActions.OnClick)
+
+        assertEquals(listOf("macro"), kept)
+        assertEquals(listOf("macro"), removed)
+    }
+
+    @Test
+    fun `a link's title is edited in the top bar`() {
+        val saved = mutableListOf<String>()
+        val card = Card(id = "l1", creationTime = 0.0, type = CardType.Link, url = "https://example.com", metadataTitle = "Example")
+        compose.setContent {
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onSaveTitle = { saved += it }),
+            )
+        }
+
+        val field = compose.onNodeWithContentDescription("Title")
+        field.performTextReplacement("Field notes")
+        field.performImeAction()
+
+        assertEquals(listOf("Field notes"), saved)
+    }
+
+    @Test
+    fun `a saved title arriving late keeps newer typing`() {
+        val saved = mutableListOf<String>()
+        var title by mutableStateOf("Example")
+        compose.setContent {
+            val card = Card(id = "l1", creationTime = 0.0, type = CardType.Link, url = "https://example.com", metadataTitle = title)
+            CardDetailScreen(
+                state = CardDetailUiState(isLoading = false, card = card),
+                snackbarHostState = SnackbarHostState(),
+                callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onSaveTitle = { saved += it }),
+            )
+        }
+
+        val field = compose.onNodeWithContentDescription("Title")
+        field.performTextReplacement("Field notes")
+        field.performImeAction()
+        // Typing again before the card reports the first save.
+        field.performTextReplacement("Field notes 2")
+        title = "Field notes"
+        compose.waitForIdle()
+
+        field.assertTextEquals("Field notes 2")
+        field.performImeAction()
+        assertEquals(listOf("Field notes", "Field notes 2"), saved)
+    }
+
+    @Test
+    fun `leaving the card while typing a title saves it`() {
+        val saved = mutableListOf<String>()
+        var open by mutableStateOf(true)
+        compose.setContent {
+            if (open) {
+                val card = Card(id = "l1", creationTime = 0.0, type = CardType.Link, url = "https://example.com", metadataTitle = "Example")
+                CardDetailScreen(
+                    state = CardDetailUiState(isLoading = false, card = card),
+                    snackbarHostState = SnackbarHostState(),
+                    callbacks = CardDetailCallbacks(onBack = {}, onEdit = {}, onSearchTag = {}, onSaveTitle = { saved += it }),
+                )
+            }
+        }
+
+        compose.onNodeWithContentDescription("Title").performTextReplacement("Field notes")
+        open = false
+        compose.waitForIdle()
+
+        assertEquals(listOf("Field notes"), saved)
     }
 }

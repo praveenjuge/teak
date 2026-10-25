@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">Este vídeo não pode ser reproduzido neste dispositivo.</string>
     <string name="android_notification_file">Arquivo</string>
     <string name="android_notification_uploadTitle">Salvando no Teak</string>
+    <string name="android_settings_wallpaperColors">Cores do plano de fundo</string>
+    <string name="android_settings_wallpaperColorsDescription">Usar as cores do plano de fundo em vez do vermelho do Teak.</string>
     <string name="android_share_saveToTeak">Salvar no Teak</string>
     <string name="cards_types_audio">Áudio</string>
     <string name="cards_types_card">Card</string>
@@ -299,15 +301,23 @@
     <string name="native_card_edit_saveFailed">Não foi possível salvar as alterações</string>
     <string name="native_card_edit_tagPlaceholder">Adicionar uma tag</string>
     <string name="native_card_edit_title">Editar card</string>
+    <string name="native_card_editLink_invalid">Use um link http ou https.</string>
+    <string name="native_card_editLink_label">Endereço</string>
+    <string name="native_card_editLink_menu">Editar link…</string>
+    <string name="native_card_editLink_message">Ao salvar um novo endereço, a prévia do card é atualizada.</string>
+    <string name="native_card_editLink_saved">Link salvo. A prévia será atualizada em instantes.</string>
+    <string name="native_card_editLink_title">Editar link</string>
     <string name="native_card_failed_archive">Não foi possível arquivar este card.</string>
     <string name="native_card_failed_delete">Não foi possível excluir este card.</string>
     <string name="native_card_failed_download">Não foi possível baixar este arquivo.</string>
+    <string name="native_card_failed_editLink">Não foi possível alterar o link.</string>
     <string name="native_card_failed_favorite">Não foi possível atualizar este favorito.</string>
     <string name="native_card_failed_folders">Não foi possível alterar as pastas do card</string>
     <string name="native_card_failed_moveToTrash">Não foi possível mover este card para a Lixeira.</string>
     <string name="native_card_failed_refresh">Não foi possível atualizar este card. Tente novamente em instantes.</string>
     <string name="native_card_failed_restore">Não foi possível restaurar este card.</string>
     <string name="native_card_failed_saveFile">Não foi possível salvar este arquivo.</string>
+    <string name="native_card_failed_title">Não foi possível salvar o título.</string>
     <string name="native_card_failed_unarchive">Não foi possível desarquivar este card.</string>
     <string name="native_card_failed_undo">Não foi possível desfazer. Tente novamente.</string>
     <string name="native_card_failed_update">Não foi possível atualizar. Tente novamente.</string>
@@ -366,6 +376,8 @@
     <string name="native_card_source_from">De %1$s</string>
     <string name="native_card_source_label">De</string>
     <string name="native_card_source_open">Abrir %1$s</string>
+    <string name="native_card_titleField_label">Título</string>
+    <string name="native_card_titleField_placeholder">Link sem título</string>
     <string name="native_card_unavailable_deletedMessage">Ele pode ter sido excluído.</string>
     <string name="native_card_unavailable_movedMessage">Ele pode ter sido excluído ou movido.</string>
     <string name="native_card_unavailable_title">Card indisponível</string>
@@ -635,6 +647,11 @@
     <string name="native_linkPicker_noMatches">Nenhum card encontrado</string>
     <string name="native_linkPicker_option">Vincular %1$s</string>
     <string name="native_linkPicker_searching">Pesquisando cards…</string>
+    <string name="native_media_pdfFailed">Não foi possível abrir este PDF.</string>
+    <string name="native_media_pdfLoading">Abrindo o PDF…</string>
+    <string name="native_media_pdfPage">Página %1$s de %2$s</string>
+    <string name="native_media_seek">Buscar posição</string>
+    <string name="native_media_seekPosition">%1$s de %2$s</string>
     <string name="native_notes_checked">Marcado</string>
     <plurals name="native_notes_table">
         <item quantity="one">Tabela, %1$d linha</item>
@@ -751,6 +768,8 @@
     <string name="native_tags_emptyTitle">Nenhuma tag ainda</string>
     <string name="native_tags_exists">Já existe uma tag chamada “%1$s”.</string>
     <string name="native_tags_find">Encontrar uma tag</string>
+    <string name="native_tags_keep">Manter</string>
+    <string name="native_tags_keepTag">Manter %1$s</string>
     <string name="native_tags_loading">Carregando tags</string>
     <string name="native_tags_merge">Mesclar</string>
     <plurals name="native_tags_mergeFailed">
@@ -789,6 +808,7 @@
     </plurals>
     <string name="native_tags_selected">Selecionada</string>
     <string name="native_tags_startFailed">Não foi possível iniciar a alteração da tag</string>
+    <string name="native_tags_suggested">Sugeridas pelo Teak</string>
     <string name="native_tags_title">Tags</string>
     <string name="native_tags_tryRest">Tente novamente para alterar o restante.</string>
     <string name="native_time_lastMonth">Mês passado</string>
@@ -801,6 +821,27 @@
     <string name="native_time_thisYear">Este ano</string>
     <string name="native_time_today">Hoje</string>
     <string name="native_time_yesterday">Ontem</string>
+    <string name="native_trash_alreadyEmpty">A lixeira já está vazia</string>
+    <string name="native_trash_empty">Esvaziar lixeira</string>
+    <string name="native_trash_emptyFailed">Não foi possível esvaziar a lixeira. Tente de novo.</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="one">Isso exclui permanentemente %1$d card e seus arquivos. Não é possível desfazer.</item>
+        <item quantity="other">Isso exclui permanentemente %1$d cards e seus arquivos. Não é possível desfazer.</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="one">Isso exclui permanentemente %1$d cards ou mais e seus arquivos. Não é possível desfazer.</item>
+        <item quantity="other">Isso exclui permanentemente %1$d cards ou mais e seus arquivos. Não é possível desfazer.</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">Esvaziar a lixeira?</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="one">Excluindo %1$d card permanentemente</item>
+        <item quantity="other">Excluindo %1$d cards permanentemente</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="one">Excluindo pelo menos %1$d card permanentemente</item>
+        <item quantity="other">Excluindo pelo menos %1$d cards permanentemente</item>
+    </plurals>
+    <string name="native_trash_rateLimited">A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto.</string>
     <string name="search_colorHues_blue">Azul</string>
     <string name="search_colorHues_brown">Marrom</string>
     <string name="search_colorHues_cyan">Ciano</string>

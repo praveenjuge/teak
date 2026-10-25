@@ -749,7 +749,8 @@
       "shortcutsHint": "Pressione <kbd>?</kbd> para ver todos os atalhos",
       "showDetails": "Mostrar detalhes",
       "unarchive": "Desarquivar",
-      "unfavorite": "Desfavoritar"
+      "unfavorite": "Desfavoritar",
+      "editLink": "Editar link…"
     },
     "toasts": {
       "copiedLink": "Link copiado",
@@ -954,7 +955,8 @@
       "restore": "Restaurar",
       "select": "Selecionar",
       "unarchive": "Desarquivar",
-      "unfavorite": "Desfavoritar"
+      "unfavorite": "Desfavoritar",
+      "editLink": "Editar link…"
     },
     "copyImageFailed": "Não foi possível copiar a imagem",
     "deleteForeverDialog": {
@@ -975,6 +977,25 @@
       "gifPreview": "Prévia do GIF",
       "imageAlt": "Imagem",
       "videoThumbnail": "Miniatura do vídeo"
+    },
+    "editLink": {
+      "title": "Editar link",
+      "description": "Ao salvar um novo endereço, a prévia do card é atualizada.",
+      "label": "Endereço",
+      "invalid": "Use um link http ou https.",
+      "saved": "Link salvo. A prévia será atualizada em instantes.",
+      "failed": "Não foi possível salvar o link"
+    },
+    "emptyTrash": {
+      "button": "Esvaziar lixeira",
+      "title": "Esvaziar a lixeira?",
+      "description": "Isso exclui permanentemente {count, plural, one {# card} other {# cards}} e seus arquivos. Não é possível desfazer.",
+      "descriptionAtLeast": "Isso exclui permanentemente {count, plural, other {# cards ou mais}} e seus arquivos. Não é possível desfazer.",
+      "confirm": "Esvaziar lixeira",
+      "emptying": "{count, plural, one {Excluindo # card permanentemente} other {Excluindo # cards permanentemente}}",
+      "emptyingAll": "Esvaziando a lixeira",
+      "rateLimited": "A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto.",
+      "failed": "Não foi possível esvaziar a lixeira. Tente de novo."
     }
   },
   "grids": {
@@ -1310,7 +1331,8 @@
       "toggleTheme": "Alternar tema",
       "shuffle": "Aleatório",
       "shortcuts": "Atalhos de teclado",
-      "signOut": "Sair"
+      "signOut": "Sair",
+      "emptyTrash": "Esvaziar lixeira"
     },
     "cards": {
       "searching": "Pesquisando cards",

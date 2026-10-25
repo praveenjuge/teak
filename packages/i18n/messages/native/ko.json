@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, other {#개는 변경하지 못했습니다.}}"
     },
+    "trash": {
+      "empty": "휴지통 비우기",
+      "emptyTitle": "휴지통을 비우시겠습니까?",
+      "emptyMessage": "카드 {count, plural, other {#개}}와 해당 파일이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "emptyMessageMore": "카드 {count, plural, other {#개 이상}}과 해당 파일이 영구 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "emptying": "{count, plural, other {카드 #개를 영구 삭제하는 중}}",
+      "emptyingMore": "{count, plural, other {카드 #개 이상을 영구 삭제하는 중}}",
+      "alreadyEmpty": "휴지통이 이미 비어 있습니다",
+      "emptyFailed": "휴지통을 비우지 못했습니다. 다시 시도하세요.",
+      "rateLimited": "방금 휴지통을 여러 번 비웠습니다. 1분 후에 다시 시도하세요."
+    },
     "similar": {
       "emptyMessage": "다른 카드로 시도해 보세요.",
       "pending": "아직 이 카드를 분석하고 있습니다. 잠시 후 다시 시도해 주세요.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "숨겨졌습니다. 보려면 #{tag}(으)로 검색하세요.",
         "hiddenCards": "일부 카드가 숨겨져 있습니다. 보려면 #secret 또는 #hidden으로 검색하세요."
-      }
+      },
+      "suggested": "Teak 추천",
+      "keep": "유지",
+      "keepTag": "{tag} 유지"
     },
     "card": {
       "note": "메모",
@@ -563,7 +577,9 @@
         "delete": "이 카드를 삭제하지 못했습니다.",
         "restore": "이 카드를 복원하지 못했습니다.",
         "saveFile": "이 파일을 저장하지 못했습니다.",
-        "download": "이 파일을 다운로드할 수 없습니다."
+        "download": "이 파일을 다운로드할 수 없습니다.",
+        "title": "제목을 저장하지 못했습니다.",
+        "editLink": "링크를 변경하지 못했습니다."
       },
       "share": {
         "nothing": "저장할 항목이 없습니다."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "무료"
       },
-      "usage": "{used}/{count, plural, other {카드 #개}}"
+      "usage": "{used}/{count, plural, other {카드 #개}}",
+      "titleField": {
+        "label": "제목",
+        "placeholder": "제목 없는 링크"
+      },
+      "editLink": {
+        "menu": "링크 편집…",
+        "title": "링크 편집",
+        "label": "주소",
+        "message": "새 주소를 저장하면 카드 미리 보기가 새로 고쳐집니다.",
+        "invalid": "http 또는 https 링크를 사용하세요.",
+        "saved": "링크를 저장했습니다. 곧 미리 보기가 새로 고쳐집니다."
+      }
     },
     "linkPicker": {
       "label": "카드 링크",
@@ -747,6 +775,13 @@
       "checked": "체크됨",
       "unchecked": "체크 안 됨",
       "table": "표, {count, plural, other {#개 행}}"
+    },
+    "media": {
+      "seek": "탐색",
+      "seekPosition": "{current} / {duration}",
+      "pdfPage": "{page}/{total}페이지",
+      "pdfLoading": "PDF를 여는 중…",
+      "pdfFailed": "이 PDF를 열지 못했습니다."
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "이 녹음 형식은 Mac에서 재생할 수 없습니다",
       "audioUnplayableIPhone": "이 녹음 형식은 iPhone에서 재생할 수 없습니다"
+    },
+    "media": {
+      "zoomIn": "확대",
+      "zoomOut": "축소",
+      "zoomToFit": "윈도우에 맞게 확대/축소"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "이 동영상은 이 기기에서 재생할 수 없습니다.",
       "openInAnotherApp": "다른 앱에서 열기",
       "noAppForLink": "이 링크를 열 수 있는 앱이 없습니다."
+    },
+    "settings": {
+      "wallpaperColors": "배경화면 색상",
+      "wallpaperColorsDescription": "Teak의 빨간색 대신 배경화면 색상으로 앱을 꾸밉니다."
     }
   }
 }

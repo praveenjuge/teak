@@ -84,6 +84,7 @@ import { TextPreview } from "../card-previews/TextPreview";
 import { VideoPreview } from "../card-previews/VideoPreview";
 import { getDisplayHostname } from "../cards/cardDisplay";
 import { cardTypeLabel } from "../cards/cardTypeLabel";
+import { EditLinkDialog } from "../cards/EditLinkDialog";
 import { SiteFavicon } from "../cards/SiteFavicon";
 import { CardFoldersDialog } from "../folders/CardFoldersDialog";
 import { useGlobalFileDrop } from "../providers/GlobalFileDropProvider";
@@ -397,6 +398,7 @@ export function CardModal({
   const [isPermanentDeleteConfirmOpen, setIsPermanentDeleteConfirmOpen] =
     useState(false);
   const [isFoldersOpen, setIsFoldersOpen] = useState(false);
+  const [isEditLinkOpen, setIsEditLinkOpen] = useState(false);
   const card = useRetainedWhileClosing(cardProp, open);
   const contentRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -877,6 +879,12 @@ export function CardModal({
                   <DropdownMenuShortcut aria-hidden>
                     {DIALOG_KEYS.copy.label}
                   </DropdownMenuShortcut>
+                </DropdownMenuItem>
+              ) : null}
+              {card.type === "link" && card.url && !isDeleted ? (
+                <DropdownMenuItem onClick={() => setIsEditLinkOpen(true)}>
+                  <Pencil />
+                  {t("menu.editLink")}
                 </DropdownMenuItem>
               ) : null}
               {copyableText ? (
@@ -1434,6 +1442,14 @@ export function CardModal({
           folderIds={(card.folderIds ?? []) as string[]}
           onOpenChange={setIsFoldersOpen}
           open={isFoldersOpen}
+        />
+      ) : null}
+
+      {card?.type === "link" && card.url ? (
+        <EditLinkDialog
+          card={{ id: card._id, url: card.url }}
+          onOpenChange={setIsEditLinkOpen}
+          open={isEditLinkOpen}
         />
       ) : null}
 

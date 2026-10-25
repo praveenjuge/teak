@@ -21,6 +21,7 @@ import {
   SIGNUPS_PAUSED_MESSAGE,
 } from "../../../packages/convex/shared/constants";
 import { MAX_FILE_SIZE } from "../../../packages/convex/shared/fileFormats";
+import { FOLDER_ERROR_MESSAGES } from "../../../packages/convex/shared/folders";
 import {
   ACTIONABLE_LINK_CATEGORIES,
   LINK_CATEGORY_DONE_VERB,
@@ -100,6 +101,9 @@ export const renderSharedConstants = () =>
     `const val MAX_TAG_NAME_LENGTH = ${MAX_TAG_NAME_LENGTH}`,
     "",
     `val TAG_ERROR_MESSAGES: Map<String, String> = ${kotlinMap(TAG_ERROR_MESSAGES)}`,
+    "",
+    "/** The server's folder errors by code, sent in English with a general code such as `INVALID_INPUT`. */",
+    `val FOLDER_ERROR_MESSAGES: Map<String, String> = ${kotlinMap(FOLDER_ERROR_MESSAGES)}`,
     "",
     `val HIDDEN_TAG_KEYS: List<String> = ${kotlinList(HIDDEN_TAG_KEYS)}`,
     "",

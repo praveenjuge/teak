@@ -73,6 +73,16 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `wallpaper colors are off until turned on`() = runTest {
+        val viewModel = newViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        assertFalse(viewModel.uiState.value.useWallpaperColors)
+        viewModel.setUseWallpaperColors(true)
+        assertTrue(viewModel.uiState.value.useWallpaperColors)
+        assertTrue(preferences.useWallpaperColors.value)
+    }
+
+    @Test
     fun `deleting needs the typed phrase`() = runTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }

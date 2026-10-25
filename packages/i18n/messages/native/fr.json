@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, one {# fiche n’a pas pu être modifiée.} other {# fiches n’ont pas pu être modifiées.}}"
     },
+    "trash": {
+      "empty": "Vider la corbeille",
+      "emptyTitle": "Vider la corbeille ?",
+      "emptyMessage": "Cette action supprime définitivement {count, plural, one {# fiche} other {# fiches}} et leurs fichiers. Elle est irréversible.",
+      "emptyMessageMore": "Cette action supprime définitivement {count, plural, one {# fiches ou plus} other {# fiches ou plus}} et leurs fichiers. Elle est irréversible.",
+      "emptying": "{count, plural, one {Suppression définitive de # fiche} other {Suppression définitive de # fiches}}",
+      "emptyingMore": "{count, plural, one {Suppression définitive d’au moins # fiche} other {Suppression définitive d’au moins # fiches}}",
+      "alreadyEmpty": "La corbeille est déjà vide",
+      "emptyFailed": "Impossible de vider la corbeille. Réessayez.",
+      "rateLimited": "La corbeille a été vidée plusieurs fois à l’instant. Réessayez dans une minute."
+    },
     "similar": {
       "emptyMessage": "Essayez une autre fiche.",
       "pending": "Analyse de cette fiche en cours. Réessayez dans un instant.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "Masquée. Recherchez #{tag} pour la voir.",
         "hiddenCards": "Certaines fiches sont masquées. Recherchez #secret ou #hidden pour les voir."
-      }
+      },
+      "suggested": "Suggérés par Teak",
+      "keep": "Conserver",
+      "keepTag": "Conserver {tag}"
     },
     "card": {
       "note": "Note",
@@ -563,7 +577,9 @@
         "delete": "Impossible de supprimer cette fiche.",
         "restore": "Impossible de restaurer cette fiche.",
         "saveFile": "Impossible d’enregistrer ce fichier.",
-        "download": "Impossible de télécharger ce fichier."
+        "download": "Impossible de télécharger ce fichier.",
+        "title": "Impossible d’enregistrer le titre.",
+        "editLink": "Impossible de modifier le lien."
       },
       "share": {
         "nothing": "Rien à enregistrer."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "Gratuit"
       },
-      "usage": "{used} sur {count, plural, one {# fiche} other {# fiches}}"
+      "usage": "{used} sur {count, plural, one {# fiche} other {# fiches}}",
+      "titleField": {
+        "label": "Titre",
+        "placeholder": "Lien sans titre"
+      },
+      "editLink": {
+        "menu": "Modifier le lien…",
+        "title": "Modifier le lien",
+        "label": "Adresse",
+        "message": "Enregistrer une nouvelle adresse actualise l’aperçu de la fiche.",
+        "invalid": "Utilisez un lien http ou https.",
+        "saved": "Lien enregistré. Son aperçu sera actualisé dans un instant."
+      }
     },
     "linkPicker": {
       "label": "Lier une fiche",
@@ -747,6 +775,13 @@
       "checked": "Coché",
       "unchecked": "Non coché",
       "table": "Tableau, {count, plural, one {# ligne} other {# lignes}}"
+    },
+    "media": {
+      "seek": "Avancer",
+      "seekPosition": "{current} sur {duration}",
+      "pdfPage": "Page {page} sur {total}",
+      "pdfLoading": "Ouverture du PDF…",
+      "pdfFailed": "Impossible d’ouvrir ce PDF."
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "Ce format d’enregistrement ne peut pas être lu sur Mac",
       "audioUnplayableIPhone": "Ce format d’enregistrement ne peut pas être lu sur iPhone"
+    },
+    "media": {
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "zoomToFit": "Zoom à la taille de la fenêtre"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "Cette vidéo ne peut pas être lue sur cet appareil.",
       "openInAnotherApp": "Ouvrir dans une autre app",
       "noAppForLink": "Aucune app ne peut ouvrir ce lien."
+    },
+    "settings": {
+      "wallpaperColors": "Couleurs du fond d’écran",
+      "wallpaperColorsDescription": "Colorer l’app avec votre fond d’écran plutôt qu’avec le rouge de Teak."
     }
   }
 }

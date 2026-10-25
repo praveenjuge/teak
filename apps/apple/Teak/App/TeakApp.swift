@@ -65,6 +65,19 @@ struct TeakApp: App {
         #endif
 
         #if os(macOS)
+        // A card's image at full size, zoomable, beside the main window.
+        WindowGroup(id: ImageWindow.id, for: ImageViewerItem.self) { $item in
+            if let item {
+                ImageWindow(item: item)
+                    .environments(services)
+                    .preferredColorScheme(appearance.colorScheme)
+            }
+        }
+        .defaultSize(width: 900, height: 700)
+        .commandsRemoved()
+        // File addresses expire, so an image window isn't reopened at the next launch.
+        .restorationBehavior(.disabled)
+
         Settings {
             MacSettingsView()
                 .environments(services)

@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, one {# couldn't be changed.} other {# couldn't be changed.}}"
     },
+    "trash": {
+      "empty": "Empty Trash",
+      "emptyTitle": "Empty Trash?",
+      "emptyMessage": "This permanently deletes {count, plural, one {# card} other {# cards}} and their files. This can’t be undone.",
+      "emptyMessageMore": "This permanently deletes {count, plural, one {# or more cards} other {# or more cards}} and their files. This can’t be undone.",
+      "emptying": "{count, plural, one {Deleting # card forever} other {Deleting # cards forever}}",
+      "emptyingMore": "{count, plural, one {Deleting at least # card forever} other {Deleting at least # cards forever}}",
+      "alreadyEmpty": "Trash is already empty",
+      "emptyFailed": "Couldn’t empty Trash. Try again.",
+      "rateLimited": "Trash was emptied a few times just now. Try again in a minute."
+    },
     "similar": {
       "emptyMessage": "Try another card.",
       "pending": "Still learning about this card. Try again in a moment.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "Hidden. Search #{tag} to see it.",
         "hiddenCards": "Some cards are hidden. Search #secret or #hidden to see them."
-      }
+      },
+      "suggested": "Suggested by Teak",
+      "keep": "Keep",
+      "keepTag": "Keep {tag}"
     },
     "card": {
       "note": "Note",
@@ -563,7 +577,9 @@
         "delete": "Couldn't delete this card.",
         "restore": "Couldn't restore this card.",
         "saveFile": "Couldn't save this file.",
-        "download": "Unable to download this file."
+        "download": "Unable to download this file.",
+        "title": "Couldn't save the title.",
+        "editLink": "Couldn't change the link."
       },
       "share": {
         "nothing": "Nothing to save."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "Free"
       },
-      "usage": "{used} of {count, plural, one {# card} other {# cards}}"
+      "usage": "{used} of {count, plural, one {# card} other {# cards}}",
+      "titleField": {
+        "label": "Title",
+        "placeholder": "Untitled link"
+      },
+      "editLink": {
+        "menu": "Edit link…",
+        "title": "Edit link",
+        "label": "Address",
+        "message": "Saving a new address refreshes the card’s preview.",
+        "invalid": "Use an http or https link.",
+        "saved": "Link saved. Its preview will refresh in a moment."
+      }
     },
     "linkPicker": {
       "label": "Link a card",
@@ -747,6 +775,13 @@
       "checked": "Checked",
       "unchecked": "Not checked",
       "table": "Table, {count, plural, one {# row} other {# rows}}"
+    },
+    "media": {
+      "seek": "Seek",
+      "seekPosition": "{current} of {duration}",
+      "pdfPage": "Page {page} of {total}",
+      "pdfLoading": "Opening the PDF…",
+      "pdfFailed": "Couldn't open this PDF."
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "This recording format can't play on Mac",
       "audioUnplayableIPhone": "This recording format can't play on iPhone"
+    },
+    "media": {
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out",
+      "zoomToFit": "Zoom to Fit"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "This video can't play on this device.",
       "openInAnotherApp": "Open in another app",
       "noAppForLink": "No app can open this link."
+    },
+    "settings": {
+      "wallpaperColors": "Wallpaper colors",
+      "wallpaperColorsDescription": "Color the app from your wallpaper instead of Teak's red."
     }
   }
 }

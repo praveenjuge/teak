@@ -23,6 +23,7 @@ import {
   Folder as FolderIcon,
   Heart,
   LoaderCircle,
+  Pencil,
   RefreshCw,
   RotateCcw,
   SquareCheckBig,
@@ -160,6 +161,7 @@ export const Card = memo(function Card({
   onToggleArchive,
   onAddTags,
   onEditFolders,
+  onEditLink,
   onCopyImage,
   isSelectionMode,
   isSelected,
@@ -452,6 +454,20 @@ export const Card = memo(function Card({
             onSelect: handleToggleFavorite,
             shortcut: shortcuts.favorite,
           },
+          ...(onEditLink && card.type === "link" && card.url
+            ? [
+                {
+                  icon: Pencil,
+                  id: "editLink",
+                  label: t("menu.editLink"),
+                  onSelect: () => {
+                    if (!isOptimistic) {
+                      onEditLink(card._id);
+                    }
+                  },
+                },
+              ]
+            : []),
           {
             disabled: reprocessingCardId === card._id,
             icon: RefreshCw,

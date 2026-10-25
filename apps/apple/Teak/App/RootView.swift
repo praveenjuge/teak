@@ -156,7 +156,7 @@ struct LibraryTab: View {
         NavigationStack(path: $path) {
             LibraryView(library: library, namespace: namespace)
                 .navigationDestination(for: CardRoute.self) { route in
-                    CardDetailView(route: route)
+                    CardDetailView(route: route, library: library)
                         #if os(iOS)
                         .navigationTransition(.zoom(sourceID: route.id, in: namespace))
                         #endif

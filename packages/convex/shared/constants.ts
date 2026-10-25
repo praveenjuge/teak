@@ -290,6 +290,12 @@ export const LINK_PASTE_ACTIVE_CODE = "PASTE_ACTIVE";
 
 export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+/**
+ * The most cards Trash's count reads (card/emptyTrash.ts). A Trash this full
+ * or fuller shows the count with a plus; Empty Trash still deletes them all.
+ */
+export const TRASH_COUNT_LIMIT = 500;
+
 export { MAX_FILE_SIZE } from "./fileFormats";
 
 export const MAX_FILES_PER_UPLOAD = 20;

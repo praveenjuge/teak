@@ -38,13 +38,18 @@ class OrganizeViewModelsTest {
     }
 
     @Test
-    fun `the server's reason shows in the folder dialog`() = runTest {
+    fun `the server's reason shows in the folder dialog, in the app's language`() = runTest {
         folders.error = TeakException("CONFLICT", "A folder with this name already exists")
         val viewModel = FoldersViewModel(folders)
         viewModel.open(FolderEditor.New(smart = false))
         viewModel.save("Reading", query = null)
         advanceUntilIdle()
-        assertEquals(UiText.verbatim("A folder with this name already exists"), viewModel.state.value.editorError)
+        assertEquals(UiText.of("errors.folders.DUPLICATE_NAME"), viewModel.state.value.editorError)
+
+        folders.error = TeakException("INVALID_INPUT", "No folder named Ideas")
+        viewModel.save("Reading", query = null)
+        advanceUntilIdle()
+        assertEquals(UiText.verbatim("No folder named Ideas"), viewModel.state.value.editorError)
     }
 
     @Test

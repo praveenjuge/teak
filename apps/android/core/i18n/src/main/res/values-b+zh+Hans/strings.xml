@@ -7,6 +7,8 @@
     <string name="android_card_videoUnplayable">此视频无法在此设备上播放。</string>
     <string name="android_notification_file">文件</string>
     <string name="android_notification_uploadTitle">正在保存到 Teak</string>
+    <string name="android_settings_wallpaperColors">壁纸颜色</string>
+    <string name="android_settings_wallpaperColorsDescription">使用壁纸颜色代替 Teak 红为应用配色。</string>
     <string name="android_share_saveToTeak">保存到 Teak</string>
     <string name="cards_types_audio">音频</string>
     <string name="cards_types_card">卡片</string>
@@ -283,15 +285,23 @@
     <string name="native_card_edit_saveFailed">无法保存更改</string>
     <string name="native_card_edit_tagPlaceholder">添加标签</string>
     <string name="native_card_edit_title">编辑卡片</string>
+    <string name="native_card_editLink_invalid">请使用 http 或 https 链接。</string>
+    <string name="native_card_editLink_label">地址</string>
+    <string name="native_card_editLink_menu">编辑链接…</string>
+    <string name="native_card_editLink_message">保存新地址后，卡片的预览会刷新。</string>
+    <string name="native_card_editLink_saved">链接已保存。预览稍后会刷新。</string>
+    <string name="native_card_editLink_title">编辑链接</string>
     <string name="native_card_failed_archive">无法归档此卡片。</string>
     <string name="native_card_failed_delete">无法删除此卡片。</string>
     <string name="native_card_failed_download">无法下载此文件。</string>
+    <string name="native_card_failed_editLink">无法更改链接。</string>
     <string name="native_card_failed_favorite">无法更新收藏状态。</string>
     <string name="native_card_failed_folders">无法更改卡片所在的文件夹</string>
     <string name="native_card_failed_moveToTrash">无法将此卡片移到废纸篓。</string>
     <string name="native_card_failed_refresh">无法刷新此卡片，请稍后再试。</string>
     <string name="native_card_failed_restore">无法恢复此卡片。</string>
     <string name="native_card_failed_saveFile">无法保存此文件。</string>
+    <string name="native_card_failed_title">无法保存标题。</string>
     <string name="native_card_failed_unarchive">无法取消归档此卡片。</string>
     <string name="native_card_failed_undo">无法撤销，请重试。</string>
     <string name="native_card_failed_update">无法更新，请重试。</string>
@@ -349,6 +359,8 @@
     <string name="native_card_source_from">来自 %1$s</string>
     <string name="native_card_source_label">来源</string>
     <string name="native_card_source_open">打开 %1$s</string>
+    <string name="native_card_titleField_label">标题</string>
+    <string name="native_card_titleField_placeholder">无标题链接</string>
     <string name="native_card_unavailable_deletedMessage">它可能已被删除。</string>
     <string name="native_card_unavailable_movedMessage">它可能已被删除或移动。</string>
     <string name="native_card_unavailable_title">卡片不可用</string>
@@ -609,6 +621,11 @@
     <string name="native_linkPicker_noMatches">没有匹配的卡片</string>
     <string name="native_linkPicker_option">链接 %1$s</string>
     <string name="native_linkPicker_searching">正在搜索卡片…</string>
+    <string name="native_media_pdfFailed">无法打开此 PDF。</string>
+    <string name="native_media_pdfLoading">正在打开 PDF…</string>
+    <string name="native_media_pdfPage">第 %1$s 页，共 %2$s 页</string>
+    <string name="native_media_seek">跳转</string>
+    <string name="native_media_seekPosition">%1$s / %2$s</string>
     <string name="native_notes_checked">已勾选</string>
     <plurals name="native_notes_table">
         <item quantity="other">表格，%1$d 行</item>
@@ -720,6 +737,8 @@
     <string name="native_tags_emptyTitle">还没有标签</string>
     <string name="native_tags_exists">名为“%1$s”的标签已存在。</string>
     <string name="native_tags_find">查找标签</string>
+    <string name="native_tags_keep">保留</string>
+    <string name="native_tags_keepTag">保留 %1$s</string>
     <string name="native_tags_loading">正在加载标签</string>
     <string name="native_tags_merge">合并</string>
     <plurals name="native_tags_mergeFailed">
@@ -753,6 +772,7 @@
     </plurals>
     <string name="native_tags_selected">已选择</string>
     <string name="native_tags_startFailed">无法开始更改标签</string>
+    <string name="native_tags_suggested">Teak 建议</string>
     <string name="native_tags_title">标签</string>
     <string name="native_tags_tryRest">请重试以更改其余卡片。</string>
     <string name="native_time_lastMonth">上个月</string>
@@ -765,6 +785,23 @@
     <string name="native_time_thisYear">今年</string>
     <string name="native_time_today">今天</string>
     <string name="native_time_yesterday">昨天</string>
+    <string name="native_trash_alreadyEmpty">废纸篓已经是空的</string>
+    <string name="native_trash_empty">清空废纸篓</string>
+    <string name="native_trash_emptyFailed">无法清空废纸篓。请重试。</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="other">这将永久删除 %1$d 张卡片及其文件。此操作无法撤销。</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="other">这将永久删除 %1$d 张或更多卡片及其文件。此操作无法撤销。</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">清空废纸篓？</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="other">正在永久删除 %1$d 张卡片</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="other">正在永久删除至少 %1$d 张卡片</item>
+    </plurals>
+    <string name="native_trash_rateLimited">刚才已多次清空废纸篓。请一分钟后再试。</string>
     <string name="search_colorHues_blue">蓝色</string>
     <string name="search_colorHues_brown">棕色</string>
     <string name="search_colorHues_cyan">青色</string>

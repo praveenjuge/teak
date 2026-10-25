@@ -254,6 +254,17 @@
       },
       "partial": "{message}。{count, plural, other {# 件は変更できませんでした。}}"
     },
+    "trash": {
+      "empty": "ゴミ箱を空にする",
+      "emptyTitle": "ゴミ箱を空にしますか？",
+      "emptyMessage": "{count, plural, other {# 枚のカード}}とそのファイルが完全に削除されます。この操作は元に戻せません。",
+      "emptyMessageMore": "{count, plural, other {# 枚以上のカード}}とそのファイルが完全に削除されます。この操作は元に戻せません。",
+      "emptying": "{count, plural, other {# 枚のカードを完全に削除しています}}",
+      "emptyingMore": "{count, plural, other {# 枚以上のカードを完全に削除しています}}",
+      "alreadyEmpty": "ゴミ箱はすでに空です",
+      "emptyFailed": "ゴミ箱を空にできませんでした。もう一度お試しください。",
+      "rateLimited": "ゴミ箱を短時間に何度も空にしました。1 分後にもう一度お試しください。"
+    },
     "similar": {
       "emptyMessage": "別のカードでお試しください。",
       "pending": "このカードはまだ解析中です。しばらくしてからもう一度お試しください。",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "非表示にしました。表示するには #{tag} で検索してください。",
         "hiddenCards": "一部のカードは非表示です。表示するには #secret または #hidden で検索してください。"
-      }
+      },
+      "suggested": "Teak のおすすめ",
+      "keep": "残す",
+      "keepTag": "{tag} を残す"
     },
     "card": {
       "note": "メモ",
@@ -563,7 +577,9 @@
         "delete": "このカードを削除できませんでした。",
         "restore": "このカードを復元できませんでした。",
         "saveFile": "このファイルを保存できませんでした。",
-        "download": "このファイルをダウンロードできませんでした。"
+        "download": "このファイルをダウンロードできませんでした。",
+        "title": "タイトルを保存できませんでした。",
+        "editLink": "リンクを変更できませんでした。"
       },
       "share": {
         "nothing": "保存するものがありません。"
@@ -571,7 +587,19 @@
       "plan": {
         "free": "無料"
       },
-      "usage": "{used} / {count, plural, other {# 件のカード}}"
+      "usage": "{used} / {count, plural, other {# 件のカード}}",
+      "titleField": {
+        "label": "タイトル",
+        "placeholder": "無題のリンク"
+      },
+      "editLink": {
+        "menu": "リンクを編集…",
+        "title": "リンクを編集",
+        "label": "アドレス",
+        "message": "新しいアドレスを保存すると、カードのプレビューが更新されます。",
+        "invalid": "http または https のリンクを使用してください。",
+        "saved": "リンクを保存しました。まもなくプレビューが更新されます。"
+      }
     },
     "linkPicker": {
       "label": "カードをリンク",
@@ -747,6 +775,13 @@
       "checked": "チェック済み",
       "unchecked": "未チェック",
       "table": "表、{count, plural, other {# 行}}"
+    },
+    "media": {
+      "seek": "再生位置",
+      "seekPosition": "{current} / {duration}",
+      "pdfPage": "{page} / {total} ページ",
+      "pdfLoading": "PDF を開いています…",
+      "pdfFailed": "この PDF を開けませんでした。"
     }
   },
   "apple": {
@@ -871,6 +906,11 @@
     "card": {
       "audioUnplayableMac": "この録音形式は Mac では再生できません",
       "audioUnplayableIPhone": "この録音形式は iPhone では再生できません"
+    },
+    "media": {
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomToFit": "ウインドウに合わせる"
     }
   },
   "android": {
@@ -886,6 +926,10 @@
       "videoUnplayable": "この動画はこのデバイスでは再生できません。",
       "openInAnotherApp": "別のアプリで開く",
       "noAppForLink": "このリンクを開けるアプリがありません。"
+    },
+    "settings": {
+      "wallpaperColors": "壁紙の色",
+      "wallpaperColorsDescription": "Teak の赤ではなく壁紙の色でアプリを彩ります。"
     }
   }
 }
