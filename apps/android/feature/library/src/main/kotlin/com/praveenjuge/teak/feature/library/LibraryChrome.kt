@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonDefaults
@@ -120,6 +121,9 @@ internal fun LibraryTopBar(
     onRevisit: () -> Unit,
     onBack: (() -> Unit)?,
     onSaveSearch: (() -> Unit)? = null,
+    /** Asks before emptying Trash; set only in Trash. */
+    onEmptyTrash: (() -> Unit)? = null,
+    canEmptyTrash: Boolean = false,
 ) {
     var sortOpen by rememberSaveable { mutableStateOf(false) }
     LargeFlexibleTopAppBar(
@@ -136,6 +140,11 @@ internal fun LibraryTopBar(
             }
             if (canRevisit) {
                 IconButton(onClick = onRevisit) { Icon(Icons.Outlined.ViewCarousel, contentDescription = tr("native.revisit.title")) }
+            }
+            if (onEmptyTrash != null) {
+                IconButton(onClick = onEmptyTrash, enabled = canEmptyTrash) {
+                    Icon(Icons.Outlined.DeleteSweep, contentDescription = tr("native.trash.empty"))
+                }
             }
             Box {
                 IconButton(onClick = { sortOpen = true }) {

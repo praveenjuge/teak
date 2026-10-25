@@ -299,15 +299,23 @@
     <string name="native_card_edit_saveFailed">Couldn\'t save changes</string>
     <string name="native_card_edit_tagPlaceholder">Add a tag</string>
     <string name="native_card_edit_title">Edit card</string>
+    <string name="native_card_editLink_invalid">URL must use the http or https scheme</string>
+    <string name="native_card_editLink_label">Link</string>
+    <string name="native_card_editLink_menu">Edit link…</string>
+    <string name="native_card_editLink_message">The preview refreshes after you save.</string>
+    <string name="native_card_editLink_saved">Link saved. The preview refreshes shortly.</string>
+    <string name="native_card_editLink_title">Edit link</string>
     <string name="native_card_failed_archive">Couldn\'t archive this card.</string>
     <string name="native_card_failed_delete">Couldn\'t delete this card.</string>
     <string name="native_card_failed_download">Unable to download this file.</string>
+    <string name="native_card_failed_editLink">Couldn\'t change the link.</string>
     <string name="native_card_failed_favorite">Couldn\'t update this favorite.</string>
     <string name="native_card_failed_folders">Couldn\'t change the card\'s folders</string>
     <string name="native_card_failed_moveToTrash">Couldn\'t move this card to Trash.</string>
     <string name="native_card_failed_refresh">Couldn\'t refresh this card. Try again in a moment.</string>
     <string name="native_card_failed_restore">Couldn\'t restore this card.</string>
     <string name="native_card_failed_saveFile">Couldn\'t save this file.</string>
+    <string name="native_card_failed_title">Couldn\'t save the title.</string>
     <string name="native_card_failed_unarchive">Couldn\'t unarchive this card.</string>
     <string name="native_card_failed_undo">Couldn\'t undo. Try again.</string>
     <string name="native_card_failed_update">Couldn\'t update. Try again.</string>
@@ -366,6 +374,8 @@
     <string name="native_card_source_from">From %1$s</string>
     <string name="native_card_source_label">From</string>
     <string name="native_card_source_open">Open %1$s</string>
+    <string name="native_card_titleField_label">Title</string>
+    <string name="native_card_titleField_placeholder">Untitled link</string>
     <string name="native_card_unavailable_deletedMessage">It may have been deleted.</string>
     <string name="native_card_unavailable_movedMessage">It may have been deleted or moved.</string>
     <string name="native_card_unavailable_title">Card unavailable</string>
@@ -751,6 +761,8 @@
     <string name="native_tags_emptyTitle">No tags yet</string>
     <string name="native_tags_exists">A tag named “%1$s” already exists.</string>
     <string name="native_tags_find">Find a tag</string>
+    <string name="native_tags_keep">Keep</string>
+    <string name="native_tags_keepTag">Keep %1$s</string>
     <string name="native_tags_loading">Loading tags</string>
     <string name="native_tags_merge">Merge</string>
     <plurals name="native_tags_mergeFailed">
@@ -789,6 +801,7 @@
     </plurals>
     <string name="native_tags_selected">Selected</string>
     <string name="native_tags_startFailed">Couldn\'t start the tag change</string>
+    <string name="native_tags_suggested">Suggested by Teak</string>
     <string name="native_tags_title">Tags</string>
     <string name="native_tags_tryRest">Try again to change the rest.</string>
     <string name="native_time_lastMonth">Last month</string>
@@ -801,6 +814,27 @@
     <string name="native_time_thisYear">This year</string>
     <string name="native_time_today">Today</string>
     <string name="native_time_yesterday">Yesterday</string>
+    <string name="native_trash_alreadyEmpty">Trash is already empty</string>
+    <string name="native_trash_empty">Empty Trash</string>
+    <string name="native_trash_emptyFailed">Couldn\'t empty Trash. Try again.</string>
+    <plurals name="native_trash_emptyMessage">
+        <item quantity="one">This permanently deletes %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <plurals name="native_trash_emptyMessageMore">
+        <item quantity="one">This permanently deletes at least %1$d card and its files. This can\'t be undone.</item>
+        <item quantity="other">This permanently deletes at least %1$d cards and their files. This can\'t be undone.</item>
+    </plurals>
+    <string name="native_trash_emptyTitle">Empty Trash?</string>
+    <plurals name="native_trash_emptying">
+        <item quantity="one">Deleting %1$d card forever</item>
+        <item quantity="other">Deleting %1$d cards forever</item>
+    </plurals>
+    <plurals name="native_trash_emptyingMore">
+        <item quantity="one">Deleting at least %1$d card forever</item>
+        <item quantity="other">Deleting at least %1$d cards forever</item>
+    </plurals>
+    <string name="native_trash_rateLimited">Trash was emptied a few times just now. Try again in a minute.</string>
     <string name="search_colorHues_blue">Blue</string>
     <string name="search_colorHues_brown">Brown</string>
     <string name="search_colorHues_cyan">Cyan</string>

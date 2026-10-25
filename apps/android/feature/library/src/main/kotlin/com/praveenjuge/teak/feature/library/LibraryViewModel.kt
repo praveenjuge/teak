@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
+import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardPager
 import com.praveenjuge.teak.core.data.repository.CardQuery
@@ -16,6 +17,7 @@ import com.praveenjuge.teak.core.model.BulkCopy
 import com.praveenjuge.teak.core.model.CardSort
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.ColorHue
+import com.praveenjuge.teak.core.model.EmptyTrash
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.QualifierChip
@@ -94,8 +96,17 @@ data class LibraryUiState(
     val semanticOutcome: String? = null,
     val hasHiddenCards: Boolean = false,
     val message: LibraryMessage? = null,
+    val isEmptyingTrash: Boolean = false,
+    /** Every card in Trash, from `cards:trashCount`, while this view is Trash. */
+    val trashCount: Int? = null,
 ) {
     val isSelecting: Boolean get() = selection is Selection.Active
+
+    /** Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives. */
+    val canEmptyTrash: Boolean
+        get() = filters.trashOnly && !isEmptyingTrash && (trashCount?.let { it > 0 } ?: paged.cards.isNotEmpty())
+
+    val emptyTrashMessage: UiText get() = EmptyTrash.message(trashCount ?: paged.cards.size)
 
     val pickedIds: List<String> get() = (selection as? Selection.Active)?.pickedIds.orEmpty()
 
@@ -246,6 +257,16 @@ class LibraryViewModel @AssistedInject constructor(
         watchSimilarAnchor()
         warmMeaningSearch()
         watchHiddenCards()
+        watchTrashCount()
+    }
+
+    /** Follows `cards:trashCount` while this view is Trash, for Empty Trash. */
+    private fun watchTrashCount() {
+        _state.map { it.filters.trashOnly }
+            .distinctUntilChanged()
+            .flatMapLatest { trash -> if (trash) repository.trashCount().map { it.getOrNull() } else flowOf(null) }
+            .onEach { count -> _state.update { it.copy(trashCount = count) } }
+            .launchIn(viewModelScope)
     }
 
     /** The `like:` card's title, for its chip. */
@@ -418,6 +439,18 @@ class LibraryViewModel @AssistedInject constructor(
             }
             _state.update { it.copy(isRunningBulkAction = false, selection = Selection.None) }
             post(text)
+        }
+    }
+
+    /** Deletes every card in Trash forever. The server deletes them in pages, and the view follows live. */
+    fun emptyTrash() {
+        if (!_state.value.canEmptyTrash) return
+        _state.update { it.copy(isEmptyingTrash = true) }
+        viewModelScope.launch {
+            catchingFailures { repository.emptyTrash() }
+                .onSuccess { post(EmptyTrash.done(it)) }
+                .onFailure { error -> post(EmptyTrash.failure((error as? TeakException)?.code, (error as? TeakException)?.text)) }
+            _state.update { it.copy(isEmptyingTrash = false) }
         }
     }
 

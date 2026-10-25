@@ -44,6 +44,12 @@ public struct ReprocessResult: Decodable, Sendable {
     public var isQueued: Bool { status == "queued" }
 }
 
+/// `cards:trashCount`, and what `cards:emptyTrash` will delete: the cards in Trash, stopping at
+/// `EmptyTrash.countLimit` ("that many or more").
+public struct TrashCount: Decodable, Sendable {
+    public let count: Double
+}
+
 public struct SemanticResult: Decodable, Sendable {
     /// ok, skipped, rate_limited, unavailable, pending or anchor_unavailable.
     public let outcome: String

@@ -6,12 +6,15 @@ enum FolderPrompt: Identifiable, Equatable {
     case create
     case rename(Folder)
     case smart(query: String, name: String, dropsFilters: Bool)
+    /// A smart folder's name and search, edited together.
+    case editSearch(Folder)
 
     var id: String {
         switch self {
         case .create: "create"
         case let .rename(folder): "rename-\(folder.id)"
         case let .smart(query, _, _): "smart-\(query)"
+        case let .editSearch(folder): "search-\(folder.id)"
         }
     }
 
@@ -20,6 +23,7 @@ enum FolderPrompt: Identifiable, Equatable {
         case .create: tr("native.folders.newFolder")
         case .rename: tr("native.folders.renameFolder")
         case .smart: tr("native.folders.saveAsSmartFolder")
+        case .editSearch: tr("native.folders.editSmartFolder")
         }
     }
 
@@ -29,13 +33,14 @@ enum FolderPrompt: Identifiable, Equatable {
         case .rename: tr("native.folders.renameMessage")
         case let .smart(_, _, dropsFilters):
             dropsFilters ? tr("native.folders.smartMessageDropsFilters") : tr("native.folders.smartMessage")
+        case .editSearch: tr("native.folders.smartMessage")
         }
     }
 
     var confirm: String {
         switch self {
         case .create: tr("native.folders.createFolder")
-        case .rename: tr("common.save")
+        case .rename, .editSearch: tr("common.save")
         case .smart: tr("native.folders.saveSmartFolder")
         }
     }
@@ -43,9 +48,15 @@ enum FolderPrompt: Identifiable, Equatable {
     var initialName: String {
         switch self {
         case .create: ""
-        case let .rename(folder): folder.name
+        case let .rename(folder), let .editSearch(folder): folder.name
         case let .smart(_, name, _): name
         }
+    }
+
+    /// The search field's text; nil when the prompt has no search field.
+    var initialQuery: String? {
+        if case let .editSearch(folder) = self { return folder.query ?? "" }
+        return nil
     }
 }
 
@@ -55,7 +66,7 @@ struct FolderActions {
     let folders: FoldersModel
     let library: LibraryModel
 
-    func submit(_ prompt: FolderPrompt, name: String, open: Bool = true) async {
+    func submit(_ prompt: FolderPrompt, name: String, query: String = "", open: Bool = true) async {
         do {
             switch prompt {
             case .create:
@@ -63,6 +74,11 @@ struct FolderActions {
             case let .rename(folder):
                 try await folders.rename(folder, to: name)
                 if library.filters.folder?.id == folder.id { library.filters.folder?.name = name }
+            case let .editSearch(folder):
+                let saved = try await folders.update(folder, name: name, query: query)
+                // The open folder's page reads the new search.
+                if library.filters.folder?.id == folder.id { library.filters.folder = FolderScope(saved) }
+                library.show(tr("native.folders.savedName", saved.name))
             case let .smart(query, _, _):
                 let saved = try await folders.create(name: name, smartQuery: query)
                 library.show(tr("native.folders.savedName", saved.name))
@@ -95,23 +111,37 @@ struct FolderPromptModifier: ViewModifier {
     @Binding var prompt: FolderPrompt?
     let actions: FolderActions
     @State private var name = ""
+    @State private var query = ""
 
     func body(content: Content) -> some View {
         content
             .alert(prompt?.title ?? "", isPresented: Binding(presenting: $prompt), presenting: prompt) { prompt in
                 TextField(tr("native.folders.folderName"), text: $name)
                     .accessibilityIdentifier("folder.name")
+                if prompt.initialQuery != nil {
+                    TextField(tr("native.folders.search"), text: $query)
+                        .autocorrectionDisabled()
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .accessibilityIdentifier("folder.query")
+                }
                 Button(tr("common.cancel"), role: .cancel) { self.prompt = nil }
                 Button(prompt.confirm) {
-                    let submitted = name
-                    Task { await actions.submit(prompt, name: submitted) }
+                    let submitted = (name, query)
+                    Task { await actions.submit(prompt, name: submitted.0, query: submitted.1) }
                 }
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(isBlank(name) || (prompt.initialQuery != nil && isBlank(query)))
             } message: { prompt in
                 Text(prompt.message)
             }
-            .onChange(of: prompt) { _, next in name = next?.initialName ?? "" }
+            .onChange(of: prompt) { _, next in
+                name = next?.initialName ?? ""
+                query = next?.initialQuery ?? ""
+            }
     }
+
+    private func isBlank(_ text: String) -> Bool { text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 
 extension View {
@@ -150,8 +180,22 @@ struct FolderMenu: View {
     let actions: FolderActions
 
     var body: some View {
-        Button(tr("native.folders.renameMenu"), systemImage: "pencil") { prompt = .rename(folder) }
+        FolderEditButton(folder: folder, prompt: $prompt)
         Button(tr("common.delete"), systemImage: "trash", role: .destructive) { Task { await actions.delete(folder) } }
+    }
+}
+
+/// Rename… for a folder; Edit search… for a smart folder, whose prompt edits its name too.
+struct FolderEditButton: View {
+    let folder: Folder
+    @Binding var prompt: FolderPrompt?
+
+    var body: some View {
+        if folder.isSmart {
+            Button(tr("native.folders.editSearchMenu"), systemImage: "magnifyingglass") { prompt = .editSearch(folder) }
+        } else {
+            Button(tr("native.folders.renameMenu"), systemImage: "pencil") { prompt = .rename(folder) }
+        }
     }
 }
 
@@ -216,7 +260,7 @@ struct FoldersPage: View {
                     Button(tr("common.delete"), systemImage: "trash", role: .destructive) {
                         Task { await actions.delete(folder) }
                     }
-                    Button(tr("native.folders.renameMenu"), systemImage: "pencil") { prompt = .rename(folder) }
+                    FolderEditButton(folder: folder, prompt: $prompt)
                 }
             }
         }

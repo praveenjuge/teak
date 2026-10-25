@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.feature.library
 
+import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardSort
@@ -239,6 +240,56 @@ class LibraryViewModelTest {
 
         assertEquals(listOf("c"), viewModel.state.value.paged.cards.map { it.id })
         assertEquals(UiText.of("native.bulk.done.deleteForever", count = 2), viewModel.state.value.message?.text)
+    }
+
+    @Test
+    fun `empty trash counts every card in Trash, empties them and says so`() = runTest {
+        repository.hiddenTrashCount = 2
+        val viewModel = library("a", "b", "c")
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.canEmptyTrash)
+        assertNull(viewModel.state.value.trashCount)
+        viewModel.toggleTrash()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.canEmptyTrash)
+        assertEquals(UiText.of("native.trash.emptyMessage", count = 5), viewModel.state.value.emptyTrashMessage)
+
+        viewModel.emptyTrash()
+        advanceUntilIdle()
+
+        assertEquals(listOf("emptyTrash"), repository.writes)
+        assertEquals(UiText.of("native.trash.emptying", count = 5), viewModel.state.value.message?.text)
+        assertEquals(emptyList(), viewModel.state.value.paged.cards)
+        assertEquals(0, viewModel.state.value.trashCount)
+        assertFalse(viewModel.state.value.canEmptyTrash)
+    }
+
+    @Test
+    fun `only hidden cards in Trash can still be emptied`() = runTest {
+        repository.hiddenTrashCount = 1
+        val viewModel = library()
+        viewModel.toggleTrash()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.canEmptyTrash)
+    }
+
+    @Test
+    fun `a failed empty trash keeps the cards and says why`() = runTest {
+        repository.emptyTrashError = IllegalStateException("offline")
+        val viewModel = library("a")
+        viewModel.toggleTrash()
+        advanceUntilIdle()
+
+        viewModel.emptyTrash()
+        advanceUntilIdle()
+        assertEquals(UiText.of("native.trash.emptyFailed"), viewModel.state.value.message?.text)
+        assertEquals(listOf("a"), viewModel.state.value.paged.cards.map { it.id })
+        assertTrue(viewModel.state.value.canEmptyTrash)
+
+        repository.emptyTrashError = TeakException("RATE_LIMITED", "Trash was emptied a few times just now. Try again in a minute.")
+        viewModel.emptyTrash()
+        advanceUntilIdle()
+        assertEquals(UiText.of("native.trash.rateLimited"), viewModel.state.value.message?.text)
     }
 
     @Test

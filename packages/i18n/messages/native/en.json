@@ -254,6 +254,17 @@
       },
       "partial": "{message}. {count, plural, one {# couldn't be changed.} other {# couldn't be changed.}}"
     },
+    "trash": {
+      "empty": "Empty Trash",
+      "emptyTitle": "Empty Trash?",
+      "emptyMessage": "{count, plural, one {This permanently deletes # card and its files.} other {This permanently deletes # cards and their files.}} This can't be undone.",
+      "emptyMessageMore": "{count, plural, one {This permanently deletes at least # card and its files.} other {This permanently deletes at least # cards and their files.}} This can't be undone.",
+      "emptying": "{count, plural, one {Deleting # card forever} other {Deleting # cards forever}}",
+      "emptyingMore": "{count, plural, one {Deleting at least # card forever} other {Deleting at least # cards forever}}",
+      "alreadyEmpty": "Trash is already empty",
+      "emptyFailed": "Couldn't empty Trash. Try again.",
+      "rateLimited": "Trash was emptied a few times just now. Try again in a minute."
+    },
     "similar": {
       "emptyMessage": "Try another card.",
       "pending": "Still learning about this card. Try again in a moment.",
@@ -448,7 +459,10 @@
       "card": {
         "hiddenAdded": "Hidden. Search #{tag} to see it.",
         "hiddenCards": "Some cards are hidden. Search #secret or #hidden to see them."
-      }
+      },
+      "suggested": "Suggested by Teak",
+      "keep": "Keep",
+      "keepTag": "Keep {tag}"
     },
     "card": {
       "note": "Note",
@@ -563,7 +577,9 @@
         "delete": "Couldn't delete this card.",
         "restore": "Couldn't restore this card.",
         "saveFile": "Couldn't save this file.",
-        "download": "Unable to download this file."
+        "download": "Unable to download this file.",
+        "title": "Couldn't save the title.",
+        "editLink": "Couldn't change the link."
       },
       "share": {
         "nothing": "Nothing to save."
@@ -571,7 +587,19 @@
       "plan": {
         "free": "Free"
       },
-      "usage": "{used} of {count, plural, one {# card} other {# cards}}"
+      "usage": "{used} of {count, plural, one {# card} other {# cards}}",
+      "titleField": {
+        "label": "Title",
+        "placeholder": "Untitled link"
+      },
+      "editLink": {
+        "menu": "Edit link…",
+        "title": "Edit link",
+        "label": "Link",
+        "message": "The preview refreshes after you save.",
+        "invalid": "URL must use the http or https scheme",
+        "saved": "Link saved. The preview refreshes shortly."
+      }
     },
     "linkPicker": {
       "label": "Link a card",

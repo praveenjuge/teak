@@ -312,6 +312,64 @@ class CardDetailViewModelTest {
     }
 
     @Test
+    fun `keeping suggested tags builds on each kept tag before the card catches up`() = runTest {
+        cards.cards.value = mapOf(card.id to card.copy(tags = listOf("flowers"), aiTags = listOf("macro", "petal")))
+        val viewModel = viewModel()
+
+        viewModel.keepTag("macro")
+        viewModel.keepTag("petal")
+        viewModel.keepTag("Macro")
+
+        assertEquals(
+            listOf(
+                "edit:c1:${CardFieldChange.Tags(listOf("flowers", "macro"))}",
+                "edit:c1:${CardFieldChange.Tags(listOf("flowers", "macro", "petal"))}",
+            ),
+            cards.writes,
+        )
+        assertEquals(listOf("flowers", "macro", "petal"), viewModel.uiState.value.displayedCard?.tags)
+    }
+
+    @Test
+    fun `removing a suggested tag uses removeAiTag`() = runTest {
+        cards.cards.value = mapOf(card.id to card.copy(aiTags = listOf("macro")))
+        viewModel().removeSuggestedTag("macro")
+        assertEquals(listOf("edit:c1:${CardFieldChange.RemoveAiTag("macro")}"), cards.writes)
+    }
+
+    @Test
+    fun `edit link refuses a non-link with the server's words and saves a link`() = runTest {
+        cards.cards.value = mapOf(link.id to link)
+        val viewModel = linkViewModel()
+        viewModel.openEditLink()
+
+        viewModel.saveLink("example.org")
+        assertEquals(UiText.of("native.card.editLink.invalid"), viewModel.uiState.value.linkError)
+        assertEquals(emptyList(), cards.writes)
+
+        viewModel.events.test {
+            viewModel.saveLink(" https://example.org/new ")
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.editLink.saved")), awaitItem())
+        }
+        assertEquals(listOf("edit:l1:${CardFieldChange.Url("https://example.org/new")}"), cards.writes)
+        assertFalse(viewModel.uiState.value.isEditingLink)
+    }
+
+    @Test
+    fun `a typed link title saves, a blank one doesn't`() = runTest {
+        cards.cards.value = mapOf(link.id to link.copy(metadataTitle = "Example"))
+        val viewModel = linkViewModel()
+        assertTrue(viewModel.uiState.value.editsTitle)
+
+        viewModel.saveTitle("   ")
+        viewModel.saveTitle("Example")
+        viewModel.saveTitle("Field notes")
+
+        assertEquals(listOf("edit:l1:${CardFieldChange.MetadataTitle("Field notes")}"), cards.writes)
+        assertEquals("Field notes", viewModel.uiState.value.card?.metadataTitle)
+    }
+
+    @Test
     fun `link titles load once per set of linked cards, with backlinks`() = runTest {
         val target = "k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         cards.cards.value = mapOf(card.id to card.copy(content = "See [[Old title|teak:$target]]"))

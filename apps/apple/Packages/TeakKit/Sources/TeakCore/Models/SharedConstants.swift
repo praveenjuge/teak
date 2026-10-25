@@ -43,6 +43,8 @@ public struct SharedConstants: Decodable, Sendable {
     public let messages: Messages
     public let cardErrorMessages: [String: String]
     public let tagErrorMessages: [String: String]
+    /// The server's folder errors by code, sent in English with a general code such as `INVALID_INPUT`.
+    public let folderErrorMessages: [String: String]
     public let hiddenTagKeys: [String]
     public let linkCategoryDoneVerbs: [String: String]
     public let actionableLinkCategories: [String]

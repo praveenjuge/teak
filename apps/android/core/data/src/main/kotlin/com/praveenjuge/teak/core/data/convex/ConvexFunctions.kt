@@ -13,6 +13,7 @@ import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.SimilarAnchor
 import com.praveenjuge.teak.core.model.TagOperation
 import com.praveenjuge.teak.core.model.TagSummary
+import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.KSerializer
@@ -38,6 +39,8 @@ object ConvexFunctions {
     val viewHasHiddenCards = ConvexFunction("cards:viewHasHiddenCards", Boolean.serializer())
     val requestSemanticResults = ConvexFunction("search/semanticActions:requestSemanticResults", JsonObject.serializer())
     val permanentDeleteCard = ConvexFunction("cards:permanentDeleteCard", JsonElement.serializer())
+    val emptyTrash = ConvexFunction("cards:emptyTrash", TrashCount.serializer())
+    val trashCount = ConvexFunction("cards:trashCount", TrashCount.serializer())
     val uploadAndCreateCard = ConvexFunction("cards:uploadAndCreateCard", JsonObject.serializer())
     val finalizeUploadedCard = ConvexFunction("cards:finalizeUploadedCard", JsonObject.serializer())
     val listFolders = ConvexFunction("folders:listFolders", ListSerializer(Folder.serializer()))

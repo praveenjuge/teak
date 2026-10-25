@@ -12,6 +12,8 @@ final class CardDetailModel {
     private(set) var doneOverride: Bool?
     /// A note's content with a ticked task, shown until the saved card catches up.
     private(set) var contentOverride: String?
+    /// The card's tags with a kept suggestion that's still saving.
+    private(set) var tagsOverride: [String]?
     private(set) var isSaving = false
     private(set) var isRefreshing = false
     /// Live titles for the `[[…|teak:id]]` pills in a note, by id.
@@ -28,6 +30,7 @@ final class CardDetailModel {
     @ObservationIgnored private var linkIds: [String] = []
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
     @ObservationIgnored private var taskSaves = 0
+    @ObservationIgnored private var keepSaves = 0
 
     init(id: String, backend: TeakBackend) {
         self.id = id
@@ -45,6 +48,7 @@ final class CardDetailModel {
                         if favoriteOverride == value?.isFavorited { favoriteOverride = nil }
                         if doneOverride == value?.isDone { doneOverride = nil }
                         if contentOverride != nil, value?.content == contentOverride || taskSaves == 0 { contentOverride = nil }
+                        if tagsOverride != nil, value?.tags == tagsOverride || keepSaves == 0 { tagsOverride = nil }
                         watchLinks(value)
                     }
                     return
@@ -73,6 +77,7 @@ final class CardDetailModel {
     var displayedCard: Card? {
         guard var card else { return nil }
         if let contentOverride { card.content = contentOverride }
+        if let tagsOverride { card.tags = tagsOverride }
         return card
     }
 
@@ -186,11 +191,65 @@ final class CardDetailModel {
     }
 
     func moveToTrash() async -> Bool {
-        await perform(tr("native.card.failed.moveToTrash")) { try await self.update(["field": "delete"]) }
+        await perform(tr("native.card.failed.moveToTrash")) { try await self.write(.moveToTrash) }
     }
 
     func restore() async -> Bool {
-        await perform(tr("native.card.failed.restore")) { try await self.update(["field": "restore"]) }
+        await perform(tr("native.card.failed.restore")) { try await self.write(.restore) }
+    }
+
+    private func write(_ change: CardFieldChange) async throws {
+        let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, change.args(cardId: id))
+    }
+
+    /// Saves a link title typed in the header. A blank title leaves the one the card has.
+    func saveTitle(_ input: String) async {
+        guard let card, let change = CardEdit.titleChange(input, current: CardSheet.linkTitle(card)) else { return }
+        message = nil
+        do {
+            try await write(change)
+        } catch {
+            message = (error as? TeakError)?.message ?? tr("native.card.failed.title")
+        }
+    }
+
+    /// Saves a link's new address, which refreshes its preview. Returns why it couldn't, for the form to show.
+    func saveLink(_ input: String) async -> String? {
+        if let invalid = LinkEdit.validationError(input) { return invalid }
+        guard let change = LinkEdit.change(input, current: card?.url) else { return nil }
+        do {
+            try await write(change)
+            show(tr("native.card.editLink.saved"))
+            return nil
+        } catch {
+            return (error as? TeakError)?.message ?? tr("native.card.failed.editLink")
+        }
+    }
+
+    /// Keeps a tag Teak suggested as one of the card's own. Quick Keeps build on each other before the card catches up.
+    func keepTag(_ tag: String) async {
+        guard let change = CardEdit.keeping(tag, tags: tagsOverride ?? card?.tags ?? []),
+              case let .tags(tags) = change else { return }
+        tagsOverride = tags
+        message = nil
+        keepSaves += 1
+        defer { keepSaves -= 1 }
+        do {
+            try await write(change)
+            if keepSaves == 1, card?.tags == tagsOverride { tagsOverride = nil }
+        } catch {
+            tagsOverride = nil
+            message = tr("native.card.failed.update")
+        }
+    }
+
+    func removeSuggestedTag(_ tag: String) async {
+        message = nil
+        do {
+            try await write(.removeAiTag(tag))
+        } catch {
+            message = tr("native.card.failed.update")
+        }
     }
 
     func deleteForever() async -> Bool {

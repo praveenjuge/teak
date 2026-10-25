@@ -112,6 +112,21 @@ class ConvexCardsRepositoryTest {
     }
 
     @Test
+    fun `empty trash takes no arguments and reports how many cards it deletes`() = runTest {
+        convex.responses["cards:emptyTrash"] = { buildJsonObject { put("count", 3.0) } }
+        assertEquals(3, repository.emptyTrash())
+        assertEquals("cards:emptyTrash", convex.calls.single().name)
+        assertEquals(emptyMap(), convex.calls.single().args)
+    }
+
+    @Test
+    fun `trash count follows cards trashCount`() = runTest {
+        convex.responses["cards:trashCount"] = { buildJsonObject { put("count", 500.0) } }
+        assertEquals(500, repository.trashCount().first().getOrThrow())
+        assertEquals("cards:trashCount", convex.calls.single().name)
+    }
+
+    @Test
     fun `summaries carry archive, done, category and price`() = runTest {
         convex.responses["cards:searchMobileCardSummariesPaginated"] = {
             buildJsonObject {

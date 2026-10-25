@@ -29,6 +29,9 @@ final class LibraryModel {
 
     private(set) var selection: Set<String>?
     private(set) var isRunningBulkAction = false
+    private(set) var isEmptyingTrash = false
+    /// Every card in Trash, from `cards:trashCount`, while this view is Trash.
+    private(set) var trashCount: Int?
     private(set) var status: StatusMessage?
     /// The last answer from search by meaning, for the empty state.
     private(set) var semanticOutcome: String?
@@ -248,17 +251,74 @@ final class LibraryModel {
         }
     }
 
+    /// Moves one card to Trash with Undo, as the web's card view does, so it asks nothing first.
+    @discardableResult
     func moveToTrash(_ id: String) async -> Bool {
-        await hide(id, success: tr("native.library.toast.trashed")) {
-            let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.updateCardField,
-                                                                ["cardId": .string(id), "field": "delete"])
+        hiddenIds.insert(id)
+        do {
+            try await write(.moveToTrash, id)
+            showTrashed(id)
+            return true
+        } catch {
+            hiddenIds.remove(id)
+            show(error)
+            return false
+        }
+    }
+
+    /// "Card moved to Trash" with Undo, which puts the card back where it was.
+    func showTrashed(_ id: String) {
+        show(tr("native.library.toast.trashed")) { [weak self] in
+            Task { await self?.undoTrash(id) }
+        }
+    }
+
+    private func undoTrash(_ id: String) async {
+        dismissStatus()
+        do {
+            try await write(.restore, id)
+            hiddenIds.remove(id)
+        } catch {
+            show(tr("native.card.failed.restore"), isError: true)
         }
     }
 
     func restore(_ id: String) async -> Bool {
         await hide(id, success: tr("native.library.toast.restored")) {
-            let _: ConvexVoid = try await self.backend.mutation(ConvexFunctions.updateCardField,
-                                                                ["cardId": .string(id), "field": "restore"])
+            try await self.write(.restore, id)
+        }
+    }
+
+    private func write(_ change: CardFieldChange, _ id: String) async throws {
+        let _: ConvexVoid = try await backend.mutation(ConvexFunctions.updateCardField, change.args(cardId: id))
+    }
+
+    /// Follows `cards:trashCount` while this view is Trash; the view runs it in a task keyed by `isTrash`.
+    func followTrashCount() async {
+        trashCount = nil
+        guard isTrash else { return }
+        do {
+            for try await value in backend.subscribe(ConvexFunctions.trashCount) { trashCount = Int(value.count) }
+        } catch {}
+    }
+
+    /// Whether Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives.
+    var canEmptyTrash: Bool { isTrash && !isEmptyingTrash && (trashCount.map { $0 > 0 } ?? !cards.isEmpty) }
+
+    var emptyTrashMessage: String { EmptyTrash.message(count: trashCount ?? cards.count) }
+
+    /// Deletes every card in Trash forever. The server deletes them in pages, and the view follows live.
+    func emptyTrash() async {
+        guard canEmptyTrash else { return }
+        isEmptyingTrash = true
+        defer { isEmptyingTrash = false }
+        let shown = cards.map(\.id)
+        do {
+            let result = try await backend.mutation(ConvexFunctions.emptyTrash)
+            hiddenIds.formUnion(shown)
+            show(EmptyTrash.done(Int(result.count)))
+        } catch {
+            show(EmptyTrash.failure(error), isError: true)
         }
     }
 

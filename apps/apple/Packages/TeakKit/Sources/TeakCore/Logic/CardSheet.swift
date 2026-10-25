@@ -203,8 +203,10 @@ public enum CardSheet {
         return rows + (card.metadata?.linkCategory?.facts ?? []).map { DetailRow($0.label, $0.value) }
     }
 
+    /// A title someone typed first, then the page's own, as the web's `resolveLinkTitle`.
     public static func linkTitle(_ card: Card) -> String {
-        card.metadata?.linkPreview?.title?.nonEmpty ?? card.metadataTitle?.nonEmpty
+        (card.metadataTitleEdited == true ? card.metadataTitle?.nonEmpty : nil)
+            ?? card.metadata?.linkPreview?.title?.nonEmpty ?? card.metadataTitle?.nonEmpty
             ?? SafeURL.hostname(card.url) ?? card.url ?? tr("cards.types.link")
     }
 

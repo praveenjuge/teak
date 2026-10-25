@@ -44,6 +44,8 @@ class CardPagerTest {
         override suspend fun moveToTrash(id: String) = error("unused")
         override suspend fun restore(id: String) = error("unused")
         override suspend fun deleteForever(id: String) = error("unused")
+        override suspend fun emptyTrash(): Int = error("unused")
+        override fun trashCount(): Flow<Result<Int>> = error("unused")
         override suspend fun apply(id: String, changes: List<CardFieldChange>) = error("unused")
         override suspend fun createFromText(text: String): String = error("unused")
         override suspend fun setArchived(id: String, archived: Boolean) = error("unused")

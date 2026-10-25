@@ -18,7 +18,7 @@ struct CardMenuActions {
     var open: (CardSummary) -> Void
     var edit: (CardSummary) -> Void
     var export: (CardSummary) -> Void
-    var confirmDelete: (CardSummary) -> Void
+    var moveToTrash: (CardSummary) -> Void
     var confirmDeleteForever: (CardSummary) -> Void
     var moreLikeThis: (CardSummary) -> Void
 }
@@ -66,7 +66,7 @@ struct CardContextMenu: View {
                 Button(tr("native.actions.openOnWeb"), systemImage: "globe") { openURL(webURL) }
                 Button(tr("native.actions.select"), systemImage: "checkmark.circle") { library.beginSelection(with: card.id) }
             }
-            Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { actions.confirmDelete(card) }
+            Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { actions.moveToTrash(card) }
         }
     }
 
@@ -174,7 +174,7 @@ struct CardSwipeActions: ViewModifier {
                             Task { await library.restore(card.id) }
                         }
                     } else {
-                        Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { actions.confirmDelete(card) }
+                        Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { actions.moveToTrash(card) }
                     }
                 }
         } else {

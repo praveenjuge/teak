@@ -21,6 +21,7 @@ import com.praveenjuge.teak.core.model.MAX_BULK_CARD_IDS
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.SimilarAnchor
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import javax.inject.Inject
@@ -51,6 +52,12 @@ interface CardsRepository {
     suspend fun moveToTrash(id: String)
     suspend fun restore(id: String)
     suspend fun deleteForever(id: String)
+
+    /** Deletes every card in Trash forever, page by page on the server. Returns how many it will delete. */
+    suspend fun emptyTrash(): Int
+
+    /** Every card in Trash, hidden ones too, live; stops at [com.praveenjuge.teak.core.model.EmptyTrash.COUNT_LIMIT]. */
+    fun trashCount(): Flow<Result<Int>>
 
     /** One action on many cards, in batches the backend accepts. Cards that failed come back in `failedIds`. */
     suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String> = emptyList(), folderId: String? = null): BulkResult
@@ -99,13 +106,18 @@ class ConvexCardsRepository @Inject constructor(
 
     override suspend fun setDone(id: String, done: Boolean) = update(id, if (done) "done" else "undone")
 
-    override suspend fun moveToTrash(id: String) = update(id, "delete")
+    override suspend fun moveToTrash(id: String) = apply(id, listOf(CardFieldChange.MoveToTrash))
 
-    override suspend fun restore(id: String) = update(id, "restore")
+    override suspend fun restore(id: String) = apply(id, listOf(CardFieldChange.Restore))
 
     override suspend fun deleteForever(id: String) {
         convex.mutation(ConvexFunctions.permanentDeleteCard, mapOf("id" to id))
     }
+
+    override suspend fun emptyTrash(): Int = convex.mutation(ConvexFunctions.emptyTrash).cardCount
+
+    override fun trashCount(): Flow<Result<Int>> =
+        convex.subscribe(ConvexFunctions.trashCount).map { result -> result.map { it.cardCount } }
 
     override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult {
         val updated = mutableListOf<String>()
@@ -134,15 +146,7 @@ class ConvexCardsRepository @Inject constructor(
 
     override suspend fun apply(id: String, changes: List<CardFieldChange>) {
         for (change in changes) {
-            when (change) {
-                is CardFieldChange.Content -> update(id, "content", value = change.value)
-                is CardFieldChange.Notes -> update(id, "notes", value = change.value, sendNull = true)
-                is CardFieldChange.Tags -> update(id, "tags", value = change.value)
-                is CardFieldChange.RemoveAiTag -> convex.mutation(
-                    ConvexFunctions.updateCardField,
-                    mapOf("cardId" to id, "field" to "removeAiTag", "tagToRemove" to change.tag),
-                )
-            }
+            convex.mutation(ConvexFunctions.updateCardField, change.args(id))
         }
     }
 
