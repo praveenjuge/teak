@@ -14,10 +14,10 @@ public enum SearchIsValue: String, Sendable {
 
     public var label: String {
         switch self {
-        case .fav: "Favorites"
-        case .archived: "Archived"
-        case .done: "Done"
-        case .todo: "To do"
+        case .fav: tr("native.filters.is.fav")
+        case .archived: tr("native.filters.is.archived")
+        case .done: tr("native.filters.is.done")
+        case .todo: tr("native.filters.is.todo")
         }
     }
 }
@@ -160,22 +160,22 @@ public enum SearchQualifiers {
     }
 
     /// The chip text for a price bound, as `describePriceBound` writes it.
-    public static func describePriceBound(_ bound: PriceBound) -> String {
-        let amount = formatNumber(bound.amount, grouping: true)
+    public static func describePriceBound(_ bound: PriceBound, locale: Locale = AppLanguage.locale) -> String {
+        let amount = formatNumber(bound.amount, grouping: true, locale: locale)
         switch bound.op {
-        case .lessThan: return "Under \(amount)"
-        case .greaterThan: return "Over \(amount)"
-        case .atMost: return "\(amount) or less"
-        case .atLeast: return "\(amount) or more"
-        case .equal: return "Exactly \(amount)"
+        case .lessThan: return tr("native.filters.price.under", amount)
+        case .greaterThan: return tr("native.filters.price.over", amount)
+        case .atMost: return tr("native.filters.price.atMost", amount)
+        case .atLeast: return tr("native.filters.price.atLeast", amount)
+        case .equal: return tr("native.filters.price.exactly", amount)
         }
     }
 
-    /// JavaScript's shortest number form (`String(n)`), or en-US
-    /// `toLocaleString` with up to six decimals when grouping.
-    private static func formatNumber(_ value: Double, grouping: Bool) -> String {
+    /// JavaScript's shortest number form (`String(n)`) for the search text, or
+    /// `toLocaleString` in the app's language with up to six decimals when grouping.
+    private static func formatNumber(_ value: Double, grouping: Bool, locale: Locale = Locale(identifier: "en_US")) -> String {
         let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US")
+        formatter.locale = locale
         formatter.numberStyle = .decimal
         formatter.usesGroupingSeparator = grouping
         formatter.maximumFractionDigits = grouping ? 6 : 12
@@ -307,14 +307,16 @@ public enum SearchQualifiers {
     /// which the caller looks up.
     public static func chip(_ qualifier: SearchQualifier, likeTitle: String? = nil) -> (title: String, label: String) {
         switch qualifier.key {
-        case .tag: return ("Tag", qualifier.value)
-        case .type: return ("Type", CardType(rawValue: qualifier.value)?.label ?? qualifier.value)
-        case .is: return ("Show", SearchIsValue(rawValue: qualifier.value)?.label ?? qualifier.value)
-        case .folder: return ("Folder", qualifier.value)
-        case .like: return ("Similar to", likeTitle ?? "a card")
-        case .mood: return ("Mood", "\u{201C}\(qualifier.value)\u{201D}")
-        case .price: return ("Price", parsePriceBound(qualifier.value).map(describePriceBound) ?? qualifier.value)
-        case .text: return ("Text in image", qualifier.value)
+        case .tag: return (tr("native.filters.chips.tag"), qualifier.value)
+        case .type: return (tr("native.filters.chips.type"), CardType(rawValue: qualifier.value)?.label ?? qualifier.value)
+        case .is: return (tr("native.filters.chips.is"), SearchIsValue(rawValue: qualifier.value)?.label ?? qualifier.value)
+        case .folder: return (tr("native.filters.chips.folder"), qualifier.value)
+        case .like: return (tr("native.filters.chips.like"), likeTitle ?? tr("native.filters.chips.anyCard"))
+        case .mood: return (tr("native.filters.chips.mood"), tr("native.filters.chips.moodValue", qualifier.value))
+        case .price:
+            return (tr("native.filters.chips.price"),
+                    parsePriceBound(qualifier.value).map { describePriceBound($0) } ?? qualifier.value)
+        case .text: return (tr("native.filters.chips.text"), qualifier.value)
         }
     }
 }

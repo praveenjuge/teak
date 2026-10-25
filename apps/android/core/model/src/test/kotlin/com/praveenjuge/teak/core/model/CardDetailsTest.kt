@@ -2,6 +2,7 @@ package com.praveenjuge.teak.core.model
 
 import org.junit.Test
 import java.time.Instant
+import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -16,7 +17,8 @@ class CardDetailsTest {
             "2024-03-05T23:30:00-05:00" to "Mar 6, 2024",
             "Tue, 05 Mar 2024 10:00:00 GMT" to "Mar 5, 2024",
         )
-        for ((value, expected) in cases) assertEquals(expected, CardDetails.publishedDate(value, now), value)
+        for ((value, expected) in cases) assertEquals(expected, CardDetails.publishedDate(value, now, Locale.US), value)
+        assertEquals("05.03.2024", CardDetails.publishedDate("2024-03-05", now, Locale.GERMANY))
     }
 
     @Test
@@ -47,8 +49,8 @@ class CardDetailsTest {
                 linkCategory = LinkCategory(category = "product", price = LinkPrice(24.99, "USD")),
             ),
         )
-        assertEquals(listOf("Price", "Published"), CardDetails.extraRows(product, now).map { it.label })
+        assertEquals(listOf(UiText.of("native.details.price"), UiText.of("native.details.published")), CardDetails.extraRows(product, now).map { it.label })
         val photo = card(CardType.Image).copy(fileMetadata = FileMetadata(exif = ImageExif(iso = 100.0)))
-        assertEquals(listOf(DetailRow("ISO", "100")), CardDetails.extraRows(photo, now))
+        assertEquals(listOf(DetailRow(UiText.of("native.details.iso"), "100")), CardDetails.extraRows(photo, now))
     }
 }

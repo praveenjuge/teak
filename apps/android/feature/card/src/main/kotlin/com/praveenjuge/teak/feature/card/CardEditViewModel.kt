@@ -3,7 +3,7 @@ package com.praveenjuge.teak.feature.card
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardEdit
@@ -11,6 +11,7 @@ import com.praveenjuge.teak.core.model.CardEditDraft
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.Tags
+import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -24,7 +25,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class EditAlert(val title: String, val message: String)
+data class EditAlert(val title: UiText, val message: UiText)
 
 data class CardEditUiState(
     val isLoading: Boolean = true,
@@ -34,7 +35,7 @@ data class CardEditUiState(
     val isSaving: Boolean = false,
     val alert: EditAlert? = null,
     /** Shown after adding a tag that hides the card: "Hidden. Search #secret to see it." */
-    val hiddenHint: String? = null,
+    val hiddenHint: UiText? = null,
 ) {
     val changes: List<CardFieldChange>
         get() = if (card != null && draft != null) CardEdit.changes(card, draft) else emptyList()
@@ -80,7 +81,7 @@ class CardEditViewModel @AssistedInject constructor(
         _uiState.update { state ->
             val draft = state.draft ?: return@update state
             val tags = if (tag in draft.tags) draft.tags else draft.tags + tag
-            val hint = if (state.card?.isHidden == true) null else Tags.hiddenHint(draft.tags, tag)
+            val hint = if (state.card?.isHidden == true) null else Tags.hiddenHintText(draft.tags, tag)
             state.copy(draft = draft.copy(tags = tags), newTag = "", hiddenHint = hint ?: state.hiddenHint)
         }
     }
@@ -100,7 +101,7 @@ class CardEditViewModel @AssistedInject constructor(
         val card = state.card ?: return
         if (!state.canSave) return
         if (card.type == CardType.Quote && state.draft?.editableContent.isNullOrBlank()) {
-            _uiState.update { it.copy(alert = EditAlert("Quote is empty", "Write the quote before saving.")) }
+            _uiState.update { it.copy(alert = EditAlert(UiText.of("native.card.edit.quoteEmptyTitle"), UiText.of("native.card.edit.quoteEmptyMessage"))) }
             return
         }
         val changes = state.changes
@@ -109,8 +110,8 @@ class CardEditViewModel @AssistedInject constructor(
             catchingFailures { repository.apply(card.id, changes) }
                 .onSuccess { _done.send(Unit) }
                 .onFailure { error ->
-                    val message = (error as? TeakException)?.message ?: "Please try again."
-                    _uiState.update { it.copy(alert = EditAlert("Couldn't save changes", message)) }
+                    val message = error.teakText(UiText.of("native.errors.tryAgain"))
+                    _uiState.update { it.copy(alert = EditAlert(UiText.of("native.card.edit.saveFailed"), message)) }
                 }
             _uiState.update { it.copy(isSaving = false) }
         }

@@ -18,35 +18,35 @@ struct CardEditView: View {
                 if let card = model?.card, let draft {
                     form(card, Binding(get: { draft }, set: { self.draft = $0 }))
                 } else if model?.isLoading == false {
-                    ContentUnavailableView("Card unavailable", systemImage: "exclamationmark.triangle",
-                                           description: Text("It may have been deleted."))
+                    ContentUnavailableView(tr("native.card.unavailable.title"), systemImage: "exclamationmark.triangle",
+                                           description: Text(tr("native.card.unavailable.deletedMessage")))
                 } else {
                     ProgressView()
                 }
             }
-            .navigationTitle("Edit Card")
+            .navigationTitle(tr("native.card.edit.title"))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { hasChanges ? (confirmDiscard = true) : dismiss() }
+                    Button(tr("common.cancel")) { hasChanges ? (confirmDiscard = true) : dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button { save() } label: {
-                        Text(model?.isSaving == true ? "Saving…" : "Save").foregroundStyle(.white)
+                        Text(model?.isSaving == true ? tr("common.saving") : tr("common.save")).foregroundStyle(.white)
                     }
                         .buttonStyle(.glassProminent)
                         .disabled(!hasChanges || model?.isSaving == true)
                         .keyboardShortcut(.return, modifiers: .command)
                 }
             }
-            .confirmationDialog("Discard Changes?", isPresented: $confirmDiscard) {
-                Button("Discard Changes", role: .destructive) { dismiss() }
-                Button("Keep Editing", role: .cancel) {}
+            .confirmationDialog(tr("native.card.edit.discardTitle"), isPresented: $confirmDiscard) {
+                Button(tr("native.card.edit.discard"), role: .destructive) { dismiss() }
+                Button(tr("native.card.edit.keepEditing"), role: .cancel) {}
             }
-            .alert("Couldn't save changes", isPresented: Binding(presenting: $error)) {
-                Button("OK") { error = nil }
+            .alert(tr("native.card.edit.saveFailed"), isPresented: Binding(presenting: $error)) {
+                Button(tr("native.card.edit.ok")) { error = nil }
             } message: {
                 Text(error ?? "")
             }
@@ -71,16 +71,16 @@ struct CardEditView: View {
     private func form(_ card: Card, _ draft: Binding<CardEditDraft>) -> some View {
         Form {
             if CardEdit.canEditContent(card.type) {
-                Section(card.type == .quote ? "Quote" : "Note") {
-                    TextField(card.type == .quote ? "Write the quote" : "Write a note",
+                Section(card.type == .quote ? tr("cards.types.quote") : tr("native.card.note")) {
+                    TextField(card.type == .quote ? tr("native.card.edit.quotePlaceholder") : tr("native.card.edit.notePlaceholder"),
                               text: Binding(get: { draft.wrappedValue.editableContent ?? "" },
                                             set: { draft.wrappedValue.editableContent = $0 }),
                               axis: .vertical)
                         .lineLimit(4...16)
                 }
             }
-            Section("Notes") {
-                TextField("Add notes", text: draft.notes, axis: .vertical)
+            Section(tr("native.card.sections.notes")) {
+                TextField(tr("native.card.edit.notesPlaceholder"), text: draft.notes, axis: .vertical)
                     .lineLimit(3...10)
                     .accessibilityIdentifier("edit.notes")
             }
@@ -89,7 +89,7 @@ struct CardEditView: View {
                     HStack {
                         Text(tag)
                         Spacer()
-                        Button("Remove \(tag)", systemImage: "xmark.circle.fill") {
+                        Button(tr("native.card.edit.removeTag", tag), systemImage: "xmark.circle.fill") {
                             draft.wrappedValue.tags.removeAll { $0 == tag }
                         }
                         .labelStyle(.iconOnly)
@@ -98,18 +98,18 @@ struct CardEditView: View {
                     }
                 }
                 HStack {
-                    TextField("Add a tag", text: $newTag)
+                    TextField(tr("native.card.edit.tagPlaceholder"), text: $newTag)
                         .focused($tagFieldFocused)
                         .accessibilityIdentifier("edit.tag")
                         .onSubmit { addTag(draft) }
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
                         #endif
-                    Button("Add") { addTag(draft) }
+                    Button(tr("common.add")) { addTag(draft) }
                         .disabled(newTag.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             } header: {
-                Text("Tags")
+                Text(tr("native.card.sections.tags"))
             } footer: {
                 if let hint = HiddenTags.addedHint(before: card.tags, after: draft.wrappedValue.tags) {
                     Label(hint, systemImage: "eye.slash")
@@ -122,7 +122,7 @@ struct CardEditView: View {
                         HStack {
                             Label(tag, systemImage: "sparkles")
                             Spacer()
-                            Button("Remove \(tag)", systemImage: "xmark.circle.fill") {
+                            Button(tr("native.card.edit.removeTag", tag), systemImage: "xmark.circle.fill") {
                                 draft.wrappedValue.aiTags.removeAll { $0 == tag }
                             }
                             .labelStyle(.iconOnly)
@@ -131,7 +131,7 @@ struct CardEditView: View {
                         }
                     }
                 } header: {
-                    Text("Tags by Teak")
+                    Text(tr("native.card.edit.aiTags"))
                 }
             }
         }

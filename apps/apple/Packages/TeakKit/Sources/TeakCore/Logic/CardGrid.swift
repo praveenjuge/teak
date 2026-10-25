@@ -144,7 +144,7 @@ public enum CardEdit {
 
     public static func validationError(for card: Card, draft: CardEditDraft) -> String? {
         if card.type == .quote, (draft.editableContent ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return "A quote can't be empty."
+            return tr("native.card.edit.quoteEmpty")
         }
         return nil
     }

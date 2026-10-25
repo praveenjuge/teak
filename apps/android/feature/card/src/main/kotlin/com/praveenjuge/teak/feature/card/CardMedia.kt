@@ -68,6 +68,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import coil3.compose.AsyncImage
+import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardGrid
 import com.praveenjuge.teak.core.model.CardSheet
 import kotlinx.coroutines.delay
@@ -108,7 +109,7 @@ internal fun MediaImage(
         return
     }
     val tappable = if (onOpen != null) {
-        Modifier.clickable(onClickLabel = "View full screen") { onOpen(url) }
+        Modifier.clickable(onClickLabel = tr("native.card.preview.viewFullScreen")) { onOpen(url) }
     } else {
         Modifier
     }
@@ -188,7 +189,7 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
                 colors = IconButtonDefaults.iconButtonColors(containerColor = Color.Black.copy(alpha = 0.5f), contentColor = Color.White),
                 modifier = Modifier.align(Alignment.TopStart).safeDrawingPadding().padding(8.dp),
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Close")
+                Icon(Icons.Filled.Close, contentDescription = tr("common.close"))
             }
         }
     }
@@ -264,11 +265,11 @@ private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier)
                 Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("This video can't play on this device.", style = MaterialTheme.typography.bodyMedium)
+                Text(tr("android.card.videoUnplayable"), style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = {
                     val intent = Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), "video/*")
                     runCatching { context.startActivity(intent) }
-                }) { Text("Open in another app") }
+                }) { Text(tr("android.card.openInAnotherApp")) }
             }
         }
     }
@@ -277,7 +278,7 @@ private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier)
 @Composable
 internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, modifier: Modifier = Modifier) {
     if (url == null) {
-        MediaPlaceholder(Icons.Outlined.GraphicEq, "Audio unavailable", modifier)
+        MediaPlaceholder(Icons.Outlined.GraphicEq, tr("native.card.preview.audioUnavailable"), modifier)
         return
     }
     val player = rememberPlayer(url)
@@ -340,7 +341,7 @@ internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, m
         ) {
             Icon(
                 if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
+                contentDescription = if (isPlaying) tr("native.card.preview.pause") else tr("native.card.preview.play"),
             )
         }
         Waveform(cardId, progress, Modifier.weight(1f).height(36.dp))
@@ -354,9 +355,10 @@ private fun Waveform(seed: String, progress: Float, modifier: Modifier = Modifie
     val played = MaterialTheme.colorScheme.primary
     val unplayed = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     val playedBars = (progress * heights.size).roundToInt()
+    val description = tr("native.card.preview.playbackProgress")
     Canvas(
         modifier.semantics {
-            contentDescription = "Playback progress"
+            contentDescription = description
             progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
         },
     ) {

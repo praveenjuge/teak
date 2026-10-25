@@ -44,7 +44,7 @@ public struct FileCredentialLock: CredentialLock {
         }
         defer { finish() }
         let descriptor = open(url.path, O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR)
-        guard descriptor >= 0 else { throw TeakError(message: "Unable to access Teak's shared storage.") }
+        guard descriptor >= 0 else { throw TeakError(message: tr("native.errors.sharedStorage")) }
         defer { close(descriptor) }
         let deadline = Date().addingTimeInterval(timeout)
         var attempt = hold.lock(descriptor)
@@ -59,7 +59,7 @@ public struct FileCredentialLock: CredentialLock {
         return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
     }
 
-    private static var busy: TeakError { TeakError(message: "Teak is busy. Please try again.") }
+    private static var busy: TeakError { TeakError(message: tr("native.errors.busy")) }
 
     private var epochURL: URL { url.appendingPathExtension("epoch") }
 

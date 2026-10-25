@@ -16,9 +16,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
+import com.praveenjuge.teak.core.i18n.text
+import com.praveenjuge.teak.core.i18n.tr
 import kotlinx.coroutines.launch
 
 @Composable
@@ -37,6 +40,7 @@ fun CardDetailRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
 
@@ -46,8 +50,8 @@ fun CardDetailRoute(
                 CardDetailEvent.Close -> currentOnBack()
                 is CardDetailEvent.Message -> scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        event.text,
-                        actionLabel = event.undo?.let { "Undo" },
+                        resources.text(event.text),
+                        actionLabel = event.undo?.let { resources.tr("common.undo") },
                         duration = if (event.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
                     )
                     if (result == SnackbarResult.ActionPerformed) event.undo?.invoke()
@@ -114,8 +118,8 @@ fun CardEditRoute(cardId: String, onDone: () -> Unit) {
 fun CardDetailPlaceholder() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         EmptyState(
-            title = "Pick a card",
-            message = "Choose a card to see it here.",
+            title = tr("native.card.pickCard.title"),
+            message = tr("native.card.pickCard.message"),
             icon = Icons.Outlined.Style,
         )
     }

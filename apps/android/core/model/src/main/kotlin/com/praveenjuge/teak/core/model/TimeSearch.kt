@@ -4,6 +4,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.time.format.TextStyle
 import java.util.Locale
 
 typealias EpochMillis = Long
@@ -13,15 +15,17 @@ data class CreatedAtRange(
     override val endExclusive: EpochMillis,
 ) : OpenEndRange<EpochMillis>
 
-data class TimeFilter(val label: String, val range: CreatedAtRange)
+/** [label] is English, for screens that haven't moved to [labelText], the label in the app's language. */
+data class TimeFilter(val label: String, val range: CreatedAtRange, val labelText: UiText = UiText.verbatim(label))
 
 /**
  * Turns searches like "last week", "monday", "June 2024" or "2024-06-05 to 2024-07-01" into a
  * created-at range, so the library filters by date instead of searching text. Port of
  * `parseTimeSearchQuery` in packages/convex/shared/utils/timeSearch.ts; weeks start on Sunday.
+ * The words people type stay English; only the label follows the app's language.
  */
 object TimeSearch {
-    private data class DayRange(val start: LocalDate, val end: LocalDate, val label: String)
+    private data class DayRange(val start: LocalDate, val end: LocalDate, val label: String, val text: UiText)
 
     private val months = mapOf(
         "january" to 1, "jan" to 1, "february" to 2, "feb" to 2, "march" to 3, "mar" to 3,
@@ -50,36 +54,36 @@ object TimeSearch {
         value.split(" ").joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
 
     private fun relative(query: String, today: LocalDate): DayRange? = when (query) {
-        "today" -> DayRange(today, today.plusDays(1), "Today")
-        "yesterday" -> DayRange(today.minusDays(1), today, "Yesterday")
+        "today" -> DayRange(today, today.plusDays(1), "Today", UiText.of("native.time.today"))
+        "yesterday" -> DayRange(today.minusDays(1), today, "Yesterday", UiText.of("native.time.yesterday"))
         "this week", "last week" -> {
             val startOfWeek = today.minusDays(today.weekdayIndex().toLong())
             if (query == "this week") {
-                DayRange(startOfWeek, startOfWeek.plusDays(7), "This Week")
+                DayRange(startOfWeek, startOfWeek.plusDays(7), "This Week", UiText.of("native.time.thisWeek"))
             } else {
-                DayRange(startOfWeek.minusDays(7), startOfWeek, "Last Week")
+                DayRange(startOfWeek.minusDays(7), startOfWeek, "Last Week", UiText.of("native.time.lastWeek"))
             }
         }
         "this month", "last month" -> {
             val startOfMonth = today.withDayOfMonth(1)
             if (query == "this month") {
-                DayRange(startOfMonth, startOfMonth.plusMonths(1), "This Month")
+                DayRange(startOfMonth, startOfMonth.plusMonths(1), "This Month", UiText.of("native.time.thisMonth"))
             } else {
-                DayRange(startOfMonth.minusMonths(1), startOfMonth, "Last Month")
+                DayRange(startOfMonth.minusMonths(1), startOfMonth, "Last Month", UiText.of("native.time.lastMonth"))
             }
         }
         "this year", "last year" -> {
             val startOfYear = today.withDayOfYear(1)
             if (query == "this year") {
-                DayRange(startOfYear, startOfYear.plusYears(1), "This Year")
+                DayRange(startOfYear, startOfYear.plusYears(1), "This Year", UiText.of("native.time.thisYear"))
             } else {
-                DayRange(startOfYear.minusYears(1), startOfYear, "Last Year")
+                DayRange(startOfYear.minusYears(1), startOfYear, "Last Year", UiText.of("native.time.lastYear"))
             }
         }
         else -> null
     }
 
-    private fun weekday(query: String, today: LocalDate): DayRange? {
+    private fun weekday(query: String, today: LocalDate, locale: Locale): DayRange? {
         val last = query.startsWith("last ")
         val token = if (last) query.removePrefix("last ").trimStart() else query
         val index = weekdays[token] ?: return null
@@ -87,45 +91,53 @@ object TimeSearch {
         val mostRecent = today.minusDays(diff.toLong())
         val start = if (last) mostRecent.minusDays(7) else mostRecent
         val label = if (last) "Last ${titleCase(token)}" else titleCase(token)
-        return DayRange(start, start.plusDays(1), label)
+        val name = start.dayOfWeek.getDisplayName(TextStyle.FULL_STANDALONE, locale)
+        val text = if (last) UiText.of("native.time.lastWeekday", name) else UiText.verbatim(name)
+        return DayRange(start, start.plusDays(1), label, text)
     }
 
     private fun dateOrNull(year: Int, month: Int, day: Int): LocalDate? =
         runCatching { LocalDate.of(year, month, day) }.getOrNull()
 
-    private fun day(date: LocalDate) = DayRange(date, date.plusDays(1), dayLabel.format(date))
+    private fun day(date: LocalDate, locale: Locale) = DayRange(
+        date,
+        date.plusDays(1),
+        dayLabel.format(date),
+        UiText.verbatim(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)),
+    )
 
-    private fun explicit(query: String): DayRange? {
+    private fun explicit(query: String, locale: Locale): DayRange? {
         iso.matchEntire(query)?.let { m ->
             val (y, mo, d) = m.destructured
-            dateOrNull(y.toInt(), mo.toInt(), d.toInt())?.let { return day(it) }
+            dateOrNull(y.toInt(), mo.toInt(), d.toInt())?.let { return day(it, locale) }
         }
         us.matchEntire(query)?.let { m ->
             val (mo, d, y) = m.destructured
-            dateOrNull(y.toInt(), mo.toInt(), d.toInt())?.let { return day(it) }
+            dateOrNull(y.toInt(), mo.toInt(), d.toInt())?.let { return day(it, locale) }
         }
         monthDayYear.matchEntire(query)?.let { m ->
             val (name, d, y) = m.destructured
-            months[name]?.let { month -> dateOrNull(y.toInt(), month, d.toInt())?.let { return day(it) } }
+            months[name]?.let { month -> dateOrNull(y.toInt(), month, d.toInt())?.let { return day(it, locale) } }
         }
         monthYear.matchEntire(query)?.let { m ->
             val (name, y) = m.destructured
             months[name]?.let { month ->
                 val start = LocalDate.of(y.toInt(), month, 1)
-                return DayRange(start, start.plusMonths(1), monthLabel.format(start))
+                val text = DateTimeFormatter.ofPattern("MMM yyyy", locale).format(start)
+                return DayRange(start, start.plusMonths(1), monthLabel.format(start), UiText.verbatim(text))
             }
         }
         year.matchEntire(query)?.let { m ->
             val start = LocalDate.of(m.groupValues[1].toInt(), 1, 1)
-            return DayRange(start, start.plusYears(1), m.groupValues[1])
+            return DayRange(start, start.plusYears(1), m.groupValues[1], UiText.verbatim(m.groupValues[1]))
         }
         return null
     }
 
-    private fun single(query: String, today: LocalDate): DayRange? =
-        relative(query, today) ?: weekday(query, today) ?: explicit(query)
+    private fun single(query: String, today: LocalDate, locale: Locale): DayRange? =
+        relative(query, today) ?: weekday(query, today, locale) ?: explicit(query, locale)
 
-    fun parse(query: String, now: ZonedDateTime = ZonedDateTime.now()): TimeFilter? {
+    fun parse(query: String, now: ZonedDateTime = ZonedDateTime.now(), locale: Locale = Locale.getDefault()): TimeFilter? {
         val normalized = query.trim().replace(Regex("\\s+"), " ").lowercase()
         if (normalized.isEmpty()) return null
         val zone = now.zone
@@ -143,13 +155,17 @@ object TimeSearch {
             else -> null
         }
         if (split != null) {
-            val left = single(split.first, today) ?: return null
-            val right = single(split.second, today) ?: return null
+            val left = single(split.first, today, locale) ?: return null
+            val right = single(split.second, today, locale) ?: return null
             if (!left.start.isBefore(right.end)) return null
-            return TimeFilter("${left.label} – ${right.label}", range(left.start, right.end, zone))
+            return TimeFilter(
+                "${left.label} – ${right.label}",
+                range(left.start, right.end, zone),
+                UiText.of("native.time.range", left.text, right.text),
+            )
         }
-        val match = single(normalized, today) ?: return null
-        return TimeFilter(match.label, range(match.start, match.end, zone))
+        val match = single(normalized, today, locale) ?: return null
+        return TimeFilter(match.label, range(match.start, match.end, zone), match.text)
     }
 
     private fun range(start: LocalDate, end: LocalDate, zone: ZoneId) =

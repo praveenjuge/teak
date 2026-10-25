@@ -63,7 +63,7 @@ class SessionManager @Inject constructor(
         store.clearPending()
         if (error == "access_denied") return SignInOutcome.Cancelled
         if (error != null || pending == null || code.isNullOrEmpty() || state != pending.state) {
-            throw SignInException(DefaultWorkOsAuthApi.UNABLE_TO_SIGN_IN)
+            throw SignInException.signInFailed()
         }
         val signedIn = api.exchangeCode(pending, code)
         bootstrap.ensureUser(signedIn.accessToken)

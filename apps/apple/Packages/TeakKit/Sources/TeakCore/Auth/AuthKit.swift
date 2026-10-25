@@ -91,11 +91,11 @@ public struct AuthKitRequest: Sendable {
     public func callback(from url: URL) throws -> Callback {
         guard url.scheme == Self.callbackScheme, url.host() == "auth", url.path() == "/callback",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-        else { throw TeakError(message: "Unable to complete sign-in. Please try again.") }
+        else { throw TeakError(message: tr("native.errors.signInFailed")) }
         func item(_ name: String) -> String? { items.first { $0.name == name }?.value }
         if item("error") == "access_denied" { return .cancelled }
         guard item("error") == nil, item("state") == state, let code = item("code"), !code.isEmpty else {
-            throw TeakError(message: "Unable to complete sign-in. Please try again.")
+            throw TeakError(message: tr("native.errors.signInFailed"))
         }
         return .code(code)
     }

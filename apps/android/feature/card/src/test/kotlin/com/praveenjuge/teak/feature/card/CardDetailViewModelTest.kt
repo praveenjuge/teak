@@ -10,6 +10,7 @@ import com.praveenjuge.teak.core.model.CardMetadata
 import com.praveenjuge.teak.core.model.LinkCategory
 import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.RefreshOutcome
+import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
@@ -90,7 +91,7 @@ class CardDetailViewModelTest {
 
         viewModel.events.test {
             viewModel.toggleFavorite()
-            assertEquals(CardDetailEvent.Message("Couldn't update this favorite."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.favorite")), awaitItem())
         }
         assertFalse(viewModel.uiState.value.isFavorited)
     }
@@ -116,7 +117,7 @@ class CardDetailViewModelTest {
 
         viewModel.events.test {
             viewModel.moveToTrash()
-            assertEquals(CardDetailEvent.Message("Couldn't delete this card."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.moveToTrash")), awaitItem())
         }
         assertFalse(viewModel.uiState.value.card!!.deleted)
     }
@@ -142,7 +143,7 @@ class CardDetailViewModelTest {
 
         viewModel.events.test {
             viewModel.restore()
-            assertEquals(CardDetailEvent.Message("Couldn't restore this card."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.restore")), awaitItem())
         }
     }
 
@@ -171,14 +172,14 @@ class CardDetailViewModelTest {
     fun `marking a link done shows at once with its verb, and Undo takes it back`() = runTest {
         cards.cards.value = mapOf(link.id to link)
         val viewModel = linkViewModel()
-        assertEquals("Mark as read", viewModel.uiState.value.doneLabel)
+        assertEquals(UiText.of("native.done.markAs.read"), viewModel.uiState.value.doneText)
 
         viewModel.events.test {
             viewModel.toggleDone()
             assertTrue(viewModel.uiState.value.isDone)
-            assertEquals("Read", viewModel.uiState.value.doneLabel)
+            assertEquals(UiText.of("native.done.state.read"), viewModel.uiState.value.doneText)
             val note = awaitItem() as CardDetailEvent.Message
-            assertEquals("Marked as read", note.text)
+            assertEquals(UiText.of("native.done.markedAs.read"), note.text)
             note.undo!!.invoke()
             assertFalse(viewModel.uiState.value.isDone)
         }
@@ -192,7 +193,7 @@ class CardDetailViewModelTest {
         val viewModel = linkViewModel()
         viewModel.events.test {
             viewModel.toggleDone()
-            assertEquals(CardDetailEvent.Message("Couldn't update. Try again."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.update")), awaitItem())
         }
         assertFalse(viewModel.uiState.value.isDone)
     }
@@ -211,10 +212,10 @@ class CardDetailViewModelTest {
         val viewModel = viewModel()
         viewModel.events.test {
             viewModel.refreshDetails()
-            assertEquals(CardDetailEvent.Message("This card is already refreshing. Try again in a minute."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.verbatim("This card is already refreshing. Try again in a minute.")), awaitItem())
             cards.refreshOutcome = RefreshOutcome.Queued
             viewModel.refreshDetails()
-            assertEquals(CardDetailEvent.Message("Refreshing details. The summary and tags update shortly."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.notice.refreshing")), awaitItem())
         }
         assertFalse(viewModel.uiState.value.isRefreshing)
     }
@@ -226,7 +227,7 @@ class CardDetailViewModelTest {
         viewModel.events.test {
             viewModel.toggleArchived()
             val note = awaitItem() as CardDetailEvent.Message
-            assertEquals("Archived 1 card", note.text)
+            assertEquals(UiText.of("native.card.notice.archived"), note.text)
             note.undo!!.invoke()
         }
         assertEquals(listOf("archive:c1", "unarchive:c1"), cards.writes)
@@ -241,7 +242,7 @@ class CardDetailViewModelTest {
             val note = awaitItem() as CardDetailEvent.Message
             cards.failingIds = setOf(link.id)
             note.undo!!.invoke()
-            assertEquals(CardDetailEvent.Message("Couldn't undo. Try again."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.undo")), awaitItem())
         }
         assertTrue(linkModel.uiState.value.isDone)
 
@@ -251,7 +252,7 @@ class CardDetailViewModelTest {
             val note = awaitItem() as CardDetailEvent.Message
             cards.failingIds = setOf(card.id)
             note.undo!!.invoke()
-            assertEquals(CardDetailEvent.Message("Couldn't undo. Try again."), awaitItem())
+            assertEquals(CardDetailEvent.Message(UiText.of("native.card.failed.undo")), awaitItem())
         }
     }
 

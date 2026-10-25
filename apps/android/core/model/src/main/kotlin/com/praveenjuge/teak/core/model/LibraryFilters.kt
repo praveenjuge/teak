@@ -39,6 +39,18 @@ data class LibraryFilters(
             return if (types.size > 1) "Filtered" else "Home"
         }
 
+    /** [title] in the app's language. */
+    val titleText: UiText
+        get() {
+            if (trashOnly) return UiText.of("native.filters.trash")
+            if (archivedOnly) return UiText.of("native.filters.archive")
+            val type = types.singleOrNull()
+            if (favoritesOnly) return type?.favoritesText ?: UiText.of("native.filters.favorites")
+            if (type != null) return type.pluralText
+            hue?.let { return it.labelText }
+            return if (types.size > 1) UiText.of("native.filters.filtered") else UiText.of("native.filters.home")
+        }
+
     /**
      * The search a smart folder saves, matching Apple: types, favorites and archive as qualifiers,
      * then the typed [search]. Colors aren't saved, and Trash can't be a smart folder.

@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.core.model
 
 import org.junit.Test
+import java.util.Locale
 import kotlin.test.assertEquals
 
 class CardSheetTest {
@@ -8,10 +9,12 @@ class CardSheetTest {
 
     @Test
     fun `formats file sizes in 1024 steps`() {
-        assertEquals("0 B", CardSheet.formatFileSize(0.0))
-        assertEquals("512 B", CardSheet.formatFileSize(512.0))
-        assertEquals("1 KB", CardSheet.formatFileSize(1024.0))
-        assertEquals("4.6 MB", CardSheet.formatFileSize(4.6 * 1024 * 1024))
+        assertEquals("0 B", CardSheet.formatFileSize(0.0, Locale.US))
+        assertEquals("512 B", CardSheet.formatFileSize(512.0, Locale.US))
+        assertEquals("1 KB", CardSheet.formatFileSize(1024.0, Locale.US))
+        assertEquals("4.6 MB", CardSheet.formatFileSize(4.6 * 1024 * 1024, Locale.US))
+        assertEquals("4,6 MB", CardSheet.formatFileSize(4.6 * 1024 * 1024, Locale.GERMANY))
+        assertEquals("1000 B", CardSheet.formatFileSize(1000.0, Locale.US))
     }
 
     @Test
@@ -53,10 +56,31 @@ class CardSheetTest {
                 url = "https://www.example.com/x",
                 fileMetadata = FileMetadata(fileName = "a.pdf", fileSize = 2048.0, width = 10.0, height = 20.0, duration = 61.0),
             ),
+            Locale.US,
         )
         assertEquals(
-            listOf("Type" to "Link", "Website" to "example.com", "File" to "a.pdf", "Size" to "2 KB", "Dimensions" to "10 × 20", "Duration" to "1:01"),
-            rows.map { it.label to it.value },
+            listOf(
+                "type" to UiText.of("cards.types.link"),
+                "website" to UiText.verbatim("example.com"),
+                "file" to UiText.verbatim("a.pdf"),
+                "size" to UiText.verbatim("2 KB"),
+                "dimensions" to UiText.verbatim("10 × 20"),
+                "duration" to UiText.verbatim("1:01"),
+            ).map { (key, value) -> DetailRow(UiText.of("native.details.$key"), value) },
+            rows,
         )
+    }
+
+    @Test
+    fun `file facts count with plurals and drop a kind that repeats the type`() {
+        val doc = card(CardType.Document).copy(
+            fileMetadata = FileMetadata(kind = "document", preview = FilePreviewFacts(slideCount = 1.0, wordCount = 1200.0)),
+        )
+        assertEquals(
+            listOf(UiText.of("native.details.slides", count = 1), UiText.of("native.details.words", count = 1200)),
+            CardSheet.fileFacts(doc),
+        )
+        assertEquals(UiText.of("native.card.note"), CardSheet.title(card(CardType.Text)))
+        assertEquals(UiText.of("cards.types.image"), CardSheet.title(card(CardType.Image)))
     }
 }

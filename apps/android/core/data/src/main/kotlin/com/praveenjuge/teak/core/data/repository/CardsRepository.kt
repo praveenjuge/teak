@@ -128,7 +128,7 @@ class ConvexCardsRepository @Inject constructor(
         val status = (result["status"] as? JsonPrimitive)?.contentOrNull
         if (status == "queued") return RefreshOutcome.Queued
         val message = (result["message"] as? JsonPrimitive)?.contentOrNull
-        return RefreshOutcome.Refused(message ?: REFRESH_FAILED)
+        return RefreshOutcome.Refused(message)
     }
 
     override suspend fun apply(id: String, changes: List<CardFieldChange>) {
@@ -189,9 +189,5 @@ class ConvexCardsRepository @Inject constructor(
             if (value != null || sendNull) put("value", value)
         }
         convex.mutation(ConvexFunctions.updateCardField, args)
-    }
-
-    companion object {
-        const val REFRESH_FAILED = "Couldn't refresh this card. Try again in a moment."
     }
 }

@@ -43,7 +43,7 @@ struct StoredSession: Codable, Hashable, Sendable {
 enum SessionParser {
     static let maxLength = 64 * 1024
 
-    static func invalid() -> TeakError { TeakError(message: "Invalid sign-in response") }
+    static func invalid() -> TeakError { TeakError(message: tr("native.errors.invalidSignInResponse")) }
 
     static func parseResponse(_ data: Data, clientId: String) throws -> WorkOSSession {
         guard data.count <= maxLength,
@@ -68,13 +68,13 @@ enum SessionParser {
         let parts = stored.access_token.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 3, let payload = base64URLDecode(String(parts[1])),
               let claims = try? JSONSerialization.jsonObject(with: payload) as? [String: Any]
-        else { throw TeakError(message: "Invalid session token") }
+        else { throw TeakError(message: tr("native.errors.invalidSessionToken")) }
         guard claims["iss"] as? String == "https://api.workos.com/user_management/\(clientId)",
               claims["sub"] as? String == stored.user.id,
               let sid = claims["sid"] as? String, sid.hasPrefix("session_"),
               let exp = claims["exp"] as? NSNumber, CFNumberIsFloatType(exp) == false,
               exp.int64Value > 0, exp.int64Value <= 9_007_199_254_740
-        else { throw TeakError(message: "Invalid session token") }
+        else { throw TeakError(message: tr("native.errors.invalidSessionToken")) }
         let name = [stored.user.first_name, stored.user.last_name].compactMap { $0 }.joined(separator: " ")
         return WorkOSSession(
             clientId: clientId,

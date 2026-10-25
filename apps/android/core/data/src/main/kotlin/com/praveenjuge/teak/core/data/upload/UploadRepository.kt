@@ -14,6 +14,7 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
+import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +35,16 @@ object StagingArea {
     internal fun slotOf(path: String): File? = File(path).parentFile?.takeIf { it.parentFile?.name == DIRECTORY }
 }
 
-data class SkippedFile(val name: String, val reason: String)
+internal const val SKIPPED_AT_LIMIT = "Not uploaded because you've reached your card limit."
+
+/** [reason] is English, for screens that haven't moved to [reasonText] yet. */
+data class SkippedFile(val name: String, val reason: String, val reasonText: UiText = UiText.verbatim(reason)) {
+    companion object {
+        fun tooLarge(name: String) = SkippedFile(name, "It's larger than 100 MB.", UiText.of("native.errors.fileTooLargeSkipped"))
+
+        fun unreadable(name: String) = SkippedFile(name, "Teak couldn't read it.", UiText.of("native.errors.unreadableFile"))
+    }
+}
 
 data class StageResult(val files: List<StagedFile>, val skipped: List<SkippedFile>)
 
@@ -46,6 +56,13 @@ data class UploadStatus(
     val error: String?,
     val errorCode: String?,
 ) {
+    /** [error] in the app's language when its code has catalog words, else as the upload wrote it. */
+    val errorText: UiText?
+        get() = when {
+            error == SKIPPED_AT_LIMIT -> UiText.of("native.errors.skippedAtLimit")
+            else -> errorCode?.let(TeakException::textFor) ?: error?.let(UiText::verbatim)
+        }
+
     enum class State { Waiting, Uploading, Saved, Failed }
 }
 
@@ -72,7 +89,7 @@ class WorkManagerUploadRepository @Inject constructor(
             for (uri in uris) {
                 val (name, size) = describe(uri)
                 if (size != null && size > MAX_FILE_SIZE) {
-                    skipped += SkippedFile(name, "It's larger than 100 MB.")
+                    skipped += SkippedFile.tooLarge(name)
                     continue
                 }
                 try {
@@ -83,14 +100,14 @@ class WorkManagerUploadRepository @Inject constructor(
                     } ?: throw IOException("Unreadable")
                     if (copied > MAX_FILE_SIZE) {
                         directory.deleteRecursively()
-                        skipped += SkippedFile(name, "It's larger than 100 MB.")
+                        skipped += SkippedFile.tooLarge(name)
                         continue
                     }
                     files += StagedFile(target.path, target.name, mimeType(uri, target.name), copied, metadata(uri))
                 } catch (e: IOException) {
-                    skipped += SkippedFile(name, "Teak couldn't read it.")
+                    skipped += SkippedFile.unreadable(name)
                 } catch (e: SecurityException) {
-                    skipped += SkippedFile(name, "Teak couldn't read it.")
+                    skipped += SkippedFile.unreadable(name)
                 }
             }
             StageResult(files, skipped)
@@ -184,7 +201,6 @@ class WorkManagerUploadRepository @Inject constructor(
             ?: "upload_${System.currentTimeMillis()}"
 
     private companion object {
-        const val SKIPPED_AT_LIMIT = "Not uploaded because you've reached your card limit."
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
     }
 }

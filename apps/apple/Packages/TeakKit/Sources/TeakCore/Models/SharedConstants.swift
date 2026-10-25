@@ -51,9 +51,9 @@ public enum TeakLimits {
 }
 
 public enum TeakMessages {
-    public static var signupsPaused: String { SharedConstants.shared.messages.signupsPaused }
-    public static let verifyEmail = "Verify your email before opening your vault."
-    public static let vaultUnavailable = "Unable to open your vault. Please try again or contact support."
-    public static let genericFailure = "Something went wrong. Please try again."
-    public static let offline = "Check your connection and try again."
+    public static var signupsPaused: String { tr("native.errors.signupsPaused") }
+    public static var verifyEmail: String { tr("native.errors.verifyEmail") }
+    public static var vaultUnavailable: String { tr("native.errors.vaultUnavailable") }
+    public static var genericFailure: String { tr("native.errors.generic") }
+    public static var offline: String { tr("native.errors.offline") }
 }

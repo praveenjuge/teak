@@ -1,5 +1,7 @@
 package com.praveenjuge.teak.core.data.auth
 
+import com.praveenjuge.teak.core.model.SIGNUPS_PAUSED_MESSAGE
+import com.praveenjuge.teak.core.model.UiText
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -47,6 +49,30 @@ sealed interface SessionState {
     data class SignedIn(val user: SessionUser) : SessionState
 }
 
-class SignInException(message: String, cause: Throwable? = null) : Exception(message, cause)
+/** [message] stays English for logs; [text] is what to show. */
+class SignInException(
+    message: String,
+    cause: Throwable? = null,
+    val text: UiText = UiText.verbatim(message),
+) : Exception(message, cause) {
+    companion object {
+        fun signInFailed(cause: Throwable? = null) =
+            SignInException(DefaultWorkOsAuthApi.UNABLE_TO_SIGN_IN, cause, UiText.of("native.errors.signInFailed"))
 
-class InvalidRefreshTokenException : Exception("Your session ended. Please sign in again.")
+        fun connectFailed(cause: Throwable? = null) =
+            SignInException("Unable to connect. Please try again.", cause, UiText.of("native.errors.connectFailed"))
+
+        fun vaultUnavailable(cause: Throwable? = null) =
+            SignInException(ConvexUserBootstrap.UNABLE_TO_OPEN_VAULT, cause, UiText.of("native.errors.vaultUnavailable"))
+
+        fun verifyEmail() = SignInException("Verify your email before opening your vault.", text = UiText.of("native.errors.verifyEmail"))
+
+        fun signupsPaused() = SignInException(SIGNUPS_PAUSED_MESSAGE, text = UiText.of("native.errors.signupsPaused"))
+
+        fun signInConfig() = SignInException("Unable to load sign-in configuration", text = UiText.of("native.errors.signInConfig"))
+    }
+}
+
+class InvalidRefreshTokenException : Exception("Your session ended. Please sign in again.") {
+    val text: UiText get() = UiText.of("native.errors.sessionEnded")
+}
