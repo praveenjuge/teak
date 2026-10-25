@@ -94,7 +94,17 @@ jobs:
           command -v xcodegen >/dev/null || brew install xcodegen
           scripts/generate-project.sh --check
       - name: TeakKit tests
-        run: swift test --package-path Packages/TeakKit
+        run: |
+          swift build --build-tests --package-path Packages/TeakKit
+          failed=0
+          for run in $(seq 15); do
+            echo "::group::Run $run"
+            swift test --skip-build --package-path Packages/TeakKit 2>&1 | tail -40 || true
+            [ "${PIPESTATUS[0]}" -eq 0 ] || failed=$((failed + 1))
+            echo "::endgroup::"
+          done
+          echo "$failed of 15 runs failed"
+          [ "$failed" -eq 0 ]
 
   renderer:
     runs-on: ubuntu-latest
