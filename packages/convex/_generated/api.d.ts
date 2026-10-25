@@ -42,6 +42,7 @@ import type * as card_deleteCard from "../card/deleteCard.js";
 import type * as card_displayTitle from "../card/displayTitle.js";
 import type * as card_documentText from "../card/documentText.js";
 import type * as card_documentTextFormat from "../card/documentTextFormat.js";
+import type * as card_emptyTrash from "../card/emptyTrash.js";
 import type * as card_extractDocumentText from "../card/extractDocumentText.js";
 import type * as card_findDuplicateCard from "../card/findDuplicateCard.js";
 import type * as card_getCard from "../card/getCard.js";
@@ -407,6 +408,7 @@ declare const fullApi: ApiFromModules<{
   "card/displayTitle": typeof card_displayTitle;
   "card/documentText": typeof card_documentText;
   "card/documentTextFormat": typeof card_documentTextFormat;
+  "card/emptyTrash": typeof card_emptyTrash;
   "card/extractDocumentText": typeof card_extractDocumentText;
   "card/findDuplicateCard": typeof card_findDuplicateCard;
   "card/getCard": typeof card_getCard;
