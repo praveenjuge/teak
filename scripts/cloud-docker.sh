@@ -36,6 +36,11 @@ while (($# > 0)); do
       args+=("$1" "$2")
       shift 2
       ;;
+    --tag=*)
+      [[ "${1#*=}" == cloudflare-dev/* ]] && local_tag=1
+      args+=("$1")
+      shift
+      ;;
     -f | --file)
       dockerfile="$2"
       shift 2

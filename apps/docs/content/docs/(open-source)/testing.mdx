@@ -106,7 +106,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 
 ## End-to-end suite
 
-`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack that exists only for this suite and the clean-container smoke; development always uses the [shared development deployment](/docs/development#the-shared-development-deployment), which the suite never touches. The stack is:
+`packages/tests` holds [e2e](https://e2e.tester.army/docs) journeys across the web app, REST API, CLI and MCP server. They run against a local stack, which the suite never shares with the [shared development deployment](/docs/development#the-shared-development-deployment). Development uses that deployment by default; `bun run dev --local` runs this same stack for development instead. The stack is:
 
 - the official WorkOS emulator ([`@workos/emulate`](https://www.npmjs.com/package/@workos/emulate)), standing in for hosted AuthKit,
 - a local Convex backend (API and webhooks on the next port),
