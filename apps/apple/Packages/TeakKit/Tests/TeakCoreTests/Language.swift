@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import TeakCore
 
@@ -7,6 +8,9 @@ import Testing
 /// - `.english`: the suite's text is in English. These suites run alongside each other.
 /// - `.switchesLanguage`: the suite changes `AppLanguage`. It runs while no other suite
 ///   that takes a trait runs, and the language it found is restored when it ends.
+///
+/// `AppLanguage.use` saves the language in the app group, so whatever was saved there
+/// is put back whenever no suite holds the lock.
 ///
 /// `tr` reads the language as a test runs, so `.english` covers text from Teak's code
 /// too. Test arguments are evaluated before any trait applies, so pass text as a closure.
@@ -49,6 +53,8 @@ actor LanguageLock {
 
     private var readers = 0
     private var writing = false
+    /// What the app group held when the lock was last taken from idle.
+    private var saved: String?
     private var waiting: [(exclusive: Bool, continuation: CheckedContinuation<Void, Never>)] = []
 
     func acquire(exclusive: Bool) async {
@@ -62,11 +68,20 @@ actor LanguageLock {
             waiting.removeFirst()
             next.continuation.resume()
         }
+        guard readers == 0, !writing else { return }
+        let defaults = Self.defaults
+        if let saved { defaults?.set(saved, forKey: Self.key) } else { defaults?.removeObject(forKey: Self.key) }
+        AppLanguage.reload()
     }
 
     private func take(exclusive: Bool) -> Bool {
         if writing || (exclusive && readers > 0) { return false }
+        if readers == 0 { saved = Self.defaults?.string(forKey: Self.key) }
         if exclusive { writing = true } else { readers += 1 }
         return true
     }
+
+    /// Where `AppLanguage` saves the language when there's no app config, as in tests.
+    private static var defaults: UserDefaults? { UserDefaults(suiteName: "group.com.praveenjuge.teak") }
+    private static let key = "teak.language"
 }
