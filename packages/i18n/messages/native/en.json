@@ -380,7 +380,10 @@
       "skip": "Skip",
       "detailsFailed": "Couldn't save the tags and note. Try again.",
       "noteFailed": "Couldn't save the note.",
-      "tagsFailed": "Couldn't save tags."
+      "tagsFailed": "Couldn't save tags.",
+      "addToFolders": "Add to folders",
+      "foldersFailed": "Couldn't add to folders.",
+      "foldersEmpty": "Make a folder in Teak, then add what you share to it."
     },
     "folders": {
       "title": "Folders",
@@ -416,6 +419,7 @@
       "createNamed": "Create folder “{name}”",
       "pickerEmpty": "No folders yet. Type a name to create one.",
       "findOrCreate": "Find or create a folder",
+      "find": "Find a folder",
       "addCardsTitle": "{count, plural, one {Add # card to a folder} other {Add # cards to a folder}}"
     },
     "tags": {
