@@ -165,6 +165,8 @@ struct LibraryTab: View {
             LibraryView(library: library, namespace: namespace)
                 .navigationDestination(for: CardRoute.self) { route in
                     CardDetailView(route: route, library: library)
+                        // A link or Spotlight can swap the open card for another; start fresh.
+                        .id(route.id)
                         #if os(iOS)
                         .navigationTransition(.zoom(sourceID: route.id, in: namespace))
                         #endif
