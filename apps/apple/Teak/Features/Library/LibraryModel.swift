@@ -31,7 +31,7 @@ final class LibraryModel {
     private(set) var isRunningBulkAction = false
     private(set) var isEmptyingTrash = false
     /// Every card in Trash, from `cards:trashCount`, while this view is Trash.
-    private(set) var trashCount: Int?
+    private(set) var trashCount: TrashCount?
     private(set) var status: StatusMessage?
     /// The last answer from search by meaning, for the empty state.
     private(set) var semanticOutcome: String?
@@ -299,14 +299,14 @@ final class LibraryModel {
         trashCount = nil
         guard isTrash else { return }
         do {
-            for try await value in backend.subscribe(ConvexFunctions.trashCount) { trashCount = Int(value.count) }
+            for try await value in backend.subscribe(ConvexFunctions.trashCount) { trashCount = value }
         } catch {}
     }
 
     /// Whether Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives.
-    var canEmptyTrash: Bool { isTrash && !isEmptyingTrash && (trashCount.map { $0 > 0 } ?? !cards.isEmpty) }
+    var canEmptyTrash: Bool { isTrash && !isEmptyingTrash && (trashCount.map { $0.count > 0 } ?? !cards.isEmpty) }
 
-    var emptyTrashMessage: String { EmptyTrash.message(count: trashCount ?? cards.count) }
+    var emptyTrashMessage: String { EmptyTrash.message(count: trashCount.map { Int($0.count) } ?? cards.count, more: trashCount?.more ?? false) }
 
     /// Deletes every card in Trash forever. The server deletes them in pages, and the view follows live.
     func emptyTrash() async {
@@ -317,7 +317,7 @@ final class LibraryModel {
         do {
             let result = try await backend.mutation(ConvexFunctions.emptyTrash)
             hiddenIds.formUnion(shown)
-            show(EmptyTrash.done(Int(result.count)))
+            show(EmptyTrash.done(result))
         } catch {
             show(EmptyTrash.failure(error), isError: true)
         }

@@ -28,6 +28,7 @@ import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.core.model.SearchSimilarity
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.TimeFilter
+import com.praveenjuge.teak.core.model.TrashCount
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -108,7 +109,7 @@ data class LibraryUiState(
     val message: LibraryMessage? = null,
     val isEmptyingTrash: Boolean = false,
     /** Every card in Trash, from `cards:trashCount`, while this view is Trash. */
-    val trashCount: Int? = null,
+    val trashCount: TrashCount? = null,
 ) {
     val isSelecting: Boolean get() = selection is Selection.Active
 
@@ -118,9 +119,9 @@ data class LibraryUiState(
 
     /** Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives. */
     val canEmptyTrash: Boolean
-        get() = filters.trashOnly && !isEmptyingTrash && (trashCount?.let { it > 0 } ?: paged.cards.isNotEmpty())
+        get() = filters.trashOnly && !isEmptyingTrash && (trashCount?.let { it.cardCount > 0 } ?: paged.cards.isNotEmpty())
 
-    val emptyTrashMessage: UiText get() = EmptyTrash.message(trashCount ?: paged.cards.size)
+    val emptyTrashMessage: UiText get() = EmptyTrash.message(trashCount?.cardCount ?: paged.cards.size, more = trashCount?.more == true)
 
     val pickedIds: List<String> get() = (selection as? Selection.Active)?.pickedIds.orEmpty()
 

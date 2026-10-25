@@ -25,8 +25,7 @@
     "maxFilesPerUpload": 20,
     "maxFileNameLength": 240,
     "markdownContentMaxBytes": 524288,
-    "maxTagNameLength": 64,
-    "trashCount": 500
+    "maxTagNameLength": 64
   },
   "messages": {
     "signupsPaused": "New sign-ups are paused right now. Please try again later."

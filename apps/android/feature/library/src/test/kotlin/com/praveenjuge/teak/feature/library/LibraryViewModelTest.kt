@@ -280,7 +280,7 @@ class LibraryViewModelTest {
         assertEquals(listOf("emptyTrash"), repository.writes)
         assertEquals(UiText.of("native.trash.emptying", count = 5), viewModel.state.value.message?.text)
         assertEquals(emptyList(), viewModel.state.value.paged.cards)
-        assertEquals(0, viewModel.state.value.trashCount)
+        assertEquals(0, viewModel.state.value.trashCount?.cardCount)
         assertFalse(viewModel.state.value.canEmptyTrash)
     }
 

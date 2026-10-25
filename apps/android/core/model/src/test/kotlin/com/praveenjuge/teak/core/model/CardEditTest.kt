@@ -129,16 +129,17 @@ class LinkEditTest {
 class EmptyTrashTest {
     @Test
     fun `confirmation counts the cards`() {
-        assertEquals(UiText.of("native.trash.emptyMessage", count = 1), EmptyTrash.message(1))
-        assertEquals(UiText.of("native.trash.emptyMessage", count = 3), EmptyTrash.message(3))
-        assertEquals(UiText.of("native.trash.emptyMessageMore", count = 500), EmptyTrash.message(500))
+        assertEquals(UiText.of("native.trash.emptyMessage", count = 1), EmptyTrash.message(1, more = false))
+        assertEquals(UiText.of("native.trash.emptyMessage", count = 3), EmptyTrash.message(3, more = false))
+        // The count stops early on large notes and says so.
+        assertEquals(UiText.of("native.trash.emptyMessageMore", count = 40), EmptyTrash.message(40, more = true))
     }
 
     @Test
     fun `says what the server will delete`() {
-        assertEquals(UiText.of("native.trash.emptying", count = 5), EmptyTrash.done(5))
-        assertEquals(UiText.of("native.trash.emptyingMore", count = 500), EmptyTrash.done(500))
-        assertEquals(UiText.of("native.trash.alreadyEmpty"), EmptyTrash.done(0))
+        assertEquals(UiText.of("native.trash.emptying", count = 5), EmptyTrash.done(TrashCount(5.0)))
+        assertEquals(UiText.of("native.trash.emptyingMore", count = 40), EmptyTrash.done(TrashCount(40.0, more = true)))
+        assertEquals(UiText.of("native.trash.alreadyEmpty"), EmptyTrash.done(TrashCount(0.0)))
     }
 
     @Test

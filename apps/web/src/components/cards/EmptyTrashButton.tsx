@@ -1,7 +1,6 @@
 "use client";
 
 import { api } from "@teak/convex";
-import { TRASH_COUNT_LIMIT } from "@teak/convex/shared/constants";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
@@ -21,13 +20,19 @@ const isRateLimited = (error: unknown) =>
   );
 
 interface EmptyTrashControlProps {
-  /** Cards in Trash, at most `TRASH_COUNT_LIMIT`; undefined while loading. */
+  /** Cards in Trash; undefined while loading. */
   count: number | undefined;
+  /** Trash holds more than `count`: the count stops before it reads too much. */
+  more?: boolean;
   onEmpty: () => void;
 }
 
 /** Trash's Empty Trash button and the confirmation it asks for. */
-export function EmptyTrashControl({ count, onEmpty }: EmptyTrashControlProps) {
+export function EmptyTrashControl({
+  count,
+  more = false,
+  onEmpty,
+}: EmptyTrashControlProps) {
   const t = useTranslations("cards.emptyTrash");
   const tScreen = useTranslations("screens.cards");
   const [open, setOpen] = useState(false);
@@ -66,7 +71,7 @@ export function EmptyTrashControl({ count, onEmpty }: EmptyTrashControlProps) {
       <ConfirmDialog
         confirmLabel={t("confirm")}
         description={
-          shown >= TRASH_COUNT_LIMIT
+          more
             ? t("descriptionAtLeast", { count: shown })
             : t("description", { count: shown })
         }
@@ -86,10 +91,8 @@ export function EmptyTrashButton() {
 
   const empty = async () => {
     try {
-      const { count } = await emptyTrash({});
-      toast.success(
-        count >= TRASH_COUNT_LIMIT ? t("emptyingAll") : t("emptying", { count })
-      );
+      const { count, more } = await emptyTrash({});
+      toast.success(more ? t("emptyingAll") : t("emptying", { count }));
     } catch (error) {
       toast.error(isRateLimited(error) ? t("rateLimited") : t("failed"));
     }
@@ -98,6 +101,7 @@ export function EmptyTrashButton() {
   return (
     <EmptyTrashControl
       count={trash?.count}
+      more={trash?.more}
       onEmpty={() => {
         empty().catch(() => undefined);
       }}

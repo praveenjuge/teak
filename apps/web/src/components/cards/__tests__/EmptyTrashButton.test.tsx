@@ -19,7 +19,6 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { TRASH_COUNT_LIMIT } = await import("@teak/convex/shared/constants");
 const { requestEmptyTrash } = await import("@/lib/commandPalette");
 const { EmptyTrashControl } = await import("../EmptyTrashButton");
 
@@ -34,12 +33,18 @@ afterEach(async () => {
   toasts.length = 0;
 });
 
-async function render(count: number | undefined, onEmpty = () => undefined) {
+async function render(
+  count: number | undefined,
+  onEmpty = () => undefined,
+  more = false
+) {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(() =>
-    root?.render(<EmptyTrashControl count={count} onEmpty={onEmpty} />)
+    root?.render(
+      <EmptyTrashControl count={count} more={more} onEmpty={onEmpty} />
+    )
   );
 }
 
@@ -85,14 +90,14 @@ describe("EmptyTrashControl", () => {
     expect(onEmpty).toHaveBeenCalledTimes(1);
   });
 
-  test("says 'or more' when Trash holds the most the count reads", async () => {
-    await render(TRASH_COUNT_LIMIT);
+  test("says 'or more' when Trash holds more than the count read", async () => {
+    await render(40, () => undefined, true);
     await act(async () => {
       button().click();
       await Promise.resolve();
     });
     expect(dialog()?.textContent).toContain(
-      `This permanently deletes ${TRASH_COUNT_LIMIT} or more cards`
+      "This permanently deletes 40 or more cards"
     );
   });
 

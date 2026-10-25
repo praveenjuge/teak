@@ -101,18 +101,15 @@ object LinkEdit {
 
 /** Emptying Trash: what the confirmation and the note after it say. */
 object EmptyTrash {
-    /** Where the server's Trash counts stop: a count this big means "this many or more". */
-    const val COUNT_LIMIT = TRASH_COUNT_LIMIT
-
-    /** The confirmation: the count from `cards:trashCount`, as "at least" once it reaches the limit. */
-    fun message(count: Int): UiText =
-        if (count >= COUNT_LIMIT) UiText.of("native.trash.emptyMessageMore", count = count) else UiText.of("native.trash.emptyMessage", count = count)
+    /** The confirmation: the count from `cards:trashCount`, as "or more" when Trash holds more. */
+    fun message(count: Int, more: Boolean): UiText =
+        if (more) UiText.of("native.trash.emptyMessageMore", count = count) else UiText.of("native.trash.emptyMessage", count = count)
 
     /** What `cards:emptyTrash` said it will delete. */
-    fun done(count: Int): UiText = when {
-        count <= 0 -> UiText.of("native.trash.alreadyEmpty")
-        count >= COUNT_LIMIT -> UiText.of("native.trash.emptyingMore", count = count)
-        else -> UiText.of("native.trash.emptying", count = count)
+    fun done(trash: TrashCount): UiText = when {
+        trash.cardCount <= 0 -> UiText.of("native.trash.alreadyEmpty")
+        trash.more -> UiText.of("native.trash.emptyingMore", count = trash.cardCount)
+        else -> UiText.of("native.trash.emptying", count = trash.cardCount)
     }
 
     /** Why emptying failed: the server's limit in the app's language, else its words or a general failure. */

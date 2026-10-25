@@ -14,6 +14,7 @@ import com.praveenjuge.teak.core.model.CardSummaryPage
 import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.SimilarAnchor
+import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -83,16 +84,17 @@ class FakeCardsRepository : CardsRepository {
     /** Trash's count: the summaries stand for the Trash view, plus [hiddenTrashCount] cards it doesn't show. */
     var hiddenTrashCount = 0
 
-    override fun trashCount(): Flow<Result<Int>> = summaries.map { Result.success(it.size + hiddenTrashCount) }
+    override fun trashCount(): Flow<Result<TrashCount>> =
+        summaries.map { Result.success(TrashCount((it.size + hiddenTrashCount).toDouble())) }
 
     /** Empties Trash: the summaries stand for the Trash view, so they all go. */
-    override suspend fun emptyTrash(): Int {
+    override suspend fun emptyTrash(): TrashCount {
         emptyTrashError?.let { throw it }
         val count = summaries.value.size + hiddenTrashCount
         writes += "emptyTrash"
         hiddenTrashCount = 0
         summaries.value = emptyList()
-        return count
+        return TrashCount(count.toDouble())
     }
 
     override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult {

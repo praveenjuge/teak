@@ -127,18 +127,16 @@ public enum LinkEdit {
 
 /// Emptying Trash: what the confirmation and the note after it say.
 public enum EmptyTrash {
-    /// Where the server's Trash counts stop: a count this big means "this many or more".
-    public static var countLimit: Int { SharedConstants.shared.limits.trashCount }
-
-    /// The confirmation: the count from `cards:trashCount`, as "at least" once it reaches the limit.
-    public static func message(count: Int) -> String {
-        count >= countLimit ? tr("native.trash.emptyMessageMore", count: count) : tr("native.trash.emptyMessage", count: count)
+    /// The confirmation: the count from `cards:trashCount`, as "or more" when Trash holds more.
+    public static func message(count: Int, more: Bool) -> String {
+        more ? tr("native.trash.emptyMessageMore", count: count) : tr("native.trash.emptyMessage", count: count)
     }
 
     /// What `cards:emptyTrash` said it will delete.
-    public static func done(_ count: Int) -> String {
+    public static func done(_ trash: TrashCount) -> String {
+        let count = Int(trash.count)
         if count <= 0 { return tr("native.trash.alreadyEmpty") }
-        return count >= countLimit ? tr("native.trash.emptyingMore", count: count) : tr("native.trash.emptying", count: count)
+        return trash.more ? tr("native.trash.emptyingMore", count: count) : tr("native.trash.emptying", count: count)
     }
 
     /// Why emptying failed: the server's limit in the app's language, else a general failure.

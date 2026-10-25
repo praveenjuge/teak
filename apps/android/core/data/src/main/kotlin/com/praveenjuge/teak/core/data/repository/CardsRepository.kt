@@ -20,6 +20,7 @@ import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.MAX_BULK_CARD_IDS
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.SimilarAnchor
+import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonPrimitive
@@ -54,10 +55,10 @@ interface CardsRepository {
     suspend fun deleteForever(id: String)
 
     /** Deletes every card in Trash forever, page by page on the server. Returns how many it will delete. */
-    suspend fun emptyTrash(): Int
+    suspend fun emptyTrash(): TrashCount
 
-    /** Every card in Trash, hidden ones too, live; stops at [com.praveenjuge.teak.core.model.EmptyTrash.COUNT_LIMIT]. */
-    fun trashCount(): Flow<Result<Int>>
+    /** Every card in Trash, hidden ones too, live; `more` when the count stopped before the end. */
+    fun trashCount(): Flow<Result<TrashCount>>
 
     /** One action on many cards, in batches the backend accepts. Cards that failed come back in `failedIds`. */
     suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String> = emptyList(), folderId: String? = null): BulkResult
@@ -114,10 +115,9 @@ class ConvexCardsRepository @Inject constructor(
         convex.mutation(ConvexFunctions.permanentDeleteCard, mapOf("id" to id))
     }
 
-    override suspend fun emptyTrash(): Int = convex.mutation(ConvexFunctions.emptyTrash).cardCount
+    override suspend fun emptyTrash(): TrashCount = convex.mutation(ConvexFunctions.emptyTrash)
 
-    override fun trashCount(): Flow<Result<Int>> =
-        convex.subscribe(ConvexFunctions.trashCount).map { result -> result.map { it.cardCount } }
+    override fun trashCount(): Flow<Result<TrashCount>> = convex.subscribe(ConvexFunctions.trashCount)
 
     override suspend fun bulk(action: BulkAction, ids: List<String>, tags: List<String>, folderId: String?): BulkResult {
         val updated = mutableListOf<String>()

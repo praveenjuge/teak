@@ -44,10 +44,16 @@ public struct ReprocessResult: Decodable, Sendable {
     public var isQueued: Bool { status == "queued" }
 }
 
-/// `cards:trashCount`, and what `cards:emptyTrash` will delete: the cards in Trash, stopping at
-/// `EmptyTrash.countLimit` ("that many or more").
-public struct TrashCount: Decodable, Sendable {
+/// `cards:trashCount`, and what `cards:emptyTrash` will delete: the cards in Trash. `more` means
+/// Trash holds more than `count`, so the count reads "this many or more".
+public struct TrashCount: Decodable, Sendable, Equatable {
     public let count: Double
+    public let more: Bool
+
+    public init(count: Double, more: Bool) {
+        self.count = count
+        self.more = more
+    }
 }
 
 public struct SemanticResult: Decodable, Sendable {

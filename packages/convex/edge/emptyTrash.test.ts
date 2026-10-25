@@ -94,9 +94,11 @@ describe("emptyTrash", () => {
 
     expect(await owner.query(api.cards.trashCount, {})).toEqual({
       count: total,
+      more: false,
     });
     expect(await owner.mutation(api.cards.emptyTrash, {})).toEqual({
       count: total,
+      more: false,
     });
     // Nothing is deleted until the scheduled pages run.
     expect(await trashedIds()).toHaveLength(total);
@@ -104,10 +106,31 @@ describe("emptyTrash", () => {
     await runScheduled();
 
     expect(await trashedIds()).toEqual([]);
-    expect(await owner.query(api.cards.trashCount, {})).toEqual({ count: 0 });
+    expect(await owner.query(api.cards.trashCount, {})).toEqual({
+      count: 0,
+      more: false,
+    });
     expect(await card(active)).not.toBeNull();
     expect(await card(archived)).not.toBeNull();
     expect(await card(strangers)).not.toBeNull();
+  });
+
+  test("counts large notes without reading past its byte budget, then deletes them all", async () => {
+    const { owner, trashed, trashedIds, runScheduled } = await setup();
+    const note = "x".repeat(500 * 1024);
+    const total = 24;
+    for (let index = 0; index < total; index += 1) {
+      await trashed({ content: note });
+    }
+
+    const counted = await owner.query(api.cards.trashCount, {});
+    expect(counted.more).toBe(true);
+    expect(counted.count).toBeLessThan(total);
+    expect(await owner.mutation(api.cards.emptyTrash, {})).toEqual(counted);
+
+    await runScheduled();
+
+    expect(await trashedIds()).toEqual([]);
   });
 
   test("keeps cards moved to Trash after it was called", async () => {
@@ -117,6 +140,7 @@ describe("emptyTrash", () => {
 
     expect(await owner.mutation(api.cards.emptyTrash, {})).toEqual({
       count: 1,
+      more: false,
     });
     vi.setSystemTime(Date.now() + 10_000);
     await owner.mutation(api.cards.updateCardField, {
@@ -135,6 +159,7 @@ describe("emptyTrash", () => {
     await insert();
     expect(await owner.mutation(api.cards.emptyTrash, {})).toEqual({
       count: 0,
+      more: false,
     });
     const scheduled = await t.run((ctx) =>
       ctx.db.system.query("_scheduled_functions").collect()
@@ -148,7 +173,10 @@ describe("emptyTrash", () => {
     const { t, trashed, trashedIds } = await setup();
     await trashed();
     await expect(t.mutation(api.cards.emptyTrash, {})).rejects.toThrow();
-    expect(await t.query(api.cards.trashCount, {})).toEqual({ count: 0 });
+    expect(await t.query(api.cards.trashCount, {})).toEqual({
+      count: 0,
+      more: false,
+    });
     expect(await trashedIds()).toHaveLength(1);
   });
 

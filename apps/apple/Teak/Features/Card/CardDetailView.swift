@@ -3,6 +3,8 @@ import TeakCore
 
 struct CardDetailView: View {
     let route: CardRoute
+    /// The library the card was opened from, which shows the notes and Undo after it closes.
+    let library: LibraryModel
     @Environment(AppModel.self) private var app
     // Leaves through the router and opens links directly: reading
     // `dismiss` or `openURL` here fed a render loop with the library's
@@ -17,8 +19,6 @@ struct CardDetailView: View {
     @State private var pickingFolders = false
     @State private var editingLink = false
     @State private var feedback = 0
-
-    private var library: LibraryModel { AppServices.shared.home }
 
     var body: some View {
         Group {
@@ -332,6 +332,8 @@ private struct CardTitle: ViewModifier {
     let editable: Bool
     let save: (String) -> Void
     @State private var draft = ""
+    /// The title last sent to be saved, until the card reports it.
+    @State private var sent: String?
 
     func body(content: Content) -> some View {
         if editable {
@@ -339,7 +341,11 @@ private struct CardTitle: ViewModifier {
                 .navigationTitle($draft)
                 .toolbarTitleMenu { RenameButton() }
                 .onAppear { draft = title }
-                .onChange(of: title) { _, saved in draft = saved }
+                // Follows a saved title unless newer typing is still waiting to be saved.
+                .onChange(of: title) { old, saved in
+                    if draft == old || draft == sent { draft = saved }
+                    if sent == saved { sent = nil }
+                }
                 // Saves once the title settles, however often the field reports it.
                 .task(id: draft) {
                     let typed = draft
@@ -349,6 +355,7 @@ private struct CardTitle: ViewModifier {
                     if typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         draft = title
                     } else {
+                        sent = typed
                         save(typed)
                     }
                 }

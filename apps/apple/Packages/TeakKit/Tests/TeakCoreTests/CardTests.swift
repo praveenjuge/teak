@@ -233,16 +233,17 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
 @Suite(.english) struct EmptyTrashTests {
     @Test func confirmationCountsTheCards() {
-        #expect(EmptyTrash.message(count: 1) == "This permanently deletes 1 card and their files. This can’t be undone.")
-        #expect(EmptyTrash.message(count: 3) == "This permanently deletes 3 cards and their files. This can’t be undone.")
-        #expect(EmptyTrash.message(count: 500)
-            == "This permanently deletes 500 or more cards and their files. This can’t be undone.")
+        #expect(EmptyTrash.message(count: 1, more: false) == "This permanently deletes 1 card and their files. This can’t be undone.")
+        #expect(EmptyTrash.message(count: 3, more: false) == "This permanently deletes 3 cards and their files. This can’t be undone.")
+        // The count stops early on large notes and says so.
+        #expect(EmptyTrash.message(count: 40, more: true)
+            == "This permanently deletes 40 or more cards and their files. This can’t be undone.")
     }
 
     @Test func saysWhatTheServerWillDelete() {
-        #expect(EmptyTrash.done(5) == "Deleting 5 cards forever")
-        #expect(EmptyTrash.done(500) == "Deleting at least 500 cards forever")
-        #expect(EmptyTrash.done(0) == "Trash is already empty")
+        #expect(EmptyTrash.done(TrashCount(count: 5, more: false)) == "Deleting 5 cards forever")
+        #expect(EmptyTrash.done(TrashCount(count: 40, more: true)) == "Deleting at least 40 cards forever")
+        #expect(EmptyTrash.done(TrashCount(count: 0, more: false)) == "Trash is already empty")
     }
 
     @Test func wordsTheServersLimitInTheAppsLanguage() {

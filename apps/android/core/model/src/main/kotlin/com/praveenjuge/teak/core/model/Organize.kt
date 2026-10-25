@@ -120,11 +120,11 @@ sealed interface RefreshOutcome {
 }
 
 /**
- * `cards:trashCount`, and what `cards:emptyTrash` will delete: the cards in Trash, stopping at
- * [EmptyTrash.COUNT_LIMIT] ("that many or more").
+ * `cards:trashCount`, and what `cards:emptyTrash` will delete: the cards in Trash. [more] means Trash
+ * holds more than [count], so the count reads "this many or more".
  */
 @Serializable
-data class TrashCount(val count: Double) {
+data class TrashCount(val count: Double, val more: Boolean = false) {
     val cardCount: Int get() = count.toInt()
 }
 

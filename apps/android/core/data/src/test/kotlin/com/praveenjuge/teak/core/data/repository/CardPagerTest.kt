@@ -12,6 +12,7 @@ import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.LinkedCard
+import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -44,8 +45,8 @@ class CardPagerTest {
         override suspend fun moveToTrash(id: String) = error("unused")
         override suspend fun restore(id: String) = error("unused")
         override suspend fun deleteForever(id: String) = error("unused")
-        override suspend fun emptyTrash(): Int = error("unused")
-        override fun trashCount(): Flow<Result<Int>> = error("unused")
+        override suspend fun emptyTrash(): TrashCount = error("unused")
+        override fun trashCount(): Flow<Result<TrashCount>> = error("unused")
         override suspend fun apply(id: String, changes: List<CardFieldChange>) = error("unused")
         override suspend fun createFromText(text: String): String = error("unused")
         override suspend fun setArchived(id: String, archived: Boolean) = error("unused")

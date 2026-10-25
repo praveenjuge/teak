@@ -217,7 +217,7 @@ struct FoldersTab: View {
                     case .folder:
                         LibraryView(library: library, namespace: namespace)
                     case let .card(card):
-                        CardDetailView(route: card)
+                        CardDetailView(route: card, library: library)
                             .navigationTransition(.zoom(sourceID: card.id, in: namespace))
                     }
                 }

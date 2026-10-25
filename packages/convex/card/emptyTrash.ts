@@ -19,6 +19,13 @@ import { permanentDeleteCardForUserHandler } from "./deleteCard";
 /** Cards hard-deleted per run; each run schedules the next. */
 export const EMPTY_TRASH_PAGE_SIZE = 25;
 
+/**
+ * Bytes one count or one delete run may read. A note can hold 512 KiB, so a
+ * page stops early on large cards and stays far below Convex's 16 MiB limit.
+ */
+const COUNT_BYTES = 8 * 1024 * 1024;
+const PAGE_BYTES = 4 * 1024 * 1024;
+
 export const EMPTY_TRASH_RATE_LIMITED_MESSAGE =
   "Trash was emptied a few times just now. Try again in a minute.";
 
@@ -29,35 +36,39 @@ const trashedCards = (ctx: QueryCtx, userId: string) =>
       q.eq("userId", userId).eq("isDeleted", true)
     );
 
-/** Counts the account's Trash, hidden cards included, up to the limit. */
+/**
+ * Counts the account's Trash, hidden cards included, reading at most
+ * `TRASH_COUNT_LIMIT` cards and `COUNT_BYTES`. `more` is true when Trash holds
+ * cards past the ones counted, so the count means "this many or more".
+ */
 const countTrashedCards = async (ctx: QueryCtx, userId: string) => {
-  let count = 0;
-  for await (const _card of trashedCards(ctx, userId)) {
-    count += 1;
-    if (count >= TRASH_COUNT_LIMIT) {
-      break;
-    }
-  }
-  return count;
+  const { page, isDone } = await trashedCards(ctx, userId).paginate({
+    cursor: null,
+    numItems: TRASH_COUNT_LIMIT,
+    maximumBytesRead: COUNT_BYTES,
+  });
+  return { count: page.length, more: !isDone };
 };
 
 /** A card moved to Trash after Empty Trash started stays there. */
 const trashedBefore = (card: Doc<"cards">, startedAt: number) =>
   card.isDeleted === true && (card.deletedAt ?? 0) <= startedAt;
 
+const trashCountValidator = v.object({ count: v.number(), more: v.boolean() });
+
 /**
- * How many cards are in Trash, at most `TRASH_COUNT_LIMIT`: a count at the
- * limit means that many or more.
+ * How many cards are in Trash. When `more` is true there are more than
+ * `count`, and a confirmation says "this many or more".
  */
 export const trashCount = query({
   args: {},
-  returns: v.object({ count: v.number() }),
+  returns: trashCountValidator,
   handler: async (ctx) => {
     const user = await getSessionUser(ctx);
     if (!user) {
-      return { count: 0 };
+      return { count: 0, more: false };
     }
-    return { count: await countTrashedCards(ctx, user.teakUserId) };
+    return await countTrashedCards(ctx, user.teakUserId);
   },
 });
 
@@ -68,7 +79,7 @@ export const trashCount = query({
  */
 export const emptyTrash = mutation({
   args: {},
-  returns: v.object({ count: v.number() }),
+  returns: trashCountValidator,
   handler: async (ctx) => {
     const user = await requireSessionUser(ctx);
     const limited = await rateLimiter.limit(ctx, "emptyTrash", {
@@ -82,15 +93,15 @@ export const emptyTrash = mutation({
         retryAt: Date.now() + limited.retryAfter,
       });
     }
-    const count = await countTrashedCards(ctx, user.teakUserId);
-    if (count > 0) {
+    const trash = await countTrashedCards(ctx, user.teakUserId);
+    if (trash.count > 0) {
       await ctx.scheduler.runAfter(0, internal.card.emptyTrash.emptyTrashPage, {
         userId: user.teakUserId,
         startedAt: Date.now(),
         cursor: null,
       });
     }
-    return { count };
+    return trash;
   },
 });
 
@@ -106,7 +117,11 @@ export const emptyTrashPage = internalMutation({
     const { page, isDone, continueCursor } = await trashedCards(
       ctx,
       userId
-    ).paginate({ cursor: args.cursor, numItems: EMPTY_TRASH_PAGE_SIZE });
+    ).paginate({
+      cursor: args.cursor,
+      numItems: EMPTY_TRASH_PAGE_SIZE,
+      maximumBytesRead: PAGE_BYTES,
+    });
     for (const card of page) {
       if (trashedBefore(card, args.startedAt)) {
         await permanentDeleteCardForUserHandler(ctx, userId, card._id, {
