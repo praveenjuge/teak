@@ -106,6 +106,14 @@ export const claimRetryDelayMs = (attempt: number): number | null =>
 
 const flushScheduled = new WeakSet<object>();
 
+// crypto.getRandomValues instead of Math.random: static analysis flags
+// Math.random as a weak RNG even for scheduling jitter.
+const randomBelow = (bound: number): number => {
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  return (buffer[0] ?? 0) % bound;
+};
+
 const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   if (delayMs === 0 && flushScheduled.has(ctx.db)) {
     return;
@@ -113,8 +121,7 @@ const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   if (delayMs === 0) {
     flushScheduled.add(ctx.db);
   }
-  const jitter =
-    delayMs === 0 ? Math.floor(Math.random() * FLUSH_JITTER_MS) : 0;
+  const jitter = delayMs === 0 ? randomBelow(FLUSH_JITTER_MS) : 0;
   await ctx.scheduler.runAfter(
     delayMs + jitter,
     internal.workflowDispatch.flush,
