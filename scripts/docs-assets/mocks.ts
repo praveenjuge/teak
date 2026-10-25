@@ -328,41 +328,6 @@ const mcp = () =>
     </div>`
   );
 
-const raycast = () => `
-  <div class="window" style="left:200px;top:110px;width:1200px;height:780px;border-radius:24px;background:oklch(0.985 0.002 247.839)">
-    <div style="height:78px;display:flex;align-items:center;gap:18px;padding:0 30px;border-bottom:1px solid var(--border);font-size:25px">
-      <span style="color:var(--muted)">${icon("search", 26)}</span><span>architecture</span>
-      <span style="margin-left:auto" class="pill">All types</span></div>
-    <div style="flex:1;display:flex;min-height:0">
-      <div style="width:520px;padding:14px;border-right:1px solid var(--border)">
-        <div style="font-size:15px;font-weight:600;color:var(--muted);padding:6px 12px 10px">Cards</div>
-        ${SHOWCASE.map(
-          (
-            card,
-            i
-          ) => `<div style="display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:12px;${i === 0 ? "background:oklch(0.58 0.22 27 / 0.1)" : ""}">
-            ${thumb(card.file, 44, 44, 8)}<span style="flex:1;font-size:19px;font-weight:${i === 0 ? 600 : 500}">${card.title}</span>
-            <span style="font-size:15px;color:var(--muted)">#${card.tags[0]}</span></div>`
-        ).join("")}
-      </div>
-      <div style="flex:1;padding:26px 30px;display:flex;flex-direction:column;gap:18px">
-        ${thumb(SHOWCASE[0].file, 618, 260, 16)}
-        <div style="font-size:24px;font-weight:650">${SHOWCASE[0].title}</div>
-        <div style="font-size:17px;color:var(--muted);line-height:1.5">Two leaning towers wrapped in glass and copper-colored louvers, photographed from below against a clear sky.</div>
-        <div style="display:flex;gap:8px">${SHOWCASE[0].tags.map((tag) => `<span class="chip">${tag}</span>`).join("")}</div>
-        <div style="border-top:1px solid var(--border);padding-top:14px;display:grid;grid-template-columns:auto 1fr;gap:10px 30px;font-size:17px">
-          <span style="color:var(--muted)">Type</span><span>Image</span>
-          <span style="color:var(--muted)">Saved</span><span>Today</span>
-          <span style="color:var(--muted)">Colors</span><span style="display:flex;gap:6px">${["#2b2b2b", "#6b6f72", "#c9cbcc", "#eeeeec"].map((c) => `<i style="width:20px;height:20px;border-radius:50%;background:${c};display:block"></i>`).join("")}</span>
-        </div>
-      </div>
-    </div>
-    <div style="height:60px;display:flex;align-items:center;gap:14px;padding:0 24px;border-top:1px solid var(--border);font-size:17px;color:var(--muted)">
-      <span style="width:62px;height:22px;display:block">${logoSvg()}</span><span>Search Cards</span>
-      <span style="margin-left:auto;color:var(--fg);font-weight:500">Open in Teak</span><span class="chip" style="height:26px">↵</span>
-      <span style="color:var(--fg);font-weight:500;margin-left:12px">Actions</span><span class="chip" style="height:26px">⌘ K</span></div>
-  </div>`;
-
 const extension = () => `
   ${win(
     "interfacecraft.example/notes/rhythm",
@@ -620,6 +585,56 @@ const testing = () => `
     </div>
   </div>`;
 
+const saveByEmail = () => `
+  <div class="window" style="flex-direction:row">
+    <div style="width:760px;display:flex;flex-direction:column;border-right:1px solid var(--border)">
+      <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><div class="title" style="margin-right:0">Fwd: Halden brand references</div></div>
+      <div style="padding:8px 34px;font-size:19px">
+        ${[
+          ["From", "alex@example.com"],
+          [
+            "To",
+            '<span class="pill red" style="height:32px">save@in.teakvault.com</span>',
+          ],
+          ["Subject", "Fwd: Halden brand references"],
+        ]
+          .map(
+            ([label, value]) =>
+              `<div style="display:flex;align-items:center;gap:18px;height:60px;border-bottom:1px solid var(--border)"><span style="width:84px;color:var(--muted)">${label}</span><span>${value}</span></div>`
+          )
+          .join("")}
+      </div>
+      <div style="padding:22px 34px;font-size:20px;line-height:1.6;display:flex;flex-direction:column;gap:18px">
+        <div>The lobby references from Friday's call, for the moodboard.</div>
+        <div style="color:var(--primary)">https://www.are.na/</div>
+        <div style="display:flex;align-items:center;gap:14px;width:fit-content;border:1.5px solid var(--border);border-radius:14px;padding:12px 16px">
+          <span style="color:var(--muted)">${icon("file", 26)}</span>
+          <span><b style="font-weight:600">Graphics Standards Manual.pdf</b><br><span style="color:var(--muted);font-size:16px">PDF · 3.4 MB</span></span>
+        </div>
+      </div>
+      <div style="margin-top:auto;padding:24px 34px;display:flex;gap:12px">
+        <span style="height:44px;padding:0 24px;border-radius:999px;background:var(--primary);color:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:18px">Send</span>
+      </div>
+    </div>
+    <div style="flex:1;background:oklch(0.985 0.002 247.839);padding:34px 36px;display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px;font-size:18px;color:var(--muted)">
+        <span style="width:62px;height:22px;display:block">${logoSvg()}</span>Saved a moment later</div>
+      <div style="background:#fff;border:1.5px solid var(--border);border-radius:18px;overflow:hidden">
+        <div style="height:150px;background:linear-gradient(135deg,oklch(0.97 0.01 90),oklch(0.92 0.02 80));display:grid;place-items:center;font-size:40px;font-weight:700;letter-spacing:-.02em">Are.na</div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:19px;font-weight:600">Are.na</div>
+          <div style="font-size:16px;color:var(--muted)">The lobby references from Friday's call, for the moodboard.</div>
+          <div style="display:flex;gap:6px"><span class="chip">email</span></div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1.5px solid var(--border);border-radius:18px;padding:16px 18px;display:flex;align-items:center;gap:14px">
+        <span style="width:52px;height:52px;border-radius:12px;background:var(--secondary);display:grid;place-items:center;color:var(--muted)">${icon("file", 26)}</span>
+        <div style="flex:1"><div style="font-size:19px;font-weight:600">Graphics Standards Manual.pdf</div>
+          <div style="display:flex;gap:6px;margin-top:8px"><span class="chip">email</span></div></div>
+      </div>
+    </div>
+  </div>`;
+
 export const renderMock = (
   id: MockId,
   captures: { library: string }
@@ -641,10 +656,10 @@ export const renderMock = (
       return extension();
     case "mcp":
       return mcp();
-    case "raycast":
-      return raycast();
     case "sdk":
       return sdk();
+    case "save-by-email":
+      return saveByEmail();
     case "self-hosting":
       return selfHosting();
     case "testing":

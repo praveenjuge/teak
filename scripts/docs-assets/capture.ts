@@ -13,6 +13,7 @@ import {
   captureFile,
   VIEWPORT,
 } from "./common.ts";
+import { FOLDER, LINKS_NOTE, TABLE_NOTE } from "./seed-names.ts";
 import { SHOTS, type WebShot } from "./shots.ts";
 
 /**
@@ -201,6 +202,21 @@ const openCard = async (page: Page) => {
   return dialog;
 };
 
+/** Searches the library, then opens the first card whose name matches. */
+const findAndOpen = async (page: Page, query: string, card: RegExp) => {
+  await open(page, "/", "Everything");
+  const box = page.getByRole("combobox", { name: "Search everything" });
+  await box.click();
+  await box.pressSequentially(query, { delay: 30 });
+  await page.waitForTimeout(2000);
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: card }).first().click();
+  const dialog = page.getByRole("dialog").last();
+  await dialog.waitFor();
+  await settle(page);
+  return dialog;
+};
+
 const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
   library,
   search,
@@ -257,6 +273,124 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
         "Security",
         page.getByRole("region", { name: "Connected apps" })
       ),
+    };
+  },
+  "card-types": async (page) => {
+    await library(page);
+    // The grid alone, without the sidebar and header.
+    const main = await boxOf(page.locator("main"));
+    return {
+      clip: {
+        x: main.x,
+        y: 64,
+        width: main.width,
+        height: VIEWPORT.height - 64,
+      },
+    };
+  },
+  reader: async (page) => {
+    const dialog = await findAndOpen(
+      page,
+      "Fallingwater",
+      /^Link: Fallingwater/
+    );
+    await dialog.getByRole("radio", { name: "Read" }).waitFor();
+    // Wikipedia's infobox opens the article; start at its first paragraph.
+    await dialog
+      .locator("article p")
+      .filter({ hasText: "is a house museum" })
+      .first()
+      .evaluate((paragraph) => {
+        paragraph.scrollIntoView({ block: "start" });
+        // Leave room for the sticky Preview · Read switch above it.
+        let scroller = paragraph.parentElement;
+        while (scroller && scroller.scrollHeight <= scroller.clientHeight) {
+          scroller = scroller.parentElement;
+        }
+        scroller?.scrollBy(0, -96);
+      });
+    await settle(page);
+    return { clip: await boxOf(dialog) };
+  },
+  highlights: async (page) => {
+    const dialog = await findAndOpen(
+      page,
+      "Fallingwater",
+      /^Link: Fallingwater/
+    );
+    // Highlights are painted with the CSS Custom Highlight API, so find the
+    // paragraph that holds the seeded quote instead of an element.
+    const highlight = dialog
+      .locator("article p")
+      .filter({ hasText: "cantilevered, extending outward" })
+      .first();
+    await highlight.waitFor();
+    await highlight.evaluate((mark) =>
+      mark.scrollIntoView({ block: "center" })
+    );
+    await settle(page);
+    return {
+      clip: await boxOf(dialog),
+      markers: [highlight, dialog.getByText(/^Highlights/).first()],
+    };
+  },
+  "view-menu": async (page) => {
+    await library(page);
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Revisit" }).waitFor();
+    await page.waitForTimeout(300);
+  },
+  folder: async (page) => {
+    await library(page);
+    await page.getByRole("link", { name: new RegExp(`^${FOLDER}`) }).click();
+    await page.getByRole("heading", { name: FOLDER }).first().waitFor();
+    await settle(page);
+  },
+  tags: (page) => open(page, "/tags", "Tags"),
+  revisit: async (page) => {
+    await library(page);
+    await page.getByRole("button", { name: "View", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Revisit" }).click();
+    const keep = page.getByRole("button", { name: /^Keep/ }).first();
+    await keep.waitFor();
+    // Revisit shuffles; keep cards (which changes nothing) until a photo shows.
+    for (let tries = 0; tries < 15; tries += 1) {
+      await settle(page);
+      if (await page.getByRole("dialog").last().locator("img").count()) {
+        break;
+      }
+      await keep.click();
+    }
+  },
+  "note-links": async (page) => ({
+    clip: await boxOf(
+      await findAndOpen(page, LINKS_NOTE, new RegExp(`^Text: ${LINKS_NOTE}`))
+    ),
+  }),
+  "note-table": async (page) => {
+    const dialog = await findAndOpen(
+      page,
+      TABLE_NOTE,
+      new RegExp(`^Text: ${TABLE_NOTE}`)
+    );
+    await dialog.locator("table").first().waitFor();
+    return { clip: await boxOf(dialog) };
+  },
+  "link-details": async (page) => {
+    const dialog = await findAndOpen(
+      page,
+      "Fallingwater",
+      /^Link: Fallingwater/
+    );
+    await dialog.getByRole("radio", { name: "Preview" }).click();
+    await dialog.getByRole("button", { name: "More details" }).click();
+    await settle(page);
+    return {
+      clip: await boxOf(dialog),
+      markers: [
+        dialog.getByText("About", { exact: true }),
+        dialog.getByText("Archived copy", { exact: true }),
+      ],
     };
   },
   "api-keys": (page) => open(page, "/settings/integrations", "Integrations"),

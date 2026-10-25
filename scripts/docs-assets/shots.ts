@@ -13,7 +13,7 @@ export type MockId =
   | "development"
   | "extension"
   | "mcp"
-  | "raycast"
+  | "save-by-email"
   | "sdk"
   | "self-hosting"
   | "testing"
@@ -76,6 +76,72 @@ export const SHOTS: Shot[] = [
     alt: "The command palette, with Navigate, Actions and their keyboard shortcuts",
   },
   {
+    name: "card-types",
+    kind: "web",
+    layout: "focus",
+    alt: "Cards of every type side by side: a note, photos, palettes, quotes, links, a voice memo and a PDF",
+  },
+  {
+    name: "reader",
+    kind: "web",
+    layout: "focus",
+    alt: "A saved Wikipedia article open on Read, its text in one calm layout beside the card's notes, highlights and details",
+  },
+  {
+    name: "highlights",
+    kind: "web",
+    layout: "focus",
+    alt: "A highlighted passage in Read, with the card's details listing its highlights",
+  },
+  {
+    name: "view-menu",
+    kind: "web",
+    layout: "window",
+    alt: "The View menu open beside the search box, with card types, sort order, Shuffle, Revisit and Save as smart folder",
+  },
+  {
+    name: "folder",
+    kind: "web",
+    layout: "window",
+    alt: "A folder of architecture and interior references, with its color and card count in the header",
+  },
+  {
+    name: "tags",
+    kind: "web",
+    layout: "window",
+    alt: "The Tags page listing every tag with how many cards carry it",
+  },
+  {
+    name: "revisit",
+    kind: "web",
+    layout: "window",
+    alt: "Revisit showing one card at a time, with Archive and Keep",
+  },
+  {
+    name: "note-links",
+    kind: "web",
+    layout: "focus",
+    alt: "A note linking two cards with [[, each shown as a pill with the card's type and title",
+  },
+  {
+    name: "note-table",
+    kind: "web",
+    layout: "focus",
+    alt: "A note with a type scale table: style, size, line height and tracking",
+  },
+  {
+    name: "link-details",
+    kind: "web",
+    layout: "focus",
+    alt: "A Wikipedia link's details: its description, when it was last edited, and the saved copy of the page",
+  },
+  {
+    name: "save-by-email",
+    kind: "mock",
+    mock: "save-by-email",
+    alt: "An email forwarded to save@in.teakvault.com, and the link card and attachment it became in Teak",
+  },
+  {
     name: "settings-account",
     kind: "web",
     layout: "window",
@@ -116,12 +182,6 @@ export const SHOTS: Shot[] = [
     kind: "mock",
     mock: "extension",
     alt: "The Teak browser extension's popup over a web page, saying Saved to Teak, with tags and a note",
-  },
-  {
-    name: "raycast",
-    kind: "mock",
-    mock: "raycast",
-    alt: "Raycast's Search Cards command listing Teak cards with a preview of the selected one",
   },
   {
     name: "cli",
@@ -231,8 +291,9 @@ SHOTS.push(
 );
 
 /**
- * Pages that need no image. Legal pages stay plain text, and the Mac and
- * mobile pages wait for fresh native captures (`scripts/store-assets`).
+ * Pages that need no image. Legal pages stay plain text, the Mac and
+ * mobile pages wait for fresh native captures (`scripts/store-assets`), and
+ * Raycast shows its store's install button.
  */
 export const PAGES_WITHOUT_IMAGES = [
   "(legal)/delete-account.mdx",
@@ -240,4 +301,5 @@ export const PAGES_WITHOUT_IMAGES = [
   "(legal)/terms-of-service.mdx",
   "(apps)/mac.mdx",
   "(apps)/mobile.mdx",
+  "(apps)/raycast.mdx",
 ];

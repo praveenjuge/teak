@@ -11,13 +11,16 @@ bare captures; the page draws its own meadow behind them.
 | `web`, `window` | The whole web app window | `capture.ts` |
 | `web`, `focus` | One part of it, such as an open card or a menu, with numbered markers when the page explains them | `capture.ts` |
 | `web`, `raw` | A bare capture for `apps/docs/public/home-showcase` | `capture.ts` |
-| `mock` | A terminal, chat, editor, browser, launcher or diagram | `mocks.ts` |
+| `mock` | A terminal, chat, editor, browser, email or diagram | `mocks.ts` |
 
 ## Files
 
 - `shots.ts`: every image, its alt text (the same text the page uses), and the
-  pages that need none (`PAGES_WITHOUT_IMAGES`: the legal pages, and the Mac and
-  mobile pages until there are fresh native captures).
+  pages that need none (`PAGES_WITHOUT_IMAGES`: the legal pages, Raycast, which
+  shows its store's install button, and the Mac and mobile pages until there
+  are fresh native captures).
+- `seed.ts` and `seed-names.ts`: the cards the Features shots add to the
+  store showcase, and the names `capture.ts` opens them by.
 - `capture.ts`: signs in to the local stack and captures each web shot into
   `.cache/` (ignored by git), with the steps for each one.
 - `mocks.ts`: the HTML for every mock and diagram.
@@ -35,7 +38,10 @@ bare captures; the page draws its own meadow behind them.
    backend with an API key (`bun .agents/skills/verify-teak/scripts/api-key.ts mint`,
    then `TEAK_API_KEY` and `TEAK_API_URL`), and run
    `bun scripts/store-assets/seed.ts --apply` so the store showcase cards lead
-   the library. Link previews and AI tags finish a minute later.
+   the library, then `bun scripts/docs-assets/seed.ts` for what the Features
+   shots add: a folder, a note with `[[` links, a note with a table, and a
+   Wikipedia article with a highlight (it waits for the article). Link
+   previews and AI tags finish a minute later.
 3. **Connected app.** The Security shots show the CLI as a connected app: run
    `teak login --no-browser` once against the same backend and finish the
    sign-in in a browser.

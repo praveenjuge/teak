@@ -5,7 +5,7 @@ teakvault.com's docs, built from `apps/docs/content` with Blume. The sidebar gro
 ## Sub-features
 
 - `docs-sidebar` lists the groups in order (Apps, Data, Developers, Open Source, Legal), each with its pages in the order its `meta.ts` gives, every row with its icon and short label (a page's `sidebar.label`, or its title).
-- `docs-images` shows at least one framed 1600 × 1000 image on every page but Legal, Mac and iPhone and iPad; each opens larger when clicked. `scripts/docs-assets` makes them ([README](../../../../scripts/docs-assets/README.md)), and `bun test scripts/docs-assets` checks that every page has one and every alt text matches its shot.
+- `docs-images` shows at least one framed 1600 × 1000 image on every page but Legal, Raycast, Mac and iPhone and iPad, and on Features one in each main section; each opens larger when clicked. `scripts/docs-assets` makes them ([README](../../../../scripts/docs-assets/README.md)), and `bun test scripts/docs-assets` checks that every page has one and every alt text matches its shot.
 - `docs-related` ends most pages with two **Related pages** cards (the page's `related` frontmatter).
 - `docs-page` renders a page's title, description, body and "On this page" outline, in light and dark, without horizontal page scroll at 390px.
 - `docs-agent-visibility` keeps `<Visibility for="agents">` text out of the web page and puts it in the page's `.md` mirror and `llms-full.txt`.
