@@ -3,6 +3,80 @@
     "common": {
       "cardCount": "{count, plural, one {# card} other {# cards}}"
     },
+    "actions": {
+      "addTags": "Add tags",
+      "archive": "Archive",
+      "unarchive": "Unarchive",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite",
+      "moveToTrash": "Move to Trash",
+      "restore": "Restore",
+      "deleteForever": "Delete forever",
+      "moreLikeThis": "More like this",
+      "refreshDetails": "Refresh details",
+      "copyLink": "Copy link",
+      "copyLinkToCard": "Copy link to card",
+      "copyImage": "Copy image",
+      "copyText": "Copy text",
+      "copyQuote": "Copy quote",
+      "copyPalette": "Copy palette",
+      "openLink": "Open link",
+      "openOnWeb": "Open on web",
+      "download": "Download",
+      "saveToFiles": "Save to Files",
+      "share": "Share",
+      "select": "Select",
+      "linkCopied": "Link copied",
+      "copyImageFailed": "Couldn't copy this image.",
+      "shareFailed": "Couldn't share this file."
+    },
+    "done": {
+      "markAs": {
+        "read": "Mark as read",
+        "watched": "Mark as watched",
+        "listened": "Mark as listened",
+        "bought": "Mark as bought",
+        "cooked": "Mark as cooked",
+        "played": "Mark as played",
+        "done": "Mark as done"
+      },
+      "markAsNot": {
+        "read": "Mark as not read",
+        "watched": "Mark as not watched",
+        "listened": "Mark as not listened",
+        "bought": "Mark as not bought",
+        "cooked": "Mark as not cooked",
+        "played": "Mark as not played",
+        "done": "Mark as not done"
+      },
+      "state": {
+        "read": "Read",
+        "watched": "Watched",
+        "listened": "Listened",
+        "bought": "Bought",
+        "cooked": "Cooked",
+        "played": "Played",
+        "done": "Done"
+      },
+      "markedAs": {
+        "read": "Marked as read",
+        "watched": "Marked as watched",
+        "listened": "Marked as listened",
+        "bought": "Marked as bought",
+        "cooked": "Marked as cooked",
+        "played": "Marked as played",
+        "done": "Marked as done"
+      },
+      "markedAsNot": {
+        "read": "Marked as not read",
+        "watched": "Marked as not watched",
+        "listened": "Marked as not listened",
+        "bought": "Marked as not bought",
+        "cooked": "Marked as not cooked",
+        "played": "Marked as not played",
+        "done": "Marked as not done"
+      }
+    },
     "settings": {
       "languageDescription": "Saved to your account, so it follows you to every device."
     }
