@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
@@ -89,7 +90,7 @@ class UploadWorker @AssistedInject constructor(
     }
 
     override suspend fun getForegroundInfo(): ForegroundInfo =
-        foregroundInfo(inputData.getString(KEY_NAME) ?: applicationContext.resources.tr("android.notification.file"), 0f)
+        foregroundInfo(inputData.getString(KEY_NAME) ?: AppLanguage.resources(applicationContext).tr("android.notification.file"), 0f)
 
     /**
      * Failing this upload fails every upload waiting behind it without running them, so their staged
@@ -115,7 +116,7 @@ class UploadWorker @AssistedInject constructor(
     private fun notification(name: String, progress: Float) =
         NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_upload)
-            .setContentTitle(applicationContext.resources.tr("android.notification.uploadTitle"))
+            .setContentTitle(AppLanguage.resources(applicationContext).tr("android.notification.uploadTitle"))
             .setContentText(name)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
@@ -128,7 +129,7 @@ class UploadWorker @AssistedInject constructor(
         notifications.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                applicationContext.resources.tr("native.capture.uploads"),
+                AppLanguage.resources(applicationContext).tr("native.capture.uploads"),
                 NotificationManager.IMPORTANCE_LOW,
             ),
         )

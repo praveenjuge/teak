@@ -59,6 +59,13 @@ object AppLanguage {
         return now
     }
 
+    /**
+     * Resources in the app's language for code outside an activity: workers, notifications and
+     * launcher shortcuts. Android 13 and later apply the per-app language to the whole process;
+     * Android 12 only to activities that [wrap] their context.
+     */
+    fun resources(context: Context): Resources = wrap(context).resources
+
     /** On Android 12, a context in the chosen language for an activity's `attachBaseContext`. */
     fun wrap(base: Context): Context {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return base

@@ -13,6 +13,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.MAX_FILE_SIZE
 import com.praveenjuge.teak.core.model.UiText
@@ -150,7 +151,7 @@ class WorkManagerUploadRepository @Inject constructor(
             fileName = info.tags.firstOrNull { it.startsWith(UploadWorker.NAME_TAG_PREFIX) }
                 ?.removePrefix(UploadWorker.NAME_TAG_PREFIX)
                 ?: output.getString(UploadWorker.Output.NAME)
-                ?: context.resources.tr("android.notification.file"),
+                ?: AppLanguage.resources(context).tr("android.notification.file"),
             state = state,
             progress = info.progress.getFloat(UploadWorker.KEY_PROGRESS, if (state == UploadStatus.State.Saved) 1f else 0f),
             errorText = if (skipped) UiText.of("native.errors.skippedAtLimit") else failureText(output),
