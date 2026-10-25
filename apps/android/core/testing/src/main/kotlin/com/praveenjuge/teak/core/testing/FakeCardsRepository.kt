@@ -11,6 +11,7 @@ import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
+import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.SimilarAnchor
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +33,10 @@ class FakeCardsRepository : CardsRepository {
     var semanticError: Exception? = null
     var linkTargets: List<CardLinkTarget> = emptyList()
     var backlinks = CardBacklinks()
+    /** Cards the `[[` picker can find; a query matches a title containing it. */
+    var linkableCards: List<LinkedCard> = emptyList()
+    val linkSuggestionQueries = mutableListOf<String>()
+    var linkSuggestionError: Exception? = null
     var hiddenCards = false
 
     override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> {
@@ -117,6 +122,13 @@ class FakeCardsRepository : CardsRepository {
     }
 
     override fun backlinks(id: String): Flow<Result<CardBacklinks>> = flowOf(Result.success(backlinks))
+
+    override fun linkSuggestions(query: String, excludeCardId: String): Flow<Result<List<LinkedCard>>> {
+        linkSuggestionQueries += query
+        val error = linkSuggestionError
+        if (error != null) return flowOf(Result.failure(error))
+        return flowOf(Result.success(linkableCards.filter { it.id != excludeCardId && it.title.contains(query, ignoreCase = true) }))
+    }
 
     override fun similarAnchor(id: String): Flow<Result<SimilarAnchor>> =
         cards.map { Result.success(it[id]?.let { card -> SimilarAnchor("ok", card.content) } ?: SimilarAnchor("unavailable")) }

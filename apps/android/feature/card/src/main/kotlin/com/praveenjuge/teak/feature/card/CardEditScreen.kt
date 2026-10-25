@@ -57,12 +57,15 @@ import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardEditDraft
 import com.praveenjuge.teak.core.model.CardType
+import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.UiText
 
 internal class CardEditCallbacks(
     val onClose: () -> Unit,
     val onSave: () -> Unit,
-    val onContentChange: (String) -> Unit,
+    val onContentChange: (String, Int) -> Unit,
+    val onPickLink: (LinkedCard) -> Unit,
+    val onDismissLinkPicker: () -> Unit,
     val onNotesChange: (String) -> Unit,
     val onNewTagChange: (String) -> Unit,
     val onAddTag: () -> Unit,
@@ -110,6 +113,8 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
                     draft = draft,
                     newTag = state.newTag,
                     hiddenHint = state.hiddenHint,
+                    linkPicker = state.linkPicker,
+                    contentCursor = state.contentCursor,
                     showAiTags = card.aiTags.orEmpty().isNotEmpty(),
                     callbacks = callbacks,
                 )
@@ -145,6 +150,8 @@ private fun EditForm(
     draft: CardEditDraft,
     newTag: String,
     hiddenHint: UiText?,
+    linkPicker: LinkPickerState?,
+    contentCursor: Int?,
     showAiTags: Boolean,
     callbacks: CardEditCallbacks,
 ) {
@@ -159,15 +166,14 @@ private fun EditForm(
     ) {
         val content = draft.editableContent
         if (content != null) {
-            val isQuote = type == CardType.Quote
-            OutlinedTextField(
-                value = content,
-                onValueChange = callbacks.onContentChange,
-                label = { Text(if (isQuote) tr("cards.types.quote") else tr("native.card.note")) },
-                placeholder = { Text(if (isQuote) tr("native.card.edit.quotePlaceholder") else tr("native.card.edit.notePlaceholder")) },
-                minLines = 4,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth(),
+            ContentField(
+                content = content,
+                cursor = contentCursor,
+                isQuote = type == CardType.Quote,
+                picker = linkPicker,
+                onChange = callbacks.onContentChange,
+                onPick = callbacks.onPickLink,
+                onDismissPicker = callbacks.onDismissLinkPicker,
             )
         }
         OutlinedTextField(

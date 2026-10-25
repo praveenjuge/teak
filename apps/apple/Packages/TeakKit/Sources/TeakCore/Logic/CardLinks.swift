@@ -204,3 +204,65 @@ public enum CardLinks {
         return lines.joined(separator: "\n")
     }
 }
+
+// MARK: - The `[[` picker
+
+extension CardLinks {
+    /// A `[[` the person is typing a card's name after: `[[` starts at
+    /// `start`, the cursor is at `end` (UTF-16 offsets), and `query` is the
+    /// text between them, trimmed.
+    public struct OpenQuery: Hashable, Sendable {
+        public let start: Int
+        public let end: Int
+        public let query: String
+
+        public init(start: Int, end: Int, query: String) {
+            self.start = start
+            self.end = end
+            self.query = query
+        }
+    }
+
+    /// The `[[` the cursor is typing after, on the same line, or nil. A link
+    /// can't start inside code, a table row or another link, and the text
+    /// after `[[` can't hold the `]` or `|` a token is made of.
+    public static func openQuery(in text: String, cursor: Int) -> OpenQuery? {
+        let units = Array(text.utf16)
+        guard cursor >= 2, cursor <= units.count else { return nil }
+        let unit = { (character: Unicode.Scalar) in UInt16(UInt8(ascii: character)) }
+        let newline = unit("\n"), bracket = unit("["), close = unit("]"), pipe = unit("|")
+        let lineStart = units[..<cursor].lastIndex(of: newline).map { $0 + 1 } ?? 0
+        var start: Int?
+        var index = cursor - 2
+        while index >= lineStart {
+            if units[index] == bracket, units[index + 1] == bracket {
+                start = index
+                break
+            }
+            index -= 1
+        }
+        guard let start else { return nil }
+        let typed = units[(start + 2)..<cursor]
+        guard typed.count <= titleMaxLength, !typed.contains(close), !typed.contains(pipe) else { return nil }
+        let line = String(decoding: units[lineStart...].prefix { $0 != newline }, as: UTF16.self)
+        guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("|") else { return nil }
+        let masked = Array(maskCode(text).utf16)
+        guard masked[start] == bracket, masked[start + 1] == bracket else { return nil }
+        guard !matches(text).contains(where: { $0.start < cursor && cursor < $0.end }) else { return nil }
+        let query = String(decoding: typed, as: UTF16.self).trimmingCharacters(in: .whitespaces)
+        return OpenQuery(start: start, end: cursor, query: query)
+    }
+
+    /// `text` with the typed `[[query` replaced by a link to the card, then a
+    /// space unless whitespace follows already, and the cursor (a UTF-16
+    /// offset) just after them.
+    public static func insertingLink(in text: String, replacing open: OpenQuery, title: String, id: String)
+        -> (text: String, cursor: Int) {
+        let source = text as NSString
+        let token = formatToken(title: title, id: id)
+        let after = source.substring(from: open.end)
+        let spacer = after.first?.isWhitespace == true ? "" : " "
+        let inserted = token + spacer
+        return (source.substring(to: open.start) + inserted + after, open.start + inserted.utf16.count)
+    }
+}

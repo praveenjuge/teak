@@ -19,6 +19,7 @@ public enum ConvexFunctions {
     public static let reprocessCard = ConvexFunction<ReprocessResult>("cards:reprocessCard")
     public static let getCardLinkTargets = ConvexFunction<[CardLinkTarget]>("cards:getCardLinkTargets")
     public static let getCardBacklinks = ConvexFunction<CardBacklinks>("cards:getCardBacklinks")
+    public static let searchCardLinkSuggestions = ConvexFunction<[LinkedCard]>("cards:searchCardLinkSuggestions")
     public static let viewHasHiddenCards = ConvexFunction<Bool>("cards:viewHasHiddenCards")
     public static let requestSemanticResults = ConvexFunction<SemanticResult>("search/semanticActions:requestSemanticResults")
     public static let listFolders = ConvexFunction<[Folder]>("folders:listFolders")
