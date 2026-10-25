@@ -286,3 +286,47 @@ private func day(_ milliseconds: Double) -> String {
         }
     }
 }
+
+@Suite(.english) struct FolderChoiceTests {
+    private let reading = Folder(id: "f1", name: "Reading list")
+    private let recipes = Folder(id: "f2", name: "Recipes")
+    private let links = Folder(id: "f3", name: "Links", kind: .smart, query: "type:link")
+
+    @Test func offersOnlyManualFoldersInTheServersOrder() {
+        #expect(FolderChoice.choosable([recipes, links, reading]).map(\.id) == ["f2", "f1"])
+    }
+
+    @Test func showsSearchOnlyWhenThereAreMoreThanEightManualFolders() {
+        let eight = (1...8).map { Folder(id: "m\($0)", name: "Folder \($0)") }
+        #expect(!FolderChoice.showsSearch(eight))
+        #expect(!FolderChoice.showsSearch(eight + [links]))
+        #expect(FolderChoice.showsSearch(eight + [reading]))
+    }
+
+    @Test func matchesNamesIgnoringCaseAndSpaces() {
+        let folders = [reading, recipes, links]
+        #expect(FolderChoice.matching(folders, query: "  ").map(\.id) == ["f1", "f2"])
+        #expect(FolderChoice.matching(folders, query: " READ ").map(\.id) == ["f1"])
+        #expect(FolderChoice.matching(folders, query: "link").isEmpty)
+    }
+
+    @Test func togglingAddsThenRemovesAFolder() {
+        let picked = FolderChoice.toggling("f2", in: ["f1"])
+        #expect(picked == ["f1", "f2"])
+        #expect(FolderChoice.toggling("f1", in: picked) == ["f2"])
+    }
+
+    @Test func oneCardSendsItsWholeListOfFolders() {
+        #expect(FolderChoice.change(selected: ["f1", "f2"], saved: [], cardCount: 1) == .set(["f1", "f2"]))
+        #expect(FolderChoice.change(selected: [], saved: ["f1"], cardCount: 1) == .set([]))
+        #expect(FolderChoice.change(selected: ["f2", "f1"], saved: ["f1", "f2"], cardCount: 1) == .none)
+    }
+
+    @Test func severalCardsAddAndRemoveOnlyWhatChanged() {
+        #expect(FolderChoice.change(selected: ["f1", "f2"], saved: [], cardCount: 3) == .update(add: ["f1", "f2"], remove: []))
+        #expect(FolderChoice.change(selected: ["f2", "f3"], saved: ["f1", "f2"], cardCount: 3)
+            == .update(add: ["f3"], remove: ["f1"]))
+        #expect(FolderChoice.change(selected: ["f1"], saved: ["f1"], cardCount: 3) == .none)
+        #expect(FolderChoice.change(selected: ["f1"], saved: [], cardCount: 0) == .none)
+    }
+}
