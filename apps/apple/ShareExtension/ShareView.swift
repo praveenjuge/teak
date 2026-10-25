@@ -56,7 +56,7 @@ final class ShareModel {
     }
 
     /// Puts the saved cards in the picked folders, and takes them out of ones unpicked since.
-    /// One card gets its whole list; several cards are added to, or removed from, each changed folder.
+    /// The cards are added to, or removed from, each folder the choice changed; other folders stay.
     func saveFolders() async -> Bool {
         let cardIds = savedCardIds
         guard let convex else { return true }
@@ -69,11 +69,6 @@ final class ShareModel {
             switch change {
             case .none:
                 break
-            case let .set(folderIds):
-                let _: [String] = try await convex.mutation(ConvexFunctions.setCardFolders, [
-                    "cardId": .string(cardIds[0]), "folderIds": .array(folderIds.map(ConvexValue.string)),
-                ])
-                savedFolderIds = folderIds
             case let .update(add, remove):
                 let cards = ConvexValue.array(cardIds.map(ConvexValue.string))
                 for folderId in add {
