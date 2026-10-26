@@ -3,10 +3,10 @@ import TeakCore
 
 /// Opens a card in Teak. Spotlight runs this when you pick a card there.
 struct OpenCardIntent: OpenIntent {
-    static let title = LocalizedStringResource("apple.intents.openCardTitle", table: "AppIntents")
-    static let description = IntentDescription(LocalizedStringResource("apple.intents.openCardDescription", table: "AppIntents"))
+    static let title = LocalizedStringResource("intents.openCardTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.openCardDescription", table: "AppIntents"))
 
-    @Parameter(title: LocalizedStringResource("apple.intents.cardParameter", table: "AppIntents"))
+    @Parameter(title: LocalizedStringResource("intents.cardParameter", table: "AppIntents"))
     var target: CardEntity
 
     static var parameterSummary: some ParameterSummary {

@@ -7,16 +7,16 @@ import UniformTypeIdentifiers
 /// entity, so a Spotlight result and a card in a shortcut are one thing.
 struct CardEntity: IndexedEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(
-        name: LocalizedStringResource("apple.intents.cardEntity", table: "AppIntents"))
+        name: LocalizedStringResource("intents.cardEntity", table: "AppIntents"))
     static let defaultQuery = CardEntityQuery()
 
     let id: String
     let card: IndexedCard
 
-    @Property(title: LocalizedStringResource("apple.intents.titleProperty", table: "AppIntents"))
+    @Property(title: LocalizedStringResource("intents.titleProperty", table: "AppIntents"))
     var title: String
 
-    @Property(title: LocalizedStringResource("apple.intents.linkProperty", table: "AppIntents"))
+    @Property(title: LocalizedStringResource("intents.linkProperty", table: "AppIntents"))
     var link: URL?
 
     init(_ card: IndexedCard) {

@@ -10,8 +10,8 @@ import TeakCore
 
 /// Opens Teak on a new note.
 struct NewNoteIntent: AppIntent {
-    static let title = LocalizedStringResource("apple.intents.newNoteTitle", table: "AppIntents")
-    static let description = IntentDescription(LocalizedStringResource("apple.intents.newNoteDescription", table: "AppIntents"))
+    static let title = LocalizedStringResource("intents.newNoteTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.newNoteDescription", table: "AppIntents"))
     static let supportedModes: IntentModes = .foreground
 
     @MainActor
@@ -23,8 +23,8 @@ struct NewNoteIntent: AppIntent {
 
 /// Opens Teak on the voice memo recorder.
 struct RecordVoiceMemoIntent: AppIntent {
-    static let title = LocalizedStringResource("apple.intents.recordVoiceMemoTitle", table: "AppIntents")
-    static let description = IntentDescription(LocalizedStringResource("apple.intents.recordVoiceMemoDescription", table: "AppIntents"))
+    static let title = LocalizedStringResource("intents.recordVoiceMemoTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.recordVoiceMemoDescription", table: "AppIntents"))
     static let supportedModes: IntentModes = .foreground
 
     @MainActor
