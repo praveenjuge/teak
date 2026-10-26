@@ -1,11 +1,11 @@
 import { lookup } from "node:dns/promises";
-import { Agent } from "undici";
-import type {
-  DnsResolver,
-  PinnedFetch,
+import {
+  type DnsResolver,
+  detectIpVersion,
+  type PinnedFetch,
 } from "../../../../packages/convex/linkMetadata/ssrf";
 
-export const nodeDnsResolver: DnsResolver = async (hostname) => {
+export const systemDnsResolver: DnsResolver = async (hostname) => {
   const records = await lookup(hostname, { all: true, verbatim: true });
   return records.map((record) => record.address);
 };
@@ -25,61 +25,103 @@ export const orderPinnedAddresses = (
     }))
     .sort((left, right) => left.family - right.family);
 
-const addressForFamily = (
-  addresses: PinnedAddress[],
-  family: number | undefined
-) =>
-  family === 4 || family === 6
-    ? addresses.find((address) => address.family === family)
-    : addresses[0];
+/** One connection attempt: where to connect, and the origin it speaks for. */
+export interface PinnedAttempt {
+  /** The original host (with any non-default port), sent as `Host`. */
+  host: string;
+  /** The original hostname, for TLS SNI and the certificate check. */
+  serverName?: string;
+  /** The URL with its host replaced by the address to connect to. */
+  target: string;
+}
 
-export const pinnedFetch: PinnedFetch = async (
-  url,
-  validatedAddresses,
-  init
-) => {
-  const addresses = orderPinnedAddresses(validatedAddresses);
-  const dispatcher = new Agent({
-    connect: {
-      autoSelectFamily:
-        addresses.some((address) => address.family === 4) &&
-        addresses.some((address) => address.family === 6),
-      autoSelectFamilyAttemptTimeout: 250,
-      lookup(_hostname, options, callback) {
-        const family = typeof options.family === "number" ? options.family : 0;
-        const compatibleAddresses = family
-          ? addresses.filter((address) => address.family === family)
-          : addresses;
-        if (options.all) {
-          callback(null, compatibleAddresses);
-          return;
-        }
-        const selected = addressForFamily(addresses, family);
-        if (!selected) {
-          callback(new Error("Validated address set is empty"), "", 0);
-          return;
-        }
-        callback(null, selected.address, selected.family);
-      },
-    },
-    keepAliveMaxTimeout: 1,
-    keepAliveTimeout: 1,
+/**
+ * The connections a request may make: one per validated address, IPv4 first.
+ * A URL whose host is already an IP literal connects to that literal, which
+ * the policy checked, and needs no SNI.
+ */
+export const pinnedAttempts = (
+  url: string,
+  validatedAddresses: string[]
+): PinnedAttempt[] => {
+  const parsed = new URL(url);
+  parsed.hash = "";
+  const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
+  if (detectIpVersion(hostname) !== 0) {
+    return [{ host: parsed.host, target: parsed.href }];
+  }
+  const tls = parsed.protocol === "https:";
+  return orderPinnedAddresses(validatedAddresses).map(({ address, family }) => {
+    const target = new URL(parsed);
+    target.hostname = family === 6 ? `[${address}]` : address;
+    return {
+      host: parsed.host,
+      target: target.href,
+      ...(tls ? { serverName: hostname } : {}),
+    };
   });
-  const closeDispatcher = () => {
-    const close = (dispatcher as Agent & { close?: () => Promise<void> }).close;
-    return typeof close === "function"
-      ? close.call(dispatcher)
-      : Promise.resolve();
+};
+
+/** Bun's `fetch` options this module relies on (Bun 1.4.3+). */
+type BunPinnedInit = RequestInit & {
+  proxy: false;
+  tls: { ca?: string; rejectUnauthorized: true; serverName?: string };
+};
+
+const IDEMPOTENT_METHODS = new Set(["GET", "HEAD"]);
+
+export interface PinnedFetchOptions {
+  /** Trusted roots, for tests only; production uses Bun's default roots. */
+  ca?: string;
+}
+
+/**
+ * Bun's fetch connects to the address in the URL and never resolves `Host`
+ * or `tls.serverName`, so putting a checked address in the URL pins the
+ * connection while the request and certificate still name the original
+ * host. Each address is tried in turn while a GET or HEAD fails before a
+ * response.
+ */
+export const createPinnedFetch =
+  ({ ca }: PinnedFetchOptions = {}): PinnedFetch =>
+  async (url, validatedAddresses, init) => {
+    const attempts = pinnedAttempts(url, validatedAddresses);
+    if (attempts.length === 0) {
+      throw new Error("Validated address set is empty");
+    }
+    const method = (init.method ?? "GET").toUpperCase();
+    const tries = IDEMPOTENT_METHODS.has(method)
+      ? attempts
+      : attempts.slice(0, 1);
+    let lastError: unknown;
+    for (const attempt of tries) {
+      const headers = new Headers(init.headers);
+      headers.set("host", attempt.host);
+      const pinnedInit: BunPinnedInit = {
+        ...init,
+        headers,
+        // Every connection is new and closes after its response, as with
+        // the per-request Undici Agent this replaced.
+        keepalive: false,
+        // A proxy would resolve the name itself; never use one.
+        proxy: false,
+        tls: {
+          ...(ca ? { ca } : {}),
+          // Overrides NODE_TLS_REJECT_UNAUTHORIZED.
+          rejectUnauthorized: true,
+          ...(attempt.serverName ? { serverName: attempt.serverName } : {}),
+        },
+      };
+      try {
+        return await fetch(attempt.target, pinnedInit);
+      } catch (error) {
+        if (init.signal?.aborted) {
+          throw error;
+        }
+        lastError = error;
+      }
+    }
+    throw lastError;
   };
 
-  try {
-    const response = await fetch(url, { ...init, dispatcher } as RequestInit);
-    // close() is graceful: it stops new work immediately and resolves after
-    // the response body has finished, so callers can still stream the body.
-    void closeDispatcher().catch(() => undefined);
-    return response;
-  } catch (error) {
-    await closeDispatcher();
-    throw error;
-  }
-};
+export const pinnedFetch: PinnedFetch = createPinnedFetch();

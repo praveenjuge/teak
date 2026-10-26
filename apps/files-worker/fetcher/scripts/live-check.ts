@@ -262,19 +262,20 @@ const check = async (group: string, raw: string): Promise<Checked> => {
 };
 
 const startFetcher = async (): Promise<ChildProcess> => {
-  const out = join(mkdtempSync(join(tmpdir(), "teak-fetcher-")), "fetcher.mjs");
+  // Compiled as the image does, so the check runs what the Container runs.
+  const out = join(mkdtempSync(join(tmpdir(), "teak-fetcher-")), "fetcher");
   const build = Bun.spawnSync([
     "bun",
     "build",
     join(import.meta.dir, "../src/server.ts"),
-    "--target=node",
+    "--compile",
     "--outfile",
     out,
   ]);
   if (build.exitCode !== 0) {
     throw new Error(build.stderr.toString());
   }
-  const server = spawn("node", [out], {
+  const server = spawn(out, [], {
     env: { ...process.env, PORT: String(PORT) },
     stdio: "inherit",
   });

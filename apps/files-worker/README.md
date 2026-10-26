@@ -442,19 +442,24 @@ pass through Convex. Convex names the URL, the kind (`image` or `video`) and the
 destination key; the Worker forwards the download to the link fetcher
 Container (`LINK_FETCHER`, `src/media/remoteAsset.ts`) and writes what comes back.
 
-The fetcher (`fetcher/`) is the only Container with internet access. It runs
-Node, because the policy depends on a pinned connection that the Workers
-runtime cannot make: the [Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
-implements neither `lookup` nor `createConnection`, `resolveOverride` only
-reaches hosts in the zone, and Undici's Agent fails in workerd
-(`ERR_OPTION_NOT_IMPLEMENTED` for `ALPNProtocols`). Inside the Container the
-SSRF guard Convex used runs unchanged, bundled by path rather than copied:
+The fetcher (`fetcher/`) is the only Container with internet access. It is a
+Bun binary (compiled like the renderer), not a Worker, because the policy
+depends on a pinned connection that the Workers runtime cannot make: the
+[Workers HTTP API](https://developers.cloudflare.com/workers/runtime-apis/nodejs/http/)
+implements neither `lookup` nor `createConnection`, and `resolveOverride` only
+reaches hosts in the zone. Inside the Container the SSRF guard Convex used
+runs unchanged, bundled by path rather than copied:
 
 - `packages/convex/linkMetadata/ssrf.ts`: http(s) only, standard ports, no
   credentials, every resolved address public, every redirect hop rechecked;
 - `fetcher/src/pinnedFetch.ts`: the connection goes to the addresses that
   were checked, so DNS rebinding between the check and the connection cannot
-  redirect it;
+  redirect it. Bun's `fetch` (1.4.3 and later) is given the checked address in
+  the URL and the original host in `Host` and `tls.serverName`, so it sends
+  SNI for that host and verifies the certificate against it, and never
+  resolves the name itself. It ignores the proxy environment and
+  `NODE_TLS_REJECT_UNAUTHORIZED`, opens a new connection per request, and
+  tries the next checked address when a GET or HEAD fails before a response;
 - `fetcher/src/remoteImageDimensions.ts`: images must have readable
   dimensions within the pixel cap.
 
