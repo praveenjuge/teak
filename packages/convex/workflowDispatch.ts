@@ -86,7 +86,33 @@ export const MAX_DISPATCH_ATTEMPTS = 20;
 export const DEAD_LETTER_RETRY_MS = 24 * 60 * 60 * 1000;
 const FLUSH_BATCH = MAX_DISPATCH_ITEMS;
 
+// Every save schedules its own flush, so under parallel saves many flushes
+// call claim at the same moment and conflict with each other on the due
+// range. Convex retries those conflicts internally; the guards below keep
+// that cheap: a small jitter spreads claim starts out, claim reads only a
+// small page per mutation so conflicting transactions stay short, and a
+// flush whose claim still exhausts Convex's retries reschedules itself with
+// backoff instead of dying. Rows that somehow stay pending past
+// PENDING_STALL_MS are re-armed by the hourly workflowDispatchWatchdog cron,
+// so a failed flush never strands work silently.
+export const FLUSH_JITTER_MS = 1500;
+export const CLAIM_PAGE = 16;
+const MAX_CLAIM_RETRY_ATTEMPTS = 8;
+
+export const claimRetryDelayMs = (attempt: number): number | null =>
+  attempt >= MAX_CLAIM_RETRY_ATTEMPTS
+    ? null
+    : Math.min(60_000, 1000 * 2 ** Math.max(0, attempt));
+
 const flushScheduled = new WeakSet<object>();
+
+// crypto.getRandomValues instead of Math.random: static analysis flags
+// Math.random as a weak RNG even for scheduling jitter.
+const randomBelow = (bound: number): number => {
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  return (buffer[0] ?? 0) % bound;
+};
 
 const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   if (delayMs === 0 && flushScheduled.has(ctx.db)) {
@@ -95,7 +121,12 @@ const scheduleFlush = async (ctx: MutationCtx, delayMs = 0) => {
   if (delayMs === 0) {
     flushScheduled.add(ctx.db);
   }
-  await ctx.scheduler.runAfter(delayMs, internal.workflowDispatch.flush, {});
+  const jitter = delayMs === 0 ? randomBelow(FLUSH_JITTER_MS) : 0;
+  await ctx.scheduler.runAfter(
+    delayMs + jitter,
+    internal.workflowDispatch.flush,
+    {}
+  );
 };
 
 const insertDispatch = async (
@@ -116,8 +147,10 @@ const insertDispatch = async (
   // Every row schedules its own flush rather than checking whether one is
   // already coming: that check read the due range every concurrent save
   // writes into, so parallel saves conflicted on it until one exhausted its
-  // OCC retries and the request failed. A duplicate flush claims nothing and
-  // exits, which is cheap next to a failed save.
+  // OCC retries and the request failed. Duplicate flushes instead conflict
+  // with each other in claim, and the jitter in scheduleFlush, claim's small
+  // page and the flush's own claim retry keep those conflicts cheap next to
+  // a failed save.
   await scheduleFlush(ctx, delayMs);
   return id;
 };
@@ -509,9 +542,9 @@ export const signDispatch = async (
 };
 
 export const flush = internalAction({
-  args: {},
+  args: { claimRetry: v.optional(v.number()) },
   returns: v.null(),
-  handler: async (ctx) => {
+  handler: async (ctx, { claimRetry = 0 }) => {
     // Convex sets CONVEX_SITE_URL for every deployment; workflows call it back.
     const convexSiteUrl = normalizeConvexSiteUrl(env.CONVEX_SITE_URL);
     const secret = env.WORKFLOW_RPC_SECRET;
@@ -535,10 +568,38 @@ export const flush = internalAction({
       return null;
     }
     for (let round = 0; round < 10; round += 1) {
-      const claimed: ClaimedItem[] = await ctx.runMutation(
-        internal.workflowDispatch.claim,
-        { limit: FLUSH_BATCH }
-      );
+      let claimed: ClaimedItem[];
+      try {
+        // A small page keeps each claim mutation short: parallel flushes
+        // conflict on the same due rows, and short conflicting transactions
+        // are what Convex's internal retries recover from reliably.
+        claimed = await ctx.runMutation(internal.workflowDispatch.claim, {
+          limit: CLAIM_PAGE,
+        });
+      } catch (caught) {
+        // Parallel flushes conflict with each other in claim. Convex retries
+        // the mutation, but a claim that still exhausts those retries must
+        // not kill the flush: the rows stay pending and would wait for the
+        // next save. Back off and re-run instead; after a run of failures,
+        // report and stop - the hourly watchdog re-arms a flush once rows
+        // pass PENDING_STALL_MS, so stopping here strands nothing.
+        const delay = claimRetryDelayMs(claimRetry);
+        if (delay === null) {
+          await captureBackendException(
+            caught instanceof Error ? caught : new Error(String(caught)),
+            {
+              properties: {
+                source: "workflow_dispatch_claim_retry_exhausted",
+              },
+            }
+          );
+          return null;
+        }
+        await ctx.scheduler.runAfter(delay, internal.workflowDispatch.flush, {
+          claimRetry: claimRetry + 1,
+        });
+        return null;
+      }
       if (claimed.length === 0) {
         return null;
       }

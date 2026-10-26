@@ -112,7 +112,11 @@ describe("pasting a list of links", () => {
       omittedOverLimit: 0,
       omittedRepeats: 0,
     });
-    expect((await job(jobId)).finishedAt).toBe(NOW);
+    // Background completion lands when the jittered flush chain drains, so
+    // it is no longer exactly NOW - it must still finish promptly.
+    const finishedAt = (await job(jobId)).finishedAt ?? -1;
+    expect(finishedAt).toBeGreaterThanOrEqual(NOW);
+    expect(finishedAt).toBeLessThanOrEqual(NOW + 10_000);
     const cards = await liveCards();
     expect(cards.map((card) => card.url).sort()).toEqual([...urls].sort());
     expect(cards.every((card) => card.type === "link")).toBe(true);
