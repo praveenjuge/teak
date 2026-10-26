@@ -30,4 +30,4 @@ The web app owns all of its UI; nothing under `src` is shared with another works
 | `styles/` | `theme.css` (design tokens and app-wide CSS), `typeset.css` (prose) and the SN Pro fonts that `app/layout.tsx` loads. `app/globals.css` imports them. |
 
 - Import with the `@/` alias when you leave a feature folder; relative imports are for files in the same folder or its `__tests__`.
-- Tests live in a `__tests__` folder beside the code they cover. `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. `bun run test` runs each file in its own Bun process, because tests register happy-dom and module mocks globally.
+- Tests live in a `__tests__` folder beside the code they cover. `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. `bun run test` runs the files with `bun test --parallel`, which gives each file a fresh global and module registry, because tests register happy-dom and module mocks globally.

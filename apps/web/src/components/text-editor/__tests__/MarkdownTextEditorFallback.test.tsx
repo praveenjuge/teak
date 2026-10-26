@@ -5,6 +5,13 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+// Keep the rich editor loading for good, so every test sees the stand-in
+// rather than racing the import of the real editor.
+mock.module("../LoadedMarkdownTextEditor", () => ({
+  default: () => {
+    throw new Promise(() => undefined);
+  },
+}));
 const { act, useState } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { MarkdownTextEditor } = await import("../MarkdownTextEditor");
