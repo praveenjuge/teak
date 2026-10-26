@@ -11,7 +11,9 @@ import {
   query,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
+import { isOptimisticConcurrencyError } from "../publicApi/http/shared";
 import { getSessionUser, requireTeakUserId } from "../securitySessions";
+import { captureBackendException } from "../telemetry/posthog";
 
 export const TAG_SUMMARY_DEBOUNCE_MS = 15_000;
 const TAG_SUMMARY_STALE_MS = 5 * 60_000;
@@ -19,6 +21,13 @@ export const TAG_SUMMARY_PAGE_ROWS = 4000;
 export const TAG_SUMMARY_MAX_PAGES = 60;
 export const MAX_TAG_SUMMARY_ITEMS = 3000;
 export const TAG_COUNT_FOLD_ROWS = 1000;
+export const TAG_SUMMARY_RETRY_MAX_ATTEMPTS = 8;
+
+/** Backoff for a failed tag-summary recompute: 5s doubling, capped at 2 minutes. */
+export const tagSummaryRetryDelayMs = (attempt: number): number | null =>
+  attempt >= TAG_SUMMARY_RETRY_MAX_ATTEMPTS
+    ? null
+    : Math.min(5000 * 2 ** attempt, 120_000);
 
 export const tagSummaryItemValidator = v.object({
   name: v.string(),
@@ -35,6 +44,22 @@ interface TagCount {
   count: number;
   name: string;
 }
+
+/**
+ * A finished account deletion removes its `accountDeletionStates` row and
+ * leaves only `users.deletedAt`, so a delayed recompute checks both before it
+ * writes anything back for the user.
+ */
+const accountClosedOrClosing = async (ctx: QueryCtx, userId: string) => {
+  if (await getAccountDeletionState(ctx, userId)) {
+    return true;
+  }
+  const owner = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
+    .unique();
+  return owner?.deletedAt !== undefined;
+};
 
 const pendingRefresh = (ctx: QueryCtx, userId: string) =>
   ctx.db
@@ -243,7 +268,7 @@ export const writeTagSummary = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { userId, items, isComplete, claimedAt }) => {
-    if (await getAccountDeletionState(ctx, userId)) {
+    if (await accountClosedOrClosing(ctx, userId)) {
       return null;
     }
     const value = { userId, items, isComplete, computedAt: claimedAt };
@@ -263,56 +288,114 @@ export const writeTagSummary = internalMutation({
   },
 });
 
-export const recomputeTagSummary = internalAction({
+/** Re-marks the summary dirty after a failed recompute gave up retrying. */
+export const rearmTagSummaryRefresh = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
   handler: async (ctx, { userId }) => {
-    const claimedAt: number | null = await ctx.runMutation(
-      internal.tag.tagSummary.claimTagSummaryRefresh,
-      { userId }
-    );
-    if (claimedAt === null) {
+    if (await accountClosedOrClosing(ctx, userId)) {
       return null;
     }
-    let folded = false;
-    for (let round = 0; !folded && round < TAG_SUMMARY_MAX_PAGES; round += 1) {
-      folded = await ctx.runMutation(
-        internal.tag.tagSummary.foldTagCountDeltas,
+    await markTagSummaryDirty(ctx, userId);
+    return null;
+  },
+});
+
+export const recomputeTagSummary = internalAction({
+  args: {
+    userId: v.string(),
+    claimedAt: v.optional(v.number()),
+    attempt: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, { userId, claimedAt, attempt }) => {
+    // A retry carries the original claim through claimedAt, so only the first
+    // attempt consumes the pending refresh.
+    let claimed: number | null = claimedAt ?? null;
+    if (claimed === null) {
+      claimed = await ctx.runMutation(
+        internal.tag.tagSummary.claimTagSummaryRefresh,
         { userId }
       );
-    }
-    // The full recount of `cardSearchTags` stays as the repair path for
-    // tag rows that are not counted yet.
-    const pageQuery =
-      folded && (await ctx.runQuery(internal.tag.tagSummary.tagCountsReady, {}))
-        ? internal.tag.tagSummary.countTagCountsPage
-        : internal.tag.tagSummary.countTagSummaryPage;
-    const totals = new Map<string, number>();
-    let cursor: string | null = null;
-    let isDone = false;
-    let pages = 0;
-    while (!isDone && pages < TAG_SUMMARY_MAX_PAGES) {
-      const page: {
-        counts: TagCount[];
-        continueCursor: string | null;
-      } = await ctx.runQuery(pageQuery, { userId, cursor });
-      for (const { name, count } of page.counts) {
-        totals.set(name, (totals.get(name) ?? 0) + count);
+      if (claimed === null) {
+        return null;
       }
-      cursor = page.continueCursor;
-      isDone = cursor === null;
-      pages += 1;
     }
-    const items = sortTagCounts(
-      Array.from(totals, ([name, count]) => ({ name, count }))
-    );
-    await ctx.runMutation(internal.tag.tagSummary.writeTagSummary, {
-      userId,
-      items: items.slice(0, MAX_TAG_SUMMARY_ITEMS),
-      isComplete: isDone && items.length <= MAX_TAG_SUMMARY_ITEMS,
-      claimedAt,
-    });
-    return null;
+    try {
+      let folded = false;
+      for (
+        let round = 0;
+        !folded && round < TAG_SUMMARY_MAX_PAGES;
+        round += 1
+      ) {
+        folded = await ctx.runMutation(
+          internal.tag.tagSummary.foldTagCountDeltas,
+          { userId }
+        );
+      }
+      // The full recount of `cardSearchTags` stays as the repair path for
+      // tag rows that are not counted yet.
+      const pageQuery =
+        folded &&
+        (await ctx.runQuery(internal.tag.tagSummary.tagCountsReady, {}))
+          ? internal.tag.tagSummary.countTagCountsPage
+          : internal.tag.tagSummary.countTagSummaryPage;
+      const totals = new Map<string, number>();
+      let cursor: string | null = null;
+      let isDone = false;
+      let pages = 0;
+      while (!isDone && pages < TAG_SUMMARY_MAX_PAGES) {
+        const page: {
+          counts: TagCount[];
+          continueCursor: string | null;
+        } = await ctx.runQuery(pageQuery, { userId, cursor });
+        for (const { name, count } of page.counts) {
+          totals.set(name, (totals.get(name) ?? 0) + count);
+        }
+        cursor = page.continueCursor;
+        isDone = cursor === null;
+        pages += 1;
+      }
+      const items = sortTagCounts(
+        Array.from(totals, ([name, count]) => ({ name, count }))
+      );
+      await ctx.runMutation(internal.tag.tagSummary.writeTagSummary, {
+        userId,
+        items: items.slice(0, MAX_TAG_SUMMARY_ITEMS),
+        isComplete: isDone && items.length <= MAX_TAG_SUMMARY_ITEMS,
+        claimedAt: claimed,
+      });
+      return null;
+    } catch (caught) {
+      // foldTagCountDeltas conflicts with syncCardSearchTagsBatch inserts into
+      // the same tagCountDeltas range; Convex retries the mutation, but a fold
+      // that still fails permanently must not strand the summary - the pending
+      // refresh is already consumed by the claim. Back off and re-run; after
+      // the cap, report and re-arm the refresh through the normal debounce so
+      // it recomputes even if no new edits arrive. Only write conflicts are
+      // transient: any other error would fail the same way on every retry and
+      // every re-arm, so it fails once, as before.
+      if (!isOptimisticConcurrencyError(caught)) {
+        throw caught;
+      }
+      const delay = tagSummaryRetryDelayMs(attempt ?? 0);
+      if (delay === null) {
+        console.error("[tagSummary] recompute retry budget exhausted", caught);
+        await captureBackendException(caught, {
+          properties: { source: "tag_summary_recompute_retry_exhausted" },
+        });
+        await ctx.runMutation(internal.tag.tagSummary.rearmTagSummaryRefresh, {
+          userId,
+        });
+        return null;
+      }
+      await ctx.scheduler.runAfter(
+        delay,
+        internal.tag.tagSummary.recomputeTagSummary,
+        { userId, claimedAt: claimed, attempt: (attempt ?? 0) + 1 }
+      );
+      return null;
+    }
   },
 });
 
