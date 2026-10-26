@@ -7,7 +7,9 @@ type Handler = (event: { target: unknown }) => void;
 function runScript(cookie: string) {
   const handlers = new Map<string, Handler[]>();
   const preconnects: string[] = [];
-  const links = [{ href: `${WEB_APP_URL}/sign-up` }];
+  const links: { dataset?: Record<string, string>; href: string }[] = [
+    { href: `${WEB_APP_URL}/sign-up` },
+  ];
   const documentStub = {
     cookie,
     documentElement: { dataset: {} as Record<string, string> },
@@ -43,6 +45,19 @@ describe("teakvault.com app entry", () => {
     });
     page.fire("DOMContentLoaded", null);
     expect(page.links).toEqual([{ href: `${WEB_APP_URL}/` }]);
+  });
+
+  test("sends a signed-in visitor to the page a link names", () => {
+    const page = runScript("teak_session_hint=1");
+    page.links.push({
+      href: `${WEB_APP_URL}/sign-up`,
+      dataset: { signedInHref: `${WEB_APP_URL}/settings/plan` },
+    });
+    page.fire("DOMContentLoaded", null);
+    expect(page.links.map((link) => link.href)).toEqual([
+      `${WEB_APP_URL}/`,
+      `${WEB_APP_URL}/settings/plan`,
+    ]);
   });
 
   test.each(["", "teak_session_hint=", "xteak_session_hint=1"])(

@@ -22,7 +22,8 @@ export const SIGN_IN_ORIGINS = [
  *
  * - Marks <html data-signed-in> for the header's own CSS, which hides
  *   `[data-signed-out-only]` or `[data-signed-in-only]`.
- * - Points sign-up and sign-in links (`a[data-app-entry]`) at the app itself.
+ * - Points sign-up and sign-in links (`a[data-app-entry]`) at the app itself,
+ *   or at the page a link names in `data-signed-in-href`.
  * - Opens connections to the sign-in hosts when a pointer or focus reaches
  *   one of those links, so the click doesn't wait on DNS and TLS.
  */
@@ -38,7 +39,7 @@ export function appEntryScript(
     document.documentElement.dataset.signedIn = "";
     document.addEventListener("DOMContentLoaded", () => {
       for (const link of document.querySelectorAll("a[data-app-entry]")) {
-        link.href = ${JSON.stringify(signedInUrl)};
+        link.href = link.dataset?.signedInHref || ${JSON.stringify(signedInUrl)};
       }
     });
   }

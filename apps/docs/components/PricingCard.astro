@@ -8,13 +8,17 @@ interface Price {
   period: string;
 }
 
+export type Feature = string | { href: string; text: string };
+
 interface Props {
   ctaHref: string;
   ctaPrimary?: boolean;
+  /** Where the button goes for a signed-in visitor; defaults to the app. */
+  ctaSignedInHref?: string;
   ctaText: string;
   emojiAlt: string;
   emojiSrc: string;
-  features: readonly string[];
+  features: readonly Feature[];
   name: string;
   popular?: boolean;
   price: string | { monthly: Price; yearly: Price };
@@ -31,9 +35,11 @@ const {
   ctaText,
   ctaHref,
   ctaPrimary = false,
+  ctaSignedInHref,
   popular = false,
 } = Astro.props;
 const isFixedPrice = typeof price === "string";
+const isExternal = (href: string) => href.startsWith("http");
 ---
 
 <div class:list={[
@@ -77,7 +83,18 @@ const isFixedPrice = typeof price === "string";
     {features.map((feature) => (
       <li class="flex items-start gap-3">
         <Icon class="mt-0.5 shrink-0 text-primary" name="check" size={16} />
-        <span>{feature}</span>
+        {typeof feature === "string" ? (
+          <span>{feature}</span>
+        ) : (
+          <a
+            class="feature-link"
+            href={feature.href}
+            rel={isExternal(feature.href) ? "noopener noreferrer" : undefined}
+            target={isExternal(feature.href) ? "_blank" : undefined}
+          >
+            {feature.text}
+          </a>
+        )}
       </li>
     ))}
   </ul>
@@ -90,15 +107,26 @@ const isFixedPrice = typeof price === "string";
         : "border bg-background hover:bg-accent hover:text-accent-foreground",
     ]}
     data-app-entry={ctaHref.startsWith(WEB_APP_URL) ? "" : undefined}
+    data-signed-in-href={ctaSignedInHref}
     href={ctaHref}
-    rel="noopener noreferrer"
-    target="_blank"
+    rel={isExternal(ctaHref) ? "noopener noreferrer" : undefined}
+    target={isExternal(ctaHref) ? "_blank" : undefined}
   >
     {ctaText}
   </a>
 </div>
 
 <style>
+  .feature-link {
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--foreground) 30%, transparent);
+    text-underline-offset: 3px;
+  }
+
+  .feature-link:hover {
+    text-decoration-color: currentColor;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .pricing-emoji {
       transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
