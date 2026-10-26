@@ -14,7 +14,7 @@ and release workflows are gone.
    generated `Teak.xcodeproj` with every other version source.
 2. Merge that scoped version change to `main`.
 3. `Version Tag` creates `v<version>` and dispatches this workflow with
-   `platforms=ios`. Release the Mac after App Review approves iOS (see
+   `platforms=ios`. The Mac follows on its own once iOS is live (see
    **Releasing the Mac** below).
 4. A `plan` job turns `platforms` (`ios`, `macos`, or `both`) into one build and
    one submit leg per platform: `IOS` covers iPhone and iPad, `MAC_OS` covers
@@ -89,7 +89,10 @@ pointer here when one is missing.
 iPhone, iPad and Mac share one app info. While one platform's version is in
 review there are two (live and in review), and `asc validate` stops with
 "app infos match". So each version ships iOS first, and the Mac once iOS is
-approved:
+live. `Apple Release Status` checks every six hours: when the version's iOS
+release is Ready for Distribution and it has no Mac version yet, it starts the
+Mac release from `main`, once per version. A failed Mac run reports to the
+release issue and isn't retried on its own; rerun it with:
 
 ```bash
 gh workflow run apple-release.yml --ref main -f version=<version> -f platforms=macos -f dry_run=false

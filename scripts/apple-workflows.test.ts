@@ -115,6 +115,26 @@ describe("Apple release workflows", () => {
     expect(status).toContain('--safari-store-version "$safari_store"');
   });
 
+  test("starts the Mac release once per version after iOS is live", () => {
+    const check = workflowStep(status, "Check every pending Apple release");
+    expect(status).toContain("  actions: write\n");
+    expect(check).toContain(
+      'apple-release-issue.mjs mac-due --ios-state "$ios_state" --safari-state "$safari_state"'
+    );
+    expect(check).toContain(
+      'if [ "$UPDATE_ISSUES" = "true" ] && [ "$mac_due" = "true" ]; then'
+    );
+    expect(check).toContain(
+      '\\"Apple Mac $version (release)\\" or .displayTitle == \\"Apple iOS + Mac $version (release)\\"'
+    );
+    expect(check).toContain(
+      'gh workflow run apple-release.yml --ref main -f "version=$version" -f platforms=macos -f dry_run=false'
+    );
+    expect(apple).toContain(
+      "run-name: Apple ${{ inputs.platforms == 'both' && 'iOS + Mac' || inputs.platforms == 'macos' && 'Mac' || 'iOS' }} ${{ inputs.version }} (${{ inputs.dry_run && 'dry run' || 'release' }})"
+    );
+  });
+
   test("makes the newest package version replace an older Apple review", () => {
     for (const workflow of [apple]) {
       const releaseState = workflowStep(

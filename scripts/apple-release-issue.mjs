@@ -30,6 +30,18 @@ export function isStorefrontLive(state, storefrontVersion, targetVersion) {
   );
 }
 
+/**
+ * The Mac ships once iOS is live: the platforms share one app info, and while
+ * iOS is in review `asc validate` stops on "app infos match". A Mac version
+ * that already exists was started by a run, which reports its own failures.
+ */
+export function isMacReleaseDue(iosState, macState) {
+  return (
+    isLiveState(iosState) &&
+    String(macState).trim().toUpperCase() === "NOT_CREATED"
+  );
+}
+
 export function openReleaseVersions(issues) {
   return issues
     .filter((issue) => issue.state === "OPEN")
@@ -291,7 +303,11 @@ function main() {
     listOpenVersions();
     return;
   }
-  throw new Error("Expected failure, status, or versions command.");
+  if (command === "mac-due") {
+    console.log(isMacReleaseDue(values["ios-state"], values["safari-state"]));
+    return;
+  }
+  throw new Error("Expected failure, status, versions, or mac-due command.");
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

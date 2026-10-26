@@ -20,6 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: read
   issues: write
 
@@ -120,5 +121,17 @@ jobs:
                 --safari-state "$safari_state" \
                 --safari-store-version "$safari_store" \
                 --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
+
+            # The Mac ships once iOS is live, one run per version: a run that
+            # fails reports to the release issue instead of retrying here.
+            mac_due="$(node scripts/apple-release-issue.mjs mac-due --ios-state "$ios_state" --safari-state "$safari_state")"
+            if [ "$UPDATE_ISSUES" = "true" ] && [ "$mac_due" = "true" ]; then
+              mac_runs="$(gh run list --workflow apple-release.yml --limit 100 --json displayTitle \
+                --jq "[.[] | select(.displayTitle == \"Apple Mac $version (release)\" or .displayTitle == \"Apple iOS + Mac $version (release)\")] | length")"
+              if [ "$mac_runs" = "0" ]; then
+                gh workflow run apple-release.yml --ref main -f "version=$version" -f platforms=macos -f dry_run=false
+                echo "- Started the Mac release: iOS is live." >> "$GITHUB_STEP_SUMMARY"
+              fi
             fi
           done < <(jq -r '.[]' <<< "$versions")
