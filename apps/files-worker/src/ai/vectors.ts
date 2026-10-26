@@ -38,14 +38,37 @@ const isVectorizeRateLimit = (error: unknown) =>
     error instanceof Error ? error.message : String(error)
   );
 
+// Vectorize also fails a write now and then with a 5xx of its own
+// (`VECTOR_UPSERT_ERROR (code = 50139): Internal Server Error`). Upserts and
+// deletes by id are idempotent, so those are retried briefly here; one that
+// keeps failing is still reported, and Convex retries the card later.
+const VECTORIZE_SERVER_ERROR = /\(code = 5\d{4}\)/u;
+const VECTORIZE_WRITE_ATTEMPTS = 3;
+const VECTORIZE_RETRY_DELAY_MS = 100;
+
+const isVectorizeServerError = (error: unknown) =>
+  VECTORIZE_SERVER_ERROR.test(
+    error instanceof Error ? error.message : String(error)
+  );
+
 const withVectorizeRateLimit = async <T>(write: () => Promise<T>) => {
-  try {
-    return await write();
-  } catch (error) {
-    if (isVectorizeRateLimit(error)) {
-      throw new OpFailure("vector_rate_limited", { cause: error });
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await write();
+    } catch (error) {
+      if (isVectorizeRateLimit(error)) {
+        throw new OpFailure("vector_rate_limited", { cause: error });
+      }
+      if (
+        attempt >= VECTORIZE_WRITE_ATTEMPTS ||
+        !isVectorizeServerError(error)
+      ) {
+        throw error;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, VECTORIZE_RETRY_DELAY_MS * attempt)
+      );
     }
-    throw error;
   }
 };
 

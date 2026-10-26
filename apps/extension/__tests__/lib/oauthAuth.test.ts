@@ -134,6 +134,49 @@ const tokenResponse = (access = accessToken, refresh = refreshToken) =>
     expires_in: 3600,
   });
 
+// An in-memory stand-in for the extension's "teak-oauth" IndexedDB.
+const installCredentialDatabase = () => {
+  const rows = new Map<string, unknown>();
+  const database = {
+    close: () => undefined,
+    transaction: () => {
+      const transaction: { oncomplete?: () => void; objectStore: unknown } = {
+        objectStore: () => ({
+          get: (key: string) => done(rows.get(key)),
+          put: (value: unknown, key: string) => {
+            rows.set(key, value);
+            return done(key);
+          },
+          delete: (key: string) => {
+            rows.delete(key);
+            return done(undefined);
+          },
+        }),
+      };
+      const done = (result: unknown) => {
+        queueMicrotask(() => transaction.oncomplete?.());
+        return { result };
+      };
+      return transaction;
+    },
+  };
+  Object.defineProperty(globalThis, "indexedDB", {
+    configurable: true,
+    value: {
+      databases: () => Promise.resolve([{ name: "teak-oauth", version: 1 }]),
+      open: () => {
+        const request: { onsuccess?: () => void; result?: unknown } = {};
+        queueMicrotask(() => {
+          request.result = database;
+          request.onsuccess?.();
+        });
+        return request;
+      },
+    },
+  });
+  return rows;
+};
+
 describe("Chrome OAuth background credentials", () => {
   test.each([
     "http://test.convex.site",
@@ -221,6 +264,61 @@ describe("Chrome OAuth background credentials", () => {
     const auth = await load();
     await expect(auth.initializeAuth()).resolves.toBeUndefined();
     expect(storage[tokenKey]).toBeUndefined();
+  });
+  test("Chromium without storage access controls signs in and keeps credentials out of storage.local", async () => {
+    // Older Chromium builds have no storage.local.setAccessLevel; calling it
+    // threw before the background could start.
+    Reflect.deleteProperty(chrome.storage.local, "setAccessLevel");
+    const rows = installCredentialDatabase();
+    globalThis.fetch = withDiscovery(((input) =>
+      Promise.resolve(
+        String(input).endsWith("/oauth2/token")
+          ? tokenResponse()
+          : Response.json({ data: { id: "owner", email: "owner@example.com" } })
+      )) as typeof fetch);
+    try {
+      const auth = await load();
+      await expect(auth.initializeAuth()).resolves.toBeUndefined();
+      await auth.beginOAuthSignIn();
+      expect(rows.get(tokenKey)).toMatchObject({
+        accessToken,
+        userId: "owner",
+      });
+      expect(storage[tokenKey]).toBeUndefined();
+      expect(await auth.getOAuthState()).toMatchObject({
+        authenticated: true,
+        user: { id: "owner" },
+      });
+    } finally {
+      Reflect.deleteProperty(globalThis, "indexedDB");
+    }
+  });
+  test("a sign-in kept while Chromium lacked storage access controls survives the browser gaining them", async () => {
+    const saved = {
+      accessToken,
+      refreshToken,
+      expiresAt: Date.now() + 3_600_000,
+      ...workosBinding,
+      userId: "owner",
+    };
+    const rows = installCredentialDatabase();
+    rows.set(tokenKey, saved);
+    globalThis.fetch = withDiscovery((() =>
+      Promise.resolve(
+        Response.json({ data: { id: "owner", email: "owner@example.com" } })
+      )) as unknown as typeof fetch);
+    try {
+      const auth = await load();
+      expect(await auth.getOAuthState()).toMatchObject({
+        authenticated: true,
+        user: { id: "owner" },
+      });
+      expect(setAccessLevel).toHaveBeenCalled();
+      expect(storage[tokenKey]).toEqual(saved);
+      expect(rows.size).toBe(0);
+    } finally {
+      Reflect.deleteProperty(globalThis, "indexedDB");
+    }
   });
   test("Firefox's private mode keeps the sign-in in session storage", async () => {
     process.env.BROWSER = "firefox";

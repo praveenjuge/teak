@@ -329,6 +329,47 @@ export class ObjectDeletionGate {
     return response;
   }
 }
+
+// A gate can fail a call while Cloudflare restarts or moves its Durable Object
+// ("Connection closed: this Durable Object instance is no longer active",
+// "Durable Object storage is no longer accessible"). Cloudflare marks those
+// errors `retryable`, never together with `overloaded`, and documents retrying
+// idempotent calls with a new stub. Freezing and the status check are
+// idempotent; writes carry a body and are never retried.
+const GATE_ATTEMPTS = 3;
+const GATE_RETRY_DELAY_MS = 50;
+
+const isRetryableGateError = (error: unknown): boolean => {
+  const flags = error as { overloaded?: unknown; retryable?: unknown } | null;
+  return (
+    error instanceof Error &&
+    flags?.retryable === true &&
+    flags.overloaded !== true
+  );
+};
+
+async function idempotentGateFetch(
+  gates: DurableObjectNamespace,
+  key: string,
+  path: "freeze" | "status",
+  init?: RequestInit
+): Promise<Response> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await gates
+        .get(gates.idFromName(key))
+        .fetch(`https://object-gate/${path}`, init);
+    } catch (error) {
+      if (attempt >= GATE_ATTEMPTS || !isRetryableGateError(error)) {
+        throw error;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, GATE_RETRY_DELAY_MS * attempt)
+      );
+    }
+  }
+}
+
 export async function freezeObject(
   env: DeletionGateEnv,
   key: string
@@ -336,8 +377,7 @@ export async function freezeObject(
   if (!env.OBJECT_GATES) {
     throw new Error("object_gate_not_configured");
   }
-  const stub = env.OBJECT_GATES.get(env.OBJECT_GATES.idFromName(key));
-  const response = await stub.fetch("https://object-gate/freeze", {
+  const response = await idempotentGateFetch(env.OBJECT_GATES, key, "freeze", {
     method: "POST",
   });
   if (!response.ok) {
@@ -435,9 +475,7 @@ export async function objectIsFrozen(
   if (!env.OBJECT_GATES) {
     throw new Error("object_gate_not_configured");
   }
-  const response = await env.OBJECT_GATES.get(
-    env.OBJECT_GATES.idFromName(key)
-  ).fetch("https://object-gate/status");
+  const response = await idempotentGateFetch(env.OBJECT_GATES, key, "status");
   if (!response.ok) {
     throw new Error("object_gate_unavailable");
   }

@@ -3,6 +3,7 @@ import {
   freezeObject,
   gatedBucket,
   ObjectDeletionGate,
+  objectIsFrozen,
   WRITE_LEASE_MS,
 } from "./deletionGate";
 import { FakeBucket, withObjectGates } from "./test/testsupport";
@@ -406,4 +407,70 @@ test("rejected frozen writes cancel their request stream before responding", asy
   expect(response.status).toBe(409);
   expect(cancelled).toBe(true);
   expect(t.values.has("active")).toBe(false);
+});
+
+describe("gate calls while Cloudflare restarts the object", () => {
+  const platformError = (
+    message: string,
+    flags: { overloaded?: boolean; retryable?: boolean }
+  ) => Object.assign(new Error(message), flags);
+  // Each `get` is a new stub; the first `failures` calls throw `error`.
+  const flakyGates = (failures: number, error: Error) => {
+    let calls = 0;
+    const namespace = {
+      idFromName: (key: string) => key,
+      get: () => ({
+        fetch: () => {
+          calls += 1;
+          return calls <= failures
+            ? Promise.reject(error)
+            : Promise.resolve(Response.json({ frozen: true }));
+        },
+      }),
+    };
+    return {
+      env: {
+        BUCKET: {} as R2Bucket,
+        OBJECT_GATES: namespace as unknown as DurableObjectNamespace,
+      },
+      calls: () => calls,
+    };
+  };
+  const restarted = platformError(
+    "Connection closed: this Durable Object instance is no longer active. Reconnect or retry the request.",
+    { retryable: true }
+  );
+
+  test("the status check and freeze retry a retryable failure with a new stub", async () => {
+    const status = flakyGates(2, restarted);
+    expect(await objectIsFrozen(status.env, "users/a/file")).toBe(true);
+    expect(status.calls()).toBe(3);
+    const freeze = flakyGates(1, restarted);
+    expect(await freezeObject(freeze.env, "users/a/file")).toBe(true);
+    expect(freeze.calls()).toBe(2);
+  });
+
+  test("they give up after three attempts", async () => {
+    const gates = flakyGates(3, restarted);
+    await expect(objectIsFrozen(gates.env, "users/a/file")).rejects.toBe(
+      restarted
+    );
+    expect(gates.calls()).toBe(3);
+  });
+
+  test("an overloaded or non-retryable failure is not retried", async () => {
+    for (const error of [
+      platformError("Durable Object is overloaded. Too many requests queued.", {
+        overloaded: true,
+        retryable: true,
+      }),
+      new Error("object_gate_bug"),
+    ]) {
+      const gates = flakyGates(1, error);
+      await expect(objectIsFrozen(gates.env, "users/a/file")).rejects.toBe(
+        error
+      );
+      expect(gates.calls()).toBe(1);
+    }
+  });
 });
