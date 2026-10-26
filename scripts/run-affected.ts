@@ -112,8 +112,11 @@ const changedFiles = (): string[] | null => {
     return null;
   }
   // Without --no-renames a move lists only its destination.
-  const diff = git(["diff", "--name-only", "--no-renames", base.trim()]) ?? "";
-  const untracked = git(["ls-files", "--others", "--exclude-standard"]) ?? "";
+  const diff = git(["diff", "--name-only", "--no-renames", base.trim()]);
+  const untracked = git(["ls-files", "--others", "--exclude-standard"]);
+  if (diff === null || untracked === null) {
+    throw new Error("git could not list the changed files");
+  }
   return `${diff}\n${untracked}`.split("\n").filter(Boolean);
 };
 
@@ -144,10 +147,11 @@ if (import.meta.main) {
       "--filter",
       workspace.name,
     ]);
-    const result = spawnSync(process.execPath, ["run", ...filters, script], {
-      cwd: ROOT,
-      stdio: "inherit",
-    });
+    const result = spawnSync(
+      process.execPath,
+      ["--no-env-file", "run", ...filters, script],
+      { cwd: ROOT, stdio: "inherit" }
+    );
     if (result.status !== 0) {
       process.exit(result.status ?? 1);
     }
