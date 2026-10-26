@@ -263,11 +263,11 @@ describe.skipIf(!openssl)("pinnedFetch over the network", () => {
     }
   });
 
-  test("returns a redirect unfollowed", async () => {
+  test("returns a redirect unfollowed, even when asked to follow it", async () => {
     const response = await get(
       `https://pinned.test:${tlsServer.port}/redirect`,
       ["127.0.0.1"],
-      { redirect: "manual" }
+      { redirect: "follow" }
     );
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/elsewhere");

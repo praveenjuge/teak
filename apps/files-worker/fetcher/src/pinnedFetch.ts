@@ -105,6 +105,9 @@ export const createPinnedFetch =
         keepalive: false,
         // A proxy would resolve the name itself; never use one.
         proxy: false,
+        // A followed redirect would reach a host the policy never checked;
+        // the caller validates and issues each hop itself.
+        redirect: "manual",
         tls: {
           ...(ca ? { ca } : {}),
           // Overrides NODE_TLS_REJECT_UNAUTHORIZED.
