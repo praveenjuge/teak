@@ -26,7 +26,7 @@
     "release:prepare": "bun --no-env-file run scripts/release-prepare.ts",
     "setup": "bun --no-env-file run scripts/setup.ts",
     "smoke:web": "bun --no-env-file run scripts/smoke-web-session.ts",
-    "start": "bun run --filter '*' build && bun run --parallel --filter '*' start",
+    "start": "bun run --filter '@teak/web...' --filter '@teak/docs...' build && bun run --parallel --filter @teak/web --filter @teak/docs start",
     "sync:cloudflare-dev": "bun --no-env-file run scripts/sync-files-worker-dev-secret.ts",
     "test": "bun run --filter '*' test && bun --no-env-file test scripts/ apps/apple/tests/ apps/android/tests/",
     "typecheck": "bun run --filter '*' typecheck",
