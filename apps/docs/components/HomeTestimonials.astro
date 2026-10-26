@@ -15,15 +15,15 @@ const [lead, ...rest] = testimonials;
       </p>
     </div>
 
-    <div class="testimonials grid grid-cols-1 gap-4 min-[561px]:grid-cols-2 min-[861px]:grid-cols-3">
-      <figure class="quote-card quote-lead m-0 min-[561px]:col-span-2 min-[861px]:row-span-2">
-        <span aria-hidden="true" class="quote-mark">“</span>
+    <div class="grid grid-cols-1 gap-4 min-[561px]:grid-cols-2 min-[861px]:grid-cols-3">
+      <figure class="m-0 flex flex-col justify-between gap-5 rounded-xl border border-border bg-card p-8 min-[561px]:col-span-2 min-[861px]:row-span-2">
+        <span aria-hidden="true" class="text-[4rem] leading-[0.6] font-bold text-primary">“</span>
         <blockquote class="m-0 text-[clamp(1.25rem,2.2vw,1.625rem)] leading-[1.35] font-semibold tracking-[-0.02em] text-balance">
           {lead.quote}
         </blockquote>
       </figure>
       {rest.map((testimonial) => (
-        <figure class="quote-card m-0">
+        <figure class="m-0 rounded-xl border border-border bg-card p-6 min-[561px]:max-[860px]:last:col-span-2">
           <blockquote class="m-0 text-[0.875rem] leading-[1.65] text-pretty text-card-foreground">
             {testimonial.quote}
           </blockquote>
@@ -33,33 +33,3 @@ const [lead, ...rest] = testimonials;
   </div>
 </section>
 
-<style>
-  .quote-card {
-    display: flex;
-    flex-direction: column;
-    padding: 1.5rem;
-    border: 1px solid var(--border);
-    border-radius: 0.875rem;
-    background: var(--card);
-  }
-
-  .quote-lead {
-    justify-content: space-between;
-    gap: 2rem;
-    padding: 2rem;
-  }
-
-  .quote-mark {
-    color: var(--primary);
-    font-size: 4rem;
-    font-weight: 700;
-    line-height: 0.6;
-  }
-
-  /* Two columns leave the fifth small quote alone on its row; let it span. */
-  @media (min-width: 561px) and (max-width: 860px) {
-    .testimonials > .quote-card:last-child {
-      grid-column: span 2;
-    }
-  }
-</style>
