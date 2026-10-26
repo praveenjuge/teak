@@ -5,14 +5,28 @@ import { shareWorkerSource } from "../shareWorker";
 type Listener = (event: Record<string, unknown>) => void;
 
 /** Runs the worker's source against a stand-in service worker scope. */
-const startWorker = () => {
+const startWorker = ({ fullAfter = Number.POSITIVE_INFINITY } = {}) => {
   const listeners = new Map<string, Listener>();
   const entries = new Map<string, Response>();
   const cache = {
     keys: () =>
       Promise.resolve([...entries.keys()].map((url) => new Request(url))),
-    delete: (request: Request) => Promise.resolve(entries.delete(request.url)),
+    // Like Cache Storage, it takes a request or a path.
+    delete: (request: Request | string) =>
+      Promise.resolve(
+        entries.delete(
+          typeof request === "string"
+            ? `https://teak.test${request}`
+            : request.url
+        )
+      ),
+    // Stores `fullAfter` files, then fails as a full quota does.
     put: (path: string, response: Response) => {
+      if (entries.size >= fullAfter) {
+        return Promise.reject(
+          new DOMException("Quota exceeded", "QuotaExceededError")
+        );
+      }
       entries.set(`https://teak.test${path}`, response);
       return Promise.resolve();
     },
@@ -78,6 +92,23 @@ describe("the share service worker", () => {
     expect(kept[0]?.[1].headers.get(SHARE_FILE_NAME_HEADER)).toBe(
       "shot%20one.png"
     );
+  });
+
+  test("keeps the text when the files can't be stored", async () => {
+    const worker = startWorker({ fullAfter: 1 });
+    const form = new FormData();
+    form.set("text", "Look at this");
+    form.append("files", new File(["a"], "a.png", { type: "image/png" }));
+    form.append("files", new File(["b"], "b.png", { type: "image/png" }));
+
+    const response = await worker.fetch(
+      new Request("https://teak.test/share", { method: "POST", body: form })
+    );
+
+    const location = new URL(response?.headers.get("location") ?? "");
+    expect(location.searchParams.get("text")).toBe("Look at this");
+    expect(location.searchParams.get("share")).toBe("missing");
+    expect(worker.entries.size).toBe(0);
   });
 
   test("leaves every other request to the browser", () => {

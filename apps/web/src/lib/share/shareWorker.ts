@@ -45,8 +45,17 @@ const share = async (request) => {
   }
   const files = form.getAll("files").filter((file) => typeof file !== "string" && file.size > 0);
   if (files.length > 0) {
+    params.set(${JSON.stringify(SHARE_FILES_PARAM)}, await keep(files));
+  }
+  return library(params);
+};
+
+// Keeps the files under a new id, or says they're missing (a full quota, say);
+// the text goes to the composer either way.
+const keep = async (files) => {
+  const id = Date.now() + "-" + crypto.randomUUID();
+  try {
     await prune();
-    const id = Date.now() + "-" + crypto.randomUUID();
     const cache = await caches.open(CACHE);
     await Promise.all(files.map((file, index) => cache.put(PREFIX + id + "/" + index, new Response(file, {
       headers: {
@@ -54,9 +63,12 @@ const share = async (request) => {
         ${JSON.stringify(SHARE_FILE_NAME_HEADER)}: encodeURIComponent(file.name),
       },
     }))));
-    params.set(${JSON.stringify(SHARE_FILES_PARAM)}, id);
+    return id;
+  } catch {
+    const cache = await caches.open(CACHE).catch(() => null);
+    for (const index of files.keys()) await cache?.delete(PREFIX + id + "/" + index).catch(() => false);
+    return ${JSON.stringify(SHARE_FILES_MISSING)};
   }
-  return library(params);
 };
 
 self.addEventListener("install", () => self.skipWaiting());

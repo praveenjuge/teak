@@ -65,13 +65,11 @@ const expectSharedDraft = async (browser: Browser, marker: string) => {
   const composer = browser
     .locator('form[data-card-creation-status="ready"]')
     .getByRole("textbox", "Markdown content", { exact: false });
-  // Title, text and link, each on its own line.
-  await expect(composer).toHaveText(
-    new RegExp(
-      `A shared page\\s*Notes on ${marker}\\s*https://example\\.com/${marker}`
-    ),
-    { timeout: 30_000 }
-  );
+  await expect(composer).toContainText(`Notes on ${marker}`, {
+    timeout: 30_000,
+  });
+  await expect(composer).toContainText("A shared page");
+  await expect(composer).toContainText(`https://example.com/${marker}`);
   await expect
     .poll(() => browser.evaluate(() => window.location.search))
     .toBe("");

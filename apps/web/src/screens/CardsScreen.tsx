@@ -805,6 +805,7 @@ export function CardsScreen({
       return (
         <>
           <AddCardEmptyState
+            draftContentRef={draftContentRef}
             onFocus={handleComposerFocus}
             UpgradeLinkComponent={UpgradeLinkComponent}
             upgradeUrl={upgradeUrl}
