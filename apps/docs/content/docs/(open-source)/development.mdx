@@ -98,6 +98,15 @@ bun run clean            # Clear Turborepo caches
 
 [Testing](/docs/testing) covers which tests to write and how to run each suite.
 
+## Dependencies
+
+A package that two or more workspaces depend on takes its version from the `catalog` in the root `package.json`, and each workspace lists it as `"catalog:"`. To move one of these packages to a new version, change its range in the catalog and run `bun install`. When a second workspace starts using a package, add the package to the catalog with `bun add --catalog`. Two workspaces write out ranges instead:
+
+- `apps/cli` is published with `npm publish`, which doesn't resolve `catalog:`, so its ranges match the catalog's.
+- `apps/raycast` installs from its own npm lockfile for the Raycast store, so its versions move on their own.
+
+`scripts/repo-hygiene.test.ts` checks all of this.
+
 ## The shared development deployment
 
 Every checkout, worktree and cloud VM runs against one Convex development deployment, `dev:reminiscent-kangaroo-59`, with its own WorkOS staging environment, Files Worker and storage. Files, previews, AI metadata, screenshots, imports and exports, WorkOS Connect, and Polar sandbox checkout all work there. When you'd rather not share it, `bun run dev --local` runs the app on [a local backend](#a-local-backend) instead.

@@ -13,8 +13,8 @@
     "postal-mime": "2.7.3"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.0",
-    "typescript": "^6.0.3",
-    "wrangler": "^4.151.0"
+    "@types/bun": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   }
 }
