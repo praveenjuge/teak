@@ -159,17 +159,12 @@ export const needsWebEnv = (target: string, all = false): boolean => {
 
 export const buildDevCommand = (
   target: string,
-  opts?: { all?: boolean; headless?: boolean }
+  opts?: { all?: boolean }
 ): string[] => {
-  // Dev tasks are persistent but never interactive (no stdin), so stream
-  // mode runs the same servers headlessly for agents and CI. Turbo's `auto`
-  // log order groups output on GitHub Actions, which holds persistent task
-  // logs until exit, so headless output pins `stream`.
-  const ui = opts?.headless
-    ? ["--ui=stream", "--log-order=stream"]
-    : ["--ui=tui"];
+  // Dev tasks never exit, so they start side by side: a plain `--filter`
+  // would hold each one until its dependencies' dev task finished.
   if (opts?.all) {
-    return ["turbo", "watch", "dev", ...ui];
+    return ["bun", "run", "--parallel", "--filter", "*", "dev"];
   }
   if (target === "files") {
     return ["bun", "run", "--filter", "@teak/files-worker", "dev"];
@@ -179,11 +174,11 @@ export const buildDevCommand = (
   }
   const filters = DEV_TARGETS[target] ?? DEV_TARGETS.web ?? [];
   return [
-    "turbo",
-    "watch",
-    "dev",
-    ...ui,
+    "bun",
+    "run",
+    "--parallel",
     ...filters.flatMap((filter) => ["--filter", filter]),
+    "dev",
   ];
 };
 
@@ -416,11 +411,8 @@ const describeCheck = (args: DevArgs): string => {
   if (usesWebStack(args)) {
     return `Would run setup, then the web app on this checkout's port against ${DEV_DEPLOYMENT}${args.push ? ", taking over pushing the backend" : ""}${args.detach ? ", in the background" : ""}`;
   }
-  const command = buildDevCommand(args.target, {
-    all: args.all,
-    headless: args.headless,
-  });
-  return `Would run${args.headless ? " (headless, TURBO_UI=false)" : ""}: ${command.join(" ")}`;
+  const command = buildDevCommand(args.target, { all: args.all });
+  return `Would run${args.headless ? " (headless)" : ""}: ${command.join(" ")}`;
 };
 
 const main = async (argv: string[]): Promise<number> => {

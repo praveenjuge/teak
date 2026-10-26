@@ -86,39 +86,27 @@ describe("parseDevArgs", () => {
 });
 
 describe("buildDevCommand", () => {
-  test("web maps to web + convex filters", () => {
+  test("web maps to web + convex filters, started side by side", () => {
     expect(buildDevCommand("web")).toEqual([
-      "turbo",
-      "watch",
-      "dev",
-      "--ui=tui",
+      "bun",
+      "run",
+      "--parallel",
       "--filter",
       "@teak/web",
       "--filter",
       "@teak/convex",
+      "dev",
     ]);
   });
 
   test("--all starts every surface", () => {
     expect(buildDevCommand("web", { all: true })).toEqual([
-      "turbo",
-      "watch",
-      "dev",
-      "--ui=tui",
-    ]);
-  });
-
-  test("headless streams task output as it arrives", () => {
-    expect(buildDevCommand("web", { headless: true })).toEqual([
-      "turbo",
-      "watch",
-      "dev",
-      "--ui=stream",
-      "--log-order=stream",
+      "bun",
+      "run",
+      "--parallel",
       "--filter",
-      "@teak/web",
-      "--filter",
-      "@teak/convex",
+      "*",
+      "dev",
     ]);
   });
 
@@ -132,9 +120,13 @@ describe("buildDevCommand", () => {
     ]);
   });
 
-  test("every documented target has filters", () => {
+  test("every documented target runs its dev scripts in parallel", () => {
     for (const target of Object.keys(DEV_TARGETS)) {
-      expect(buildDevCommand(target)[0]).toBe("turbo");
+      expect(buildDevCommand(target).slice(0, 3)).toEqual([
+        "bun",
+        "run",
+        "--parallel",
+      ]);
     }
   });
 });

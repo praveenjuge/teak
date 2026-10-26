@@ -1,11 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   auditFiles,
   extractCodeUses,
   extractShellUses,
-  extractTurboDecls,
   extractWorkflowEnvKeys,
   extractWorkflowRefs,
   findSecretDiagnostics,
@@ -67,21 +64,6 @@ describe("env-audit extractors", () => {
     expect(uses).toEqual([
       { name: "API_KEY", line: 1 },
       { name: "OTHER_SECRET", line: 2 },
-    ]);
-  });
-
-  test("turbo declarations include env and passThroughEnv", () => {
-    const decls = extractTurboDecls(
-      JSON.stringify({
-        globalEnv: ["A_ONE"],
-        tasks: { build: { env: ["B_TWO"], passThroughEnv: ["C_THREE"] } },
-      }),
-      "turbo.json"
-    );
-    expect(decls.map((decl) => decl.name).sort()).toEqual([
-      "A_ONE",
-      "B_TWO",
-      "C_THREE",
     ]);
   });
 
@@ -171,18 +153,22 @@ describe("env-audit auditFiles", () => {
     ).toBe(true);
   });
 
-  test("turbo wildcards fail", () => {
+  test("package.json scripts count as references", () => {
     const findings = auditFiles(
       new Map([
         [
-          "turbo.json",
-          JSON.stringify({ tasks: { build: { env: ["FOO_*"] } } }),
+          "apps/docs/package.json",
+          JSON.stringify({
+            scripts: { dev: "serve --port ${DOCS_PORT:-3001}" },
+          }),
         ],
       ])
     );
-    expect(findings.some((finding) => finding.kind === "turbo-wildcard")).toBe(
-      true
-    );
+    expect(
+      findings.some(
+        (finding) => finding.kind === "stale" && finding.name === "DOCS_PORT"
+      )
+    ).toBe(false);
   });
 
   test("platform names pass without contract entries", () => {
@@ -252,54 +238,5 @@ describe("env-audit auditFiles", () => {
     expect(
       findings.filter((finding) => finding.kind === "direct-alias-read")
     ).toHaveLength(0);
-  });
-});
-
-describe("turbo env scoping", () => {
-  const root = join(import.meta.dir, "..");
-  const load = (rel: string) =>
-    JSON.parse(readFileSync(join(root, rel), "utf-8")) as {
-      globalEnv?: string[];
-      tasks?: Record<
-        string,
-        { env?: string[]; inputs?: string[]; passThroughEnv?: string[] }
-      >;
-    };
-
-  test("root config carries no env declarations or dotenv inputs", () => {
-    const config = load("turbo.json");
-    expect(config.globalEnv ?? []).not.toContain("SITE_URL");
-    for (const task of Object.values(config.tasks ?? {})) {
-      expect(task.env ?? []).toEqual([]);
-      expect(
-        (task.inputs ?? []).filter((input) => input.includes(".env"))
-      ).toEqual([]);
-    }
-  });
-
-  test("the convex test task owns exactly SITE_URL", () => {
-    const config = load("packages/convex/turbo.json");
-    expect(config.tasks?.test?.env).toEqual(["SITE_URL"]);
-  });
-
-  test("no turbo config declares wildcards", () => {
-    const rels = [
-      "turbo.json",
-      "apps/web/turbo.json",
-      "apps/docs/turbo.json",
-      "apps/extension/turbo.json",
-      "packages/convex/turbo.json",
-    ];
-    for (const rel of rels) {
-      if (!existsSync(join(root, rel))) {
-        continue;
-      }
-      for (const decl of extractTurboDecls(
-        readFileSync(join(root, rel), "utf-8"),
-        rel
-      )) {
-        expect(decl.name).not.toContain("*");
-      }
-    }
   });
 });

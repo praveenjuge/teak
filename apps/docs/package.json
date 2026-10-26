@@ -11,7 +11,7 @@
     "generate": "bun run generate:openapi && bun run generate:skills",
     "generate:openapi": "bun run scripts/generate-openapi.ts",
     "generate:skills": "bun run scripts/generate-skills.ts",
-    "lint": "biome check blume.config.ts lib middleware.ts scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
+    "lint": "biome check blume.config.ts lib middleware.ts scripts styles vercel.json package.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib --coverage --dots",

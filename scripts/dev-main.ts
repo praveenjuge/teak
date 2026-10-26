@@ -75,17 +75,13 @@ const runSurfaces = async (args: DevArgs): Promise<number> => {
     console.log("dev --headless: streaming output, no interactive input.");
   }
   const result = Bun.spawnSync(
-    buildDevCommand(args.target, { all: args.all, headless: args.headless }),
+    buildDevCommand(args.target, { all: args.all }),
     {
       cwd: ROOT,
       stdout: "inherit",
       stderr: "inherit",
       stdin: args.headless ? "ignore" : "inherit",
-      env: {
-        ...process.env,
-        ...(await surfaceEnv()),
-        ...(args.headless ? { TURBO_UI: "false" } : {}),
-      },
+      env: { ...process.env, ...(await surfaceEnv()) },
     }
   );
   return result.exitCode ?? 1;

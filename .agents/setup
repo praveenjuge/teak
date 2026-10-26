@@ -189,32 +189,15 @@ install_e2e_browsers() {
     bun --cwd=packages/tests x e2e-web install --with-deps chromium webkit
 }
 
-# Every cloud VM starts with an empty Turbo cache, so the first typecheck
-# takes about two minutes on 4 vCPUs (one second once cached). Warm it here,
-# so it lands in the setup script's cached snapshot; unchanged packages then
-# hit it in later sessions. The snapshot is only taken when the whole script
-# finishes in about five minutes, so this stops before that whatever happens:
-# Turbo saves each finished task, so a cut-off run still caches most of them.
-warm_turbo_cache() {
-  local budget=$((270 - SECONDS))
-  if ((budget < 60)); then
-    printf 'Skipped: setup has already run %ss.\n' "$SECONDS"
-    return
-  fi
-  timeout "$budget" env TURBO_UI=false bun x turbo run typecheck \
-    --output-logs=none ||
-    printf 'Stopped after %ss; the tasks that finished are cached.\n' "$budget"
-}
-
 bootstrap_development() {
   if [[ "${CONVEX_DEPLOY_KEY:-}" != dev:* ]]; then
     printf 'Skipped: add CONVEX_DEPLOY_KEY (a dev deploy key for the shared dev deployment) to this environment'"'"'s secrets to run bun run dev. See apps/docs/content/docs/(open-source)/development.mdx.\n'
     return
   fi
-  TURBO_UI=false bun run setup
+  bun run setup
   # The extension reads its own VITE_PUBLIC_* file; without it `wxt build`
   # stops with a pointer back here.
-  TURBO_UI=false bun run setup --target extension
+  bun run setup --target extension
 }
 
 session_only=false
@@ -265,6 +248,5 @@ hash -r
 step "Install workspace dependencies" install_dependencies
 step "Install the E2E suite's browsers" install_e2e_browsers
 step "Connect to the shared dev deployment" bootstrap_development
-step "Warm the Turbo cache" warm_turbo_cache
 
 printf '\nTeak setup complete: Node %s, Bun %s. Start the stack with bun run dev --detach.\n' "$(node --version)" "$(bun --version)"

@@ -54,7 +54,7 @@ export const checkPublicSkills = async (
  * discovery index.
  */
 if (import.meta.main) {
-  // Turbo runs the docs typecheck and build at once, and both generate. Copy
+  // The docs typecheck and build can run at once, and both generate. Copy
   // into a staging directory and swap it in, so neither run reads or deletes
   // a half-copied one; a run that loses the swap keeps the other's copy of
   // the same files.

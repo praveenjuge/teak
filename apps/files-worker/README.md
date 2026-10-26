@@ -984,8 +984,7 @@ its client copies together (a drift test checks them).
 
 ## Local development experience
 
-- `bun run dev` at repo root starts the default stack (web + Convex) via
-  Turborepo. `bun run dev --all` starts every surface (web, convex, raycast,
+- `bun run dev` at repo root starts the default stack (web + Convex). `bun run dev --all` starts every surface (web, convex, raycast,
   docs, extension).
 - `bun run dev files` — `wrangler dev --remote` with the development config:
   your local code runs on Cloudflare against the development bucket, AI and

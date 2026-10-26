@@ -20,7 +20,6 @@ export interface AuditFinding {
     | "stale"
     | "secret-in-diagnostics"
     | "deleted-alias"
-    | "turbo-wildcard"
     | "direct-alias-read";
   name: string;
   path: string;
@@ -65,7 +64,6 @@ const SCAN_EXTENSIONS = new Set([
 
 const SKIP_DIRS = new Set([
   ".git",
-  ".turbo",
   ".next",
   ".vercel",
   "node_modules",
@@ -263,43 +261,6 @@ export const extractWorkflowEnvKeys = (content: string): NameUse[] => {
   return uses;
 };
 
-export interface TurboDecl {
-  name: string;
-  path: string;
-}
-
-export const extractTurboDecls = (
-  content: string,
-  path: string
-): TurboDecl[] => {
-  let parsed: {
-    globalEnv?: string[];
-    globalPassThroughEnv?: string[];
-    tasks?: Record<string, { env?: string[]; passThroughEnv?: string[] }>;
-  };
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    return [];
-  }
-  const decls: TurboDecl[] = [];
-  for (const name of parsed.globalEnv ?? []) {
-    decls.push({ name, path });
-  }
-  for (const name of parsed.globalPassThroughEnv ?? []) {
-    decls.push({ name, path });
-  }
-  for (const task of Object.values(parsed.tasks ?? {})) {
-    for (const name of task.env ?? []) {
-      decls.push({ name, path });
-    }
-    for (const name of task.passThroughEnv ?? []) {
-      decls.push({ name, path });
-    }
-  }
-  return decls;
-};
-
 export const extractWranglerDecls = (content: string): string[] => {
   const names: string[] = [];
   const bindingRe = /"binding"\s*:\s*"([A-Za-z_][A-Za-z0-9_]*)"/g;
@@ -394,32 +355,6 @@ export const auditFiles = (files: Map<string, string>): AuditFinding[] => {
     if (DOC_EXTENSIONS.has(ext)) {
       continue;
     }
-    if (path.endsWith("turbo.json")) {
-      for (const decl of extractTurboDecls(content, path)) {
-        if (decl.name.includes("*")) {
-          findings.push({
-            kind: "turbo-wildcard",
-            name: decl.name,
-            path,
-            detail: "wildcard Turbo env declaration; declare exact names",
-          });
-          continue;
-        }
-        referenced.add(decl.name);
-        if (
-          !(ENV_VAR_NAMES.has(decl.name) || isPlatformVar(decl.name)) ||
-          isDeletedAlias(decl.name)
-        ) {
-          findings.push({
-            kind: isDeletedAlias(decl.name) ? "deleted-alias" : "undeclared",
-            name: decl.name,
-            path,
-            detail: "Turbo env declaration is not in the contract",
-          });
-        }
-      }
-      continue;
-    }
     if (path.endsWith("wrangler.jsonc") || path.endsWith("wrangler.json")) {
       for (const name of extractWranglerDecls(content)) {
         referenced.add(name);
@@ -469,8 +404,9 @@ export const auditFiles = (files: Map<string, string>): AuditFinding[] => {
       }
       continue;
     }
+    // package.json scripts are shell, like `${DOCS_PORT:-3001}`.
     const uses =
-      ext === ".sh"
+      ext === ".sh" || path.endsWith("package.json")
         ? extractShellUses(content)
         : [...extractCodeUses(content), ...extractTypedEnvUses(content)];
     for (const use of uses) {

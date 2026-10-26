@@ -33,7 +33,6 @@ apps/email-worker/development/.wrangler/
 
 .vercel
 
-.turbo
 .tmp/
 
 *.tsbuildinfo
