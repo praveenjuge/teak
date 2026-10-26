@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+  fitSharedText,
   readSharedText,
-  SHARE_TEXT_LIMIT,
+  SHARE_ENCODED_BUDGET,
   sharedDraft,
   shareLibraryPath,
   withoutShareParams,
@@ -56,11 +57,27 @@ describe("shareLibraryPath", () => {
     ).toBe("/?compose=1&title=T&url=https%3A%2F%2Fexample.com&share=123-x");
   });
 
-  test("cuts very long text so the URL stays usable", () => {
-    const path = shareLibraryPath({ text: "a".repeat(SHARE_TEXT_LIMIT + 50) });
-    expect(new URLSearchParams(path.slice(2)).get("text")).toHaveLength(
-      SHARE_TEXT_LIMIT
-    );
+  test("cuts long text so the URL fits, even through sign-in", () => {
+    const shared = {
+      title: "標題".repeat(200),
+      text: "日本語のテキスト、「引用」も。".repeat(500),
+      url: `https://example.com/${"路".repeat(1000)}`,
+    };
+    const path = shareLibraryPath(shared, "1-a");
+    const signIn = `/sign-in?next=${encodeURIComponent(path)}`;
+    expect(path.length).toBeLessThan(SHARE_ENCODED_BUDGET.total + 200);
+    expect(signIn.length).toBeLessThan(8 * 1024);
+    const fitted = fitSharedText(shared);
+    expect(fitted.text?.length).toBeGreaterThan(0);
+    expect(shared.text.startsWith(fitted.text ?? "x")).toBe(true);
+  });
+
+  test("leaves short text whole", () => {
+    expect(fitSharedText({ text: " Hello 👋 ", url: "https://a.b" })).toEqual({
+      title: "",
+      text: "Hello 👋",
+      url: "https://a.b",
+    });
   });
 });
 

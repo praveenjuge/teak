@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { SHARE_FILE_NAME_HEADER } from "../sharedContent";
+import {
+  SHARE_FILE_NAME_HEADER,
+  SHARE_FILES_MISSING,
+  shareLibraryPath,
+} from "../sharedContent";
 import { shareWorkerSource } from "../shareWorker";
 
 type Listener = (event: Record<string, unknown>) => void;
@@ -109,6 +113,28 @@ describe("the share service worker", () => {
     expect(location.searchParams.get("text")).toBe("Look at this");
     expect(location.searchParams.get("share")).toBe("missing");
     expect(worker.entries.size).toBe(0);
+  });
+
+  test("cuts long text exactly as the /share route does", async () => {
+    const worker = startWorker();
+    const shared = {
+      title: "A page",
+      text: "長い引用、そして「記号」。".repeat(400),
+      url: "https://example.com/a",
+    };
+    const form = new FormData();
+    for (const [field, value] of Object.entries(shared)) {
+      form.set(field, value);
+    }
+    form.append("files", new File(["a"], "a.png", { type: "image/png" }));
+    const response = await worker.fetch(
+      new Request("https://teak.test/share", { method: "POST", body: form })
+    );
+    const location = new URL(response?.headers.get("location") ?? "");
+    location.searchParams.set("share", SHARE_FILES_MISSING);
+    expect(`${location.pathname}${location.search}`).toBe(
+      shareLibraryPath(shared, SHARE_FILES_MISSING)
+    );
   });
 
   test("leaves every other request to the browser", () => {

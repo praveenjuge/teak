@@ -25,14 +25,60 @@ export const SHARE_FILES_MAX_AGE_MS = 60 * 60 * 1000;
 /** The response header holding a kept file's name. */
 export const SHARE_FILE_NAME_HEADER = "x-teak-file-name";
 /**
- * Characters kept from each text field. The fields ride in the URL, through
- * sign-in too, so a very long selection is cut rather than overflowing it.
+ * How long each text field may be once percent-encoded. The fields ride in
+ * the URL, and through sign-in they're encoded a second time, so a long
+ * selection is cut to keep the URL well under servers' 8 KB limit. The text
+ * gets what the link and title leave of the total.
  */
-export const SHARE_TEXT_LIMIT = 6000;
+export const SHARE_ENCODED_BUDGET = {
+  total: 3000,
+  url: 1500,
+  title: 300,
+} as const;
 
 const LONE_URL = /^https?:\/\/\S+$/i;
 
 const clean = (value: string | null | undefined) => (value ?? "").trim();
+
+const encodedLength = (char: string) => {
+  try {
+    return encodeURIComponent(char).length;
+  } catch {
+    return 9; // A lone surrogate, which the URL writes as U+FFFD.
+  }
+};
+
+/** The longest start of `value` whose encoding fits `budget`, and its encoded length. */
+const cutToEncoded = (value: string, budget: number): [string, number] => {
+  let used = 0;
+  let end = 0;
+  for (const char of value) {
+    const size = encodedLength(char);
+    if (used + size > budget) {
+      break;
+    }
+    used += size;
+    end += char.length;
+  }
+  return [value.slice(0, end), used];
+};
+
+/** The share's text fields, trimmed and cut to fit in the library URL. */
+export const fitSharedText = (shared: SharedText): SharedText => {
+  const [url, urlSize] = cutToEncoded(
+    clean(shared.url),
+    SHARE_ENCODED_BUDGET.url
+  );
+  const [title, titleSize] = cutToEncoded(
+    clean(shared.title),
+    SHARE_ENCODED_BUDGET.title
+  );
+  const [text] = cutToEncoded(
+    clean(shared.text),
+    SHARE_ENCODED_BUDGET.total - urlSize - titleSize
+  );
+  return { title, text, url };
+};
 
 /** The library URL a share opens: the composer, its text, and any kept files. */
 export const shareLibraryPath = (
@@ -40,10 +86,11 @@ export const shareLibraryPath = (
   filesId?: string
 ): string => {
   const params = new URLSearchParams({ [FOCUS_COMPOSER_PARAM]: "1" });
+  const fitted = fitSharedText(shared);
   for (const field of SHARE_TEXT_FIELDS) {
-    const value = clean(shared[field]);
+    const value = fitted[field];
     if (value) {
-      params.set(field, value.slice(0, SHARE_TEXT_LIMIT));
+      params.set(field, value);
     }
   }
   if (filesId) {

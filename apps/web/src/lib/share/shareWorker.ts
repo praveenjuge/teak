@@ -1,13 +1,13 @@
 import { FOCUS_COMPOSER_PARAM } from "@/lib/libraryViews";
 import {
   SHARE_CACHE,
+  SHARE_ENCODED_BUDGET,
   SHARE_FILE_NAME_HEADER,
   SHARE_FILE_PREFIX,
   SHARE_FILES_MAX_AGE_MS,
   SHARE_FILES_MISSING,
   SHARE_FILES_PARAM,
   SHARE_TEXT_FIELDS,
-  SHARE_TEXT_LIMIT,
 } from "./sharedContent";
 
 /**
@@ -21,7 +21,7 @@ const CACHE = ${JSON.stringify(SHARE_CACHE)};
 const PREFIX = ${JSON.stringify(SHARE_FILE_PREFIX)};
 const MAX_AGE = ${SHARE_FILES_MAX_AGE_MS};
 const TEXT_FIELDS = ${JSON.stringify(SHARE_TEXT_FIELDS)};
-const TEXT_LIMIT = ${SHARE_TEXT_LIMIT};
+const BUDGET = ${JSON.stringify(SHARE_ENCODED_BUDGET)};
 const COMPOSE = ${JSON.stringify(FOCUS_COMPOSER_PARAM)};
 
 const prune = async () => {
@@ -33,15 +33,45 @@ const prune = async () => {
   }
 };
 
+// The same cut as fitSharedText in sharedContent.ts, which a test keeps in step.
+const encodedLength = (char) => {
+  try {
+    return encodeURIComponent(char).length;
+  } catch {
+    return 9;
+  }
+};
+const cut = (value, budget) => {
+  let used = 0;
+  let end = 0;
+  for (const char of value) {
+    const size = encodedLength(char);
+    if (used + size > budget) break;
+    used += size;
+    end += char.length;
+  }
+  return [value.slice(0, end), used];
+};
+const fit = (form) => {
+  const read = (field) => {
+    const value = form.get(field);
+    return typeof value === "string" ? value.trim() : "";
+  };
+  const [url, urlSize] = cut(read("url"), BUDGET.url);
+  const [title, titleSize] = cut(read("title"), BUDGET.title);
+  const [text] = cut(read("text"), BUDGET.total - urlSize - titleSize);
+  return { title, text, url };
+};
+
 const library = (params) =>
   Response.redirect(new URL("/?" + params.toString(), self.location.origin).href, 303);
 
 const share = async (request) => {
   const form = await request.formData();
   const params = new URLSearchParams({ [COMPOSE]: "1" });
+  const fitted = fit(form);
   for (const field of TEXT_FIELDS) {
-    const value = form.get(field);
-    if (typeof value === "string" && value.trim()) params.set(field, value.trim().slice(0, TEXT_LIMIT));
+    if (fitted[field]) params.set(field, fitted[field]);
   }
   const files = form.getAll("files").filter((file) => typeof file !== "string" && file.size > 0);
   if (files.length > 0) {
