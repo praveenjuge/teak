@@ -19,6 +19,7 @@ final class AppModel {
     let config: TeakConfig
     let session: TeakSession
     let backend: TeakBackend
+    let spotlight: SpotlightIndexer
 
     private(set) var authMode: AuthMode?
     private(set) var user: SessionUser?
@@ -39,6 +40,7 @@ final class AppModel {
         self.config = config
         session = TeakServices.session(config: config)
         backend = TeakBackend(convexURL: config.convexURL, session: session)
+        spotlight = SpotlightIndexer(session: session)
         defaults = TeakServices.sharedDefaults(config: config)
     }
 
@@ -60,7 +62,12 @@ final class AppModel {
         tasks.append(Task { await self.watchSession() })
         tasks.append(Task { await self.watchAuthMode() })
         tasks.append(Task { for await connected in self.backend.connectionStates() { self.isConnected = connected } })
-        tasks.append(Task { for await authed in self.backend.authStates() { self.isConvexAuthenticated = authed } })
+        tasks.append(Task {
+            for await authed in self.backend.authStates() {
+                self.isConvexAuthenticated = authed
+                if authed { self.refreshSpotlight() }
+            }
+        })
         tasks.append(Task { await self.timeOutConfiguration() })
         restoreSession()
     }
@@ -99,6 +106,11 @@ final class AppModel {
     func becameActive() {
         if keychainUnavailable { restoreSession() }
         Task { await session.reloadIfChanged() }
+        if isConvexAuthenticated { refreshSpotlight() }
+    }
+
+    private func refreshSpotlight() {
+        Task { [spotlight, backend] in await spotlight.refresh(backend) }
     }
 
     private func watchSession() async {
@@ -112,6 +124,8 @@ final class AppModel {
                teakUserId != previous?.teakUserId || next.email != previous?.email {
                 PostHogReporting.identify(teakUserId: teakUserId, email: next.email)
             }
+            // Signing out, deleting the account or a session ending empties Spotlight.
+            if state == .signedOut { await spotlight.removeAll() }
             if previous != nil, state.user == nil {
                 authenticateTask?.cancel()
                 tokenTask?.cancel()

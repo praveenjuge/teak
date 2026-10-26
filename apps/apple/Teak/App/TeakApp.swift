@@ -21,8 +21,8 @@ final class AppServices {
         PostHogReporting.start()
         app = AppModel()
         capture = CaptureModel(backend: app.backend)
-        home = LibraryModel(backend: app.backend)
-        folderLibrary = LibraryModel(backend: app.backend)
+        home = LibraryModel(backend: app.backend, spotlight: app.spotlight)
+        folderLibrary = LibraryModel(backend: app.backend, spotlight: app.spotlight)
         folders = FoldersModel(backend: app.backend)
         tags = TagsModel(backend: app.backend)
     }

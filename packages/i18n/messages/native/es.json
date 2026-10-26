@@ -380,7 +380,10 @@
       "skip": "Omitir",
       "detailsFailed": "No se pudieron guardar las etiquetas y la nota. Vuelva a intentarlo.",
       "noteFailed": "No se pudo guardar la nota.",
-      "tagsFailed": "No se pudieron guardar las etiquetas."
+      "tagsFailed": "No se pudieron guardar las etiquetas.",
+      "addToFolders": "Añadir a carpetas",
+      "foldersFailed": "No se pudo añadir a las carpetas.",
+      "foldersEmpty": "Cree una carpeta en Teak y luego añada a ella lo que comparta."
     },
     "folders": {
       "title": "Carpetas",
@@ -416,6 +419,7 @@
       "createNamed": "Crear la carpeta «{name}»",
       "pickerEmpty": "Aún no hay carpetas. Escriba un nombre para crear una.",
       "findOrCreate": "Busque o cree una carpeta",
+      "find": "Buscar una carpeta",
       "addCardsTitle": "{count, plural, one {Añadir # tarjeta a una carpeta} other {Añadir # tarjetas a una carpeta}}"
     },
     "tags": {
@@ -875,6 +879,12 @@
       "moreLikeThis": "Más como esta",
       "refreshDetails": "Actualizar detalles"
     },
+    "controls": {
+      "newNote": "Nueva nota",
+      "newNoteDescription": "Abre Teak con una nota nueva.",
+      "voiceMemo": "Nota de voz",
+      "voiceMemoDescription": "Abre Teak y empieza una nota de voz."
+    },
     "mac": {
       "openLibrary": "Abrir la biblioteca de Teak",
       "settings": "Ajustes…",
@@ -895,13 +905,41 @@
     "intents": {
       "saveTitle": "Guardar en Teak",
       "saveDescription": "Guarda texto o un enlace en su biblioteca de Teak.",
-      "contentParameter": "Texto o enlace"
+      "contentParameter": "Texto o enlace",
+      "searchTitle": "Buscar en Teak",
+      "searchDescription": "Encuentra tarjetas en su biblioteca de Teak, con la misma búsqueda que la app.",
+      "queryParameter": "Búsqueda",
+      "includeArchivedParameter": "Incluir tarjetas archivadas",
+      "openCardTitle": "Abrir tarjeta",
+      "openCardDescription": "Abre una tarjeta en Teak.",
+      "cardParameter": "Tarjeta",
+      "cardsParameter": "Tarjetas",
+      "addToFolderTitle": "Añadir a carpeta",
+      "addToFolderDescription": "Añade tarjetas a una de sus carpetas de Teak.",
+      "folderParameter": "Carpeta",
+      "newNoteTitle": "Nueva nota",
+      "newNoteDescription": "Abre Teak con una nota nueva.",
+      "recordVoiceMemoTitle": "Grabar nota de voz",
+      "recordVoiceMemoDescription": "Abre Teak en la grabadora de notas de voz.",
+      "cardEntity": "Tarjeta",
+      "folderEntity": "Carpeta",
+      "titleProperty": "Título",
+      "linkProperty": "Enlace",
+      "smartFolderMessage": "Una carpeta inteligente se llena con su búsqueda. Elija otra carpeta."
     },
     "appShortcuts": {
-      "save": "Guardar en {applicationName}"
+      "save": "Guardar en {applicationName}",
+      "search": "Buscar en {applicationName}",
+      "openCard": "Abrir una tarjeta en {applicationName}",
+      "addToFolder": "Añadir tarjetas a una carpeta en {applicationName}",
+      "newNote": "Nueva nota en {applicationName}",
+      "recordVoiceMemo": "Grabar una nota de voz en {applicationName}"
     },
     "intentSummaries": {
-      "save": "Guardar {content} en Teak"
+      "save": "Guardar {content} en Teak",
+      "search": "Buscar {query} en Teak",
+      "openCard": "Abrir {target}",
+      "addToFolder": "Añadir {cards} a {folder}"
     },
     "card": {
       "audioUnplayableMac": "Este formato de grabación no se puede reproducir en el Mac",

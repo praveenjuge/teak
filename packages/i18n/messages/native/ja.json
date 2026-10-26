@@ -380,7 +380,10 @@
       "skip": "スキップ",
       "detailsFailed": "タグとメモを保存できませんでした。もう一度お試しください。",
       "noteFailed": "メモを保存できませんでした。",
-      "tagsFailed": "タグを保存できませんでした。"
+      "tagsFailed": "タグを保存できませんでした。",
+      "addToFolders": "フォルダに追加",
+      "foldersFailed": "フォルダに追加できませんでした。",
+      "foldersEmpty": "Teak でフォルダを作成すると、共有したものを追加できます。"
     },
     "folders": {
       "title": "フォルダ",
@@ -416,6 +419,7 @@
       "createNamed": "フォルダ「{name}」を作成",
       "pickerEmpty": "フォルダはまだありません。名前を入力して作成してください。",
       "findOrCreate": "フォルダを検索または作成",
+      "find": "フォルダを検索",
       "addCardsTitle": "{count, plural, other {# 件のカードをフォルダに追加}}"
     },
     "tags": {
@@ -875,6 +879,12 @@
       "moreLikeThis": "似たカード",
       "refreshDetails": "詳細を更新"
     },
+    "controls": {
+      "newNote": "新規メモ",
+      "newNoteDescription": "Teak を開いて新規メモを作成します。",
+      "voiceMemo": "ボイスメモ",
+      "voiceMemoDescription": "Teak を開いてボイスメモを開始します。"
+    },
     "mac": {
       "openLibrary": "Teak ライブラリを開く",
       "settings": "設定…",
@@ -895,13 +905,41 @@
     "intents": {
       "saveTitle": "Teak に保存",
       "saveDescription": "テキストやリンクを Teak ライブラリに保存します。",
-      "contentParameter": "テキストまたはリンク"
+      "contentParameter": "テキストまたはリンク",
+      "searchTitle": "Teak を検索",
+      "searchDescription": "アプリと同じ検索で、Teak ライブラリのカードを探します。",
+      "queryParameter": "検索",
+      "includeArchivedParameter": "アーカイブ済みのカードを含める",
+      "openCardTitle": "カードを開く",
+      "openCardDescription": "Teak でカードを開きます。",
+      "cardParameter": "カード",
+      "cardsParameter": "カード",
+      "addToFolderTitle": "フォルダに追加",
+      "addToFolderDescription": "Teak のフォルダにカードを追加します。",
+      "folderParameter": "フォルダ",
+      "newNoteTitle": "新規メモ",
+      "newNoteDescription": "Teak を開いて新規メモを作成します。",
+      "recordVoiceMemoTitle": "ボイスメモを録音",
+      "recordVoiceMemoDescription": "Teak を開いてボイスメモの録音画面を表示します。",
+      "cardEntity": "カード",
+      "folderEntity": "フォルダ",
+      "titleProperty": "タイトル",
+      "linkProperty": "リンク",
+      "smartFolderMessage": "スマートフォルダは検索条件で自動的に中身が決まります。別のフォルダを選んでください。"
     },
     "appShortcuts": {
-      "save": "{applicationName} に保存"
+      "save": "{applicationName} に保存",
+      "search": "{applicationName} を検索",
+      "openCard": "{applicationName} でカードを開く",
+      "addToFolder": "{applicationName} でカードをフォルダに追加",
+      "newNote": "{applicationName} で新規メモ",
+      "recordVoiceMemo": "{applicationName} でボイスメモを録音"
     },
     "intentSummaries": {
-      "save": "{content} を Teak に保存"
+      "save": "{content} を Teak に保存",
+      "search": "Teak で {query} を検索",
+      "openCard": "{target} を開く",
+      "addToFolder": "{cards} を {folder} に追加"
     },
     "card": {
       "audioUnplayableMac": "この録音形式は Mac では再生できません",

@@ -380,7 +380,10 @@
       "skip": "건너뛰기",
       "detailsFailed": "태그와 메모를 저장하지 못했습니다. 다시 시도해 주세요.",
       "noteFailed": "메모를 저장하지 못했습니다.",
-      "tagsFailed": "태그를 저장하지 못했습니다."
+      "tagsFailed": "태그를 저장하지 못했습니다.",
+      "addToFolders": "폴더에 추가",
+      "foldersFailed": "폴더에 추가하지 못했습니다.",
+      "foldersEmpty": "Teak에서 폴더를 만든 다음 공유한 항목을 추가하세요."
     },
     "folders": {
       "title": "폴더",
@@ -416,6 +419,7 @@
       "createNamed": "“{name}” 폴더 만들기",
       "pickerEmpty": "아직 폴더가 없습니다. 이름을 입력해 폴더를 만드세요.",
       "findOrCreate": "폴더 찾기 또는 만들기",
+      "find": "폴더 찾기",
       "addCardsTitle": "{count, plural, other {카드 #개를 폴더에 추가}}"
     },
     "tags": {
@@ -875,6 +879,12 @@
       "moreLikeThis": "비슷한 카드",
       "refreshDetails": "세부 정보 새로 고침"
     },
+    "controls": {
+      "newNote": "새 메모",
+      "newNoteDescription": "Teak을 열고 새 메모를 시작합니다.",
+      "voiceMemo": "음성 메모",
+      "voiceMemoDescription": "Teak을 열고 음성 메모를 시작합니다."
+    },
     "mac": {
       "openLibrary": "Teak 라이브러리 열기",
       "settings": "설정…",
@@ -895,13 +905,41 @@
     "intents": {
       "saveTitle": "Teak에 저장",
       "saveDescription": "텍스트나 링크를 Teak 라이브러리에 저장합니다.",
-      "contentParameter": "텍스트 또는 링크"
+      "contentParameter": "텍스트 또는 링크",
+      "searchTitle": "Teak 검색",
+      "searchDescription": "앱과 같은 검색으로 Teak 라이브러리에서 카드를 찾습니다.",
+      "queryParameter": "검색",
+      "includeArchivedParameter": "보관된 카드 포함",
+      "openCardTitle": "카드 열기",
+      "openCardDescription": "Teak에서 카드를 엽니다.",
+      "cardParameter": "카드",
+      "cardsParameter": "카드",
+      "addToFolderTitle": "폴더에 추가",
+      "addToFolderDescription": "Teak 폴더에 카드를 추가합니다.",
+      "folderParameter": "폴더",
+      "newNoteTitle": "새 메모",
+      "newNoteDescription": "Teak을 열고 새 메모를 시작합니다.",
+      "recordVoiceMemoTitle": "음성 메모 녹음",
+      "recordVoiceMemoDescription": "Teak을 열고 음성 메모 녹음기를 표시합니다.",
+      "cardEntity": "카드",
+      "folderEntity": "폴더",
+      "titleProperty": "제목",
+      "linkProperty": "링크",
+      "smartFolderMessage": "스마트 폴더는 검색 조건으로 자동으로 채워집니다. 다른 폴더를 선택하세요."
     },
     "appShortcuts": {
-      "save": "{applicationName}에 저장"
+      "save": "{applicationName}에 저장",
+      "search": "{applicationName} 검색",
+      "openCard": "{applicationName}에서 카드 열기",
+      "addToFolder": "{applicationName}에서 카드를 폴더에 추가",
+      "newNote": "{applicationName}에서 새 메모",
+      "recordVoiceMemo": "{applicationName}에서 음성 메모 녹음"
     },
     "intentSummaries": {
-      "save": "{content}을(를) Teak에 저장"
+      "save": "{content}을(를) Teak에 저장",
+      "search": "Teak에서 {query} 검색",
+      "openCard": "{target} 열기",
+      "addToFolder": "{cards}을(를) {folder}에 추가"
     },
     "card": {
       "audioUnplayableMac": "이 녹음 형식은 Mac에서 재생할 수 없습니다",

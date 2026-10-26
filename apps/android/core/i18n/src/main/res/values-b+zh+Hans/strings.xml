@@ -551,6 +551,7 @@
     <string name="native_folders_editSmartFolder">编辑智能文件夹</string>
     <string name="native_folders_emptyMessage">将相关卡片归为一组。先创建文件夹，再向其中添加卡片。</string>
     <string name="native_folders_emptyTitle">还没有文件夹</string>
+    <string name="native_folders_find">查找文件夹</string>
     <string name="native_folders_findOrCreate">查找或创建文件夹</string>
     <string name="native_folders_folderName">文件夹名称</string>
     <string name="native_folders_loadFailed">无法加载文件夹</string>
@@ -698,7 +699,10 @@
     <string name="native_settings_versionValue">版本 %1$s</string>
     <string name="native_share_addDetails">添加标签和笔记</string>
     <string name="native_share_addNote">添加笔记</string>
+    <string name="native_share_addToFolders">添加到文件夹</string>
     <string name="native_share_detailsFailed">无法保存标签和笔记，请重试。</string>
+    <string name="native_share_foldersEmpty">请先在 Teak 中创建文件夹，然后将分享的内容添加进去。</string>
+    <string name="native_share_foldersFailed">无法添加到文件夹。</string>
     <string name="native_share_note">笔记</string>
     <string name="native_share_noteFailed">无法保存笔记。</string>
     <string name="native_share_nothingToSave">没有可保存的内容</string>

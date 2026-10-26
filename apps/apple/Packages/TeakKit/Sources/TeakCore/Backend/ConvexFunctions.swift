@@ -30,6 +30,7 @@ public enum ConvexFunctions {
     public static let deleteFolder = ConvexFunction<String>("folders:deleteFolder")
     public static let restoreFolder = ConvexFunction<Folder>("folders:restoreFolder")
     public static let addCardsToFolder = ConvexFunction<FolderMembershipResult>("folders:addCardsToFolder")
+    public static let removeCardsFromFolder = ConvexFunction<FolderMembershipResult>("folders:removeCardsFromFolder")
     public static let setCardFolders = ConvexFunction<[String]>("folders:setCardFolders")
     public static let listTagSummary = ConvexFunction<TagSummary?>("tags:listTagSummary")
     public static let requestTagSummary = ConvexFunction<ConvexVoid>("tags:requestTagSummary")

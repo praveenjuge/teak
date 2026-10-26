@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import SwiftUI
 import TeakCore
+import TeakUI
 
 @MainActor @Observable
 final class ShareModel {
@@ -14,6 +15,12 @@ final class ShareModel {
     private(set) var phase: Phase = .saving
     private(set) var isSavingDetails = false
     var detailsError: String?
+    /// The user's folders, loaded once the folder checklist opens; nil until then.
+    private(set) var folders: [Folder]?
+    private(set) var foldersError: String?
+    /// The folders picked for the saved cards, and the ones already saved on them.
+    var folderIds: [String] = []
+    private var savedFolderIds: [String] = []
     private let providers: [NSItemProvider]
     private var convex: ConvexHTTP?
 
@@ -27,8 +34,64 @@ final class ShareModel {
         return result.createdCardIds.first
     }
 
-    /// Saves the tags and note typed after saving. Empty fields change nothing.
+    /// Every card just saved, which can go into folders together.
+    var savedCardIds: [String] {
+        guard case let .done(result) = phase, result.isComplete else { return [] }
+        return result.createdCardIds
+    }
+
+    /// The picked folders' names, in the order picked.
+    var folderNames: [String] {
+        folderIds.compactMap { id in folders?.first { $0.id == id }?.name }
+    }
+
+    func loadFolders() async {
+        guard folders == nil, let convex else { return }
+        foldersError = nil
+        do {
+            folders = try await convex.query(ConvexFunctions.listFolders)
+        } catch {
+            foldersError = tr("native.folders.loadFailed")
+        }
+    }
+
+    /// Puts the saved cards in the picked folders, and takes them out of ones unpicked since.
+    /// The cards are added to, or removed from, each folder the choice changed; other folders stay.
+    func saveFolders() async -> Bool {
+        let cardIds = savedCardIds
+        guard let convex else { return true }
+        let change = FolderChoice.change(selected: folderIds, saved: savedFolderIds, cardCount: cardIds.count)
+        guard change != .none else { return true }
+        isSavingDetails = true
+        defer { isSavingDetails = false }
+        var saved = true
+        do {
+            switch change {
+            case .none:
+                break
+            case let .update(add, remove):
+                let cards = ConvexValue.array(cardIds.map(ConvexValue.string))
+                for folderId in add {
+                    let result = try await convex.mutation(ConvexFunctions.addCardsToFolder,
+                                                           ["folderId": .string(folderId), "cardIds": cards])
+                    if result.failedIds.isEmpty { savedFolderIds.append(folderId) } else { saved = false }
+                }
+                for folderId in remove {
+                    let result = try await convex.mutation(ConvexFunctions.removeCardsFromFolder,
+                                                           ["folderId": .string(folderId), "cardIds": cards])
+                    if result.failedIds.isEmpty { savedFolderIds.removeAll { $0 == folderId } } else { saved = false }
+                }
+            }
+        } catch {
+            saved = false
+        }
+        detailsError = saved ? nil : tr("native.share.foldersFailed")
+        return saved
+    }
+
+    /// Saves the folders picked and the tags and note typed after saving. Empty fields change nothing.
     func saveDetails(tags: String, note: String) async -> Bool {
+        guard await saveFolders() else { return false }
         guard let id = savedCardId, let convex else { return true }
         let tagList = CardEdit.adding(tags, to: [])
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -75,6 +138,7 @@ struct ShareView: View {
     @State private var tags = ""
     @State private var note = ""
     @State private var isEditing = false
+    @State private var isPickingFolders = false
     @FocusState private var focus: Field?
 
     enum Field { case tags, note }
@@ -89,12 +153,20 @@ struct ShareView: View {
         .task {
             await model.run()
             if case let .done(result) = model.phase, result.isComplete {
-                // A quick save still closes by itself; typing keeps it open.
-                try? await Task.sleep(for: .seconds(model.savedCardId == nil ? 1.2 : 3))
+                // A quick save still closes by itself; typing or choosing folders keeps it open.
+                try? await Task.sleep(for: .seconds(3))
                 if !isEditing { close() }
             }
         }
         .onChange(of: focus) { _, field in if field != nil { isEditing = true } }
+        .onChange(of: isPickingFolders) { _, picking in if picking { isEditing = true } }
+        .sheet(isPresented: $isPickingFolders, onDismiss: { Task { await model.saveFolders() } }) {
+            @Bindable var model = model
+            FolderChecklist(folders: model.folders, loadError: model.foldersError, selection: $model.folderIds) {
+                Task { await model.loadFolders() }
+            }
+            .task { await model.loadFolders() }
+        }
         .sensoryFeedback(trigger: model.phase) { _, phase in
             guard case let .done(result) = phase else { return nil }
             return result.isComplete ? .success : .error
@@ -122,7 +194,7 @@ struct ShareView: View {
                 ContentUnavailableView(tr("native.capture.saved"), systemImage: "checkmark.circle.fill",
                                        description: Text(Self.savedSummary(result)))
                     .symbolEffect(.bounce, value: result.successfulItems)
-                if model.savedCardId != nil { details }
+                details
             } else {
                 ContentUnavailableView(result.isPartial ? Self.partialSummary(result) : tr("native.capture.couldntSave"),
                                        systemImage: result.isPartial ? "exclamationmark.circle" : "xmark.circle",
@@ -153,9 +225,26 @@ struct ShareView: View {
         return failure.message
     }
 
+    /// Tags and a note for one saved card; folders for one or several.
     private var details: some View {
         VStack(spacing: 10) {
-            TextField(tr("native.actions.addTags"), text: $tags)
+            if model.savedCardId != nil { cardFields }
+            foldersRow
+            if let error = model.detailsError {
+                Text(error).font(.footnote).foregroundStyle(.red)
+            }
+            Button(isEditing ? tr("common.save") : tr("common.done")) {
+                Task { if await model.saveDetails(tags: tags, note: note) { close() } }
+            }
+            .buttonStyle(.glassProminent)
+            .disabled(model.isSavingDetails)
+            .accessibilityIdentifier("share.done")
+        }
+        .frame(maxWidth: 360)
+    }
+
+    @ViewBuilder private var cardFields: some View {
+        TextField(tr("native.actions.addTags"), text: $tags)
                 .focused($focus, equals: .tags)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel(tr("native.tags.title"))
@@ -169,16 +258,30 @@ struct ShareView: View {
                 .textFieldStyle(.roundedBorder)
                 .accessibilityLabel(tr("native.share.note"))
                 .accessibilityIdentifier("share.note")
-            if let error = model.detailsError {
-                Text(error).font(.footnote).foregroundStyle(.red)
+    }
+
+    /// Opens the folder checklist; shows the folders picked, or a prompt like the fields above.
+    private var foldersRow: some View {
+        let names = model.folderNames
+        let summary = names.formatted(.list(type: .and).locale(AppLanguage.locale))
+        return Button { isPickingFolders = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "folder").foregroundStyle(.secondary)
+                Text(names.isEmpty ? tr("native.share.addToFolders") : summary)
+                    .foregroundStyle(names.isEmpty ? .secondary : .primary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.tertiary)
             }
-            Button(isEditing ? tr("common.save") : tr("common.done")) {
-                Task { if await model.saveDetails(tags: tags, note: note) { close() } }
-            }
-            .buttonStyle(.glassProminent)
-            .disabled(model.isSavingDetails)
-            .accessibilityIdentifier("share.done")
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.background, in: .rect(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
+            .contentShape(.rect)
         }
-        .frame(maxWidth: 360)
+        .buttonStyle(.plain)
+        .accessibilityLabel(tr("native.folders.title"))
+        .accessibilityValue(summary)
+        .accessibilityIdentifier("share.folders")
     }
 }

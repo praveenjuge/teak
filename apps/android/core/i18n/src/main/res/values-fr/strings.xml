@@ -576,6 +576,7 @@
     <string name="native_folders_editSmartFolder">Modifier le dossier intelligent</string>
     <string name="native_folders_emptyMessage">Regroupez des fiches liées. Créez un dossier, puis ajoutez-y des fiches.</string>
     <string name="native_folders_emptyTitle">Aucun dossier pour l’instant</string>
+    <string name="native_folders_find">Rechercher un dossier</string>
     <string name="native_folders_findOrCreate">Trouver ou créer un dossier</string>
     <string name="native_folders_folderName">Nom du dossier</string>
     <string name="native_folders_loadFailed">Impossible de charger les dossiers</string>
@@ -726,7 +727,10 @@
     <string name="native_settings_versionValue">Version %1$s</string>
     <string name="native_share_addDetails">Ajouter des tags et une note</string>
     <string name="native_share_addNote">Ajouter une note</string>
+    <string name="native_share_addToFolders">Ajouter à des dossiers</string>
     <string name="native_share_detailsFailed">Impossible d’enregistrer les tags et la note. Réessayez.</string>
+    <string name="native_share_foldersEmpty">Créez un dossier dans Teak, puis ajoutez-y ce que vous partagez.</string>
+    <string name="native_share_foldersFailed">Impossible d’ajouter aux dossiers.</string>
     <string name="native_share_note">Note</string>
     <string name="native_share_noteFailed">Impossible d’enregistrer la note.</string>
     <string name="native_share_nothingToSave">Rien à enregistrer</string>

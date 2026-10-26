@@ -117,7 +117,7 @@ Use the iOS Share Sheet to save content to Teak without leaving another app:
   </Step>
 </Steps>
 
-The share extension shows live status while saving. When a single item is saved, you can add tags (separated by commas) and a note before tapping **Save**; if you don't, it closes by itself. If it asks you to sign in, open Teak, sign in, then retry.
+The share extension shows live status while saving. When a single item is saved, you can add tags (separated by commas) and a note before tapping **Save**. Tap **Add to folders** to file what you saved into your folders; with several items, the folders you pick apply to all of them. If you don't touch anything, it closes by itself. If it asks you to sign in, open Teak, sign in, then retry.
 
 Supported share sources include links, text, images, and files, with the same format support as the web app (see [Features](/docs/features)), up to 100 MB — except Markdown shares, which become text cards limited to 512 KiB.
 
@@ -138,7 +138,26 @@ If the extension asks you to sign in, tap **Sign In** to open Teak, sign in, the
 
 ## Shortcuts and Siri
 
-Add **Save to Teak** to a shortcut in the Shortcuts app, or say "Save to Teak" to Siri, to save text or a link. It saves without opening Teak while you're signed in; if it asks you to sign in, open Teak, sign in, then run it again.
+Teak's actions are in the Shortcuts app under **Teak**, and Siri runs each by name, such as "Search Teak" or "New note in Teak":
+
+| Action | What it does |
+| --- | --- |
+| **Save to Teak** | Saves text or a link without opening Teak |
+| **Search Teak** | Finds up to 20 cards with the same search as the app, so filters like `type:image` work; turn on **Include archived cards** to search Archive too |
+| **Open Card** | Opens a card in Teak |
+| **Add to Folder** | Adds cards, such as Search Teak's results, to one of your folders |
+| **New Note** | Opens Teak on a new note |
+| **Record Voice Memo** | Opens Teak on the voice memo recorder |
+
+Cards in Trash and hidden cards never show up in Shortcuts. If an action asks you to sign in, open Teak, sign in, then run it again.
+
+## Spotlight
+
+Search for a card's title in Spotlight to find it, with its thumbnail; tap it to open the card in Teak. Teak adds cards as you browse your library and when you open the app, so a card saved on the web shows up after you next open Teak. Cards in Trash, archived cards and hidden cards aren't in Spotlight, and signing out removes everything Teak added.
+
+## Control Center and the Action button
+
+Add **New Note** or **Voice Memo** to Control Center or the Lock Screen: open Control Center, tap **+**, then **Add a Control**, and search for Teak. Each opens Teak on that screen. On an iPhone with an Action button, choose **Controls** or **Shortcut** in **Settings → Action Button** and pick either one.
 
 ## Settings
 
