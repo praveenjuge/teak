@@ -3,6 +3,7 @@ import {
   exactIssue,
   failureBody,
   isLiveState,
+  isMacReleaseDue,
   isStorefrontLive,
   issueTitle,
   openReleaseVersions,
@@ -19,6 +20,21 @@ describe("Apple release issue handling", () => {
     ];
     expect(issueTitle("1.0.60")).toBe("Apple release v1.0.60");
     expect(exactIssue(issues, "1.0.60")?.number).toBe(2);
+  });
+
+  test("starts the Mac only once iOS is live and no Mac version exists", () => {
+    expect(isMacReleaseDue("READY_FOR_DISTRIBUTION", "NOT_CREATED")).toBe(true);
+    expect(isMacReleaseDue("ready_for_sale", " not_created ")).toBe(true);
+    expect(isMacReleaseDue("WAITING_FOR_REVIEW", "NOT_CREATED")).toBe(false);
+    expect(isMacReleaseDue("PENDING_DEVELOPER_RELEASE", "NOT_CREATED")).toBe(
+      false
+    );
+    expect(
+      isMacReleaseDue("READY_FOR_DISTRIBUTION", "WAITING_FOR_REVIEW")
+    ).toBe(false);
+    expect(
+      isMacReleaseDue("READY_FOR_DISTRIBUTION", "PREPARE_FOR_SUBMISSION")
+    ).toBe(false);
   });
 
   test("closes only after both platforms reach a live state", () => {

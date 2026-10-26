@@ -20,6 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: read
   issues: write
 
@@ -71,17 +72,15 @@ jobs:
           REQUESTED_VERSION: ${{ inputs.version }}
           UPDATE_ISSUES: ${{ github.event_name == 'schedule' || inputs.dry_run == false }}
         run: |
+          root_version="$(node -p "require('./package.json').version")"
           if [ -n "$REQUESTED_VERSION" ]; then
             node scripts/release-version.mjs version "$REQUESTED_VERSION"
             versions="$(jq -cn --arg version "$REQUESTED_VERSION" '[$version]')"
           elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            versions="$(node scripts/apple-release-issue.mjs versions)"
-            if [ "$versions" = "[]" ]; then
-              root_version="$(node -p "require('./package.json').version")"
-              versions="$(jq -cn --arg version "$root_version" '[$version]')"
-            fi
+            # Every open release issue, and always the version on main: a
+            # release that succeeds leaves no issue behind.
+            versions="$(node scripts/apple-release-issue.mjs versions | jq -c --arg version "$root_version" '. + [$version] | unique')"
           else
-            root_version="$(node -p "require('./package.json').version")"
             versions="$(jq -cn --arg version "$root_version" '[$version]')"
           fi
           asc auth status --validate --output table
@@ -120,5 +119,19 @@ jobs:
                 --safari-state "$safari_state" \
                 --safari-store-version "$safari_store" \
                 --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
+
+            # The schedule ships the Mac once iOS is live: only for the version
+            # on main, which the release must build from (the next release
+            # replaces an older one), and once per version (a run that fails
+            # reports to the release issue instead of retrying here).
+            mac_due="$(node scripts/apple-release-issue.mjs mac-due --ios-state "$ios_state" --safari-state "$safari_state")"
+            if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$version" = "$root_version" ] && [ "$mac_due" = "true" ]; then
+              mac_runs="$(gh run list --workflow apple-release.yml --limit 1000 --json displayTitle \
+                --jq "[.[] | select(.displayTitle == \"Apple Mac $version (release)\" or .displayTitle == \"Apple iOS + Mac $version (release)\")] | length")"
+              if [ "$mac_runs" = "0" ]; then
+                gh workflow run apple-release.yml --ref main -f "version=$version" -f platforms=macos -f dry_run=false
+                echo "- Started the Mac release: iOS is live." >> "$GITHUB_STEP_SUMMARY"
+              fi
             fi
           done < <(jq -r '.[]' <<< "$versions")
