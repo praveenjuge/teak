@@ -58,6 +58,26 @@ describe("Apple string catalogs", () => {
     expect(missing).toEqual([]);
   });
 
+  test("App Intents text never says apple, which App Store Connect rejects", () => {
+    // ITMS-90626: an intent's text can't contain "apple", and it reads the
+    // key when the text comes from a LocalizedStringResource.
+    const source = swiftFiles(join(APPLE, "Teak/Intents"))
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
+    const keys = [
+      ...source.matchAll(/LocalizedStringResource\("([^"]+)"/g),
+    ].map((match) => match[1] as string);
+    const catalog = JSON.parse(
+      readFileSync(join(APPLE, "Teak/Resources/AppIntents.xcstrings"), "utf8")
+    ) as { strings: Record<string, unknown> };
+    expect(keys.length).toBeGreaterThan(0);
+    expect(
+      [...keys, ...Object.keys(catalog.strings)].filter((key) =>
+        /apple/i.test(key)
+      )
+    ).toEqual([]);
+  });
+
   test("views take their text from the catalog, not string literals", () => {
     // A literal here would be English in every language; read it with tr().
     const view =

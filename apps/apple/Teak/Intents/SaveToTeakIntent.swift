@@ -5,10 +5,10 @@ import TeakCore
 // `AppIntents` string table in the app's bundle (generated from packages/i18n), in
 // the system's language. What `perform()` says comes from `tr`, in Teak's language.
 struct SaveToTeakIntent: AppIntent {
-    static let title = LocalizedStringResource("apple.intents.saveTitle", table: "AppIntents")
-    static let description = IntentDescription(LocalizedStringResource("apple.intents.saveDescription", table: "AppIntents"))
+    static let title = LocalizedStringResource("intents.saveTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.saveDescription", table: "AppIntents"))
 
-    @Parameter(title: LocalizedStringResource("apple.intents.contentParameter", table: "AppIntents"),
+    @Parameter(title: LocalizedStringResource("intents.contentParameter", table: "AppIntents"),
                inputOptions: String.IntentInputOptions(multiline: true))
     var content: String
 

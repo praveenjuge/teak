@@ -1,7 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "apple.intents.addToFolderDescription" : {
+    "intents.addToFolderDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -54,7 +54,7 @@
         }
       }
     },
-    "apple.intents.addToFolderTitle" : {
+    "intents.addToFolderTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -107,7 +107,7 @@
         }
       }
     },
-    "apple.intents.cardEntity" : {
+    "intents.cardEntity" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -160,7 +160,7 @@
         }
       }
     },
-    "apple.intents.cardParameter" : {
+    "intents.cardParameter" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -213,7 +213,7 @@
         }
       }
     },
-    "apple.intents.cardsParameter" : {
+    "intents.cardsParameter" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -266,7 +266,7 @@
         }
       }
     },
-    "apple.intents.contentParameter" : {
+    "intents.contentParameter" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -319,7 +319,7 @@
         }
       }
     },
-    "apple.intents.folderEntity" : {
+    "intents.folderEntity" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -372,7 +372,7 @@
         }
       }
     },
-    "apple.intents.folderParameter" : {
+    "intents.folderParameter" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -425,7 +425,7 @@
         }
       }
     },
-    "apple.intents.includeArchivedParameter" : {
+    "intents.includeArchivedParameter" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -478,7 +478,7 @@
         }
       }
     },
-    "apple.intents.linkProperty" : {
+    "intents.linkProperty" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -531,7 +531,7 @@
         }
       }
     },
-    "apple.intents.newNoteDescription" : {
+    "intents.newNoteDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -584,7 +584,7 @@
         }
       }
     },
-    "apple.intents.newNoteTitle" : {
+    "intents.newNoteTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -637,7 +637,7 @@
         }
       }
     },
-    "apple.intents.openCardDescription" : {
+    "intents.openCardDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -690,7 +690,7 @@
         }
       }
     },
-    "apple.intents.openCardTitle" : {
+    "intents.openCardTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -743,7 +743,7 @@
         }
       }
     },
-    "apple.intents.queryParameter" : {
+    "intents.queryParameter" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -796,7 +796,7 @@
         }
       }
     },
-    "apple.intents.recordVoiceMemoDescription" : {
+    "intents.recordVoiceMemoDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -849,7 +849,7 @@
         }
       }
     },
-    "apple.intents.recordVoiceMemoTitle" : {
+    "intents.recordVoiceMemoTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -902,7 +902,7 @@
         }
       }
     },
-    "apple.intents.saveDescription" : {
+    "intents.saveDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -955,7 +955,7 @@
         }
       }
     },
-    "apple.intents.saveTitle" : {
+    "intents.saveTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -1008,7 +1008,7 @@
         }
       }
     },
-    "apple.intents.searchDescription" : {
+    "intents.searchDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -1061,7 +1061,7 @@
         }
       }
     },
-    "apple.intents.searchTitle" : {
+    "intents.searchTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -1114,7 +1114,7 @@
         }
       }
     },
-    "apple.intents.smartFolderMessage" : {
+    "intents.smartFolderMessage" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
@@ -1167,7 +1167,7 @@
         }
       }
     },
-    "apple.intents.titleProperty" : {
+    "intents.titleProperty" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {

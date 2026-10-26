@@ -31,10 +31,13 @@ const SERVICES_MENU = "apple.servicesMenu.";
 const SAFARI = "apple.safari.";
 /**
  * App Intents text. The system reads an intent's title and description from
- * the app's own bundle, so these also go into an `AppIntents` table there
- * (`LocalizedStringResource("apple.intents.…", table: "AppIntents")`).
+ * the app's own bundle, so these also go into an `AppIntents` table there,
+ * keyed without the `apple.` (`LocalizedStringResource("intents.…", table:
+ * "AppIntents")`): App Store Connect rejects intent text whose key says "apple".
  */
 const APP_INTENTS = "apple.intents.";
+/** The `AppIntents` table's key for an `apple.intents.` message. */
+const APP_INTENTS_TABLE = "intents.";
 /**
  * Siri and Shortcuts phrases (`AppShortcut(phrases:)`), which the system finds
  * by their English text in an `AppShortcuts` table, placeholders as `${name}`.
@@ -208,8 +211,11 @@ export const renderAppleCatalogs = async (): Promise<Map<string, string>> => {
   files.set(
     "Teak/Resources/AppIntents.xcstrings",
     xcstrings(
-      pick((key) => key.startsWith(APP_INTENTS)),
-      argsOf
+      pick(
+        (key) => key.startsWith(APP_INTENTS),
+        (key) => APP_INTENTS_TABLE + key.slice(APP_INTENTS.length)
+      ),
+      (key) => argsOf(APP_INTENTS + key.slice(APP_INTENTS_TABLE.length))
     )
   );
   files.set(

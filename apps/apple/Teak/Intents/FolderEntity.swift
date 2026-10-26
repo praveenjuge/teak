@@ -5,7 +5,7 @@ import TeakCore
 /// hand: a smart folder fills itself from its search.
 struct FolderEntity: AppEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(
-        name: LocalizedStringResource("apple.intents.folderEntity", table: "AppIntents"))
+        name: LocalizedStringResource("intents.folderEntity", table: "AppIntents"))
     static let defaultQuery = FolderEntityQuery()
 
     let id: String
@@ -49,13 +49,13 @@ struct FolderEntityQuery: EntityStringQuery {
 }
 
 struct AddToFolderIntent: AppIntent {
-    static let title = LocalizedStringResource("apple.intents.addToFolderTitle", table: "AppIntents")
-    static let description = IntentDescription(LocalizedStringResource("apple.intents.addToFolderDescription", table: "AppIntents"))
+    static let title = LocalizedStringResource("intents.addToFolderTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.addToFolderDescription", table: "AppIntents"))
 
-    @Parameter(title: LocalizedStringResource("apple.intents.cardsParameter", table: "AppIntents"))
+    @Parameter(title: LocalizedStringResource("intents.cardsParameter", table: "AppIntents"))
     var cards: [CardEntity]
 
-    @Parameter(title: LocalizedStringResource("apple.intents.folderParameter", table: "AppIntents"))
+    @Parameter(title: LocalizedStringResource("intents.folderParameter", table: "AppIntents"))
     var folder: FolderEntity
 
     static var parameterSummary: some ParameterSummary {
