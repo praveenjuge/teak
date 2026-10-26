@@ -110,9 +110,40 @@ const canProtectLocalStorage = () =>
 
 export function initializeAuth() {
   ready ??= canProtectLocalStorage()
-    ? chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
+    ? protectLocalStorage()
     : Promise.resolve();
   return ready;
+}
+
+async function protectLocalStorage() {
+  await chrome.storage.local.setAccessLevel({
+    accessLevel: "TRUSTED_CONTEXTS",
+  });
+  try {
+    await moveDatabaseCredentials();
+  } catch {
+    // The sign-in stays where it was; failing here must not block sign-in.
+  }
+}
+
+const CREDENTIAL_DATABASE = "teak-oauth";
+
+// A sign-in kept in IndexedDB while the browser lacked setAccessLevel moves to
+// the protected storage.local once a browser update adds it, so the update
+// doesn't sign anyone out. Browsers that never needed the database skip it.
+async function moveDatabaseCredentials() {
+  const databases = await globalThis.indexedDB?.databases?.();
+  if (!databases?.some(({ name }) => name === CREDENTIAL_DATABASE)) {
+    return;
+  }
+  const saved = await databaseCredentials.read();
+  if (saved === undefined) {
+    return;
+  }
+  if ((await chrome.storage.local.get(tokenKey()))[tokenKey()] === undefined) {
+    await chrome.storage.local.set({ [tokenKey()]: saved });
+  }
+  await databaseCredentials.clear();
 }
 
 // Where storage.local can't be protected, the extension-origin IndexedDB holds
@@ -123,7 +154,7 @@ async function withCredentialDatabase<T>(
   operation: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
   const database = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open("teak-oauth", 1);
+    const request = indexedDB.open(CREDENTIAL_DATABASE, 1);
     request.onupgradeneeded = () =>
       request.result.createObjectStore("credentials");
     request.onsuccess = () => resolve(request.result);
