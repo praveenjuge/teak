@@ -489,7 +489,8 @@
       "uploadFailedMany": "{count, plural, one {# Datei konnte} other {# Dateien konnten}} nicht hochgeladen werden. {reason}",
       "uploading": "Wird hochgeladen…",
       "foldersNotSupported": "Ordner können nicht hochgeladen werden. Legen Sie stattdessen einzelne Dateien ab.",
-      "offline": "Sie sind offline. Stellen Sie die Verbindung wieder her und versuchen Sie es erneut."
+      "offline": "Sie sind offline. Stellen Sie die Verbindung wieder her und versuchen Sie es erneut.",
+      "sharedFilesMissing": "Die geteilten Dateien wurden nicht gefunden. Teilen Sie sie erneut."
     }
   },
   "appShell": {

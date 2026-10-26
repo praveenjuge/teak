@@ -489,7 +489,8 @@
       "uploadFailedMany": "Falha ao enviar {count, plural, one {# arquivo} other {# arquivos}}. {reason}",
       "uploading": "Enviando…",
       "foldersNotSupported": "Não é possível enviar pastas. Solte os arquivos individualmente.",
-      "offline": "Você está offline. Reconecte-se e tente novamente."
+      "offline": "Você está offline. Reconecte-se e tente novamente.",
+      "sharedFilesMissing": "Não foi possível encontrar os arquivos compartilhados. Compartilhe de novo."
     }
   },
   "appShell": {

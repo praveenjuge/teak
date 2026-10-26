@@ -1,11 +1,13 @@
 import { LOCALE_COOKIE, SUPPORTED_LOCALES } from "@teak/i18n";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import type { PropsWithChildren } from "react";
 import { JsonLd } from "@/components/JsonLd";
+import { ShareWorkerRegistration } from "@/components/providers/ShareWorkerRegistration";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
 import {
   organizationSchema,
   softwareApplicationSchema,
@@ -41,6 +43,16 @@ export const metadata: Metadata = {
     title: "Teak",
     description: "A personal knowledge hub for creative minds",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    {
+      media: "(prefers-color-scheme: light)",
+      color: APP_BACKGROUND_COLOR.light,
+    },
+    { media: "(prefers-color-scheme: dark)", color: APP_BACKGROUND_COLOR.dark },
+  ],
 };
 
 // The static shell can't read cookies, so it says "en"; this sets the
@@ -79,6 +91,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
         >
           {children}
           <Toaster position="bottom-center" />
+          <ShareWorkerRegistration />
         </ThemeProvider>
       </body>
     </html>

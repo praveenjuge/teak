@@ -54,6 +54,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Apple app](./apple.md) covers the iPhone, iPad and Mac app against the local E2E stack: the More menu, archive, folders, tags, Revisit, done toggles, link pills and the share extension's tags and note.
 - [Android app](./android.md) covers the Android app on the phone and tablet emulators against the local E2E stack: archive, folders, tags, Revisit, done toggles, link pills, search chips and the share sheet's tags and note.
 - [Browser extension](./extension.md) covers signing the Chrome extension in, the Alt+Shift+S save shortcut and its icon states, and the "Already in Teak" badge, in Chromium under a virtual display.
+- [Installed web app](./web-install.md) covers installing the web app, the manifest and icons, and the share target: shared text filling the composer, shared files uploading, and a share made while signed out.
 - [Raycast](./raycast.md) covers the Raycast commands, card actions and AI tools through the extension's own API client.
 
 ## Not mapped yet

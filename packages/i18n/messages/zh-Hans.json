@@ -489,7 +489,8 @@
       "uploadFailedMany": "{count, plural, other {# 个文件}}上传失败。{reason}",
       "uploading": "正在上传…",
       "foldersNotSupported": "无法上传文件夹，请改为拖放单个文件。",
-      "offline": "你已离线。请重新连接后重试。"
+      "offline": "你已离线。请重新连接后重试。",
+      "sharedFilesMissing": "找不到共享的文件。请重新共享。"
     }
   },
   "appShell": {
