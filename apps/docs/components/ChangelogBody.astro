@@ -1,0 +1,228 @@
+---
+interface Props {
+  /** The month, as the disclosure names it ("October 2026"). */
+  label: string;
+}
+
+const { label } = Astro.props;
+
+// A month shows its first sections in full and folds the rest, but only when
+// folding hides enough to be worth a click.
+const VISIBLE_SECTIONS = 6;
+const MIN_FOLDED_SECTIONS = 3;
+
+const html = await Astro.slots.render("default");
+const starts = [...html.matchAll(/<h2[\s>]/g)].map((match) => match.index);
+const fold = starts.length - VISIBLE_SECTIONS >= MIN_FOLDED_SECTIONS;
+const head = fold ? html.slice(0, starts[VISIBLE_SECTIONS]) : html;
+const rest = fold ? html.slice(starts[VISIBLE_SECTIONS]) : "";
+const folded = [
+  ...rest.matchAll(/<h2 id="([^"]+)">(?:<a[^>]*>)?(.*?)(?:<\/a>)?<\/h2>/g),
+].map(([, id, title]) => ({ id, title }));
+---
+
+<div class="changelog-prose" set:html={head} />
+{fold && (
+  <div class="mt-8">
+    <details class="changelog-more" data-changelog-more>
+      <summary>
+        <span class="more-closed">{folded.length} more updates in {label}</span>
+        <span class="more-open">Show fewer</span>
+        <svg aria-hidden="true" class="chevron" fill="none" height="14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="14"><path d="m6 9 6 6 6-6" /></svg>
+      </summary>
+      <div class="changelog-prose mt-8" set:html={rest} />
+    </details>
+    <ul class="more-index">
+      {folded.map(({ id, title }) => (
+        <li><a data-changelog-more-link href={`#${id}`} set:html={title} /></li>
+      ))}
+    </ul>
+  </div>
+)}
+
+<script>
+  // Open a folded month before jumping to one of its sections, from the
+  // index under the disclosure or from a link that arrives with the hash.
+  const reveal = (id: string) => {
+    const target = id ? document.getElementById(id) : null;
+    const details = target?.closest<HTMLDetailsElement>("details[data-changelog-more]");
+    if (target && details && !details.open) {
+      details.open = true;
+      return target;
+    }
+    return null;
+  };
+
+  document.addEventListener("click", (event) => {
+    const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-changelog-more-link]");
+    if (link) {
+      reveal(decodeURIComponent(link.hash.slice(1)));
+    }
+  });
+
+  const revealHash = () => {
+    reveal(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+  };
+  window.addEventListener("hashchange", revealHash);
+  revealHash();
+</script>
+
+<style>
+  .changelog-prose {
+    color: color-mix(in oklab, var(--foreground) 82%, transparent);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+
+  .changelog-prose > :global(:first-child) {
+    margin-top: 0;
+  }
+
+  .changelog-prose :global(h2) {
+    margin: 2.5rem 0 0.75rem;
+    color: var(--foreground);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.35;
+    scroll-margin-top: 6rem;
+  }
+
+  .changelog-prose :global(h2 a) {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .changelog-prose :global(h2 a::after) {
+    content: "#";
+    margin-left: 0.4em;
+    color: var(--muted-foreground);
+    font-weight: 400;
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .changelog-prose :global(h2:hover a::after),
+  .changelog-prose :global(h2 a:focus-visible::after) {
+    opacity: 1;
+  }
+
+  .changelog-prose :global(p) {
+    margin: 0.75rem 0;
+  }
+
+  .changelog-prose :global(ul) {
+    margin: 0;
+    padding-left: 1.125rem;
+    list-style: disc;
+  }
+
+  .changelog-prose :global(li) {
+    margin: 0.5rem 0;
+    padding-left: 0.25rem;
+  }
+
+  .changelog-prose :global(li::marker) {
+    color: var(--muted-foreground);
+  }
+
+  .changelog-prose :global(strong) {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+
+  .changelog-prose :global(a:not(.blume-heading-anchor)) {
+    color: var(--foreground);
+    font-weight: 500;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in oklab, var(--foreground) 30%, transparent);
+    text-underline-offset: 3px;
+  }
+
+  .changelog-prose :global(a:not(.blume-heading-anchor):hover) {
+    text-decoration-color: currentColor;
+  }
+
+  .changelog-prose :global(code) {
+    padding: 0.1em 0.35em;
+    border-radius: 0.3rem;
+    background: var(--muted);
+    color: var(--foreground);
+    font-size: 0.85em;
+  }
+
+  .changelog-prose :global(img) {
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+
+  .changelog-more summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding: 0 0.875rem 0 1rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    list-style: none;
+    cursor: pointer;
+    transition: background-color 150ms ease;
+  }
+
+  .changelog-more summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .changelog-more summary:hover {
+    background: var(--muted);
+  }
+
+  .changelog-more .more-open,
+  .changelog-more[open] .more-closed {
+    display: none;
+  }
+
+  .changelog-more[open] .more-open {
+    display: inline;
+  }
+
+  .changelog-more .chevron {
+    color: var(--muted-foreground);
+    transition: rotate 150ms ease;
+  }
+
+  .changelog-more[open] .chevron {
+    rotate: 180deg;
+  }
+
+  .more-index {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 0.5rem 2rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .changelog-more[open] + .more-index {
+    display: none;
+  }
+
+  .more-index a {
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    transition: color 150ms ease;
+  }
+
+  .more-index a:hover {
+    color: var(--foreground);
+  }
+
+  .more-index :global(code) {
+    font-size: 0.9em;
+  }
+</style>

@@ -1,4 +1,9 @@
+// The first quote leads the homepage section.
 export const testimonials = [
+  {
+    quote:
+      "The search is unreasonably good. I typed 'that orange gradient' and it actually found it.",
+  },
   {
     quote:
       "Finally deleted my mess of 400 browser bookmarks. Everything I actually need lives in Teak now.",
@@ -6,10 +11,6 @@ export const testimonials = [
   {
     quote:
       "I save a Dribbble shot on my phone and it's waiting on my laptop when I sit down. That's the whole pitch and it just works.",
-  },
-  {
-    quote:
-      "The search is unreasonably good. I typed 'that orange gradient' and it actually found it.",
   },
   {
     quote:
