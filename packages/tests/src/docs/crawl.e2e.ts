@@ -53,10 +53,9 @@ test("sitemap pages and internal links resolve", async () => {
         new URL(link.getAttribute("href")!, published.siteUrl).toString()
       );
     const statuses = await Promise.all(
-      [...new Set(targets)].map(async (target) => [
-        target,
-        await linkStatus(target),
-      ] as const)
+      [...new Set(targets)].map(
+        async (target) => [target, await linkStatus(target)] as const
+      )
     );
     for (const [target, status] of statuses) {
       expect(status, `${target} linked from ${url}`).toBeLessThan(400);
