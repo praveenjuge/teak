@@ -9,7 +9,7 @@
   "catalog": {
     "@cf-wasm/photon": "^0.4.0",
     "@radix-ui/react-slot": "^1.5.0",
-    "@types/bun": "^1.4.0",
+    "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
