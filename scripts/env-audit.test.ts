@@ -159,7 +159,7 @@ describe("env-audit auditFiles", () => {
         [
           "apps/docs/package.json",
           JSON.stringify({
-            scripts: { dev: "serve --port ${DOCS_PORT:-3001}" },
+            scripts: { dev: "serve --port $DOCS_PORT" },
           }),
         ],
       ])
