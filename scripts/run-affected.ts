@@ -4,7 +4,8 @@
  *
  * - A change is everything since HEAD's merge base with main, plus staged,
  *   unstaged and untracked files.
- * - A change to a root manifest or shared config affects every workspace.
+ * - A change to a root manifest or shared config affects every workspace,
+ *   and one to a directory in OUTSIDE_INPUTS affects the workspace reading it.
  * - Each script runs as its own `bun run --filter` pass, so a workspace still
  *   waits for its dependencies' run of the same script. Bun fails a filter
  *   that matches no workspace with the script, so those are dropped first.
@@ -19,6 +20,10 @@ const ROOT = join(import.meta.dir, "..");
 const BASE_REFS = ["main", "origin/main"];
 const GLOBAL_FILE_RE =
   /^(package\.json|bun\.lock|bunfig\.toml|biome\.jsonc|tsconfig[^/]*\.json)$/;
+// Directories outside every workspace that one workspace reads.
+const OUTSIDE_INPUTS: Record<string, string> = {
+  ".agents/skills/teak/": "@teak/docs",
+};
 
 export interface Workspace {
   dependencies: string[];
@@ -36,11 +41,16 @@ export const listWorkspaces = (root = ROOT): Workspace[] => {
     const glob = new Bun.Glob(`${pattern}/package.json`);
     for (const path of glob.scanSync({ cwd: root })) {
       const pkg = JSON.parse(readFileSync(join(root, path), "utf-8"));
+      // A sibling pinned to a registry version, like Raycast's teak-sdk, is
+      // not a workspace dependency.
+      const specs: Record<string, string> = {
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+      };
       workspaces.push({
-        dependencies: Object.keys({
-          ...pkg.dependencies,
-          ...pkg.devDependencies,
-        }),
+        dependencies: Object.keys(specs).filter((dep) =>
+          specs[dep]?.startsWith("workspace:")
+        ),
         dir: dirname(path),
         name: pkg.name,
         scripts: Object.keys(pkg.scripts ?? {}),
@@ -65,6 +75,11 @@ export const affectedWorkspaces = (
     );
     if (owner) {
       affected.add(owner.name);
+    }
+    for (const [dir, name] of Object.entries(OUTSIDE_INPUTS)) {
+      if (file.startsWith(dir)) {
+        affected.add(name);
+      }
     }
   }
   let grew = true;
@@ -96,7 +111,8 @@ const changedFiles = (): string[] | null => {
   if (!base) {
     return null;
   }
-  const diff = git(["diff", "--name-only", base.trim()]) ?? "";
+  // Without --no-renames a move lists only its destination.
+  const diff = git(["diff", "--name-only", "--no-renames", base.trim()]) ?? "";
   const untracked = git(["ls-files", "--others", "--exclude-standard"]) ?? "";
   return `${diff}\n${untracked}`.split("\n").filter(Boolean);
 };

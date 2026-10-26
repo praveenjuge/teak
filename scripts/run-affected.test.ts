@@ -38,6 +38,15 @@ describe("affectedWorkspaces", () => {
     );
   });
 
+  test("the public Teak skill affects the docs that publish it", () => {
+    expect(
+      affectedWorkspaces(
+        [".agents/skills/teak/SKILL.md"],
+        [...WORKSPACES, workspace("@teak/docs", "apps/docs", ["teak-sdk"])]
+      )
+    ).toEqual(["@teak/docs"]);
+  });
+
   test("files outside every workspace affect none", () => {
     expect(
       affectedWorkspaces([".github/workflows/e2e.yml", "README.md"], WORKSPACES)
@@ -55,5 +64,12 @@ describe("listWorkspaces", () => {
     expect(sdk?.dir).toBe("packages/sdk");
     expect(sdk?.scripts).toContain("build");
     expect(sdk?.dependencies).toContain("@teak/convex");
+  });
+
+  test("a sibling pinned to a registry version is not a dependency", () => {
+    const raycast = listWorkspaces().find(
+      (entry) => entry.name === "teak-raycast"
+    );
+    expect(raycast?.dependencies).not.toContain("teak-sdk");
   });
 });
