@@ -29,9 +29,9 @@ describe("Apple release issue handling", () => {
     expect(isMacReleaseDue("PENDING_DEVELOPER_RELEASE", "NOT_CREATED")).toBe(
       false
     );
-    expect(isMacReleaseDue("READY_FOR_DISTRIBUTION", "WAITING_FOR_REVIEW")).toBe(
-      false
-    );
+    expect(
+      isMacReleaseDue("READY_FOR_DISTRIBUTION", "WAITING_FOR_REVIEW")
+    ).toBe(false);
     expect(
       isMacReleaseDue("READY_FOR_DISTRIBUTION", "PREPARE_FOR_SUBMISSION")
     ).toBe(false);

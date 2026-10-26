@@ -89,10 +89,11 @@ pointer here when one is missing.
 iPhone, iPad and Mac share one app info. While one platform's version is in
 review there are two (live and in review), and `asc validate` stops with
 "app infos match". So each version ships iOS first, and the Mac once iOS is
-live. `Apple Release Status` checks every six hours: when the version's iOS
-release is Ready for Distribution and it has no Mac version yet, it starts the
-Mac release from `main`, once per version. A failed Mac run reports to the
-release issue and isn't retried on its own; rerun it with:
+live. The scheduled `Apple Release Status` check, every six hours, starts the
+Mac release from `main` when the version on `main` is Ready for Distribution
+on iOS and has no Mac version yet. It does this once per version; a version
+`main` has moved past is left to the next release. A failed Mac run reports to
+the release issue and isn't retried on its own; rerun it with:
 
 ```bash
 gh workflow run apple-release.yml --ref main -f version=<version> -f platforms=macos -f dry_run=false

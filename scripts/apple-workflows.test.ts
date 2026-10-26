@@ -122,7 +122,13 @@ describe("Apple release workflows", () => {
       'apple-release-issue.mjs mac-due --ios-state "$ios_state" --safari-state "$safari_state"'
     );
     expect(check).toContain(
-      'if [ "$UPDATE_ISSUES" = "true" ] && [ "$mac_due" = "true" ]; then'
+      'if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$version" = "$root_version" ] && [ "$mac_due" = "true" ]; then'
+    );
+    expect(check).toContain(
+      "versions | jq -c --arg version \"$root_version\" '. + [$version] | unique'"
+    );
+    expect(check).toContain(
+      "gh run list --workflow apple-release.yml --limit 1000"
     );
     expect(check).toContain(
       '\\"Apple Mac $version (release)\\" or .displayTitle == \\"Apple iOS + Mac $version (release)\\"'
@@ -131,7 +137,7 @@ describe("Apple release workflows", () => {
       'gh workflow run apple-release.yml --ref main -f "version=$version" -f platforms=macos -f dry_run=false'
     );
     expect(apple).toContain(
-      "run-name: Apple ${{ inputs.platforms == 'both' && 'iOS + Mac' || inputs.platforms == 'macos' && 'Mac' || 'iOS' }} ${{ inputs.version }} (${{ inputs.dry_run && 'dry run' || 'release' }})"
+      `run-name: Apple ${expression("inputs.platforms == 'both' && 'iOS + Mac' || inputs.platforms == 'macos' && 'Mac' || 'iOS'")} ${expression("inputs.version")} (${expression("inputs.dry_run && 'dry run' || 'release'")})`
     );
   });
 
