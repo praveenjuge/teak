@@ -84,3 +84,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Tip: stack frames: `JSONExtractArrayRaw(toString(properties.$exception_list))`; `fn` is reserved in HogQL. `bun install --frozen-lockfile` takes ~20 s, then `bun test` works in `apps/files-worker` (the 3 real-Chrome rendering tests fail without Chrome here).
 - Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed).
 - Check tomorrow: zero `tagName` and `Could not load style` exceptions after the PR deploys; `card_processing_failed` on links.
+
+### 2026-10-26
+- Inbox empty. Unit Tests and Backend Deploy green on main (runs 40206791004, 40206790994). Product health (24h): zero `card_created`, zero processing events, zero failure events. Low traffic, nothing to measure.
+- One files-worker `$exception`: `ai_usage_sql_failed:500` (10-26 03:46 IST, single event; the usage write to Convex). Watch for repeats. Zero `tagName` and `Could not load style` exceptions after #844: fix held.
+- Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed). Nothing fixed.
+- Check tomorrow: recurrence of `ai_usage_sql_failed`; first card traffic.
