@@ -14,15 +14,15 @@ const baseImages = async (dockerfile: string): Promise<string[]> =>
     (match) => match[1] ?? ""
   );
 
-test("the container images build with the repo's pinned Bun and Node", async () => {
+test("the container images build with the repo's pinned Bun on one Alpine", async () => {
   const bun = rootPackageJson.packageManager.replace(/^bun@/, "");
-  expect(await baseImages("../container/Dockerfile")).toContain(
-    `oven/bun:${bun}-alpine`
-  );
-  expect(await baseImages("../fetcher/Dockerfile")).toEqual([
-    `oven/bun:${bun}-alpine`,
-    `node:${rootPackageJson.engines.node}-alpine`,
-  ]);
+  const renderer = await baseImages("../container/Dockerfile");
+  const fetcher = await baseImages("../fetcher/Dockerfile");
+  expect(renderer[0]).toBe(`oven/bun:${bun}-alpine`);
+  expect(fetcher[0]).toBe(`oven/bun:${bun}-alpine`);
+  // Both ship a compiled Bun binary on the same runtime image.
+  expect(fetcher[1]).toStartWith("alpine:");
+  expect(fetcher).toEqual(renderer);
 });
 
 // The Worker was renamed from teak-files-proxy in place. Its container apps

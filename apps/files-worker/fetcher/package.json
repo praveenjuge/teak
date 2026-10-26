@@ -4,7 +4,6 @@
   "description": "Dependencies of the Files Worker's link fetcher Container, installed only inside its image (see Dockerfile).",
   "type": "module",
   "dependencies": {
-    "probe-image-size": "7.4.0",
-    "undici": "7.30.1"
+    "probe-image-size": "7.4.0"
   }
 }
