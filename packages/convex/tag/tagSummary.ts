@@ -11,6 +11,7 @@ import {
   query,
 } from "../_generated/server";
 import { getAccountDeletionState } from "../accountDeletion";
+import { isOptimisticConcurrencyError } from "../publicApi/http/shared";
 import { getSessionUser, requireTeakUserId } from "../securitySessions";
 import { captureBackendException } from "../telemetry/posthog";
 
@@ -43,6 +44,22 @@ interface TagCount {
   count: number;
   name: string;
 }
+
+/**
+ * A finished account deletion removes its `accountDeletionStates` row and
+ * leaves only `users.deletedAt`, so a delayed recompute checks both before it
+ * writes anything back for the user.
+ */
+const accountClosedOrClosing = async (ctx: QueryCtx, userId: string) => {
+  if (await getAccountDeletionState(ctx, userId)) {
+    return true;
+  }
+  const owner = await ctx.db
+    .query("users")
+    .withIndex("by_teakUserId", (q) => q.eq("teakUserId", userId))
+    .unique();
+  return owner?.deletedAt !== undefined;
+};
 
 const pendingRefresh = (ctx: QueryCtx, userId: string) =>
   ctx.db
@@ -251,7 +268,7 @@ export const writeTagSummary = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, { userId, items, isComplete, claimedAt }) => {
-    if (await getAccountDeletionState(ctx, userId)) {
+    if (await accountClosedOrClosing(ctx, userId)) {
       return null;
     }
     const value = { userId, items, isComplete, computedAt: claimedAt };
@@ -276,6 +293,9 @@ export const rearmTagSummaryRefresh = internalMutation({
   args: { userId: v.string() },
   returns: v.null(),
   handler: async (ctx, { userId }) => {
+    if (await accountClosedOrClosing(ctx, userId)) {
+      return null;
+    }
     await markTagSummaryDirty(ctx, userId);
     return null;
   },
@@ -352,7 +372,12 @@ export const recomputeTagSummary = internalAction({
       // that still fails permanently must not strand the summary - the pending
       // refresh is already consumed by the claim. Back off and re-run; after
       // the cap, report and re-arm the refresh through the normal debounce so
-      // it recomputes even if no new edits arrive.
+      // it recomputes even if no new edits arrive. Only write conflicts are
+      // transient: any other error would fail the same way on every retry and
+      // every re-arm, so it fails once, as before.
+      if (!isOptimisticConcurrencyError(caught)) {
+        throw caught;
+      }
       const delay = tagSummaryRetryDelayMs(attempt ?? 0);
       if (delay === null) {
         console.error("[tagSummary] recompute retry budget exhausted", caught);
