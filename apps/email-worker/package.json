@@ -1,6 +1,6 @@
 {
   "name": "@teak/email-worker",
-  "version": "1.0.90",
+  "version": "1.0.91",
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
