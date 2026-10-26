@@ -1,111 +1,250 @@
 ---
+import { SIGN_UP_URL, WEB_APP_URL } from "../lib/app-entry";
+import {
+  APP_STORE_URL,
+  CHROME_STORE_URL,
+  FIREFOX_ADDONS_URL,
+  RAYCAST_STORE_URL,
+} from "../lib/app-links";
 import { AUDIENCE_PAGE_LIST } from "../lib/audience-pages";
 import Logo from "./Logo.astro";
+
+const stores = [
+  {
+    name: "App Store",
+    href: APP_STORE_URL,
+    icon: "/platform-icons/apple.svg",
+    iconClass: "dark:invert",
+  },
+  {
+    name: "Chrome",
+    href: CHROME_STORE_URL,
+    icon: "/platform-icons/chrome.svg",
+  },
+  {
+    name: "Firefox",
+    href: FIREFOX_ADDONS_URL,
+    icon: "/platform-icons/firefox.svg",
+  },
+  {
+    name: "Raycast",
+    href: RAYCAST_STORE_URL,
+    icon: "/platform-icons/raycast.svg",
+  },
+];
+
+const columns = [
+  {
+    title: "Product",
+    links: [
+      { name: "Features", href: "/docs/features" },
+      { name: "Pricing", href: "/pricing" },
+      { name: "Apps", href: "/apps" },
+      { name: "Changelog", href: "/changelog" },
+      { name: "Docs", href: "/docs" },
+    ],
+  },
+  {
+    title: "Apps",
+    links: [
+      { name: "Mac", href: "/docs/mac" },
+      { name: "iPhone & iPad", href: "/docs/mobile" },
+      { name: "Browser extensions", href: "/docs/extension" },
+      { name: "Raycast", href: "/docs/raycast" },
+      { name: "Command line", href: "/docs/cli" },
+    ],
+  },
+  {
+    title: "Developers",
+    links: [
+      { name: "API", href: "/docs/api" },
+      { name: "MCP", href: "/docs/mcp" },
+      { name: "TypeScript SDK", href: "/docs/sdk" },
+      { name: "AI agents", href: "/docs/ai-agents" },
+      { name: "Self-hosting", href: "/docs/self-hosting" },
+    ],
+  },
+  {
+    title: "Teak for",
+    links: AUDIENCE_PAGE_LIST.map((page) => ({
+      name: page.navLabel,
+      href: `/${page.slug}`,
+    })),
+  },
+];
+
+const legalLinks = [
+  { name: "Privacy", href: "/docs/privacy-policy" },
+  { name: "Terms", href: "/docs/terms-of-service" },
+  { name: "Support", href: "/docs/support" },
+];
+
+const year = new Date().getFullYear();
 ---
 
-<footer class="relative overflow-hidden bg-background px-4 pt-20 pb-8">
+<footer class="relative overflow-hidden bg-background px-4 pt-24 pb-10">
   <div class="meadow-band meadow-band-bottom z-0" aria-hidden="true"></div>
-  <div class="relative z-10 mx-auto max-w-lg">
-    <div class="pb-12 text-center">
-      <img
-        alt="Bookmark emoji"
-        class="mx-auto mb-4 object-contain"
-        height="72"
-        src="/emojis/cta-bookmark.webp"
-        width="72"
-      />
-      <h2
-        class="mx-auto mb-4 max-w-sm text-balance font-bold text-4xl tracking-tight"
-      >
-        Ready to start visual bookmarking?
+  <div class="relative z-10 mx-auto max-w-5xl">
+    <section aria-labelledby="footer-cta" class="mx-auto flex max-w-xl flex-col items-center text-center">
+      <img alt="" class="mb-5 object-contain" height="56" src="/emojis/cta-bookmark.webp" width="56" />
+      <h2 class="text-[clamp(1.75rem,3.4vw,2.375rem)] leading-[1.08] font-bold tracking-[-0.035em] text-balance" id="footer-cta">
+        Everything worth keeping, in one place
       </h2>
-      <p
-        class="mx-auto mb-8 max-w-xl text-balance text-lg text-muted-foreground"
-      >
-        Start bookmarking, organizing, and managing your most important design
-        inspiration with Teak.
+      <p class="mt-4 max-w-md text-base leading-[1.6] text-balance text-muted-foreground">
+        Save links, images, notes, and voice memos from any device, and find
+        them again in seconds.
       </p>
-      <a
-        class="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-6 font-medium text-primary-foreground text-sm hover:bg-primary/90"
-        href="https://app.teakvault.com"
-        rel="noopener noreferrer"
-        target="_blank"
-      >
-        Get Started
-      </a>
-    </div>
+      <a class="footer-cta-button mt-7" data-app-entry data-signed-out-only href={SIGN_UP_URL} rel="noopener noreferrer" target="_blank">Start free →</a>
+      <a class="footer-cta-button mt-7" data-app-entry data-signed-in-only href={`${WEB_APP_URL}/`} rel="noopener noreferrer" target="_blank">Open Teak →</a>
+      <ul aria-label="Get the apps" class="mt-8 grid w-full max-w-xs list-none grid-cols-2 gap-2 p-0 sm:flex sm:w-auto sm:max-w-none sm:flex-wrap sm:justify-center">
+        {stores.map((store) => (
+          <li>
+            <a class="store-link" href={store.href} rel="noopener noreferrer" target="_blank">
+              <img alt="" class:list={["size-4 object-contain", store.iconClass]} height="16" src={store.icon} width="16" />
+              {store.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
 
-    <nav
-      aria-label="Teak for"
-      class="mt-16 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground text-sm"
-    >
-      {AUDIENCE_PAGE_LIST.map((page, index) => (
-        <>
-          {index > 0 && <span aria-hidden="true">·</span>}
-          <a
-            class="underline-offset-4 transition-colors hover:text-foreground hover:underline"
-            href={`/${page.slug}`}
-          >
-            {page.navLabel}
+    <div class="footer-panel mt-20">
+      <div class="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
+        <div class="col-span-2 flex flex-col items-start lg:col-span-1">
+          <a aria-label="Teak home" href="/">
+            <Logo className="h-5 w-auto" />
           </a>
-        </>
-      ))}
-    </nav>
+          <p class="mt-4 max-w-[15rem] text-sm leading-relaxed text-pretty text-muted-foreground">
+            A personal home for the ideas, links, and inspiration you want to keep.
+          </p>
+          <div class="mt-5 flex gap-1 text-muted-foreground">
+            <a aria-label="Teak on GitHub" class="social-link" href="https://github.com/praveenjuge/teak" rel="noopener noreferrer" target="_blank">
+              <svg height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                  <path d="M10 20.568c-3.429 1.157-6.286 0-8-3.568"></path>
+                  <path d="M10 22v-3.242c0-.598.184-1.118.48-1.588c.204-.322.064-.78-.303-.88C7.134 15.452 5 14.107 5 9.645c0-1.16.38-2.25 1.048-3.2c.166-.236.25-.354.27-.46c.02-.108-.015-.247-.085-.527c-.283-1.136-.264-2.343.16-3.43c0 0 .877-.287 2.874.96c.456.285.684.428.885.46s.469-.035 1.005-.169A9.5 9.5 0 0 1 13.5 3a9.6 9.6 0 0 1 2.343.28c.536.134.805.2 1.006.169c.2-.032.428-.175.884-.46c1.997-1.247 2.874-.96 2.874-.96c.424 1.087.443 2.294.16 3.43c-.07.28-.104.42-.084.526s.103.225.269.461c.668.95 1.048 2.04 1.048 3.2c0 4.462-2.134 5.807-5.177 6.643c-.367.101-.507.559-.303.88c.296.47.48.99.48 1.589V22"></path>
+                </g>
+              </svg>
+            </a>
+            <a aria-label="Teak on X" class="social-link" href="https://x.com/praveenjuge" rel="noopener noreferrer" target="_blank">
+              <svg height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg">
+                <path d="m3 21l7.548-7.548M21 3l-7.548 7.548m0 0L8 3H3l7.548 10.452m2.904-2.904L21 21h-5l-5.452-7.548" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
 
-    <div class="mt-8 flex flex-row items-center justify-between gap-4">
-      <Logo />
-      <div class="flex gap-6 text-muted-foreground">
-        <a
-          aria-label="GitHub"
-          class="transition-colors hover:text-foreground"
-          href="https://github.com/praveenjuge/teak"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <svg
-            height="24"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <g
-              fill="none"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            >
-              <path d="M10 20.568c-3.429 1.157-6.286 0-8-3.568"></path>
-              <path
-                d="M10 22v-3.242c0-.598.184-1.118.48-1.588c.204-.322.064-.78-.303-.88C7.134 15.452 5 14.107 5 9.645c0-1.16.38-2.25 1.048-3.2c.166-.236.25-.354.27-.46c.02-.108-.015-.247-.085-.527c-.283-1.136-.264-2.343.16-3.43c0 0 .877-.287 2.874.96c.456.285.684.428.885.46s.469-.035 1.005-.169A9.5 9.5 0 0 1 13.5 3a9.6 9.6 0 0 1 2.343.28c.536.134.805.2 1.006.169c.2-.032.428-.175.884-.46c1.997-1.247 2.874-.96 2.874-.96c.424 1.087.443 2.294.16 3.43c-.07.28-.104.42-.084.526s.103.225.269.461c.668.95 1.048 2.04 1.048 3.2c0 4.462-2.134 5.807-5.177 6.643c-.367.101-.507.559-.303.88c.296.47.48.99.48 1.589V22"
-              ></path>
-            </g>
-          </svg>
-        </a>
-        <a
-          aria-label="X"
-          class="transition-colors hover:text-foreground"
-          href="https://x.com/praveenjuge"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <svg
-            height="24"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="m3 21l7.548-7.548M21 3l-7.548 7.548m0 0L8 3H3l7.548 10.452m2.904-2.904L21 21h-5l-5.452-7.548"
-              fill="none"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            ></path>
-          </svg>
-        </a>
+        {columns.map((column) => (
+          <nav aria-label={column.title}>
+            <h3 class="text-[0.8125rem] font-semibold tracking-[-0.005em]">{column.title}</h3>
+            <ul class="mt-4 flex list-none flex-col gap-2.5 p-0">
+              {column.links.map((link) => (
+                <li>
+                  <a class="footer-link" href={link.href}>{link.name}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))}
+      </div>
+
+      <div class="mt-12 flex flex-col-reverse gap-3 border-t border-border/70 pt-6 text-[0.8125rem] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <p>© {year} Teak</p>
+        <ul class="flex list-none gap-5 p-0">
+          {legalLinks.map((link) => (
+            <li>
+              <a class="footer-link" href={link.href}>{link.name}</a>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   </div>
 </footer>
+
+<style>
+  .footer-cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.5rem;
+    padding: 0 1.75rem;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color 150ms ease;
+  }
+
+  .footer-cta-button:hover {
+    background: color-mix(in oklab, var(--primary) 90%, transparent);
+  }
+
+  .store-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding: 0 0.875rem 0 0.75rem;
+    border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--card) 80%, transparent);
+    color: var(--foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+    transition: border-color 150ms ease, background-color 150ms ease;
+  }
+
+  .store-link:hover {
+    border-color: var(--border);
+    background: var(--card);
+  }
+
+  .footer-panel {
+    padding: 2.5rem 2rem 1.5rem;
+    border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+    border-radius: 1.25rem;
+    background: color-mix(in oklab, var(--card) 88%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  @media (max-width: 40rem) {
+    .footer-panel {
+      padding: 2rem 1.5rem 1.25rem;
+    }
+  }
+
+  .footer-link {
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    transition: color 150ms ease;
+  }
+
+  .footer-link:hover {
+    color: var(--foreground);
+  }
+
+  .social-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-left: -0.4375rem;
+    border-radius: 0.5rem;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .social-link + .social-link {
+    margin-left: 0;
+  }
+
+  .social-link:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+</style>
