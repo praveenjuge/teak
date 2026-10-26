@@ -213,54 +213,48 @@ describe.skipIf(!openssl)("pinnedFetch over the network", () => {
     ).rejects.toThrow();
   });
 
+  // The environment cases run in a child process, so the runner's own
+  // environment stays as it was for every other test.
+  const probe = async (
+    variables: Record<string, string>,
+    url: string,
+    trustTestCa: boolean
+  ): Promise<string> => {
+    const child = Bun.spawn(
+      [
+        process.execPath,
+        join(import.meta.dir, "pinnedFetch.probe.ts"),
+        url,
+        "127.0.0.1",
+        ...(trustTestCa ? [join(dir, "ca.pem")] : []),
+      ],
+      { env: { ...process.env, ...variables }, stderr: "pipe", stdout: "pipe" }
+    );
+    const output = await new Response(child.stdout).text();
+    await child.exited;
+    return output.trim();
+  };
+
   test("keeps verifying when NODE_TLS_REJECT_UNAUTHORIZED is 0", async () => {
-    const saved = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    try {
-      await expect(
-        get(`https://other.test:${tlsServer.port}/`, ["127.0.0.1"])
-      ).rejects.toThrow();
-      await expect(
-        createPinnedFetch()(
-          `https://pinned.test:${tlsServer.port}/`,
-          ["127.0.0.1"],
-          {}
-        )
-      ).rejects.toThrow();
-    } finally {
-      if (saved === undefined) {
-        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
-      } else {
-        process.env.NODE_TLS_REJECT_UNAUTHORIZED = saved;
-      }
-    }
+    const insecure = { NODE_TLS_REJECT_UNAUTHORIZED: "0" };
+    const pinned = `https://pinned.test:${tlsServer.port}/`;
+    expect(await probe(insecure, pinned, true)).toBe("200");
+    expect(
+      await probe(insecure, `https://other.test:${tlsServer.port}/`, true)
+    ).toBe("rejected");
+    expect(await probe(insecure, pinned, false)).toBe("rejected");
   });
 
   test("ignores the proxy environment", async () => {
-    const saved = {
-      HTTPS_PROXY: process.env.HTTPS_PROXY,
-      https_proxy: process.env.https_proxy,
-      NO_PROXY: process.env.NO_PROXY,
-      no_proxy: process.env.no_proxy,
+    const deadProxy = {
+      HTTPS_PROXY: "http://127.0.0.1:1",
+      NO_PROXY: "",
+      https_proxy: "http://127.0.0.1:1",
+      no_proxy: "",
     };
-    process.env.HTTPS_PROXY = "http://127.0.0.1:1";
-    process.env.https_proxy = "http://127.0.0.1:1";
-    process.env.NO_PROXY = "";
-    process.env.no_proxy = "";
-    try {
-      const response = await get(`https://pinned.test:${tlsServer.port}/`, [
-        "127.0.0.1",
-      ]);
-      expect(response.status).toBe(200);
-    } finally {
-      for (const [name, value] of Object.entries(saved)) {
-        if (value === undefined) {
-          delete process.env[name];
-        } else {
-          process.env[name] = value;
-        }
-      }
-    }
+    expect(
+      await probe(deadProxy, `https://pinned.test:${tlsServer.port}/`, true)
+    ).toBe("200");
   });
 
   test("returns a redirect unfollowed, even when asked to follow it", async () => {
