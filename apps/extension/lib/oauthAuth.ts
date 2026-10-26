@@ -102,17 +102,23 @@ let login: Promise<void> | undefined;
 let signOutEpoch = 0;
 const signedOutSince = (epoch: number) => epoch !== signOutEpoch;
 
+// Firefox and older Chromium builds can't restrict storage.local to trusted
+// extension contexts (Chromium's setAccessLevel is missing there, and calling
+// it threw before the background could start).
+const canProtectLocalStorage = () =>
+  !IS_FIREFOX && typeof chrome.storage.local.setAccessLevel === "function";
+
 export function initializeAuth() {
-  ready ??= IS_FIREFOX
-    ? Promise.resolve()
-    : chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  ready ??= canProtectLocalStorage()
+    ? chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
+    : Promise.resolve();
   return ready;
 }
 
-// Firefox cannot restrict storage.local to trusted extension contexts. Its
-// extension-origin IndexedDB is inaccessible to page content scripts and durable
-// across background-page restarts. Chromium keeps its existing protected storage.
-async function firefoxCredentials<T>(
+// Where storage.local can't be protected, the extension-origin IndexedDB holds
+// the sign-in: content scripts can't read it, and it survives background-page
+// restarts. Chromium with setAccessLevel keeps its existing protected storage.
+async function withCredentialDatabase<T>(
   mode: IDBTransactionMode,
   operation: (store: IDBObjectStore) => IDBRequest<T>
 ): Promise<T> {
@@ -146,16 +152,19 @@ interface CredentialStore {
   ) => Promise<void>;
 }
 
-const firefoxDatabaseCredentials: CredentialStore = {
-  read: () => firefoxCredentials("readonly", (store) => store.get(tokenKey())),
+const databaseCredentials: CredentialStore = {
+  read: () =>
+    withCredentialDatabase("readonly", (store) => store.get(tokenKey())),
   write: async (credentials, localFields) => {
-    await firefoxCredentials("readwrite", (store) =>
+    await withCredentialDatabase("readwrite", (store) =>
       store.put(credentials, tokenKey())
     );
     await chrome.storage.local.set(localFields);
   },
   clear: async () => {
-    await firefoxCredentials("readwrite", (store) => store.delete(tokenKey()));
+    await withCredentialDatabase("readwrite", (store) =>
+      store.delete(tokenKey())
+    );
   },
 };
 
@@ -175,14 +184,14 @@ const storageAreaCredentials = (
 });
 
 const credentialStore = (): CredentialStore => {
-  if (!IS_FIREFOX) {
+  if (canProtectLocalStorage()) {
     return storageAreaCredentials(chrome.storage.local);
   }
-  // A private session can't open IndexedDB; its session storage, which Firefox
-  // never shows content scripts, holds the sign-in until Firefox closes.
+  // A private session can't open IndexedDB; its session storage, which the
+  // browser never shows content scripts, holds the sign-in until it closes.
   return isPrivateSession()
     ? storageAreaCredentials(chrome.storage.session)
-    : firefoxDatabaseCredentials;
+    : databaseCredentials;
 };
 
 async function readCredentials(): Promise<Credentials | null> {

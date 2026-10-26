@@ -23,6 +23,11 @@ export interface DailyUsageRow {
 const MAX_USERS_PER_DAY = 50_000;
 const DEFAULT_DATASET = "teak_ai_usage";
 const SQL_TIMEOUT_MS = 30_000;
+// The SQL API fails a query with a 5xx now and then. The query only reads, so
+// it is retried briefly before the hourly run gives up (and the next hour
+// rewrites the same totals anyway).
+const SQL_ATTEMPTS = 3;
+const SQL_RETRY_DELAY_MS = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const utcDate = (time: number): string =>
@@ -108,32 +113,39 @@ const queryDailyUsage = async (
   env: AiUsageRollupEnv,
   convexSiteUrl: string,
   date: string,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  retryDelayMs = SQL_RETRY_DELAY_MS
 ): Promise<DailyUsageRow[]> => {
-  const response = await fetcher(
-    `https://api.cloudflare.com/client/v4/accounts/${env.ANALYTICS_ACCOUNT_ID}/analytics_engine/sql`,
-    {
-      body: dailyUsageSql(
-        env.AI_USAGE_DATASET || DEFAULT_DATASET,
-        convexSiteUrl,
-        date
-      ),
-      headers: { Authorization: `Bearer ${env.ANALYTICS_API_TOKEN}` },
-      method: "POST",
-      signal: AbortSignal.timeout(SQL_TIMEOUT_MS),
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetcher(
+      `https://api.cloudflare.com/client/v4/accounts/${env.ANALYTICS_ACCOUNT_ID}/analytics_engine/sql`,
+      {
+        body: dailyUsageSql(
+          env.AI_USAGE_DATASET || DEFAULT_DATASET,
+          convexSiteUrl,
+          date
+        ),
+        headers: { Authorization: `Bearer ${env.ANALYTICS_API_TOKEN}` },
+        method: "POST",
+        signal: AbortSignal.timeout(SQL_TIMEOUT_MS),
+      }
+    );
+    if (response.ok) {
+      return parseDailyUsage(await response.json());
     }
-  );
-  if (!response.ok) {
     await response.body?.cancel().catch(() => undefined);
-    throw new Error(`ai_usage_sql_failed:${String(response.status)}`);
+    if (response.status < 500 || attempt >= SQL_ATTEMPTS) {
+      throw new Error(`ai_usage_sql_failed:${String(response.status)}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
   }
-  return parseDailyUsage(await response.json());
 };
 
 export interface AiUsageRollupDeps {
   convex?: ConvexRpc;
   fetcher?: typeof fetch;
   now?: number;
+  sqlRetryDelayMs?: number;
 }
 
 export const rollUpAiUsage = async (
@@ -150,7 +162,13 @@ export const rollUpAiUsage = async (
   const now = deps.now ?? Date.now();
   let written = 0;
   for (const date of [utcDate(now - DAY_MS), utcDate(now)]) {
-    const rows = await queryDailyUsage(env, convexSiteUrl, date, fetcher);
+    const rows = await queryDailyUsage(
+      env,
+      convexSiteUrl,
+      date,
+      fetcher,
+      deps.sqlRetryDelayMs
+    );
     for (let index = 0; index < rows.length; index += MAX_DAILY_USAGE_ROWS) {
       const result = await convex.mutation(
         internal.adminUsage.replaceDailyUsage,

@@ -189,8 +189,50 @@ describe("AI usage rollup", () => {
     expect(api.requests).toEqual([]);
   });
 
+  test("retries the SQL API's server errors before giving up", async () => {
+    const api = sqlApi({
+      "2026-10-15": [{ calls: 2, costUsd: 0.5, userId: "user_a" }],
+    });
+    const statuses = [500, 503];
+    const flaky = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const status = statuses.shift();
+      return status
+        ? Promise.resolve(new Response("busy", { status }))
+        : api.fetcher(input, init);
+    }) as typeof fetch;
+    const convex = fakeConvex();
+    const rpc = createConvexRpc(
+      fakeConvexEnv,
+      TEST_CONVEX_SITE_URL,
+      convex.fetcher
+    );
+    expect(
+      await rollUpAiUsage(env(), TEST_CONVEX_SITE_URL, {
+        convex: rpc,
+        fetcher: flaky,
+        now: NOW,
+        sqlRetryDelayMs: 0,
+      })
+    ).toBe(1);
+
+    let calls = 0;
+    await expect(
+      rollUpAiUsage(env(), TEST_CONVEX_SITE_URL, {
+        convex: rpc,
+        fetcher: (() => {
+          calls += 1;
+          return Promise.resolve(new Response("down", { status: 500 }));
+        }) as unknown as typeof fetch,
+        now: NOW,
+        sqlRetryDelayMs: 0,
+      })
+    ).rejects.toThrow("ai_usage_sql_failed:500");
+    expect(calls).toBe(3);
+  });
+
   test("fails without writing when the SQL API refuses", async () => {
     const convex = fakeConvex();
+    let refusals = 0;
     await expect(
       rollUpAiUsage(env(), TEST_CONVEX_SITE_URL, {
         convex: createConvexRpc(
@@ -198,11 +240,14 @@ describe("AI usage rollup", () => {
           TEST_CONVEX_SITE_URL,
           convex.fetcher
         ),
-        fetcher: (async () =>
-          new Response("denied", { status: 403 })) as unknown as typeof fetch,
+        fetcher: (() => {
+          refusals += 1;
+          return Promise.resolve(new Response("denied", { status: 403 }));
+        }) as unknown as typeof fetch,
         now: NOW,
       })
     ).rejects.toThrow("ai_usage_sql_failed:403");
+    expect(refusals).toBe(1);
     expect(convex.calls).toEqual([]);
   });
 });

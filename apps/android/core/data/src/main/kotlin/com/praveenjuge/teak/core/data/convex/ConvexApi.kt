@@ -4,10 +4,14 @@ import com.praveenjuge.teak.core.model.FOLDER_ERROR_MESSAGES
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
 import com.praveenjuge.teak.core.model.UiText
+import dev.convex.android.ClientException
 import dev.convex.android.ConvexClient
 import dev.convex.android.ConvexError
+import dev.convex.android.InternalError
 import dev.convex.android.ServerError
+import dev.convex.android.toError
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -25,8 +29,12 @@ interface ConvexApi {
 }
 
 class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
+    // The SDK starts a subscription without catching the native client's errors, so one (such as
+    // "channel closed" once its connection has shut down) would crash whoever collects. It arrives
+    // as a failed result instead, like the errors the SDK does report.
     override fun subscribe(name: String, args: Map<String, Any?>): Flow<Result<JsonElement>> =
         client.subscribe<JsonElement>(name, args.withNumbersAsDoubles())
+            .catch { error -> if (error is ClientException) emit(Result.failure(error.toError())) else throw error }
             .map { result -> result.recoverCatching { throw it.toTeakException() } }
 
     override suspend fun mutation(name: String, args: Map<String, Any?>): JsonElement =
@@ -44,6 +52,8 @@ class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
         } catch (e: ConvexError) {
             throw e.toTeakException()
         } catch (e: ServerError) {
+            throw e.toTeakException()
+        } catch (e: InternalError) {
             throw e.toTeakException()
         } catch (e: IOException) {
             throw e.toTeakException()
@@ -146,7 +156,7 @@ fun Throwable.toTeakException(): Throwable = when (this) {
             else -> TeakException(code, GENERIC_FAILURE, this, code?.let(TeakException::textFor) ?: UiText.of("native.errors.generic"))
         }
     }
-    is ServerError -> TeakException(null, GENERIC_FAILURE, this, UiText.of("native.errors.generic"))
+    is ServerError, is InternalError -> TeakException(null, GENERIC_FAILURE, this, UiText.of("native.errors.generic"))
     is IOException -> TeakException(TeakException.OFFLINE, "Check your connection and try again.", this)
     else -> this
 }

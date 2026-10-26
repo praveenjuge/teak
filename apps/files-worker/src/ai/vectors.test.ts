@@ -27,10 +27,13 @@ const fakes = ({
     { id: "card_1", score: 0.42 },
   ],
   writeError,
+  writeFailures = Number.POSITIVE_INFINITY,
 }: {
   aiError?: unknown;
   dimensions?: number;
   writeError?: unknown;
+  // How many writes fail with `writeError` before the rest succeed.
+  writeFailures?: number;
   ranked?: Ranked[];
   filterError?: unknown;
 } = {}) => {
@@ -38,6 +41,11 @@ const fakes = ({
   const upserts: unknown[][] = [];
   const deletes: string[][] = [];
   const queries: { options: unknown; vector: number[] }[] = [];
+  let writes = 0;
+  const failWrite = () => {
+    writes += 1;
+    return writeError !== undefined && writes <= writeFailures;
+  };
   const stored = new Map<string, { namespace: string }>([
     ["card_1", { namespace: NAMESPACE }],
     ["card_other", { namespace: "teak_user_b" }],
@@ -59,7 +67,7 @@ const fakes = ({
     },
     CARD_VECTORS_0: {
       deleteByIds: (ids: string[]) => {
-        if (writeError) {
+        if (failWrite()) {
           return Promise.reject(writeError);
         }
         deletes.push(ids);
@@ -94,7 +102,7 @@ const fakes = ({
         return Promise.resolve({ count: matches.length, matches });
       },
       upsert: (vectors: unknown[]) => {
-        if (writeError) {
+        if (failWrite()) {
           return Promise.reject(writeError);
         }
         upserts.push(vectors);
@@ -103,7 +111,7 @@ const fakes = ({
     },
     FILES_SIGNING_SECRET: SECRET,
   } as unknown as FilesOpsEnv;
-  return { aiCalls, deletes, env, queries, upserts };
+  return { aiCalls, deletes, env, queries, upserts, writes: () => writes };
 };
 
 const runOp = async (
@@ -220,8 +228,39 @@ describe("embed-upsert", () => {
     }
   });
 
+  test("a Vectorize server error is retried, for writes and deletes", async () => {
+    const serverError = new Error(
+      "VECTOR_UPSERT_ERROR (code = 50139): Internal Server Error"
+    );
+    const flaky = fakes({ writeError: serverError, writeFailures: 2 });
+    const upsert = await runOp(flaky.env, "embed-upsert", {
+      items: [{ id: "card_1", text: "Teak" }],
+      namespace: NAMESPACE,
+      shard: 0,
+    });
+    expect(upsert.status).toBe(200);
+    expect(flaky.writes()).toBe(3);
+    expect(flaky.upserts).toHaveLength(1);
+    const remove = await runOp(
+      fakes({ writeError: serverError, writeFailures: 1 }).env,
+      "vector-delete",
+      { ids: ["card_1"], shard: 0 }
+    );
+    expect(remove.status).toBe(200);
+
+    const down = fakes({ writeError: serverError });
+    const { body, status } = await runOp(down.env, "embed-upsert", {
+      items: [{ id: "card_1", text: "Teak" }],
+      namespace: NAMESPACE,
+      shard: 0,
+    });
+    expect(status).toBe(500);
+    expect(body.error?.code).toBe("INTERNAL");
+    expect(down.writes()).toBe(3);
+  });
+
   test("any other Vectorize write error is still an internal error", async () => {
-    const { env } = fakes({
+    const { env, writes } = fakes({
       writeError: new Error("VECTOR_UPSERT_ERROR (code = 40006)"),
     });
     const { body, status } = await runOp(env, "embed-upsert", {
@@ -231,6 +270,7 @@ describe("embed-upsert", () => {
     });
     expect(status).toBe(500);
     expect(body.error?.code).toBe("INTERNAL");
+    expect(writes()).toBe(1);
   });
 
   test("never upserts vectors of the wrong size", async () => {
