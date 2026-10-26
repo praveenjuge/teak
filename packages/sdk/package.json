@@ -19,9 +19,9 @@
   },
   "devDependencies": {
     "@teak/convex": "workspace:*",
-    "@types/bun": "^1.4.0",
-    "@types/node": "^26.6.5",
-    "typescript": "^6.0.3"
+    "@types/bun": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   },
   "publishConfig": {
     "access": "public",

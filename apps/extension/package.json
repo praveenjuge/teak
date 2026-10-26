@@ -17,27 +17,27 @@
     "zip:firefox": "wxt zip -b firefox"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-slot": "catalog:",
     "@teak/convex": "workspace:*",
     "@teak/i18n": "workspace:*",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "convex": "^1.46.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "tailwind-merge": "^3.7.0",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "convex": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tailwind-merge": "catalog:",
     "teak-sdk": "workspace:*",
     "vadivam": "^0.0.66",
-    "vadivam-react": "^0.0.66"
+    "vadivam-react": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/chrome": "^0.2.5",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@wxt-dev/module-react": "^1.2.2",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
     "wxt": "^0.21.3"
   }
 }

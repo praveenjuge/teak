@@ -8,6 +8,9 @@ const DEPENDENCY_FIELDS = ["dependencies", "devDependencies"] as const;
 // Raycast installs from its own npm lockfile for the Raycast store and pins
 // React to the version its runtime ships, so its ranges move on their own.
 const INDEPENDENT_WORKSPACES = new Set(["apps/raycast"]);
+// `npm publish` ships these manifests as they are and doesn't resolve
+// `catalog:`, so they write out the catalog's range instead.
+const NPM_PUBLISHED_WORKSPACES = new Set(["apps/cli"]);
 
 interface BiomeConfig {
   overrides?: { includes?: string[] }[];
@@ -44,6 +47,35 @@ const workspaces = (): string[] =>
       .map((entry) => `${area}/${entry.name}`)
   );
 
+const rootCatalog = (): Record<string, string> =>
+  (
+    JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8")) as {
+      catalog?: Record<string, string>;
+    }
+  ).catalog ?? {};
+
+interface Dependency {
+  field: (typeof DEPENDENCY_FIELDS)[number];
+  name: string;
+  range: string;
+  workspace: string;
+}
+
+// Every external dependency of the workspaces that install with the monorepo.
+const dependencies = (): Dependency[] =>
+  workspaces()
+    .filter((workspace) => !INDEPENDENT_WORKSPACES.has(workspace))
+    .flatMap((workspace) => {
+      const manifest = JSON.parse(
+        readFileSync(join(ROOT, workspace, "package.json"), "utf-8")
+      ) as Partial<Record<string, Record<string, string>>>;
+      return DEPENDENCY_FIELDS.flatMap((field) =>
+        Object.entries(manifest[field] ?? {})
+          .filter(([, range]) => !range.startsWith("workspace:"))
+          .map(([name, range]) => ({ workspace, field, name, range }))
+      );
+    });
+
 describe("repo hygiene", () => {
   test("every file biome.jsonc names exists", () => {
     const paths = biomePaths(biome as BiomeConfig);
@@ -55,29 +87,37 @@ describe("repo hygiene", () => {
     }
   });
 
-  test("a dependency has one version range across workspaces", () => {
-    const ranges = new Map<string, Map<string, string[]>>();
-    for (const workspace of workspaces()) {
-      if (INDEPENDENT_WORKSPACES.has(workspace)) {
-        continue;
-      }
-      const manifest = JSON.parse(
-        readFileSync(join(ROOT, workspace, "package.json"), "utf-8")
-      ) as Partial<Record<string, Record<string, string>>>;
-      for (const field of DEPENDENCY_FIELDS) {
-        for (const [name, range] of Object.entries(manifest[field] ?? {})) {
-          if (range.startsWith("workspace:")) {
-            continue;
-          }
-          const byRange = ranges.get(name) ?? new Map<string, string[]>();
-          byRange.set(range, [...(byRange.get(range) ?? []), workspace]);
-          ranges.set(name, byRange);
-        }
-      }
+  test("a dependency two workspaces share comes from the root catalog", () => {
+    const catalog = rootCatalog();
+    const users = new Map<string, string[]>();
+    for (const { workspace, name } of dependencies()) {
+      users.set(name, [...(users.get(name) ?? []), workspace]);
     }
-    const mismatched = [...ranges]
-      .filter(([, byRange]) => byRange.size > 1)
-      .map(([name, byRange]) => `${name}: ${JSON.stringify([...byRange])}`);
-    expect(mismatched).toEqual([]);
+    const missing = [...users]
+      .filter(([name, using]) => new Set(using).size > 1 && !(name in catalog))
+      .map(([name, using]) => `${name}: ${using.join(", ")}`);
+    expect(missing).toEqual([]);
+  });
+
+  test("workspaces take catalog dependencies from the catalog", () => {
+    const catalog = rootCatalog();
+    const wrong = dependencies()
+      .filter(({ workspace, name, range }) => {
+        const expected = NPM_PUBLISHED_WORKSPACES.has(workspace)
+          ? catalog[name]
+          : "catalog:";
+        return (name in catalog || range === "catalog:") && range !== expected;
+      })
+      .map(
+        ({ workspace, field, name, range }) =>
+          `${workspace} ${field}.${name}: ${range}`
+      );
+    expect(wrong).toEqual([]);
+  });
+
+  test("every catalog entry has a workspace using it", () => {
+    const used = new Set(dependencies().map(({ name }) => name));
+    const unused = Object.keys(rootCatalog()).filter((name) => !used.has(name));
+    expect(unused).toEqual([]);
   });
 });
