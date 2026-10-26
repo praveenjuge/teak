@@ -103,10 +103,13 @@ describe("repo hygiene", () => {
     const catalog = rootCatalog();
     const wrong = dependencies()
       .filter(({ workspace, name, range }) => {
+        if (!(name in catalog)) {
+          return range === "catalog:";
+        }
         const expected = NPM_PUBLISHED_WORKSPACES.has(workspace)
           ? catalog[name]
           : "catalog:";
-        return (name in catalog || range === "catalog:") && range !== expected;
+        return range !== expected;
       })
       .map(
         ({ workspace, field, name, range }) =>
