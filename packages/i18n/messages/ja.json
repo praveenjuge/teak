@@ -489,7 +489,8 @@
       "uploadFailedMany": "{count, plural, other {# 件のファイル}}をアップロードできませんでした。{reason}",
       "uploading": "アップロード中…",
       "foldersNotSupported": "フォルダはアップロードできません。ファイルを個別にドロップしてください。",
-      "offline": "オフラインです。再接続してからもう一度お試しください。"
+      "offline": "オフラインです。再接続してからもう一度お試しください。",
+      "sharedFilesMissing": "共有されたファイルが見つかりませんでした。もう一度共有してください。"
     }
   },
   "appShell": {

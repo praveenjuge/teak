@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { SidebarToggle } from "@/components/sidebar";
+import { useSharedFiles } from "@/hooks/useSharedFiles";
 import { folderPath } from "@/lib/folders";
 import {
   FOCUS_COMPOSER_PARAM,
@@ -16,6 +17,12 @@ import {
   serializeSearchUrlState,
 } from "@/lib/searchUrlState";
 import { SETTINGS_PLAN_HREF } from "@/lib/settingsSections";
+import {
+  readSharedText,
+  SHARE_FILES_PARAM,
+  sharedDraft,
+  withoutShareParams,
+} from "@/lib/share/sharedContent";
 import type { SearchUrlChange } from "@/screens";
 import { CardsScreenAdapter } from "@/screens";
 
@@ -42,6 +49,12 @@ export function HomePageClient({
   const colorParam = searchParams.get("color");
   const dateParam = searchParams.get("date");
   const focusComposer = searchParams.get(FOCUS_COMPOSER_PARAM) === "1";
+  // A share from the system share sheet fills the composer once, as the page opens.
+  const [composerDraft] = useState(() => {
+    const shared = readSharedText(searchParams);
+    return shared ? sharedDraft(shared) : undefined;
+  });
+  useSharedFiles(searchParams.get(SHARE_FILES_PARAM));
   const searchUrlState = useMemo(() => {
     const params: Record<string, string | null> = {
       color: colorParam,
@@ -169,7 +182,9 @@ export function HomePageClient({
   );
 
   const handleFocusComposerHandled = useCallback(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(
+      withoutShareParams(window.location.search)
+    );
     params.delete(FOCUS_COMPOSER_PARAM);
     const query = params.toString();
     router.replace(`${window.location.pathname}${query ? `?${query}` : ""}`, {
@@ -192,6 +207,7 @@ export function HomePageClient({
     <CardsScreenAdapter
       addToFolderId={addToFolderId}
       cardIdFromUrl={cardIdFromUrl}
+      composerDraft={composerDraft}
       focusComposer={focusComposer}
       folderId={folderId}
       headerLeading={<SidebarToggle className="-ml-2" />}

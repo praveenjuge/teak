@@ -489,7 +489,8 @@
       "uploadFailedMany": "No se {count, plural, one {pudo subir # archivo} other {pudieron subir # archivos}}. {reason}",
       "uploading": "Subiendo…",
       "foldersNotSupported": "No se pueden subir carpetas. Suelte los archivos por separado.",
-      "offline": "No tiene conexión. Vuelva a conectarse e inténtelo de nuevo."
+      "offline": "No tiene conexión. Vuelva a conectarse e inténtelo de nuevo.",
+      "sharedFilesMissing": "No se encontraron los archivos compartidos. Vuelva a compartirlos."
     }
   },
   "appShell": {

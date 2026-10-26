@@ -84,7 +84,7 @@ describe("web sign-in routing", () => {
       `http://localhost:3142${target}`
     );
   });
-  test.each(["/sign-in", "/sign-up", "/opengraph-image"])(
+  test.each(["/sign-in", "/sign-up", "/opengraph-image", "/share"])(
     "lets signed-out visitors reach %s",
     async (path) => {
       globalThis.fetch = offline;

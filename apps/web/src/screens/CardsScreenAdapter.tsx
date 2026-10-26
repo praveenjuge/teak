@@ -12,6 +12,8 @@ import { CardsScreen, type SearchUrlChange } from "./CardsScreen";
 interface CardsScreenAdapterProps {
   addToFolderId?: string;
   cardIdFromUrl: string | null;
+  /** Text the composer starts with, such as a share from the system share sheet. */
+  composerDraft?: string;
   contentContainerClassName?: string;
   focusComposer?: boolean;
   folderId?: string;
@@ -39,6 +41,7 @@ interface CardsScreenAdapterProps {
 export function CardsScreenAdapter({
   addToFolderId,
   cardIdFromUrl,
+  composerDraft,
   focusComposer,
   folderId,
   onAddCardsToFolder,
@@ -80,6 +83,7 @@ export function CardsScreenAdapter({
       {(retryKey) => (
         <CardsScreen
           addToFolderId={addToFolderId}
+          composerDraft={composerDraft}
           contentContainerClassName={contentContainerClassName}
           focusComposer={focusComposer}
           folderId={folderId}

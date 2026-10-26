@@ -115,6 +115,8 @@ export type { SearchUrlChange } from "../lib/searchUrlSync";
 
 interface CardsScreenProps {
   addToFolderId?: string;
+  /** Text the composer starts with, such as a share from the system share sheet. */
+  composerDraft?: string;
   contentContainerClassName?: string;
   focusComposer?: boolean;
   folderId?: string;
@@ -145,6 +147,7 @@ interface CardsScreenProps {
 
 export function CardsScreen({
   addToFolderId,
+  composerDraft,
   focusComposer = false,
   folderId,
   initialVisualFilters,
@@ -178,7 +181,7 @@ export function CardsScreen({
     null
   );
   const [tagInput, setTagInput] = useState("");
-  const draftContentRef = useRef("");
+  const draftContentRef = useRef(composerDraft ?? "");
   const [composerFocus, setComposerFocus] = useState(() => ({
     pending: focusComposer,
     requested: focusComposer,
@@ -802,6 +805,7 @@ export function CardsScreen({
       return (
         <>
           <AddCardEmptyState
+            draftContentRef={draftContentRef}
             onFocus={handleComposerFocus}
             UpgradeLinkComponent={UpgradeLinkComponent}
             upgradeUrl={upgradeUrl}

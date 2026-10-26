@@ -489,7 +489,8 @@
       "uploadFailedMany": "Impossible d’importer {count, plural, one {# fichier} other {# fichiers}}. {reason}",
       "uploading": "Importation…",
       "foldersNotSupported": "Impossible d’importer des dossiers. Déposez plutôt les fichiers un par un.",
-      "offline": "Vous êtes hors ligne. Reconnectez-vous et réessayez."
+      "offline": "Vous êtes hors ligne. Reconnectez-vous et réessayez.",
+      "sharedFilesMissing": "Les fichiers partagés sont introuvables. Partagez-les à nouveau."
     }
   },
   "appShell": {

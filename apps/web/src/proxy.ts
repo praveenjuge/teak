@@ -6,7 +6,9 @@ import { syncSessionHint } from "@/lib/session-hint";
 import { readWorkosWebConfig } from "@/lib/workos-config";
 
 const signInRoutes = new Set(["/sign-in", "/sign-up"]);
-const publicInfrastructureRoutes = new Set(["/opengraph-image"]);
+// /share takes a POST from the share sheet, which a sign-in redirect would
+// drop; it only redirects on to the library, which then asks for sign-in.
+const publicInfrastructureRoutes = new Set(["/opengraph-image", "/share"]);
 
 // Same-origin PostHog proxy. It never sits behind sign-in, and it drops the
 // browser's cookies: Teak's session must not reach a third party, and the

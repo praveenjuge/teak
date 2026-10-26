@@ -489,7 +489,8 @@
       "uploadFailedMany": "Failed to upload {count, plural, other {# files}}. {reason}",
       "uploading": "Uploading…",
       "foldersNotSupported": "Folders can't be uploaded. Drop individual files instead.",
-      "offline": "You're offline. Reconnect and try again."
+      "offline": "You're offline. Reconnect and try again.",
+      "sharedFilesMissing": "Shared files couldn't be found. Share them again."
     }
   },
   "appShell": {
