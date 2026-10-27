@@ -129,18 +129,27 @@ class ConvexAccountRepository @Inject constructor(
         }
     }
 
-    /**
-     * Files still queued belong to the account that's leaving, so they're dropped rather than uploaded into the
-     * next one. They go first, and nothing here can be cancelled: signing out closes the screen whose scope
-     * called this, which would otherwise cut the cleanup short.
-     */
-    private suspend fun clearLocalSession() = withContext(NonCancellable) {
-        uploads.discardAll()
-        sessions.clear()
-        client.logout(context)
-    }
+    private suspend fun clearLocalSession() = signOutLocally(
+        discardUploads = { uploads.discardAll() },
+        clearSession = {
+            sessions.clear()
+            client.logout(context)
+        },
+    )
 
     private companion object {
         const val REVOKE_TIMEOUT_MS = 5_000L
     }
 }
+
+/**
+ * Signs out on this device. Files still queued belong to the account that's leaving, so they're dropped rather
+ * than uploaded into the next one. They go first, as a best effort: a WorkManager failure, such as a full disk,
+ * must never leave the app signed in. Nothing here can be cancelled, because signing out closes the screen whose
+ * scope called it.
+ */
+internal suspend fun signOutLocally(discardUploads: suspend () -> Unit, clearSession: suspend () -> Unit) =
+    withContext(NonCancellable) {
+        catchingFailures { discardUploads() }
+        clearSession()
+    }
