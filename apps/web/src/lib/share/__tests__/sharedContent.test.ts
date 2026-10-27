@@ -5,7 +5,6 @@ import {
   SHARE_ENCODED_BUDGET,
   sharedDraft,
   shareLibraryPath,
-  withoutSharedFilesParam,
   withoutShareParams,
 } from "../sharedContent";
 
@@ -90,10 +89,9 @@ describe("the library URL", () => {
     expect(readSharedText(new URLSearchParams("compose=1&q=x"))).toBeNull();
   });
 
-  test("drops a share's text and keeps the rest, files id included", () => {
+  test("drops a share's parameters and keeps the rest", () => {
     expect(
       withoutShareParams("?compose=1&title=t&text=x&url=u&share=1-a&q=design")
-    ).toBe("compose=1&share=1-a&q=design");
-    expect(withoutSharedFilesParam("?share=1-a&q=design")).toBe("q=design");
+    ).toBe("compose=1&q=design");
   });
 });

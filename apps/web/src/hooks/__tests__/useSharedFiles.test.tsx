@@ -47,15 +47,16 @@ const { useSharedFiles } = await import("../useSharedFiles");
 let root: Root | undefined;
 let standalone = false;
 
-function Harness({ id }: { id: string }) {
+function Harness({ id }: { id: string | null }) {
   useSharedFiles(id);
   return null;
 }
 
-// Each call mounts afresh, as a page load (or a reload) does.
-const share = async (id: string) => {
+// Each call mounts afresh, as a page load does. The library has already
+// dropped `share=<id>` from the address by the time a reload happens, so a
+// reload is a load with no id.
+const share = async (id: string | null) => {
   await act(() => root?.unmount());
-  window.history.replaceState(null, "", `/?share=${id}&q=design`);
   root = createRoot(document.createElement("div"));
   await act(async () => {
     root?.render(<Harness id={id} />);
@@ -68,6 +69,7 @@ beforeEach(() => {
   takes.length = 0;
   discarded.length = 0;
   prompts.length = 0;
+  window.sessionStorage.clear();
   window.matchMedia = ((query: string) => ({
     matches: query === "(display-mode: standalone)" && standalone,
   })) as unknown as typeof window.matchMedia;
@@ -84,7 +86,8 @@ test("the installed app uploads files from the share sheet at once", async () =>
   expect(takes).toEqual([{ id: "share_a", keep: false }]);
   expect(enqueueFiles).toHaveBeenCalledWith(shared);
   expect(prompts).toHaveLength(0);
-  expect(window.location.search).toBe("?q=design");
+  await share(null);
+  expect(takes).toHaveLength(1);
 });
 
 test("a browser tab asks before saving files another page posted", async () => {
@@ -97,7 +100,8 @@ test("a browser tab asks before saving files another page posted", async () => {
   prompts[0]?.options.action.onClick();
   expect(enqueueFiles).toHaveBeenCalledWith(shared);
   expect(discarded).toEqual(["share_b"]);
-  expect(window.location.search).toBe("?q=design");
+  await share(null);
+  expect(prompts).toHaveLength(1);
 });
 
 test("a reload while asking asks again, and dismissing discards the files", async () => {
@@ -105,14 +109,17 @@ test("a reload while asking asks again, and dismissing discards the files", asyn
   await share("share_c");
   expect(takes).toEqual([{ id: "share_c", keep: true }]);
   expect(discarded).toEqual([]);
-  expect(window.location.search).toBe("?share=share_c&q=design");
 
-  await share("share_c");
-  expect(takes).toHaveLength(2);
+  await share(null);
+  expect(takes).toEqual([
+    { id: "share_c", keep: true },
+    { id: "share_c", keep: true },
+  ]);
   expect(prompts).toHaveLength(2);
 
   prompts[1]?.options.onDismiss();
   expect(enqueueFiles).not.toHaveBeenCalled();
   expect(discarded).toEqual(["share_c"]);
-  expect(window.location.search).toBe("?q=design");
+  await share(null);
+  expect(prompts).toHaveLength(2);
 });

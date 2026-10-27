@@ -5,7 +5,6 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useGlobalFileDrop } from "@/components/providers/GlobalFileDropProvider";
 import { MANUAL_CLOSE_TOAST_OPTIONS } from "@/constants/toast";
-import { withoutSharedFilesParam } from "@/lib/share/sharedContent";
 import { discardSharedFiles, takeSharedFiles } from "@/lib/share/sharedFiles";
 
 // The share sheet opens the installed app in its own window. Any other page
@@ -17,28 +16,41 @@ const isInstalledAppWindow = () =>
 
 const shareStorage = () => (typeof caches === "undefined" ? undefined : caches);
 
-// Drops `share=<id>` from the address once the files are handled, so a
-// reload doesn't look for them again.
-const forgetShareInUrl = () => {
-  const query = withoutSharedFilesParam(window.location.search);
-  window.history.replaceState(
-    null,
-    "",
-    `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`
-  );
+// The library drops `share=<id>` from the address as it opens, so a share
+// that waits for Save is remembered for this tab, where a reload finds it.
+const PENDING_SHARE_KEY = "teak:pending-share";
+
+const readPendingShare = (): string | null => {
+  try {
+    return window.sessionStorage.getItem(PENDING_SHARE_KEY);
+  } catch {
+    return null;
+  }
 };
 
-// Saved or turned down: the files and their id are no longer needed.
+const rememberPendingShare = (id: string | null) => {
+  try {
+    if (id) {
+      window.sessionStorage.setItem(PENDING_SHARE_KEY, id);
+    } else {
+      window.sessionStorage.removeItem(PENDING_SHARE_KEY);
+    }
+  } catch {
+    // Without storage, a reload before Save loses the share.
+  }
+};
+
+// Saved or turned down: the files are no longer needed.
 const settleShare = (storage: CacheStorage | undefined, id: string) => {
-  forgetShareInUrl();
+  rememberPendingShare(null);
   discardSharedFiles(storage, id).catch(() => undefined);
 };
 
 /**
  * Uploads the files shared to the installed web app, which the service worker
  * kept under `id`, through the same queue as a drop. Says so when they're gone.
- * In a browser tab it asks first, and keeps the files and the id in the URL
- * until they're saved or turned down, so a reload asks again.
+ * In a browser tab it asks first, and keeps the files until they're saved or
+ * turned down, so a reload in that tab asks again.
  */
 export function useSharedFiles(id: string | null) {
   const t = useTranslations("providers.fileDrop");
@@ -47,26 +59,27 @@ export function useSharedFiles(id: string | null) {
   const handled = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!(id && fileDrop) || handled.current === id) {
+    const shareId = id ?? readPendingShare();
+    if (!(shareId && fileDrop) || handled.current === shareId) {
       return;
     }
-    handled.current = id;
+    handled.current = shareId;
     const storage = shareStorage();
     const ask = !isInstalledAppWindow();
-    takeSharedFiles(storage, id, { keep: ask })
+    takeSharedFiles(storage, shareId, { keep: ask })
       .catch(() => null)
       .then((files) => {
         if (!files) {
-          forgetShareInUrl();
+          rememberPendingShare(null);
           toast.error(t("sharedFilesMissing"));
           return;
         }
         if (!ask) {
-          forgetShareInUrl();
           fileDrop.enqueueFiles(files);
           return;
         }
-        const settle = () => settleShare(storage, id);
+        rememberPendingShare(shareId);
+        const settle = () => settleShare(storage, shareId);
         toast(t("sharedFilesConfirm", { count: files.length }), {
           ...MANUAL_CLOSE_TOAST_OPTIONS,
           action: {
@@ -76,7 +89,7 @@ export function useSharedFiles(id: string | null) {
               fileDrop.enqueueFiles(files);
             },
           },
-          id: `shared-files-${id}`,
+          id: `shared-files-${shareId}`,
           onDismiss: settle,
         });
       });
