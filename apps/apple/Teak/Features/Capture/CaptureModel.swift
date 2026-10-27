@@ -90,6 +90,8 @@ final class CaptureModel {
     }
 
     private func run(_ items: [UploadItem], queuedIn: Int) async -> Alert? {
+        // A batch queued before signing out never starts, so it can't bring back the progress `reset()` cleared.
+        guard queuedIn == epoch else { return nil }
         // Background time on iOS, so leaving the app doesn't cut an upload off.
         let finish = await SystemActivity().begin(reason: "Uploading to Teak") {}
         defer { finish?() }
@@ -110,6 +112,7 @@ final class CaptureModel {
             guard queuedIn == epoch, !Task.isCancelled else { return nil }
             do {
                 _ = try await pipeline.upload(file)
+                guard queuedIn == epoch else { return nil }
                 saved += 1
                 upload = (saved, files.count)
             } catch {

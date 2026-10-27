@@ -160,6 +160,8 @@ struct RemoteImage: View {
         }
         for url in urls {
             if let decoded = await ImagePipeline.shared.image(for: url, maxPixelSize: pixels) {
+                // A request a resize replaced can finish last; it mustn't swap a sharper image for its smaller one.
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeOut(duration: 0.15)) { image = decoded }
                 loaded = Request(urls: urls, pixels: pixels)
                 return
