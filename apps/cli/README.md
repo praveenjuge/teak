@@ -18,10 +18,12 @@ teak --version
 teak login
 ```
 
-The CLI opens Teak in your browser and stores the resulting session securely in macOS Keychain when available. You can also use an API key:
+The CLI opens Teak in your browser and stores the resulting session securely in macOS Keychain when available. You can also use an API key. Set it in the environment rather than passing `--api-key`, which leaves the key in your shell history and visible to other processes:
 
 ```bash
-teak --api-key teakapi_... cards list
+read -rs TEAK_API_KEY  # paste the key; it isn't echoed or kept in history
+export TEAK_API_KEY
+teak cards list
 ```
 
 ## Common Commands

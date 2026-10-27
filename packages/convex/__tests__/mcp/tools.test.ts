@@ -266,7 +266,7 @@ describe("MCP tools", () => {
         mcpRequest({ jsonrpc: "2.0", id: 70, method: "tools/call" }),
         executor
       );
-    const listed = await call("teak_v1_list_highlights", { cardId: "card/1" });
+    const listed = await call("teak_v1_list_highlights", { cardId: "card_1" });
     await call("teak_v1_create_highlight", {
       cardId: "card_1",
       quote: "Plant marigolds",
@@ -288,7 +288,7 @@ describe("MCP tools", () => {
     expect(
       captured.map(({ headers: _headers, ...operation }) => operation)
     ).toEqual([
-      { method: "GET", path: "/v1/cards/card%2F1/highlights" },
+      { method: "GET", path: "/v1/cards/card_1/highlights" },
       {
         method: "POST",
         path: "/v1/cards/card_1/highlights",
@@ -653,11 +653,11 @@ describe("MCP tools", () => {
     });
 
     const polled = await call("teak_v1_get_tag_operation", {
-      operationId: "op 1",
+      operationId: "op_1",
     });
     expect(captured[3]).toMatchObject({
       method: "GET",
-      path: "/v1/tags/operations/op%201",
+      path: "/v1/tags/operations/op_1",
     });
     expect(polled.content[0]?.text).toBe(
       "Tag rename completed: 1 card changed of 1"
@@ -950,6 +950,96 @@ describe("MCP tools", () => {
     expect(result.content[0]?.text).toContain("mimeType");
     expect(executor).not.toHaveBeenCalled();
   });
+
+  test("refuses an argument the tool doesn't take, naming the ones it does", async () => {
+    const executor = mock(async () =>
+      Response.json({ items: [], pageInfo: { hasMore: false } })
+    ) as PublicApiToolExecutor;
+    const result = await callTeakV1Tool(
+      "teak_v1_search_cards",
+      { query: "design" },
+      mcpRequest({ jsonrpc: "2.0", id: 60, method: "tools/call" }),
+      executor
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain("Unknown argument `query`");
+    expect(result.content[0]?.text).toContain("`q`");
+    expect(executor).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["teak_v1_create_card", { content: "a note", tag: ["x"] }, "tag"],
+    [
+      "teak_v1_update_card",
+      { cardId: "card_1", notes: "n", title: "t" },
+      "title",
+    ],
+    [
+      "teak_v1_bulk_cards",
+      { operation: "favorite", items: [{}], force: true },
+      "force",
+    ],
+    ["teak_v1_create_folder", { name: "Reading", colour: "red" }, "colour"],
+    [
+      "teak_v1_update_folder",
+      { folderId: "f1", name: "R", colour: "red" },
+      "colour",
+    ],
+  ])(
+    "%s refuses an argument it doesn't take, so a write doesn't lose it",
+    async (tool, args, key) => {
+      const executor = mock(async () =>
+        Response.json({})
+      ) as PublicApiToolExecutor;
+      const result = await callTeakV1Tool(
+        tool,
+        args,
+        mcpRequest({ jsonrpc: "2.0", id: 63, method: "tools/call" }),
+        executor
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]?.text).toContain(`Unknown argument \`${key}\``);
+      expect(executor).not.toHaveBeenCalled();
+    }
+  );
+
+  test("names the argument a validation error is about", async () => {
+    const result = await callTeakV1Tool(
+      "teak_v1_get_card",
+      {},
+      mcpRequest({ jsonrpc: "2.0", id: 61, method: "tools/call" }),
+      mock(async () => Response.json({})) as PublicApiToolExecutor
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain("cardId:");
+  });
+
+  test.each([
+    ["teak_v1_get_card", { cardId: "changes" }],
+    ["teak_v1_get_card", { cardId: ".." }],
+    ["teak_v1_add_cards_to_folder", { folderId: "..", cardIds: ["card_1"] }],
+    ["teak_v1_delete_highlight", { highlightId: ".", confirm: true }],
+  ])(
+    "%s refuses an id that would reach another route: %j",
+    async (tool, args) => {
+      const executor = mock(async () =>
+        Response.json({})
+      ) as PublicApiToolExecutor;
+      const result = await callTeakV1Tool(
+        tool,
+        args,
+        mcpRequest({ jsonrpc: "2.0", id: 62, method: "tools/call" }),
+        executor
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toMatchObject({ code: "INVALID_INPUT" });
+      expect(executor).not.toHaveBeenCalled();
+    }
+  );
 
   test("requires confirm=true for delete tool", async () => {
     const result = await callTeakV1Tool(

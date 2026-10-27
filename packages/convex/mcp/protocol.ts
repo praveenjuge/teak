@@ -294,7 +294,8 @@ export const TEAK_V1_TOOLS = [
   },
   {
     name: "teak_v1_get_card_changes",
-    description: "List card changes since a timestamp with cursor pagination.",
+    description:
+      "List cards changed, and ids of cards deleted for good, since a Unix timestamp in milliseconds (since), with cursor pagination.",
     annotations: { title: "List card changes", ...READ_ONLY },
     inputSchema: inputSchema(
       {
@@ -369,14 +370,14 @@ export const TEAK_V1_TOOLS = [
   {
     name: "teak_v1_search_cards",
     description:
-      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old, -is:archived), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Lowercase or is a plain word. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }; pass pageInfo.nextCursor as cursor for more.',
+      'Search cards by text and qualifiers, with the same filters as list_cards. Results include cards related by meaning, not just exact words (mode keyword turns that off). q accepts tag:design (or #design), type:link, is:fav, is:archived, is:done (links marked done), is:todo (articles, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games not yet done), site:github.com (exact host, www. ignored), folder:"Reading list", price:<100 (also >, <=, >= and =, on the amount in any currency; links with a price only), text:"total due" (only the words Teak read in images, video thumbnails, link previews and scanned PDFs) and "quoted phrases"; tags, folders, text: values and price bounds must all match (price:>20 price:<100 is a range), types and sites match any. A - before a word, phrase or qualifier leaves those cards out (design -figma, -tag:old, -is:archived), uppercase OR matches either side (tag:fonts OR tag:type), and parentheses group: (site:github.com OR site:gitlab.com) -is:archived. Lowercase or is a plain word. Cards with a price carry linkPrice { amount, currency }. Cards tagged secret or hidden (isHidden: true) are left out unless the search names one of those tags (#secret, tag:hidden); the plain word secret does not show them. Returns { items, total, pageInfo }, where total counts the items on this page; pass pageInfo.nextCursor as cursor for more.',
     annotations: { title: "Search cards", ...READ_ONLY },
     inputSchema: inputSchema(cardFilterProperties),
   },
   {
     name: "teak_v1_find_similar_cards",
     description:
-      "List the cards closest in meaning to one card, of any type unless type narrows them; the card itself is never listed. Ordered newest first unless sort says otherwise. Returns { items, total, pageInfo, similarity }; similarity is pending while the card is still being read, and unavailable for a card in Trash or not found.",
+      "List the cards closest in meaning to one card, of any type unless type narrows them; the card itself is never listed. Ordered newest first unless sort says otherwise. Returns { items, total, pageInfo, similarity }, where total counts the items on this page; similarity is pending while the card is still being read, and unavailable for a card in Trash or not found.",
     annotations: { title: "Find similar cards", ...READ_ONLY },
     inputSchema: inputSchema(
       {
@@ -739,8 +740,8 @@ const NO_REPLY: ProtocolAnswer = { kind: "noReply" };
 const NEEDS_CONVEX: ProtocolAnswer = { kind: "needsConvex" };
 
 /**
- * Answers a JSON-RPC message that needs no Convex. A notification gets no
- * reply; a tool call, an unknown method or an invalid message needs Convex.
+ * Answers a JSON-RPC message that needs no Convex. A notification (no id) gets
+ * no reply; a tool call, an unknown method or an invalid message needs Convex.
  */
 export const answerProtocolMessage = (message: unknown): ProtocolAnswer => {
   if (!(message && typeof message === "object" && !Array.isArray(message))) {
@@ -755,8 +756,17 @@ export const answerProtocolMessage = (message: unknown): ProtocolAnswer => {
   if (rpc.jsonrpc !== "2.0" || typeof rpc.method !== "string") {
     return NEEDS_CONVEX;
   }
-  if (rpc.method.startsWith("notifications/")) {
+  // JSON-RPC: a message without an id is a notification and gets no reply,
+  // whatever its method; one with an id is a request, even under
+  // `notifications/`, and is answered (an unknown method by Convex).
+  if (!("id" in rpc)) {
     return NO_REPLY;
+  }
+  if (!(typeof rpc.id === "string" || typeof rpc.id === "number")) {
+    return NEEDS_CONVEX;
+  }
+  if (rpc.method.startsWith("notifications/")) {
+    return NEEDS_CONVEX;
   }
   switch (rpc.method) {
     case "initialize":

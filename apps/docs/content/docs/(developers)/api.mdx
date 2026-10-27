@@ -184,7 +184,8 @@ Omit `metadataTitle` to preserve the existing title. Metadata processing
 preserves titles you edit or clear.
 
 Every field in a request is checked before anything is saved, so an invalid
-field leaves the card unchanged. Changing `content` or `url` queues the card
+field leaves the card unchanged, and the error names the field and what's wrong
+with it. Changing `content` or `url` queues the card
 for processing again, which each card does at most once a minute; changing both
 in one request counts once. Changes within the minute still save right away,
 and one more processing run follows when the minute is up.
@@ -221,6 +222,9 @@ Supported uploads include common image, audio, video, source, design-token, docu
 
 <ParamField header="Idempotency-Key" type="string">
   Safely retries card creation and bulk operations without duplicating work.
+  Sending the same key while its first request is still running returns
+  `409 IN_PROGRESS` with `Retry-After`; send it again then for the first
+  response. The same key with a different request body is `409 CONFLICT`.
 </ParamField>
 
 <ResponseField name="X-Request-Id" type="string" pre={["response header"]}>
@@ -499,7 +503,13 @@ Errors keep a stable `{ code, error }` shape:
 Most errors are `400`. A missing card is `404 NOT_FOUND`, a conflict such as a
 permanent delete of a card outside Trash is `409`, rate limits are
 `429 RATE_LIMITED`, and a briefly busy service is `503 SERVICE_UNAVAILABLE`. Saving a card past the free plan's 200 cards returns
-`400 CARD_LIMIT_REACHED`.
+`400 CARD_LIMIT_REACHED`. A card's `content` can be up to 512 KiB of UTF-8 and
+its `notes` up to 256 KiB, on every card type. Past that, create and `PATCH`
+return `400 CONTENT_TOO_LARGE`; a bulk request still answers `200`, with
+`CONTENT_TOO_LARGE` as the `code` of each item that failed. A path under `/v1/` that doesn't exist is
+`404 NOT_FOUND`, and a method a path doesn't take is `405 METHOD_NOT_ALLOWED`
+with an `Allow` header, both in this shape. An expired OAuth access token
+always returns `401`, never `429`, so your client knows to refresh it.
 
 ```json
 {

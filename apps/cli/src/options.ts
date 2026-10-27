@@ -33,6 +33,16 @@ export const parseSince = (value: string) => {
   return parsed;
 };
 
+export const parseTimestamp = (value: string) => {
+  const parsed = wholeNumber(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new InvalidArgumentError(
+      "must be a millisecond timestamp, like 1767225600000"
+    );
+  }
+  return parsed;
+};
+
 export const parseType = (value: string) => {
   if (!isCardType(value)) {
     throw new InvalidArgumentError(
@@ -122,12 +132,12 @@ export const queryOptions = (options: Record<string, unknown>) => {
   const range = options.date as { end: number; start: number } | undefined;
   return {
     createdAfter:
-      typeof options.createdAfter === "string"
-        ? Number(options.createdAfter)
+      typeof options.createdAfter === "number"
+        ? options.createdAfter
         : range?.start,
     createdBefore:
-      typeof options.createdBefore === "string"
-        ? Number(options.createdBefore)
+      typeof options.createdBefore === "number"
+        ? options.createdBefore
         : range?.end,
     cursor: typeof options.cursor === "string" ? options.cursor : undefined,
     favorited: options.favorited === true,
@@ -204,7 +214,15 @@ export const withListOptions = (command: Command) =>
       "with --sort shuffle: the same seed gives the same order",
       parseSeed
     )
-    .option("--created-after <ms>", "created after a millisecond timestamp")
-    .option("--created-before <ms>", "created before a millisecond timestamp")
+    .option(
+      "--created-after <ms>",
+      "created after a millisecond timestamp",
+      parseTimestamp
+    )
+    .option(
+      "--created-before <ms>",
+      "created before a millisecond timestamp",
+      parseTimestamp
+    )
     .option("--include <groups>", "content, metadata, processing")
     .option("--all", "follow every page");

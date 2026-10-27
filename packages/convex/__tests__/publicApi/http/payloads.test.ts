@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   parseCreatePayload,
+  parsePatchPayload,
   validateCreatePayload,
   validateFavoritePayload,
   validatePatchPayload,
@@ -336,6 +337,48 @@ describe("validatePatchPayload", () => {
       isArchived: false,
       notes: "n",
     });
+  });
+});
+
+describe("parsePatchPayload", () => {
+  test.each([
+    [{ url: "javascript:alert(1)" }, "`url` must use the http or https scheme"],
+    [{ tags: ["x".repeat(65)] }, "Each tag must be at most 64 characters"],
+    [
+      { folderIds: Array.from({ length: 51 }, (_, i) => `f${i}`) },
+      "A card can be in at most 50 folders",
+    ],
+    [{ isArchived: "true" }, "`isArchived` must be true or false"],
+    [{ color: "red" }, "Unknown field `color`"],
+    [{}, "Body must include at least one of"],
+  ])("says what is wrong with %j", (body, message) => {
+    const result = parsePatchPayload(body);
+    expect("error" in result && result.error).toContain(message);
+  });
+
+  test("refuses notes over 256 KiB as content too large", () => {
+    expect(parsePatchPayload({ notes: "é".repeat(128 * 1024 + 1) })).toEqual({
+      code: "CONTENT_TOO_LARGE",
+      error: "Notes must not exceed 256 KiB when encoded as UTF-8.",
+    });
+    expect(parsePatchPayload({ notes: "é".repeat(128 * 1024) })).toEqual({
+      payload: { notes: "é".repeat(128 * 1024) },
+    });
+  });
+});
+
+describe("parseCreatePayload: size limits", () => {
+  test.each([
+    [{ content: "hi", notes: "a".repeat(256 * 1024 + 1) }, "Notes must not"],
+    [{ content: `"${"q".repeat(512 * 1024)}"` }, "Text card content"],
+    [
+      { cardType: "link", content: "a".repeat(512 * 1024 + 1) },
+      "Text card content",
+    ],
+  ])("refuses an oversized field on any card type", (body, message) => {
+    const result = parseCreatePayload(body);
+    expect(result).toMatchObject({ code: "CONTENT_TOO_LARGE" });
+    expect("error" in result && result.error).toContain(message);
   });
 });
 

@@ -32,8 +32,8 @@ import {
 } from "./auth";
 import {
   parseCreatePayload,
+  parsePatchPayload,
   validateFavoritePayload,
-  validatePatchPayload,
   validateThumbnailSetPayload,
   validateThumbnailUploadPayload,
   validateUploadPayload,
@@ -84,7 +84,11 @@ const handleCreateCardRequest = async (
 
   const parsedCreate = parseCreatePayload(payload);
   if ("error" in parsedCreate) {
-    return errorResponse(400, "INVALID_INPUT", parsedCreate.error);
+    return errorResponse(
+      400,
+      parsedCreate.code ?? "INVALID_INPUT",
+      parsedCreate.error
+    );
   }
   const createPayload = parsedCreate.payload;
 
@@ -1001,14 +1005,15 @@ const handleCardsByIdV1Request = async (
   }
 
   if (route.operation === "patch") {
-    const patchPayload = validatePatchPayload(payload);
-    if (!patchPayload) {
+    const parsedPatch = parsePatchPayload(payload);
+    if ("error" in parsedPatch) {
       return errorResponse(
         400,
-        "INVALID_INPUT",
-        "Body must include at least one valid field: content, url, metadataTitle, notes, tags (each at most 64 characters), removeAiTags, isArchived, folderIds (at most 50)"
+        parsedPatch.code ?? "INVALID_INPUT",
+        parsedPatch.error
       );
     }
+    const patchPayload = parsedPatch.payload;
     if (
       patchPayload.content !== undefined &&
       currentCard.type !== "text" &&

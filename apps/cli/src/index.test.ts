@@ -25,7 +25,7 @@ import {
 } from ".";
 import { resolveAddInput } from "./files";
 import { collectPages } from "./library";
-import { credentialSourceOrder, VERSION } from "./runtime";
+import { browserCommand, credentialSourceOrder, VERSION } from "./runtime";
 
 const fixtureDirectory = mkdtempSync(join(tmpdir(), "teak-cli-files-"));
 
@@ -124,6 +124,21 @@ describe("teak cli formatting", () => {
         raw: "",
       }
     );
+  });
+
+  test("opens a link with query parameters on Windows without cmd", () => {
+    const url =
+      "https://auth.example/authorize?response_type=code&state=x&client_id=y";
+    const [command, args] = browserCommand("win32", url);
+    expect(command).not.toBe("cmd");
+    expect(args.at(-1)).toBe(url);
+    expect(browserCommand("darwin", url)).toEqual(["open", [url]]);
+  });
+
+  test("an explicit url leaves stdin unread", async () => {
+    await expect(
+      resolveAddInput(undefined, undefined, "https://example.com")
+    ).resolves.toEqual({ candidate: "", raw: "" });
   });
 
   test("keeps positional Markdown whitespace intact", async () => {

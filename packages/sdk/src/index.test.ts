@@ -883,6 +883,134 @@ describe("teak-sdk", () => {
     expect(error.code).toBe("NOT_FOUND");
     expect(error.requestId).toBe("req_123");
   });
+
+  test.each([
+    [401, "UNAUTHORIZED"],
+    [403, "FORBIDDEN"],
+    [429, "RATE_LIMITED"],
+    [502, "INTERNAL_ERROR"],
+  ] as const)(
+    "names an HTML %i by its status, not as malformed JSON",
+    async (status, code) => {
+      const { client } = recordingClient(
+        () =>
+          new Response("<html>Bad gateway</html>", {
+            headers: { "Content-Type": "text/html", "Retry-After": "60" },
+            status,
+          })
+      );
+      const error = (await client.cards
+        .get("c1")
+        .catch((e) => e)) as TeakApiError;
+      expect(error.code).toBe(code);
+      expect(error.status).toBe(status);
+    }
+  );
+
+  test("reads the retry time from Retry-After when the body has none", async () => {
+    const before = Date.now();
+    const { client } = recordingClient(
+      () =>
+        new Response("slow down", {
+          headers: { "Retry-After": "30" },
+          status: 429,
+        })
+    );
+    const error = (await client.cards.list().catch((e) => e)) as TeakApiError;
+    expect(error.code).toBe("RATE_LIMITED");
+    expect(error.retryAt).toBeGreaterThanOrEqual(before + 30_000);
+  });
+
+  test("reads again after a busy 503, waiting as long as Retry-After asks", async () => {
+    const answers = [
+      Response.json(
+        { code: "SERVICE_UNAVAILABLE", error: "Busy" },
+        { headers: { "Retry-After": "0" }, status: 503 }
+      ),
+      Response.json({ content: "", id: "c1" }),
+    ];
+    const { client, seen } = recordingClient(() => answers.shift() as Response);
+    expect((await client.cards.get("c1")).id).toBe("c1");
+    expect(seen).toHaveLength(2);
+  });
+
+  test("reads again after a network error", async () => {
+    let calls = 0;
+    const client = createTeakClient({
+      baseUrl: "https://api.example",
+      fetch: (() => {
+        calls += 1;
+        return calls === 1
+          ? Promise.reject(new TypeError("socket hang up"))
+          : Promise.resolve(Response.json({ content: "", id: "c1" }));
+      }) as unknown as typeof fetch,
+      tokenProvider: { getAccessToken: () => "token" },
+    });
+    expect((await client.cards.get("c1")).id).toBe("c1");
+    expect(calls).toBe(2);
+  });
+
+  test("gives up after its retries, with the last answer's error", async () => {
+    const { client, seen } = recordingClient(() =>
+      Response.json(
+        { code: "SERVICE_UNAVAILABLE", error: "Busy" },
+        { headers: { "Retry-After": "0" }, status: 503 }
+      )
+    );
+    const error = (await client.cards
+      .get("c1")
+      .catch((e) => e)) as TeakApiError;
+    expect(error.code).toBe("SERVICE_UNAVAILABLE");
+    expect(seen).toHaveLength(3);
+  });
+
+  test("doesn't wait out a rate limit longer than a few seconds", async () => {
+    const { client, seen } = recordingClient(() =>
+      Response.json(
+        { code: "RATE_LIMITED", error: "Slow down" },
+        { headers: { "Retry-After": "60" }, status: 429 }
+      )
+    );
+    const error = (await client.cards.list().catch((e) => e)) as TeakApiError;
+    expect(error.code).toBe("RATE_LIMITED");
+    expect(seen).toHaveLength(1);
+  });
+
+  test("sends a write again only when it carries an idempotency key", async () => {
+    const busy = () =>
+      Response.json(
+        { code: "SERVICE_UNAVAILABLE", error: "Busy" },
+        { headers: { "Retry-After": "0" }, status: 503 }
+      );
+    const plain = recordingClient(busy);
+    await plain.client.cards.create({ content: "a" }).catch(() => undefined);
+    expect(plain.seen).toHaveLength(1);
+
+    const answers = [
+      busy(),
+      Response.json({
+        appUrl: "https://app/",
+        cardId: "c1",
+        status: "created",
+      }),
+    ];
+    const keyed = recordingClient(() => answers.shift() as Response);
+    const created = await keyed.client.cards.create(
+      { content: "a" },
+      { idempotencyKey: "k1" }
+    );
+    expect(created.cardId).toBe("c1");
+    expect(keyed.seen).toHaveLength(2);
+  });
+
+  test("doesn't retry a 4xx answer", async () => {
+    const { client, seen } = recordingClient(() =>
+      Response.json({ code: "INVALID_INPUT", error: "Bad" }, { status: 400 })
+    );
+    const error = (await client.cards.list().catch((e) => e)) as TeakApiError;
+    expect(error.code).toBe("INVALID_INPUT");
+    expect(seen).toHaveLength(1);
+  });
 });
 
 describe("link images", () => {

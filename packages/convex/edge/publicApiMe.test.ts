@@ -5,7 +5,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import { ApiKeys } from "@vllnt/convex-api-keys";
 import apiKeysTest from "@vllnt/convex-api-keys/test";
 import { convexTest } from "convex-test";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   seedWorkosOwner,
   updateComponentUser,
@@ -16,6 +16,10 @@ import schema from "../schema";
 const modules = import.meta.glob("../**/*.ts");
 const OWNER = "permanent-owner";
 
+// Teak's own production: its SITE_URL is on teakvault.com.
+beforeEach(() => {
+  vi.stubEnv("SITE_URL", "https://app.teakvault.com");
+});
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -159,6 +163,13 @@ test("me denies an API key once its account is deleted", async () => {
     await ctx.db.patch("users", owner._id, { deletedAt: Date.now() });
   });
   expect((await request()).status).toBe(401);
+});
+
+test("a self-hosted deployment's API links open its own web app", async () => {
+  vi.stubEnv("SITE_URL", "https://app.selfhost.example");
+  const { request } = await setup();
+  const me = await (await request()).json();
+  expect(me.data.settingsUrl).toBe("https://app.selfhost.example/settings");
 });
 
 test("on the shared dev deployment, API links open the dev web app", async () => {

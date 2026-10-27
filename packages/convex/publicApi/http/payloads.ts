@@ -19,13 +19,16 @@ import {
   type CreateUploadPayload,
   explainCardTypeMismatch,
   explainInvalidTags,
+  explainOversizedText,
   parseOptionalNullableString,
   parseOptionalString,
   parseStringArray,
   truncateCardTitle,
 } from "./shared";
 
-type CreatePayloadResult = { error: string } | { payload: CreateCardPayload };
+type CreatePayloadResult =
+  | { code?: "CONTENT_TOO_LARGE"; error: string }
+  | { payload: CreateCardPayload };
 
 const CREATE_KEYS = new Set([
   "cardType",
@@ -126,6 +129,10 @@ export const parseCreatePayload = (payload: unknown): CreatePayloadResult => {
     !(typeof source.notes === "string" || source.notes === null)
   ) {
     return { error: "`notes` must be a string or null" };
+  }
+  const oversized = explainOversizedText(source);
+  if (oversized) {
+    return { code: "CONTENT_TOO_LARGE", error: oversized };
   }
 
   if (fileKey) {
@@ -232,11 +239,17 @@ interface PatchCardPayload {
   url?: string;
 }
 
-export const validatePatchPayload = (
-  payload: unknown
-): PatchCardPayload | null => {
+const PATCH_FIELDS =
+  "content, url, metadataTitle, notes, tags, removeAiTags, isArchived, folderIds";
+
+type PatchPayloadResult =
+  | { code?: "CONTENT_TOO_LARGE"; error: string }
+  | { payload: PatchCardPayload };
+
+/** Parses a PATCH body, saying which field is wrong when one is. */
+export const parsePatchPayload = (payload: unknown): PatchPayloadResult => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return null;
+    return { error: "Body must be a JSON object" };
   }
 
   const source = payload as Record<string, unknown>;
@@ -253,7 +266,9 @@ export const validatePatchPayload = (
 
   for (const key of Object.keys(source)) {
     if (!allowedKeys.has(key)) {
-      return null;
+      return {
+        error: `Unknown field \`${key}\`; a card takes ${PATCH_FIELDS}`,
+      };
     }
   }
 
@@ -261,18 +276,18 @@ export const validatePatchPayload = (
 
   if ("content" in source) {
     if (typeof source.content !== "string") {
-      return null;
+      return { error: "`content` must be a string" };
     }
     next.content = source.content;
   }
 
   if ("url" in source) {
     if (typeof source.url !== "string" || !source.url.trim()) {
-      return null;
+      return { error: "`url` must be a non-empty string" };
     }
     const trimmedUrl = source.url.trim();
     if (!isSafeExternalUrl(trimmedUrl)) {
-      return null;
+      return { error: "`url` must use the http or https scheme" };
     }
     next.url = trimmedUrl;
   }
@@ -280,23 +295,32 @@ export const validatePatchPayload = (
   if ("metadataTitle" in source) {
     const parsed = parseCardTitle(truncateCardTitle(source.metadataTitle));
     if (parsed.kind === "invalid") {
-      return null;
+      return { error: "`metadataTitle` must be a string or null" };
     }
     next.metadataTitle = parsed.kind === "title" ? parsed.title : null;
   }
 
   if ("notes" in source) {
     if (!(typeof source.notes === "string" || source.notes === null)) {
-      return null;
+      return { error: "`notes` must be a string or null" };
     }
     next.notes =
       typeof source.notes === "string" ? source.notes.trim() || null : null;
   }
 
+  const oversized = explainOversizedText(next);
+  if (oversized) {
+    return { code: "CONTENT_TOO_LARGE", error: oversized };
+  }
+
   if ("tags" in source) {
     const tags = parseStringArray(source.tags);
-    if (tags === undefined || explainInvalidTags(tags)) {
-      return null;
+    if (tags === undefined) {
+      return { error: "`tags` must be an array of strings" };
+    }
+    const tagError = explainInvalidTags(tags);
+    if (tagError) {
+      return { error: tagError };
     }
     next.tags = tags;
   }
@@ -304,35 +328,43 @@ export const validatePatchPayload = (
   if ("removeAiTags" in source) {
     const removeAiTags = parseStringArray(source.removeAiTags);
     if (!removeAiTags?.length) {
-      return null;
+      return { error: "`removeAiTags` must be a non-empty array of strings" };
     }
     next.removeAiTags = removeAiTags;
   }
 
   if ("isArchived" in source) {
     if (typeof source.isArchived !== "boolean") {
-      return null;
+      return { error: "`isArchived` must be true or false" };
     }
     next.isArchived = source.isArchived;
   }
 
   if ("folderIds" in source) {
     const folderIds = parseStringArray(source.folderIds);
-    if (
-      folderIds === undefined ||
-      folderIds.length > MAX_FOLDERS_PER_CARD ||
-      folderIds.some((id) => id.length > 64)
-    ) {
-      return null;
+    if (folderIds === undefined || folderIds.some((id) => id.length > 64)) {
+      return { error: "`folderIds` must be an array of folder ids" };
+    }
+    if (folderIds.length > MAX_FOLDERS_PER_CARD) {
+      return {
+        error: `A card can be in at most ${MAX_FOLDERS_PER_CARD} folders`,
+      };
     }
     next.folderIds = folderIds;
   }
 
   if (Object.keys(next).length === 0) {
-    return null;
+    return { error: `Body must include at least one of ${PATCH_FIELDS}` };
   }
 
-  return next;
+  return { payload: next };
+};
+
+export const validatePatchPayload = (
+  payload: unknown
+): PatchCardPayload | null => {
+  const result = parsePatchPayload(payload);
+  return "payload" in result ? result.payload : null;
 };
 
 export const validateThumbnailUploadPayload = (

@@ -12,11 +12,40 @@ import type { CardListInclude } from "./shared";
 
 const APP_PROD_URL = "https://app.teakvault.com";
 
+const isTeakHost = (hostname: string) =>
+  hostname === "teakvault.com" || hostname.endsWith(".teakvault.com");
+
+/**
+ * A self-hosted deployment's own web app, from `SITE_URL` (the app's origin,
+ * which self-hosting requires). Teak's own deployments keep their fixed app
+ * origin, whatever `SITE_URL` holds there.
+ */
+const readSelfHostedAppUrl = (): string | undefined => {
+  const raw = env.SITE_URL?.trim();
+  if (!raw) {
+    return;
+  }
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return;
+  }
+  if (
+    !(url.protocol === "https:" || url.protocol === "http:") ||
+    isTeakHost(url.hostname)
+  ) {
+    return;
+  }
+  return url.origin;
+};
+
 export const getAppBaseUrl = (requestUrl: string): string => {
   const { hostname } = new URL(requestUrl);
-  return isLocalDevelopmentHostname(hostname) || readIsDevDeployment()
-    ? resolveTeakDevAppUrl(env)
-    : APP_PROD_URL;
+  if (isLocalDevelopmentHostname(hostname) || readIsDevDeployment()) {
+    return resolveTeakDevAppUrl(env);
+  }
+  return readSelfHostedAppUrl() ?? APP_PROD_URL;
 };
 
 const getCardAppUrl = (requestUrl: string, cardId: string): string => {

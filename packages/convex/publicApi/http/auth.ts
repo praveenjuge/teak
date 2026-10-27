@@ -119,10 +119,14 @@ const maybeHandleIdempotency = async (
       };
     case "in_progress":
       await trackIdempotency(ctx, args.path, "in_progress", keyHash);
+      // Not the caller's mistake, unlike a reused key: the first request is
+      // still running, and the same request again soon gets its answer.
       return errorResponse(
         409,
-        "CONFLICT",
-        "Idempotency-Key is already being processed"
+        "IN_PROGRESS",
+        "Idempotency-Key is already being processed; retry shortly",
+        undefined,
+        { "Retry-After": "1" }
       );
     case "conflict":
       await trackIdempotency(ctx, args.path, "conflict", keyHash);
@@ -448,7 +452,14 @@ const authorizeBearer = async (
   }
 
   if (!validated) {
-    const limited = await enforceInvalidAuthLimit(ctx);
+    // The shared invalid-auth bucket throttles credentials anyone can make up.
+    // A token the issuer really signed (one that has only expired, or whose
+    // consent was withdrawn) always answers 401, so its client refreshes or
+    // signs in again instead of getting 429 while someone else floods the
+    // bucket with junk.
+    const issuerSigned =
+      rejection === "expired_token" || rejection.startsWith("owner_");
+    const limited = issuerSigned ? null : await enforceInvalidAuthLimit(ctx);
     if (limited) {
       return limited;
     }

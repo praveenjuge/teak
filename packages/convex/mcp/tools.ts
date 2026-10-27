@@ -63,6 +63,15 @@ interface McpToolResult {
 const MCP_UNAUTHORIZED_MESSAGE = "Missing or invalid Authorization header";
 
 const nonEmptyString = z.string().trim().min(1);
+// Ids go into the request path. Teak ids are letters, digits, `_` and `-`, so
+// this refuses `..` (which would resolve to a parent route) and route words
+// like `changes` or `duplicate` that would reach another endpoint.
+const RESERVED_ID_SEGMENTS = new Set(["bulk", "changes", "duplicate"]);
+const idSchema = nonEmptyString
+  .regex(/^[A-Za-z0-9_-]+$/, "must be an id from Teak, like k57abc...")
+  .refine((value) => !RESERVED_ID_SEGMENTS.has(value), {
+    message: "must be an id from Teak, like k57abc...",
+  });
 const cardSortSchema = z.enum(MCP_CARD_SORTS);
 const cardTypeSchema = z.enum(MCP_CARD_TYPES);
 const includeSchema = z.enum(MCP_CARD_INCLUDES);
@@ -91,9 +100,9 @@ const cardFiltersShape = {
   hex: z.array(nonEmptyString).max(MAX_VISUAL_FILTERS).optional(),
   include: z.array(includeSchema).optional(),
 };
-const listCardsInputSchema = z.object(cardFiltersShape);
-const findSimilarInputSchema = z.object({
-  cardId: nonEmptyString,
+const listCardsInputSchema = z.strictObject(cardFiltersShape);
+const findSimilarInputSchema = z.strictObject({
+  cardId: idSchema,
   limit: cardFiltersShape.limit,
   cursor: cardFiltersShape.cursor,
   type: cardFiltersShape.type,
@@ -102,22 +111,22 @@ const findSimilarInputSchema = z.object({
   include: cardFiltersShape.include,
 });
 const queryInputSchema = listCardsInputSchema;
-const duplicateInputSchema = z.object({ url: nonEmptyString });
+const duplicateInputSchema = z.strictObject({ url: nonEmptyString });
 
-const getCardChangesInputSchema = z.object({
+const getCardChangesInputSchema = z.strictObject({
   since: z.number(),
   cursor: nonEmptyString.optional(),
   limit: z.number().int().positive().max(PUBLIC_API_MAX_LIMIT).optional(),
 });
 
-const createUploadInputSchema = z.object({
+const createUploadInputSchema = z.strictObject({
   fileName: nonEmptyString,
   mimeType: nonEmptyString,
   fileSize: z.number().positive(),
 });
 
 const bulkCardsInputSchema = z
-  .object({
+  .strictObject({
     operation: z.enum([
       "create",
       "update",
@@ -146,16 +155,16 @@ const bulkCardsInputSchema = z
     }
   });
 
-const chatgptSearchInputSchema = z.object({
+const chatgptSearchInputSchema = z.strictObject({
   query: nonEmptyString,
 });
 
-const chatgptFetchInputSchema = z.object({
-  id: nonEmptyString,
+const chatgptFetchInputSchema = z.strictObject({
+  id: idSchema,
 });
 
 const createCardInputSchema = z
-  .object({
+  .strictObject({
     cardType: cardTypeSchema.optional(),
     content: z.string().optional(),
     fileEtag: nonEmptyString.optional(),
@@ -201,34 +210,34 @@ const createCardInputSchema = z
       });
     }
   });
-const cardIdInputSchema = z.object({ cardId: nonEmptyString });
-const cardContentInputSchema = z.object({
-  cardId: nonEmptyString,
+const cardIdInputSchema = z.strictObject({ cardId: idSchema });
+const cardContentInputSchema = z.strictObject({
+  cardId: idSchema,
   kind: z.enum(["article", "document", "transcript", "content"]).optional(),
 });
-const thumbnailUploadInputSchema = z.object({
-  cardId: nonEmptyString,
+const thumbnailUploadInputSchema = z.strictObject({
+  cardId: idSchema,
   mimeType: z.enum(THUMBNAIL_MIME_TYPES),
   fileSize: z.number().int().positive().max(THUMBNAIL_MAX_BYTES),
 });
-const setThumbnailInputSchema = z.object({
-  cardId: nonEmptyString,
+const setThumbnailInputSchema = z.strictObject({
+  cardId: idSchema,
   fileKey: nonEmptyString,
 });
-const deleteCardInputSchema = z.object({
-  cardId: nonEmptyString,
+const deleteCardInputSchema = z.strictObject({
+  cardId: idSchema,
   confirm: z.literal(true),
 });
-const favoriteInputSchema = z.object({
-  cardId: nonEmptyString,
+const favoriteInputSchema = z.strictObject({
+  cardId: idSchema,
   isFavorited: z.boolean(),
 });
-const archivedInputSchema = z.object({
-  cardId: nonEmptyString,
+const archivedInputSchema = z.strictObject({
+  cardId: idSchema,
   isArchived: z.boolean(),
 });
-const doneInputSchema = z.object({
-  cardId: nonEmptyString,
+const doneInputSchema = z.strictObject({
+  cardId: idSchema,
   done: z.boolean(),
 });
 const folderNameSchema = nonEmptyString.max(MAX_FOLDER_NAME_LENGTH);
@@ -237,7 +246,7 @@ const smartFolderQuerySchema = nonEmptyString.max(
   MAX_SMART_FOLDER_QUERY_LENGTH
 );
 const createFolderInputSchema = z
-  .object({
+  .strictObject({
     name: folderNameSchema,
     color: folderColorSchema.optional(),
     kind: z.enum(["manual", "smart"]).optional(),
@@ -248,8 +257,8 @@ const createFolderInputSchema = z
     path: ["query"],
   });
 const updateFolderInputSchema = z
-  .object({
-    folderId: nonEmptyString,
+  .strictObject({
+    folderId: idSchema,
     name: folderNameSchema.optional(),
     color: folderColorSchema.or(z.null()).optional(),
     query: smartFolderQuerySchema.optional(),
@@ -264,52 +273,52 @@ const updateFolderInputSchema = z
       path: ["name"],
     }
   );
-const folderIdInputSchema = z.object({ folderId: nonEmptyString });
-const deleteFolderInputSchema = z.object({
-  folderId: nonEmptyString,
+const folderIdInputSchema = z.strictObject({ folderId: idSchema });
+const deleteFolderInputSchema = z.strictObject({
+  folderId: idSchema,
   confirm: z.literal(true),
 });
-const listHighlightsInputSchema = z.object({ cardId: nonEmptyString });
-const createHighlightInputSchema = z.object({
-  cardId: nonEmptyString,
+const listHighlightsInputSchema = z.strictObject({ cardId: idSchema });
+const createHighlightInputSchema = z.strictObject({
+  cardId: idSchema,
   quote: nonEmptyString.max(MAX_HIGHLIGHT_QUOTE_CHARS),
   note: z.string().max(MAX_HIGHLIGHT_NOTE_CHARS).optional(),
   prefix: z.string().optional(),
   suffix: z.string().optional(),
 });
-const updateHighlightInputSchema = z.object({
-  highlightId: nonEmptyString,
+const updateHighlightInputSchema = z.strictObject({
+  highlightId: idSchema,
   note: z.string().max(MAX_HIGHLIGHT_NOTE_CHARS).nullable(),
 });
-const deleteHighlightInputSchema = z.object({
-  highlightId: nonEmptyString,
+const deleteHighlightInputSchema = z.strictObject({
+  highlightId: idSchema,
   confirm: z.literal(true),
 });
-const folderCardsInputSchema = z.object({
-  folderId: nonEmptyString,
+const folderCardsInputSchema = z.strictObject({
+  folderId: idSchema,
   cardIds: z.array(nonEmptyString).min(1).max(MAX_FOLDER_CARD_IDS),
 });
 
 const tagNameSchema = nonEmptyString.max(MAX_TAG_NAME_LENGTH);
 // The tag being changed may be an older one longer than today's limit.
 const tagSourceSchema = nonEmptyString.max(MAX_TAG_KEY_LENGTH);
-const renameTagInputSchema = z.object({
+const renameTagInputSchema = z.strictObject({
   from: tagSourceSchema,
   to: tagNameSchema,
 });
-const mergeTagsInputSchema = z.object({
+const mergeTagsInputSchema = z.strictObject({
   from: tagSourceSchema,
   into: tagNameSchema,
 });
-const deleteTagInputSchema = z.object({
+const deleteTagInputSchema = z.strictObject({
   tag: tagSourceSchema,
   confirm: z.literal(true),
 });
-const tagOperationInputSchema = z.object({ operationId: nonEmptyString });
+const tagOperationInputSchema = z.strictObject({ operationId: idSchema });
 
 const updateCardInputSchema = z
-  .object({
-    cardId: nonEmptyString,
+  .strictObject({
+    cardId: idSchema,
     content: z.string().optional(),
     url: nonEmptyString.optional(),
     notes: z.string().or(z.null()).optional(),
@@ -403,6 +412,44 @@ const errorResult = (status: number, payload: unknown): McpToolResult => {
     },
     content: createTextContent(`${code}: ${error}`),
   };
+};
+
+const MAX_REPORTED_ISSUES = 3;
+
+/** The argument names a tool takes, for an unknown-argument error. */
+const acceptedFields = (schema: z.ZodType): string[] => {
+  const shape = (schema as { shape?: unknown }).shape;
+  return shape && typeof shape === "object" ? Object.keys(shape) : [];
+};
+
+/**
+ * Names the argument each problem is in, so `get_card {}` says `cardId` is
+ * missing instead of only "expected string", and an unknown argument (say
+ * `query` on a tool that takes `q`) lists the ones the tool takes.
+ */
+const describeIssues = (
+  issues: readonly z.core.$ZodIssue[],
+  accepted: readonly string[] = []
+): string => {
+  if (issues.length === 0) {
+    return "Invalid input";
+  }
+  const described = issues.slice(0, MAX_REPORTED_ISSUES).map((issue) => {
+    if (issue.code === "unrecognized_keys") {
+      const keys = issue.keys.map((key) => `\`${key}\``).join(", ");
+      const takes =
+        accepted.length > 0
+          ? `; this tool takes ${accepted.map((key) => `\`${key}\``).join(", ")}`
+          : "";
+      return `Unknown argument${issue.keys.length === 1 ? "" : "s"} ${keys}${takes}`;
+    }
+    const path = issue.path.map(String).join(".");
+    return path ? `${path}: ${issue.message}` : issue.message;
+  });
+  const more = issues.length - described.length;
+  return more > 0
+    ? `${described.join("; ")} (and ${more} more)`
+    : described.join("; ");
 };
 
 const validationError = (message: string): McpToolResult =>
@@ -532,7 +579,7 @@ const defineTool =
     const parsed = spec.schema.safeParse(input);
     if (!parsed.success) {
       return validationError(
-        parsed.error.issues[0]?.message ?? "Invalid input"
+        describeIssues(parsed.error.issues, acceptedFields(spec.schema))
       );
     }
     const result = await executeToolOperation(
@@ -651,7 +698,7 @@ const toolConfigs: Record<string, ToolRun> = {
       `Read ${Number(payload.charCount) || 0} characters of ${typeof payload.kind === "string" ? payload.kind : "text"} from card ${input.cardId}${payload.truncated ? " (truncated)" : ""}`,
   }),
   teak_v1_get_me: defineTool({
-    schema: z.object({}),
+    schema: z.strictObject({}),
     operation: () => ({ method: "GET", path: "/v1/me" }),
     transform: (payload) => toObjectPayload(payload.data),
     summary: (payload) =>
@@ -811,7 +858,7 @@ const toolConfigs: Record<string, ToolRun> = {
     summary: (_payload, input) => `Moved card ${input.cardId} to Trash`,
   }),
   teak_v1_list_folders: defineTool({
-    schema: z.object({}),
+    schema: z.strictObject({}),
     operation: () => ({ method: "GET", path: "/v1/folders" }),
     summary: (payload) => `Fetched ${countLabel(count(payload), "folder")}`,
   }),
@@ -915,7 +962,7 @@ const toolConfigs: Record<string, ToolRun> = {
     summary: (_payload, input) => `Removed highlight ${input.highlightId}`,
   }),
   teak_v1_list_tags: defineTool({
-    schema: z.object({}),
+    schema: z.strictObject({}),
     operation: () => ({ method: "GET", path: "/v1/tags" }),
     summary: (payload) => `Fetched ${count(payload)} tags`,
   }),

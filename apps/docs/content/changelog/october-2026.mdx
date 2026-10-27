@@ -513,6 +513,11 @@ These apply to videos, recordings, images, and links you save from now on.
 - `removeAiTags` matches tags ignoring case, as `GET /v1/tags` lists them, and changes nothing when no tag matches.
 - Bulk `create` trims notes and drops a blank one, as `POST /v1/cards` does. Bulk `create` and `update` items with a field they don't take, or an `update` item with nothing to change, fail with `INVALID_INPUT` instead of succeeding without it.
 - Adding cards to a folder, or moving or removing them, skips cards in Trash as not found, and a folder you just deleted no longer counts toward the 500-folder limit.
+- An expired OAuth access token always gets `401`, so apps signed in with Teak refresh it, instead of sometimes getting `429` when many bad requests arrived at once.
+- Content over 512 KiB on any card type, and notes over 256 KiB, return `400 CONTENT_TOO_LARGE` instead of a server error. `PATCH /v1/cards/:id` names the field it refused and why.
+- A wrong method or path under `/v1/` returns a JSON `405` (with `Allow`) or `404` that browsers can read, and `GET /v1` lists every endpoint.
+- Repeating an `Idempotency-Key` while its first request is still running returns `409 IN_PROGRESS` with `Retry-After`, so you know to try again rather than fix the request.
+- On a self-hosted Teak, the card links (`appUrl`) and `settingsUrl` the API and MCP return open your own web app, from `SITE_URL`, instead of teakvault.com.
 
 **CLI**
 
@@ -522,11 +527,17 @@ These apply to videos, recordings, images, and links you save from now on.
 - `teak cards changes` lists the cards deleted since then and prints the next page's cursor, without needing `--json`.
 - The CLI and SDK give up with a timeout error when a response stops partway, instead of waiting forever.
 - `teak export -o` and `teak export --wait` exit with an error when the export fails, so a backup script notices.
+- `teak add --url` no longer reads standard input, so it works inside a `while read` loop, and piped text that happens to name a file is saved as text instead of uploading that file. A link followed by words is saved as a note.
+- The CLI and SDK retry a read when Teak is briefly busy or the network drops, and `teak add` and `teak cards bulk` can be retried without saving twice. An HTML error page from a proxy is reported by its status instead of as "malformed JSON".
+- `teak export -o` checks the file before starting an export, so a rerun doesn't use up the week's export. `--created-after` and `--created-before` refuse anything that isn't a millisecond timestamp, and `teak --json login` keeps standard output to JSON.
+- `teak login` on Windows opens the whole sign-in link.
 
 **MCP**
 
 - Unknown tools and out-of-range limits return clear errors, and a bulk action that only partly succeeds is reported as an error with the cards that failed. See the [MCP guide](/docs/mcp).
 - A batch of only notifications gets `202 Accepted` with no body, as the protocol expects.
+- A tool argument the tool doesn't take, such as `query` on `teak_v1_search_cards`, is refused with the arguments it does take, instead of being ignored and listing your whole library. Validation errors name the argument.
+- One tool call that fails, or hits a card's own limit, no longer fails the rest of a batch. Messages without an `id` get no answer, and a revoked API key stops working when the next session starts.
 
 **Raycast**
 

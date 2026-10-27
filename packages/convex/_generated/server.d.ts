@@ -42,6 +42,7 @@ type Env = {
   readonly POSTHOG_QUERY_API_KEY: string | undefined;
   readonly PUBLIC_ORIGIN: string | undefined;
   readonly R2_KEY_PREFIX: string | undefined;
+  readonly SITE_URL: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DEPLOYMENT: string | undefined;

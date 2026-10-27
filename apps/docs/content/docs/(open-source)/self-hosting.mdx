@@ -339,7 +339,7 @@ Convex serves the REST API at `/api/v1`, the MCP endpoint at `/mcp`, plus `/heal
 - **Sign-in**:
   - `WORKOS_*`: From your WorkOS environment, as described in [Set up WorkOS](#set-up-workos). `WORKOS_AUTHKIT_DOMAIN` is the AuthKit domain shown in the WorkOS dashboard. Sign-in, verification, and password reset emails come from WorkOS.
   - `WORKOS_COOKIE_PASSWORD`: Generate at least 32 random characters (e.g., via `openssl rand -base64 32`). Setup generates one locally.
-  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`.
+  - `SITE_URL`: This is the URL where your Next.js app is running. Locally, it's `http://localhost:3000`. Card links the API and MCP return (`appUrl`, and `settingsUrl` from `GET /v1/me`) open this origin.
 - **Optional Features**:
   - `FILES_BASE` + `FILES_SIGNING_SECRET`: Deploy the Files Worker (see its section above) with a private R2 bucket bound to it; card uploads, downloads, imports, exports, thumbnails, and AI analysis all flow through it. Convex needs no R2 or Workers AI credentials of its own.
   - `POLAR_*`: Get from [Polar](https://polar.sh/) if you want to use the built-in billing system.

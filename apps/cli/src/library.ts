@@ -332,12 +332,18 @@ export const openCard = async (id: string, options: GlobalOptions) => {
   }
 };
 
-const writeNewFile = (target: string, bytes: Uint8Array, force?: boolean) => {
+// Checked before any download or export starts, so a rerun doesn't spend a
+// weekly export on a file it then refuses to write.
+const refuseExisting = (target: string, force?: boolean) => {
   if (existsSync(target) && !force) {
     throw new InvalidArgumentError(
       `${target} already exists; pass --force to replace it`
     );
   }
+};
+
+const writeNewFile = (target: string, bytes: Uint8Array, force?: boolean) => {
+  refuseExisting(target, force);
   writeFileSync(target, bytes);
 };
 
@@ -371,6 +377,7 @@ export const downloadCard = async (
   }
   const target =
     options.output || path.basename(card.fileName || `${card.id}.bin`);
+  refuseExisting(target, options.force);
   writeNewFile(target, await fetchBytes(card.fileUrl), options.force);
   write(options.json ? { path: target } : `Saved ${target}`, options);
 };
@@ -521,6 +528,9 @@ export const startExport = async (
     wait?: boolean;
   }
 ) => {
+  if (options.output) {
+    refuseExisting(options.output, options.force);
+  }
   const api = client(options);
   try {
     await api.exports.start();
