@@ -425,6 +425,7 @@
     "tags": {
       "title": "标签",
       "loading": "正在加载标签",
+      "loadFailed": "无法加载标签",
       "emptyTitle": "还没有标签",
       "emptyMessage": "你为卡片添加的标签以及 Teak 建议的标签都会显示在这里。",
       "find": "查找标签",

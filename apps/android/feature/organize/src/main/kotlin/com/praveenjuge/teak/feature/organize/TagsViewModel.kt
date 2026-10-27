@@ -54,11 +54,15 @@ internal fun invalidTagName(name: String): UiText? {
 
 data class TagsUiState(
     val isLoading: Boolean = true,
+    /** The summary couldn't load, so the list shows a way to try again instead of "No tags yet". */
+    val failed: Boolean = false,
     val tags: List<TagCount> = emptyList(),
     val isComplete: Boolean = true,
     val query: String = "",
     val editor: TagEditor? = null,
     val editorError: UiText? = null,
+    /** A change is being started, so the dialog can't send it twice. */
+    val isSaving: Boolean = false,
     val operation: TagOperation? = null,
 ) {
     /** The list with a running or finished change already applied, since the summary catches up a little later. */
@@ -90,22 +94,45 @@ class TagsViewModel @Inject constructor(
     private val _state = MutableStateFlow(TagsUiState())
     val state: StateFlow<TagsUiState> = _state.asStateFlow()
     private var following: Job? = null
+    private var loading: Job? = null
     private var requested = false
 
     init {
-        repository.summary.onEach { result ->
+        load()
+    }
+
+    /** Subscribes to the summary again, after it failed to load. */
+    fun reload() {
+        _state.update { it.copy(isLoading = true, failed = false) }
+        load()
+    }
+
+    private fun load() {
+        loading?.cancel()
+        loading = repository.summary.onEach { result ->
             val summary = result.getOrNull()
+            if (result.isFailure) {
+                // Try again asks for the summary again, even when the last request itself went through.
+                requested = false
+                _state.update { it.copy(isLoading = false, failed = it.tags.isEmpty()) }
+                return@onEach
+            }
             if (summary == null) {
-                if (result.isSuccess && !requested) {
+                _state.update { it.copy(isLoading = true, failed = false) }
+                if (!requested) {
                     requested = true
-                    catchingFailures { repository.requestSummary() }
+                    // A failed request is asked for again on the next reload, instead of spinning forever.
+                    catchingFailures { repository.requestSummary() }.onFailure { _ ->
+                        requested = false
+                        _state.update { it.copy(isLoading = false, failed = it.tags.isEmpty()) }
+                    }
                 }
-                _state.update { it.copy(isLoading = result.isSuccess) }
                 return@onEach
             }
             _state.update {
                 it.copy(
                     isLoading = false,
+                    failed = false,
                     tags = summary.items.sortedWith(compareByDescending<TagCount> { tag -> tag.count }.thenBy { tag -> tag.name }),
                     isComplete = summary.isComplete,
                 )
@@ -130,12 +157,13 @@ class TagsViewModel @Inject constructor(
     fun submit(to: String? = null) {
         val editor = _state.value.editor ?: return
         if (editor.kind == TagOperationKind.Rename) {
-            val name = to.orEmpty()
+            val name = to.orEmpty().trim()
             val existing = _state.value.tags.firstOrNull { Tags.key(it.name) == Tags.key(name) && Tags.key(it.name) != Tags.key(editor.tag.name) }
             if (existing != null) {
                 return _state.update { it.copy(editorError = UiText.of("native.tags.exists", existing.name)) }
             }
             invalidTagName(name)?.let { error -> return _state.update { it.copy(editorError = error) } }
+            return start(editor.kind, editor.tag.name, name)
         }
         start(editor.kind, editor.tag.name, to)
     }
@@ -160,15 +188,17 @@ class TagsViewModel @Inject constructor(
     fun dismissOperation() = _state.update { if (it.operation?.status != TagOperationStatus.Running) it.copy(operation = null) else it }
 
     private fun start(kind: TagOperationKind, from: String, to: String?) {
+        if (_state.value.isSaving) return
+        _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             catchingFailures { repository.start(kind, from, to) }
                 .onSuccess { operation ->
-                    _state.update { it.copy(editor = null, editorError = null, operation = operation) }
+                    _state.update { it.copy(isSaving = false, editor = null, editorError = null, operation = operation) }
                     follow(operation.id)
                 }
                 .onFailure { error ->
                     val message = error.teakText(UiText.of("native.tags.startFailed"))
-                    _state.update { it.copy(editorError = message) }
+                    _state.update { it.copy(isSaving = false, editorError = message) }
                 }
         }
     }

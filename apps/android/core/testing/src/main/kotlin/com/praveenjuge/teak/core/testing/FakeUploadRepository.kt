@@ -21,4 +21,11 @@ class FakeUploadRepository : UploadRepository {
     override fun clearFinished() {
         uploads.value = uploads.value.filter { it.state == UploadStatus.State.Uploading || it.state == UploadStatus.State.Waiting }
     }
+
+    override suspend fun discardAll() {
+        enqueued.clear()
+        uploads.value = emptyList()
+    }
+
+    override suspend fun sweepAbandoned() = Unit
 }

@@ -50,6 +50,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -95,8 +96,10 @@ import com.praveenjuge.teak.core.model.QualifierChips
 import com.praveenjuge.teak.core.model.SearchSuggestions
 import com.praveenjuge.teak.core.model.SearchIsValue
 import com.praveenjuge.teak.core.model.SearchQualifier
+import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.UiText
+import com.praveenjuge.teak.core.data.convex.teakText
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val LOAD_MORE_THRESHOLD = 5
@@ -147,8 +150,13 @@ fun LibraryRoute(
             onToggleFavorites = viewModel::toggleFavorites,
             onToggleArchive = viewModel::toggleArchive,
             onToggleTrash = viewModel::toggleTrash,
-            onToggleDone = { toggleQualifier(SearchQualifier.Is(SearchIsValue.Done), !state.showsDone) },
-            onToggleTodo = { toggleQualifier(SearchQualifier.Is(SearchIsValue.Todo), !state.showsTodo) },
+            // Read from the field, not the state, which follows typing a moment later: a quick second tap turns it off.
+            onToggleDone = {
+                toggleQualifier(SearchQualifier.Is(SearchIsValue.Done), !SearchQuery.parse(searchState.text.toString()).done)
+            },
+            onToggleTodo = {
+                toggleQualifier(SearchQualifier.Is(SearchIsValue.Todo), !SearchQuery.parse(searchState.text.toString()).todo)
+            },
             onRemoveQualifier = { toggleQualifier(it, on = false) },
             onToggleType = viewModel::toggleType,
             onSelectHue = viewModel::selectHue,
@@ -156,6 +164,7 @@ fun LibraryRoute(
             onClearFilters = viewModel::clearFilters,
             onLoadMore = viewModel::loadMore,
             onRefresh = viewModel::refresh,
+            onRetry = viewModel::retry,
             onBeginSelection = viewModel::beginSelection,
             onToggleSelected = viewModel::toggleSelected,
             onEndSelection = viewModel::endSelection,
@@ -205,6 +214,7 @@ internal data class LibraryActions(
     val onClearFilters: () -> Unit = {},
     val onLoadMore: () -> Unit = {},
     val onRefresh: () -> Unit = {},
+    val onRetry: () -> Unit = {},
     val onBeginSelection: (String?) -> Unit = {},
     val onToggleSelected: (String) -> Unit = {},
     val onEndSelection: () -> Unit = {},
@@ -260,7 +270,7 @@ internal fun LibraryScreen(
             LibraryTopBar(
                 title = state.title.resolve(),
                 isSelecting = state.isSelecting,
-                canSelect = state.paged.cards.isNotEmpty(),
+                canSelect = state.paged.cards.isNotEmpty() && state.canActOnCards,
                 canRevisit = state.canRevisit,
                 sort = state.filters.sort,
                 scrollBehavior = scrollBehavior,
@@ -279,6 +289,9 @@ internal fun LibraryScreen(
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
                 var searchFocused by remember { mutableStateOf(false) }
+                val focusManager = LocalFocusManager.current
+                // Back hides the keyboard first; the next Back closes the suggestions instead of the screen.
+                BackHandler(enabled = searchFocused) { focusManager.clearFocus() }
                 LibrarySearchField(searchState, onFocusChange = { searchFocused = it })
                 val typed = searchState.text.toString()
                 val suggestions = remember(typed) { SearchSuggestions.build(typed) }
@@ -317,7 +330,7 @@ internal fun LibraryScreen(
                         state.isArchive -> SelectionView.Archive
                         else -> SelectionView.Library
                     },
-                    enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction,
+                    enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction && state.canActOnCards,
                     onAction = actions.onBulk,
                     onAddTags = { dialog = LibraryDialog.AddTags },
                     onAddToFolder = { dialog = LibraryDialog.AddToFolder },
@@ -399,9 +412,9 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
         paged.isLoading && paged.cards.isEmpty() -> TeakLoading()
         paged.error != null && paged.cards.isEmpty() -> EmptyState(
             title = tr("native.library.loadFailed.title"),
-            message = tr("native.errors.offline"),
+            message = paged.error?.teakText(UiText.of("native.errors.generic"))?.resolve().orEmpty(),
             icon = Icons.Outlined.CloudOff,
-            action = { Button(onClick = actions.onRefresh) { Text(tr("common.tryAgain")) } },
+            action = { Button(onClick = actions.onRetry) { Text(tr("common.tryAgain")) } },
         )
         else -> PullToRefreshBox(
             isRefreshing = paged.isRefreshing,
@@ -427,6 +440,10 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
                 }
             } else {
                 LibraryGrid(state, selectedCardId, actions)
+            }
+            // A new search or filter: the last cards stay while the first page of the new one comes.
+            if (paged.isLoading && !paged.isRefreshing) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
             }
         }
     }
@@ -498,7 +515,8 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
         ) {
             items(cards, key = { it.id }, contentType = { it.type }) { card ->
                 val selecting = state.isSelecting
-                val menu = tileMenu(card, inTrash = state.filters.trashOnly, actions)
+                // Cards kept on screen while a new view loads get no menu: its actions are for the new view.
+                val menu = if (state.canActOnCards) tileMenu(card, inTrash = state.filters.trashOnly, actions) else emptyList()
                 Box(Modifier.animateItem()) {
                     CardTile(
                         card = card,
@@ -511,7 +529,7 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                         onLongClick = {
                             focusManager.clearFocus()
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (selecting) actions.onToggleSelected(card.id) else menuCardId = card.id
+                            if (selecting) actions.onToggleSelected(card.id) else if (menu.isNotEmpty()) menuCardId = card.id
                         },
                         actions = menu.map { item -> CustomAccessibilityAction(item.label.resolve()) { item.onClick(); true } },
                     )
@@ -537,7 +555,7 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                     }
                 }
             } else if (state.paged.error != null) {
-                item(span = StaggeredGridItemSpan.FullLine) { LoadMoreFailed(actions.onRefresh) }
+                item(span = StaggeredGridItemSpan.FullLine) { LoadMoreFailed(actions.onRetry) }
             }
         }
     }

@@ -39,6 +39,8 @@ data class LinkPickerState(val query: String, val cards: List<LinkedCard>? = nul
 data class CardEditUiState(
     val isLoading: Boolean = true,
     val card: Card? = null,
+    /** The card never loaded because its subscription failed, so it's an error, not a deleted card. */
+    val loadFailed: Boolean = false,
     val draft: CardEditDraft? = null,
     val newTag: String = "",
     val isSaving: Boolean = false,
@@ -70,10 +72,16 @@ class CardEditViewModel @AssistedInject constructor(
     init {
         viewModelScope.launch {
             repository.card(cardId).collect { result ->
+                // A failed subscription keeps the card and the draft; only the server saying it's gone shows it missing.
+                if (result.isFailure) {
+                    _uiState.update { state -> if (state.isLoading) state.copy(isLoading = false, loadFailed = true) else state }
+                    return@collect
+                }
                 val card = result.getOrNull()
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
+                        loadFailed = false,
                         card = card,
                         draft = state.draft ?: card?.let(CardEdit::draftFor),
                     )

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -103,11 +104,12 @@ internal fun CardEditScreen(state: CardEditUiState, callbacks: CardEditCallbacks
             card == null || draft == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
                     title = tr("native.card.unavailable.title"),
-                    message = tr("native.card.unavailable.deletedMessage"),
+                    message = if (state.loadFailed) tr("native.errors.generic") else tr("native.card.unavailable.deletedMessage"),
                     icon = Icons.Outlined.ErrorOutline,
                 )
             }
-            else -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            // The form's IME padding counts only what the Scaffold's padding doesn't already cover.
+            else -> Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
                 EditForm(
                     type = card.type,
                     draft = draft,
@@ -159,8 +161,9 @@ private fun EditForm(
         modifier = Modifier
             .widthIn(max = 720.dp)
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+            // Before the scroll, so the keyboard shrinks the viewport and the focused field scrolls above it.
             .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(28.dp),
     ) {

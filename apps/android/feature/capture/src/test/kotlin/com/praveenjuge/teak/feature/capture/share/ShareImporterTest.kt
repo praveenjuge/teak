@@ -100,8 +100,17 @@ class ShareImporterTest {
     }
 
     @Test
-    fun `a connection failure leaves the generic message to the sheet`() = runTest {
+    fun `a connection failure says to check the connection`() = runTest {
         cards.createError = TeakException(TeakException.OFFLINE, "Check your connection and try again.")
+
+        val result = importer().import(listOf(ShareItem.Text("a note")))
+
+        assertEquals(ShareResult.Failed(UiText.of("native.errors.offline")), result)
+    }
+
+    @Test
+    fun `a failure without the app's own words leaves the general message to the sheet`() = runTest {
+        cards.createError = TeakException("NOT_FOUND", "Tag not found")
 
         val result = importer().import(listOf(ShareItem.Text("a note")))
 

@@ -18,7 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
 import com.praveenjuge.teak.core.i18n.text
 import com.praveenjuge.teak.core.i18n.tr
@@ -44,20 +47,24 @@ fun CardDetailRoute(
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                CardDetailEvent.Close -> currentOnBack()
-                is CardDetailEvent.Message -> scope.launch {
-                    val result = snackbarHostState.showSnackbar(
-                        resources.text(event.text),
-                        actionLabel = event.undo?.let { resources.tr("common.undo") },
-                        duration = if (event.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) event.undo?.invoke()
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        // Events wait in the ViewModel's channel while the app is in the background, so a share sheet never opens behind it.
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.events.collect { event ->
+                when (event) {
+                    CardDetailEvent.Close -> currentOnBack()
+                    is CardDetailEvent.Message -> scope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            resources.text(event.text),
+                            actionLabel = event.undo?.let { resources.tr("common.undo") },
+                            duration = if (event.undo != null) SnackbarDuration.Long else SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) event.undo?.invoke()
+                    }
+                    is CardDetailEvent.ShareFile -> context.shareFile(event)
                 }
-                is CardDetailEvent.ShareFile -> context.shareFile(event)
             }
         }
     }

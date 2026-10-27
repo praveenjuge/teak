@@ -54,6 +54,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -72,6 +73,9 @@ import com.praveenjuge.teak.core.model.parseHexArgb
 
 private val TileShape = RoundedCornerShape(16.dp)
 private val TilePadding = 14.dp
+
+/** Room the favorite heart takes at a text tile's top end, so words never run under it. */
+private val FavoriteInset = 18.dp
 
 private fun firstText(vararg values: String?, fallback: UiText): UiText =
     values.firstOrNull { !it.isNullOrBlank() }?.trim()?.let(UiText::verbatim) ?: fallback
@@ -140,7 +144,7 @@ internal fun CardTile(
             .then(if (outlined) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, TileShape) else Modifier),
     ) {
         Column(Modifier.fillMaxWidth().clearAndSetSemantics {}) {
-            TileContent(card, title)
+            TileContent(card, title, badgeInset = if (!selecting && favorite) FavoriteInset else 0.dp)
         }
         when {
             selecting -> SelectionMark(selected, Modifier.align(Alignment.BottomEnd).padding(8.dp))
@@ -160,7 +164,7 @@ private fun linkPriceText(card: CardSummary): String? =
     card.linkPrice?.let { LinkState.priceText(it, LocalConfiguration.current.locales[0]).resolve() }
 
 @Composable
-private fun TileContent(card: CardSummary, title: String) {
+private fun TileContent(card: CardSummary, title: String, badgeInset: Dp) {
     val imageUrl = CardGrid.tileImageUrl(card)
     val price = linkPriceText(card)
     when (card.type) {
@@ -178,6 +182,7 @@ private fun TileContent(card: CardSummary, title: String) {
                     .joinToString(" · ").ifEmpty { null },
                 titleLines = 2,
                 done = card.isDone,
+                endInset = badgeInset,
             )
         }
         CardType.Document -> {
@@ -185,7 +190,7 @@ private fun TileContent(card: CardSummary, title: String) {
                 TileImage(card, imageUrl, ContentScale.Fit)
                 HorizontalDivider()
             }
-            TileFooter(title, icon = Icons.Outlined.Description)
+            TileFooter(title, icon = Icons.Outlined.Description, endInset = if (imageUrl == null) badgeInset else 0.dp)
         }
         CardType.Image -> TileImage(card, imageUrl)
         CardType.Video -> Box(contentAlignment = Alignment.Center) {
@@ -202,21 +207,21 @@ private fun TileContent(card: CardSummary, title: String) {
         }
         CardType.Palette -> {
             val colors = card.colors.orEmpty().take(12).mapNotNull { parseHexArgb(it)?.let(::Color) }
-            if (colors.isEmpty()) TileText(title) else PaletteStrip(colors)
+            if (colors.isEmpty()) TileText(title, badgeInset) else PaletteStrip(colors)
         }
         CardType.Quote -> QuoteText(title)
-        CardType.Text -> TileText(remember(title) { MarkdownBlocks.toPlainText(title) })
+        CardType.Text -> TileText(remember(title) { MarkdownBlocks.toPlainText(title) }, badgeInset)
     }
 }
 
 @Composable
-private fun TileText(text: String) {
+private fun TileText(text: String, endInset: Dp) {
     Text(
         text,
         style = MaterialTheme.typography.bodyLarge,
         maxLines = 4,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth().padding(TilePadding),
+        modifier = Modifier.fillMaxWidth().padding(TilePadding).padding(end = endInset),
     )
 }
 
@@ -240,9 +245,16 @@ private fun QuoteText(text: String) {
 }
 
 @Composable
-private fun TileFooter(title: String, subtitle: String? = null, icon: ImageVector? = null, titleLines: Int = 1, done: Boolean = false) {
+private fun TileFooter(
+    title: String,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    titleLines: Int = 1,
+    done: Boolean = false,
+    endInset: Dp = 0.dp,
+) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = TilePadding, vertical = 12.dp),
+        Modifier.fillMaxWidth().padding(horizontal = TilePadding, vertical = 12.dp).padding(end = endInset),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

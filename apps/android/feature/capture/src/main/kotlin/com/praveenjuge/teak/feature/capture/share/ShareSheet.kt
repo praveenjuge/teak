@@ -74,7 +74,7 @@ private fun ShareUiState.status(): ShareStatus = when (this) {
     )
     is ShareUiState.Failed -> ShareStatus(
         tr("native.capture.couldntSave"),
-        detail?.resolve() ?: tr("native.errors.offline"),
+        detail?.resolve() ?: tr("native.errors.generic"),
         Icons.Filled.Error,
     )
 }

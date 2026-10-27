@@ -13,14 +13,17 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +43,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +51,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -54,6 +60,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -88,6 +95,7 @@ fun TagsRoute(onBack: () -> Unit, onOpenTag: (String) -> Unit) {
             existingTag = viewModel::existingTag,
             onRetry = viewModel::retry,
             onDismissOperation = viewModel::dismissOperation,
+            onReload = viewModel::reload,
         ),
     )
 }
@@ -104,6 +112,7 @@ internal data class TagsActions(
     val existingTag: (String) -> String? = { null },
     val onRetry: () -> Unit = {},
     val onDismissOperation: () -> Unit = {},
+    val onReload: () -> Unit = {},
 )
 
 /** A count written the way the app's language writes numbers. */
@@ -165,7 +174,7 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding),
+            Modifier.fillMaxSize().padding(padding.withoutBottom()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
@@ -184,6 +193,12 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
                 val loading = tr("native.tags.loading")
                 when {
                     state.isLoading -> TeakLoading(Modifier.semantics { contentDescription = loading })
+                    state.failed -> EmptyState(
+                        title = tr("native.tags.loadFailed"),
+                        message = tr("native.errors.offline"),
+                        icon = Icons.Outlined.CloudOff,
+                        action = { Button(onClick = actions.onReload) { Text(tr("common.tryAgain")) } },
+                    )
                     state.shown.isEmpty() -> EmptyState(
                         title = tr("native.tags.emptyTitle"),
                         message = tr("native.tags.emptyMessage"),
@@ -194,7 +209,7 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(24.dp),
                     )
-                    else -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+                    else -> LazyColumn(contentPadding = PaddingValues(bottom = padding.calculateBottomPadding() + 24.dp)) {
                         items(state.visible, key = { it.name }) { tag -> TagRow(tag, actions) }
                     }
                 }
@@ -233,7 +248,7 @@ private fun TagRow(tag: TagCount, actions: TagsActions) {
                 }
             }
         },
-        supportingContent = { Text(formatCount(tag.cards), modifier = Modifier.clearAndSetSemantics {}) },
+        supportingContent = { Text(tr("native.common.cardCount", count = tag.cards), modifier = Modifier.clearAndSetSemantics {}) },
         modifier = Modifier
             .clickable { actions.onOpenTag(tag.name) }
             .semantics { contentDescription = rowLabel },
@@ -272,6 +287,14 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
     var target by rememberSaveable(editor) { mutableStateOf<String?>(null) }
     val liveError = if (editor.kind == TagOperationKind.Rename) actions.renameError(name) else null
     val error = state.editorError ?: liveError
+    val canSubmit = !state.isSaving && when (editor.kind) {
+        TagOperationKind.Rename -> liveError == null && name.trim() != editor.tag.name
+        TagOperationKind.Merge -> target != null
+        TagOperationKind.Delete -> true
+    }
+    val submit = { if (canSubmit) actions.onSubmit(if (editor.kind == TagOperationKind.Merge) target else name.takeIf { editor.kind == TagOperationKind.Rename }) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(editor) { if (editor.kind == TagOperationKind.Rename) focus.requestFocus() }
     val confirm = when (editor.kind) {
         TagOperationKind.Rename -> tr("common.rename")
         TagOperationKind.Merge -> target?.let { tr("native.tags.mergeInto", it) } ?: tr("native.tags.merge")
@@ -290,7 +313,9 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
                         label = { Text(tr("native.tags.newName")) },
                         singleLine = true,
                         isError = error != null,
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { submit() }),
+                        modifier = Modifier.focusRequester(focus),
                     )
                     TagOperationKind.Merge -> MergePicker(editor, state.shown, find, target, onFind = { find = it }, onPick = { target = it })
                     TagOperationKind.Delete -> Unit
@@ -298,20 +323,13 @@ private fun TagEditorDialog(editor: TagEditor, state: TagsUiState, actions: Tags
                 if (error != null) Text(error.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                 val existing = if (editor.kind == TagOperationKind.Rename) actions.existingTag(name) else null
                 if (existing != null) {
-                    TextButton(onClick = { actions.onMergeInstead(existing) }) { Text(tr("native.tags.mergeInstead", existing)) }
+                    TextButton(onClick = { actions.onMergeInstead(existing) }, enabled = !state.isSaving) { Text(tr("native.tags.mergeInstead", existing)) }
                 }
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = { actions.onSubmit(if (editor.kind == TagOperationKind.Merge) target else name.takeIf { editor.kind == TagOperationKind.Rename }) },
-                enabled = when (editor.kind) {
-                    TagOperationKind.Rename -> liveError == null && name.trim() != editor.tag.name
-                    TagOperationKind.Merge -> target != null
-                    TagOperationKind.Delete -> true
-                },
-            ) {
-                Text(confirm, color = if (editor.kind == TagOperationKind.Delete) MaterialTheme.colorScheme.error else Color.Unspecified)
+            TextButton(onClick = submit, enabled = canSubmit) {
+                Text(confirm, color = if (editor.kind == TagOperationKind.Delete && canSubmit) MaterialTheme.colorScheme.error else Color.Unspecified)
             }
         },
         dismissButton = { TextButton(onClick = actions.onClose) { Text(tr("common.cancel")) } },

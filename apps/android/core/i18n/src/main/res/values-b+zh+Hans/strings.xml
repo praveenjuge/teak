@@ -743,6 +743,7 @@
     <string name="native_tags_find">查找标签</string>
     <string name="native_tags_keep">保留</string>
     <string name="native_tags_keepTag">保留 %1$s</string>
+    <string name="native_tags_loadFailed">无法加载标签</string>
     <string name="native_tags_loading">正在加载标签</string>
     <string name="native_tags_merge">合并</string>
     <plurals name="native_tags_mergeFailed">

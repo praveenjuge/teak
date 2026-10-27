@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -263,7 +264,7 @@ internal fun CardDetailScreen(
             card == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
                     title = tr("native.card.unavailable.title"),
-                    message = tr("native.card.unavailable.movedMessage"),
+                    message = if (state.loadFailed) tr("native.errors.generic") else tr("native.card.unavailable.movedMessage"),
                     icon = Icons.Outlined.ErrorOutline,
                 )
             }
@@ -594,7 +595,8 @@ private fun rememberUiActions(snackbarHostState: SnackbarHostState): UiActions {
                 scope.launch {
                     try {
                         clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Teak", text)))
-                        snackbarHostState.showSnackbar(resources.text(confirmation))
+                        // Android 13 and later confirm a copy themselves.
+                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) snackbarHostState.showSnackbar(resources.text(confirmation))
                     } catch (error: CancellationException) {
                         throw error
                     } catch (_: Exception) {
@@ -611,7 +613,7 @@ private fun rememberUiActions(snackbarHostState: SnackbarHostState): UiActions {
                 }
             },
             viewDocument = { url ->
-                safeExternalUrl(url)?.let { CustomTabsIntent.Builder().build().launchUrl(context, it.toUri()) }
+                safeExternalUrl(url)?.let { if (!context.openInCustomTab(it)) show(resources.tr("android.card.noAppForLink")) }
             },
         )
     }
@@ -638,6 +640,14 @@ internal fun Context.shareFile(event: CardDetailEvent.ShareFile) {
 
 private fun Context.openInBrowser(url: String): Boolean = try {
     startActivity(Intent(Intent.ACTION_VIEW, url.toUri()).addCategory(Intent.CATEGORY_BROWSABLE))
+    true
+} catch (_: ActivityNotFoundException) {
+    false
+}
+
+/** False when there's no browser to show it. */
+internal fun Context.openInCustomTab(url: String): Boolean = try {
+    CustomTabsIntent.Builder().build().launchUrl(this, url.toUri())
     true
 } catch (_: ActivityNotFoundException) {
     false

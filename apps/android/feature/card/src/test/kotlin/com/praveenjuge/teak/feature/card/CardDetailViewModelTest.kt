@@ -17,6 +17,9 @@ import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Rule
@@ -233,6 +236,68 @@ class CardDetailViewModelTest {
             note.undo!!.invoke()
         }
         assertEquals(listOf("archive:c1", "unarchive:c1"), cards.writes)
+    }
+
+    private class SlowArchive(private val fake: FakeCardsRepository) : CardsRepository by fake {
+        val release = CompletableDeferred<Unit>()
+        override suspend fun setArchived(id: String, archived: Boolean) {
+            release.await()
+            fake.setArchived(id, archived)
+        }
+    }
+
+    @Test
+    fun `archiving again while it saves sends it once`() = runTest {
+        cards.cards.value = mapOf(card.id to card)
+        val repository = SlowArchive(cards)
+        val viewModel = viewModel(repository)
+        viewModel.events.test {
+            viewModel.toggleArchived()
+            viewModel.toggleArchived()
+            repository.release.complete(Unit)
+            assertEquals(UiText.of("native.bulk.done.archive", count = 1), (awaitItem() as CardDetailEvent.Message).text)
+            expectNoEvents()
+        }
+        assertEquals(listOf("archive:c1"), cards.writes)
+    }
+
+    @Test
+    fun `a failed subscription keeps the card on screen`() = runTest {
+        val results = MutableStateFlow(Result.success<Card?>(card))
+        val viewModel = viewModel(object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = results
+        })
+
+        results.value = Result.failure(IllegalStateException("Connection lost"))
+
+        assertEquals(card, viewModel.uiState.value.card)
+        assertFalse(viewModel.uiState.value.loadFailed)
+    }
+
+    @Test
+    fun `a card that never loads shows an error, not a deleted card`() = runTest {
+        val viewModel = viewModel(object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = flowOf(Result.failure(IllegalStateException("Connection lost")))
+        })
+
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertNull(viewModel.uiState.value.card)
+        assertTrue(viewModel.uiState.value.loadFailed)
+    }
+
+    @Test
+    fun `a subscription that recovers drops the error`() = runTest {
+        val results = MutableStateFlow(Result.failure<Card?>(IllegalStateException("Connection lost")))
+        val viewModel = viewModel(object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = results
+        })
+        assertTrue(viewModel.uiState.value.loadFailed)
+
+        // The server answers again and says the card is gone: that reads as deleted, not as an error.
+        results.value = Result.success(null)
+
+        assertFalse(viewModel.uiState.value.loadFailed)
+        assertNull(viewModel.uiState.value.card)
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.praveenjuge.teak.core.data.auth
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -113,13 +115,17 @@ class SessionManager @Inject constructor(
         startRefreshLoop()
     }
 
+    /**
+     * The refresh loop lands here itself when WorkOS rejects its token, so the loop is cancelled
+     * only after the session is gone: cancelling first would stop this very call mid-clear.
+     */
     private suspend fun endSessionLocked() {
-        refreshJob?.cancel()
-        refreshJob = null
         session = null
-        store.clearSession()
+        withContext(NonCancellable) { store.clearSession() }
         _state.value = SessionState.SignedOut
         _tokens.tryEmit(null)
+        refreshJob?.cancel()
+        refreshJob = null
     }
 
     private fun startRefreshLoop() {

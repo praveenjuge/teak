@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.AlertDialog
@@ -50,7 +52,7 @@ internal fun LanguageSetting(language: String, enabled: Boolean, onChoose: (Stri
             onDismissRequest = { picking = false },
             title = { Text(tr("settings.language.label")) },
             text = {
-                Column(Modifier.selectableGroup()) {
+                Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
                     LOCALE_NAMES.forEach { (code, name) ->
                         Row(
                             Modifier

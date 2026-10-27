@@ -122,6 +122,11 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
         ) {
+            ListSectionHeader(tr("native.settings.library"))
+            ListGroup {
+                ListRow(tr("native.tags.title"), Icons.Outlined.Sell, supporting = tr("native.settings.tagsDescription"), onClick = onManageTags)
+            }
+
             ListSectionHeader(tr("native.settings.appearance"))
             ThemePicker(state.theme, onThemeChange)
             Spacer(Modifier.height(12.dp))
@@ -141,11 +146,6 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             LanguageSetting(state.language, enabled = !state.isChangingLanguage, onChoose = onLanguageChange)
 
-            ListSectionHeader(tr("native.settings.library"))
-            ListGroup {
-                ListRow(tr("native.tags.title"), Icons.Outlined.Sell, supporting = tr("native.settings.tagsDescription"), onClick = onManageTags)
-            }
-
             ListSectionHeader(tr("native.settings.account"))
             ListGroup {
                 ListRow(tr("native.settings.email"), Icons.Outlined.Mail, supporting = state.email ?: tr("native.settings.notSignedIn"))
@@ -153,7 +153,7 @@ fun SettingsScreen(
                 ListRow(
                     tr("native.settings.plan"),
                     Icons.Outlined.WorkspacePremium,
-                    trailing = { LoadingValue(state.plan?.takeIf { state.usage != null }?.resolve()) },
+                    trailing = { LoadingValue(state.plan?.resolve()) },
                 )
             }
             Spacer(Modifier.height(12.dp))

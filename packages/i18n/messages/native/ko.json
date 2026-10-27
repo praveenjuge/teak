@@ -425,6 +425,7 @@
     "tags": {
       "title": "태그",
       "loading": "태그를 불러오는 중",
+      "loadFailed": "태그를 불러오지 못했습니다",
       "emptyTitle": "아직 태그가 없습니다",
       "emptyMessage": "카드에 추가한 태그와 Teak이 추천한 태그가 여기에 표시됩니다.",
       "find": "태그 찾기",

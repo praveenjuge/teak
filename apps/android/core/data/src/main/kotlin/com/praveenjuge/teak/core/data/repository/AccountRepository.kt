@@ -16,17 +16,21 @@ import com.praveenjuge.teak.core.data.convex.subscribe
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
+import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.convex.android.ConvexClientWithAuth
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,6 +58,7 @@ class ConvexAccountRepository @Inject constructor(
     private val convex: ConvexApi,
     private val client: ConvexClientWithAuth<String>,
     private val preferences: PreferencesRepository,
+    private val uploads: UploadRepository,
     @ApplicationScope private val scope: CoroutineScope,
 ) : AccountRepository {
     override val session: StateFlow<SessionState> = sessions.state
@@ -114,15 +119,37 @@ class ConvexAccountRepository @Inject constructor(
         if (stored.clientId != clientId) clearLocalSession()
     }
 
+    /** Signing out doesn't wait on the server for long: offline, the request could hang until the socket gives up. */
     private suspend fun revokeOnServerBestEffort(session: AuthSession) {
-        catchingFailures {
-            sessions.accessToken()
-            convex.action(ConvexFunctions.revokeAuthkitSession, mapOf("sessionId" to session.sessionId))
+        withTimeoutOrNull(REVOKE_TIMEOUT_MS) {
+            catchingFailures {
+                sessions.accessToken()
+                convex.action(ConvexFunctions.revokeAuthkitSession, mapOf("sessionId" to session.sessionId))
+            }
         }
     }
 
-    private suspend fun clearLocalSession() {
-        sessions.clear()
-        client.logout(context)
+    private suspend fun clearLocalSession() = signOutLocally(
+        discardUploads = { uploads.discardAll() },
+        clearSession = {
+            sessions.clear()
+            client.logout(context)
+        },
+    )
+
+    private companion object {
+        const val REVOKE_TIMEOUT_MS = 5_000L
     }
 }
+
+/**
+ * Signs out on this device. Files still queued belong to the account that's leaving, so they're dropped rather
+ * than uploaded into the next one. They go first, as a best effort: a WorkManager failure, such as a full disk,
+ * must never leave the app signed in. Nothing here can be cancelled, because signing out closes the screen whose
+ * scope called it.
+ */
+internal suspend fun signOutLocally(discardUploads: suspend () -> Unit, clearSession: suspend () -> Unit) =
+    withContext(NonCancellable) {
+        catchingFailures { discardUploads() }
+        clearSession()
+    }

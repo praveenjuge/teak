@@ -24,6 +24,7 @@ import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.LanguageRepository
+import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import dagger.hilt.android.HiltAndroidApp
@@ -42,6 +43,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     @Inject @ApplicationScope lateinit var scope: CoroutineScope
     @Inject lateinit var e2eLaunch: Optional<E2ELaunch>
     @Inject lateinit var language: LanguageRepository
+    @Inject lateinit var uploads: UploadRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -56,6 +58,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
             e2eLaunch.orElse(null)?.let { launch -> catchingFailures { launch.adoptSession() } }
             account.start()
         }
+        scope.launch { catchingFailures { uploads.sweepAbandoned() } }
     }
 
     /** A new app language relabels the launcher shortcuts. */

@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.core.data.upload
 
 import android.content.Context
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import androidx.work.Configuration
 import androidx.work.ListenableWorker
@@ -31,6 +32,7 @@ import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36])
@@ -177,5 +179,64 @@ class UploadQueueTest {
         assertEquals(UiText.of("errors.cards.CARD_LIMIT_REACHED"), rows.getValue("recording.m4a").errorText)
         assertEquals(UiText.of("native.errors.skippedAtLimit"), rows.getValue("photo.jpg").errorText)
         assertEquals(UiText.of("native.errors.skippedAtLimit"), rows.getValue("clip.mp4").errorText)
+    }
+
+    @Test
+    fun `an unexpected error fails only its own upload and deletes its copy`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val prepare = convex.responses.getValue("cards:uploadAndCreateCard")
+        convex.responses["cards:uploadAndCreateCard"] = { args ->
+            if (args["fileName"] == "recording.m4a") error("Unexpected") else prepare(args)
+        }
+        val files = listOf(staged("recording.m4a", "audio/mp4"), staged("photo.jpg", "image/jpeg"))
+        val repository = WorkManagerUploadRepository(context)
+        repository.enqueue(files)
+        runQueue()
+
+        val rows = runBlocking { withTimeout(5_000) { repository.uploads.first { it.size == 2 } } }.associateBy { it.fileName }
+        val failed = rows.getValue("recording.m4a")
+        assertEquals(UploadStatus.State.Failed, failed.state)
+        assertEquals(UiText.of("native.errors.generic"), failed.errorText)
+        assertEquals(UploadStatus.State.Saved, rows.getValue("photo.jpg").state)
+        assertFalse(File(files[0].path).parentFile!!.exists(), "the failed copy is still staged")
+    }
+
+    @Test
+    fun `discarding cancels queued uploads and deletes their copies`() {
+        val files = listOf(staged("recording.m4a", "audio/mp4"), staged("photo.jpg", "image/jpeg"))
+        val repository = WorkManagerUploadRepository(context)
+        repository.enqueue(files)
+
+        runBlocking { repository.discardAll() }
+
+        assertTrue(WorkManager.getInstance(context).getWorkInfosByTag(UploadWorker.TAG).get().isEmpty())
+        assertFalse(StagingArea.root(context).exists())
+        assertTrue(convex.calls.isEmpty())
+    }
+
+    @Test
+    fun `the sweep deletes old copies no upload owns`() {
+        val dayAgo = System.currentTimeMillis() - 25 * 60 * 60 * 1000L
+        val queued = staged("photo.jpg", "image/jpeg")
+        val repository = WorkManagerUploadRepository(context)
+        repository.enqueue(listOf(queued))
+        val queuedSlot = File(queued.path).parentFile!!.apply { setLastModified(dayAgo) }
+        val abandoned = StagingArea.newSlot(context).apply { File(this, "memo.m4a").writeText("half a memo"); setLastModified(dayAgo) }
+        val recording = StagingArea.newSlot(context).apply { File(this, "memo.m4a").writeText("still recording") }
+
+        runBlocking { repository.sweepAbandoned() }
+
+        assertFalse(abandoned.exists())
+        assertTrue(queuedSlot.exists())
+        assertTrue(recording.exists())
+    }
+
+    @Test
+    fun `a file URI is never read`() {
+        val secret = File(context.filesDir, "secret.txt").apply { writeText("private") }
+        val result = runBlocking { WorkManagerUploadRepository(context).stage(listOf(Uri.fromFile(secret))) }
+
+        assertTrue(result.files.isEmpty())
+        assertEquals(listOf(SkippedFile.unreadable("secret.txt")), result.skipped)
     }
 }

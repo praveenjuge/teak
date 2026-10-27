@@ -50,6 +50,7 @@ object ShareIntents {
             listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
         }
         val fromClip = intent.clipData?.let { clip -> (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri } }.orEmpty()
+        // A file:// URI passes through, so staging can refuse it unread and the sheet can say a file was skipped.
         return (fromExtras + fromClip).distinct()
     }
 

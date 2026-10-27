@@ -12,6 +12,7 @@ import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -19,6 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -73,6 +75,38 @@ class WelcomeViewModelTest {
         viewModel.signIn(SignInMethod.EmailSignIn)
         viewModel.onReturnedWithoutRedirect()
         assertNull(viewModel.uiState.value.pending)
+    }
+
+    @Test
+    fun `offline with the sign-in setup cached shows the buttons right away`() = runTest {
+        account.isConnected.value = false
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        assertTrue(viewModel.uiState.value.isConfigured)
+        assertFalse(viewModel.uiState.value.isOffline)
+    }
+
+    @Test
+    fun `offline before the sign-in setup loads says so after a moment`() = runTest {
+        account.authMode.value = null
+        account.isConnected.value = false
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        assertFalse(viewModel.uiState.value.isOffline)
+        advanceTimeBy(5_000)
+        assertTrue(viewModel.uiState.value.isOffline)
+
+        account.isConnected.value = true
+        account.authMode.value = AuthMode("workos", signupsDisabled = false, authKitClientId = "client_1")
+        assertFalse(viewModel.uiState.value.isOffline)
+        assertTrue(viewModel.uiState.value.isConfigured)
+    }
+
+    @Test
+    fun `a sign-in page that can't open shows an error and re-enables the buttons`() = runTest {
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        viewModel.signIn(SignInMethod.Google)
+        viewModel.onSignInPageUnavailable()
+        assertNull(viewModel.uiState.value.pending)
+        assertEquals(UiText.of("native.errors.signInFailed"), viewModel.uiState.value.error)
     }
 
     @Test

@@ -314,7 +314,7 @@ private fun DeckCard(
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text(archiveLabel)
             }
-            Button(onClick = onKeep) {
+            Button(onClick = onKeep, enabled = !archiving) {
                 Text(keepLabel)
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -127,7 +129,7 @@ internal fun LibraryTopBar(
 ) {
     var sortOpen by rememberSaveable { mutableStateOf(false) }
     LargeFlexibleTopAppBar(
-        title = { Text(title, modifier = Modifier.semantics { heading() }) },
+        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() }) },
         navigationIcon = {
             if (onBack != null) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back")) }
@@ -357,7 +359,15 @@ private fun ColorChip(hue: ColorHue?, onSelectHue: (ColorHue) -> Unit) {
 internal fun SearchSuggestionList(suggestions: List<SearchSuggestion>, onPick: (SearchSuggestion) -> Unit, modifier: Modifier = Modifier) {
     if (suggestions.isEmpty()) return
     val title = tr("native.search.suggestions")
-    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp).semantics { paneTitle = title }) {
+    // Scrolls within a capped height, so a long list never pushes the cards off screen.
+    Column(
+        modifier
+            .fillMaxWidth()
+            .heightIn(max = 320.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .semantics { paneTitle = title },
+    ) {
         suggestions.forEachIndexed { index, suggestion ->
             if (index == 0 || suggestions[index - 1].group != suggestion.group) {
                 Text(
@@ -368,7 +378,12 @@ internal fun SearchSuggestionList(suggestions: List<SearchSuggestion>, onPick: (
                 )
             }
             Row(
-                Modifier.fillMaxWidth().clip(CircleShape).clickable { onPick(suggestion) }.padding(horizontal = 16.dp, vertical = 10.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(CircleShape)
+                    .clickable { onPick(suggestion) }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

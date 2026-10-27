@@ -425,6 +425,7 @@
     "tags": {
       "title": "Tags",
       "loading": "Tags werden geladen",
+      "loadFailed": "Tags konnten nicht geladen werden",
       "emptyTitle": "Noch keine Tags",
       "emptyMessage": "Tags, die Sie Karten hinzufügen, und die Vorschläge von Teak erscheinen hier.",
       "find": "Tag suchen",

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CreateNewFolder
@@ -71,6 +72,7 @@ internal fun AddTagsDialog(count: Int, onAdd: (List<String>) -> Unit, onDismiss:
                     isError = error != null,
                     supportingText = error?.let { { Text(it) } },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (parsed.canAdd) submit() }),
                 )
             }
         },
@@ -105,7 +107,8 @@ internal fun FolderPickerDialog(
                     placeholder = { Text(tr("native.folders.findOrCreate")) },
                     label = { Text(tr("native.card.foldersDialog.search")) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (canCreate) onCreate(trimmed) }),
                 )
                 LazyColumn(Modifier.heightIn(max = 320.dp)) {
                     items(visible, key = { it.id }) { folder ->
@@ -157,7 +160,8 @@ internal fun SaveSearchDialog(search: String, onSave: (String) -> Unit, onDismis
                     label = { Text(tr("native.folders.name")) },
                     placeholder = { Text(tr("native.folders.namePlaceholder")) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { if (name.isNotBlank()) onSave(name) }),
                 )
                 Text(search, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
