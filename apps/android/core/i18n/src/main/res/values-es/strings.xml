@@ -220,6 +220,8 @@
     <string name="native_capture_couldntSave">No se pudo guardar</string>
     <string name="native_capture_discard">Descartar</string>
     <string name="native_capture_discardMessage">Todavía está grabando. Si sale ahora, se descartará esta grabación.</string>
+    <string name="native_capture_discardNoteMessage">Todavía no se ha guardado.</string>
+    <string name="native_capture_discardNoteTitle">¿Descartar esta nota?</string>
     <string name="native_capture_discardTitle">¿Descartar la grabación?</string>
     <string name="native_capture_dropHint">También puede soltar archivos en la biblioteca o pegarlos con ⌘V.</string>
     <string name="native_capture_errorTitle">Error</string>
@@ -688,6 +690,7 @@
     <string name="native_settings_about">Acerca de</string>
     <string name="native_settings_account">Cuenta</string>
     <string name="native_settings_appearance">Apariencia</string>
+    <string name="native_settings_byAuthor">por %1$s</string>
     <string name="native_settings_deleteAccount">Eliminar cuenta</string>
     <string name="native_settings_deleteFailed">Algo salió mal al eliminar su cuenta.</string>
     <string name="native_settings_deleteWarning">Se eliminarán de forma permanente su cuenta, sus tarjetas, sus etiquetas y los archivos que haya subido. ¿Está seguro?</string>

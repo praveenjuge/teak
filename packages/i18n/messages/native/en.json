@@ -106,6 +106,7 @@
       "deleteFailed": "Something went wrong while deleting your account.",
       "about": "About",
       "hope": "Hope you enjoy using Teak as much as I enjoyed creating it.",
+      "byAuthor": "by {handle}",
       "version": "Version",
       "versionValue": "Version {version}",
       "helpDocs": "Help and docs",
@@ -362,6 +363,8 @@
       "discardTitle": "Discard recording?",
       "discardMessage": "You're still recording. Leaving now throws this recording away.",
       "discard": "Discard",
+      "discardNoteTitle": "Discard this note?",
+      "discardNoteMessage": "It hasn't been saved yet.",
       "voiceMemoSaved": "Voice memo saved. It's uploading now."
     },
     "share": {

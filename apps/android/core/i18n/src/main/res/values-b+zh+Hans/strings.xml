@@ -205,6 +205,8 @@
     <string name="native_capture_couldntSave">无法保存</string>
     <string name="native_capture_discard">丢弃</string>
     <string name="native_capture_discardMessage">仍在录音。现在离开将丢弃此录音。</string>
+    <string name="native_capture_discardNoteMessage">尚未保存。</string>
+    <string name="native_capture_discardNoteTitle">要丢弃这条笔记吗？</string>
     <string name="native_capture_discardTitle">要丢弃录音吗？</string>
     <string name="native_capture_dropHint">你也可以将文件拖放到资料库中，或使用 ⌘V 粘贴。</string>
     <string name="native_capture_errorTitle">错误</string>
@@ -660,6 +662,7 @@
     <string name="native_settings_about">关于</string>
     <string name="native_settings_account">账户</string>
     <string name="native_settings_appearance">外观</string>
+    <string name="native_settings_byAuthor">作者：%1$s</string>
     <string name="native_settings_deleteAccount">删除账户</string>
     <string name="native_settings_deleteFailed">删除账户时出了点问题。</string>
     <string name="native_settings_deleteWarning">这将永久删除你的账户、卡片、标签和上传的文件。确定要继续吗？</string>

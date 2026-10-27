@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.i18n.tr
 
@@ -67,7 +68,8 @@ fun TypedConfirmDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = matches) {
-                Text(confirmLabel, color = if (matches) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant)
+                // Until the phrase matches, the button's own disabled color shows.
+                Text(confirmLabel, color = if (matches) MaterialTheme.colorScheme.error else Color.Unspecified)
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },

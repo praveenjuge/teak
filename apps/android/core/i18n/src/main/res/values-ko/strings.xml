@@ -205,6 +205,8 @@
     <string name="native_capture_couldntSave">저장하지 못했습니다</string>
     <string name="native_capture_discard">버리기</string>
     <string name="native_capture_discardMessage">아직 녹음 중입니다. 지금 나가면 이 녹음은 버려집니다.</string>
+    <string name="native_capture_discardNoteMessage">아직 저장되지 않았습니다.</string>
+    <string name="native_capture_discardNoteTitle">이 메모를 버리시겠습니까?</string>
     <string name="native_capture_discardTitle">녹음을 버리시겠습니까?</string>
     <string name="native_capture_dropHint">파일을 라이브러리에 놓거나 ⌘V로 붙여넣을 수도 있습니다.</string>
     <string name="native_capture_errorTitle">오류</string>
@@ -660,6 +662,7 @@
     <string name="native_settings_about">정보</string>
     <string name="native_settings_account">계정</string>
     <string name="native_settings_appearance">화면 모드</string>
+    <string name="native_settings_byAuthor">제작: %1$s</string>
     <string name="native_settings_deleteAccount">계정 삭제</string>
     <string name="native_settings_deleteFailed">계정을 삭제하는 중에 문제가 발생했습니다.</string>
     <string name="native_settings_deleteWarning">계정, 카드, 태그, 업로드한 파일이 영구적으로 삭제됩니다. 계속하시겠습니까?</string>

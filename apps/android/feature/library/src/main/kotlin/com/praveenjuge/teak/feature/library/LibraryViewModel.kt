@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.feature.library
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
@@ -50,6 +51,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import java.util.Locale
 
 enum class EmptyKind { Search, Trash, Filters, Archive, Folder, Similar }
@@ -244,10 +246,15 @@ class LibraryViewModel @AssistedInject constructor(
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
     private val language: LanguageRepository,
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
     private val pager = CardPager(repository, viewModelScope)
     private val searchText = MutableStateFlow("")
-    private val _state = MutableStateFlow(LibraryUiState(fixedView = fixedView, folderId = folderId))
+    private val _state = MutableStateFlow(
+        LibraryUiState(fixedView = fixedView, folderId = folderId).let { state ->
+            savedFilters()?.let { state.copy(filters = it) } ?: state
+        },
+    )
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()
     private var messageId = 0L
 
@@ -378,8 +385,15 @@ class LibraryViewModel @AssistedInject constructor(
 
     fun clearFilters() = updateFilters { fixedView.baseFilters().copy(sort = it.sort, shuffleSeed = it.shuffleSeed) }
 
-    private fun updateFilters(transform: (LibraryFilters) -> LibraryFilters) =
+    private fun updateFilters(transform: (LibraryFilters) -> LibraryFilters) {
         _state.update { it.copy(filters = transform(it.filters)) }
+        savedState[FILTERS_KEY] = Json.encodeToString(LibraryFilters.serializer(), _state.value.filters)
+    }
+
+    /** The filters picked before Android ended the app in the background, so they come back with it. */
+    private fun savedFilters(): LibraryFilters? = savedState.get<String>(FILTERS_KEY)?.let { saved ->
+        runCatching { Json.decodeFromString(LibraryFilters.serializer(), saved) }.getOrNull()
+    }
 
     fun loadMore() {
         val paged = _state.value.paged
@@ -522,5 +536,6 @@ class LibraryViewModel @AssistedInject constructor(
     companion object {
         const val SEARCH_DEBOUNCE_MS = 250L
         const val SEMANTIC_DEBOUNCE_MS = 300L
+        private const val FILTERS_KEY = "filters"
     }
 }

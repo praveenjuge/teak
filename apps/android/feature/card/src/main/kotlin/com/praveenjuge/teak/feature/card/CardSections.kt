@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.card
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FormatQuote
@@ -261,6 +262,7 @@ private fun SourceRow(source: CardSource, onOpen: (String) -> Unit) {
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
         )
+        RowChevron()
     }
 }
 
@@ -287,7 +289,19 @@ private fun FoldersRow(folders: List<Folder>, onEdit: () -> Unit) {
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
         )
+        RowChevron()
     }
+}
+
+/** Marks an Info row as one that opens something. */
+@Composable
+private fun RowChevron() {
+    Icon(
+        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(20.dp),
+    )
 }
 
 /** Cards whose notes link here with `[[`, newest first; hidden when there are none. */

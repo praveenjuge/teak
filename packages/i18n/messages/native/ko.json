@@ -106,6 +106,7 @@
       "deleteFailed": "계정을 삭제하는 중에 문제가 발생했습니다.",
       "about": "정보",
       "hope": "제가 Teak을 즐겁게 만든 만큼 여러분도 즐겁게 사용하시길 바랍니다.",
+      "byAuthor": "제작: {handle}",
       "version": "버전",
       "versionValue": "버전 {version}",
       "helpDocs": "도움말 및 문서",
@@ -362,6 +363,8 @@
       "discardTitle": "녹음을 버리시겠습니까?",
       "discardMessage": "아직 녹음 중입니다. 지금 나가면 이 녹음은 버려집니다.",
       "discard": "버리기",
+      "discardNoteTitle": "이 메모를 버리시겠습니까?",
+      "discardNoteMessage": "아직 저장되지 않았습니다.",
       "voiceMemoSaved": "음성 메모가 저장되었습니다. 지금 업로드하고 있습니다."
     },
     "share": {

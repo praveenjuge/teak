@@ -40,6 +40,18 @@ class CardEditTest {
     }
 
     @Test
+    fun `Teak tags that arrive while editing join the draft, keeping removals`() {
+        val draft = CardEdit.draftFor(card).copy(aiTags = listOf("Design"))
+        val tagged = card.copy(aiTags = listOf("Design", "Color", "Macro"))
+
+        val rebased = CardEdit.rebased(draft, previous = card, card = tagged)
+
+        assertEquals(listOf("Design", "Macro"), rebased.aiTags)
+        assertEquals(listOf(CardFieldChange.RemoveAiTag("Color")), CardEdit.changes(tagged, rebased))
+        assertEquals(draft, CardEdit.rebased(draft, previous = card, card = card))
+    }
+
+    @Test
     fun `leaves content alone for types that can't be rewritten`() {
         val link = card.copy(type = CardType.Link)
         val draft = CardEdit.draftFor(link)

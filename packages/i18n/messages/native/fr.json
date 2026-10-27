@@ -106,6 +106,7 @@
       "deleteFailed": "Une erreur s’est produite lors de la suppression de votre compte.",
       "about": "À propos",
       "hope": "J’espère que vous aurez autant de plaisir à utiliser Teak que j’en ai eu à le créer.",
+      "byAuthor": "par {handle}",
       "version": "Version",
       "versionValue": "Version {version}",
       "helpDocs": "Aide et documentation",
@@ -362,6 +363,8 @@
       "discardTitle": "Abandonner l’enregistrement ?",
       "discardMessage": "L’enregistrement est en cours. Si vous quittez maintenant, il sera perdu.",
       "discard": "Abandonner",
+      "discardNoteTitle": "Abandonner cette note ?",
+      "discardNoteMessage": "Elle n’a pas encore été enregistrée.",
       "voiceMemoSaved": "Mémo vocal enregistré. Son importation est en cours."
     },
     "share": {

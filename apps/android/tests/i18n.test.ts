@@ -63,7 +63,7 @@ describe("Android string resources", () => {
       [...readFileSync(file, "utf8").matchAll(ui)]
         .filter((match) => {
           const text = (match[1] ?? match[2]) as string;
-          return !(allowed.has(text) || text.startsWith("by @praveenjuge"));
+          return !allowed.has(text);
         })
         .map((match) => `${relative(ANDROID, file)}: ${match[0]}`)
     );

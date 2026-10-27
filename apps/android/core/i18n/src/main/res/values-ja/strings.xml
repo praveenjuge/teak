@@ -205,6 +205,8 @@
     <string name="native_capture_couldntSave">保存できませんでした</string>
     <string name="native_capture_discard">破棄</string>
     <string name="native_capture_discardMessage">まだ録音中です。いま移動すると、この録音は破棄されます。</string>
+    <string name="native_capture_discardNoteMessage">まだ保存されていません。</string>
+    <string name="native_capture_discardNoteTitle">このメモを破棄しますか？</string>
     <string name="native_capture_discardTitle">録音を破棄しますか？</string>
     <string name="native_capture_dropHint">ファイルはライブラリにドロップするか、⌘V でペーストすることもできます。</string>
     <string name="native_capture_errorTitle">エラー</string>
@@ -660,6 +662,7 @@
     <string name="native_settings_about">情報</string>
     <string name="native_settings_account">アカウント</string>
     <string name="native_settings_appearance">外観</string>
+    <string name="native_settings_byAuthor">作者：%1$s</string>
     <string name="native_settings_deleteAccount">アカウントを削除</string>
     <string name="native_settings_deleteFailed">アカウントの削除中に問題が発生しました。</string>
     <string name="native_settings_deleteWarning">アカウント、カード、タグ、アップロードしたファイルが完全に削除されます。よろしいですか？</string>

@@ -106,6 +106,7 @@
       "deleteFailed": "Algo deu errado ao excluir sua conta.",
       "about": "Sobre",
       "hope": "Espero que você goste de usar o Teak tanto quanto eu gostei de criá-lo.",
+      "byAuthor": "por {handle}",
       "version": "Versão",
       "versionValue": "Versão {version}",
       "helpDocs": "Ajuda e documentação",
@@ -362,6 +363,8 @@
       "discardTitle": "Descartar a gravação?",
       "discardMessage": "Você ainda está gravando. Se sair agora, esta gravação será descartada.",
       "discard": "Descartar",
+      "discardNoteTitle": "Descartar esta nota?",
+      "discardNoteMessage": "Ela ainda não foi salva.",
       "voiceMemoSaved": "Nota de voz salva. Ela está sendo enviada agora."
     },
     "share": {

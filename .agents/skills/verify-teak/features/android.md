@@ -11,7 +11,7 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 - `android-archive` shows the Archive view, archives or unarchives from a tile's long-press menu, the detail overflow, the E key or the selection bar, with "Undo".
 - `android-bulk` acts on selected cards: Archive or Unarchive, Add to favorites, Remove from favorites, Add tags…, Add to folder…, Move to Trash, Restore, Delete forever.
 - `android-folders` lists folders and smart folders in the Folders tab, opens one, creates, renames, edits a smart folder's search, deletes with "Undo", and saves a search as a smart folder.
-- `android-done` marks a link done from the detail top bar with the verb for its category, as on the web ("Mark as read" for a book, article or research link, "Mark as watched" for a film, "Mark as done" when the category is unknown), shows the check on tiles, and filters with the Done and To do chips (`is:done`, `is:todo`).
+- `android-done` marks a link done from the button under its preview with the verb for its category, as on the web ("Mark as read" for a book, article or research link, "Mark as watched" for a film, "Mark as done" when the category is unknown), shows the check on tiles, and filters with the Done and To do chips (`is:done`, `is:todo`).
 - `android-search` shows typed filters as chips ("Show Archived", "Price Under 50", "Text in image …", "Mood “…”", "Similar to …"), ranks free words and `like:`/`mood:` searches by meaning, and "More like this" from a tile or the detail overflow.
 - `android-detail` shows "Refresh details", "Folders…", the "From example.com" row on text saved from a page, "Published", "Price" on product links, and camera rows (Camera, Taken, Exposure, Aperture, Focal length, ISO) on photos.
 - `android-card-links` shows `[[` links as pills with live titles or "Missing card", and a "Linked from" section; Edit keeps the raw token.
@@ -36,7 +36,7 @@ The native Android app (`Teak Dev` in Debug) shows the same vault as the web: a 
 
 - Home tab: the search field, the filter chips under it, and the top bar's Revisit, Sort and Select buttons. Long-press a tile for Select, Archive or Unarchive, and More like this.
 - Folders tab: the "New folder" button (New folder, New smart folder) and each row's "More for <name>" menu. Home's Sort menu has "Save as smart folder…" while searching.
-- A card: the top bar's done button on links; the floating toolbar's "More" menu (Archive, More like this, Folders…, Refresh details, Move to Trash); Edit.
+- A card: the done button under a link's preview; the floating toolbar's "More" menu (Archive, More like this, Folders…, Refresh details, Move to Trash); Edit.
 - Settings → Library → Tags.
 - Any app's Share → Teak Dev.
 - Hardware keyboard on an open card: E archive, D done, R refresh details, F favorite. In Revisit: ← or A archive, → or K keep, Space open, Z undo, Esc close.

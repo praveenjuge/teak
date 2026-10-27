@@ -1,9 +1,13 @@
 package com.praveenjuge.teak.feature.settings
 
+import android.content.ActivityNotFoundException
+import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
@@ -24,7 +29,8 @@ import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -38,10 +44,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -57,7 +66,6 @@ import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 
 @Composable
 fun SettingsRoute(onManageTags: () -> Unit = {}, viewModel: SettingsViewModel = hiltViewModel()) {
@@ -79,12 +87,18 @@ fun SettingsRoute(onManageTags: () -> Unit = {}, viewModel: SettingsViewModel = 
         onConfirmDelete = viewModel::confirmDelete,
         onCancelDelete = viewModel::cancelDelete,
         onDismissError = viewModel::dismissError,
-        onOpenLink = { url -> CustomTabsIntent.Builder().build().launchUrl(context, url.toUri()) },
+        onOpenLink = { url ->
+            try {
+                CustomTabsIntent.Builder().build().launchUrl(context, url.toUri())
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(context, context.resources.tr("android.card.noAppForLink"), Toast.LENGTH_SHORT).show()
+            }
+        },
         onManageTags = onManageTags,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
@@ -110,84 +124,94 @@ fun SettingsScreen(
     LanguageNoticeEffect(state.languageNotice, snackbar, onUndoLanguage, onDismissLanguageNotice)
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { LargeTopAppBar(title = { Text(tr("native.settings.title")) }, scrollBehavior = scrollBehavior) },
+        topBar = {
+            LargeFlexibleTopAppBar(
+                title = { Text(tr("native.settings.title"), modifier = Modifier.semantics { heading() }) },
+                scrollBehavior = scrollBehavior,
+            )
+        },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(
+        // The whole width scrolls, so a drag in a tablet's margins moves the list too.
+        Box(
             Modifier
                 .padding(padding)
-                .fillMaxWidth()
-                .wrapContentWidth()
-                .widthIn(max = 720.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            ListSectionHeader(tr("native.settings.library"))
-            ListGroup {
-                ListRow(tr("native.tags.title"), Icons.Outlined.Sell, supporting = tr("native.settings.tagsDescription"), onClick = onManageTags)
-            }
+            Column(
+                Modifier
+                    .widthIn(max = 720.dp)
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+            ) {
+                ListSectionHeader(tr("native.settings.library"))
+                ListGroup {
+                    ListRow(tr("native.tags.title"), Icons.Outlined.Sell, supporting = tr("native.settings.tagsDescription"), onClick = onManageTags)
+                }
 
-            ListSectionHeader(tr("native.settings.appearance"))
-            ThemePicker(state.theme, onThemeChange)
-            Spacer(Modifier.height(12.dp))
-            ListGroup {
-                ListRow(
-                    tr("android.settings.wallpaperColors"),
-                    Icons.Outlined.Palette,
-                    modifier = Modifier.toggleable(
-                        value = state.useWallpaperColors,
-                        role = Role.Switch,
-                        onValueChange = onWallpaperColorsChange,
-                    ),
-                    supporting = tr("android.settings.wallpaperColorsDescription"),
-                    trailing = { Switch(checked = state.useWallpaperColors, onCheckedChange = null) },
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            LanguageSetting(state.language, enabled = !state.isChangingLanguage, onChoose = onLanguageChange)
+                ListSectionHeader(tr("native.settings.appearance"))
+                ListGroup {
+                    ListRow(tr("native.settings.theme"), Icons.Outlined.Contrast)
+                    ThemePicker(state.theme, onThemeChange)
+                    ListRow(
+                        tr("android.settings.wallpaperColors"),
+                        Icons.Outlined.Palette,
+                        modifier = Modifier.toggleable(
+                            value = state.useWallpaperColors,
+                            role = Role.Switch,
+                            onValueChange = onWallpaperColorsChange,
+                        ),
+                        supporting = tr("android.settings.wallpaperColorsDescription"),
+                        trailing = { Switch(checked = state.useWallpaperColors, onCheckedChange = null) },
+                    )
+                    LanguageSetting(state.language, enabled = !state.isChangingLanguage, onChoose = onLanguageChange)
+                }
 
-            ListSectionHeader(tr("native.settings.account"))
-            ListGroup {
-                ListRow(tr("native.settings.email"), Icons.Outlined.Mail, supporting = state.email ?: tr("native.settings.notSignedIn"))
-                ListRow(tr("native.settings.usage"), Icons.Outlined.Inventory2, trailing = { LoadingValue(state.usage?.resolve()) })
-                ListRow(
-                    tr("native.settings.plan"),
-                    Icons.Outlined.WorkspacePremium,
-                    trailing = { LoadingValue(state.plan?.resolve()) },
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            ListGroup {
-                ListRow(
-                    label = if (state.isSigningOut) tr("native.settings.signingOut") else tr("native.settings.signOut"),
-                    icon = Icons.AutoMirrored.Outlined.Logout,
-                    enabled = !state.isSigningOut,
-                    onClick = onSignOut,
-                )
-                ListRow(
-                    label = if (state.isDeleting) tr("native.settings.deleting") else tr("native.settings.deleteAccount"),
-                    icon = Icons.Outlined.DeleteForever,
-                    enabled = !state.isDeleting,
-                    destructive = true,
-                    onClick = onDelete,
-                )
-            }
+                ListSectionHeader(tr("native.settings.account"))
+                ListGroup {
+                    ListRow(tr("native.settings.email"), Icons.Outlined.Mail, supporting = state.email ?: tr("native.settings.notSignedIn"))
+                    ListRow(tr("native.settings.usage"), Icons.Outlined.Inventory2, trailing = { LoadingValue(state.usage?.resolve()) })
+                    ListRow(
+                        tr("native.settings.plan"),
+                        Icons.Outlined.WorkspacePremium,
+                        trailing = { LoadingValue(state.plan?.resolve()) },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                ListGroup {
+                    ListRow(
+                        label = if (state.isSigningOut) tr("native.settings.signingOut") else tr("native.settings.signOut"),
+                        icon = Icons.AutoMirrored.Outlined.Logout,
+                        enabled = !state.isSigningOut,
+                        onClick = onSignOut,
+                    )
+                    ListRow(
+                        label = if (state.isDeleting) tr("native.settings.deleting") else tr("native.settings.deleteAccount"),
+                        icon = Icons.Outlined.DeleteForever,
+                        enabled = !state.isDeleting,
+                        destructive = true,
+                        onClick = onDelete,
+                    )
+                }
 
-            ListSectionHeader(tr("native.settings.about"))
-            ListGroup {
-                ListRow(
-                    // The app's name and the author's handle stay as they are in every language.
-                    label = "Teak",
-                    icon = Icons.Outlined.Info,
-                    supporting = "by @praveenjuge. ${tr("native.settings.hope")}",
-                    trailing = { ListRowValue(versionName) },
-                )
-                ListRow(tr("native.settings.helpDocs"), Icons.Outlined.Description, onClick = { onOpenLink("https://teakvault.com/docs") })
-                ListRow(
-                    tr("native.settings.privacyPolicy"),
-                    Icons.Outlined.Policy,
-                    onClick = { onOpenLink("https://teakvault.com/docs/privacy-policy") },
-                )
+                ListSectionHeader(tr("native.settings.about"))
+                ListGroup {
+                    ListRow(
+                        // The app's name and the author's handle stay as they are in every language.
+                        label = "Teak",
+                        icon = Icons.Outlined.Info,
+                        supporting = tr("native.settings.byAuthor", "@praveenjuge") + "\n" + tr("native.settings.hope"),
+                        trailing = { ListRowValue(versionName) },
+                    )
+                    ListRow(tr("native.settings.helpDocs"), Icons.Outlined.Description, onClick = { onOpenLink("https://teakvault.com/docs") })
+                    ListRow(
+                        tr("native.settings.privacyPolicy"),
+                        Icons.Outlined.Policy,
+                        onClick = { onOpenLink("https://teakvault.com/docs/privacy-policy") },
+                    )
+                }
             }
         }
     }
@@ -237,7 +261,7 @@ private fun ThemePicker(selected: ThemePreference, onChange: (ThemePreference) -
         ThemePreference.Light to tr("native.settings.themeLight"),
         ThemePreference.Dark to tr("native.settings.themeDark"),
     )
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
         options.forEachIndexed { index, (value, label) ->
             SegmentedButton(
                 selected = selected == value,

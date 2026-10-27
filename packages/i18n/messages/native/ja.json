@@ -106,6 +106,7 @@
       "deleteFailed": "アカウントの削除中に問題が発生しました。",
       "about": "情報",
       "hope": "私が楽しんで作ったのと同じくらい、Teak を楽しんで使っていただけたらうれしいです。",
+      "byAuthor": "作者：{handle}",
       "version": "バージョン",
       "versionValue": "バージョン {version}",
       "helpDocs": "ヘルプとドキュメント",
@@ -362,6 +363,8 @@
       "discardTitle": "録音を破棄しますか？",
       "discardMessage": "まだ録音中です。いま移動すると、この録音は破棄されます。",
       "discard": "破棄",
+      "discardNoteTitle": "このメモを破棄しますか？",
+      "discardNoteMessage": "まだ保存されていません。",
       "voiceMemoSaved": "ボイスメモを保存しました。現在アップロードしています。"
     },
     "share": {

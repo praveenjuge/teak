@@ -45,7 +45,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class CardDetailUiState(
     val isLoading: Boolean = true,
@@ -273,7 +275,8 @@ class CardDetailViewModel @AssistedInject constructor(
         val current = (CardSheet.linkTitle(card) as? UiText.Verbatim)?.text.orEmpty()
         val change = CardEdit.titleChange(input, current) ?: return
         viewModelScope.launch {
-            catchingFailures { repository.apply(card.id, listOf(change)) }.onFailure { error ->
+            // A title committed as the card closes still reaches the server after this screen's scope ends.
+            withContext(NonCancellable) { catchingFailures { repository.apply(card.id, listOf(change)) } }.onFailure { error ->
                 _events.send(CardDetailEvent.Message(error.teakText(UiText.of("native.card.failed.title"))))
             }
         }

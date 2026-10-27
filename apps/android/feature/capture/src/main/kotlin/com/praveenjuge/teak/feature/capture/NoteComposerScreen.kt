@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.feature.capture
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,8 +28,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -38,6 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
 
@@ -72,13 +77,23 @@ internal fun NoteComposerScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    var confirmDiscard by rememberSaveable { mutableStateOf(false) }
+    // Leaving asks first when there's text to lose, and waits while the note saves.
+    fun leave() {
+        when {
+            state.isSaving -> Unit
+            textState.text.isNotBlank() -> confirmDiscard = true
+            else -> onBack()
+        }
+    }
+    BackHandler(enabled = state.isSaving || textState.text.isNotBlank()) { leave() }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(tr("native.capture.newNote"), modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = ::leave, enabled = !state.isSaving) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
                     }
                 },
@@ -119,6 +134,18 @@ internal fun NoteComposerScreen(
         )
     }
 
+    if (confirmDiscard) {
+        ConfirmDialog(
+            title = tr("native.capture.discardNoteTitle"),
+            message = tr("native.capture.discardNoteMessage"),
+            confirmLabel = tr("native.capture.discard"),
+            onConfirm = {
+                confirmDiscard = false
+                onBack()
+            },
+            onDismiss = { confirmDiscard = false },
+        )
+    }
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = onDismissError,
