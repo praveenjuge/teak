@@ -416,7 +416,10 @@ Object.assign(PREPARE, {
     // the first card is always a saved photo.
     await open(page, "/?type=image", "Everything");
     // With a type picked, the button is named after it ("View: Image").
-    await page.getByRole("button", { name: /^View\b/ }).first().click();
+    await page
+      .getByRole("button", { name: /^View\b/ })
+      .first()
+      .click();
     await page.getByRole("menuitemradio", { name: "Revisit" }).click();
     await page.getByRole("button", { name: /^Keep/ }).first().waitFor();
     await page.getByText("Image", { exact: true }).first().waitFor();
