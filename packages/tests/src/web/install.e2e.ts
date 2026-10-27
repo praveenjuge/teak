@@ -60,7 +60,7 @@ const workerInPlace = (browser: Browser) =>
     )
     .toBe(true);
 
-/** The composer holds the share's text, and the URL no longer carries it. */
+/** The composer holds the share's text. */
 const expectSharedDraft = async (browser: Browser, marker: string) => {
   const composer = browser
     .locator('form[data-card-creation-status="ready"]')
@@ -70,21 +70,26 @@ const expectSharedDraft = async (browser: Browser, marker: string) => {
   });
   await expect(composer).toContainText("A shared page");
   await expect(composer).toContainText(`https://example.com/${marker}`);
-  await expect
-    .poll(() => browser.evaluate(() => window.location.search))
-    .toBe("");
 };
+
+/** Once the files are handled, the URL carries nothing of the share. */
+const expectShareCleared = (browser: Browser) =>
+  expect.poll(() => browser.evaluate(() => window.location.search)).toBe("");
 
 /**
  * The test shares from a browser tab, not the installed app's window, so the
  * library asks before saving the files a page posted (`useSharedFiles`).
  */
-const confirmSharedFiles = (browser: Browser) =>
+const sharePrompt = (browser: Browser) =>
   browser
     .locator("[data-sonner-toast]")
     .filter({ hasText: "Save the shared file to Teak?" })
-    .getByRole("button", "Save")
-    .click({ timeout: 60_000 });
+    .getByRole("button", "Save");
+
+const confirmSharedFiles = async (browser: Browser) => {
+  await sharePrompt(browser).click({ timeout: 60_000 });
+  await expectShareCleared(browser);
+};
 
 /** The shared PNG became an image card. */
 const expectUploaded = (library: EditorLibrary, marker: string) =>
@@ -137,6 +142,9 @@ describe("Installed web app", () => {
     await share(browser, marker);
 
     await expectSharedDraft(browser, marker);
+    // A reload while it asks keeps the files and asks again.
+    await expect(sharePrompt(browser)).toBeVisible({ timeout: 60_000 });
+    await browser.reload();
     await confirmSharedFiles(browser);
     await expectUploaded(library, marker);
   });

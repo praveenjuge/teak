@@ -140,12 +140,22 @@ export const readSharedText = (params: {
   return Object.keys(shared).length > 0 ? shared : null;
 };
 
-/** The URL's query without a share's parameters, once the library took them. */
+/**
+ * The URL's query without a share's text, once the composer took it. The
+ * files' id stays: `useSharedFiles` removes it once the files are saved or
+ * turned down, so a reload while it asks finds them again.
+ */
 export const withoutShareParams = (search: string): string => {
   const params = new URLSearchParams(search);
   for (const field of SHARE_TEXT_FIELDS) {
     params.delete(field);
   }
+  return params.toString();
+};
+
+/** The URL's query without the shared files' id. */
+export const withoutSharedFilesParam = (search: string): string => {
+  const params = new URLSearchParams(search);
   params.delete(SHARE_FILES_PARAM);
   return params.toString();
 };

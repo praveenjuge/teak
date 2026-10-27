@@ -9,15 +9,28 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const shared = [new File(["a"], "a.png", { type: "image/png" })];
 const enqueueFiles = mock((_files: File[]) => undefined);
+const takes: Array<{ id: string; keep: boolean }> = [];
+const discarded: string[] = [];
 const prompts: Array<{
   message: string;
-  options: { action: { onClick: () => void } };
+  options: { action: { onClick: () => void }; onDismiss: () => void };
 }> = [];
 mock.module("@/components/providers/GlobalFileDropProvider", () => ({
   useGlobalFileDrop: () => ({ enqueueFiles }),
 }));
 mock.module("@/lib/share/sharedFiles", () => ({
-  takeSharedFiles: () => Promise.resolve(shared),
+  discardSharedFiles: (_storage: unknown, id: string) => {
+    discarded.push(id);
+    return Promise.resolve();
+  },
+  takeSharedFiles: (
+    _storage: unknown,
+    id: string,
+    { keep = false }: { keep?: boolean } = {}
+  ) => {
+    takes.push({ id, keep });
+    return Promise.resolve(shared);
+  },
 }));
 mock.module("sonner", () => ({
   toast: Object.assign(
@@ -39,7 +52,10 @@ function Harness({ id }: { id: string }) {
   return null;
 }
 
+// Each call mounts afresh, as a page load (or a reload) does.
 const share = async (id: string) => {
+  await act(() => root?.unmount());
+  window.history.replaceState(null, "", `/?share=${id}&q=design`);
   root = createRoot(document.createElement("div"));
   await act(async () => {
     root?.render(<Harness id={id} />);
@@ -49,6 +65,8 @@ const share = async (id: string) => {
 
 beforeEach(() => {
   enqueueFiles.mockClear();
+  takes.length = 0;
+  discarded.length = 0;
   prompts.length = 0;
   window.matchMedia = ((query: string) => ({
     matches: query === "(display-mode: standalone)" && standalone,
@@ -63,8 +81,10 @@ afterEach(async () => {
 test("the installed app uploads files from the share sheet at once", async () => {
   standalone = true;
   await share("share_a");
+  expect(takes).toEqual([{ id: "share_a", keep: false }]);
   expect(enqueueFiles).toHaveBeenCalledWith(shared);
   expect(prompts).toHaveLength(0);
+  expect(window.location.search).toBe("?q=design");
 });
 
 test("a browser tab asks before saving files another page posted", async () => {
@@ -76,4 +96,23 @@ test("a browser tab asks before saving files another page posted", async () => {
   ]);
   prompts[0]?.options.action.onClick();
   expect(enqueueFiles).toHaveBeenCalledWith(shared);
+  expect(discarded).toEqual(["share_b"]);
+  expect(window.location.search).toBe("?q=design");
+});
+
+test("a reload while asking asks again, and dismissing discards the files", async () => {
+  standalone = false;
+  await share("share_c");
+  expect(takes).toEqual([{ id: "share_c", keep: true }]);
+  expect(discarded).toEqual([]);
+  expect(window.location.search).toBe("?share=share_c&q=design");
+
+  await share("share_c");
+  expect(takes).toHaveLength(2);
+  expect(prompts).toHaveLength(2);
+
+  prompts[1]?.options.onDismiss();
+  expect(enqueueFiles).not.toHaveBeenCalled();
+  expect(discarded).toEqual(["share_c"]);
+  expect(window.location.search).toBe("?q=design");
 });
