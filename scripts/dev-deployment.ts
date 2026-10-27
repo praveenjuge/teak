@@ -131,9 +131,5 @@ export const selectDevDeployment = (dotenvPath: string): void =>
 
 export const REQUIRED_DEV_VARS = ["WORKOS_CLIENT_ID", "WORKOS_API_KEY"];
 
-export const RECOMMENDED_DEV_VARS = [
-  "TEAK_DEV_DEPLOYMENT",
-  "TEAK_DEV_APP_URL",
-  "TEAK_DEV_API_URL",
-  "TEAK_DEV_DOCS_URL",
-];
+// The TEAK_DEV_*_URL overrides default to the shared dev ports and site URL.
+export const RECOMMENDED_DEV_VARS = ["TEAK_DEV_DEPLOYMENT"];

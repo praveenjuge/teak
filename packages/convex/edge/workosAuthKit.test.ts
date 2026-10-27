@@ -1,5 +1,6 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { internal } from "../_generated/api";
 import schema from "../schema";
 import { SIGNUPS_PAUSED_MESSAGE } from "../shared/constants";
@@ -15,13 +16,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 test.each([
-  { disabled: "true", email: "new@example.com", verdict: "Deny" },
-  { disabled: "false", email: "new@example.com", verdict: "Allow" },
+  { paused: true, email: "new@example.com", verdict: "Deny" },
+  { paused: false, email: "new@example.com", verdict: "Allow" },
 ])(
-  "WorkOS registration returns $verdict for $email with freeze=$disabled",
-  async ({ disabled, email, verdict }) => {
-    vi.stubEnv("SIGNUPS_DISABLED", disabled);
+  "WorkOS registration returns $verdict for $email with paused=$paused",
+  async ({ paused, email, verdict }) => {
     const t = convexTest(schema, modules);
+    await setSignupsPaused(t, paused);
     const response = await t.mutation(internal.workosAuthKit.authKitAction, {
       action: {
         object: "user_registration_action_context",

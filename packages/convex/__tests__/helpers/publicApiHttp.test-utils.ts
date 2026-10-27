@@ -1,8 +1,6 @@
 import { mock } from "bun:test";
 import { withMappedOwner } from "./session.test-utils";
 
-process.env.R2_BUCKET = "test-r2-bucket";
-
 export const runHandler = (fn: any, ctx: any, request: Request) => {
   const handler = (fn as any).handler ?? fn;
   return handler(withMappedOwner(ctx), request);

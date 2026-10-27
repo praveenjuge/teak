@@ -223,8 +223,7 @@ const settle = async (page: Page) => {
 const launch = () => {
   const chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   const executablePath =
-    process.env.STORE_ASSETS_BROWSER ??
-    (existsSync(chrome) ? chrome : undefined);
+    process.env.CHROME_PATH ?? (existsSync(chrome) ? chrome : undefined);
   return chromium.launch({ headless: true, executablePath });
 };
 

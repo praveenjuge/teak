@@ -18,7 +18,6 @@ import {
   upsertUserFlags,
   writeAudit,
 } from "./adminAccess";
-import { readSignupsDisabled } from "./env";
 
 const AUDIT_PAGE_LIMIT = 100;
 const NOTES_LIMIT = 200;
@@ -28,10 +27,7 @@ export const getSettings = query({
   args: {},
   handler: async (ctx) => {
     await ensureAdmin(ctx);
-    return {
-      ...(await readAdminSettings(ctx)),
-      signupsDisabledByEnv: readSignupsDisabled(),
-    };
+    return await readAdminSettings(ctx);
   },
 });
 

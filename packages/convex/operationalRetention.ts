@@ -1,6 +1,6 @@
 import { type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
-import { env, internalMutation, type MutationCtx } from "./_generated/server";
+import { internalMutation, type MutationCtx } from "./_generated/server";
 
 const MAX_BATCHES = 20;
 export const RETENTION_SCAN_LEASE_MS = 15 * 60 * 1000;
@@ -34,17 +34,14 @@ export const cleanupExpiredRecords = internalMutation({
 });
 
 /**
- * The Files Worker's hourly Cron Trigger calls this. It does nothing until
- * retention is enabled; then it starts a scan, which continues itself in
- * bursts, or skips while another scan holds the lease.
+ * The Files Worker's hourly Cron Trigger calls this. It starts a scan, which
+ * continues itself in bursts, or skips while another scan holds the lease.
  */
 export const startIdempotencyCleanup = internalMutation({
   args: {},
-  returns: v.union(cleanupReport, v.null()),
+  returns: cleanupReport,
   handler: (ctx) =>
-    env.OPERATIONAL_RETENTION_ENABLED === "true"
-      ? cleanUpExpiredRecords(ctx, { kind: "idempotency", dryRun: false })
-      : null,
+    cleanUpExpiredRecords(ctx, { kind: "idempotency", dryRun: false }),
 });
 
 const cleanUpExpiredRecords = async (
@@ -52,9 +49,6 @@ const cleanUpExpiredRecords = async (
   args: Infer<typeof cleanupArgs>
 ): Promise<Infer<typeof cleanupReport>> => {
   const dryRun = args.dryRun ?? true;
-  if (!dryRun && env.OPERATIONAL_RETENTION_ENABLED !== "true") {
-    throw new Error("Operational retention is not enabled");
-  }
   const latestCutoff = Date.now();
   let cutoff = args.cutoff ?? latestCutoff;
   let cursor = args.cursor ?? null;

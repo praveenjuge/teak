@@ -8,7 +8,6 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { readSignupsDisabled } from "./env";
 import { getSessionUser } from "./securitySessions";
 
 export interface AdminActor {
@@ -146,7 +145,7 @@ export const readAdminSettings = async (ctx: DbCtx): Promise<AdminSettings> => {
 };
 
 export const readSignupsPaused = async (ctx: DbCtx): Promise<boolean> =>
-  readSignupsDisabled() || (await readAdminSettings(ctx)).signupsPaused;
+  (await readAdminSettings(ctx)).signupsPaused;
 
 export const readUserFlags = (ctx: DbCtx, teakUserId: string) =>
   ctx.db

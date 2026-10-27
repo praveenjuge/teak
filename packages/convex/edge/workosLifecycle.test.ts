@@ -1,6 +1,7 @@
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { components, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -17,6 +18,12 @@ const setup = () => {
   return t;
 };
 type Backend = ReturnType<typeof setup>;
+// Most of these cases run with sign-ups paused, so no event creates an owner.
+const setupPaused = async () => {
+  const t = setup();
+  await setSignupsPaused(t, true);
+  return t;
+};
 const time = (seconds: number) =>
   new Date(1_700_000_000_000 + seconds * 1000).toISOString();
 const event = (
@@ -69,13 +76,8 @@ const resolve = (t: Backend, workosUserId = "user_provider") =>
   });
 
 describe("WorkOS lifecycle linking and deletion", () => {
-  beforeEach(() => {
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
-  });
-  afterEach(() => vi.unstubAllEnvs());
-
   test("a created event for a linked owner copies no provider profile and preserves the vault", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     await t.run((ctx) =>
       ctx.db.insert("cards", {
@@ -97,7 +99,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("redelivered and concurrent created events link once and change nothing more", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     const original = event("evt_duplicate", 1, "user.created");
     expect(
@@ -120,7 +122,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("redelivered and concurrent deletions keep one receipt", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     const deletion = event("evt_delete_twice", 1, "user.deleted");
     await Promise.all([
@@ -145,7 +147,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   ])(
     "accepts RFC3339 fractional precision and offsets: %s",
     async (createdAt) => {
-      const t = setup();
+      const t = await setupPaused();
       await seed(t, { workosUserId: "user_provider" });
       expect(
         await t.mutation(apply, {
@@ -160,7 +162,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   );
 
   test("an update with a conflicting external ID closes provider access without stealing another vault", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     await seed(t, { teakUserId: "owner-b", email: "other@example.com" });
     await t.mutation(sync, event("evt_first", 1, "user.created"));
@@ -178,7 +180,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("quarantined delivery retries keep one committed quarantine and original receipt", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const original = event("evt_unknown", 1, "user.created");
     expect(await t.mutation(apply, original)).toEqual({
       status: "quarantined",
@@ -194,11 +196,11 @@ describe("WorkOS lifecycle linking and deletion", () => {
     expect(result.cards).toEqual([]);
   });
 
-  test.each(["true", "false"])(
-    "a created event naming an unknown owner never creates a vault with SIGNUPS_DISABLED=%s",
-    async (disabled) => {
-      vi.stubEnv("SIGNUPS_DISABLED", disabled);
-      const t = setup();
+  test.each([true, false])(
+    "a created event naming an unknown owner never creates a vault with sign-ups paused=%s",
+    async (paused) => {
+      const t = await setupPaused();
+      await setSignupsPaused(t, paused);
       await t.mutation(sync, event("evt_unknown", 1, "user.created"));
       const result = await snapshot(t);
       expect(result.users).toEqual([]);
@@ -210,7 +212,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   );
 
   test("deletion tombstones the owner, retains the vault and schedules no vault deletion", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     await t.mutation(apply, event("evt_first", 2, "user.created"));
     await t.run((ctx) =>
@@ -240,7 +242,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("provider deletion is terminal even when its delivery timestamp is older", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     await t.mutation(apply, event("evt_first", 3, "user.created"));
     expect(
@@ -256,7 +258,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("deletion of duplicate provider mappings records terminal history and blocks every future link", async () => {
-    const t = setup();
+    const t = await setupPaused();
     for (const teakUserId of ["owner-a", "owner-b", "owner-c"]) {
       await seed(t, { teakUserId, workosUserId: "user_provider" });
     }
@@ -295,7 +297,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("deletion stores normalized identity evidence and hides a surviving component profile", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     await t.mutation(sync, event("evt_before_delete_identity", 0));
     expect(
@@ -329,7 +331,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("metadata-free deletion retains minimal evidence and unresolved quarantine with terminal denial", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await t.mutation(apply, event("evt_delete_minimal", 1, "user.deleted"));
     const after = await snapshot(t);
     expect(after.quarantine[0]).toMatchObject({
@@ -366,7 +368,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   ])(
     "deletion omits malformed optional identity evidence without blocking its tombstone %#",
     async (metadata) => {
-      const t = setup();
+      const t = await setupPaused();
       expect(
         await t.mutation(apply, {
           ...event("evt_delete_malformed", 1, "user.deleted"),
@@ -389,7 +391,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   );
 
   test("malformed optional display metadata cannot block a terminal provider deletion", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t, { workosUserId: "user_provider" });
     expect(
       await t.mutation(apply, {
@@ -411,7 +413,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("deletion discards invalid optional email rather than storing unbounded or malformed data", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await t.mutation(apply, {
       ...event("evt_delete_bad_email", 1, "user.deleted"),
       data: { id: "user_provider", email: "x".repeat(321) },
@@ -420,7 +422,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test("delete-before-create persists an unmapped tombstone and never creates or revives a vault", async () => {
-    const t = setup();
+    const t = await setupPaused();
     expect(
       await t.mutation(sync, event("evt_delete", 1, "user.deleted"))
     ).toBeNull();
@@ -445,7 +447,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   test.each(["webhook", "ensureUser"] as const)(
     "%s cannot bypass deletion history with trusted external ID",
     async (source) => {
-      const t = setup();
+      const t = await setupPaused();
       await t.mutation(apply, event("evt_delete", 1, "user.deleted"));
       await seed(t);
       expect(
@@ -494,7 +496,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
     },
     { data: { id: "user_provider", extra: "x".repeat(65_536) } },
   ])("invalid provider envelope writes nothing case %#", async (invalid) => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t);
     const before = await snapshot(t);
     await expect(
@@ -507,7 +509,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
 describe("new WorkOS lifecycle owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
   });
   afterEach(() => {
     vi.clearAllTimers();
@@ -593,8 +594,7 @@ describe("new WorkOS lifecycle owners", () => {
     expect((await snapshot(t)).scheduled).toEqual([]);
   });
   test("a replayed frozen create changes nothing once the owner exists", async () => {
-    const t = setup();
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    const t = await setupPaused();
     await seedComponentUser(t, { id: "user_NEW", email: "new@example.com" });
     const fresh = freshEvent("frozen_create");
     expect(await t.mutation(apply, fresh)).toEqual({
@@ -602,7 +602,7 @@ describe("new WorkOS lifecycle owners", () => {
       reason: "signups_frozen",
     });
     expect((await snapshot(t)).users).toEqual([]);
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    await setSignupsPaused(t, false);
     expect(
       await t.mutation(link, {
         workosUserId: "user_NEW",

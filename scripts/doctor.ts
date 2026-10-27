@@ -347,7 +347,7 @@ export const checkDevVars = async (): Promise<DoctorCheck> => {
   const unset = RECOMMENDED_DEV_VARS.filter((name) => !listed.names.has(name));
   return unset.length === 0
     ? {
-        detail: "dev seeding, the push lease and dev URLs are configured",
+        detail: "dev seeding and the push lease are configured",
         id: "convex-dev-vars",
         ok: true,
         severity: "warn",
