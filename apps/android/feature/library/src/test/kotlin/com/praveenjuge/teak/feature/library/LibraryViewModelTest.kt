@@ -85,6 +85,28 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun `cards stay usable during a pull to refresh, not after switching views`() = runTest {
+        repository.summaries.value = listOf(summary("a"))
+        var answered = false
+        // Only the first page ever answers, so the refresh and the new view both stay loading.
+        val slowAfterFirst = object : CardsRepository by repository {
+            override fun page(query: CardQuery, cursor: String?, numItems: Int) =
+                if (answered) emptyFlow() else repository.page(query, cursor, numItems).also { answered = true }
+        }
+        val viewModel = LibraryViewModel(null, null, slowAfterFirst, folders, language)
+        advanceUntilIdle()
+
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.paged.isRefreshing)
+        assertTrue(viewModel.state.value.canActOnCards)
+
+        viewModel.toggleTrash()
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.canActOnCards)
+    }
+
+    @Test
     fun `search text and chips combine into one query`() = runTest {
         val viewModel = library()
         viewModel.onSearchChange("design")

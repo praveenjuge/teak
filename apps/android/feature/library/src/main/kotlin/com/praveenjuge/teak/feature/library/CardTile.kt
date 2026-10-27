@@ -190,7 +190,7 @@ private fun TileContent(card: CardSummary, title: String, badgeInset: Dp) {
                 TileImage(card, imageUrl, ContentScale.Fit)
                 HorizontalDivider()
             }
-            TileFooter(title, icon = Icons.Outlined.Description)
+            TileFooter(title, icon = Icons.Outlined.Description, endInset = if (imageUrl == null) badgeInset else 0.dp)
         }
         CardType.Image -> TileImage(card, imageUrl)
         CardType.Video -> Box(contentAlignment = Alignment.Center) {

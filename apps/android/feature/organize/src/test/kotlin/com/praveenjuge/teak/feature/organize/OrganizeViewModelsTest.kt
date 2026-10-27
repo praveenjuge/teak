@@ -186,6 +186,23 @@ class OrganizeViewModelsTest {
     }
 
     @Test
+    fun `a summary that fails after it was asked for is asked for again on retry`() = runTest {
+        val viewModel = TagsViewModel(tags)
+        advanceUntilIdle()
+        assertEquals(1, tags.summaryRequests)
+
+        tags.summaryError = TeakException("OFFLINE", "offline")
+        viewModel.reload()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.failed)
+
+        tags.summaryError = null
+        viewModel.reload()
+        advanceUntilIdle()
+        assertEquals(2, tags.summaryRequests)
+    }
+
+    @Test
     fun `a tag change is sent once, however often it's confirmed`() = runTest {
         tags.summaryState.value = TagSummary(listOf(TagCount("ui", 2.0)))
         val viewModel = TagsViewModel(tags)

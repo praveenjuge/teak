@@ -43,6 +43,8 @@ class CardPager(
 
     fun load(newQuery: CardQuery) {
         query = newQuery
+        // A new query is a new view, not a refresh of the one on screen.
+        refreshing = false
         restartedForCursor = false
         restart()
     }

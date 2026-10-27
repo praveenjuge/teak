@@ -1,5 +1,7 @@
 package com.praveenjuge.teak.feature.card
 
+import android.content.ActivityNotFoundException
+import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -303,7 +305,11 @@ private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier)
 }
 
 private fun Context.openMediaElsewhere(url: String, type: String) {
-    runCatching { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), type)) }
+    try {
+        startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), type))
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(this, resources.tr("android.card.noAppForLink"), Toast.LENGTH_SHORT).show()
+    }
 }
 
 /** The audio player's place when the recording won't load, as the video player does. */

@@ -115,9 +115,10 @@ data class LibraryUiState(
 
     /**
      * While a new view loads, the last one's cards stay on screen so the grid doesn't blink, but nothing may act
-     * on them: switching to Trash would otherwise offer Delete forever for cards that were never in Trash.
+     * on them: switching to Trash would otherwise offer Delete forever for cards that were never in Trash. A pull
+     * to refresh reloads the same view, so its cards stay usable.
      */
-    val canActOnCards: Boolean get() = !paged.isLoading
+    val canActOnCards: Boolean get() = !paged.isLoading || paged.isRefreshing
 
     /** Filters beyond the view's own, which Clear takes off. */
     val canClearFilters: Boolean

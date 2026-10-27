@@ -112,6 +112,8 @@ class TagsViewModel @Inject constructor(
         loading = repository.summary.onEach { result ->
             val summary = result.getOrNull()
             if (result.isFailure) {
+                // Try again asks for the summary again, even when the last request itself went through.
+                requested = false
                 _state.update { it.copy(isLoading = false, failed = it.tags.isEmpty()) }
                 return@onEach
             }

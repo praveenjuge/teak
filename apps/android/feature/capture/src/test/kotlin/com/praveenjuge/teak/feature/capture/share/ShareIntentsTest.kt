@@ -51,7 +51,7 @@ class ShareIntentsTest {
     }
 
     @Test
-    fun `a file URI is dropped so another app can't point Teak at its own files`() {
+    fun `a file URI is kept so staging can refuse it and the sheet can say so`() {
         val photo = Uri.parse("content://media/photo/1")
         val intent = Intent(Intent.ACTION_SEND_MULTIPLE).setType("*/*")
             .putParcelableArrayListExtra(
@@ -59,7 +59,10 @@ class ShareIntentsTest {
                 arrayListOf(photo, Uri.parse("file:///data/data/com.praveenjuge.teak/no_backup/auth/session.bin")),
             )
 
-        assertEquals(listOf(ShareItem.File(photo)), ShareIntents.items(intent))
+        assertEquals(
+            listOf(ShareItem.File(photo), ShareItem.File(Uri.parse("file:///data/data/com.praveenjuge.teak/no_backup/auth/session.bin"))),
+            ShareIntents.items(intent),
+        )
     }
 
     @Test

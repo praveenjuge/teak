@@ -31,6 +31,7 @@ import com.praveenjuge.teak.ui.LaunchRequest
 import com.praveenjuge.teak.ui.TeakApp
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -112,8 +113,9 @@ class MainActivity : ComponentActivity() {
     private fun handle(intent: Intent?) {
         val uri = intent?.data
         when {
-            // The code can be spent only once, so finishing sign-in outlives a rotation or a closed activity.
-            SignInController.isCallback(uri) -> appScope.launch { signIn.handleCallback(requireNotNull(uri)) }
+            // The code can be spent only once, so finishing sign-in outlives a rotation or a closed activity. It starts
+            // on the main thread right away, so it's marked as completing before onResume could cancel it.
+            SignInController.isCallback(uri) -> appScope.launch(Dispatchers.Main.immediate) { signIn.handleCallback(requireNotNull(uri)) }
             intent?.action == ACTION_NEW_NOTE -> launchRequest.value = LaunchRequest.NewNote
             intent?.action == ACTION_VOICE_MEMO -> launchRequest.value = LaunchRequest.VoiceMemo
         }
