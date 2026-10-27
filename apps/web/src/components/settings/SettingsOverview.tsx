@@ -254,9 +254,11 @@ function ShortcutsSection() {
       <SettingsSection
         action={
           <Button
-            aria-keyshortcuts="?"
             aria-label={t("title")}
-            onClick={() => {
+            onClick={(event) => {
+              // Safari doesn't focus a clicked button; the sheet hands focus
+              // back to whatever had it when it opened.
+              event.currentTarget.focus();
               openKeyboardShortcuts();
             }}
             size="sm"

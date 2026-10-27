@@ -151,7 +151,7 @@ describe("SettingsOverview", () => {
     expect(markup).toContain("Apps and extensions");
     expect(links(markup)).toContain("https://teakvault.com/apps");
     expect(markup).toContain("Keyboard shortcuts");
-    expect(markup).toContain('aria-keyshortcuts="?"');
+    expect(markup).toContain('aria-label="Keyboard shortcuts"');
   });
 });
 

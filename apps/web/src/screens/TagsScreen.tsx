@@ -167,7 +167,7 @@ function TagSortMenu({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
-          className="h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground max-sm:w-9 max-sm:px-0"
+          className="h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground max-lg:w-9 max-lg:px-0"
           type="button"
           variant="ghost"
         >
@@ -177,7 +177,7 @@ function TagSortMenu({
               sort === "name" && "text-primary"
             )}
           />
-          <span aria-hidden="true" className="max-sm:hidden">
+          <span aria-hidden="true" className="max-lg:hidden">
             {t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
           </span>
         </Button>
