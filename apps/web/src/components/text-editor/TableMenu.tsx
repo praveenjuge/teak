@@ -55,6 +55,14 @@ export function TableMenu({ editor }: { editor: Editor }) {
     current ?? (open || overButton || buttonFocused ? lastTable.current : null);
 
   useEffect(() => {
+    // A hidden <Activity> unmounts the editor's view while this effect's
+    // cleanup is still pending, and reconnects the effect against that
+    // unmounted editor before a new one arrives. Reading `editor.view` then
+    // throws, so skip an unmounted editor and keep the DOM node for cleanup.
+    if (editor.isDestroyed) {
+      return;
+    }
+    const dom = editor.view.dom;
     const update = () => {
       const table = tableAt(editor.state);
       setFocusedTable(
@@ -62,7 +70,6 @@ export function TableMenu({ editor }: { editor: Editor }) {
       );
       setRevision((value) => value + 1);
     };
-    const view = editor.view;
     const onPointerOver = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
       setHoveredTable(
@@ -80,17 +87,17 @@ export function TableMenu({ editor }: { editor: Editor }) {
     editor.on("transaction", update);
     editor.on("focus", update);
     editor.on("blur", update);
-    view.dom.addEventListener("pointerover", onPointerOver);
-    view.dom.addEventListener("pointerleave", onPointerLeave);
-    view.dom.addEventListener("keydown", onKeyDown);
+    dom.addEventListener("pointerover", onPointerOver);
+    dom.addEventListener("pointerleave", onPointerLeave);
+    dom.addEventListener("keydown", onKeyDown);
     return () => {
       editor.off("selectionUpdate", update);
       editor.off("transaction", update);
       editor.off("focus", update);
       editor.off("blur", update);
-      view.dom.removeEventListener("pointerover", onPointerOver);
-      view.dom.removeEventListener("pointerleave", onPointerLeave);
-      view.dom.removeEventListener("keydown", onKeyDown);
+      dom.removeEventListener("pointerover", onPointerOver);
+      dom.removeEventListener("pointerleave", onPointerLeave);
+      dom.removeEventListener("keydown", onKeyDown);
     };
   }, [editor]);
 
