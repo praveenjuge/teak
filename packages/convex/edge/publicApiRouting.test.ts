@@ -19,6 +19,19 @@ test.each([
   expect(await response.json()).toMatchObject({ code: "METHOD_NOT_ALLOWED" });
 });
 
+test.each([
+  ["GET", "/v1/highlights/h1/extra"],
+  ["PUT", "/v1/tags/operations/op1/more"],
+])(
+  "%s %s, an extra segment under a route, is a JSON 404",
+  async (method, path) => {
+    const t = convexTest(schema, modules);
+    const response = await t.fetch(path, { method });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
+  }
+);
+
 test("an unknown /v1 path answers a JSON 404 with CORS headers", async () => {
   const t = convexTest(schema, modules);
   const response = await t.fetch("/v1/nothing-here", { method: "GET" });

@@ -450,6 +450,7 @@ describe("Convex MCP endpoint", () => {
 
     expect(response.status).toBe(202);
     expect(await response.text()).toBe("");
+    expect(runQuery).not.toHaveBeenCalled();
   });
 
   test("answers a request under notifications/ that has an id", async () => {

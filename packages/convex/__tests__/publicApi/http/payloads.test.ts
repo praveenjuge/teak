@@ -356,20 +356,20 @@ describe("parsePatchPayload", () => {
     expect("error" in result && result.error).toContain(message);
   });
 
-  test("refuses notes over 512 KiB as content too large", () => {
-    expect(parsePatchPayload({ notes: "é".repeat(256 * 1024 + 1) })).toEqual({
+  test("refuses notes over 256 KiB as content too large", () => {
+    expect(parsePatchPayload({ notes: "é".repeat(128 * 1024 + 1) })).toEqual({
       code: "CONTENT_TOO_LARGE",
-      error: "Notes must not exceed 512 KiB when encoded as UTF-8.",
+      error: "Notes must not exceed 256 KiB when encoded as UTF-8.",
     });
-    expect(parsePatchPayload({ notes: "é".repeat(256 * 1024) })).toEqual({
-      payload: { notes: "é".repeat(256 * 1024) },
+    expect(parsePatchPayload({ notes: "é".repeat(128 * 1024) })).toEqual({
+      payload: { notes: "é".repeat(128 * 1024) },
     });
   });
 });
 
 describe("parseCreatePayload: size limits", () => {
   test.each([
-    [{ content: "hi", notes: "a".repeat(512 * 1024 + 1) }, "Notes must not"],
+    [{ content: "hi", notes: "a".repeat(256 * 1024 + 1) }, "Notes must not"],
     [{ content: `"${"q".repeat(512 * 1024)}"` }, "Text card content"],
     [
       { cardType: "link", content: "a".repeat(512 * 1024 + 1) },

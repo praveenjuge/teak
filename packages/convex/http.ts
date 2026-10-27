@@ -5,6 +5,7 @@ import { polar, polarWebhookEvents } from "./billing";
 import { edgeIdentityV1 } from "./edgeIdentity";
 import { registerInboundRoutes } from "./inbound/http";
 import { mcpV1, oauthProtectedResourceV1 } from "./mcp/httpServer";
+import { allowedMethodsFor } from "./publicApi/http/allowedMethods";
 import { duplicateCardV1 } from "./publicApi/http/duplicate";
 import { exportsV1 } from "./publicApi/http/exports";
 import {
@@ -280,14 +281,14 @@ http.route({
 // Anything under /v1/ that no route above takes answers with the API's JSON
 // 404 or 405 instead of the router's plain-text 404, which has no CORS
 // headers. The router tries exact paths, then the longest prefix, so these
-// only catch what's left.
+// only catch what's left. A path the API documents for other methods is 405;
+// anything else, such as an extra segment under a route's prefix, is 404.
 const V1_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
 const unroutedV1 = httpAction((_ctx, request) => {
   const { pathname } = new URL(request.url);
-  const allowed = V1_METHODS.filter(
-    (method) => http.lookup(pathname, method)?.[0] !== unroutedV1
+  return Promise.resolve(
+    unroutedV1Response(request.method, pathname, allowedMethodsFor(pathname))
   );
-  return Promise.resolve(unroutedV1Response(request.method, pathname, allowed));
 });
 for (const method of V1_METHODS) {
   http.route({ pathPrefix: "/v1/", method, handler: unroutedV1 });

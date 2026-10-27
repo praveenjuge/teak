@@ -256,11 +256,11 @@ teak search --help
 
 By default, commands print human-readable output. Add `--json` to any command for machine-readable JSON, useful for piping into `jq` or other tools. With `--json`, standard output holds only JSON: `teak --json login` prints its sign-in link to standard error.
 
-When Teak is briefly busy (`429`, `502`, `503` or `504`) or the network drops, the CLI reads again up to twice, waiting as long as Teak asks (up to 5 seconds), before it reports the error:
-
 ```bash
 teak search "buttons" --json | jq '.items[].url'
 ```
+
+When Teak is briefly busy (`429`, `502`, `503` or `504`) or the network drops, the CLI reads again up to twice, waiting as long as Teak asks (up to 5 seconds), before it reports the error.
 
 ## Troubleshooting
 

@@ -380,29 +380,31 @@ const explainInvalidTags = (tags: readonly string[] | undefined) => {
     : `Each tag must be at most ${MAX_TAG_LENGTH} characters`;
 };
 
+const NOTES_MAX_BYTES = 256 * 1024;
+
+const exceedsBytes = (value: unknown, limit: number): boolean =>
+  typeof value === "string" &&
+  // UTF-8 takes at most 3 bytes per UTF-16 unit, so short text skips the
+  // encode.
+  value.length * 3 > limit &&
+  markdownContentByteLength(value) > limit;
+
 /**
- * `content` and `notes` share the 512 KiB a text card's content has, for every
- * card type: past it the card can't be stored, and the request would fail
- * with an internal error instead of saying why.
+ * Content keeps the 512 KiB a text card's content has, on every card type, and
+ * notes get 256 KiB. Together they stay well inside Convex's 1 MiB document,
+ * so a card that passes can be stored next to its other fields instead of
+ * failing with an internal error.
  */
 const explainOversizedText = (fields: {
   content?: unknown;
   notes?: unknown;
 }): string | null => {
-  for (const key of ["content", "notes"] as const) {
-    const value = fields[key];
-    // UTF-8 takes at most 3 bytes per UTF-16 unit, so short text skips the
-    // encode.
-    if (
-      typeof value === "string" &&
-      value.length * 3 > MARKDOWN_CONTENT_MAX_BYTES &&
-      markdownContentByteLength(value) > MARKDOWN_CONTENT_MAX_BYTES
-    ) {
-      // Content keeps the message text cards have always answered with.
-      return key === "content"
-        ? MARKDOWN_CONTENT_TOO_LARGE_MESSAGE
-        : "Notes must not exceed 512 KiB when encoded as UTF-8.";
-    }
+  if (exceedsBytes(fields.content, MARKDOWN_CONTENT_MAX_BYTES)) {
+    // The message text cards have always answered with.
+    return MARKDOWN_CONTENT_TOO_LARGE_MESSAGE;
+  }
+  if (exceedsBytes(fields.notes, NOTES_MAX_BYTES)) {
+    return "Notes must not exceed 256 KiB when encoded as UTF-8.";
   }
   return null;
 };

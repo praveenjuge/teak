@@ -514,7 +514,7 @@ These apply to videos, recordings, images, and links you save from now on.
 - Bulk `create` trims notes and drops a blank one, as `POST /v1/cards` does. Bulk `create` and `update` items with a field they don't take, or an `update` item with nothing to change, fail with `INVALID_INPUT` instead of succeeding without it.
 - Adding cards to a folder, or moving or removing them, skips cards in Trash as not found, and a folder you just deleted no longer counts toward the 500-folder limit.
 - An expired OAuth access token always gets `401`, so apps signed in with Teak refresh it, instead of sometimes getting `429` when many bad requests arrived at once.
-- Notes, and content on any card type, over 512 KiB return `400 CONTENT_TOO_LARGE` instead of a server error. `PATCH /v1/cards/:id` names the field it refused and why.
+- Content over 512 KiB on any card type, and notes over 256 KiB, return `400 CONTENT_TOO_LARGE` instead of a server error. `PATCH /v1/cards/:id` names the field it refused and why.
 - A wrong method or path under `/v1/` returns a JSON `405` (with `Allow`) or `404` that browsers can read, and `GET /v1` lists every endpoint.
 - Repeating an `Idempotency-Key` while its first request is still running returns `409 IN_PROGRESS` with `Retry-After`, so you know to try again rather than fix the request.
 - On a self-hosted Teak, the card links (`appUrl`) and `settingsUrl` the API and MCP return open your own web app, from `SITE_URL`, instead of teakvault.com.
