@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
+  BLOG_IMAGES,
   DOCS_IMAGES,
   HOME_SHOWCASE,
   PAGES_WITHOUT_IMAGES,
@@ -13,6 +14,9 @@ const docsDir = path.join(root, "apps/docs/content/docs");
 const imagesDir = path.join(root, DOCS_IMAGES);
 const docsShots = SHOTS.filter((shot) => !shot.out);
 const homeShots = SHOTS.filter((shot) => shot.out === HOME_SHOWCASE);
+const blogDir = path.join(root, "apps/docs/content/blog");
+const blogImagesDir = path.join(root, BLOG_IMAGES);
+const blogShots = SHOTS.filter((shot) => shot.out === BLOG_IMAGES);
 
 const pages = readdirSync(docsDir, { recursive: true, encoding: "utf8" })
   .filter((file) => file.endsWith(".mdx"))
@@ -107,6 +111,63 @@ describe("docs images", () => {
       expect(showcase).toContain(
         `imageAlt:\n      ${JSON.stringify(shot.alt)},\n    imageHeight: ${height},\n    imageSrc: "/home-showcase/${shot.name}.webp",\n    imageWidth: ${width},`
       );
+    }
+  });
+});
+
+describe("blog images", () => {
+  const posts = readdirSync(blogDir)
+    .filter((file) => file.endsWith(".mdx"))
+    .sort();
+  /** Every image a post shows: its own (`./images/`) or a docs one (`../docs/images/`). */
+  const imagesOnPost = (post: string) =>
+    [
+      ...readFileSync(path.join(blogDir, post), "utf8").matchAll(
+        /!\[([^\]]*)\]\((\.\/images|\.\.\/docs\/images)\/([^)]+)\.webp\)/g
+      ),
+    ].map(([, alt, dir, name]) => ({
+      alt,
+      blog: dir === "./images",
+      name,
+    }));
+
+  test("every post opens with its cover, the image named after it", () => {
+    const wrong = posts.filter((post) => {
+      const [first] = imagesOnPost(post);
+      return !(first?.blog && `${first.name}.mdx` === post);
+    });
+    expect(wrong).toEqual([]);
+  });
+
+  test("every image a post shows is a shot with its alt text", () => {
+    const blog = new Map(blogShots.map((shot) => [shot.name, shot.alt]));
+    const docs = new Map(docsShots.map((shot) => [shot.name, shot.alt]));
+    const wrong = posts.flatMap((post) =>
+      imagesOnPost(post)
+        .filter(
+          ({ alt, blog: own, name }) => (own ? blog : docs).get(name) !== alt
+        )
+        .map(({ name }) => `${post}: ${name}`)
+    );
+    expect(wrong).toEqual([]);
+  });
+
+  test("every blog shot is rendered and shown, and nothing else sits in its images/", () => {
+    const files = readdirSync(blogImagesDir).sort();
+    expect(files).toEqual(blogShots.map((shot) => `${shot.name}.webp`).sort());
+    const shown = new Set(
+      posts.flatMap((post) =>
+        imagesOnPost(post)
+          .filter(({ blog }) => blog)
+          .map(({ name }) => name)
+      )
+    );
+    expect(
+      blogShots.filter((shot) => !shown.has(shot.name)).map((shot) => shot.name)
+    ).toEqual([]);
+    for (const shot of blogShots) {
+      const bytes = readFileSync(path.join(blogImagesDir, `${shot.name}.webp`));
+      expect(webpSize(bytes)).toEqual([1600, 1000]);
     }
   });
 });

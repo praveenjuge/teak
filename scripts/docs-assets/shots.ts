@@ -8,6 +8,12 @@ export type MockId =
   | "ai-agents"
   | "api"
   | "architecture"
+  | "blog-agent-session"
+  | "blog-card-pipeline"
+  | "blog-embedding-models"
+  | "blog-monorepo"
+  | "blog-self-host"
+  | "blog-timeline"
   | "adding-a-feature"
   | "cli"
   | "development"
@@ -49,6 +55,7 @@ export type Shot = MockShot | WebShot;
 
 export const DOCS_IMAGES = "apps/docs/content/docs/images";
 export const HOME_SHOWCASE = "apps/docs/public/home-showcase";
+export const BLOG_IMAGES = "apps/docs/content/blog/images";
 
 export const SHOTS: Shot[] = [
   {
@@ -287,6 +294,90 @@ SHOTS.push(
     layout: "raw",
     out: HOME_SHOWCASE,
     alt: "Teak security settings showing signed-in devices and the connected Teak CLI",
+  }
+);
+
+/**
+ * The blog's images. Each post's cover is named after the post's file and
+ * opens the post; posts may also show docs images from `DOCS_IMAGES`.
+ */
+SHOTS.push(
+  {
+    name: "why-we-built-teak",
+    kind: "web",
+    layout: "window",
+    out: BLOG_IMAGES,
+    alt: "A Teak library showing only images: buildings, vases, posters, prints and interiors in one grid",
+  },
+  {
+    name: "rediscovering-what-you-saved",
+    kind: "web",
+    layout: "window",
+    out: BLOG_IMAGES,
+    alt: "Revisit showing one saved photo at a time, with Archive and Keep below it",
+  },
+  {
+    name: "search-by-meaning",
+    kind: "web",
+    layout: "window",
+    out: BLOG_IMAGES,
+    alt: 'Searching "japanese prints" finds two woodblock prints, though neither title has either word',
+  },
+  {
+    name: "embedding-models",
+    kind: "mock",
+    mock: "blog-embedding-models",
+    out: BLOG_IMAGES,
+    alt: "Four embedding models compared on recall and ranking, with embeddinggemma-300m chosen",
+  },
+  {
+    name: "build-a-moodboard-in-teak",
+    kind: "web",
+    layout: "window",
+    out: BLOG_IMAGES,
+    alt: "The Moodboard smart folder, collecting every image and color palette in the library",
+  },
+  {
+    name: "small-features-in-teak",
+    kind: "web",
+    layout: "window",
+    out: BLOG_IMAGES,
+    alt: "The keyboard shortcuts sheet, listing shortcuts for the library, an open card and navigation",
+  },
+  {
+    name: "from-link-to-card",
+    kind: "mock",
+    mock: "blog-card-pipeline",
+    out: BLOG_IMAGES,
+    alt: "A save goes to Convex, a Files Worker Workflow fetches, describes and archives the card step by step, and the card becomes searchable by meaning",
+  },
+  {
+    name: "one-monorepo-every-platform",
+    kind: "mock",
+    mock: "blog-monorepo",
+    out: BLOG_IMAGES,
+    alt: "Teak's nine apps, from the web app to the Email Worker, above the five packages they share",
+  },
+  {
+    name: "teak-for-ai-agents",
+    kind: "mock",
+    mock: "blog-agent-session",
+    out: BLOG_IMAGES,
+    alt: "An AI assistant saving an article to Teak with one MCP tool, then searching the library with another",
+  },
+  {
+    name: "self-hosting-teak",
+    kind: "mock",
+    mock: "blog-self-host",
+    out: BLOG_IMAGES,
+    alt: "A terminal cloning Teak, starting a Convex deployment, setting its environment and running the web app",
+  },
+  {
+    name: "building-teak-in-public",
+    kind: "mock",
+    mock: "blog-timeline",
+    out: BLOG_IMAGES,
+    alt: "A timeline of Teak from the first commit in August 2025 to native apps and search by meaning in October 2026",
   }
 );
 

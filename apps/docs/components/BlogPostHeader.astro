@@ -1,0 +1,69 @@
+---
+import { getCollection } from "astro:content";
+import data from "blume:data";
+import { blogAuthors, formatPostDate, isBlogPost } from "../lib/blog";
+
+/**
+ * Blume's `PageHeader` slot: renders above every content page's article, and
+ * on a blog post shows its date and author, which Blume keeps in frontmatter
+ * but doesn't print.
+ */
+interface Props {
+  route: string;
+}
+
+const { route } = Astro.props;
+const entryId = data.routes.find((item) => item.path === route)?.entryId;
+const entry = entryId
+  ? (await getCollection("docs")).find(
+      (item: { id: string }) => item.id === entryId
+    )
+  : undefined;
+const post = entry && isBlogPost(entry.data) ? entry.data : undefined;
+const authors = post ? blogAuthors(post.authors) : [];
+---
+
+{
+  post && (
+    <p class="teak-post-byline">
+      <time datetime={new Date(post.date).toISOString().slice(0, 10)}>
+        {formatPostDate(post.date)}
+      </time>
+      {authors.map((author) => (
+        <>
+          <span aria-hidden="true">·</span>
+          {author.url ? (
+            <a href={author.url} rel="noopener noreferrer" target="_blank">
+              {author.name}
+            </a>
+          ) : (
+            <span>{author.name}</span>
+          )}
+        </>
+      ))}
+    </p>
+  )
+}
+
+<style>
+  .teak-post-byline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 54rem;
+    margin: 0 auto 0.75rem;
+    color: var(--muted-foreground, #6a7282);
+    font-size: 0.875rem;
+  }
+
+  .teak-post-byline a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .teak-post-byline a:hover {
+    color: var(--foreground, #030712);
+  }
+</style>

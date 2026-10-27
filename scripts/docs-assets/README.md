@@ -62,3 +62,8 @@ Add a shot to `shots.ts`, its steps to `PREPARE` in `capture.ts` (for a web
 shot) or its HTML to `mocks.ts`, render it, and put it on the page with the
 shot's alt text: `![<alt>](./images/<name>.webp)`, or `../images/` from a page
 in a group folder.
+
+Blog posts (`apps/docs/content/blog`) use the same pipeline. A blog shot sets
+`out: BLOG_IMAGES`, and each post opens with its cover, the shot named after
+the post's file. A post can also show a docs image with
+`../docs/images/<name>.webp`. `shots.test.ts` checks both.

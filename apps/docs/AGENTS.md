@@ -44,3 +44,5 @@ An entry is complete when its month is unique, every item is useful to a Teak us
 ## Images
 
 Every docs page shows at least one image, and every image comes from `scripts/docs-assets` (its README has the steps). Don't add a screenshot by hand: add a shot to `scripts/docs-assets/shots.ts` and render it, and use the shot's alt text on the page. `scripts/docs-assets/shots.test.ts` fails when a page has no image or an image drifts from the list. The legal pages, Raycast (which shows its store's install button), and the Mac and mobile pages until there are fresh native captures, are the exceptions it names. Features has an image in each main section and in the subsections with their own screens.
+
+Blog posts live in `content/blog` (`type: blog`, `mode: center`, a `date` and `authors`). Each opens with its cover, a shot in `scripts/docs-assets` named after the post's file; `pages/blog/index.astro` lists them. Posts follow the docs' style: plain, specific, and true to the shipped product.
