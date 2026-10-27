@@ -176,9 +176,10 @@ if (import.meta.main) {
       ? `<body style="width:${size.width}px;height:${size.height}px;background:#fff"><img class="shot" src="${pathToFileURL(captureFile(shot.name)).href}"></body>`
       : `<body>${shot.kind === "web" ? webHtml(shot) : renderMock(shot.mock, { library })}</body>`;
     const html = path.join(htmlDir, `${shot.name}.html`);
-    // A backdrop swaps the meadow for a gradient, with a soft light from the top.
+    // A backdrop swaps the meadow for a flat pastel gradient, and the window
+    // for a crisp one: a hairline edge and a short, light shadow.
     const backdrop = shot.backdrop
-      ? `<style>body{background:linear-gradient(135deg,${shot.backdrop[0]},${shot.backdrop[1]})}body::before{background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.28),rgba(255,255,255,0) 60%)}</style>`
+      ? `<style>body{background:linear-gradient(135deg,${shot.backdrop[0]},${shot.backdrop[1]})}body::before{display:none}.window,.panel,.diagram{box-shadow:0 0 0 1px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.06),0 6px 16px -8px rgba(15,23,42,.14)}</style>`
       : "";
     writeFileSync(
       html,

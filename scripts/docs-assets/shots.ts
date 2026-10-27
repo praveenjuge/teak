@@ -29,8 +29,8 @@ interface ShotBase {
   /** The image's alt text, also used as its Markdown alt. */
   alt: string;
   /**
-   * Two colors for a diagonal gradient that replaces the meadow behind the
-   * window. Blog images use one each, so the covers don't all look alike.
+   * Two pastel colors for a diagonal gradient that replaces the meadow behind
+   * the window. Blog images use one each, so the covers don't all look alike.
    */
   backdrop?: [string, string];
   /** Output file name, without extension. */
@@ -309,7 +309,7 @@ SHOTS.push(
 SHOTS.push(
   {
     name: "why-we-built-teak",
-    backdrop: ["#f43f5e", "#fdba74"],
+    backdrop: ["#fde2e4", "#fdeedc"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -317,7 +317,7 @@ SHOTS.push(
   },
   {
     name: "rediscovering-what-you-saved",
-    backdrop: ["#8b5cf6", "#f472b6"],
+    backdrop: ["#ebe3fc", "#fbe4f0"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -325,7 +325,7 @@ SHOTS.push(
   },
   {
     name: "search-by-meaning",
-    backdrop: ["#2563eb", "#22d3ee"],
+    backdrop: ["#dce8fb", "#d9f2f7"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -333,7 +333,7 @@ SHOTS.push(
   },
   {
     name: "embedding-models",
-    backdrop: ["#1d4ed8", "#38bdf8"],
+    backdrop: ["#e1e6fb", "#e2eefb"],
     kind: "mock",
     mock: "blog-embedding-models",
     out: BLOG_IMAGES,
@@ -341,7 +341,7 @@ SHOTS.push(
   },
   {
     name: "build-a-moodboard-in-teak",
-    backdrop: ["#f97316", "#facc15"],
+    backdrop: ["#fde9d6", "#fcf3cb"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -349,7 +349,7 @@ SHOTS.push(
   },
   {
     name: "small-features-in-teak",
-    backdrop: ["#10b981", "#a3e635"],
+    backdrop: ["#d9f2e6", "#e9f5d3"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -357,7 +357,7 @@ SHOTS.push(
   },
   {
     name: "from-link-to-card",
-    backdrop: ["#4f46e5", "#a855f7"],
+    backdrop: ["#e3e2fb", "#efe3fb"],
     kind: "mock",
     mock: "blog-card-pipeline",
     out: BLOG_IMAGES,
@@ -365,7 +365,7 @@ SHOTS.push(
   },
   {
     name: "one-monorepo-every-platform",
-    backdrop: ["#0d9488", "#60a5fa"],
+    backdrop: ["#d7f0eb", "#dee9fb"],
     kind: "mock",
     mock: "blog-monorepo",
     out: BLOG_IMAGES,
@@ -373,7 +373,7 @@ SHOTS.push(
   },
   {
     name: "teak-for-ai-agents",
-    backdrop: ["#db2777", "#fb923c"],
+    backdrop: ["#fbe1ec", "#fde7d8"],
     kind: "mock",
     mock: "blog-agent-session",
     out: BLOG_IMAGES,
@@ -381,7 +381,7 @@ SHOTS.push(
   },
   {
     name: "self-hosting-teak",
-    backdrop: ["#0ea5e9", "#6366f1"],
+    backdrop: ["#dbeefb", "#e4e4fb"],
     kind: "mock",
     mock: "blog-self-host",
     out: BLOG_IMAGES,
@@ -389,7 +389,7 @@ SHOTS.push(
   },
   {
     name: "building-teak-in-public",
-    backdrop: ["#df2225", "#f59e0b"],
+    backdrop: ["#fbe0de", "#fdecd3"],
     kind: "mock",
     mock: "blog-timeline",
     out: BLOG_IMAGES,

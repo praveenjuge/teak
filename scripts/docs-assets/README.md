@@ -64,7 +64,7 @@ shot's alt text: `![<alt>](./images/<name>.webp)`, or `../images/` from a page
 in a group folder.
 
 Blog posts (`apps/docs/content/blog`) use the same pipeline. A blog shot sets
-`out: BLOG_IMAGES` and its own `backdrop`, a two-color gradient that replaces
-the meadow, and each post opens with its cover, the shot named after the
-post's file. A post can also show a docs image with
-`../docs/images/<name>.webp`. `shots.test.ts` checks both.
+`out: BLOG_IMAGES` and its own `backdrop`, a pastel two-color gradient that
+replaces the meadow and gives the window a crisper shadow. Each post opens
+with its cover, the shot named after the post's file, and can also show a docs
+image with `../docs/images/<name>.webp`. `shots.test.ts` checks both.
