@@ -16,6 +16,7 @@ import { LogoMark } from "@/components/Logo";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
@@ -206,44 +207,46 @@ export function AppSidebar({
         </SidebarGroup>
 
         {foldersSlot}
-
-        <SidebarGroup className="mt-auto">
-          <SidebarMenu>
-            {SECONDARY_VIEWS.map(viewItem)}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isSettingsActive}
-                tooltip={{
-                  className: "flex items-center gap-2",
-                  children: (
-                    <>
-                      {t("settings")}
-                      <ShortcutHint
-                        row={{
-                          keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
-                          label: t("settings"),
-                          sequence: true,
-                        }}
-                      />
-                    </>
-                  ),
-                }}
-              >
-                <LinkComponent
-                  aria-current={isSettingsActive ? "page" : undefined}
-                  aria-label={t("settings")}
-                  href={settingsHref}
-                  onClick={handleNavigate}
-                >
-                  <Settings />
-                  <span>{t("settings")}</span>
-                </LinkComponent>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
       </SidebarContent>
+
+      {/* Outside the scrolling content, so a long folder list never hides
+          these, in the collapsed rail too. */}
+      <SidebarFooter>
+        <SidebarMenu>
+          {SECONDARY_VIEWS.map(viewItem)}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isSettingsActive}
+              tooltip={{
+                className: "flex items-center gap-2",
+                children: (
+                  <>
+                    {t("settings")}
+                    <ShortcutHint
+                      row={{
+                        keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
+                        label: t("settings"),
+                        sequence: true,
+                      }}
+                    />
+                  </>
+                ),
+              }}
+            >
+              <LinkComponent
+                aria-current={isSettingsActive ? "page" : undefined}
+                aria-label={t("settings")}
+                href={settingsHref}
+                onClick={handleNavigate}
+              >
+                <Settings />
+                <span>{t("settings")}</span>
+              </LinkComponent>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>

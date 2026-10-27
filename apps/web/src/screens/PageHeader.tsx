@@ -18,6 +18,7 @@ export function PageHeader({
   leading,
   title,
 }: PageHeaderProps) {
+  const hasSearchSlot = children !== null && children !== undefined;
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 4);
@@ -35,15 +36,22 @@ export function PageHeader({
       data-page-header=""
       data-scrolled={scrolled || undefined}
     >
-      {/* On wide screens: title on the left, the search in a fixed middle
-          slot, actions on the right, so the search sits in the same place on
-          every page. On phones the pieces share one row. */}
-      <div className="relative flex h-13 items-center gap-2 sm:grid sm:grid-cols-[minmax(6rem,1fr)_minmax(0,36rem)_minmax(auto,1fr)] sm:gap-4">
-        <div className="flex min-w-0 items-center gap-2 max-sm:contents">
+      {/* With a search on wide screens: title on the left, the search in a
+          fixed middle slot, actions on the right, so the search sits in the
+          same place on every page. Without one, or on phones, the pieces
+          share one row and the title takes the room it needs. */}
+      <div
+        className={cn(
+          "relative flex h-13 items-center gap-2",
+          hasSearchSlot &&
+            "sm:grid sm:grid-cols-[minmax(6rem,1fr)_minmax(0,36rem)_minmax(auto,1fr)] sm:gap-4"
+        )}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2 max-sm:contents">
           {leading}
           {title}
         </div>
-        {children ?? <div className="max-sm:hidden" />}
+        {children}
         <div className="flex items-center justify-end gap-2 max-sm:contents">
           {actions}
         </div>

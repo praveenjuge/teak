@@ -135,7 +135,19 @@ describe("AppSidebar", () => {
       "Trash",
       "Settings",
     ]);
-    expect(document.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
+    // The foot sits outside the scrolling content, so many folders never hide it.
+    const foot = document.querySelector('[data-slot="sidebar-footer"]');
+    expect(
+      [...(foot?.querySelectorAll("a") ?? [])].map(
+        (anchor) =>
+          anchor.getAttribute("aria-label") ?? anchor.textContent?.trim()
+      )
+    ).toEqual(["Archive", "Trash", "Settings"]);
+    expect(
+      document.querySelector(
+        '[data-slot="sidebar-content"] [data-slot="sidebar-footer"]'
+      )
+    ).toBeNull();
     expect(document.body.textContent).not.toContain("Types");
   });
 
