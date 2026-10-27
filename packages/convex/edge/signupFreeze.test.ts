@@ -1,6 +1,7 @@
 import betterAuthTest from "@convex-dev/better-auth/test";
 import { convexTest } from "convex-test";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { api, components, internal } from "../_generated/api";
 import schema from "../schema";
 
@@ -12,9 +13,6 @@ const setup = () => {
 };
 type TestBackend = ReturnType<typeof setup>;
 
-beforeEach(() => {
-  vi.stubEnv("SIGNUPS_DISABLED", "true");
-});
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -39,26 +37,20 @@ test("public auth mode reports WorkOS and the sign-up flag without exposing cred
   vi.stubEnv("WORKOS_CLIENT_ID", "client_TEST");
   vi.stubEnv("WORKOS_API_KEY", "must-not-reach-clients");
   const t = setup();
+  await setSignupsPaused(t, true);
   expect(await t.query(api.auth.getAuthMode, {})).toEqual({
     primary: "workos",
     signupsDisabled: true,
     accountChangesPaused: false,
     authKitClientId: "client_TEST",
   });
-  vi.stubEnv("SIGNUPS_DISABLED", "false");
+  await setSignupsPaused(t, false);
   expect(await t.query(api.auth.getAuthMode, {})).toEqual({
     primary: "workos",
     signupsDisabled: false,
     accountChangesPaused: false,
     authKitClientId: "client_TEST",
   });
-});
-
-test("public auth mode fails closed on malformed SIGNUPS_DISABLED", async () => {
-  vi.stubEnv("SIGNUPS_DISABLED", "invalid");
-  await expect(setup().query(api.auth.getAuthMode, {})).rejects.toThrow(
-    "SIGNUPS_DISABLED"
-  );
 });
 
 test("the backup exports retained Better Auth rows unchanged", async () => {

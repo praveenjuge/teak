@@ -32,6 +32,7 @@ import {
   readInternalUserIds,
   readUserFlags,
   requireReason,
+  writeAdminSettings,
   writeAudit,
 } from "./adminAccess";
 import { readHasPremium } from "./auth";
@@ -563,6 +564,19 @@ export const seedAdmin = internalMutation({
     }
     await ctx.db.patch("users", rows[0]._id, { role: "admin" });
     return { teakUserId: rows[0].teakUserId, role: "admin" as const };
+  },
+});
+
+/**
+ * Pauses or reopens sign-ups for operators without the admin console:
+ * `bunx convex run --prod admin:setSignupsPaused '{"paused":true}'`.
+ */
+export const setSignupsPaused = internalMutation({
+  args: { paused: v.boolean() },
+  returns: v.object({ signupsPaused: v.boolean() }),
+  handler: async (ctx, { paused }) => {
+    await writeAdminSettings(ctx, { signupsPaused: paused });
+    return { signupsPaused: paused };
   },
 });
 

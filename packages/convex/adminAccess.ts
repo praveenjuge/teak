@@ -8,7 +8,6 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
-import { readSignupsDisabled } from "./env";
 import { getSessionUser } from "./securitySessions";
 
 export interface AdminActor {
@@ -145,8 +144,27 @@ export const readAdminSettings = async (ctx: DbCtx): Promise<AdminSettings> => {
   };
 };
 
+export const writeAdminSettings = async (
+  ctx: MutationCtx,
+  patch: Partial<Omit<AdminSettings, "updatedAt">>
+) => {
+  const row = await readSettingsRow(ctx);
+  const now = Date.now();
+  if (row) {
+    await ctx.db.patch("adminSettings", row._id, { ...patch, updatedAt: now });
+    return;
+  }
+  const { updatedAt: _ignored, ...defaults } = DEFAULT_ADMIN_SETTINGS;
+  await ctx.db.insert("adminSettings", {
+    key: "global",
+    ...defaults,
+    ...patch,
+    updatedAt: now,
+  });
+};
+
 export const readSignupsPaused = async (ctx: DbCtx): Promise<boolean> =>
-  readSignupsDisabled() || (await readAdminSettings(ctx)).signupsPaused;
+  (await readAdminSettings(ctx)).signupsPaused;
 
 export const readUserFlags = (ctx: DbCtx, teakUserId: string) =>
   ctx.db

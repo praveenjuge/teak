@@ -284,17 +284,13 @@ Follow the CLI prompt to add the DNS TXT record, then publish once verification 
 
 See **[Self-Hosting → Environment settings](/docs/self-hosting#detailed-environment-reference)** for every env var required across web, mobile, extension, and the Convex backend.
 
-Development URLs on the deployment: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (default: the development deployment's site URL), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`).
+Optional development URL overrides on the deployment: `TEAK_DEV_APP_URL` (default: `http://localhost:3000`), `TEAK_DEV_API_URL` (default: the development deployment's site URL), `TEAK_DEV_DOCS_URL` (default: `http://localhost:3001`). The shared development deployment leaves them unset.
 
 ## Maintainer setup
 
 The repository owner does these once on the development deployment; nobody else needs to:
 
-1. Set these on the development deployment (`bunx convex env set NAME value` in `packages/convex`, or the Convex dashboard):
-   - `TEAK_DEV_DEPLOYMENT=true` turns on seeding and the push lease.
-   - `TEAK_DEV_APP_URL=http://localhost:3000`
-   - `TEAK_DEV_DOCS_URL=http://localhost:3001`
-   - `TEAK_DEV_API_URL=https://reminiscent-kangaroo-59.convex.site`
+1. Set `TEAK_DEV_DEPLOYMENT=true` on the development deployment (`bunx convex env set TEAK_DEV_DEPLOYMENT true` in `packages/convex`, or the Convex dashboard). It turns on seeding and the push lease.
 2. For cloud sessions, create a dev deploy key for the development deployment (`bunx convex deployment token create cloud-agents --deployment dev`, or the deployment's settings in the dashboard) and add it to each cloud environment's secrets as `CONVEX_DEPLOY_KEY`. The key has full access to the development deployment, including its variables (the shared Files and WorkOS staging credentials), so keep it out of untrusted environments.
 
-`bun run doctor` warns about any of the first group that are missing; until they are set, `bun run dev` still runs the web app but doesn't seed or push.
+`bun run doctor` warns when `TEAK_DEV_DEPLOYMENT` is missing; until it is set, `bun run dev` still runs the web app but doesn't seed or push.

@@ -706,10 +706,9 @@ own heartbeat, and page Convex until it has nothing left:
   expired session still uploading (a failed abort is ignored) and deletes the
   session (`fileUploads:findExpiredSessions`, `fileUploads:deleteSession`).
 - `cleanup-expired-idempotency` calls
-  `operationalRetention:startIdempotencyCleanup`, which does nothing unless
-  Convex's `OPERATIONAL_RETENTION_ENABLED` is `true`. Otherwise it starts the
-  retention scan, which keeps its lease and continues itself in bursts in
-  Convex (`.agents/convex-costs.md`).
+  `operationalRetention:startIdempotencyCleanup`, which starts the retention
+  scan. The scan keeps its lease and continues itself in bursts in Convex
+  (`.agents/convex-costs.md`).
 
 The `capabilities` op lists the names of the tasks this Worker runs (`crons`),
 and `scripts/check-files-readiness.ts` holds the Convex deploy until it
@@ -934,7 +933,7 @@ when one is absent. `ANALYTICS_API_TOKEN` is optional and not listed.
 
 - `apps/files-worker/.dev.vars` (ignored) — per-developer local overrides for
   `wrangler dev`. Example: `FILES_SIGNING_SECRET=...`. Do not commit. The
-  canonical dev routing (`R2_BUCKET`, `R2_KEY_PREFIX`, `FILES_BASE`) lives in
+  canonical dev routing (`R2_KEY_PREFIX`, `FILES_BASE`) lives in
   Convex env, not `.dev.vars`.
 - `apps/files-worker/development/.dev.vars` (ignored) — the isolated
   development Worker's local key. `sync:cloudflare-dev --isolated` and
@@ -963,20 +962,21 @@ old `teak-files-dev` R2 bucket was emptied and deleted on 19 Oct 2026. The
 
 ## Development storage isolation
 
-Convex dev uses the development Worker: `R2_BUCKET=teak-files-development-20261006`,
+Convex dev uses the development Worker (bucket
+`teak-files-development-20261006`):
 `FILES_BASE=https://teak-files-dev.praveenjuge.workers.dev`,
 `R2_KEY_PREFIX=dev/`, and a `FILES_SIGNING_SECRET` and `WORKFLOW_RPC_SECRET`
 of its own. The production Worker's `CONVEX_SITE_URLS` lists only the
 production deployment. Convex holds no S3 credentials.
 
 `bun run check:cloudflare` still recognizes the older shared routing
-(`teak-files-prod`, `https://files.teakvault.com`, production signing key)
+(`https://files.teakvault.com` and the production signing key)
 and blocks any mix of the two. Isolated dev must never reuse a production
 credential.
 
 The switch ran on 19 Oct 2026 while dev held no cards, so no objects were
 copied and no old `dev/` keys were frozen. The few `dev/` objects left in
-`teak-files-prod` are read by nothing. Rolling back means restoring the four
+`teak-files-prod` are read by nothing. Rolling back means restoring the three
 old dev Convex values and adding the dev origin back to the production
 Worker's `CONVEX_SITE_URLS`; files saved since the switch would then be
 missing.

@@ -87,23 +87,16 @@ export const isDevelopmentFilesOrigin = (value: string | undefined): boolean =>
 export type DevStorageState = "shared" | "isolated" | "invalid";
 
 export const classifyDevStorage = (routing: {
-  bucket: string | undefined;
   prefix: string | undefined;
   filesBase: string | undefined;
 }): DevStorageState => {
   if (routing.prefix !== DEVELOPMENT_KEY_PREFIX) {
     return "invalid";
   }
-  if (
-    routing.bucket === PRODUCTION_STORAGE_BUCKET &&
-    routing.filesBase === PRODUCTION_FILES_BASE
-  ) {
+  if (routing.filesBase === PRODUCTION_FILES_BASE) {
     return "shared";
   }
-  if (
-    routing.bucket === DEVELOPMENT_STORAGE_BUCKET &&
-    isDevelopmentFilesOrigin(routing.filesBase)
-  ) {
+  if (isDevelopmentFilesOrigin(routing.filesBase)) {
     return "isolated";
   }
   return "invalid";
@@ -152,7 +145,6 @@ const expectedProdVars = ["FILES_SIGNING_SECRET"] as const;
 
 const expectedDevVars = [
   ...expectedProdVars,
-  "R2_BUCKET",
   "R2_KEY_PREFIX",
   "FILES_BASE",
 ] as const;
@@ -242,15 +234,11 @@ const checkDevVars = () => {
         "must match Convex FILES_SIGNING_SECRET",
         { blocking: false }
       );
-      if (
-        content.includes("R2_BUCKET") ||
-        content.includes("R2_KEY_PREFIX") ||
-        content.includes("FILES_BASE")
-      ) {
+      if (content.includes("R2_KEY_PREFIX") || content.includes("FILES_BASE")) {
         log(
           ".dev.vars routing vars",
           "warn",
-          "R2_BUCKET/R2_KEY_PREFIX/FILES_BASE belong in Convex env, not .dev.vars"
+          "R2_KEY_PREFIX/FILES_BASE belong in Convex env, not .dev.vars"
         );
       }
     } catch (error) {
@@ -281,7 +269,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
   console.log(`  Expected prod vars: ${expectedProdVars.join(", ")}`);
   console.log(`  Expected dev vars: ${expectedDevVars.join(", ")}`);
   console.log(
-    `  Dev storage: isolated (R2_BUCKET=${DEVELOPMENT_STORAGE_BUCKET}, FILES_BASE=${DEVELOPMENT_FILES_ORIGIN}) or older shared routing (R2_BUCKET=${PRODUCTION_STORAGE_BUCKET}, FILES_BASE=${PRODUCTION_FILES_BASE}); R2_KEY_PREFIX=dev/ in both`
+    `  Dev storage: isolated (FILES_BASE=${DEVELOPMENT_FILES_ORIGIN}) or older shared routing (FILES_BASE=${PRODUCTION_FILES_BASE}); R2_KEY_PREFIX=dev/ in both`
   );
 
   const getDeploymentValue = async (
@@ -305,7 +293,7 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
     }
   };
 
-  const routingVars = ["R2_BUCKET", "R2_KEY_PREFIX", "FILES_BASE"] as const;
+  const routingVars = ["R2_KEY_PREFIX", "FILES_BASE"] as const;
   const deploymentValues = new Map(
     await Promise.all(
       [...expectedProdVars, ...routingVars].map(async (name) => {
@@ -331,7 +319,6 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
     (status) => status === "found" || status === "missing"
   )
     ? classifyDevStorage({
-        bucket: deploymentValue("R2_BUCKET", "dev"),
         prefix: deploymentValue("R2_KEY_PREFIX", "dev"),
         filesBase: deploymentValue("FILES_BASE", "dev"),
       })
@@ -397,13 +384,6 @@ const checkConvexEnv = async (only: DeploymentScope | null) => {
       continue;
     }
     if (side === "prod") {
-      log(
-        "R2_BUCKET (prod)",
-        deploymentValue("R2_BUCKET", "prod") === PRODUCTION_STORAGE_BUCKET
-          ? "same"
-          : "different",
-        `must be ${PRODUCTION_STORAGE_BUCKET}${scopeNote}`
-      );
       log(
         "FILES_BASE (prod)",
         deploymentValue("FILES_BASE", "prod") === PRODUCTION_FILES_BASE

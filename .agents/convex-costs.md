@@ -187,9 +187,9 @@ concurrent HTTP actions.
 
 ## Operational cost rollout
 
-Keep `OPERATIONAL_RETENTION_ENABLED` unset or `false` until the production
-snapshot and dry-run report have been checked. Disabling retention stops
-deletion; queued batches recheck the flag before deleting anything.
+Idempotency retention runs on every deployment: the hourly cleanup deletes
+expired idempotency records in bursts. Its rollout flag,
+`OPERATIONAL_RETENTION_ENABLED`, was removed after production ran with it on.
 
 Text/link metadata always runs through the Files Worker's
 `generate-text-metadata` and `generate-link-metadata` operations; the direct

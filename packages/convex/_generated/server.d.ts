@@ -35,16 +35,13 @@ type Env = {
   readonly FILES_BASE: string | undefined;
   readonly FILES_SIGNING_SECRET: string | undefined;
   readonly INBOUND_EMAIL_DOMAIN: string | undefined;
-  readonly OPERATIONAL_RETENTION_ENABLED: string | undefined;
   readonly POLAR_ACCESS_TOKEN: string | undefined;
   readonly POLAR_SERVER: string | undefined;
   readonly POSTHOG_PERSON_DELETION_API_KEY: string | undefined;
   readonly POSTHOG_PROJECT_TOKEN: string | undefined;
   readonly POSTHOG_QUERY_API_KEY: string | undefined;
   readonly PUBLIC_ORIGIN: string | undefined;
-  readonly R2_BUCKET: string | undefined;
   readonly R2_KEY_PREFIX: string | undefined;
-  readonly SIGNUPS_DISABLED: string | undefined;
   readonly SITE_URL: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;

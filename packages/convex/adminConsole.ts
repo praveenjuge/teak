@@ -1,24 +1,15 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { action, mutation, type QueryCtx, query } from "./_generated/server";
 import {
-  action,
-  type MutationCtx,
-  mutation,
-  type QueryCtx,
-  query,
-} from "./_generated/server";
-import {
-  type AdminSettings,
-  DEFAULT_ADMIN_SETTINGS,
   ensureAdmin,
   readAdminSettings,
-  readSettingsRow,
   readUserFlags,
   upsertUserFlags,
+  writeAdminSettings,
   writeAudit,
 } from "./adminAccess";
-import { readSignupsDisabled } from "./env";
 
 const AUDIT_PAGE_LIMIT = 100;
 const NOTES_LIMIT = 200;
@@ -28,10 +19,7 @@ export const getSettings = query({
   args: {},
   handler: async (ctx) => {
     await ensureAdmin(ctx);
-    return {
-      ...(await readAdminSettings(ctx)),
-      signupsDisabledByEnv: readSignupsDisabled(),
-    };
+    return await readAdminSettings(ctx);
   },
 });
 
@@ -40,25 +28,6 @@ const switchValidator = v.union(
   v.literal("aiPaused"),
   v.literal("linkFetchPaused")
 );
-
-const writeSettings = async (
-  ctx: MutationCtx,
-  patch: Partial<Omit<AdminSettings, "updatedAt">>
-) => {
-  const row = await readSettingsRow(ctx);
-  const now = Date.now();
-  if (row) {
-    await ctx.db.patch("adminSettings", row._id, { ...patch, updatedAt: now });
-    return;
-  }
-  const { updatedAt: _ignored, ...defaults } = DEFAULT_ADMIN_SETTINGS;
-  await ctx.db.insert("adminSettings", {
-    key: "global",
-    ...defaults,
-    ...patch,
-    updatedAt: now,
-  });
-};
 
 /**
  * `aiPaused` reaches card processing within a minute: the Files Worker reuses
@@ -74,7 +43,7 @@ export const setKillSwitch = mutation({
   handler: async (ctx, { name, enabled, reason }) => {
     const actor = await ensureAdmin(ctx);
     const before = (await readAdminSettings(ctx))[name];
-    await writeSettings(ctx, { [name]: enabled });
+    await writeAdminSettings(ctx, { [name]: enabled });
     await writeAudit(ctx, actor, {
       action: `kill_switch.${name}`,
       ...(reason?.trim() ? { reason: reason.trim() } : {}),
@@ -100,7 +69,7 @@ export const setGoals = mutation({
       throw new Error("The weekly target must be between 0 and 100 percent");
     }
     const before = await readAdminSettings(ctx);
-    await writeSettings(ctx, { weeklyGrowthTargetPct, primaryMetric });
+    await writeAdminSettings(ctx, { weeklyGrowthTargetPct, primaryMetric });
     await writeAudit(ctx, actor, {
       action: "settings.goals",
       details: {

@@ -36,7 +36,7 @@ Create one WorkOS environment per deployment: a staging environment for local de
    ```
 
 4. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.
-5. Optional: add a user registration Action at `<convex-site>/workos/action` so Teak can pause sign-ups (`SIGNUPS_DISABLED`). Copy its secret into `WORKOS_ACTION_SECRET`.
+5. Optional: add a user registration Action at `<convex-site>/workos/action` so Teak can refuse new sign-ups while they're paused. Copy its secret into `WORKOS_ACTION_SECRET`.
 6. From API Keys, copy the client ID and API key into `WORKOS_CLIENT_ID` and `WORKOS_API_KEY`, and note the environment ID for `WORKOS_ENVIRONMENT_ID`.
 
 The webhook and Action routes exist only when `WORKOS_ENVIRONMENT_ID` is set on the Convex deployment. Without the webhook, new WorkOS users never get a Teak account.
@@ -139,11 +139,13 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
     Sign up the intended administrator account first. Then pause new sign-ups and grant its stored admin role from `packages/convex`:
 
     ```bash
-    bunx convex env set --prod SIGNUPS_DISABLED true
+    bunx convex run --prod admin:setSignupsPaused '{"paused":true}'
     bunx convex run --prod admin:seedAdmin '{"email":"owner@example.com"}'
     ```
 
-    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. If you paused sign-ups only for this setup, restore their previous setting afterward.
+    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. To reopen sign-ups, run `admin:setSignupsPaused` again with `'{"paused":false}'`. Sign-up is refused while paused only when the WorkOS registration Action from [Set up WorkOS](#set-up-workos) is set up.
+
+    **Upgrading:** the `SIGNUPS_DISABLED` variable was removed in October 2026. If you set it to `true`, sign-ups reopen when you update. Run the pause command above right after you deploy the update, then remove the old variable.
   </Step>
   <Step title="Update SITE_URL">
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).

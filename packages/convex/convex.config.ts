@@ -11,7 +11,6 @@ const app = defineApp({
     PUBLIC_ORIGIN: v.optional(v.string()),
     // The web app's origin; links in API and MCP answers open it.
     SITE_URL: v.optional(v.string()),
-    SIGNUPS_DISABLED: v.optional(v.string()),
     WORKOS_API_BASE_URL: v.optional(v.string()),
     WORKOS_AUTHKIT_DOMAIN: v.optional(v.string()),
     WORKOS_RESOURCE_ORIGIN: v.optional(v.string()),
@@ -29,7 +28,6 @@ const app = defineApp({
     EMAIL_INBOUND_SIGNING_SECRET: v.optional(v.string()),
     // The domain of the shared save@ address; in.teakvault.com when unset.
     INBOUND_EMAIL_DOMAIN: v.optional(v.string()),
-    R2_BUCKET: v.optional(v.string()),
     R2_KEY_PREFIX: v.optional(v.string()),
     POLAR_ACCESS_TOKEN: v.optional(v.string()),
     POLAR_SERVER: v.optional(v.string()),
@@ -38,7 +36,6 @@ const app = defineApp({
     POSTHOG_QUERY_API_KEY: v.optional(v.string()),
     POSTHOG_PERSON_DELETION_API_KEY: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
-    OPERATIONAL_RETENTION_ENABLED: v.optional(v.string()),
     TEAK_DEV_DEPLOYMENT: v.optional(v.string()),
     TEAK_DEV_APP_URL: v.optional(v.string()),
     TEAK_DEV_API_URL: v.optional(v.string()),

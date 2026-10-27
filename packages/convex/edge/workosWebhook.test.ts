@@ -1,6 +1,7 @@
 import authKitTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { components } from "../_generated/api";
 import schema from "../schema";
 
@@ -12,6 +13,12 @@ const setup = () => {
   return t;
 };
 type Backend = ReturnType<typeof setup>;
+// Most of these cases run with sign-ups paused, so no event creates an owner.
+const setupPaused = async () => {
+  const t = setup();
+  await setSignupsPaused(t, true);
+  return t;
+};
 const timestamp = "2026-01-01T00:00:00.000Z";
 const fixture = (id = "evt_signed", type = "user.created") => ({
   id,
@@ -99,12 +106,11 @@ describe.each([
     vi.stubEnv("WORKOS_API_KEY", "sk_test_readiness");
     vi.stubEnv("WORKOS_WEBHOOK_SECRET", secret);
     vi.stubEnv("WORKOS_ACTION_SECRET", "isolated-action-signing-fixture");
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
   });
   afterEach(() => vi.unstubAllEnvs());
 
   test("valid exact-body signature syncs both stores and keeps legacy ownership", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t);
     // Whitespace must remain intact until the official signature verifier runs.
     const response = await post(t, JSON.stringify(fixture(), null, 2));
@@ -128,7 +134,6 @@ describe.each([
   test.each([true, false])(
     "an open-signup created webhook with email_verified=%s creates an owner only when verified",
     async (verified) => {
-      vi.stubEnv("SIGNUPS_DISABLED", "false");
       const t = setup();
       const created = fixture("evt_new_owner");
       const response = await post(
@@ -173,7 +178,7 @@ describe.each([
   test.each(["missing", "forged", "tampered", "expired", "other_secret"])(
     "%s signature performs no writes",
     async (failure) => {
-      const t = setup();
+      const t = await setupPaused();
       await seed(t);
       const before = await snapshot(t);
       const body = JSON.stringify(fixture());
@@ -200,7 +205,7 @@ describe.each([
   );
 
   test("component deduplication cannot suppress Teak's own processing", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t);
     await t.mutation(components.workOSAuthKit.lib.onWebhookEvent, {
       event: {
@@ -224,7 +229,7 @@ describe.each([
   });
 
   test("quarantined retries commit one alert", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const body = JSON.stringify(fixture());
     expect((await post(t, body)).status).toBe(200);
     expect((await post(t, body)).status).toBe(200);
@@ -235,7 +240,7 @@ describe.each([
   });
 
   test("component validation failure rolls back Teak changes and remains retryable", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t);
     const before = await snapshot(t);
     const malformed = fixture();
@@ -254,7 +259,7 @@ describe.each([
   });
 
   test("signed trimmed deletion before creation remains terminal without deleting data", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const deletion = {
       id: "evt_deleted",
       event: "user.deleted",
@@ -276,7 +281,7 @@ describe.each([
   });
 
   test("oversized bodies and non-JSON requests perform no writes", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const before = await snapshot(t);
     expect((await post(t, "x".repeat(256 * 1024 + 1))).status).toBe(413);
     expect(
@@ -290,7 +295,7 @@ describe.each([
   });
 
   test("the preserved signed registration Action denies frozen sign-ups", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const body = JSON.stringify({
       id: "action_registration",
       object: "user_registration_action_context",
@@ -324,7 +329,7 @@ describe.each([
   });
 
   test("a signed payload Teak can never apply is dead-lettered once and acknowledged", async () => {
-    const t = setup();
+    const t = await setupPaused();
     await seed(t);
     const before = await snapshot(t);
     const bad = fixture("evt_bad_profile");
@@ -357,7 +362,7 @@ describe.each([
   });
 
   test("malformed envelopes are dead-lettered instead of retried, one per event", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const before = await snapshot(t);
     const longA = `evt_${"a".repeat(300)}`;
     const longB = `${longA.slice(0, 256)}${"b".repeat(48)}`;
@@ -400,7 +405,7 @@ describe.each([
   });
 
   test("the registration Action verifies the exact signed body, not re-serialized JSON", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const body = JSON.stringify(
       {
         id: "action_pretty",
@@ -441,7 +446,7 @@ describe.each([
   });
 
   test("malformed signed JSON writes nothing", async () => {
-    const t = setup();
+    const t = await setupPaused();
     const before = await snapshot(t);
     expect((await post(t, "{broken")).status).toBe(401);
     expect(await snapshot(t)).toEqual(before);

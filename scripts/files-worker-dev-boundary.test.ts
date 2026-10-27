@@ -13,7 +13,6 @@ import {
 import { parseSyncArgs } from "./sync-files-worker-dev-secret";
 
 const isolated = {
-  bucket: "teak-files-development-20261006",
   prefix: "dev/",
   filesBase: "https://teak-files-dev.praveenjuge.workers.dev",
   signingSecret: "isolated-dev-key",
@@ -37,7 +36,6 @@ describe("assertIsolatedDevelopmentFiles", () => {
     const message = messageOf(() =>
       assertIsolatedDevelopmentFiles({
         ...isolated,
-        bucket: "teak-files-prod",
         filesBase: "https://files.teakvault.com",
         signingSecret: "shared-production-key",
       })
@@ -47,8 +45,7 @@ describe("assertIsolatedDevelopmentFiles", () => {
   });
 
   test.each([
-    { bucket: "teak-files-prod" },
-    { filesBase: "https://files.teakvault.com" },
+    { filesBase: "https://files.example.com" },
     { prefix: undefined },
     {
       filesBase:
@@ -177,7 +174,6 @@ describe("readDevelopmentFilesRouting", () => {
     NEXT_PUBLIC_CONVEX_URL: "https://uncommon-ladybug-882.convex.cloud",
   };
   const devValues: Record<string, string> = {
-    R2_BUCKET: "teak-files-development-20261006",
     R2_KEY_PREFIX: "dev/",
     FILES_BASE: "https://teak-files-dev.praveenjuge.workers.dev",
     FILES_SIGNING_SECRET: "isolated-dev-key",
@@ -197,7 +193,6 @@ describe("readDevelopmentFilesRouting", () => {
     const routing = await readDevelopmentFilesRouting("/repo", run, ambient);
 
     expect(routing).toEqual({
-      bucket: devValues.R2_BUCKET,
       prefix: devValues.R2_KEY_PREFIX,
       filesBase: devValues.FILES_BASE,
       signingSecret: devValues.FILES_SIGNING_SECRET,

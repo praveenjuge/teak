@@ -9,11 +9,9 @@ const now = Date.parse("2026-09-30T10:00:00Z");
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(now);
-  vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", "true");
 });
 afterEach(() => {
   vi.useRealTimers();
-  vi.unstubAllEnvs();
 });
 
 const seedRequests = async (t: ReturnType<typeof convexTest>) =>
@@ -117,23 +115,9 @@ test("renewing an expired request before cleanup preserves its reservation", asy
   ).toEqual(["boundary-completed", "expired-completed", "live-completed"]);
 });
 
-test("the hourly cron's cleanup does nothing until retention is enabled", async () => {
+test("the hourly cron's cleanup deletes only expired records", async () => {
   const t = convexTest(schema, modules);
   await seedRequests(t);
-  for (const flag of ["", "false", "TRUE"]) {
-    vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", flag);
-    expect(
-      await t.mutation(
-        internal.operationalRetention.startIdempotencyCleanup,
-        {}
-      )
-    ).toBeNull();
-  }
-  expect(
-    (await t.run((ctx) => ctx.db.query("apiIdempotencyKeys").collect())).length
-  ).toBe(4);
-
-  vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", "true");
   expect(
     await t.mutation(internal.operationalRetention.startIdempotencyCleanup, {})
   ).toMatchObject({ deleted: 2, isDone: true, skipped: false });
@@ -177,16 +161,9 @@ test("an hourly cron run during a scan joins it instead of starting another", as
   ).toBe(0);
 });
 
-test("activation and cutoff guards reject unsafe cleanup", async () => {
+test("the cutoff guard rejects unsafe cleanup", async () => {
   const t = convexTest(schema, modules);
   await seedRequests(t);
-  vi.stubEnv("OPERATIONAL_RETENTION_ENABLED", "false");
-  await expect(
-    t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
-      kind: "idempotency",
-      dryRun: false,
-    })
-  ).rejects.toThrow("not enabled");
   await expect(
     t.mutation(internal.operationalRetention.cleanupExpiredRecords, {
       kind: "idempotency",

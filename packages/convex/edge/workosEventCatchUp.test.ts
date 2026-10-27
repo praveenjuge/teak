@@ -33,7 +33,6 @@ beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("WORKOS_ENVIRONMENT_ID", "environment_CATCHUP");
   vi.stubEnv("WORKOS_API_KEY", "sk_test_catchup");
-  vi.stubEnv("SIGNUPS_DISABLED", "false");
   requests.length = 0;
   vi.stubGlobal("fetch", (input: RequestInfo | URL) => {
     const url = new URL(input instanceof Request ? input.url : String(input));

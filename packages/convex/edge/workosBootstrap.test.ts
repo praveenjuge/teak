@@ -2,6 +2,7 @@ import workosTest from "@convex-dev/workos-authkit/test";
 import type { UserIdentity } from "convex/server";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -88,7 +89,6 @@ const state = (t: Backend) =>
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
-  vi.stubEnv("SIGNUPS_DISABLED", "false");
 });
 afterEach(() => {
   vi.clearAllTimers();
@@ -133,14 +133,14 @@ describe("signed WorkOS bootstrap", () => {
   test("frozen user returns a committed quarantine and retries after unfreeze", async () => {
     const t = setup();
     await profile(t);
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    await setSignupsPaused(t, true);
     expect(await signed(t).mutation(ensure, {})).toEqual({ status: "frozen" });
     expect(await state(t)).toMatchObject({
       users: [],
       jobs: [],
       quarantine: [{ reason: "signups_frozen" }],
     });
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    await setSignupsPaused(t, false);
     expect(await signed(t).mutation(ensure, {})).toMatchObject({
       status: "ok",
     });
@@ -212,7 +212,7 @@ describe("signed WorkOS bootstrap", () => {
     const t = setup();
     await seed(t);
     await profile(t);
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    await setSignupsPaused(t, true);
     const before = await state(t);
     expect(await signed(t).mutation(ensure, {})).toEqual({
       status: "ok",

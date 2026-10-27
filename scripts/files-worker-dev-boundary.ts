@@ -10,7 +10,6 @@ export const DEVELOPMENT_FILES_WORKER = "teak-files-dev";
 export const CLOUDFLARE_ACCOUNT_ID = "dd19e45b8f2f3cc0393cc2deb51fa27d";
 
 export interface DevelopmentFilesRouting {
-  bucket: string | undefined;
   filesBase: string | undefined;
   prefix: string | undefined;
   signingSecret: string | undefined;
@@ -107,13 +106,12 @@ export const readDevelopmentFilesRouting = async (
     }
     return parsed.status === "found" ? parsed.value : undefined;
   };
-  const [bucket, prefix, filesBase, signingSecret] = await Promise.all([
-    read("R2_BUCKET"),
+  const [prefix, filesBase, signingSecret] = await Promise.all([
     read("R2_KEY_PREFIX"),
     read("FILES_BASE"),
     read("FILES_SIGNING_SECRET"),
   ]);
-  return { bucket, prefix, filesBase, signingSecret };
+  return { prefix, filesBase, signingSecret };
 };
 
 export interface WranglerConfigShape {

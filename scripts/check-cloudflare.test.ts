@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   classifyDevStorage,
   credentialParityFinding,
-  DEVELOPMENT_STORAGE_BUCKET,
   isBlockingFinding,
   isDevelopmentFilesOrigin,
   PRODUCTION_FILES_BASE,
@@ -63,12 +62,10 @@ describe("isBlockingFinding", () => {
 
 const DEV_ORIGIN = "https://teak-files-dev.praveenjuge.workers.dev";
 const shared = {
-  bucket: PRODUCTION_STORAGE_BUCKET,
   prefix: "dev/",
   filesBase: PRODUCTION_FILES_BASE,
 };
 const isolated = {
-  bucket: DEVELOPMENT_STORAGE_BUCKET,
   prefix: "dev/",
   filesBase: DEV_ORIGIN,
 };
@@ -83,12 +80,10 @@ describe("classifyDevStorage", () => {
   });
 
   test.each([
-    { bucket: DEVELOPMENT_STORAGE_BUCKET },
-    { filesBase: DEV_ORIGIN },
-    { bucket: "teak-files-dev" },
     { prefix: undefined },
     { prefix: "" },
-    { bucket: undefined },
+    { filesBase: undefined },
+    { filesBase: "https://files.example.com" },
   ])("blocks a partial switch or unknown routing: %j", (change) => {
     expect(classifyDevStorage({ ...shared, ...change })).toBe("invalid");
   });
