@@ -28,6 +28,7 @@ import {
   hasFolderNamed,
   manualFolders,
 } from "../../lib/folders";
+import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 import { FolderDot } from "./FolderDot";
 
@@ -167,7 +168,7 @@ function CardFoldersChecklist({
             setError(null);
           }}
           onKeyDown={(event) => {
-            if (event.key !== "Enter") {
+            if (event.key !== "Enter" || isImeComposing(event)) {
               return;
             }
             event.preventDefault();

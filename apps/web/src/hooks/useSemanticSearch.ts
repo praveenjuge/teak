@@ -69,18 +69,32 @@ export function useSemanticSearch(args: {
       return;
     }
     setPendingFor(request.key);
-    const settle = () =>
-      setPendingFor((current) => (current === request.key ? null : current));
+    // A superseded request (a newer query, or a retry of this one) must not
+    // overwrite the current answer or end the current wait when it lands.
+    let live = true;
+    const settle = () => {
+      if (live) {
+        setPendingFor((current) => (current === request.key ? null : current));
+      }
+    };
+    const answerWith = (outcome: SemanticSearchOutcome) => {
+      if (live) {
+        setAnswer({ key: request.key, outcome });
+      }
+    };
     const timeout = setTimeout(settle, SEMANTIC_EMPTY_STATE_WAIT_MS);
     requestSemanticResults({
       searchQuery,
       ...(folderId ? { folderId } : {}),
       ...(folderQuery === undefined ? {} : { folderQuery }),
     })
-      .then(({ outcome }) => setAnswer({ key: request.key, outcome }))
-      .catch(() => setAnswer({ key: request.key, outcome: "unavailable" }))
+      .then(({ outcome }) => answerWith(outcome))
+      .catch(() => answerWith("unavailable"))
       .finally(settle);
-    return () => clearTimeout(timeout);
+    return () => {
+      live = false;
+      clearTimeout(timeout);
+    };
   }, [folderId, folderQuery, request, requestSemanticResults, searchQuery]);
 
   return {

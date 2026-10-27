@@ -66,7 +66,7 @@ import { useRetainedWhileClosing } from "../../hooks/useRetainedWhileClosing";
 import { useStableHandlers } from "../../hooks/useStableHandlers";
 import { useStoredFlag } from "../../hooks/useStoredFlag";
 import { readCardOpenOrigin } from "../../lib/cardOpenOrigin";
-import { cardMenuShortcuts } from "../../lib/keyboardShortcuts";
+import { cardMenuShortcuts, isImeComposing } from "../../lib/keyboardShortcuts";
 import {
   firstFile,
   imageFromClipboard,
@@ -1069,7 +1069,7 @@ export function CardModal({
                 }}
                 onChange={(event) => editTitle(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if (event.key === "Enter" && !isImeComposing(event)) {
                     event.preventDefault();
                     event.currentTarget.blur();
                   }

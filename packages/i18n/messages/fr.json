@@ -490,7 +490,8 @@
       "uploading": "Importation…",
       "foldersNotSupported": "Impossible d’importer des dossiers. Déposez plutôt les fichiers un par un.",
       "offline": "Vous êtes hors ligne. Reconnectez-vous et réessayez.",
-      "sharedFilesMissing": "Les fichiers partagés sont introuvables. Partagez-les à nouveau."
+      "sharedFilesMissing": "Les fichiers partagés sont introuvables. Partagez-les à nouveau.",
+      "sharedFilesConfirm": "Enregistrer {count, plural, one {le fichier partagé} other {les # fichiers partagés}} dans Teak ?"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "Sauvegarde de l’enregistrement…",
       "recordingHint": "Parlez naturellement. Teak enregistrera ceci comme fiche audio.",
       "recordingTitle": "Enregistrement audio",
-      "stopAndSave": "Arrêter et enregistrer"
+      "stopAndSave": "Arrêter et enregistrer",
+      "discardRecording": "Abandonner"
     },
     "emptyState": {
       "title": "Ajoutons votre première fiche !",
@@ -1577,7 +1579,7 @@
         "saveChanges": "Impossible d’enregistrer les modifications",
         "downloadFile": "Impossible de télécharger le fichier",
         "removeTag": "Impossible de retirer le tag",
-        "update": "Impossible de mettre à jour {field}",
+        "tags": "Impossible de mettre à jour les tags",
         "other": "Échec de l’opération : {operation}"
       }
     },

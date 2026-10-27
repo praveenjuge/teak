@@ -15,6 +15,7 @@ mock.module("sonner", () => ({
 const { copyCardContentToClipboard } = await import("../useCardClipboard");
 
 const originalNavigator = globalThis.navigator;
+const originalFetch = globalThis.fetch;
 const originalConsoleError = console.error;
 
 function setClipboard(writeText: (text: string) => Promise<void>) {
@@ -42,6 +43,7 @@ describe("copyCardContentToClipboard", () => {
       value: originalNavigator,
     });
     console.error = originalConsoleError;
+    globalThis.fetch = originalFetch;
   });
 
   test("copies text content successfully", async () => {
@@ -82,6 +84,39 @@ describe("copyCardContentToClipboard", () => {
 
     expect(writeText).toHaveBeenCalledTimes(2);
     expect(toastError).toHaveBeenCalledWith("Failed to copy to clipboard", {
+      id: "copy-image",
+    });
+  });
+
+  test("copies the link, not an error page, when the image fails to load", async () => {
+    const write = mock((_items: unknown[]) => Promise.resolve());
+    const writeText = mock((_text: string) => Promise.resolve());
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { clipboard: { write, writeText } },
+    });
+    Object.assign(globalThis, {
+      ClipboardItem: class {
+        readonly items: Record<string, Blob>;
+        constructor(items: Record<string, Blob>) {
+          this.items = items;
+        }
+      },
+    });
+    globalThis.fetch = mock(() =>
+      Promise.resolve(
+        new Response("<h1>Not found</h1>", {
+          headers: { "Content-Type": "text/html" },
+          status: 404,
+        })
+      )
+    ) as unknown as typeof fetch;
+
+    await copyCardContentToClipboard("https://files.test/a.png", true);
+
+    expect(write).not.toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith("https://files.test/a.png");
+    expect(toastSuccess).toHaveBeenCalledWith("Link copied to clipboard", {
       id: "copy-image",
     });
   });

@@ -29,9 +29,12 @@ const { semanticSearchText, useSemanticSearch } = await import(
 
 let root: Root | undefined;
 let pending = false;
+let outcome: string | null = null;
 
 function Harness(props: Parameters<typeof useSemanticSearch>[0]) {
-  pending = useSemanticSearch(props).isPending;
+  const state = useSemanticSearch(props);
+  pending = state.isPending;
+  outcome = state.outcome;
   return null;
 }
 
@@ -81,6 +84,16 @@ test("an older answer does not end a newer search's wait", async () => {
   await answer(() => answers[0]?.resolve());
   expect(pending).toBe(true);
   await answer(() => answers[1]?.reject(new Error("unavailable")));
+  expect(pending).toBe(false);
+});
+
+test("an older answer that lands late keeps the newer search's outcome", async () => {
+  await render({ searchQuery: "first search" });
+  await render({ searchQuery: "second search" });
+  await answer(() => answers[1]?.reject(new Error("unavailable")));
+  expect(outcome).toBe("unavailable");
+  await answer(() => answers[0]?.resolve());
+  expect(outcome).toBe("unavailable");
   expect(pending).toBe(false);
 });
 

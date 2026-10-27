@@ -19,7 +19,12 @@ export const resolveAnalyticsProxyTarget = (url: URL): URL | null => {
   )
     ? POSTHOG_ASSETS_HOST
     : POSTHOG_INGEST_HOST;
-  return new URL(`${path}${url.search}`, host);
+  // Set the path on the host's URL rather than resolving it against the
+  // host: `/ingest//other.host/x` would otherwise resolve to another origin.
+  const target = new URL(host);
+  target.pathname = path;
+  target.search = url.search;
+  return target.origin === new URL(host).origin ? target : null;
 };
 
 export const resolvePostHogToken = (env: {

@@ -490,7 +490,8 @@
       "uploading": "Wird hochgeladen…",
       "foldersNotSupported": "Ordner können nicht hochgeladen werden. Legen Sie stattdessen einzelne Dateien ab.",
       "offline": "Sie sind offline. Stellen Sie die Verbindung wieder her und versuchen Sie es erneut.",
-      "sharedFilesMissing": "Die geteilten Dateien wurden nicht gefunden. Teilen Sie sie erneut."
+      "sharedFilesMissing": "Die geteilten Dateien wurden nicht gefunden. Teilen Sie sie erneut.",
+      "sharedFilesConfirm": "{count, plural, one {Die geteilte Datei} other {# geteilte Dateien}} in Teak speichern?"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "Aufnahme wird gespeichert…",
       "recordingHint": "Sprechen Sie ganz natürlich. Teak speichert dies als Audiokarte.",
       "recordingTitle": "Audio wird aufgenommen",
-      "stopAndSave": "Stoppen und speichern"
+      "stopAndSave": "Stoppen und speichern",
+      "discardRecording": "Verwerfen"
     },
     "emptyState": {
       "title": "Fügen Sie Ihre erste Karte hinzu!",
@@ -1577,7 +1579,7 @@
         "saveChanges": "Die Änderungen konnten nicht gespeichert werden",
         "downloadFile": "Die Datei konnte nicht heruntergeladen werden",
         "removeTag": "Der Tag konnte nicht entfernt werden",
-        "update": "{field} konnte nicht aktualisiert werden",
+        "tags": "Die Tags konnten nicht aktualisiert werden",
         "other": "Fehlgeschlagen: {operation}"
       }
     },

@@ -13,6 +13,7 @@ import { TOAST_IDS } from "../constants/toast";
 import { useQuery } from "../lib/convexQueryHooks";
 import { openCustomerPortal } from "../lib/customerPortal";
 import { useDeviceSessions } from "./useDeviceSessions";
+import { useServerErrors } from "./useServerErrors";
 
 interface UseSettingsControllerOptions {
   onDeleteAccount: () => Promise<void>;
@@ -29,6 +30,7 @@ export function useSettingsController({
   onSignOut,
 }: UseSettingsControllerOptions) {
   const t = useTranslations("hooks.settings");
+  const errors = useServerErrors();
   const user = useQuery(api.auth.getCurrentUser);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -201,9 +203,7 @@ export function useSettingsController({
       setDeleteDialogOpen(false);
     } catch (error) {
       captureClientException(error, { operation: "account.delete" });
-      setDeleteError(
-        error instanceof Error ? error.message : t("deleteAccountFailed")
-      );
+      setDeleteError(errors.message(error, t("deleteAccountFailed")));
     } finally {
       setDeleteLoading(false);
     }

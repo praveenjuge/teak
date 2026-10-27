@@ -99,7 +99,14 @@ export async function copyCardContentToClipboard(
   try {
     if (isImage) {
       const response = await fetch(content);
+      // An error page is not the image: copy the link instead of the page.
+      if (!response.ok) {
+        throw new Error(`Image request failed with status ${response.status}`);
+      }
       const blob = await response.blob();
+      if (!blob.type.startsWith("image/")) {
+        throw new Error(`Expected an image, got ${blob.type || "no type"}`);
+      }
 
       try {
         await navigator.clipboard.write([

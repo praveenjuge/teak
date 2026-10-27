@@ -15,13 +15,19 @@ const FAILED_OPERATION_KEYS = {
   "toggle favorite": "failed.toggleFavorite",
   "save changes": "failed.saveChanges",
   "download file": "failed.downloadFile",
+  "update delete": "failed.delete",
+  "update restore": "failed.restore",
+  "update isFavorited": "failed.toggleFavorite",
+  "update removeAiTag": "failed.removeTag",
+  "update tags": "failed.tags",
 } as const;
 
 const UPDATE_PREFIX = "update ";
 
 /**
  * "Failed to …" for an operation passed to `onError`, such as `"delete"` or
- * `"update tags"`. An update names the field as the code does.
+ * `"update tags"`. Field names are code, so an update of any other field
+ * reads as a failed save rather than naming the field.
  */
 export const cardActionFailedMessage = (
   operation: string,
@@ -33,9 +39,7 @@ export const cardActionFailedMessage = (
     );
   }
   if (operation.startsWith(UPDATE_PREFIX)) {
-    return t("failed.update", {
-      field: operation.slice(UPDATE_PREFIX.length),
-    });
+    return t("failed.saveChanges");
   }
   return t("failed.other", { operation });
 };

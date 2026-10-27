@@ -408,10 +408,9 @@ export function AddCardForm({
 
       restoreDraft(submittedContent);
 
-      const errorMessage = errors.message(
-        error,
-        error instanceof Error ? error.message : t("saveFailed")
-      );
+      // A plain Error here is Convex's own text ("[CONVEX M(...)] Server
+      // Error"), which isn't for people; server reasons still come through.
+      const errorMessage = errors.message(error, t("saveFailed"));
 
       if (isCardLimitError(error)) {
         showUpgradeToast(toastId);

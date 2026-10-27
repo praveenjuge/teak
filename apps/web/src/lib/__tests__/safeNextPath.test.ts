@@ -31,6 +31,15 @@ describe("getSafeNextPath", () => {
     expect(getSafeNextPath("/path\\to")).toBeNull();
   });
 
+  test("rejects dot segments that normalize into a protocol-relative URL", () => {
+    expect(getSafeNextPath("/.//evil.com")).toBeNull();
+    expect(getSafeNextPath("/..//evil.com")).toBeNull();
+    expect(getSafeNextPath("/a/..//evil.com/path")).toBeNull();
+    expect(getSafeNextPath("/%2e//evil.com")).toBeNull();
+    expect(getSafeNextPath("/%2e%2e//evil.com")).toBeNull();
+    expect(getSafeNextPath("/a/../settings")).toBe("/settings");
+  });
+
   test("rejects control characters", () => {
     expect(getSafeNextPath("/path\nwith-newline")).toBeNull();
     expect(getSafeNextPath("/path\twith-tab")).toBeNull();

@@ -6,7 +6,10 @@ import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { uploadWithTransientRetry } from "@/lib/upload/transport";
+import {
+  uploadAttemptTimeoutMs,
+  uploadWithTransientRetry,
+} from "@/lib/upload/transport";
 import {
   linkThumbnailErrorMessage,
   linkThumbnailFileProblem,
@@ -126,14 +129,18 @@ export function useLinkThumbnail(
             fileSize: file.size,
             mimeType,
           });
+          // A stalled PUT (dropped Wi-Fi, a captive portal) times out
+          // instead of holding the thumbnail controls busy until a reload.
           const response = await uploadWithTransientRetry(
-            () =>
+            (signal) =>
               fetch(upload.uploadUrl, {
                 body: file,
                 headers: { "Content-Type": mimeType },
                 method: "PUT",
+                signal,
               }),
-            new AbortController().signal
+            new AbortController().signal,
+            { timeoutMs: uploadAttemptTimeoutMs(file.size) }
           );
           if (!response.ok) {
             throw new Error(`Upload failed with status ${response.status}`);

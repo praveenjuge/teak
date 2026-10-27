@@ -123,6 +123,18 @@ describe("web sign-in routing", () => {
       expect(forwarded).not.toContain("cookie");
     }
   );
+  test.each([
+    "/ingest//evil.example/steal",
+    "/ingest//16909060/x",
+    "/ingest/%5Cevil.example/x",
+  ])("keeps %s on PostHog's host", async (path) => {
+    globalThis.fetch = offline;
+    const response = await proxy(
+      new NextRequest(`http://localhost:3142${path}`)
+    );
+    const rewrite = response.headers.get("x-middleware-rewrite");
+    expect(rewrite && new URL(rewrite).origin).toBe("https://us.i.posthog.com");
+  });
   test("strips forged AuthKit session headers", async () => {
     globalThis.fetch = offline;
     const response = await proxy(

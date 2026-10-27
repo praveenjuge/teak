@@ -2,6 +2,7 @@
 
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
+import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ComponentProps, ReactNode, RefObject } from "react";
 import {
@@ -446,7 +447,7 @@ export function ArticleReader({
             link: (chunks) => (
               <a
                 className="font-medium text-foreground underline decoration-1 underline-offset-4"
-                href={card.url}
+                href={sanitizeExternalUrl(card.url)}
                 onClick={(event) => handleCardLinkClick(event, card)}
                 rel="noopener noreferrer"
                 target="_blank"
