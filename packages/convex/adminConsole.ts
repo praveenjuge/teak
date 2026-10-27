@@ -1,12 +1,7 @@
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import {
-  action,
-  mutation,
-  type QueryCtx,
-  query,
-} from "./_generated/server";
+import { action, mutation, type QueryCtx, query } from "./_generated/server";
 import {
   ensureAdmin,
   readAdminSettings,
