@@ -90,3 +90,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - One files-worker `$exception`: `ai_usage_sql_failed:500` (10-26 03:46 IST, single event; the usage write to Convex). Watch for repeats. Zero `tagName` and `Could not load style` exceptions after #844: fix held.
 - Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed). Nothing fixed.
 - Check tomorrow: recurrence of `ai_usage_sql_failed`; first card traffic.
+
+### 2026-10-27
+- Inbox empty. Unit Tests and Backend Deploy green on main (runs 40385954544, 40385954636). Product health (24h): 3 `card_created` (android text/image/audio), 4 `card_processing_completed`, zero failure events.
+- Exceptions: Android 1.0.91 on the same OnePlus 8 Pro (API 30) now crashes with `NoSuchFieldError: Configuration.fontWeightAdjustment` (2 events, 10-26 10:35 IST; the field is API 31+, so something compiled against a newer SDK reads it unguarded; cause not confirmed, no fix) plus 2 `channel closed`. Same single device as the earlier splash crash, which Praveen closed as not planned (#657). Two web `[tiptap error]: The editor view is not available` (possibly a mount race, 2 events), one files-worker DO "Connection closed" (single event). `ai_usage_sql_failed` did not recur.
+- Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed). Nothing fixed.
+- Check tomorrow: recurrence of the tiptap error (if it grows, guard editor access until mounted); Android `fontWeightAdjustment` from a second device.
