@@ -163,9 +163,10 @@ const capture = async (store: StoreId, name: string) => {
   const file = path.join(dir, `${name}.png`);
   if (store === "android") {
     writeFileSync(file, await run([adb(), "exec-out", "screencap", "-p"]));
-  } else if (STORES[store].layout === "mac") {
+  } else if (STORES[store].window) {
     // asc's macOS capture needs the window in front of everything; capturing
-    // by window ID works in the background, even on another Space.
+    // by window ID works in the background, even on another Space. Raycast
+    // draws its window only while it is open, so open the command first.
     const id = await macWindow(store);
     await run(["screencapture", "-x", "-o", `-l${id}`, file]);
   } else if (process.argv.includes("--as-is")) {
