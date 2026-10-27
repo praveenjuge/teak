@@ -128,7 +128,7 @@ struct CardContextMenu: View {
             }
             ShareLink(item: text, preview: SharePreview(card.title)) { Label(tr("native.actions.share"), systemImage: "square.and.arrow.up") }
         case .image, .video, .audio, .document:
-            let file = CardFile(fileName: card.fileName ?? card.title) { [self] in
+            let file = CardFile(fileName: card.fileName ?? card.title, kind: CardFiles.contentType(card.type)) { [self] in
                 guard let full = try await loadCard(), case let .file(url, _, _) = CardSheet.shareTarget(full) else {
                     throw TeakError(message: tr("native.actions.shareFailed"))
                 }
@@ -149,10 +149,11 @@ struct CardSwipeActions: ViewModifier {
     let actions: CardMenuActions
 
     func body(content: Content) -> some View {
-        if #available(iOS 27, macOS 27, *), !library.isSelecting {
+        // Selecting hides the actions inside one branch, so the tiles keep their identity.
+        if #available(iOS 27, macOS 27, *) {
             content
                 .swipeActions(edge: .leading) {
-                    if !library.isTrash {
+                    if !library.isTrash, !library.isSelecting {
                         Button(card.favorited ? tr("native.actions.unfavorite") : tr("native.actions.favorite"),
                                systemImage: card.favorited ? "heart.slash" : "heart") {
                             Task { await library.setFavorite(card, !card.favorited) }
@@ -166,14 +167,14 @@ struct CardSwipeActions: ViewModifier {
                     }
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    if library.isTrash {
+                    if library.isTrash, !library.isSelecting {
                         Button(tr("native.actions.deleteForever"), systemImage: "trash", role: .destructive) {
                             actions.confirmDeleteForever(card)
                         }
                         Button(tr("native.actions.restore"), systemImage: "arrow.uturn.backward") {
                             Task { await library.restore(card.id) }
                         }
-                    } else {
+                    } else if !library.isSelecting {
                         Button(tr("native.actions.moveToTrash"), systemImage: "trash", role: .destructive) { actions.moveToTrash(card) }
                     }
                 }

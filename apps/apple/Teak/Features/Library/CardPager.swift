@@ -29,6 +29,8 @@ final class CardPager {
     private(set) var isLoadingMore = false
     private(set) var isDone = false
     private(set) var error: (any Error)?
+    /// The cards shown are from before a refresh whose first page failed.
+    private(set) var isStale = false
     /// Hears every load where every page has arrived: the cards, and the ids
     /// that dropped out since the last such load of the same search.
     @ObservationIgnored var onLoad: (@MainActor (_ cards: [CardSummary], _ left: [String]) -> Void)?
@@ -38,6 +40,8 @@ final class CardPager {
     @ObservationIgnored private var args: ConvexArgs = [:]
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var loadedIds: (generation: Int, ids: Set<String>)?
+    /// A refresh shows the cards it had until its first page arrives, and keeps them if that fails.
+    @ObservationIgnored private var kept: [CardSummary]?
 
     init(backend: TeakBackend) {
         self.backend = backend
@@ -50,9 +54,11 @@ final class CardPager {
     }
 
     func refresh() async {
-        restart()
+        restart(keepingCards: true)
         let generation = generation
-        while generation == self.generation, isLoading { try? await Task.sleep(for: .milliseconds(50)) }
+        while !Task.isCancelled, generation == self.generation, let first = slots.first, first.page == nil, first.error == nil {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
     }
 
     func loadMore() {
@@ -60,13 +66,22 @@ final class CardPager {
         subscribe(Slot(cursor: cursor))
     }
 
+    /// Loads a failed page again: everything when the first page failed, else that page.
+    func retry() {
+        guard let index = slots.firstIndex(where: { $0.error != nil }) else { return }
+        guard index > 0 else { return restart(keepingCards: !cards.isEmpty) }
+        let failed = slots.remove(at: index)
+        subscribe(Slot(cursor: failed.cursor, endCursor: failed.endCursor), at: index)
+    }
+
     func stop() {
         slots.forEach { $0.task?.cancel() }
         slots.removeAll()
     }
 
-    private func restart() {
+    private func restart(keepingCards: Bool = false) {
         generation += 1
+        kept = keepingCards && !cards.isEmpty ? cards : nil
         stop()
         subscribe(Slot(cursor: nil))
     }
@@ -113,6 +128,17 @@ final class CardPager {
     }
 
     private func publish() {
+        if let kept, let first = slots.first, first.page == nil {
+            guard let failure = first.error else { return }
+            cards = kept
+            isLoading = false
+            isLoadingMore = false
+            isStale = true
+            error = failure
+            return
+        }
+        kept = nil
+        isStale = false
         var seen = Set<String>()
         var merged: [CardSummary] = []
         for slot in slots {

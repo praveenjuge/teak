@@ -22,10 +22,11 @@ struct MacSettingsView: View {
             }
             Tab(tr("native.settings.account"), systemImage: "person.crop.circle") {
                 Form {
-                    AccountSection(account: account)
+                    ProfileSection(account: account)
+                    AccountActions()
                 }
                 .formStyle(.grouped)
-                .frame(width: 520, height: 310)
+                .frame(width: 520, height: 360)
             }
             Tab(tr("native.settings.about"), systemImage: "info.circle") {
                 MacAboutView()
@@ -34,8 +35,9 @@ struct MacSettingsView: View {
         }
         .scrollDisabled(true)
         .task { await account.watch(app.backend) }
-        .onChange(of: app.phase == .signedIn) { _, signedIn in
-            if !signedIn { dismiss() }
+        // Closes on signing out, not on a dropped connection, which leaves the account signed in.
+        .onChange(of: app.user == nil) { _, signedOut in
+            if signedOut { dismiss() }
         }
     }
 }
@@ -73,7 +75,8 @@ private struct MacAboutView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            Text(verbatim: "by @praveenjuge")
+            // The author's handle stays as it is in every language.
+            Text(tr("native.settings.byAuthor", "@praveenjuge"))
                 .padding(.top, 10)
             Text(tr("native.settings.hope"))
                 .foregroundStyle(.secondary)

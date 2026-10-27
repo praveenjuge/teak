@@ -36,6 +36,21 @@ final class AppRouter {
         let text: String
     }
 
+    /// Back to Home with nothing open, for the next person to sign in.
+    func reset() {
+        tab = .home
+        homePath = []
+        foldersPath = []
+        isComposing = false
+        composerText = ""
+        isRecording = false
+        isImportingFiles = false
+        isPickingPhotos = false
+        isUsingCamera = false
+        isRevisiting = false
+        pendingLink = nil
+    }
+
     func compose(_ text: String = "") {
         composerText = text
         isComposing = true

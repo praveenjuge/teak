@@ -18,7 +18,6 @@ struct LibraryView: View {
     @State private var pickingFolder = false
     @State private var folderPrompt: FolderPrompt?
     @State private var revisiting = false
-    @State private var tapCount = 0
     @FocusState private var focusedCard: String?
 
     var body: some View {
@@ -104,7 +103,6 @@ struct LibraryView: View {
             .onChange(of: library.pager.isLoading) { _, loading in
                 if !loading, library.cards.isEmpty { library.checkHiddenCards() }
             }
-            .sensoryFeedback(.impact(weight: .light), trigger: tapCount)
             .sensoryFeedback(trigger: library.status) { _, status in
                 guard let status else { return nil }
                 return status.isError ? .error : .success
@@ -147,7 +145,9 @@ struct LibraryView: View {
 
     @ViewBuilder private var content: some View {
         let cards = library.cards
-        if cards.isEmpty, !library.pager.isLoading {
+        if cards.isEmpty, library.pager.error != nil {
+            loadFailed
+        } else if cards.isEmpty, !library.pager.isLoading {
             emptyState
         } else {
             // One scroll view for the skeleton and the grid, so the large title
@@ -161,18 +161,24 @@ struct LibraryView: View {
                         .padding(.horizontal, CardGrid.edge + 4)
                         .padding(.top, 4)
                 }
+                if library.pager.isStale {
+                    refreshFailed
+                }
                 if cards.isEmpty {
                     SkeletonGrid(columns: columns, columnWidth: columnWidth)
                 } else {
                     grid(cards)
                     if library.pager.isLoadingMore {
                         ProgressView().padding(.bottom, 24)
+                    } else if library.pager.error != nil, !library.pager.isStale {
+                        loadMoreFailed
                     }
                 }
             }
             .scrollDisabled(cards.isEmpty)
             .cardSwipeContainer()
-            .refreshable { await library.refresh() }
+            // Offline, a refresh would wait for the connection with the spinner showing.
+            .refreshable { if app.isOnline { await library.refresh() } }
         }
     }
 
@@ -230,6 +236,10 @@ struct LibraryView: View {
     private func tile(_ card: CardSummary) -> some View {
         let selected = library.selection.map { $0.contains(card.id) }
         return Button {
+            #if os(macOS)
+            // Command-click picks cards, as in Finder.
+            if NSEvent.modifierFlags.contains(.command) { return library.toggleSelection(card.id) }
+            #endif
             open(card)
         } label: {
             CardTile(card: card, width: columnWidth, isSelected: selected, isTrashed: library.isTrash)
@@ -240,16 +250,15 @@ struct LibraryView: View {
         .contextMenu { CardContextMenu(card: card, library: library, actions: menuActions) }
         .modifier(CardSwipeActions(card: card, library: library, actions: menuActions))
         #if os(macOS)
-        .simultaneousGesture(TapGesture().modifiers(.command).onEnded { library.toggleSelection(card.id) })
         // Mac only: on iOS a drag interaction beside the context menu kept the
         // app from settling for a minute after the menu opened.
         .draggable(card.url.flatMap(SafeURL.sanitize) ?? CardSheet.webURL(cardId: card.id, base: app.config.webURL))
         #endif
+        .accessibilityAddTraits(selected == true ? .isSelected : [])
         .accessibilityIdentifier("card.\(card.id)")
     }
 
     private func open(_ card: CardSummary) {
-        tapCount += 1
         if library.isSelecting {
             library.toggleSelection(card.id)
         } else {
@@ -262,17 +271,51 @@ struct LibraryView: View {
             open: open,
             edit: { editing = CardRoute(id: $0.id, summary: $0) },
             export: { card in
-                exporting = CardFile(fileName: card.fileName ?? card.title) {
-                    let full = try await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
-                    guard let full, case let .file(url, _, _) = CardSheet.shareTarget(full) else {
-                        throw TeakError(message: tr("native.card.failed.download"))
+                // The full card names the file, with its extension, before the save panel asks where.
+                Task {
+                    let full = try? await app.backend.query(ConvexFunctions.getCard, ["id": .string(card.id)])
+                    guard let full, case let .file(url, name, _) = CardSheet.shareTarget(full) else {
+                        return library.show(tr("native.card.failed.download"), isError: true)
                     }
-                    return url
+                    exporting = CardFile(fileName: name) { url }
                 }
             },
             moveToTrash: { card in Task { await library.moveToTrash(card.id) } },
             confirmDeleteForever: { confirmingDeleteForever = $0 },
             moreLikeThis: { library.moreLike($0.id, title: $0.title) })
+    }
+
+    private var loadFailed: some View {
+        ContentUnavailableView {
+            Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(tr("native.errors.offline"))
+        } actions: {
+            Button(tr("common.retry")) { library.pager.retry() }.buttonStyle(.bordered)
+        }
+    }
+
+    /// A refresh failed: the cards from before stay, with a way to try again.
+    private var refreshFailed: some View {
+        HStack {
+            Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            Button(tr("common.retry")) { library.pager.retry() }
+                .font(.footnote.weight(.semibold))
+                .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, CardGrid.edge + 4)
+        .padding(.top, 4)
+    }
+
+    private var loadMoreFailed: some View {
+        VStack(spacing: 8) {
+            Text(tr("native.library.loadMoreFailed")).font(.footnote).foregroundStyle(.secondary)
+            Button(tr("common.retry")) { library.pager.retry() }.buttonStyle(.bordered)
+        }
+        .padding(.bottom, 24)
     }
 
     @ViewBuilder private var emptyState: some View {

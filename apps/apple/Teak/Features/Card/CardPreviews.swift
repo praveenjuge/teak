@@ -113,19 +113,8 @@ struct AnimatedImage: View {
     }
 
     private func animate() async {
-        guard let data = try? await ImagePipeline.shared.data(for: url),
-              let source = CGImageSourceCreateWithData(data as CFData, nil)
-        else { return failed = true }
-        let count = CGImageSourceGetCount(source)
-        guard count > 0 else { return failed = true }
-        let frames: [(CGImage, Double)] = (0..<count).compactMap { index in
-            guard let image = CGImageSourceCreateImageAtIndex(source, index, nil) else { return nil }
-            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
-            let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
-            let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double)
-                ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double) ?? 0.1
-            return (image, max(delay, 0.02))
-        }
+        guard let data = try? await ImagePipeline.shared.data(for: url) else { return failed = true }
+        let frames = await Task.detached(priority: .userInitiated) { Self.frames(data) }.value
         guard !frames.isEmpty else { return failed = true }
         if reduceMotion || frames.count == 1 { return frame = frames[0].0 }
         var index = 0
@@ -133,6 +122,24 @@ struct AnimatedImage: View {
             frame = frames[index].0
             try? await Task.sleep(for: .seconds(frames[index].1))
             index = (index + 1) % frames.count
+        }
+    }
+
+    /// Every frame decoded once at up to 1,200 pixels, off the main thread: a full-size animation can be
+    /// hundreds of megabytes otherwise.
+    nonisolated private static func frames(_ data: Data) -> [(CGImage, Double)] {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return [] }
+        let options = [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                       kCGImageSourceCreateThumbnailWithTransform: true,
+                       kCGImageSourceShouldCacheImmediately: true,
+                       kCGImageSourceThumbnailMaxPixelSize: 1200] as CFDictionary
+        return (0..<CGImageSourceGetCount(source)).compactMap { index in
+            guard let image = CGImageSourceCreateThumbnailAtIndex(source, index, options) else { return nil }
+            let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+            let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+            let delay = (gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double)
+                ?? (gif?[kCGImagePropertyGIFDelayTime] as? Double) ?? 0.1
+            return (image, max(delay, 0.02))
         }
     }
 }
@@ -148,13 +155,14 @@ struct VideoPreview: View {
                     .aspectRatio(ratio, contentMode: .fit)
                     .frame(maxHeight: 520)
                     .clipShape(.rect(cornerRadius: 16))
+                    // One player for the card, started from its controls: opening or returning to a card
+                    // doesn't cut off other audio or restart the video.
                     .onAppear {
+                        guard player == nil else { return }
                         #if os(iOS)
                         try? AVAudioSession.sharedInstance().setCategory(.playback)
                         #endif
-                        let player = AVPlayer(url: url)
-                        self.player = player
-                        player.play()
+                        player = AVPlayer(url: url)
                     }
                     .onDisappear { player?.pause() }
             } else if let poster = SafeURL.sanitize(card.thumbnailUrl) {
@@ -205,9 +213,24 @@ final class AudioPlayback {
         isPlaying.toggle()
     }
 
+    /// Pauses and lets other apps' audio carry on. Playing again starts a fresh player from where it was.
     func stop() {
         player?.pause()
         isPlaying = false
+        release()
+        #if os(iOS)
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
+    }
+
+    isolated deinit { release() }
+
+    private func release() {
+        if let observer { player?.removeTimeObserver(observer) }
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        observer = nil
+        endObserver = nil
+        player = nil
     }
 
     /// Moves to `fraction` of the recording, playing or not, as the web's seek bar does.
@@ -224,10 +247,11 @@ final class AudioPlayback {
         let item = AVPlayerItem(url: url)
         let player = AVPlayer(playerItem: item)
         self.player = player
+        if elapsed > 0, progress < 1 { player.seek(to: CMTime(seconds: elapsed, preferredTimescale: 600)) }
         observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.1, preferredTimescale: 600),
-                                                  queue: .main) { [weak self] time in
+                                                  queue: .main) { [weak self, weak player] time in
             MainActor.assumeIsolated {
-                guard let self else { return }
+                guard let self, let player else { return }
                 if let total = player.currentItem?.duration.seconds, total.isFinite, total > 0 { self.duration = total }
                 self.elapsed = time.seconds
                 self.progress = self.duration > 0 ? min(1, time.seconds / self.duration) : 0
@@ -460,10 +484,16 @@ struct LinkPreviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let image = CardSheet.linkImageURL(card) {
-                RemoteImage(image, contentMode: .fill)
+                let hero = RemoteImage(image, contentMode: .fill)
                     .aspectRatio(1.91, contentMode: .fit)
                     .clipShape(.rect(cornerRadius: 16))
-                    .onTapGesture { if let url = SafeURL.sanitize(card.url) { openURL(url) } }
+                if let url = SafeURL.sanitize(card.url) {
+                    Button { openURL(url) } label: { hero }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(tr("native.actions.openLink"))
+                } else {
+                    hero.accessibilityHidden(true)
+                }
             }
             HStack(spacing: 8) {
                 if let favicon = SafeURL.sanitize(card.metadata?.linkPreview?.faviconUrl) {
@@ -486,12 +516,12 @@ struct QuotePreview: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "quote.opening").font(.title3).foregroundStyle(.tertiary)
+            Image(systemName: "quote.opening").font(.title3).foregroundStyle(.tertiary).accessibilityHidden(true)
             Text(card.content.isEmpty ? tr("native.card.noContent") : card.content)
                 .font(.title2.weight(.medium))
                 .multilineTextAlignment(.center)
                 .textSelection(.enabled)
-            Image(systemName: "quote.closing").font(.title3).foregroundStyle(.tertiary)
+            Image(systemName: "quote.closing").font(.title3).foregroundStyle(.tertiary).accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)

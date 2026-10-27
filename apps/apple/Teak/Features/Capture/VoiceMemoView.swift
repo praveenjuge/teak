@@ -62,8 +62,13 @@ final class VoiceRecorder {
         return item
     }
 
+    /// Stops and throws the recording away, file included.
     func cancel() {
-        _ = stop()
+        if let item = stop() { VoiceRecorder.discard(item) }
+    }
+
+    static func discard(_ item: UploadItem) {
+        try? FileManager.default.removeItem(at: item.fileURL)
     }
 }
 
@@ -73,6 +78,10 @@ struct VoiceMemoView: View {
     @State private var recorder = VoiceRecorder()
     @State private var isSaving = false
     @State private var failure: String?
+    /// A finished recording that hasn't uploaded yet, kept for another try.
+    @State private var recording: UploadItem?
+    @State private var uploadFailure: CaptureModel.Alert?
+    @State private var confirmDiscard = false
 
     var body: some View {
         NavigationStack {
@@ -84,9 +93,9 @@ struct VoiceMemoView: View {
                     .accessibilityLabel(tr("native.capture.recordingTime", CardSheet.formatDuration(recorder.elapsed)))
                 Text(status).foregroundStyle(.secondary)
                 Button {
-                    recorder.isRecording ? stop() : start()
+                    if recording != nil { upload() } else if recorder.isRecording { stop() } else { start() }
                 } label: {
-                    Image(systemName: recorder.isRecording ? "stop.fill" : "mic.fill")
+                    Image(systemName: symbol)
                         .font(.largeTitle)
                         .frame(width: 88, height: 88)
                         .symbolEffect(.pulse, isActive: recorder.isRecording)
@@ -96,7 +105,7 @@ struct VoiceMemoView: View {
                 .buttonBorderShape(.circle)
                 .tint(.red)
                 .disabled(isSaving)
-                .accessibilityLabel(recorder.isRecording ? tr("native.capture.stopRecording") : tr("native.capture.record"))
+                .accessibilityLabel(buttonLabel)
                 .keyboardShortcut(.space, modifiers: [])
                 Spacer()
             }
@@ -108,10 +117,23 @@ struct VoiceMemoView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(tr("common.cancel")) {
-                        recorder.cancel()
-                        dismiss()
+                        if recorder.isRecording || recording != nil { confirmDiscard = true } else { discard() }
+                    }
+                    .disabled(isSaving)
+                    .confirmationDialog(tr("native.capture.discardTitle"), isPresented: $confirmDiscard) {
+                        Button(tr("native.capture.discard"), role: .destructive) { discard() }
+                        Button(tr("common.cancel"), role: .cancel) {}
+                    } message: {
+                        if recorder.isRecording { Text(tr("native.capture.discardMessage")) }
                     }
                 }
+            }
+            // A failed upload shows here and keeps the recording for another try.
+            .alert(uploadFailure?.title ?? "", isPresented: Binding(presenting: $uploadFailure), presenting: uploadFailure) { _ in
+                Button(tr("common.tryAgain")) { upload() }
+                Button(tr("native.app.ok"), role: .cancel) {}
+            } message: { alert in
+                Text(alert.message)
             }
             .alert(tr("native.capture.couldntRecord"), isPresented: Binding(presenting: $failure)) {
                 Button(tr("native.app.ok")) { failure = nil }
@@ -121,12 +143,31 @@ struct VoiceMemoView: View {
             .sensoryFeedback(.start, trigger: recorder.isRecording)
         }
         .frame(minWidth: 360, minHeight: 420)
-        .interactiveDismissDisabled(recorder.isRecording || isSaving)
+        .interactiveDismissDisabled(recorder.isRecording || isSaving || recording != nil)
+        // A card limit shows the usual alert, with Upgrade on the Mac.
+        .captureAlert()
+        // Signing out or closing the Mac window can take the sheet away
+        // mid-recording: stop the mic and drop the file.
+        .onDisappear {
+            recorder.cancel()
+            if let recording, !isSaving { VoiceRecorder.discard(recording) }
+        }
     }
 
     private var status: String {
         if isSaving { return tr("common.saving") }
+        if recording != nil { return tr("native.capture.uploadFailed") }
         return recorder.isRecording ? tr("native.capture.recording") : tr("native.capture.tapToRecord")
+    }
+
+    private var symbol: String {
+        if recording != nil { return "arrow.clockwise" }
+        return recorder.isRecording ? "stop.fill" : "mic.fill"
+    }
+
+    private var buttonLabel: String {
+        if recording != nil { return tr("common.tryAgain") }
+        return recorder.isRecording ? tr("native.capture.stopRecording") : tr("native.capture.record")
     }
 
     private func start() {
@@ -143,11 +184,30 @@ struct VoiceMemoView: View {
 
     private func stop() {
         guard let item = recorder.stop() else { return }
+        recording = item
+        upload()
+    }
+
+    private func upload() {
+        guard let item = recording else { return }
         isSaving = true
         Task {
-            await capture.upload([item])
+            let failure = await capture.upload([item], showsAlert: false)
             isSaving = false
-            if capture.alert == nil { dismiss() }
+            if let failure {
+                // Trying again can't get past a card limit; the recording stays.
+                if failure.isCardLimit { capture.alert = failure } else { uploadFailure = failure }
+            } else {
+                recording = nil
+                dismiss()
+            }
         }
+    }
+
+    private func discard() {
+        recorder.cancel()
+        if let recording { VoiceRecorder.discard(recording) }
+        recording = nil
+        dismiss()
     }
 }

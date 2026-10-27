@@ -42,6 +42,7 @@ final class CardDetailModel {
     func start() {
         guard task == nil else { return }
         task = Task {
+            var failures = 0
             while !Task.isCancelled {
                 do {
                     for try await value in backend.subscribe(ConvexFunctions.getCard, ["id": .string(id)]) {
@@ -56,7 +57,10 @@ final class CardDetailModel {
                     }
                     return
                 } catch {
-                    isLoading = false
+                    // A card that never loaded keeps its spinner through a brief error, and says it's unavailable
+                    // once retrying hasn't helped.
+                    failures += 1
+                    if card != nil || failures >= 3 { isLoading = false }
                     try? await Task.sleep(for: .seconds(2))
                 }
             }

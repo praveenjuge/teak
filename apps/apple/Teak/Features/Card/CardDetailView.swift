@@ -105,7 +105,10 @@ struct CardDetailView: View {
             }
             .animation(.smooth, value: model.notice)
             .environment(\.openURL, OpenURLAction { url in
-                guard let id = CardLinkURL.cardId(url) else { return .systemAction }
+                // Notes open web and mail links; anything else, like a script or a file path, is ignored.
+                guard let id = CardLinkURL.cardId(url) else {
+                    return ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") ? .systemAction : .discarded
+                }
                 router.open(CardRoute(id: id, summary: nil))
                 return .handled
             })
@@ -169,11 +172,12 @@ struct CardDetailView: View {
         }
     }
 
+    /// Shows similar cards on Home, whichever library the card was opened from.
     private func moreLikeThis(_ card: Card) {
         router.homePath.removeAll()
         router.foldersPath.removeAll()
         router.tab = .home
-        library.moreLike(card.id, title: CardSheet.title(card, fallback: route.summary?.title))
+        AppServices.shared.home.moreLike(card.id, title: CardSheet.title(card, fallback: route.summary?.title))
     }
 
     @ViewBuilder private func hero(_ card: Card, _ model: CardDetailModel) -> some View {
@@ -214,8 +218,10 @@ struct CardDetailView: View {
                     .accessibilityAddTraits(model.isDone ? .isSelected : [])
                     .accessibilityIdentifier("detail.done")
                 }
-                Button(tr("common.edit"), systemImage: "pencil") { showEditSheet = true }
-                .keyboardShortcut("e", modifiers: .command)
+                if !editsInMenu(card) {
+                    Button(tr("common.edit"), systemImage: "pencil") { showEditSheet = true }
+                        .keyboardShortcut("e", modifiers: .command)
+                }
                 Menu(tr("common.more"), systemImage: "ellipsis") { moreMenu(card, model) }
                     .accessibilityIdentifier("detail.more")
             }
@@ -228,12 +234,18 @@ struct CardDetailView: View {
         }
     }
 
+    /// An iPhone's header fits four buttons; a link's Done takes Edit's place there, and Edit leads More.
+    private func editsInMenu(_ card: Card) -> Bool { !isWide && card.type == .link }
+
     @ViewBuilder private func moreMenu(_ card: Card, _ model: CardDetailModel) -> some View {
+        if editsInMenu(card) {
+            Button(tr("common.edit"), systemImage: "pencil") { showEditSheet = true }
+        }
         Section {
             if let copy = CardSheet.copyText(card) {
                 Button(CardSheet.copyLabel(card), systemImage: "doc.on.doc") {
                     Pasteboard.copy(copy)
-                    feedback += 1
+                    model.show(tr("native.card.copied"))
                 }
             }
             if card.type == .link {
@@ -264,7 +276,7 @@ struct CardDetailView: View {
         Section {
             Button(tr("native.actions.copyLinkToCard"), systemImage: "link") {
                 Pasteboard.copy(webURL(card).absoluteString)
-                feedback += 1
+                model.show(tr("native.actions.linkCopied"))
             }
             Button(tr("native.actions.openOnWeb"), systemImage: "globe") { open(webURL(card)) }
         }
@@ -415,8 +427,9 @@ private struct EditLinkSheet: View {
                 }
             }
         }
+        #if os(macOS)
         .frame(minWidth: 380, minHeight: 200)
-        #if os(iOS)
+        #else
         .presentationDetents([.medium])
         #endif
         .onAppear { text = address }

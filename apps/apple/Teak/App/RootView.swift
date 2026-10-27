@@ -43,7 +43,10 @@ struct RootView: View {
             if phase == .active { app.becameActive() }
         }
         .onChange(of: app.phase, initial: true) { _, phase in router.follow(phase) }
+        #if os(iOS)
+        // The Mac's app delegate takes links, so they open a closed window too.
         .onOpenURL { router.handle($0, phase: app.phase) }
+        #endif
         // A Spotlight result for a card opens it.
         .onContinueUserActivity(CSSearchableItemActionType) { activity in
             guard let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
@@ -57,6 +60,7 @@ struct RootView: View {
 }
 
 struct MainView: View {
+    @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router
     @Environment(CaptureModel.self) private var capture
     @Namespace private var namespace
@@ -124,31 +128,32 @@ struct MainView: View {
                 .ignoresSafeArea()
         }
         #endif
-        .alert(capture.alert?.title ?? "", isPresented: Binding(get: { capture.alert != nil }, set: { if !$0 { capture.alert = nil } }),
-               presenting: capture.alert) { alert in
-            #if os(macOS)
-            if alert.isCardLimit {
-                Button(tr("native.app.upgrade")) { NSWorkspace.shared.open(AppServices.shared.app.config.webURL.appending(path: "settings")) }
-            }
-            #endif
-            Button(tr("native.app.ok"), role: .cancel) {}
-        } message: { alert in
-            Text(alert.message)
-        }
+        // The note and voice memo sheets show capture errors themselves.
+        .captureAlert(when: !router.isComposing && !router.isRecording)
         .sensoryFeedback(.success, trigger: capture.savedCount)
         .overlay(alignment: .top) {
-            if let upload = capture.upload {
-                Label(tr("native.app.uploadProgress", localizedNumber(min(upload.done + 1, upload.total)), localizedNumber(upload.total)),
-                      systemImage: "arrow.up.circle")
-                    .font(.subheadline.weight(.medium))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .glassEffect(.regular, in: .capsule)
-                    .padding(.top, 8)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+            VStack(spacing: 8) {
+                if !app.isOnline {
+                    banner(tr("native.app.offline.title"), systemImage: "wifi.slash")
+                }
+                if let upload = capture.upload {
+                    banner(tr("native.app.uploadProgress", localizedNumber(min(upload.done + 1, upload.total)), localizedNumber(upload.total)),
+                           systemImage: "arrow.up.circle")
+                }
             }
+            .padding(.top, 8)
         }
         .animation(.smooth, value: capture.upload?.done)
+        .animation(.smooth, value: app.isOnline)
+    }
+
+    private func banner(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(.regular, in: .capsule)
+            .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
 
@@ -213,6 +218,7 @@ struct SaveRequestView: View {
     @Environment(CaptureModel.self) private var capture
     @Environment(\.dismiss) private var dismiss
     @State private var status: Status = .saving
+    @State private var started = false
 
     enum Status { case saving, saved, empty, signedOut, failed }
 
@@ -241,7 +247,20 @@ struct SaveRequestView: View {
             default: nil
             }
         }
-        .task { await save() }
+        // On a cold launch the link can come before the session is read and
+        // sent to Convex. Waiting is cut short when that takes too long.
+        .task(id: isReady) {
+            if !isReady { try? await Task.sleep(for: .seconds(10)) }
+            guard !Task.isCancelled, !started else { return }
+            started = true
+            // Its own task, so `isReady` changing later can't cancel the save.
+            Task { await save() }
+        }
+    }
+
+    private var isReady: Bool {
+        guard app.phase != .loading else { return false }
+        return app.user == nil || app.isConvexAuthenticated || !app.isOnline
     }
 
     private func state(_ title: String, _ message: String, _ symbol: String) -> some View {

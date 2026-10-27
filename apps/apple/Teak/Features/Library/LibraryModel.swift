@@ -216,9 +216,11 @@ final class LibraryModel {
     }
 
     func refresh() async {
+        // The old cards stay until the fresh ones arrive, with the changes made to them.
+        await pager.refresh()
+        guard !pager.isStale, !Task.isCancelled else { return }
         favoriteOverrides = [:]
         hiddenIds = []
-        await pager.refresh()
     }
 
     func show(_ text: String, isError: Bool = false, isCardLimit: Bool = false, undo: (@MainActor () -> Void)? = nil) {
