@@ -13,6 +13,8 @@ data class PagedCards(
     val cards: List<CardSummary> = emptyList(),
     /** The first page is on its way. [cards] then holds what the last load showed, if anything. */
     val isLoading: Boolean = true,
+    /** [cards] are still another query's, kept on screen while this one loads: nothing should act on them. */
+    val showsOtherQuery: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isRefreshing: Boolean = false,
     val isDone: Boolean = false,
@@ -38,6 +40,9 @@ class CardPager(
 
     /** What showed before a new load or a refresh, kept until its first page comes, so the grid doesn't blink. */
     private var previous: List<CardSummary> = emptyList()
+
+    /** The query the cards on screen came from. A refresh keeps it; a new query, or a refresh before it loads, doesn't. */
+    private var shownQuery: CardQuery? = null
     private val _state = MutableStateFlow(PagedCards())
     val state: StateFlow<PagedCards> = _state.asStateFlow()
 
@@ -108,9 +113,11 @@ class CardPager(
         val loadingFirst = first != null && first.page == null && first.error == null
         if (!loadingFirst) previous = emptyList()
         val cards = if (loadingFirst) previous else slots.flatMap { it.page?.page.orEmpty() }.filter { seen.add(it.id) }
+        if (!loadingFirst) shownQuery = query
         _state.value = PagedCards(
             cards = cards,
             isLoading = loadingFirst,
+            showsOtherQuery = loadingFirst && cards.isNotEmpty() && shownQuery != query,
             isLoadingMore = slots.size > 1 && last?.page == null && last?.error == null,
             isRefreshing = refreshing,
             isDone = last?.page?.isDone == true,

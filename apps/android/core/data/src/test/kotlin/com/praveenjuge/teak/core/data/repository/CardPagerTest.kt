@@ -160,8 +160,14 @@ class CardPagerTest {
         assertTrue(pager.state.value.isLoading)
         assertEquals(listOf("card_1"), pager.state.value.cards.map { it.id })
 
+        assertTrue(pager.state.value.showsOtherQuery)
+        // Refreshing before the new search answers doesn't make the old cards its own.
+        pager.refresh()
+        assertTrue(pager.state.value.showsOtherQuery)
+
         pages.emit(Result.success(CardSummaryPage(listOf(DeployedRepository.Card2), isDone = true)))
         assertFalse(pager.state.value.isLoading)
+        assertFalse(pager.state.value.showsOtherQuery)
         assertEquals(listOf("card_2"), pager.state.value.cards.map { it.id })
     }
 

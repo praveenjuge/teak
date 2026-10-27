@@ -104,6 +104,14 @@ class LibraryViewModelTest {
         viewModel.toggleTrash()
         advanceUntilIdle()
         assertFalse(viewModel.state.value.canActOnCards)
+
+        // A pull to refresh before Trash answers still shows Home's cards, so they stay out of reach.
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertTrue(viewModel.state.value.paged.isRefreshing)
+        assertFalse(viewModel.state.value.canActOnCards)
+        viewModel.select("a")
+        assertFalse(viewModel.state.value.isSelecting)
     }
 
     @Test
