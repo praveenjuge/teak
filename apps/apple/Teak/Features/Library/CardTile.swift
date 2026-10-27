@@ -17,9 +17,9 @@ struct CardTile: View {
             .overlay(alignment: isSelected == nil ? .topTrailing : .bottomTrailing) { badge }
             .opacity(isTrashed ? 0.6 : 1)
             .contentShape(shape)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(accessibilityText)
-            .accessibilityAddTraits(isSelected == true ? [.isButton, .isSelected] : .isButton)
+            // One line of text for the whole tile, which the button around it reads as its label.
+            // Images and the quote marks are decoration.
+            .accessibilityRepresentation { Text(accessibilityText) }
     }
 
     private var shape: some Shape { RoundedRectangle(cornerRadius: CardGrid.tileRadius, style: .continuous) }
@@ -35,14 +35,18 @@ struct CardTile: View {
                 .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
                 .contentTransition(.symbolEffect(.replace))
         } else if card.favorited {
+            // Over a photo, a small backdrop keeps the red heart readable on red and orange.
             Image(systemName: "heart.fill")
                 .font(.footnote)
                 .foregroundStyle(.red)
-                .padding(10)
+                .padding(badgeOnMedia ? 6 : 0)
+                .background { if badgeOnMedia { Circle().fill(.regularMaterial) } }
+                .padding(badgeOnMedia ? 4 : 10)
                 .shadow(color: .black.opacity(0.2), radius: 2, y: 1)
-                .accessibilityLabel(tr("native.library.tile.favorite"))
         }
     }
+
+    private var badgeOnMedia: Bool { [.image, .video].contains(card.type) || imageURL != nil }
 
     private var badgeInset: Double { isSelected == nil && card.favorited ? 18 : 0 }
 

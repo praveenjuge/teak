@@ -1,9 +1,11 @@
 package com.praveenjuge.teak.core.model
 
+import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
 const val MAX_SHUFFLE_SEED = Int.MAX_VALUE
 
+@Serializable
 data class LibraryFilters(
     val favoritesOnly: Boolean = false,
     val trashOnly: Boolean = false,

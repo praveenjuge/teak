@@ -220,6 +220,8 @@
     <string name="native_capture_couldntSave">Speichern fehlgeschlagen</string>
     <string name="native_capture_discard">Verwerfen</string>
     <string name="native_capture_discardMessage">Die Aufnahme läuft noch. Wenn Sie jetzt gehen, wird sie verworfen.</string>
+    <string name="native_capture_discardNoteMessage">Sie wurde noch nicht gespeichert.</string>
+    <string name="native_capture_discardNoteTitle">Diese Notiz verwerfen?</string>
     <string name="native_capture_discardTitle">Aufnahme verwerfen?</string>
     <string name="native_capture_dropHint">Sie können Dateien auch auf die Bibliothek ziehen oder mit ⌘V einfügen.</string>
     <string name="native_capture_errorTitle">Fehler</string>
@@ -688,6 +690,7 @@
     <string name="native_settings_about">Über</string>
     <string name="native_settings_account">Konto</string>
     <string name="native_settings_appearance">Darstellung</string>
+    <string name="native_settings_byAuthor">von %1$s</string>
     <string name="native_settings_deleteAccount">Konto löschen</string>
     <string name="native_settings_deleteFailed">Beim Löschen Ihres Kontos ist etwas schiefgelaufen.</string>
     <string name="native_settings_deleteWarning">Dadurch werden Ihr Konto, Ihre Karten, Tags und hochgeladenen Dateien endgültig entfernt. Sind Sie sicher?</string>

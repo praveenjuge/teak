@@ -25,9 +25,23 @@ final class AppServices {
         folderLibrary = LibraryModel(backend: app.backend, spotlight: app.spotlight)
         folders = FoldersModel(backend: app.backend)
         tags = TagsModel(backend: app.backend)
+        app.onSignedOut = { [unowned self] in self.resetForNextUser() }
     }
 
+    /// Signing out leaves no trace of the last account's place in the app.
+    private func resetForNextUser() {
+        router.reset()
+        capture.reset()
+        for library in [home, folderLibrary] {
+            library.endSelection()
+            library.clearFilters()
+        }
+        #if os(macOS)
+        UserDefaults.standard.removeObject(forKey: MacPreferences.quickCaptureDraftKey)
+        #endif
+    }
 
+    /// The Mac's one main window, brought forward or opened again after it was closed.
     func showMainWindow() {
         #if os(macOS)
         NSApp.activate()
@@ -54,14 +68,15 @@ struct TeakApp: App {
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
 
     var body: some Scene {
-        WindowGroup("Teak", id: "main") {
-            RootView()
-                .environments(services)
-                .preferredColorScheme(appearance.colorScheme)
-        }
-        .commands { TeakCommands(services: services) }
         #if os(macOS)
-        .windowResizability(.contentSize)
+        // One library window: its sheets follow the app-wide router, so a
+        // second window would show (and save) each sheet twice.
+        Window("Teak", id: "main") { mainWindow }
+            .commands { TeakCommands(services: services) }
+            .windowResizability(.contentSize)
+        #else
+        WindowGroup("Teak", id: "main") { mainWindow }
+            .commands { TeakCommands(services: services) }
         #endif
 
         #if os(macOS)
@@ -84,6 +99,12 @@ struct TeakApp: App {
                 .preferredColorScheme(appearance.colorScheme)
         }
         #endif
+    }
+
+    private var mainWindow: some View {
+        RootView()
+            .environments(services)
+            .preferredColorScheme(appearance.colorScheme)
     }
 }
 

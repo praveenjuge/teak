@@ -148,12 +148,7 @@ internal fun CardTile(
         }
         when {
             selecting -> SelectionMark(selected, Modifier.align(Alignment.BottomEnd).padding(8.dp))
-            favorite -> Icon(
-                Icons.Filled.Favorite,
-                contentDescription = null,
-                tint = Color(0xFFEF4444),
-                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(16.dp),
-            )
+            favorite -> FavoriteMark(Modifier.align(Alignment.TopEnd).padding(6.dp))
         }
     }
 }
@@ -352,6 +347,19 @@ private fun Waveform(seed: String) {
                 cornerRadius = CornerRadius(bar / 2),
             )
         }
+    }
+}
+
+/** The red heart on a favorite, on a small backdrop so it shows on any photo. */
+@Composable
+private fun FavoriteMark(modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+        Icon(
+            Icons.Filled.Favorite,
+            contentDescription = null,
+            tint = Color(0xFFEF4444),
+            modifier = Modifier.padding(4.dp).size(16.dp),
+        )
     }
 }
 

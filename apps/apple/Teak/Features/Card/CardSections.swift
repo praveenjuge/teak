@@ -25,7 +25,6 @@ struct CardSections: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            linkDetails
             if let notes = card.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
                 section(tr("native.card.sections.notes")) { paragraph(notes) }
             }
@@ -45,9 +44,9 @@ struct CardSections: View {
             if let transcript = card.aiTranscript?.trimmingCharacters(in: .whitespacesAndNewlines), !transcript.isEmpty {
                 section(tr("native.card.sections.transcript")) { paragraph(transcript) }
             }
+            linkMedia
             linkedFrom
             info
-            source
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -65,23 +64,17 @@ struct CardSections: View {
         dismiss()
     }
 
-    @ViewBuilder private var linkDetails: some View {
-        if card.type == .link {
-            let facts = linkRows
-            if !facts.isEmpty {
-                section(tr("native.card.sections.details")) { rows(facts) }
-            }
-            let media = CardSheet.linkMedia(card)
-            if media.count > 1 {
-                section(tr("native.card.sections.media")) {
-                    VStack(spacing: 8) {
-                        ForEach(media, id: \.url) { item in
-                            RemoteImage(item.url, contentMode: .fit)
-                                .aspectRatio(item.width.flatMap { width in item.height.map { width / max($0, 1) } } ?? 4.0 / 3.0,
-                                             contentMode: .fit)
-                                .frame(maxHeight: 520)
-                                .clipShape(.rect(cornerRadius: 12))
-                        }
+    @ViewBuilder private var linkMedia: some View {
+        let media = card.type == .link ? CardSheet.linkMedia(card) : []
+        if media.count > 1 {
+            section(tr("native.card.sections.media")) {
+                VStack(spacing: 8) {
+                    ForEach(media, id: \.url) { item in
+                        RemoteImage(item.url, contentMode: .fit)
+                            .aspectRatio(item.width.flatMap { width in item.height.map { width / max($0, 1) } } ?? 4.0 / 3.0,
+                                         contentMode: .fit)
+                            .frame(maxHeight: 520)
+                            .clipShape(.rect(cornerRadius: 12))
                     }
                 }
             }
@@ -101,8 +94,9 @@ struct CardSections: View {
         }
     }
 
-    /// A product's price first, then the site's facts, then when it was published.
+    /// A link's facts lead Info: a product's price, then the site's facts, then when it was published.
     private var linkRows: [DetailRow] {
+        guard card.type == .link else { return [] }
         var rows = CardSheet.linkFacts(card)
         if let price = card.metadata?.linkCategory?.price { rows.insert(DetailRow(tr("native.details.price"), price.formatted()), at: 0) }
         if let published = PublishedDate.format(card.metadata?.linkPreview?.publishedAt) {
@@ -118,11 +112,14 @@ struct CardSections: View {
                     ForEach(Array(backlinks.enumerated()), id: \.element.id) { index, linked in
                         if index > 0 { Divider().padding(.leading, 16) }
                         Button { openCard(linked.id) } label: {
-                            Label(linked.title, systemImage: linked.type.symbol)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .contentShape(.rect)
+                            HStack {
+                                Label(linked.title, systemImage: linked.type.symbol)
+                                Spacer(minLength: 8)
+                                Chevron()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
                     }
@@ -140,31 +137,13 @@ struct CardSections: View {
         }
     }
 
-    /// "From example.com": where a saved note or quote came from.
-    @ViewBuilder private var source: some View {
-        if let host = CardSourceRow.host(card.sourceUrl) {
-            Button {
-                if let url = SafeURL.sanitize(card.sourceUrl) { openSource(url) }
-            } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Label(tr("native.card.source.from", host), systemImage: "arrow.up.right.square")
-                        .font(.footnote.weight(.medium))
-                    if let title = card.sourceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
-                        Text(title).font(.footnote).foregroundStyle(Color.secondary).lineLimit(1)
-                    }
-                }
-                .padding(.leading, 4)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
-            .accessibilityHint(card.sourceUrl ?? "")
-            .accessibilityIdentifier("detail.source")
-        }
-    }
-
+    /// The facts about the card, one group: what the hero already shows (a link's site and description) is left out.
     private var info: some View {
         let exif = card.type == .image ? ExifFacts.rows(card.fileMetadata?.exif) : []
-        let details = CardSheet.detailRows(card).filter { $0.label != tr("native.details.type") } + exif
+        let shownAbove: Set<String> = card.type == .link
+            ? [tr("native.details.type"), tr("native.details.website"), tr("native.details.description")]
+            : [tr("native.details.type")]
+        let details = linkRows + CardSheet.detailRows(card).filter { !shownAbove.contains($0.label) } + exif
             + [DetailRow(tr("native.details.created"), CardSheet.formatTimestamp(card.createdAt)),
                DetailRow(tr("native.details.updated"), CardSheet.formatTimestamp(card.updatedAt))]
         return section(tr("native.card.sections.info")) {
@@ -173,12 +152,8 @@ struct CardSections: View {
                     filterLibrary.type(card.type)
                     dismiss()
                 } label: {
-                    InfoRow(label: tr("native.details.type")) {
-                        HStack(spacing: 4) {
-                            Image(systemName: card.type.symbol)
-                            Text(card.type.label)
-                        }
-                        .foregroundStyle(.tint)
+                    InfoRow(label: tr("native.details.type"), opens: true) {
+                        Label(card.type.label, systemImage: card.type.symbol)
                     }
                 }
                 .buttonStyle(.plain)
@@ -186,13 +161,12 @@ struct CardSections: View {
                 if let editFolders {
                     Divider().padding(.leading, 16)
                     Button(action: editFolders) {
-                        InfoRow(label: tr("native.card.sections.folders")) {
-                            Text(folderSummary).foregroundStyle(.tint)
-                        }
+                        InfoRow(label: tr("native.card.sections.folders"), opens: true) { Text(folderSummary) }
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(folderNames.isEmpty ? tr("native.card.folderRow.addLabel") : tr("native.card.folderRow.inFolders", folderNames.formatted(.list(type: .and).locale(AppLanguage.locale))))
                 }
+                source
                 ForEach(details, id: \.self) { row in
                     Divider().padding(.leading, 16)
                     InfoRow(label: row.label) { Text(row.value) }
@@ -205,19 +179,38 @@ struct CardSections: View {
         }
     }
 
+    /// "From example.com": where a saved note or quote came from.
+    @ViewBuilder private var source: some View {
+        if let host = CardSourceRow.host(card.sourceUrl) {
+            Divider().padding(.leading, 16)
+            Button {
+                if let url = SafeURL.sanitize(card.sourceUrl) { openSource(url) }
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tr("native.card.source.from", host))
+                        if let title = card.sourceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+                            Text(title).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "arrow.up.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(card.sourceUrl ?? "")
+            .accessibilityIdentifier("detail.source")
+        }
+    }
+
     private var folderSummary: String {
         guard let first = folderNames.first else { return tr("native.card.folderRow.add") }
         return folderNames.count > 1 ? tr("native.card.folderRow.summary", first, (folderNames.count - 1).formatted(.number.locale(AppLanguage.locale))) : first
-    }
-
-    private func rows(_ rows: [DetailRow]) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                if index > 0 { Divider().padding(.leading, 16) }
-                InfoRow(label: row.label) { Text(row.value) }
-            }
-        }
-        .grouped()
     }
 
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
@@ -226,28 +219,53 @@ struct CardSections: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 4)
+                .accessibilityAddTraits(.isHeader)
             content().font(.body)
         }
     }
 }
 
+/// The disclosure mark on a row that goes somewhere.
+private struct Chevron: View {
+    var body: some View {
+        Image(systemName: "chevron.forward")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct InfoRow<Value: View>: View {
     let label: String
+    /// A row that opens something, marked with a chevron.
+    var opens = false
     @ViewBuilder let value: Value
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 16) {
-            Text(label).foregroundStyle(.primary).fixedSize()
-            Spacer(minLength: 12)
-            value
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
-                .textSelection(.enabled)
+        // Accessibility text sizes stack the value under its label instead of squeezing both onto one line.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 16))
+        HStack(spacing: 8) {
+            layout {
+                Text(label)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: !typeSize.isAccessibilitySize, vertical: false)
+                if !typeSize.isAccessibilitySize { Spacer(minLength: 12) }
+                value
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(typeSize.isAccessibilitySize ? .leading : .trailing)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
+                    .textSelection(.enabled)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if opens { Chevron() }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
     }
 }
@@ -283,30 +301,39 @@ private struct SuggestedTagRow: View {
         }
     }
 
-    private func chip(_ tag: String) -> some View {
-        HStack(spacing: 2) {
-            Button { onTag(tag) } label: {
-                Text(tag).font(.footnote.weight(.medium)).padding(.leading, 10).padding(.trailing, actions == nil ? 10 : 2)
-            }
-            .accessibilityLabel(tr("native.card.searchForTag", tag))
-            if let actions {
+    /// A dashed chip. With actions, it opens a menu to keep, look up or remove the tag, so each choice is a full-size
+    /// target; in Trash it only looks the tag up.
+    @ViewBuilder private func chip(_ tag: String) -> some View {
+        if let actions {
+            Menu {
                 Button(tr("native.tags.keep"), systemImage: "plus") { actions.keep(tag) }
-                    .frame(width: 26, height: 30)
-                    .contentShape(.rect)
-                    .accessibilityLabel(tr("native.tags.keepTag", tag))
                     .accessibilityIdentifier("detail.keepTag.\(tag)")
-                Button(tr("common.remove"), systemImage: "xmark") { actions.remove(tag) }
-                    .frame(width: 26, height: 30)
-                    .contentShape(.rect)
-                    .padding(.trailing, 4)
-                    .accessibilityLabel(tr("native.card.edit.removeTag", tag))
+                Button(tr("native.card.searchForTag", tag), systemImage: "magnifyingglass") { onTag(tag) }
+                Button(tr("common.remove"), systemImage: "xmark", role: .destructive) { actions.remove(tag) }
+            } label: {
+                label(tag, symbol: "plus")
             }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: tag))
+            .accessibilityHint(tr("native.tags.suggested"))
+            .accessibilityIdentifier("detail.suggestedTag.\(tag)")
+        } else {
+            Button { onTag(tag) } label: { label(tag, symbol: nil) }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tr("native.card.searchForTag", tag))
         }
-        .labelStyle(.iconOnly)
-        .imageScale(.small)
-        .buttonStyle(.plain)
-        .frame(minHeight: 30)
+    }
+
+    private func label(_ tag: String, symbol: String?) -> some View {
+        HStack(spacing: 4) {
+            Text(tag)
+            if let symbol { Image(systemName: symbol).imageScale(.small).accessibilityHidden(true) }
+        }
+        .font(.footnote.weight(.medium))
         .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .overlay(Capsule().strokeBorder(.tertiary, style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
         .contentShape(.capsule)
     }

@@ -54,7 +54,10 @@ struct SidebarMainView: View {
                 Label(tr("native.filters.archive"), systemImage: "archivebox").tag(SidebarItem.archive)
                 Label(tr("native.tags.title"), systemImage: "number").tag(SidebarItem.tags)
                 Label(tr("native.filters.trash"), systemImage: "trash").tag(SidebarItem.trash)
+                #if os(iOS)
+                // The Mac keeps Settings in its own window, from the app menu and ⌘,.
                 Label(tr("native.settings.title"), systemImage: "gearshape").tag(SidebarItem.settings)
+                #endif
                 Section {
                     ForEach(services.folders.folders) { folder in
                         FolderLabel(folder: folder)
@@ -118,10 +121,6 @@ struct SidebarMainView: View {
             guard let item else { return }
             // Leave Home with no card pushed: rebuilding the library's stack
             // later with a stale path crashed SwiftUI's split view on iPad.
-            #if os(macOS)
-            // The Mac keeps Settings in its own window, as ⌘, opens it.
-            if item == .settings { return services.showSettings() }
-            #endif
             if [.add, .tags, .settings].contains(item) { router.homePath = [] }
             switch item {
             case .add: router.tab = .add

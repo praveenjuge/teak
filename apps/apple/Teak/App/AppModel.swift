@@ -35,6 +35,8 @@ final class AppModel {
     @ObservationIgnored private var tokenTask: Task<Void, Never>?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private let defaults: UserDefaults
+    /// Puts the app's screens back to a fresh start when the user signs out.
+    @ObservationIgnored var onSignedOut: (() -> Void)?
 
     init(config: TeakConfig = .current) {
         self.config = config
@@ -46,8 +48,10 @@ final class AppModel {
 
     var phase: AppPhase {
         if !sessionLoaded || (keychainUnavailable && user == nil) { return .loading }
-        if !isOnline { return .offline }
+        // Signed in, the library stays up offline (sheets and drafts with it)
+        // and shows a banner instead.
         if user != nil { return .signedIn }
+        if !isOnline { return .offline }
         if let configurationError, authMode == nil { return .failed(configurationError) }
         return authMode == nil ? .loading : .signedOut
     }
@@ -129,6 +133,7 @@ final class AppModel {
             if previous != nil, state.user == nil {
                 authenticateTask?.cancel()
                 tokenTask?.cancel()
+                onSignedOut?()
                 await backend.logout()
             }
         }
@@ -221,15 +226,32 @@ final class AppModel {
         authenticateConvex()
     }
 
+    /// Signs out on this device, offline too. Ending the session on the
+    /// server is best-effort, with a token taken (refreshed if it must be,
+    /// for up to a few seconds) before the session is cleared.
     func signOut() async throws {
-        guard try await session.accessToken() != nil else {
-            await session.clear()
-            return
+        let token = await firstOrNil(within: .seconds(4)) { [session] in try? await session.accessToken() }
+        guard let sessionId = await session.clear(), let token else { return }
+        let convex = ConvexHTTP(baseURL: config.convexURL, timeout: 10) { token }
+        Task.detached {
+            let _: ConvexVoid? = try? await convex.action(ConvexFunctions.revokeAuthkitSession,
+                                                          ["sessionId": .string(sessionId)])
         }
-        guard let sessionId = await session.sessionId else { throw TeakError.signedOut }
-        let _: ConvexVoid = try await backend.action(ConvexFunctions.revokeAuthkitSession,
-                                                     ["sessionId": .string(sessionId)])
-        await session.clear()
+    }
+
+    /// What `operation` returns, or nil once `limit` passes; a late result is dropped.
+    private func firstOrNil<T: Sendable>(within limit: Duration,
+                                         _ operation: @escaping @Sendable () async -> T?) async -> T? {
+        let (results, continuation) = AsyncStream.makeStream(of: T?.self)
+        Task { continuation.yield(await operation()) }
+        Task {
+            try? await Task.sleep(for: limit)
+            continuation.yield(nil)
+        }
+        var iterator = results.makeAsyncIterator()
+        let first = await iterator.next() ?? nil
+        continuation.finish()
+        return first
     }
 
     func deleteAccount() async throws {

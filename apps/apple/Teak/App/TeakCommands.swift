@@ -29,13 +29,13 @@ struct TeakCommands: Commands {
 
     @CommandsBuilder private func commands(language _: String) -> some Commands {
         CommandGroup(replacing: .newItem) {
-            Button(tr("apple.commands.newNote")) { services.router.compose() }
+            Button(tr("apple.commands.newNote")) { inMainWindow { services.router.compose() } }
                 .keyboardShortcut("n")
                 .disabled(!signedIn)
-            Button(tr("apple.commands.uploadFiles")) { services.router.isImportingFiles = true }
+            Button(tr("apple.commands.uploadFiles")) { inMainWindow { services.router.isImportingFiles = true } }
                 .keyboardShortcut("u", modifiers: [.command, .shift])
                 .disabled(!signedIn)
-            Button(tr("apple.commands.voiceMemo")) { services.router.isRecording = true }
+            Button(tr("apple.commands.voiceMemo")) { inMainWindow { services.router.isRecording = true } }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(!signedIn)
             #if os(macOS)
@@ -51,7 +51,7 @@ struct TeakCommands: Commands {
         CommandGroup(after: .toolbar) {
             Button(tr("apple.commands.refreshLibrary")) { Task { await services.home.refresh() } }
                 .keyboardShortcut("r")
-                .disabled(!signedIn)
+                .disabled(!signedIn || !services.app.isOnline)
             Button(tr("apple.commands.selectCards")) { services.home.beginSelection() }
                 .disabled(!signedIn || services.home.isSelecting)
             Button(tr("apple.commands.selectAllCards")) { services.home.selectAll() }
@@ -60,11 +60,13 @@ struct TeakCommands: Commands {
             Divider()
             Button(tr("apple.commands.showFavorites")) {
                 services.home.filters.favoritesOnly.toggle()
+                services.router.homePath = []
                 services.router.tab = .home
             }
                 .disabled(!signedIn)
             Button(tr("apple.commands.showTrash")) {
                 services.home.filters.trashOnly.toggle()
+                services.router.homePath = []
                 services.router.tab = .home
             }
                 .disabled(!signedIn)
@@ -95,6 +97,15 @@ struct TeakCommands: Commands {
                 .keyboardShortcut("r", modifiers: [.command, .option])
                 .disabled(card == nil)
         }
+    }
+
+    /// The main window's sheets show these, so on the Mac it comes forward
+    /// (or opens again) first.
+    private func inMainWindow(_ action: () -> Void) {
+        #if os(macOS)
+        services.showMainWindow()
+        #endif
+        action()
     }
 
     private func pasteAsNewCard() {

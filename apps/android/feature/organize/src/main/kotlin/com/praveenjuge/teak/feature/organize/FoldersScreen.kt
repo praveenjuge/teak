@@ -27,9 +27,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -54,6 +55,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
@@ -109,7 +111,7 @@ internal fun PaddingValues.withoutBottom(): PaddingValues {
     return PaddingValues(start = calculateStartPadding(direction), top = calculateTopPadding(), end = calculateEndPadding(direction))
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -133,8 +135,8 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = { Text(tr("native.folders.title")) },
+            LargeFlexibleTopAppBar(
+                title = { Text(tr("native.folders.title"), modifier = Modifier.semantics { heading() }) },
                 actions = {
                     Box {
                         IconButton(onClick = { newMenu = true }) {
@@ -171,12 +173,14 @@ internal fun FoldersScreen(state: FoldersUiState, actions: FoldersActions) {
                 state.failed -> EmptyState(
                     tr("native.folders.loadFailed"),
                     tr("native.errors.offline"),
+                    modifier = Modifier.align(Alignment.Center),
                     icon = Icons.Outlined.CloudOff,
                     action = { Button(onClick = actions.onReload) { Text(tr("common.tryAgain")) } },
                 )
                 state.folders.isEmpty() -> EmptyState(
                     title = tr("native.folders.emptyTitle"),
                     message = tr("native.folders.emptyMessage"),
+                    modifier = Modifier.align(Alignment.Center),
                     icon = Icons.Outlined.Folder,
                     action = {
                         Button(onClick = { actions.onOpenEditor(FolderEditor.New(smart = false)) }) {

@@ -29,15 +29,17 @@ struct SettingsView: View {
     #endif
 
     var body: some View {
+        // Who you are first, then how Teak looks and works, then what it is; leaving and deleting come last.
         Form {
+            ProfileSection(account: account)
+            AppearanceSection()
+            LanguageSection()
             #if os(iOS)
             if sizeClass == .compact { LibrarySection() }
             #endif
-            AppearanceSection()
-            LanguageSection()
-            AccountSection(account: account)
             SafariExtensionSection()
             AboutSection()
+            AccountActions()
         }
         .formStyle(.grouped)
         .navigationTitle(tr("native.settings.title"))
@@ -102,10 +104,50 @@ final class AccountModel {
     }
 }
 
-struct AccountSection: View {
+/// The signed-in account: email, plan and how many cards it holds.
+struct ProfileSection: View {
     let account: AccountModel
     @Environment(AppModel.self) private var app
     @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Section(tr("native.settings.profile")) {
+            LabeledContent(tr("native.settings.email")) {
+                Text(app.user?.email ?? account.user?.email ?? tr("native.settings.notSignedIn"))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+            }
+            LabeledContent(tr("native.settings.plan")) {
+                HStack(spacing: 12) {
+                    value(account.user.map(AccountText.plan))
+                    #if os(macOS)
+                    if let user = account.user {
+                        Button(user.hasPremium ? tr("native.settings.manage") : tr("native.app.upgrade")) {
+                            openURL(app.config.webURL.appending(path: "settings"))
+                        }
+                    }
+                    #endif
+                }
+            }
+            LabeledContent(tr("native.settings.usage")) { value(account.user.map(AccountText.usage)) }
+        }
+    }
+
+    @ViewBuilder private func value(_ text: String?) -> some View {
+        if let text {
+            Text(text)
+        } else if account.isLoading {
+            ProgressView().controlSize(.small)
+        } else {
+            Text(tr("native.settings.notAvailable"))
+        }
+    }
+}
+
+/// Sign out and Delete account, each in its own group at the end, as in the system's settings.
+struct AccountActions: View {
+    @Environment(AppModel.self) private var app
     @State private var confirmSignOut = false
     @State private var confirmDelete = false
     @State private var typingConfirmation = false
@@ -113,46 +155,23 @@ struct AccountSection: View {
     @State private var isWorking = false
     @State private var error: String?
 
-    /// What the person types to delete their account. It stays English in every language.
-    static let deletePhrase = "delete account"
-
     var body: some View {
         Group {
-            Section(tr("native.settings.profile")) {
-                LabeledContent(tr("native.settings.email"),
-                               value: app.user?.email ?? account.user?.email ?? tr("native.settings.notSignedIn"))
-                LabeledContent(tr("native.settings.usage")) {
-                    if let user = account.user { Text(Self.usage(user)) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text(tr("native.settings.notAvailable")) }
-                }
-                LabeledContent(tr("native.settings.plan")) {
-                    HStack(spacing: 12) {
-                        if let user = account.user { Text(Self.plan(user)) } else if account.isLoading { ProgressView().controlSize(.small) } else { Text(tr("native.settings.notAvailable")) }
-                        #if os(macOS)
-                        if let user = account.user {
-                            Button(user.hasPremium ? tr("native.settings.manage") : tr("native.app.upgrade")) {
-                                openURL(app.config.webURL.appending(path: "settings"))
-                            }
-                        }
-                        #endif
-                    }
-                }
-                #if os(iOS)
-                deleteButton
-                signOutButton
-                errorText
-                #endif
-            }
-            #if os(macOS)
             Section {
-                HStack {
-                    deleteButton
-                    Spacer()
-                    signOutButton
-                }
-                errorText
+                Button(tr("native.settings.signOut")) { confirmSignOut = true }
+                    .tint(.primary)
+                    .accessibilityIdentifier("settings.logOut")
+            } footer: {
+                if let error { Text(error).foregroundStyle(.red) }
             }
-            #endif
+            Section {
+                Button(isWorking ? tr("native.settings.deleting") : tr("native.settings.deleteAccount"), role: .destructive) {
+                    confirmDelete = true
+                }
+                .disabled(isWorking)
+            }
         }
+        .disabled(app.user == nil)
         .confirmationDialog(tr("native.settings.signOut"), isPresented: $confirmSignOut) {
             Button(tr("native.settings.signOut"), role: .destructive) { signOut() }
         } message: {
@@ -164,47 +183,15 @@ struct AccountSection: View {
             Text(tr("native.settings.deleteWarning"))
         }
         .alert(tr("native.settings.deleteAccount"), isPresented: $typingConfirmation) {
-            TextField(Self.deletePhrase, text: $confirmation)
+            TextField(AccountText.deletePhrase, text: $confirmation)
+                .autocorrectionDisabled()
                 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 #endif
             Button(tr("common.cancel"), role: .cancel) { confirmation = "" }
             Button(tr("native.actions.deleteForever"), role: .destructive) { deleteAccount() }
         } message: {
-            Text(tr("native.settings.typeToConfirm", Self.deletePhrase))
-        }
-    }
-
-    /// "12 cards", or "12 of 200 cards" on the Free plan.
-    static func usage(_ user: CurrentUser) -> String {
-        let count = Int(user.cardCount)
-        guard !user.hasPremium else { return tr("native.common.cardCount", count: count) }
-        let locale = AppLanguage.locale
-        return tr("native.settings.usageFree", count.formatted(.number.locale(locale)),
-                  TeakLimits.freeTierCards.formatted(.number.locale(locale)))
-    }
-
-    /// "Pro" is a name, so it stays as it is.
-    static func plan(_ user: CurrentUser) -> String {
-        user.hasPremium ? "Pro" : tr("native.card.plan.free")
-    }
-
-    private var deleteButton: some View {
-        Button(isWorking ? tr("native.settings.deleting") : tr("native.settings.deleteAccount"), role: .destructive) {
-            confirmDelete = true
-        }
-        .disabled(isWorking)
-    }
-
-    private var signOutButton: some View {
-        Button(tr("native.settings.signOut")) { confirmSignOut = true }
-            .tint(.primary)
-            .accessibilityIdentifier("settings.logOut")
-    }
-
-    @ViewBuilder private var errorText: some View {
-        if let error {
-            Text(error).font(.footnote).foregroundStyle(.red)
+            Text(tr("native.settings.typeToConfirm", AccountText.deletePhrase))
         }
     }
 
@@ -222,8 +209,8 @@ struct AccountSection: View {
     private func deleteAccount() {
         let typed = confirmation.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         confirmation = ""
-        guard typed == Self.deletePhrase else {
-            error = tr("native.settings.typeToConfirm", Self.deletePhrase)
+        guard typed == AccountText.deletePhrase else {
+            error = tr("native.settings.typeToConfirm", AccountText.deletePhrase)
             return
         }
         isWorking = true
@@ -239,20 +226,36 @@ struct AccountSection: View {
     }
 }
 
+enum AccountText {
+    /// What the person types to delete their account. It stays English in every language.
+    static let deletePhrase = "delete account"
+
+    /// "12 cards", or "12 of 200 cards" on the Free plan.
+    static func usage(_ user: CurrentUser) -> String {
+        let count = Int(user.cardCount)
+        guard !user.hasPremium else { return tr("native.common.cardCount", count: count) }
+        let locale = AppLanguage.locale
+        return tr("native.settings.usageFree", count.formatted(.number.locale(locale)),
+                  TeakLimits.freeTierCards.formatted(.number.locale(locale)))
+    }
+
+    /// "Pro" is a name, so it stays as it is.
+    static func plan(_ user: CurrentUser) -> String {
+        user.hasPremium ? "Pro" : tr("native.card.plan.free")
+    }
+}
+
 private struct AboutSection: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        Section(tr("native.settings.about")) {
-            // The app's name and the author's handle stay as they are in every language.
-            LabeledContent {
-                Text(verbatim: "by @praveenjuge")
-            } label: {
-                Text(verbatim: "Teak")
-            }
-            Text(tr("native.settings.hope"))
-                .foregroundStyle(.secondary)
+        Section {
             LabeledContent(tr("native.settings.version"), value: "\(app.config.version) (\(app.config.build))")
+        } header: {
+            Text(tr("native.settings.about"))
+        } footer: {
+            // The author's handle stays as it is in every language.
+            Text(tr("native.settings.hope") + "\n" + tr("native.settings.byAuthor", "@praveenjuge"))
         }
     }
 }

@@ -8,7 +8,10 @@ struct NoteComposerView: View {
     /// Local, so typing re-renders only this sheet. A text view that waits on
     /// app-wide updates drops keystrokes on the Mac.
     @State private var text = ""
+    @State private var confirmDiscard = false
     @FocusState private var focused: Bool
+
+    private var hasText: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -34,14 +37,24 @@ struct NoteComposerView: View {
                 #endif
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(tr("common.cancel")) { dismiss() }
+                        Button(tr("common.cancel")) {
+                            if hasText { confirmDiscard = true } else { discard() }
+                        }
+                        // A save under way would still land after a discard.
+                        .disabled(capture.isSavingText)
+                        .confirmationDialog(tr("native.capture.discardNoteTitle"), isPresented: $confirmDiscard) {
+                            Button(tr("native.capture.discard"), role: .destructive) { discard() }
+                            Button(tr("native.card.edit.keepEditing"), role: .cancel) {}
+                        } message: {
+                            Text(tr("native.capture.discardNoteMessage"))
+                        }
                     }
                     ToolbarItem(placement: .confirmationAction) {
                         Button { save() } label: {
                             Text(capture.isSavingText ? tr("common.saving") : tr("common.save")).foregroundStyle(.white)
                         }
                             .buttonStyle(.glassProminent)
-                            .disabled(capture.isSavingText || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(capture.isSavingText || !hasText)
                             .keyboardShortcut(.return, modifiers: .command)
                             .accessibilityHint(tr("native.capture.saveNoteHint"))
                             .accessibilityIdentifier("composer.save")
@@ -49,10 +62,19 @@ struct NoteComposerView: View {
                 }
         }
         .frame(minWidth: 420, minHeight: 320)
+        // A note is never lost to a swipe: Cancel asks first.
+        .interactiveDismissDisabled(hasText || capture.isSavingText)
+        // A failed save shows here, over the note, which stays open.
+        .captureAlert()
         .onAppear {
             text = router.composerText
             focused = true
         }
+    }
+
+    private func discard() {
+        router.composerText = ""
+        dismiss()
     }
 
     private func save() {

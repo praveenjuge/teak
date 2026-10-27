@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.card
 
 import android.content.ActivityNotFoundException
 import android.widget.Toast
+import androidx.activity.compose.LocalActivity
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -226,18 +227,33 @@ private fun clampPan(offset: Offset, scale: Float, image: Size, viewport: Size):
     return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
 }
 
-/** A player for [url]. It loads nothing until it's prepared: a video on its first play, a recording once it's shown. */
+/**
+ * A player for [url]. It loads nothing until it's prepared: a video on its first play, a recording once it's shown.
+ * Turning the screen picks up where it was, still playing if it was.
+ */
 @OptIn(UnstableApi::class)
 @Composable
 private fun rememberPlayer(url: String): ExoPlayer {
     val context = LocalContext.current
+    val activity = LocalActivity.current
+    var resumeAt by rememberSaveable(url) { mutableLongStateOf(0L) }
+    var resumePlaying by rememberSaveable(url) { mutableStateOf(false) }
     val player = remember(url) {
         ExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true)).build().apply {
-            setMediaItem(MediaItem.fromUri(url))
+            setMediaItem(MediaItem.fromUri(url), resumeAt)
+            if (resumeAt > 0 || resumePlaying) {
+                playWhenReady = resumePlaying
+                prepare()
+            }
         }
     }
     DisposableEffect(player) { onDispose { player.release() } }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.pause() }
+    // Stopping comes before the state is saved, so this is what a rotation restores.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        resumeAt = player.currentPosition
+        resumePlaying = player.playWhenReady && activity?.isChangingConfigurations == true
+        player.pause()
+    }
     return player
 }
 

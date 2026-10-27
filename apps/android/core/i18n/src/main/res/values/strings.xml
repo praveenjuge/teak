@@ -220,6 +220,8 @@
     <string name="native_capture_couldntSave">Couldn\'t save</string>
     <string name="native_capture_discard">Discard</string>
     <string name="native_capture_discardMessage">You\'re still recording. Leaving now throws this recording away.</string>
+    <string name="native_capture_discardNoteMessage">It hasn\'t been saved yet.</string>
+    <string name="native_capture_discardNoteTitle">Discard this note?</string>
     <string name="native_capture_discardTitle">Discard recording?</string>
     <string name="native_capture_dropHint">You can also drop files onto the library, or paste them with ⌘V.</string>
     <string name="native_capture_errorTitle">Error</string>
@@ -688,6 +690,7 @@
     <string name="native_settings_about">About</string>
     <string name="native_settings_account">Account</string>
     <string name="native_settings_appearance">Appearance</string>
+    <string name="native_settings_byAuthor">by %1$s</string>
     <string name="native_settings_deleteAccount">Delete account</string>
     <string name="native_settings_deleteFailed">Something went wrong while deleting your account.</string>
     <string name="native_settings_deleteWarning">This will permanently remove your account, cards, tags, and uploaded files. Are you sure?</string>

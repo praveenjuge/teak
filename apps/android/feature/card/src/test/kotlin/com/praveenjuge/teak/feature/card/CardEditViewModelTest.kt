@@ -144,6 +144,16 @@ class CardEditViewModelTest {
     }
 
     @Test
+    fun `Teak tags that arrive after opening aren't removed on save`() = runTest {
+        val viewModel = viewModel(note.copy(aiTags = emptyList()))
+
+        cards.cards.value = mapOf(note.id to note)
+
+        assertEquals(listOf("design", "color"), viewModel.uiState.value.draft!!.aiTags)
+        assertFalse(viewModel.uiState.value.canSave)
+    }
+
+    @Test
     fun `a missing card shows as unavailable`() = runTest {
         val viewModel = CardEditViewModel("gone", cards)
 

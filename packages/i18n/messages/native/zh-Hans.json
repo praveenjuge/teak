@@ -106,6 +106,7 @@
       "deleteFailed": "删除账户时出了点问题。",
       "about": "关于",
       "hope": "希望你喜欢使用 Teak，就像我喜欢创造它一样。",
+      "byAuthor": "作者：{handle}",
       "version": "版本",
       "versionValue": "版本 {version}",
       "helpDocs": "帮助和文档",
@@ -362,6 +363,8 @@
       "discardTitle": "要丢弃录音吗？",
       "discardMessage": "仍在录音。现在离开将丢弃此录音。",
       "discard": "丢弃",
+      "discardNoteTitle": "要丢弃这条笔记吗？",
+      "discardNoteMessage": "尚未保存。",
       "voiceMemoSaved": "语音备忘录已保存，正在上传。"
     },
     "share": {

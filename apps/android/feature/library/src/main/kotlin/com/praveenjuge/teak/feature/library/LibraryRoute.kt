@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -403,39 +404,46 @@ internal fun LibraryScreen(
 private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actions: LibraryActions) {
     val paged = state.paged
     when {
-        state.folderMissing -> EmptyState(
-            title = tr("errors.folders.NOT_FOUND"),
-            message = tr("native.library.folderMissing"),
-            icon = Icons.Outlined.Folder,
-            action = actions.onBack?.let { back -> { Button(onClick = back) { Text(tr("native.library.goBack")) } } },
-        )
+        state.folderMissing -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EmptyState(
+                title = tr("errors.folders.NOT_FOUND"),
+                message = tr("native.library.folderMissing"),
+                icon = Icons.Outlined.Folder,
+                action = actions.onBack?.let { back -> { Button(onClick = back) { Text(tr("native.library.goBack")) } } },
+            )
+        }
         paged.isLoading && paged.cards.isEmpty() -> TeakLoading()
-        paged.error != null && paged.cards.isEmpty() -> EmptyState(
-            title = tr("native.library.loadFailed.title"),
-            message = paged.error?.teakText(UiText.of("native.errors.generic"))?.resolve().orEmpty(),
-            icon = Icons.Outlined.CloudOff,
-            action = { Button(onClick = actions.onRetry) { Text(tr("common.tryAgain")) } },
-        )
+        paged.error != null && paged.cards.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EmptyState(
+                title = tr("native.library.loadFailed.title"),
+                message = paged.error?.teakText(UiText.of("native.errors.generic"))?.resolve().orEmpty(),
+                icon = Icons.Outlined.CloudOff,
+                action = { Button(onClick = actions.onRetry) { Text(tr("common.tryAgain")) } },
+            )
+        }
         else -> PullToRefreshBox(
             isRefreshing = paged.isRefreshing,
             onRefresh = actions.onRefresh,
             modifier = Modifier.fillMaxSize(),
         ) {
             if (paged.cards.isEmpty()) {
-                // Scrollable so pull to refresh still works on an empty screen.
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    LibraryEmpty(state.emptyState, actions.onWriteNote)
-                    if (state.hasHiddenCards) {
-                        Text(
-                            Tags.hiddenCardsHint.resolve(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 32.dp),
-                        )
+                // Scrollable so pull to refresh still works on an empty screen; at least as tall as it, so it's centered.
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    Column(
+                        Modifier.verticalScroll(rememberScrollState()).fillMaxWidth().heightIn(min = maxHeight),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        LibraryEmpty(state.emptyState, actions.onWriteNote)
+                        if (state.hasHiddenCards) {
+                            Text(
+                                Tags.hiddenCardsHint.resolve(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 32.dp),
+                            )
+                        }
                     }
                 }
             } else {

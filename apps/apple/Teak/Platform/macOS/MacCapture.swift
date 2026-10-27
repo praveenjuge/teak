@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 enum MacPreferences {
     static let menuBarKey = "teak.menuBarItemEnabled"
     static let quickCaptureKey = "teak.quickCaptureShortcutEnabled"
+    static let quickCaptureDraftKey = "teak.quickCaptureDraft"
 }
 
 @MainActor
@@ -49,10 +50,8 @@ enum BackgroundCapture {
         }
         Task {
             let before = services.capture.savedCount
-            await services.capture.save(items)
-            if let alert = services.capture.alert {
-                services.capture.alert = nil
-                CaptureHUD.show(alert.isCardLimit ? tr("native.capture.cardLimitMessage") : alert.message, isError: true)
+            if let failure = await services.capture.save(items, showsAlert: false) {
+                CaptureHUD.show(failure.isCardLimit ? tr("native.capture.cardLimitMessage") : failure.message, isError: true)
             } else if services.capture.savedCount > before {
                 CaptureHUD.show(services.capture.lastSaved ?? tr("native.capture.savedToTeak"))
             }
@@ -155,7 +154,7 @@ private struct QuickCaptureView: View {
     let onClose: () -> Void
     @Environment(CaptureModel.self) private var capture
     @Environment(AppModel.self) private var app
-    @AppStorage("teak.quickCaptureDraft") private var text = ""
+    @AppStorage(MacPreferences.quickCaptureDraftKey) private var text = ""
     @State private var choosingFiles = false
     @FocusState private var focused: Bool
 
@@ -235,8 +234,10 @@ final class QuickCaptureHotKey {
             return noErr
         }, 1, &spec, nil, &handler)
         let id = EventHotKeyID(signature: fourCharCode("TEAK"), id: 1)
-        RegisterEventHotKey(UInt32(kVK_ANSI_T), UInt32(controlKey | optionKey | cmdKey), id,
-                            GetApplicationEventTarget(), 0, &hotKey)
+        let status = RegisterEventHotKey(UInt32(kVK_ANSI_T), UInt32(controlKey | optionKey | cmdKey), id,
+                                         GetApplicationEventTarget(), 0, &hotKey)
+        // Another app may hold the shortcut; leave nothing half registered.
+        if status != noErr { unregister() }
     }
 
     private func unregister() {
@@ -353,8 +354,32 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Teak keeps running while the menu bar item or the ⌃⌥⌘T shortcut
+    /// can still be used with no window open.
+    /// A Dock click with no window open brings the library back. Until it
+    /// has shown once, SwiftUI opens it itself.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        guard !hasVisibleWindows else { return true }
+        return MainActor.assumeIsolated {
+            guard AppServices.shared.openMainWindow != nil else { return true }
+            AppServices.shared.showMainWindow()
+            return false
+        }
+    }
+
+    /// `teak://` links land here rather than in a window's `onOpenURL`, so
+    /// they work while the main window is closed: it opens, then follows them.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        MainActor.assumeIsolated {
+            let services = AppServices.shared
+            services.showMainWindow()
+            for url in urls { services.router.handle(url, phase: services.app.phase) }
+        }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        !UserDefaults.standard.bool(forKey: MacPreferences.menuBarKey)
+        let defaults = UserDefaults.standard
+        return !defaults.bool(forKey: MacPreferences.menuBarKey) && !defaults.bool(forKey: MacPreferences.quickCaptureKey)
     }
 }
 

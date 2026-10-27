@@ -181,6 +181,17 @@ public enum CardEdit {
                       notes: card.notes ?? "", tags: card.tags ?? [], aiTags: card.aiTags ?? [])
     }
 
+    /// The draft once `card` replaces `previous`: Teak's tags that arrived since join it, so saving doesn't remove tags
+    /// the person never saw.
+    public static func rebased(_ draft: CardEditDraft, previous: Card, card: Card) -> CardEditDraft {
+        let known = Set(previous.aiTags ?? [])
+        let arrived = (card.aiTags ?? []).filter { !known.contains($0) && !draft.aiTags.contains($0) }
+        guard !arrived.isEmpty else { return draft }
+        var rebased = draft
+        rebased.aiTags += arrived
+        return rebased
+    }
+
     public static func changes(from card: Card, to draft: CardEditDraft) -> [CardFieldChange] {
         var changes: [CardFieldChange] = []
         if let content = draft.editableContent, content != card.content { changes.append(.content(content)) }

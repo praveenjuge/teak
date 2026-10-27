@@ -21,6 +21,8 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [36], qualifiers = "w411dp-h1200dp")
@@ -86,6 +88,34 @@ class CaptureScreensTest {
         compose.onNodeWithContentDescription("Save note").assertIsNotEnabled()
         compose.onNodeWithText("Write a note or paste a link").performTextInput("https://teakvault.com")
         compose.onNodeWithContentDescription("Save note").assertIsEnabled()
+    }
+
+    @Test
+    fun `leaving a written note asks before throwing it away`() {
+        val text = TextFieldState("Half a thought")
+        var left = false
+        compose.setContent {
+            TeakTheme {
+                NoteComposerScreen(NoteComposerUiState(), text, onSave = {}, onBack = { left = true }, onDismissError = {})
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithText("Discard this note?").assertExists()
+        assertFalse(left)
+        compose.onNodeWithText("Discard").performClick()
+        assertTrue(left)
+    }
+
+    @Test
+    fun `a note can't be left while it saves`() {
+        compose.setContent {
+            TeakTheme {
+                NoteComposerScreen(NoteComposerUiState(isSaving = true), TextFieldState("Saving"), onSave = {}, onBack = {}, onDismissError = {})
+            }
+        }
+
+        compose.onNodeWithContentDescription("Back").assertIsNotEnabled()
     }
 
     @Test

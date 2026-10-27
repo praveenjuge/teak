@@ -220,6 +220,8 @@
     <string name="native_capture_couldntSave">Não foi possível salvar</string>
     <string name="native_capture_discard">Descartar</string>
     <string name="native_capture_discardMessage">Você ainda está gravando. Se sair agora, esta gravação será descartada.</string>
+    <string name="native_capture_discardNoteMessage">Ela ainda não foi salva.</string>
+    <string name="native_capture_discardNoteTitle">Descartar esta nota?</string>
     <string name="native_capture_discardTitle">Descartar a gravação?</string>
     <string name="native_capture_dropHint">Você também pode soltar arquivos na biblioteca ou colá-los com ⌘V.</string>
     <string name="native_capture_errorTitle">Erro</string>
@@ -688,6 +690,7 @@
     <string name="native_settings_about">Sobre</string>
     <string name="native_settings_account">Conta</string>
     <string name="native_settings_appearance">Aparência</string>
+    <string name="native_settings_byAuthor">por %1$s</string>
     <string name="native_settings_deleteAccount">Excluir conta</string>
     <string name="native_settings_deleteFailed">Algo deu errado ao excluir sua conta.</string>
     <string name="native_settings_deleteWarning">Isso vai remover permanentemente sua conta, seus cards, suas tags e os arquivos enviados. Tem certeza?</string>

@@ -7,6 +7,8 @@ struct CardEditView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model: CardDetailModel?
     @State private var draft: CardEditDraft?
+    /// The card the draft last caught up with, to notice tags Teak adds while the sheet is open.
+    @State private var base: Card?
     @State private var newTag = ""
     @State private var error: String?
     @State private var confirmDiscard = false
@@ -36,11 +38,11 @@ struct CardEditView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button { save() } label: {
-                        Text(model?.isSaving == true ? tr("common.saving") : tr("common.save")).foregroundStyle(.white)
+                        Text(model?.isSaving == true ? tr("common.saving") : tr("common.save"))
                     }
-                        .buttonStyle(.glassProminent)
-                        .disabled(!hasChanges || model?.isSaving == true)
-                        .keyboardShortcut(.return, modifiers: .command)
+                    .buttonStyle(.glassProminent)
+                    .disabled(!hasChanges || model?.isSaving == true)
+                    .keyboardShortcut(.return, modifiers: .command)
                 }
             }
             .confirmationDialog(tr("native.card.edit.discardTitle"), isPresented: $confirmDiscard) {
@@ -54,14 +56,22 @@ struct CardEditView: View {
             }
         }
         .interactiveDismissDisabled(hasChanges)
+        #if os(macOS)
         .frame(minWidth: 420, minHeight: 480)
+        #endif
         .task {
             if model == nil { model = CardDetailModel(id: cardId, backend: app.backend) }
             if linkPicker == nil { linkPicker = CardLinkPickerModel(cardId: cardId, backend: app.backend) }
             model?.start()
         }
         .onChange(of: model?.card) { _, card in
-            if draft == nil, let card { draft = CardEdit.draft(for: card) }
+            guard let card else { return }
+            if let draft, let base {
+                self.draft = CardEdit.rebased(draft, previous: base, card: card)
+            } else {
+                draft = CardEdit.draft(for: card)
+            }
+            base = card
         }
         .onDisappear { model?.stop() }
     }
@@ -122,7 +132,11 @@ struct CardEditView: View {
                 Section {
                     ForEach(draft.wrappedValue.aiTags, id: \.self) { tag in
                         HStack {
-                            Label(tag, systemImage: "sparkles")
+                            Label {
+                                Text(tag)
+                            } icon: {
+                                Image(systemName: "sparkles").foregroundStyle(.secondary)
+                            }
                             Spacer()
                             Button(tr("native.card.edit.removeTag", tag), systemImage: "xmark.circle.fill") {
                                 draft.wrappedValue.aiTags.removeAll { $0 == tag }

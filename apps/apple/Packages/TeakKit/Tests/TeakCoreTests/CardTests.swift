@@ -152,6 +152,16 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
             == ["cardId": "c", "field": "removeAiTag", "tagToRemove": "Color"])
     }
 
+    @Test func teakTagsThatArriveWhileEditingJoinTheDraftKeepingRemovals() {
+        var draft = CardEdit.draft(for: original)
+        draft.aiTags = ["Design"]
+        let tagged = card(.text, content: "Original", notes: "Old notes", tags: ["keep"], aiTags: ["Design", "Color", "Macro"])
+        let rebased = CardEdit.rebased(draft, previous: original, card: tagged)
+        #expect(rebased.aiTags == ["Design", "Macro"])
+        #expect(CardEdit.changes(from: tagged, to: rebased) == [.removeAiTag("Color")])
+        #expect(CardEdit.rebased(draft, previous: original, card: original) == draft)
+    }
+
     @Test func leavesContentAloneForTypesThatCantBeRewritten() {
         let link = card(.link, content: "x", notes: "Old notes", tags: ["keep"], aiTags: ["Design", "Color"])
         #expect(CardEdit.draft(for: link).editableContent == nil)

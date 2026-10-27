@@ -83,7 +83,11 @@ class CardEditViewModel @AssistedInject constructor(
                         isLoading = false,
                         loadFailed = false,
                         card = card,
-                        draft = state.draft ?: card?.let(CardEdit::draftFor),
+                        draft = when {
+                            state.draft == null -> card?.let(CardEdit::draftFor)
+                            state.card != null && card != null -> CardEdit.rebased(state.draft, state.card, card)
+                            else -> state.draft
+                        },
                     )
                 }
             }

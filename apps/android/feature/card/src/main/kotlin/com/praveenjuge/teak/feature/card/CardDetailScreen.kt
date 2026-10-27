@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -216,23 +218,6 @@ internal fun CardDetailScreen(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
                         }
                     },
-                    actions = {
-                        if (state.canMarkDone) {
-                            if (state.isDone) {
-                                FilledTonalButton(onClick = callbacks.onToggleDone, modifier = Modifier.semantics { selected = true }) {
-                                    Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                    Text(state.doneText.resolve())
-                                }
-                            } else {
-                                OutlinedButton(onClick = callbacks.onToggleDone) {
-                                    Icon(Icons.Outlined.Circle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                    Text(state.doneText.resolve())
-                                }
-                            }
-                        }
-                    },
                     scrollBehavior = scrollBehavior,
                 )
                 if (state.isTransferring) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -350,6 +335,18 @@ private fun LinkTitleField(title: String, onSave: (String) -> Unit) {
             onSave(draft)
         }
     }
+    // Leaving the card while still typing saves it too. It reads the latest state, and marks it handled so a
+    // focus change that arrives as the field goes doesn't send it again.
+    val save by rememberUpdatedState(onSave)
+    DisposableEffect(Unit) {
+        onDispose {
+            if (focused && draft.isNotBlank() && draft != sent) {
+                sent = draft
+                save(draft)
+            }
+            focused = false
+        }
+    }
     BasicTextField(
         value = draft,
         onValueChange = { draft = it },
@@ -430,6 +427,7 @@ private fun CardDetailContent(
                 onViewDocument = if (CardSheet.isPdf(card)) ({ _ -> callbacks.onViewPdf() }) else actions.viewDocument,
                 onToggleTask = callbacks.onToggleTask.takeUnless { card.deleted },
             )
+            if (state.canMarkDone) DoneButton(state.isDone, state.doneText.resolve(), callbacks.onToggleDone)
             LinkDetailsSections(card, onOpenImage = openImage)
             NotesAndTagsSections(
                 state.displayedCard ?: card,
@@ -440,6 +438,25 @@ private fun CardDetailContent(
             LinkedFromSection(state.backlinks, callbacks.onOpenCard)
             InfoSection(card, state.cardFolders, onOpenSource = actions.openLink, onEditFolders = onEditFolders)
         }
+    }
+}
+
+/** "Mark as read" under a link's preview, filled once it's done. It sits here so the top bar keeps room for the title. */
+@Composable
+private fun DoneButton(isDone: Boolean, label: String, onToggle: () -> Unit) {
+    val content: @Composable () -> Unit = {
+        Icon(
+            if (isDone) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+            contentDescription = null,
+            modifier = Modifier.size(ButtonDefaults.IconSize),
+        )
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(label)
+    }
+    if (isDone) {
+        FilledTonalButton(onClick = onToggle, modifier = Modifier.semantics { selected = true }) { content() }
+    } else {
+        OutlinedButton(onClick = onToggle) { content() }
     }
 }
 

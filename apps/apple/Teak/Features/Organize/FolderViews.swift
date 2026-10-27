@@ -311,6 +311,9 @@ struct FolderPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var checked: [String] = []
+    /// The card's folders as the server last confirmed them.
+    @State private var saved: [String] = []
+    @State private var isSaving = false
     @State private var error: String?
 
     var body: some View {
@@ -352,7 +355,12 @@ struct FolderPickerView: View {
             }
         }
         .frame(minWidth: 360, minHeight: 420)
-        .onAppear { if case let .card(_, ids) = mode { checked = ids } }
+        .onAppear {
+            if case let .card(_, ids) = mode {
+                checked = ids
+                saved = ids
+            }
+        }
     }
 
     private var title: String {
@@ -381,14 +389,22 @@ struct FolderPickerView: View {
     private func toggle(_ folder: Folder) async {
         switch mode {
         case let .card(id, _):
-            let previous = checked
             if let index = checked.firstIndex(of: folder.id) { checked.remove(at: index) } else { checked.append(folder.id) }
-            do {
-                try await folders.setFolders(cardId: id, folderIds: checked)
-                error = nil
-            } catch {
-                checked = previous
-                self.error = error.teakMessage
+            // One save at a time, each sending the whole list: a tap during a
+            // save is sent when it finishes, so the last tap always wins.
+            guard !isSaving else { return }
+            isSaving = true
+            defer { isSaving = false }
+            while checked != saved {
+                let next = checked
+                do {
+                    try await folders.setFolders(cardId: id, folderIds: next)
+                    saved = next
+                    error = nil
+                } catch {
+                    checked = saved
+                    self.error = error.teakMessage
+                }
             }
         case .bulk:
             onPick(folder)

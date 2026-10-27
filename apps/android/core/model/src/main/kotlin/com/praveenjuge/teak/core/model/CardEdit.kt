@@ -43,6 +43,16 @@ object CardEdit {
         aiTags = card.aiTags.orEmpty(),
     )
 
+    /**
+     * The draft once [card] replaces [previous]: Teak's tags that arrived since join it, so saving doesn't
+     * remove tags the person never saw.
+     */
+    fun rebased(draft: CardEditDraft, previous: Card, card: Card): CardEditDraft {
+        val known = previous.aiTags.orEmpty().toSet()
+        val arrived = card.aiTags.orEmpty().filter { it !in known && it !in draft.aiTags }
+        return if (arrived.isEmpty()) draft else draft.copy(aiTags = draft.aiTags + arrived)
+    }
+
     fun changes(card: Card, draft: CardEditDraft): List<CardFieldChange> = buildList {
         if (draft.editableContent != null && draft.editableContent != card.content) {
             add(CardFieldChange.Content(draft.editableContent))

@@ -220,6 +220,8 @@
     <string name="native_capture_couldntSave">Échec de l’enregistrement</string>
     <string name="native_capture_discard">Abandonner</string>
     <string name="native_capture_discardMessage">L’enregistrement est en cours. Si vous quittez maintenant, il sera perdu.</string>
+    <string name="native_capture_discardNoteMessage">Elle n’a pas encore été enregistrée.</string>
+    <string name="native_capture_discardNoteTitle">Abandonner cette note ?</string>
     <string name="native_capture_discardTitle">Abandonner l’enregistrement ?</string>
     <string name="native_capture_dropHint">Vous pouvez aussi déposer des fichiers sur la bibliothèque, ou les coller avec ⌘V.</string>
     <string name="native_capture_errorTitle">Erreur</string>
@@ -688,6 +690,7 @@
     <string name="native_settings_about">À propos</string>
     <string name="native_settings_account">Compte</string>
     <string name="native_settings_appearance">Apparence</string>
+    <string name="native_settings_byAuthor">par %1$s</string>
     <string name="native_settings_deleteAccount">Supprimer le compte</string>
     <string name="native_settings_deleteFailed">Une erreur s’est produite lors de la suppression de votre compte.</string>
     <string name="native_settings_deleteWarning">Votre compte, vos fiches, vos tags et vos fichiers importés seront définitivement supprimés. Voulez-vous continuer ?</string>

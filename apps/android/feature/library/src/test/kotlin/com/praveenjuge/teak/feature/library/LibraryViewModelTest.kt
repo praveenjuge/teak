@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.feature.library
 
+import androidx.lifecycle.SavedStateHandle
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardQuery
 import com.praveenjuge.teak.core.data.repository.CardsRepository
@@ -40,14 +41,33 @@ class LibraryViewModelTest {
 
     private fun summary(id: String) = CardSummary(id = id, creationTime = 0.0, type = CardType.Text, title = "Card $id")
 
-    private fun library(vararg ids: String, folderId: String? = null, fixedView: LibraryView? = null): LibraryViewModel {
+    private fun library(
+        vararg ids: String,
+        folderId: String? = null,
+        fixedView: LibraryView? = null,
+        savedState: SavedStateHandle = SavedStateHandle(),
+    ): LibraryViewModel {
         repository.summaries.value = ids.map(::summary)
-        return LibraryViewModel(folderId, fixedView, repository, folders, language)
+        return LibraryViewModel(folderId, fixedView, repository, folders, language, savedState)
     }
 
     private fun LibraryViewModel.select(vararg ids: String) {
         beginSelection()
         ids.forEach(::toggleSelected)
+    }
+
+    @Test
+    fun `filters come back after the app is ended in the background`() = runTest {
+        val savedState = SavedStateHandle()
+        val before = library(savedState = savedState)
+        before.toggleFavorites()
+        before.toggleType(CardType.Link)
+        before.sort(CardSort.Oldest)
+
+        val after = library(savedState = SavedStateHandle(savedState.keys().associateWith { savedState.get<Any>(it) }))
+
+        assertEquals(before.state.value.filters, after.state.value.filters)
+        assertTrue(after.state.value.filters.favoritesOnly)
     }
 
     @Test
@@ -69,7 +89,7 @@ class LibraryViewModelTest {
 
             override fun trashCount() = emptyFlow<Result<TrashCount>>()
         }
-        val viewModel = LibraryViewModel(null, null, slowTrash, folders, language)
+        val viewModel = LibraryViewModel(null, null, slowTrash, folders, language, SavedStateHandle())
         advanceUntilIdle()
         viewModel.toggleTrash()
         advanceUntilIdle()
@@ -93,7 +113,7 @@ class LibraryViewModelTest {
             override fun page(query: CardQuery, cursor: String?, numItems: Int) =
                 if (answered) emptyFlow() else repository.page(query, cursor, numItems).also { answered = true }
         }
-        val viewModel = LibraryViewModel(null, null, slowAfterFirst, folders, language)
+        val viewModel = LibraryViewModel(null, null, slowAfterFirst, folders, language, SavedStateHandle())
         advanceUntilIdle()
 
         viewModel.refresh()

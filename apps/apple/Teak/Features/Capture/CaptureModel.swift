@@ -11,7 +11,7 @@ import UniformTypeIdentifiers
 
 @MainActor @Observable
 final class CaptureModel {
-    struct Alert: Identifiable, Equatable {
+    struct Alert: Identifiable, Equatable, Error {
         let id = UUID()
         let title: String
         let message: String
@@ -25,6 +25,9 @@ final class CaptureModel {
     private(set) var lastSaved: String?
 
     @ObservationIgnored private let backend: TeakBackend
+    @ObservationIgnored private var uploadQueue: Task<Void, Never>?
+    /// Moves on at each sign-out, so batches queued before it are dropped.
+    @ObservationIgnored private var epoch = 0
 
     init(backend: TeakBackend) {
         self.backend = backend
@@ -34,10 +37,16 @@ final class CaptureModel {
 
     @discardableResult
     func saveText(_ raw: String) async -> String? {
+        let result = await createText(raw)
+        if case let .failure(failure) = result { alert = failure }
+        return try? result.get()
+    }
+
+    /// Saves text as a card, returning its id or what went wrong.
+    private func createText(_ raw: String) async -> Result<String, Alert> {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else {
-            alert = Alert(title: tr("native.share.nothingToSave"), message: tr("native.capture.nothingToSaveMessage"))
-            return nil
+            return .failure(Alert(title: tr("native.share.nothingToSave"), message: tr("native.capture.nothingToSaveMessage")))
         }
         isSavingText = true
         defer { isSavingText = false }
@@ -45,31 +54,65 @@ final class CaptureModel {
             let input = LinkDetection.resolve(raw)
             let id = try await backend.mutation(ConvexFunctions.createCard, input.createArgs)
             saved(input.type == .link ? tr("native.capture.linkSaved") : tr("native.capture.noteSaved"))
-            return id
+            return .success(id)
         } catch let error as TeakError where error.isCardLimit {
-            alert = Alert(title: tr("native.capture.cardLimitReached"), message: error.message, isCardLimit: true)
+            return .failure(Alert(title: tr("native.capture.cardLimitReached"), message: error.message, isCardLimit: true))
         } catch {
-            alert = Alert(title: tr("native.capture.couldntSave"), message: tr("native.capture.saveFailedMessage"))
+            return .failure(Alert(title: tr("native.capture.couldntSave"), message: tr("native.capture.saveFailedMessage")))
         }
-        return nil
     }
 
-    func upload(_ items: [UploadItem]) async {
-        guard !items.isEmpty, upload == nil else { return }
+    /// Drops what the last account left: batches still waiting to upload
+    /// and any error showing.
+    func reset() {
+        epoch += 1
+        uploadQueue = nil
+        upload = nil
+        alert = nil
+    }
+
+    /// Uploads files one batch at a time: a batch picked while another is
+    /// uploading waits for it rather than being dropped. Returns this batch's
+    /// problem, if any, which the alert also shows unless `showsAlert` is off.
+    @discardableResult
+    func upload(_ items: [UploadItem], showsAlert: Bool = true) async -> Alert? {
+        guard !items.isEmpty else { return nil }
+        let previous = uploadQueue
+        let queuedIn = epoch
+        let batch = Task {
+            await previous?.value
+            return await self.run(items, queuedIn: queuedIn)
+        }
+        uploadQueue = Task { _ = await batch.value }
+        let failure = await batch.value
+        if showsAlert, let failure { alert = failure }
+        return failure
+    }
+
+    private func run(_ items: [UploadItem], queuedIn: Int) async -> Alert? {
+        // A batch queued before signing out never starts, so it can't bring back the progress `reset()` cleared.
+        guard queuedIn == epoch else { return nil }
+        // Background time on iOS, so leaving the app doesn't cut an upload off.
+        let finish = await SystemActivity().begin(reason: "Uploading to Teak") {}
+        defer { finish?() }
         let files = Array(items.prefix(TeakLimits.maxFilesPerUpload))
+        var failure: Alert?
         if items.count > files.count {
-            alert = Alert(title: tr("native.capture.tooManyFiles"),
-                          message: tr("native.capture.tooManyFilesMessage",
-                                      TeakLimits.maxFilesPerUpload.formatted(.number.locale(AppLanguage.locale))))
+            failure = Alert(title: tr("native.capture.tooManyFiles"),
+                            message: tr("native.capture.tooManyFilesMessage",
+                                        TeakLimits.maxFilesPerUpload.formatted(.number.locale(AppLanguage.locale))))
         }
         let pipeline = UploadPipeline(convex: backend)
         upload = (0, files.count)
-        defer { upload = nil }
+        defer { if queuedIn == epoch { upload = nil } }
         var saved = 0
         var lastError: TeakError?
         for file in files {
+            // Signing out drops the rest: they belong to the account that queued them.
+            guard queuedIn == epoch, !Task.isCancelled else { return nil }
             do {
                 _ = try await pipeline.upload(file)
+                guard queuedIn == epoch else { return nil }
                 saved += 1
                 upload = (saved, files.count)
             } catch {
@@ -78,18 +121,20 @@ final class CaptureModel {
                 if teak.isCardLimit { break }
             }
         }
+        guard queuedIn == epoch else { return nil }
         if let lastError, lastError.isCardLimit {
-            alert = Alert(title: tr("native.capture.cardLimitReached"), message: lastError.message, isCardLimit: true)
+            failure = Alert(title: tr("native.capture.cardLimitReached"), message: lastError.message, isCardLimit: true)
         } else if let lastError {
             let locale = AppLanguage.locale
             let title = saved > 0
                 ? tr("native.capture.savedSome", saved.formatted(.number.locale(locale)), files.count.formatted(.number.locale(locale)))
                 : tr("native.capture.uploadFailed")
-            alert = Alert(title: title, message: lastError.message)
+            failure = Alert(title: title, message: lastError.message)
         }
         if saved > 0 {
             self.saved(saved == 1 ? tr("native.capture.savedToTeak") : tr("native.capture.savedItems", count: saved))
         }
+        return failure
     }
 
     func uploadPicked(_ urls: [URL]) async {
@@ -127,15 +172,21 @@ final class CaptureModel {
         await upload(items)
     }
 
-    func save(_ items: [SharedItem]) async {
+    /// Saves shared text and files, returning the last problem, if any.
+    @discardableResult
+    func save(_ items: [SharedItem], showsAlert: Bool = true) async -> Alert? {
         var files: [UploadItem] = []
+        var failure: Alert?
         for item in items {
             switch item {
-            case let .text(text): await saveText(text)
+            case let .text(text):
+                if case let .failure(textFailure) = await createText(text) { failure = textFailure }
             case let .file(file): files.append(await Self.describe(file.fileURL, mimeType: file.mimeType))
             }
         }
-        await upload(files)
+        if let uploadFailure = await upload(files, showsAlert: false) { failure = uploadFailure }
+        if showsAlert, let failure { alert = failure }
+        return failure
     }
 
     func save(_ providers: [NSItemProvider]) async {
@@ -169,6 +220,34 @@ final class CaptureModel {
             }
         }
         return item
+    }
+}
+
+extension View {
+    /// Shows what went wrong saving or uploading, while `active`. Only one
+    /// view at a time can present it: the one on top.
+    func captureAlert(when active: Bool = true) -> some View {
+        modifier(CaptureAlert(active: active))
+    }
+}
+
+private struct CaptureAlert: ViewModifier {
+    let active: Bool
+    @Environment(CaptureModel.self) private var capture
+
+    func body(content: Content) -> some View {
+        content.alert(capture.alert?.title ?? "",
+                      isPresented: Binding(get: { active && capture.alert != nil }, set: { if !$0 { capture.alert = nil } }),
+                      presenting: capture.alert) { alert in
+            #if os(macOS)
+            if alert.isCardLimit {
+                Button(tr("native.app.upgrade")) { NSWorkspace.shared.open(AppServices.shared.app.config.webURL.appending(path: "settings")) }
+            }
+            #endif
+            Button(tr("native.app.ok"), role: .cancel) {}
+        } message: { alert in
+            Text(alert.message)
+        }
     }
 }
 

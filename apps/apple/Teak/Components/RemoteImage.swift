@@ -37,7 +37,8 @@ actor ImagePipeline {
         let key = "\(cacheKeyIgnoringSignature(url))#\(maxPixelSize)"
         if let cached = memory.object(forKey: key as NSString) { return cached.image }
         if let task = inFlight[key] { return await task.value }
-        let task = Task<CGImage?, Never> { [session] in
+        // Detached, so images download and decode side by side instead of one at a time on the actor.
+        let task = Task<CGImage?, Never>.detached(priority: Task.currentPriority) { [session] in
             guard let (data, response) = try? await session.data(from: url),
                   (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true
             else { return nil }
@@ -89,6 +90,13 @@ struct RemoteImage: View {
     @State private var image: CGImage?
     @State private var placeholderImage: CGImage?
     @State private var failed = false
+    /// What `image` was loaded for, so a tile that only shrinks keeps it.
+    @State private var loaded: Request?
+
+    private struct Request: Equatable {
+        let urls: [URL]
+        let pixels: Int
+    }
 
     init(_ url: URL?, placeholder: URL? = nil, contentMode: ContentMode = .fill, maxPixelSize: Int? = nil) {
         urls = url.map { [$0] } ?? []
@@ -126,21 +134,36 @@ struct RemoteImage: View {
                 }
             }
             .clipped()
-            .task(id: urls) {
-                await load(size: proxy.size)
+            .task(id: Request(urls: urls, pixels: pixels(for: proxy.size))) {
+                await load(pixels: pixels(for: proxy.size))
             }
         }
     }
 
-    private func load(size: CGSize) async {
+    /// The decode size in steps of 256 pixels, so a window resize reloads a few times, not every frame.
+    private func pixels(for size: CGSize) -> Int {
+        if let maxPixelSize { return max(maxPixelSize, 64) }
+        let exact = max(size.width, size.height) * displayScale
+        return max(Int((exact / 256).rounded(.up)) * 256, 64)
+    }
+
+    private func load(pixels: Int) async {
+        if let loaded, image != nil, loaded.urls == urls {
+            guard pixels > loaded.pixels else { return }
+            // Wait for a live resize to settle before decoding a sharper copy.
+            try? await Task.sleep(for: .milliseconds(250))
+            if Task.isCancelled { return }
+        }
         failed = false
-        let pixels = maxPixelSize ?? Int((max(size.width, size.height) * displayScale).rounded(.up))
         if let placeholder, image == nil {
             placeholderImage = await ImagePipeline.shared.image(for: placeholder, maxPixelSize: 64)
         }
         for url in urls {
-            if let loaded = await ImagePipeline.shared.image(for: url, maxPixelSize: max(pixels, 64)) {
-                withAnimation(.easeOut(duration: 0.15)) { image = loaded }
+            if let decoded = await ImagePipeline.shared.image(for: url, maxPixelSize: pixels) {
+                // A request a resize replaced can finish last; it mustn't swap a sharper image for its smaller one.
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.15)) { image = decoded }
+                loaded = Request(urls: urls, pixels: pixels)
                 return
             }
             if Task.isCancelled { return }

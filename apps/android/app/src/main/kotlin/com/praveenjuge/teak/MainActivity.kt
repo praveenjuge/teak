@@ -1,5 +1,6 @@
 package com.praveenjuge.teak
 
+import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -33,6 +34,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -57,6 +59,18 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handle(intent)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) { language.follow() }
+        }
+        // Android keeps the app's own night mode, so the window and the splash screen match Teak's theme too.
+        lifecycleScope.launch {
+            preferences.theme.distinctUntilChanged().collect { theme ->
+                getSystemService(UiModeManager::class.java).setApplicationNightMode(
+                    when (theme) {
+                        ThemePreference.System -> UiModeManager.MODE_NIGHT_AUTO
+                        ThemePreference.Light -> UiModeManager.MODE_NIGHT_NO
+                        ThemePreference.Dark -> UiModeManager.MODE_NIGHT_YES
+                    },
+                )
+            }
         }
         // Android 13 and later recreate the activity in a new language themselves.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {

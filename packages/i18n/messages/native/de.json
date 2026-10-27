@@ -106,6 +106,7 @@
       "deleteFailed": "Beim Löschen Ihres Kontos ist etwas schiefgelaufen.",
       "about": "Über",
       "hope": "Ich hoffe, Sie nutzen Teak so gern, wie ich es entwickelt habe.",
+      "byAuthor": "von {handle}",
       "version": "Version",
       "versionValue": "Version {version}",
       "helpDocs": "Hilfe und Dokumentation",
@@ -362,6 +363,8 @@
       "discardTitle": "Aufnahme verwerfen?",
       "discardMessage": "Die Aufnahme läuft noch. Wenn Sie jetzt gehen, wird sie verworfen.",
       "discard": "Verwerfen",
+      "discardNoteTitle": "Diese Notiz verwerfen?",
+      "discardNoteMessage": "Sie wurde noch nicht gespeichert.",
       "voiceMemoSaved": "Sprachmemo gespeichert. Es wird jetzt hochgeladen."
     },
     "share": {

@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.MoreVert
@@ -31,7 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +59,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -155,15 +157,15 @@ private fun TagOperation.detailText(): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = { Text(tr("native.tags.title")) },
+            LargeFlexibleTopAppBar(
+                title = { Text(tr("native.tags.title"), modifier = Modifier.semantics { heading() }) },
                 navigationIcon = {
                     IconButton(onClick = actions.onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("common.back"))
@@ -184,6 +186,15 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
                     onValueChange = actions.onSearch,
                     placeholder = { Text(tr("native.tags.find")) },
                     leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = if (state.query.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { actions.onSearch("") }) {
+                                Icon(Icons.Filled.Close, contentDescription = tr("native.library.clearSearch"))
+                            }
+                        }
+                    } else {
+                        null
+                    },
                     singleLine = true,
                     shape = CircleShape,
                     colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
@@ -193,17 +204,21 @@ internal fun TagsScreen(state: TagsUiState, actions: TagsActions) {
                 val loading = tr("native.tags.loading")
                 when {
                     state.isLoading -> TeakLoading(Modifier.semantics { contentDescription = loading })
-                    state.failed -> EmptyState(
-                        title = tr("native.tags.loadFailed"),
-                        message = tr("native.errors.offline"),
-                        icon = Icons.Outlined.CloudOff,
-                        action = { Button(onClick = actions.onReload) { Text(tr("common.tryAgain")) } },
-                    )
-                    state.shown.isEmpty() -> EmptyState(
-                        title = tr("native.tags.emptyTitle"),
-                        message = tr("native.tags.emptyMessage"),
-                        icon = Icons.Outlined.Tag,
-                    )
+                    state.failed -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        EmptyState(
+                            title = tr("native.tags.loadFailed"),
+                            message = tr("native.errors.offline"),
+                            icon = Icons.Outlined.CloudOff,
+                            action = { Button(onClick = actions.onReload) { Text(tr("common.tryAgain")) } },
+                        )
+                    }
+                    state.shown.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        EmptyState(
+                            title = tr("native.tags.emptyTitle"),
+                            message = tr("native.tags.emptyMessage"),
+                            icon = Icons.Outlined.Tag,
+                        )
+                    }
                     state.visible.isEmpty() -> Text(
                         tr("native.tags.noMatch", state.query.trim()),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

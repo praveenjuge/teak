@@ -319,7 +319,7 @@ final class LibraryFlowTests: XCTestCase {
         tap(app.buttons["composer.save"])
         tile(containing: menuNote).waitToAppear(20)
 
-        tap(sidebar.staticTexts["Settings"].waitToAppear())
+        app.typeKey(",", modifierFlags: .command)
         tap(app.toolbars.buttons["Account"].firstMatch.waitToAppear())
         app.buttons["settings.logOut"].firstMatch.waitToAppear()
     }

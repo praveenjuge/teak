@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -27,26 +28,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.praveenjuge.teak.core.designsystem.component.ListGroup
 import com.praveenjuge.teak.core.designsystem.component.ListRow
 import com.praveenjuge.teak.core.designsystem.component.ListRowValue
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.LOCALE_NAMES
 
-/** Settings → Language. Each language is listed in its own name. */
+/** Settings → Language, a row in the Appearance group. Each language is listed in its own name. */
 @Composable
 internal fun LanguageSetting(language: String, enabled: Boolean, onChoose: (String) -> Unit) {
     var picking by remember { mutableStateOf(false) }
-    ListGroup {
-        ListRow(
-            label = tr("settings.language.label"),
-            icon = Icons.Outlined.Language,
-            supporting = tr("native.settings.languageDescription"),
-            trailing = { ListRowValue(LOCALE_NAMES[language] ?: language) },
-            enabled = enabled,
-            onClick = { picking = true },
-        )
-    }
+    ListRow(
+        label = tr("settings.language.label"),
+        icon = Icons.Outlined.Language,
+        supporting = tr("native.settings.languageDescription"),
+        trailing = { ListRowValue(LOCALE_NAMES[language] ?: language) },
+        enabled = enabled,
+        onClick = { picking = true },
+    )
     if (picking) {
         AlertDialog(
             onDismissRequest = { picking = false },
@@ -57,6 +55,7 @@ internal fun LanguageSetting(language: String, enabled: Boolean, onChoose: (Stri
                         Row(
                             Modifier
                                 .fillMaxWidth()
+                                .heightIn(min = 48.dp)
                                 .selectable(
                                     selected = code == language,
                                     role = Role.RadioButton,
@@ -64,8 +63,7 @@ internal fun LanguageSetting(language: String, enabled: Boolean, onChoose: (Stri
                                         picking = false
                                         onChoose(code)
                                     },
-                                )
-                                .padding(vertical = 4.dp),
+                                ),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             RadioButton(selected = code == language, onClick = null)
