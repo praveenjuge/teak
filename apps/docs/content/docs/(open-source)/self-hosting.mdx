@@ -145,7 +145,7 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
 
     Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. To reopen sign-ups, run `admin:setSignupsPaused` again with `'{"paused":false}'`. Sign-up is refused while paused only when the WorkOS registration Action from [Set up WorkOS](#set-up-workos) is set up.
 
-    **Upgrading:** the `SIGNUPS_DISABLED` variable was removed in October 2026. If you set it to `true`, run the pause command above before you update, or sign-ups reopen.
+    **Upgrading:** the `SIGNUPS_DISABLED` variable was removed in October 2026. If you set it to `true`, sign-ups reopen when you update. Run the pause command above right after you deploy the update, then remove the old variable.
   </Step>
   <Step title="Update SITE_URL">
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
