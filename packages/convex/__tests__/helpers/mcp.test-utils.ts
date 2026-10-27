@@ -89,7 +89,7 @@ export const setUpMcpEnv = () => {
 };
 
 export const mcpRequest = (
-  body: Record<string, unknown>,
+  body: unknown,
   authorization = TEST_AUTHORIZATION
 ): Request =>
   new Request("https://api.teakvault.com/mcp", {

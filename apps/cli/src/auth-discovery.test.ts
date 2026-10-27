@@ -165,7 +165,8 @@ const login = async (
   flip = false,
   invalidState = false,
   signoutBeforeCallback = false,
-  unsafeLock = false
+  unsafeLock = false,
+  json = false
 ) => {
   const child = spawn(
     [
@@ -173,6 +174,7 @@ const login = async (
       "--no-env-file",
       "run",
       "src/index.ts",
+      ...(json ? ["--json"] : []),
       "login",
       "--no-browser",
     ],
@@ -184,16 +186,17 @@ const login = async (
       timeout: 10_000,
     }
   );
-  const reader = child.stdout.getReader();
-  let stdout = "";
-  while (!stdout.includes("\n")) {
-    const chunk = await reader.read();
+  // --json prints the link on stderr, keeping stdout to the JSON answer.
+  const urlReader = (json ? child.stderr : child.stdout).getReader();
+  let urlText = "";
+  while (!urlText.includes("\n")) {
+    const chunk = await urlReader.read();
     if (chunk.done) {
       throw new Error("Missing authorization URL");
     }
-    stdout += new TextDecoder().decode(chunk.value);
+    urlText += new TextDecoder().decode(chunk.value);
   }
-  const authorization = new URL(stdout.split("\n")[0]!);
+  const authorization = new URL(urlText.split("\n")[0]!);
   expect(authorization.pathname).toBe(`/${environment}/oauth2/authorize`);
   expect(authorization.searchParams.get("client_id")).toBe(
     clients().cli ?? null
@@ -228,18 +231,20 @@ const login = async (
     writeFileSync(file.replace(/\.json$/, ".lock"), "unsafe");
   }
   const response = await fetch(callback);
+  let rest = "";
   for (;;) {
-    const chunk = await reader.read();
+    const chunk = await urlReader.read();
     if (chunk.done) {
       break;
     }
-    stdout += new TextDecoder().decode(chunk.value);
+    rest += new TextDecoder().decode(chunk.value);
   }
+  const other = await new Response(json ? child.stdout : child.stderr).text();
   return {
     code: await child.exited,
     callbackStatus: response.status,
-    stdout,
-    stderr: await new Response(child.stderr).text(),
+    stdout: json ? other : urlText + rest,
+    stderr: json ? urlText + rest : other,
   };
 };
 beforeEach(() => {
@@ -282,6 +287,13 @@ test("CLI signs in with WorkOS and disconnects on logout", async () => {
   expect((await run(["logout"])).code).toBe(0);
   expect(disconnects).toBe(1);
   expect(readFileSync(file, "utf8")).toBe("");
+});
+test("--json login prints only JSON on stdout", async () => {
+  const result = await login(false, false, false, false, true);
+  expect(result.code).toBe(0);
+  expect(JSON.parse(result.stdout)).toBe("Logged in to Teak.");
+  expect(result.stderr).toContain("/oauth2/authorize");
+  expect((await run(["logout"])).code).toBe(0);
 });
 test.each([
   ["unbound", undefined],

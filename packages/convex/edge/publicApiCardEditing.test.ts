@@ -804,6 +804,24 @@ describe("Bulk items follow the single-card rules", () => {
     expect(card?.isArchived).toBeUndefined();
   });
 
+  test("an oversized note or content fails its item, not the card store", async () => {
+    const { t, cardId } = await setup();
+    const big = "a".repeat(512 * 1024 + 1);
+    const created = await bulk(t, "create", [
+      { content: "Fits", notes: big },
+      { content: big, cardType: "link" },
+    ]);
+    const updated = await bulk(t, "update", [{ cardId, notes: big }]);
+    for (const item of [...created.results, ...updated.results]) {
+      expect(item).toMatchObject({
+        status: "error",
+        code: "CONTENT_TOO_LARGE",
+      });
+    }
+    const card = await t.run((ctx) => ctx.db.get("cards", cardId));
+    expect(card?.notes ?? null).not.toBe(big);
+  });
+
   test("a create trims its note and drops a blank one", async () => {
     const { t } = await setup();
     const result = await bulk(t, "create", [

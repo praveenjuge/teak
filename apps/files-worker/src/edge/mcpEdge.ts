@@ -81,6 +81,11 @@ export const answerMcpAtEdge = async (
   const messages = Array.isArray(body) ? body : [body];
   const replies: JsonObject[] = [];
   for (const message of messages) {
+    // A session starts with Convex checking its key, so a key revoked in the
+    // last few minutes (still cached here as its owner) fails at initialize.
+    if ((message as { method?: unknown } | null)?.method === "initialize") {
+      return null;
+    }
     const answer = answerProtocolMessage(message);
     if (answer.kind === "needsConvex") {
       return null;

@@ -336,9 +336,10 @@ describe("publicApiHttp auth and validation", () => {
     );
 
     expect(response.status).toBe(409);
+    expect(response.headers.get("Retry-After")).toBe("1");
     expect(await response.json()).toEqual({
-      code: "CONFLICT",
-      error: "Idempotency-Key is already being processed",
+      code: "IN_PROGRESS",
+      error: "Idempotency-Key is already being processed; retry shortly",
     });
     expect(runMutation).toHaveBeenCalledTimes(3);
   });

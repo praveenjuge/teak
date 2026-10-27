@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import {
@@ -66,13 +67,25 @@ export const getUploadFileInfo = (candidate: string) => {
   };
 };
 
+/**
+ * Stdin is read only when nothing else names the card, so `teak add --url`
+ * inside a `while read` loop leaves the loop's input alone. Only a file named
+ * on the command line is uploaded: piped text is always text, even when it
+ * happens to be a path.
+ */
 export const resolveAddInput = async (
   input: string | undefined,
-  explicitFile: string | undefined
+  explicitFile: string | undefined,
+  explicitUrl?: string
 ) => {
-  const raw = input || (explicitFile ? "" : await readStdin());
-  return { candidate: explicitFile || raw, raw };
+  if (input || explicitFile || explicitUrl) {
+    return { candidate: explicitFile || input || "", raw: input || "" };
+  }
+  return { candidate: "", raw: await readStdin() };
 };
+
+// One link and nothing else; a link followed by words is a note about it.
+const isBareUrl = (value: string) => /^https?:\/\/\S+$/i.test(value.trim());
 
 export const addCard = async (
   input: string | undefined,
@@ -87,9 +100,16 @@ export const addCard = async (
   }
 ) => {
   const api = client(options);
+  // One key per `teak add`, so the client's retry after a dropped connection
+  // gets the first answer instead of saving a second card.
+  const requestOptions = { idempotencyKey: `teak-cli-${randomUUID()}` };
   const cardType = options.type as CardType | undefined;
   const tags = parseTags(options.tags);
-  const { candidate, raw } = await resolveAddInput(input, options.file);
+  const { candidate, raw } = await resolveAddInput(
+    input,
+    options.file,
+    options.url
+  );
   const uploadFile = candidate ? getUploadFileInfo(candidate) : null;
   if (candidate && uploadFile) {
     if (options.sourceUrl || options.sourceTitle) {
@@ -108,34 +128,40 @@ export const addCard = async (
       readFileSync(candidate),
       mimeType
     );
-    return api.cards.create({
-      cardType,
-      fileKey: upload.fileKey,
-      fileEtag: uploaded.fileEtag,
-      fileName,
-      fileSize,
-      mimeType,
-      notes: options.notes,
-      source: "cli",
-      tags,
-    });
+    return api.cards.create(
+      {
+        cardType,
+        fileKey: upload.fileKey,
+        fileEtag: uploaded.fileEtag,
+        fileName,
+        fileSize,
+        mimeType,
+        notes: options.notes,
+        source: "cli",
+        tags,
+      },
+      requestOptions
+    );
   }
-  const urlArgument = !options.url && /^https?:\/\//i.test(raw);
-  const url = options.url || (urlArgument ? raw : undefined);
+  const urlArgument = !options.url && isBareUrl(raw);
+  const url = options.url || (urlArgument ? raw.trim() : undefined);
   const content = urlArgument ? undefined : raw || undefined;
   if (!(content || url)) {
     throw new InvalidArgumentError(
       "provide text, a URL, a file path, --url, --file, or stdin"
     );
   }
-  return api.cards.create({
-    cardType,
-    content,
-    notes: options.notes,
-    source: "cli",
-    sourceTitle: options.sourceTitle,
-    sourceUrl: options.sourceUrl,
-    tags,
-    url,
-  });
+  return api.cards.create(
+    {
+      cardType,
+      content,
+      notes: options.notes,
+      source: "cli",
+      sourceTitle: options.sourceTitle,
+      sourceUrl: options.sourceUrl,
+      tags,
+      url,
+    },
+    requestOptions
+  );
 };

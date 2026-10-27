@@ -1,6 +1,11 @@
 import { ConvexError } from "convex/values";
 import { MAX_CARD_TITLE_LENGTH } from "../../shared/cardTitle";
 import {
+  MARKDOWN_CONTENT_MAX_BYTES,
+  MARKDOWN_CONTENT_TOO_LARGE_MESSAGE,
+  markdownContentByteLength,
+} from "../../shared/markdown";
+import {
   clampPublicApiLimit,
   PUBLIC_API_DEFAULT_LIMIT,
 } from "../../shared/publicApiLimits";
@@ -375,6 +380,33 @@ const explainInvalidTags = (tags: readonly string[] | undefined) => {
     : `Each tag must be at most ${MAX_TAG_LENGTH} characters`;
 };
 
+/**
+ * `content` and `notes` share the 512 KiB a text card's content has, for every
+ * card type: past it the card can't be stored, and the request would fail
+ * with an internal error instead of saying why.
+ */
+const explainOversizedText = (fields: {
+  content?: unknown;
+  notes?: unknown;
+}): string | null => {
+  for (const key of ["content", "notes"] as const) {
+    const value = fields[key];
+    // UTF-8 takes at most 3 bytes per UTF-16 unit, so short text skips the
+    // encode.
+    if (
+      typeof value === "string" &&
+      value.length * 3 > MARKDOWN_CONTENT_MAX_BYTES &&
+      markdownContentByteLength(value) > MARKDOWN_CONTENT_MAX_BYTES
+    ) {
+      // Content keeps the message text cards have always answered with.
+      return key === "content"
+        ? MARKDOWN_CONTENT_TOO_LARGE_MESSAGE
+        : "Notes must not exceed 512 KiB when encoded as UTF-8.";
+    }
+  }
+  return null;
+};
+
 const explainCardTypeMismatch = (args: {
   cardType?: string;
   content?: string;
@@ -473,6 +505,7 @@ export {
   errorResponse,
   explainCardTypeMismatch,
   explainInvalidTags,
+  explainOversizedText,
   isOptimisticConcurrencyError,
   isRateLimitContentionError,
   MAX_QUERY_SCAN,

@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildInitializeResult,
-  MCP_CORS_HEADERS,
-  TEAK_V1_TOOLS,
-} from "@teak/convex/mcp/protocol";
+import { MCP_CORS_HEADERS, TEAK_V1_TOOLS } from "@teak/convex/mcp/protocol";
 import { handleApiProxyRequest } from "./apiProxy";
 import type { EdgeIdentity } from "./edgeIdentity";
 import { answerMcpAtEdge } from "./mcpEdge";
@@ -30,22 +26,31 @@ const rpc = (id: number | null, method: string, params?: unknown) => ({
 });
 
 describe("MCP protocol at the edge", () => {
-  test("answers initialize with the client's protocol version", async () => {
+  test("leaves initialize to Convex, which checks the key is still live", async () => {
+    expect(
+      await answerMcpAtEdge(
+        mcp(rpc(1, "initialize", { protocolVersion: "2025-06-18" })),
+        USER
+      )
+    ).toBeNull();
+    expect(
+      await answerMcpAtEdge(
+        mcp([rpc(1, "ping"), rpc(2, "initialize", {})]),
+        USER
+      )
+    ).toBeNull();
+  });
+
+  test("never answers a message without an id, whatever its method", async () => {
     const response = await answerMcpAtEdge(
-      mcp(rpc(1, "initialize", { protocolVersion: "2026-07-28" })),
+      mcp([
+        rpc(null, "tools/call", { name: "teak_v1_get_me" }),
+        rpc(null, "ping"),
+      ]),
       USER
     );
-    expect(response?.status).toBe(200);
-    expect(await response?.json()).toEqual({
-      id: 1,
-      jsonrpc: "2.0",
-      result: buildInitializeResult({ protocolVersion: "2026-07-28" }),
-    });
-    expect(buildInitializeResult({ protocolVersion: "2026-07-28" })).toEqual({
-      capabilities: { tools: {} },
-      protocolVersion: "2026-07-28",
-      serverInfo: { name: "teak-api", version: "1.0.0" },
-    });
+    expect(response?.status).toBe(202);
+    expect(await response?.text()).toBe("");
   });
 
   test("lists the same tools Convex lists", async () => {
@@ -129,6 +134,14 @@ describe("MCP protocol at the edge", () => {
     ],
     ["an unknown method", mcp(rpc(1, "resources/list"))],
     ["an invalid message", mcp({ id: 1, method: "ping" })],
+    [
+      "a request under notifications/ with an id",
+      mcp(rpc(1, "notifications/initialized")),
+    ],
+    [
+      "an id that is neither string nor number",
+      mcp({ ...rpc(1, "ping"), id: { a: 1 } }),
+    ],
     ["unparseable JSON", mcp("{nope")],
     [
       "a body that is not JSON",

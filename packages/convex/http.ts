@@ -1,5 +1,6 @@
 import { EDGE_IDENTITY_PATH, WORKFLOW_RPC_PATH } from "@teak/files-protocol";
 import { httpRouter } from "convex/server";
+import { httpAction } from "./_generated/server";
 import { polar, polarWebhookEvents } from "./billing";
 import { edgeIdentityV1 } from "./edgeIdentity";
 import { registerInboundRoutes } from "./inbound/http";
@@ -10,6 +11,7 @@ import {
   discoveryV1,
   healthzV1,
   teakOAuthClients,
+  unroutedV1Response,
   v1CorsPreflight,
 } from "./publicApi/http/meta";
 import {
@@ -274,5 +276,22 @@ http.route({
   method: "OPTIONS",
   handler: v1CorsPreflight,
 });
+
+// Anything under /v1/ that no route above takes answers with the API's JSON
+// 404 or 405 instead of the router's plain-text 404, which has no CORS
+// headers. The router tries exact paths, then the longest prefix, so these
+// only catch what's left.
+const V1_METHODS = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
+const unroutedV1 = httpAction((_ctx, request) => {
+  const { pathname } = new URL(request.url);
+  const allowed = V1_METHODS.filter(
+    (method) => http.lookup(pathname, method)?.[0] !== unroutedV1
+  );
+  return Promise.resolve(unroutedV1Response(request.method, pathname, allowed));
+});
+for (const method of V1_METHODS) {
+  http.route({ pathPrefix: "/v1/", method, handler: unroutedV1 });
+}
+http.route({ pathPrefix: "/v1/", method: "OPTIONS", handler: v1CorsPreflight });
 
 export default http;

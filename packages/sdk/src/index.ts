@@ -575,6 +575,8 @@ const defaultErrorMessage = (code: TeakApiErrorCode) => {
       return "Too many requests. Wait a moment and try again.";
     case "NETWORK_ERROR":
       return "Unable to reach Teak.";
+    case "SERVICE_UNAVAILABLE":
+      return "Teak is busy. Try again in a moment.";
     case "TIMEOUT":
       return "The Teak request timed out.";
     case "NOT_FOUND":
@@ -953,9 +955,114 @@ const withoutTrailingSlashes = (value: string) => {
   return value.slice(0, end);
 };
 
+const RETRY_STATUSES = new Set([429, 502, 503, 504]);
+const MAX_RETRY_WAIT_MS = 5000;
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// A body that isn't JSON (a proxy's HTML 502, a plain-text 429) still names
+// the failure through its status.
+const codeForStatus = (status: number): TeakApiErrorCode => {
+  switch (status) {
+    case 401:
+      return "UNAUTHORIZED";
+    case 403:
+      return "FORBIDDEN";
+    case 404:
+      return "NOT_FOUND";
+    case 429:
+      return "RATE_LIMITED";
+    case 503:
+      return "SERVICE_UNAVAILABLE";
+    default:
+      return status >= 500 ? "INTERNAL_ERROR" : "REQUEST_FAILED";
+  }
+};
+
+/** Retry-After as an absolute time: delta-seconds or an HTTP date. */
+const retryAtFromHeader = (value: string | null): number | undefined => {
+  if (!value?.trim()) {
+    return;
+  }
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Date.now() + seconds * 1000;
+  }
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : date;
+};
+
+const errorFromResponse = (response: Response, text: string) => {
+  let payload: unknown = null;
+  try {
+    payload = text.trim() ? JSON.parse(text) : null;
+  } catch {
+    payload = null;
+  }
+  const object = isObject(payload) ? payload : {};
+  const message =
+    typeof object.error === "string" && object.error ? object.error : undefined;
+  const code = codeFrom(object.code, codeForStatus(response.status));
+  const generic = code === "INTERNAL_ERROR" || code === "REQUEST_FAILED";
+  return new TeakApiError(
+    code,
+    message ??
+      (generic
+        ? `The Teak request failed with HTTP ${response.status}.`
+        : undefined),
+    {
+      requestId: response.headers.get("x-request-id") ?? undefined,
+      retryAt:
+        typeof object.retryAt === "number"
+          ? object.retryAt
+          : retryAtFromHeader(response.headers.get("retry-after")),
+      status: response.status,
+    }
+  );
+};
+
+/**
+ * Reads are always safe to send again, and so is a write that carries an
+ * Idempotency-Key: the API answers its replay with the first result.
+ */
+const canRetry = (init: RequestInit) => {
+  const method = (init.method ?? "GET").toUpperCase();
+  return (
+    method === "GET" ||
+    method === "HEAD" ||
+    new Headers(init.headers).has("Idempotency-Key")
+  );
+};
+
+/**
+ * How long to wait before trying a failed request again, or null to give up:
+ * only a busy or unreachable service, or a keyed write whose first attempt is
+ * still running, is retried, and never for longer than the server asks or
+ * MAX_RETRY_WAIT_MS.
+ */
+const retryDelay = (error: TeakApiError, attempt: number): number | null => {
+  const retryable =
+    error.code === "NETWORK_ERROR" ||
+    error.code === "IN_PROGRESS" ||
+    (error.status !== undefined && RETRY_STATUSES.has(error.status));
+  if (!retryable) {
+    return null;
+  }
+  if (error.retryAt !== undefined) {
+    const wait = Math.max(0, error.retryAt - Date.now());
+    return wait > MAX_RETRY_WAIT_MS ? null : wait;
+  }
+  return Math.min(MAX_RETRY_WAIT_MS, 250 * 2 ** attempt * (1 + Math.random()));
+};
+
 export const createTeakClient = (options: {
   baseUrl?: string;
   fetch?: FetchLike;
+  /**
+   * How many times to send a read (or a write with an idempotency key) again
+   * after a busy (429, 502, 503, 504) or unreachable service. Defaults to 2.
+   */
+  retries?: number;
   timeoutMs?: number;
   tokenProvider: TokenProvider;
   userAgent?: string;
@@ -965,17 +1072,12 @@ export const createTeakClient = (options: {
   );
   const fetchImpl = options.fetch ?? fetch;
   const timeoutMs = options.timeoutMs ?? 10_000;
-  const request = async <T>(
+  const retries = Math.max(0, Math.floor(options.retries ?? 2));
+  const send = async (
     path: string,
     init: RequestInit,
-    parser: (payload: unknown) => T,
-    retry = true,
-    accessToken?: string
-  ): Promise<T> => {
-    const token = accessToken ?? (await options.tokenProvider.getAccessToken());
-    if (!token) {
-      throw new TeakApiError("AUTH_REQUIRED");
-    }
+    token: string
+  ): Promise<{ response: Response; text: string }> => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const headers = new Headers(init.headers);
@@ -984,10 +1086,9 @@ export const createTeakClient = (options: {
     if (init.body && !headers.has("Content-Type")) {
       headers.set("Content-Type", "application/json");
     }
-    let response: Response;
-    let text: string;
     // The timeout covers the whole exchange: the headers and then the body.
     try {
+      let response: Response;
       try {
         response = await fetchImpl(`${baseUrl}${path}`, {
           ...init,
@@ -1001,41 +1102,64 @@ export const createTeakClient = (options: {
             : "NETWORK_ERROR"
         );
       }
-      text =
+      const text =
         response.status === 204
           ? ""
           : await readBody(response, controller.signal);
+      return { response, text };
     } finally {
       clearTimeout(timeout);
     }
-    if (
-      response.status === 401 &&
-      retry &&
-      options.tokenProvider.onUnauthorized
-    ) {
-      const next = await options.tokenProvider.onUnauthorized(token);
-      if (next) {
-        return request(path, init, parser, false, next);
-      }
+  };
+  const request = async <T>(
+    path: string,
+    init: RequestInit,
+    parser: (payload: unknown) => T,
+    retry = true,
+    accessToken?: string
+  ): Promise<T> => {
+    const token = accessToken ?? (await options.tokenProvider.getAccessToken());
+    if (!token) {
+      throw new TeakApiError("AUTH_REQUIRED");
     }
-    const payload = parseJson(response, text);
-    if (!response.ok) {
-      const object = isObject(payload) ? payload : {};
-      throw new TeakApiError(
-        codeFrom(
-          object.code,
-          response.status === 404 ? "NOT_FOUND" : "REQUEST_FAILED"
-        ),
-        String(object.error || response.statusText),
-        {
-          requestId: response.headers.get("x-request-id") ?? undefined,
-          retryAt:
-            typeof object.retryAt === "number" ? object.retryAt : undefined,
-          status: response.status,
+    const retriesAllowed = canRetry(init) ? retries : 0;
+    const waitBeforeRetry = (error: unknown, attempt: number) =>
+      error instanceof TeakApiError && attempt < retriesAllowed
+        ? retryDelay(error, attempt)
+        : null;
+    for (let attempt = 0; ; attempt += 1) {
+      let exchange: { response: Response; text: string };
+      try {
+        exchange = await send(path, init, token);
+      } catch (error) {
+        const delay = waitBeforeRetry(error, attempt);
+        if (delay === null) {
+          throw error;
         }
-      );
+        await sleep(delay);
+        continue;
+      }
+      const { response, text } = exchange;
+      if (
+        response.status === 401 &&
+        retry &&
+        options.tokenProvider.onUnauthorized
+      ) {
+        const next = await options.tokenProvider.onUnauthorized(token);
+        if (next) {
+          return request(path, init, parser, false, next);
+        }
+      }
+      if (response.ok) {
+        return parser(parseJson(response, text));
+      }
+      const error = errorFromResponse(response, text);
+      const delay = waitBeforeRetry(error, attempt);
+      if (delay === null) {
+        throw error;
+      }
+      await sleep(delay);
     }
-    return parser(payload);
   };
   const qs = (params: Parameters<typeof buildCardsSearchParams>[0]) =>
     buildCardsSearchParams(params);

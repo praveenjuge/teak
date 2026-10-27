@@ -25,6 +25,14 @@ export const V1_ENDPOINTS = [
   "POST /v1/cards/:cardId/restore",
   "POST /v1/cards/:cardId/refresh",
   "PATCH /v1/cards/:cardId/favorite",
+  "GET /v1/cards/:cardId/content",
+  "POST /v1/cards/:cardId/done",
+  "DELETE /v1/cards/:cardId/done",
+  "POST /v1/cards/:cardId/save-pdf",
+  "GET /v1/cards/:cardId/highlights",
+  "POST /v1/cards/:cardId/highlights",
+  "PATCH /v1/highlights/:highlightId",
+  "DELETE /v1/highlights/:highlightId",
   "POST /v1/cards/:cardId/thumbnail/upload",
   "PUT /v1/cards/:cardId/thumbnail",
   "DELETE /v1/cards/:cardId/thumbnail",
@@ -169,6 +177,32 @@ export const discoveryV1 = httpAction((_ctx, request) => {
 export const v1CorsPreflight = httpAction(async () =>
   v1CorsPreflightResponse()
 );
+
+/**
+ * The answer to a /v1 request no route takes: 405 with `Allow` when the path
+ * exists for other methods, else 404. Both are the API's JSON errors with its
+ * CORS headers, so a browser client reads them instead of a CORS failure.
+ */
+export const unroutedV1Response = (
+  method: string,
+  pathname: string,
+  allowed: readonly string[]
+): Response =>
+  withPublicApiGatewayHeaders(
+    allowed.length > 0
+      ? json(
+          405,
+          {
+            code: "METHOD_NOT_ALLOWED",
+            error: `${method} isn't allowed on ${pathname}; use ${allowed.join(", ")}`,
+          },
+          { Allow: [...allowed, "OPTIONS"].join(", ") }
+        )
+      : json(404, {
+          code: "NOT_FOUND",
+          error: `No endpoint at ${method} ${pathname}. GET /v1 lists them.`,
+        })
+  );
 
 export const readWorkosConnectClients = () => {
   const configured = {

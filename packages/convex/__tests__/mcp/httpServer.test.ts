@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
+import { ConvexError } from "convex/values";
 import {
   handleMcpV1Request,
   handleOauthProtectedResourceV1Request,
-  rateLimitedJsonRpcRemainder,
 } from "../../mcp/httpServer";
 import { TEAK_V1_TOOLS } from "../../mcp/tools";
 import { mockActionCtx } from "../helpers/convex.test-utils";
@@ -409,42 +409,6 @@ describe("Convex MCP endpoint", () => {
     expect(payload.error?.message).toContain("100");
   });
 
-  test("synthesizes remaining batch errors with original request IDs", () => {
-    const remainder = rateLimitedJsonRpcRemainder([
-      { jsonrpc: "2.0", id: 12, method: "tools/call" },
-      { jsonrpc: "2.0", method: "notifications/cancelled" },
-      { jsonrpc: "2.0", id: "follow-up", method: "tools/call" },
-    ]);
-
-    expect(remainder).toEqual([
-      {
-        jsonrpc: "2.0",
-        id: 12,
-        error: { code: -32_000, message: "Rate limited" },
-      },
-      {
-        jsonrpc: "2.0",
-        id: "follow-up",
-        error: { code: -32_000, message: "Rate limited" },
-      },
-    ]);
-  });
-
-  test("omits responses for rate-limited notifications without an id", () => {
-    const remainder = rateLimitedJsonRpcRemainder([
-      { jsonrpc: "2.0", method: "tools/call" },
-      { jsonrpc: "2.0", id: 8, method: "tools/call" },
-    ]);
-
-    expect(remainder).toEqual([
-      {
-        jsonrpc: "2.0",
-        id: 8,
-        error: { code: -32_000, message: "Rate limited" },
-      },
-    ]);
-  });
-
   const authorizedCtx = () =>
     mockActionCtx(
       withMappedOwner({
@@ -458,6 +422,153 @@ describe("Convex MCP endpoint", () => {
         runQuery: mock(),
       })
     );
+
+  test("never answers or runs a message without an id", async () => {
+    const runQuery = mock();
+    const response = await handleMcpV1Request(
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: mock().mockResolvedValue({
+            keyId: "key_1",
+            userId: "user_1",
+            access: "full_access",
+            source: "component",
+            rateLimitKey: "component:key_1",
+          }),
+          runQuery,
+        })
+      ),
+      mcpRequest([
+        {
+          jsonrpc: "2.0",
+          method: "tools/call",
+          params: { name: "teak_v1_get_card", arguments: { cardId: "c1" } },
+        },
+        { jsonrpc: "2.0", method: "resources/list" },
+      ])
+    );
+
+    expect(response.status).toBe(202);
+    expect(await response.text()).toBe("");
+  });
+
+  test("answers a request under notifications/ that has an id", async () => {
+    const response = await handleMcpV1Request(
+      authorizedCtx(),
+      mcpRequest({ jsonrpc: "2.0", id: 7, method: "notifications/initialized" })
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      jsonrpc: "2.0",
+      id: 7,
+      error: { code: -32_601, message: "Method not found" },
+    });
+  });
+
+  test.each([[{ a: 1 }], [true], [null]])(
+    "refuses id %p with invalid request and a null id",
+    async (id) => {
+      const response = await handleMcpV1Request(
+        authorizedCtx(),
+        mcpRequest({ jsonrpc: "2.0", id, method: "ping" })
+      );
+
+      expect(await response.json()).toMatchObject({
+        id: null,
+        error: { code: -32_600 },
+      });
+    }
+  );
+
+  test("a tool call that throws answers as a tool error and keeps the batch", async () => {
+    const response = await handleMcpV1Request(
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: mock().mockResolvedValue({
+            keyId: "key_1",
+            userId: "user_1",
+            access: "full_access",
+            source: "component",
+            rateLimitKey: "component:key_1",
+            rateLimit: { ok: true },
+          }),
+          runQuery: mock().mockRejectedValue(new Error("transient")),
+        })
+      ),
+      mcpRequest([
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "teak_v1_get_card",
+            arguments: { cardId: "card_1" },
+          },
+        },
+        { jsonrpc: "2.0", id: 2, method: "ping" },
+      ])
+    );
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as JsonRpcSuccess[];
+    expect(payload).toHaveLength(2);
+    expect(payload[0]).toMatchObject({
+      id: 1,
+      result: { isError: true, structuredContent: { status: 500 } },
+    });
+    expect(payload[1]).toEqual({ jsonrpc: "2.0", id: 2, result: {} });
+  });
+
+  test("a card's own rate limit doesn't fail the rest of the batch", async () => {
+    const credential = {
+      keyId: "key_1",
+      userId: "user_1",
+      access: "full_access",
+      source: "component",
+      rateLimitKey: "component:key_1",
+      rateLimit: { ok: true },
+    };
+    const response = await handleMcpV1Request(
+      mockActionCtx(
+        withMappedOwner({
+          runMutation: mock((_reference: unknown, args: { token?: string }) =>
+            args.token
+              ? Promise.resolve(credential)
+              : Promise.reject(
+                  new ConvexError({
+                    code: "RATE_LIMITED",
+                    message: "This card was refreshed a moment ago",
+                    retryAt: Date.now() + 30_000,
+                  })
+                )
+          ),
+          runQuery: mock().mockResolvedValue({
+            _id: "card_1",
+            userId: "user_1",
+          }),
+        })
+      ),
+      mcpRequest([
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: {
+            name: "teak_v1_refresh_card",
+            arguments: { cardId: "card_1" },
+          },
+        },
+        { jsonrpc: "2.0", id: 2, method: "ping" },
+        { jsonrpc: "2.0", id: 3, method: "tools/list" },
+      ])
+    );
+
+    const payload = (await response.json()) as JsonRpcSuccess[];
+    expect(payload[0]?.result.structuredContent).toMatchObject({ status: 429 });
+    expect(payload[1]).toEqual({ jsonrpc: "2.0", id: 2, result: {} });
+    expect(payload[2]?.result.tools).toHaveLength(TEAK_V1_TOOLS.length);
+  });
 
   test("answers an unknown tool with JSON-RPC invalid params", async () => {
     const response = await handleMcpV1Request(

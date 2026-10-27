@@ -42,6 +42,7 @@ import {
 import {
   explainCardTypeMismatch,
   explainInvalidTags,
+  explainOversizedText,
   isRateLimitContentionError,
   parseStringArray,
 } from "./publicApi/http/shared";
@@ -867,6 +868,11 @@ const assertBulkCreatePayload = (payload: Record<string, unknown>) => {
     }
   }
 
+  const oversized = explainOversizedText(payload);
+  if (oversized) {
+    throw new ConvexError({ code: "CONTENT_TOO_LARGE", message: oversized });
+  }
+
   const tags = bulkItemTags(payload);
   const createError =
     explainInvalidTags(tags) ??
@@ -932,6 +938,10 @@ const assertBulkUpdatePayload = (
       code: "INVALID_INPUT",
       message: "Text content cannot be empty for this card type",
     });
+  }
+  const oversized = explainOversizedText(payload);
+  if (oversized) {
+    throw new ConvexError({ code: "CONTENT_TOO_LARGE", message: oversized });
   }
 };
 

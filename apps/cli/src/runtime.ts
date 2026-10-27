@@ -542,14 +542,24 @@ export const exitCodeFor = (error: unknown) => {
   return EXIT.api;
 };
 
-export const openBrowser = (url: string): Promise<boolean> => {
-  let command = "xdg-open";
-  if (platform() === "darwin") {
-    command = "open";
-  } else if (platform() === "win32") {
-    command = "cmd";
+// Not `cmd /c start` on Windows: cmd reads the `&` between query parameters
+// as a command separator, which drops the rest of the link and runs what
+// follows it.
+export const browserCommand = (
+  os: NodeJS.Platform,
+  url: string
+): [string, string[]] => {
+  if (os === "darwin") {
+    return ["open", [url]];
   }
-  const args = platform() === "win32" ? ["/c", "start", "", url] : [url];
+  if (os === "win32") {
+    return ["rundll32", ["url.dll,FileProtocolHandler", url]];
+  }
+  return ["xdg-open", [url]];
+};
+
+export const openBrowser = (url: string): Promise<boolean> => {
+  const [command, args] = browserCommand(platform(), url);
   return new Promise<boolean>((resolve) => {
     try {
       const child = spawn(command, args, { detached: true, stdio: "ignore" });
@@ -668,7 +678,10 @@ export const login = async (options: ClientOptions & { browser?: boolean }) => {
               redirectUri,
               state,
             });
-            process.stdout.write(`${authUrl.toString()}\n`);
+            // --json keeps stdout to the one JSON answer at the end.
+            (options.json ? process.stderr : process.stdout).write(
+              `${authUrl.toString()}\n`
+            );
             if (options.browser !== false) {
               void openBrowser(authUrl.toString()).then((opened) => {
                 if (!opened) {

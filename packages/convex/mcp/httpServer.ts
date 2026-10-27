@@ -10,6 +10,7 @@ import {
   type PublicApiOperation,
   validatePublicApiBearer,
 } from "../publicApi/http/routes";
+import { withBackendTelemetryScope } from "../telemetry/posthog";
 import {
   answerProtocolMessage,
   jsonRpcError,
@@ -20,8 +21,6 @@ import {
 import { callTeakV1Tool, isTeakV1Tool } from "./tools";
 
 type JsonObject = Record<string, unknown>;
-
-const JSON_RPC_RATE_LIMITED_CODE = -32_000;
 
 const withMcpCors = (response: Response): Response => {
   const withGatewayHeaders = withPublicApiGatewayHeaders(response);
@@ -96,6 +95,9 @@ const parseJsonRpcBody = async (request: Request): Promise<unknown> => {
   }
 };
 
+const isJsonRpcId = (id: unknown): id is number | string =>
+  typeof id === "string" || (typeof id === "number" && Number.isFinite(id));
+
 const handleJsonRpcMessage = async (
   ctx: ActionCtx,
   request: Request,
@@ -106,11 +108,22 @@ const handleJsonRpcMessage = async (
   }
 
   const rpc = message as {
-    id?: null | number | string;
+    id?: unknown;
     jsonrpc?: string;
     method?: string;
     params?: unknown;
   };
+  // A message without an id is a notification, whatever its method: it never
+  // gets a reply. One with an id that isn't a string or number can't be
+  // answered by it.
+  const hasId = "id" in rpc;
+  if (hasId && !isJsonRpcId(rpc.id)) {
+    return jsonRpcError(
+      null,
+      -32_600,
+      "Invalid Request: id must be a string or number"
+    );
+  }
   if (rpc.jsonrpc !== "2.0" || typeof rpc.method !== "string") {
     return jsonRpcError(rpc.id, -32_600, "Invalid Request");
   }
@@ -119,7 +132,7 @@ const handleJsonRpcMessage = async (
   if (answered.kind === "reply") {
     return answered.reply;
   }
-  if (answered.kind === "noReply") {
+  if (answered.kind === "noReply" || !hasId) {
     return null;
   }
 
@@ -136,56 +149,39 @@ const handleJsonRpcMessage = async (
       return jsonRpcError(rpc.id, -32_602, `Unknown tool: ${params.name}`);
     }
 
-    const result = await callTeakV1Tool(
-      params.name,
-      params.arguments ?? {},
-      request,
-      (operation) => executeToolOperation(ctx, request, operation)
-    );
-    return jsonRpcResponse(rpc.id, result);
+    try {
+      const result = await callTeakV1Tool(
+        params.name,
+        params.arguments ?? {},
+        request,
+        (operation) => executeToolOperation(ctx, request, operation)
+      );
+      return jsonRpcResponse(rpc.id, result);
+    } catch (error) {
+      // One failed call answers as a tool error; the rest of a batch, and the
+      // writes it already made, keep their own answers.
+      console.error("[mcp] Tool call failed", {
+        error: error instanceof Error ? error.message : String(error),
+        tool: params.name,
+      });
+      return jsonRpcResponse(rpc.id, {
+        content: [
+          {
+            type: "text",
+            text: "INTERNAL_ERROR: Teak couldn't finish this call. Try again.",
+          },
+        ],
+        isError: true,
+        structuredContent: {
+          code: "INTERNAL_ERROR",
+          error: "Teak couldn't finish this call. Try again.",
+          status: 500,
+        },
+      });
+    }
   }
 
   return jsonRpcError(rpc.id, -32_601, "Method not found");
-};
-
-const jsonRpcId = (message: unknown): null | number | string => {
-  if (!(message && typeof message === "object" && !Array.isArray(message))) {
-    return null;
-  }
-  const id = (message as { id?: unknown }).id;
-  if (typeof id === "number" || typeof id === "string") {
-    return id;
-  }
-  return null;
-};
-
-const isNotification = (message: unknown): boolean => {
-  if (!(message && typeof message === "object" && !Array.isArray(message))) {
-    return false;
-  }
-  return !("id" in message);
-};
-
-export const rateLimitedJsonRpcRemainder = (
-  remainingMessages: unknown[]
-): JsonObject[] =>
-  remainingMessages.flatMap((message) =>
-    isNotification(message)
-      ? []
-      : [
-          jsonRpcError(
-            jsonRpcId(message),
-            JSON_RPC_RATE_LIMITED_CODE,
-            "Rate limited"
-          ),
-        ]
-  );
-
-const isRateLimitedRpc = (response: JsonObject): boolean => {
-  const result = response.result as
-    | { isError?: boolean; structuredContent?: { status?: unknown } }
-    | undefined;
-  return result?.structuredContent?.status === 429;
 };
 
 const handleMcpPost = async (
@@ -228,23 +224,15 @@ const handleMcpPost = async (
     return json(400, jsonRpcError(null, -32_600, "Invalid Request"));
   }
 
+  // Each message is answered on its own. A tool call over the account's rate
+  // limit is refused by the API like any other, so a card's own limit (say,
+  // refreshing it twice in a minute) doesn't fail the calls after it.
   const messages = Array.isArray(body) ? body : [body];
   const responses: JsonObject[] = [];
-  let rateLimited = false;
   for (const message of messages) {
-    if (rateLimited) {
-      if (!isNotification(message)) {
-        responses.push(...rateLimitedJsonRpcRemainder([message]));
-      }
-      continue;
-    }
-
     const response = await handleJsonRpcMessage(ctx, request, message);
     if (response) {
       responses.push(response);
-      if (isRateLimitedRpc(response)) {
-        rateLimited = true;
-      }
     }
   }
 
@@ -292,7 +280,10 @@ export const handleMcpV1Request = async (
   }
 
   try {
-    return withMcpCors(await handleMcpPost(ctx, request));
+    // One PostHog flush for the whole request instead of one per tool call.
+    return withMcpCors(
+      await withBackendTelemetryScope({}, () => handleMcpPost(ctx, request))
+    );
   } catch {
     return withMcpCors(
       json(500, {

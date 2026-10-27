@@ -110,7 +110,7 @@ Teak's MCP server supports two authentication methods.
 
 ## Transport
 
-MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in stateless JSON mode. JSON-RPC batches are limited to 100 messages.
+MCP Streamable HTTP at `/mcp` (a trailing slash also works), answered in stateless JSON mode. JSON-RPC batches are limited to 100 messages, and each message is answered on its own: one tool call that fails or hits a card's own limit doesn't change the others' answers. A message without an `id` is a notification and gets no answer, whatever its method.
 
 ## Available Tools
 
@@ -301,12 +301,13 @@ Tool failures are returned as MCP tool errors with this structured shape:
 }
 ```
 
-Invalid arguments, such as a `limit` outside 1 to 100, come back the same way with `"status": 400` and `"code": "INVALID_INPUT"`.
+Invalid arguments, such as a `limit` outside 1 to 100, come back the same way with `"status": 400` and `"code": "INVALID_INPUT"`. The message names the argument (`cardId: …`). An argument a tool doesn't take is refused, not ignored, with the ones it does take: `teak_v1_search_cards` with `query` answers ``Unknown argument `query`; this tool takes `q`, …``. Ids (`cardId`, `folderId`, `highlightId`) are the ids Teak returns: letters, digits, `_` and `-`.
 
 Protocol problems are JSON-RPC errors instead:
 
 - An unknown tool name returns error `-32602` (`Unknown tool: <name>`).
 - A request body that isn't valid JSON returns HTTP `400` with error `-32700` (`Parse error`).
-- A message that isn't a JSON-RPC request returns error `-32600` (`Invalid Request`).
+- A message that isn't a JSON-RPC request, or whose `id` isn't a string or number, returns error `-32600` (`Invalid Request`).
+- A request with an `id` and a method Teak doesn't serve, including one under `notifications/`, returns error `-32601` (`Method not found`).
 
 

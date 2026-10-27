@@ -42,7 +42,8 @@ The client covers every [API](/docs/api) endpoint: `cards.list`, `search`, `favo
 - Pass `{ idempotencyKey }` to `cards.create` or `cards.bulk` to make retries safe.
 - Teak keeps a private copy of each link's page; cards carry `archive` (`{ kind, bytes, capturedAt }`, or `null`). A browser extension can send the page it shows instead: gzip the HTML, `PUT` it to the URL from `pageSnapshots.createUpload({ bytes })` with `Content-Type: application/gzip`, and pass its `fileKey` to `cards.create` as `pageSnapshotKey`.
 - Saving a link that's already in Teak makes no second card: `cards.create` returns `status: "created"` with `resaved: true` (and `wasArchived: true` when it was archived) and the existing card, moved to the top. Tags and notes sent with it are ignored; `cards.update` adds them. Cards carry `savedAt`, when they were last saved.
-- Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`. `ERROR_CODES` lists every code.
+- Errors are `TeakApiError`s with a `code`, `status`, `retryAt`, and the response's `requestId`. `ERROR_CODES` lists every code. An answer that isn't JSON, such as a proxy's HTML error page, is named by its status (`UNAUTHORIZED`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`...), and `retryAt` comes from `Retry-After` when the body has none.
+- Reads, and writes sent with an `idempotencyKey`, are retried up to twice when Teak is busy (`429`, `502`, `503`, `504`, or a `409 IN_PROGRESS` replay) or the network drops, waiting as long as `Retry-After` asks, up to 5 seconds; a longer wait is returned as the error. Pass `retries: 0` to `createTeakClient` to turn this off. Writes without a key are never sent twice.
 - `formatBytes(card.fileSize)` turns a file size into the label Teak shows, such as `4.6 MB` or `50 MB`.
 
 ## Token providers

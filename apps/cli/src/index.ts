@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { FOLDER_COLORS } from "@teak/convex/shared/folders";
@@ -271,7 +272,10 @@ export const program = new Command()
   .description("Command line client for Teak")
   .exitOverride()
   .version(VERSION)
-  .option("--api-key <key>", "Teak API key")
+  .option(
+    "--api-key <key>",
+    "Teak API key (prefer TEAK_API_KEY: a flag is visible to other processes)"
+  )
   .option("--api-url <url>", "Teak API base URL", process.env.TEAK_API_URL)
   .option("--json", "emit JSON");
 
@@ -547,7 +551,8 @@ cards
     }
     const result = await client(opts).cards.bulk(
       operation as BulkCardsOperation,
-      items
+      items,
+      { idempotencyKey: `teak-cli-${randomUUID()}` }
     );
     write(
       opts.json

@@ -105,10 +105,18 @@ teak tags rename Design design-systems --wait
 
 `teak add` also accepts a bare URL or file path as the positional argument (for
 example `teak add https://example.com`) — the CLI detects whether it's text,
-a URL, or a file. Use `--url` / `--file` when you want to be explicit or when
+a URL, or a file. A link followed by other words is saved as a note that
+mentions it. Use `--url` / `--file` when you want to be explicit or when
 scripting. Text given with `--url` (for example
 `teak add "Read before Friday" --url https://example.com`) is saved with the
 link as the card's content.
+
+With no text, `--url` or `--file`, `teak add` saves what you pipe into it
+(`pbpaste | teak add`). Piped text is always saved as text, even when it names a
+file, and `teak add --url` never reads standard input, so it's safe inside a
+`while read` loop. Each `teak add` and `teak cards bulk` sends an
+`Idempotency-Key`, so a request the CLI retries after a dropped connection
+never saves a card twice.
 
 Saving a link that's already in Teak makes no second card: `teak add <url>`
 moves that card to the top of `teak ls` (and out of Archive) and prints
@@ -181,7 +189,7 @@ A smart folder saves a search and lists whatever matches it: `teak folders creat
 | `--hue <hue>` | Color family, such as `blue` or `neutral`. Repeatable. |
 | `--hex <color>` | Exact color, such as `#112233`. Repeatable. |
 | `--date <phrase>` | When it was saved: `today`, `last week`, `march 2026`, `2026-01-01 to 2026-02-01` |
-| `--created-after` / `--created-before` | Millisecond timestamps |
+| `--created-after` / `--created-before` | Millisecond timestamps, such as `1767225600000`. Anything else is a usage error (exit code 2). For dates, use `--date`. |
 | `--mode hybrid\|keyword\|semantic` | How the search text finds cards: words and meaning (the default), words only, or meaning only. When meaning search is unavailable, the CLI prints `mode: keyword` to stderr (`searchMode` with `--json`). |
 | `--sort newest\|oldest\|relevance\|shuffle`, `--limit`, `--cursor` | Order and paging. `relevance` (Best match, with `--query`) puts the best matches first; the CLI prints `relevance: unranked` when it couldn't score them. |
 | `--seed <n>` | Shuffle's seed, to get the same order again. Without it, `--sort shuffle` picks one and prints it (with `--json`, as `seed` in the output). To get the next page of a shuffle, pass `--sort shuffle`, its seed, and the cursor together, for example `--sort shuffle --seed <n> --cursor <cursor>`: a cursor works only with the seed that issued it. |
@@ -215,7 +223,7 @@ teak similar <card-id> --type link
 teak export -o teak-backup.zip
 ```
 
-`teak export` starts a ZIP export of every card and original file, the same as the web's export. Add `--wait` to wait for it, or `-o` to wait and save the ZIP. `teak export status` shows progress, and `teak export download` saves the latest ready export. You can start one export every 7 days.
+`teak export` starts a ZIP export of every card and original file, the same as the web's export. Add `--wait` to wait for it, or `-o` to wait and save the ZIP. When the `-o` file already exists, the CLI stops before starting an export; add `--force` to replace it. `teak export status` shows progress, and `teak export download` saves the latest ready export. You can start one export every 7 days.
 
 ### Sync and bulk edits
 
@@ -231,7 +239,7 @@ teak cards bulk update --input updates.json
 | Option | Purpose |
 | --- | --- |
 | `--json` | Machine-readable output |
-| `--api-key <key>` | Use an API key for this command (same as `TEAK_API_KEY`) |
+| `--api-key <key>` | Use an API key for this command. Prefer `TEAK_API_KEY`: a key passed as a flag stays in your shell history and other processes can see it |
 | `--api-url <url>` | Point at another API, such as a self-hosted or development deployment (same as `TEAK_API_URL`) |
 
 ### Getting help
@@ -246,7 +254,9 @@ teak search --help
 
 ## Output Format
 
-By default, commands print human-readable output. Add `--json` to any command for machine-readable JSON, useful for piping into `jq` or other tools:
+By default, commands print human-readable output. Add `--json` to any command for machine-readable JSON, useful for piping into `jq` or other tools. With `--json`, standard output holds only JSON: `teak --json login` prints its sign-in link to standard error.
+
+When Teak is briefly busy (`429`, `502`, `503` or `504`) or the network drops, the CLI reads again up to twice, waiting as long as Teak asks (up to 5 seconds), before it reports the error:
 
 ```bash
 teak search "buttons" --json | jq '.items[].url'

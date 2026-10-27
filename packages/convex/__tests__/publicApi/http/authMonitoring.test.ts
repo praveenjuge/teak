@@ -284,6 +284,20 @@ describe("public API auth outcomes", () => {
         credential: "workos_connect",
         reason: "expired_token",
       });
+
+      // Junk credentials from anyone can empty the shared invalid-auth
+      // bucket; a signed token that only expired still gets its 401, so the
+      // client refreshes it.
+      const flooded = await withAuthorizedUser(
+        backend({
+          "publicApi:consumeInvalidApiAuthLimit": {
+            ok: false,
+            retryAt: Date.now() + 5000,
+          },
+        }),
+        request(token)
+      );
+      expect(rejection(flooded).status).toBe(401);
     } finally {
       fetchSpy.mockRestore();
     }

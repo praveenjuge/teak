@@ -40,6 +40,7 @@ const routes = new Map<string, Route>();
 const requests: {
   auth: string | null;
   body: string;
+  idempotencyKey: string | null;
   method: string;
   path: string;
 }[] = [];
@@ -51,6 +52,7 @@ const server = serve({
     requests.push({
       auth: request.headers.get("authorization"),
       body: await request.clone().text(),
+      idempotencyKey: request.headers.get("idempotency-key"),
       method: request.method,
       path: `${url.pathname}${url.search}`,
     });
@@ -100,6 +102,44 @@ const teakWithEnv = async (
   return { code, stderr, stdout };
 };
 const teak = (...args: string[]) => teakWithEnv({}, ...args);
+
+// Runs the CLI with `input` piped to stdin; `keepOpen` leaves the pipe open,
+// like a parent process that never closes it.
+const teakWithStdin = async (
+  input: string,
+  keepOpen: boolean,
+  ...args: string[]
+) => {
+  const child = spawn(
+    [process.execPath, "run", join(import.meta.dir, "index.ts"), ...args],
+    {
+      cwd: workDirectory,
+      env: {
+        ...env,
+        TEAK_API_KEY: API_KEY,
+        TEAK_API_URL: server.url.toString(),
+        XDG_CONFIG_HOME: configHome,
+      },
+      stderr: "pipe",
+      stdin: "pipe",
+      stdout: "pipe",
+      timeout: 15_000,
+    }
+  );
+  child.stdin.write(input);
+  if (!keepOpen) {
+    child.stdin.end();
+  }
+  const [code, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ]);
+  if (keepOpen) {
+    child.stdin.end();
+  }
+  return { code, stderr, stdout };
+};
 
 describe("teak cards", () => {
   test("lists cards one per line and reports the next cursor", async () => {
@@ -345,6 +385,16 @@ describe("teak parity commands", () => {
     expect(result.code).toBe(EXIT.usage);
     expect(requests).toHaveLength(0);
   });
+
+  test.each(["2026-01-01", "", "-5"])(
+    "rejects --created-after %p before sending a request",
+    async (value) => {
+      const result = await teak("cards", "list", "--created-after", value);
+      expect(result.code).toBe(EXIT.usage);
+      expect(result.stderr).toContain("millisecond timestamp");
+      expect(requests).toHaveLength(0);
+    }
+  );
 
   test("rejects a date passed as --since", async () => {
     const result = await teak("cards", "changes", "--since", "2026-01-01");
@@ -769,6 +819,17 @@ describe("teak parity commands", () => {
     );
   });
 
+  test("export -o refuses an existing file before starting an export", async () => {
+    writeFileSync(join(workDirectory, "existing.zip"), "old backup");
+    const result = await teak("export", "-o", "existing.zip");
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain("--force");
+    expect(requests).toHaveLength(0);
+    expect(readFileSync(join(workDirectory, "existing.zip"), "utf8")).toBe(
+      "old backup"
+    );
+  });
+
   test("an export that fails while waiting exits with the API error code", async () => {
     routes.set("POST /v1/exports", () =>
       json({ job: { id: "exp_2", status: "pending" } }, 202)
@@ -957,6 +1018,105 @@ describe("teak batch and fallback behavior", () => {
     expect(again.stdout).toContain("saved again: 2026-05-06T07:08:09.000Z");
     const once = await teak("cards", "get", "card_b");
     expect(once.stdout).not.toContain("saved again");
+  });
+
+  test("add --url leaves stdin to the shell loop that runs it", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_l", status: "created" })
+    );
+    const result = await teakWithStdin(
+      "https://example.com/next-line\n",
+      true,
+      "add",
+      "--url",
+      "https://example.com/first"
+    );
+    expect(result.code).toBe(0);
+    expect(JSON.parse(requests[0]?.body ?? "{}")).toEqual({
+      source: "cli",
+      url: "https://example.com/first",
+    });
+  });
+
+  test("piped text that names a file is saved as text, not uploaded", async () => {
+    const secret = join(workDirectory, "private-notes.txt");
+    writeFileSync(secret, "do not upload");
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_t", status: "created" })
+    );
+    const result = await teakWithStdin(secret, false, "add");
+    expect(result.code).toBe(0);
+    expect(requests.map((r) => r.path)).toEqual(["/v1/cards"]);
+    expect(JSON.parse(requests[0]?.body ?? "{}").content).toBe(secret);
+  });
+
+  test("a link followed by words is a note, not a malformed url", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_n", status: "created" })
+    );
+    await teak("add", "https://example.com is a great site");
+    const body = JSON.parse(requests[0]?.body ?? "{}");
+    expect(body.content).toBe("https://example.com is a great site");
+    expect(body).not.toHaveProperty("url");
+
+    requests.length = 0;
+    await teakWithStdin("https://example.com/piped\n", false, "add");
+    expect(JSON.parse(requests[0]?.body ?? "{}").url).toBe(
+      "https://example.com/piped"
+    );
+  });
+
+  test("add and bulk send an idempotency key, new for each run", async () => {
+    routes.set("POST /v1/cards", () =>
+      json({ appUrl: "https://app/", cardId: "card_i", status: "created" })
+    );
+    routes.set("POST /v1/cards/bulk", () =>
+      json({
+        failedIds: [],
+        results: [],
+        summary: { failed: 0, succeeded: 0, total: 0 },
+      })
+    );
+    await teak("add", "first");
+    await teak("add", "first");
+    await teakWithStdin("[]", false, "cards", "bulk", "create");
+    const keys = requests.map((r) => r.idempotencyKey);
+    expect(keys).toHaveLength(3);
+    expect(keys.every((key) => key?.startsWith("teak-cli-"))).toBe(true);
+    expect(new Set(keys).size).toBe(3);
+  });
+
+  test("a busy list is read again instead of failing", async () => {
+    let calls = 0;
+    routes.set("GET /v1/cards", () => {
+      calls += 1;
+      return calls === 1
+        ? Response.json(
+            { code: "SERVICE_UNAVAILABLE", error: "Busy" },
+            { headers: { "Retry-After": "0" }, status: 503 }
+          )
+        : json({
+            items: [card("card_a")],
+            pageInfo: { hasMore: false, nextCursor: null },
+          });
+    });
+    const result = await teak("cards", "list");
+    expect(result.code).toBe(0);
+    expect(result.stdout).toStartWith("card_a");
+  });
+
+  test("an HTML error page exits with its status's code, not as malformed JSON", async () => {
+    routes.set(
+      "GET /v1/cards",
+      () =>
+        new Response("<html>Unauthorized</html>", {
+          headers: { "Content-Type": "text/html" },
+          status: 401,
+        })
+    );
+    const result = await teak("cards", "list");
+    expect(result.code).toBe(EXIT.auth);
+    expect(result.stderr).not.toContain("malformed JSON");
   });
 
   test("add with only a URL argument sends no duplicate content", async () => {
