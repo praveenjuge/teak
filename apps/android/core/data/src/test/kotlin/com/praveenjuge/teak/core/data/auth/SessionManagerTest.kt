@@ -3,6 +3,7 @@ package com.praveenjuge.teak.core.data.auth
 import com.praveenjuge.teak.core.data.InMemorySessionStore
 import com.praveenjuge.teak.core.data.Tokens
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.io.IOException
@@ -66,6 +67,17 @@ class SessionManagerTest {
         api.nextRefresh = { throw InvalidRefreshTokenException() }
         val sessions = manager().apply { restore() }
         assertNull(sessions.accessToken())
+        assertEquals(SessionState.SignedOut, sessions.state.value)
+        assertNull(store.session)
+    }
+
+    @Test
+    fun `a token the refresh loop finds rejected signs out`() = runTest {
+        store.session = Tokens.session(expiresAtMillis = now - 1)
+        api.nextRefresh = { throw InvalidRefreshTokenException() }
+        val sessions = manager().apply { restore() }
+        runCurrent()
+        assertEquals(1, api.refreshes)
         assertEquals(SessionState.SignedOut, sessions.state.value)
         assertNull(store.session)
     }

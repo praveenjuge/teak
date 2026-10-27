@@ -743,6 +743,7 @@
     <string name="native_tags_find">タグを検索</string>
     <string name="native_tags_keep">残す</string>
     <string name="native_tags_keepTag">%1$s を残す</string>
+    <string name="native_tags_loadFailed">タグを読み込めませんでした</string>
     <string name="native_tags_loading">タグを読み込み中</string>
     <string name="native_tags_merge">統合</string>
     <plurals name="native_tags_mergeFailed">

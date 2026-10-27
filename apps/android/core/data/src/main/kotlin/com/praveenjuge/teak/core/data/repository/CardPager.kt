@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 
 data class PagedCards(
     val cards: List<CardSummary> = emptyList(),
+    /** The first page is on its way. [cards] then holds what the last load showed, if anything. */
     val isLoading: Boolean = true,
     val isLoadingMore: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -34,6 +35,9 @@ class CardPager(
     private var query = CardQuery()
     private var refreshing = false
     private var restartedForCursor = false
+
+    /** What showed before a new load or a refresh, kept until its first page comes, so the grid doesn't blink. */
+    private var previous: List<CardSummary> = emptyList()
     private val _state = MutableStateFlow(PagedCards())
     val state: StateFlow<PagedCards> = _state.asStateFlow()
 
@@ -55,7 +59,18 @@ class CardPager(
         subscribe(Slot(last.continueCursor))
     }
 
+    /** Tries the page that failed again, keeping the pages before it; a failed first page starts over. */
+    fun retry() {
+        val failed = slots.indexOfFirst { it.error != null }
+        if (failed < 0) return
+        if (failed == 0) return restart()
+        val cursor = slots[failed].cursor
+        slots.subList(failed, slots.size).apply { forEach { it.job?.cancel() } }.clear()
+        subscribe(Slot(cursor))
+    }
+
     private fun restart() {
+        previous = _state.value.cards
         slots.forEach { it.job?.cancel() }
         slots.clear()
         subscribe(Slot(null))
@@ -86,12 +101,14 @@ class CardPager(
 
     private fun publish() {
         val seen = HashSet<String>()
-        val cards = slots.flatMap { it.page?.page.orEmpty() }.filter { seen.add(it.id) }
         val first = slots.firstOrNull()
         val last = slots.lastOrNull()
+        val loadingFirst = first != null && first.page == null && first.error == null
+        if (!loadingFirst) previous = emptyList()
+        val cards = if (loadingFirst) previous else slots.flatMap { it.page?.page.orEmpty() }.filter { seen.add(it.id) }
         _state.value = PagedCards(
             cards = cards,
-            isLoading = first != null && first.page == null && first.error == null,
+            isLoading = loadingFirst,
             isLoadingMore = slots.size > 1 && last?.page == null && last?.error == null,
             isRefreshing = refreshing,
             isDone = last?.page?.isDone == true,

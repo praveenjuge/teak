@@ -257,12 +257,22 @@ private fun InlineText(text: String, style: TextStyle, inline: InlineStyles, mod
     FlowRow(modifier, itemVerticalAlignment = Alignment.CenterVertically) {
         var cursor = 0
         for (match in matches) {
-            WORD.findAll(text.substring(cursor, match.start)).forEach { Text(inlineMarkdown(it.value, inline), style = style) }
+            InlineWords(text.substring(cursor, match.start), style, inline)
             CardLinkPill(match, links.targets[match.id], links.onOpen)
             cursor = match.end
         }
-        WORD.findAll(text.substring(cursor)).forEach { Text(inlineMarkdown(it.value, inline), style = style) }
+        InlineWords(text.substring(cursor), style, inline)
     }
+}
+
+/**
+ * The text between `[[` links, styled as one run so bold or a link spanning words keeps its style, then split into
+ * words that wrap around the pills.
+ */
+@Composable
+private fun InlineWords(run: String, style: TextStyle, inline: InlineStyles) {
+    val styled = remember(run, inline) { inlineMarkdown(run, inline) }
+    WORD.findAll(styled.text).forEach { Text(styled.subSequence(it.range.first, it.range.last + 1), style = style) }
 }
 
 @Composable

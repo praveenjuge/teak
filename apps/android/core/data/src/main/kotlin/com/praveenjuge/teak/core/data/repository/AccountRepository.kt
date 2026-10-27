@@ -16,6 +16,7 @@ import com.praveenjuge.teak.core.data.convex.subscribe
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
+import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,6 +56,7 @@ class ConvexAccountRepository @Inject constructor(
     private val convex: ConvexApi,
     private val client: ConvexClientWithAuth<String>,
     private val preferences: PreferencesRepository,
+    private val uploads: UploadRepository,
     @ApplicationScope private val scope: CoroutineScope,
 ) : AccountRepository {
     override val session: StateFlow<SessionState> = sessions.state
@@ -114,15 +117,24 @@ class ConvexAccountRepository @Inject constructor(
         if (stored.clientId != clientId) clearLocalSession()
     }
 
+    /** Signing out doesn't wait on the server for long: offline, the request could hang until the socket gives up. */
     private suspend fun revokeOnServerBestEffort(session: AuthSession) {
-        catchingFailures {
-            sessions.accessToken()
-            convex.action(ConvexFunctions.revokeAuthkitSession, mapOf("sessionId" to session.sessionId))
+        withTimeoutOrNull(REVOKE_TIMEOUT_MS) {
+            catchingFailures {
+                sessions.accessToken()
+                convex.action(ConvexFunctions.revokeAuthkitSession, mapOf("sessionId" to session.sessionId))
+            }
         }
     }
 
+    /** Files still queued belong to the account that's leaving, so they're dropped rather than uploaded into the next one. */
     private suspend fun clearLocalSession() {
         sessions.clear()
         client.logout(context)
+        uploads.discardAll()
+    }
+
+    private companion object {
+        const val REVOKE_TIMEOUT_MS = 5_000L
     }
 }

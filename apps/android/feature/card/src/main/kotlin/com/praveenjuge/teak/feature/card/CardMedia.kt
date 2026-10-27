@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -64,6 +65,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
@@ -80,6 +82,7 @@ import com.praveenjuge.teak.core.model.CardSheet
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import androidx.media3.ui.compose.material3.Player as MediaPlayer
+import android.content.Context
 import android.content.Intent
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -165,17 +168,21 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         var scale by remember { mutableFloatStateOf(1f) }
         var offset by remember { mutableStateOf(Offset.Zero) }
+        var viewport by remember { mutableStateOf(Size.Zero) }
+        var imageSize by remember { mutableStateOf(Size.Unspecified) }
         val transform = rememberTransformableState { zoom, pan, _ ->
             scale = (scale * zoom).coerceIn(1f, 5f)
-            offset = if (scale == 1f) Offset.Zero else offset + pan
+            offset = if (scale == 1f) Offset.Zero else clampPan(offset + pan, scale, imageSize, viewport)
         }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             AsyncImage(
                 model = url,
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Fit,
+                onSuccess = { imageSize = it.painter.intrinsicSize },
                 modifier = Modifier
                     .fillMaxSize()
+                    .onSizeChanged { viewport = it.toSize() }
                     .pointerInput(Unit) {
                         detectTapGestures(onDoubleTap = {
                             scale = if (scale > 1f) 1f else 2.5f
@@ -201,6 +208,23 @@ internal fun ImageViewer(url: String, contentDescription: String?, onDismiss: ()
     }
 }
 
+/**
+ * Keeps a zoomed image's edges at or past the screen's, so it can't be dragged off. [image] is its own size; it's
+ * fitted into [viewport] and scaled around the center.
+ */
+private fun clampPan(offset: Offset, scale: Float, image: Size, viewport: Size): Offset {
+    val fit = if (image.isSpecified && image.width > 0 && image.height > 0) {
+        minOf(viewport.width / image.width, viewport.height / image.height)
+    } else {
+        null
+    }
+    val shown = fit?.let { Size(image.width * it, image.height * it) } ?: viewport
+    val maxX = ((shown.width * scale - viewport.width) / 2).coerceAtLeast(0f)
+    val maxY = ((shown.height * scale - viewport.height) / 2).coerceAtLeast(0f)
+    return Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
+}
+
+/** A player for [url]. It loads nothing until it's prepared: a video on its first play, a recording once it's shown. */
 @OptIn(UnstableApi::class)
 @Composable
 private fun rememberPlayer(url: String): ExoPlayer {
@@ -208,7 +232,6 @@ private fun rememberPlayer(url: String): ExoPlayer {
     val player = remember(url) {
         ExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true)).build().apply {
             setMediaItem(MediaItem.fromUri(url))
-            prepare()
         }
     }
     DisposableEffect(player) { onDispose { player.release() } }
@@ -219,6 +242,7 @@ private fun rememberPlayer(url: String): ExoPlayer {
 @OptIn(UnstableApi::class)
 @Composable
 internal fun VideoPlayer(url: String, posterUrl: String?, ratio: Float?, modifier: Modifier = Modifier) {
+    // Its play button prepares it, so opening a card doesn't start buffering the video.
     val player = rememberPlayer(url)
     var failed by remember(player) { mutableStateOf(false) }
     DisposableEffect(player) {
@@ -272,12 +296,29 @@ private fun UnplayableVideo(url: String, posterUrl: String?, modifier: Modifier)
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(tr("android.card.videoUnplayable"), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), "video/*")
-                    runCatching { context.startActivity(intent) }
-                }) { Text(tr("android.card.openInAnotherApp")) }
+                TextButton(onClick = { context.openMediaElsewhere(url, "video/*") }) { Text(tr("android.card.openInAnotherApp")) }
             }
         }
+    }
+}
+
+private fun Context.openMediaElsewhere(url: String, type: String) {
+    runCatching { startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(url.toUri(), type)) }
+}
+
+/** The audio player's place when the recording won't load, as the video player does. */
+@Composable
+private fun UnplayableAudio(url: String, modifier: Modifier) {
+    val context = LocalContext.current
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, MediaShape)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(tr("native.card.preview.audioUnavailable"), style = MaterialTheme.typography.bodyMedium)
+        TextButton(onClick = { context.openMediaElsewhere(url, "audio/*") }) { Text(tr("android.card.openInAnotherApp")) }
     }
 }
 
@@ -292,11 +333,16 @@ internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, m
     var isReady by remember(player) { mutableStateOf(false) }
     var position by remember(player) { mutableLongStateOf(0L) }
     var duration by remember(player) { mutableLongStateOf(0L) }
+    var failed by remember(player) { mutableStateOf(false) }
 
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                failed = true
             }
 
             override fun onPlaybackStateChanged(state: Int) {
@@ -306,6 +352,8 @@ internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, m
             }
         }
         player.addListener(listener)
+        // Loaded once it's shown, so its length is known and Play is ready.
+        player.prepare()
         onDispose { player.removeListener(listener) }
     }
     LaunchedEffect(player, isPlaying) {
@@ -332,6 +380,10 @@ internal fun AudioPlayer(cardId: String, url: String?, savedDuration: Double?, m
         val target = (fraction.coerceIn(0f, 1f) * totalSeconds * 1000).toLong()
         player.seekTo(target)
         position = target
+    }
+    if (failed) {
+        UnplayableAudio(url, modifier)
+        return
     }
 
     Row(

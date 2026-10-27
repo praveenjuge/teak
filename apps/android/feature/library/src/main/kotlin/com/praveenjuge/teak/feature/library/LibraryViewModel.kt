@@ -382,6 +382,8 @@ class LibraryViewModel @AssistedInject constructor(
 
     fun refresh() = pager.refresh()
 
+    fun retry() = pager.retry()
+
     fun beginSelection(cardId: String? = null) =
         _state.update { it.copy(selection = Selection.Active(listOfNotNull(cardId))) }
 
@@ -406,11 +408,21 @@ class LibraryViewModel @AssistedInject constructor(
 
     /** Adds the picked cards to a new folder named [name]. */
     fun addSelectedToNewFolder(name: String) {
-        if (name.isBlank() || _state.value.pickedIds.isEmpty()) return
+        val current = _state.value
+        val ids = current.pickedIds
+        if (name.isBlank() || ids.isEmpty() || current.isRunningBulkAction) return
+        // Busy from the start, so nothing else runs on the selection while the folder is made.
+        _state.update { it.copy(isRunningBulkAction = true) }
         viewModelScope.launch {
-            catchingFailures { folders.create(name) }
-                .onSuccess { runOnSelected(BulkAction.AddToFolder, folder = it) }
-                .onFailure { post(folderFailure(it)) }
+            catchingFailures { folders.create(name.trim()) }
+                .onSuccess { folder ->
+                    perform(BulkAction.AddToFolder, ids, folder = folder)
+                    _state.update { it.copy(isRunningBulkAction = false, selection = Selection.None) }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isRunningBulkAction = false) }
+                    post(folderFailure(error))
+                }
         }
     }
 
@@ -418,7 +430,7 @@ class LibraryViewModel @AssistedInject constructor(
     fun saveSearchAsFolder(name: String) {
         val query = _state.value.smartFolderQuery ?: return
         viewModelScope.launch {
-            catchingFailures { folders.create(name, query = query) }
+            catchingFailures { folders.create(name.trim(), query = query) }
                 .onSuccess { post(UiText.of("native.folders.savedName", it.name)) }
                 .onFailure { post(folderFailure(it)) }
         }

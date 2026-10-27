@@ -89,8 +89,14 @@ class RevisitViewModel @Inject constructor(
     }
 
     fun keep() {
-        val card = _state.value.current ?: return
-        _state.update { it.copy(position = it.position + 1, steps = it.steps + RevisitStep(card.id, archived = false)) }
+        val state = _state.value
+        val card = state.current ?: return
+        // While an archive is saving, the card on screen is still the one being archived.
+        if (state.archivingId != null) return
+        // The "Archived" note's Undo would now take back this Keep instead, so it goes.
+        _state.update {
+            it.copy(position = it.position + 1, steps = it.steps + RevisitStep(card.id, archived = false), archivedNote = null)
+        }
     }
 
     fun archive() {

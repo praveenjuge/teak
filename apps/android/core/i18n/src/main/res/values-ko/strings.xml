@@ -743,6 +743,7 @@
     <string name="native_tags_find">태그 찾기</string>
     <string name="native_tags_keep">유지</string>
     <string name="native_tags_keepTag">%1$s 유지</string>
+    <string name="native_tags_loadFailed">태그를 불러오지 못했습니다</string>
     <string name="native_tags_loading">태그를 불러오는 중</string>
     <string name="native_tags_merge">병합</string>
     <plurals name="native_tags_mergeFailed">

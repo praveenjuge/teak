@@ -425,6 +425,7 @@
     "tags": {
       "title": "Tags",
       "loading": "Carregando tags",
+      "loadFailed": "Não foi possível carregar as tags",
       "emptyTitle": "Nenhuma tag ainda",
       "emptyMessage": "As tags que você adiciona aos cards e as que o Teak sugere aparecem aqui.",
       "find": "Encontrar uma tag",

@@ -50,6 +50,8 @@ import kotlinx.coroutines.launch
 data class CardDetailUiState(
     val isLoading: Boolean = true,
     val card: Card? = null,
+    /** The card never loaded because its subscription failed, so it's an error, not a deleted card. */
+    val loadFailed: Boolean = false,
     val favoriteOverride: Boolean? = null,
     val doneOverride: Boolean? = null,
     val documentText: String? = null,
@@ -110,10 +112,16 @@ class CardDetailViewModel @AssistedInject constructor(
     private var requestedDocumentText = false
     private var taskSaves = 0
     private var keepSaves = 0
+    private var archiving = false
 
     init {
         viewModelScope.launch {
             repository.card(cardId).collect { result ->
+                // A failed subscription keeps the card on screen; only the server saying it's gone shows it missing.
+                if (result.isFailure) {
+                    _uiState.update { state -> if (state.isLoading) state.copy(isLoading = false, loadFailed = true) else state }
+                    return@collect
+                }
                 val card = result.getOrNull()
                 _uiState.update { state ->
                     val favorite = state.favoriteOverride.takeUnless { card != null && card.favorited == it }
@@ -216,9 +224,14 @@ class CardDetailViewModel @AssistedInject constructor(
 
     fun toggleArchived() {
         val card = _uiState.value.card ?: return
+        // A second tap or E while the first is saving would send it again and stack another snackbar.
+        if (archiving) return
+        archiving = true
         val archive = !card.archived
         viewModelScope.launch {
-            catchingFailures { repository.setArchived(card.id, archive) }
+            val result = catchingFailures { repository.setArchived(card.id, archive) }
+            archiving = false
+            result
                 .onSuccess {
                     val text = BulkCopy.result(if (archive) BulkAction.Archive else BulkAction.Unarchive, updated = 1, failedCount = 0)
                     _events.send(

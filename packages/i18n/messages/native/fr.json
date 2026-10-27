@@ -425,6 +425,7 @@
     "tags": {
       "title": "Tags",
       "loading": "Chargement des tags",
+      "loadFailed": "Impossible de charger les tags",
       "emptyTitle": "Aucun tag pour l’instant",
       "emptyMessage": "Les tags que vous ajoutez aux fiches, et ceux que Teak suggère, apparaissent ici.",
       "find": "Trouver un tag",

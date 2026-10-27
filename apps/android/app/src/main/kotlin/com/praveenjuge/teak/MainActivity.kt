@@ -19,6 +19,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.praveenjuge.teak.core.data.auth.SessionState
+import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.prefs.ThemePreference
 import com.praveenjuge.teak.core.data.repository.AccountRepository
@@ -29,6 +30,7 @@ import com.praveenjuge.teak.feature.auth.SignInController
 import com.praveenjuge.teak.ui.LaunchRequest
 import com.praveenjuge.teak.ui.TeakApp
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,6 +41,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var preferences: PreferencesRepository
     @Inject lateinit var signIn: SignInController
     @Inject lateinit var language: LanguageRepository
+    @Inject @ApplicationScope lateinit var appScope: CoroutineScope
 
     private val launchRequest = MutableStateFlow<LaunchRequest?>(null)
 
@@ -109,7 +112,8 @@ class MainActivity : ComponentActivity() {
     private fun handle(intent: Intent?) {
         val uri = intent?.data
         when {
-            SignInController.isCallback(uri) -> lifecycleScope.launch { signIn.handleCallback(requireNotNull(uri)) }
+            // The code can be spent only once, so finishing sign-in outlives a rotation or a closed activity.
+            SignInController.isCallback(uri) -> appScope.launch { signIn.handleCallback(requireNotNull(uri)) }
             intent?.action == ACTION_NEW_NOTE -> launchRequest.value = LaunchRequest.NewNote
             intent?.action == ACTION_VOICE_MEMO -> launchRequest.value = LaunchRequest.VoiceMemo
         }

@@ -653,6 +653,7 @@ internal object Catalog {
         "native.tags.find" to R.string.native_tags_find,
         "native.tags.keep" to R.string.native_tags_keep,
         "native.tags.keepTag" to R.string.native_tags_keepTag,
+        "native.tags.loadFailed" to R.string.native_tags_loadFailed,
         "native.tags.loading" to R.string.native_tags_loading,
         "native.tags.merge" to R.string.native_tags_merge,
         "native.tags.mergeInstead" to R.string.native_tags_mergeInstead,

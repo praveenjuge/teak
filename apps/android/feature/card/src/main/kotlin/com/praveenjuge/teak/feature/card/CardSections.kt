@@ -14,14 +14,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -70,6 +73,8 @@ import java.util.Locale
 
 private const val MAX_LINK_MEDIA = 4
 private val SectionShape = RoundedCornerShape(20.dp)
+/** Rows that open something are at least this tall, so they're easy to tap. */
+private val MinTouchHeight = 48.dp
 
 @Composable
 internal fun DetailSection(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -172,27 +177,28 @@ private fun SuggestedTagRow(tags: List<String>, actions: SuggestedTagActions?, o
                 if (actions == null) {
                     SuggestionChip(onClick = { onPressTag(tag) }, label = { Text(tag) })
                 } else {
-                    InputChip(
-                        selected = false,
-                        onClick = { actions.keep(tag) },
-                        label = { Text(tag) },
-                        leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(InputChipDefaults.IconSize)) },
-                        trailingIcon = {
-                            IconButton(onClick = { actions.remove(tag) }, modifier = Modifier.size(24.dp)) {
-                                Icon(
-                                    Icons.Outlined.Close,
-                                    contentDescription = tr("native.card.edit.removeTag", tag),
-                                    modifier = Modifier.size(InputChipDefaults.IconSize),
-                                )
-                            }
-                        },
-                        modifier = Modifier.semantics {
-                            onClick(label = keepLabel) {
-                                actions.keep(tag)
-                                true
-                            }
-                        },
-                    )
+                    // Remove sits beside the chip, not inside it, so it gets a full-size target apart from Keep.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        InputChip(
+                            selected = false,
+                            onClick = { actions.keep(tag) },
+                            label = { Text(tag) },
+                            leadingIcon = { Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(InputChipDefaults.IconSize)) },
+                            modifier = Modifier.semantics {
+                                onClick(label = keepLabel) {
+                                    actions.keep(tag)
+                                    true
+                                }
+                            },
+                        )
+                        IconButton(onClick = { actions.remove(tag) }) {
+                            Icon(
+                                Icons.Outlined.Close,
+                                contentDescription = tr("native.card.edit.removeTag", tag),
+                                modifier = Modifier.size(InputChipDefaults.IconSize),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -242,8 +248,10 @@ private fun SourceRow(source: CardSource, onOpen: (String) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = MinTouchHeight)
             .clickable(onClickLabel = tr("native.card.source.open", source.title ?: source.host)) { onOpen(source.url) },
         horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(tr("native.card.source.label"), style = MaterialTheme.typography.bodyLarge)
         Text(
@@ -266,8 +274,10 @@ private fun FoldersRow(folders: List<Folder>, onEdit: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = MinTouchHeight)
             .clickable(onClickLabel = if (folders.isEmpty()) tr("native.card.folderRow.addLabel") else tr("native.card.folderRow.change"), onClick = onEdit),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(tr("native.card.sections.folders"), style = MaterialTheme.typography.bodyLarge)
         Text(
@@ -287,7 +297,7 @@ internal fun LinkedFromSection(backlinks: CardBacklinks, onOpenCard: (String) ->
     DetailSection(tr("native.card.sections.linkedFrom")) {
         backlinks.backlinks.forEach { linked ->
             Row(
-                Modifier.fillMaxWidth().clickable { onOpenCard(linked.id) },
+                Modifier.fillMaxWidth().heightIn(min = MinTouchHeight).clickable { onOpenCard(linked.id) },
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -320,16 +330,20 @@ internal fun formatTimestamp(epochMillis: Double, locale: Locale = Locale.getDef
 private fun DetailRows(rows: List<DetailRow>) {
     rows.forEachIndexed { index, row ->
         if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(row.label.resolve(), style = MaterialTheme.typography.bodyLarge)
-            SelectionContainer(Modifier.weight(1f)) {
-                Text(
-                    row.value.resolve(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        BoxWithConstraints {
+            // A long label wraps at half the row, so large text never squeezes the value to a sliver.
+            val labelWidth = maxWidth / 2
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(row.label.resolve(), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.widthIn(max = labelWidth))
+                SelectionContainer(Modifier.weight(1f)) {
+                    Text(
+                        row.value.resolve(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }

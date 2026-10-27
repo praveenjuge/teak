@@ -64,6 +64,11 @@ class SignInController @Inject constructor(
         }
     }
 
+    /** The sign-in page didn't open, for example on a device without a browser. */
+    fun failToOpen() {
+        _progress.value = SignInProgress(error = UiText.of("native.errors.signInFailed"))
+    }
+
     fun cancel() {
         if (!completing && _progress.value.pending != null) _progress.value = SignInProgress()
     }

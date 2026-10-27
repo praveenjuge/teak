@@ -13,10 +13,12 @@ import com.praveenjuge.teak.core.model.CurrentUser
 import com.praveenjuge.teak.core.model.FREE_TIER_LIMIT
 import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -71,25 +73,34 @@ class SettingsViewModel @Inject constructor(
 
     private val appearance = combine(preferences.theme, preferences.useWallpaperColors, ::Pair)
 
+    // The subscription says nothing until the server answers, so start from "loading": otherwise the
+    // whole screen, theme and language included, would wait on the network.
+    private val user: Flow<Result<CurrentUser?>?> = account.currentUser.onStart<Result<CurrentUser?>?> { emit(null) }
+
     val uiState: StateFlow<SettingsUiState> = combine(
         local,
         appearance,
         account.session,
-        account.currentUser,
+        user,
         language.current,
     ) { local, (theme, wallpaperColors), session, user, code ->
-        val current: CurrentUser? = user.getOrNull()
+        val current: CurrentUser? = user?.getOrNull()
+        val notAvailable = UiText.of("native.settings.notAvailable")
         local.copy(
             theme = theme,
             useWallpaperColors = wallpaperColors,
             language = code,
             email = (session as? SessionState.SignedIn)?.user?.email,
             usage = when {
-                user.isFailure -> UiText.of("native.settings.notAvailable")
-                current == null -> UiText.of("native.settings.notAvailable")
+                user == null -> null
+                current == null -> notAvailable
                 else -> usageText(current)
             },
-            plan = current?.planText,
+            plan = when {
+                user == null -> null
+                current == null -> notAvailable
+                else -> current.planText
+            },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 

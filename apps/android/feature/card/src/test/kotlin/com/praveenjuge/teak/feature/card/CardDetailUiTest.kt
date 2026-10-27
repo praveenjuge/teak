@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.feature.card
 
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -49,6 +50,21 @@ class CardDetailUiTest {
         compose.onNodeWithText("Passport").assertIsDisplayed()
         compose.onNodeWithText("Book the train").assertIsDisplayed()
         compose.onNodeWithText("Go early").assertIsDisplayed()
+    }
+
+    @Test
+    fun `inline styles spanning words keep their style beside a card link`() {
+        compose.setContent {
+            CompositionLocalProvider(LocalCardLinks provides CardLinkContext(emptyMap()) {}) {
+                MarkdownText("See **very important** and [read this](https://example.com) [[Spec|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]")
+            }
+        }
+
+        compose.onNodeWithText("Spec").assertIsDisplayed()
+        compose.onNodeWithText("very", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("read", substring = true).assertIsDisplayed()
+        compose.onAllNodesWithText("**", substring = true).assertCountEquals(0)
+        compose.onAllNodesWithText("](", substring = true).assertCountEquals(0)
     }
 
     @Test

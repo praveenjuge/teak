@@ -10,6 +10,7 @@ import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -66,6 +67,33 @@ class RevisitViewModelTest {
         assertEquals("a", viewModel.state.value.current?.id)
         assertEquals(listOf("archive:a", "unarchive:a"), repository.writes)
         assertNull(viewModel.state.value.archivedNote)
+    }
+
+    @Test
+    fun `keep waits for an archive that is still saving`() = runTest {
+        val saved = CompletableDeferred<Unit>()
+        val slowArchive = object : CardsRepository by repository {
+            override suspend fun setArchived(id: String, archived: Boolean) {
+                saved.await()
+                repository.setArchived(id, archived)
+            }
+        }
+        repository.summaries.value = listOf("a", "b", "c").map { CardSummary(id = it, creationTime = 0.0, type = CardType.Text, title = it) }
+        val viewModel = RevisitViewModel(slowArchive).apply { start(CardQuery(search = "design")) }
+        advanceUntilIdle()
+        val first = viewModel.state.value.current?.id
+        viewModel.archive()
+        viewModel.keep()
+        assertEquals(first, viewModel.state.value.current?.id)
+        saved.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(1, viewModel.state.value.position)
+        assertEquals(UiText.of("native.revisit.summary", 1, 0), viewModel.state.value.summary)
+
+        // Keeping clears the "Archived" note, so its Undo can't take back the Keep instead.
+        viewModel.keep()
+        assertNull(viewModel.state.value.archivedNote)
+        assertEquals(2, viewModel.state.value.position)
     }
 
     @Test

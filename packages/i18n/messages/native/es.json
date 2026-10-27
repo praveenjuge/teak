@@ -425,6 +425,7 @@
     "tags": {
       "title": "Etiquetas",
       "loading": "Cargando etiquetas",
+      "loadFailed": "No se pudieron cargar las etiquetas",
       "emptyTitle": "Aún no hay etiquetas",
       "emptyMessage": "Aquí aparecen las etiquetas que añade a sus tarjetas y las que sugiere Teak.",
       "find": "Buscar una etiqueta",

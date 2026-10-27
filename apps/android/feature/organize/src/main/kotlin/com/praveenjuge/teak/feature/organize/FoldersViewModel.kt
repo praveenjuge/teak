@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,9 +59,21 @@ class FoldersViewModel @Inject constructor(
     private val _state = MutableStateFlow(FoldersUiState())
     val state: StateFlow<FoldersUiState> = _state.asStateFlow()
     private var noteId = 0L
+    private var loading: Job? = null
 
     init {
-        repository.folders.onEach { result ->
+        load()
+    }
+
+    /** Subscribes to the folders again, after they failed to load. */
+    fun reload() {
+        _state.update { it.copy(isLoading = true, failed = false) }
+        load()
+    }
+
+    private fun load() {
+        loading?.cancel()
+        loading = repository.folders.onEach { result ->
             _state.update { state ->
                 result.fold(
                     onSuccess = { state.copy(isLoading = false, failed = false, folders = it.sortedBy { folder -> folder.name.lowercase() }) },
@@ -76,19 +89,22 @@ class FoldersViewModel @Inject constructor(
 
     fun save(name: String, query: String?) {
         val editor = _state.value.editor ?: return
+        if (_state.value.isSaving) return
+        val trimmedName = name.trim()
+        val trimmedQuery = query?.trim()
         val error = when {
-            name.isBlank() -> UiText.of("errors.folders.EMPTY_NAME")
-            editor.smart && query.isNullOrBlank() -> UiText.of("errors.folders.EMPTY_QUERY")
+            trimmedName.isEmpty() -> UiText.of("errors.folders.EMPTY_NAME")
+            editor.smart && trimmedQuery.isNullOrEmpty() -> UiText.of("errors.folders.EMPTY_QUERY")
             else -> null
         }
         if (error != null) return _state.update { it.copy(editorError = error) }
         _state.update { it.copy(isSaving = true, editorError = null) }
         viewModelScope.launch {
-            val smartQuery = if (editor.smart) query else null
+            val smartQuery = if (editor.smart) trimmedQuery else null
             catchingFailures {
                 when (editor) {
-                    is FolderEditor.New -> repository.create(name, smartQuery)
-                    is FolderEditor.Edit -> repository.update(editor.folder.id, name, smartQuery)
+                    is FolderEditor.New -> repository.create(trimmedName, smartQuery)
+                    is FolderEditor.Edit -> repository.update(editor.folder.id, trimmedName, smartQuery)
                 }
             }
                 .onSuccess { _state.update { it.copy(isSaving = false, editor = null) } }

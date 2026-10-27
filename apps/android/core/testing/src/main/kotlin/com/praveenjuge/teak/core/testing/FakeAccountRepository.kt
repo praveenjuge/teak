@@ -12,6 +12,7 @@ import com.praveenjuge.teak.core.model.CurrentUser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 class FakeAccountRepository(
     signedIn: Boolean = true,
@@ -21,10 +22,11 @@ class FakeAccountRepository(
     override val authMode = MutableStateFlow<AuthMode?>(
         AuthMode(primary = "workos", signupsDisabled = false, authKitClientId = "client_123"),
     )
-    val currentUserFlow = MutableStateFlow<Result<CurrentUser?>>(
+    /** null stands for a server that hasn't answered yet, like a subscription before its first result. */
+    val currentUserFlow = MutableStateFlow<Result<CurrentUser?>?>(
         Result.success(CurrentUser(id = "teak_1", email = "ada@example.com", cardCount = 12.0)),
     )
-    override val currentUser: Flow<Result<CurrentUser?>> = currentUserFlow
+    override val currentUser: Flow<Result<CurrentUser?>> = currentUserFlow.filterNotNull()
     override val isConnected = MutableStateFlow(true)
 
     val signInMethods = mutableListOf<SignInMethod>()

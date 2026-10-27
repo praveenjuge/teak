@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.data.upload
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -11,6 +12,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.await
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.i18n.AppLanguage
@@ -25,14 +27,19 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Copies wait here, outside the cache Android may clear, until their upload ends. */
 object StagingArea {
     private const val DIRECTORY = "uploads"
 
-    fun newSlot(context: Context): File = File(context.cacheDir, "$DIRECTORY/${UUID.randomUUID()}").apply { mkdirs() }
+    fun newSlot(context: Context): File = File(root(context), UUID.randomUUID().toString()).apply { mkdirs() }
+
+    internal fun root(context: Context): File = File(context.noBackupFilesDir, DIRECTORY)
 
     internal fun slotOf(path: String): File? = File(path).parentFile?.takeIf { it.parentFile?.name == DIRECTORY }
 }
@@ -68,6 +75,9 @@ interface UploadRepository {
     val uploads: Flow<List<UploadStatus>>
 
     fun clearFinished()
+
+    /** Cancels every queued upload and deletes the staged copies, so none reaches the next account. */
+    suspend fun discardAll()
 }
 
 @Singleton
@@ -81,26 +91,41 @@ class WorkManagerUploadRepository @Inject constructor(
             val files = mutableListOf<StagedFile>()
             val skipped = mutableListOf<SkippedFile>()
             for (uri in uris) {
-                val (name, size) = describe(uri)
-                if (size != null && size > MAX_FILE_SIZE) {
-                    skipped += SkippedFile.tooLarge(name)
+                var name = uri.lastPathSegment ?: uri.toString()
+                // Only content URIs: a file:// URI from another app could point at Teak's own private files.
+                if (uri.scheme != ContentResolver.SCHEME_CONTENT) {
+                    skipped += SkippedFile.unreadable(name)
                     continue
                 }
+                var directory: File? = null
                 try {
-                    val directory = StagingArea.newSlot(context)
-                    val target = File(directory, safeName(name))
+                    val (describedName, size) = describe(uri)
+                    name = describedName
+                    if (size != null && size > MAX_FILE_SIZE) {
+                        skipped += SkippedFile.tooLarge(name)
+                        continue
+                    }
+                    val slot = StagingArea.newSlot(context).also { directory = it }
+                    val target = File(slot, safeName(name))
+                    // A provider can leave out the size or report it wrong, so the copy stops one byte past the limit.
                     val copied = context.contentResolver.openInputStream(uri)?.use { input ->
-                        target.outputStream().use { output -> input.copyTo(output) }
+                        target.outputStream().use { output -> input.copyAtMost(output, MAX_FILE_SIZE + 1) }
                     } ?: throw IOException("Unreadable")
                     if (copied > MAX_FILE_SIZE) {
-                        directory.deleteRecursively()
+                        slot.deleteRecursively()
                         skipped += SkippedFile.tooLarge(name)
                         continue
                     }
                     files += StagedFile(target.path, target.name, mimeType(uri, target.name), copied, metadata(uri))
                 } catch (e: IOException) {
+                    directory?.deleteRecursively()
                     skipped += SkippedFile.unreadable(name)
                 } catch (e: SecurityException) {
+                    directory?.deleteRecursively()
+                    skipped += SkippedFile.unreadable(name)
+                } catch (e: IllegalArgumentException) {
+                    // Some providers throw this from query or open for a URI they don't recognize.
+                    directory?.deleteRecursively()
                     skipped += SkippedFile.unreadable(name)
                 }
             }
@@ -135,6 +160,12 @@ class WorkManagerUploadRepository @Inject constructor(
         workManager.pruneWork()
     }
 
+    override suspend fun discardAll() {
+        workManager.cancelUniqueWork(UploadWorker.QUEUE).await()
+        workManager.pruneWork().await()
+        withContext(Dispatchers.IO) { StagingArea.root(context).deleteRecursively() }
+    }
+
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
         val outcome = uploadOutcome(info.state, output)
@@ -160,10 +191,6 @@ class WorkManagerUploadRepository @Inject constructor(
     }
 
     private fun describe(uri: Uri): Pair<String, Long?> {
-        if (uri.scheme == "file") {
-            val file = File(requireNotNull(uri.path))
-            return file.name to file.length()
-        }
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
             ?.use { cursor ->
                 if (cursor.moveToFirst()) {
@@ -182,7 +209,7 @@ class WorkManagerUploadRepository @Inject constructor(
     }
 
     private fun mimeType(uri: Uri, name: String): String {
-        val reported = if (uri.scheme == "file") null else context.contentResolver.getType(uri)
+        val reported = context.contentResolver.getType(uri)
         val fromName = MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
         return when {
             reported == null || reported in GENERIC -> fromName ?: reported ?: "application/octet-stream"
@@ -197,6 +224,19 @@ class WorkManagerUploadRepository @Inject constructor(
     private companion object {
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
     }
+}
+
+/** Copies up to [limit] bytes and returns how many it copied. */
+private fun InputStream.copyAtMost(output: OutputStream, limit: Long): Long {
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var copied = 0L
+    while (copied < limit) {
+        val read = read(buffer, 0, minOf(buffer.size.toLong(), limit - copied).toInt())
+        if (read < 0) break
+        output.write(buffer, 0, read)
+        copied += read
+    }
+    return copied
 }
 
 /**

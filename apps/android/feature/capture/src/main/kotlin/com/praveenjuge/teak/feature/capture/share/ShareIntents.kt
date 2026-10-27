@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.feature.capture.share
 
+import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.IntentCompat
@@ -50,7 +51,8 @@ object ShareIntents {
             listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
         }
         val fromClip = intent.clipData?.let { clip -> (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri } }.orEmpty()
-        return (fromExtras + fromClip).distinct()
+        // Only content URIs: a file:// URI would have Teak read whatever path the sender names, its own private files included.
+        return (fromExtras + fromClip).distinct().filter { it.scheme == ContentResolver.SCHEME_CONTENT }
     }
 
     private fun String.textItem(): ShareItem.Text? = trim().takeIf { it.isNotEmpty() }?.let(ShareItem::Text)

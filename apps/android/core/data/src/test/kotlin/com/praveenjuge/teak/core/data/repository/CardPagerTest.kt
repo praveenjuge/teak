@@ -15,12 +15,15 @@ import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CardPagerTest {
@@ -107,6 +110,60 @@ class CardPagerTest {
             assertEquals("InvalidCursor", pager.state.value.error?.message)
             assertEquals(listOf(null, "c1", null, "c1"), alwaysInvalid.cursors)
         }
+
+    @Test
+    fun `retry asks again for the page that failed and keeps the ones before it`() = runTest(UnconfinedTestDispatcher()) {
+        val flaky = object : CardsRepository by DeployedRepository() {
+            val cursors = mutableListOf<String?>()
+            var offline = true
+
+            override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> {
+                cursors += cursor
+                return flowOf(
+                    when {
+                        cursor == null -> Result.success(CardSummaryPage(listOf(DeployedRepository.Card1), isDone = false, continueCursor = "c1"))
+                        offline -> Result.failure(IllegalStateException("Network is unreachable"))
+                        else -> Result.success(CardSummaryPage(listOf(DeployedRepository.Card2), isDone = true))
+                    },
+                )
+            }
+        }
+        val pager = CardPager(flaky, backgroundScope)
+
+        pager.load(CardQuery())
+        pager.loadMore()
+        assertEquals("Network is unreachable", pager.state.value.error?.message)
+
+        flaky.offline = false
+        pager.retry()
+
+        assertNull(pager.state.value.error)
+        assertEquals(listOf("card_1", "card_2"), pager.state.value.cards.map { it.id })
+        assertEquals(listOf(null, "c1", "c1"), flaky.cursors)
+    }
+
+    @Test
+    fun `a new search keeps showing the last cards until its first page comes`() = runTest(UnconfinedTestDispatcher()) {
+        val pages = MutableSharedFlow<Result<CardSummaryPage>>()
+        val slow = object : CardsRepository by DeployedRepository() {
+            override fun page(query: CardQuery, cursor: String?, numItems: Int): Flow<Result<CardSummaryPage>> =
+                if (query.search.isEmpty()) {
+                    flowOf(Result.success(CardSummaryPage(listOf(DeployedRepository.Card1), isDone = true)))
+                } else {
+                    pages
+                }
+        }
+        val pager = CardPager(slow, backgroundScope)
+
+        pager.load(CardQuery())
+        pager.load(CardQuery(search = "two"))
+        assertTrue(pager.state.value.isLoading)
+        assertEquals(listOf("card_1"), pager.state.value.cards.map { it.id })
+
+        pages.emit(Result.success(CardSummaryPage(listOf(DeployedRepository.Card2), isDone = true)))
+        assertFalse(pager.state.value.isLoading)
+        assertEquals(listOf("card_2"), pager.state.value.cards.map { it.id })
+    }
 
     @Test
     fun `other page errors are still shown`() = runTest(UnconfinedTestDispatcher()) {

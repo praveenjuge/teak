@@ -1,12 +1,16 @@
 package com.praveenjuge.teak.feature.card
 
 import app.cash.turbine.test
+import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardType
 import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -56,6 +60,33 @@ class CardEditViewModelTest {
             ),
             cards.writes,
         )
+    }
+
+    @Test
+    fun `a failed subscription keeps the card and the draft`() = runTest {
+        val results = MutableStateFlow(Result.success<Card?>(note))
+        val viewModel = CardEditViewModel(note.id, object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = results
+        })
+        viewModel.updateNotes("New notes")
+
+        results.value = Result.failure(IllegalStateException("Connection lost"))
+
+        assertEquals(note, viewModel.uiState.value.card)
+        assertEquals("New notes", viewModel.uiState.value.draft?.notes)
+        assertTrue(viewModel.uiState.value.canSave)
+        assertFalse(viewModel.uiState.value.loadFailed)
+    }
+
+    @Test
+    fun `a card that never loads shows an error, not a deleted card`() = runTest {
+        val viewModel = CardEditViewModel(note.id, object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = flowOf(Result.failure(IllegalStateException("Connection lost")))
+        })
+
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertNull(viewModel.uiState.value.card)
+        assertTrue(viewModel.uiState.value.loadFailed)
     }
 
     @Test

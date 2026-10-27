@@ -1,11 +1,12 @@
 package com.praveenjuge.teak.feature.auth
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -38,7 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,19 +62,26 @@ fun WelcomeRoute(viewModel: WelcomeViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LaunchedEffect(viewModel) {
-        viewModel.openUrl.collect { url -> openAuthKit(context, url) }
+        viewModel.openUrl.collect { url ->
+            if (!openAuthKit(context, url)) viewModel.onSignInPageUnavailable()
+        }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onReturnedWithoutRedirect() }
     WelcomeScreen(state = state, onSignIn = viewModel::signIn, onDismissError = viewModel::dismissError)
 }
 
-private fun openAuthKit(context: Context, url: String) {
-    CustomTabsIntent.Builder()
-        .setShowTitle(true)
-        .setUrlBarHidingEnabled(true)
-        .build()
-        .launchUrl(context, Uri.parse(url))
-}
+/** False when nothing on the device can open the page. */
+private fun openAuthKit(context: Context, url: String): Boolean =
+    try {
+        CustomTabsIntent.Builder()
+            .setShowTitle(true)
+            .setUrlBarHidingEnabled(true)
+            .build()
+            .launchUrl(context, Uri.parse(url))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -81,12 +91,14 @@ fun WelcomeScreen(
     onDismissError: () -> Unit,
 ) {
     Scaffold(containerColor = MaterialTheme.colorScheme.surface) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            // At least a screen tall, so the spacer's weight pushes the buttons to the bottom; taller content still scrolls.
             Column(
                 modifier = Modifier
                     .widthIn(max = 440.dp)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight)
                     .padding(horizontal = 28.dp, vertical = 24.dp),
             ) {
                 Image(
@@ -114,8 +126,21 @@ fun WelcomeScreen(
                 if (state.isConfigured) {
                     SignInOptions(state, onSignIn)
                 } else {
-                    Box(Modifier.fillMaxWidth().height(184.dp), contentAlignment = Alignment.Center) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().height(184.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                    ) {
                         LoadingIndicator()
+                        if (state.isOffline) {
+                            Text(
+                                tr("native.errors.offline"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                        }
                     }
                 }
             }

@@ -60,16 +60,11 @@ class ShareImporter @Inject constructor(
         }
     }
 
+    /** The failure in the app's own words when it has them; the sheet says something general otherwise. */
     private fun Throwable.detail(): UiText? =
-        (this as? TeakException)?.takeIf { it.code in EXPLAINED_CODES }?.text
+        (this as? TeakException)?.text?.takeIf { it is UiText.Message }
 
     companion object {
         val TOO_MANY_ITEMS: UiText = UiText.of("native.share.tooManyItems", MAX_FILES_PER_UPLOAD.toString())
-        private val EXPLAINED_CODES = setOf(
-            TeakException.CARD_LIMIT_REACHED,
-            TeakException.FILE_TOO_LARGE,
-            TeakException.RATE_LIMITED,
-            TeakException.UNSUPPORTED_TYPE,
-        )
     }
 }

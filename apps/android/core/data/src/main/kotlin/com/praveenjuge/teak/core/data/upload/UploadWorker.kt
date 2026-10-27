@@ -13,12 +13,14 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
+import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -44,8 +46,9 @@ class UploadWorker @AssistedInject constructor(
                 .orEmpty(),
         )
         // Android can refuse a foreground service when a queued upload resumes in the background
-        // (for example when the network comes back). The upload still runs, just without the notification.
-        runCatching { setForeground(foregroundInfo(name, 0f)) }
+        // (for example when the network comes back). The upload still runs, just without the notification,
+        // since one posted outside a foreground service would stay behind after the upload ends.
+        val inForeground = catchingFailures { setForeground(foregroundInfo(name, 0f)) }.isSuccess
         return try {
             var lastReported = -1
             val cardId = uploader.upload(file) { progress ->
@@ -53,7 +56,7 @@ class UploadWorker @AssistedInject constructor(
                 if (percent != lastReported) {
                     lastReported = percent
                     setProgressAsync(workDataOf(Output.NAME to name, KEY_PROGRESS to progress))
-                    notifications.notify(NOTIFICATION_ID, notification(name, progress))
+                    if (inForeground) notifications.notify(NOTIFICATION_ID, notification(name, progress))
                 }
             }
             cleanUp(path)
@@ -62,6 +65,13 @@ class UploadWorker @AssistedInject constructor(
             if (e.code == TeakException.OFFLINE && runAttemptCount < MAX_RETRIES) return Result.retry()
             cleanUp(path)
             if (e.code == TeakException.CARD_LIMIT_REACHED) stopQueue(name, e) else continueQueue(name, e)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Anything else fails only this upload. Letting the worker fail would fail every upload
+            // queued behind it, and they'd read as skipped at the card limit.
+            cleanUp(path)
+            continueQueue(name, TeakException(null, "Upload failed: ${e.javaClass.simpleName}", e, UiText.of("native.errors.generic")))
         }
     }
 

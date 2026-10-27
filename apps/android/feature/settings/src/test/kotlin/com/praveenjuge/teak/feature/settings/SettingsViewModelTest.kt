@@ -65,6 +65,22 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `appearance shows before the account loads`() = runTest {
+        account.currentUserFlow.value = null
+        preferences.setTheme(ThemePreference.Dark)
+        val viewModel = newViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        assertEquals(ThemePreference.Dark, viewModel.uiState.value.theme)
+        assertEquals("ada@example.com", viewModel.uiState.value.email)
+        assertEquals(null, viewModel.uiState.value.usage)
+        assertEquals(null, viewModel.uiState.value.plan)
+
+        account.currentUserFlow.value = Result.failure(IllegalStateException("offline"))
+        assertEquals(UiText.of("native.settings.notAvailable"), viewModel.uiState.value.usage)
+        assertEquals(UiText.of("native.settings.notAvailable"), viewModel.uiState.value.plan)
+    }
+
+    @Test
     fun `changing the theme saves it`() = runTest {
         val viewModel = newViewModel()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }

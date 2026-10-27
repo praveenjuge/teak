@@ -8,6 +8,7 @@ import com.praveenjuge.teak.core.data.convex.ConvexApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.yield
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import java.util.Base64
@@ -43,6 +44,8 @@ class InMemorySessionStore : SessionStore {
         this.session = session
     }
     override suspend fun clearSession() {
+        // The real store suspends here (it moves to the IO dispatcher), so a cancelled caller stops before clearing.
+        yield()
         session = null
     }
     override suspend fun loadPending() = pending

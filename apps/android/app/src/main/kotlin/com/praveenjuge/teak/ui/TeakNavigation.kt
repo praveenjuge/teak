@@ -12,13 +12,16 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -76,11 +79,11 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
         when (launchRequest) {
             LaunchRequest.NewNote -> {
                 tab = Tab.Add
-                stacks.getValue(Tab.Add).resetTo(Add, NoteComposer())
+                stacks.getValue(Tab.Add).resetUnlessCapturing(Add, NoteComposer())
             }
             LaunchRequest.VoiceMemo -> {
                 tab = Tab.Add
-                stacks.getValue(Tab.Add).resetTo(Add, VoiceMemo)
+                stacks.getValue(Tab.Add).resetUnlessCapturing(Add, VoiceMemo)
             }
             null -> return@LaunchedEffect
         }
@@ -103,7 +106,7 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                 item(
                     selected = tab == item,
                     onClick = {
-                        if (tab == item) stacks.getValue(item).resetTo(stacks.getValue(item).first()) else tab = item
+                        if (tab == item) stacks.getValue(item).resetUnlessCapturing(stacks.getValue(item).first()) else tab = item
                     },
                     icon = { Icon(if (tab == item) item.selected else item.unselected, contentDescription = null) },
                     label = { Text(item.label()) },
@@ -111,8 +114,24 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
             }
         },
     ) {
+        // Each tab's screens are decorated on their own, as in Navigation 3's multiple back stacks
+        // recipe: switching tabs then keeps a tab's ViewModels and saved state (search, scroll, a draft
+        // or a recording) instead of treating its screens as popped.
+        val entries = stacks.mapValues { (stackTab, stack) ->
+            key(stackTab) {
+                rememberDecoratedNavEntries(
+                    backStack = stack,
+                    entryDecorators = listOf(
+                        rememberSaveableStateHolderNavEntryDecorator<NavKey>(),
+                        rememberViewModelStoreNavEntryDecorator<NavKey>(),
+                    ),
+                    entryProvider = destinations(stack, viewChips, ::searchHome, searchRequest) { searchRequest = null },
+                )
+            }
+        }
         NavDisplay(
-            backStack = backStack,
+            entries = entries.getValue(tab),
+            sceneStrategies = listOf(rememberListDetailSceneStrategy<NavKey>()),
             onBack = {
                 when {
                     backStack.size > 1 -> backStack.removeLastOrNull()
@@ -120,84 +139,90 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                     else -> activity?.finish()
                 }
             },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator<NavKey>(),
-                rememberViewModelStoreNavEntryDecorator<NavKey>(),
-            ),
-            sceneStrategies = listOf(rememberListDetailSceneStrategy<NavKey>()),
-            entryProvider = entryProvider<NavKey> {
-                entry<Home>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) {
-                    LibraryRoute(
-                        searchRequest = searchRequest,
-                        onSearchRequestHandled = { searchRequest = null },
-                        selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
-                        onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
-                        onWriteNote = { backStack.push(NoteComposer()) },
-                        viewChips = viewChips,
-                    )
-                }
-                entry<ViewLibrary>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) { key ->
-                    LibraryRoute(
-                        fixedView = key.view,
-                        searchRequest = null,
-                        onSearchRequestHandled = {},
-                        selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
-                        onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
-                        onWriteNote = { backStack.push(NoteComposer()) },
-                        viewChips = false,
-                    )
-                }
-                entry<Folders> { FoldersRoute(onOpenFolder = { id -> backStack.push(FolderLibrary(id)) }) }
-                entry<FolderLibrary>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) { key ->
-                    LibraryRoute(
-                        folderId = key.id,
-                        searchRequest = null,
-                        onSearchRequestHandled = {},
-                        selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
-                        onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
-                        onWriteNote = { backStack.push(NoteComposer()) },
-                        onBack = { backStack.remove(key) },
-                        viewChips = viewChips,
-                    )
-                }
-                entry<CardDetail>(metadata = ListDetailSceneStrategy.detailPane()) { key ->
-                    CardDetailRoute(
-                        cardId = key.id,
-                        onBack = { backStack.remove(key) },
-                        onEdit = { backStack.push(CardEdit(key.id)) },
-                        onSearchTag = { tag -> searchHome(tag) },
-                        onMoreLikeThis = { id -> searchHome("like:$id") },
-                        onOpenCard = { id -> backStack.add(CardDetail(id)) },
-                        onViewPdf = { backStack.push(PdfViewer(key.id)) },
-                    )
-                }
-                entry<PdfViewer> { key ->
-                    PdfViewerRoute(cardId = key.cardId, onBack = { backStack.remove(key) })
-                }
-                entry<CardEdit>(metadata = ListDetailSceneStrategy.extraPane()) { key ->
-                    CardEditRoute(cardId = key.id, onDone = { backStack.remove(key) })
-                }
-                entry<Add> {
-                    AddRoute(
-                        onWriteNote = { backStack.push(NoteComposer()) },
-                        onRecordVoice = { backStack.push(VoiceMemo) },
-                    )
-                }
-                entry<NoteComposer> { key ->
-                    NoteComposerRoute(initialText = key.text, onDone = { backStack.remove(key) })
-                }
-                entry<VoiceMemo> { key ->
-                    VoiceMemoRoute(onDone = { backStack.remove(key) })
-                }
-                entry<Settings> { SettingsRoute(onManageTags = { backStack.push(TagManager) }) }
-                entry<TagManager> {
-                    TagsRoute(
-                        onBack = { backStack.removeLastOrNull() },
-                        onOpenTag = { tag -> searchHome(SearchQuery.format(SearchQualifier.Tag(tag))) },
-                    )
-                }
-            },
         )
+    }
+}
+
+/** The screens a tab's [backStack] can show; each one navigates within that stack. */
+@OptIn(ExperimentalMaterial3AdaptiveApi::class)
+private fun destinations(
+    backStack: NavBackStack<NavKey>,
+    viewChips: Boolean,
+    searchHome: (String) -> Unit,
+    searchRequest: String?,
+    onSearchRequestHandled: () -> Unit,
+): (NavKey) -> NavEntry<NavKey> {
+    return entryProvider {
+        entry<Home>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) {
+            LibraryRoute(
+                searchRequest = searchRequest,
+                onSearchRequestHandled = onSearchRequestHandled,
+                selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
+                onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
+                onWriteNote = { backStack.push(NoteComposer()) },
+                viewChips = viewChips,
+            )
+        }
+        entry<ViewLibrary>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) { key ->
+            LibraryRoute(
+                fixedView = key.view,
+                searchRequest = null,
+                onSearchRequestHandled = {},
+                selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
+                onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
+                onWriteNote = { backStack.push(NoteComposer()) },
+                viewChips = false,
+            )
+        }
+        entry<Folders> { FoldersRoute(onOpenFolder = { id -> backStack.push(FolderLibrary(id)) }) }
+        entry<FolderLibrary>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) { key ->
+            LibraryRoute(
+                folderId = key.id,
+                searchRequest = null,
+                onSearchRequestHandled = {},
+                selectedCardId = (backStack.lastOrNull() as? CardDetail)?.id,
+                onOpenCard = { id -> backStack.replaceDetail(CardDetail(id)) },
+                onWriteNote = { backStack.push(NoteComposer()) },
+                onBack = { backStack.remove(key) },
+                viewChips = viewChips,
+            )
+        }
+        entry<CardDetail>(metadata = ListDetailSceneStrategy.detailPane()) { key ->
+            CardDetailRoute(
+                cardId = key.id,
+                onBack = { backStack.remove(key) },
+                onEdit = { backStack.push(CardEdit(key.id)) },
+                onSearchTag = { tag -> searchHome(tag) },
+                onMoreLikeThis = { id -> searchHome("like:$id") },
+                onOpenCard = { id -> backStack.bringToTop(CardDetail(id)) },
+                onViewPdf = { backStack.push(PdfViewer(key.id)) },
+            )
+        }
+        entry<PdfViewer> { key ->
+            PdfViewerRoute(cardId = key.cardId, onBack = { backStack.remove(key) })
+        }
+        entry<CardEdit>(metadata = ListDetailSceneStrategy.extraPane()) { key ->
+            CardEditRoute(cardId = key.id, onDone = { backStack.remove(key) })
+        }
+        entry<Add> {
+            AddRoute(
+                onWriteNote = { backStack.push(NoteComposer()) },
+                onRecordVoice = { backStack.push(VoiceMemo) },
+            )
+        }
+        entry<NoteComposer> { key ->
+            NoteComposerRoute(initialText = key.text, onDone = { backStack.remove(key) })
+        }
+        entry<VoiceMemo> { key ->
+            VoiceMemoRoute(onDone = { backStack.remove(key) })
+        }
+        entry<Settings> { SettingsRoute(onManageTags = { backStack.push(TagManager) }) }
+        entry<TagManager> {
+            TagsRoute(
+                onBack = { backStack.removeLastOrNull() },
+                onOpenTag = { tag -> searchHome(SearchQuery.format(SearchQualifier.Tag(tag))) },
+            )
+        }
     }
 }
 
@@ -213,6 +238,22 @@ private fun NavBackStack<NavKey>.resetTo(vararg keys: NavKey) {
  */
 private fun NavBackStack<NavKey>.push(key: NavKey) {
     if (lastOrNull() != key) add(key)
+}
+
+/**
+ * Re-tapping a tab or a launcher shortcut starts over at [keys], except over a note or voice memo in
+ * progress: leaving one has its own discard question, and popping it would throw the work away.
+ */
+private fun NavBackStack<NavKey>.resetUnlessCapturing(vararg keys: NavKey) {
+    if (lastOrNull() is NoteComposer || lastOrNull() is VoiceMemo) return
+    resetTo(*keys)
+}
+
+/** Opens [key] on top; one already lower in the stack moves up, since equal keys would share saved state. */
+private fun NavBackStack<NavKey>.bringToTop(key: NavKey) {
+    if (lastOrNull() == key) return
+    remove(key)
+    add(key)
 }
 
 private fun NavBackStack<NavKey>.replaceDetail(key: CardDetail) {

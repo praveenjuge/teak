@@ -1,7 +1,9 @@
 package com.praveenjuge.teak.feature.capture
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -96,7 +98,14 @@ internal fun NoteComposerScreen(
     ) { padding ->
         TextField(
             state = textState,
-            modifier = Modifier.fillMaxSize().padding(padding).focusRequester(focusRequester),
+            // The activity draws behind the keyboard, so the field ends above it; the Scaffold's own
+            // bottom inset is consumed first so the navigation bar isn't counted twice.
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
+                .focusRequester(focusRequester),
             placeholder = { Text(tr("native.capture.notePlaceholder")) },
             textStyle = MaterialTheme.typography.bodyLarge,
             lineLimits = TextFieldLineLimits.MultiLine(),

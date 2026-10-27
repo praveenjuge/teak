@@ -40,7 +40,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -203,9 +205,13 @@ internal fun VoiceMemoScreen(
 @Composable
 private fun RecordButton(recording: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val corner by animateDpAsState(if (recording) 28.dp else 48.dp, label = "recordCorner")
+    // A FAB has no disabled state, so a saving recording dims the button and reports it as disabled.
     LargeFloatingActionButton(
         onClick = { if (enabled) onClick() },
-        modifier = Modifier.size(96.dp),
+        modifier = Modifier
+            .size(96.dp)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .semantics { if (!enabled) disabled() },
         shape = RoundedCornerShape(corner),
         containerColor = MaterialTheme.colorScheme.error,
         contentColor = MaterialTheme.colorScheme.onError,
@@ -217,5 +223,7 @@ private fun RecordButton(recording: Boolean, enabled: Boolean, onClick: () -> Un
         )
     }
 }
+
+private const val DISABLED_ALPHA = 0.38f
 
 internal fun formatElapsed(seconds: Long): String = "%02d:%02d".format(seconds / 60, seconds % 60)

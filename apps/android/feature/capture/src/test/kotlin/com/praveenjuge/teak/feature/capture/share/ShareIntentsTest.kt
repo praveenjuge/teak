@@ -51,6 +51,18 @@ class ShareIntentsTest {
     }
 
     @Test
+    fun `a file URI is dropped so another app can't point Teak at its own files`() {
+        val photo = Uri.parse("content://media/photo/1")
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE).setType("*/*")
+            .putParcelableArrayListExtra(
+                Intent.EXTRA_STREAM,
+                arrayListOf(photo, Uri.parse("file:///data/data/com.praveenjuge.teak/no_backup/auth/session.bin")),
+            )
+
+        assertEquals(listOf(ShareItem.File(photo)), ShareIntents.items(intent))
+    }
+
+    @Test
     fun `selected text is saved and handed back unchanged when editable`() {
         val intent = Intent(Intent.ACTION_PROCESS_TEXT).setType("text/plain")
             .putExtra(Intent.EXTRA_PROCESS_TEXT, "a quote worth keeping")

@@ -50,6 +50,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -95,8 +96,10 @@ import com.praveenjuge.teak.core.model.QualifierChips
 import com.praveenjuge.teak.core.model.SearchSuggestions
 import com.praveenjuge.teak.core.model.SearchIsValue
 import com.praveenjuge.teak.core.model.SearchQualifier
+import com.praveenjuge.teak.core.model.SearchQuery
 import com.praveenjuge.teak.core.model.Tags
 import com.praveenjuge.teak.core.model.UiText
+import com.praveenjuge.teak.core.data.convex.teakText
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val LOAD_MORE_THRESHOLD = 5
@@ -147,8 +150,13 @@ fun LibraryRoute(
             onToggleFavorites = viewModel::toggleFavorites,
             onToggleArchive = viewModel::toggleArchive,
             onToggleTrash = viewModel::toggleTrash,
-            onToggleDone = { toggleQualifier(SearchQualifier.Is(SearchIsValue.Done), !state.showsDone) },
-            onToggleTodo = { toggleQualifier(SearchQualifier.Is(SearchIsValue.Todo), !state.showsTodo) },
+            // Read from the field, not the state, which follows typing a moment later: a quick second tap turns it off.
+            onToggleDone = {
+                toggleQualifier(SearchQualifier.Is(SearchIsValue.Done), !SearchQuery.parse(searchState.text.toString()).done)
+            },
+            onToggleTodo = {
+                toggleQualifier(SearchQualifier.Is(SearchIsValue.Todo), !SearchQuery.parse(searchState.text.toString()).todo)
+            },
             onRemoveQualifier = { toggleQualifier(it, on = false) },
             onToggleType = viewModel::toggleType,
             onSelectHue = viewModel::selectHue,
@@ -156,6 +164,7 @@ fun LibraryRoute(
             onClearFilters = viewModel::clearFilters,
             onLoadMore = viewModel::loadMore,
             onRefresh = viewModel::refresh,
+            onRetry = viewModel::retry,
             onBeginSelection = viewModel::beginSelection,
             onToggleSelected = viewModel::toggleSelected,
             onEndSelection = viewModel::endSelection,
@@ -205,6 +214,7 @@ internal data class LibraryActions(
     val onClearFilters: () -> Unit = {},
     val onLoadMore: () -> Unit = {},
     val onRefresh: () -> Unit = {},
+    val onRetry: () -> Unit = {},
     val onBeginSelection: (String?) -> Unit = {},
     val onToggleSelected: (String) -> Unit = {},
     val onEndSelection: () -> Unit = {},
@@ -279,6 +289,9 @@ internal fun LibraryScreen(
         Box(Modifier.fillMaxSize().padding(padding)) {
             Column(Modifier.fillMaxSize()) {
                 var searchFocused by remember { mutableStateOf(false) }
+                val focusManager = LocalFocusManager.current
+                // Back hides the keyboard first; the next Back closes the suggestions instead of the screen.
+                BackHandler(enabled = searchFocused) { focusManager.clearFocus() }
                 LibrarySearchField(searchState, onFocusChange = { searchFocused = it })
                 val typed = searchState.text.toString()
                 val suggestions = remember(typed) { SearchSuggestions.build(typed) }
@@ -399,9 +412,9 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
         paged.isLoading && paged.cards.isEmpty() -> TeakLoading()
         paged.error != null && paged.cards.isEmpty() -> EmptyState(
             title = tr("native.library.loadFailed.title"),
-            message = tr("native.errors.offline"),
+            message = paged.error?.teakText(UiText.of("native.errors.generic"))?.resolve().orEmpty(),
             icon = Icons.Outlined.CloudOff,
-            action = { Button(onClick = actions.onRefresh) { Text(tr("common.tryAgain")) } },
+            action = { Button(onClick = actions.onRetry) { Text(tr("common.tryAgain")) } },
         )
         else -> PullToRefreshBox(
             isRefreshing = paged.isRefreshing,
@@ -427,6 +440,10 @@ private fun LibraryContent(state: LibraryUiState, selectedCardId: String?, actio
                 }
             } else {
                 LibraryGrid(state, selectedCardId, actions)
+            }
+            // A new search or filter: the last cards stay while the first page of the new one comes.
+            if (paged.isLoading && !paged.isRefreshing) {
+                LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
             }
         }
     }
@@ -537,7 +554,7 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                     }
                 }
             } else if (state.paged.error != null) {
-                item(span = StaggeredGridItemSpan.FullLine) { LoadMoreFailed(actions.onRefresh) }
+                item(span = StaggeredGridItemSpan.FullLine) { LoadMoreFailed(actions.onRetry) }
             }
         }
     }

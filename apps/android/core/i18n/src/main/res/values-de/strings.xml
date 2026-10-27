@@ -774,6 +774,7 @@
     <string name="native_tags_find">Tag suchen</string>
     <string name="native_tags_keep">Behalten</string>
     <string name="native_tags_keepTag">%1$s behalten</string>
+    <string name="native_tags_loadFailed">Tags konnten nicht geladen werden</string>
     <string name="native_tags_loading">Tags werden geladen</string>
     <string name="native_tags_merge">Zusammenführen</string>
     <plurals name="native_tags_mergeFailed">
