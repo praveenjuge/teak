@@ -412,19 +412,15 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
 Object.assign(PREPARE, {
   "why-we-built-teak": (page: Page) => open(page, "/?type=image", "Everything"),
   "rediscovering-what-you-saved": async (page: Page) => {
-    await library(page);
-    await page.getByRole("button", { name: "View", exact: true }).click();
+    // Revisit deals from what's on screen, so start from images only and
+    // the first card is always a saved photo.
+    await open(page, "/?type=image", "Everything");
+    // With a type picked, the button is named after it ("View: Image").
+    await page.getByRole("button", { name: /^View\b/ }).first().click();
     await page.getByRole("menuitemradio", { name: "Revisit" }).click();
-    const keep = page.getByRole("button", { name: /^Keep/ }).first();
-    await keep.waitFor();
-    // Keep cards (which changes nothing) until a saved photo shows.
-    for (let tries = 0; tries < 25; tries += 1) {
-      await settle(page);
-      if (await page.getByText("Image", { exact: true }).count()) {
-        break;
-      }
-      await keep.click();
-    }
+    await page.getByRole("button", { name: /^Keep/ }).first().waitFor();
+    await page.getByText("Image", { exact: true }).first().waitFor();
+    await settle(page);
   },
   "search-by-meaning": (page: Page) =>
     open(page, "/?q=japanese%20prints", "Everything"),

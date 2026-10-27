@@ -119,22 +119,41 @@ describe("blog images", () => {
   const posts = readdirSync(blogDir)
     .filter((file) => file.endsWith(".mdx"))
     .sort();
-  /** Every image a post shows: its own (`./images/`) or a docs one (`../docs/images/`). */
+  const sourceOf = (post: string) =>
+    readFileSync(path.join(blogDir, post), "utf8");
+  /**
+   * Every image a post shows, with where it comes from: its own
+   * (`./images/<name>.webp`), a docs one (`../docs/images/<name>.webp`), or
+   * neither, which no post may use.
+   */
   const imagesOnPost = (post: string) =>
-    [
-      ...readFileSync(path.join(blogDir, post), "utf8").matchAll(
-        /!\[([^\]]*)\]\((\.\/images|\.\.\/docs\/images)\/([^)]+)\.webp\)/g
-      ),
-    ].map(([, alt, dir, name]) => ({
-      alt,
-      blog: dir === "./images",
-      name,
-    }));
+    [...sourceOf(post).matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)].map(
+      ([, alt, src]) => {
+        const match = /^(\.\/images|\.\.\/docs\/images)\/([^/]+)\.webp$/.exec(
+          src
+        );
+        return { alt, blog: match?.[1] === "./images", name: match?.[2], src };
+      }
+    );
+
+  test("every image a post shows comes from the pipeline", () => {
+    const wrong = posts.flatMap((post) =>
+      imagesOnPost(post)
+        .filter(({ name }) => !name)
+        .map(({ src }) => `${post}: ${src}`)
+    );
+    expect(wrong).toEqual([]);
+  });
 
   test("every post opens with its cover, the image named after it", () => {
     const wrong = posts.filter((post) => {
-      const [first] = imagesOnPost(post);
-      return !(first?.blog && `${first.name}.mdx` === post);
+      // The first line of the body, after the frontmatter.
+      const body = sourceOf(post).split(/^---$/m).slice(2).join("---");
+      const first = body.split("\n").find((line) => line.trim());
+      const slug = post.replace(/\.mdx$/, "");
+      return !first
+        ?.trim()
+        .match(new RegExp(`^!\\[[^\\]]*\\]\\(\\./images/${slug}\\.webp\\)$`));
     });
     expect(wrong).toEqual([]);
   });
@@ -145,7 +164,8 @@ describe("blog images", () => {
     const wrong = posts.flatMap((post) =>
       imagesOnPost(post)
         .filter(
-          ({ alt, blog: own, name }) => (own ? blog : docs).get(name) !== alt
+          ({ alt, blog: own, name }) =>
+            name && (own ? blog : docs).get(name) !== alt
         )
         .map(({ name }) => `${post}: ${name}`)
     );
