@@ -45,6 +45,7 @@ type Env = {
   readonly R2_BUCKET: string | undefined;
   readonly R2_KEY_PREFIX: string | undefined;
   readonly SIGNUPS_DISABLED: string | undefined;
+  readonly SITE_URL: string | undefined;
   readonly TEAK_DEV_API_URL: string | undefined;
   readonly TEAK_DEV_APP_URL: string | undefined;
   readonly TEAK_DEV_DEPLOYMENT: string | undefined;

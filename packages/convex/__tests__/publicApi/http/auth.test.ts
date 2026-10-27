@@ -263,6 +263,8 @@ describe("publicApiHttp auth and validation", () => {
   });
 
   test("createCardV1 returns created payload", async () => {
+    const previousSiteUrl = process.env.SITE_URL;
+    process.env.SITE_URL = "https://app.teakvault.com";
     const runMutation =
       buildAuthorizedMutationMockWithIdempotencySkip().mockResolvedValueOnce({
         status: "created",
@@ -289,6 +291,7 @@ describe("publicApiHttp auth and validation", () => {
       cardId: "card_9",
       status: "created",
     });
+    process.env.SITE_URL = previousSiteUrl;
   });
 
   test("createCardV1 rejects requests whose idempotency key is already in progress", async () => {

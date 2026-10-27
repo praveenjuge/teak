@@ -517,6 +517,7 @@ These apply to videos, recordings, images, and links you save from now on.
 - Notes, and content on any card type, over 512 KiB return `400 CONTENT_TOO_LARGE` instead of a server error. `PATCH /v1/cards/:id` names the field it refused and why.
 - A wrong method or path under `/v1/` returns a JSON `405` (with `Allow`) or `404` that browsers can read, and `GET /v1` lists every endpoint.
 - Repeating an `Idempotency-Key` while its first request is still running returns `409 IN_PROGRESS` with `Retry-After`, so you know to try again rather than fix the request.
+- On a self-hosted Teak, the card links (`appUrl`) and `settingsUrl` the API and MCP return open your own web app, from `SITE_URL`, instead of teakvault.com.
 
 **CLI**
 
