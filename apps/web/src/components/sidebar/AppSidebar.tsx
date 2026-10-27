@@ -16,10 +16,10 @@ import { LogoMark } from "@/components/Logo";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -37,7 +37,7 @@ import {
   libraryViewLabel,
 } from "../../lib/libraryViews";
 import { ShortcutHint } from "../modals/KeyboardShortcutsDialog";
-import { ShortcutKeys, ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
+import { ShortcutTooltip } from "../shortcuts/ShortcutTooltip";
 
 const TOGGLE_SIDEBAR_KEYS = ["Mod", "B"] as const;
 
@@ -134,16 +134,13 @@ export function AppSidebar({
             <span>{libraryViewLabel(view, tViews)}</span>
           </LinkComponent>
         </SidebarMenuButton>
-        <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">
-          <ShortcutKeys keys={["G", GO_TO_VIEW_KEYS[view].toUpperCase()]} />
-        </SidebarMenuBadge>
       </SidebarMenuItem>
     );
   };
 
   return (
     <Sidebar className="group/sidebar-panel" collapsible="icon">
-      <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-2">
+      <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-0">
         <SidebarMenu className="w-auto">
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -167,19 +164,26 @@ export function AppSidebar({
           label={state === "collapsed" ? t("keepOpen") : t("collapse")}
         >
           <button
+            aria-expanded={state === "expanded"}
             aria-keyshortcuts={ariaKeyShortcut(TOGGLE_SIDEBAR_KEYS, apple)}
             aria-label={state === "collapsed" ? t("keepOpen") : t("collapse")}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground opacity-0 outline-hidden ring-sidebar-ring transition-[opacity,background-color,color] duration-150 hover:bg-sidebar-accent focus-visible:opacity-100 focus-visible:ring-2 group-hover/sidebar-panel:opacity-100 group-data-[collapsible=icon]:hidden max-md:hidden [&>svg]:opacity-55 [&>svg]:transition-opacity hover:[&>svg]:opacity-100"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-accent focus-visible:ring-2 max-md:hidden [&>svg]:opacity-60 [&>svg]:transition-opacity hover:[&>svg]:opacity-100"
+            data-sidebar="collapse"
             onClick={toggleSidebar}
             type="button"
           >
             <PanelLeft className="size-4" />
           </button>
         </ShortcutTooltip>
-        {addActions}
       </SidebarHeader>
 
       <SidebarContent>
+        {addActions ? (
+          <SidebarGroup className="pb-0 group-data-[collapsible=icon]:items-center">
+            {addActions}
+          </SidebarGroup>
+        ) : null}
+
         <SidebarGroup>
           <SidebarMenu>
             {PRIMARY_VIEWS.map(viewItem)}
@@ -199,46 +203,50 @@ export function AppSidebar({
                 </LinkComponent>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {SECONDARY_VIEWS.map(viewItem)}
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={isSettingsActive}
-                tooltip={{
-                  className: "flex items-center gap-2",
-                  children: (
-                    <>
-                      {t("settings")}
-                      <ShortcutHint
-                        row={{
-                          keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
-                          label: t("settings"),
-                          sequence: true,
-                        }}
-                      />
-                    </>
-                  ),
-                }}
-              >
-                <LinkComponent
-                  aria-current={isSettingsActive ? "page" : undefined}
-                  aria-label={t("settings")}
-                  href={settingsHref}
-                  onClick={handleNavigate}
-                >
-                  <Settings />
-                  <span>{t("settings")}</span>
-                </LinkComponent>
-              </SidebarMenuButton>
-              <SidebarMenuBadge className="opacity-0 transition-opacity duration-150 group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 max-md:hidden">
-                <ShortcutKeys keys={["G", GO_TO_SETTINGS_KEY.toUpperCase()]} />
-              </SidebarMenuBadge>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
         {foldersSlot}
       </SidebarContent>
+
+      {/* Outside the scrolling content, so a long folder list never hides
+          these, in the collapsed rail too. */}
+      <SidebarFooter>
+        <SidebarMenu>
+          {SECONDARY_VIEWS.map(viewItem)}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isSettingsActive}
+              tooltip={{
+                className: "flex items-center gap-2",
+                children: (
+                  <>
+                    {t("settings")}
+                    <ShortcutHint
+                      row={{
+                        keys: ["G", GO_TO_SETTINGS_KEY.toUpperCase()],
+                        label: t("settings"),
+                        sequence: true,
+                      }}
+                    />
+                  </>
+                ),
+              }}
+            >
+              <LinkComponent
+                aria-current={isSettingsActive ? "page" : undefined}
+                aria-label={t("settings")}
+                href={settingsHref}
+                onClick={handleNavigate}
+              >
+                <Settings />
+                <span>{t("settings")}</span>
+              </LinkComponent>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>

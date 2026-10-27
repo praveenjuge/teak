@@ -52,7 +52,7 @@ const APP_LINKS: readonly {
 ];
 
 /** Where to get Teak's browser extensions and apps, as one row of tiles. */
-function AppsSection() {
+export function AppsSection() {
   const t = useTranslations("settings.integrations");
   return (
     <SettingsSection
@@ -70,7 +70,7 @@ function AppsSection() {
       id="apps"
       title={t("appsTitle")}
     >
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-2">
         {APP_LINKS.map(({ href, icon: Icon, id }) => (
           <li key={id}>
             <a

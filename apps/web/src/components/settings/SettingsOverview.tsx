@@ -8,13 +8,18 @@ import { useTheme } from "next-themes";
 import type { ReactNode } from "react";
 import { ChevronRight, LogOut } from "vadivam-react";
 import { useHydrated } from "@/hooks/useHydrated";
+import { openKeyboardShortcuts } from "@/lib/keyboardShortcuts";
 import {
+  SETTINGS_PLAN_HREF,
   SETTINGS_SECTIONS,
   type SettingsSectionId,
 } from "@/lib/settingsSections";
 import { Button } from "../ui/button";
+import { Kbd } from "../ui/kbd";
 import { Spinner } from "../ui/spinner";
 import type { ExportState } from "./ExportPanel";
+import { AppsSection } from "./IntegrationsSettings";
+import { UsageMeter } from "./PlanSettings";
 import { SettingsFooter } from "./SettingsFooter";
 import {
   SettingsPageIntro,
@@ -197,6 +202,79 @@ function useSummaries({
   return { appearance, data, integrations, plan, security };
 }
 
+/** Cards used, with the way to upgrade on the free plan. */
+function UsageSection({
+  accountLoading,
+  cardCount,
+  hasPremium,
+}: Pick<SettingsOverviewProps, "accountLoading" | "cardCount" | "hasPremium">) {
+  const t = useTranslations("settings.plan");
+  const tSubscription = useTranslations("settings.subscription");
+  let usage: ReactNode = (
+    <div aria-hidden className="space-y-3">
+      <SettingValueSkeleton className="mx-0 w-32" />
+      <SettingValueSkeleton className="mx-0 h-2 w-full" />
+    </div>
+  );
+  if (!accountLoading && hasPremium) {
+    usage = (
+      <p className={`${LOADED} text-muted-foreground text-sm`}>
+        {t("unlimited", { count: cardCount })}
+      </p>
+    );
+  } else if (!accountLoading) {
+    usage = (
+      <div className={LOADED}>
+        <UsageMeter count={cardCount} limit={FREE_TIER_LIMIT} />
+      </div>
+    );
+  }
+  return (
+    <SettingsSection
+      action={
+        accountLoading || hasPremium ? null : (
+          <Button asChild size="sm">
+            <Link href={SETTINGS_PLAN_HREF}>{tSubscription("title")}</Link>
+          </Button>
+        )
+      }
+      id="usage"
+      title={t("usageLabel")}
+    >
+      {usage}
+    </SettingsSection>
+  );
+}
+
+/** Opens the keyboard shortcuts sheet; only on screens with a keyboard. */
+function ShortcutsSection() {
+  const t = useTranslations("modals.shortcuts");
+  return (
+    <div className="max-md:hidden">
+      <SettingsSection
+        action={
+          <Button
+            aria-label={t("title")}
+            onClick={(event) => {
+              // Safari doesn't focus a clicked button; the sheet hands focus
+              // back to whatever had it when it opened.
+              event.currentTarget.focus();
+              openKeyboardShortcuts();
+            }}
+            size="sm"
+            variant="outline"
+          >
+            <Kbd className="bg-background">?</Kbd>
+          </Button>
+        }
+        description={t("description")}
+        id="shortcuts"
+        title={t("title")}
+      />
+    </div>
+  );
+}
+
 export function SettingsOverview(props: SettingsOverviewProps) {
   const t = useTranslations("settings.overview");
   const tNav = useTranslations("settings.nav");
@@ -210,7 +288,9 @@ export function SettingsOverview(props: SettingsOverviewProps) {
       />
       <SettingsStack>
         <ProfileSection {...props} />
-        <nav aria-label={t("sectionsLabel")}>
+        <UsageSection {...props} />
+        {/* Wide screens list the sections beside the page (SettingsNav). */}
+        <nav aria-label={t("sectionsLabel")} className="md:hidden">
           <ul className="divide-y rounded-xl border">
             <SectionRow id="plan" summary={summaries.plan} />
             <SectionRow id="appearance" summary={summaries.appearance} />
@@ -219,6 +299,8 @@ export function SettingsOverview(props: SettingsOverviewProps) {
             <SectionRow id="data" summary={summaries.data} />
           </ul>
         </nav>
+        <AppsSection />
+        <ShortcutsSection />
       </SettingsStack>
       <SettingsFooter />
     </>

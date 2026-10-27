@@ -22,7 +22,7 @@ export function LibraryPageSkeleton({
         {searchPlaceholder ? (
           <div
             aria-hidden="true"
-            className="relative min-w-0 flex-1 max-sm:hidden sm:ml-auto sm:max-w-xl"
+            className="relative min-w-0 flex-1 max-sm:hidden"
           >
             <div className={searchFieldClassName}>
               <Search className="size-4 shrink-0 text-muted-foreground" />

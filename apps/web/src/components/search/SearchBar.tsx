@@ -648,7 +648,7 @@ export function SearchBar({
       <form
         aria-label={t("bar.formLabel")}
         className={cn(
-          "relative min-w-0 flex-1 sm:ml-auto sm:max-w-xl",
+          "relative min-w-0 flex-1",
           !fieldShown && "max-sm:hidden"
         )}
         onSubmit={handleSubmit}
@@ -763,7 +763,7 @@ export function SearchBar({
             </button>
           ) : (
             !focused && (
-              <Kbd aria-hidden="true" className="max-sm:hidden">
+              <Kbd aria-hidden="true" className="bg-background max-sm:hidden">
                 /
               </Kbd>
             )

@@ -133,6 +133,25 @@ describe("SettingsOverview", () => {
     expect(markup).toContain("Save by email on · 2 API keys");
     expect(markup).toContain("25+ devices signed in");
     expect(markup).toContain("Export in progress");
+    expect(markup).toContain("3 cards saved, with no limit.");
+    expect(markup).not.toContain("Upgrade to Pro");
+  });
+
+  test("shows cards used, the way to upgrade, the apps and the shortcuts", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsOverview {...overviewProps} />
+    );
+
+    expect(markup).toContain("Cards used");
+    expect(markup).toContain('role="progressbar"');
+    expect(markup).toContain('aria-valuenow="3"');
+    expect(markup).toMatch(
+      /<a[^>]*href="\/settings\/plan"[^>]*>Upgrade to Pro<\/a>/
+    );
+    expect(markup).toContain("Apps and extensions");
+    expect(links(markup)).toContain("https://teakvault.com/apps");
+    expect(markup).toContain("Keyboard shortcuts");
+    expect(markup).toContain('aria-label="Keyboard shortcuts"');
   });
 });
 

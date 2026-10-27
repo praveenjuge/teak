@@ -101,7 +101,7 @@ const TagRow = memo(function TagRow({
   return (
     <li
       className={cn(
-        "group/row flex items-center border-b transition-colors last:border-b-0 hover:bg-muted/40",
+        "group/row flex items-center rounded-xl border bg-card transition-colors hover:bg-muted/40",
         isMenuOpen && "bg-muted/40"
       )}
     >
@@ -167,8 +167,7 @@ function TagSortMenu({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
-          className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
-          size="icon"
+          className="h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground max-lg:w-9 max-lg:px-0"
           type="button"
           variant="ghost"
         >
@@ -178,6 +177,9 @@ function TagSortMenu({
               sort === "name" && "text-primary"
             )}
           />
+          <span aria-hidden="true" className="max-lg:hidden">
+            {t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
@@ -301,7 +303,7 @@ export function TagsScreen({
       >
         <form
           aria-label={t("findTag")}
-          className="min-w-0 max-w-44 flex-1 sm:ml-auto sm:max-w-xl"
+          className="min-w-0 max-w-44 flex-1 sm:max-w-none"
           onSubmit={(event) => event.preventDefault()}
         >
           <div className={searchFieldClassName}>
@@ -328,15 +330,15 @@ export function TagsScreen({
         </form>
       </PageHeader>
 
-      <div className="max-w-3xl">
+      <div>
         {matches === undefined && (
           <ul
             aria-label={t("loading")}
-            className="overflow-hidden rounded-xl border bg-card"
+            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
           >
             {SKELETON_WIDTHS.map((width) => (
               <li
-                className="flex items-center gap-3 border-b px-4 py-3.5 last:border-b-0"
+                className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3.5"
                 key={width}
               >
                 <Skeleton className="size-4 rounded" />
@@ -370,7 +372,7 @@ export function TagsScreen({
         {visible.length > 0 && (
           <ul
             aria-label={t("list")}
-            className="overflow-hidden rounded-xl border bg-card"
+            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
           >
             {visible.map((item) => (
               <TagRow
