@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.library
 
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardQuery
+import com.praveenjuge.teak.core.data.repository.CardsRepository
 import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardSort
@@ -11,11 +12,13 @@ import com.praveenjuge.teak.core.model.Folder
 import com.praveenjuge.teak.core.model.FolderKind
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.TimeSearch
+import com.praveenjuge.teak.core.model.TrashCount
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.FakeLanguageRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -54,6 +57,31 @@ class LibraryViewModelTest {
         viewModel.onSearchChange("monday")
         advanceUntilIdle()
         assertEquals(UiText.verbatim("lundi"), viewModel.state.value.timeFilter?.labelText)
+    }
+
+    @Test
+    fun `cards kept on screen while Trash loads can't be selected or deleted`() = runTest {
+        repository.summaries.value = listOf(summary("a"), summary("b"))
+        // Trash never answers here, like a slow first page on a bad connection.
+        val slowTrash = object : CardsRepository by repository {
+            override fun page(query: CardQuery, cursor: String?, numItems: Int) =
+                if (query.filters.trashOnly) emptyFlow() else repository.page(query, cursor, numItems)
+
+            override fun trashCount() = emptyFlow<Result<TrashCount>>()
+        }
+        val viewModel = LibraryViewModel(null, null, slowTrash, folders, language)
+        advanceUntilIdle()
+        viewModel.toggleTrash()
+        advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(listOf("a", "b"), state.paged.cards.map { it.id })
+        assertFalse(state.canActOnCards)
+        assertFalse(state.canEmptyTrash)
+        viewModel.select("a")
+        assertFalse(viewModel.state.value.isSelecting)
+        viewModel.deleteSelectedForever()
+        assertTrue(repository.writes.isEmpty())
     }
 
     @Test

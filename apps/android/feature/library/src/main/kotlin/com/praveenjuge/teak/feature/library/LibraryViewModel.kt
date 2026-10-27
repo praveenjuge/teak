@@ -113,13 +113,19 @@ data class LibraryUiState(
 ) {
     val isSelecting: Boolean get() = selection is Selection.Active
 
+    /**
+     * While a new view loads, the last one's cards stay on screen so the grid doesn't blink, but nothing may act
+     * on them: switching to Trash would otherwise offer Delete forever for cards that were never in Trash.
+     */
+    val canActOnCards: Boolean get() = !paged.isLoading
+
     /** Filters beyond the view's own, which Clear takes off. */
     val canClearFilters: Boolean
         get() = filters.copy(sort = CardSort.Newest, shuffleSeed = 0) != fixedView.baseFilters()
 
     /** Trash has cards to empty, hidden ones included; the shown cards stand in until the count arrives. */
     val canEmptyTrash: Boolean
-        get() = filters.trashOnly && !isEmptyingTrash && (trashCount?.let { it.cardCount > 0 } ?: paged.cards.isNotEmpty())
+        get() = filters.trashOnly && !isEmptyingTrash && (trashCount?.let { it.cardCount > 0 } ?: (canActOnCards && paged.cards.isNotEmpty()))
 
     val emptyTrashMessage: UiText get() = EmptyTrash.message(trashCount?.cardCount ?: paged.cards.size, more = trashCount?.more == true)
 
@@ -384,10 +390,12 @@ class LibraryViewModel @AssistedInject constructor(
 
     fun retry() = pager.retry()
 
-    fun beginSelection(cardId: String? = null) =
-        _state.update { it.copy(selection = Selection.Active(listOfNotNull(cardId))) }
+    fun beginSelection(cardId: String? = null) = _state.update {
+        if (it.canActOnCards) it.copy(selection = Selection.Active(listOfNotNull(cardId))) else it
+    }
 
     fun toggleSelected(cardId: String) = _state.update { state ->
+        if (!state.canActOnCards) return@update state
         val picked = (state.selection as? Selection.Active)?.pickedIds ?: return@update state
         state.copy(selection = Selection.Active(if (cardId in picked) picked - cardId else picked + cardId))
     }
@@ -398,7 +406,7 @@ class LibraryViewModel @AssistedInject constructor(
     fun runOnSelected(action: BulkAction, tags: List<String> = emptyList(), folder: Folder? = null) {
         val current = _state.value
         val ids = current.pickedIds
-        if (ids.isEmpty() || current.isRunningBulkAction) return
+        if (ids.isEmpty() || current.isRunningBulkAction || !current.canActOnCards) return
         _state.update { it.copy(isRunningBulkAction = true) }
         viewModelScope.launch {
             perform(action, ids, tags, folder)
@@ -410,7 +418,7 @@ class LibraryViewModel @AssistedInject constructor(
     fun addSelectedToNewFolder(name: String) {
         val current = _state.value
         val ids = current.pickedIds
-        if (name.isBlank() || ids.isEmpty() || current.isRunningBulkAction) return
+        if (name.isBlank() || ids.isEmpty() || current.isRunningBulkAction || !current.canActOnCards) return
         // Busy from the start, so nothing else runs on the selection while the folder is made.
         _state.update { it.copy(isRunningBulkAction = true) }
         viewModelScope.launch {
@@ -457,7 +465,7 @@ class LibraryViewModel @AssistedInject constructor(
     fun deleteSelectedForever() {
         val current = _state.value
         val ids = current.pickedIds
-        if (ids.isEmpty() || current.isRunningBulkAction) return
+        if (ids.isEmpty() || current.isRunningBulkAction || !current.canActOnCards) return
         _state.update { it.copy(isRunningBulkAction = true) }
         viewModelScope.launch {
             var failed = 0

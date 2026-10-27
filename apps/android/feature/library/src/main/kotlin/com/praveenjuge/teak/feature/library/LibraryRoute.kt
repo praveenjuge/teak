@@ -270,7 +270,7 @@ internal fun LibraryScreen(
             LibraryTopBar(
                 title = state.title.resolve(),
                 isSelecting = state.isSelecting,
-                canSelect = state.paged.cards.isNotEmpty(),
+                canSelect = state.paged.cards.isNotEmpty() && state.canActOnCards,
                 canRevisit = state.canRevisit,
                 sort = state.filters.sort,
                 scrollBehavior = scrollBehavior,
@@ -330,7 +330,7 @@ internal fun LibraryScreen(
                         state.isArchive -> SelectionView.Archive
                         else -> SelectionView.Library
                     },
-                    enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction,
+                    enabled = state.pickedIds.isNotEmpty() && !state.isRunningBulkAction && state.canActOnCards,
                     onAction = actions.onBulk,
                     onAddTags = { dialog = LibraryDialog.AddTags },
                     onAddToFolder = { dialog = LibraryDialog.AddToFolder },
@@ -515,7 +515,8 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
         ) {
             items(cards, key = { it.id }, contentType = { it.type }) { card ->
                 val selecting = state.isSelecting
-                val menu = tileMenu(card, inTrash = state.filters.trashOnly, actions)
+                // Cards kept on screen while a new view loads get no menu: its actions are for the new view.
+                val menu = if (state.canActOnCards) tileMenu(card, inTrash = state.filters.trashOnly, actions) else emptyList()
                 Box(Modifier.animateItem()) {
                     CardTile(
                         card = card,
@@ -528,7 +529,7 @@ private fun LibraryGrid(state: LibraryUiState, selectedCardId: String?, actions:
                         onLongClick = {
                             focusManager.clearFocus()
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (selecting) actions.onToggleSelected(card.id) else menuCardId = card.id
+                            if (selecting) actions.onToggleSelected(card.id) else if (menu.isNotEmpty()) menuCardId = card.id
                         },
                         actions = menu.map { item -> CustomAccessibilityAction(item.label.resolve()) { item.onClick(); true } },
                     )
