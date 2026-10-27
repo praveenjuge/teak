@@ -126,7 +126,7 @@ const createUploadInputSchema = z.strictObject({
 });
 
 const bulkCardsInputSchema = z
-  .object({
+  .strictObject({
     operation: z.enum([
       "create",
       "update",
@@ -164,7 +164,7 @@ const chatgptFetchInputSchema = z.strictObject({
 });
 
 const createCardInputSchema = z
-  .object({
+  .strictObject({
     cardType: cardTypeSchema.optional(),
     content: z.string().optional(),
     fileEtag: nonEmptyString.optional(),
@@ -246,7 +246,7 @@ const smartFolderQuerySchema = nonEmptyString.max(
   MAX_SMART_FOLDER_QUERY_LENGTH
 );
 const createFolderInputSchema = z
-  .object({
+  .strictObject({
     name: folderNameSchema,
     color: folderColorSchema.optional(),
     kind: z.enum(["manual", "smart"]).optional(),
@@ -257,7 +257,7 @@ const createFolderInputSchema = z
     path: ["query"],
   });
 const updateFolderInputSchema = z
-  .object({
+  .strictObject({
     folderId: idSchema,
     name: folderNameSchema.optional(),
     color: folderColorSchema.or(z.null()).optional(),
@@ -317,7 +317,7 @@ const deleteTagInputSchema = z.strictObject({
 const tagOperationInputSchema = z.strictObject({ operationId: idSchema });
 
 const updateCardInputSchema = z
-  .object({
+  .strictObject({
     cardId: idSchema,
     content: z.string().optional(),
     url: nonEmptyString.optional(),

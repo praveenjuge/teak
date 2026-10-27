@@ -968,6 +968,43 @@ describe("MCP tools", () => {
     expect(executor).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ["teak_v1_create_card", { content: "a note", tag: ["x"] }, "tag"],
+    [
+      "teak_v1_update_card",
+      { cardId: "card_1", notes: "n", title: "t" },
+      "title",
+    ],
+    [
+      "teak_v1_bulk_cards",
+      { operation: "favorite", items: [{}], force: true },
+      "force",
+    ],
+    ["teak_v1_create_folder", { name: "Reading", colour: "red" }, "colour"],
+    [
+      "teak_v1_update_folder",
+      { folderId: "f1", name: "R", colour: "red" },
+      "colour",
+    ],
+  ])(
+    "%s refuses an argument it doesn't take, so a write doesn't lose it",
+    async (tool, args, key) => {
+      const executor = mock(async () =>
+        Response.json({})
+      ) as PublicApiToolExecutor;
+      const result = await callTeakV1Tool(
+        tool,
+        args,
+        mcpRequest({ jsonrpc: "2.0", id: 63, method: "tools/call" }),
+        executor
+      );
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]?.text).toContain(`Unknown argument \`${key}\``);
+      expect(executor).not.toHaveBeenCalled();
+    }
+  );
+
   test("names the argument a validation error is about", async () => {
     const result = await callTeakV1Tool(
       "teak_v1_get_card",
