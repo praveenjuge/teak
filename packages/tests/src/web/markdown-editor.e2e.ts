@@ -623,6 +623,9 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await expect
       .poll(async () => (await readSocketState(browser)).heldResponse)
       .toBe(true);
+    // The draft leaves the composer as the note is sent, so the restore
+    // below proves the failed save put it back.
+    await expect(editor).toHaveText("");
     const { requestId } = await readSocketState<{ requestId: number }>(browser);
     await deliverToClient(browser, {
       type: "MutationResponse",
