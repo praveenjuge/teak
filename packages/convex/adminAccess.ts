@@ -144,6 +144,25 @@ export const readAdminSettings = async (ctx: DbCtx): Promise<AdminSettings> => {
   };
 };
 
+export const writeAdminSettings = async (
+  ctx: MutationCtx,
+  patch: Partial<Omit<AdminSettings, "updatedAt">>
+) => {
+  const row = await readSettingsRow(ctx);
+  const now = Date.now();
+  if (row) {
+    await ctx.db.patch("adminSettings", row._id, { ...patch, updatedAt: now });
+    return;
+  }
+  const { updatedAt: _ignored, ...defaults } = DEFAULT_ADMIN_SETTINGS;
+  await ctx.db.insert("adminSettings", {
+    key: "global",
+    ...defaults,
+    ...patch,
+    updatedAt: now,
+  });
+};
+
 export const readSignupsPaused = async (ctx: DbCtx): Promise<boolean> =>
   (await readAdminSettings(ctx)).signupsPaused;
 

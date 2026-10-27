@@ -136,13 +136,16 @@ Teak's own `bun run setup`, `bun run dev` and `bun run doctor` work only against
 
 <Steps>
   <Step title="Designate the administrator">
-    Sign up the intended administrator account first. Then grant its stored admin role from `packages/convex`:
+    Sign up the intended administrator account first. Then pause new sign-ups and grant its stored admin role from `packages/convex`:
 
     ```bash
+    bunx convex run --prod admin:setSignupsPaused '{"paused":true}'
     bunx convex run --prod admin:seedAdmin '{"email":"owner@example.com"}'
     ```
 
-    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access.
+    Replace the example email with your existing account. The command requires exactly one active account with that email and refuses ambiguous ones. Admin access follows the stored role through email changes; account creation order never grants access. To reopen sign-ups, run `admin:setSignupsPaused` again with `'{"paused":false}'`. Sign-up is refused while paused only when the WorkOS registration Action from [Set up WorkOS](#set-up-workos) is set up.
+
+    **Upgrading:** the `SIGNUPS_DISABLED` variable was removed in October 2026. If you set it to `true`, run the pause command above before you update, or sign-ups reopen.
   </Step>
   <Step title="Update SITE_URL">
     Update `SITE_URL` in Convex to your public domain (e.g., `https://app.yourdomain.com`).
