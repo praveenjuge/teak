@@ -75,6 +75,19 @@ const expectSharedDraft = async (browser: Browser, marker: string) => {
     .toBe("");
 };
 
+/**
+ * The test shares from a browser tab, not the installed app's window, so the
+ * library asks before saving the files a page posted (`useSharedFiles`).
+ */
+const sharePrompt = (browser: Browser) =>
+  browser
+    .locator("[data-sonner-toast]")
+    .filter({ hasText: "Save the shared file to Teak?" })
+    .getByRole("button", "Save");
+
+const confirmSharedFiles = (browser: Browser) =>
+  sharePrompt(browser).click({ timeout: 60_000 });
+
 /** The shared PNG became an image card. */
 const expectUploaded = (library: EditorLibrary, marker: string) =>
   expect
@@ -126,6 +139,10 @@ describe("Installed web app", () => {
     await share(browser, marker);
 
     await expectSharedDraft(browser, marker);
+    // A reload while it asks keeps the files and asks again.
+    await expect(sharePrompt(browser)).toBeVisible({ timeout: 60_000 });
+    await browser.reload();
+    await confirmSharedFiles(browser);
     await expectUploaded(library, marker);
   });
 
@@ -148,6 +165,7 @@ describe("Installed web app", () => {
     await screen.getByRole("button", "Continue").click();
 
     await expectSharedDraft(browser, marker);
+    await confirmSharedFiles(browser);
     await expectUploaded(library, marker);
   });
 });

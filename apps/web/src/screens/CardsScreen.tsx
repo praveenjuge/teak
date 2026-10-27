@@ -523,11 +523,7 @@ export function CardsScreen({
     onRestoreSuccess: (message?: string) => message && toast(message),
     onPermanentDeleteSuccess: (message?: string) => message && toast(message),
     onError: (_error: Error, operation: string) => {
-      toast.error(
-        operation === "update removeAiTag"
-          ? tActions("failed.removeTag")
-          : cardActionFailedMessage(operation, tActions)
-      );
+      toast.error(cardActionFailedMessage(operation, tActions));
     },
     onCardUpdate: updateCachedCard,
   });
@@ -601,8 +597,17 @@ export function CardsScreen({
         tags
       );
       setTagInput("");
+    } else {
+      // Already on the card: clear the field and say so, as the card
+      // dialog's tag field does.
+      const value = tagInput.trim().toLowerCase();
+      const existing = tagManagementCard?.tags?.find((tag) => tag === value);
+      if (existing) {
+        setTagInput("");
+        toast(tActions("alreadyTagged", { tag: existing }));
+      }
     }
-  }, [cardActions, tagInput, tagManagementCard, tagManagementCardId]);
+  }, [cardActions, tActions, tagInput, tagManagementCard, tagManagementCardId]);
 
   const handleRemoveTag = useCallback(
     (tagToRemove: string) => {
@@ -1065,7 +1070,12 @@ export function CardsScreen({
       <TagManagementModal
         aiTags={tagManagementCard?.aiTags || []}
         onAddTag={handleAddTag}
-        onOpenChange={(open) => !open && setTagManagementCardId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTagManagementCardId(null);
+            setTagInput("");
+          }
+        }}
         onRemoveAiTag={handleRemoveAiTag}
         onRemoveTag={handleRemoveTag}
         open={!!tagManagementCardId}

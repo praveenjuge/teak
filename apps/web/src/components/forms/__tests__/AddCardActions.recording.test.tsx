@@ -23,8 +23,9 @@ mock.module("@/hooks", () => ({
     queueSize: 0,
   }),
 }));
+const uploadFile = mock(() => Promise.resolve({ success: true }));
 mock.module("@/hooks/useFileUploadCore", () => ({
-  useFileUploadCore: () => ({ uploadFile: mock() }),
+  useFileUploadCore: () => ({ uploadFile }),
 }));
 mock.module("../../shortcuts/ShortcutTooltip", () => ({
   ShortcutTooltip: ({ children }: { children: ReactNode }) => children,
@@ -70,12 +71,17 @@ class FakeMediaRecorder {
   ondataavailable: unknown = null;
   onstop: unknown = null;
   start = recorderStarts;
-  stop = mock();
+  state = "recording";
+  stop() {
+    this.state = "inactive";
+    (this.onstop as (() => void) | null)?.();
+  }
 }
 
 beforeEach(async () => {
   stopTrack.mockClear();
   recorderStarts.mockClear();
+  uploadFile.mockClear();
   Object.assign(globalThis, { MediaRecorder: FakeMediaRecorder });
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
@@ -138,4 +144,26 @@ test("a closed start that fails later leaves the next recording running", async 
   expect(recorderStarts).toHaveBeenCalledTimes(1);
   expect(stopTrack).not.toHaveBeenCalled();
   expect(document.querySelector("[data-dialog]")).not.toBeNull();
+});
+
+test("dismissing the dialog while recording discards the recording", async () => {
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Dismiss").click());
+
+  expect(uploadFile).not.toHaveBeenCalled();
+  expect(stopTrack).toHaveBeenCalledTimes(1);
+  expect(document.querySelector("[data-dialog]")).toBeNull();
+});
+
+test("Discard throws the recording away and Stop and Save keeps it", async () => {
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Discard").click());
+  expect(uploadFile).not.toHaveBeenCalled();
+
+  await act(async () => button("Record audio").click());
+  await act(async () => grantMicrophone?.());
+  await act(async () => button("Stop and Save").click());
+  expect(uploadFile).toHaveBeenCalledTimes(1);
 });

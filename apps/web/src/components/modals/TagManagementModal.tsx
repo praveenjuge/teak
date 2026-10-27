@@ -12,6 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isImeComposing } from "@/lib/keyboardShortcuts";
 
+// The tag's name beside its remove button: shaped like the outline button,
+// but not one, since it has nothing to do.
+const TAG_CHIP_CLASS =
+  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-l-full border border-r-0 bg-background px-3 font-medium text-sm has-[>svg]:px-2.5 dark:border-input dark:bg-input/30 [&_svg]:size-4 [&_svg]:shrink-0";
+
 interface TagManagementModalProps {
   aiTags: string[];
   onAddTag: () => void;
@@ -70,6 +75,7 @@ export function TagManagementModal({
               <Input
                 className="flex-1"
                 id="new-tag"
+                maxLength={100}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t("placeholder")}
@@ -93,13 +99,7 @@ export function TagManagementModal({
               <div className="mt-2 flex flex-wrap gap-2">
                 {userTags.map((tag) => (
                   <div className="inline-flex" key={tag}>
-                    <Button
-                      className="rounded-r-none border-r-0"
-                      size="sm"
-                      variant="outline"
-                    >
-                      {tag}
-                    </Button>
+                    <span className={TAG_CHIP_CLASS}>{tag}</span>
                     <Button
                       aria-label={t("removeUserTag", { tag })}
                       className="rounded-l-none"
@@ -121,14 +121,10 @@ export function TagManagementModal({
               <div className="mt-2 flex flex-wrap gap-2">
                 {aiTags.map((tag) => (
                   <div className="inline-flex" key={`ai-${tag}`}>
-                    <Button
-                      className="rounded-r-none border-r-0"
-                      size="sm"
-                      variant="outline"
-                    >
+                    <span className={TAG_CHIP_CLASS}>
                       <Sparkles />
                       {tag}
-                    </Button>
+                    </span>
                     <Button
                       aria-label={t("removeTeakTag", { tag })}
                       className="rounded-l-none"

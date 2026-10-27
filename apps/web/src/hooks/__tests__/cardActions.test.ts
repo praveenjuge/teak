@@ -4,7 +4,7 @@ import {
   resetClientTelemetry,
 } from "@teak/convex/shared/clientTelemetry";
 import { testId } from "@/__tests__/helpers/testDoubles";
-import { createCardActions } from "../cardActions";
+import { cardActionFailedMessage, createCardActions } from "../cardActions";
 
 describe("defaults", () => {
   test("uses the default no-op error capture without error", async () => {
@@ -424,4 +424,18 @@ describe("createCardActions", () => {
       expect(mockOnError).toHaveBeenNthCalledWith(2, error2, "restore");
     });
   });
+});
+
+test("a failed field update names what failed, never the code's field name", () => {
+  expect(cardActionFailedMessage("update isFavorited")).toBe(
+    "Failed to toggle favorite"
+  );
+  expect(cardActionFailedMessage("update removeAiTag")).toBe(
+    "Failed to remove tag"
+  );
+  expect(cardActionFailedMessage("update tags")).toBe("Failed to update tags");
+  expect(cardActionFailedMessage("update aiSummary")).toBe(
+    "Failed to save changes"
+  );
+  expect(cardActionFailedMessage("delete")).toBe("Failed to delete");
 });

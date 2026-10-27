@@ -490,7 +490,8 @@
       "uploading": "Enviando…",
       "foldersNotSupported": "Não é possível enviar pastas. Solte os arquivos individualmente.",
       "offline": "Você está offline. Reconecte-se e tente novamente.",
-      "sharedFilesMissing": "Não foi possível encontrar os arquivos compartilhados. Compartilhe de novo."
+      "sharedFilesMissing": "Não foi possível encontrar os arquivos compartilhados. Compartilhe de novo.",
+      "sharedFilesConfirm": "Salvar {count, plural, one {o arquivo compartilhado} other {# arquivos compartilhados}} no Teak?"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "Salvando a gravação...",
       "recordingHint": "Fale naturalmente. O Teak vai salvar isto como um card de áudio.",
       "recordingTitle": "Gravando áudio",
-      "stopAndSave": "Parar e salvar"
+      "stopAndSave": "Parar e salvar",
+      "discardRecording": "Descartar"
     },
     "emptyState": {
       "title": "Vamos adicionar seu primeiro card!",
@@ -1577,7 +1579,7 @@
         "saveChanges": "Não foi possível salvar as alterações",
         "downloadFile": "Não foi possível baixar o arquivo",
         "removeTag": "Não foi possível remover a tag",
-        "update": "Não foi possível atualizar {field}",
+        "tags": "Não foi possível atualizar as tags",
         "other": "Falha na operação: {operation}"
       }
     },

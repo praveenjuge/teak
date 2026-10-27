@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { SHARE_FILE_NAME_HEADER } from "../sharedContent";
-import { takeSharedFiles } from "../sharedFiles";
+import { discardSharedFiles, takeSharedFiles } from "../sharedFiles";
 
 const fakeStorage = () => {
   const entries = new Map<string, Response>();
@@ -44,6 +44,21 @@ describe("takeSharedFiles", () => {
     ]);
     expect(await files?.[1]?.text()).toBe("two");
     expect([...entries.keys()]).toEqual(["https://teak.test/__share/2-b/0"]);
+  });
+
+  test("keeps a share's files while asking, then discards them", async () => {
+    const { cache, entries, storage } = fakeStorage();
+    cache.put("/__share/1-a/0", kept("one", "a.png", "image/png"));
+    cache.put("/__share/2-b/0", kept("other", "c.txt", "text/plain"));
+
+    const first = await takeSharedFiles(storage, "1-a", { keep: true });
+    const again = await takeSharedFiles(storage, "1-a", { keep: true });
+    expect(first?.map((file) => file.name)).toEqual(["a.png"]);
+    expect(again?.map((file) => file.name)).toEqual(["a.png"]);
+
+    await discardSharedFiles(storage, "1-a");
+    expect([...entries.keys()]).toEqual(["https://teak.test/__share/2-b/0"]);
+    expect(await takeSharedFiles(storage, "1-a")).toBeNull();
   });
 
   test("is null when the files are gone or were never kept", async () => {

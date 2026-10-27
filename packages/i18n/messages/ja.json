@@ -490,7 +490,8 @@
       "uploading": "アップロード中…",
       "foldersNotSupported": "フォルダはアップロードできません。ファイルを個別にドロップしてください。",
       "offline": "オフラインです。再接続してからもう一度お試しください。",
-      "sharedFilesMissing": "共有されたファイルが見つかりませんでした。もう一度共有してください。"
+      "sharedFilesMissing": "共有されたファイルが見つかりませんでした。もう一度共有してください。",
+      "sharedFilesConfirm": "共有された{count, plural, other {#件のファイル}}を Teak に保存しますか？"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "録音を保存しています…",
       "recordingHint": "いつもどおりに話してください。Teak が音声カードとして保存します。",
       "recordingTitle": "録音中",
-      "stopAndSave": "停止して保存"
+      "stopAndSave": "停止して保存",
+      "discardRecording": "破棄"
     },
     "emptyState": {
       "title": "最初のカードを追加しましょう！",
@@ -1577,7 +1579,7 @@
         "saveChanges": "変更を保存できませんでした",
         "downloadFile": "ファイルをダウンロードできませんでした",
         "removeTag": "タグを削除できませんでした",
-        "update": "{field} を更新できませんでした",
+        "tags": "タグを更新できませんでした",
         "other": "{operation} に失敗しました"
       }
     },

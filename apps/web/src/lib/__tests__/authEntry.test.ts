@@ -18,6 +18,9 @@ describe("WorkOS entry redirect", () => {
     expect(target("/login?next=%2F%2Fevil.example", true)).toBe(
       "http://localhost:3142/"
     );
+    expect(target("/sign-in?next=%2F.%2F%2Fevil.example", true)).toBe(
+      "http://localhost:3142/"
+    );
     expect(target("/register?next=%2Flogin")).toBe(
       "http://localhost:3142/sign-up"
     );

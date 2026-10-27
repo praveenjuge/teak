@@ -40,6 +40,7 @@ import {
   hasFolderNamed,
   suggestSmartFolderName,
 } from "../../lib/folders";
+import { isImeComposing } from "../../lib/keyboardShortcuts";
 import { cn } from "../../lib/utils";
 
 interface FolderNameDialogProps {
@@ -221,7 +222,11 @@ export function FolderNameDialog({
                   setServerError(null);
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    !isImeComposing(event)
+                  ) {
                     event.preventDefault();
                     event.currentTarget.form?.requestSubmit();
                   }

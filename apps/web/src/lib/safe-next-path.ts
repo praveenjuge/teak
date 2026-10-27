@@ -36,7 +36,9 @@ export function getSafeNextPath(
     return null;
   }
 
-  if (parsed.origin !== SENTINEL_ORIGIN) {
+  // Dot segments normalize away after the raw check above: `/.//evil.com`
+  // parses to the pathname `//evil.com`, which a redirect reads as a host.
+  if (parsed.origin !== SENTINEL_ORIGIN || parsed.pathname.startsWith("//")) {
     return null;
   }
 

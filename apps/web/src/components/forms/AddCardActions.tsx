@@ -390,13 +390,32 @@ export function AddCardActions({
     }
   }, [isRecording]);
 
+  // Stops the recorder without its save handler, so nothing is kept.
+  const discardRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") {
+        recorder.stop();
+      }
+      mediaRecorderRef.current = null;
+    }
+    clearRecordingResources();
+    setIsRecording(false);
+    setRecordingTime(0);
+    setIsRecordingDialogOpen(false);
+  }, [clearRecordingResources]);
+
+  // Esc cancels, as in any dialog: it discards a recording rather than
+  // saving it. A stray click outside does nothing while recording.
   const handleDialogOpenChange = (open: boolean) => {
     if (open) {
       setIsRecordingDialogOpen(true);
       return;
     }
     if (isRecording) {
-      stopRecording();
+      discardRecording();
       return;
     }
     startAttemptRef.current += 1;
@@ -584,21 +603,39 @@ export function AddCardActions({
         onOpenChange={handleDialogOpenChange}
         open={isRecordingDialogOpen}
       >
-        <DialogContent className="max-w-sm text-center" showCloseButton={false}>
+        <DialogContent
+          className="max-w-sm text-center"
+          onInteractOutside={(event) => {
+            if (isRecording) {
+              event.preventDefault();
+            }
+          }}
+          showCloseButton={false}
+        >
           <DialogTitle>{t("recordingTitle")}</DialogTitle>
           <DialogDescription>{recordingStatusDescription}</DialogDescription>
           <div className="flex flex-col items-center gap-4 py-3">
             <div className="font-mono text-2xl text-primary tabular-nums">
               {formatTime(recordingTime)}
             </div>
-            <Button
-              disabled={!isRecording || isSubmitting}
-              onClick={stopRecording}
-              type="button"
-            >
-              <Square />
-              {t("stopAndSave")}
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                disabled={!isRecording || isSubmitting}
+                onClick={discardRecording}
+                type="button"
+                variant="outline"
+              >
+                {t("discardRecording")}
+              </Button>
+              <Button
+                disabled={!isRecording || isSubmitting}
+                onClick={stopRecording}
+                type="button"
+              >
+                <Square />
+                {t("stopAndSave")}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

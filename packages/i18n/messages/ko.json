@@ -490,7 +490,8 @@
       "uploading": "업로드 중…",
       "foldersNotSupported": "폴더는 업로드할 수 없습니다. 파일을 하나씩 놓아 주세요.",
       "offline": "오프라인 상태입니다. 다시 연결한 후 시도해 주세요.",
-      "sharedFilesMissing": "공유한 파일을 찾을 수 없습니다. 다시 공유하세요."
+      "sharedFilesMissing": "공유한 파일을 찾을 수 없습니다. 다시 공유하세요.",
+      "sharedFilesConfirm": "공유된 {count, plural, other {파일 #개}}를 Teak에 저장하시겠습니까?"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "녹음을 저장하는 중...",
       "recordingHint": "자연스럽게 말하세요. Teak이 오디오 카드로 저장합니다.",
       "recordingTitle": "오디오 녹음 중",
-      "stopAndSave": "중지 및 저장"
+      "stopAndSave": "중지 및 저장",
+      "discardRecording": "버리기"
     },
     "emptyState": {
       "title": "첫 카드를 추가해 보세요!",
@@ -1577,7 +1579,7 @@
         "saveChanges": "변경 사항을 저장하지 못했습니다",
         "downloadFile": "파일을 다운로드하지 못했습니다",
         "removeTag": "태그를 제거하지 못했습니다",
-        "update": "{field} 업데이트에 실패했습니다",
+        "tags": "태그를 업데이트하지 못했습니다",
         "other": "{operation} 작업에 실패했습니다"
       }
     },

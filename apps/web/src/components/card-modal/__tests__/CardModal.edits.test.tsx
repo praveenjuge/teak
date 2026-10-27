@@ -230,3 +230,29 @@ test("a note with text, or one that was already empty, says nothing", () => {
     emptiedContentNotice(card({ type: "link", content: "x" }), contentOf(""))
   ).toBeNull();
 });
+
+test("Enter that confirms IME composition in the title keeps editing", async () => {
+  await render(card({ type: "link", url: "https://example.com" }));
+  const title = document.querySelector<HTMLInputElement>(
+    "input[aria-label='Title']"
+  );
+  await act(() => title?.focus());
+  expect(document.activeElement).toBe(title);
+  await act(() => {
+    title?.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        isComposing: true,
+        key: "Enter",
+        keyCode: 229,
+      })
+    );
+  });
+  expect(document.activeElement).toBe(title);
+  await act(() => {
+    title?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
+    );
+  });
+  expect(document.activeElement).not.toBe(title);
+});

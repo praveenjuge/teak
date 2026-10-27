@@ -490,7 +490,8 @@
       "uploading": "正在上传…",
       "foldersNotSupported": "无法上传文件夹，请改为拖放单个文件。",
       "offline": "你已离线。请重新连接后重试。",
-      "sharedFilesMissing": "找不到共享的文件。请重新共享。"
+      "sharedFilesMissing": "找不到共享的文件。请重新共享。",
+      "sharedFilesConfirm": "要将共享的{count, plural, other {# 个文件}}保存到 Teak 吗？"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "正在保存录音…",
       "recordingHint": "自然地说话即可。Teak 会将其保存为音频卡片。",
       "recordingTitle": "正在录制音频",
-      "stopAndSave": "停止并保存"
+      "stopAndSave": "停止并保存",
+      "discardRecording": "丢弃"
     },
     "emptyState": {
       "title": "来添加你的第一张卡片吧！",
@@ -1577,7 +1579,7 @@
         "saveChanges": "无法保存更改",
         "downloadFile": "无法下载文件",
         "removeTag": "无法移除标签",
-        "update": "无法更新{field}",
+        "tags": "无法更新标签",
         "other": "操作失败：{operation}"
       }
     },

@@ -490,7 +490,8 @@
       "uploading": "Uploading…",
       "foldersNotSupported": "Folders can't be uploaded. Drop individual files instead.",
       "offline": "You're offline. Reconnect and try again.",
-      "sharedFilesMissing": "Shared files couldn't be found. Share them again."
+      "sharedFilesMissing": "Shared files couldn't be found. Share them again.",
+      "sharedFilesConfirm": "Save {count, plural, one {the shared file} other {# shared files}} to Teak?"
     }
   },
   "appShell": {
@@ -1127,7 +1128,8 @@
       "savingRecordingStatus": "Saving recording...",
       "recordingHint": "Speak naturally. Teak will save this as an audio card.",
       "recordingTitle": "Recording audio",
-      "stopAndSave": "Stop and Save"
+      "stopAndSave": "Stop and Save",
+      "discardRecording": "Discard"
     },
     "emptyState": {
       "title": "Let's add your first card!",
@@ -1577,7 +1579,7 @@
         "saveChanges": "Failed to save changes",
         "downloadFile": "Failed to download file",
         "removeTag": "Failed to remove tag",
-        "update": "Failed to update {field}",
+        "tags": "Failed to update tags",
         "other": "Failed to {operation}"
       }
     },

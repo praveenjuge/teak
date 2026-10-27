@@ -13,7 +13,7 @@ A user saves anything into Teak from the composer at the top of Everything: a no
 - `capture-focus` saves from the full-screen Focus editor.
 - `capture-new-menu` opens the sidebar "New" menu: "Note or link", "Upload files", "Record audio".
 - `capture-upload` uploads files as image, video, audio or document cards.
-- `capture-audio` records audio into an audio card.
+- `capture-audio` records audio into an audio card; "Discard" or Esc throws a recording away.
 
 ## How to get to it (user POV)
 
@@ -45,7 +45,7 @@ Steps:
 - **New menu.** `tap` button "New". The menu has items "Note or link", "Upload files" and "Record audio" (each name also contains its shortcut letter, so match with `exact: false`). "Note or link" focuses the composer.
 - **Upload.** The picker's file input is created on demand, so the `e2e` `upload` tool finds no input. Drive the chooser over CDP instead (`.agents/cloud.md`, "File uploads from the e2e MCP server"). The toasts go "Uploading…" then "File uploaded" ("Uploaded <n> files" for several), and a button "Image: <name>" (or "Video:", "Audio:", "Document:") appears.
 - **Paste an image.** Copy an image, click into textbox "Markdown content" and paste. The toasts go "Uploading…" then "File uploaded", an "Image: <name>" card appears, and the composer stays empty. Headless, dispatch a `paste` `ClipboardEvent` whose `clipboardData` holds a `File` on the focused editor. Pasting with focus outside any text field uploads the same way.
-- **Record audio.** Needs Chromium launched with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`. "Record audio" opens dialog "Recording audio". `tap` "Stop and Save"; the toast "Audio recording saved" appears and an "Audio:" card follows.
+- **Record audio.** Needs Chromium launched with `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`. "Record audio" opens dialog "Recording audio". `tap` "Stop and Save"; the toast "Audio recording saved" appears and an "Audio:" card follows. Record again and `tap` "Discard" (or `press` "Escape"): the dialog closes, no toast appears and no card is added. A click outside the dialog while recording leaves it open.
 
 ## Gotchas
 
