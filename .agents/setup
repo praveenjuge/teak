@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prepares a fresh Linux VM for a cloud agent: the pinned Node and Bun,
-# workspace packages, and this checkout's wiring to the shared cloud dev
+# workspace packages, the E2E suite's browsers, and this checkout's wiring to the shared cloud dev
 # deployment. That last step needs CONVEX_DEPLOY_KEY, a dev deploy key for the
 # dev deployment, in the environment's secrets; without it the VM still runs
 # unit tests and the E2E suite (which needs no secrets). Safe to re-run.
@@ -15,7 +15,8 @@
 #
 # `--session` runs only the steps that depend on the checkout and the
 # secrets (dependencies and the dev deployment), for a VM whose toolchain and
-# browsers are already in place.
+# browsers are already in place. `--warm` fills the Turbo cache with a full
+# typecheck, once per VM; the SessionStart hook runs it in the background.
 #
 # Start the stack afterwards with `bun run dev --detach`.
 set -euo pipefail
@@ -178,32 +179,57 @@ install_dependencies() {
   dependencies_changed=true
 }
 
-# The image's browsers in /opt/pw-browsers are an older build than the
-# Playwright version the e2e web engine pins, and Playwright would prune them
-# if installed alongside, so the E2E suite gets its own copy: Chromium for the
-# suite, WebKit (with its system libraries) for the browser matrix. The
-# SessionStart hook points PLAYWRIGHT_BROWSERS_PATH here.
+# The E2E suite pins its own Playwright, so it gets its own browsers
+# directory: Chromium for the suite, WebKit (with its system libraries) for
+# the browser matrix. The SessionStart hook points PLAYWRIGHT_BROWSERS_PATH
+# here. Installing into the image's /opt/pw-browsers instead would let
+# Playwright prune the image's own builds.
 install_e2e_browsers() {
+  link_image_browsers
   env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD \
     PLAYWRIGHT_BROWSERS_PATH="$HOME/.cache/ms-playwright" \
     bun --cwd=packages/tests x e2e-web install --with-deps chromium webkit
 }
 
+# The image usually ships the same Chromium, headless shell and ffmpeg builds
+# the suite pins (about 650 MB). Linking them in lets Playwright find them
+# installed instead of downloading them again; it only fetches what's missing.
+# A build Playwright later prunes loses its link, not the image's copy. Links
+# the hook made the other way (back into this directory) are skipped.
+link_image_browsers() {
+  local image=/opt/pw-browsers
+  local browsers="$HOME/.cache/ms-playwright"
+  [[ -d "$image" ]] || return 0
+  mkdir -p "$browsers"
+  local build
+  for build in "$image"/*/; do
+    build="${build%/}"
+    [[ -L "$build" || ! -f "$build/INSTALLATION_COMPLETE" ]] && continue
+    [[ -e "$browsers/${build##*/}" ]] || ln -s "$build" "$browsers/${build##*/}"
+  done
+}
+
 # Every cloud VM starts with an empty Turbo cache, so the first typecheck
-# takes about two minutes on 4 vCPUs (one second once cached). Warm it here,
-# so it lands in the setup script's cached snapshot; unchanged packages then
-# hit it in later sessions. The snapshot is only taken when the whole script
-# finishes in about five minutes, so this stops before that whatever happens:
-# Turbo saves each finished task, so a cut-off run still caches most of them.
+# takes about three minutes on 4 vCPUs (one second once cached). Setup used to
+# warm it in line, which more than doubled its run time; now the SessionStart
+# hook runs `.agents/setup --warm` in the background, at the lowest priority,
+# once per VM. Turbo saves each finished task, so a typecheck started before
+# it ends reuses whatever is already cached.
+turbo_warm_marker=.turbo/teak-warm
+
 warm_turbo_cache() {
-  local budget=$((270 - SECONDS))
-  if ((budget < 60)); then
-    printf 'Skipped: setup has already run %ss.\n' "$SECONDS"
+  mkdir -p .turbo
+  exec 9>.turbo/teak-warm.lock
+  if ! flock -n 9; then
+    printf 'Another warm-up is already running.\n'
     return
   fi
-  timeout "$budget" env TURBO_UI=false bun x turbo run typecheck \
-    --output-logs=none ||
-    printf 'Stopped after %ss; the tasks that finished are cached.\n' "$budget"
+  [[ -f "$turbo_warm_marker" ]] && return
+  local started=$SECONDS
+  # A failed task isn't cached, but the rest are; don't try again this VM.
+  TURBO_UI=false bun x turbo run typecheck --output-logs=errors-only || true
+  date -u +%FT%TZ >"$turbo_warm_marker"
+  printf 'Warmed the Turbo cache in %ss.\n' "$((SECONDS - started))"
 }
 
 bootstrap_development() {
@@ -221,8 +247,13 @@ session_only=false
 case "${1:-}" in
   "") ;;
   --session) session_only=true ;;
+  --warm)
+    export PATH="$HOME/.local/bin:$PATH"
+    warm_turbo_cache
+    exit 0
+    ;;
   *)
-    printf 'Usage: .agents/setup [--session]\n' >&2
+    printf 'Usage: .agents/setup [--session | --warm]\n' >&2
     exit 2
     ;;
 esac
@@ -265,6 +296,5 @@ hash -r
 step "Install workspace dependencies" install_dependencies
 step "Install the E2E suite's browsers" install_e2e_browsers
 step "Connect to the shared dev deployment" bootstrap_development
-step "Warm the Turbo cache" warm_turbo_cache
 
 printf '\nTeak setup complete: Node %s, Bun %s. Start the stack with bun run dev --detach.\n' "$(node --version)" "$(bun --version)"

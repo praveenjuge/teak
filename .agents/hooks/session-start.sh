@@ -24,6 +24,13 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
     # never wired the checkout to the dev deployment. About 15 seconds.
     .agents/setup --session >&2 || true
   fi
+  # A cold typecheck takes about three minutes, so fill the Turbo cache in the
+  # background, once per VM, rather than make setup wait for it.
+  if [[ ! -f .turbo/teak-warm ]] && command -v bun >/dev/null 2>&1; then
+    mkdir -p .turbo
+    setsid nohup nice -n 19 .agents/setup --warm \
+      >>.turbo/teak-warm.log 2>&1 </dev/null &
+  fi
   if [[ -d "$browsers" && -n "${CLAUDE_ENV_FILE:-}" ]]; then
     printf 'export PLAYWRIGHT_BROWSERS_PATH="%s"\n' "$browsers" >>"$CLAUDE_ENV_FILE"
   fi
