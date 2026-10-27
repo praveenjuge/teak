@@ -296,7 +296,7 @@
       "title": "API Key",
       "type": "password",
       "required": false,
-      "description": "Optional — only if you prefer an API key over browser sign-in. Generate in Teak Settings > Manage API Keys."
+      "description": "Optional. Only if you prefer an API key to browser sign-in. Make one in Teak Settings > Integrations > API keys."
     }
   ],
   "title": "Teak",

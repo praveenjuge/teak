@@ -8,7 +8,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 type ExtensionPreferences = {
-  /** API Key - Optional — only if you prefer an API key over browser sign-in. Generate in Teak Settings > Manage API Keys. */
+  /** API Key - Optional. Only if you prefer an API key to browser sign-in. Make one in Teak Settings > Integrations > API keys. */
   "apiKey"?: string
 }
 

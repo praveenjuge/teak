@@ -160,3 +160,39 @@ test("an empty library with nothing hidden keeps the plain message", async () =>
   expect(container.textContent).toContain("No cards found");
   expect(container.textContent).not.toContain("Some cards are hidden");
 });
+
+test("an empty Archive keeps a way back to the library", async () => {
+  serve((url) =>
+    url.searchParams.get("archived") === "only" ? [] : [linkCard],
+  );
+  await render();
+  await press("Show Archive");
+  expect(container.textContent).toContain("Nothing archived");
+  await press("Leave Archive");
+  expect(requests.at(-1)?.searchParams.get("archived")).toBeNull();
+  expect(container.textContent).toContain("A long read");
+});
+
+test("an empty Trash offers Leave Trash, Clear Filters and Reload", async () => {
+  serve((url) => (url.searchParams.get("trashed") ? [] : [linkCard]));
+  await render();
+  await press("Show Trash");
+  const text = container.textContent ?? "";
+  expect(text).toContain("Trash is empty");
+  for (const title of ["Leave Trash", "Clear Filters", "Reload", "Open Teak"]) {
+    expect(text).toContain(title);
+  }
+  await press("Leave Trash");
+  expect(container.textContent).toContain("A long read");
+});
+
+test("a row dates the card by its last save and lists every tag", async () => {
+  const { formatDateTime } = await import("../lib/dateFormat");
+  const savedAt = linkCard.createdAt + 86_400_000;
+  serve(() => [{ ...linkCard, savedAt, tags: ["design", "type", "print"] }]);
+  await render();
+  const text = container.textContent ?? "";
+  expect(text).toContain(`Saved ${formatDateTime(savedAt)}`);
+  expect(text).toContain("Tags: design, type, print");
+  expect(text).toContain("Also tagged type, print");
+});

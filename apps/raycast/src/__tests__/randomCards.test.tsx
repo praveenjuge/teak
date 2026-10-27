@@ -133,3 +133,11 @@ test("Shuffle Again deals a new set with a new seed", async () => {
   expect(requests).toHaveLength(2);
   expect(secondSeed).not.toBe(firstSeed);
 });
+
+test("an empty vault isn't a finished shuffle", async () => {
+  serve([]);
+  await act(async () => root.render(createElement(RandomCardsCommand)));
+  await settle();
+  expect(container.textContent).toContain("No cards to shuffle yet");
+  expect(container.textContent).not.toContain("Nothing left to revisit");
+});

@@ -28,7 +28,7 @@ Use Teak in Raycast to save ideas and find cards without leaving your keyboard f
     </Frame>
   </Step>
   <Step title="Sign in with your browser">
-    Run **Search Cards** and choose **Sign in with Browser**. Finish sign-in in your browser, then return to Raycast.
+    Run **Search Cards**. Raycast asks you to **Sign in with Teak**; finish sign-in in your browser, then return to Raycast.
   </Step>
 </Steps>
 
@@ -44,7 +44,7 @@ Prefer an API key? Paste one from **Teak Settings → Integrations → API keys*
 - **Save Selected Text**: Save the text currently highlighted in any app. Ideal paired with a global hotkey.
 - **Save Current Browser Tab**: Save the active browser tab directly from Raycast. Requires the [Raycast Browser Extension](https://www.raycast.com/browser-extension).
 - **Save Finder Selection**: Upload the files selected in Finder, up to 100 MB each, the same as dropping them on the web app.
-- **Search Cards**: Find and open cards instantly. Results keep loading as you scroll.
+- **Search Cards**: Find and open cards instantly. Pick a type from the menu beside the search bar, and results keep loading as you scroll.
 - **Favorites**: Jump to your starred cards.
 - **Browse Folders**: See your folders and smart folders, then open one to browse its cards.
 - **Browse Tags**: See every tag in your vault with per-tag card counts, then drill into a tag to search within it. Rename, merge or delete a tag from its actions.
@@ -57,7 +57,7 @@ Saving a link that's already in Teak doesn't make a second card. Raycast says **
 
 ### Search filters
 
-Type these into **Search Cards** or **Favorites**, or pick them from the **Filters** actions:
+Type these into **Search Cards** or **Favorites**, or pick them from the **Filters** actions. The type menu beside the search bar and `type:` stay in step:
 
 | Filter | Example |
 | --- | --- |
@@ -88,11 +88,12 @@ Cards tagged `secret` or `hidden` stay out of search and favorites unless you se
 A card shows its image, text, notes, Teak's summary and tags, file name and size, link facts, palette colors, and transcript. A link also shows its category, price, byline and published date, and when you marked it done. Text with `[[` links shows each linked card by its current title, with a **Linked from** section for the cards that link back. Text saved from a web page shows **From** and the page's site. Raycast can't play video or audio or preview documents, so use **Open File** (⌘⇧O) or **Open in Teak** (⌘O) for those.
 
 - **Mark as Read** (⌘⇧D): on a link, marks it read, watched, listened, bought, cooked, played or done, depending on what the link is, and marks it again to take the mark off. A check shows beside done links.
-- **Find Similar** (⌘⇧S): opens a **Like:** list of the cards closest in meaning to this one.
+- **More Like This** (⌘⇧S): opens a **Like:** list of the cards closest in meaning to this one.
 - **Add to Folder…** (⌘⇧F): puts the card in one of your folders. A smart folder shows the cards its search finds, so it isn't offered.
-- **Archive Card** (⌘⇧A): takes the card out of your library without deleting it, with an **Undo** option. **Unarchive** brings it back.
+- **Archive** (⌘⇧A): takes the card out of your library without deleting it, with an **Undo** option. **Unarchive** brings it back.
 - **Refresh Details** (⌘R): asks Teak to read the page and card again; the summary, tags and preview update in a moment.
 - **Edit Card** (⌘E): change notes and tags, rewrite text and quote cards, and remove tags Teak added.
+- **Copy URL** (⌘⇧C, or the text for a card without one), **Copy Content** and **Copy Teak Link** (⌘⇧L).
 - **Copy Color**: copy any color from a palette or image.
 - **Move to Trash** (⌃X): moves the card to Trash with an **Undo** option.
 - In Trash, **Restore** (⌘⇧R) brings a card back, and **Delete Forever** (⌃X) removes it and its files after you confirm. Teak empties Trash after 30 days.
@@ -116,7 +117,7 @@ AI tools use the same sign-in as the extension — no extra setup required.
 
 ## Security
 
-- Use **Sign Out** in **Search Cards**. Signing out disconnects Raycast across all its installations; reconnecting can take about five minutes. If the saved sign-in has already expired, Raycast signs out only this Mac and says so — disconnect other installations in **Settings → Security → Connected apps**. If the network fails, your credentials stay saved so you can retry.
+- Use **Sign Out** (⌘⇧X) from the actions of any list, even an empty one. Signing out disconnects Raycast across all its installations; reconnecting can take about five minutes. If the saved sign-in has already expired, Raycast signs out only this Mac and says so — disconnect other installations in **Settings → Security → Connected apps**. If the network fails, your credentials stay saved so you can retry.
 - API keys are managed under **Settings → Integrations → API keys** — see the [API guide](/docs/api) for key limits and rotation.
 
 ## Troubleshooting

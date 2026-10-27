@@ -1,7 +1,7 @@
 # Store images
 
-One pipeline makes the App Store images for iPhone, iPad and Mac and the Play
-Store images for Android. Every image is the same meadow wallpaper, one short
+One pipeline makes the App Store images for iPhone, iPad and Mac, the Play
+Store images for Android, and the Raycast Store images. Every image is the same meadow wallpaper, one short
 headline, and a real capture of the app showing a designer's library.
 
 | Store | Raw captures | Final images |
@@ -10,6 +10,7 @@ headline, and a real capture of the app showing a designer's library.
 | Apple app, iPad (`apple-ipad`) | `apps/apple/store/source/ipad/` | `apps/apple/store/screenshots/ipad/en-US/` (2064 × 2752) |
 | Apple app, Mac (`apple-mac`) | `apps/apple/store/source/mac/` | `apps/apple/store/screenshots/mac/en-US/` (2880 × 1800) |
 | Play Store | `apps/android/store/source/` | `apps/android/store/listing/en-US/graphics/phone-screenshots/` (1080 × 1920) and `feature_graphic.png` (1024 × 500) |
+| Raycast Store (`raycast`) | `scripts/store-assets/source/raycast/` | `apps/raycast/metadata/` (2000 × 1250) |
 
 Raw captures are committed, so a headline change is a re-render, not a
 recapture.
@@ -45,6 +46,9 @@ simulator or Mac window it captures from and the device frame it renders in.
      1440 × 900 points and Settings › Appearance set to Light.
    - Android: `./gradlew :app:assembleRelease`, then `zipalign` and `apksigner`
      with the debug keystore, on a Pixel 9 emulator (Android 17).
+   - Raycast: `bun run --cwd apps/raycast dev` loads the extension against the
+     development deployment, so sign it in to an account seeded with the
+     showcase cards. Set Raycast's appearance to Light.
 3. **Status bars.** `bun scripts/store-assets/capture.ts prepare apple-iphone`,
    `... prepare apple-ipad` and `... prepare android`.
 4. **Captures.** Put each app on the screen a shot needs, then run
@@ -54,7 +58,10 @@ simulator or Mac window it captures from and the device frame it renders in.
    - Mac captures a window by ID in the background. Use
      `--window "Quick Capture"` for the panel. Clicking in the window needs it
      on the current desktop.
-5. **Render.** `bun scripts/store-assets/render.ts [apple-iphone apple-ipad apple-mac android]`.
+   - Raycast captures its "Main Window" by ID too, but Raycast only draws it
+     while a command is open, so open the command, then capture. Action panels
+     and dropdowns are separate windows and don't show up.
+5. **Render.** `bun scripts/store-assets/render.ts [apple-iphone apple-ipad apple-mac android raycast]`.
    It frames iPhone and iPad captures with `asc screenshots frame`, draws
    Android in a Pixel frame, and runs `asc screenshots validate` on every
    Apple set. Look at every image before committing.
@@ -65,6 +72,8 @@ simulator or Mac window it captures from and the device frame it renders in.
      version's ID (`asc versions list --app 6756574989`). It validates,
      replaces the set, and waits until Apple holds the exact files in order.
    - Play: upload by hand in Play Console until the app is live.
+   - Raycast: the images ship with the extension's next store release
+     (`apps/raycast/metadata`).
 
 ## Tools
 

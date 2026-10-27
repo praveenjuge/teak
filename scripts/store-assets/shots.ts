@@ -1,4 +1,9 @@
-export type StoreId = "android" | "apple-iphone" | "apple-ipad" | "apple-mac";
+export type StoreId =
+  | "android"
+  | "apple-iphone"
+  | "apple-ipad"
+  | "apple-mac"
+  | "raycast";
 
 export interface Shot {
   /** Short and catchy. One line on Mac, at most two on phones. */
@@ -10,7 +15,7 @@ export interface Shot {
 
 export interface Store {
   frame?: { device: string; size: [number, number] };
-  layout: "mac" | "phone" | "tablet" | "android";
+  layout: "mac" | "phone" | "tablet" | "android" | "raycast";
   outputDir: string;
   scale: number;
   shots: Shot[];
@@ -99,6 +104,28 @@ export const STORES: Record<StoreId, Store> = {
       { name: "03-search", headline: "Find it in seconds." },
       { name: "04-palette", headline: "Colors, one tap away." },
       { name: "05-add", headline: "Save anything,\nanywhere." },
+    ],
+  },
+  // Raycast's store wants up to six 2000 × 1250 PNGs in the extension's
+  // metadata folder. The raw captures stay out of apps/raycast, which is
+  // mirrored to the Raycast store as it is.
+  raycast: {
+    layout: "raycast",
+    window: { app: "Raycast", title: "Main Window" },
+    sourceDir: "scripts/store-assets/source/raycast",
+    outputDir: "apps/raycast/metadata",
+    viewport: { width: 1000, height: 625 },
+    scale: 2,
+    shots: [
+      { name: "teak-raycast-1", headline: "Find any card in a keystroke." },
+      { name: "teak-raycast-2", headline: "Every detail at a glance." },
+      { name: "teak-raycast-3", headline: "Filter by tag, type or color." },
+      {
+        name: "teak-raycast-4",
+        headline: "Save anything without switching apps.",
+      },
+      { name: "teak-raycast-5", headline: "See what's close in meaning." },
+      { name: "teak-raycast-6", headline: "Narrow it down by type." },
     ],
   },
 };

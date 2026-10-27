@@ -117,6 +117,16 @@ const pageFor = {
     </style>
     <h1 data-lines="1">${escapeHtml(headline)}</h1>
     <div class="shot"><img src="${capture}">${overlay ? `<img class="panel" src="${overlay}">` : ""}</div>`,
+  raycast: (headline: string, capture: string) => `
+    <style>
+      h1 { top: 34px; font-size: 32px; letter-spacing: -0.8px; font-weight: 600; white-space: nowrap; }
+      .shot { top: 100px; left: 0; right: 0; margin: 0 auto; width: 750px; }
+      /* Window captures are 2x, so 750px shows Raycast at its real size. */
+      .shot img { width: 100%; display: block;
+        filter: drop-shadow(0 22px 36px rgba(25,40,28,.3)); }
+    </style>
+    <h1 data-lines="1">${escapeHtml(headline)}</h1>
+    <div class="shot"><img src="${capture}"></div>`,
   phone: (headline: string, framed: string) => `
     <style>
       h1 { top: 64px; width: 380px; font-size: 40px; line-height: 1.08; }
