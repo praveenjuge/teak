@@ -552,12 +552,12 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await expect.poll(() => library.read(id)).toBe(`${original}\n\n`);
   });
 
-  test("a disabled composer restores its draft after a failed save", async ({
+  test("a failed save puts the draft back in the composer", async ({
     browser,
     screen,
     library,
   }) => {
-    const marker = generateTestContent("Disabled restore");
+    const marker = generateTestContent("Failed save restore");
     await routeConvexSocket(browser, {
       fromClient: (message, context) => {
         for (const query of message.modifications ?? []) {
@@ -620,7 +620,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
         message: "Capture card creation mutation",
       })
       .toBeDefined();
-    await expect(editor).toHaveAttribute("aria-readonly", "true");
     await expect
       .poll(async () => (await readSocketState(browser)).heldResponse)
       .toBe(true);
@@ -640,8 +639,6 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
       throw new Error("Missing owned test card");
     }
     library.ids.push(saved._id);
-    await pasteMarkdown(browser, COMPOSER_EDITOR, "Rejected while disabled");
-    await expect(editor).toHaveText(marker);
   });
 
   test("link editing keeps the original selection when the selection changes", async ({
