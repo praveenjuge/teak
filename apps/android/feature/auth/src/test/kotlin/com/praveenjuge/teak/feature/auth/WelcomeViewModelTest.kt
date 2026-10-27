@@ -78,6 +78,14 @@ class WelcomeViewModelTest {
     }
 
     @Test
+    fun `offline with the sign-in setup cached shows the buttons right away`() = runTest {
+        account.isConnected.value = false
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        assertTrue(viewModel.uiState.value.isConfigured)
+        assertFalse(viewModel.uiState.value.isOffline)
+    }
+
+    @Test
     fun `offline before the sign-in setup loads says so after a moment`() = runTest {
         account.authMode.value = null
         account.isConnected.value = false

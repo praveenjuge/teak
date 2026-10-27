@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -31,11 +32,12 @@ class WelcomeViewModel @Inject constructor(
     account: AccountRepository,
     private val controller: SignInController,
 ) : ViewModel() {
-    // A short grace period keeps the message from flashing while the connection is still opening.
+    // A short grace period keeps the message from flashing while the connection is still opening. It
+    // starts as online, so the rest of the screen never waits on that grace period.
     private val offline = account.isConnected.mapLatest { connected ->
         if (!connected) delay(OFFLINE_GRACE_MS)
         !connected
-    }
+    }.onStart { emit(false) }
 
     val uiState: StateFlow<WelcomeUiState> = combine(account.authMode, controller.progress, offline) { mode, progress, offline ->
         val configured = mode?.validClientId != null

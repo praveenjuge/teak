@@ -20,7 +20,6 @@ import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.UiText
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -49,9 +48,9 @@ class UploadWorker @AssistedInject constructor(
         // (for example when the network comes back). The upload still runs, just without the notification,
         // since one posted outside a foreground service would stay behind after the upload ends.
         val inForeground = catchingFailures { setForeground(foregroundInfo(name, 0f)) }.isSuccess
-        return try {
-            var lastReported = -1
-            val cardId = uploader.upload(file) { progress ->
+        var lastReported = -1
+        val upload = catchingFailures {
+            uploader.upload(file) { progress ->
                 val percent = (progress * 100).toInt()
                 if (percent != lastReported) {
                     lastReported = percent
@@ -59,20 +58,20 @@ class UploadWorker @AssistedInject constructor(
                     if (inForeground) notifications.notify(NOTIFICATION_ID, notification(name, progress))
                 }
             }
-            cleanUp(path)
-            Result.success(workDataOf(Output.NAME to name, Output.OUTCOME to UploadOutcome.Saved.name, Output.CARD_ID to cardId))
-        } catch (e: TeakException) {
-            if (e.code == TeakException.OFFLINE && runAttemptCount < MAX_RETRIES) return Result.retry()
-            cleanUp(path)
-            if (e.code == TeakException.CARD_LIMIT_REACHED) stopQueue(name, e) else continueQueue(name, e)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Anything else fails only this upload. Letting the worker fail would fail every upload
-            // queued behind it, and they'd read as skipped at the card limit.
-            cleanUp(path)
-            continueQueue(name, TeakException(null, "Upload failed: ${e.javaClass.simpleName}", e, UiText.of("native.errors.generic")))
         }
+        val cardId = upload.getOrNull()
+        if (cardId != null) {
+            cleanUp(path)
+            return Result.success(workDataOf(Output.NAME to name, Output.OUTCOME to UploadOutcome.Saved.name, Output.CARD_ID to cardId))
+        }
+        // Anything but a TeakException fails only this upload too. Letting the worker fail would fail
+        // every upload queued behind it, and they'd read as skipped at the card limit.
+        val cause = upload.exceptionOrNull()
+        val error = cause as? TeakException
+            ?: TeakException(null, "Upload failed: ${cause?.javaClass?.simpleName}", cause, UiText.of("native.errors.generic"))
+        if (error.code == TeakException.OFFLINE && runAttemptCount < MAX_RETRIES) return Result.retry()
+        cleanUp(path)
+        return if (error.code == TeakException.CARD_LIMIT_REACHED) stopQueue(name, error) else continueQueue(name, error)
     }
 
     private suspend fun stopQueue(name: String, error: TeakException): Result {
