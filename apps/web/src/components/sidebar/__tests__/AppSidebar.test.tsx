@@ -73,17 +73,13 @@ const sidebarState = () =>
   document.querySelector('[data-slot="sidebar"]')?.getAttribute("data-state");
 
 describe("AppSidebar", () => {
-  test("shows each view's go-to keys beside it, outside its link", async () => {
+  test("keeps go-to keys in tooltips, not beside the links", async () => {
     await renderSidebar();
-    const keysBeside = (name: string) =>
-      [
-        ...(link(name)
-          ?.closest("li")
-          ?.querySelectorAll('[data-sidebar="menu-badge"] kbd') ?? []),
-      ].map((key) => key.textContent);
-    expect(keysBeside("Favorites")).toEqual(["G", "F"]);
-    expect(keysBeside("Trash")).toEqual(["G", "T"]);
+    expect(
+      document.querySelector('[data-sidebar="menu-badge"] kbd')
+    ).toBeNull();
     expect(link("Favorites")?.textContent?.trim()).toBe("Favorites");
+    expect(link("Trash")?.textContent?.trim()).toBe("Trash");
   });
 
   test("marks only the open view as the current page", async () => {
@@ -119,29 +115,39 @@ describe("AppSidebar", () => {
     expect(document.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
-  test("lists every place before the folders, with no footer", async () => {
+  test("lists the library, then folders, then Archive, Trash and Settings", async () => {
     await renderSidebar();
-    const names = [...document.querySelectorAll("a")].map(
-      (anchor) =>
-        anchor.getAttribute("aria-label") ?? anchor.textContent?.trim()
+    const order = [
+      ...document.querySelectorAll('a, [data-testid="folders"]'),
+    ].map(
+      (element) =>
+        element.getAttribute("data-testid") ??
+        element.getAttribute("aria-label") ??
+        element.textContent?.trim()
     );
-    expect(names).toEqual([
+    expect(order).toEqual([
       "Teak home",
       "Everything",
       "Favorites",
       "Tags",
+      "folders",
       "Archive",
       "Trash",
       "Settings",
     ]);
-    const order = [
-      ...document.querySelectorAll('a, [data-testid="folders"]'),
-    ].map(
-      (element) => element.getAttribute("data-testid") ?? element.textContent
-    );
-    expect(order.at(-1)).toBe("folders");
     expect(document.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
     expect(document.body.textContent).not.toContain("Types");
+  });
+
+  test("keeps its collapse button in the collapsed rail", async () => {
+    await renderSidebar({ defaultOpen: false });
+    const toggle = document.querySelector<HTMLButtonElement>(
+      '[data-sidebar="collapse"]'
+    );
+    expect(toggle?.getAttribute("aria-label")).toBe("Keep sidebar open");
+    expect(toggle?.getAttribute("aria-expanded")).toBe("false");
+    await act(() => toggle?.click());
+    expect(sidebarState()).toBe("expanded");
   });
 
   test("its edge expands the collapsed sidebar but never collapses it", async () => {

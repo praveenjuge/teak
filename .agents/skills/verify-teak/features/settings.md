@@ -1,11 +1,12 @@
 # Settings
 
-Settings is a set of pages under `/settings`, listed in the nav "Settings pages" beside the content at 768 px and wider: **Account** (`/settings`), **Plan** (`/settings/plan`), **Appearance** (`/settings/appearance`), **Integrations** (`/settings/integrations`), **Security** (`/settings/security`) and **Import & export** (`/settings/data`). Account shows who is signed in with sign-out and a summary of every other page. Security ends with the delete-account section. API keys are created here (Integrations), shown once, and revoked here.
+Settings is a set of pages under `/settings`, listed in the nav "Settings pages" beside the content at 768 px and wider: **Account** (`/settings`), **Plan** (`/settings/plan`), **Appearance** (`/settings/appearance`), **Integrations** (`/settings/integrations`), **Security** (`/settings/security`) and **Import & export** (`/settings/data`). Account shows who is signed in with sign-out, cards used, the apps, and the keyboard shortcuts; on phones it also lists every other page with its summary. Security ends with the delete-account section. API keys are created here (Integrations), shown once, and revoked here.
 
 ## Sub-features
 
 - `settings-open` opens `/settings` (document title "Settings · Teak"): heading "Settings", the page heading "Account", the section "Signed in as" with the account's name and email as text, and the button "Sign out".
-- `settings-overview` lists every other page in the nav "All settings", each a link with its summary: Plan "Free Plan · N of 200 cards", Appearance "System theme · English", Integrations "Save by email off · no API keys", Security "N devices signed in", Import & export "Bring cards in, or take them with you" (or "Export in progress", "Export ready to download", "Last export <date>").
+- `settings-account` shows on Account, at every width, the section "Cards used" with its progressbar ("N of 200 cards", "M cards left") and, on the free plan, the link "Upgrade to Pro" to `/settings/plan` (on Pro, "N cards saved, with no limit."); the section "Apps and extensions" with its four store links and "All apps"; and, at 768 px and wider, the section "Keyboard shortcuts" whose button "Keyboard shortcuts" (showing `?`) opens the dialog "Keyboard shortcuts".
+- `settings-overview` lists every other page in the nav "All settings" below 768 px (wider screens have the nav "Settings pages" instead), each a link with its summary: Plan "Free Plan · N of 200 cards", Appearance "System theme · English", Integrations "Save by email off · no API keys", Security "N devices signed in", Import & export "Bring cards in, or take them with you" (or "Export in progress", "Export ready to download", "Last export <date>").
 - `settings-nav` moves between pages from the nav "Settings pages" (the current one has `aria-current="page"`), and from a page back to Account by the header breadcrumb link "Settings". At 390 px the nav is hidden; Account's list is the way in.
 - `settings-shortcut` opens `/settings` with `G` then `S` from any page; the command palette's group "Settings" opens each page ("Settings: Plan" …).
 - `settings-theme` switches system, light and dark from three previews on Appearance.
@@ -21,7 +22,7 @@ Settings is a set of pages under `/settings`, listed in the nav "Settings pages"
 ## How to get to it (user POV)
 
 - The sidebar link "Settings" (tooltip and hover hint `G S`), `G` then `S`, or `/settings`.
-- The nav "Settings pages", or a link in Account's list "All settings".
+- The nav "Settings pages", or, below 768 px, a link in Account's list "All settings".
 - Settings → Security for devices and connected apps; Settings → Integrations for API keys.
 - Settings → Plan, or any "Upgrade" in the app (the card-limit prompt, the extension popup), lands on `/settings/plan`.
 - Settings → Security → the section "Delete account" → button "Delete your account" → dialog "Delete account".
@@ -37,7 +38,8 @@ Preconditions:
 
 Steps:
 
-- **Open.** `tap` link "Settings". Heading "Settings", the section "Signed in as" with the account email, and the button "Sign out" are shown, and the nav "All settings" lists "Plan", "Appearance", "Integrations", "Security" and "Import & export" with their summaries (a summary is a pulsing bar until its data loads).
+- **Open.** `tap` link "Settings" (at the foot of the sidebar). Heading "Settings", the section "Signed in as" with the account email, and the button "Sign out" are shown. At 1440 px the nav "Settings pages" is beside them and the nav "All settings" is not shown; at 390 px "All settings" lists "Plan", "Appearance", "Integrations", "Security" and "Import & export" with their summaries (a summary is a pulsing bar until its data loads).
+- **Account extras.** On `/settings` at 1440 px: the progressbar "Cards used" reads "N of 200 cards" with "M cards left", and link "Upgrade to Pro" goes to `/settings/plan` (go `back`). Region "Apps and extensions" has links "Chrome (opens in a new tab)" … and "All apps". `tap` button "Keyboard shortcuts": dialog "Keyboard shortcuts" opens; `press` "Escape" and focus returns to the button. Scroll the page sideways at 800 px: it doesn't move.
 - **Navigate.** In the nav "Settings pages", `tap` "Appearance": heading "Appearance" (level 2), the link is `aria-current="page"`, and the header reads "Settings › Appearance". `tap` the header link "Settings": back on `/settings`. `press` `g` then `s` from `/`: `/settings` opens.
 - **Theme.** On Appearance, `tap` button "Use dark theme". It becomes pressed, its preview gets the ring, and the page turns dark (take a screenshot). `tap` "Use system theme" to restore. The theme lives only in this browser, so there's nothing to read back from the backend. Account's Appearance summary follows ("Dark theme · English").
 - **Devices.** `navigate` to `/settings/security`. Region "Devices" lists an item marked "This device", with a button "Sign out <device> (this device)"; each item reads "Signed in <date>, <time>". `tap` another device's "Sign out <device>": alert dialog "Sign out <device>?" names its sign-in time, with "Cancel" and "Sign out". `tap` "Cancel"; the device stays listed. Never confirm on the shared account. Region "Connected apps" is below it, then the section "Delete account".

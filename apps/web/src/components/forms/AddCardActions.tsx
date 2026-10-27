@@ -28,6 +28,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useOptionalSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
   TooltipContent,
@@ -54,8 +55,10 @@ interface AddCardActionsProps {
   variant?: "toolbar" | "header";
 }
 
+// A labelled button at the top of the sidebar; just its icon in the collapsed rail.
 const NEW_MENU_TRIGGER_CLASS =
-  "size-7 rounded-md text-sidebar-foreground hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent [&_svg]:size-4 [&_svg]:opacity-60 [&_svg]:transition-opacity hover:[&_svg]:opacity-100 data-[state=open]:[&_svg]:opacity-100";
+  "h-8 w-full justify-start gap-2 bg-sidebar px-[9px] font-medium text-[13px] text-sidebar-foreground shadow-none hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 [&_svg]:size-3.5";
+const NEW_MENU_LABEL_CLASS = "truncate group-data-[collapsible=icon]:hidden";
 
 export function NewMenuPlaceholder() {
   const t = useTranslations("forms.addCardActions");
@@ -64,30 +67,34 @@ export function NewMenuPlaceholder() {
       aria-label={t("new")}
       className={NEW_MENU_TRIGGER_CLASS}
       disabled
-      size="icon"
       type="button"
-      variant="ghost"
+      variant="outline"
     >
       <Plus />
+      <span className={NEW_MENU_LABEL_CLASS}>{t("new")}</span>
     </Button>
   );
 }
 
 function NewMenuTrigger(props: ComponentProps<typeof Button>) {
   const t = useTranslations("forms.addCardActions");
+  // The button names itself; the tooltip only helps in the collapsed rail.
+  const sidebar = useOptionalSidebar();
+  const showTooltip =
+    sidebar?.state === "collapsed" && !sidebar.isPeeking && !sidebar.isMobile;
   return (
-    <Tooltip>
+    <Tooltip open={showTooltip ? undefined : false}>
       <TooltipTrigger asChild>
         <DropdownMenuTrigger asChild>
           <Button
             aria-label={t("new")}
             className={NEW_MENU_TRIGGER_CLASS}
-            size="icon"
             type="button"
-            variant="ghost"
+            variant="outline"
             {...props}
           >
             <Plus />
+            <span className={NEW_MENU_LABEL_CLASS}>{t("new")}</span>
           </Button>
         </DropdownMenuTrigger>
       </TooltipTrigger>

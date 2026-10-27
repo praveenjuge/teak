@@ -71,7 +71,7 @@ describe("web core journey", { serial: true }, () => {
 
     await gotoApp(browser, "/settings");
     await expect(screen.getByText(email, { exact: false })).toBeVisible();
-    await expect(screen.getByText("Free Plan", { exact: false })).toBeVisible();
+    await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible();
     const security = await openSecurity(surface);
     await expect(
       security.getByText("This device", { exact: false })

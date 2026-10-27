@@ -104,7 +104,9 @@ test("the collapsed sidebar is remembered across reloads", async ({
   await expect(sidebar).toHaveAttribute("data-state", "expanded");
   await screen.getByRole("button", "Collapse sidebar").click();
   await expect(sidebar).toHaveAttribute("data-state", "collapsed");
-  await expect(screen.getByRole("button", "Toggle sidebar")).toBeVisible();
+  // The rail keeps the one toggle; the page header has none on wide screens.
+  await expect(screen.getByRole("button", "Keep sidebar open")).toBeVisible();
+  await expect(screen.getByRole("button", "Toggle sidebar")).toHaveCount(0);
   await browser.reload();
   await expect(sidebar).toHaveAttribute("data-state", "collapsed");
   await screen.getByRole("link", "Trash").click();

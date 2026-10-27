@@ -251,6 +251,27 @@ export function pressUploadFiles(): boolean {
   return uploadFilesHandlers[uploadFilesHandlers.length - 1]?.() ?? false;
 }
 
+let shortcutsOpener: (() => void) | null = null;
+
+/** The shell's keyboard shortcuts sheet registers how to open it. */
+export function registerShortcutsOpener(open: () => void): () => void {
+  shortcutsOpener = open;
+  return () => {
+    if (shortcutsOpener === open) {
+      shortcutsOpener = null;
+    }
+  };
+}
+
+/** Opens the keyboard shortcuts sheet, as `?` does. */
+export function openKeyboardShortcuts(): boolean {
+  if (!shortcutsOpener) {
+    return false;
+  }
+  shortcutsOpener();
+  return true;
+}
+
 /**
  * Whether a key press belongs to IME composition (Japanese, Chinese,
  * Korean): its Enter confirms the text and is not a submit. Safari sends that

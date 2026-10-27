@@ -108,18 +108,20 @@ export function ViewMenu({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={viewMenuLabel(activeTypes, sort, t, types)}
-          className="relative size-9 shrink-0 text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
-          size="icon"
+          className="relative h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground max-sm:w-9 max-sm:px-0"
           type="button"
           variant="ghost"
         >
           <SlidersHorizontal
             className={cn("size-4", changed && "text-primary")}
           />
+          <span aria-hidden="true" className="max-sm:hidden">
+            {t("viewMenu.label")}
+          </span>
           {count > 0 && (
             <span
               aria-hidden="true"
-              className="absolute top-1 right-1 flex size-3.5 items-center justify-center rounded-full bg-primary font-semibold text-[9px] text-primary-foreground tabular-nums"
+              className="flex size-4 items-center justify-center rounded-full bg-primary font-semibold text-[10px] text-primary-foreground tabular-nums max-sm:absolute max-sm:top-1 max-sm:right-1 max-sm:size-3.5 max-sm:text-[9px]"
             >
               {count}
             </span>
@@ -127,7 +129,7 @@ export function ViewMenu({
           {count === 0 && changedOrder && (
             <span
               aria-hidden="true"
-              className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
+              className="size-1.5 rounded-full bg-primary max-sm:absolute max-sm:top-2 max-sm:right-2"
             />
           )}
         </Button>

@@ -2,8 +2,10 @@ import { describe, expect, mock, test } from "bun:test";
 import {
   ariaKeyShortcut,
   keyboardShortcutGroups,
+  openKeyboardShortcuts,
   platformKey,
   pressUploadFiles,
+  registerShortcutsOpener,
   registerUploadFiles,
 } from "../keyboardShortcuts";
 
@@ -72,5 +74,18 @@ describe("the Search group", () => {
       ['"phrase"', "Exact words"],
     ]);
     expect(search?.rows.every((row) => row.syntax)).toBe(true);
+  });
+});
+
+describe("openKeyboardShortcuts", () => {
+  test("opens the sheet the shell registered, and nothing once it leaves", () => {
+    const open = mock(() => undefined);
+    expect(openKeyboardShortcuts()).toBe(false);
+    const unregister = registerShortcutsOpener(open);
+    expect(openKeyboardShortcuts()).toBe(true);
+    expect(open).toHaveBeenCalledTimes(1);
+    unregister();
+    expect(openKeyboardShortcuts()).toBe(false);
+    expect(open).toHaveBeenCalledTimes(1);
   });
 });

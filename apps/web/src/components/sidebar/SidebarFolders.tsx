@@ -2,12 +2,13 @@
 
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
-import { useTranslations } from "@teak/i18n/react";
+import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Ellipsis,
+  Folder,
   FolderPlus,
   FolderSearch,
   Palette,
@@ -95,6 +96,7 @@ export function SidebarFolders({
   const tFolders = useTranslations("lib.folders");
   const tBulk = useTranslations("lib.bulkCardActions");
   const tc = useTranslations("common");
+  const intlLocale = useIntlLocale();
   const errors = useServerErrors();
   const { isMobile, setOpenMobile } = useSidebar();
   const folders = useFolders();
@@ -258,6 +260,7 @@ export function SidebarFolders({
         {folders?.map((folder) => {
           const isActive = folder._id === activeFolderId;
           const isSmart = folder.kind === "smart";
+          const FolderIcon = isSmart ? FolderSearch : Folder;
           const isDropTarget = dropFolderId === folder._id;
           return (
             <SidebarMenuItem
@@ -298,26 +301,43 @@ export function SidebarFolders({
                     "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring"
                 )}
                 isActive={isActive}
-                tooltip={folder.name}
+                tooltip={
+                  !isSmart && folder.activeCardCount > 0
+                    ? {
+                        className: "flex items-center gap-2",
+                        children: (
+                          <>
+                            <span dir="auto">{folder.name}</span>
+                            <span className="tabular-nums opacity-60">
+                              {folder.activeCardCount.toLocaleString(
+                                intlLocale
+                              )}
+                            </span>
+                          </>
+                        ),
+                      }
+                    : folder.name
+                }
               >
                 <LinkComponent
                   aria-current={isActive ? "page" : undefined}
                   href={folderPath(folder._id)}
                   onClick={navigate}
                 >
-                  {isSmart ? (
-                    <FolderSearch
-                      className={
+                  {/* Wrapped, so the folder's color wins over the menu's icon style. */}
+                  <span
+                    aria-hidden="true"
+                    className="flex size-3.5 shrink-0 items-center justify-center"
+                  >
+                    <FolderIcon
+                      className={cn(
+                        "size-3.5",
                         folder.color
                           ? FOLDER_ICON_CLASSES[folder.color]
-                          : undefined
-                      }
+                          : "text-sidebar-foreground opacity-55"
+                      )}
                     />
-                  ) : (
-                    <span className="flex size-3.5 shrink-0 items-center justify-center">
-                      <FolderDot className="size-[7px]" color={folder.color} />
-                    </span>
-                  )}
+                  </span>
                   <span dir="auto" title={folder.name}>
                     {folder.name}
                   </span>

@@ -35,11 +35,18 @@ export function PageHeader({
       data-page-header=""
       data-scrolled={scrolled || undefined}
     >
-      <div className="relative flex h-13 items-center gap-2">
-        {leading}
-        {title}
-        {children}
-        {actions}
+      {/* On wide screens: title on the left, the search in a fixed middle
+          slot, actions on the right, so the search sits in the same place on
+          every page. On phones the pieces share one row. */}
+      <div className="relative flex h-13 items-center gap-2 sm:grid sm:grid-cols-[minmax(6rem,1fr)_minmax(0,36rem)_minmax(auto,1fr)] sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 max-sm:contents">
+          {leading}
+          {title}
+        </div>
+        {children ?? <div className="max-sm:hidden" />}
+        <div className="flex items-center justify-end gap-2 max-sm:contents">
+          {actions}
+        </div>
       </div>
     </div>
   );
@@ -61,7 +68,7 @@ export function PageTitle({
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-2 pr-2 max-sm:flex-1 sm:max-w-[40%] sm:shrink-0",
+        "flex min-w-0 items-center gap-2 pr-2 max-sm:flex-1",
         className
       )}
     >

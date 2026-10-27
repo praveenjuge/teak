@@ -26,7 +26,7 @@ test("settings loads without shifting its layout", async ({
   await gotoApp(browser, "/settings");
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
   await expect(screen.getByText(email)).toBeVisible();
-  await expect(screen.getByText("Free Plan", { exact: false })).toBeVisible();
+  await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible();
 
   // Layout-shift entries are delivered after the frame that caused them.
   const shift = await browser.evaluate(

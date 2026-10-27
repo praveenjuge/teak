@@ -23,6 +23,7 @@ import {
   GO_TO_SETTINGS_KEY,
   GO_TO_VIEW_KEYS,
   pressUploadFiles,
+  registerShortcutsOpener,
 } from "../../lib/keyboardShortcuts";
 import {
   type GoToViewOptions,
@@ -218,6 +219,11 @@ export function LibraryShortcuts({
   );
 
   useKeyboardShortcuts(shortcuts);
+
+  useEffect(
+    () => registerShortcutsOpener(() => setDialogOpen(true)),
+    [setDialogOpen]
+  );
 
   return (
     <>
