@@ -40,8 +40,8 @@ import {
   restoreFromTrash,
 } from "../lib/trashActions";
 import { AccountActions } from "./AccountActions";
-import { getCardSavedAt } from "./cardListItem";
 import { CardCopyActions, CardOrganizeActions } from "./CardOrganizeActions";
+import { getCardSavedAt } from "./cardListItem";
 import { EditCardForm } from "./EditCardForm";
 
 const FAVORITE_MUTATION_DEBOUNCE_MS = 300;

@@ -25,8 +25,8 @@ import {
   getTeakUrl,
 } from "./lib/cardDetailModel";
 import { getCardListIcon } from "./lib/cardIcons";
-import { TEAK_HOME_URL } from "./lib/constants";
 import { removeCardById } from "./lib/cardListState";
+import { TEAK_HOME_URL } from "./lib/constants";
 import { newShuffleSeed } from "./lib/shuffleSeed";
 import { useTeakAuth } from "./lib/useTeakAuth";
 

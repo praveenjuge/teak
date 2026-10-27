@@ -8,8 +8,8 @@ import {
   useNavigation,
 } from "@raycast/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CardsListCommand } from "./components/CardsListCommand";
 import { AccountActions } from "./components/AccountActions";
+import { CardsListCommand } from "./components/CardsListCommand";
 import { MissingApiKeyDetail } from "./components/MissingApiKeyDetail";
 import {
   confirmAndDeleteTag,
