@@ -178,7 +178,7 @@ then you can still run the app on [a local backend](#a-local-backend)
 
 `.agents/setup` prepares a fresh Linux VM: the pinned Node and Bun, packages, the end-to-end suite's browsers and, when `CONVEX_DEPLOY_KEY` is present, the wiring to the development deployment. Without the key it still prepares the VM for `bun run dev --local`, unit tests and the end-to-end suite.
 
-- **Claude Code on the web:** set the environment's setup script to `bash .agents/setup` so the result, a warm Turbo cache included, is cached. Setup scripts there don't receive the environment's secrets, so the SessionStart hook in `.claude/settings.json` finishes the job each session: it runs `.agents/setup` on a VM that isn't ready, connects the checkout to the development deployment, reinstalls packages when `bun.lock` has moved past the cached snapshot, and prints `bun run dev --status`.
+- **Claude Code on the web:** set the environment's setup script to `bash .agents/setup` so the result is cached. Setup scripts there don't receive the environment's secrets, so the SessionStart hook in `.claude/settings.json` finishes the job each session: it runs `.agents/setup` on a VM that isn't ready, connects the checkout to the development deployment, reinstalls packages when `bun.lock` has moved past the cached snapshot, warms the Turbo cache in the background once per VM, and prints `bun run dev --status`.
 - **Codex cloud:** set the environment's setup script to `bash .agents/setup`.
 - **Amp:** runs `.agents/setup` as the orb setup script and `.agents/resume` on resume.
 

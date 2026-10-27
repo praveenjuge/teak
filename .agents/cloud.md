@@ -27,11 +27,15 @@ rest of "Works" was last driven on 2026-10-13.
   token can't run it. The local E2E stack runs the Worker without them
   (Workflows, Queues, R2 and KV in Miniflare), and Docker runs the two
   Containers (see "Containers" below).
-- **Setup script:** `bash .agents/setup`, so the toolchain, packages, the E2E
-  suite's browsers and a warm Turbo cache land in the cached snapshot. The
-  snapshot is only kept when the script finishes in about five minutes, so
-  the Turbo step stops in time whatever happens (a cold typecheck takes about
-  two minutes; cached, one second). Claude Code doesn't pass the
+- **Setup script:** `bash .agents/setup`, so the toolchain, packages and the
+  E2E suite's browsers land in the cached snapshot. On a fresh VM it takes
+  about a minute and a half: the image's Chromium builds are linked in
+  rather than downloaded again, so only WebKit downloads. It doesn't warm the
+  Turbo cache (a cold typecheck takes about three minutes; cached, one
+  second): the SessionStart hook runs `.agents/setup --warm` in the
+  background at the lowest priority, once per VM (log in
+  `.turbo/teak-warm.log`), so the session starts without waiting for it.
+  Claude Code doesn't pass the
   environment's secrets to setup scripts, so its last step (connecting to the
   dev deployment) always skips there. The SessionStart hook does it instead
   with `.agents/setup --session` (about 15 seconds), and reinstalls packages
@@ -47,8 +51,8 @@ rest of "Works" was last driven on 2026-10-13.
   docs MCP server). The list comes from the code, not from a session on
   "Custom"; if a host is refused, the proxy names it. `bun run dev --local`
   needs none of the Convex, WorkOS, Polar or Workers hosts.
-- **Turbo remote cache (optional):** the setup snapshot warms the local Turbo
-  cache. To share one across sessions and CI, add `TURBO_TOKEN` and
+- **Turbo remote cache (optional):** the SessionStart hook warms the local
+  Turbo cache in the background. To share one across sessions and CI, add `TURBO_TOKEN` and
   `TURBO_TEAM` for a Vercel Remote Cache to the environment's variables;
   Turbo reads them itself.
 - **`NODE_OPTIONS`:** nothing to set. The SessionStart hook adds
