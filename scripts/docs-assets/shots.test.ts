@@ -152,6 +152,14 @@ describe("blog images", () => {
     expect(wrong).toEqual([]);
   });
 
+  test("every blog shot has its own colored backdrop instead of the meadow", () => {
+    expect(
+      blogShots.filter((shot) => !shot.backdrop).map((shot) => shot.name)
+    ).toEqual([]);
+    const backdrops = blogShots.map((shot) => shot.backdrop?.join());
+    expect(new Set(backdrops).size).toBe(backdrops.length);
+  });
+
   test("every blog shot is rendered and shown, and nothing else sits in its images/", () => {
     const files = readdirSync(blogImagesDir).sort();
     expect(files).toEqual(blogShots.map((shot) => `${shot.name}.webp`).sort());

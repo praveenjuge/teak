@@ -28,6 +28,11 @@ export type MockId =
 interface ShotBase {
   /** The image's alt text, also used as its Markdown alt. */
   alt: string;
+  /**
+   * Two colors for a diagonal gradient that replaces the meadow behind the
+   * window. Blog images use one each, so the covers don't all look alike.
+   */
+  backdrop?: [string, string];
   /** Output file name, without extension. */
   name: string;
   /** Where the image is written, relative to the repository root. */
@@ -304,6 +309,7 @@ SHOTS.push(
 SHOTS.push(
   {
     name: "why-we-built-teak",
+    backdrop: ["#f43f5e", "#fdba74"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -311,6 +317,7 @@ SHOTS.push(
   },
   {
     name: "rediscovering-what-you-saved",
+    backdrop: ["#8b5cf6", "#f472b6"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -318,6 +325,7 @@ SHOTS.push(
   },
   {
     name: "search-by-meaning",
+    backdrop: ["#2563eb", "#22d3ee"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -325,6 +333,7 @@ SHOTS.push(
   },
   {
     name: "embedding-models",
+    backdrop: ["#1d4ed8", "#38bdf8"],
     kind: "mock",
     mock: "blog-embedding-models",
     out: BLOG_IMAGES,
@@ -332,6 +341,7 @@ SHOTS.push(
   },
   {
     name: "build-a-moodboard-in-teak",
+    backdrop: ["#f97316", "#facc15"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -339,6 +349,7 @@ SHOTS.push(
   },
   {
     name: "small-features-in-teak",
+    backdrop: ["#10b981", "#a3e635"],
     kind: "web",
     layout: "window",
     out: BLOG_IMAGES,
@@ -346,6 +357,7 @@ SHOTS.push(
   },
   {
     name: "from-link-to-card",
+    backdrop: ["#4f46e5", "#a855f7"],
     kind: "mock",
     mock: "blog-card-pipeline",
     out: BLOG_IMAGES,
@@ -353,6 +365,7 @@ SHOTS.push(
   },
   {
     name: "one-monorepo-every-platform",
+    backdrop: ["#0d9488", "#60a5fa"],
     kind: "mock",
     mock: "blog-monorepo",
     out: BLOG_IMAGES,
@@ -360,6 +373,7 @@ SHOTS.push(
   },
   {
     name: "teak-for-ai-agents",
+    backdrop: ["#db2777", "#fb923c"],
     kind: "mock",
     mock: "blog-agent-session",
     out: BLOG_IMAGES,
@@ -367,6 +381,7 @@ SHOTS.push(
   },
   {
     name: "self-hosting-teak",
+    backdrop: ["#0ea5e9", "#6366f1"],
     kind: "mock",
     mock: "blog-self-host",
     out: BLOG_IMAGES,
@@ -374,6 +389,7 @@ SHOTS.push(
   },
   {
     name: "building-teak-in-public",
+    backdrop: ["#df2225", "#f59e0b"],
     kind: "mock",
     mock: "blog-timeline",
     out: BLOG_IMAGES,
