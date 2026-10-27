@@ -51,7 +51,7 @@ bare captures; the page draws its own meadow behind them.
 6. **Check.** `bun test scripts/docs-assets`, then look at every image before
    committing.
 
-Both scripts use `DOCS_ASSETS_BROWSER` when it's set, then Playwright's own
+Both scripts use `CHROME_PATH` when it's set, then Playwright's own
 Chromium. Mocks use SN Pro from
 `apps/docs/public/fonts` and JetBrains Mono for code, falling back to SF Mono
 or Menlo.

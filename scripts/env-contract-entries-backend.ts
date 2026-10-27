@@ -1,17 +1,6 @@
 import { type EnvVarSpec, spec } from "./env-contract-types.ts";
 
 export const BACKEND_ENTRIES: EnvVarSpec[] = [
-  spec("SIGNUPS_DISABLED", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "enum",
-    allowedValues: ["true", "false"],
-    providers: ["convex-dashboard"],
-    required: false,
-    note: "Migration sign-up freeze. Unset means sign-ups remain open.",
-  }),
   spec("WORKOS_CLIENT_ID", {
     owners: ["@teak/convex", "@teak/web"],
     targets: ["convex", "web"],
@@ -186,18 +175,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "UTF-8 bytes kept of each email body (text and HTML) before it is sent to Convex, set as a Wrangler var. Defaults to 1 MiB.",
   }),
-  ...["OPERATIONAL_RETENTION_ENABLED"].map((name) =>
-    spec(name, {
-      owners: ["@teak/convex"],
-      targets: ["convex"],
-      profiles: ["local", "preview", "production"],
-      secret: false,
-      validation: "boolean",
-      providers: ["convex-dashboard"],
-      required: false,
-      note: "Optional staged rollout switch. Only true enables the capability; unset stays disabled.",
-    })
-  ),
   spec("FILES_BASE", {
     owners: ["@teak/convex"],
     targets: ["convex"],
@@ -217,15 +194,6 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     providers: ["convex-dashboard", "wrangler-secret", "dotenv-local"],
     required: false,
     note: "HMAC secret shared by Convex and its Files Worker. Shared dev routing reuses the production value; isolated dev routing requires its own. Convex dev syncs to files-worker .dev.vars (or development/.dev.vars with --isolated).",
-  }),
-  spec("R2_BUCKET", {
-    owners: ["@teak/convex"],
-    targets: ["convex"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "string",
-    providers: ["convex-dashboard"],
-    required: false,
   }),
   spec("R2_KEY_PREFIX", {
     owners: ["@teak/convex"],

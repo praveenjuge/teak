@@ -1,6 +1,7 @@
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { setSignupsPaused } from "../__tests__/helpers/signups.test-utils";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
@@ -236,7 +237,6 @@ describe("WorkOS identity linking", () => {
 describe("trusted new WorkOS owners", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
   });
   afterEach(() => {
     vi.clearAllTimers();
@@ -365,14 +365,14 @@ describe("trusted new WorkOS owners", () => {
   test("freeze quarantines without creating and allows the same subject after unfreeze", async () => {
     const t = setup();
     await seedProvider(t);
-    vi.stubEnv("SIGNUPS_DISABLED", "true");
+    await setSignupsPaused(t, true);
     expect(await t.mutation(link, create)).toEqual({
       status: "quarantined",
       reason: "signups_frozen",
     });
     expect((await snapshot(t)).users).toEqual([]);
     expect(await jobs(t)).toEqual([]);
-    vi.stubEnv("SIGNUPS_DISABLED", "false");
+    await setSignupsPaused(t, false);
     expect(await t.mutation(link, create)).toMatchObject({ status: "linked" });
     expect((await snapshot(t)).quarantine).toMatchObject([
       { reason: "signups_frozen" },

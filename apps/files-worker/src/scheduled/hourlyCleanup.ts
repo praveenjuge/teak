@@ -31,7 +31,7 @@ const abortUpload = async (env: FilesOpsEnv, key: string, uploadId: string) => {
   }
 };
 
-/** Convex checks `OPERATIONAL_RETENTION_ENABLED` and continues the scan. */
+/** Convex starts the retention scan and continues it in bursts. */
 export const startIdempotencyCleanup = (convex: ConvexRpc) =>
   convex.mutation(internal.operationalRetention.startIdempotencyCleanup, {});
 

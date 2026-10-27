@@ -86,7 +86,6 @@ const auditRows = (t: Backend) =>
 
 beforeEach(() => {
   vi.stubEnv("WORKOS_CLIENT_ID", clientId);
-  vi.stubEnv("SIGNUPS_DISABLED", "false");
 });
 afterEach(() => vi.unstubAllEnvs());
 

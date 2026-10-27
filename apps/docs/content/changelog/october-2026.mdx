@@ -544,3 +544,7 @@ These apply to videos, recordings, images, and links you save from now on.
 - Opening it on a page you already saved says **Already in your Teak** and stays open, instead of briefly showing that the page was saved.
 - The pending saves notice only appears for saves that didn't finish, not while a save is still in progress.
 - Inline save buttons no longer appear on Web Designer News, which changed its layout. Right-click **Save Page to Teak** or the popup still saves any of its pages.
+
+## Self-hosting: pausing sign-ups
+
+- If you run your own Teak and set `SIGNUPS_DISABLED=true` to close registration, that setting no longer works, and sign-ups reopen when you update. Right after you deploy the update, pause them again with `bunx convex run --prod admin:setSignupsPaused '{"paused":true}'` from `packages/convex`, then remove the old variable. Sign-ups are open for the moments in between. See [Production basics](/docs/self-hosting#production-basics).

@@ -174,7 +174,7 @@ export const handleScheduled = async (
             CRONS.cleanupExpiredIdempotency.name,
             async (_url, convex) => {
               const report = await startIdempotencyCleanup(convex);
-              console.log("[cron] idempotency cleanup", report ?? "disabled");
+              console.log("[cron] idempotency cleanup", report);
             }
           )
         ),

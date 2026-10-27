@@ -56,7 +56,7 @@ One thing to know: the `bun run dev` and `bun run setup` commands you'll see in 
 
 Production adds a few steps on top:
 
-- **Pause sign-ups and name an admin.** Sign up your own account first, then set `SIGNUPS_DISABLED` and promote that account with one command, so nobody else can register on your instance.
+- **Name an admin.** Sign up your own account first, then promote it with one command.
 - **Deploy the Files Worker** to Cloudflare with your own R2 bucket and files domain, and give it the same signing secret as Convex. Every upload and download goes through it.
 - **Point everything at your domain:** `SITE_URL` on Convex, your WorkOS production environment, and the web app's environment.
 - **Build and start** the web app.

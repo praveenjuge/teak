@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${SMOKE_BASE_URL:-${BASE_URL:-https://teakvault.com}}"
+BASE_URL="${BASE_URL:-https://teakvault.com}"
 BASE_URL="${BASE_URL%/}"
 IS_PROD="false"
 if [[ "$BASE_URL" == "https://teakvault.com" ]]; then
