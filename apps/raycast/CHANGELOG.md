@@ -1,7 +1,8 @@
 # Changelog
 
-## [Cleaner lists and fixes] - {PR_MERGE_DATE}
+## [Saving again, cleaner lists and fixes] - {PR_MERGE_DATE}
 
+- Saving a link that's already in Teak moves that card to the top of your library, and back from Archive, instead of stopping at "Already saved"
 - A type menu beside the search bar filters by Links, Text, Quotes, Images and more, in step with `type:`
 - Images show a thumbnail and palettes one of their real colors in the list, other cards a colored type icon
 - Every tag shows on hover behind a **+N**, and the date is when the card was last saved, matching the list's order
@@ -16,7 +17,7 @@
 - Settings links and API key hints point to Teak Settings → Integrations → API keys
 - New store screenshots
 
-## [Folders, Find Similar, done states and more] - {PR_MERGE_DATE}
+## [Folders, Find Similar, done states and more] - 2026-10-21
 
 - New Browse Folders command lists your folders and smart folders and opens any of them as a card list
 - Add to Folder… puts a card in a folder, and Save Search as Smart Folder… saves the current search
@@ -29,12 +30,11 @@
 - Refresh Details asks Teak to read a card's page and summary again
 - Card details show linked `[[` cards by title, a Linked from section, price, category, byline, published date, and where saved text came from
 - Quick Save and Save to Teak take optional tags and a note
-- Saving a link that's already in Teak moves that card to the top of your library, and back from Archive, instead of stopping at "Already saved"
 - Browse Tags can rename, merge and delete tags across your vault
 - Raycast tells you how to find a card you just hid with the `secret` or `hidden` tag, and when hidden cards explain an empty list
 - Raycast AI can search by similar card, done state, mood, archive and folder, list your folders, and mark done, archive or file cards
 
-## [Files, Trash, and richer cards] - {PR_MERGE_DATE}
+## [Files, Trash, and richer cards] - 2026-10-21
 
 - New Save Finder Selection command uploads the files selected in Finder
 - Save Clipboard uploads copied files and images
@@ -46,7 +46,7 @@
 - Edit Card rewrites text and quote cards and removes tags Teak added
 - New Update Teak Card AI tool adds or removes tags and changes notes
 
-## [Shared Teak sign-in] - {PR_MERGE_DATE}
+## [Shared Teak sign-in] - 2026-10-21
 
 - Sign-in, token renewal, and Sign Out now use the same Teak sign-in library as the CLI and browser extension
 
