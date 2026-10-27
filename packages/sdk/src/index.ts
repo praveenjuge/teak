@@ -1052,7 +1052,7 @@ const retryDelay = (error: TeakApiError, attempt: number): number | null => {
     const wait = Math.max(0, error.retryAt - Date.now());
     return wait > MAX_RETRY_WAIT_MS ? null : wait;
   }
-  return Math.min(MAX_RETRY_WAIT_MS, 250 * 2 ** attempt * (1 + Math.random()));
+  return Math.min(MAX_RETRY_WAIT_MS, 250 * 2 ** attempt);
 };
 
 export const createTeakClient = (options: {
