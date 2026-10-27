@@ -81,6 +81,7 @@ class CardEditViewModel @AssistedInject constructor(
                 _uiState.update { state ->
                     state.copy(
                         isLoading = false,
+                        loadFailed = false,
                         card = card,
                         draft = state.draft ?: card?.let(CardEdit::draftFor),
                     )

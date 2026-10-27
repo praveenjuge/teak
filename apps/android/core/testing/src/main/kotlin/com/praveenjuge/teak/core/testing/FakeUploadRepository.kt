@@ -26,4 +26,6 @@ class FakeUploadRepository : UploadRepository {
         enqueued.clear()
         uploads.value = emptyList()
     }
+
+    override suspend fun sweepAbandoned() = Unit
 }

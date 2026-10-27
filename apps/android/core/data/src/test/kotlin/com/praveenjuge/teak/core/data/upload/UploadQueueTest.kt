@@ -215,6 +215,23 @@ class UploadQueueTest {
     }
 
     @Test
+    fun `the sweep deletes old copies no upload owns`() {
+        val dayAgo = System.currentTimeMillis() - 25 * 60 * 60 * 1000L
+        val queued = staged("photo.jpg", "image/jpeg")
+        val repository = WorkManagerUploadRepository(context)
+        repository.enqueue(listOf(queued))
+        val queuedSlot = File(queued.path).parentFile!!.apply { setLastModified(dayAgo) }
+        val abandoned = StagingArea.newSlot(context).apply { File(this, "memo.m4a").writeText("half a memo"); setLastModified(dayAgo) }
+        val recording = StagingArea.newSlot(context).apply { File(this, "memo.m4a").writeText("still recording") }
+
+        runBlocking { repository.sweepAbandoned() }
+
+        assertFalse(abandoned.exists())
+        assertTrue(queuedSlot.exists())
+        assertTrue(recording.exists())
+    }
+
+    @Test
     fun `a file URI is never read`() {
         val secret = File(context.filesDir, "secret.txt").apply { writeText("private") }
         val result = runBlocking { WorkManagerUploadRepository(context).stage(listOf(Uri.fromFile(secret))) }

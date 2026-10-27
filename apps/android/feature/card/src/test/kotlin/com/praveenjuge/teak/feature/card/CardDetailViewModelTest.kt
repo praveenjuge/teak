@@ -286,6 +286,21 @@ class CardDetailViewModelTest {
     }
 
     @Test
+    fun `a subscription that recovers drops the error`() = runTest {
+        val results = MutableStateFlow(Result.failure<Card?>(IllegalStateException("Connection lost")))
+        val viewModel = viewModel(object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = results
+        })
+        assertTrue(viewModel.uiState.value.loadFailed)
+
+        // The server answers again and says the card is gone: that reads as deleted, not as an error.
+        results.value = Result.success(null)
+
+        assertFalse(viewModel.uiState.value.loadFailed)
+        assertNull(viewModel.uiState.value.card)
+    }
+
+    @Test
     fun `a failed Undo says so and keeps the change it couldn't take back`() = runTest {
         cards.cards.value = mapOf(card.id to card, link.id to link)
         val linkModel = linkViewModel()

@@ -22,6 +22,7 @@ import com.praveenjuge.teak.core.model.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -78,6 +79,12 @@ interface UploadRepository {
 
     /** Cancels every queued upload and deletes the staged copies, so none reaches the next account. */
     suspend fun discardAll()
+
+    /**
+     * Deletes staged copies no upload owns: a recording or a copy the process died in the middle of. Only ones
+     * older than a day go, so a recording or copy still in progress stays.
+     */
+    suspend fun sweepAbandoned()
 }
 
 @Singleton
@@ -166,6 +173,20 @@ class WorkManagerUploadRepository @Inject constructor(
         withContext(Dispatchers.IO) { StagingArea.root(context).deleteRecursively() }
     }
 
+    override suspend fun sweepAbandoned() {
+        val owned = workManager.getWorkInfosByTagFlow(UploadWorker.TAG).first()
+            .filterNot { it.state.isFinished }
+            .flatMap { info -> info.tags.filter { it.startsWith(UploadWorker.PATH_TAG_PREFIX) } }
+            .mapNotNull { StagingArea.slotOf(it.removePrefix(UploadWorker.PATH_TAG_PREFIX))?.path }
+            .toSet()
+        val cutoff = System.currentTimeMillis() - ABANDONED_AFTER_MS
+        withContext(Dispatchers.IO) {
+            StagingArea.root(context).listFiles().orEmpty()
+                .filter { it.path !in owned && it.lastModified() < cutoff }
+                .forEach { it.deleteRecursively() }
+        }
+    }
+
     private fun status(info: WorkInfo): UploadStatus {
         val output = info.outputData
         val outcome = uploadOutcome(info.state, output)
@@ -222,6 +243,7 @@ class WorkManagerUploadRepository @Inject constructor(
             ?: "upload_${System.currentTimeMillis()}"
 
     private companion object {
+        const val ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000L
         val GENERIC = setOf("application/octet-stream", "binary/octet-stream", "application/unknown", "*/*")
     }
 }

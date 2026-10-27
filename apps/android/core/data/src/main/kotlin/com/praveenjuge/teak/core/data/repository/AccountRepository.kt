@@ -22,12 +22,14 @@ import com.praveenjuge.teak.core.model.CurrentUser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.convex.android.ConvexClientWithAuth
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -127,11 +129,15 @@ class ConvexAccountRepository @Inject constructor(
         }
     }
 
-    /** Files still queued belong to the account that's leaving, so they're dropped rather than uploaded into the next one. */
-    private suspend fun clearLocalSession() {
+    /**
+     * Files still queued belong to the account that's leaving, so they're dropped rather than uploaded into the
+     * next one. They go first, and nothing here can be cancelled: signing out closes the screen whose scope
+     * called this, which would otherwise cut the cleanup short.
+     */
+    private suspend fun clearLocalSession() = withContext(NonCancellable) {
+        uploads.discardAll()
         sessions.clear()
         client.logout(context)
-        uploads.discardAll()
     }
 
     private companion object {

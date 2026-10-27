@@ -130,6 +130,7 @@ class CardDetailViewModel @AssistedInject constructor(
                     val tags = state.tagsOverride.takeUnless { card?.tags == it || keepSaves == 0 }
                     state.copy(
                         isLoading = false,
+                        loadFailed = false,
                         card = card,
                         favoriteOverride = favorite,
                         doneOverride = done,
