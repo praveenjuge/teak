@@ -151,9 +151,10 @@ describe("blog images", () => {
       const body = sourceOf(post).split(/^---$/m).slice(2).join("---");
       const first = body.split("\n").find((line) => line.trim());
       const slug = post.replace(/\.mdx$/, "");
-      return !first
-        ?.trim()
-        .match(new RegExp(`^!\\[[^\\]]*\\]\\(\\./images/${slug}\\.webp\\)$`));
+      const line = first?.trim() ?? "";
+      return !(
+        line.startsWith("![") && line.endsWith(`](./images/${slug}.webp)`)
+      );
     });
     expect(wrong).toEqual([]);
   });
