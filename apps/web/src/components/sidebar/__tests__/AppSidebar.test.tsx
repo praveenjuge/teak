@@ -146,7 +146,9 @@ describe("AppSidebar", () => {
     );
     expect(toggle?.getAttribute("aria-label")).toBe("Keep sidebar open");
     expect(toggle?.getAttribute("aria-expanded")).toBe("false");
-    await act(() => toggle?.click());
+    act(() => {
+      toggle?.click();
+    });
     expect(sidebarState()).toBe("expanded");
   });
 

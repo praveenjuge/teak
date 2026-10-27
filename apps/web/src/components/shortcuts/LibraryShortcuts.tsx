@@ -221,7 +221,10 @@ export function LibraryShortcuts({
   useKeyboardShortcuts(shortcuts);
 
   useEffect(
-    () => registerShortcutsOpener(() => setDialogOpen(true)),
+    () =>
+      registerShortcutsOpener(() => {
+        setDialogOpen(true);
+      }),
     [setDialogOpen]
   );
 
