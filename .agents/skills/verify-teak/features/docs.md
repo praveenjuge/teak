@@ -11,6 +11,7 @@ teakvault.com's docs, built from `apps/docs/content` with Blume. The sidebar gro
 - `docs-agent-visibility` keeps `<Visibility for="agents">` text out of the web page and puts it in the page's `.md` mirror and `llms-full.txt`.
 - `docs-header` shows Login and Register to a signed-out visitor and only "Open Teak" to one with the `teak_session_hint=1` cookie, on marketing pages, docs, changelog entries and the API reference alike. `bun run --cwd apps/docs build` fails when a built page ships the header without the script and CSS that do this (`scripts/check-header-visibility.ts`).
 - `docs-links` resolves every internal link and anchor (`blume validate --strict`, `blume audit`).
+- `docs-blog` lists posts at `/blog`, newest first, as cover cards with date, title and description, and links to its RSS feed at `/blog/rss.xml`. Each post (`content/blog/*.mdx`, `type: blog`, `mode: center`) opens with its cover, shows its date and author above the title (`components/BlogPostHeader.astro`, Blume's `PageHeader` slot), and ends with two **Related pages** cards. The site footers link to it; the header doesn't. `bun test scripts/docs-assets` checks that every post opens with its cover and every image matches its shot.
 
 ## How to get to it (user POV)
 
@@ -32,6 +33,7 @@ Steps:
 - **Images.** On `/docs/architecture`, the diagram shows under the first paragraph, inside `article.prose` as an `img` whose alt starts "Teak's apps talk to one Convex backend"; `tap` it and it opens larger. `bun test scripts/docs-assets` passes. Open `/docs/features`: the open card image has markers 1 to 3 and the numbered list under it names Tags, Summary and Colors.
 - **Agent text.** On `/docs/testing`, the page has no "Notes for agents" section. `curl -s http://localhost:3001/docs/testing.md | grep "Notes for agents"` finds it. Do the same for any page whose `Visibility` block the change touches.
 - **Header.** On `/docs/testing` and `/`, the header has links "Login" and "Register" and no visible "Open Teak". Add cookie `teak_session_hint` with value `1` for the host and reload: only "Open Teak" shows. Never all three.
+- **Blog.** `open_session` on `http://localhost:3001/blog`. The heading reads "Blog", **Subscribe with RSS** links to `/blog/rss.xml`, and the grid lists every post in `content/blog` as a card with a cover image, a date like "October 27, 2026", a title and a description, newest first. Open the first card: the post shows its cover first, then the byline "<date> · Praveen Juge" above the title, no sidebar and no previous or next links, and **Related pages** at its foot. `curl -s http://localhost:3001/blog/rss.xml` lists the posts (from a build or preview). Repeat the index in dark and at 390px, where `document.documentElement.scrollWidth` stays at most the window width and the cards stack in one column. The footer on `/` and on a docs page has a **Blog** link.
 - **Links.** `bun run --cwd apps/docs typecheck` (strict check and validate) and `bun run --cwd apps/docs build` (build and audit) both pass.
 
 ## Gotchas

@@ -645,6 +645,205 @@ const saveByEmail = () => `
     </div>
   </div>`;
 
+// Blog images (`apps/docs/content/blog/images`): covers and diagrams for posts.
+
+const PIPELINE = [
+  ["load card", "Read the card and what's already done"],
+  ["classify", "Decide what it is: link, image, note, file"],
+  ["fetch link metadata", "Title, description, preview image"],
+  ["generate renderables", "Thumbnails and previews"],
+  ["extract palette", "Up to five colors from an image"],
+  ["generate metadata", "AI tags, a summary, a transcript"],
+  ["capture screenshot", "A picture of the page"],
+  ["archive page", "A saved copy, then the article text"],
+];
+
+const cardPipeline = () => `
+  <div class="diagram">
+    <h2>From a saved link to a searchable card</h2>
+    <p>The save returns at once. Everything else happens in the background, one durable step at a time.</p>
+    <div class="body">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+      ${node("globe", "You hit save", "Web, Apple, Android, the extension, Raycast, the CLI or MCP")}
+      ${node("database", "Convex", "Writes the card and a dispatch row in the same transaction", "accent")}
+      ${node("cloud", "Files Worker", "Starts one Cloudflare Workflow for the card")}
+    </div>
+    ${connector("Each step writes back through one signed gateway")}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+      ${PIPELINE.map(
+        ([name, text], i) =>
+          `<div class="node" style="flex-direction:column;gap:8px;padding:16px 18px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:50%;background:oklch(0.58 0.22 27 / 0.1);color:var(--primary);display:grid;place-items:center;font-weight:700;font-size:15px">${i + 1}</span><code style="font-size:16px">${name}</code></div>
+            <span style="margin:0;font-size:16px">${text}</span></div>`
+      ).join("")}
+    </div>
+    ${connector("About 30 seconds later")}
+    <div class="node" style="padding:20px 24px;border-color:oklch(0.72 0.15 155 / 0.5);background:oklch(0.72 0.15 155 / 0.06)">
+      <div class="ic" style="background:oklch(0.72 0.15 155 / 0.18);color:oklch(0.45 0.12 155)">${icon("search", 24)}</div>
+      <div><strong>Searchable by words and by meaning</strong><span>The card's text is embedded and stored in Vectorize, in a space of its own for each person</span></div>
+    </div>
+    </div>
+  </div>`;
+
+const MONOREPO_APPS = [
+  ["globe", "Web", "Next.js", "Vercel"],
+  ["smartphone", "iPhone, iPad, Mac", "SwiftUI", "App Store"],
+  ["smartphone", "Android", "Kotlin, Compose", "Coming to Google Play"],
+  ["puzzle", "Extension", "WXT", "Chrome, Firefox"],
+  ["command", "Raycast", "Raycast API", "Raycast Store"],
+  ["terminal", "CLI", "Bun, TypeScript", "npm"],
+  ["cloud", "Files Worker", "Cloudflare Workers", "Cloudflare"],
+  ["mail", "Email Worker", "Email Workers", "Cloudflare"],
+  ["file", "Docs and this blog", "Blume", "Vercel"],
+] as const;
+
+const monorepo = () => `
+  <div class="diagram">
+    <h2>One repository, every Teak</h2>
+    <p>Nine apps and five shared packages, released together under one version number.</p>
+    <div class="body">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+      ${MONOREPO_APPS.map(
+        ([ic, name, tech, ships]) =>
+          `<div class="node" style="padding:16px 18px;align-items:center"><div class="ic">${icon(ic, 22)}</div><div style="flex:1"><strong style="font-size:20px">${name}</strong><span style="margin-top:2px">${tech} · ${ships}</span></div></div>`
+      ).join("")}
+    </div>
+    ${connector("Shared packages")}
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px">
+      ${[
+        ["convex", "Backend, REST API, MCP"],
+        ["sdk", "teak-sdk on npm"],
+        ["i18n", "Eight languages"],
+        ["files-protocol", "Convex and Worker contracts"],
+        ["tests", "End-to-end journeys"],
+      ]
+        .map(
+          ([name, text]) =>
+            `<div class="node accent" style="flex-direction:column;gap:6px;padding:16px 18px"><code style="font-size:17px;color:var(--fg);font-weight:600">${name}</code><span style="margin:0;font-size:16px">${text}</span></div>`
+        )
+        .join("")}
+    </div>
+    </div>
+  </div>`;
+
+const EMBEDDING_MODELS = [
+  ["bge-base-en-v1.5", "Starting point", 0.856, 0.799],
+  ["bge-m3", "", 0.965, 0.891],
+  ["qwen3-embedding-0.6b", "", 0.977, 0.94],
+  ["embeddinggemma-300m", "Chosen", 0.977, 0.965],
+] as const;
+
+const bar = (value: number, strong: boolean) =>
+  `<div style="display:flex;align-items:center;gap:14px"><div style="flex:1;height:14px;border-radius:999px;background:var(--secondary);overflow:hidden"><div style="width:${value * 100}%;height:100%;border-radius:999px;background:${strong ? "var(--primary)" : "oklch(0.75 0.02 262)"}"></div></div><b style="width:64px;font-size:20px;font-variant-numeric:tabular-nums">${value.toFixed(3)}</b></div>`;
+
+const embeddingModels = () => `
+  <div class="diagram">
+    <h2>Four embedding models, one test library</h2>
+    <p>38 seeded cards and 33 paraphrased queries, five of them in or across other languages. Higher is better.</p>
+    <div class="body">
+    <div style="display:grid;grid-template-columns:330px 1fr 1fr;gap:56px 40px;align-items:center;font-size:20px">
+      <div></div><div style="font-size:19px;color:var(--muted);font-weight:600">Recall@5: the right card in the top five</div><div style="font-size:19px;color:var(--muted);font-weight:600">MRR: how close to the top it lands</div>
+      ${EMBEDDING_MODELS.map(([name, note, recall, mrr], i) => {
+        const chosen = i === EMBEDDING_MODELS.length - 1;
+        return `<div><code style="font-size:20px;color:var(--fg);font-weight:${chosen ? 700 : 500}">${name}</code>${note ? `<br><i class="tag${chosen ? " req" : ""}">${note}</i>` : ""}</div>${bar(recall, chosen)}${bar(mrr, chosen)}`;
+      }).join("")}
+    </div>
+    </div>
+  </div>`;
+
+const agentSession = () =>
+  win(
+    "Assistant",
+    `<div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:30px 110px 30px;background:#fff;font-size:21px;line-height:1.5">
+      <div style="align-self:flex-end;max-width:760px;background:var(--secondary);padding:16px 22px;border-radius:22px 22px 6px 22px">
+        Save this article to Teak and tag it typography: https://practicaltypography.com/line-length.html</div>
+      <div style="display:flex;align-items:center;gap:12px;color:var(--muted);font-size:18px">
+        <span style="width:34px;height:34px;border-radius:10px;background:var(--primary);color:#fff;display:grid;place-items:center">${icon("wrench", 18)}</span>
+        Called <b style="color:var(--fg);font-weight:600">teak_v1_create_card</b>
+        <code style="font-family:var(--mono);font-size:16px;background:var(--secondary);padding:4px 10px;border-radius:8px">{ "url": "https://practicaltypography.com/…", "tags": ["typography"] }</code>
+        <span class="pill green" style="height:28px;font-size:15px">${icon("check", 15)} Saved</span></div>
+      <div>Saved. Teak will add a preview, a summary and its own tags in the background.</div>
+      <div style="align-self:flex-end;max-width:760px;background:var(--secondary);padding:16px 22px;border-radius:22px 22px 6px 22px">
+        What else have I kept about type?</div>
+      <div style="display:flex;align-items:center;gap:12px;color:var(--muted);font-size:18px">
+        <span style="width:34px;height:34px;border-radius:10px;background:var(--primary);color:#fff;display:grid;place-items:center">${icon("wrench", 18)}</span>
+        Called <b style="color:var(--fg);font-weight:600">teak_v1_search_cards</b>
+        <code style="font-family:var(--mono);font-size:16px;background:var(--secondary);padding:4px 10px;border-radius:8px">{ "q": "typography", "limit": 5 }</code>
+        <span class="pill green" style="height:28px;font-size:15px">${icon("check", 15)} 4 cards</span></div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${[
+          ["text", "Halden type scale", "A note with a type scale table"],
+          [
+            "text",
+            "Type pairing for the Halden rebrand",
+            "A sharp serif for headlines, a quiet grotesk for body",
+          ],
+          ["link", "fontsinuse.com", "Typography in the wild"],
+          ["image", "Calligraphy poster", "An image, found by its AI tags"],
+        ]
+          .map(
+            ([type, title, text]) =>
+              `<div style="display:flex;align-items:center;gap:14px;border:1.5px solid var(--border);border-radius:14px;padding:10px 16px"><span class="chip">${type}</span><b style="font-weight:600">${title}</b><span style="color:var(--muted);font-size:18px">${text}</span></div>`
+          )
+          .join("")}
+      </div>
+      <div style="margin-top:auto;height:62px;border:1.5px solid var(--border);border-radius:999px;display:flex;align-items:center;padding:0 26px;color:var(--muted)">Reply…</div>
+    </div>`
+  );
+
+const selfHost = () =>
+  terminal(
+    "teak — zsh",
+    `«r:~» git clone https://github.com/praveenjuge/teak.git
+«r:~» cd teak && bun install
+
+«c:# Your own Convex deployment, in your own account»
+«r:~/teak» cd packages/convex
+«r:~/teak/packages/convex» bunx convex login
+«r:~/teak/packages/convex» bunx convex dev
+
+«c:# Point it at your site and your WorkOS environment»
+«r:~/teak/packages/convex» bunx convex env set SITE_URL http://localhost:3000
+«r:~/teak/packages/convex» bunx convex env set WORKOS_CLIENT_ID client_…
+«r:~/teak/packages/convex» bunx convex env set WORKOS_API_KEY
+
+«c:# Then the web app»
+«r:~/teak» bun run --cwd apps/web dev
+  «f:http://localhost:3000»
+
+«r:~/teak» ▌`
+  );
+
+const TIMELINE = [
+  ["Aug 2025", "First commit: a grid of cards on Next.js and Convex"],
+  ["Nov 2025", "Made for designers; new sign-in and AI providers"],
+  ["Feb 2026", "Raycast, and the iPhone app on the App Store"],
+  ["Mar 2026", "A public API and an MCP server"],
+  ["Jul 2026", "The CLI, and these docs move to Blume"],
+  ["Aug 2026", "Files and AI move to Cloudflare"],
+  ["Oct 2026", "Native apps, search by meaning, eight languages"],
+];
+
+const timeline = () => `
+  <div class="diagram">
+    <h2>Fourteen months of Teak</h2>
+    <p>Some of it shipped, some of it was rebuilt, and some of it is gone.</p>
+    <div class="body" style="padding-left:8px">
+      <div style="position:relative;display:flex;flex-direction:column;gap:18px">
+      <div style="position:absolute;left:23.5px;top:25px;bottom:25px;width:3px;border-radius:2px;background:linear-gradient(var(--border),var(--primary))"></div>
+      ${TIMELINE.map(
+        (
+          [when, what],
+          i
+        ) => `<div style="position:relative;display:flex;align-items:center;gap:26px">
+          <span style="flex:none;width:50px;height:50px;border-radius:50%;display:grid;place-items:center;border:3px solid #fff;box-shadow:0 0 0 1.5px var(--border);background:${i === TIMELINE.length - 1 ? "var(--primary);color:#fff" : "var(--secondary);color:var(--fg)"};font-weight:700;font-size:18px">${i + 1}</span>
+          <b style="flex:none;width:150px;font-size:24px">${when}</b>
+          <span style="font-size:24px;color:oklch(0.38 0.03 262)">${what}</span></div>`
+      ).join("")}
+      </div>
+    </div>
+  </div>`;
+
 export const renderMock = (
   id: MockId,
   captures: { library: string }
@@ -674,6 +873,18 @@ export const renderMock = (
       return selfHosting();
     case "testing":
       return testing();
+    case "blog-agent-session":
+      return agentSession();
+    case "blog-card-pipeline":
+      return cardPipeline();
+    case "blog-embedding-models":
+      return embeddingModels();
+    case "blog-monorepo":
+      return monorepo();
+    case "blog-self-host":
+      return selfHost();
+    case "blog-timeline":
+      return timeline();
     case "webmcp":
       if (!existsSync(new URL(captures.library))) {
         throw new Error(

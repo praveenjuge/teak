@@ -91,6 +91,7 @@ export default defineConfig({
   },
   footer: {
     links: [
+      { label: "Blog", href: "/blog" },
       { label: "Privacy", href: "/docs/privacy-policy" },
       { label: "Terms", href: "/docs/terms-of-service" },
     ],
@@ -134,6 +135,7 @@ export default defineConfig({
     // Link previews in Teak's colors: the wordmark, slate text, red accent.
     og: {
       logo: "/logos/logo-light.svg",
+      titles: { "/blog": "The Teak Blog" },
       palette: {
         accent: "#df2225",
         background: "#ffffff",
@@ -145,7 +147,7 @@ export default defineConfig({
     x: { handle: "@praveenjuge" },
     rss: {
       enabled: true,
-      types: ["changelog"],
+      types: ["changelog", "blog"],
     },
     sitemap: true,
     robots: true,

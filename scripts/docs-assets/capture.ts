@@ -182,16 +182,18 @@ const settingsColumn = async (page: Page, heading: string, last: Locator) => {
 
 const library = (page: Page) => open(page, "/", "Everything");
 
-const search = async (page: Page): Promise<undefined> => {
+const searchFor = async (page: Page, query: string): Promise<undefined> => {
   await open(page, "/", "Everything");
   const box = page.getByRole("combobox", { name: "Search everything" });
   await box.click();
-  await box.pressSequentially(SEARCH_QUERY, { delay: 40 });
+  await box.pressSequentially(query, { delay: 40 });
   await page.waitForTimeout(2500);
   // Close the suggestions so the results show.
   await page.keyboard.press("Escape");
   await settle(page);
 };
+
+const search = (page: Page) => searchFor(page, SEARCH_QUERY);
 
 const openCard = async (page: Page) => {
   await open(page, "/", "Everything");
@@ -405,6 +407,39 @@ const PREPARE: Record<string, (page: Page) => Promise<Prepared | undefined>> = {
     return { clip: pad(union(top, await boxOf(list)), 40) };
   },
 };
+
+// The blog's covers (`BLOG_IMAGES` in shots.ts).
+Object.assign(PREPARE, {
+  "why-we-built-teak": (page: Page) => open(page, "/?type=image", "Everything"),
+  "rediscovering-what-you-saved": async (page: Page) => {
+    // Revisit deals from what's on screen, so start from images only and
+    // the first card is always a saved photo.
+    await open(page, "/?type=image", "Everything");
+    // With a type picked, the button is named after it ("View: Image").
+    await page
+      .getByRole("button", { name: /^View\b/ })
+      .first()
+      .click();
+    await page.getByRole("menuitemradio", { name: "Revisit" }).click();
+    await page.getByRole("button", { name: /^Keep/ }).first().waitFor();
+    await page.getByText("Image", { exact: true }).first().waitFor();
+    await settle(page);
+  },
+  "search-by-meaning": (page: Page) =>
+    open(page, "/?q=japanese%20prints", "Everything"),
+  "build-a-moodboard-in-teak": async (page: Page) => {
+    await library(page);
+    await page.getByRole("link", { name: /^Moodboard/ }).click();
+    await page.getByRole("heading", { name: "Moodboard" }).first().waitFor();
+    await settle(page);
+  },
+  "small-features-in-teak": async (page: Page) => {
+    await library(page);
+    await page.keyboard.press("Shift+Slash");
+    await page.getByRole("dialog").last().waitFor();
+    await page.waitForTimeout(400);
+  },
+});
 
 const capture = async (context: BrowserContext, shot: WebShot) => {
   const prepare = PREPARE[shot.name];

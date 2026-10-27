@@ -1,0 +1,120 @@
+---
+import { Image } from "astro:assets";
+import type { CollectionEntry } from "astro:content";
+import { getCollection } from "astro:content";
+import data from "blume:data";
+import { getBlumeCollection } from "blume/runtime";
+import MarketingLayout from "../../layouts/MarketingLayout.astro";
+import {
+  formatPostDate,
+  isBlogPost,
+  postSlug,
+  sortPosts,
+} from "../../lib/blog";
+
+type DocsEntry = CollectionEntry<"docs">;
+
+interface PostCard {
+  cover?: ImageMetadata;
+  date: string | Date;
+  description?: string;
+  href: string;
+  title: string;
+}
+
+// Each post's cover is the image named after it in content/blog/images.
+const covers = import.meta.glob<{ default: ImageMetadata }>(
+  "../../content/blog/images/*.webp",
+  { eager: true }
+);
+const coverFor = (slug: string) =>
+  covers[`../../content/blog/images/${slug}.webp`]?.default;
+
+const routeByEntry = new Map(
+  getBlumeCollection(data, { prefix: "/blog/" }).map((route) => [
+    route.entryId,
+    route.path,
+  ])
+);
+
+const posts = sortPosts<PostCard>(
+  (await getCollection("docs")).flatMap((entry: DocsEntry): PostCard[] => {
+    const href = routeByEntry.get(entry.id);
+    if (!(href && isBlogPost(entry.data))) {
+      return [];
+    }
+    const slug = postSlug(href) ?? "";
+    return [
+      {
+        cover: coverFor(slug),
+        date: entry.data.date,
+        description: entry.data.description,
+        href,
+        title: entry.data.title,
+      },
+    ];
+  })
+);
+
+const description =
+  "Notes from building Teak: why it exists, how it works, and how people use it to keep and find what inspires them.";
+---
+
+<MarketingLayout
+  title="Blog"
+  description={description}
+  canonical="https://teakvault.com/blog"
+  ogTitle="The Teak Blog"
+  ogDescription={description}
+  keywords="teak blog, teak, personal knowledge hub, design inspiration, bookmarking"
+>
+  <main class="container mx-auto max-w-5xl px-4 py-12">
+    <div class="mx-auto mt-10 mb-12 max-w-md text-center">
+      <h1 class="mb-4 text-balance font-bold text-4xl tracking-tight md:text-5xl">
+        Blog
+      </h1>
+      <p class="mb-6 text-balance text-lg text-muted-foreground">
+        Notes from building Teak, and from using it.
+      </p>
+      <a
+        class="inline-flex h-10 items-center justify-center rounded-full border bg-background px-4 font-medium text-sm hover:bg-accent hover:text-accent-foreground"
+        href="/blog/rss.xml"
+      >
+        Subscribe with RSS
+      </a>
+    </div>
+
+    <ul class="grid list-none gap-x-6 gap-y-10 p-0 sm:grid-cols-2">
+      {
+        posts.map((post) => (
+          <li>
+            <a class="group flex flex-col gap-3" href={post.href}>
+              {post.cover && (
+                <Image
+                  alt=""
+                  class="aspect-[16/10] w-full rounded-2xl border border-border/70 object-cover transition-opacity group-hover:opacity-90"
+                  loading="lazy"
+                  src={post.cover}
+                  widths={[640, 960, 1280]}
+                  sizes="(min-width: 640px) 480px, 100vw"
+                />
+              )}
+              <time
+                class="text-muted-foreground text-sm"
+                datetime={new Date(post.date).toISOString().slice(0, 10)}
+              >
+                {formatPostDate(post.date)}
+              </time>
+              <h2 class="text-balance font-semibold text-xl tracking-tight group-hover:underline group-hover:underline-offset-4">
+                {post.title}
+              </h2>
+              {post.description && (
+                <p class="text-pretty text-muted-foreground">{post.description}</p>
+              )}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</MarketingLayout>
