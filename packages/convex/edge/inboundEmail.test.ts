@@ -131,10 +131,13 @@ const email = (fields: Record<string, unknown> = {}) => ({
   ...fields,
 });
 
-const setup = async () => {
+const setup = async (
+  beforeOwner?: (t: ReturnType<typeof convexTest>) => Promise<unknown>
+) => {
   const t = convexTest(schema, modules);
   rateLimiterTest.register(t, "rateLimiterV2");
   workosTest.register(t);
+  await beforeOwner?.(t);
   const ownerWorkosId = await seedWorkosOwner(t, "owner");
   const owner = t.withIdentity({
     issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
@@ -402,6 +405,28 @@ describe("POST /inbound/email", () => {
         workosDeletedAt: Date.now() - 1000,
       })
     );
+    expect((await send(email())).status).toBe(200);
+    expect(await cards()).toHaveLength(1);
+  });
+
+  test("many earlier deleted accounts with the same email don't hide the live one", async () => {
+    // Each was deleted before the address signed up again, so they come first.
+    const { cards, owner, send } = await setup((t) =>
+      t.run(async (ctx) => {
+        for (let index = 0; index < 25; index += 1) {
+          await ctx.db.insert("users", {
+            teakUserId: `teak_old_owner_${index}`,
+            identityOrigin: "workos",
+            email: OWNER_EMAIL,
+            emailVerified: true,
+            workosUserId: `user_old_owner_${index}`,
+            deletedAt: Date.now() - 1000,
+            workosDeletedAt: Date.now() - 1000,
+          });
+        }
+      })
+    );
+    await owner.mutation(api.inbound.settings.enable, {});
     expect((await send(email())).status).toBe(200);
     expect(await cards()).toHaveLength(1);
   });

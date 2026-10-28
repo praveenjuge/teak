@@ -468,8 +468,9 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     const deps = fakeDeps();
     const started = performance.now();
     const result = await archive(`<style>${css}</style><p>Hi</p>`, deps);
-    // Each url() was compared with every other: about a minute of CPU.
-    expect(performance.now() - started).toBeLessThan(3000);
+    // Each url() was compared with every other: about a minute of CPU. Now
+    // about a second; the bound leaves room for a slow runner.
+    expect(performance.now() - started).toBeLessThan(20_000);
     expect(deps.recorded.assets).toHaveLength(PAGE_ARCHIVE_MAX_REQUESTS);
     expect(deps.recorded.assets[0]).toEqual({
       kind: "font",

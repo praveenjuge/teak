@@ -39,6 +39,8 @@ export const findSender = internalQuery({
         .withIndex("by_email", (q) =>
           q.eq("email", normalizeIdentityEmail(email))
         )
+        // Newest first: a re-signup's live row comes after the deleted ones.
+        .order("desc")
         .take(MAX_SENDER_ROWS)
     ).filter(
       (row) => row.deletedAt === undefined && row.workosDeletedAt === undefined

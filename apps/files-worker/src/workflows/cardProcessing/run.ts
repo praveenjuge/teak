@@ -409,6 +409,13 @@ const processCard = async (
       classified.shouldGenerateMetadata ? runMetadata() : null,
       classified.shouldGenerateRenderables ? runRenderables() : null,
     ]);
+    // A newer run took over: that ends this one as superseded, whatever else
+    // failed beside it.
+    for (const run of [metadataRun, renderablesRun]) {
+      if (run.status === "rejected" && isSuperseded(run.reason)) {
+        throw run.reason;
+      }
+    }
     if (metadataRun.status === "rejected") {
       throw metadataRun.reason;
     }

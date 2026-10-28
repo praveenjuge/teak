@@ -172,6 +172,7 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
     const holders = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", email))
+      .order("desc")
       .take(EMAIL_HOLDER_ROWS);
     if (
       holders.some(

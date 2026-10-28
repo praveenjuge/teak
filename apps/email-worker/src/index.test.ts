@@ -261,6 +261,38 @@ describe("handleEmail: attachments", () => {
       })),
     });
 
+  test("a saved answer whose body never arrives is asked again, so its attachments still go up", async () => {
+    const { message } = messageOf(fixture("attachments.eml"));
+    const stalledBody = () =>
+      new Response(
+        new ReadableStream({
+          pull: (controller) =>
+            controller.error(
+              new DOMException("The operation timed out.", "TimeoutError")
+            ),
+        }),
+        { status: 200 }
+      );
+    const net = fakeDeps((request, nth) => {
+      if (request.url === INGEST_URL) {
+        return nth === 0 ? stalledBody() : planned([0, 1, 2]);
+      }
+      if (request.method === "PUT") {
+        return new Response(null, { status: 200 });
+      }
+      return json(200, { cardId: "card", status: "saved" });
+    });
+    await handleEmail(message, TEST_ENV, net.deps);
+
+    const ingests = net.requests.filter(
+      (request) => request.url === INGEST_URL
+    );
+    expect(ingests).toHaveLength(2);
+    expect(
+      net.requests.filter((request) => request.method === "PUT")
+    ).toHaveLength(3);
+  });
+
   test("each planned part is PUT, then finalized with its size", async () => {
     const { message } = messageOf(fixture("attachments.eml"));
     const net = fakeDeps((request) => {

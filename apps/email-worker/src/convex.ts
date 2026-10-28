@@ -128,7 +128,21 @@ export const ingestEmail = async (
       continue;
     }
     if (response.status === 200) {
-      return acceptedResult(await readJson(response));
+      // The message is saved, but a body cut off by the deadline would lose
+      // its upload plan: try again, and Convex answers the repeat as a
+      // duplicate with the uploads still pending. A body that arrived but
+      // isn't JSON reads as an old backend's answer, as before.
+      let answer: unknown;
+      try {
+        answer = JSON.parse(await response.text());
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) {
+          lastProblem = "convex_unreachable";
+          continue;
+        }
+        answer = null;
+      }
+      return acceptedResult(answer);
     }
     if (response.status === 404) {
       const answer = (await readJson(response)) as { error?: unknown } | null;

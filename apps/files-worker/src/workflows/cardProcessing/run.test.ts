@@ -937,6 +937,51 @@ describe("card processing", () => {
     expect(reported(convex)).toEqual(["errored"]);
   });
 
+  test("a run whose renderables were superseded ends as superseded though metadata failed too", async () => {
+    const card = makeCard({
+      fileKey: "users/x/cards/c/file/a.pdf",
+      fileMetadata: { fileName: "a.pdf", mimeType: "application/pdf" },
+      processingStatus: {
+        classify: { status: "completed" },
+        metadata: { status: "pending" },
+        renderables: { status: "pending" },
+      },
+      type: "document",
+    });
+    const nonRetryable = (message: string) =>
+      Object.assign(new Error(message), { name: "NonRetryableError" });
+    const fakeStep = createFakeStep({
+      failures: {
+        "generate metadata": {
+          error: nonRetryable("metadata broke"),
+          times: 1,
+        },
+        "generate renderables": {
+          error: nonRetryable("stale_processing_revision"),
+          times: 1,
+        },
+      },
+    });
+    const convex = createCardConvex(card);
+    const env = testEnv();
+    const answers = createFakeOps({ inspect: { data: { text: "" } } });
+    const result = await runCardProcessing(
+      {
+        env,
+        instanceId: `card-${CARD_ID}-1`,
+        params: {
+          cardId: CARD_ID,
+          convexSiteUrl: TEST_CONVEX_SITE_URL,
+          rev: 1,
+        },
+        step: fakeStep.step,
+      },
+      testDeps(env, convex.fetcher, answers.ops)
+    );
+
+    expect(result).toEqual({ mode: "skipped", reason: "superseded" });
+  });
+
   test("renderables that exhaust their retries fail the stage and the run goes on", async () => {
     const card = makeCard({
       fileKey: "users/x/cards/c/file/a.pdf",

@@ -306,6 +306,8 @@ const hasNewerLiveAttempt = async (
     .withIndex("by_key_and_createdAt", (q) =>
       q.eq("key", row.key).gte("createdAt", row.createdAt)
     )
+    // Newest first: a live attempt is the latest one queued.
+    .order("desc")
     .take(20);
   return newer.some(
     (other) =>

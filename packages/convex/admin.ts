@@ -560,6 +560,7 @@ export const seedAdmin = internalMutation({
       await ctx.db
         .query("users")
         .withIndex("by_email", (q) => q.eq("email", email))
+        .order("desc")
         .take(20)
     ).filter(
       (row) => row.deletedAt === undefined && row.workosDeletedAt === undefined
