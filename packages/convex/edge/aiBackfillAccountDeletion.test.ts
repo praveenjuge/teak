@@ -119,10 +119,27 @@ describe("AI backfill while an account deletion is stalled", () => {
     expect(pending).toEqual(owners.map((cardId) => ({ cardId })));
   });
 
+  test("a stalled deletion's cards at the oldest end don't hide newer ones", async () => {
+    const t = convexTest(schema, modules);
+    await saveCards(t, AI_BACKFILL_SCAN_LIMIT, { userId: DELETING_USER });
+    const owners = await saveCards(t, 1, { userId: OWNER }, 10_000);
+    await stallAccountDeletion(t, DELETING_USER);
+
+    expect(await t.query(internal.ai.queries.findCardsMissingAi, {})).toEqual(
+      owners.map((cardId) => ({ cardId }))
+    );
+  });
+
   test("stops after its read budget instead of scanning every pending card", async () => {
     const t = convexTest(schema, modules);
     await saveCards(t, AI_BACKFILL_SCAN_LIMIT, { userId: DELETING_USER });
     await saveCards(t, 1, { userId: OWNER }, 10_000);
+    await saveCards(
+      t,
+      AI_BACKFILL_SCAN_LIMIT,
+      { userId: DELETING_USER },
+      20_000
+    );
     await stallAccountDeletion(t, DELETING_USER);
 
     expect(await t.query(internal.ai.queries.findCardsMissingAi, {})).toEqual(
