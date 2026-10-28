@@ -113,6 +113,10 @@ const reportLabel = (text: string) =>
 const failureClassOf = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message.slice(0, 160) : fallback;
 
+/** The reason a person reads for an archive file that couldn't be imported. */
+export const FILE_EXTRACT_FAILED_REASON =
+  "This file couldn't be imported from the archive. Upload it on its own.";
+
 const jsonBytes = (value: unknown) =>
   encoder.encode(JSON.stringify(value)).byteLength;
 
@@ -584,6 +588,15 @@ export const runImport = (
     return failed;
   };
 
+  // The stored reason is for people; the failure class goes to the logs.
+  const logExtractFailure = (failureClass: string, count: number) => {
+    console.warn("[workflows/import] file extraction failed", {
+      count,
+      failureClass,
+      jobId,
+    });
+  };
+
   const batchOutcome = (result: {
     failureClass?: string;
     limitReached: boolean;
@@ -663,11 +676,12 @@ export const runImport = (
           return ended;
         }
       } else {
+        logExtractFailure(extracted.failureClass, fileItems.length);
         await convex.mutation(internal.dataImport.failItems, {
           code: "FILE_EXTRACT_FAILED",
           itemIds: fileItems.map((item) => item._id),
           jobId,
-          reason: extracted.failureClass,
+          reason: FILE_EXTRACT_FAILED_REASON,
         });
       }
       if (!withinBudget(startedAt)) {
@@ -757,13 +771,15 @@ export const runImport = (
           extractedFileKey: stagedFileKey(job, item),
         };
         const failureClass = failedFiles.get(withFile.extractedFileKey);
-        return failureClass === undefined
-          ? withFile
-          : {
-              ...withFile,
-              failureCode: "FILE_EXTRACT_FAILED",
-              failureReason: failureClass,
-            };
+        if (failureClass === undefined) {
+          return withFile;
+        }
+        logExtractFailure(failureClass, 1);
+        return {
+          ...withFile,
+          failureCode: "FILE_EXTRACT_FAILED",
+          failureReason: FILE_EXTRACT_FAILED_REASON,
+        };
       });
       const ended = batchOutcome(
         await convex.mutation(internal.import.staging.createBatch, {

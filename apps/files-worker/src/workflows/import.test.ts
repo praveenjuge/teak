@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import {
   importFileKey,
   importReportKey,
@@ -11,7 +11,7 @@ import { createFakeQueue } from "../test/fakeQueue";
 import { completionReports, createTestRun } from "../test/fakeRun";
 import { fakeHttpEtag } from "../test/testsupport";
 import { callFilesOp } from "./filesOps";
-import { runImport } from "./import";
+import { FILE_EXTRACT_FAILED_REASON, runImport } from "./import";
 
 const USER_PREFIX = "users/0000abcd/cards";
 const SOURCE_KEY = `${USER_PREFIX}/upload-pending-v2/import-source/source.zip`;
@@ -843,7 +843,7 @@ describe("runImport with items staged in R2", () => {
           "paper.pdf"
         ),
         failureCode: "FILE_EXTRACT_FAILED",
-        failureReason: "account_storage_write_denied",
+        failureReason: FILE_EXTRACT_FAILED_REASON,
         sourceIndex: 1,
       },
     ]);
@@ -916,6 +916,7 @@ describe("runImport with items staged in R2", () => {
   });
 
   test("one file the Files Worker refuses fails only its own item, not the others in its batch", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => undefined);
     const backend = stagedBackend();
     const good = strToU8("%PDF-1.4 good");
     const badCard = {
@@ -955,10 +956,20 @@ describe("runImport with items staged in R2", () => {
     expect(backend.items).toMatchObject([
       {
         failureCode: "FILE_EXTRACT_FAILED",
-        failureReason: "files_worker_error:INVALID_INPUT:400:r",
+        failureReason: FILE_EXTRACT_FAILED_REASON,
         sourceIndex: 1,
       },
     ]);
+    // People read the sentence; the Files Worker's code stays in the logs.
+    expect(warn).toHaveBeenCalledWith(
+      "[workflows/import] file extraction failed",
+      {
+        count: 1,
+        failureClass: "files_worker_error:INVALID_INPUT:400:r",
+        jobId: "job-1",
+      }
+    );
+    warn.mockRestore();
     expect(
       test.bucket.storedBytes(
         importFileKey(USER_PREFIX, "job-1", "item-0", "paper.pdf")
