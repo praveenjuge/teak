@@ -306,6 +306,90 @@ describe("selecting in the reader", () => {
   });
 });
 
+describe("a highlight's open note", () => {
+  let root: Root | undefined;
+  afterEach(async () => {
+    await act(() => root?.unmount());
+    root = undefined;
+    document.body.innerHTML = "";
+    Reflect.deleteProperty(document, "caretRangeFromPoint");
+  });
+
+  const control = (highlights: never[]) => ({
+    create: mock(async () => true),
+    highlights,
+    isFull: false,
+    remove: mock(async () => undefined),
+    updateNote: mock(async () => undefined),
+  });
+
+  test("stays open when the server's row replaces the temporary one, and closes when the text is no longer highlighted", async () => {
+    const key = keyOf("select");
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    const render = async (highlights: never[]) => {
+      await act(async () => {
+        root?.render(
+          <ArticleReader card={card(key)} highlights={control(highlights)} />
+        );
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      });
+    };
+    await render([]);
+    const body = host.querySelector(
+      `[${ARTICLE_BODY_ATTRIBUTE}]`
+    ) as HTMLElement;
+    const index = indexBodyText(body);
+    const start = index.map.text.indexOf("them");
+    const end = start + "them".length;
+    const row = (id: string) =>
+      ({
+        _creationTime: 1,
+        _id: id,
+        cardId: "card_1",
+        createdAt: 1,
+        end,
+        quote: "them",
+        source: "reader",
+        start,
+        updatedAt: 1,
+        userId: "u",
+      }) as never;
+
+    // A click on the highlighted word, which the browser reports as a caret.
+    const word = (body.querySelectorAll("p")[1] as HTMLElement)
+      .firstChild as Text;
+    Object.assign(document, {
+      caretRangeFromPoint: () => {
+        const range = document.createRange();
+        range.setStart(word, "Water th".length);
+        range.collapse(true);
+        return range;
+      },
+    });
+
+    window.getSelection()?.removeAllRanges();
+    await render([row(`optimistic-${start}-${end}`)]);
+    await act(async () => {
+      body.dispatchEvent(new Event("pointerup"));
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    });
+    expect(document.querySelector("textarea")).not.toBeNull();
+
+    // The create returns: the same words, under the server's id.
+    await render([row("h9")]);
+    expect(document.querySelector("textarea")).not.toBeNull();
+
+    await render([]);
+    expect(document.querySelector("textarea")).toBeNull();
+
+    // A highlight made there later does not bring the note back.
+    await render([row("h10")]);
+    expect(document.querySelector("textarea")).toBeNull();
+  });
+});
+
 describe("placeHighlights", () => {
   test("finds a highlight again by its quote when its offsets went stale", () => {
     const text = "One two three. Four five six.";
