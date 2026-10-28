@@ -28,6 +28,10 @@ const waitForReadySurface = async (
     await expect(
       browser.locator('[data-slot="setting-value-skeleton"]')
     ).toHaveCount(0);
+    // The account values arrive after the heading, and a page that has not
+    // drawn its skeletons yet has no animation to wait for. Wait for a
+    // loaded value, so the fade below is the one axe must not catch.
+    await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible();
   }
   // Loaded values fade in, and axe blends mid-fade opacity into the colors
   // it measures, reporting contrast the settled page does not have. Scan
