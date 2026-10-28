@@ -226,6 +226,11 @@ describe("findOpenHighlight", () => {
     expect(findOpenHighlight([row("h9", 0, 6)], opened)?._id).toBe("h9");
   });
 
+  test("does not select an unanchored row just because its id matches", () => {
+    const list = [row("optimistic-2-4", 2, 4, { unanchored: true })];
+    expect(findOpenHighlight(list, opened)).toBeUndefined();
+  });
+
   test("closes when the text is no longer highlighted, and when nothing is open", () => {
     expect(findOpenHighlight([row("h1", 10, 12)], opened)).toBeUndefined();
     expect(findOpenHighlight([row("h1", 2, 4)], null)).toBeUndefined();
