@@ -96,3 +96,9 @@ Daily scheduled run: read PostHog (project 660923), fix what is broken or slow, 
 - Exceptions: Android 1.0.91 on the same OnePlus 8 Pro (API 30) now crashes with `NoSuchFieldError: Configuration.fontWeightAdjustment` (2 events, 10-26 10:35 IST; the field is API 31+, so something compiled against a newer SDK reads it unguarded; cause not confirmed, no fix) plus 2 `channel closed`. Same single device as the earlier splash crash, which Praveen closed as not planned (#657). Two web `[tiptap error]: The editor view is not available` (possibly a mount race, 2 events), one files-worker DO "Connection closed" (single event). `ai_usage_sql_failed` did not recur.
 - Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed). Nothing fixed.
 - Check tomorrow: recurrence of the tiptap error (if it grows, guard editor access until mounted); Android `fontWeightAdjustment` from a second device.
+
+### 2026-10-28
+- Inbox empty. Backend Deploy and Unit Tests green on main at 05a2e22 (runs 40565515537, 40565515794); the Unit Tests run on 4d7358a failed at 10-27 18:28 UTC and the next commit's run passed. Product health (24h): zero `card_created`, zero processing, zero failure events. Zero `$exception` events. Traffic was Apple app lifecycle (27 `Application Opened`), 16 pageviews, 4 `search_performed`, one Revisit and one reader open.
+- Tip: `first` is also reserved in HogQL (alias `firstseen`).
+- Sentry, Vercel, Cloudflare connectors not queried; no PostHog improvement shipped (time-boxed). Nothing fixed.
+- Check tomorrow: recurrence of the tiptap error and Android `fontWeightAdjustment`; first card traffic.
