@@ -108,8 +108,37 @@ describe("exact object deletion fence", () => {
     const t = fixture(() => Promise.reject(new Error("R2 unavailable")));
     await expect(t.request("put", "data")).rejects.toThrow("R2 unavailable");
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
-    expect(t.values.has("active")).toBe(true);
+    expect(Object.keys(t.values.get("leases") as object)).toHaveLength(1);
     expect((await t.request("put", "retry")).status).toBe(409);
+  });
+  test("a failed put lets its retry through, and still keeps deletion uncertified for a day", async () => {
+    const start = Date.now();
+    setSystemTime(new Date(start));
+    try {
+      // The web uploader retries the same signed URL after a dropped
+      // connection; the email worker counts a 409 as a refused upload.
+      let fail = true;
+      const t = fixture(() =>
+        fail
+          ? Promise.reject(new Error("client went away"))
+          : Promise.resolve(null)
+      );
+      await expect(t.request("put", "cut off")).rejects.toThrow(
+        "client went away"
+      );
+      fail = false;
+      expect((await t.request("put", "retry")).status).toBe(200);
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: false,
+      });
+      setSystemTime(new Date(start + WRITE_LEASE_MS));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: true,
+      });
+      expect(t.values.has("leases")).toBe(false);
+    } finally {
+      setSystemTime();
+    }
   });
   test("an unknown operation is refused without holding the key busy", async () => {
     const t = fixture();
@@ -189,7 +218,7 @@ describe("exact object deletion fence", () => {
       expect(await (await t.request("freeze")).json()).toEqual({
         frozen: true,
       });
-      expect(t.values.has("parts")).toBe(false);
+      expect(t.values.has("leases")).toBe(false);
     } finally {
       setSystemTime();
     }

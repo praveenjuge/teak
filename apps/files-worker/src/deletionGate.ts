@@ -153,24 +153,25 @@ const restoreObject = (value: unknown): R2Object | null => {
 /**
  * How long a write's lease blocks a freeze. A write that throws leaves its
  * lease set, because R2 may still commit it; a day later R2 has settled it
- * either way, so the key can be frozen and deleted.
+ * either way, so the key can be frozen and deleted. The lease only holds off
+ * deletion: a retry of the same write is still let through.
  */
 export const WRITE_LEASE_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Durable state of one object key's gate. `active` holds the token of the
- * admitted write and `activeSince` when it was admitted. Leases written
- * before `activeSince` existed get it from the first freeze that sees them.
- * `parts` holds a lease per multipart part in flight (token to start time):
- * an upload's parts go up side by side, so they share the key. Only a freeze
- * waits for them: a part never makes an object on its own, and a stray part
- * that lands late cannot change an upload already completed or aborted.
+ * admitted multipart create, complete or abort, which run one at a time, and
+ * `activeSince` when it was admitted. Leases written before `activeSince`
+ * existed get it from the first freeze that sees them. `leases` holds one
+ * lease per put or multipart part in flight (token to start time): an
+ * upload's parts go up side by side, and a put that failed must not refuse
+ * its own retry. Only a freeze waits for them.
  */
 interface GateState {
   active: string;
   activeSince: number;
   frozen: true;
-  parts: Record<string, number>;
+  leases: Record<string, number>;
   uploadId: string;
   uploadKey: string;
 }
@@ -183,27 +184,31 @@ const readGate = <K extends keyof GateState>(
   key: K
 ): Promise<GateState[K] | undefined> => storage.get<GateState[K]>(key);
 
-/** The part leases still in flight: a day-old one has settled either way. */
-const openPartLeases = async (
+/** The put and part leases still in flight: a day-old one has settled. */
+const openLeases = async (
   txn: GateTransaction,
   now: number
 ): Promise<boolean> => {
-  const parts = await readGate(txn, "parts");
-  if (!parts) {
+  const leases = await readGate(txn, "leases");
+  if (!leases) {
     return false;
   }
-  const open = Object.entries(parts).filter(
+  const open = Object.entries(leases).filter(
     ([, since]) => now - since < WRITE_LEASE_MS
   );
   if (open.length === 0) {
-    await txn.delete("parts");
+    await txn.delete("leases");
     return false;
   }
-  if (open.length !== Object.keys(parts).length) {
-    await txn.put("parts", Object.fromEntries(open));
+  if (open.length !== Object.keys(leases).length) {
+    await txn.put("leases", Object.fromEntries(open));
   }
   return true;
 };
+
+/** Writes that may run side by side, each with a lease of its own. */
+const isLeasedWrite = (op: GateWrite): op is "part" | "put" =>
+  op === "part" || op === "put";
 
 const GATE_WRITES = ["abort", "complete", "create", "part", "put"] as const;
 type GateWrite = (typeof GATE_WRITES)[number];
@@ -252,8 +257,8 @@ export class ObjectDeletionGate {
     const busy = await storage.transaction(async (txn) => {
       await txn.put("frozen", true);
       const writing = await activeWrite(txn);
-      const parts = await openPartLeases(txn, Date.now());
-      return writing || parts;
+      const leased = await openLeases(txn, Date.now());
+      return writing || leased;
     });
     if (!busy) {
       const uploadId = await readGate(storage, "uploadId");
@@ -347,9 +352,9 @@ export class ObjectDeletionGate {
         return false;
       }
       const now = Date.now();
-      if (op === "part") {
-        const parts = (await readGate(txn, "parts")) ?? {};
-        await txn.put("parts", { ...parts, [token]: now });
+      if (isLeasedWrite(op)) {
+        const leases = (await readGate(txn, "leases")) ?? {};
+        await txn.put("leases", { ...leases, [token]: now });
         return true;
       }
       await txn.put({ active: token, activeSince: now });
@@ -361,12 +366,12 @@ export class ObjectDeletionGate {
     }
     const response = await this.writes[op](key, request);
     await this.state.storage.transaction(async (txn) => {
-      if (op === "part") {
+      if (isLeasedWrite(op)) {
         const { [token]: _settled, ...rest } =
-          (await readGate(txn, "parts")) ?? {};
+          (await readGate(txn, "leases")) ?? {};
         await (Object.keys(rest).length > 0
-          ? txn.put("parts", rest)
-          : txn.delete("parts"));
+          ? txn.put("leases", rest)
+          : txn.delete("leases"));
         return;
       }
       if ((await readGate(txn, "active")) === token) {
