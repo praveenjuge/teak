@@ -109,6 +109,15 @@ function NoteEditor({
 }) {
   const t = useTranslations("cardPreviews.highlights");
   const [draft, setDraft] = useState(highlight.note ?? "");
+  // A note the reader has not touched follows the saved one, which another
+  // session, or a merged highlight, can change while this is open.
+  const touched = useRef<boolean>(false);
+  const savedNote = highlight.note ?? "";
+  useEffect(() => {
+    if (!touched.current) {
+      setDraft(savedNote);
+    }
+  }, [savedNote]);
   const used = highlightLength(draft);
   const save = () => onSave(draft);
   // Closing with Esc or a click outside unmounts the field without a blur.
@@ -133,7 +142,10 @@ function NoteEditor({
         className="max-h-48 min-h-[4.5rem] resize-none overflow-y-auto"
         maxLength={MAX_HIGHLIGHT_NOTE_CHARS}
         onBlur={save}
-        onChange={(event) => setDraft(event.target.value)}
+        onChange={(event) => {
+          touched.current = true;
+          setDraft(event.target.value);
+        }}
         onKeyDown={onKeyDown}
         placeholder={t("notePlaceholder")}
         rows={3}
@@ -248,7 +260,12 @@ export function ArticleHighlights({
   const open = findOpenHighlight(highlights, opened);
   const openId = open?._id ?? null;
   // Once its text is no longer highlighted the note is closed for good: a
-  // highlight made there later does not open it again.
+  // highlight made there later does not open it again. Other article text
+  // closes it too, since the span points into the old one.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `articleKey` is the article's text changing
+  useEffect(() => {
+    setOpened(null);
+  }, [articleKey]);
   useEffect(() => {
     if (opened && !open) {
       setOpened(null);
