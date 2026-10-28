@@ -70,7 +70,7 @@
         "react-dom": "catalog:",
         "tailwind-merge": "catalog:",
         "teak-sdk": "workspace:*",
-        "vadivam": "^0.0.66",
+        "vadivam": "^0.0.69",
         "vadivam-react": "catalog:",
       },
       "devDependencies": {
@@ -345,7 +345,7 @@
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vadivam-react": "^0.0.66",
+    "vadivam-react": "^0.0.69",
     "wrangler": "^4.151.0",
   },
   "packages": {
@@ -3233,9 +3233,9 @@
 
     "uuid": ["uuid@13.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw=="],
 
-    "vadivam": ["vadivam@0.0.66", "", { "bin": { "vadivam": "dist/cli.js" } }, "sha512-cLahV+9yNxLcS9BBEpFk/AGEIJ/LBtv8tIX5bGD9931gzSf9Re1BRg8QVZiJ4F+wDnqt3ROsqNj/Ig0yudvGUQ=="],
+    "vadivam": ["vadivam@0.0.69", "", { "bin": { "vadivam": "dist/cli.js" } }, "sha512-Hl03qjwnSvsjTDZbmrhuwZBpjNiW6rITqscsCpawUC5mbOEhE0yyPXumLJTf1I7UqRog0wZxz9TDYPH7wp1XzQ=="],
 
-    "vadivam-react": ["vadivam-react@0.0.66", "", { "peerDependencies": { "react": ">=18" } }, "sha512-w/HjDuLC2rQE46Kmd0/8scs2EnSjQkgfU2Gr8gS7HhU2kUvDc/ftk4zlm3V/wKuaxPyjWcH3HYEqKMKTy6E4EA=="],
+    "vadivam-react": ["vadivam-react@0.0.69", "", { "peerDependencies": { "react": ">=18" } }, "sha512-jtsEwar/MTZLf3YRRf6KJTQusgEsAtIWT/ptc1MbiOICns5RYYWPbOcU1ZyaoIVQ/XOHd0oHhW7/S8r5LM+Ypg=="],
 
     "vali-date": ["vali-date@1.0.0", "", {}, "sha512-sgECfZthyaCKW10N0fm27cg8HYTFK5qMWgypqkXMQ4Wbl/zZKx7xZICgcoxIIE+WFAP/MBL2EFwC/YvLxw3Zeg=="],
 

@@ -27,7 +27,7 @@
     "react-dom": "catalog:",
     "tailwind-merge": "catalog:",
     "teak-sdk": "workspace:*",
-    "vadivam": "^0.0.66",
+    "vadivam": "^0.0.69",
     "vadivam-react": "catalog:"
   },
   "devDependencies": {
