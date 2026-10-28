@@ -439,6 +439,27 @@ describe("complete", () => {
     ).toMatchObject([{ key: `accountDeletion:${stateId}:1`, notBefore: NOW }]);
   });
 
+  test("a run that fails after an operator's retry leaves one attempt going", async () => {
+    const t = convexTest(schema, modules);
+    const stateId = await insertDeletionState(t);
+    await t.run((ctx) =>
+      queueAccountDeletionWorkflow(ctx, { generation: 1, stateId })
+    );
+    await sendAll(t);
+    // The admin console shows the slow run as overdue, and an operator
+    // retries it while it is still going.
+    vi.setSystemTime(NOW + HOUR_MS);
+    await t.mutation(internal.accountDeletionJobs.retry, { stateId });
+    await t.mutation(internal.workflowDispatch.complete, {
+      instanceId: `account-deletion-${stateId}-1-${NOW}`,
+      status: "errored",
+    });
+    const live = (await rows(t)).filter(
+      (row) => row.state === "pending" || row.state === "sent"
+    );
+    expect(live).toHaveLength(1);
+  });
+
   test("sends a run again when its hand-over was lost", async () => {
     const t = convexTest(schema, modules);
     const jobId = await insertExportJob(t, "pending");

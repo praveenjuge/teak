@@ -49,8 +49,23 @@ export interface RecordedRequest {
   body: unknown;
   headers: Headers;
   method: string;
+  signal: AbortSignal | null;
   url: string;
 }
+
+/**
+ * A server that never answers. Like `fetch`, the request ends only when its
+ * signal aborts; here every deadline has already passed, so a request with
+ * one fails with a TimeoutError and one without it waits forever.
+ */
+export const hang = (request: RecordedRequest): Promise<Response> =>
+  new Promise((_resolve, reject) => {
+    if (request.signal) {
+      queueMicrotask(() =>
+        reject(new DOMException("The operation timed out.", "TimeoutError"))
+      );
+    }
+  });
 
 const recordedBody = (body: RequestInit["body"]): unknown => {
   if (typeof body === "string") {
@@ -68,6 +83,7 @@ export const fakeDeps = (
 ) => {
   const requests: RecordedRequest[] = [];
   const sleeps: number[] = [];
+  const timeouts: number[] = [];
   const logs: Record<string, unknown>[] = [];
   const deps: Deps = {
     fetch: async (input, init) => {
@@ -76,6 +92,7 @@ export const fakeDeps = (
         body: recordedBody(rawBody),
         headers: new Headers(init?.headers),
         method: init?.method ?? "GET",
+        signal: init?.signal ?? null,
         url: input,
       };
       requests.push(request);
@@ -89,8 +106,12 @@ export const fakeDeps = (
       sleeps.push(ms);
       return Promise.resolve();
     },
+    timeout: (ms) => {
+      timeouts.push(ms);
+      return new AbortController().signal;
+    },
   };
-  return { deps, logs, requests, sleeps };
+  return { deps, logs, requests, sleeps, timeouts };
 };
 
 export const json = (status: number, body: unknown): Response =>

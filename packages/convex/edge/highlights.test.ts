@@ -315,6 +315,26 @@ describe("making highlights", () => {
     ).toBe("INVALID_INPUT");
   });
 
+  test("keeps only the context next to the passage, whatever length is sent", async () => {
+    const { link, owner, articleKey } = await setup();
+    const cardId = await link();
+    const passage = span("Mulch keeps");
+    expect(passage.prefix.length).toBeGreaterThan(0);
+    expect(passage.suffix.length).toBeGreaterThan(0);
+    const made = await owner.mutation(api.highlight.highlights.create, {
+      articleKey: await articleKey(cardId),
+      cardId,
+      ...passage,
+      prefix: `${"p".repeat(200_000)}${passage.prefix}`,
+      suffix: `${passage.suffix}${"s".repeat(200_000)}`,
+    });
+    const { prefix = "", suffix = "" } = made.highlight;
+    expect(prefix.length).toBe(32);
+    expect(prefix.endsWith(passage.prefix)).toBe(true);
+    expect(suffix.length).toBe(32);
+    expect(suffix.startsWith(passage.suffix)).toBe(true);
+  });
+
   test("a card holds 200 highlights; an overlapping one still merges at the cap", async () => {
     const { t, link, create, card } = await setup();
     const cardId = await link();
@@ -462,6 +482,90 @@ describe("notes and removal", () => {
 });
 
 describe("imported highlights", () => {
+  test("a card's 200 waiting highlights anchor within one transaction's limits", async () => {
+    const t = convexTest({ schema, modules, transactionLimits: true });
+    const sentence = (index: number) =>
+      `Sentence ${index} ${"leaf ".repeat(80)}ends here.`;
+    const sentences = Array.from({ length: 200 }, (_, index) =>
+      sentence(index)
+    );
+    const text = sentences.join(" ");
+    const cardId = await t.run((ctx) =>
+      ctx.db.insert("cards", {
+        userId: "owner",
+        type: "link",
+        content: LINK,
+        url: LINK,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+    );
+    const key = articleTextObjectKey(
+      buildR2UserPrefix("owner"),
+      cardId,
+      1,
+      await sha256(text)
+    );
+    await t.run(async (ctx) => {
+      await ctx.db.patch("cards", cardId, {
+        hasHighlights: true,
+        highlightCount: 200,
+        article: {
+          status: "ready",
+          textKey: key,
+          imageKeys: [],
+          wordCount: 20_000,
+          readingMinutes: 80,
+          extractedAt: NOW,
+        },
+      });
+      for (const [index, quote] of sentences.entries()) {
+        await ctx.db.insert("highlights", {
+          userId: "owner",
+          cardId,
+          quote,
+          unanchored: true,
+          source: "import",
+          createdAt: NOW + index,
+          updatedAt: NOW,
+        });
+      }
+    });
+    const pending = await t.run((ctx) =>
+      ctx.db
+        .query("highlights")
+        .withIndex("by_cardId_and_createdAt", (q) => q.eq("cardId", cardId))
+        .collect()
+    );
+    const anchors = pending.map((row) => {
+      const start = text.indexOf(row.quote);
+      const end = start + row.quote.length;
+      return {
+        highlightId: row._id,
+        quote: row.quote,
+        start,
+        end,
+        ...anchorContext(text, start, end),
+      };
+    });
+
+    expect(
+      await t.mutation(internal.highlight.anchorPending.saveAnchors, {
+        cardId,
+        textKey: key,
+        anchors,
+      })
+    ).toBe(200);
+    const stored = await t.run((ctx) =>
+      ctx.db
+        .query("highlights")
+        .withIndex("by_cardId_and_createdAt", (q) => q.eq("cardId", cardId))
+        .collect()
+    );
+    expect(stored).toHaveLength(200);
+    expect(stored.every((row) => row.unanchored === undefined)).toBe(true);
+  });
+
   test("wait unanchored, then are found once the article is saved", async () => {
     const { t, link, rows, card, textKey } = await setup();
     const cardId = await link({ article: undefined, pageArchive: undefined });

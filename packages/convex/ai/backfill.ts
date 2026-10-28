@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
+import { accountDeletionOwnsRows } from "../accountDeletion";
 import { stageFailed } from "../card/processingStatus";
 import { patchCardWithSearchSync } from "../card/searchSync";
 import { queueCardProcessing } from "../workflowDispatch";
@@ -20,7 +21,12 @@ export const claimAiBackfillCard = async (
   cardId: Id<"cards">
 ): Promise<AiBackfillClaim> => {
   const card = await ctx.db.get("cards", cardId);
-  if (!card || card.isDeleted === true || !cardNeedsAiMetadata(card)) {
+  if (
+    !card ||
+    card.isDeleted === true ||
+    !cardNeedsAiMetadata(card) ||
+    (await accountDeletionOwnsRows(ctx, card.userId))
+  ) {
     return { outcome: "skipped" };
   }
   const attempts = card.aiBackfillAttempts ?? 0;
@@ -75,7 +81,7 @@ export const releaseAiBackfillCards = internalMutation({
     for (const cardId of cardIds) {
       const card = await ctx.db.get("cards", cardId);
       const attempts = card?.aiBackfillAttempts ?? 0;
-      if (attempts > 0) {
+      if (attempts > 0 && !(await accountDeletionOwnsRows(ctx, card?.userId))) {
         await ctx.db.patch("cards", cardId, {
           aiBackfillAttempts: attempts - 1,
         });

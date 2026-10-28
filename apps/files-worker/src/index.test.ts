@@ -510,6 +510,29 @@ describe("files worker handler", () => {
     });
   });
 
+  test("refuses a multipart part URL with a malformed upload id instead of crashing", async () => {
+    const reported: unknown[] = [];
+    const url = new URL(
+      "https://files.teakvault.com/__uploads/v1/%E0%A4%A/1?key=users/u1/x&exp=1&sig=00"
+    );
+    url.searchParams.set("exp", String(Math.floor(Date.now() / 1000) + 600));
+    const response = await worker.fetch(
+      new Request(url, {
+        body: "part",
+        headers: { "content-length": "4" },
+        method: "PUT",
+      }),
+      env(),
+      { waitUntil: (promise: unknown) => reported.push(promise) } as never
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: { code: "AUTH_INVALID", retryable: false },
+      ok: false,
+    });
+    expect(reported).toEqual([]);
+  });
+
   test("requires a fixed-length multipart request body", async () => {
     const env_ = env();
     const bucket = env_.BUCKET as unknown as FakeBucket;
@@ -609,6 +632,63 @@ describe("files worker handler", () => {
     );
     expect(image.headers.get("content-security-policy")).toBeNull();
     expect(image.headers.get("cross-origin-resource-policy")).toBeNull();
+  });
+
+  test.each([
+    ["image/svg+xml", {}],
+    ["text/html; charset=utf-8", {}],
+    ["application/octet-stream", { ct: "application/xhtml+xml" }],
+    ["text/xml", { ct: "text/plain", cd: "inline" }],
+  ] as const)(
+    "never runs scripts in a stored %s opened from its signed link",
+    async (storedType, params) => {
+      // An article image or preview fetched from a page keeps the type its
+      // server sent, and Convex signs those keys without a type of its own.
+      const env_ = env();
+      const key = "users/u1/cards/c1/article/r1/0.svg";
+      (env_.BUCKET as unknown as FakeBucket).objects.set(key, {
+        bytes: new TextEncoder().encode(
+          '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+        ),
+        httpMetadata: { contentType: storedType },
+      });
+      const served = await worker.fetch(
+        new Request(await signedUrl(`/${key}`, params)),
+        env_,
+        { waitUntil: () => undefined } as never
+      );
+      expect(served.status).toBe(200);
+      const scriptable = /html|xml/u.test(
+        served.headers.get("content-type") ?? ""
+      );
+      const policy = served.headers.get("content-security-policy");
+      if (scriptable) {
+        expect(policy).toStartWith("sandbox;");
+        expect(policy).toContain("default-src 'none'");
+      } else {
+        expect(policy).toBeNull();
+      }
+    }
+  );
+
+  test("sandboxes scriptable files on ranged reads too", async () => {
+    const env_ = env();
+    const key = "users/u1/cards/c1/files/page.html";
+    (env_.BUCKET as unknown as FakeBucket).objects.set(key, {
+      bytes: new TextEncoder().encode("<script>alert(1)</script>"),
+      httpMetadata: { contentType: "text/html" },
+    });
+    const served = await worker.fetch(
+      new Request(await signedUrl(`/${key}`), {
+        headers: { range: "bytes=0-7" },
+      }),
+      env_,
+      { waitUntil: () => undefined } as never
+    );
+    expect(served.status).toBe(206);
+    expect(served.headers.get("content-security-policy")).toStartWith(
+      "sandbox;"
+    );
   });
 
   test("answers conditional requests with a bodyless 304", async () => {
@@ -781,6 +861,65 @@ describe("files worker handler", () => {
       expect(response.status).toBe(200);
       expect(response.headers.get("etag")).toBe(fakeHttpEtag(replaced));
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(replaced);
+    });
+
+    test("an SVG cached before the sandbox existed is sandboxed on a hit", async () => {
+      const env_ = env();
+      const key = "users/u1/cards/c1/article/r1/0.svg";
+      const bytes = new TextEncoder().encode(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+      );
+      (env_.BUCKET as unknown as FakeBucket).objects.set(key, {
+        bytes,
+        httpMetadata: { contentType: "image/svg+xml" },
+      });
+      const url = await signedUrl(`/${key}`);
+      // The edge copy an older deploy stored: no Content-Security-Policy.
+      stored.set(new URL(url).origin + new URL(url).pathname, {
+        bytes: bytes.slice().buffer,
+        headers: new Headers({
+          "Content-Type": "image/svg+xml",
+          ETag: fakeHttpEtag(bytes),
+        }),
+      });
+      const gets = countGets(env_);
+
+      const hit = await worker.fetch(new Request(url), env_, {
+        waitUntil: () => undefined,
+      } as never);
+      expect(gets.count).toBe(0);
+      expect(hit.headers.get("content-security-policy")).toStartWith(
+        "sandbox;"
+      );
+
+      const notModified = await worker.fetch(
+        new Request(url, { headers: { "if-none-match": fakeHttpEtag(bytes) } }),
+        env_,
+        { waitUntil: () => undefined } as never
+      );
+      expect(notModified.status).toBe(304);
+      expect(notModified.headers.get("content-security-policy")).toStartWith(
+        "sandbox;"
+      );
+    });
+
+    test("an object too large for the edge cache streams straight through", async () => {
+      // Export archives reach 5 GB; the Cache API keeps at most 512 MB, so a
+      // second copy of the stream would only pile up unread.
+      const env_ = env();
+      seed(env_);
+      const bucket = env_.BUCKET as unknown as FakeBucket;
+      const get = bucket.get.bind(bucket);
+      bucket.get = (...args: Parameters<FakeBucket["get"]>) => {
+        const object = get(...args);
+        return object ? { ...object, size: 600 * 1024 * 1024 } : object;
+      };
+      const response = await download(env_);
+      expect(response.status).toBe(200);
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+        makePng(32, 32)
+      );
+      expect(stored.size).toBe(0);
     });
   });
 

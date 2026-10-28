@@ -163,6 +163,49 @@ describe("workflow reconcile", () => {
     expect(summary).toMatchObject({ checked: 1, pruned: 3, running: 1 });
   });
 
+  test("a completion Convex refuses doesn't stop the other runs, the rotation or pruning", async () => {
+    const convex = createFakeConvex({
+      "workflowDispatch:complete": (args) => {
+        if (args.instanceId === "export-poison") {
+          throw new Error("failExport: job invariant broken");
+        }
+        return null;
+      },
+      "workflowDispatch:listStale": () => [
+        { instanceId: "export-poison", kind: "export", workflow: "export" },
+        { instanceId: "export-done", kind: "export", workflow: "export" },
+      ],
+      "workflowDispatch:markReconciled": () => null,
+      "workflowDispatch:pruneFinished": () => ({
+        deleted: 4,
+        hasMore: false,
+        stuckPending: 0,
+      }),
+    });
+    await expect(
+      reconcileWorkflows(
+        {
+          ...fakeConvexEnv,
+          EXPORTS: fakeWorkflow({
+            "export-done": "complete",
+            "export-poison": { error: "zip failed", status: "errored" },
+          }),
+        },
+        createConvexRpc(fakeConvexEnv, TEST_CONVEX_SITE_URL, convex.fetcher)
+      )
+    ).rejects.toThrow("reconcile_incomplete: 1 of 2");
+    expect(
+      convex.callsTo("workflowDispatch:complete").map((call) => call.args)
+    ).toEqual([
+      { error: "zip failed", instanceId: "export-poison", status: "errored" },
+      { instanceId: "export-done", status: "complete" },
+    ]);
+    expect(
+      convex.callsTo("workflowDispatch:markReconciled").map((call) => call.args)
+    ).toEqual([{ instanceIds: ["export-poison"] }]);
+    expect(convex.callsTo("workflowDispatch:pruneFinished")).toHaveLength(1);
+  });
+
   test("prunes finished rows page by page", async () => {
     const { convex, summary } = await run([], {}, [
       { deleted: 200, hasMore: true },

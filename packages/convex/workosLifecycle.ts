@@ -130,6 +130,8 @@ export const parseWorkosEvent = (event: {
   return { time, workosUserId, deleting, email, externalId, profile };
 };
 
+const EMAIL_HOLDER_ROWS = 20;
+
 const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
   const provider = await readComponentUser(ctx, workosUserId);
   if (!provider) {
@@ -165,11 +167,19 @@ const syncOwnerEmail = async (ctx: MutationCtx, workosUserId: string) => {
     if (!provider.emailVerified) {
       continue;
     }
+    // A deleted account keeps its row and address; only a live owner holds
+    // it, or an address someone used before deleting an account stays stuck.
     const holders = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", email))
-      .take(1);
-    if (holders.length > 0) {
+      .order("desc")
+      .take(EMAIL_HOLDER_ROWS);
+    if (
+      holders.some(
+        (holder) =>
+          holder.deletedAt === undefined && holder.workosDeletedAt === undefined
+      )
+    ) {
       continue;
     }
     await ctx.db.patch("users", row._id, { email, emailVerified: true });

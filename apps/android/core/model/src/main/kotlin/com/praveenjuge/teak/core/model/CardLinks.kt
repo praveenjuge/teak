@@ -57,23 +57,35 @@ object CardLinks {
 
     private fun blank(text: String): String = text.replace(Regex("[^\\n]"), " ")
 
+    /** Inline code spans in one line replaced by spaces, keeping every index. */
     private fun maskCodeSpans(line: String): String {
         val runs = BACKTICK_RUN.findAll(line).toList()
-        var masked = line
+        // Each run's next run of the same length, found in one pass from the end: searching forward from every
+        // run, and rebuilding the line for every span, took tens of seconds on a long line of backticks.
+        val nextSameLength = IntArray(runs.size) { -1 }
+        val laterByLength = HashMap<Int, Int>()
+        for (index in runs.indices.reversed()) {
+            val length = runs[index].value.length
+            nextSameLength[index] = laterByLength[length] ?: -1
+            laterByLength[length] = index
+        }
+        val masked = StringBuilder(line.length)
+        var cursor = 0
         var index = 0
         while (index < runs.size) {
-            val open = runs[index]
-            val closeIndex = (index + 1 until runs.size).firstOrNull { runs[it].value.length == open.value.length }
-            if (closeIndex == null) {
+            val closeIndex = nextSameLength[index]
+            if (closeIndex == -1) {
                 index += 1
                 continue
             }
-            val start = open.range.first
+            val start = runs[index].range.first
             val end = runs[closeIndex].range.last + 1
-            masked = masked.substring(0, start) + blank(masked.substring(start, end)) + masked.substring(end)
+            masked.append(line, cursor, start)
+            repeat(end - start) { masked.append(' ') }
+            cursor = end
             index = closeIndex + 1
         }
-        return masked
+        return masked.append(line, cursor, line.length).toString()
     }
 
     /** [markdown] with code blocks and inline code replaced by spaces, so every index still points at the original. */

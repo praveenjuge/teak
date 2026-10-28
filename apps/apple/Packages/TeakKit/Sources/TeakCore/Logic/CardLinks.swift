@@ -147,21 +147,36 @@ public enum CardLinks {
     /// Inline code spans in one line replaced by spaces, keeping every index.
     private static func maskCodeSpans(_ line: String) -> String {
         let runs = backtickRunRegex.matches(in: line, range: NSRange(location: 0, length: (line as NSString).length)).map(\.range)
-        var units = Array(line.utf16)
+        // Each run's next run of the same length, found in one pass from the
+        // end: searching forward from every run took tens of seconds on a
+        // long line of backticks.
+        var nextSameLength = [Int](repeating: -1, count: runs.count)
+        var laterByLength: [Int: Int] = [:]
+        for index in runs.indices.reversed() {
+            nextSameLength[index] = laterByLength[runs[index].length] ?? -1
+            laterByLength[runs[index].length] = index
+        }
+        let units = Array(line.utf16)
+        var masked: [UInt16] = []
+        masked.reserveCapacity(units.count)
+        var cursor = 0
         var index = 0
         while index < runs.count {
-            let open = runs[index]
-            guard let closeIndex = runs.indices.first(where: { $0 > index && runs[$0].length == open.length }) else {
+            let closeIndex = nextSameLength[index]
+            guard closeIndex != -1 else {
                 index += 1
                 continue
             }
             let close = runs[closeIndex]
-            let start = open.location
+            let start = runs[index].location
             let end = close.location + close.length
-            units.replaceSubrange(start..<end, with: blank(units[start..<end]))
+            masked.append(contentsOf: units[cursor..<start])
+            masked.append(contentsOf: blank(units[start..<end]))
+            cursor = end
             index = closeIndex + 1
         }
-        return String(decoding: units, as: UTF16.self)
+        masked.append(contentsOf: units[cursor...])
+        return String(decoding: masked, as: UTF16.self)
     }
 
     /// `markdown` with fenced code blocks, indented code blocks and inline

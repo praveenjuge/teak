@@ -44,10 +44,16 @@ const markStage = (
     guardOf(job)
   );
 
-/** The stage failed for good: the step ran out of retries. */
+/**
+ * The stage failed for good: the step ran out of retries. A step that never
+ * got as far as marking the stage in progress (Convex unreachable while it
+ * read the card) leaves it pending, and the run still reports complete, so
+ * nothing else would ever close it.
+ */
 export const markArchiveFailed = async (job: CardJob): Promise<null> => {
   const loaded = await loadCard(job);
-  if (loaded?.card.processingStatus?.archive?.status !== "in_progress") {
+  const status = loaded?.card.processingStatus?.archive?.status;
+  if (!loaded || (status !== "pending" && status !== "in_progress")) {
     return null;
   }
   await markStage(job, {

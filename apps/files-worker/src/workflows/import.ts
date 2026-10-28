@@ -553,6 +553,37 @@ export const runImport = (
     }
   };
 
+  /**
+   * Extracts a batch's files; returns the ones that failed, by destination
+   * key, with why. The archive op extracts all of a batch or none of it, so a
+   * batch it refuses is tried again one file at a time: one bad entry fails
+   * only its own card, not the others beside it.
+   */
+  const extractStagedFiles = async (
+    job: WorkflowJob,
+    entries: ExtractEntry[]
+  ): Promise<Map<string, string>> => {
+    if (entries.length === 0) {
+      return new Map();
+    }
+    const whole = await extractFiles(job, entries);
+    if (whole.ok) {
+      return new Map();
+    }
+    const [only] = entries;
+    if (entries.length === 1 && only) {
+      return new Map([[only.destinationKey, whole.failureClass]]);
+    }
+    const failed = new Map<string, string>();
+    for (const entry of entries) {
+      const one = await extractFiles(job, [entry]);
+      if (!one.ok) {
+        failed.set(entry.destinationKey, one.failureClass);
+      }
+    }
+    return failed;
+  };
+
   const batchOutcome = (result: {
     failureClass?: string;
     limitReached: boolean;
@@ -709,16 +740,14 @@ export const runImport = (
         return { kind: "done" };
       }
       const fileItems = batch.items.filter((item) => item.filePath);
-      const extracted = fileItems.length
-        ? await extractFiles(
-            job,
-            fileItems.map((item) => ({
-              contentType: importStoredContentType(item),
-              destinationKey: stagedFileKey(job, item),
-              path: item.filePath as string,
-            }))
-          )
-        : ({ ok: true } as const);
+      const failedFiles = await extractStagedFiles(
+        job,
+        fileItems.map((item) => ({
+          contentType: importStoredContentType(item),
+          destinationKey: stagedFileKey(job, item),
+          path: item.filePath as string,
+        }))
+      );
       const items = batch.items.map((item) => {
         if (!item.filePath) {
           return item;
@@ -727,12 +756,13 @@ export const runImport = (
           ...item,
           extractedFileKey: stagedFileKey(job, item),
         };
-        return extracted.ok
+        const failureClass = failedFiles.get(withFile.extractedFileKey);
+        return failureClass === undefined
           ? withFile
           : {
               ...withFile,
               failureCode: "FILE_EXTRACT_FAILED",
-              failureReason: extracted.failureClass,
+              failureReason: failureClass,
             };
       });
       const ended = batchOutcome(

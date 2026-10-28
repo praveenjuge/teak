@@ -128,8 +128,9 @@ bucket, so limits follow the user across their API keys and OAuth apps:
 verifies at the edge (`verifyWorkosConnectToken` from `@teak/convex`, against
 `API_WORKOS_ISSUER` and the `/api` or `/mcp` audience on `API_PUBLIC_HOST`);
 `workos:<id>` for a verified token Convex cannot map or cannot be reached
-about; and `ip:<address>` for everything else, so made-up credentials never
-choose their own bucket. It is identity for limiting only: Convex still
+about; and `ip:<address>` for everything else (an IPv6 client by its /64,
+`ip:<prefix>::/64`, since one host holds a whole /64), so made-up credentials
+never choose their own bucket. It is identity for limiting only: Convex still
 authenticates every request.
 
 Convex answers at `POST /edge/v1/identity` (`packages/convex/edgeIdentity.ts`),
@@ -811,7 +812,9 @@ Export archives, their `.checkpoint.json` and `.result.json` sidecars and the
 transient `.manifest.json` live under the top-level `exports/<userHash>/`
 prefix (`dev/exports/` for development), not under `users/`. Convex still
 deletes a ready export when it expires after 7 days (`cleanupExpiredExports`)
-and with the account, but an R2 lifecycle rule is the backstop for anything
+and with the account, and a job that fails or is canceled once its archive
+build has started queues its artifacts for deletion in its `fail export` step,
+but an R2 lifecycle rule is the backstop for anything
 that path misses: artifacts of failed or canceled jobs, manifests whose
 best-effort delete failed, and deletes that errored. Download links are already
 refused after expiry, so the extra day costs nothing.

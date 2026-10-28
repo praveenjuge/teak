@@ -11,6 +11,8 @@ import { FakeBucket, withObjectGates } from "./test/testsupport";
 const fixture = (put: () => Promise<unknown> = () => Promise.resolve(null)) => {
   const values = new Map<string, unknown>();
   const aborted: string[] = [];
+  // A Durable Object runs one storage transaction at a time.
+  let previous = Promise.resolve();
   const storage = {
     get(key: string) {
       return Promise.resolve(values.get(key));
@@ -32,7 +34,12 @@ const fixture = (put: () => Promise<unknown> = () => Promise.resolve(null)) => {
       return Promise.resolve();
     },
     transaction<T>(callback: (store: typeof storage) => Promise<T>) {
-      return callback(storage);
+      const result = previous.then(() => callback(storage));
+      previous = result.then(
+        () => undefined,
+        () => undefined
+      );
+      return result;
     },
   };
   const env = {
@@ -101,8 +108,50 @@ describe("exact object deletion fence", () => {
     const t = fixture(() => Promise.reject(new Error("R2 unavailable")));
     await expect(t.request("put", "data")).rejects.toThrow("R2 unavailable");
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
-    expect(t.values.has("active")).toBe(true);
+    expect(t.values.has("leases")).toBe(false);
+    expect(t.values.has("failedSince")).toBe(true);
     expect((await t.request("put", "retry")).status).toBe(409);
+  });
+  test("failed writes that keep failing hold one record, not a lease each", async () => {
+    const t = fixture(() => Promise.reject(new Error("client went away")));
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      await expect(t.request("put", "cut off")).rejects.toThrow(
+        "client went away"
+      );
+    }
+    expect(t.values.has("leases")).toBe(false);
+    expect(typeof t.values.get("failedSince")).toBe("number");
+    expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
+  });
+  test("a failed put lets its retry through, and still keeps deletion uncertified for a day", async () => {
+    const start = Date.now();
+    setSystemTime(new Date(start));
+    try {
+      // The web uploader retries the same signed URL after a dropped
+      // connection; the email worker counts a 409 as a refused upload.
+      let attempts = 0;
+      const t = fixture(() => {
+        attempts += 1;
+        return attempts === 1
+          ? Promise.reject(new Error("client went away"))
+          : Promise.resolve(null);
+      });
+      await expect(t.request("put", "cut off")).rejects.toThrow(
+        "client went away"
+      );
+      expect((await t.request("put", "retry")).status).toBe(200);
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: false,
+      });
+      setSystemTime(new Date(start + WRITE_LEASE_MS));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: true,
+      });
+      expect(t.values.has("leases")).toBe(false);
+      expect(t.values.has("failedSince")).toBe(false);
+    } finally {
+      setSystemTime();
+    }
   });
   test("an unknown operation is refused without holding the key busy", async () => {
     const t = fixture();
@@ -132,6 +181,62 @@ describe("exact object deletion fence", () => {
       expect((await t.request("put", "late retry")).status).toBe(409);
     }
   );
+  test("parts of one upload go up side by side, and freeze waits for every one", async () => {
+    // The import uploader sends three 64 MiB parts at once; each is held open
+    // while its body streams into R2.
+    const t = fixture();
+    const pending: Array<() => void> = [];
+    t.env.BUCKET.resumeMultipartUpload = () => ({
+      abort: () => Promise.resolve(),
+      complete: () => Promise.resolve(null),
+      uploadPart: () =>
+        new Promise((resolve) => {
+          pending.push(() => resolve({ partNumber: 1, etag: "part" }));
+        }),
+    });
+    const first = t.request("part", "one");
+    const second = t.request("part", "two");
+    for (let turn = 0; turn < 1000 && pending.length < 2; turn += 1) {
+      await Promise.resolve();
+    }
+    expect(pending).toHaveLength(2);
+    expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
+    for (const finish of pending) {
+      finish();
+    }
+    expect((await first).status).toBe(200);
+    expect((await second).status).toBe(200);
+    expect(await (await t.request("freeze")).json()).toEqual({ frozen: true });
+  });
+  test("a failed part keeps deletion uncertified for a day, but its retry and the completion go through", async () => {
+    const start = Date.now();
+    setSystemTime(new Date(start));
+    try {
+      const t = fixture();
+      const resume = t.env.BUCKET.resumeMultipartUpload;
+      t.env.BUCKET.resumeMultipartUpload = (key, id) => ({
+        ...resume(key, id),
+        uploadPart: () => Promise.reject(new Error("client went away")),
+      });
+      await expect(t.request("part", "cut off")).rejects.toThrow(
+        "client went away"
+      );
+      t.env.BUCKET.resumeMultipartUpload = resume;
+      expect((await t.request("part", "retry")).status).toBe(200);
+      expect((await t.request("complete", "[]")).status).toBe(200);
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: false,
+      });
+      setSystemTime(new Date(start + WRITE_LEASE_MS));
+      expect(await (await t.request("freeze")).json()).toEqual({
+        frozen: true,
+      });
+      expect(t.values.has("leases")).toBe(false);
+      expect(t.values.has("failedSince")).toBe(false);
+    } finally {
+      setSystemTime();
+    }
+  });
   test("multipart creation is idempotent and freeze aborts the captured upload", async () => {
     const t = fixture();
     expect((await t.request("create")).status).toBe(200);

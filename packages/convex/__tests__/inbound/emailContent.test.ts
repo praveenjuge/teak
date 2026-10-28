@@ -509,6 +509,20 @@ describe("planEmailCards: size", () => {
     expect(markdownOf(plan({ subject: "s", text }))).toBe(`# s\n\n${text}`);
   });
 
+  test.each([
+    ["a text body", { text: `Start${" ".repeat(200_000)}end, and more.` }],
+    ["a text body with tabs", { text: `Start${" \t".repeat(100_000)}end` }],
+    [
+      "an HTML body",
+      { html: `<p>Start${"&nbsp;".repeat(100_000)}<br>end</p>` },
+    ],
+  ])("%s with a long run of spaces converts in under a second", (_, body) => {
+    const started = performance.now();
+    const result = plan({ ...body, subject: "Spaces" });
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(markdownOf(result)).toContain("Start");
+  });
+
   test("a 2 MB HTML body converts in under a second", () => {
     const paragraph =
       '<p>Lorem <b>ipsum</b> dolor <a href="https://www.google.com/url?q=https%3A%2F%2Fexample.com%2Fp">sit</a> amet, <i>consectetur</i> adipiscing.</p>';

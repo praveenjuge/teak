@@ -193,6 +193,44 @@ describe("Cloudflare image transformations", () => {
     expect(await headResponse.arrayBuffer()).toHaveLength(0);
   });
 
+  test("draws a thin SVG rule one pixel thick, and refuses a sliver too thin to draw", async () => {
+    const render = async (svg: string) => {
+      const bucket = new FakeBucket();
+      bucket.objects.set(SVG_KEY, {
+        bytes: new TextEncoder().encode(svg),
+        httpMetadata: { contentType: "image/svg+xml" },
+      });
+      return await handleImageRequest(
+        await signedImageRequest("tiny", "image/avif", SVG_KEY),
+        withObjectGates({
+          BUCKET: bucket as unknown as R2Bucket,
+          FILES_SIGNING_SECRET: SECRET,
+        }),
+        undefined,
+        NOW
+      );
+    };
+    const rect = (width: number, height: number) =>
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="red"/></svg>`;
+
+    // Scaled to 48 px wide it would be 0.16 px tall, which resvg refused.
+    const rule = await render(rect(1200, 4));
+    expect(rule.status).toBe(200);
+    const png = new Uint8Array(await rule.arrayBuffer());
+    const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+    expect({ height: view.getUint32(20), width: view.getUint32(16) }).toEqual({
+      height: 1,
+      width: 300,
+    });
+
+    // One pixel wide, this would be a strip ten million pixels tall.
+    const started = performance.now();
+    await expect(render(rect(0.001, 10_000))).rejects.toThrow(
+      "svg_render_failed"
+    );
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   test("rejects expired, missing, and non-image rendition requests", async () => {
     const expired = await signedImageRequest(
       "grid",

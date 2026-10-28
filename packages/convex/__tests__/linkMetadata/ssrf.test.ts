@@ -69,6 +69,14 @@ describe("isBlockedIp", () => {
     expect(isBlockedIp("::ffff:10.0.0.1")).toBe(true);
   });
 
+  test("blocks IPv6 forms that tunnel to an embedded IPv4", () => {
+    // IPv4-compatible, 6to4 and Teredo all carry an IPv4 the host can reach.
+    expect(isBlockedIp("::127.0.0.1")).toBe(true);
+    expect(isBlockedIp("::a9fe:a9fe")).toBe(true);
+    expect(isBlockedIp("2002:7f00:1::1")).toBe(true);
+    expect(isBlockedIp("2001:0:4136:e378:8000:63bf:3fff:fdd2")).toBe(true);
+  });
+
   test("allows public IPv6 addresses", () => {
     expect(isBlockedIp("2606:4700:4700::1111")).toBe(false);
     expect(isBlockedIp("2001:4860:4860::8888")).toBe(false);

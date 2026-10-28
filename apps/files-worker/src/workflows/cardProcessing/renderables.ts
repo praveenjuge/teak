@@ -10,6 +10,8 @@ import type {
   FilesPdfThumbnailResult,
   FilesVideoFrameResult,
 } from "@teak/files-protocol";
+import { isTransientError } from "../deps";
+import { isRetryableFilesError } from "../filesOps";
 import {
   type CardJob,
   ensureObjectOwnership,
@@ -111,9 +113,12 @@ const analyzeImage = async (
     return { generated: false, success: true };
   } catch (error) {
     rethrowStale(error);
+    // An R2 or Images hiccup, or a Convex call that never arrived, says
+    // nothing about the image: the step retries it rather than fail the stage.
     return {
       error: "files_worker_image_analysis_failed",
       generated: false,
+      retryable: isRetryableFilesError(error) || isTransientError(error),
       success: false,
     };
   }
@@ -394,7 +399,9 @@ export const generateRenderables = async (
   const isGif = format?.id === "gif";
 
   if (cardType === "image" && card.fileKey) {
-    handle(await analyzeImage(job, loaded));
+    const result = await analyzeImage(job, loaded);
+    throwIfRetryable(result);
+    handle(result);
   }
   if (cardType === "video" && card.fileKey && !isGif) {
     const result = await generateVideoThumbnail(job, loaded);

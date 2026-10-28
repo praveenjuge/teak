@@ -15,6 +15,8 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 /** Waits between the three tries of a message. */
 export const INGEST_RETRY_DELAYS_MS = [1000, 3000];
+/** How long one request to Convex may take before it counts as unreachable. */
+export const CONVEX_TIMEOUT_MS = 30_000;
 export const FINALIZE_RETRY_DELAYS_MS = [1000];
 
 export interface PlannedUpload {
@@ -53,6 +55,7 @@ const post = async (
     body,
     headers: await signedHeaders(target.secret, path, body, deps.now()),
     method: "POST",
+    signal: deps.timeout(CONVEX_TIMEOUT_MS),
   });
 
 const readJson = async (response: Response): Promise<unknown> =>
@@ -125,7 +128,21 @@ export const ingestEmail = async (
       continue;
     }
     if (response.status === 200) {
-      return acceptedResult(await readJson(response));
+      // The message is saved, but a body cut off by the deadline would lose
+      // its upload plan: try again, and Convex answers the repeat as a
+      // duplicate with the uploads still pending. A body that arrived but
+      // isn't JSON reads as an old backend's answer, as before.
+      let answer: unknown;
+      try {
+        answer = JSON.parse(await response.text());
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) {
+          lastProblem = "convex_unreachable";
+          continue;
+        }
+        answer = null;
+      }
+      return acceptedResult(answer);
     }
     if (response.status === 404) {
       const answer = (await readJson(response)) as { error?: unknown } | null;

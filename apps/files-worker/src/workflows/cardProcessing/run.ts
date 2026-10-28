@@ -402,10 +402,28 @@ const processCard = async (
     }
     metadata = classified.shouldGenerateMetadata ? await runMetadata() : null;
   } else {
-    [metadata, renderables] = await Promise.all([
+    // Both settle before either's error ends the run: a run that reported
+    // while the other step was still writing would leave that stage to the
+    // failure handler, or its "mark failed" step to a run already over.
+    const [metadataRun, renderablesRun] = await Promise.allSettled([
       classified.shouldGenerateMetadata ? runMetadata() : null,
       classified.shouldGenerateRenderables ? runRenderables() : null,
     ]);
+    // A newer run took over: that ends this one as superseded, whatever else
+    // failed beside it.
+    for (const run of [metadataRun, renderablesRun]) {
+      if (run.status === "rejected" && isSuperseded(run.reason)) {
+        throw run.reason;
+      }
+    }
+    if (metadataRun.status === "rejected") {
+      throw metadataRun.reason;
+    }
+    if (renderablesRun.status === "rejected") {
+      throw renderablesRun.reason;
+    }
+    metadata = metadataRun.value;
+    renderables = renderablesRun.value;
   }
 
   if (cardType === "link" && metadata?.mode === "completed") {

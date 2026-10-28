@@ -66,6 +66,7 @@ export const reconcileWorkflows = async (
     limit: STALE_PAGE,
   });
   const stillOpen: string[] = [];
+  let unrecorded = 0;
   for (const { instanceId, workflow } of stale) {
     const binding = isWorkflowName(workflow)
       ? workflowBinding(env, workflow)
@@ -90,11 +91,23 @@ export const reconcileWorkflows = async (
       stillOpen.push(instanceId);
       continue;
     }
-    await convex.mutation(internal.workflowDispatch.complete, {
-      instanceId,
-      status: ending.status,
-      ...(ending.status === "errored" ? { error: ending.error } : {}),
-    });
+    try {
+      await convex.mutation(internal.workflowDispatch.complete, {
+        instanceId,
+        status: ending.status,
+        ...(ending.status === "errored" ? { error: ending.error } : {}),
+      });
+    } catch (error) {
+      // One run Convex can't finish must not stop the others, the pruning
+      // or the rotation: it moves to the back and the run reports it below.
+      console.error("[reconcile] completion not recorded", {
+        error: error instanceof Error ? error.message : String(error),
+        instanceId,
+      });
+      unrecorded += 1;
+      stillOpen.push(instanceId);
+      continue;
+    }
     summary[ending.status === "complete" ? "completed" : "errored"] += 1;
   }
   if (stillOpen.length > 0) {
@@ -119,6 +132,11 @@ export const reconcileWorkflows = async (
     if (!hasMore) {
       break;
     }
+  }
+  if (unrecorded > 0) {
+    throw new Error(
+      `reconcile_incomplete: ${String(unrecorded)} of ${String(summary.checked)} completions not recorded`
+    );
   }
   return summary;
 };

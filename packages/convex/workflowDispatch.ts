@@ -297,6 +297,25 @@ const consecutiveFailures = async (
   return firstOther === -1 ? recent.length : firstOther;
 };
 
+const hasNewerLiveAttempt = async (
+  ctx: MutationCtx,
+  row: Doc<"workflowDispatches">
+): Promise<boolean> => {
+  const newer = await ctx.db
+    .query("workflowDispatches")
+    .withIndex("by_key_and_createdAt", (q) =>
+      q.eq("key", row.key).gte("createdAt", row.createdAt)
+    )
+    // Newest first: a live attempt is the latest one queued.
+    .order("desc")
+    .take(20);
+  return newer.some(
+    (other) =>
+      other._id !== row._id &&
+      (other.state === "pending" || other.state === "sent")
+  );
+};
+
 /**
  * Each failed run is started again as a new attempt. Attempts are numbered
  * by when they were queued, not by counting earlier rows: those are pruned
@@ -793,6 +812,12 @@ const handleRunFailure = async (
           state.generation === params.generation
         )
       ) {
+        return;
+      }
+      // A newer attempt already queued or running (an operator's `retry`
+      // while this one ran) carries the deletion on: another attempt here
+      // would leave two runs racing on the same stage for good.
+      if (await hasNewerLiveAttempt(ctx, row)) {
         return;
       }
       if (accountDeletionNeedsOperator(state.failureCode)) {

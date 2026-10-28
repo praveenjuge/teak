@@ -132,6 +132,63 @@ describe("renderables", () => {
       });
     });
 
+    test("an R2 hiccup reading the image retries the step instead of failing the stage", async () => {
+      const hiccup = Object.assign(
+        new Error("files_worker_error:INTERNAL:500:r"),
+        { retryable: true }
+      );
+      const { card, run } = setup(
+        { fileKey: "users/x/cards/c/file/a.png", type: "image" },
+        { "analyze-image": { throws: hiccup } }
+      );
+      await expect(run("image")).rejects.toThrow(
+        "renderables_retryable:files_worker_image_analysis_failed"
+      );
+      expect(card?.processingStatus?.renderables?.status).toBe("in_progress");
+    });
+
+    test("a Convex outage saving the image's size retries the step", async () => {
+      const card = makeCard({
+        fileKey: "users/x/cards/c/file/a.png",
+        processingStatus: { renderables: { status: "pending" } },
+        type: "image",
+      });
+      const convex = createCardConvex(card);
+      const outage = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { name: string };
+        return body.name.endsWith(":updateCardFileMetadata")
+          ? new Response("unavailable", { status: 503 })
+          : await convex.fetcher(input, init);
+      }) as typeof fetch;
+      const fakes = createFakeOps({
+        "analyze-image": {
+          data: { height: 40, palette: ["#aa0000"], width: 40 },
+        },
+      });
+      const env = testEnv();
+      const job = testJob(env, testDeps(env, outage, fakes.ops));
+      await expect(generateRenderables(job, "image")).rejects.toThrow(
+        "renderables_retryable:"
+      );
+      expect(card.processingStatus?.renderables?.status).toBe("in_progress");
+    });
+
+    test("an analysis error a retry can't clear still fails the stage", async () => {
+      const refused = Object.assign(
+        new Error("files_worker_error:INVALID_INPUT:400:r"),
+        { retryable: false }
+      );
+      const { card, run } = setup(
+        { fileKey: "users/x/cards/c/file/a.png", type: "image" },
+        { "analyze-image": { throws: refused } }
+      );
+      expect((await run("image")).success).toBe(false);
+      expect(card?.processingStatus?.renderables).toMatchObject({
+        error: "files_worker_image_analysis_failed",
+        status: "failed",
+      });
+    });
+
     test("an image without a file renders nothing", async () => {
       const { fakes, run } = setup({ type: "image" });
       expect((await run("image")).success).toBe(true);

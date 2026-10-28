@@ -8,6 +8,7 @@ import {
   internalQuery,
   type QueryCtx,
 } from "./_generated/server";
+import { rateLimiter } from "./shared/rateLimits";
 import { workosIssuer } from "./shared/workosApi";
 import { createWorkosClient } from "./shared/workosClient";
 import {
@@ -316,6 +317,22 @@ function workosSessionClient() {
     .userManagement;
 }
 
+// Settings shows its own text for any failure; the code and message are the
+// public API's for too many requests.
+async function chargeWorkosRequest(ctx: ActionCtx, teakUserId: string) {
+  const limit = await rateLimiter.limit(ctx, "workosSessionRequests", {
+    key: teakUserId,
+    throws: false,
+  });
+  if (!limit.ok) {
+    throw new ConvexError({
+      code: "RATE_LIMITED",
+      message: "Too many requests",
+      retryAt: Date.now() + limit.retryAfter,
+    });
+  }
+}
+
 function validateProviderSession(session: Session, userId: string) {
   if (
     session.userId !== userId ||
@@ -347,14 +364,13 @@ export const listAuthkitSessions = action({
     if (cursor && !WORKOS_SESSION_ID.test(cursor)) {
       throw new Error("Invalid device page. Please refresh.");
     }
-    const result = await workosSessionClient().listSessions(
-      user.identity.subject,
-      {
-        limit: Math.max(1, Math.min(Math.floor(paginationOpts.numItems), 100)),
-        after: cursor,
-        order: "desc",
-      }
-    );
+    const client = workosSessionClient();
+    await chargeWorkosRequest(ctx, user.teakUserId);
+    const result = await client.listSessions(user.identity.subject, {
+      limit: Math.max(1, Math.min(Math.floor(paginationOpts.numItems), 100)),
+      after: cursor,
+      order: "desc",
+    });
     for (const session of result.data) {
       validateProviderSession(session, user.identity.subject);
     }
@@ -394,6 +410,7 @@ export const revokeAuthkitSession = action({
     }
     const client = workosSessionClient();
     if (sessionId === user.sessionId) {
+      await chargeWorkosRequest(ctx, user.teakUserId);
       try {
         await client.revokeSession({ sessionId });
       } catch (error) {
@@ -406,6 +423,7 @@ export const revokeAuthkitSession = action({
     let after: string | undefined;
     const seen = new Set<string>();
     for (let page = 0; page < 20; page++) {
+      await chargeWorkosRequest(ctx, user.teakUserId);
       const result = await client.listSessions(user.identity.subject, {
         limit: 100,
         after,
@@ -421,6 +439,7 @@ export const revokeAuthkitSession = action({
         ) {
           return null;
         }
+        await chargeWorkosRequest(ctx, user.teakUserId);
         await client.revokeSession({ sessionId });
         return null;
       }

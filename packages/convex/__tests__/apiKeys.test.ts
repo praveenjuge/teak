@@ -296,6 +296,26 @@ describe("apiKeys", () => {
     });
   });
 
+  test("rotate counts toward the key minting limit", async () => {
+    rateLimiter.limit = mock().mockResolvedValue({ ok: false, retryAfter: 1 });
+    const ctx = withTestSession({
+      db: authCacheDb(),
+      auth: {
+        getUserIdentity: mock().mockResolvedValue({
+          subject: "user_1",
+          sessionId: "session_1",
+        }),
+      },
+      runMutation: mock(),
+      runQuery: listActiveKeys([componentKey]),
+    } as any);
+
+    await expect(
+      runHandler(rotateUserApiKey, ctx, { keyId: "component_key" })
+    ).rejects.toThrow("Too many API keys created");
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
   test("rotate rejects exhausted component keys on the server", async () => {
     const ctx = {
       auth: buildAuth(),

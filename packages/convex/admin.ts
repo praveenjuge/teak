@@ -555,11 +555,17 @@ export const seedAdmin = internalMutation({
     if (!email) {
       throw new Error("The admin email is required");
     }
-    const rows = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", email))
-      .take(2);
-    if (rows.length !== 1 || rows[0].deletedAt !== undefined) {
+    // A deleted account keeps its row and address; only live ones count.
+    const rows = (
+      await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", email))
+        .order("desc")
+        .take(20)
+    ).filter(
+      (row) => row.deletedAt === undefined && row.workosDeletedAt === undefined
+    );
+    if (rows.length !== 1) {
       throw new Error("Admin seed requires exactly one active mapped account");
     }
     await ctx.db.patch("users", rows[0]._id, { role: "admin" });

@@ -46,6 +46,18 @@ private let idB = "k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"
         #expect(CardLinks.parseIds(nil).isEmpty)
     }
 
+    @Test func readsALongLineOfCodeSpansInLinearTime() {
+        // 400 KB of backticks on one line: masking its code spans used to take
+        // tens of seconds, past any function's time limit.
+        let spans = String(repeating: "`a` ", count: 50_000)
+        let unclosed = String(repeating: "``a ", count: 50_000)
+        let markdown = "\(spans)[[Plan|teak:\(idA)]] \(unclosed)`[[B|teak:\(idB)]]`"
+        var ids: [String] = []
+        let elapsed = ContinuousClock().measure { ids = CardLinks.parseIds(markdown) }
+        #expect(ids == [idA])
+        #expect(elapsed < .seconds(1))
+    }
+
     @Test func formattingReplacesCharactersTheGrammarCantHold() {
         #expect(CardLinks.formatToken(title: "a | b ]] c\nd", id: idA) == "[[a b c d|teak:\(idA)]]")
         #expect(CardLinks.formatToken(title: "   ", id: idA) == "[[Card|teak:\(idA)]]")

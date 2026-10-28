@@ -915,6 +915,57 @@ describe("runImport with items staged in R2", () => {
     ]);
   });
 
+  test("one file the Files Worker refuses fails only its own item, not the others in its batch", async () => {
+    const backend = stagedBackend();
+    const good = strToU8("%PDF-1.4 good");
+    const badCard = {
+      ...pdfCard,
+      file: { ...pdfCard.file, fileName: "bad.pdf", path: "files/bad.pdf" },
+    };
+    const test = setup(
+      backend,
+      archive([pdfCard, badCard], {
+        "files/bad.pdf": strToU8("%PDF-1.4 bad"),
+        "files/paper.pdf": good,
+      })
+    );
+
+    expect(
+      await runImport(test.run, {
+        convex: test.convex,
+        ops: (spec) => {
+          const entries = (spec.params.entries ?? []) as Array<{
+            path: string;
+          }>;
+          // The archive op extracts all of a batch or none of it.
+          return spec.op === "extract-import-files" &&
+            entries.some((entry) => entry.path === "files/bad.pdf")
+            ? Promise.reject(
+                Object.assign(
+                  new Error("files_worker_error:INVALID_INPUT:400:r"),
+                  { retryable: false }
+                )
+              )
+            : callFilesOp(test.env, spec);
+        },
+      })
+    ).toEqual({ status: "completed" });
+
+    expect(backend.created).toEqual([""]);
+    expect(backend.items).toMatchObject([
+      {
+        failureCode: "FILE_EXTRACT_FAILED",
+        failureReason: "files_worker_error:INVALID_INPUT:400:r",
+        sourceIndex: 1,
+      },
+    ]);
+    expect(
+      test.bucket.storedBytes(
+        importFileKey(USER_PREFIX, "job-1", "item-0", "paper.pdf")
+      )
+    ).toEqual(good);
+  });
+
   test("a cancel between card batches finishes canceled and deletes the staged parts", async () => {
     const backend = stagedBackend({
       stagedItems: { cursor: null, offset: 0, pages: 1, part: 1, parts: 2 },

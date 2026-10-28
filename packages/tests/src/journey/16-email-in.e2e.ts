@@ -70,6 +70,7 @@ const deliver = (inbound: InboundMessage) =>
       log: () => undefined,
       now: () => Date.now(),
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      timeout: (ms) => AbortSignal.timeout(ms),
     }
   );
 

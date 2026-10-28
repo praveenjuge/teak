@@ -231,83 +231,20 @@ export const updateCard = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const user = await requireSessionUser(ctx);
-
     const { id, ...updates } = args;
-    const card = await ctx.db.get("cards", id);
-
-    if (!card) {
-      throw new Error("Card not found");
-    }
-
-    if (card.userId !== user.teakUserId) {
-      throw new Error("Not authorized to update this card");
-    }
-
-    if (updates.url !== undefined) {
-      updates.url = assertSafeExternalUrl(updates.url);
-    }
-    if (updates.tags !== undefined) {
-      updates.tags = normalizeCardTags(updates.tags, card.tags);
-    }
-
-    const now = Date.now();
-    let processingStatus = card.processingStatus as
-      | ProcessingStatus
-      | undefined;
-
-    if (updates.content !== undefined) {
-      if (card.type === "quote") {
-        updates.content = normalizeQuoteContent(updates.content).text;
-      } else if (card.type === "text") {
-        updates.content = validateTextCardContent(updates.content);
+    // The same edits `updateCardField` makes, so a URL edit here also keeps
+    // a highlighted link's URL and drops the old page's saved copy.
+    const edits: CardFieldEdit[] = [];
+    for (const field of ["content", "url", "tags", "notes"] as const) {
+      if (updates[field] !== undefined) {
+        edits.push({ field, value: updates[field] });
       }
     }
-    const contentChanged =
-      updates.content !== undefined && updates.content !== card.content;
-    if (contentChanged) {
-      processingStatus = processingStatus
-        ? withStageStatus(processingStatus, "metadata", stagePending())
-        : buildInitialProcessingStatus({
-            now,
-            cardType: card.type,
-            classificationStatus: stagePending(),
-          });
-
-      if (card.type === "link" && processingStatus) {
-        processingStatus = withStageStatus(
-          processingStatus,
-          "categorize",
-          stagePending()
-        );
-      }
-    }
-
-    const reservation = contentChanged
-      ? await reserveEditReprocess(ctx, user.teakUserId, id)
-      : null;
-    if (reservation === "skipped") {
-      processingStatus = card.processingStatus as ProcessingStatus | undefined;
-    }
-    const pipelineDelayMs = reservation === "skipped" ? null : reservation;
-
-    await ctx.db.patch(
-      "cards",
-      id,
-      withUrlFields({
-        ...updates,
-        ...(processingStatus ? { processingStatus } : {}),
-        updatedAt: now,
-      })
-    );
-    await syncCardSearch(ctx, id, card.userId, card);
-
-    if (pipelineDelayMs !== null) {
-      await queueCardProcessing(ctx, id, {
-        delayMs: pipelineDelayMs,
-        reset: true,
-      });
-    }
-
+    await updateCardFieldsForUserHandler(ctx, {
+      userId: user.teakUserId,
+      cardId: id,
+      edits,
+    });
     return null;
   },
 });

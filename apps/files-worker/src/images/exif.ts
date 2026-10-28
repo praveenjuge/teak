@@ -282,8 +282,12 @@ export const heifExifLocation = (
     at += size;
     return value;
   };
+  if (at + (version < 2 ? 2 : 4) > iloc.end) {
+    return null;
+  }
   const itemCount = version < 2 ? view.getUint16(at) : view.getUint32(at);
   at += version < 2 ? 2 : 4;
+  const extentBytes = indexSize + offsetSize + lengthSize;
   for (let item = 0; item < itemCount && at < iloc.end; item++) {
     const itemId = readSized(version < 2 ? 2 : 4);
     if (version >= 1) {
@@ -292,14 +296,18 @@ export const heifExifLocation = (
     at += 2; // data reference index
     const base = readSized(baseSize);
     const extents = readSized(2);
-    for (let extent = 0; extent < extents; extent++) {
+    // Extents the box can't hold are a malformed file. Each one is skipped
+    // in a step: walking 65,535 empty ones per item took tens of seconds.
+    if (at + extents * extentBytes > iloc.end) {
+      return null;
+    }
+    if (itemId === exifItem && extents > 0) {
       readSized(indexSize);
       const offset = readSized(offsetSize);
       const length = readSized(lengthSize);
-      if (itemId === exifItem && extent === 0) {
-        return { length, offset: base + offset };
-      }
+      return { length, offset: base + offset };
     }
+    at += extents * extentBytes;
   }
   return null;
 };

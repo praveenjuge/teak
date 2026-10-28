@@ -19,6 +19,7 @@ describe("buildSelectorResultsFromHtml entity decoding", () => {
     ["&lt;b&gt; &quot;hi&quot; &#39;x&#39; &#x41;&#66;", "<b> \"hi\" 'x' AB"],
     ["a&nbsp;b", "a b"],
     ["&unknown; stays", "&unknown; stays"],
+    ["half &#xD83D; emoji &#128512;", "half &#xD83D; emoji \u{1F600}"],
   ])(
     "decodes %p in a title exactly once to %p",
     (encoded: string, decoded: string) => {

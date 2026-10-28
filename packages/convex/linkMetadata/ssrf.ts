@@ -161,9 +161,10 @@ const BLOCKED_IPV4: Cidr[] = [
 ];
 
 const BLOCKED_IPV6: Cidr[] = [
-  cidr("::", 128, 6), // unspecified
-  cidr("::1", 128, 6), // loopback
+  cidr("::", 96, 6), // unspecified, loopback and IPv4-compatible (::a.b.c.d)
   cidr("100::", 64, 6), // discard-only
+  cidr("2001::", 32, 6), // Teredo: tunnels to an embedded IPv4
+  cidr("2002::", 16, 6), // 6to4: tunnels to an embedded IPv4
   cidr("2001:db8::", 32, 6), // documentation
   cidr("fc00::", 7, 6), // unique local
   cidr("fe80::", 10, 6), // link-local

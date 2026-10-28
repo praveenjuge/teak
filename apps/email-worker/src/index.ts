@@ -28,6 +28,8 @@ export const REJECT_UNREADABLE = "550 5.6.0 Message could not be read";
 /** Email Routing's own limit; anything larger never reaches a Worker. */
 export const MAX_MESSAGE_BYTES = 25 * 1024 * 1024;
 export const UPLOAD_RETRY_DELAYS_MS = [500, 1500];
+/** One PUT of an attachment (at most about 18 MB) to the Files Worker. */
+export const UPLOAD_TIMEOUT_MS = 60_000;
 export const UPLOAD_CONCURRENCY = 2;
 
 const AUTO_PRECEDENCE = new Set(["bulk", "junk", "list"]);
@@ -74,6 +76,7 @@ const putWithRetries = async (
         body: attachment.content,
         headers: { "content-type": attachment.mimeType },
         method: "PUT",
+        signal: deps.timeout(UPLOAD_TIMEOUT_MS),
       });
       await response.body?.cancel().catch(() => undefined);
       if (response.ok) {
@@ -230,6 +233,7 @@ const defaultDeps: Deps = {
   log: (entry) => console.log(JSON.stringify(entry)),
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  timeout: (ms) => AbortSignal.timeout(ms),
 };
 
 export default {

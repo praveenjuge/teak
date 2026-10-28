@@ -242,6 +242,7 @@ export const recordMultipartPart = mutation({
         ? session.fileSize - session.partSize * (totalParts - 1)
         : session.partSize;
     if (
+      !Number.isSafeInteger(args.partNumber) ||
       args.partNumber < 1 ||
       args.partNumber > totalParts ||
       args.size !== expectedSize ||

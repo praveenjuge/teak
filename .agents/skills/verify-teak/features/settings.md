@@ -62,4 +62,4 @@ Steps:
 - Screenshots and video of Integrations right after "Create key" show the full key. Keep them out of PRs, or revoke the key first and say so.
 - Keys made in Settings are all named "Default API key"; there's no name field.
 - "Sign out <device> (this device)" in Devices ends this session.
-- Key creation is rate-limited ("Too many API keys created. Try again in a minute.").
+- Creating and regenerating keys share one rate limit, five a minute ("Too many API keys created. Try again in a minute."). A sixth regenerate within the minute shows the alert "Could not update your API keys. Please try again." and leaves the key as it was; space regenerate drives a minute apart.

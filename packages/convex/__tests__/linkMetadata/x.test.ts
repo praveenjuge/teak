@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   mock,
+  spyOn,
   test,
 } from "bun:test";
 import {
@@ -294,6 +295,64 @@ describe("x link metadata", () => {
           posterHeight: 720,
         },
       ]);
+    });
+
+    test("keeps a tweet's literal angle brackets", async () => {
+      mockFetch.mockImplementation((input: MockFetchInput) => {
+        if (
+          isRequestUrl(input, {
+            hostname: "publish.x.com",
+            pathname: "/oembed",
+          })
+        ) {
+          return createJsonResponse({
+            author_url: "https://x.com/dev",
+            html: `<blockquote class="twitter-tweet"><p lang="en" dir="ltr">if a &lt; b and c &gt; d<br>then &lt;b&gt;bold&lt;/b&gt;</p>&mdash; dev <a href="https://x.com/dev/status/7">May 1, 2024</a></blockquote>`,
+            url: "https://x.com/dev/status/7",
+          });
+        }
+        return { ok: false, json: async () => null };
+      });
+
+      const result = await fetchXStatusMetadata("https://x.com/dev/status/7");
+
+      expect(result?.title).toBe("if a < b and c > d then <b>bold</b>");
+    });
+
+    test("a hung oEmbed endpoint falls back to the syndication lookup", async () => {
+      // Every lookup's time limit has already run out.
+      const timeout = spyOn(AbortSignal, "timeout").mockImplementation(() =>
+        AbortSignal.abort(new DOMException("timed out", "TimeoutError"))
+      );
+      try {
+        mockFetch.mockImplementation(
+          (input: MockFetchInput, init?: RequestInit) => {
+            if (getRequestUrl(input).hostname === "cdn.syndication.twimg.com") {
+              return createJsonResponse({
+                id_str: "20",
+                text: "just setting up my twttr",
+                user: { name: "jack", screen_name: "jack" },
+              });
+            }
+            // oEmbed never answers; only its signal ends the request.
+            return new Promise((_resolve, reject) => {
+              const signal = init?.signal;
+              if (signal?.aborted) {
+                reject(signal.reason);
+              }
+              signal?.addEventListener("abort", () => reject(signal.reason));
+            });
+          }
+        );
+
+        const result = await fetchXStatusMetadata(
+          "https://x.com/jack/status/20"
+        );
+
+        expect(result?.title).toBe("just setting up my twttr");
+      } finally {
+        timeout.mockRestore();
+      }
     });
 
     test("returns null for non-status URLs", async () => {

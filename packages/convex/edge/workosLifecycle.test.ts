@@ -684,6 +684,34 @@ describe("new WorkOS lifecycle owners", () => {
     });
     expect((await snapshot(t)).users).toEqual(before);
   });
+  test("a provider address only a deleted account held is copied", async () => {
+    const t = setup();
+    await seed(t, {
+      teakUserId: "owner-deleted",
+      email: "reused@example.com",
+      workosUserId: "user_deleted",
+      deletedAt: 1,
+      workosDeletedAt: 1,
+    });
+    await t.mutation(sync, freshEvent("before_reused"));
+    const changed = freshEvent("reused_change", 2, "user.updated");
+    await t.mutation(sync, {
+      ...changed,
+      data: { ...changed.data, email: "reused@example.com" },
+    });
+    const owner = (await snapshot(t)).users.find(
+      (row) => row.workosUserId === "user_NEW"
+    );
+    expect(owner).toMatchObject({
+      email: "reused@example.com",
+      emailVerified: true,
+    });
+    expect(
+      await t.mutation(internal.admin.seedAdmin, {
+        email: "reused@example.com",
+      })
+    ).toEqual({ teakUserId: owner?.teakUserId, role: "admin" });
+  });
   test("a late created envelope cannot re-verify a newer unverified profile", async () => {
     const t = setup();
     await t.mutation(sync, freshEvent("initial_created"));

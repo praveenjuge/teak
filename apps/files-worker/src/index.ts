@@ -121,6 +121,8 @@ const corsPreflight = (): Response => {
   return new Response(null, { status: 204, headers });
 };
 
+/** The Cache API's largest object; export archives reach 5 GB. */
+const EDGE_CACHE_MAX_BYTES = 512 * 1024 * 1024;
 const MULTIPART_URL_MAX_TTL_SECONDS = 60 * 60;
 const MULTIPART_MAX_PART_BYTES = 16 * 1024 * 1024;
 
@@ -145,7 +147,12 @@ const handleMultipartPart = async (
       401
     );
   }
-  const uploadId = decodeURIComponent(match[1] ?? "");
+  let uploadId = "";
+  try {
+    uploadId = decodeURIComponent(match[1] ?? "");
+  } catch {
+    // A malformed escape cannot name a signed upload; refused below.
+  }
   const partNumber = Number.parseInt(match[2] ?? "", 10);
   const expiry = Number.parseInt(expiresAt, 10);
   const now = Math.floor(Date.now() / 1000);
@@ -279,6 +286,40 @@ const etagMatches = (ifNoneMatch: string | null, httpEtag: string): boolean => {
     .some((candidate) => normalize(candidate) === normalize(httpEtag));
 };
 
+/**
+ * A stored file whose type a browser runs scripts in (HTML, XHTML, SVG and
+ * other XML) gets an opaque origin with no scripts and nothing loaded when it
+ * is opened from its signed link, so it can never act as the files origin.
+ * Images keep rendering in `<img>`, which ignores this header.
+ */
+const ACTIVE_CONTENT_SECURITY_POLICY =
+  "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline' data:; font-src data:";
+
+const isScriptableContentType = (contentType: string): boolean => {
+  const base = contentType.split(";")[0]?.trim().toLowerCase() ?? "";
+  return (
+    base === "text/html" ||
+    base === "text/xml" ||
+    base === "text/xsl" ||
+    base === "application/xml" ||
+    base.endsWith("+xml")
+  );
+};
+
+/**
+ * Sandboxes a scriptable response that carries no policy of its own. Edge
+ * copies cached before the sandbox existed keep the headers they were stored
+ * with, so cache hits pass through here too.
+ */
+const sandboxActiveContent = (headers: Headers): void => {
+  if (
+    !headers.has("Content-Security-Policy") &&
+    isScriptableContentType(headers.get("Content-Type") ?? "")
+  ) {
+    headers.set("Content-Security-Policy", ACTIVE_CONTENT_SECURITY_POLICY);
+  }
+};
+
 const applyObjectHeaders = (
   headers: Headers,
   request: Request,
@@ -295,12 +336,11 @@ const applyObjectHeaders = (
   if (contentLength !== null) {
     headers.set("Content-Length", String(contentLength));
   }
-  headers.set(
-    "Content-Type",
+  const contentType =
     url.searchParams.get("ct") ||
-      objectHttpMetadata?.contentType ||
-      "application/octet-stream"
-  );
+    objectHttpMetadata?.contentType ||
+    "application/octet-stream";
+  headers.set("Content-Type", contentType);
   const contentDisposition =
     url.searchParams.get("cd") || objectHttpMetadata?.contentDisposition;
   if (contentDisposition) {
@@ -312,6 +352,8 @@ const applyObjectHeaders = (
       PAGE_ARCHIVE_CONTENT_SECURITY_POLICY
     );
     headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+  } else if (isScriptableContentType(contentType)) {
+    headers.set("Content-Security-Policy", ACTIVE_CONTENT_SECURITY_POLICY);
   }
   allowAnyOriginForSignedUrl(headers);
 };
@@ -442,6 +484,7 @@ const handler = {
               FILES_PRIVATE_CACHE_CONTROL
             );
             allowAnyOriginForSignedUrl(notModifiedHeaders);
+            sandboxActiveContent(notModifiedHeaders);
             return new Response(null, {
               status: 304,
               headers: notModifiedHeaders,
@@ -449,6 +492,7 @@ const handler = {
           }
           const headers = new Headers(cached.headers);
           headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
+          sandboxActiveContent(headers);
           return new Response(cached.body, {
             status: cached.status,
             statusText: cached.statusText,
@@ -495,6 +539,11 @@ const handler = {
       if (isHead) {
         await object.body.cancel();
         return new Response(null, { status: 200, headers });
+      }
+      // The edge cannot keep it, and an unread second branch of the stream
+      // would only buffer what the client has already read.
+      if (object.size > EDGE_CACHE_MAX_BYTES) {
+        return new Response(object.body, { headers });
       }
 
       const [clientBody, edgeBody] = object.body.tee();

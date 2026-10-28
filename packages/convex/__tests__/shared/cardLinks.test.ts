@@ -89,6 +89,17 @@ describe("parseCardLinkIds", () => {
   test("handles missing content", () => {
     expect(parseCardLinkIds(undefined)).toEqual([]);
   });
+
+  test("reads a long line of code spans in linear time", () => {
+    // 400 KB of backticks on one line: masking its code spans used to take
+    // tens of seconds, past any function's time limit.
+    const spans = "`a` ".repeat(50_000);
+    const unclosed = "``a ".repeat(50_000);
+    const markdown = `${spans}[[Plan|teak:${ID_A}]] ${unclosed}\`[[B|teak:${ID_B}]]\``;
+    const started = performance.now();
+    expect(parseCardLinkIds(markdown)).toEqual([ID_A]);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
 });
 
 describe("formatCardLinkToken", () => {
