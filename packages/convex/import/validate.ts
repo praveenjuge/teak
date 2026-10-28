@@ -331,7 +331,14 @@ export function validateImportCard(raw: unknown): ImportCardInput {
     folders: importFolderNames(value.folders),
     highlights:
       type === "link" ? importHighlights(value.highlights) : undefined,
-    colors: rawColors as ImportCardInput["colors"],
+    // Only the fields Convex's color validator takes, so one color with an
+    // extra or `null` field can't make it refuse the whole staged batch.
+    colors: Array.isArray(rawColors)
+      ? (rawColors as Array<{ hex: string; name?: unknown }>).map(
+          ({ hex, name }) =>
+            typeof name === "string" ? { hex, name } : { hex }
+        )
+      : undefined,
     createdAt: parseImportedTimestamp(value.createdAt),
     savedAt: parseImportedTimestamp(value.savedAt),
     completedAt:

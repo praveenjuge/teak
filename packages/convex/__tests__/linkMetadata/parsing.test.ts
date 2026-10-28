@@ -150,6 +150,12 @@ describe("parsing", () => {
       expect(sanitizeText("1234567890", 5)).toBe("12345");
     });
 
+    test("never cuts an emoji in half at the length limit", () => {
+      const text = sanitizeText(`${"a".repeat(4)}\u{1F600} tail`, 5);
+      expect(text).toBe("aaaa");
+      expect(sanitizeText("aaa\u{1F600}", 5)).toBe("aaa\u{1F600}");
+    });
+
     test("returns undefined for empty strings", () => {
       expect(sanitizeText("", 100)).toBeUndefined();
       expect(sanitizeText("   ", 100)).toBeUndefined();

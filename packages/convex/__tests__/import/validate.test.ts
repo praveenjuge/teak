@@ -145,6 +145,21 @@ describe("Teak archive card validation", () => {
     ).toBeUndefined();
   });
 
+  test("keeps only a color's hex and name, which Convex's color validator takes", () => {
+    // A `null` name or an unknown field would make Convex refuse the whole
+    // batch of staged cards this one is in.
+    expect(
+      validateImportCard({
+        type: "palette",
+        content: "Sunset",
+        colors: [
+          { hex: "#FF8800", name: null },
+          { hex: "#112233", name: "Navy", rgb: "17,34,51", extra: true },
+        ],
+      }).colors
+    ).toEqual([{ hex: "#FF8800" }, { hex: "#112233", name: "Navy" }]);
+  });
+
   test("reports card limits in terms of the selected import mode", () => {
     expect(() => assertImportCardCount(10_001, "bookmarks")).toThrow(
       "Bookmark file exceeds 10,000 bookmarks"

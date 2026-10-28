@@ -184,6 +184,27 @@ function findLastSuccessfulAt(jobs: ExportJobDoc[]): number | undefined {
   return latest;
 }
 
+/**
+ * When the account's export quota was last spent. An export counts once it
+ * is ready, and stays ready for as long as the quota window lasts, so ready
+ * jobs are read by status: canceled or failed jobs started since can't push
+ * it out of the recent jobs read.
+ */
+async function readLastSuccessfulAt(
+  ctx: QueryCtx | MutationCtx,
+  userId: string,
+  recentJobs: ExportJobDoc[]
+): Promise<number | undefined> {
+  const readyJobs = (await ctx.db
+    .query("exportJobs")
+    .withIndex("by_user_status", (q) =>
+      q.eq("userId", userId).eq("status", EXPORT_STATUS.READY)
+    )
+    .order("desc")
+    .take(RECENT_JOBS_SCAN)) as unknown as ExportJobDoc[];
+  return findLastSuccessfulAt([...recentJobs, ...readyJobs]);
+}
+
 const latestExportValidator = v.object({
   job: v.union(v.null(), exportSummaryValidator),
   canStartNew: v.boolean(),
@@ -194,7 +215,7 @@ async function readLatestExport(ctx: QueryCtx, userId: string) {
   const now = Date.now();
   const jobs = await getRecentJobs(ctx, userId);
   const latest = jobs[0];
-  const lastSuccessfulAt = findLastSuccessfulAt(jobs);
+  const lastSuccessfulAt = await readLastSuccessfulAt(ctx, userId, jobs);
   const active = findActiveJob(jobs);
   const canStartNew = !active && isWithinQuota(lastSuccessfulAt, now);
 
@@ -218,7 +239,7 @@ async function startExportJob(ctx: MutationCtx, userId: string) {
     };
   }
 
-  const lastSuccessfulAt = findLastSuccessfulAt(jobs);
+  const lastSuccessfulAt = await readLastSuccessfulAt(ctx, userId, jobs);
   if (!isWithinQuota(lastSuccessfulAt, now)) {
     return {
       started: false,

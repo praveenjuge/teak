@@ -56,15 +56,17 @@ const HIDDEN_STYLE_REGEX =
 const HEADING_TAG_REGEX = /^h([1-6])$/u;
 const INLINE_BREAKS_REGEX = /[\ue000\ue001\n]+/gu;
 const DOUBLE_SPACES_REGEX = / {2,}/gu;
-const BR_REGEX = / *\ue000 */gu;
+// A run of spaces or whitespace is only tried from its start (the
+// lookbehinds): tried from every space, a long run took minutes.
+const BR_REGEX = /(?<! ) *\ue000 */gu;
 const EDGE_WHITESPACE_REGEX = /^\s+|\s+$/gu;
 const URL_UNSAFE_REGEX = /[()\s]/gu;
 const PRE_EDGES_REGEX = /^\n+|\s+$/gu;
 const LINE_ENDINGS_REGEX = /\r\n?/gu;
-const TRAILING_SPACES_REGEX = /[ \t]+$/gmu;
-const FINAL_SPACES_REGEX = / +$/u;
+const TRAILING_SPACES_REGEX = /(?<![ \t])[ \t]+$/gmu;
+const FINAL_SPACES_REGEX = /(?<! ) +$/u;
 const NESTED_LIST_GAP_REGEX = /\n\n(?=\s*(?:[-*+]|\d+\.) )/gu;
-const SPACE_BEFORE_PUNCTUATION_REGEX = /\s+([.,;:!?])/gu;
+const SPACE_BEFORE_PUNCTUATION_REGEX = /(?<!\s)\s+([.,;:!?])/gu;
 const PUNCTUATION_ONLY_REGEX = /^[\s.,;:!?()[\]"'-]*$/u;
 const URL_UNSAFE_CHARS: Record<string, string> = {
   "(": "%28",

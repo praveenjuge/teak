@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../../../_generated/server";
+import { accountDeletionOwnsRows } from "../../../accountDeletion";
 import { r2KeyValidator } from "../../../schema";
 import { rateLimiter } from "../../../shared/rateLimits";
 import { buildR2UserPrefix } from "../../../storage/r2";
@@ -32,6 +33,13 @@ export const trackPodcastAudio = internalMutation({
     const card = await ctx.db.get("cards", cardId);
     // Only an object in the owner's own storage is the card's.
     if (!(card && key.startsWith(`${buildR2UserPrefix(card.userId)}/`))) {
+      return false;
+    }
+    // Account deletion owns the card's rows and fingerprints the keys it
+    // lists: a write here between its prepare and checkpoint reads as the
+    // source changing, which stops the deletion for an operator. The key is
+    // registered to the account, so the deletion removes the object anyway.
+    if (await accountDeletionOwnsRows(ctx, card.userId)) {
       return false;
     }
     const keys = (card.workflowArtifactKeys ?? []).filter(

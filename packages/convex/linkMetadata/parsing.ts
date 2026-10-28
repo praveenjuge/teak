@@ -84,6 +84,9 @@ export const firstFromSources = (
   return undefined;
 };
 
+const isHighSurrogate = (code: number): boolean =>
+  code >= 0xd8_00 && code <= 0xdb_ff;
+
 export const sanitizeText = (
   value: string | undefined,
   maxLength: number
@@ -96,7 +99,11 @@ export const sanitizeText = (
     return undefined;
   }
   if (normalized.length > maxLength) {
-    return normalized.slice(0, maxLength);
+    const cut = normalized.slice(0, maxLength);
+    // A cut through an emoji's surrogate pair would keep half a character.
+    return isHighSurrogate(cut.charCodeAt(cut.length - 1))
+      ? cut.slice(0, -1)
+      : cut;
   }
   return normalized;
 };

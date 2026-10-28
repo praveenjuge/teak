@@ -26,6 +26,7 @@ import {
 } from "../shared/highlights/anchor";
 import {
   cleanHighlightNote,
+  HIGHLIGHT_CONTEXT_CHARS,
   type HighlightSource,
   highlightLength,
   MAX_HIGHLIGHT_NOTE_CHARS,
@@ -379,12 +380,18 @@ export const createHighlightForUser = async (
       merged: false,
     };
   }
+  // The context finds the passage again; only the characters next to it
+  // count (`anchorContext`), so a longer one from a client isn't stored.
   const span: HighlightSpan = {
     start: args.start,
     end: args.end,
     quote: args.quote,
-    ...(args.prefix === undefined ? {} : { prefix: args.prefix }),
-    ...(args.suffix === undefined ? {} : { suffix: args.suffix }),
+    ...(args.prefix === undefined
+      ? {}
+      : { prefix: args.prefix.slice(-HIGHLIGHT_CONTEXT_CHARS) }),
+    ...(args.suffix === undefined
+      ? {}
+      : { suffix: args.suffix.slice(0, HIGHLIGHT_CONTEXT_CHARS) }),
   };
   const overlaps = rows.some(
     (row) => isAnchored(row) && spansOverlap(row, span)
@@ -508,7 +515,7 @@ export const applyAnchors = async (
     if (row?.unanchored !== true) {
       continue;
     }
-    await placeSpan(ctx, {
+    const placed = await placeSpan(ctx, {
       articleKey: textKey,
       capQuote: false,
       card,
@@ -528,7 +535,18 @@ export const applyAnchors = async (
       source: row.source,
     });
     placedCount += 1;
-    rows = await loadCardHighlights(ctx, cardId);
+    // Reading every row again after each anchor reads the card's highlights
+    // once per anchor, which a card of 200 imported ones can't afford in one
+    // transaction. Only a merge deletes rows; an anchoring changes just its
+    // own.
+    if (placed.merged) {
+      rows = await loadCardHighlights(ctx, cardId);
+    } else {
+      const fresh = await ctx.db.get("highlights", placed.id);
+      rows = rows.map((candidate) =>
+        candidate._id === placed.id && fresh ? fresh : candidate
+      );
+    }
   }
   if (placedCount > 0) {
     await recordCount(ctx, card, rows.length, Date.now());

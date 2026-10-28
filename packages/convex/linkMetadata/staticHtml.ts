@@ -19,6 +19,8 @@ const NAMED_ENTITIES: Record<string, string> = {
 };
 const ENTITY_REGEX = /&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi;
 const MAX_CODE_POINT = 0x10_ff_ff;
+const SURROGATE_MIN = 0xd8_00;
+const SURROGATE_MAX = 0xdf_ff;
 
 export const decodeHtmlEntities = (value: string): string =>
   value.replace(
@@ -28,7 +30,9 @@ export const decodeHtmlEntities = (value: string): string =>
         const codePoint = hex
           ? Number.parseInt(hex, 16)
           : Number.parseInt(decimal ?? "", 10);
-        return codePoint <= MAX_CODE_POINT
+        // A surrogate on its own is no character: `&#xD83D;` stays as text.
+        return codePoint <= MAX_CODE_POINT &&
+          !(codePoint >= SURROGATE_MIN && codePoint <= SURROGATE_MAX)
           ? String.fromCodePoint(codePoint)
           : entity;
       }

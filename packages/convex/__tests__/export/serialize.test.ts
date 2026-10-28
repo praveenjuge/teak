@@ -93,6 +93,20 @@ describe("sanitizeFilename", () => {
       "My-Photo-1-.PNG"
     );
   });
+  test.each([
+    ["日本語.pdf", "file.pdf"],
+    ["фото.JPG", "file.JPG"],
+    ["résumé.pdf", "resume.pdf"],
+    ["a.tar.gz", "a.tar.gz"],
+    [".bashrc", "bashrc"],
+  ])("keeps the extension of %s", (name, expected) => {
+    expect(sanitizeFilename(name)).toBe(expected);
+  });
+  test("keeps the extension when it shortens a long name", () => {
+    const out = sanitizeFilename(`${"x".repeat(300)}.pdf`);
+    expect(out.length).toBeLessThanOrEqual(120);
+    expect(out.endsWith(".pdf")).toBe(true);
+  });
   test("never returns path separators", () => {
     const out = sanitizeFilename("a/b\\c");
     expect(out.includes("/")).toBe(false);

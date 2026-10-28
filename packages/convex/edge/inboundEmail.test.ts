@@ -386,6 +386,26 @@ describe("POST /inbound/email", () => {
     expect(await cards()).toEqual([]);
   });
 
+  test("a deleted account that had the same email doesn't block the new one", async () => {
+    const { cards, owner, send, t } = await setup();
+    await owner.mutation(api.inbound.settings.enable, {});
+    // Someone deletes their account and signs up again with the same email:
+    // the old owner row stays, deleted, with that address.
+    await t.run((ctx) =>
+      ctx.db.insert("users", {
+        teakUserId: "teak_old_owner",
+        identityOrigin: "workos",
+        email: OWNER_EMAIL,
+        emailVerified: true,
+        workosUserId: "user_old_owner",
+        deletedAt: Date.now() - 1000,
+        workosDeletedAt: Date.now() - 1000,
+      })
+    );
+    expect((await send(email())).status).toBe(200);
+    expect(await cards()).toHaveLength(1);
+  });
+
   test("mail from an account that hasn't turned it on, or no account, is rejected", async () => {
     const { cards, owner, receipts, send } = await setup();
 

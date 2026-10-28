@@ -23,8 +23,18 @@ export const pageSweepCards = internalQuery({
     isDone: v.boolean(),
     cards: v.array(
       v.object({
+        article: v.optional(
+          v.object({
+            status: v.string(),
+            textKey: v.optional(v.string()),
+            imageKeys: v.optional(v.array(v.string())),
+          })
+        ),
+        documentTextKey: v.optional(v.string()),
         fileKey: v.optional(v.string()),
         metadata: v.any(),
+        pageArchive: v.optional(v.object({ storageKey: v.string() })),
+        pendingPageSnapshotKey: v.optional(v.string()),
         previewKey: v.optional(v.string()),
         previousThumbnailOverride: v.optional(
           v.object({
@@ -47,7 +57,26 @@ export const pageSweepCards = internalQuery({
       continueCursor: page.continueCursor,
       isDone: page.isDone,
       cards: page.page.map((card) => ({
+        // Every field `cardStorageObjectKeys` reads, or the sweep counts a
+        // live object as an orphan.
+        ...(card.article
+          ? {
+              article:
+                card.article.status === "ready"
+                  ? {
+                      status: card.article.status,
+                      textKey: card.article.textKey,
+                      imageKeys: card.article.imageKeys,
+                    }
+                  : { status: card.article.status },
+            }
+          : {}),
+        documentTextKey: card.documentTextKey,
         fileKey: card.fileKey,
+        ...(card.pageArchive
+          ? { pageArchive: { storageKey: card.pageArchive.storageKey } }
+          : {}),
+        pendingPageSnapshotKey: card.pendingPageSnapshotKey,
         workflowArtifactKeys: card.workflowArtifactKeys,
         metadata:
           card.metadata && typeof card.metadata === "object"

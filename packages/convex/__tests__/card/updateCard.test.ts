@@ -236,9 +236,11 @@ describe("card/updateCard.ts", () => {
     } as any);
 
     const updateHandler = (updateCard as any).handler ?? updateCard;
+    // Another account's card reads as missing, as `updateCardField` says.
     await expect(
       updateHandler(ctx, { id: "c1", content: "Hi" })
-    ).rejects.toThrow("Not authorized");
+    ).rejects.toThrow("Card not found");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 
   test("updateCard does not normalize content for non-quote types", async () => {

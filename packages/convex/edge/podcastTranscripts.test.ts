@@ -142,3 +142,57 @@ test("a card that is gone lists nothing", async () => {
     )
   ).toBe(false);
 });
+
+test("forgetting the audio mid account deletion leaves the deletion's batch alone", async () => {
+  const t = setup();
+  const key = `${buildR2UserPrefix("owner")}/c/podcast-audio/abc-episode`;
+  const { cardId, stateId } = await t.run(async (ctx) => {
+    await ctx.db.insert("users", {
+      teakUserId: "owner",
+      email: "owner@example.com",
+      emailVerified: true,
+    });
+    const cardId = await ctx.db.insert("cards", {
+      content: "https://podcast.example.com/episodes/42",
+      createdAt: 1,
+      type: "link",
+      updatedAt: 1,
+      url: "https://podcast.example.com/episodes/42",
+      userId: "owner",
+      workflowArtifactKeys: [key],
+    });
+    const stateId = await ctx.db.insert("accountDeletionStates", {
+      userId: "owner",
+      startedAt: 1,
+      stage: 3,
+      generation: 1,
+      writersPrepared: true,
+    });
+    return { cardId, stateId };
+  });
+  const binding = { stateId, generation: 1 };
+  const page = await t.mutation(
+    internal.accountDeletionData.prepareStorageBatch,
+    { ...binding, kind: "cards" }
+  );
+  expect(page.keys).toEqual([key]);
+
+  // The transcription ends while the Worker deletes the batch's keys.
+  expect(
+    await t.mutation(
+      internal.workflows.steps.podcast.mutations.trackPodcastAudio,
+      { cardId, key, stored: false }
+    )
+  ).toBe(false);
+
+  expect(
+    await t.mutation(internal.accountDeletionData.checkpointStorageBatch, {
+      ...binding,
+      count: page.keys.length,
+      fingerprint: page.fingerprint,
+      kind: "cards",
+      offset: page.offset,
+    })
+  ).toBe(true);
+  expect(await t.run((ctx) => ctx.db.get("cards", cardId))).toBeNull();
+});

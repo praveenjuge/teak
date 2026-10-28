@@ -138,20 +138,44 @@ export function toDualTimestamp(epochMs: number): DualTimestamp {
   };
 }
 
+const MAX_FILENAME_LENGTH = 120;
+const MAX_EXTENSION_LENGTH = 16;
+
+/** ASCII letters, digits, `.`, `_` and `-`; accents dropped, the rest `-`. */
+const cleanFilenamePart = (value: string): string =>
+  value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-");
+
+/**
+ * A file's name made safe for a ZIP path. Its extension is kept apart, so a
+ * name in another script (`日本語.pdf`) or one cut to length still opens
+ * with the right app.
+ */
 export function sanitizeFilename(rawName: string | undefined): string {
   const fallback = "file";
   if (!rawName) {
     return fallback;
   }
   const base = rawName.split(/[/\\]/).pop() ?? rawName;
-  const cleaned = base
-    .normalize("NFKD")
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+  const dot = base.lastIndexOf(".");
+  const extension =
+    dot > 0
+      ? cleanFilenamePart(base.slice(dot + 1))
+          .replace(/[^a-zA-Z0-9]/g, "")
+          .slice(0, MAX_EXTENSION_LENGTH)
+      : "";
+  const suffix = extension ? `.${extension}` : "";
+  const stem = cleanFilenamePart(suffix ? base.slice(0, dot) : base)
     .replace(/^[.-]+/, "")
-    .replace(/-+/g, "-")
-    .slice(0, 120);
-  const trimmed = cleaned.replace(/^-+|-+$/g, "");
-  return trimmed.length > 0 ? trimmed : fallback;
+    .slice(0, MAX_FILENAME_LENGTH - suffix.length);
+  const trimmed = `${stem}${suffix}`.replace(/^-+|-+$/g, "");
+  if (!stem.replace(/-+/g, "")) {
+    return suffix ? `${fallback}${suffix}` : fallback;
+  }
+  return trimmed;
 }
 
 export function buildFilePath(

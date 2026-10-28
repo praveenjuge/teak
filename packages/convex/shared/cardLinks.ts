@@ -75,25 +75,31 @@ const blank = (text: string) => text.replace(/[^\n]/g, " ");
 /** Inline code spans in one line replaced by spaces, keeping every index. */
 const maskCodeSpans = (line: string): string => {
   const runs = Array.from(line.matchAll(BACKTICK_RUN_REGEX));
-  let masked = line;
+  // Each run's next run of the same length, found in one pass from the end:
+  // searching forward from every run, and rebuilding the line for every
+  // span, took minutes on a long line of backticks.
+  const nextSameLength = new Array<number>(runs.length).fill(-1);
+  const laterByLength = new Map<number, number>();
+  for (let index = runs.length - 1; index >= 0; index--) {
+    const length = runs[index][0].length;
+    nextSameLength[index] = laterByLength.get(length) ?? -1;
+    laterByLength.set(length, index);
+  }
+  let masked = "";
+  let cursor = 0;
   for (let index = 0; index < runs.length; index++) {
-    const open = runs[index];
-    const closeIndex = runs.findIndex(
-      (run, at) => at > index && run[0].length === open[0].length
-    );
+    const closeIndex = nextSameLength[index];
     if (closeIndex === -1) {
       continue;
     }
     const close = runs[closeIndex];
-    const start = open.index ?? 0;
+    const start = runs[index].index ?? 0;
     const end = (close.index ?? 0) + close[0].length;
-    masked =
-      masked.slice(0, start) +
-      blank(masked.slice(start, end)) +
-      masked.slice(end);
+    masked += line.slice(cursor, start) + " ".repeat(end - start);
+    cursor = end;
     index = closeIndex;
   }
-  return masked;
+  return masked + line.slice(cursor);
 };
 
 /**

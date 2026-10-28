@@ -21,24 +21,30 @@ import { readInboundSettings } from "./settings";
 
 export const EMAIL_TAG = "email";
 const MAX_ATTACHMENTS = 50;
+// Rows read for one sender address: deleted accounts that had it, and the
+// live one.
+const MAX_SENDER_ROWS = 20;
 
 /** The account mail from `email` saves to, or null (rejected at SMTP). */
 export const findSender = internalQuery({
   args: { email: v.string() },
   returns: v.union(v.null(), v.object({ userId: v.string() })),
   handler: async (ctx, { email }) => {
-    const users = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) =>
-        q.eq("email", normalizeIdentityEmail(email))
-      )
-      .take(2);
-    const user = users.length === 1 ? users[0] : undefined;
-    if (
-      !user?.emailVerified ||
-      user.deletedAt !== undefined ||
-      user.workosDeletedAt !== undefined
-    ) {
+    // A deleted account keeps its row and its email, so someone who deletes
+    // their account and signs up again with the same address has two rows:
+    // only the live one counts. Two live ones are ambiguous.
+    const live = (
+      await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) =>
+          q.eq("email", normalizeIdentityEmail(email))
+        )
+        .take(MAX_SENDER_ROWS)
+    ).filter(
+      (row) => row.deletedAt === undefined && row.workosDeletedAt === undefined
+    );
+    const user = live.length === 1 ? live[0] : undefined;
+    if (!user?.emailVerified) {
       return null;
     }
     const settings = await readInboundSettings(ctx, user.teakUserId);

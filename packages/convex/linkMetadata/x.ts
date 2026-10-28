@@ -8,6 +8,9 @@ const X_OEMBED_ENDPOINTS = [
   "https://publish.twitter.com/oembed",
 ] as const;
 const X_STATUS_PATH_REGEX = /\/status\/(\d+)(?:[/?#]|$)/i;
+// Each X lookup gives up after this, so a hung endpoint falls back to the
+// other lookup or the page itself instead of holding the step to its timeout.
+export const X_FETCH_TIMEOUT_MS = 10_000;
 
 interface XOEmbedResponse {
   author_name?: string;
@@ -77,10 +80,11 @@ export const extractXStatusId = (url: string): string | undefined => {
 export const isXStatusUrl = (url: string): boolean =>
   Boolean(extractXStatusId(url));
 
+// Tags go before entities are decoded: a tweet's own "a &lt; b &gt; c"
+// would otherwise read as a tag and lose its text.
 const stripHtml = (value: string): string =>
-  decodeHtmlEntities(value.replace(/<br\s*\/?>/gi, "\n")).replace(
-    /<[^>]+>/g,
-    " "
+  decodeHtmlEntities(
+    value.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ")
   );
 
 const stripTrailingTcoLinks = (value: string | undefined): string | undefined =>
@@ -190,6 +194,7 @@ const fetchXOEmbed = async (url: string): Promise<XOEmbedResponse | null> => {
           headers: {
             accept: "application/json",
           },
+          signal: AbortSignal.timeout(X_FETCH_TIMEOUT_MS),
         }
       );
 
@@ -296,6 +301,7 @@ const fetchXSyndication = async (
         headers: {
           accept: "application/json",
         },
+        signal: AbortSignal.timeout(X_FETCH_TIMEOUT_MS),
       }
     );
 
