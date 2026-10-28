@@ -878,6 +878,65 @@ describe("card processing", () => {
     );
   });
 
+  test("a failed metadata step waits for the renderables beside it before the run reports", async () => {
+    const card = makeCard({
+      fileKey: "users/x/cards/c/file/a.pdf",
+      fileMetadata: { fileName: "a.pdf", mimeType: "application/pdf" },
+      processingStatus: {
+        classify: { status: "completed" },
+        metadata: { status: "pending" },
+        renderables: { status: "pending" },
+      },
+      type: "document",
+    });
+    let release: () => void = () => undefined;
+    const rendering = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const answers = createFakeOps({
+      inspect: { data: { text: "" } },
+      "render-pdf-thumbnail": { data: { height: 1100, width: 850 } },
+    });
+    const gatedOps: typeof answers.ops = async (spec) => {
+      if (spec.op === "render-pdf-thumbnail") {
+        await rendering;
+      }
+      return await answers.ops(spec);
+    };
+    const broken = Object.assign(new Error("metadata broke"), {
+      name: "NonRetryableError",
+    });
+    const fakeStep = createFakeStep({
+      failures: { "generate metadata": { error: broken, times: 1 } },
+    });
+    const convex = createCardConvex(card);
+    const env = testEnv();
+    const running = runCardProcessing(
+      {
+        env,
+        instanceId: `card-${CARD_ID}-1`,
+        params: {
+          cardId: CARD_ID,
+          convexSiteUrl: TEST_CONVEX_SITE_URL,
+          rev: 1,
+        },
+        step: fakeStep.step,
+      },
+      testDeps(env, convex.fetcher, gatedOps)
+    );
+    setTimeout(release, 20);
+
+    await expect(running).rejects.toThrow("metadata broke");
+    const names = fakeStep.names();
+    expect(names).toContain("generate renderables");
+    expect(names.indexOf("generate renderables")).toBeLessThan(
+      names.indexOf("report errored")
+    );
+    expect(card.thumbnailKey).toBeString();
+    expect(card.processingStatus?.renderables?.status).toBe("completed");
+    expect(reported(convex)).toEqual(["errored"]);
+  });
+
   test("renderables that exhaust their retries fail the stage and the run goes on", async () => {
     const card = makeCard({
       fileKey: "users/x/cards/c/file/a.pdf",
@@ -1327,6 +1386,50 @@ describe("archive page", () => {
     });
     expect(card.processingStatus?.metadata?.status).toBe("completed");
     expect(result).toMatchObject({ mode: "completed" });
+    expect(reported(convex)).toEqual(["complete"]);
+  });
+
+  test("an archive step that never got to start still fails its stage", async () => {
+    const card = makeCard({
+      content: "https://example.com/article",
+      processingStatus: {
+        archive: { status: "pending" },
+        categorize: { status: "completed" },
+        classify: { status: "completed" },
+        metadata: { status: "completed" },
+        renderables: { status: "completed" },
+      },
+      metadata: {
+        linkPreview: {
+          status: "success",
+          title: "A good article",
+          url: "https://example.com/article",
+        },
+      },
+      metadataStatus: "completed",
+      type: "link",
+      url: "https://example.com/article",
+    });
+    // Convex was unreachable for every attempt, so the step never marked
+    // the stage in progress.
+    const outage = new Error(
+      "convex_rpc_unavailable:card/processingRpc:getCardForProcessing:503"
+    );
+    const { convex, ops, run } = setup(
+      card,
+      {},
+      {
+        archiveOnly: true,
+        step: { failures: { "archive page": { error: outage, times: 4 } } },
+      }
+    );
+
+    expect(await run()).toMatchObject({ archive: "failed:unreachable" });
+    expect(archiveCalls(ops)).toHaveLength(0);
+    expect(card.processingStatus?.archive).toMatchObject({
+      error: "unreachable",
+      status: "failed",
+    });
     expect(reported(convex)).toEqual(["complete"]);
   });
 

@@ -1,14 +1,17 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
+import { CONVEX_TIMEOUT_MS } from "./convex";
 import {
   handleEmail,
   REJECT_CANT_SAVE,
   REJECT_TOO_BIG,
   REJECT_UNKNOWN_ADDRESS,
+  UPLOAD_TIMEOUT_MS,
 } from "./index";
 import {
   fakeDeps,
   fixture,
+  hang,
   json,
   messageOf,
   type RecordedRequest,
@@ -191,6 +194,19 @@ describe("handleEmail: the request to Convex", () => {
     });
     await handleEmail(message, TEST_ENV, net.deps);
     expect(net.requests).toHaveLength(2);
+  });
+
+  test("a Convex that never answers is given up on and retried like a network error", async () => {
+    const { message, rejections } = messageOf(fixture("plain.eml"));
+    const net = fakeDeps((request, nth) => (nth < 2 ? hang(request) : saved()));
+    await handleEmail(message, TEST_ENV, net.deps);
+    expect(net.requests).toHaveLength(3);
+    expect(net.timeouts).toEqual([
+      CONVEX_TIMEOUT_MS,
+      CONVEX_TIMEOUT_MS,
+      CONVEX_TIMEOUT_MS,
+    ]);
+    expect(rejections).toEqual([]);
   });
 
   test("Convex down after three tries throws, so the sender retries later", async () => {
@@ -382,6 +398,30 @@ describe("handleEmail: attachments", () => {
       saved: 1,
       upload_failed: 1,
     });
+  });
+
+  test("a PUT or finalize that never answers ends at its deadline and fails the delivery", async () => {
+    const { message } = messageOf(fixture("attachments.eml"));
+    const net = fakeDeps((request) => {
+      if (request.url === INGEST_URL) {
+        return planned([0, 1]);
+      }
+      if (request.method === "PUT") {
+        return request.url === uploadUrl(0)
+          ? hang(request)
+          : new Response(null, { status: 200 });
+      }
+      return hang(request);
+    });
+    await expect(handleEmail(message, TEST_ENV, net.deps)).rejects.toThrow(
+      "attachments_incomplete"
+    );
+    expect(net.logs.at(-1)).toEqual({
+      event: "inbound_email_attachments",
+      unreachable: 1,
+      upload_failed: 1,
+    });
+    expect(net.timeouts).toContain(UPLOAD_TIMEOUT_MS);
   });
 
   test("a PUT the Files Worker refuses is skipped and the delivery succeeds", async () => {

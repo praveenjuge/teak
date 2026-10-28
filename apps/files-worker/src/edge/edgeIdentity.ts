@@ -37,8 +37,52 @@ export interface EdgeIdentityDeps {
   verifyToken?: typeof verifyWorkosConnectTokenSignature;
 }
 
+const IPV4_MAPPED_REGEX = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/u;
+const HEXTET_REGEX = /^[0-9a-f]{1,4}$/u;
+
+/**
+ * The address a limit counts against. A host is routinely handed a whole
+ * IPv6 /64, so an IPv6 client is one bucket per /64: otherwise it could take
+ * a fresh address, and a fresh bucket, for every request.
+ */
+export const addressBucket = (address: string): string => {
+  const lower = address.trim().toLowerCase();
+  if (!lower.includes(":")) {
+    return lower;
+  }
+  const mapped = IPV4_MAPPED_REGEX.exec(lower);
+  if (mapped?.[1]) {
+    return mapped[1];
+  }
+  const halves = lower.split("::");
+  if (halves.length > 2) {
+    return lower;
+  }
+  const groupsOf = (part: string | undefined): string[] =>
+    part ? part.split(":") : [];
+  const head = groupsOf(halves[0]);
+  const tail = groupsOf(halves[1]);
+  // An embedded IPv4 tail fills the last two groups, past the /64.
+  const width = (groups: string[]) =>
+    groups.reduce((total, group) => total + (group.includes(".") ? 2 : 1), 0);
+  const missing = 8 - width(head) - width(tail);
+  if (halves.length === 1 ? missing !== 0 : missing < 1) {
+    return lower;
+  }
+  const groups = [
+    ...head,
+    ...new Array<string>(Math.max(missing, 0)).fill("0"),
+    ...tail,
+  ];
+  const prefix = groups.slice(0, 4);
+  if (!prefix.every((group) => HEXTET_REGEX.test(group))) {
+    return lower;
+  }
+  return `${prefix.map((group) => Number.parseInt(group, 16).toString(16)).join(":")}::/64`;
+};
+
 export const addressKey = (request: Request): `ip:${string}` =>
-  `ip:${request.headers.get("cf-connecting-ip") ?? "unknown"}`;
+  `ip:${addressBucket(request.headers.get("cf-connecting-ip") ?? "unknown")}`;
 
 const addressIdentity = (
   request: Request

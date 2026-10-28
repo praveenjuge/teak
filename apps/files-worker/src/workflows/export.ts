@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 import { internal } from "@teak/convex/_generated/api";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { exportArtifactObjectKeys } from "@teak/convex/export/artifactKey";
 import { buildBookmarksHtml } from "@teak/convex/export/bookmarks";
 import {
   BOOKMARKS_ENTRY_NAME,
@@ -26,6 +27,7 @@ import {
 } from "@teak/files-protocol";
 import type { BuildExportResult } from "../archives/export";
 import type { ConvexRpc } from "../convexRpc";
+import { queueObjectDeletions } from "../queues/objectDeletions";
 import { resolveDeps, settleConvexErrors, type WorkflowDeps } from "./deps";
 import { type FilesOpOutcome, gatedEnv } from "./filesOps";
 import {
@@ -294,6 +296,10 @@ export const runExport = (
     }
   };
 
+  // Set once the run reaches "build archive": from then on a failed or
+  // canceled job may have left its ZIP (up to 5 GB), checkpoint and result
+  // in R2, and nothing else ever deletes a job's artifact unless it is ready.
+  let archiveStarted: string | undefined;
   const fail = (failureClass: ExportFailureClass) =>
     step.do(`fail export (${failureClass})`, CONVEX_STEP, () =>
       settleConvexErrors(async () => {
@@ -302,6 +308,13 @@ export const runExport = (
           failureClass,
           jobId,
         });
+        if (archiveStarted) {
+          await queueObjectDeletions(
+            env,
+            exportArtifactObjectKeys(archiveStarted),
+            ops
+          );
+        }
         return null;
       })
     );
@@ -488,6 +501,7 @@ export const runExport = (
       Promise.resolve(Date.now())
     );
     let archive: ArchiveResult;
+    archiveStarted = artifactKey;
     try {
       archive = await step.do("build archive", ARCHIVE_STEP, () =>
         buildArchive(artifactKey, createdAtMs)

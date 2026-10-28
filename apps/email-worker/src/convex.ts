@@ -15,6 +15,8 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 /** Waits between the three tries of a message. */
 export const INGEST_RETRY_DELAYS_MS = [1000, 3000];
+/** How long one request to Convex may take before it counts as unreachable. */
+export const CONVEX_TIMEOUT_MS = 30_000;
 export const FINALIZE_RETRY_DELAYS_MS = [1000];
 
 export interface PlannedUpload {
@@ -53,6 +55,7 @@ const post = async (
     body,
     headers: await signedHeaders(target.secret, path, body, deps.now()),
     method: "POST",
+    signal: deps.timeout(CONVEX_TIMEOUT_MS),
   });
 
 const readJson = async (response: Response): Promise<unknown> =>

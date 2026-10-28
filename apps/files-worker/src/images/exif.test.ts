@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { parseTiffExif, readExifFacts } from "./exif";
+import { heifExifLocation, parseTiffExif, readExifFacts } from "./exif";
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`../fixtures/${name}`, import.meta.url)));
@@ -126,6 +126,44 @@ const heifWithExif = (tiff: Uint8Array): Uint8Array => {
     ...box("mdat", exifItem),
   ]);
 };
+
+/**
+ * A HEIF whose `iloc` lists `items` items that are not the Exif item, each
+ * claiming 65,535 extents of zero bytes: sizes of 0 for offset, length, base
+ * and index, so every extent is free to "read".
+ */
+const heifWithEmptyExtents = (items: number): Uint8Array => {
+  const ftyp = box("ftyp", new TextEncoder().encode("heic"), u32(0));
+  const infe = box(
+    "infe",
+    bytes(2, 0, 0, 0),
+    u16(1),
+    u16(0),
+    new TextEncoder().encode("Exif"),
+    bytes(0)
+  );
+  const iinf = box("iinf", bytes(0, 0, 0, 0), u16(1), infe);
+  const entries = new Uint8Array(items * 6);
+  for (let item = 0; item < items; item++) {
+    entries.set([...u16(2), ...u16(0), ...u16(0xff_ff)], item * 6);
+  }
+  const iloc = box("iloc", bytes(0, 0, 0, 0), u16(0), u16(items), entries);
+  return new Uint8Array([
+    ...ftyp,
+    ...box("meta", bytes(0, 0, 0, 0), iinf, iloc),
+  ]);
+};
+
+describe("heifExifLocation", () => {
+  test("gives up at once on an iloc whose extents claim more than the box holds", () => {
+    const heif = heifWithEmptyExtents(40_000);
+    expect(heif.length).toBeLessThan(256 * 1024);
+    const started = performance.now();
+    expect(heifExifLocation(heif)).toBeNull();
+    // Walking every claimed extent took tens of seconds.
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
 
 describe("readExifFacts", () => {
   test("reads camera, exposure and capture time from a JPEG but never its GPS location", async () => {

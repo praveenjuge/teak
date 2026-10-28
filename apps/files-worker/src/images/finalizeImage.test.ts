@@ -114,6 +114,18 @@ describe("finalize-image-upload", () => {
     expect(result.height).toBe(24);
   });
 
+  test("never decodes a small file whose header declares more pixels than a Worker holds", async () => {
+    // 2100×2100 of one colour compresses to a few kilobytes; decoding it
+    // in Photon needs tens of megabytes, and 8000×8000 needs 580 MB.
+    const bytes = makePng(2100, 2100);
+    expect(bytes.length).toBeLessThan(1024 * 1024);
+    const env = makeEnv({ bytes, info: new Error("decode failed") });
+    await expect(runOp(env)).rejects.toThrow("not_an_image");
+    expect(
+      (env.BUCKET as unknown as FakeBucket).storedBytes(DEST_KEY)
+    ).toBeNull();
+  });
+
   test("rejects arbitrary bytes even when upload metadata says image", async () => {
     const env = makeEnv({
       bytes: new Uint8Array([1, 2, 3]),
@@ -155,6 +167,20 @@ describe("finalize-image-upload", () => {
       info: new Error("decode failed"),
     });
     await expect(runOp(env)).rejects.toThrow("not_an_image");
+  });
+
+  test("finalizes a thin SVG rule, whose small render would be under a pixel tall", async () => {
+    const env = makeEnv({
+      bytes: new TextEncoder().encode(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="4"><rect width="1200" height="4" fill="#ccc"/></svg>`
+      ),
+      contentType: "image/svg+xml",
+      info: null,
+    });
+    const result = await runOp(env);
+    expect(result.decodedFormat).toBe("image/svg+xml");
+    expect(result.width).toBe(1200);
+    expect(result.height).toBe(4);
   });
 
   test("rejects oversized dimensions", async () => {

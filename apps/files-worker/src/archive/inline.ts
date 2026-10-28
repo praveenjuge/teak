@@ -665,6 +665,7 @@ const markIndex = (element: Element, name: string): number | null => {
 };
 
 const DOCTYPE = /^\s*<!doctype[^>]*>/iu;
+const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 
 const renderFull = async (
   page: CollectedPage,
@@ -706,6 +707,11 @@ const renderFull = async (
     })
     .on("html", {
       element(element) {
+        // An `<html>` inside SVG or MathML is no document element, and a
+        // `<meta>` there declares nothing.
+        if (element.namespaceURI !== HTML_NAMESPACE) {
+          return;
+        }
         wroteHeader = true;
         element.prepend(header, { html: true });
       },
@@ -812,7 +818,9 @@ const renderFull = async (
     })
     .transform(htmlResponse(page.html))
     .text();
-  if (wroteHeader) {
+  // An `<html>` in an element the archive drops (an `<object>`'s fallback,
+  // say) took the header with it.
+  if (wroteHeader && output.includes(header)) {
     return output;
   }
   const doctype = DOCTYPE.exec(output)?.[0] ?? "";
@@ -825,11 +833,16 @@ const fetchAssets = async (
   deps: PageArchiveDeps,
   assets: Map<string, InlineAsset>
 ) => {
-  const unique = urls.filter(
-    (entry, index) =>
-      !assets.has(entry.url) &&
-      urls.findIndex((other) => other.url === entry.url) === index
-  );
+  // A Set, not a search per entry: a stylesheet can hold tens of thousands
+  // of `url()`s, and comparing each with every other took tens of seconds.
+  const seen = new Set<string>();
+  const unique = urls.filter((entry) => {
+    if (assets.has(entry.url) || seen.has(entry.url)) {
+      return false;
+    }
+    seen.add(entry.url);
+    return true;
+  });
   await runPool(unique, FETCH_CONCURRENCY, async ({ kind, url }) => {
     if (!budget.take()) {
       return;

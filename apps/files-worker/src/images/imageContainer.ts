@@ -165,6 +165,14 @@ const inspectWebp = (bytes: Uint8Array): ImageFacts | null => {
 };
 
 /**
+ * The most pixels the fallback decodes. A 1 MiB file can declare far more:
+ * a 62 KB PNG of 8000×8000 grew the process by 580 MB in Photon, past a
+ * Worker's 128 MB. The header is checked first, and only a file within this
+ * is decoded.
+ */
+export const MAX_CONTAINER_DECODE_PIXELS = 4 * 1024 * 1024;
+
+/**
  * Decode a complete, bounded image with Photon's WASM codec when Cloudflare's
  * two decoders reject a compatible edge case. Container parsing identifies
  * the format, but dimensions are trusted only after successful pixel decode.
@@ -175,7 +183,14 @@ export const inspectImageContainer = (bytes: Uint8Array): ImageFacts | null => {
     inspectGif(bytes) ??
     inspectJpeg(bytes) ??
     inspectWebp(bytes);
-  if (!containerFacts) {
+  if (
+    !(
+      containerFacts?.width &&
+      containerFacts.height &&
+      containerFacts.width * containerFacts.height <=
+        MAX_CONTAINER_DECODE_PIXELS
+    )
+  ) {
     return null;
   }
   let image: PhotonImage | null = null;

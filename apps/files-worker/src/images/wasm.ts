@@ -41,6 +41,11 @@ const ensureResvg = (): Promise<void> => {
 };
 
 const MAX_SVG_RENDER_EDGE = 2048;
+/**
+ * The longest a one-pixel strip may be drawn: a thin rule's long side, at
+ * four bytes a pixel.
+ */
+const MAX_SVG_STRIP_EDGE = 65_536;
 
 export const renderSvgToPng = async (
   svgText: string,
@@ -67,17 +72,23 @@ export const renderSvgToPng = async (
     1,
     Math.min(MAX_SVG_RENDER_EDGE, Math.round(maxEdge))
   );
-  const scaledWidth = Math.max(
-    1,
-    Math.round((naturalWidth * boundedMaxEdge) / longestEdge)
-  );
+  // One scale for both sides, from the longest. A side under half a pixel
+  // rounds to zero and resvg refuses it, so a thin rule (1200×4 at 64 px)
+  // keeps a short side of one pixel and a long side past `maxEdge`; one so
+  // thin that its strip would be millions of pixels long fails instead.
+  const shortestEdge = Math.min(naturalWidth, naturalHeight);
+  let zoom = Math.min(1, boundedMaxEdge / longestEdge);
+  if (shortestEdge * zoom < 1) {
+    zoom = 1 / shortestEdge;
+  }
+  if (!(longestEdge * zoom <= MAX_SVG_STRIP_EDGE)) {
+    natural.free();
+    throw new Error("svg_render_failed");
+  }
   const renderer =
-    longestEdge <= boundedMaxEdge
+    zoom === 1
       ? natural
-      : new Resvg(svgText, {
-          font,
-          fitTo: { mode: "width", value: scaledWidth },
-        });
+      : new Resvg(svgText, { font, fitTo: { mode: "zoom", value: zoom } });
   try {
     const image = renderer.render();
     try {

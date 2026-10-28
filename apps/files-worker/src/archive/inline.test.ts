@@ -230,6 +230,22 @@ describe("buildPageArchive: header", () => {
     expect(result.html).not.toContain("img-src https:");
   });
 
+  test("still opens with the header when the page's only <html> tag is in dropped fallback content or an SVG", async () => {
+    for (const page of [
+      "<!doctype html><p>Hi</p><object data=a.swf><html></object>",
+      "<!doctype html><p>Hi</p><video><html></video>",
+      "<!doctype html><p>Hi</p><svg><html></html></svg>",
+    ]) {
+      const result = await archive(page);
+      expect(
+        result.html.startsWith('<!doctype html><meta charset="utf-8">')
+      ).toBe(true);
+      expect(result.html).toContain(
+        `<meta http-equiv="Content-Security-Policy" content="default-src 'none';`
+      );
+    }
+  });
+
   test("escapes a page URL with quotes and markup inside the archive meta", async () => {
     const pageUrl = `https://example.com/?q="><script>alert('x')</script>&a=1`;
     const result = await archive("<p>Hi</p>", fakeDeps(), {
@@ -441,6 +457,26 @@ describe("buildPageArchive: stylesheets and fonts", () => {
     );
     expect(result.html).toContain('.jp::after{content:"日本"}');
   });
+
+  test("reads a page with tens of thousands of url()s and font faces in a moment", async () => {
+    const count = 30_000;
+    const css = Array.from(
+      { length: count },
+      (_, index) =>
+        `@font-face{font-family:f${index};src:url(/f/${index}.woff2)}.b${index}{background:url(/b/${index}.png)}`
+    ).join("");
+    const deps = fakeDeps();
+    const started = performance.now();
+    const result = await archive(`<style>${css}</style><p>Hi</p>`, deps);
+    // Each url() was compared with every other: about a minute of CPU.
+    expect(performance.now() - started).toBeLessThan(3000);
+    expect(deps.recorded.assets).toHaveLength(PAGE_ARCHIVE_MAX_REQUESTS);
+    expect(deps.recorded.assets[0]).toEqual({
+      kind: "font",
+      url: "https://example.com/f/0.woff2",
+    });
+    expect(result.kind).toBe("full");
+  }, 120_000);
 
   test("stops at 40 stylesheets", async () => {
     const links = Array.from(

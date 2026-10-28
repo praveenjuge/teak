@@ -23,4 +23,6 @@ export interface Deps {
   log: (entry: Record<string, unknown>) => void;
   now: () => number;
   sleep: (ms: number) => Promise<void>;
+  /** A signal that aborts after `ms`: every request's deadline. */
+  timeout: (ms: number) => AbortSignal;
 }

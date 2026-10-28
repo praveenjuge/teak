@@ -44,8 +44,27 @@ const fontFaceRanges = (css: string): [number, number][] =>
     (match.index ?? 0) + match[0].length,
   ]);
 
-const insideAny = (index: number, ranges: [number, number][]) =>
-  ranges.some(([start, end]) => index >= start && index < end);
+/**
+ * Whether `index` falls in one of `ranges`, which are in order and never
+ * overlap (they come from one `matchAll`). A binary search: a stylesheet can
+ * hold tens of thousands of faces, each with its own `url()`.
+ */
+const insideAny = (index: number, ranges: [number, number][]) => {
+  let low = 0;
+  let high = ranges.length - 1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const [start, end] = ranges[middle] as [number, number];
+    if (index < start) {
+      high = middle - 1;
+    } else if (index >= end) {
+      low = middle + 1;
+    } else {
+      return true;
+    }
+  }
+  return false;
+};
 
 /** Splits a declaration value on commas outside parentheses and quotes. */
 const splitTopLevel = (value: string): string[] => {

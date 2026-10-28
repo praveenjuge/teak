@@ -619,6 +619,34 @@ describe("runExport", () => {
     expect(test.bucket.objects.has(MANIFEST_KEY)).toBe(false);
   });
 
+  test("a cancel that lands while the archive builds deletes the built archive", async () => {
+    const backend = exportBackend([card("c1", "kept.png")]);
+    const test = setup(backend);
+    test.bucket.objects.set("users/u1/cards/c1/file/kept.png", {
+      bytes: makePng(1, 1),
+    });
+
+    expect(
+      await runExport(test.run, {
+        convex: test.convex,
+        ops: async (spec) => {
+          const outcome = await callFilesOp(test.env, spec);
+          if (spec.op === "build-export") {
+            backend.job.cancelRequested = true;
+          }
+          return outcome as never;
+        },
+      })
+    ).toEqual({ status: "canceled" });
+
+    expect(backend.job.status).toBe("canceled");
+    expect(
+      [...test.bucket.objects.keys()].filter((key) =>
+        key.startsWith(ARTIFACT_KEY)
+      )
+    ).toEqual([]);
+  });
+
   test("a retried build writes the same manifest, so it can resume its checkpoint", async () => {
     const backend = exportBackend([card("c1")]);
     const test = setup(backend);

@@ -426,6 +426,55 @@ describe("requests without a known user", () => {
     expect("attestation" in outcome && outcome.attestation).toBeTruthy();
   });
 
+  test("rotating IPv6 addresses inside one /64 cannot outrun the address limit", async () => {
+    // A single host is routinely handed a whole /64.
+    const shared = env({ unknown: new FakeLimiter(2) });
+    const statuses: (number | "forwarded")[] = [];
+    for (const address of [
+      "2001:db8:abcd:12::1",
+      "2001:0DB8:ABCD:0012:ffff:0:0:2",
+      "2001:db8:abcd:12:dead:beef:1:3",
+    ]) {
+      const outcome = await applyEdgeRateLimit(
+        new Request("https://teakvault.com/api/v1/cards", {
+          headers: {
+            Authorization: `Bearer ${STRANGER_KEY}`,
+            "cf-connecting-ip": address,
+          },
+        }),
+        shared,
+        ctx,
+        await deps()
+      );
+      statuses.push(
+        "response" in outcome ? outcome.response.status : "forwarded"
+      );
+    }
+    expect(statuses).toEqual(["forwarded", "forwarded", 429]);
+    expect(new Set(shared.unknown.keys)).toEqual(
+      new Set(["ip:2001:db8:abcd:12::/64"])
+    );
+  });
+
+  test.each([
+    ["198.51.100.4", "ip:198.51.100.4"],
+    ["::ffff:198.51.100.4", "ip:198.51.100.4"],
+    ["2001:db8::1", "ip:2001:db8:0:0::/64"],
+    ["2001:db8:1:2::", "ip:2001:db8:1:2::/64"],
+    ["2001:db8:1:3::1", "ip:2001:db8:1:3::/64"],
+  ])("charges %s to the bucket %s", async (address, bucket) => {
+    const shared = env();
+    await applyEdgeRateLimit(
+      new Request("https://teakvault.com/api/openapi.json", {
+        headers: { "cf-connecting-ip": address },
+      }),
+      shared,
+      ctx,
+      await deps()
+    );
+    expect(shared.api.keys).toEqual([bucket]);
+  });
+
   test("no credential is limited per address on the request limiter, unattested", async () => {
     const shared = env();
     const outcome = await limit(shared, request("/api/openapi.json"));

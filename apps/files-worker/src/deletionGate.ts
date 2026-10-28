@@ -161,21 +161,49 @@ export const WRITE_LEASE_MS = 24 * 60 * 60 * 1000;
  * Durable state of one object key's gate. `active` holds the token of the
  * admitted write and `activeSince` when it was admitted. Leases written
  * before `activeSince` existed get it from the first freeze that sees them.
+ * `parts` holds a lease per multipart part in flight (token to start time):
+ * an upload's parts go up side by side, so they share the key. Only a freeze
+ * waits for them: a part never makes an object on its own, and a stray part
+ * that lands late cannot change an upload already completed or aborted.
  */
 interface GateState {
   active: string;
   activeSince: number;
   frozen: true;
+  parts: Record<string, number>;
   uploadId: string;
   uploadKey: string;
 }
 
 type GateStorage = Pick<DurableObjectTransaction, "get">;
+type GateTransaction = Pick<DurableObjectTransaction, "delete" | "get" | "put">;
 
 const readGate = <K extends keyof GateState>(
   storage: GateStorage,
   key: K
 ): Promise<GateState[K] | undefined> => storage.get<GateState[K]>(key);
+
+/** The part leases still in flight: a day-old one has settled either way. */
+const openPartLeases = async (
+  txn: GateTransaction,
+  now: number
+): Promise<boolean> => {
+  const parts = await readGate(txn, "parts");
+  if (!parts) {
+    return false;
+  }
+  const open = Object.entries(parts).filter(
+    ([, since]) => now - since < WRITE_LEASE_MS
+  );
+  if (open.length === 0) {
+    await txn.delete("parts");
+    return false;
+  }
+  if (open.length !== Object.keys(parts).length) {
+    await txn.put("parts", Object.fromEntries(open));
+  }
+  return true;
+};
 
 const GATE_WRITES = ["abort", "complete", "create", "part", "put"] as const;
 type GateWrite = (typeof GATE_WRITES)[number];
@@ -206,8 +234,7 @@ export class ObjectDeletionGate {
   }
   private async freeze(): Promise<Response> {
     const storage = this.state.storage;
-    const busy = await storage.transaction(async (txn) => {
-      await txn.put("frozen", true);
+    const activeWrite = async (txn: GateTransaction): Promise<boolean> => {
       if (!(await readGate(txn, "active"))) {
         return false;
       }
@@ -221,6 +248,12 @@ export class ObjectDeletionGate {
       }
       await txn.delete(["active", "activeSince"]);
       return false;
+    };
+    const busy = await storage.transaction(async (txn) => {
+      await txn.put("frozen", true);
+      const writing = await activeWrite(txn);
+      const parts = await openPartLeases(txn, Date.now());
+      return writing || parts;
     });
     if (!busy) {
       const uploadId = await readGate(storage, "uploadId");
@@ -313,7 +346,13 @@ export class ObjectDeletionGate {
       ) {
         return false;
       }
-      await txn.put({ active: token, activeSince: Date.now() });
+      const now = Date.now();
+      if (op === "part") {
+        const parts = (await readGate(txn, "parts")) ?? {};
+        await txn.put("parts", { ...parts, [token]: now });
+        return true;
+      }
+      await txn.put({ active: token, activeSince: now });
       return true;
     });
     if (!admitted) {
@@ -322,6 +361,14 @@ export class ObjectDeletionGate {
     }
     const response = await this.writes[op](key, request);
     await this.state.storage.transaction(async (txn) => {
+      if (op === "part") {
+        const { [token]: _settled, ...rest } =
+          (await readGate(txn, "parts")) ?? {};
+        await (Object.keys(rest).length > 0
+          ? txn.put("parts", rest)
+          : txn.delete("parts"));
+        return;
+      }
       if ((await readGate(txn, "active")) === token) {
         await txn.delete(["active", "activeSince"]);
       }
