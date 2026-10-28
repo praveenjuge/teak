@@ -10,6 +10,7 @@ Settings → Import & export → Import brings cards in from a file: browser boo
 - `import-links` reads one link per line, optionally followed by " | Title" (OneTab's Export URLs too).
 - `import-report` lists rows that couldn't be imported ("Row 4 has no url", unsafe links) under "Items that couldn't be imported", with "Copy error report" and "Download error report".
 - `import-duplicates` skips links already saved and repeats in the file (the same link with `www`, `utm_*` or a fragment), counted as skipped.
+- `import-archive-partial` imports a Teak archive with one file the import can't extract. Only that file's card fails, listed by its file name under "Items that couldn't be imported". The other file cards, including ones in the same batch of five, import with their files.
 
 ## How to get to it (user POV)
 
@@ -31,8 +32,25 @@ Steps:
 - **Import a CSV.** Set `src/web/import-fixtures/aliases.csv` on the hidden file input, `input[type=file][accept=".csv"]`. e2e's `upload` can't reach that input and "Choose file" opens the system picker, so use Playwright's `setInputFiles` over CDP (see `.agents/cloud.md`, "File uploads"). A confirmation shows the file name and "CSV file · <size>"; `tap` "Start import". Progress runs through "Uploading", "Parsing import file" and "Importing cards", then the line reads "Last import: 1 created, 0 skipped — <when>". Go to Everything, search "Alias title", and open the card: title "Alias title", tags "alpha" and "beta", folder "Projects / Teak", note "Alias note", and "Added May 1, 2024, 10:00 AM" (the hour follows the browser's time zone).
 - **Missing url column.** Import `no-url.csv`. The import stops: "Import stopped" and "This CSV has no url column. Add a header row with a url (or link) column."
 - **Duplicates and the report.** Import `variants.csv` (three spellings of one link): "1 created, 2 skipped". Import it again: "0 created, 3 skipped". Import `unsafe-urls.csv`: "1 created" and "3 failed", and "Items that couldn't be imported" lists "Row 2: CSV link is unsafe…", "Row 3: …" and "Row 4 has no url". `tap` "Download error report"; the file lists the same rows.
+- **Teak archive fixture.** Needs the local stack (`bun run dev --local --detach`) for the fresh account below. In the seeded account, upload four small PNGs named `<marker>-a.png` to `<marker>-d.png` ([capture](./capture.md)). In region "Export", `tap` "Start export", wait for "Your export is ready", and `tap` "Download archive". The newest cards come first in `cards.json`, so the four images are in the import's first batch of five. Break one of them so it fails while being extracted: in a copy of the ZIP, change the last letter of `<marker>-c.png`'s name in its local file header only (`.png` → `.pnx`). Take its path, `files/<card id>-<marker>-c.png`, from `cards.json`. `unzip -t broken.zip` then reports `mismatching "local" filename` for that entry and nothing else.
+
+  ```bash
+  python3 -I - teak-export-<date>.zip broken.zip "files/<card id>-<marker>-c.png" <<'PY'
+  import sys
+  src, dst, name = sys.argv[1], sys.argv[2], sys.argv[3].encode()
+  d = bytearray(open(src, "rb").read())
+  i = d.find(name)
+  while d[i - 30:i - 26] != b"PK\x03\x04":
+      assert i >= 0, "no local header for that name"
+      i = d.find(name, i + 1)
+  d[i + len(name) - 1] = ord("x")  # .png -> .pnx in the local header only
+  open(dst, "wb").write(d)
+  PY
+  ```
+
+- **Teak archive with one bad file.** Create a fresh user on the emulator: `POST http://localhost:4100/user_management/users` with `Authorization: Bearer sk_test_default` and `{"email", "email_verified": true, "first_name", "last_name", "password"}` (the emulator has no sign-up screen). Sign in as that user ([sign-in](./sign-in.md)); its vault is seeded too. On `/settings/data`, choose "Teak archive" in combobox "Import from" (the hint reads "A ZIP from Export your data in Teak. Up to 5.0 GB.") and set `broken.zip` on `input[type=file][accept=".zip"]`. The confirmation shows "broken.zip" and "Teak archive · <size>"; `tap` "Start import". The line then reads "Last import: 36 created, 1 skipped, 1 failed — just now". The 36 and 1 come from a 38-card export of the seeded vault; there is always exactly 1 failed. "Items that couldn't be imported" lists one item, named "<marker>-c.png", with the reason `files_worker_error:INVALID_INPUT:400:wf-<id>`. `tap` "Download error report": `teak-import-report.txt` reads "Created: 36", "Skipped: 1", "Failed: 1" and `2. <marker>-c.png: files_worker_error:INVALID_INPUT:400:wf-<id>`. Go to Everything and search the marker: buttons "Image: <marker>-a.png", "Image: <marker>-b.png" and "Image: <marker>-d.png" show their images, and there is no "-c" card.
 - **Text file of links.** Choose "Text file of links" (the file chooser takes `.txt`) and import `links.txt`: 3 created, the third titled "Third | with a pipe".
-- **Clean up.** Move the imported cards to Trash and delete the folders the import made ("Work / Design", "Reading", "Projects / Teak").
+- **Clean up.** Move the imported cards to Trash and delete the folders the import made ("Work / Design", "Reading", "Projects / Teak"). After the archive import, delete the fresh account (Settings → Security → "Delete your account", [settings](./settings.md)), then in the seeded account move the marked images to Trash and "Delete Forever" ([card-actions](./card-actions.md)).
 
 ## Gotchas
 
@@ -43,3 +61,6 @@ Steps:
 - The free plan stops at 200 cards: an import past it ends with the card limit message. Use an account with room.
 - The free plan's card rate limit slows big imports after the first 30 cards ("Waiting for card rate limit", about one card every 2 s); give a large file minutes, not seconds.
 - Imports never move an existing card to the top or change it; a link already saved is only skipped.
+- Deleting a file from a Teak archive doesn't test `import-archive-partial`. The import finds the missing entry before it extracts anything, so the item fails as "Item <n>" with "Missing ZIP entry: files/<card id>-<name>", and this happened before the fix too. Use the local header change above, which only fails during extraction.
+- A file that fails during extraction is listed with the Files Worker's raw error (`files_worker_error:INVALID_INPUT:400:wf-<id>`), not a translated message. The `wf-<id>` part changes every run.
+- Export runs once a week per account ("You've used this week's export."). Keep the ZIP from the first export and make new copies of it.
