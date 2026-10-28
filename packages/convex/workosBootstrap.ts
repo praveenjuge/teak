@@ -6,6 +6,7 @@ import {
   getWorkosBootstrapIdentity,
   readWorkosProfile,
 } from "./securitySessions";
+import { rateLimiter } from "./shared/rateLimits";
 import { createWorkosClient } from "./shared/workosClient";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
 import { validWorkosExternalId } from "./workos/tokens";
@@ -157,7 +158,9 @@ const replayRecentProfileEvents = async (
 /**
  * `ensureUser` for a browser that has just signed in. When the profile hasn't
  * arrived by webhook yet, it fetches it from WorkOS instead of asking the
- * person to wait and try again.
+ * person to wait and try again. Past `workosProfileReplays` it doesn't ask
+ * WorkOS and answers `profile_pending`, as when WorkOS has nothing yet: the
+ * app retries, and the webhook lets the next try through.
  */
 export const ensureUserNow = action({
   args: {},
@@ -171,12 +174,18 @@ export const ensureUserNow = action({
       return first;
     }
     const identity = await getWorkosBootstrapIdentity(ctx);
-    if (
-      !(
-        identity &&
-        (await replayRecentProfileEvents(ctx, identity.workosUserId))
-      )
-    ) {
+    if (!identity) {
+      return first;
+    }
+    const allowed = await rateLimiter.limit(ctx, "workosProfileReplays", {
+      key: identity.workosUserId,
+      throws: false,
+    });
+    if (!allowed.ok) {
+      console.warn("[workos/bootstrap] profile_replay_rate_limited");
+      return first;
+    }
+    if (!(await replayRecentProfileEvents(ctx, identity.workosUserId))) {
       return first;
     }
     return await ctx.runMutation(api.workosBootstrap.ensureUser, {});

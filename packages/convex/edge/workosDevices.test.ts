@@ -1,3 +1,4 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -8,6 +9,7 @@ import {
   getWorkosBootstrapIdentity,
   readWorkosSessionIdentity,
 } from "../securitySessions";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 
 const modules = import.meta.glob("../**/*.ts");
 const claims = {
@@ -116,12 +118,14 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 async function setup(overrides = {}, owner = {}) {
   const t = convexTest(schema, modules);
   workosTest.register(t);
+  rateLimiterTest.register(t, "rateLimiterV2");
   const row = await t.run((ctx) =>
     ctx.db.insert("users", {
       teakUserId: "owner",
@@ -139,6 +143,60 @@ async function setup(overrides = {}, owner = {}) {
   return { t, row, user: t.withIdentity({ ...claims, ...overrides }) };
 }
 const paginationOpts = { cursor: null, numItems: 25 };
+const { capacity: deviceRequests } = RATE_LIMIT_CONFIG.workosSessionRequests;
+describe("device requests to WorkOS are limited per account", () => {
+  test("a loop of device calls stops reaching WorkOS at the account's limit", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const f = await setup();
+    for (let call = 0; call < deviceRequests; call++) {
+      await f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      });
+    }
+    expect(calls).toHaveLength(deviceRequests);
+    await expect(
+      f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      })
+    ).rejects.toThrow("RATE_LIMITED");
+    await expect(
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
+        sessionId: claims.sid,
+      })
+    ).rejects.toThrow("RATE_LIMITED");
+    expect(calls).toHaveLength(deviceRequests);
+    expect(revoked).toEqual([]);
+    // The bucket refills, so the Settings page works again a minute later.
+    vi.advanceTimersByTime(60_000);
+    await f.user.action(api.securitySessions.revokeAuthkitSession, {
+      sessionId: claims.sid,
+    });
+    expect(revoked).toEqual([claims.sid]);
+  });
+
+  test("a revoke spends a token on every WorkOS page it reads", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const f = await setup();
+    pages.session_NEXT = [session("session_OTHER")];
+    // Two left: enough for both list pages, not for the revoke after them.
+    for (let call = 0; call < deviceRequests - 2; call++) {
+      await f.user.action(api.securitySessions.listAuthkitSessions, {
+        paginationOpts,
+      });
+    }
+    calls = [];
+    await expect(
+      f.user.action(api.securitySessions.revokeAuthkitSession, {
+        sessionId: "session_OTHER",
+      })
+    ).rejects.toThrow("RATE_LIMITED");
+    expect(calls.map((url) => url.searchParams.get("after"))).toEqual([
+      null,
+      "session_NEXT",
+    ]);
+    expect(revoked).toEqual([]);
+  });
+});
 describe("owned WorkOS devices", () => {
   test("lists active owned sessions with safe labels and follows provider pagination", async () => {
     const f = await setup();

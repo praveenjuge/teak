@@ -114,6 +114,35 @@ export const RATE_LIMIT_CONFIG = {
     period: MINUTE,
     capacity: 10,
   },
+  // The WorkOS API, which these actions reach with the deployment's one key:
+  // past a limit, one account can't spend the quota every account shares.
+  // Settings → Devices, one token per WorkOS request: a list page, a page of
+  // the ownership check before a revoke, a revoke (sign-out included).
+  // Opening Settings, loading more and revoking a few devices take a handful.
+  workosSessionRequests: {
+    kind: "token bucket",
+    rate: 30,
+    period: MINUTE,
+    capacity: 30,
+  },
+  // Settings → Connected apps, one token per disconnect (up to 20 WorkOS
+  // pages and a delete each). There are only a few apps to disconnect.
+  workosDisconnects: {
+    kind: "token bucket",
+    rate: 30,
+    period: HOUR,
+    capacity: 10,
+  },
+  // `ensureUserNow` reading a fresh account's profile from the Events API
+  // (up to 3 pages), keyed by WorkOS user. A sign-in asks at most five times
+  // (the callback, then the app and its three retries), and only while the
+  // profile webhook hasn't landed; a returning account never reaches it.
+  workosProfileReplays: {
+    kind: "token bucket",
+    rate: 30,
+    period: HOUR,
+    capacity: 10,
+  },
   // arXiv's API terms ask for at most one request every 3 seconds:
   // https://info.arxiv.org/help/api/tou.html
   arxivApi: {

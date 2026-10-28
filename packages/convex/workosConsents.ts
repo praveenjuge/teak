@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from "convex/server";
-import { type Infer, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import { internal } from "./_generated/api";
 import { action, internalMutation, query } from "./_generated/server";
 import {
@@ -9,6 +9,7 @@ import {
 } from "./publicApi";
 import { readWorkosConnectClients } from "./publicApi/http/meta";
 import { getSessionUser } from "./securitySessions";
+import { rateLimiter } from "./shared/rateLimits";
 import { CONNECT_CONSENT_ID, WORKOS_USER_ID } from "./shared/workosIds";
 import { disconnectApplication } from "./workosApplicationDisconnect";
 import { resolveOwner } from "./workosIdentity";
@@ -207,6 +208,17 @@ export const disconnectConnection = action({
       });
     if (!row) {
       throw new Error("Connection unavailable");
+    }
+    const allowed = await rateLimiter.limit(ctx, "workosDisconnects", {
+      key: session.teakUserId,
+      throws: false,
+    });
+    if (!allowed.ok) {
+      throw new ConvexError({
+        code: "RATE_LIMITED",
+        message: "Too many requests",
+        retryAt: Date.now() + allowed.retryAfter,
+      });
     }
     const result = await disconnectApplication(ctx, {
       workosUserId: row.workosUserId,

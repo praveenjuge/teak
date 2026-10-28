@@ -1,3 +1,4 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import type { FunctionReturnType } from "convex/server";
 import { convexTest } from "convex-test";
@@ -9,11 +10,13 @@ import {
 import { api, internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import schema from "../schema";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 
 const modules = import.meta.glob("../**/*.ts");
 const setup = () => {
   const t = convexTest(schema, modules);
   workosTest.register(t);
+  rateLimiterTest.register(t, "rateLimiterV2");
   return t;
 };
 type Backend = ReturnType<typeof setup>;
@@ -181,6 +184,45 @@ describe("signed-in Connect management", () => {
       reason: "revoked_consent",
     });
     expect(await authorize(t, other)).toEqual({
+      status: "ok",
+      teakUserId: "legacy-owner",
+    });
+  });
+
+  test("a loop of disconnects stops reaching WorkOS at the account's limit", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t = setup();
+    await seed(t);
+    const { capacity } = RATE_LIMIT_CONFIG.workosDisconnects;
+    // One app more than the limit, each its own client, so every disconnect
+    // has to look its app up on WorkOS.
+    const apps = Array.from({ length: capacity + 1 }, (_, index) => ({
+      consentId: `app_consent_LOOP${index}`,
+      clientId: `client_LOOP${index}`,
+    }));
+    for (const app of apps) {
+      await authorize(t, app);
+    }
+    const lookups: string[] = [];
+    vi.stubGlobal("fetch", (url: unknown) => {
+      lookups.push(String(url));
+      return Promise.resolve(Response.json({ data: [], list_metadata: {} }));
+    });
+    const client = sessionClient(t);
+    for (const app of apps.slice(0, capacity)) {
+      await client.action(api.workosConsents.disconnectConnection, {
+        consentId: app.consentId,
+      });
+    }
+    expect(lookups).toHaveLength(capacity);
+    const last = apps[capacity];
+    await expect(
+      client.action(api.workosConsents.disconnectConnection, {
+        consentId: last.consentId,
+      })
+    ).rejects.toThrow("RATE_LIMITED");
+    expect(lookups).toHaveLength(capacity);
+    expect(await authorize(t, last)).toEqual({
       status: "ok",
       teakUserId: "legacy-owner",
     });

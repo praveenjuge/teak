@@ -1,9 +1,11 @@
+import rateLimiterTest from "@convex-dev/rate-limiter/test";
 import workosTest from "@convex-dev/workos-authkit/test";
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { seedComponentUser } from "../__tests__/helpers/workosOwner.test-utils";
 import { api, components } from "../_generated/api";
 import schema from "../schema";
+import { RATE_LIMIT_CONFIG } from "../shared/rateLimits";
 
 const modules = import.meta.glob("../**/*.ts");
 const clientId = "client_BOOTSTRAPNOW";
@@ -79,6 +81,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -86,6 +89,7 @@ afterEach(() => {
 const setup = () => {
   const t = convexTest(schema, modules);
   workosTest.register(t);
+  rateLimiterTest.register(t, "rateLimiterV2");
   return t;
 };
 const owners = (t: ReturnType<typeof setup>) =>
@@ -218,6 +222,35 @@ describe("bootstrap right after sign-up", () => {
       .action(api.workosBootstrap.ensureUserNow, {});
     expect(result).toEqual({ status: "verify_email" });
     expect(await owners(t)).toEqual([]);
+  });
+
+  test("a loop past the limit stops asking WorkOS and still answers pending", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const t = setup();
+    const user = t.withIdentity(claims);
+    const pending = { status: "quarantined", reason: "profile_pending" };
+    const { capacity } = RATE_LIMIT_CONFIG.workosProfileReplays;
+    for (let call = 0; call < capacity; call++) {
+      expect(await user.action(api.workosBootstrap.ensureUserNow, {})).toEqual(
+        pending
+      );
+    }
+    expect(requests).toHaveLength(capacity);
+    expect(await user.action(api.workosBootstrap.ensureUserNow, {})).toEqual(
+      pending
+    );
+    expect(requests).toHaveLength(capacity);
+    // Once the webhook brings the profile, sign-in goes through without
+    // WorkOS, limit or not.
+    await seedComponentUser(t, {
+      id: "user_FRESH",
+      email: "fresh@example.com",
+      externalId: null,
+    });
+    expect(
+      await user.action(api.workosBootstrap.ensureUserNow, {})
+    ).toMatchObject({ status: "ok" });
+    expect(requests).toHaveLength(capacity);
   });
 
   test("a signed-out caller reaches neither WorkOS nor the database", async () => {
