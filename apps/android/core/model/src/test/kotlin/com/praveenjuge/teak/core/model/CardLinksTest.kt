@@ -52,6 +52,18 @@ class CardLinksTest {
     }
 
     @Test
+    fun `reads a long line of code spans in linear time`() {
+        // 400 KB of backticks on one line: masking its code spans used to take
+        // tens of seconds, past any function's time limit.
+        val spans = "`a` ".repeat(50_000)
+        val unclosed = "``a ".repeat(50_000)
+        val markdown = "$spans[[Plan|teak:$idA]] $unclosed`[[B|teak:$idB]]`"
+        val started = System.nanoTime()
+        assertEquals(listOf(idA), CardLinks.parseIds(markdown))
+        assertTrue((System.nanoTime() - started) / 1_000_000 < 1000)
+    }
+
+    @Test
     fun `replaces characters the grammar can't hold`() {
         assertEquals("[[a b c d|teak:$idA]]", CardLinks.formatToken("a | b ]] c\nd", idA))
         assertEquals("[[Card|teak:$idA]]", CardLinks.formatToken("   ", idA))
