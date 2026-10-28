@@ -306,6 +306,20 @@ const isScriptableContentType = (contentType: string): boolean => {
   );
 };
 
+/**
+ * Sandboxes a scriptable response that carries no policy of its own. Edge
+ * copies cached before the sandbox existed keep the headers they were stored
+ * with, so cache hits pass through here too.
+ */
+const sandboxActiveContent = (headers: Headers): void => {
+  if (
+    !headers.has("Content-Security-Policy") &&
+    isScriptableContentType(headers.get("Content-Type") ?? "")
+  ) {
+    headers.set("Content-Security-Policy", ACTIVE_CONTENT_SECURITY_POLICY);
+  }
+};
+
 const applyObjectHeaders = (
   headers: Headers,
   request: Request,
@@ -470,6 +484,7 @@ const handler = {
               FILES_PRIVATE_CACHE_CONTROL
             );
             allowAnyOriginForSignedUrl(notModifiedHeaders);
+            sandboxActiveContent(notModifiedHeaders);
             return new Response(null, {
               status: 304,
               headers: notModifiedHeaders,
@@ -477,6 +492,7 @@ const handler = {
           }
           const headers = new Headers(cached.headers);
           headers.set("Cache-Control", FILES_PRIVATE_CACHE_CONTROL);
+          sandboxActiveContent(headers);
           return new Response(cached.body, {
             status: cached.status,
             statusText: cached.statusText,

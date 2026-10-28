@@ -108,8 +108,20 @@ describe("exact object deletion fence", () => {
     const t = fixture(() => Promise.reject(new Error("R2 unavailable")));
     await expect(t.request("put", "data")).rejects.toThrow("R2 unavailable");
     expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
-    expect(Object.keys(t.values.get("leases") as object)).toHaveLength(1);
+    expect(t.values.has("leases")).toBe(false);
+    expect(t.values.has("failedSince")).toBe(true);
     expect((await t.request("put", "retry")).status).toBe(409);
+  });
+  test("failed writes that keep failing hold one record, not a lease each", async () => {
+    const t = fixture(() => Promise.reject(new Error("client went away")));
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      await expect(t.request("put", "cut off")).rejects.toThrow(
+        "client went away"
+      );
+    }
+    expect(t.values.has("leases")).toBe(false);
+    expect(typeof t.values.get("failedSince")).toBe("number");
+    expect(await (await t.request("freeze")).json()).toEqual({ frozen: false });
   });
   test("a failed put lets its retry through, and still keeps deletion uncertified for a day", async () => {
     const start = Date.now();
@@ -136,6 +148,7 @@ describe("exact object deletion fence", () => {
         frozen: true,
       });
       expect(t.values.has("leases")).toBe(false);
+      expect(t.values.has("failedSince")).toBe(false);
     } finally {
       setSystemTime();
     }
@@ -219,6 +232,7 @@ describe("exact object deletion fence", () => {
         frozen: true,
       });
       expect(t.values.has("leases")).toBe(false);
+      expect(t.values.has("failedSince")).toBe(false);
     } finally {
       setSystemTime();
     }

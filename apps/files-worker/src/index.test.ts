@@ -863,6 +863,46 @@ describe("files worker handler", () => {
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(replaced);
     });
 
+    test("an SVG cached before the sandbox existed is sandboxed on a hit", async () => {
+      const env_ = env();
+      const key = "users/u1/cards/c1/article/r1/0.svg";
+      const bytes = new TextEncoder().encode(
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+      );
+      (env_.BUCKET as unknown as FakeBucket).objects.set(key, {
+        bytes,
+        httpMetadata: { contentType: "image/svg+xml" },
+      });
+      const url = await signedUrl(`/${key}`);
+      // The edge copy an older deploy stored: no Content-Security-Policy.
+      stored.set(new URL(url).origin + new URL(url).pathname, {
+        bytes: bytes.slice().buffer,
+        headers: new Headers({
+          "Content-Type": "image/svg+xml",
+          ETag: fakeHttpEtag(bytes),
+        }),
+      });
+      const gets = countGets(env_);
+
+      const hit = await worker.fetch(new Request(url), env_, {
+        waitUntil: () => undefined,
+      } as never);
+      expect(gets.count).toBe(0);
+      expect(hit.headers.get("content-security-policy")).toStartWith(
+        "sandbox;"
+      );
+
+      const notModified = await worker.fetch(
+        new Request(url, { headers: { "if-none-match": fakeHttpEtag(bytes) } }),
+        env_,
+        { waitUntil: () => undefined } as never
+      );
+      expect(notModified.status).toBe(304);
+      expect(notModified.headers.get("content-security-policy")).toStartWith(
+        "sandbox;"
+      );
+    });
+
     test("an object too large for the edge cache streams straight through", async () => {
       // Export archives reach 5 GB; the Cache API keeps at most 512 MB, so a
       // second copy of the stream would only pile up unread.
