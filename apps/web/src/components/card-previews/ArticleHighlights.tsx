@@ -40,6 +40,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  findOpenHighlight,
+  type OpenedHighlight,
+} from "@/hooks/cardHighlights";
 import type {
   CardHighlight,
   CardHighlightsControl,
@@ -234,11 +238,15 @@ export function ArticleHighlights({
   const indexRef = useRef<BodyTextIndex | null>(null);
   const [indexed, setIndexed] = useState(0);
   const [selected, setSelected] = useState<Selected | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [opened, setOpened] = useState<OpenedHighlight | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const placedRef = useRef<PlacedHighlight[]>([]);
   const creating = useRef(false);
   const highlights = control.highlights ?? [];
+  // A highlight opened while its save is still going keeps its note open
+  // when the server's row replaces the temporary one.
+  const open = findOpenHighlight(highlights, opened);
+  const openId = open?._id ?? null;
   const useSheet = touch || isNarrow;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is the body's text changing
@@ -363,7 +371,7 @@ export function ArticleHighlights({
         (spot) => spot.start <= offset && offset < spot.end
       );
       if (hit) {
-        setOpenId(hit.id);
+        setOpened({ id: hit.id, start: hit.start, end: hit.end });
       }
     };
     body.addEventListener("pointerup", onPointerUp);
@@ -436,9 +444,6 @@ export function ArticleHighlights({
     return () => window.clearTimeout(timer);
   }, [jump?.id, jump?.seq, indexed, rangeOf]);
 
-  const open = openId
-    ? highlights.find((highlight) => highlight._id === openId)
-    : undefined;
   const anchorRef = useMemo(
     () => ({
       current: {
@@ -448,11 +453,11 @@ export function ArticleHighlights({
     }),
     [openId, rangeOf]
   );
-  const close = () => setOpenId(null);
+  const close = () => setOpened(null);
   const editor = open ? (
     <NoteEditor
       highlight={open}
-      key={open._id}
+      key={`${opened?.start}-${opened?.end}`}
       onRemove={() => {
         close();
         void control.remove(open);
