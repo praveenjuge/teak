@@ -183,7 +183,9 @@ export const findOpenHighlight = (
     return undefined;
   }
   return (
-    highlights.find((highlight) => highlight._id === opened.id) ??
+    highlights.find(
+      (highlight) => highlight._id === opened.id && isAnchored(highlight)
+    ) ??
     highlights.find(
       (highlight) => isAnchored(highlight) && spansOverlap(opened, highlight)
     )
