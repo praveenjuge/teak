@@ -247,6 +247,13 @@ export function ArticleHighlights({
   // when the server's row replaces the temporary one.
   const open = findOpenHighlight(highlights, opened);
   const openId = open?._id ?? null;
+  // Once its text is no longer highlighted the note is closed for good: a
+  // highlight made there later does not open it again.
+  useEffect(() => {
+    if (opened && !open) {
+      setOpened(null);
+    }
+  }, [opened, open]);
   const useSheet = touch || isNarrow;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `version` is the body's text changing
