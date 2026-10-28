@@ -117,16 +117,16 @@ describe("exact object deletion fence", () => {
     try {
       // The web uploader retries the same signed URL after a dropped
       // connection; the email worker counts a 409 as a refused upload.
-      let fail = true;
-      const t = fixture(() =>
-        fail
+      let attempts = 0;
+      const t = fixture(() => {
+        attempts += 1;
+        return attempts === 1
           ? Promise.reject(new Error("client went away"))
-          : Promise.resolve(null)
-      );
+          : Promise.resolve(null);
+      });
       await expect(t.request("put", "cut off")).rejects.toThrow(
         "client went away"
       );
-      fail = false;
       expect((await t.request("put", "retry")).status).toBe(200);
       expect(await (await t.request("freeze")).json()).toEqual({
         frozen: false,
