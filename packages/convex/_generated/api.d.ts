@@ -199,6 +199,7 @@ import type * as operationalRetention from "../operationalRetention.js";
 import type * as publicApi from "../publicApi.js";
 import type * as publicApi_cardsForUser from "../publicApi/cardsForUser.js";
 import type * as publicApi_cursors from "../publicApi/cursors.js";
+import type * as publicApi_http_allowedMethods from "../publicApi/http/allowedMethods.js";
 import type * as publicApi_http_auth from "../publicApi/http/auth.js";
 import type * as publicApi_http_cards from "../publicApi/http/cards.js";
 import type * as publicApi_http_duplicate from "../publicApi/http/duplicate.js";
@@ -568,6 +569,7 @@ declare const fullApi: ApiFromModules<{
   publicApi: typeof publicApi;
   "publicApi/cardsForUser": typeof publicApi_cardsForUser;
   "publicApi/cursors": typeof publicApi_cursors;
+  "publicApi/http/allowedMethods": typeof publicApi_http_allowedMethods;
   "publicApi/http/auth": typeof publicApi_http_auth;
   "publicApi/http/cards": typeof publicApi_http_cards;
   "publicApi/http/duplicate": typeof publicApi_http_duplicate;
