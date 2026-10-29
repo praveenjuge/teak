@@ -179,9 +179,7 @@ export function AppSidebar({
 
       <SidebarContent>
         {addActions ? (
-          <SidebarGroup className="pb-0 group-data-[collapsible=icon]:items-center">
-            {addActions}
-          </SidebarGroup>
+          <SidebarGroup className="pb-0">{addActions}</SidebarGroup>
         ) : null}
 
         <SidebarGroup>

@@ -4,14 +4,7 @@ import { captureEvent } from "@teak/convex/shared/analytics";
 import { inferFileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction, useMutation } from "convex/react";
-import {
-  type ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Mic, PenLine, Plus, Square, Upload } from "vadivam-react";
 import { Button } from "@/components/ui/button";
@@ -28,12 +21,11 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useOptionalSidebar } from "@/components/ui/sidebar";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import {
@@ -55,51 +47,41 @@ interface AddCardActionsProps {
   variant?: "toolbar" | "header";
 }
 
-// A labelled button at the top of the sidebar; just its icon in the collapsed rail.
-const NEW_MENU_TRIGGER_CLASS =
-  "h-8 w-full justify-start gap-2 bg-sidebar px-[9px] font-medium text-[13px] text-sidebar-foreground shadow-none hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 [&_svg]:size-3.5";
-const NEW_MENU_LABEL_CLASS = "truncate group-data-[collapsible=icon]:hidden";
+// A menu item at the top of the sidebar, styled like the views below it; just
+// its icon in the collapsed rail.
+const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
 
 export function NewMenuPlaceholder() {
   const t = useTranslations("forms.addCardActions");
   return (
-    <Button
-      aria-label={t("new")}
-      className={NEW_MENU_TRIGGER_CLASS}
-      disabled
-      type="button"
-      variant="outline"
-    >
-      <Plus />
-      <span className={NEW_MENU_LABEL_CLASS}>{t("new")}</span>
-    </Button>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton disabled type="button">
+          <Plus />
+          <span>{t("new")}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 
-function NewMenuTrigger(props: ComponentProps<typeof Button>) {
+function NewMenuTrigger() {
   const t = useTranslations("forms.addCardActions");
-  // The button names itself; the tooltip only helps in the collapsed rail.
-  const sidebar = useOptionalSidebar();
-  const showTooltip =
-    sidebar?.state === "collapsed" && !sidebar.isPeeking && !sidebar.isMobile;
   return (
-    <Tooltip open={showTooltip ? undefined : false}>
-      <TooltipTrigger asChild>
+    <SidebarMenu>
+      <SidebarMenuItem>
         <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={t("new")}
+          <SidebarMenuButton
             className={NEW_MENU_TRIGGER_CLASS}
+            tooltip={t("new")}
             type="button"
-            variant="outline"
-            {...props}
           >
             <Plus />
-            <span className={NEW_MENU_LABEL_CLASS}>{t("new")}</span>
-          </Button>
+            <span>{t("new")}</span>
+          </SidebarMenuButton>
         </DropdownMenuTrigger>
-      </TooltipTrigger>
-      <TooltipContent side="right">{t("new")}</TooltipContent>
-    </Tooltip>
+      </SidebarMenuItem>
+    </SidebarMenu>
   );
 }
 
