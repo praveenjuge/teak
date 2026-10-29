@@ -21,11 +21,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
 import { useGlobalFileDrop } from "@/hooks";
 import {
@@ -47,41 +43,37 @@ interface AddCardActionsProps {
   variant?: "toolbar" | "header";
 }
 
-// A menu item at the top of the sidebar, styled like the views below it; just
-// its icon in the collapsed rail.
+// The first item of the sidebar's view menu, styled like the views below it;
+// just its icon in the collapsed rail.
 const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
 
 export function NewMenuPlaceholder() {
   const t = useTranslations("forms.addCardActions");
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton disabled type="button">
-          <Plus />
-          <span>{t("new")}</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
+    <SidebarMenuItem>
+      <SidebarMenuButton disabled type="button">
+        <Plus />
+        <span>{t("new")}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
 function NewMenuTrigger() {
   const t = useTranslations("forms.addCardActions");
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <DropdownMenuTrigger asChild>
-          <SidebarMenuButton
-            className={NEW_MENU_TRIGGER_CLASS}
-            tooltip={t("new")}
-            type="button"
-          >
-            <Plus />
-            <span>{t("new")}</span>
-          </SidebarMenuButton>
-        </DropdownMenuTrigger>
-      </SidebarMenuItem>
-    </SidebarMenu>
+    <SidebarMenuItem>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuButton
+          className={NEW_MENU_TRIGGER_CLASS}
+          tooltip={t("new")}
+          type="button"
+        >
+          <Plus />
+          <span>{t("new")}</span>
+        </SidebarMenuButton>
+      </DropdownMenuTrigger>
+    </SidebarMenuItem>
   );
 }
 
