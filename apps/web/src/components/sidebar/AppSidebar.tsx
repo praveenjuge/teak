@@ -178,14 +178,10 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {addActions ? (
-          <SidebarGroup className="pb-0 group-data-[collapsible=icon]:items-center">
-            {addActions}
-          </SidebarGroup>
-        ) : null}
-
         <SidebarGroup>
           <SidebarMenu>
+            {/* A menu item, so it sits in line with the views. */}
+            {addActions}
             {PRIMARY_VIEWS.map(viewItem)}
             <SidebarMenuItem>
               <SidebarMenuButton
