@@ -14,6 +14,8 @@ public struct WorkOSSession: Hashable, Sendable {
     public let accessToken: String
     public let refreshToken: String
     public let expiresAt: Date
+    /// When WorkOS issued the token, on its clock (`iat`).
+    public let issuedAt: Date?
     public let sessionId: String
     public let user: SessionUser
     let record: StoredSession
@@ -75,12 +77,14 @@ enum SessionParser {
               let exp = claims["exp"] as? NSNumber, CFNumberIsFloatType(exp) == false,
               exp.int64Value > 0, exp.int64Value <= 9_007_199_254_740
         else { throw TeakError(message: tr("native.errors.invalidSessionToken")) }
+        let iat = (claims["iat"] as? NSNumber).flatMap { CFNumberIsFloatType($0) ? nil : $0.int64Value }
         let name = [stored.user.first_name, stored.user.last_name].compactMap { $0 }.joined(separator: " ")
         return WorkOSSession(
             clientId: clientId,
             accessToken: stored.access_token,
             refreshToken: stored.refresh_token,
             expiresAt: Date(timeIntervalSince1970: TimeInterval(exp.int64Value)),
+            issuedAt: iat.map { Date(timeIntervalSince1970: TimeInterval($0)) },
             sessionId: sid,
             user: SessionUser(id: stored.user.id, email: stored.user.email,
                               emailVerified: stored.user.email_verified, teakUserId: stored.user.external_id,

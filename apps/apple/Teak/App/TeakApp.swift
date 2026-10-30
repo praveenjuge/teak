@@ -19,6 +19,10 @@ final class AppServices {
 
     private init() {
         PostHogReporting.start()
+        // Nothing uploads or shares yet, so files a past run left behind can go.
+        for folder in [ItemProviders.uploadsFolder, CardFiles.sharedFolder] {
+            try? FileManager.default.removeItem(at: folder)
+        }
         app = AppModel()
         capture = CaptureModel(backend: app.backend)
         home = LibraryModel(backend: app.backend, spotlight: app.spotlight)
@@ -32,6 +36,7 @@ final class AppServices {
     private func resetForNextUser() {
         router.reset()
         capture.reset()
+        tags.reset()
         for library in [home, folderLibrary] {
             library.endSelection()
             library.clearFilters()

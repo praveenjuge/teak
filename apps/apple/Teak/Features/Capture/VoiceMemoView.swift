@@ -8,6 +8,8 @@ final class VoiceRecorder {
 
     private(set) var isRecording = false
     private(set) var elapsed: TimeInterval = 0
+    /// The system stopped the recording: a call, Siri, the screen locking, or the hour running out.
+    private(set) var stoppedOnItsOwn = false
     @ObservationIgnored private var recorder: AVAudioRecorder?
     @ObservationIgnored private var timer: Task<Void, Never>?
     @ObservationIgnored private var fileURL: URL?
@@ -34,11 +36,16 @@ final class VoiceRecorder {
         self.recorder = recorder
         fileURL = url
         elapsed = 0
+        stoppedOnItsOwn = false
         isRecording = true
         timer = Task {
             while !Task.isCancelled, let recorder = self.recorder {
+                // A stopped recorder reads 0, so the last time read is the length.
+                guard recorder.isRecording else {
+                    stoppedOnItsOwn = true
+                    break
+                }
                 elapsed = recorder.currentTime
-                if !recorder.isRecording, elapsed > 0 { break }
                 try? await Task.sleep(for: .milliseconds(200))
             }
         }
@@ -46,10 +53,11 @@ final class VoiceRecorder {
 
     func stop() -> UploadItem? {
         timer?.cancel()
-        let duration = recorder?.currentTime ?? elapsed
+        let duration = recorder?.isRecording == true ? recorder?.currentTime ?? elapsed : elapsed
         recorder?.stop()
         recorder = nil
         isRecording = false
+        stoppedOnItsOwn = false
         elapsed = 0
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -68,7 +76,7 @@ final class VoiceRecorder {
     }
 
     static func discard(_ item: UploadItem) {
-        try? FileManager.default.removeItem(at: item.fileURL)
+        ItemProviders.discard(item)
     }
 }
 
@@ -82,6 +90,8 @@ struct VoiceMemoView: View {
     @State private var recording: UploadItem?
     @State private var uploadFailure: CaptureModel.Alert?
     @State private var confirmDiscard = false
+    /// The system stopped the recording while the discard dialog was up: upload it only if it's kept.
+    @State private var stoppedWhileConfirming = false
 
     var body: some View {
         NavigationStack {
@@ -122,7 +132,9 @@ struct VoiceMemoView: View {
                     .disabled(isSaving)
                     .confirmationDialog(tr("native.capture.discardTitle"), isPresented: $confirmDiscard) {
                         Button(tr("native.capture.discard"), role: .destructive) { discard() }
-                        Button(tr("common.cancel"), role: .cancel) {}
+                        Button(tr("common.cancel"), role: .cancel) {
+                            if stoppedWhileConfirming { upload() }
+                        }
                     } message: {
                         if recorder.isRecording { Text(tr("native.capture.discardMessage")) }
                     }
@@ -141,6 +153,16 @@ struct VoiceMemoView: View {
                 Text(failure ?? "")
             }
             .sensoryFeedback(.start, trigger: recorder.isRecording)
+            // Keep and save what was recorded before the system stopped it.
+            .onChange(of: recorder.stoppedOnItsOwn) { _, stopped in
+                guard stopped else { return }
+                if confirmDiscard {
+                    recording = recorder.stop()
+                    stoppedWhileConfirming = true
+                } else {
+                    stop()
+                }
+            }
         }
         .frame(minWidth: 360, minHeight: 420)
         .interactiveDismissDisabled(recorder.isRecording || isSaving || recording != nil)
@@ -189,6 +211,7 @@ struct VoiceMemoView: View {
     }
 
     private func upload() {
+        stoppedWhileConfirming = false
         guard let item = recording else { return }
         isSaving = true
         Task {

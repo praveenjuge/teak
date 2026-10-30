@@ -21,6 +21,17 @@ class LinkDetectionTest {
     }
 
     @Test
+    fun `an inline URL drops the punctuation that ends the sentence`() {
+        assertEquals("https://example.com/post", LinkDetection.resolve("Read this: https://example.com/post.").url)
+        assertEquals("https://x.com/a", LinkDetection.resolve("(see https://x.com/a).").url)
+        assertEquals(
+            "https://en.wikipedia.org/wiki/Teak_(wood)",
+            LinkDetection.resolve("see https://en.wikipedia.org/wiki/Teak_(wood)!").url,
+        )
+        assertEquals("(see https://x.com/a).", LinkDetection.resolve("(see https://x.com/a).").content)
+    }
+
+    @Test
     fun `plain text stays a note`() {
         assertEquals(TextCardInput("buy milk", CardType.Text), LinkDetection.resolve("buy milk"))
         assertEquals(TextCardInput("ftp://example.com", CardType.Text), LinkDetection.resolve("ftp://example.com"))

@@ -117,7 +117,9 @@ final class ShareModel {
     }
 
     func run() async {
-        let items = await ItemProviders.load(providers, limit: TeakLimits.maxFilesPerUpload)
+        let loaded = await ItemProviders.load(providers, limit: TeakLimits.maxFilesPerUpload)
+        // Blank text saves nothing, so it says so rather than failing as if offline.
+        let items = ShareImporter.removingEmptyAndDuplicates(loaded)
         guard !items.isEmpty else { return phase = .empty }
         let session = TeakServices.session()
         let user = try? await session.restore()

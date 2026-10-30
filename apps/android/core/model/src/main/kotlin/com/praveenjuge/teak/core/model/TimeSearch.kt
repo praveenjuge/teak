@@ -45,6 +45,9 @@ object TimeSearch {
     private val monthYear = Regex("^([a-z]+)\\s+(\\d{4})$")
     private val year = Regex("^(\\d{4})$")
 
+    /** A bare number counts as a year from 1900 to ten years ahead, as `isSearchYear` decides. */
+    private fun isSearchYear(year: Int, today: LocalDate): Boolean = year >= 1900 && year <= today.year + 10
+
     /** Sunday = 0, like JavaScript's `Date.getDay()`. */
     private fun LocalDate.weekdayIndex(): Int = dayOfWeek.value % 7
 
@@ -99,7 +102,7 @@ object TimeSearch {
         UiText.verbatim(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)),
     )
 
-    private fun explicit(query: String, locale: Locale): DayRange? {
+    private fun explicit(query: String, today: LocalDate, locale: Locale): DayRange? {
         iso.matchEntire(query)?.let { m ->
             val (y, mo, d) = m.destructured
             dateOrNull(y.toInt(), mo.toInt(), d.toInt())?.let { return day(it, locale) }
@@ -120,7 +123,7 @@ object TimeSearch {
                 return DayRange(start, start.plusMonths(1), UiText.verbatim(text))
             }
         }
-        year.matchEntire(query)?.let { m ->
+        year.matchEntire(query)?.takeIf { isSearchYear(it.groupValues[1].toInt(), today) }?.let { m ->
             val start = LocalDate.of(m.groupValues[1].toInt(), 1, 1)
             return DayRange(start, start.plusYears(1), UiText.verbatim(m.groupValues[1]))
         }
@@ -128,7 +131,7 @@ object TimeSearch {
     }
 
     private fun single(query: String, today: LocalDate, locale: Locale): DayRange? =
-        relative(query, today) ?: weekday(query, today, locale) ?: explicit(query, locale)
+        relative(query, today) ?: weekday(query, today, locale) ?: explicit(query, today, locale)
 
     fun parse(query: String, now: ZonedDateTime = ZonedDateTime.now(), locale: Locale = Locale.getDefault()): TimeFilter? {
         val normalized = query.trim().replace(Regex("\\s+"), " ").lowercase()

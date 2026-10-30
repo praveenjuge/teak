@@ -114,6 +114,8 @@ public struct UploadPipeline: Sendable {
         guard finalized.success, let cardId = finalized.cardId else {
             throw TeakError.card(code: finalized.errorCode, message: finalized.error, fallback: tr("native.errors.createCard"))
         }
+        // Saved: its copy in tmp isn't needed for another try.
+        ItemProviders.discard(item)
         return cardId
     }
 

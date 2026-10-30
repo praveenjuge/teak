@@ -30,6 +30,9 @@ public actor TeakSession {
     private let bootstrap: Bootstrap?
 
     private var session: WorkOSSession?
+    /// WorkOS's clock minus the device's, learned from each new token's `iat`. Expiry is WorkOS's time, so a device
+    /// clock running fast would otherwise see every new token as expired and refresh without end.
+    private var clockOffset: TimeInterval = 0
     private var generation = 0
     private var signInAttempt = 0
     private var refresh: (id: UUID, task: Task<String?, any Error>)?
@@ -75,7 +78,15 @@ public actor TeakSession {
     public var user: SessionUser? { session?.user }
     public var clientId: String? { session?.clientId }
     public var sessionId: String? { session?.sessionId }
-    public var expiresAt: Date? { session?.expiresAt }
+    /// When the access token expires, on the device's clock.
+    public var expiresAt: Date? { session.map { $0.expiresAt.addingTimeInterval(-clockOffset) } }
+
+    private func serverNow() -> Date { now().addingTimeInterval(clockOffset) }
+
+    /// `fresh` just came from WorkOS, so its `iat` is WorkOS's time now.
+    private func learnClock(from fresh: WorkOSSession) {
+        if let issuedAt = fresh.issuedAt { clockOffset = issuedAt.timeIntervalSince(now()) }
+    }
 
     /// Loads the stored session. Throws when the keychain can't be read (for
     /// example before the first unlock); the stored session is kept for a retry.
@@ -115,7 +126,8 @@ public actor TeakSession {
             "grant_type": "authorization_code", "code": code, "code_verifier": request.verifier,
         ])
         let next = try SessionParser.parseResponse(data, clientId: request.clientId)
-        guard next.expiresAt > now() else { throw TeakError(message: tr("native.errors.expiredSessionToken")) }
+        learnClock(from: next)
+        guard next.expiresAt > serverNow() else { throw TeakError(message: tr("native.errors.expiredSessionToken")) }
         guard attempt == signInAttempt else { return .superseded }
         try await bootstrap?(next.accessToken)
         guard attempt == signInAttempt else { return .superseded }
@@ -146,6 +158,7 @@ public actor TeakSession {
 
     private enum RefreshOutcome: Sendable {
         case current(WorkOSSession)
+        case refreshed(WorkOSSession)
         case signedOut
         case superseded
     }
@@ -155,7 +168,7 @@ public actor TeakSession {
     /// failure, keeping the session for a retry.
     public func accessToken(forceRefresh: Bool = false) async throws -> String? {
         guard let current = session else { return nil }
-        if !forceRefresh, current.expiresAt.timeIntervalSince(now()) > Self.refreshMargin {
+        if !forceRefresh, current.expiresAt.timeIntervalSince(serverNow()) > Self.refreshMargin {
             return current.accessToken
         }
         if let refresh { return try await refresh.task.value }
@@ -170,11 +183,12 @@ public actor TeakSession {
         let startGeneration = generation
         let epoch = lock.epoch()
         let margin = Self.refreshMargin
+        let offset = clockOffset
         let outcome: RefreshOutcome = try await lock.withLock { [storage, lock, now] in
             guard lock.isCurrent(epoch) else { return .superseded }
             guard let data = try storage.load(), let latest = Self.parseStored(data) else { return .signedOut }
             let refreshedElsewhere = latest.refreshToken != current.refreshToken
-                && latest.expiresAt.timeIntervalSince(now()) > margin
+                && latest.expiresAt.timeIntervalSince(now().addingTimeInterval(offset)) > margin
             if refreshedElsewhere { return .current(latest) }
             let response: Data
             do {
@@ -192,11 +206,12 @@ public actor TeakSession {
             }
             guard lock.isCurrent(epoch) else { return .superseded }
             try storage.save(JSONEncoder().encode(next.record))
-            return .current(next)
+            return .refreshed(next)
         }
         guard startGeneration == generation else { return nil }
         switch outcome {
-        case let .current(next):
+        case let .current(next), let .refreshed(next):
+            if case .refreshed = outcome { learnClock(from: next) }
             session = next
             publish(token: .some(next.accessToken))
             return next.accessToken

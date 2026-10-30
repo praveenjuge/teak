@@ -4,12 +4,15 @@ import TeakCore
 import UniformTypeIdentifiers
 
 enum CardFiles {
+    /// Card files downloaded to share or save, one folder each.
+    static var sharedFolder: URL { FileManager.default.temporaryDirectory.appending(path: "Shared") }
+
     static func download(_ url: URL, as fileName: String) async throws -> URL {
         let (temporary, response) = try await URLSession.shared.download(from: url)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw TeakError(message: tr("native.card.failed.download"))
         }
-        let folder = FileManager.default.temporaryDirectory.appending(path: "Shared/\(UUID().uuidString)")
+        let folder = sharedFolder.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let destination = folder.appending(path: name(fileName, url: url, mimeType: response.mimeType))
         try FileManager.default.moveItem(at: temporary, to: destination)

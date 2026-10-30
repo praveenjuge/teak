@@ -52,6 +52,21 @@ class CardEditTest {
     }
 
     @Test
+    fun `fields left alone take an edit made elsewhere, and the person's edits stay`() {
+        val draft = CardEdit.draftFor(card).copy(tags = listOf("keep", "mine"))
+        val edited = card.copy(content = "From the web", notes = "New notes", tags = listOf("keep", "web"))
+
+        val rebased = CardEdit.rebased(draft, previous = card, card = edited)
+
+        assertEquals("From the web", rebased.editableContent)
+        assertEquals("New notes", rebased.notes)
+        assertEquals(listOf("keep", "mine"), rebased.tags)
+        assertEquals(listOf(CardFieldChange.Tags(listOf("keep", "mine"))), CardEdit.changes(edited, rebased))
+        val untouched = CardEdit.rebased(CardEdit.draftFor(card), previous = card, card = edited)
+        assertEquals(emptyList(), CardEdit.changes(edited, untouched))
+    }
+
+    @Test
     fun `leaves content alone for types that can't be rewritten`() {
         val link = card.copy(type = CardType.Link)
         val draft = CardEdit.draftFor(link)

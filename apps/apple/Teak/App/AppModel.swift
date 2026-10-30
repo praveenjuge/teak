@@ -2,6 +2,7 @@ import AuthenticationServices
 import Foundation
 import Network
 import Observation
+import Security
 import SwiftUI
 import TeakCore
 import TeakSync
@@ -29,6 +30,8 @@ final class AppModel {
     private(set) var isConvexAuthenticated = false
     private(set) var configurationError: String?
     private(set) var keychainUnavailable = false
+    /// The keychain failed for a reason other than the device being locked, which waiting won't fix.
+    private(set) var keychainFailed = false
 
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var authenticateTask: Task<Void, Never>?
@@ -47,6 +50,7 @@ final class AppModel {
     }
 
     var phase: AppPhase {
+        if keychainFailed, user == nil { return .failed(tr("native.errors.generic")) }
         if !sessionLoaded || (keychainUnavailable && user == nil) { return .loading }
         // Signed in, the library stays up offline (sheets and drafts with it)
         // and shows a banner instead.
@@ -86,10 +90,14 @@ final class AppModel {
             do {
                 let user = try await session.restore()
                 keychainUnavailable = false
+                keychainFailed = false
                 sessionLoaded = true
                 if user != nil { authenticateConvex() }
             } catch {
-                keychainUnavailable = true
+                // Locked before the first unlock: read again on foreground. Anything else shows an error to retry.
+                let locked = (error as? KeychainError)?.status == errSecInteractionNotAllowed
+                keychainUnavailable = locked
+                keychainFailed = !locked
                 sessionLoaded = true
             }
         }
@@ -108,7 +116,8 @@ final class AppModel {
     #endif
 
     func becameActive() {
-        if keychainUnavailable { restoreSession() }
+        // `restoreSession` also connects Convex once the session reads.
+        if keychainUnavailable || keychainFailed { restoreSession() }
         Task { await session.reloadIfChanged() }
         if isConvexAuthenticated { refreshSpotlight() }
     }
@@ -178,6 +187,11 @@ final class AppModel {
     }
 
     func retryConfiguration() {
+        if keychainFailed {
+            keychainFailed = false
+            sessionLoaded = false
+            restoreSession()
+        }
         configurationError = nil
         tasks.append(Task { await self.timeOutConfiguration() })
     }

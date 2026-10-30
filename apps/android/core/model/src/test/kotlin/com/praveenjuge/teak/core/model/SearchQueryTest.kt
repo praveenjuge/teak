@@ -262,6 +262,9 @@ class SearchQueryTest {
         assertEquals("", text(""))
         assertEquals("red poster", text("red #ff0000 poster"))
         assertEquals("bed cafe", text("bed cafe"))
+        // Without "#", a short hex word is just a word.
+        assertEquals("bad 100 add", text("bad 100 add"))
+        assertEquals(listOf("bad", "100", "add"), parse("bad 100 add").terms)
         assertEquals(499, text("word ".repeat(400)).length)
     }
 
@@ -338,5 +341,8 @@ class SearchQueryTest {
         assertNull(SearchQuery.splitDate("iphone 2024", now, Locale.US))
         assertNull(SearchQuery.splitDate("-figma last week", now, Locale.US))
         assertNull(SearchQuery.splitDate("figma", now, Locale.US))
+        assertNull(SearchQuery.splitDate("top 100 bad sites", now, Locale.US))
+        // Numbers outside the years search reads aren't a date range.
+        assertNull(SearchQuery.splitDate("notes 1234 to 2037", now, Locale.US))
     }
 }

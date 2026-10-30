@@ -18,6 +18,8 @@ final class TagsModel {
     @ObservationIgnored private let backend: TeakBackend
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var operationTask: Task<Void, Never>?
+    /// Changes on `reset()`, so a change started by the last account can't land after it.
+    @ObservationIgnored private var epoch = 0
 
     init(backend: TeakBackend) {
         self.backend = backend
@@ -45,6 +47,20 @@ final class TagsModel {
         task = nil
     }
 
+    /// Signing out drops the last account's tags and any change still running; the next `start()` loads again.
+    func reset() {
+        epoch += 1
+        stop()
+        operationTask?.cancel()
+        operationTask = nil
+        summary = nil
+        isLoaded = false
+        operation = nil
+        finished = nil
+        notice = nil
+        error = nil
+    }
+
     var items: [TagSummary.Item] {
         let items = summary?.items ?? []
         guard let finished, finished.summaryAt == summary?.computedAt else { return items }
@@ -57,10 +73,13 @@ final class TagsModel {
         notice = nil
         var args: ConvexArgs = ["kind": .string(kind.rawValue), "from": .string(from)]
         if let to { args["to"] = .string(to.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        let startedIn = epoch
         do {
             let started = try await backend.mutation(ConvexFunctions.startTagOperation, args)
+            guard startedIn == epoch else { return }
             follow(started)
         } catch {
+            guard startedIn == epoch else { return }
             self.error = (error as? TeakError)?.message ?? tr("native.tags.startFailed")
         }
     }
