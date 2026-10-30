@@ -27,7 +27,8 @@ export const hashMonitoringSubject = async (
 
 export type ResolverVerification =
   | { kind: "session"; emailVerified: boolean }
-  | { kind: "connect" };
+  | { kind: "connect" }
+  | { kind: "stored" };
 
 export type ResolverDenialReason =
   | "missing_mapping"

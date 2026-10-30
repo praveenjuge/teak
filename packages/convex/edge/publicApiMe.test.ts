@@ -241,3 +241,36 @@ test("revoking a key clears its cached validation", async () => {
   ).toEqual([]);
   expect((await request()).status).toBe(401);
 });
+
+test("an account signed in before its profile webhook can mint a key and read me", async () => {
+  const t = convexTest(schema, modules);
+  polarTest.register(t);
+  workosTest.register(t);
+  rateLimiterTest.register(t, "rateLimiterV2");
+  apiKeysTest.register(t);
+  counterTest.register(t, "apiKeys/shardedCounter");
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
+      teakUserId: "teak_early",
+      identityOrigin: "workos",
+      email: "early@example.com",
+      emailVerified: true,
+      workosUserId: "user_EARLY",
+    })
+  );
+  const client = t.withIdentity({
+    issuer: `https://api.workos.com/user_management/${process.env.WORKOS_CLIENT_ID}`,
+    subject: "user_EARLY",
+    sid: "session_early",
+    email_verified: true,
+    email: "early@example.com",
+  });
+  const key = await client.mutation(api.apiKeys.createUserApiKey, {});
+  const response = await t.fetch("/v1/me", {
+    headers: { Authorization: `Bearer ${key.key}` },
+  });
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    data: { id: "teak_early", email: "early@example.com" },
+  });
+});

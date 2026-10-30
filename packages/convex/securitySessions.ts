@@ -160,7 +160,7 @@ export async function resolveStoredUserId(
   }
   const owner = await resolveOwnerFor(ctx, {
     workosUserId: row.workosUserId,
-    verification: { kind: "connect" },
+    verification: { kind: "stored" },
   });
   return owner.status === "ok" && owner.teakUserId === ownerId
     ? (owner.teakUserId as TeakUserId)

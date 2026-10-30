@@ -156,6 +156,26 @@ describe("read-only canonical WorkOS owner resolution", () => {
     ).toEqual({ status: "denied", reason: "verify_email" });
   });
 
+  test("a stored owner resolves before its profile arrives, but not once it says unverified", async () => {
+    const t = setup();
+    await seed(t, { emailVerified: true }, null);
+    const stored = {
+      ...input,
+      verification: { kind: "stored" as const },
+    };
+    expect(
+      await t.query(internal.workosIdentity.resolveWorkosOwner, stored)
+    ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
+    await seedComponentUser(t, {
+      id: input.workosUserId,
+      email: "owner@example.com",
+      emailVerified: false,
+    });
+    expect(
+      await t.query(internal.workosIdentity.resolveWorkosOwner, stored)
+    ).toEqual({ status: "denied", reason: "verify_email" });
+  });
+
   test("Connect uses provider evidence even if the legacy mirror is unverified", async () => {
     const t = setup();
     await seed(t, { emailVerified: false });
