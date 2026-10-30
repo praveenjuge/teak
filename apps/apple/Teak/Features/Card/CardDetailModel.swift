@@ -20,8 +20,8 @@ final class CardDetailModel {
     private(set) var linkTargets: [String: CardLinkTarget] = [:]
     private(set) var backlinks: CardBacklinks?
     var message: String?
-    /// A short confirmation, like "Marked as read".
-    var notice: String?
+    /// A short confirmation, like "Marked as read", sometimes with Undo.
+    private(set) var notice: LibraryModel.StatusMessage?
 
     @ObservationIgnored private let backend: TeakBackend
     @ObservationIgnored private let spotlight: SpotlightIndexer?
@@ -133,13 +133,19 @@ final class CardDetailModel {
         }
     }
 
-    func show(_ text: String) {
+    func show(_ text: String, undo: (@MainActor () -> Void)? = nil) {
         noticeTask?.cancel()
-        notice = text
+        notice = LibraryModel.StatusMessage(text: text, isError: false, isCardLimit: false, undo: undo)
         noticeTask = Task {
-            try? await Task.sleep(for: .seconds(3))
+            // An Undo stays 10 seconds, as in the library.
+            try? await Task.sleep(for: .seconds(undo == nil ? 3 : 10))
             if !Task.isCancelled { notice = nil }
         }
+    }
+
+    private func dismissNotice() {
+        noticeTask?.cancel()
+        notice = nil
     }
 
     /// Marks a link done (or not) right away and undoes it if the save fails.
@@ -256,6 +262,43 @@ final class CardDetailModel {
             try await write(.removeAiTag(tag))
         } catch {
             message = tr("native.card.failed.update")
+        }
+    }
+
+    /// Adds a color to a palette; the card's colors update live. Returns whether it saved.
+    func addColor(_ hex: String) async -> Bool {
+        message = nil
+        do {
+            try await write(.addColor(hex))
+            show(tr("native.card.palette.added", hex))
+            return true
+        } catch {
+            message = tr("native.card.palette.saveFailed")
+            return false
+        }
+    }
+
+    /// Removes a palette color, with Undo, which adds it back at the end.
+    func removeColor(_ hex: String) async -> Bool {
+        message = nil
+        do {
+            try await write(.removeColor(hex))
+            show(tr("native.card.palette.removed", hex)) { [weak self] in
+                Task { await self?.undoRemoveColor(hex) }
+            }
+            return true
+        } catch {
+            message = tr("native.card.palette.saveFailed")
+            return false
+        }
+    }
+
+    private func undoRemoveColor(_ hex: String) async {
+        dismissNotice()
+        do {
+            try await write(.addColor(hex))
+        } catch {
+            message = tr("native.card.palette.saveFailed")
         }
     }
 

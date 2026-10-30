@@ -217,6 +217,60 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
     }
 }
 
+@Suite(.english) struct PaletteEditTests {
+    private func palette(_ hexes: [String], type: CardType = .palette, deleted: Bool = false) -> Card {
+        Card(id: "card1", type: type, isDeleted: deleted, colors: hexes.map { CardColor(hex: $0) })
+    }
+
+    @Test(arguments: [("#ff5500", "#FF5500"), ("  F50 ", "#FF5500"), ("4ecdc4", "#4ECDC4")])
+    func readsThreeAndSixDigitHexCodes(_ input: String, hex: String) {
+        #expect(PaletteEdit.normalizedHex(input) == hex)
+    }
+
+    @Test(arguments: ["rgb(1, 2, 3)", "red", "#ff550080", "#ff55", "", "##fff"])
+    func refusesAnythingElse(_ input: String) {
+        #expect(PaletteEdit.normalizedHex(input) == nil)
+    }
+
+    @Test func addsUntilThePaletteHoldsTwelveColors() {
+        let eleven = (0..<11).map { String(format: "#0000%02X", $0) }
+        #expect(PaletteEdit.maxColors == 12)
+        #expect(PaletteEdit.canAdd(palette(eleven)))
+        #expect(!PaletteEdit.canAdd(palette(eleven + ["#FFFFFF"])))
+        #expect(PaletteEdit.canAdd(palette([])))
+    }
+
+    @Test func removesWhileAnotherDistinctColorStays() {
+        #expect(PaletteEdit.canRemove(palette(["#FF5500", "#4ECDC4"])))
+        #expect(!PaletteEdit.canRemove(palette(["#FF5500"])))
+        #expect(!PaletteEdit.canRemove(palette(["#ff5500", "#FF5500", "f50"])))
+        #expect(!PaletteEdit.canRemove(palette([])))
+    }
+
+    @Test func onlyPalettesOutsideTrashChange() {
+        let colors = ["#FF5500", "#4ECDC4"]
+        #expect(!PaletteEdit.canAdd(palette(colors, deleted: true)))
+        #expect(!PaletteEdit.canRemove(palette(colors, deleted: true)))
+        #expect(!PaletteEdit.canAdd(palette(colors, type: .image)))
+        #expect(!PaletteEdit.canRemove(palette(colors, type: .image)))
+    }
+
+    @Test func findsAColorHoweverItIsWritten() {
+        let card = palette(["#ff5500", "#4ECDC4"])
+        #expect(PaletteEdit.contains(card, "#FF5500"))
+        #expect(PaletteEdit.contains(card, "f50"))
+        #expect(PaletteEdit.contains(card, "4ecdc4"))
+        #expect(!PaletteEdit.contains(card, "#000000"))
+    }
+
+    @Test func sendsOneHexCodePerEdit() {
+        #expect(CardFieldChange.addColor("#FF5500").args(cardId: "c")
+            == ["cardId": "c", "field": "addColor", "value": "#FF5500"])
+        #expect(CardFieldChange.removeColor("#FF5500").args(cardId: "c")
+            == ["cardId": "c", "field": "removeColor", "value": "#FF5500"])
+    }
+}
+
 @Suite(.english) struct LinkEditTests {
     private let invalid = "Use an http or https link."
 

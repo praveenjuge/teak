@@ -93,14 +93,9 @@ struct CardDetailView: View {
             }
             .overlay(alignment: .bottom) {
                 if let notice = model.notice {
-                    Label(notice, systemImage: "checkmark.circle")
-                        .font(.subheadline.weight(.medium))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .glassEffect(.regular, in: .capsule)
+                    StatusToast(status: notice)
                         .padding(.bottom, 16)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
-                        .onAppear { AccessibilityNotification.Announcement(notice).post() }
                 }
             }
             .animation(.smooth, value: model.notice)
@@ -182,7 +177,9 @@ struct CardDetailView: View {
 
     @ViewBuilder private func hero(_ card: Card, _ model: CardDetailModel) -> some View {
         CardPreview(card: model.displayedCard ?? card, linkTargets: model.linkTargets,
-                    toggleTask: card.deleted ? nil : { item in Task { await model.toggleTask(item) } })
+                    toggleTask: card.deleted ? nil : { item in Task { await model.toggleTask(item) } },
+                    palette: card.deleted ? nil : PaletteActions(add: { await model.addColor($0) },
+                                                                 remove: { await model.removeColor($0) }))
             #if os(macOS)
             .onTapGesture(count: 2) { if CardEdit.canEditContent(card.type) { showEditSheet = true } }
             #endif

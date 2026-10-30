@@ -87,6 +87,10 @@ public enum CardFieldChange: Hashable, Sendable {
     case removeAiTag(String)
     case metadataTitle(String)
     case url(String)
+    /// Appends a palette color, one hex code.
+    case addColor(String)
+    /// Removes every copy of a palette color, one hex code.
+    case removeColor(String)
     case moveToTrash
     case restore
 
@@ -98,6 +102,8 @@ public enum CardFieldChange: Hashable, Sendable {
         case let .removeAiTag(tag): ["cardId": .string(cardId), "field": "removeAiTag", "tagToRemove": .string(tag)]
         case let .metadataTitle(value): ["cardId": .string(cardId), "field": "metadataTitle", "value": .string(value)]
         case let .url(value): ["cardId": .string(cardId), "field": "url", "value": .string(value)]
+        case let .addColor(hex): ["cardId": .string(cardId), "field": "addColor", "value": .string(hex)]
+        case let .removeColor(hex): ["cardId": .string(cardId), "field": "removeColor", "value": .string(hex)]
         case .moveToTrash: ["cardId": .string(cardId), "field": "delete"]
         case .restore: ["cardId": .string(cardId), "field": "restore"]
         }
