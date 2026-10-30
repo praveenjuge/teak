@@ -23,8 +23,6 @@ describe("Web sign-in entry", () => {
     expect(await redirectTarget("/login?next=%2Fsettings")).toBe(
       "/sign-in?next=%2Fsettings"
     );
-    expect(await redirectTarget("/forgot-password")).toBe("/sign-in");
-    expect(await redirectTarget("/reset-password")).toBe("/sign-in");
     expect(await redirectTarget("/register")).toBe("/sign-up");
     await gotoApp(browser, "/login?next=%2Fsettings");
     await expect(screen.getByLabel("Email")).toBeVisible();

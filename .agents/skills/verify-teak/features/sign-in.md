@@ -5,7 +5,7 @@ A signed-out visitor to any app route is sent to Teak's hosted WorkOS sign-in pa
 ## Sub-features
 
 - `auth-redirect` sends an anonymous visit to `/sign-in?next=<path>`, which hands off to the hosted page.
-- `auth-aliases` redirects `/login`, `/forgot-password` and `/reset-password` to `/sign-in`, and `/register` to `/sign-up`, keeping `next`.
+- `auth-aliases` redirects `/login` to `/sign-in` and `/register` to `/sign-up`, keeping `next`.
 - `auth-sign-in` signs in through the hosted email step, then the password step.
 - `auth-return` lands on `next`, or `/` when there is none.
 - `auth-signed-in-entry` sends a signed-in visit to `/sign-in` or `/sign-up` straight to `next` (or `/`) without the hosted page. `/sign-in?reauth=1` (after a failed callback) and `/sign-in?renew=1` (the app's "Sign in" buttons on "Please sign in again." and "Your session changed") still go through the hosted page.

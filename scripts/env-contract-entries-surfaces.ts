@@ -105,7 +105,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     providers: ["dotenv-local", "vercel"],
     required: false,
     implicit: true,
-    note: "Optional strict AuthKit session issuer override. If set, must equal https://api.workos.com/user_management/{WORKOS_CLIENT_ID}.",
+    note: "Optional. Read by authkit-nextjs, which then accepts only access tokens from this issuer (https://api.workos.com/user_management/{WORKOS_CLIENT_ID}).",
   }),
   spec("NEXT_PUBLIC_WORKOS_REDIRECT_URI", {
     derivedFrom: "SITE_URL",

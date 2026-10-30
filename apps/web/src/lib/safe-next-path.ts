@@ -1,11 +1,9 @@
-const AUTH_ROUTES = new Set([
-  "/login",
-  "/register",
-  "/reset-password",
-  "/forgot-password",
-  "/sign-in",
-  "/sign-up",
-]);
+// Teak's sign-in pages, and the older addresses that still lead to them.
+export const SIGN_IN_ROUTES = new Set(["/sign-in", "/sign-up"]);
+export const SIGN_IN_ALIASES: Record<string, string> = {
+  "/login": "/sign-in",
+  "/register": "/sign-up",
+};
 
 // Control characters (including tab/newline) and backslashes can be normalized
 // by URL parsing/navigation into a different host, so reject them outright.
@@ -44,7 +42,8 @@ export function getSafeNextPath(
 
   // With the default `trailingSlash: false`, Next redirects `/sign-in/` (and
   // `/sign-in//`) to `/sign-in`, so compare without trailing slashes.
-  if (AUTH_ROUTES.has(parsed.pathname.replace(/\/+$/, ""))) {
+  const route = parsed.pathname.replace(/\/+$/, "");
+  if (SIGN_IN_ROUTES.has(route) || Object.hasOwn(SIGN_IN_ALIASES, route)) {
     return null;
   }
 

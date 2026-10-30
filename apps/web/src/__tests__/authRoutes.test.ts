@@ -70,14 +70,10 @@ describe("web sign-in routing", () => {
     ["/login?next=https%3A%2F%2Fevil.example", "/sign-in"],
     ["/login?error=sign_in_restart", "/sign-in"],
     ["/register", "/sign-up"],
-    ["/forgot-password", "/sign-in"],
-    ["/reset-password?token=old", "/sign-in"],
   ])("sends entry page %s straight to %s", async (path, target) => {
     globalThis.fetch = offline;
     const response = await proxy(
-      new NextRequest(`http://localhost:3142${path}`, {
-        headers: { cookie: "better-auth.session_token=expired" },
-      })
+      new NextRequest(`http://localhost:3142${path}`)
     );
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(

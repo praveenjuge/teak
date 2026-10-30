@@ -40,36 +40,9 @@ export function readWorkosWebConfig(
   ) {
     throw new Error("Invalid sign-in callback configuration.");
   }
-  const issuer = `https://api.workos.com/user_management/${clientId}`;
-  if (environment.WORKOS_ISSUER && environment.WORKOS_ISSUER !== issuer) {
-    throw new Error("Sign-in issuer does not match this environment.");
-  }
   return {
     clientId,
     origin: redirect.origin,
     redirectUri: redirect.toString(),
   };
-}
-
-export function workosCallbackState(clientId: string): string {
-  return JSON.stringify({ clientId });
-}
-
-export function assertWorkosCallbackBinding(
-  state: string | undefined,
-  clientId: string
-): void {
-  let binding: unknown = null;
-  try {
-    binding = state ? JSON.parse(state) : null;
-  } catch {
-    binding = null;
-  }
-  if (
-    !binding ||
-    typeof binding !== "object" ||
-    !("clientId" in binding && binding.clientId === clientId)
-  ) {
-    throw new Error("Sign-in changed. Please start again.");
-  }
 }

@@ -110,7 +110,7 @@ export const validateWebEnvContent = (
     return issues;
   }
   const authEnvironment = Object.fromEntries(
-    [...REQUIRED_WEB_AUTH_KEYS, "WORKOS_ISSUER", "NODE_ENV"].map((key) => [
+    [...REQUIRED_WEB_AUTH_KEYS, "NODE_ENV"].map((key) => [
       key,
       expandEnvReferences(lookup(key) ?? "", lookup),
     ])
@@ -121,7 +121,7 @@ export const validateWebEnvContent = (
     issues.push({
       key: "WORKOS_CLIENT_ID",
       problem: "invalid-auth-config",
-      hint: "Configure the same development WorkOS client/API key as the Convex deployment, a cookie password of at least 32 characters, and the app origin + /callback. An issuer override must match the client ID. Never use production credentials locally.",
+      hint: "Configure the same development WorkOS client/API key as the Convex deployment, a cookie password of at least 32 characters, and the app origin + /callback. Never use production credentials locally.",
     });
   }
   return issues;

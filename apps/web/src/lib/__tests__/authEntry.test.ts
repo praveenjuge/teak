@@ -31,6 +31,8 @@ describe("WorkOS entry redirect", () => {
     expect(target("/sign-in")).toBeNull();
     expect(target("/sign-up?next=%2Fsettings")).toBeNull();
     expect(target("/login/extra")).toBeNull();
+    expect(target("/forgot-password")).toBeNull();
+    expect(target("/reset-password")).toBeNull();
   });
   test.each([
     [

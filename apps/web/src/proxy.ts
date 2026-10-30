@@ -2,10 +2,10 @@ import { authkit, handleAuthkitProxy } from "@workos-inc/authkit-nextjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { workosEntryRedirect } from "@/lib/auth-entry";
 import { resolveAnalyticsProxyTarget } from "@/lib/posthog-config";
+import { SIGN_IN_ROUTES } from "@/lib/safe-next-path";
 import { syncSessionHint } from "@/lib/session-hint";
 import { readWorkosWebConfig } from "@/lib/workos-config";
 
-const signInRoutes = new Set(["/sign-in", "/sign-up"]);
 // /share takes a POST from the share sheet, which a sign-in redirect would
 // drop; it only redirects on to the library, which then asks for sign-in.
 const publicInfrastructureRoutes = new Set(["/opengraph-image", "/share"]);
@@ -58,7 +58,7 @@ export default async function proxy(request: NextRequest) {
     if (entry) {
       return respond(handleAuthkitProxy(request, headers, { redirect: entry }));
     }
-    if (!(signedIn || signInRoutes.has(pathname))) {
+    if (!(signedIn || SIGN_IN_ROUTES.has(pathname))) {
       const signIn = new URL("/sign-in", config.origin);
       signIn.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
       return respond(
