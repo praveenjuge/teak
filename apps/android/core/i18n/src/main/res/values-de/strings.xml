@@ -7,6 +7,12 @@
     <string name="android_card_videoUnplayable">Dieses Video kann auf diesem Gerät nicht abgespielt werden.</string>
     <string name="android_notification_file">Datei</string>
     <string name="android_notification_uploadTitle">Wird in Teak gespeichert</string>
+    <string name="android_offline_banner">Sie sind offline. Änderungen werden synchronisiert, sobald Sie wieder online sind.</string>
+    <string name="android_offline_keep">Offline verfügbar machen</string>
+    <string name="android_offline_keepFailed">Diese Karte konnte nicht offline gespeichert werden. Versuchen Sie es erneut.</string>
+    <string name="android_offline_kept">Offline verfügbar</string>
+    <string name="android_offline_removeCopy">Offline-Kopie entfernen</string>
+    <string name="android_offline_removed">Offline-Kopie entfernt</string>
     <string name="android_settings_wallpaperColors">Hintergrundfarben</string>
     <string name="android_settings_wallpaperColorsDescription">Die App in den Farben Ihres Hintergrunds statt in Teak-Rot einfärben.</string>
     <string name="android_share_saveToTeak">In Teak speichern</string>

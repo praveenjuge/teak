@@ -1,6 +1,12 @@
 package com.praveenjuge.teak.core.data.repository
 
 import com.praveenjuge.teak.core.data.FakeConvexApi
+import com.praveenjuge.teak.core.data.FakeOfflineCopies
+import com.praveenjuge.teak.core.data.FakeOutbox
+import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.convex.teakJson
+import com.praveenjuge.teak.core.data.offline.OutboxItem
+import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.CardFieldChange
 import com.praveenjuge.teak.core.model.LinkPrice
@@ -10,6 +16,8 @@ import com.praveenjuge.teak.core.model.CreatedAtRange
 import com.praveenjuge.teak.core.model.LibraryFilters
 import com.praveenjuge.teak.core.model.TrashCount
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -17,11 +25,16 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ConvexCardsRepositoryTest {
     private val convex = FakeConvexApi()
-    private val repository = ConvexCardsRepository(convex)
+    private val outbox = FakeOutbox()
+    private val copies = FakeOfflineCopies()
+    private val repository = ConvexCardsRepository(convex, outbox, copies)
 
     @Test
     fun `a date search sends the range and the words beside it, with float64 numbers`() = runTest {
@@ -212,5 +225,101 @@ class ConvexCardsRepositoryTest {
         repository.setDone("c1", true)
         repository.setDone("c1", false)
         assertEquals(listOf("archive", "unarchive", "done", "undone"), convex.calls.map { it.args["field"] })
+    }
+
+    @Test
+    fun `offline, an edit waits in the outbox and the card shows it`() = runTest {
+        convex.responses["cards:getCard"] = { note("c1") }
+        convex.offline = true
+
+        repository.setFavorite("c1", true)
+        repository.apply("c1", listOf(CardFieldChange.Content("Offline draft")))
+
+        assertEquals(
+            listOf(CardFieldChange.Favorite(true), CardFieldChange.Content("Offline draft")),
+            outbox.items.value.map { (it as OutboxItem.Edit).change },
+        )
+        val card = repository.card("c1").first().getOrThrow()!!
+        assertEquals(true, card.favorited)
+        assertEquals("Offline draft", card.content)
+    }
+
+    @Test
+    fun `a new edit waits behind ones still in the outbox, so they reach the server in order`() = runTest {
+        outbox.add(listOf(OutboxItem.Edit("e1", "c1", CardFieldChange.Archive(true))))
+
+        repository.setArchived("c1", false)
+
+        assertTrue(convex.calls.isEmpty())
+        assertEquals(listOf(CardFieldChange.Archive(true), CardFieldChange.Archive(false)), outbox.pendingEdits.value["c1"])
+    }
+
+    @Test
+    fun `a waiting edit takes a card out of a view it no longer belongs in`() = runTest {
+        convex.responses["cards:searchMobileCardSummariesPaginated"] = {
+            buildJsonObject {
+                put("page", buildJsonArray {
+                    add(summary("c1"))
+                    add(summary("c2"))
+                })
+                put("isDone", true)
+            }
+        }
+        outbox.add(
+            listOf(
+                OutboxItem.Edit("e1", "c1", CardFieldChange.MoveToTrash),
+                OutboxItem.Edit("e2", "c2", CardFieldChange.Favorite(true)),
+            ),
+        )
+
+        val page = repository.page(CardQuery(), null, 20).first().getOrThrow().page
+
+        assertEquals(listOf("c2"), page.map { it.id })
+        assertEquals(true, page.single().isFavorited)
+    }
+
+    @Test
+    fun `offline, a bulk archive waits as one edit per card and adding tags fails`() = runTest {
+        convex.offline = true
+
+        val result = repository.bulk(BulkAction.Archive, listOf("c1", "c2"))
+
+        assertEquals(listOf("c1", "c2"), result.updatedIds)
+        assertEquals(setOf("c1", "c2"), outbox.pendingEdits.value.keys)
+        val failure = assertFailsWith<TeakException> { repository.bulk(BulkAction.AddTags, listOf("c1"), tags = listOf("a")) }
+        assertEquals(TeakException.OFFLINE, failure.code)
+    }
+
+    @Test
+    fun `offline, saved text waits and has no card id yet`() = runTest {
+        convex.offline = true
+
+        assertNull(repository.createFromText("https://example.com"))
+        assertEquals(listOf("https://example.com"), outbox.items.value.map { (it as OutboxItem.CreateText).text })
+    }
+
+    @Test
+    fun `a kept card shows before the server answers, and the server's copy replaces it`() = runTest {
+        copies.keep(teakJson.decodeFromJsonElement(Card.serializer(), note("c1", content = "Kept")))
+        convex.responses["cards:getCard"] = { note("c1", content = "Live") }
+
+        val shown = repository.card("c1").take(2).toList().map { it.getOrThrow()?.content }
+
+        assertEquals(listOf("Kept", "Live"), shown)
+        assertEquals("Live", copies.card("c1")?.content)
+    }
+
+    private fun note(id: String, content: String = "Note") = buildJsonObject {
+        put("_id", id)
+        put("_creationTime", 1.0)
+        put("type", "text")
+        put("content", content)
+    }
+
+    private fun summary(id: String) = buildJsonObject {
+        put("_id", id)
+        put("_creationTime", 1.0)
+        put("type", "text")
+        put("title", id)
     }
 }

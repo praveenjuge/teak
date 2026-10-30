@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.OfflinePin
+import androidx.compose.material.icons.outlined.OfflinePin
+import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Circle
@@ -137,6 +140,7 @@ internal class CardDetailCallbacks(
     val onDeleteForever: () -> Unit = {},
     val onShareFile: () -> Unit = {},
     val onDownload: () -> Unit = {},
+    val onToggleKeepOffline: () -> Unit = {},
     val onToggleDone: () -> Unit = {},
     val onToggleArchived: () -> Unit = {},
     val onRefreshDetails: () -> Unit = {},
@@ -238,6 +242,7 @@ internal fun CardDetailScreen(
                     card = card,
                     isFavorited = state.isFavorited,
                     isRefreshing = state.isRefreshing,
+                    isKeptOffline = state.isKeptOffline,
                     callbacks = callbacks,
                     actions = actions,
                     onMoveToTrash = { confirm = PendingConfirm.Trash },
@@ -247,6 +252,13 @@ internal fun CardDetailScreen(
         },
     ) { padding ->
         when {
+            state.isLoading && state.isOffline -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                EmptyState(
+                    title = tr("native.app.offline.title"),
+                    message = tr("native.app.offline.message"),
+                    icon = Icons.Outlined.CloudOff,
+                )
+            }
             state.isLoading -> TeakLoading(Modifier.padding(padding))
             card == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 EmptyState(
@@ -424,6 +436,7 @@ private fun CardDetailContent(
             CardPreview(
                 card = state.displayedCard ?: card,
                 documentText = documentText,
+                offlineFile = state.offlineFile,
                 onCopyColor = { hex -> actions.copy(hex, UiText.of("native.card.copiedValue", hex)) },
                 // PDFs open in the app's reader; other documents open in the browser.
                 onViewDocument = if (CardSheet.isPdf(card)) ({ _ -> callbacks.onViewPdf() }) else actions.viewDocument,
@@ -469,6 +482,7 @@ private fun CardToolbar(
     card: Card,
     isFavorited: Boolean,
     isRefreshing: Boolean,
+    isKeptOffline: Boolean,
     callbacks: CardDetailCallbacks,
     actions: UiActions,
     onMoveToTrash: () -> Unit,
@@ -563,6 +577,13 @@ private fun CardToolbar(
                         },
                     )
                 }
+                DropdownMenuItem(
+                    text = { Text(if (isKeptOffline) tr("android.offline.removeCopy") else tr("android.offline.keep")) },
+                    leadingIcon = {
+                        Icon(if (isKeptOffline) Icons.Filled.OfflinePin else Icons.Outlined.OfflinePin, contentDescription = null)
+                    },
+                    onClick = close(callbacks.onToggleKeepOffline),
+                )
                 DropdownMenuItem(
                     text = { Text(tr("native.actions.moveToTrash"), color = MaterialTheme.colorScheme.error) },
                     leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },

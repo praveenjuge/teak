@@ -7,6 +7,12 @@
     <string name="android_card_videoUnplayable">This video can\'t play on this device.</string>
     <string name="android_notification_file">File</string>
     <string name="android_notification_uploadTitle">Saving to Teak</string>
+    <string name="android_offline_banner">You\'re offline. Changes sync when you\'re back.</string>
+    <string name="android_offline_keep">Keep offline</string>
+    <string name="android_offline_keepFailed">Couldn\'t keep this card offline. Try again.</string>
+    <string name="android_offline_kept">Kept offline</string>
+    <string name="android_offline_removeCopy">Remove offline copy</string>
+    <string name="android_offline_removed">Removed offline copy</string>
     <string name="android_settings_wallpaperColors">Wallpaper colors</string>
     <string name="android_settings_wallpaperColorsDescription">Color the app from your wallpaper instead of Teak\'s red.</string>
     <string name="android_share_saveToTeak">Save to Teak</string>

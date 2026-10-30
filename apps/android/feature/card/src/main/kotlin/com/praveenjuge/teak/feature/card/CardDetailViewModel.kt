@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
+import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
+import com.praveenjuge.teak.core.data.repository.isOffline
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkCopy
@@ -72,6 +74,12 @@ data class CardDetailUiState(
     val isEditingLink: Boolean = false,
     val linkError: UiText? = null,
     val isSavingLink: Boolean = false,
+    /** Teak has been offline for a few seconds, so a card that hasn't loaded yet won't until it's back. */
+    val isOffline: Boolean = false,
+    /** The card and its file are kept on the device for offline use. */
+    val isKeptOffline: Boolean = false,
+    /** The kept file, as a `file://` link the preview shows or plays instead of downloading. */
+    val offlineFile: String? = null,
 ) {
     /** The card as shown, with any task tick or kept tag that's still saving. */
     val displayedCard: Card?
@@ -106,6 +114,7 @@ class CardDetailViewModel @AssistedInject constructor(
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
     private val files: CardFiles,
+    private val account: AccountRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CardDetailUiState())
     val uiState: StateFlow<CardDetailUiState> = _uiState.asStateFlow()
@@ -157,6 +166,13 @@ class CardDetailViewModel @AssistedInject constructor(
             .launchIn(viewModelScope)
         folders.folders
             .onEach { result -> result.onSuccess { list -> _uiState.update { it.copy(folders = list) } } }
+            .launchIn(viewModelScope)
+        account.isOffline.onEach { offline -> _uiState.update { it.copy(isOffline = offline) } }.launchIn(viewModelScope)
+        repository.keptOffline.map { cardId in it }.distinctUntilChanged()
+            .onEach { kept ->
+                val file = if (kept) repository.offlineFile(cardId)?.let { Uri.fromFile(it).toString() } else null
+                _uiState.update { it.copy(isKeptOffline = kept, offlineFile = file) }
+            }
             .launchIn(viewModelScope)
     }
 
@@ -412,6 +428,22 @@ class CardDetailViewModel @AssistedInject constructor(
         transfer(UiText.of("native.card.failed.saveFile")) {
             files.saveToDownloads(url, fileName, card.fileMetadata?.mimeType)
             _events.send(CardDetailEvent.Message(UiText.of("android.card.savedToDownloads")))
+        }
+    }
+
+    /** Keeps the card and its file on the device, or removes the copy kept before. */
+    fun toggleKeepOffline() {
+        val card = _uiState.value.card ?: return
+        if (_uiState.value.isKeptOffline) {
+            viewModelScope.launch {
+                catchingFailures { repository.removeOfflineCopy(card.id) }
+                    .onSuccess { _events.send(CardDetailEvent.Message(UiText.of("android.offline.removed"))) }
+            }
+            return
+        }
+        transfer(UiText.of("android.offline.keepFailed")) {
+            repository.keepOffline(card)
+            _events.send(CardDetailEvent.Message(UiText.of("android.offline.kept")))
         }
     }
 

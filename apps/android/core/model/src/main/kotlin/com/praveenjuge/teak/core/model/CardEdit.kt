@@ -1,20 +1,53 @@
 package com.praveenjuge.teak.core.model
 
-/** One `cards:updateCardField` write. */
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+/**
+ * One `cards:updateCardField` write. Each one sets a value rather than toggling it, so sending one twice
+ * leaves the card the same: an edit made offline can be sent again after a lost reply.
+ */
+@Serializable
 sealed interface CardFieldChange {
+    @Serializable @SerialName("content")
     data class Content(val value: String) : CardFieldChange
+
+    @Serializable @SerialName("notes")
     data class Notes(val value: String?) : CardFieldChange
+
+    @Serializable @SerialName("tags")
     data class Tags(val value: List<String>) : CardFieldChange
+
+    @Serializable @SerialName("removeAiTag")
     data class RemoveAiTag(val tag: String) : CardFieldChange
+
+    @Serializable @SerialName("metadataTitle")
     data class MetadataTitle(val value: String) : CardFieldChange
+
+    @Serializable @SerialName("url")
     data class Url(val value: String) : CardFieldChange
 
     /** Appends a color to a palette; the server ignores one it already has. */
+    @Serializable @SerialName("addColor")
     data class AddColor(val hex: String) : CardFieldChange
 
     /** Removes every copy of a color from a palette. */
+    @Serializable @SerialName("removeColor")
     data class RemoveColor(val hex: String) : CardFieldChange
+
+    @Serializable @SerialName("favorite")
+    data class Favorite(val value: Boolean) : CardFieldChange
+
+    @Serializable @SerialName("archive")
+    data class Archive(val value: Boolean) : CardFieldChange
+
+    @Serializable @SerialName("done")
+    data class Done(val value: Boolean) : CardFieldChange
+
+    @Serializable @SerialName("moveToTrash")
     data object MoveToTrash : CardFieldChange
+
+    @Serializable @SerialName("restore")
     data object Restore : CardFieldChange
 
     /** The mutation's arguments, as Apple's `CardFieldChange.args(cardId:)`. */
@@ -27,6 +60,9 @@ sealed interface CardFieldChange {
         is Url -> mapOf("cardId" to cardId, "field" to "url", "value" to value)
         is AddColor -> mapOf("cardId" to cardId, "field" to "addColor", "value" to hex)
         is RemoveColor -> mapOf("cardId" to cardId, "field" to "removeColor", "value" to hex)
+        is Favorite -> mapOf("cardId" to cardId, "field" to "isFavorited", "value" to value)
+        is Archive -> mapOf("cardId" to cardId, "field" to if (value) "archive" else "unarchive")
+        is Done -> mapOf("cardId" to cardId, "field" to if (value) "done" else "undone")
         MoveToTrash -> mapOf("cardId" to cardId, "field" to "delete")
         Restore -> mapOf("cardId" to cardId, "field" to "restore")
     }

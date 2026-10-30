@@ -14,13 +14,17 @@ import com.praveenjuge.teak.core.model.LinkCategory
 import com.praveenjuge.teak.core.model.LinkedCard
 import com.praveenjuge.teak.core.model.RefreshOutcome
 import com.praveenjuge.teak.core.model.UiText
+import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Rule
@@ -40,6 +44,7 @@ class CardDetailViewModelTest {
     @get:Rule val mainDispatcherRule = MainDispatcherRule()
 
     private val cards = FakeCardsRepository()
+    private val account = FakeAccountRepository()
     private val card = Card(id = "c1", creationTime = 0.0, type = CardType.Text, content = "Hello")
 
     private fun viewModel(repository: CardsRepository = cards) = CardDetailViewModel(
@@ -47,6 +52,7 @@ class CardDetailViewModelTest {
         repository = repository,
         folders = folders,
         files = CardFiles(RuntimeEnvironment.getApplication(), OkHttpClient()),
+        account = account,
     )
 
     private val folders = FakeFoldersRepository()
@@ -63,6 +69,7 @@ class CardDetailViewModelTest {
         repository = repository,
         folders = folders,
         files = CardFiles(RuntimeEnvironment.getApplication(), OkHttpClient()),
+        account = account,
     )
 
     private class SlowFavorites(private val fake: FakeCardsRepository) : CardsRepository by fake {
@@ -539,5 +546,49 @@ class CardDetailViewModelTest {
             assertEquals(CardDetailEvent.Message(UiText.of("native.card.palette.saveFailed")), awaitItem())
         }
         assertEquals(palette.colors, viewModel.uiState.value.card?.colors)
+    }
+
+    @Test
+    fun `keep offline saves the card, says so, and the same item removes the copy`() = runTest {
+        cards.cards.value = mapOf(card.id to card)
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.toggleKeepOffline()
+            assertEquals(CardDetailEvent.Message(UiText.of("android.offline.kept")), awaitItem())
+            assertTrue(viewModel.uiState.value.isKeptOffline)
+
+            viewModel.toggleKeepOffline()
+            assertEquals(CardDetailEvent.Message(UiText.of("android.offline.removed")), awaitItem())
+        }
+        assertFalse(viewModel.uiState.value.isKeptOffline)
+        assertEquals(listOf("keep:c1", "unkeep:c1"), cards.writes)
+    }
+
+    @Test
+    fun `a card that can't be kept says so`() = runTest {
+        cards.cards.value = mapOf(card.id to card)
+        cards.keepError = java.io.IOException("offline")
+        val viewModel = viewModel()
+
+        viewModel.events.test {
+            viewModel.toggleKeepOffline()
+            assertEquals(CardDetailEvent.Message(UiText.of("android.offline.keepFailed")), awaitItem())
+        }
+        assertFalse(viewModel.uiState.value.isKeptOffline)
+    }
+
+    @Test
+    fun `a card still loading says it's offline once the connection has been down a few seconds`() = runTest {
+        val neverLoads = object : CardsRepository by cards {
+            override fun card(id: String): Flow<Result<Card?>> = flow { awaitCancellation() }
+        }
+        account.isConnected.value = false
+        val viewModel = viewModel(neverLoads)
+
+        assertFalse(viewModel.uiState.value.isOffline)
+        advanceTimeBy(3_001)
+        assertTrue(viewModel.uiState.value.isOffline)
+        assertTrue(viewModel.uiState.value.isLoading)
     }
 }

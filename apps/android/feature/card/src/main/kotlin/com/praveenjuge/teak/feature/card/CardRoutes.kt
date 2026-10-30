@@ -82,6 +82,7 @@ fun CardDetailRoute(
             onDeleteForever = viewModel::deleteForever,
             onShareFile = viewModel::shareFile,
             onDownload = viewModel::download,
+            onToggleKeepOffline = viewModel::toggleKeepOffline,
             onToggleDone = viewModel::toggleDone,
             onToggleArchived = viewModel::toggleArchived,
             onRefreshDetails = viewModel::refreshDetails,

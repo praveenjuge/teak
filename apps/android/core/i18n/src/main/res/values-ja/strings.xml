@@ -7,6 +7,12 @@
     <string name="android_card_videoUnplayable">この動画はこのデバイスでは再生できません。</string>
     <string name="android_notification_file">ファイル</string>
     <string name="android_notification_uploadTitle">Teak に保存中</string>
+    <string name="android_offline_banner">オフラインです。変更はオンラインに戻ると同期されます。</string>
+    <string name="android_offline_keep">オフラインで保存</string>
+    <string name="android_offline_keepFailed">このカードをオフラインで保存できませんでした。もう一度お試しください。</string>
+    <string name="android_offline_kept">オフラインで使えるようにしました</string>
+    <string name="android_offline_removeCopy">オフラインのコピーを削除</string>
+    <string name="android_offline_removed">オフラインのコピーを削除しました</string>
     <string name="android_settings_wallpaperColors">壁紙の色</string>
     <string name="android_settings_wallpaperColorsDescription">Teak の赤ではなく壁紙の色でアプリを彩ります。</string>
     <string name="android_share_saveToTeak">Teak に保存</string>

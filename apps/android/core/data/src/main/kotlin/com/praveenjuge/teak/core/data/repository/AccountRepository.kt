@@ -16,6 +16,8 @@ import com.praveenjuge.teak.core.data.convex.subscribe
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
+import com.praveenjuge.teak.core.data.offline.OfflineCopies
+import com.praveenjuge.teak.core.data.offline.Outbox
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.model.AuthMode
 import com.praveenjuge.teak.core.model.CurrentUser
@@ -28,6 +30,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -59,6 +64,8 @@ class ConvexAccountRepository @Inject constructor(
     private val client: ConvexClientWithAuth<String>,
     private val preferences: PreferencesRepository,
     private val uploads: UploadRepository,
+    private val outbox: Outbox,
+    private val offlineCopies: OfflineCopies,
     @ApplicationScope private val scope: CoroutineScope,
 ) : AccountRepository {
     override val session: StateFlow<SessionState> = sessions.state
@@ -130,7 +137,11 @@ class ConvexAccountRepository @Inject constructor(
     }
 
     private suspend fun clearLocalSession() = signOutLocally(
-        discardUploads = { uploads.discardAll() },
+        discardQueued = {
+            catchingFailures { outbox.clear() }
+            catchingFailures { offlineCopies.clear() }
+            uploads.discardAll()
+        },
         clearSession = {
             sessions.clear()
             client.logout(context)
@@ -143,13 +154,28 @@ class ConvexAccountRepository @Inject constructor(
 }
 
 /**
- * Signs out on this device. Files still queued belong to the account that's leaving, so they're dropped rather
- * than uploaded into the next one. They go first, as a best effort: a WorkManager failure, such as a full disk,
+ * Signs out on this device. Files still queued, writes made offline and cards kept offline belong to the account
+ * that's leaving, so they're dropped rather than sent into the next one. They go first, as a best effort: a WorkManager failure, such as a full disk,
  * must never leave the app signed in. Nothing here can be cancelled, because signing out closes the screen whose
  * scope called it.
  */
-internal suspend fun signOutLocally(discardUploads: suspend () -> Unit, clearSession: suspend () -> Unit) =
+internal suspend fun signOutLocally(discardQueued: suspend () -> Unit, clearSession: suspend () -> Unit) =
     withContext(NonCancellable) {
-        catchingFailures { discardUploads() }
+        catchingFailures { discardQueued() }
         clearSession()
     }
+
+/**
+ * Teak's connection has been down for a few seconds: long enough not to flash while the app connects or a socket
+ * reconnects, short enough to say so before someone wonders why nothing loads.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+val AccountRepository.isOffline: Flow<Boolean>
+    get() = isConnected.distinctUntilChanged()
+        .mapLatest { connected ->
+            if (!connected) delay(OFFLINE_GRACE_MS)
+            !connected
+        }
+        .distinctUntilChanged()
+
+private const val OFFLINE_GRACE_MS = 3_000L

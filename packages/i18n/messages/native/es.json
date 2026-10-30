@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "Colores del fondo de pantalla",
       "wallpaperColorsDescription": "Usar los colores del fondo de pantalla en lugar del rojo de Teak."
+    },
+    "offline": {
+      "banner": "No tiene conexión. Los cambios se sincronizan cuando vuelva.",
+      "keep": "Guardar sin conexión",
+      "removeCopy": "Quitar copia sin conexión",
+      "kept": "Disponible sin conexión",
+      "removed": "Copia sin conexión quitada",
+      "keepFailed": "No se pudo guardar esta tarjeta sin conexión. Vuelva a intentarlo."
     }
   }
 }

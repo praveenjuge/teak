@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "壁紙の色",
       "wallpaperColorsDescription": "Teak の赤ではなく壁紙の色でアプリを彩ります。"
+    },
+    "offline": {
+      "banner": "オフラインです。変更はオンラインに戻ると同期されます。",
+      "keep": "オフラインで保存",
+      "removeCopy": "オフラインのコピーを削除",
+      "kept": "オフラインで使えるようにしました",
+      "removed": "オフラインのコピーを削除しました",
+      "keepFailed": "このカードをオフラインで保存できませんでした。もう一度お試しください。"
     }
   }
 }

@@ -16,6 +16,7 @@ import com.praveenjuge.teak.core.model.TimeSearch
 import com.praveenjuge.teak.core.model.TrashCount
 import com.praveenjuge.teak.core.model.UiText
 import com.praveenjuge.teak.core.testing.FakeCardsRepository
+import com.praveenjuge.teak.core.testing.FakeAccountRepository
 import com.praveenjuge.teak.core.testing.FakeFoldersRepository
 import com.praveenjuge.teak.core.testing.FakeLanguageRepository
 import com.praveenjuge.teak.core.testing.MainDispatcherRule
@@ -38,6 +39,7 @@ class LibraryViewModelTest {
     private val repository = FakeCardsRepository()
     private val folders = FakeFoldersRepository()
     private val language = FakeLanguageRepository()
+    private val account = FakeAccountRepository()
 
     private fun summary(id: String) = CardSummary(id = id, creationTime = 0.0, type = CardType.Text, title = "Card $id")
 
@@ -48,7 +50,7 @@ class LibraryViewModelTest {
         savedState: SavedStateHandle = SavedStateHandle(),
     ): LibraryViewModel {
         repository.summaries.value = ids.map(::summary)
-        return LibraryViewModel(folderId, fixedView, repository, folders, language, savedState)
+        return LibraryViewModel(folderId, fixedView, repository, folders, language, account, savedState)
     }
 
     private fun LibraryViewModel.select(vararg ids: String) {
@@ -89,7 +91,7 @@ class LibraryViewModelTest {
 
             override fun trashCount() = emptyFlow<Result<TrashCount>>()
         }
-        val viewModel = LibraryViewModel(null, null, slowTrash, folders, language, SavedStateHandle())
+        val viewModel = LibraryViewModel(null, null, slowTrash, folders, language, account, SavedStateHandle())
         advanceUntilIdle()
         viewModel.toggleTrash()
         advanceUntilIdle()
@@ -113,7 +115,7 @@ class LibraryViewModelTest {
             override fun page(query: CardQuery, cursor: String?, numItems: Int) =
                 if (answered) emptyFlow() else repository.page(query, cursor, numItems).also { answered = true }
         }
-        val viewModel = LibraryViewModel(null, null, slowAfterFirst, folders, language, SavedStateHandle())
+        val viewModel = LibraryViewModel(null, null, slowAfterFirst, folders, language, account, SavedStateHandle())
         advanceUntilIdle()
 
         viewModel.refresh()

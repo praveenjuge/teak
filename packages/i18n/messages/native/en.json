@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "Wallpaper colors",
       "wallpaperColorsDescription": "Color the app from your wallpaper instead of Teak's red."
+    },
+    "offline": {
+      "banner": "You're offline. Changes sync when you're back.",
+      "keep": "Keep offline",
+      "removeCopy": "Remove offline copy",
+      "kept": "Kept offline",
+      "removed": "Removed offline copy",
+      "keepFailed": "Couldn't keep this card offline. Try again."
     }
   }
 }

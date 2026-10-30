@@ -15,7 +15,7 @@ class ConvexAccountRepositoryTest {
         val steps = mutableListOf<String>()
 
         signOutLocally(
-            discardUploads = {
+            discardQueued = {
                 steps += "discard"
                 throw IOException("database or disk is full")
             },
@@ -30,7 +30,7 @@ class ConvexAccountRepositoryTest {
         val discarding = CompletableDeferred<Unit>()
         var cleared = false
         val screen = launch {
-            signOutLocally(discardUploads = { discarding.await() }, clearSession = { cleared = true })
+            signOutLocally(discardQueued = { discarding.await() }, clearSession = { cleared = true })
         }
         advanceUntilIdle()
 

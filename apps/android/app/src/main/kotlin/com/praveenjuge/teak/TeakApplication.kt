@@ -27,6 +27,8 @@ import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
+import com.praveenjuge.teak.offline.StableCacheKeys
+import com.praveenjuge.teak.offline.TilePrefetchWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.drop
@@ -59,6 +61,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
             account.start()
         }
         scope.launch { catchingFailures { uploads.sweepAbandoned() } }
+        TilePrefetchWorker.schedule(this)
     }
 
     /** A new app language relabels the launcher shortcuts. */
@@ -87,6 +90,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
             .components {
+                add(StableCacheKeys)
                 add(OkHttpNetworkFetcherFactory(callFactory = { httpClient.newBuilder().followRedirects(true).build() }))
                 add(AnimatedImageDecoder.Factory())
                 add(VideoFrameDecoder.Factory())

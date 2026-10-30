@@ -85,7 +85,7 @@ class PdfViewerViewModel @AssistedInject constructor(
                 val card = repository.card(cardId).first().getOrThrow() ?: throw IOException("The card is gone")
                 val url = safeExternalUrl(card.fileUrl) ?: throw IOException("The card has no file")
                 _uiState.update { it.copy(title = CardSheet.title(card), fileUrl = url) }
-                val file = files.cachedDocument(url, card.id, "pdf")
+                val file = repository.offlineFile(card.id) ?: files.cachedDocument(url, card.id, "pdf")
                 file to withContext(Dispatchers.IO) { OpenPdf.open(file) }
             }
                 .onSuccess { (file, opened) ->

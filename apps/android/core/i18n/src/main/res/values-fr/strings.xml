@@ -7,6 +7,12 @@
     <string name="android_card_videoUnplayable">Cette vidéo ne peut pas être lue sur cet appareil.</string>
     <string name="android_notification_file">Fichier</string>
     <string name="android_notification_uploadTitle">Enregistrement dans Teak</string>
+    <string name="android_offline_banner">Vous êtes hors ligne. Les modifications se synchronisent à votre retour.</string>
+    <string name="android_offline_keep">Garder hors ligne</string>
+    <string name="android_offline_keepFailed">Impossible de garder cette fiche hors ligne. Réessayez.</string>
+    <string name="android_offline_kept">Disponible hors ligne</string>
+    <string name="android_offline_removeCopy">Supprimer la copie hors ligne</string>
+    <string name="android_offline_removed">Copie hors ligne supprimée</string>
     <string name="android_settings_wallpaperColors">Couleurs du fond d’écran</string>
     <string name="android_settings_wallpaperColorsDescription">Colorer l’app avec votre fond d’écran plutôt qu’avec le rouge de Teak.</string>
     <string name="android_share_saveToTeak">Enregistrer dans Teak</string>
