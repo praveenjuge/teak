@@ -93,8 +93,27 @@ class DiskOfflineCopiesTest {
         eventually { copies.file("c3")?.readText() == "rendition" }
     }
 
+    @Test
+    fun `a replacement that failed is tried again on the next update`() = runTest {
+        server.enqueue(MockResponse().setBody("%PDF-1.7 old"))
+        server.enqueue(MockResponse().setResponseCode(503))
+        server.enqueue(MockResponse().setBody("%PDF-1.7 new"))
+        java.io.File(context.filesDir, "offline").deleteRecursively()
+        val copies = copies()
+        copies.keep(pdf("/files/a.pdf", signature = "one"))
+
+        copies.update(pdf("/files/b.pdf", signature = "two"))
+        eventually { server.requestCount == 2 && copies.file("c1")?.readText() == "%PDF-1.7 old" }
+
+        // Later updates (new signatures, as the server sends) keep trying until the new file is in.
+        eventually {
+            copies.update(pdf("/files/b.pdf", signature = "three"))
+            copies.file("c1")?.readText() == "%PDF-1.7 new"
+        }
+    }
+
     /** Waits for the background download a changed file starts. */
-    private suspend fun TestScope.eventually(condition: () -> Boolean) {
+    private suspend fun TestScope.eventually(condition: suspend () -> Boolean) {
         repeat(100) {
             testScheduler.advanceUntilIdle()
             if (condition()) return

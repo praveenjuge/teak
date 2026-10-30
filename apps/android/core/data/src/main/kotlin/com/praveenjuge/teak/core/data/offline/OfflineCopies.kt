@@ -128,6 +128,7 @@ class DiskOfflineCopies @Inject constructor(
         val staging = File(root, STAGING_PREFIX + UUID.randomUUID()).apply { mkdirs() }
         try {
             keptSource(card)?.let { url -> download(url, File(staging, DATA_FILE)) }
+            writeSource(staging, keptSource(card))
             writeCard(staging, card)
             mutex.withLock {
                 if (clears != started) throw IOException("The account's copies were cleared while keeping the card")
@@ -163,13 +164,26 @@ class DiskOfflineCopies @Inject constructor(
         val changed = withContext(Dispatchers.IO) {
             mutex.withLock {
                 val directory = directory(card.id)
-                val saved = read(directory) ?: return@withLock false
+                if (read(directory) == null) return@withLock false
                 writeCard(directory, card)
-                keptSource(saved)?.withoutQuery() != source?.withoutQuery()
+                // Against the link the kept file came from, not the card just saved: a replacement that failed is
+                // tried again on the next update.
+                downloadedSource(directory) != source?.withoutQuery()
             }
         }
-        if (changed) scope.launch(Dispatchers.IO) { replaceFile(card.id, source) }
+        if (changed && replacing.add(card.id)) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    replaceFile(card.id, source)
+                } finally {
+                    replacing.remove(card.id)
+                }
+            }
+        }
     }
+
+    /** Cards whose new file is downloading, so updates arriving meanwhile don't start another download. */
+    private val replacing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     private suspend fun replaceFile(id: String, source: String?) {
         val started = clears
@@ -184,10 +198,11 @@ class DiskOfflineCopies @Inject constructor(
                 }
                 val target = File(directory, DATA_FILE)
                 if (downloaded == null) target.delete() else if (!downloaded.renameTo(target)) return@withLock
+                writeSource(directory, source)
                 _changes.value += 1
             }
         } catch (_: IOException) {
-            // Offline or a failed download: the old file stays until the next update brings it again.
+            // Offline or a failed download: the old file stays, and the next update tries again.
         } finally {
             staging.deleteRecursively()
         }
@@ -223,6 +238,16 @@ class DiskOfflineCopies @Inject constructor(
         return runCatching { teakJson.decodeFromString(Card.serializer(), saved.readText()) }.getOrNull()
     }
 
+    /** The link (without its signature) the kept file was downloaded from, or null when there's no file. */
+    private fun downloadedSource(directory: File): String? {
+        val saved = File(directory, SOURCE_FILE)
+        return if (saved.exists()) saved.readText().ifEmpty { null } else read(directory)?.let(::keptSource)?.withoutQuery()
+    }
+
+    private fun writeSource(directory: File, source: String?) {
+        File(directory, SOURCE_FILE).writeText(source?.withoutQuery().orEmpty())
+    }
+
     /** Written to a copy first, so a crash mid-write leaves the old card whole. */
     private fun writeCard(directory: File, card: Card) {
         val partial = File(directory, "$CARD_FILE.part")
@@ -254,6 +279,7 @@ class DiskOfflineCopies @Inject constructor(
         const val DIRECTORY = "offline"
         const val CARD_FILE = "card.json"
         const val DATA_FILE = "file"
+        const val SOURCE_FILE = "source"
         const val OWNER_FILE = "owner"
         const val STAGING_PREFIX = ".keeping-"
         val unsafeNameCharacters = Regex("[^A-Za-z0-9_-]")
