@@ -9,10 +9,15 @@ let signedOutThisRun = false;
 export const hasSignedOutThisRun = () => signedOutThisRun;
 
 interface SignOutActionProps {
+  /** Work to finish while still signed in, such as a change waiting to save. */
+  beforeSignOut?: () => Promise<unknown>;
   onSignedOut?: () => void;
 }
 
-export function SignOutAction({ onSignedOut }: SignOutActionProps) {
+export function SignOutAction({
+  beforeSignOut,
+  onSignedOut,
+}: SignOutActionProps) {
   if (grandfatheredApiKey()) {
     return null;
   }
@@ -23,6 +28,7 @@ export function SignOutAction({ onSignedOut }: SignOutActionProps) {
       onAction={async () => {
         let result: SignOutResult;
         try {
+          await beforeSignOut?.();
           result = await signOutTeak();
         } catch (error) {
           await showToast({

@@ -227,14 +227,23 @@ test("a signed-out view starts sign-in right away and reuses a saved session", a
 test("after Sign Out, the signed-out view waits instead of opening sign-in", async () => {
   serveDiscovery();
   const discovery = globalThis.fetch;
-  globalThis.fetch = ((input, init) =>
-    String(input).endsWith("/oauth/disconnect")
-      ? Promise.resolve(new Response(null, { status: 204 }))
-      : discovery(input, init)) as typeof fetch;
+  const steps: string[] = [];
+  globalThis.fetch = ((input, init) => {
+    if (String(input).endsWith("/oauth/disconnect")) {
+      steps.push("disconnect");
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    return discovery(input, init);
+  }) as typeof fetch;
   let signedOut = 0;
   await act(async () =>
     root.render(
       createElement(SignOutAction, {
+        // A change still waiting to save finishes while signed in.
+        beforeSignOut: async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          steps.push("before");
+        },
         onSignedOut: () => {
           signedOut += 1;
         },
@@ -246,6 +255,7 @@ test("after Sign Out, the signed-out view waits instead of opening sign-in", asy
   await act(async () => signOut?.click());
   await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
   expect(signedOut).toBe(1);
+  expect(steps).toEqual(["before", "disconnect"]);
 
   let signedIn = 0;
   await act(async () =>

@@ -472,6 +472,8 @@ export function CardDetail({
             </ActionPanel.Section>
           )}
           <AccountActions
+            // A favorite saved after Sign Out would ask to sign in again.
+            beforeSignOut={settleFavorite}
             onSignedOut={() => {
               onSignedOut?.();
               pop();
