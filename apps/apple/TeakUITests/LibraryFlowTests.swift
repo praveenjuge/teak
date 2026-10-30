@@ -230,6 +230,31 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
+    func testFavoriteFromTileThenUnfavoriteOnCardClearsTheTileHeart() async throws {
+        #if os(macOS)
+        throw XCTSkip("Covered on iPhone and iPad; this flow goes back through the navigation bar")
+        #else
+        try await start()
+        let note = marker("heart")
+        save("Heart \(note)", expecting: note)
+        let favorited = app.buttons.matching(NSPredicate(format: "label CONTAINS %@ AND label ENDSWITH %@", note,
+                                                         ", Favorite")).firstMatch
+
+        tile(containing: note).openContextMenu()
+        tap(menuItem("Favorite").waitToAppear())
+        favorited.waitToAppear()
+
+        // Unfavoriting on the card's page clears the tile's heart once back, with no refresh.
+        tap(tile(containing: note))
+        tap(app.buttons["Unfavorite"].firstMatch.waitToAppear())
+        app.buttons["Favorite"].firstMatch.waitToAppear()
+        tap(app.navigationBars.buttons.firstMatch)
+        tile(containing: note).waitToAppear()
+        favorited.waitToDisappear()
+        #endif
+    }
+
+    @MainActor
     func testArchiveDoneAndRevisit() async throws {
         try await start()
         let page = marker("done")
