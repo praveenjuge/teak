@@ -9,8 +9,16 @@ import { UNDO_TOAST_DURATION_MS } from "../constants/toast";
 import { updateCardInSearchQueries } from "../lib/cardQueryOptimisticUpdates";
 import { editPaletteColors, type PaletteField } from "./paletteColors";
 
+/** What the card dialog needs to change a palette's colors. */
+export interface PaletteColorsControl {
+  addColor: (hex: string) => Promise<boolean>;
+  removeColor: (hex: string) => Promise<void>;
+}
+
 /** Adds and removes a palette card's colors, with Undo for a removal. */
-export function usePaletteColors(cardId: Id<"cards">) {
+export function usePaletteColors(
+  cardId: Id<"cards"> | undefined
+): PaletteColorsControl {
   const t = useTranslations("cardPreviews.palette");
   const tc = useTranslations("common");
   const updateCardField = useMutation(
@@ -31,7 +39,7 @@ export function usePaletteColors(cardId: Id<"cards">) {
   const write = useCallback(
     async (field: PaletteField, value: string) => {
       const hex = parsePaletteHex(value);
-      if (!hex) {
+      if (!(cardId && hex)) {
         return false;
       }
       try {
@@ -58,7 +66,7 @@ export function usePaletteColors(cardId: Id<"cards">) {
       }
       toast.success(t("removed", { hex }), {
         duration: UNDO_TOAST_DURATION_MS,
-        id: `palette-remove-${cardId}-${hex}`,
+        id: `palette-remove-${cardId ?? ""}-${hex}`,
         action: {
           label: tc("undo"),
           onClick: () => void write("addColor", hex),

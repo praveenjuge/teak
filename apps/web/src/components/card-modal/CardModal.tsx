@@ -57,6 +57,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { CardHighlightsControl } from "@/hooks/useCardHighlights";
+import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
 import { US_ENGLISH_LOCALE } from "@/lib/englishTranslators";
 import type { CardSaveState } from "../../hooks/useCardModal";
 import { useIsMobile } from "../../hooks/useIsMobile";
@@ -127,6 +128,7 @@ function CardPreview({
   card,
   cardLinks,
   getCurrentValue,
+  paletteColors,
   saveChanges,
   thumbnail,
   updateContent,
@@ -134,6 +136,7 @@ function CardPreview({
   card: CardModalCard;
   cardLinks?: CardLinkOptions;
   getCurrentValue: GetCurrentValue;
+  paletteColors?: PaletteColorsControl;
   saveChanges: () => void;
   thumbnail?: LinkThumbnailControl;
   updateContent: (value: string) => void;
@@ -187,7 +190,7 @@ function CardPreview({
     case "document":
       return <DocumentPreview card={card} />;
     case "palette":
-      return <PaletteStage card={card} />;
+      return <PaletteStage card={card} colors={paletteColors} />;
     default:
       return <div className="whitespace-pre-wrap">{card.content}</div>;
   }
@@ -338,6 +341,8 @@ interface CardModalProps {
   onTagClick?: (tag: string) => void;
   open: boolean;
   openLink: () => void;
+  /** Adds and removes a palette's colors; left out, a palette is read-only. */
+  paletteColors?: PaletteColorsControl;
   returnFocus?: (cardId: string) => boolean;
   saveChanges: (options?: { silent?: boolean }) => Promise<boolean>;
   savePdf?: SavePdfControl;
@@ -377,6 +382,7 @@ export function CardModal({
   handlePermanentDelete,
   highlights,
   openLink,
+  paletteColors,
   downloadFile,
   saveChanges,
   savePdf,
@@ -1320,6 +1326,7 @@ export function CardModal({
                             cardLinks={guardedCardLinks}
                             getCurrentValue={getCurrentValue}
                             key={card._id}
+                            paletteColors={paletteColors}
                             saveChanges={() => {
                               void saveChanges();
                             }}

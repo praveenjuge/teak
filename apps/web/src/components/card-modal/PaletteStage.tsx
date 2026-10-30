@@ -1,17 +1,27 @@
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { paletteEditing } from "@/hooks/paletteColors";
-import { usePaletteColors } from "@/hooks/usePaletteColors";
+import type { PaletteColorsControl } from "@/hooks/usePaletteColors";
 import { PalettePreview } from "../card-previews/PalettePreview";
 
-/** A palette in the card dialog, where its colors can be added and removed. */
-export function PaletteStage({ card }: { card: Doc<"cards"> }) {
-  const { addColor, removeColor } = usePaletteColors(card._id);
+/**
+ * A palette in the card dialog. With `colors`, its colors can be added and
+ * removed; without, it's read-only.
+ */
+export function PaletteStage({
+  card,
+  colors,
+}: {
+  card: Doc<"cards">;
+  colors?: PaletteColorsControl;
+}) {
   const { canAdd, canRemove } = paletteEditing(card);
   return (
     <PalettePreview
       card={card}
-      onAddColor={canAdd ? addColor : undefined}
-      onRemoveColor={canRemove ? (hex) => void removeColor(hex) : undefined}
+      onAddColor={colors && canAdd ? colors.addColor : undefined}
+      onRemoveColor={
+        colors && canRemove ? (hex) => void colors.removeColor(hex) : undefined
+      }
     />
   );
 }
