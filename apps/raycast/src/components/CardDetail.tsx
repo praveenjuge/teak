@@ -58,7 +58,8 @@ export interface CardDetailProps {
   card: RaycastCard;
   onCardDeleted: (cardId: string) => void;
   onCardUpdated: (next: RaycastCard) => void;
-  onFilterByTag: (tag: string) => void;
+  /** Left out where the list can't filter by another tag; tags then don't click. */
+  onFilterByTag?: (tag: string) => void;
   onNavigateBackAfterDelete: () => void;
   /** Lets the list behind this card check its sign-in again. */
   onSignedOut?: () => void;
@@ -112,6 +113,7 @@ export function CardDetail({
     Pick<RaycastCard, "backlinks" | "links">
   >({ backlinks: card.backlinks, links: card.links });
   const cardStateRef = useRef(card);
+  const isMountedRef = useRef(true);
   const favoriteMutationRef = useRef<FavoriteMutationState>({
     desired: card.isFavorited,
     inFlight: false,
@@ -173,12 +175,19 @@ export function CardDetail({
               title: "Card no longer exists",
               message: "It was removed from your list.",
             });
-            pop();
+            if (isMountedRef.current) {
+              pop();
+            }
             return;
           }
 
           mutationState.desired = mutationState.lastServer;
-          patchFavorite(mutationState.lastServer);
+          // Straight to the list too: a commit flushed on the way out has no
+          // detail left to patch.
+          emitCardUpdate({
+            ...cardStateRef.current,
+            isFavorited: mutationState.lastServer,
+          });
           await showToast({
             style: Toast.Style.Failure,
             title: "Favorite update failed",
@@ -190,7 +199,11 @@ export function CardDetail({
     } finally {
       mutationState.inFlight = false;
     }
-  }, [emitCardUpdate, onCardDeleted, patchFavorite, pop]);
+  }, [emitCardUpdate, onCardDeleted, pop]);
+  const flushFavoriteCommitRef = useRef(flushFavoriteCommit);
+  useEffect(() => {
+    flushFavoriteCommitRef.current = flushFavoriteCommit;
+  }, [flushFavoriteCommit]);
 
   const queueFavoriteCommit = useCallback(
     (nextValue: boolean) => {
@@ -250,11 +263,14 @@ export function CardDetail({
     }
   }, [leaveDetail, onCardDeleted]);
 
-  const handleTagAction = useCallback(
-    (tag: string) => {
-      onFilterByTag(tag);
-      pop();
-    },
+  const tagAction = useCallback(
+    (tag: string) =>
+      onFilterByTag
+        ? () => {
+            onFilterByTag(tag);
+            pop();
+          }
+        : undefined,
     [onFilterByTag, pop],
   );
 
@@ -289,15 +305,20 @@ export function CardDetail({
     };
   }, [card.id]);
 
-  useEffect(
-    () => () => {
+  // Leaving the detail sends a favorite change still waiting on its debounce,
+  // since the list already shows it.
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
       const mutationState = favoriteMutationRef.current;
       if (mutationState.timer) {
         clearTimeout(mutationState.timer);
+        mutationState.timer = null;
+        void flushFavoriteCommitRef.current();
       }
-    },
-    [],
-  );
+    };
+  }, []);
 
   const openableUrl = getOpenableUrl(cardState);
   const domain = getCardDomain(cardState);
@@ -452,9 +473,7 @@ export function CardDetail({
               {cardState.tags.map((tag) => (
                 <Detail.Metadata.TagList.Item
                   key={`tag-${tag}`}
-                  onAction={() => {
-                    handleTagAction(tag);
-                  }}
+                  onAction={tagAction(tag)}
                   text={tag}
                 />
               ))}
@@ -465,9 +484,7 @@ export function CardDetail({
               {cardState.aiTags.map((tag) => (
                 <Detail.Metadata.TagList.Item
                   key={`ai-tag-${tag}`}
-                  onAction={() => {
-                    handleTagAction(tag);
-                  }}
+                  onAction={tagAction(tag)}
                   text={tag}
                 />
               ))}

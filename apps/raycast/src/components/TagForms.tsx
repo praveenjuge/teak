@@ -38,14 +38,16 @@ export function RenameTagForm({ onFinished, tag }: TagChangeProps) {
       });
       return;
     }
-    if (name.toLowerCase() === tag.name.toLowerCase()) {
+    if (name === tag.name) {
       pop();
       return;
     }
-    pop();
+    // The form stays until Teak takes the new name, so a refusal (the name
+    // is taken) keeps what was typed.
     await changeTagWithFeedback(
       { kind: "rename", tag: tag.name, to: name },
       onFinished,
+      pop,
     );
   };
 

@@ -2,6 +2,12 @@ import { Action, Icon, showToast, Toast } from "@raycast/api";
 import { type SignOutResult, signOutTeak } from "../lib/oauth";
 import { grandfatheredApiKey } from "../lib/preferences";
 
+// Raycast runs each command fresh, so this lasts until the command closes.
+let signedOutThisRun = false;
+
+/** True once the person signed out in this command, so it doesn't ask them to sign in again. */
+export const hasSignedOutThisRun = () => signedOutThisRun;
+
 interface SignOutActionProps {
   onSignedOut?: () => void;
 }
@@ -26,6 +32,7 @@ export function SignOutAction({ onSignedOut }: SignOutActionProps) {
           });
           return;
         }
+        signedOutThisRun = true;
         await showToast({
           style: Toast.Style.Success,
           title:

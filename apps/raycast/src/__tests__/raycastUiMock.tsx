@@ -3,8 +3,8 @@ import { createElement, type ReactNode } from "react";
 import { createRaycastApiMock } from "./raycastApiMock";
 
 // Every Raycast component renders its visible words (title, subtitle,
-// tooltips, empty-view text) and its actions; an action with `onAction` is a
-// button, so a test can press it.
+// tooltips, empty-view text, a form field's value) and its actions; an action
+// with `onAction` is a button, so a test can press it.
 const component = (name: string): unknown =>
   new Proxy(
     (props: Record<string, unknown>) => {
@@ -15,6 +15,7 @@ const component = (name: string): unknown =>
         props.subtitle,
         props.description,
         props.text,
+        name.startsWith("Form.") ? props.value : undefined,
         ...accessories.map((accessory) => accessory.tooltip),
       ].filter((word): word is string => typeof word === "string");
       const children = [props.actions, props.children] as ReactNode[];
@@ -41,6 +42,15 @@ const component = (name: string): unknown =>
           : Reflect.get(target, key),
     },
   );
+let clipboard: { file?: string; text: string } = { text: "" };
+/** What the next `Clipboard.read` returns. */
+export const setClipboard = (next: { file?: string; text: string }) => {
+  clipboard = next;
+};
+
+/** Every toast shown, as the live object a command changes and adds actions to. */
+export const shownToasts: Array<Record<string, unknown>> = [];
+
 const constants = (): unknown =>
   new Proxy({}, { get: (_target, key) => String(key) });
 
@@ -52,7 +62,10 @@ export const mockRaycastUi = () =>
     Action: component("Action"),
     ActionPanel: component("ActionPanel"),
     Alert: { ActionStyle: { Destructive: "destructive" } },
-    Clipboard: { readText: () => Promise.resolve(undefined) },
+    Clipboard: {
+      read: () => Promise.resolve(clipboard),
+      readText: () => Promise.resolve(clipboard.text || undefined),
+    },
     Color: constants(),
     Detail: component("Detail"),
     Form: component("Form"),
@@ -66,6 +79,10 @@ export const mockRaycastUi = () =>
     confirmAlert: () => Promise.resolve(true),
     open: () => Promise.resolve(),
     openExtensionPreferences: () => undefined,
-    showToast: () => Promise.resolve({}),
+    showToast: (options: Record<string, unknown>) => {
+      const toast = { ...options, hide: () => Promise.resolve() };
+      shownToasts.push(toast);
+      return Promise.resolve(toast);
+    },
     useNavigation: () => ({ pop: () => undefined, push: () => undefined }),
   }));
