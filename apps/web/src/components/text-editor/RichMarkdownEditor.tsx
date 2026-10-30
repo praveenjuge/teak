@@ -530,6 +530,9 @@ export function RichMarkdownEditor({
       return;
     }
     const view = editor.view;
+    // The view is gone by the time this cleanup runs when a hidden
+    // <Activity> unmounts the editor, so keep its DOM node.
+    const dom = view.dom;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && event.defaultPrevented && menuRef.current) {
         exitSuggestion(view, slashKey);
@@ -542,8 +545,8 @@ export function RichMarkdownEditor({
         exitSuggestion(view, cardLinkKey);
       }
     };
-    view.dom.addEventListener("keydown", onKeyDown);
-    return () => view.dom.removeEventListener("keydown", onKeyDown);
+    dom.addEventListener("keydown", onKeyDown);
+    return () => dom.removeEventListener("keydown", onKeyDown);
   }, [editor]);
 
   useEffect(() => {
