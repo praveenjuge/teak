@@ -114,7 +114,7 @@ export function CardDetail({
     Pick<RaycastCard, "backlinks" | "links">
   >({ backlinks: card.backlinks, links: card.links });
   const cardStateRef = useRef(card);
-  const isMountedRef = useRef(true);
+  const isOpenRef = useRef(true);
   const favoriteMutationRef = useRef<FavoriteMutationState>({
     desired: card.isFavorited,
     inFlight: null,
@@ -174,7 +174,8 @@ export function CardDetail({
               title: "Card no longer exists",
               message: "It was removed from your list.",
             });
-            if (isMountedRef.current) {
+            if (isOpenRef.current) {
+              isOpenRef.current = false;
               pop();
             }
             return false;
@@ -331,9 +332,9 @@ export function CardDetail({
   // Leaving the detail sends a favorite change still waiting on its debounce,
   // since the list already shows it.
   useEffect(() => {
-    isMountedRef.current = true;
+    isOpenRef.current = true;
     return () => {
-      isMountedRef.current = false;
+      isOpenRef.current = false;
       const mutationState = favoriteMutationRef.current;
       if (mutationState.timer) {
         clearTimeout(mutationState.timer);
@@ -476,7 +477,10 @@ export function CardDetail({
             beforeSignOut={settleFavorite}
             onSignedOut={() => {
               onSignedOut?.();
-              pop();
+              // A favorite that found the card gone has already left the view.
+              if (isOpenRef.current) {
+                pop();
+              }
             }}
           />
         </ActionPanel>
