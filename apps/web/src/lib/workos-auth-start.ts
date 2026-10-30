@@ -6,7 +6,7 @@ import { cacheLife } from "next/cache";
 import { connection, type NextRequest, NextResponse } from "next/server";
 import { getConvexUrl } from "./public-env";
 import { getSafeNextPath } from "./safe-next-path";
-import { readWorkosWebConfig, workosCallbackState } from "./workos-config";
+import { readWorkosWebConfig } from "./workos-config";
 
 // The admin pause switch changes rarely, so every sign-up click shouldn't wait
 // on a Convex round trip to read it. A failed read throws, so it isn't cached.
@@ -55,7 +55,6 @@ export async function startWorkosAuth(
   const options = {
     returnTo: getSafeNextPath(params.get("next")) ?? "/",
     redirectUri: config.redirectUri,
-    state: workosCallbackState(config.clientId),
     // After a failed callback, ask for credentials again so an existing
     // AuthKit session can't send the browser straight back into the failure.
     ...(params.has("reauth") && { maxAge: 0 }),

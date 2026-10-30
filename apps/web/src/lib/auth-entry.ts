@@ -1,13 +1,9 @@
-import { getSafeNextPath } from "./safe-next-path";
+import {
+  getSafeNextPath,
+  SIGN_IN_ALIASES,
+  SIGN_IN_ROUTES,
+} from "./safe-next-path";
 
-const ENTRY_FLOWS: Record<string, "signin" | "signup" | "recovery"> = {
-  "/login": "signin",
-  "/register": "signup",
-  "/forgot-password": "recovery",
-  "/reset-password": "recovery",
-};
-
-const SIGN_IN_ROUTES = new Set(["/sign-in", "/sign-up"]);
 // Ask for AuthKit even with a session: `reauth` after a failed callback (it
 // also asks for credentials again), `renew` when the app rejected a session
 // the server still holds, so AuthKit can issue a fresh one.
@@ -25,17 +21,13 @@ export function workosEntryRedirect(
       ? new URL(next ?? "/", url.origin)
       : null;
   }
-  const flow = ENTRY_FLOWS[url.pathname];
-  if (!flow) {
+  if (!Object.hasOwn(SIGN_IN_ALIASES, url.pathname)) {
     return null;
   }
   if (signedIn) {
     return new URL(next ?? "/", url.origin);
   }
-  const target = new URL(
-    flow === "signup" ? "/sign-up" : "/sign-in",
-    url.origin
-  );
+  const target = new URL(SIGN_IN_ALIASES[url.pathname], url.origin);
   if (next) {
     target.searchParams.set("next", next);
   }

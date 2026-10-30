@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  assertWorkosCallbackBinding,
-  readWorkosWebConfig,
-  workosCallbackState,
-} from "@/lib/workos-config";
+import { readWorkosWebConfig } from "@/lib/workos-config";
 
 const clientId = "client_web123";
 const environment = {
@@ -15,28 +11,6 @@ const environment = {
 };
 
 describe("AuthKit web configuration", () => {
-  test("accepts callbacks only for sign-ins started with this client", () => {
-    const state = workosCallbackState(clientId);
-    expect(() => assertWorkosCallbackBinding(state, clientId)).not.toThrow();
-    expect(() =>
-      assertWorkosCallbackBinding(
-        JSON.stringify({ primary: "workos", clientId }),
-        clientId
-      )
-    ).not.toThrow();
-    for (const invalid of [
-      undefined,
-      "not-json",
-      "null",
-      "[]",
-      "{}",
-      workosCallbackState("client_other"),
-    ]) {
-      expect(() => assertWorkosCallbackBinding(invalid, clientId)).toThrow(
-        "Sign-in changed. Please start again."
-      );
-    }
-  });
   test("reports malformed callback configuration consistently", () => {
     expect(() =>
       readWorkosWebConfig({
@@ -86,12 +60,6 @@ describe("AuthKit web configuration", () => {
   test.each([
     ["a malformed client ID", { WORKOS_CLIENT_ID: "client_bad/path" }],
     ["a weak cookie password", { WORKOS_COOKIE_PASSWORD: "short" }],
-    [
-      "another client's session issuer",
-      {
-        WORKOS_ISSUER: "https://api.workos.com/user_management/client_other",
-      },
-    ],
   ])("denies %s", (_name, override) => {
     expect(() =>
       readWorkosWebConfig({ ...environment, ...override })

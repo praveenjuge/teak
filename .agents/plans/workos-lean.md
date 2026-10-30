@@ -171,9 +171,11 @@ Each item is small; group them by reviewer.
 - Web: delete `workosCallbackState`/`assertWorkosCallbackBinding`
   (`workos-config.ts`, `workos-auth-start.ts`, `app/callback/route.ts`).
   AuthKit already seals and checks the PKCE state, and the code exchange
-  fails for another client. Drop the custom `WORKOS_ISSUER` comparison and
-  32-character cookie check that AuthKit does itself (and their copies in
-  `scripts/validate-env.ts` and `env-contract-entries-surfaces.ts`).
+  fails for another client. Drop the custom `WORKOS_ISSUER` comparison
+  (and its copy in `scripts/validate-env.ts`). Done: the 32-character cookie
+  check stays, since `validate-env` reports it at setup instead of at the
+  first sign-in, and `WORKOS_ISSUER` stays in the env contract because
+  authkit-nextjs reads it to verify access tokens.
 - Web: merge the three sign-in route sets (`proxy.ts`, `auth-entry.ts`,
   `safe-next-path.ts`) into one constant; drop the unused `"recovery"` flow.
   Remove `/forgot-password` and `/reset-password` (Better Auth email links).

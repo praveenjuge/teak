@@ -128,12 +128,6 @@ const probes: Probe[] = [
     body: /register|account/i,
   },
   {
-    name: "app forgot password",
-    url: `${published.appUrl}/forgot-password`,
-    kind: "html",
-    body: /Teak/i,
-  },
-  {
     name: "api subdomain health",
     url: "https://api.teakvault.com/healthz",
     kind: "json",

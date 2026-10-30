@@ -36,7 +36,6 @@ process.env.NEXT_PUBLIC_CONVEX_URL = "https://sign-up-tests.convex.cloud";
 const { serveRoute } = await import("./helpers/serveRoute");
 const signInRoute = await import("../app/sign-in/route");
 const signUpRoute = await import("../app/sign-up/route");
-const { assertWorkosCallbackBinding } = await import("@/lib/workos-config");
 
 const signIn = serveRoute(signInRoute, "/sign-in");
 const signUp = serveRoute(signUpRoute, "/sign-up");
@@ -73,48 +72,44 @@ describe("WorkOS Initiate login URI", () => {
     ["//evil.example/", "/"],
     ["/login", "/"],
     ["/sign-in", "/"],
-  ])("starts a bound AuthKit sign-in (next=%s)", async (next, returnTo) => {
-    const response = await signIn(
-      `http://localhost:3142/sign-in?next=${encodeURIComponent(next)}`
-    );
-    expect(response.status).toBe(303);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    const authorize = new URL(response.headers.get("location") ?? "");
-    expect(`${authorize.origin}${authorize.pathname}`).toBe(
-      "https://api.workos.com/user_management/authorize"
-    );
-    expect(Object.fromEntries(authorize.searchParams)).toMatchObject({
-      client_id: "client_web123",
-      provider: "authkit",
-      redirect_uri: "http://localhost:3142/callback",
-      response_type: "code",
-      screen_hint: "sign-in",
-      code_challenge_method: "S256",
-    });
+  ])(
+    "starts an AuthKit sign-in with PKCE (next=%s)",
+    async (next, returnTo) => {
+      const response = await signIn(
+        `http://localhost:3142/sign-in?next=${encodeURIComponent(next)}`
+      );
+      expect(response.status).toBe(303);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const authorize = new URL(response.headers.get("location") ?? "");
+      expect(`${authorize.origin}${authorize.pathname}`).toBe(
+        "https://api.workos.com/user_management/authorize"
+      );
+      expect(Object.fromEntries(authorize.searchParams)).toMatchObject({
+        client_id: "client_web123",
+        provider: "authkit",
+        redirect_uri: "http://localhost:3142/callback",
+        response_type: "code",
+        screen_hint: "sign-in",
+        code_challenge_method: "S256",
+      });
 
-    const state = authorize.searchParams.get("state");
-    const [cookie] = pkceCookies(response);
-    expect(cookie).toContain("HttpOnly");
-    expect(cookie).toContain("Max-Age=600");
-    const pair = cookie?.split(";")[0] ?? "";
-    expect(pair.slice(pair.indexOf("=") + 1)).toBe(state ?? "");
+      const state = authorize.searchParams.get("state");
+      const [cookie] = pkceCookies(response);
+      expect(cookie).toContain("HttpOnly");
+      expect(cookie).toContain("Max-Age=600");
+      const pair = cookie?.split(";")[0] ?? "";
+      expect(pair.slice(pair.indexOf("=") + 1)).toBe(state ?? "");
 
-    const sealed = await unsealData<{
-      codeVerifier: string;
-      customState: string;
-      returnPathname: string;
-    }>(state ?? "", { password: cookiePassword });
-    expect(await s256(sealed.codeVerifier)).toBe(
-      authorize.searchParams.get("code_challenge") ?? ""
-    );
-    expect(sealed.returnPathname).toBe(returnTo);
-    expect(() =>
-      assertWorkosCallbackBinding(sealed.customState, "client_web123")
-    ).not.toThrow();
-    expect(() =>
-      assertWorkosCallbackBinding(sealed.customState, "client_other")
-    ).toThrow("Sign-in changed. Please start again.");
-  });
+      const sealed = await unsealData<{
+        codeVerifier: string;
+        returnPathname: string;
+      }>(state ?? "", { password: cookiePassword });
+      expect(await s256(sealed.codeVerifier)).toBe(
+        authorize.searchParams.get("code_challenge") ?? ""
+      );
+      expect(sealed.returnPathname).toBe(returnTo);
+    }
+  );
   test.each([
     ["sign-in", () => signIn],
     ["sign-up", () => signUp],
