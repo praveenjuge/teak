@@ -280,7 +280,6 @@ test.each(["before", "after"] as const)(
         workosUserId: "user_DELETE",
         email: "owner@example.com",
         emailVerified: true,
-        externalId: "owner",
         source: "webhook",
       })
     ).toMatchObject({ status: "quarantined" });

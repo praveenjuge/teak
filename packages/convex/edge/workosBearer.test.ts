@@ -344,7 +344,6 @@ describe("WorkOS REST and MCP token boundary", () => {
     { iss: "https://bearer-prod.authkit.app" },
     { exp: 1 },
     { scope: "openid profile" },
-    { external_id: "other-owner" },
   ] satisfies JWTPayload[])(
     "rejects invalid credentials %j at both resources",
     async (claims) => {

@@ -171,33 +171,9 @@ describe("read-only canonical WorkOS owner resolution", () => {
     }
   );
 
-  test.each([undefined, null, "permanent-owner", "different-owner"])(
-    "external ID %s is checked without fallback",
+  test.each(["someone-else", "permanent-owner", null])(
+    "a component external ID %s never changes which owner resolves",
     async (externalId) => {
-      const t = setup();
-      await seed(t);
-      const before = await snapshot(t);
-      expect(
-        await t.query(internal.workosIdentity.resolveWorkosOwner, {
-          ...input,
-          ...(externalId === undefined ? {} : { externalId }),
-        })
-      ).toEqual(
-        externalId === "different-owner"
-          ? { status: "denied", reason: "external_id_mismatch" }
-          : { status: "ok", teakUserId: "permanent-owner" }
-      );
-      expect(await snapshot(t)).toEqual(before);
-    }
-  );
-
-  test.each([
-    ["someone-else", { status: "denied", reason: "external_id_mismatch" }],
-    ["permanent-owner", { status: "ok", teakUserId: "permanent-owner" }],
-    [null, { status: "ok", teakUserId: "permanent-owner" }],
-  ] as const)(
-    "component external ID %s is checked against the mapped owner",
-    async (externalId, expected) => {
       const t = setup();
       await seed(t, {}, { externalId });
       for (const verification of [
@@ -209,7 +185,7 @@ describe("read-only canonical WorkOS owner resolution", () => {
             ...input,
             verification,
           })
-        ).toEqual(expected);
+        ).toEqual({ status: "ok", teakUserId: "permanent-owner" });
       }
     }
   );

@@ -28,7 +28,6 @@ type ConsentAuthorization =
 export const authorizeConnectConsent = internalMutation({
   args: {
     workosUserId: v.string(),
-    externalId: v.optional(v.union(v.string(), v.null())),
     consentId: v.string(),
     clientId: v.string(),
     chargeRateLimit: v.optional(v.boolean()),
@@ -54,7 +53,6 @@ export const authorizeConnectConsent = internalMutation({
     }
     const owner = await resolveOwner(ctx, {
       workosUserId: args.workosUserId,
-      ...(args.externalId === undefined ? {} : { externalId: args.externalId }),
       verification: { kind: "connect" },
     });
     if (owner.status !== "ok") {
@@ -224,7 +222,6 @@ export const disconnectConnection = action({
       workosUserId: row.workosUserId,
       clientId: row.clientId,
       consentId,
-      externalId: session.teakUserId,
     });
     if (result !== 204) {
       throw new Error("Connection unavailable. Please try again.");

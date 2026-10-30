@@ -250,13 +250,7 @@ export const deleteMyAccount = mutation({
           .take(2);
         if (rows.length === 1) {
           const state = await getAccountDeletionState(ctx, rows[0].teakUserId);
-          if (
-            state &&
-            state.workosUserId === retry.workosUserId &&
-            (retry.externalId === null ||
-              retry.externalId === undefined ||
-              retry.externalId === state.userId)
-          ) {
+          if (state && state.workosUserId === retry.workosUserId) {
             return null;
           }
         }

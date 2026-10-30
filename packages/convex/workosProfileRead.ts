@@ -18,7 +18,6 @@ export async function readCanonicalWorkosProfile(
 export interface ProviderProfile {
   email: string;
   emailVerified: boolean;
-  externalId: string | null;
   firstName: string | null;
   id: string;
   lastName: string | null;
@@ -36,7 +35,6 @@ export function toProviderProfile(
     id: workosUserId,
     email: user.email,
     emailVerified: user.emailVerified,
-    externalId: user.externalId ?? null,
     firstName,
     lastName,
     profilePictureUrl: user.profilePictureUrl ?? null,
@@ -53,7 +51,6 @@ export const getProfile = internalQuery({
       id: v.string(),
       email: v.string(),
       emailVerified: v.boolean(),
-      externalId: v.union(v.string(), v.null()),
       firstName: v.union(v.string(), v.null()),
       lastName: v.union(v.string(), v.null()),
       profilePictureUrl: v.union(v.string(), v.null()),

@@ -141,8 +141,6 @@ describe("WorkOS Convex sessions", () => {
     { email_verified: undefined },
     { email_verified: "true" },
     { email_verified: undefined, emailVerified: true },
-    { external_id: "other-owner" },
-    { external_id: "" },
   ])("denies invalid session claims %j", async (override) => {
     const t = setup();
     await seed(t);
@@ -235,8 +233,8 @@ describe("WorkOS Convex sessions", () => {
       ).toBeNull();
     }
   );
-  test.each([undefined, null])(
-    "optional external ID %s resolves by provider ID without linking",
+  test.each([undefined, null, "other-owner", ""])(
+    "external ID %s is ignored: the provider ID resolves without linking",
     async (external_id) => {
       const t = setup();
       await seed(t);

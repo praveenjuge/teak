@@ -35,7 +35,6 @@ export type ResolverDenialReason =
   | "deleted_user"
   | "workos_deleted_user"
   | "deleting_user"
-  | "external_id_mismatch"
   | "verify_email";
 
 export const logResolverDenial = async (input: {

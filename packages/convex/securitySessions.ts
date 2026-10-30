@@ -16,7 +16,6 @@ import {
   WORKOS_SESSION_ID,
   WORKOS_USER_ID,
 } from "./shared/workosIds";
-import { validWorkosExternalId } from "./workos/tokens";
 import {
   type ResolveArgs,
   type ResolvedOwner,
@@ -33,20 +32,11 @@ function readWorkosSessionClaims(
     identity.issuer !== workosIssuer(clientId) ||
     !WORKOS_USER_ID.test(identity.subject) ||
     typeof identity.sid !== "string" ||
-    !WORKOS_SESSION_ID.test(identity.sid) ||
-    !validWorkosExternalId(identity.external_id) ||
-    (typeof identity.external_id === "string" &&
-      /[\s\p{Cc}]/u.test(identity.external_id))
+    !WORKOS_SESSION_ID.test(identity.sid)
   ) {
     return null;
   }
-  return {
-    workosUserId: identity.subject,
-    sessionId: identity.sid,
-    ...(identity.external_id === undefined
-      ? {}
-      : { externalId: identity.external_id }),
-  };
+  return { workosUserId: identity.subject, sessionId: identity.sid };
 }
 
 // Convex passes customJwt claims through raw, so AuthKit's verification claim
@@ -170,10 +160,11 @@ export async function resolveStoredUserId(
   }
   const owner = await resolveOwnerFor(ctx, {
     workosUserId: row.workosUserId,
-    externalId: ownerId,
     verification: { kind: "connect" },
   });
-  return owner.status === "ok" ? (owner.teakUserId as TeakUserId) : null;
+  return owner.status === "ok" && owner.teakUserId === ownerId
+    ? (owner.teakUserId as TeakUserId)
+    : null;
 }
 
 export async function requireTeakUserId(
@@ -219,9 +210,6 @@ export async function getSessionUser(
   }
   const owner = await resolveOwnerFor(ctx, {
     workosUserId: principal.workosUserId,
-    ...(principal.externalId === undefined
-      ? {}
-      : { externalId: principal.externalId }),
     verification: { kind: "session", emailVerified: principal.emailVerified },
   });
   return owner.status === "ok"
@@ -466,7 +454,5 @@ export async function getDeletionRetryPrincipal(ctx: SessionCtx) {
     identity,
     process.env.WORKOS_CLIENT_ID ?? ""
   );
-  return claims
-    ? { workosUserId: claims.workosUserId, externalId: claims.externalId }
-    : null;
+  return claims ? { workosUserId: claims.workosUserId } : null;
 }

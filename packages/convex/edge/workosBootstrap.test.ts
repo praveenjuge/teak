@@ -163,7 +163,6 @@ describe("signed WorkOS bootstrap", () => {
     { sid: undefined },
     { sid: "app_consent_CONNECT" },
     { sid: "session_bad/id" },
-    { external_id: "bad owner" },
   ])(
     "malformed or foreign session $issuer $subject $sid is denied before linking",
     async (overrides) => {
@@ -219,32 +218,6 @@ describe("signed WorkOS bootstrap", () => {
       teakUserId: "permanent-owner",
     });
     expect(await state(t)).toEqual(before);
-  });
-  test("unknown external ID is quarantined with no email fallback or new owner", async () => {
-    const t = setup();
-    await profile(t, { externalId: "unknown-owner" });
-    expect(await signed(t).mutation(ensure, {})).toEqual({
-      status: "quarantined",
-      reason: "external_id_mismatch",
-    });
-    expect(await state(t)).toMatchObject({
-      users: [],
-      jobs: [],
-      quarantine: [{ reason: "external_id_mismatch" }],
-    });
-  });
-  test("conflicting signed and component external IDs commit quarantine without linking", async () => {
-    const t = setup();
-    await seed(t);
-    await profile(t, { externalId: "permanent-owner" });
-    const before = (await state(t)).users;
-    expect(
-      await signed(t, { external_id: "foreign-owner" }).mutation(ensure, {})
-    ).toEqual({ status: "quarantined", reason: "external_id_mismatch" });
-    expect((await state(t)).users).toEqual(before);
-    expect((await state(t)).quarantine).toMatchObject([
-      { reason: "external_id_mismatch" },
-    ]);
   });
   test.each([{ deletedAt: 1 }, { workosDeletedAt: 1 }])(
     "deleted owner remains closed",
@@ -315,42 +288,22 @@ describe("signed WorkOS bootstrap", () => {
     expect((await state(t)).users).toHaveLength(1);
     expect((await state(t)).jobs).toHaveLength(1);
   });
-  test.each([
-    { email: "changed@example.com", externalId: null },
-    { email: "new@example.com", externalId: "unknown-owner" },
-  ])(
-    "bootstrap uses the newest component email and rejects mismatched external binding: %j",
-    async (latest) => {
-      const t = setup();
-      await profile(t);
-      await updateProfile(
-        t,
-        "newer_profile",
-        "2026-10-08T00:00:03.000Z",
-        latest
-      );
-      await updateProfile(t, "old_profile", "2026-10-08T00:00:02.000Z", {});
-      const result = await signed(t).mutation(ensure, {});
-      if (latest.externalId === null) {
-        expect(result).toMatchObject({ status: "ok" });
-        expect((await state(t)).users).toMatchObject([
-          { email: "changed@example.com", workosUserId: "user_NEW" },
-        ]);
-        expect((await state(t)).users).toHaveLength(1);
-        expect((await state(t)).jobs).toHaveLength(1);
-      } else {
-        expect(result).toEqual({
-          status: "quarantined",
-          reason: "external_id_mismatch",
-        });
-        expect(await state(t)).toMatchObject({
-          users: [],
-          jobs: [],
-          quarantine: [{ reason: "external_id_mismatch" }],
-        });
-      }
-    }
-  );
+  test("bootstrap uses the newest component email", async () => {
+    const t = setup();
+    await profile(t);
+    await updateProfile(t, "newer_profile", "2026-10-08T00:00:03.000Z", {
+      email: "changed@example.com",
+    });
+    await updateProfile(t, "old_profile", "2026-10-08T00:00:02.000Z", {});
+    expect(await signed(t).mutation(ensure, {})).toMatchObject({
+      status: "ok",
+    });
+    expect((await state(t)).users).toMatchObject([
+      { email: "changed@example.com", workosUserId: "user_NEW" },
+    ]);
+    expect((await state(t)).users).toHaveLength(1);
+    expect((await state(t)).jobs).toHaveLength(1);
+  });
   test("bootstrap and the created webhook converge on one permanent owner", async () => {
     const t = setup();
     await profile(t);

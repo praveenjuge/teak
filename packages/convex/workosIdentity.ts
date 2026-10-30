@@ -10,7 +10,6 @@ import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 import { type ProviderProfile, toProviderProfile } from "./workosProfileRead";
 
 export interface ResolveArgs {
-  externalId?: string | null;
   verification: ResolverVerification;
   workosUserId: string;
 }
@@ -38,7 +37,6 @@ export async function resolveOwner(
 export const resolveWorkosOwner = internalQuery({
   args: {
     workosUserId: v.string(),
-    externalId: v.optional(v.union(v.string(), v.null())),
     verification: v.union(
       v.object({ kind: v.literal("session"), emailVerified: v.boolean() }),
       v.object({ kind: v.literal("connect") })
@@ -54,7 +52,6 @@ export const resolveWorkosOwner = internalQuery({
         v.literal("deleted_user"),
         v.literal("workos_deleted_user"),
         v.literal("deleting_user"),
-        v.literal("external_id_mismatch"),
         v.literal("verify_email")
       ),
     })
@@ -108,42 +105,16 @@ const resolve = async (
   if (deletion) {
     return { status: "denied" as const, reason: "deleting_user" as const };
   }
+  // Two rows sharing an owner would let two WorkOS users into one vault.
   const owners = await ctx.db
     .query("users")
     .withIndex("by_teakUserId", (q) => q.eq("teakUserId", row.teakUserId))
     .take(2);
   if (owners.length !== 1) {
-    return {
-      status: "denied" as const,
-      reason: "duplicate_mapping" as const,
-    };
-  }
-  if (
-    args.externalId !== undefined &&
-    args.externalId !== null &&
-    args.externalId !== row.teakUserId
-  ) {
-    console.warn("identity_resolver_mismatch", {
-      provider: "workos",
-      reason: "external_id_mismatch",
-    });
-    return {
-      status: "denied" as const,
-      reason: "external_id_mismatch" as const,
-    };
+    return { status: "denied" as const, reason: "duplicate_mapping" as const };
   }
   const user = await readComponentUser(ctx, args.workosUserId);
   const profile = user ? toProviderProfile(args.workosUserId, user) : null;
-  if (
-    profile?.externalId !== undefined &&
-    profile.externalId !== null &&
-    profile.externalId !== row.teakUserId
-  ) {
-    return {
-      status: "denied" as const,
-      reason: "external_id_mismatch" as const,
-    };
-  }
   if (
     !profile?.emailVerified ||
     (args.verification.kind === "session" &&

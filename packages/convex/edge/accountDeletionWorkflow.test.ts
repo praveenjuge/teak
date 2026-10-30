@@ -345,7 +345,6 @@ describe("durable deletion admission and tombstones", () => {
     { email_verified: false },
     { sid: "app_consent_WRONG" },
     { issuer: "https://convex.test" },
-    { external_id: "another-owner" },
   ])("invalid proof cannot initiate deletion: %j", async (delta) => {
     const { t } = await fixture();
     await expect(

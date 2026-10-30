@@ -68,12 +68,10 @@ export const parseWorkosEvent = (event: {
     typeof event.data.email === "string"
       ? normalizeIdentityEmail(event.data.email)
       : "";
-  const externalId = event.data.externalId ?? null;
   if (
     !deleting &&
     (!email ||
       typeof event.data.emailVerified !== "boolean" ||
-      (externalId !== null && !validId(externalId)) ||
       (event.data.updatedAt !== undefined &&
         typeof event.data.updatedAt !== "string"))
   ) {
@@ -82,7 +80,6 @@ export const parseWorkosEvent = (event: {
   const profile = {
     email,
     emailVerified: event.data.emailVerified as boolean,
-    externalId: externalId as string | null,
     name: event.data.name ?? null,
     firstName: event.data.firstName ?? null,
     lastName: event.data.lastName ?? null,
@@ -127,7 +124,7 @@ export const parseWorkosEvent = (event: {
       }
     }
   }
-  return { time, workosUserId, deleting, email, externalId, profile };
+  return { time, workosUserId, deleting, email, profile };
 };
 
 const EMAIL_HOLDER_ROWS = 20;
@@ -220,7 +217,6 @@ export const applyWorkosEvent = internalMutation({
           workosUserId,
           email,
           emailVerified: profile.emailVerified,
-          externalId: profile.externalId,
           source: "webhook",
         }
       );

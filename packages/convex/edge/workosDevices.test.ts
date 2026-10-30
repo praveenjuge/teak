@@ -410,21 +410,6 @@ describe("owned WorkOS devices", () => {
     ).rejects.toThrow();
     expect(revoked).toEqual([]);
   });
-  test.each(["owner with space", "owner\u0000", "owner\n"])(
-    "bootstrap and strict sessions reject malformed external ID without linking",
-    async (external_id) => {
-      const f = await setup({ external_id });
-      expect(
-        await f.user.run((ctx) => getWorkosBootstrapIdentity(ctx))
-      ).toBeNull();
-      await expect(
-        f.user.action(api.securitySessions.revokeAuthkitSession, {
-          sessionId: claims.sid,
-        })
-      ).rejects.toThrow("sign in");
-      expect(calls).toEqual([]);
-    }
-  );
   test.each([false, undefined])(
     "bootstrap preserves unverified %s evidence without granting access",
     async (email_verified) => {
