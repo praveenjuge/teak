@@ -40,8 +40,7 @@ teak/
 │   ├── raycast/       # Raycast extension
 │   ├── cli/           # npm command line client
 │   ├── docs/          # Website and documentation (Blume)
-│   ├── core-worker/  # Cloudflare Worker for files, card processing and the API edge proxy
-│   └── email-worker/  # Cloudflare Email Worker for Save by email
+│   └── core-worker/   # Cloudflare Worker for files, card processing, Save by email and the API edge proxy
 ├── packages/
 │   ├── convex/        # Convex backend, public API and MCP server
 │   ├── files-protocol/ # Contract between Convex and the Core Worker

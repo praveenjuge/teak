@@ -29,7 +29,7 @@ Open source covers the first part. The second part doesn't need self-hosting at 
 
 Self-hosted Teak is the same software as teakvault.com, on accounts you own.
 
-![A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and Email Worker](../docs/images/self-hosting.webp)
+![A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and save by email](../docs/images/self-hosting.webp)
 
 You'll need:
 
@@ -37,7 +37,7 @@ You'll need:
 - **A WorkOS account.** Teak signs in only through WorkOS AuthKit, on every app.
 - **A host for the web app.** It's a Next.js app, so Vercel or any Next.js host works.
 - **Cloudflare, on Workers Paid,** for anything involving files or AI: storage in R2, thumbnails, screenshots, transcripts, tags and summaries, and search by meaning. You can start without it, but most of what makes Teak feel like Teak lives here.
-- **Optional:** Polar if you want billing, and the Email Worker if you want save by email.
+- **Optional:** Polar if you want billing, and Cloudflare Email Routing if you want save by email.
 
 ## Trying it locally
 

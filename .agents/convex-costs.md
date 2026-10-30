@@ -88,7 +88,7 @@ after Whisper. Whisper runs are bounded by the `podcastTranscription` rate
 limit (20 episodes an hour per account). Raw metadata archival calls only the
 configured signed Core Worker.
 
-Save by email (`apps/email-worker`, `packages/convex/inbound/`) costs one
+Save by email (`apps/core-worker/src/email`, `packages/convex/inbound/`) costs one
 `findSender` query per delivered email that passes DMARC, and one
 `ingestEmail` mutation only for an account that turned it on. Only mail
 failing DMARC is refused in the Worker before Convex is called; mail from an

@@ -11,13 +11,13 @@ import {
   type PlannedUpload,
 } from "./convex";
 import { buildPayload, DEFAULT_MAX_BODY_BYTES } from "./payload";
-import type { Deps, Env, InboundMessage } from "./types";
+import type { Deps, EmailEnv, InboundMessage } from "./types";
 
 // Save by email. Mail to save@<INBOUND_EMAIL_DOMAIN> from a Teak account's
 // sign-in address, proven by DMARC, becomes cards: Convex plans the body card
-// and hands back upload URLs for the attachments, which go straight to the
-// Core Worker. Anything that can't be saved is refused while the sender's
-// server is still connected; this Worker never sends mail. Logs carry
+// and hands back upload URLs for the attachments, which this Worker's own
+// upload route stores. Anything that can't be saved is refused while the
+// sender's server is still connected; this Worker never sends mail. Logs carry
 // outcomes and counts only, never addresses, subjects, bodies or file names.
 
 export const REJECT_UNKNOWN_ADDRESS = "550 5.1.1 Unknown address";
@@ -55,7 +55,7 @@ export const isAutomated = (message: InboundMessage): boolean => {
   );
 };
 
-const maxBodyBytes = (env: Env): number => {
+const maxBodyBytes = (env: EmailEnv): number => {
   const configured = Number(env.MAX_BODY_BYTES);
   return Number.isSafeInteger(configured) && configured > 0
     ? configured
@@ -149,7 +149,7 @@ export const uploadAttachments = async (
 
 export const handleEmail = async (
   message: InboundMessage,
-  env: Env,
+  env: EmailEnv,
   deps: Deps
 ): Promise<void> => {
   const reject = (reason: string, rejection: string) => {
@@ -228,16 +228,11 @@ export const handleEmail = async (
   }
 };
 
-const defaultDeps: Deps = {
-  fetch: (input, init) => fetch(input, init),
+/** The real dependencies around the Core Worker's own `fetch`. */
+export const emailDeps = (fetchImpl: Deps["fetch"]): Deps => ({
+  fetch: fetchImpl,
   log: (entry) => console.log(JSON.stringify(entry)),
   now: () => Date.now(),
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   timeout: (ms) => AbortSignal.timeout(ms),
-};
-
-export default {
-  async email(message: InboundMessage, env: Env): Promise<void> {
-    await handleEmail(message, env, defaultDeps);
-  },
-};
+});

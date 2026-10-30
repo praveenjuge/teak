@@ -859,6 +859,94 @@ this Worker is the one canonical implementation for file-byte operations.
 WASM modules are statically imported and arrive as build-time compiled
 `WebAssembly.Module`s under wrangler (see `src/images/wasm.ts`).
 
+## Save by email
+
+The `email()` handler (`src/email`) turns mail sent to
+`save@<INBOUND_EMAIL_DOMAIN>` into cards. Email Routing on `in.teakvault.com`
+(production) and `in-dev.teakvault.com` (development) sends `save@` there
+with a literal rule whose action is **Send to a Worker** → `core-worker` or
+`core-worker-dev`; Subaddressing is on, so `save+anything@` reaches the same
+rule. Any other address on the subdomain matches no rule and Cloudflare
+refuses it. Until 30 Oct 2026 this ran as its own Worker
+(`teak-email-prod` / `teak-email-dev`, `apps/email-worker`).
+
+Setting up Save by email on a deployment of your own is in the public
+self-hosting guide (`apps/docs/content/docs/(open-source)/self-hosting.mdx`,
+"Save by email").
+
+### How a message is handled
+
+1. **Address.** The envelope recipient must be `save@<INBOUND_EMAIL_DOMAIN>`;
+   `save+anything@` is the same address and letter case never matters. Any
+   other local part is refused in the SMTP session
+   (`550 5.1.1 Unknown address`).
+2. **Automated mail** (an `Auto-Submitted` header other than `no`, an empty
+   envelope sender, or `Precedence: bulk|junk|list` with a `List-Id`) is
+   accepted and dropped. Nothing is ever sent back.
+3. **Size.** Over 25 MiB is refused (`552`). Email Routing's own cap is
+   25 MiB including base64, so attachments top out around 18 MB per email.
+4. **Sender.** The message is parsed with `postal-mime` (`src/email/auth.ts`). The
+   From header must hold exactly one address, and the **topmost**
+   authentication header must be Cloudflare's own (authserv-id
+   `mx.cloudflare.net`) with `dmarc=pass` and `header.from` equal to that
+   address's domain. Headers a sender wrote sit below Cloudflare's, so a
+   forged `mx.cloudflare.net` pass further down is never read. Anything else
+   is refused (`550 5.7.1 This address can't save to Teak`).
+5. **Convex.** The verified sender, subject, Message-ID, date, the text and
+   HTML bodies (each cut to `MAX_BODY_BYTES` as encoded in the JSON request,
+   never mid-character, so the request stays under Convex's 3 MiB) and the
+   attachments' names, types and sizes are POSTed to
+   `${CONVEX_SITE_URL}/inbound/email`, signed with
+   `EMAIL_INBOUND_SIGNING_SECRET` (`src/email/payload.ts`: HMAC-SHA256 of
+   `teak-inbound-email\nv1\n<path>\n<timestamp>\n<sha256(body)>`).
+   - `200`: accepted. Convex saved the body card, dropped the message
+     silently (over the hourly limit or the free card limit), or had already
+     saved it (a receipt per message makes retries safe).
+   - `404 unknown_sender`: not a Teak account, Save by email turned off for
+     it, or an address Convex won't take: refused with the same `550 5.7.1`.
+   - `5xx` (including `503 rate_limited`) or a network failure: tried three
+     times (1 s, then 3 s apart), then the handler throws so the sending
+     server retries later.
+   - Any other status (a signing or configuration fault): thrown at once.
+6. **Attachments** (`src/email/attachments.ts`). Files and inline photos are kept;
+   S/MIME signatures, `winmail.dat`, calendar invites and inline images the
+   HTML shows that are under 16 KB (logos, spacers) are skipped; at most 50.
+   For each part Convex accepted, it returns a signed upload URL on this
+   Worker's own origin, so the handler PUTs the bytes through the fetch
+   handler in-process (two at a time, three tries each), then
+   POSTs `/inbound/email/attachments` so Convex turns it into a card. A part
+   the upload route refuses (a 4xx other than 408 or 429) is skipped and its
+   pending object swept later. If a PUT or finalize still fails for a
+   transient reason (a 5xx, a 408 or 429, or the network) after the others
+   are done, the handler throws, so the sender retries the whole email;
+   Convex's receipt then re-signs only the attachments not yet
+   saved. A finalize that finds another one holding the attachment, or one
+   Convex scheduled that then fails, gets a follow-up in Convex after the
+   two-minute claim expires (three at most).
+
+Logs (`wrangler tail`) carry outcomes, reasons and counts only: never an
+
+### Configuration
+
+| Name | Kind | Production | Development |
+| --- | --- | --- | --- |
+| `INBOUND_EMAIL_DOMAIN` | var | `in.teakvault.com` | `in-dev.teakvault.com` |
+| `MAX_BODY_BYTES` | var | `1048576` | `1048576` |
+| `EMAIL_INBOUND_SIGNING_SECRET` | secret | its own value | its own value |
+
+The handler posts to the first deployment in `CONVEX_SITE_URLS`. The secret
+is one value per environment, set on both sides: in the Convex dashboard of
+the deployment, and on the Worker that posts to it
+(`bunx wrangler secret put EMAIL_INBOUND_SIGNING_SECRET`, with
+`--config development/wrangler.jsonc` for development).
+
+**Rollback:** disable the subdomain's `save@` rule (or Email Routing on the
+subdomain). Convex can stay deployed.
+
+Tests: `src/email/*.test.ts` run the handler against `.eml` fixtures in
+`src/email/fixtures/` with a fake network (`src/test/emailSupport.ts`), and
+`src/email/worker.test.ts` covers the `email()` entry point.
+
 ## Commands
 
 ```bash
@@ -910,12 +998,15 @@ proves the key and every binding with a signed `capabilities` request, and
 
 ## Secrets and local vars
 
-Both Wrangler configs list `FILES_SIGNING_SECRET` and
-`WORKFLOW_RPC_ROOT_SECRET` under `secrets.required`: `wrangler deploy` (and
-Workers Builds) fails while either is missing on that Worker, `wrangler types`
-types them, and `wrangler dev` loads only those two from `.dev.vars` and warns
-when one is absent. `ANALYTICS_API_TOKEN` is optional and not listed.
+Both Wrangler configs list `EMAIL_INBOUND_SIGNING_SECRET`,
+`FILES_SIGNING_SECRET` and `WORKFLOW_RPC_ROOT_SECRET` under
+`secrets.required`: `wrangler deploy` (and Workers Builds) fails while any of
+them is missing on that Worker, `wrangler types` types them, and `wrangler dev`
+loads only those three from `.dev.vars` and warns when one is absent.
+`ANALYTICS_API_TOKEN` is optional and not listed.
 
+- `EMAIL_INBOUND_SIGNING_SECRET` — signs what Save by email posts to Convex;
+  must match that deployment's value (see "Save by email").
 - `FILES_SIGNING_SECRET` — must match its corresponding Convex deployment.
   Set production with `bunx wrangler secret put FILES_SIGNING_SECRET`.
 - `WORKFLOW_RPC_ROOT_SECRET` — Worker-only root of each Convex deployment's

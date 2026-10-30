@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import PostalMime from "postal-mime";
+import { fixture } from "../test/emailSupport";
 import {
   parseAuthResults,
   type SenderRejection,
   stripComments,
   verifySender,
 } from "./auth";
-import { fixture } from "./testSupport";
 
 const verdictFor = async (name: string) =>
   verifySender(await PostalMime.parse(fixture(name)));

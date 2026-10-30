@@ -1,13 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { createHash, createHmac } from "node:crypto";
-import { CONVEX_TIMEOUT_MS } from "./convex";
-import {
-  handleEmail,
-  REJECT_CANT_SAVE,
-  REJECT_TOO_BIG,
-  REJECT_UNKNOWN_ADDRESS,
-  UPLOAD_TIMEOUT_MS,
-} from "./index";
 import {
   fakeDeps,
   fixture,
@@ -16,7 +8,15 @@ import {
   messageOf,
   type RecordedRequest,
   TEST_ENV,
-} from "./testSupport";
+} from "../test/emailSupport";
+import { CONVEX_TIMEOUT_MS } from "./convex";
+import {
+  handleEmail,
+  REJECT_CANT_SAVE,
+  REJECT_TOO_BIG,
+  REJECT_UNKNOWN_ADDRESS,
+  UPLOAD_TIMEOUT_MS,
+} from "./index";
 
 const INGEST_URL = "https://test-deployment.convex.site/inbound/email";
 const FINALIZE_URL =

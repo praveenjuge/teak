@@ -1,4 +1,4 @@
----
+| `apps/core-worker` | File delivery, uploads, card processing, imports, exports, save by email and the API edge proxy | Cloudflare Workers | Cloudflare |---
 title: Architecture
 description: How Teak's apps, backend and Cloudflare Workers fit together, and the rules every change keeps
 icon: network
@@ -7,9 +7,9 @@ related:
   - /docs/development
 ---
 
-Teak is a Turborepo monorepo. Every app talks to one Convex backend; two Cloudflare Workers handle files, background work and email. This page is the map: where each piece lives, how a saved card moves through them, and the rules that hold everywhere.
+Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudflare Worker handles files, background work and email. This page is the map: where each piece lives, how a saved card moves through them, and the rules that hold everywhere.
 
-![Teak's apps talk to one Convex backend; the Core Worker processes cards and serves files from R2, and the Email Worker handles save by email](../images/architecture.webp)
+![Teak's apps talk to one Convex backend; the Core Worker processes cards, serves files from R2 and handles save by email](../images/architecture.webp)
 
 ## Apps
 
@@ -22,8 +22,7 @@ Teak is a Turborepo monorepo. Every app talks to one Convex backend; two Cloudfl
 | `apps/extension` | The Chrome and Firefox extension | WXT | Chrome Web Store, Firefox Add-ons |
 | `apps/raycast` | The Raycast extension | Raycast API | Raycast Store |
 | `apps/cli` | The `teak` command line, published as `teak-cli` | Bun, TypeScript | npm |
-| `apps/core-worker` | File delivery, uploads, card processing, imports, exports and the API edge proxy | Cloudflare Workers | Cloudflare |
-| `apps/email-worker` | Save by email | Cloudflare Email Workers | Cloudflare |
+| `apps/core-worker` | File delivery, uploads, card processing, imports, exports, save by email and the API edge proxy | Cloudflare Workers | Cloudflare |
 
 ## Packages
 
@@ -57,7 +56,7 @@ The REST API, the MCP server, the OpenAPI spec and the OAuth discovery documents
 
 ## Save by email
 
-Mail to `save@in.teakvault.com` arrives through Cloudflare Email Routing at the Email Worker, which checks the sender's DMARC result and posts a signed request to Convex. Convex finds the account and makes the cards; attachments go straight to the Core Worker's signed upload URLs, so their bytes never pass through Convex.
+Mail to `save@in.teakvault.com` arrives through Cloudflare Email Routing at the Core Worker's email handler (`apps/core-worker/src/email`), which checks the sender's DMARC result and posts a signed request to Convex. Convex finds the account and makes the cards; attachments go to the Core Worker's own signed upload URLs, so their bytes never pass through Convex.
 
 ## Card types
 

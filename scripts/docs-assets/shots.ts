@@ -235,7 +235,7 @@ export const SHOTS: Shot[] = [
     name: "architecture",
     kind: "mock",
     mock: "architecture",
-    alt: "Teak's apps talk to one Convex backend; the Core Worker processes cards and serves files from R2, and the Email Worker handles save by email",
+    alt: "Teak's apps talk to one Convex backend; the Core Worker processes cards, serves files from R2 and handles save by email",
   },
   {
     name: "adding-a-feature",
@@ -247,7 +247,7 @@ export const SHOTS: Shot[] = [
     name: "self-hosting",
     kind: "mock",
     mock: "self-hosting",
-    alt: "A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and Email Worker",
+    alt: "A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and save by email",
   },
   {
     name: "development",

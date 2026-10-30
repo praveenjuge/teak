@@ -85,7 +85,8 @@ const contentBytes = (attachment: Attachment): Uint8Array<ArrayBuffer> => {
     if (attachment.encoding === "base64") {
       return Uint8Array.from(atob(content), (char) => char.charCodeAt(0));
     }
-    return new TextEncoder().encode(content);
+    // Workers types give encode() an ArrayBufferLike; copy it into its own.
+    return Uint8Array.from(new TextEncoder().encode(content));
   }
   return new Uint8Array(content);
 };

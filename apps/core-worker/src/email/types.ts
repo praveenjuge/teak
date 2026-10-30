@@ -1,9 +1,13 @@
-/** The Worker's vars and secret (wrangler.jsonc, README.md). */
-export interface Env {
-  CONVEX_SITE_URL?: string;
+/** The Core Worker's Save by email vars and secret (wrangler.jsonc). */
+export interface InboundEmailEnv {
   EMAIL_INBOUND_SIGNING_SECRET?: string;
   INBOUND_EMAIL_DOMAIN?: string;
   MAX_BODY_BYTES?: string;
+}
+
+/** What the handler reads: those, and the Convex deployment it posts to. */
+export interface EmailEnv extends InboundEmailEnv {
+  CONVEX_SITE_URL?: string;
 }
 
 /** The parts of Cloudflare's ForwardableEmailMessage this Worker uses. */

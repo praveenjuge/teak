@@ -3,7 +3,12 @@ import { createHmac } from "node:crypto";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildWorkflowRpcSecretPayload } from "@teak/files-protocol";
-import { coreWorkerOrigin, type StackPorts, stackUrls } from "./config";
+import {
+  coreWorkerOrigin,
+  E2E_EMAIL_INBOUND_SIGNING_SECRET,
+  type StackPorts,
+  stackUrls,
+} from "./config";
 
 // The Core Worker on the E2E stack: `wrangler dev` in local mode, with
 // Workflows, Queues, R2, KV, Durable Objects and Analytics Engine emulated by
@@ -164,6 +169,8 @@ export const coreWorkerConfigs = (ports: StackPorts) => {
       FILES_PUBLIC_ORIGIN: coreWorkerOrigin(ports),
       FILES_SIGNING_SECRET: E2E_FILES_SIGNING_SECRET,
       WORKFLOW_RPC_ROOT_SECRET: E2E_WORKFLOW_RPC_ROOT_SECRET,
+      EMAIL_INBOUND_SIGNING_SECRET: E2E_EMAIL_INBOUND_SIGNING_SECRET,
+      INBOUND_EMAIL_DOMAIN: "in.teakvault.com",
       API_PUBLIC_HOST: new URL(urls.appOrigin).hostname,
       API_UPSTREAM_ORIGIN: urls.apiOrigin,
       MEDIA_RENDERER_INSTANCES: "1",

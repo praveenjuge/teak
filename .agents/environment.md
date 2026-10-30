@@ -38,13 +38,14 @@ with `bun scripts/workflow-rpc-secret.ts`; unlike `FILES_SIGNING_SECRET` it is
 never shared between development and production (see the Core Worker
 README, "Background work").
 
-The Email Worker (`apps/email-worker`, Save by email) has one secret,
-`EMAIL_INBOUND_SIGNING_SECRET`: one value per environment, set in that
-Convex deployment's dashboard and with `bunx wrangler secret put` on the
-matching Worker (production, or `--config development/wrangler.jsonc`). Its
-vars `CONVEX_SITE_URL` and `INBOUND_EMAIL_DOMAIN` name the deployment it posts
-to and the domain it accepts mail for; Convex dev sets `INBOUND_EMAIL_DOMAIN`
-to `in-dev.teakvault.com`. See `apps/email-worker/README.md`.
+Save by email runs in the Core Worker (`apps/core-worker/src/email`) and adds
+one secret, `EMAIL_INBOUND_SIGNING_SECRET`: one value per environment, set in
+that Convex deployment's dashboard and with `bunx wrangler secret put` on the
+matching Core Worker (production, or `--config development/wrangler.jsonc`).
+It posts to the first deployment in `CONVEX_SITE_URLS`, and its var
+`INBOUND_EMAIL_DOMAIN` names the domain it accepts mail for; Convex dev sets
+`INBOUND_EMAIL_DOMAIN` to `in-dev.teakvault.com`. See "Save by email" in
+`apps/core-worker/README.md`.
 
 ## The shared dev deployment and worktrees
 

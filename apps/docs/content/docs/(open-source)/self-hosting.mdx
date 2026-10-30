@@ -9,7 +9,7 @@ related:
   - /docs/architecture
 ---
 
-![A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and Email Worker](../images/self-hosting.webp)
+![A self-hosted Teak: the web app, a Convex deployment, WorkOS AuthKit, the Core Worker with R2 and Workers AI, and optional Polar and save by email](../images/self-hosting.webp)
 
 ## What you'll need
 
@@ -279,19 +279,19 @@ Until a deployment has it, its background work stays queued.
 
 Deploy it as described in [Production basics](#production-basics), then point `FILES_BASE` in the backend env at the worker's public origin.
 
-### Save by email (`apps/email-worker`, optional)
+### Save by email (optional)
 
-Save by email needs the Email Worker and Cloudflare Email Routing on a subdomain of a domain on Cloudflare, such as `in.yourdomain.com`.
+Save by email runs in the Core Worker (`apps/core-worker/src/email`) and needs Cloudflare Email Routing on a subdomain of a domain on Cloudflare, such as `in.yourdomain.com`.
 
 1. Generate a signing secret (`openssl rand -hex 32`). Set it on the Convex deployment as `EMAIL_INBOUND_SIGNING_SECRET`, and set `INBOUND_EMAIL_DOMAIN` there to your subdomain.
-2. In `apps/email-worker/wrangler.jsonc`, set `CONVEX_SITE_URL` to your deployment's site URL and `INBOUND_EMAIL_DOMAIN` to the same subdomain. Then, from `apps/email-worker`, put the same secret and deploy:
+2. In `apps/core-worker/wrangler.jsonc`, set `INBOUND_EMAIL_DOMAIN` to the same subdomain; mail is posted to the first deployment in `CONVEX_SITE_URLS`. Then, from `apps/core-worker`, put the same secret and deploy:
 
    ```bash
    bunx wrangler secret put EMAIL_INBOUND_SIGNING_SECRET
    bun run deploy
    ```
 
-3. In the Cloudflare dashboard, open Email Routing for your domain and add the subdomain under **Settings → Subdomains**; Cloudflare adds its MX and SPF records. Catch-all rules work only on the apex domain, so add a literal routing rule for `save@<subdomain>` with the action **Send to a Worker** and your Email Worker. Turn on **Subaddressing**, so `save+anything@` reaches the same rule.
+3. In the Cloudflare dashboard, open Email Routing for your domain and add the subdomain under **Settings → Subdomains**; Cloudflare adds its MX and SPF records. Catch-all rules work only on the apex domain, so add a literal routing rule for `save@<subdomain>` with the action **Send to a Worker** and your Core Worker. Turn on **Subaddressing**, so `save+anything@` reaches the same rule.
 
 Mail is accepted only from an account's sign-in address and only when it passes DMARC; see [Save by email](/docs/features#save-by-email) for what becomes a card.
 

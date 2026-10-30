@@ -171,13 +171,22 @@
     "CONVEX_SITE_URLS": "https://reminiscent-kangaroo-59.convex.site",
     "FILES_PUBLIC_ORIGIN": "https://core-worker-dev.praveenjuge.workers.dev",
     "ANALYTICS_ACCOUNT_ID": "dd19e45b8f2f3cc0393cc2deb51fa27d",
-    "AI_USAGE_DATASET": "teak_dev_ai_usage"
+    "AI_USAGE_DATASET": "teak_dev_ai_usage",
+    // Save by email: Email Routing's catch-all rule for this domain sends
+    // every message here, and only save@ (and save+anything@) is accepted.
+    "INBOUND_EMAIL_DOMAIN": "in-dev.teakvault.com",
+    // Each of the text and HTML bodies is cut to this many UTF-8 bytes.
+    "MAX_BODY_BYTES": "1048576"
   },
   // Put with `wrangler secret put` (README, "Secrets and local vars"). A
-  // deploy fails while either is missing. ANALYTICS_API_TOKEN stays optional,
+  // deploy fails while any of them is missing. ANALYTICS_API_TOKEN stays optional,
   // so it isn't listed.
   "secrets": {
-    "required": ["FILES_SIGNING_SECRET", "WORKFLOW_RPC_ROOT_SECRET"]
+    "required": [
+      "EMAIL_INBOUND_SIGNING_SECRET",
+      "FILES_SIGNING_SECRET",
+      "WORKFLOW_RPC_ROOT_SECRET"
+    ]
   },
   "observability": {
     "enabled": true,

@@ -17,7 +17,7 @@ import { FREE_TIER_LIMIT } from "../shared/constants";
 import { rateLimiter } from "../shared/rateLimits";
 import { hmacSha256Hex, sha256Hex } from "../storage/r2Keys";
 
-// Save by email (inbound/): mail the Email Worker verified becomes cards in
+// Save by email (inbound/): mail the Core Worker verified becomes cards in
 // the account whose sign-in email sent it, once, whatever the redeliveries.
 
 const modules = import.meta.glob("../**/*.ts");

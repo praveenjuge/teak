@@ -20,7 +20,7 @@ export const EMULATOR_CLIENT_ID = "client_01TEAKE2EEMULATOR";
 export const EMULATOR_API_KEY = "sk_test_default";
 export const EMULATOR_ENVIRONMENT_ID = "environment_01TEAKE2EEMULATOR";
 export const EMULATOR_WEBHOOK_SECRET = "whsec_teak_e2e_emulator_only";
-/** Test-only; signs what the Email Worker posts to the local backend. */
+/** Test-only; signs what the Core Worker's email handler posts to the local backend. */
 export const E2E_EMAIL_INBOUND_SIGNING_SECRET =
   "teak-e2e-email-inbound-signing-secret-local-only-0001";
 export const EMULATOR_COOKIE_PASSWORD =

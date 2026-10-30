@@ -10,17 +10,10 @@ import {
 
 describe("env-targets", () => {
   test("matrix covers every issue #407 target", () => {
-    for (const target of [
-      "web",
-      "docs",
-      "cli",
-      "extension",
-      "core-worker",
-      "email-worker",
-    ]) {
+    for (const target of ["web", "docs", "cli", "extension", "core-worker"]) {
       expect(isSupportedTarget(target)).toBe(true);
     }
-    expect(SUPPORTED_TARGETS.length).toBe(6);
+    expect(SUPPORTED_TARGETS.length).toBe(5);
     expect(isSupportedTarget("e2e")).toBe(false);
   });
 

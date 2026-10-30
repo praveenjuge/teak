@@ -15,7 +15,7 @@ import { queueInboundEmailEvent } from "../telemetry/schedule";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { readInboundSettings } from "./settings";
 
-// Save by email: what the Email Worker's verified mail becomes. The worker
+// Save by email: what the Core Worker's verified mail becomes. The worker
 // has already checked the sender passed DMARC; this matches the sender to the
 // account whose sign-in email it is, if that account turned Save by email on.
 
@@ -185,7 +185,7 @@ const createBodyCard = async (
 
 /**
  * Saves one verified email: its body card, and a signed upload URL for each
- * attachment the Email Worker then uploads and finalizes. A redelivered
+ * attachment the Core Worker then uploads and finalizes. A redelivered
  * email returns its receipt again. The card creation limit throws
  * RATE_LIMITED before anything is written, so the sender retries.
  */

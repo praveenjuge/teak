@@ -27,11 +27,14 @@ import {
   parseCardObjectKey,
 } from "@teak/files-protocol";
 import { PAGE_ARCHIVE_CONTENT_SECURITY_POLICY } from "./archive/inline";
+import { convexSiteUrls } from "./convexRpc";
 import { handleApiProxyRequest } from "./edge/apiProxy";
 import {
   applyEdgeRateLimit,
   type EdgeRateLimitEnv,
 } from "./edge/edgeRateLimit";
+import { emailDeps, handleEmail } from "./email";
+import type { Deps, InboundEmailEnv } from "./email/types";
 import {
   handleImageRequest,
   handleImageSourceRequest,
@@ -49,7 +52,7 @@ import { handleSignedUpload } from "./storage/upload";
 import { reportUnhandledError } from "./telemetry";
 import type { BackgroundEnv } from "./workflows/runtime";
 
-export type Env = BackgroundEnv & EdgeRateLimitEnv;
+export type Env = BackgroundEnv & EdgeRateLimitEnv & InboundEmailEnv;
 
 const decodeObjectKey = (pathname: string): string => {
   try {
@@ -640,6 +643,34 @@ export default {
   async scheduled(controller, env, ctx): Promise<void> {
     try {
       await handleScheduled(controller, env, ctx);
+    } catch (error) {
+      await reportUnhandledError(env, ctx, error);
+      throw error;
+    }
+  },
+  // Save by email (src/email). Attachments go to this Worker's own upload
+  // route, so a PUT to its own origin runs the fetch handler in-process.
+  async email(message, env, ctx): Promise<void> {
+    const ownFetch: Deps["fetch"] = (input, init) =>
+      env.FILES_PUBLIC_ORIGIN &&
+      new URL(input).origin === env.FILES_PUBLIC_ORIGIN
+        ? handler.fetch(
+            new Request(input, init) as Parameters<typeof handler.fetch>[0],
+            env,
+            ctx
+          )
+        : fetch(input, init);
+    try {
+      await handleEmail(
+        message,
+        {
+          CONVEX_SITE_URL: convexSiteUrls(env)[0],
+          EMAIL_INBOUND_SIGNING_SECRET: env.EMAIL_INBOUND_SIGNING_SECRET,
+          INBOUND_EMAIL_DOMAIN: env.INBOUND_EMAIL_DOMAIN,
+          MAX_BODY_BYTES: env.MAX_BODY_BYTES,
+        },
+        emailDeps(ownFetch)
+      );
     } catch (error) {
       await reportUnhandledError(env, ctx, error);
       throw error;
