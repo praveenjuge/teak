@@ -105,7 +105,7 @@ export const parseDoctorArgs = (argv: string[]): DoctorOptions => {
 };
 
 export const DOCTOR_USAGE =
-  "Usage: bun run doctor [--json] [--target web|convex|files|extension|cli|docs]";
+  "Usage: bun run doctor [--json] [--target web|convex|core|extension|cli|docs]";
 
 export const findMissingKeys = (content: string, keys: string[]): string[] => {
   const values = new Map<string, string>();
