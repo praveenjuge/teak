@@ -4,15 +4,23 @@ import com.praveenjuge.teak.core.model.FOLDER_ERROR_MESSAGES
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.model.MAX_TAG_NAME_LENGTH
 import com.praveenjuge.teak.core.model.UiText
+import dev.convex.android.AuthState
 import dev.convex.android.ClientException
 import dev.convex.android.ConvexClient
+import dev.convex.android.ConvexClientWithAuth
 import dev.convex.android.ConvexError
 import dev.convex.android.InternalError
 import dev.convex.android.ServerError
+import dev.convex.android.WebSocketState
 import dev.convex.android.toError
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -26,6 +34,12 @@ interface ConvexApi {
     suspend fun mutation(name: String, args: Map<String, Any?> = emptyMap()): JsonElement
     suspend fun action(name: String, args: Map<String, Any?> = emptyMap()): JsonElement
     val isConnected: Flow<Boolean>
+
+    /** Whether the socket is up at this moment. */
+    val connectedNow: Boolean
+
+    /** Whether the client is signed in to the server at this moment; queries answer as no one until it is. */
+    val authenticatedNow: Boolean
 }
 
 class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
@@ -38,13 +52,41 @@ class LiveConvexApi(private val client: ConvexClient) : ConvexApi {
             .map { result -> result.recoverCatching { throw it.toTeakException() } }
 
     override suspend fun mutation(name: String, args: Map<String, Any?>): JsonElement =
-        convexCall { client.mutation<JsonElement>(name, args.withNumbersAsDoubles()) }
+        convexCall { whileConnected { client.mutation<JsonElement>(name, args.withNumbersAsDoubles()) } }
 
     override suspend fun action(name: String, args: Map<String, Any?>): JsonElement =
-        convexCall { client.action<JsonElement>(name, args.withNumbersAsDoubles()) }
+        convexCall { whileConnected { client.action<JsonElement>(name, args.withNumbersAsDoubles()) } }
 
     override val isConnected: Flow<Boolean> =
-        client.webSocketStateFlow.map { it == dev.convex.android.WebSocketState.CONNECTED }
+        client.webSocketStateFlow.map { it == WebSocketState.CONNECTED }
+
+    override val connectedNow: Boolean get() = client.webSocketStateFlow.value == WebSocketState.CONNECTED
+
+    override val authenticatedNow: Boolean
+        get() = (client as? ConvexClientWithAuth<*>)?.authState?.value is AuthState.Authenticated<*>
+
+    /**
+     * Runs [call] only while the socket is up. The native client holds a call made offline, or one whose
+     * connection drops, until a reconnect that may never resend it, so such a call fails as [TeakException.OFFLINE]
+     * instead: the caller can keep the write for later or say it's offline. A socket that's still connecting gets
+     * [CONNECT_GRACE_MS] first, as when the app has just opened.
+     */
+    private suspend fun whileConnected(call: suspend () -> JsonElement): JsonElement {
+        val state = client.webSocketStateFlow
+        withTimeoutOrNull(CONNECT_GRACE_MS) { state.first { it == WebSocketState.CONNECTED } } ?: throw offlineException()
+        return coroutineScope {
+            val result = async { call() }
+            val dropped = async { state.first { it != WebSocketState.CONNECTED } }
+            select {
+                result.onAwait { value -> dropped.cancel(); value }
+                dropped.onAwait { result.cancel(); throw offlineException() }
+            }
+        }
+    }
+
+    private companion object {
+        const val CONNECT_GRACE_MS = 3_000L
+    }
 
     private inline fun convexCall(block: () -> JsonElement): JsonElement =
         try {
@@ -157,9 +199,27 @@ fun Throwable.toTeakException(): Throwable = when (this) {
         }
     }
     is ServerError, is InternalError -> TeakException(null, GENERIC_FAILURE, this, UiText.of("native.errors.generic"))
-    is IOException -> TeakException(TeakException.OFFLINE, "Check your connection and try again.", this)
+    is IOException -> offlineException(this)
     else -> this
 }
+
+fun offlineException(cause: Throwable? = null) = TeakException(TeakException.OFFLINE, "Check your connection and try again.", cause)
+
+val Throwable.isOffline: Boolean get() = (this as? TeakException)?.code == TeakException.OFFLINE
+
+/**
+ * A write that can go through later unchanged: Teak was offline, the session wasn't signed in to the server yet,
+ * the server asked to slow down, or the native client failed. A Convex outage reaches the app as a dropped socket,
+ * so it's offline too.
+ */
+val Throwable.isRetryable: Boolean
+    get() {
+        val error = this as? TeakException ?: return false
+        // InternalError is the native client failing ("channel closed" once its connection shut down), not the server.
+        return error.code in RETRYABLE_CODES || error.cause is InternalError
+    }
+
+private val RETRYABLE_CODES = setOf(TeakException.OFFLINE, TeakException.RATE_LIMITED, "UNAUTHENTICATED")
 
 internal fun JsonElement.objectOrNull(): JsonObject? = this as? JsonObject
 

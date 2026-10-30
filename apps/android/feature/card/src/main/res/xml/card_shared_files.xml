@@ -3,4 +3,6 @@
     <cache-path name="shared" path="shared/" />
     <!-- PDFs read in the app, for "Open in another app". -->
     <cache-path name="documents" path="documents/" />
+    <!-- Files of cards kept offline, for "Open in another app" on a kept PDF. -->
+    <files-path name="offline" path="offline/" />
 </paths>

@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "壁纸颜色",
       "wallpaperColorsDescription": "使用壁纸颜色代替 Teak 红为应用配色。"
+    },
+    "offline": {
+      "banner": "你已离线。恢复连接后，更改会自动同步。",
+      "keep": "离线保存",
+      "removeCopy": "移除离线副本",
+      "kept": "已离线保存",
+      "removed": "已移除离线副本",
+      "keepFailed": "无法离线保存这张卡片，请重试。"
     }
   }
 }

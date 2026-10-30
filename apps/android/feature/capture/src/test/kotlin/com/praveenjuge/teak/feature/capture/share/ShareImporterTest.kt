@@ -121,4 +121,14 @@ class ShareImporterTest {
     fun `nothing shared is empty`() = runTest {
         assertEquals(ShareResult.Empty, importer().import(emptyList()))
     }
+
+    @Test
+    fun `offline, shared text still saves and waits, with no card yet to add details to`() = runTest {
+        cards.queuesCreates = true
+
+        val result = importer().import(listOf(ShareItem.Text("https://teakvault.com")))
+
+        assertEquals(ShareResult.Saved(emptyList()), result)
+        assertEquals(listOf("https://teakvault.com"), cards.created)
+    }
 }

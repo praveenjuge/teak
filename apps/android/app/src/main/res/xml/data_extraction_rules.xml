@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cards kept offline belong to the signed-in account and can be downloaded again, so they stay off backups and transfers. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="offline/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="offline/" />
+    </device-transfer>
+</data-extraction-rules>

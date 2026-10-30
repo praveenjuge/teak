@@ -73,6 +73,8 @@ private val SWATCH_HEIGHT = 128.dp
 internal fun CardPreview(
     card: Card,
     documentText: String?,
+    /** The card's file kept on the device, as a content link, played or shown instead of the server's. */
+    offlineFile: String?,
     onCopyColor: (String) -> Unit,
     onViewDocument: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -86,7 +88,7 @@ internal fun CardPreview(
     val content = card.content.trim()
     when (card.type) {
         CardType.Image -> MediaImage(
-            primaryUrl = CardSheet.imagePrimaryUrl(card),
+            primaryUrl = offlineFile ?: CardSheet.imagePrimaryUrl(card),
             fallbackUrl = card.thumbnailUrl ?: card.screenshotUrl,
             ratio = ratio,
             contentDescription = title,
@@ -95,8 +97,8 @@ internal fun CardPreview(
             modifier = modifier,
             onOpen = openImage,
         )
-        CardType.Video -> VideoPreview(card, ratio, modifier)
-        CardType.Audio -> AudioPlayer(card.id, card.fileUrl, file?.duration, modifier)
+        CardType.Video -> VideoPreview(card, offlineFile, ratio, modifier)
+        CardType.Audio -> AudioPlayer(card.id, offlineFile ?: card.fileUrl, file?.duration, modifier)
         CardType.Text -> TextSurface(modifier) {
             // The untrimmed note, so a task's line number points at its line in the stored Markdown.
             if (content.isEmpty()) NoContent() else MarkdownText(card.content, onToggleTask = onToggleTask)
@@ -130,9 +132,9 @@ private fun isGif(card: Card): Boolean =
         card.fileMetadata?.fileName?.lowercase()?.endsWith(".gif") == true
 
 @Composable
-private fun VideoPreview(card: Card, ratio: Float?, modifier: Modifier) {
+private fun VideoPreview(card: Card, offlineFile: String?, ratio: Float?, modifier: Modifier) {
     val poster = card.thumbnailUrl ?: card.screenshotUrl
-    val url = card.fileUrl
+    val url = offlineFile ?: card.fileUrl
     val title = CardSheet.title(card).resolve()
     when {
         isGif(card) -> MediaImage(

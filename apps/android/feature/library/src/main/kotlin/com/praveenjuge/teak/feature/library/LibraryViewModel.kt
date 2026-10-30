@@ -8,7 +8,9 @@ import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
 import com.praveenjuge.teak.core.data.repository.CardPager
 import com.praveenjuge.teak.core.data.repository.CardQuery
+import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
+import com.praveenjuge.teak.core.data.repository.isOffline
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.data.repository.LibraryView
@@ -112,6 +114,8 @@ data class LibraryUiState(
     val isEmptyingTrash: Boolean = false,
     /** Every card in Trash, from `cards:trashCount`, while this view is Trash. */
     val trashCount: TrashCount? = null,
+    /** Teak has been offline for a few seconds: the cards shown are the last ones loaded, and edits wait. */
+    val isOffline: Boolean = false,
 ) {
     val isSelecting: Boolean get() = selection is Selection.Active
 
@@ -246,6 +250,7 @@ class LibraryViewModel @AssistedInject constructor(
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
     private val language: LanguageRepository,
+    private val account: AccountRepository,
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
     private val pager = CardPager(repository, viewModelScope)
@@ -275,6 +280,7 @@ class LibraryViewModel @AssistedInject constructor(
             .onEach(pager::load)
             .launchIn(viewModelScope)
         pager.state.onEach { paged -> _state.update { it.copy(paged = paged) } }.launchIn(viewModelScope)
+        account.isOffline.onEach { offline -> _state.update { it.copy(isOffline = offline) } }.launchIn(viewModelScope)
 
         folders.folders.onEach { result -> result.onSuccess { list -> _state.update { it.copy(folders = list) } } }
             .launchIn(viewModelScope)

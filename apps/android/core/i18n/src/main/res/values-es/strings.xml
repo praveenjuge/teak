@@ -7,6 +7,12 @@
     <string name="android_card_videoUnplayable">Este vídeo no se puede reproducir en este dispositivo.</string>
     <string name="android_notification_file">Archivo</string>
     <string name="android_notification_uploadTitle">Guardando en Teak</string>
+    <string name="android_offline_banner">No tiene conexión. Los cambios se sincronizan cuando vuelva.</string>
+    <string name="android_offline_keep">Guardar sin conexión</string>
+    <string name="android_offline_keepFailed">No se pudo guardar esta tarjeta sin conexión. Vuelva a intentarlo.</string>
+    <string name="android_offline_kept">Disponible sin conexión</string>
+    <string name="android_offline_removeCopy">Quitar copia sin conexión</string>
+    <string name="android_offline_removed">Copia sin conexión quitada</string>
     <string name="android_settings_wallpaperColors">Colores del fondo de pantalla</string>
     <string name="android_settings_wallpaperColorsDescription">Usar los colores del fondo de pantalla en lugar del rojo de Teak.</string>
     <string name="android_share_saveToTeak">Guardar en Teak</string>

@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "Couleurs du fond d’écran",
       "wallpaperColorsDescription": "Colorer l’app avec votre fond d’écran plutôt qu’avec le rouge de Teak."
+    },
+    "offline": {
+      "banner": "Vous êtes hors ligne. Les modifications se synchronisent à votre retour.",
+      "keep": "Garder hors ligne",
+      "removeCopy": "Supprimer la copie hors ligne",
+      "kept": "Disponible hors ligne",
+      "removed": "Copie hors ligne supprimée",
+      "keepFailed": "Impossible de garder cette fiche hors ligne. Réessayez."
     }
   }
 }

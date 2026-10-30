@@ -7,9 +7,8 @@ import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkResult
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardBacklinks
-import com.praveenjuge.teak.core.model.CardColor
 import com.praveenjuge.teak.core.model.CardFieldChange
-import com.praveenjuge.teak.core.model.PaletteEdit
+import com.praveenjuge.teak.core.model.PendingEdits
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardSummary
 import com.praveenjuge.teak.core.model.CardSummaryPage
@@ -21,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import java.io.File
 
 class FakeCardsRepository : CardsRepository {
     val summaries = MutableStateFlow<List<CardSummary>>(emptyList())
@@ -119,30 +119,37 @@ class FakeCardsRepository : CardsRepository {
 
     override suspend fun apply(id: String, changes: List<CardFieldChange>) {
         for (change in changes) {
-            write("edit:$id:$change", id) { card ->
-                when (change) {
-                    is CardFieldChange.Content -> card.copy(content = change.value)
-                    is CardFieldChange.Notes -> card.copy(notes = change.value)
-                    is CardFieldChange.Tags -> card.copy(tags = change.value)
-                    is CardFieldChange.RemoveAiTag -> card.copy(aiTags = card.aiTags.orEmpty() - change.tag)
-                    is CardFieldChange.MetadataTitle -> card.copy(metadataTitle = change.value, metadataTitleEdited = true)
-                    is CardFieldChange.Url -> card.copy(url = change.value)
-                    is CardFieldChange.AddColor ->
-                        if (PaletteEdit.contains(card, change.hex)) card else card.copy(colors = card.colors.orEmpty() + CardColor(change.hex))
-                    is CardFieldChange.RemoveColor ->
-                        card.copy(colors = card.colors.orEmpty().filterNot { PaletteEdit.storedHex(it) == change.hex })
-                    CardFieldChange.MoveToTrash -> card.copy(isDeleted = true)
-                    CardFieldChange.Restore -> card.copy(isDeleted = null)
-                }
-            }
+            write("edit:$id:$change", id) { card -> PendingEdits.apply(card, listOf(change), now = 1.0) }
         }
     }
 
-    override suspend fun createFromText(text: String): String {
+    /** Saves as if offline: the text waits and no card id comes back. */
+    var queuesCreates = false
+
+    override suspend fun createFromText(text: String): String? {
         createError?.let { throw it }
         created += text
-        return "new-${created.size}"
+        return if (queuesCreates) null else "new-${created.size}"
     }
+
+    val kept = MutableStateFlow<Set<String>>(emptySet())
+    var keepError: Exception? = null
+    override val keptOffline: Flow<Set<String>> = kept
+
+    override suspend fun keepOffline(card: Card) {
+        keepError?.let { throw it }
+        writes += "keep:${card.id}"
+        kept.value += card.id
+    }
+
+    override suspend fun removeOfflineCopy(id: String) {
+        writes += "unkeep:$id"
+        kept.value -= id
+    }
+
+    override fun offlineFile(id: String): File? = null
+
+    override val offlineChanges: Flow<Long> = MutableStateFlow(0L)
 
     override fun linkTargets(ids: List<String>): Flow<Result<List<CardLinkTarget>>> {
         linkTargetRequests += ids

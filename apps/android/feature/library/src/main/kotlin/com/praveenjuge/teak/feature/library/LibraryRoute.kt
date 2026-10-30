@@ -83,6 +83,7 @@ import com.praveenjuge.teak.core.data.repository.LibraryView
 import com.praveenjuge.teak.core.designsystem.R as DesignR
 import com.praveenjuge.teak.core.designsystem.component.ConfirmDialog
 import com.praveenjuge.teak.core.designsystem.component.EmptyState
+import com.praveenjuge.teak.core.designsystem.component.OfflineNotice
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
 import com.praveenjuge.teak.core.i18n.resolve
 import com.praveenjuge.teak.core.i18n.tr
@@ -322,6 +323,7 @@ internal fun LibraryScreen(
                     QualifierChipRow(state.chips(tr("native.similar.unavailableCard")), actions.onRemoveQualifier, Modifier.padding(top = 4.dp))
                     if (state.showsHiddenCards) HiddenCardsHeader()
                 }
+                if (state.isOffline) OfflineNotice()
                 LibraryContent(state, selectedCardId, actions)
             }
             if (state.isSelecting) {

@@ -14,7 +14,7 @@ import javax.inject.Inject
 sealed interface ShareResult {
     data object Empty : ShareResult
     data object SignInRequired : ShareResult
-    /** Everything was saved; [cardIds] are the text and link cards made right away (files upload later). */
+    /** Everything was saved; [cardIds] are the text and link cards made right away (files upload later, and text saved offline waits). */
     data class Saved(val cardIds: List<String> = emptyList()) : ShareResult
     data class Partial(val saved: Int, val total: Int, val detail: UiText?) : ShareResult
     data class Failed(val detail: UiText?) : ShareResult
@@ -38,7 +38,8 @@ class ShareImporter @Inject constructor(
 
         for (item in processed.filterIsInstance<ShareItem.Text>()) {
             catchingFailures { cards.createFromText(item.text) }
-                .onSuccess { created += it }
+                // Offline, the text waits to be saved and has no card yet to add tags or a note to.
+                .onSuccess { id -> id?.let { created += it } }
                 .onFailure { failures += it.detail() }
         }
 

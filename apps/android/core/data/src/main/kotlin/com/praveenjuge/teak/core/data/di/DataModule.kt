@@ -11,6 +11,10 @@ import com.praveenjuge.teak.core.data.auth.WorkOsAuthApi
 import com.praveenjuge.teak.core.data.convex.ConvexApi
 import com.praveenjuge.teak.core.data.convex.LiveConvexApi
 import com.praveenjuge.teak.core.data.convex.WorkOsConvexAuthProvider
+import com.praveenjuge.teak.core.data.offline.DiskOfflineCopies
+import com.praveenjuge.teak.core.data.offline.FileOutbox
+import com.praveenjuge.teak.core.data.offline.OfflineCopies
+import com.praveenjuge.teak.core.data.offline.Outbox
 import com.praveenjuge.teak.core.data.prefs.DataStorePreferencesRepository
 import com.praveenjuge.teak.core.data.prefs.PreferencesRepository
 import com.praveenjuge.teak.core.data.repository.AccountRepository
@@ -93,4 +97,6 @@ abstract class DataBindsModule {
     @Binds abstract fun languageRepository(impl: ConvexLanguageRepository): LanguageRepository
     @Binds abstract fun preferencesRepository(impl: DataStorePreferencesRepository): PreferencesRepository
     @Binds abstract fun uploadRepository(impl: WorkManagerUploadRepository): UploadRepository
+    @Binds abstract fun outbox(impl: FileOutbox): Outbox
+    @Binds abstract fun offlineCopies(impl: DiskOfflineCopies): OfflineCopies
 }

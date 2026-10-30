@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "Hintergrundfarben",
       "wallpaperColorsDescription": "Die App in den Farben Ihres Hintergrunds statt in Teak-Rot einfärben."
+    },
+    "offline": {
+      "banner": "Sie sind offline. Änderungen werden synchronisiert, sobald Sie wieder online sind.",
+      "keep": "Offline verfügbar machen",
+      "removeCopy": "Offline-Kopie entfernen",
+      "kept": "Offline verfügbar",
+      "removed": "Offline-Kopie entfernt",
+      "keepFailed": "Diese Karte konnte nicht offline gespeichert werden. Versuchen Sie es erneut."
     }
   }
 }

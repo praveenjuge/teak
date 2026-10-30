@@ -986,6 +986,14 @@
     "settings": {
       "wallpaperColors": "Cores do plano de fundo",
       "wallpaperColorsDescription": "Usar as cores do plano de fundo em vez do vermelho do Teak."
+    },
+    "offline": {
+      "banner": "Você está offline. As alterações sincronizam quando você voltar.",
+      "keep": "Manter offline",
+      "removeCopy": "Remover cópia offline",
+      "kept": "Disponível offline",
+      "removed": "Cópia offline removida",
+      "keepFailed": "Não foi possível manter este card offline. Tente novamente."
     }
   }
 }

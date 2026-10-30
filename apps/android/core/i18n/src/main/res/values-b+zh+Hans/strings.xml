@@ -7,6 +7,12 @@
     <string name="android_card_videoUnplayable">此视频无法在此设备上播放。</string>
     <string name="android_notification_file">文件</string>
     <string name="android_notification_uploadTitle">正在保存到 Teak</string>
+    <string name="android_offline_banner">你已离线。恢复连接后，更改会自动同步。</string>
+    <string name="android_offline_keep">离线保存</string>
+    <string name="android_offline_keepFailed">无法离线保存这张卡片，请重试。</string>
+    <string name="android_offline_kept">已离线保存</string>
+    <string name="android_offline_removeCopy">移除离线副本</string>
+    <string name="android_offline_removed">已移除离线副本</string>
     <string name="android_settings_wallpaperColors">壁纸颜色</string>
     <string name="android_settings_wallpaperColorsDescription">使用壁纸颜色代替 Teak 红为应用配色。</string>
     <string name="android_share_saveToTeak">保存到 Teak</string>

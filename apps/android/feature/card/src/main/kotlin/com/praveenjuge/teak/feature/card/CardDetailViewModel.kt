@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
+import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
+import com.praveenjuge.teak.core.data.repository.isOffline
 import com.praveenjuge.teak.core.data.repository.FoldersRepository
 import com.praveenjuge.teak.core.model.BulkAction
 import com.praveenjuge.teak.core.model.BulkCopy
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -72,6 +75,15 @@ data class CardDetailUiState(
     val isEditingLink: Boolean = false,
     val linkError: UiText? = null,
     val isSavingLink: Boolean = false,
+    /** Teak has been offline for a few seconds, so a card that hasn't loaded yet won't until it's back. */
+    val isOffline: Boolean = false,
+    /** The card and its file are kept on the device for offline use. */
+    val isKeptOffline: Boolean = false,
+    /**
+     * The kept file as a content link through the app's FileProvider, which the preview shows or plays instead of
+     * downloading and "Open in another app" can hand on (another app can't read a `file://` link).
+     */
+    val offlineFile: String? = null,
 ) {
     /** The card as shown, with any task tick or kept tag that's still saving. */
     val displayedCard: Card?
@@ -96,6 +108,7 @@ data class CardDetailUiState(
 sealed interface CardDetailEvent {
     data class Message(val text: UiText, val undo: (() -> Unit)? = null) : CardDetailEvent
     data class ShareFile(val uri: Uri, val mimeType: String) : CardDetailEvent
+    data class OpenFile(val uri: Uri, val mimeType: String) : CardDetailEvent
     data object Close : CardDetailEvent
 }
 
@@ -106,6 +119,7 @@ class CardDetailViewModel @AssistedInject constructor(
     private val repository: CardsRepository,
     private val folders: FoldersRepository,
     private val files: CardFiles,
+    private val account: AccountRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(CardDetailUiState())
     val uiState: StateFlow<CardDetailUiState> = _uiState.asStateFlow()
@@ -157,6 +171,14 @@ class CardDetailViewModel @AssistedInject constructor(
             .launchIn(viewModelScope)
         folders.folders
             .onEach { result -> result.onSuccess { list -> _uiState.update { it.copy(folders = list) } } }
+            .launchIn(viewModelScope)
+        account.isOffline.onEach { offline -> _uiState.update { it.copy(isOffline = offline) } }.launchIn(viewModelScope)
+        // A kept file can be replaced or dropped while the card is open, so follow every change, not just keeping.
+        combine(repository.keptOffline.map { cardId in it }, repository.offlineChanges) { kept, _ -> kept }
+            .onEach { kept ->
+                val file = if (kept) repository.offlineFile(cardId)?.let(::versionedUri) else null
+                _uiState.update { it.copy(isKeptOffline = kept, offlineFile = file) }
+            }
             .launchIn(viewModelScope)
     }
 
@@ -412,6 +434,39 @@ class CardDetailViewModel @AssistedInject constructor(
         transfer(UiText.of("native.card.failed.saveFile")) {
             files.saveToDownloads(url, fileName, card.fileMetadata?.mimeType)
             _events.send(CardDetailEvent.Message(UiText.of("android.card.savedToDownloads")))
+        }
+    }
+
+    /**
+     * The kept file's content link, marked with when it was written: a replaced file keeps its path, and the mark makes
+     * the preview load the new one. The FileProvider ignores the query.
+     */
+    private fun versionedUri(file: java.io.File): String =
+        files.contentUri(file).buildUpon().appendQueryParameter("v", file.lastModified().toString()).build().toString()
+
+    /** Opens a kept document's file in another app, for reading it offline. */
+    fun openKeptDocument() {
+        val card = _uiState.value.card ?: return
+        val file = repository.offlineFile(card.id) ?: return
+        val name = card.fileMetadata?.fileName.orEmpty()
+        viewModelScope.launch {
+            _events.send(CardDetailEvent.OpenFile(files.contentUri(file), card.fileMetadata?.mimeType ?: mimeTypeFor(name)))
+        }
+    }
+
+    /** Keeps the card and its file on the device, or removes the copy kept before. */
+    fun toggleKeepOffline() {
+        val card = _uiState.value.card ?: return
+        if (_uiState.value.isKeptOffline) {
+            viewModelScope.launch {
+                catchingFailures { repository.removeOfflineCopy(card.id) }
+                    .onSuccess { _events.send(CardDetailEvent.Message(UiText.of("android.offline.removed"))) }
+            }
+            return
+        }
+        transfer(UiText.of("android.offline.keepFailed")) {
+            repository.keepOffline(card)
+            _events.send(CardDetailEvent.Message(UiText.of("android.offline.kept")))
         }
     }
 
