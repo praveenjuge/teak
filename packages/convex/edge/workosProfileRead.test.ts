@@ -96,7 +96,6 @@ test.each(["absent", "unverified", "deleted"])(
     expect(
       await t.query(internal.workosIdentity.resolveWorkosOwner, {
         workosUserId: "user_READ",
-        externalId: "owner-a",
         verification: { kind: "connect" },
       })
     ).toMatchObject({ status: "denied" });
@@ -144,6 +143,6 @@ test.each([
     const { t } = await fixture({ name, firstName, lastName });
     expect(
       await t.query(getProfile, { workosUserId: "user_READ" })
-    ).toMatchObject({ name: expected, externalId: "owner-a" });
+    ).toMatchObject({ name: expected });
   }
 );

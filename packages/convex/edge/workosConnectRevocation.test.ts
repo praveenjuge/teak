@@ -117,7 +117,6 @@ test("disconnect survives auth rollback and permanently denies the application",
       workosUserId: user,
       consentId: consent,
       clientId: client,
-      externalId: owner,
     })
   ).toMatchObject({ status: "denied", reason: "revoked_consent" });
   const first = (await f.rows()).find(
@@ -152,7 +151,6 @@ test.each([
   { aud: "client_AUTHKIT" },
   { sub: "user_OTHER" },
   { client_id: "client_OTHER" },
-  { external_id: "other-owner" },
   { sid: "session_AUTHKIT" },
   { scope: "openid" },
 ])(

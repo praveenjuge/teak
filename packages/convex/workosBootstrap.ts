@@ -9,9 +9,7 @@ import {
 import { rateLimiter } from "./shared/rateLimits";
 import { createWorkosClient } from "./shared/workosClient";
 import { isStorableEmail, normalizeIdentityEmail } from "./shared/workosIds";
-import { validWorkosExternalId } from "./workos/tokens";
 import { authKit } from "./workosAuthKit";
-import { recordQuarantine } from "./workosUsers";
 import { ingestWorkosEvent } from "./workosWebhook";
 
 const bootstrapResult = v.union(
@@ -41,40 +39,15 @@ export const ensureUser = mutation({
       return { status: "verify_email" as const };
     }
     const email = normalizeIdentityEmail(profile.email);
-    if (
-      profile.id !== identity.workosUserId ||
-      !isStorableEmail(email) ||
-      !validWorkosExternalId(profile.externalId) ||
-      (typeof profile.externalId === "string" &&
-        /[\s\p{Cc}]/u.test(profile.externalId))
-    ) {
+    if (profile.id !== identity.workosUserId || !isStorableEmail(email)) {
       return { status: "quarantined" as const, reason: "invalid_profile" };
     }
-    if (
-      identity.externalId !== undefined &&
-      identity.externalId !== null &&
-      profile.externalId !== undefined &&
-      profile.externalId !== null &&
-      identity.externalId !== profile.externalId
-    ) {
-      await recordQuarantine(ctx, {
-        workosUserId: identity.workosUserId,
-        email,
-        reason: "external_id_mismatch",
-        source: "ensureUser",
-      });
-      return { status: "quarantined" as const, reason: "external_id_mismatch" };
-    }
-    const externalId = profile.externalId ?? identity.externalId;
     const linked: FunctionReturnType<
       typeof internal.workosUsers.linkWorkosUser
     > = await ctx.runMutation(internal.workosUsers.linkWorkosUser, {
       workosUserId: identity.workosUserId,
       email,
       emailVerified: true,
-      ...(externalId === undefined || externalId === null
-        ? {}
-        : { externalId }),
       source: "ensureUser",
     });
     if (linked.status === "quarantined") {
@@ -86,9 +59,6 @@ export const ensureUser = mutation({
       typeof internal.workosIdentity.resolveWorkosOwner
     > = await ctx.runQuery(internal.workosIdentity.resolveWorkosOwner, {
       workosUserId: identity.workosUserId,
-      ...(externalId === undefined || externalId === null
-        ? {}
-        : { externalId }),
       verification: { kind: "session", emailVerified: identity.emailVerified },
     });
     return resolved.status === "ok"

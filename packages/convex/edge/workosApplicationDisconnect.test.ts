@@ -10,7 +10,6 @@ const principal = {
   workosUserId: "user_ONE",
   clientId: "client_ONE",
   consentId: "app_consent_ONE",
-  externalId: "owner",
 };
 beforeEach(() => {
   vi.stubEnv("WORKOS_API_KEY", "sk_test");
@@ -195,11 +194,10 @@ test("an expired token can only replay a finished disconnect", async () => {
   expect(deletes(fetcher)).toHaveLength(1);
 });
 
-test("a consent bound to another owner or app cannot disconnect", async () => {
+test("a consent bound to another app cannot disconnect", async () => {
   const t = await setup();
   const fetcher = provider(async () => new Response(null, { status: 204 }));
   vi.stubGlobal("fetch", fetcher);
-  expect(await run(t, { ...principal, externalId: "someone-else" })).toBe(401);
   expect(await run(t, { ...principal, clientId: "client_OTHER" })).toBe(401);
   expect(fetcher).not.toHaveBeenCalled();
 });

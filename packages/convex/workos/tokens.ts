@@ -8,14 +8,10 @@ import {
 
 export type WorkosResource = "api" | "mcp";
 
-interface WorkosPrincipal {
-  externalId?: string | null;
-  workosUserId: string;
-}
-
-export interface WorkosConnectPrincipal extends WorkosPrincipal {
+export interface WorkosConnectPrincipal {
   clientId: string;
   consentId: string;
+  workosUserId: string;
 }
 
 export interface WorkosRevocationPrincipal extends WorkosConnectPrincipal {
@@ -35,16 +31,6 @@ const REQUIRED_SCOPES = ["openid", "profile", "email"];
 let cachedJwks:
   | { issuer: string; keys: ReturnType<typeof createRemoteJWKSet> }
   | undefined;
-
-export function validWorkosExternalId(
-  value: unknown
-): value is string | null | undefined {
-  return (
-    value === undefined ||
-    value === null ||
-    (typeof value === "string" && value.length > 0 && value.length <= 256)
-  );
-}
 
 function validClientId(value: unknown): value is string {
   if (typeof value !== "string" || value.length > 2048) {
@@ -178,8 +164,7 @@ async function verifyConnectToken(
       payload.exp - payload.iat > 300 ||
       payload.iat > Math.floor(Date.now() / 1000) + CLOCK_TOLERANCE_SECONDS ||
       typeof payload.scope !== "string" ||
-      !REQUIRED_SCOPES.every((scope) => scopes.includes(scope)) ||
-      !validWorkosExternalId(payload.external_id)
+      !REQUIRED_SCOPES.every((scope) => scopes.includes(scope))
     ) {
       return null;
     }
@@ -188,9 +173,6 @@ async function verifyConnectToken(
       workosUserId: payload.sub,
       consentId: payload.sid,
       clientId: payload.client_id,
-      ...(payload.external_id === undefined
-        ? {}
-        : { externalId: payload.external_id }),
     };
   } catch (error) {
     if (

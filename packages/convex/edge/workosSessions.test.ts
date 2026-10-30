@@ -141,8 +141,6 @@ describe("WorkOS Convex sessions", () => {
     { email_verified: undefined },
     { email_verified: "true" },
     { email_verified: undefined, emailVerified: true },
-    { external_id: "other-owner" },
-    { external_id: "" },
   ])("denies invalid session claims %j", async (override) => {
     const t = setup();
     await seed(t);
@@ -156,7 +154,6 @@ describe("WorkOS Convex sessions", () => {
   test.each([
     "missing",
     "duplicate_provider",
-    "duplicate_owner",
     "deleted",
     "provider_deleted",
     "ledger",
@@ -175,9 +172,6 @@ describe("WorkOS Convex sessions", () => {
     }
     if (failure === "duplicate_provider") {
       await seed(t, { teakUserId: "other-owner" });
-    }
-    if (failure === "duplicate_owner") {
-      await seed(t, { workosUserId: "user_OTHER" });
     }
     if (failure === "ledger") {
       await t.run((ctx) =>
@@ -235,8 +229,8 @@ describe("WorkOS Convex sessions", () => {
       ).toBeNull();
     }
   );
-  test.each([undefined, null])(
-    "optional external ID %s resolves by provider ID without linking",
+  test.each([undefined, null, "other-owner", ""])(
+    "external ID %s is ignored: the provider ID resolves without linking",
     async (external_id) => {
       const t = setup();
       await seed(t);

@@ -59,7 +59,6 @@ describe("WorkOS identity linking", () => {
     expect(
       await t.mutation(link, {
         ...input,
-        externalId: "owner-a",
         email: "changed@example.com",
         emailVerified: false,
       })
@@ -82,41 +81,6 @@ describe("WorkOS identity linking", () => {
       ).toEqual({ status: "linked", teakUserId: "owner-a", changed: false });
     }
     expect(await snapshot(t)).toEqual(before);
-  });
-
-  test.each(["missing-owner", "owner-b"])(
-    "external ID %s never falls back to a matching email",
-    async (externalId) => {
-      const t = setup();
-      await seed(t, { workosUserId: input.workosUserId });
-      if (externalId === "owner-b") {
-        await seed(t, { teakUserId: "owner-b", email: "other@example.com" });
-      }
-      const before = await snapshot(t);
-      expect(await t.mutation(link, { ...input, externalId })).toEqual({
-        status: "quarantined",
-        reason: "external_id_mismatch",
-      });
-      const after = await snapshot(t);
-      expect(after.users).toEqual(before.users);
-      expect(after.quarantine).toMatchObject([
-        {
-          teakUserId: externalId,
-          workosUserId: input.workosUserId,
-          reason: "external_id_mismatch",
-          source: "webhook",
-        },
-      ]);
-    }
-  );
-
-  test("unknown external ID cannot claim an unlinked matching-email owner", async () => {
-    const t = setup();
-    await seed(t);
-    expect(
-      await t.mutation(link, { ...input, externalId: "missing-owner" })
-    ).toEqual({ status: "quarantined", reason: "external_id_mismatch" });
-    expect((await snapshot(t)).users[0].workosUserId).toBeUndefined();
   });
 
   test("an unverified email creates no owner and leaves a matching owner alone", async () => {
@@ -195,28 +159,19 @@ describe("WorkOS identity linking", () => {
     );
   });
 
-  test.each([
-    { externalId: undefined, reason: "profile_pending" },
-    { externalId: "owner-a", reason: "external_id_mismatch" },
-  ])(
-    "an owner linked to another WorkOS user is never taken over (externalId=$externalId)",
-    async ({ externalId, reason }) => {
-      const t = setup();
-      await seed(t, { workosUserId: "user_other" });
-      const before = (await snapshot(t)).users;
-      expect(
-        await t.mutation(link, {
-          ...unmapped,
-          ...(externalId ? { externalId } : {}),
-        })
-      ).toEqual({ status: "quarantined", reason });
-      expect((await snapshot(t)).users).toEqual(before);
-    }
-  );
+  test("an owner linked to another WorkOS user is never taken over", async () => {
+    const t = setup();
+    await seed(t, { workosUserId: "user_other" });
+    const before = (await snapshot(t)).users;
+    expect(await t.mutation(link, unmapped)).toEqual({
+      status: "quarantined",
+      reason: "profile_pending",
+    });
+    expect((await snapshot(t)).users).toEqual(before);
+  });
 
   test.each([
     { workosUserId: "" },
-    { externalId: "" },
     { workosUserId: "user\nattack" },
     { email: "" },
     { email: "a".repeat(321) },
@@ -271,11 +226,8 @@ describe("trusted new WorkOS owners", () => {
     expect((await snapshot(t)).users).toEqual([]);
     expect(await jobs(t)).toEqual([]);
   });
-  test.each([
-    { email: "someone-else@example.com" },
-    { externalId: "teak_bound_elsewhere" },
-  ])(
-    "a component profile for another address or owner refuses creation: %j",
+  test.each([{ email: "someone-else@example.com" }])(
+    "a component profile for another address refuses creation: %j",
     async (fields) => {
       const t = setup();
       await seedProvider(t, fields);
@@ -378,19 +330,19 @@ describe("trusted new WorkOS owners", () => {
       { reason: "signups_frozen" },
     ]);
   });
-  test.each([
-    { externalId: "unknown-owner", reason: "external_id_mismatch" },
-    { emailVerified: false, reason: "email_unverified" },
-  ])("creation preserves $reason quarantine", async ({ reason, ...fields }) => {
-    const t = setup();
-    await seedProvider(t);
-    expect(await t.mutation(link, { ...create, ...fields })).toEqual({
-      status: "quarantined",
-      reason,
-    });
-    expect((await snapshot(t)).users).toEqual([]);
-    expect(await jobs(t)).toEqual([]);
-  });
+  test.each([{ emailVerified: false, reason: "email_unverified" }])(
+    "creation preserves $reason quarantine",
+    async ({ reason, ...fields }) => {
+      const t = setup();
+      await seedProvider(t);
+      expect(await t.mutation(link, { ...create, ...fields })).toEqual({
+        status: "quarantined",
+        reason,
+      });
+      expect((await snapshot(t)).users).toEqual([]);
+      expect(await jobs(t)).toEqual([]);
+    }
+  );
   test("a terminal provider deletion blocks a fresh owner despite a verified component profile", async () => {
     const t = setup();
     await seedProvider(t);

@@ -29,10 +29,10 @@ Create one WorkOS environment per deployment: a staging environment for local de
 
 1. In AuthKit, enable email and password sign-in. Add Google or Apple there too if you want them; Teak needs no extra settings for social sign-in.
 2. Under Redirects, add `<origin>/callback` as a redirect URI, set the sign-in endpoint (initiate login URL) to `<origin>/sign-in`, and set the sign-out redirect to `<origin>/login`. Add `<origin>` as an allowed CORS origin.
-3. Add a JWT template so session tokens carry the claims Teak checks. The backend requires `email_verified: true` and matches `external_id` against the account it belongs to. Keys whose value is null are left out, so new users without an external ID still sign in:
+3. Add a JWT template so session tokens carry the claims Teak checks. The backend requires `email_verified: true`:
 
    ```json
-   {"email": {{ user.email }}, "email_verified": {{ user.email_verified }}, "external_id": {{ user.external_id }}}
+   {"email": {{ user.email }}, "email_verified": {{ user.email_verified }}}
    ```
 
 4. Add a webhook endpoint at `<convex-site>/workos/webhook` for the `user.created`, `user.updated`, and `user.deleted` events. Copy its signing secret into `WORKOS_WEBHOOK_SECRET`.

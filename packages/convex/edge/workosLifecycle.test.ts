@@ -161,55 +161,22 @@ describe("WorkOS lifecycle linking and deletion", () => {
     }
   );
 
-  test("an update with a conflicting external ID closes provider access without stealing another vault", async () => {
-    const t = await setupPaused();
-    await seed(t, { workosUserId: "user_provider" });
-    await seed(t, { teakUserId: "owner-b", email: "other@example.com" });
-    await t.mutation(sync, event("evt_first", 1, "user.created"));
-    expect(await resolve(t)).toEqual({ status: "ok", teakUserId: "owner-a" });
-    const conflict = event("evt_conflict", 2);
-    conflict.data.externalId = "owner-b";
-    await t.mutation(sync, conflict);
-    expect(await resolve(t)).toEqual({
-      status: "denied",
-      reason: "external_id_mismatch",
-    });
-    const result = await snapshot(t);
-    expect(result.users[0].workosUserId).toBe("user_provider");
-    expect(result.users[1].workosUserId).toBeUndefined();
-  });
-
   test("quarantined delivery retries keep one committed quarantine and original receipt", async () => {
     const t = await setupPaused();
     const original = event("evt_unknown", 1, "user.created");
     expect(await t.mutation(apply, original)).toEqual({
       status: "quarantined",
-      reason: "external_id_mismatch",
+      reason: "signups_frozen",
     });
     expect(await t.mutation(apply, original)).toEqual({
       status: "quarantined",
-      reason: "external_id_mismatch",
+      reason: "signups_frozen",
     });
     const result = await snapshot(t);
     expect(result.quarantine).toHaveLength(1);
     expect(result.users).toEqual([]);
     expect(result.cards).toEqual([]);
   });
-
-  test.each([true, false])(
-    "a created event naming an unknown owner never creates a vault with sign-ups paused=%s",
-    async (paused) => {
-      const t = await setupPaused();
-      await setSignupsPaused(t, paused);
-      await t.mutation(sync, event("evt_unknown", 1, "user.created"));
-      const result = await snapshot(t);
-      expect(result.users).toEqual([]);
-      expect(result.cards).toEqual([]);
-      expect(result.quarantine).toMatchObject([
-        { reason: "external_id_mismatch" },
-      ]);
-    }
-  );
 
   test("deletion tombstones the owner, retains the vault and schedules no vault deletion", async () => {
     const t = await setupPaused();
@@ -283,7 +250,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
     expect(
       await t.mutation(link, {
         workosUserId: "user_provider",
-        externalId: "owner-c",
         email: "provider@example.com",
         emailVerified: true,
         source: "webhook",
@@ -445,7 +411,7 @@ describe("WorkOS lifecycle linking and deletion", () => {
   });
 
   test.each(["webhook", "ensureUser"] as const)(
-    "%s cannot bypass deletion history with trusted external ID",
+    "%s cannot bypass deletion history",
     async (source) => {
       const t = await setupPaused();
       await t.mutation(apply, event("evt_delete", 1, "user.deleted"));
@@ -453,7 +419,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
       expect(
         await t.mutation(link, {
           workosUserId: "user_provider",
-          externalId: "owner-a",
           email: "provider@example.com",
           emailVerified: true,
           source,
@@ -477,14 +442,6 @@ describe("WorkOS lifecycle linking and deletion", () => {
         id: "user_provider",
         email: "owner@example.com",
         emailVerified: "true",
-      },
-    },
-    {
-      data: {
-        id: "user_provider",
-        email: "owner@example.com",
-        emailVerified: true,
-        externalId: "",
       },
     },
     {
@@ -746,7 +703,6 @@ test("signed lifecycle ingestion preserves a provider full name without fabricat
       workosUserId: "user_provider",
     })
   ).toMatchObject({
-    externalId: "owner-a",
     name: "Imported Full Name",
     firstName: null,
     lastName: null,

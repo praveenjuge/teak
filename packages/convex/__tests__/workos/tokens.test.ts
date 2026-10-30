@@ -69,7 +69,6 @@ describe("Connect credential validation", () => {
       workosUserId: userId,
       consentId,
       clientId,
-      externalId: "legacy-owner",
     });
     expect(
       await verifyWorkosConnectTokenSignature(mcpToken, {
@@ -89,15 +88,18 @@ describe("Connect credential validation", () => {
     expect(requests).toContain(`${issuer}/oauth2/jwks`);
   });
 
-  test("accepts CIMD client IDs and optional external IDs without fetching them", async () => {
+  test("accepts CIMD client IDs without fetching them and ignores external IDs", async () => {
     const cimd = "https://client.example.test/metadata.json";
-    for (const external_id of [null, undefined]) {
+    for (const external_id of [null, undefined, 12, ""]) {
       const verified = await verifyWorkosConnectTokenSignature(
         await token({ client_id: cimd, external_id }),
         config
       );
-      expect(verified?.clientId).toBe(cimd);
-      expect(verified?.externalId).toBe(external_id);
+      expect(verified).toEqual({
+        workosUserId: userId,
+        consentId,
+        clientId: cimd,
+      });
     }
     expect(requests).not.toContain(cimd);
   });
@@ -173,8 +175,6 @@ describe("Connect credential validation", () => {
     ["no profile scope", { scope: "openid email" }],
     ["no openid scope", { scope: "profile email" }],
     ["scope type", { scope: ["openid", "profile", "email"] }],
-    ["owner claim type", { external_id: 12 }],
-    ["empty owner claim", { external_id: "" }],
     ["expired", { exp: 1 }],
     ["missing expiry", { exp: undefined }],
     ["missing issue time", { iat: undefined }],
@@ -303,7 +303,6 @@ describe("Convex session claims", () => {
       workosUserId: userId,
       sessionId: "session_TEST123",
       emailVerified: true,
-      externalId: "legacy-owner",
     });
   });
 
@@ -318,8 +317,6 @@ describe("Convex session claims", () => {
     { email_verified: undefined },
     { email_verified: "true" },
     { email_verified: undefined, emailVerified: true },
-    { external_id: 12 },
-    { external_id: "" },
   ] satisfies Partial<UserIdentity>[])(
     "rejects invalid session claims %j",
     (claims: Partial<UserIdentity>) => {
@@ -327,15 +324,11 @@ describe("Convex session claims", () => {
     }
   );
 
-  test("denies missing identity or configuration and allows absent optional owner claims", () => {
+  test("denies missing identity or configuration and ignores external IDs", () => {
     expect(readWorkosSessionIdentity(null, clientId)).toBeNull();
     expect(readWorkosSessionIdentity(session(), "")).toBeNull();
     expect(
-      readWorkosSessionIdentity(session({ external_id: null }), clientId)
-        ?.externalId
-    ).toBeNull();
-    expect(
-      readWorkosSessionIdentity(session({ external_id: undefined }), clientId)
+      readWorkosSessionIdentity(session({ external_id: 12 }), clientId)
     ).toEqual({
       workosUserId: userId,
       sessionId: "session_TEST123",

@@ -126,7 +126,6 @@ export const answerIdentityQuery = (
           id: args.id,
           email: email ?? `${teakUserId}@example.com`,
           emailVerified: true,
-          externalId: null,
         },
       };
     }
@@ -151,8 +150,9 @@ export const answerIdentityQuery = (
     return {
       handled: true,
       value:
-        mapping.deletedAt === undefined && typeof args?.externalId === "string"
-          ? { status: "ok", teakUserId: args.externalId }
+        mapping.deletedAt === undefined &&
+        typeof args?.workosUserId === "string"
+          ? { status: "ok", teakUserId: teakUserIdFor(args.workosUserId) }
           : { status: "denied", reason: "deleted_user" },
     };
   }
@@ -191,7 +191,6 @@ export function withTestSession<T extends TestContext>(
           subject: workosUserIdFor(user.subject),
           sid: "session_test",
           email_verified: true,
-          external_id: user.subject,
         }
       : null;
   };

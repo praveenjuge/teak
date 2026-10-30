@@ -16,14 +16,13 @@ import { hasWorkosDeletionReceipt } from "./workos/deletionCompletion";
 // WorkOS migration wrote, and the admin views read them as plain strings.
 const reasonValidator = v.union(
   v.literal("workos_deleted_user"),
-  v.literal("external_id_mismatch"),
   v.literal("email_unverified"),
   v.literal("profile_pending"),
   v.literal("signups_frozen")
 );
 type LinkReason = typeof reasonValidator.type;
 
-export const recordQuarantine = async (
+const recordQuarantine = async (
   ctx: MutationCtx,
   row: {
     workosUserId: string;
@@ -87,7 +86,6 @@ const resolvePendingReceipts = async (
 export const linkWorkosUser = internalMutation({
   args: {
     workosUserId: v.string(),
-    externalId: v.optional(v.union(v.string(), v.null())),
     email: v.string(),
     emailVerified: v.boolean(),
     source: v.union(v.literal("webhook"), v.literal("ensureUser")),
@@ -102,7 +100,6 @@ export const linkWorkosUser = internalMutation({
   ),
   handler: async (ctx, args) => {
     const email = normalizeIdentityEmail(args.email);
-    const externalId = args.externalId ?? undefined;
     const hasControls = (value: string) =>
       [...value].some(
         (character) =>
@@ -112,7 +109,6 @@ export const linkWorkosUser = internalMutation({
       id.length > 0 && id.length <= 256 && !/\s/.test(id) && !hasControls(id);
     if (
       !validId(args.workosUserId) ||
-      (externalId !== undefined && !validId(externalId)) ||
       !email ||
       email.length > 320 ||
       hasControls(email)
@@ -142,11 +138,6 @@ export const linkWorkosUser = internalMutation({
     ) {
       return quarantine("workos_deleted_user", linked?.teakUserId);
     }
-    // An external ID names the owner this WorkOS user belongs to. It must be
-    // the linked owner; a new owner would never resolve.
-    if (externalId !== undefined && externalId !== linked?.teakUserId) {
-      return quarantine("external_id_mismatch", externalId);
-    }
     if (linked) {
       await resolvePendingReceipts(ctx, args.workosUserId);
       return {
@@ -165,13 +156,12 @@ export const linkWorkosUser = internalMutation({
       throw new Error("Invalid WorkOS creation input");
     }
     // The AuthKit component's copy of the profile is the evidence a new owner
-    // needs: the same address, verified, and not bound to another owner.
+    // needs: the same address, verified.
     const provider = await readComponentUser(ctx, args.workosUserId);
     if (
       provider === null ||
       normalizeIdentityEmail(provider.email) !== email ||
-      provider.emailVerified !== true ||
-      (provider.externalId ?? null) !== null
+      provider.emailVerified !== true
     ) {
       return quarantine(
         provider?.emailVerified === false

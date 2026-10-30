@@ -22,7 +22,6 @@ const setup = () => {
 type Backend = ReturnType<typeof setup>;
 const principal = {
   workosUserId: "user_PROVIDER",
-  externalId: "legacy-owner",
   consentId: "app_consent_CONSENT",
   clientId: "client_CLIENT",
 };
@@ -410,7 +409,6 @@ describe("durable Connect consent authorization", () => {
     expect(
       await authorize(t, {
         workosUserId: "user_OTHER",
-        externalId: "other-owner",
       })
     ).toEqual({ status: "denied", reason: "consent_binding_conflict" });
     expect(await records(t)).toEqual(before);
@@ -437,7 +435,7 @@ describe("durable Connect consent authorization", () => {
     await seedComponentUser(t, {
       id: "user_CHANGED",
       email: "provider@example.test",
-      externalId: principal.externalId,
+      externalId: "legacy-owner",
     });
     expect(await authorize(t, { workosUserId: "user_CHANGED" })).toEqual({
       status: "denied",
@@ -534,16 +532,6 @@ describe("durable Connect consent authorization", () => {
       reason: "workos_deleted_user",
     });
     expect(await records(t)).toEqual(before);
-  });
-
-  test("external ID mismatch denies without recording", async () => {
-    const t = setup();
-    await seed(t);
-    expect(await authorize(t, { externalId: "other-owner" })).toEqual({
-      status: "denied",
-      reason: "external_id_mismatch",
-    });
-    expect(await records(t)).toEqual([]);
   });
 
   test("duplicate consent records deny authorization", async () => {

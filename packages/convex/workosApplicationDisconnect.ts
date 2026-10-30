@@ -17,7 +17,6 @@ const principalValidator = {
   workosUserId: v.string(),
   consentId: v.string(),
   clientId: v.string(),
-  externalId: v.optional(v.union(v.string(), v.null())),
   tokenExpiresAt: v.optional(v.number()),
 };
 const MAX_APP_PAGES = 20;
@@ -48,9 +47,7 @@ export const check = internalMutation({
       consents.length > 1 ||
       (known &&
         (known.workosUserId !== args.workosUserId ||
-          known.clientId !== args.clientId ||
-          (typeof args.externalId === "string" &&
-            args.externalId !== known.userId)))
+          known.clientId !== args.clientId))
     ) {
       return { status: "denied" as const };
     }
@@ -70,7 +67,6 @@ export const check = internalMutation({
     }
     const owner = await resolveOwner(ctx, {
       workosUserId: args.workosUserId,
-      ...(args.externalId === undefined ? {} : { externalId: args.externalId }),
       verification: { kind: "connect" },
     });
     return owner.status === "ok"
@@ -207,7 +203,6 @@ export async function disconnectApplication(
     workosUserId: string;
     consentId: string;
     clientId: string;
-    externalId?: string | null;
     tokenExpiresAt?: number;
   }
 ): Promise<DisconnectStatus> {
