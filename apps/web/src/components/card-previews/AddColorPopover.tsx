@@ -90,6 +90,7 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
               <span className="sr-only">{t("pickColor")}</span>
               <input
                 className="absolute inset-0 size-full cursor-pointer opacity-0"
+                disabled={saving}
                 onChange={(event) => setText(event.target.value.toUpperCase())}
                 type="color"
                 value={(hex ?? DEFAULT_PICKER_HEX).toLowerCase()}
@@ -103,6 +104,9 @@ export function AddColorPopover({ colors, onAddColor }: AddColorPopoverProps) {
               className="font-mono"
               onChange={(event) => setText(event.target.value)}
               placeholder={DEFAULT_PICKER_HEX}
+              // Held while a color saves, so a closing popover can't take
+              // newer typing with it.
+              readOnly={saving}
               ref={hexInputRef}
               spellCheck={false}
               value={text}
