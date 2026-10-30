@@ -131,7 +131,7 @@ class CardEditViewModelTest {
     }
 
     @Test
-    fun `the draft is seeded once and survives the card changing elsewhere`() = runTest {
+    fun `a change made elsewhere reaches untouched fields and keeps the edits`() = runTest {
         val viewModel = viewModel()
         viewModel.updateNotes("My edit")
 
@@ -139,7 +139,7 @@ class CardEditViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals("Changed on the web", state.card!!.content)
-        assertEquals("Original", state.draft!!.editableContent)
+        assertEquals("Changed on the web", state.draft!!.editableContent)
         assertEquals("My edit", state.draft.notes)
     }
 
