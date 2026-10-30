@@ -16,6 +16,15 @@
 - An untitled upload shows its file name instead of "IMAGE Card"
 - Settings links and API key hints point to Teak Settings → Integrations → API keys
 - New store screenshots
+- Undo after Move to Trash puts the card back where it was, in a shuffled or oldest-first list too
+- A favorite changed in a card's details saves even when you leave right away
+- Signing out no longer opens Sign in with Teak again straight away
+- Quick Save leaves Content empty when the clipboard holds a file, and can't save the same card twice
+- Renaming a tag can change just its capitals, and a rename Teak refuses keeps what you typed
+- A failed favorite or next page now says so, and save commands keep their own error message
+- Tags in a card's details only filter where the list can filter by them
+- Quotes of several paragraphs stay quoted in the details
+- Browse Folders names its counts, like "9 smart folders"
 
 ## [Folders, Find Similar, done states and more] - 2026-10-21
 
